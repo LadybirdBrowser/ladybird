@@ -708,6 +708,12 @@ public:
     [[nodiscard]] bool needs_full_layout_tree_update() const { return m_needs_full_layout_tree_update; }
     void set_needs_full_layout_tree_update(bool b) { m_needs_full_layout_tree_update = b; }
 
+    // Layout indices key the per-pass used values store in LayoutState. Every layout node gets
+    // one at construction; a full layout pass renumbers the whole tree densely and resets the
+    // counter past the dense range.
+    [[nodiscard]] u32 allocate_layout_node_index() { return m_next_layout_node_index++; }
+    void reset_layout_node_index_counter(u32 next_index) { m_next_layout_node_index = next_index; }
+
     void mark_svg_root_as_needing_relayout(Layout::SVGSVGBox&);
 
     void set_needs_to_refresh_scroll_state(bool b);
@@ -1466,6 +1472,8 @@ private:
     bool m_is_decoded_svg { false };
 
     bool m_is_running_update_layout { false };
+
+    u32 m_next_layout_node_index { 0 };
 
     HashTable<WeakPtr<Layout::SVGSVGBox>> m_svg_roots_needing_relayout;
 
