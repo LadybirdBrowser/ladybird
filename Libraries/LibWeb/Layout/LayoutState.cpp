@@ -227,13 +227,13 @@ void LayoutState::resolve_relative_positions()
     });
 }
 
-static void build_paint_tree(Node& node, Painting::Paintable* parent_paintable = nullptr)
+static void build_paint_tree(Node& node, Painting::Paintable* parent_paintable = nullptr, Painting::Paintable* insert_before_paintable = nullptr)
 {
     Painting::Paintable* paintable_for_children = nullptr;
     if (auto paintable = node.paintable()) {
         if (parent_paintable && !paintable->forms_unconnected_subtree()) {
             VERIFY(!paintable->parent());
-            parent_paintable->append_child(*paintable);
+            parent_paintable->insert_before(*paintable, insert_before_paintable);
         }
         paintable->set_dom_node(node.dom_node());
         if (node.dom_node())
@@ -253,10 +253,15 @@ static void build_paint_tree(Node& node, Painting::Paintable* parent_paintable =
 
 void LayoutState::commit(Box& root)
 {
+    // The rebuilt paint subtree takes over the old paintable's position among its siblings,
+    // because paint and hit-test order between siblings with equal stacking follow paintable
+    // tree order.
     RefPtr<Painting::Paintable> parent_paintable;
+    RefPtr<Painting::Paintable> insert_before_paintable;
     if (!root.is_viewport()) {
         if (auto existing = root.paintable(); auto* existing_box = existing.ptr()) {
             parent_paintable = existing_box->parent();
+            insert_before_paintable = existing_box->next_sibling();
             if (parent_paintable)
                 parent_paintable->remove_child(*existing_box);
         }
@@ -441,7 +446,7 @@ void LayoutState::commit(Box& root)
         paintable.set_offset(offset);
     });
 
-    build_paint_tree(root, parent_paintable.ptr());
+    build_paint_tree(root, parent_paintable.ptr(), insert_before_paintable.ptr());
 
     resolve_relative_positions();
 

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #first {
+        position: absolute;
+        left: 40px;
+        top: 40px;
+        width: 120px;
+        height: 100px;
+    }
+    #second {
+        position: absolute;
+        left: 100px;
+        top: 80px;
+        width: 120px;
+        height: 100px;
+        background: rgb(0, 0, 200);
+    }
+</style>
+<div id="stage">
+    <svg id="first" viewBox="0 0 120 100">
+        <rect id="r" width="60" height="40" fill="rgb(200, 0, 0)"/>
+    </svg>
+    <div id="second"></div>
+</div>
+<script>
+    // Overlapping auto-z-index siblings paint in tree order, so a partial relayout of the
+    // first sibling must splice its rebuilt paint subtree back at its original position
+    // instead of appending it after the second sibling.
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const hitBefore = document.elementFromPoint(150, 110);
+        document.getElementById("r").setAttribute("width", "80");
+        document.body.offsetHeight;
+
+        const hitAfter = document.elementFromPoint(150, 110);
+        println(`hit-before=${hitBefore ? hitBefore.id : "null"}`);
+        println(`hit-after=${hitAfter ? hitAfter.id : "null"}`);
+        println(hitBefore && hitBefore.id === "second"
+            && hitAfter && hitAfter.id === "second" ? "PASS" : "FAIL");
+        done();
+    });
+</script>
