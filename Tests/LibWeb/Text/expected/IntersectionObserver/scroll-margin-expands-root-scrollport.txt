@@ -1,0 +1,2 @@
+no-margin: intersecting=false ratio=0
+with-margin: intersecting=true ratio=1

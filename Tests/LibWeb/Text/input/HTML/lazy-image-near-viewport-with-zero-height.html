@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    img {
+        display: block;
+        position: relative;
+        top: -1px;
+        width: 100%;
+    }
+</style>
+<script src="../include.js"></script>
+<img id="target" loading="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAUElEQVRo3u3PQQ0AMAgEsGP+xeEIVOxB0jpodSaXvRwnICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg8N8ChgACTxD8p8QAAAAASUVORK5CYII=">
+<script>
+    asyncTest(done => {
+        document.getElementById("target").addEventListener("load", () => {
+            println("PASS");
+            done();
+        });
+    });
+</script>

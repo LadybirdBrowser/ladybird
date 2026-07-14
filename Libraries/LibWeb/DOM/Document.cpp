@@ -6216,9 +6216,16 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
             return JS::js_undefined();
         });
 
-        // FIXME: The options is an IntersectionObserverInit dictionary with the following dictionary members: «[ "rootMargin" → lazy load root margin ]»
-        // Spec Note: This allows for fetching the image during scrolling, when it does not yet — but is about to — intersect the viewport.
+        // The options is an IntersectionObserverInit dictionary with the following dictionary members:
+        // «[ "scrollMargin" → lazy load scroll margin ]»
+        //
+        // The lazy load scroll margin is an implementation-defined value, but with the following suggestions to consider:
+        // - Set a minimum value that most often results in the resources being loaded before they intersect the viewport
+        //   under normal usage patterns for the given device.
+        //
+        // INTEROP: Use a 100% scroll margin, matching WebKit's conservative fallback.
         auto options = Bindings::IntersectionObserverInit {};
+        options.scroll_margin = "100%"_utf16;
 
         auto wrapped_callback = realm.heap().allocate<WebIDL::CallbackType>(callback, realm);
         m_lazy_load_intersection_observer = IntersectionObserver::IntersectionObserver::construct_impl(realm, wrapped_callback, options).release_value_but_fixme_should_propagate_errors();

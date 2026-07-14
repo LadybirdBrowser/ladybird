@@ -283,6 +283,7 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
     auto intersection_root = this->intersection_root();
 
     CSSPixelRect rect;
+    bool intersection_root_is_scrollable = false;
 
     // If the intersection root is a document,
     //    it’s the size of the document's viewport (note that this processing step can only be reached if the document is fully active).
@@ -298,6 +299,7 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
             CSSPixelPoint { 0, 0 },
             document->viewport_rect().size(),
         };
+        intersection_root_is_scrollable = true;
     } else {
         VERIFY(intersection_root.has<GC::Ref<DOM::Element>>());
         auto element = intersection_root.get<GC::Ref<DOM::Element>>();
@@ -308,6 +310,8 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
         // Otherwise,
         //    it’s the result of getting the bounding box for the intersection root.
         rect = element->bounding_client_rect_assuming_layout_clean();
+        if (auto paintable_box = element->paintable_box())
+            intersection_root_is_scrollable = paintable_box->layout_node_with_style_and_box_metrics().is_scroll_container();
     }
 
     // When calculating the root intersection rectangle for a same-origin-domain target, the rectangle is then
@@ -322,11 +326,24 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
         document = &intersection_root.get<GC::Ref<DOM::Element>>()->document();
     }
     if (m_document && document->origin().is_same_origin(m_document->origin())) {
-        rect.inflate(
-            m_root_margin[0].to_px(rect.height()),
-            m_root_margin[1].to_px(rect.width()),
-            m_root_margin[2].to_px(rect.height()),
-            m_root_margin[3].to_px(rect.width()));
+        auto const undilated_width = rect.width();
+        CSSPixels top = m_root_margin[0].to_px(rect.height());
+        CSSPixels right = m_root_margin[1].to_px(undilated_width);
+        CSSPixels bottom = m_root_margin[2].to_px(rect.height());
+        CSSPixels left = m_root_margin[3].to_px(undilated_width);
+
+        // https://w3c.github.io/IntersectionObserver/#scrollmargin
+        // NOTE: scrollMargin affects the clipping of target by all scrollable ancestors up to and including the
+        //       intersection root. Both the scrollMargin and the rootMargin are applied to a scrollable intersection
+        //       root's rectangle.
+        if (intersection_root_is_scrollable) {
+            top += m_scroll_margin[0].to_px(undilated_width);
+            right += m_scroll_margin[1].to_px(undilated_width);
+            bottom += m_scroll_margin[2].to_px(undilated_width);
+            left += m_scroll_margin[3].to_px(undilated_width);
+        }
+
+        rect.inflate(top, right, bottom, left);
     }
 
     return rect;

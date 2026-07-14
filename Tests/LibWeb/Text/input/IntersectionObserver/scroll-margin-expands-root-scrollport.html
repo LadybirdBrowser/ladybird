@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #target {
+        position: absolute;
+        top: -40px;
+        width: 20px;
+        height: 20px;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    asyncTest(done => {
+        const results = [];
+        let remaining = 2;
+
+        function checkDone() {
+            if (--remaining === 0) {
+                results.sort();
+                results.forEach(println);
+                done();
+            }
+        }
+
+        const target = document.getElementById("target");
+        new IntersectionObserver(entries => {
+            const entry = entries[0];
+            results.push(`no-margin: intersecting=${entry.isIntersecting} ratio=${entry.intersectionRatio}`);
+            checkDone();
+        }).observe(target);
+        new IntersectionObserver(entries => {
+            const entry = entries[0];
+            results.push(`with-margin: intersecting=${entry.isIntersecting} ratio=${entry.intersectionRatio}`);
+            checkDone();
+        }, { scrollMargin: "50px" }).observe(target);
+    });
+</script>
