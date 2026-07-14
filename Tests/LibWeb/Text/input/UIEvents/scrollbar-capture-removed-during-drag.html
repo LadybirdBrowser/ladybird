@@ -30,6 +30,15 @@ body {
         internals.mouseMove(80, 97);
         internals.mouseUp(80, 97);
 
+        scrollable.style.overflowX = "scroll";
+        internals.mouseDown(50, 97);
+        internals.mouseMove(80, 50);
+        scrollable.addEventListener("mouseover", () => {
+            scrollable.remove();
+        }, { once: true });
+        internals.mouseMove(80, 97);
+        internals.mouseUp(80, 97);
+
         println("PASS");
     });
 </script>

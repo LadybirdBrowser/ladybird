@@ -31,8 +31,8 @@ private:
     MouseAction mouse_move(CSSPixelPoint);
     MouseAction mouse_up(CSSPixelPoint, unsigned button);
     bool scroll_to_mouse_position(CSSPixelPoint);
+    virtual void did_detach_from_paintable() override;
 
-    WeakPtr<Paintable> m_paintable_box;
     Paintable::ScrollDirection m_direction;
     bool m_hovered { false };
     Optional<CSSPixels> m_thumb_grab_position;

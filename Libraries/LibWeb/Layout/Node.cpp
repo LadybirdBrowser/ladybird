@@ -1428,6 +1428,9 @@ void Node::clear_paintable()
     if (m_paintable) {
         if (m_paintable->parent())
             m_paintable->remove();
+        // NB: Layout state may retain this paintable after it stops being the node's current paintable, but its
+        //     chrome widgets must no longer use it for input handling.
+        m_paintable->detach_chrome_widgets();
         m_paintable = nullptr;
     }
 }

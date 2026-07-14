@@ -21,14 +21,14 @@ NonnullRefPtr<ResizeHandle> ResizeHandle::create(Paintable& paintable_box)
 }
 
 ResizeHandle::ResizeHandle(Paintable& paintable_box)
-    : m_paintable_box(paintable_box)
+    : ChromeWidget(paintable_box)
     , m_element(as<DOM::Element>(*paintable_box.dom_node()))
 {
 }
 
 bool ResizeHandle::contains(CSSPixelPoint position, ChromeMetrics const& metrics) const
 {
-    auto paintable_box = m_paintable_box.strong_ref();
+    auto paintable_box = paintable();
     if (!paintable_box)
         return false;
     return paintable_box->resizer_contains(position, metrics);
@@ -36,7 +36,7 @@ bool ResizeHandle::contains(CSSPixelPoint position, ChromeMetrics const& metrics
 
 Optional<CSS::CursorPredefined> ResizeHandle::cursor() const
 {
-    auto paintable_box = m_paintable_box.strong_ref();
+    auto paintable_box = paintable();
     if (!paintable_box)
         return {};
     auto axes = paintable_box->physical_resize_axes();

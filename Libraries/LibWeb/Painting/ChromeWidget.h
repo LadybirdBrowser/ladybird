@@ -6,9 +6,12 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <AK/EnumBits.h>
 #include <AK/RefCounted.h>
+#include <AK/RefPtr.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
 #include <LibGC/Cell.h>
 #include <LibWeb/CSS/ComputedValues.h>
@@ -43,6 +46,19 @@ public:
     virtual void mouse_leave() = 0;
 
     virtual Optional<CSS::CursorPredefined> cursor() const { return {}; }
+
+protected:
+    explicit ChromeWidget(Paintable&);
+
+    RefPtr<Paintable> paintable() const;
+
+private:
+    friend class Paintable;
+
+    void detach_from_paintable(Badge<Paintable>);
+    virtual void did_detach_from_paintable() { }
+
+    WeakPtr<Paintable> m_paintable;
 };
 
 }

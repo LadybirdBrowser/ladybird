@@ -466,11 +466,8 @@ private:
         Yes,
     };
 
-    void detach_from_layout_node(Badge<Layout::Node>)
-    {
-        m_containing_block.clear();
-        m_layout_node.clear();
-    }
+    void detach_from_layout_node(Badge<Layout::Node>);
+    void detach_chrome_widgets();
 
     void paint_middle_button_scroll_indicator(DisplayListRecordingContext&) const;
     void acquire_cache_references_for_cached_commands(ReadonlyBytes) const;

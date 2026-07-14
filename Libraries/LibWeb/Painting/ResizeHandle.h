@@ -27,7 +27,6 @@ public:
 private:
     ResizeHandle(Paintable&);
 
-    WeakPtr<Paintable> m_paintable_box;
     GC::Weak<DOM::Element> m_element;
     OwnPtr<ElementResizeAction> m_resize_action;
 };

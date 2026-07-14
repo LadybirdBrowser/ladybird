@@ -972,6 +972,29 @@ Paintable::~Paintable()
         invalidate_paint_cache();
 }
 
+void Paintable::detach_from_layout_node(Badge<Layout::Node>)
+{
+    m_containing_block.clear();
+    m_layout_node.clear();
+    detach_chrome_widgets();
+}
+
+void Paintable::detach_chrome_widgets()
+{
+    if (m_horizontal_scrollbar) {
+        m_horizontal_scrollbar->detach_from_paintable({});
+        m_horizontal_scrollbar = nullptr;
+    }
+    if (m_vertical_scrollbar) {
+        m_vertical_scrollbar->detach_from_paintable({});
+        m_vertical_scrollbar = nullptr;
+    }
+    if (m_resize_handle) {
+        m_resize_handle->detach_from_paintable({});
+        m_resize_handle = nullptr;
+    }
+}
+
 Layout::NodeWithStyleAndBoxModelMetrics const& Paintable::layout_node_with_style_and_box_metrics() const
 {
     return as<Layout::NodeWithStyleAndBoxModelMetrics const>(layout_node());

@@ -20,14 +20,14 @@ NonnullRefPtr<Scrollbar> Scrollbar::create(Paintable& paintable_box, Paintable::
 }
 
 Scrollbar::Scrollbar(Paintable& paintable_box, Paintable::ScrollDirection direction)
-    : m_paintable_box(paintable_box)
+    : ChromeWidget(paintable_box)
     , m_direction(direction)
 {
 }
 
 bool Scrollbar::contains(CSSPixelPoint position, ChromeMetrics const& metrics) const
 {
-    auto paintable_box = m_paintable_box.strong_ref();
+    auto paintable_box = paintable();
     if (!paintable_box)
         return false;
     if (auto rect = paintable_box->absolute_scrollbar_rect(m_direction, is_enlarged(), metrics); rect.has_value())
@@ -44,9 +44,11 @@ MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned
         return MouseAction::None;
     }
 
-    auto paintable_box = m_paintable_box.strong_ref();
-    if (!paintable_box)
+    auto paintable_box = paintable();
+    if (!paintable_box) {
+        m_thumb_grab_position.clear();
         return MouseAction::None;
+    }
 
     auto position = paintable_box->transform_to_local_coordinates(visual_viewport_position);
     if (!scroll_to_mouse_position(position) && !m_thumb_grab_position.has_value())
@@ -64,7 +66,7 @@ MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned
 MouseAction Scrollbar::mouse_move(CSSPixelPoint position)
 {
     if (m_thumb_grab_position.has_value()) {
-        auto paintable_box = m_paintable_box.strong_ref();
+        auto paintable_box = paintable();
         if (!paintable_box)
             return MouseAction::None;
         position = paintable_box->transform_to_local_coordinates(position);
@@ -77,7 +79,7 @@ MouseAction Scrollbar::mouse_move(CSSPixelPoint position)
 MouseAction Scrollbar::mouse_up(CSSPixelPoint, unsigned)
 {
     m_thumb_grab_position.clear();
-    if (auto paintable_box = m_paintable_box.strong_ref())
+    if (auto paintable_box = paintable())
         paintable_box->set_needs_repaint();
     return MouseAction::None;
 }
@@ -87,7 +89,7 @@ void Scrollbar::mouse_enter()
     if (m_hovered)
         return;
     m_hovered = true;
-    if (auto paintable_box = m_paintable_box.strong_ref())
+    if (auto paintable_box = paintable())
         paintable_box->set_needs_repaint();
 }
 
@@ -96,13 +98,13 @@ void Scrollbar::mouse_leave()
     if (!m_hovered)
         return;
     m_hovered = false;
-    if (auto paintable_box = m_paintable_box.strong_ref())
+    if (auto paintable_box = paintable())
         paintable_box->set_needs_repaint();
 }
 
 bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
 {
-    auto paintable_box = m_paintable_box.strong_ref();
+    auto paintable_box = paintable();
     if (!paintable_box)
         return false;
 
@@ -138,6 +140,12 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
     new_scroll_offset.set_primary_offset_for_orientation(orientation, scroll_position_in_pixels);
     paintable_box->set_scroll_offset(new_scroll_offset);
     return true;
+}
+
+void Scrollbar::did_detach_from_paintable()
+{
+    m_hovered = false;
+    m_thumb_grab_position.clear();
 }
 
 }
