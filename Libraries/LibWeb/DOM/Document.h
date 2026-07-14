@@ -170,7 +170,8 @@ enum class UpdateLayoutReason {
     X(AnchorNamesUnregisteredByElementRemoval)             \
     X(AnchorNamesUnregisteredByStyleChange)                \
     X(ContainingBlockEstablishmentChangedByKeyframeEffect) \
-    X(ContainingBlockEstablishmentChangedByStyleChange)
+    X(ContainingBlockEstablishmentChangedByStyleChange)    \
+    X(DirtyDomNodeHasDetachedLayoutNode)
 
 enum class PartialRelayoutEscapeReason {
 #define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASON(e) e,
@@ -181,7 +182,8 @@ enum class PartialRelayoutEscapeReason {
 [[nodiscard]] Utf16View to_string(PartialRelayoutEscapeReason);
 
 #define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASONS(X) \
-    X(FullLayoutPass)
+    X(FullLayoutPass)                                      \
+    X(PartialLayoutTreeBuild)
 
 enum class PartialRelayoutEscapeClearReason {
 #define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASON(e) e,
@@ -744,7 +746,19 @@ public:
     // one at construction; a full layout pass renumbers the whole tree densely and resets the
     // counter past the dense range.
     [[nodiscard]] u32 allocate_layout_node_index() { return m_next_layout_node_index++; }
-    void reset_layout_node_index_counter(u32 next_index) { m_next_layout_node_index = next_index; }
+    void reset_layout_node_index_counter(u32 next_index)
+    {
+        m_next_layout_node_index = next_index;
+        m_layout_node_index_count_after_last_full_pass = next_index;
+    }
+
+    // The per-pass used values store sizes its page table by the highest index it touches, and
+    // partial relayout never renumbers, so between-pass indices grow its cost without bound.
+    // Once they outgrow the dense range, the next layout must be a full, renumbering pass.
+    [[nodiscard]] bool layout_node_indices_outgrew_dense_range() const
+    {
+        return m_next_layout_node_index > 2 * m_layout_node_index_count_after_last_full_pass + 2048;
+    }
 
     // Attribution of pending updates for partial relayout. Invariant: every update recorded
     // since the last layout pass is either attributed to a boundary in the registered root
@@ -1319,7 +1333,7 @@ private:
     void collect_paintable_boxes_with_auto_content_visibility();
     bool needs_style_update_after_layout();
     bool any_anchor_names_are_registered() const;
-    PartialRelayoutResult try_partial_relayout(HashTable<WeakPtr<Layout::Box>> registered_partial_relayout_roots, bool needs_layout_tree_rebuild, bool should_collect_devtools_layout_data);
+    PartialRelayoutResult try_partial_relayout(HashTable<WeakPtr<Layout::Box>> registered_partial_relayout_roots, bool& needs_layout_tree_rebuild, bool should_collect_devtools_layout_data);
     static void recompute_containing_block_and_derive_abspos_escape_flags(Layout::Node&);
     enum class LayoutTreeChanged : u8 {
         No,
@@ -1527,6 +1541,7 @@ private:
     bool m_is_running_update_layout { false };
 
     u32 m_next_layout_node_index { 0 };
+    u32 m_layout_node_index_count_after_last_full_pass { 0 };
 
     PartialRelayoutInvalidation m_partial_relayout_invalidation;
 

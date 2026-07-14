@@ -24,9 +24,8 @@ struct ScrollableOverflowMeasurementWork {
 };
 
 // Walks the committed layout tree once, collecting the boxes whose paintable has no stored overflow
-// data (i.e. that need measuring) along with contained-boxes map entries for exactly those boxes;
-// boxes that still have overflow data are memoized by measure_scrollable_overflow() and never
-// consult the map.
+// data (i.e. that need measuring) along with a complete contained-boxes map. The complete map can
+// be cached across style-only overflow recalculations and refreshed after layout tree changes.
 [[nodiscard]] ScrollableOverflowMeasurementWork collect_scrollable_overflow_measurement_work(Node const& root);
 
 // https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-region

@@ -2,5 +2,5 @@ hit-removed=false
 paint-count=0
 outside-before=0,130,120,25
 outside-after=0,130,120,25
-partial-layouts=0 full-layouts=1
-FAIL
+partial-layouts=1 full-layouts=0
+PASS

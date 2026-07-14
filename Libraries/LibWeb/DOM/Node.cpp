@@ -28,6 +28,7 @@
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Comment.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/Element.h>
@@ -1831,6 +1832,9 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
 
         // NB: Propagating layout invalidation, layout is not up to date.
         if (auto layout_node = this->unsafe_layout_node()) {
+            if (!layout_node->parent() && !layout_node->is_viewport())
+                document().partial_relayout_invalidation().record_escape(PartialRelayoutEscapeReason::DirtyDomNodeHasDetachedLayoutNode);
+
             layout_node->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
 
             // If the layout node has an anonymous parent, rebuild from the nearest non-anonymous ancestor.
@@ -1843,6 +1847,9 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
                     ancestor->dom_node()->set_needs_layout_tree_update(true, reason);
             }
         }
+        // NB: A dirty node with no layout node needs no escape tracking: rebuilding it either
+        //     still produces no layout node, or the change is covered by the escalations
+        //     above, which mark a node whose layout node classifies it in the ancestor walk.
     }
 }
 

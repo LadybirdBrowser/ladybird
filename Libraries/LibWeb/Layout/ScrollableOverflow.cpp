@@ -31,7 +31,7 @@ ScrollableOverflowMeasurementWork collect_scrollable_overflow_measurement_work(N
             return TraversalDecision::Continue;
         if (needs_measurement(*box))
             work.boxes_to_measure.append(box);
-        if (auto const* containing_block = box->containing_block(); containing_block && needs_measurement(*containing_block))
+        if (auto const* containing_block = box->containing_block())
             work.contained_boxes_map.ensure(containing_block).append(box);
         return TraversalDecision::Continue;
     });
