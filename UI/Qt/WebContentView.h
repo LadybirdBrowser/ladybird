@@ -94,6 +94,8 @@ public:
     void set_maximum_frames_per_second(double);
     void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second);
     void set_vertical_tab_overlay_insets(int left, int right);
+    void prepare_for_window_move();
+    void finish_window_move();
 
     enum class PaletteMode {
         Default,

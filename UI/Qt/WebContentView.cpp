@@ -36,6 +36,7 @@
 
 #include <QApplication>
 #include <QCursor>
+#include <QEvent>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QInputDevice>
@@ -227,6 +228,26 @@ WebContentView::~WebContentView()
     release_metal_resources();
 #elif defined(LADYBIRD_QT_USE_VULKAN_WINDOW)
     destroy_vulkan_window();
+#endif
+}
+
+void WebContentView::prepare_for_window_move()
+{
+#ifdef LADYBIRD_QT_USE_RHI_WIDGET
+    hide();
+
+    QEvent window_about_to_change_event { QEvent::WindowAboutToChangeInternal };
+    QCoreApplication::sendEvent(this, &window_about_to_change_event);
+
+    destroy();
+#endif
+}
+
+void WebContentView::finish_window_move()
+{
+#ifdef LADYBIRD_QT_USE_RHI_WIDGET
+    create();
+    show();
 #endif
 }
 

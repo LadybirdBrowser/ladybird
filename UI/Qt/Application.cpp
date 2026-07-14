@@ -392,7 +392,7 @@ Core::EventLoop& Application::create_platform_event_loop()
     return event_loop;
 }
 
-BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<u64> page_index)
+BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<u64> page_index, ShowWindow show_window)
 {
     auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, move(page_index));
     set_active_window(*window);
@@ -410,13 +410,15 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Win
     }
 
     window->set_window_rect(configuration.x, configuration.y, configuration.width, configuration.height);
-    if (configuration.maximized == true)
-        window->showMaximized();
-    else
-        window->show();
+    if (show_window == ShowWindow::Yes) {
+        if (configuration.maximized == true)
+            window->showMaximized();
+        else
+            window->show();
 
-    window->activateWindow();
-    window->raise();
+        window->activateWindow();
+        window->raise();
+    }
 
     size_t initial_url_index = 0;
     window->for_each_tab([&](Tab& tab) {
@@ -424,7 +426,7 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Win
             tab.navigate(initial_urls[initial_url_index++]);
     });
 
-    if (should_focus_location_editor) {
+    if (should_focus_location_editor && show_window == ShowWindow::Yes) {
         QTimer::singleShot(0, window, [window] {
             if (auto* tab = window->current_tab())
                 tab->focus_location_editor();
