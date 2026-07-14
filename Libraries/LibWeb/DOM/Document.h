@@ -432,6 +432,8 @@ public:
     [[nodiscard]] bool element_needs_style_update(AbstractElement const&) const;
     void update_layout(UpdateLayoutReason);
     void update_layout_if_needed_for_node(Node const&, UpdateLayoutReason);
+    [[nodiscard]] u64 partial_layout_count() const { return m_partial_layout_count; }
+    [[nodiscard]] u64 full_layout_count() const { return m_full_layout_count; }
     [[nodiscard]] bool layout_is_up_to_date() const;
     void clear_devtools_layout_inspection_data();
     enum class UpdateScrollableOverflowMode : u8 {
@@ -1518,6 +1520,9 @@ private:
     u32 m_next_layout_node_index { 0 };
 
     PartialRelayoutInvalidation m_partial_relayout_invalidation;
+
+    u64 m_partial_layout_count { 0 };
+    u64 m_full_layout_count { 0 };
 
     bool m_needs_animated_style_update { false };
 

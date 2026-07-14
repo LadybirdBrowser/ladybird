@@ -564,6 +564,16 @@ void Internals::set_content_blocking_enabled(bool enabled)
     page().set_content_blocking_enabled(enabled);
 }
 
+WebIDL::UnsignedLongLong Internals::partial_layout_count()
+{
+    return window().associated_document().partial_layout_count();
+}
+
+WebIDL::UnsignedLongLong Internals::full_layout_count()
+{
+    return window().associated_document().full_layout_count();
+}
+
 void Internals::set_autoplay_policy(Utf16String const& policy)
 {
     if (auto parsed = HTML::autoplay_policy_from_string(policy.utf16_view()); parsed.has_value())

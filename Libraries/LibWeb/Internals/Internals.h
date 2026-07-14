@@ -90,6 +90,8 @@ public:
     bool set_http_memory_cache_enabled(bool enabled);
     WebIDL::ExceptionOr<void> set_content_blockers(Utf16String const& patterns);
     void set_content_blocking_enabled(bool enabled);
+    WebIDL::UnsignedLongLong partial_layout_count();
+    WebIDL::UnsignedLongLong full_layout_count();
     void set_autoplay_policy(Utf16String const& policy);
 
     Utf16String get_computed_role(DOM::Element& element);
