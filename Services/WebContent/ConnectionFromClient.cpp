@@ -346,15 +346,14 @@ void ConnectionFromClient::check_if_traverse_history_step_is_canceled(u64 page_i
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
-        async_did_check_if_traverse_history_step_is_canceled(page_id, request_id, step, true);
+        async_did_check_if_traverse_history_step_is_canceled(page_id, request_id, step, Web::HTML::HistoryStepResult::CanceledByMissingPage);
         return;
     }
 
     auto& heap = Web::HTML::main_thread_event_loop().heap();
     page->page().top_level_traversable()->check_if_traverse_history_step_is_canceled(step,
         GC::create_function(heap, [this, page_id, request_id, step](Web::HTML::HistoryStepResult result) {
-            async_did_check_if_traverse_history_step_is_canceled(
-                page_id, request_id, step, result != Web::HTML::HistoryStepResult::Applied);
+            async_did_check_if_traverse_history_step_is_canceled(page_id, request_id, step, result);
         }));
 }
 

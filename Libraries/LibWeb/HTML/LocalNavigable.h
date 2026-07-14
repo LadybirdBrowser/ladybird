@@ -46,10 +46,18 @@ namespace Web::HTML {
 
 struct PopulateSessionHistoryEntryDocumentOutput;
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-history-step
+// They return "initiator-disallowed", "canceled-by-beforeunload", "canceled-by-navigate", or
+// "applied".
 enum class HistoryStepResult {
     InitiatorDisallowed,
     CanceledByBeforeUnload,
     CanceledByNavigate,
+    // AD-HOC: This is an internal result used when WebContent no longer has the requested page.
+    CanceledByMissingPage,
+    // INTEROP: This is an internal result for browser UI handling and is not one of the results
+    //          returned by the HTML Standard's apply the history step algorithm.
+    CanceledPendingNavigation,
     Applied,
 };
 using OnApplyHistoryStepComplete = GC::Function<void(HistoryStepResult)>;

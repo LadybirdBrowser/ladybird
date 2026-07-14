@@ -2308,6 +2308,24 @@ void LocalTraversableNavigable::check_if_traverse_history_step_is_canceled(int s
             return;
         }
 
+        auto target_entry = get_the_target_history_entry(step);
+        if (ongoing_navigation().has<Utf16String>()
+            && target_entry == current_session_history_entry()
+            && target_entry == active_session_history_entry()
+            && !target_entry->document_state()->reload_pending()) {
+            // https://html.spec.whatwg.org/multipage/browsing-the-web.html#nav-traversal-ui
+            // https://html.spec.whatwg.org/multipage/document-lifecycle.html#stop-document-loading
+            // INTEROP: A browser UI traversal back to the still-active entry while a new document is loading
+            //          cancels the pending navigation before entering the specified apply the history step algorithm.
+            //          The standard describes browser UI traversal and stopping loading separately, but does not
+            //          prescribe how Back interacts with an uncommitted navigation. Chromium, WebKit, and Gecko all
+            //          stop the provisional load in this situation.
+            stop_loading();
+            on_complete->function()(HistoryStepResult::CanceledPendingNavigation);
+            signal->resolve({});
+            return;
+        }
+
         run_the_history_step_prechecks(step, true, nullptr, nullptr, UserNavigationInvolvement::BrowserUI, Bindings::NavigationType::Traverse, LocalNavigable::NavigationAPIAbortBehavior::Abort,
             GC::create_function(heap(), [signal, on_complete](HistoryStepResult result, int, LocalNavigable::NavigationAPIAbortBehavior) {
                 on_complete->function()(result);

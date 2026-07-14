@@ -267,7 +267,7 @@ public:
     void did_set_top_level_session_history(Badge<WebContentClient>, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index);
     void did_traverse_the_history_to_step(Badge<WebContentClient>, i32 step, bool step_was_available, Web::HTML::HistoryStepResult);
     void did_check_if_traverse_history_step_is_canceled(
-        Badge<WebContentClient>, u64 request_id, i32 step, bool canceled);
+        Badge<WebContentClient>, u64 request_id, i32 step, Web::HTML::HistoryStepResult);
     void did_reset_session_history_for_testing(Badge<WebContentClient>);
     void mark_web_content_session_history_stale_for_testing(Badge<WebContentClient>);
     void did_start_webdriver_navigation(Badge<WebContentClient>, URL::URL const&);

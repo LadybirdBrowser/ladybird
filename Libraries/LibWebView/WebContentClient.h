@@ -253,7 +253,7 @@ private:
     virtual void did_set_top_level_session_history(u64 page_id, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index) override;
     virtual void did_traverse_the_history_to_step(u64 page_id, i32 step, bool step_was_available, Web::HTML::HistoryStepResult) override;
     virtual void did_check_if_traverse_history_step_is_canceled(
-        u64 page_id, u64 request_id, i32 step, bool canceled) override;
+        u64 page_id, u64 request_id, i32 step, Web::HTML::HistoryStepResult) override;
     virtual void did_reset_session_history_for_testing(u64 page_id) override;
     virtual Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(u64 page_id, Web::HTML::WorkerAgentStartRequest request) override;
     virtual void close_worker_agent(u64 page_id, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) override;

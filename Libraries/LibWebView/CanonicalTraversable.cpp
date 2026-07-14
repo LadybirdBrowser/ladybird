@@ -667,7 +667,7 @@ WebContentHistoryStepResult CanonicalTraversable::did_traverse_the_history_to_st
     return { .dump_reason = pending_step_dump_reason, .should_update_navigation_action_state = true };
 }
 
-HistoryStepCancelationCheckResult CanonicalTraversable::did_check_if_traverse_history_step_is_canceled(u64 request_id, i32 step, bool canceled)
+HistoryStepCancelationCheckResult CanonicalTraversable::did_check_if_traverse_history_step_is_canceled(u64 request_id, i32 step, Web::HTML::HistoryStepResult result)
 {
     if (!m_pending_session_history_traversal.has_value()
         || m_pending_session_history_traversal->stage != PendingSessionHistoryTraversal::Stage::CheckingCancelation
@@ -675,7 +675,31 @@ HistoryStepCancelationCheckResult CanonicalTraversable::did_check_if_traverse_hi
         || m_pending_session_history_traversal->target_step != step)
         return { .dump_reason = "ignored-stale-history-step-cancelation-check-result"sv };
 
-    if (canceled) {
+    if (result == Web::HTML::HistoryStepResult::CanceledPendingNavigation) {
+        auto target = m_session_history.traversal_target_for_step(step);
+        auto const* previous_current_entry = m_pending_session_history_navigation.has_value()
+            ? m_pending_session_history_navigation->previous_session_history.current_entry()
+            : nullptr;
+        // INTEROP: WebContent handled this browser UI traversal as stop loading rather than applying a history
+        //          step. If it preserved the active document, discard the UI process's uncommitted speculative
+        //          entry so both processes continue to expose that document as the current history entry.
+        if (target.has_value()
+            && previous_current_entry
+            && m_pending_session_history_navigation->web_content_restore_mode == PendingSessionHistoryNavigation::WebContentRestoreMode::PreserveCurrentProcessState
+            && target->target_top_level_entry->document_state.id == previous_current_entry->document_state.id) {
+            auto on_cancelation_check_complete = move(m_pending_session_history_traversal->on_cancelation_check_complete);
+            m_pending_session_history_traversal.clear();
+            return {
+                .dump_reason = "traverse-canceled-pending-navigation"sv,
+                .on_cancelation_check_complete = move(on_cancelation_check_complete),
+                .outcome = { .status = HistoryTraversalStatus::Started },
+                .should_restore_pending_navigation = true,
+            };
+        }
+        result = Web::HTML::HistoryStepResult::Applied;
+    }
+
+    if (result != Web::HTML::HistoryStepResult::Applied) {
         auto on_cancelation_check_complete = move(m_pending_session_history_traversal->on_cancelation_check_complete);
         m_pending_session_history_traversal.clear();
         return { .dump_reason = "traverse-fallback-canceled-by-webcontent"sv, .on_cancelation_check_complete = move(on_cancelation_check_complete), .outcome = { .status = HistoryTraversalStatus::Canceled }, .should_update_navigation_action_state = true, .should_complete_webdriver_pending_navigation = true, .should_update_webdriver_pending_navigation_to_current_url = true, .should_reset_webdriver_pending_navigation_completion = true };

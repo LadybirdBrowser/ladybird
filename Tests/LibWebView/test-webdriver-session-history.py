@@ -49,6 +49,11 @@ class TestPageServer(http.server.ThreadingHTTPServer):
         self.release_blocked_same_site_post = threading.Event()
         self.blocked_same_url_post_requested = threading.Event()
         self.release_blocked_same_url_post = threading.Event()
+        self.blocked_navigation_requested = threading.Event()
+        self.release_blocked_navigation = threading.Event()
+        self.blocked_navigation_response_finished = threading.Event()
+        self.a_request_lock = threading.Lock()
+        self.a_request_count = 0
         self.state_replace_load_document_ran = threading.Event()
         self.a_document_ran = threading.Event()
         self.fragment_source_document_ran = threading.Event()
@@ -74,6 +79,8 @@ class TestPageHandler(http.server.BaseHTTPRequestHandler):
         server_port = server.server_port
 
         if self.path == "/a":
+            with server.a_request_lock:
+                server.a_request_count += 1
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
             self.end_headers()
@@ -83,6 +90,8 @@ class TestPageHandler(http.server.BaseHTTPRequestHandler):
 <script>fetch('/document-ran?a');</script>
 <a id="go" href="http://127.0.0.1:{server_port}/b">B</a>
 <a id="redirect" href="http://localhost:{server_port}/redirect-to-b">Redirect to B</a>
+<a id="pending" href="http://localhost:{server_port}/navigation-blocked">Pending</a>
+<a id="pending-redirect" href="http://localhost:{server_port}/redirect-to-navigation-blocked">Pending redirect</a>
 <p>A</p>""".encode()
             )
             return
@@ -134,6 +143,30 @@ class TestPageHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(302)
             self.send_header("Location", f"http://127.0.0.1:{server_port}/b")
             self.end_headers()
+            return
+
+        if self.path == "/redirect-to-navigation-blocked":
+            self.send_response(302)
+            self.send_header("Location", f"http://localhost:{server_port}/navigation-blocked")
+            self.end_headers()
+            return
+
+        if self.path == "/navigation-blocked":
+            server.blocked_navigation_requested.set()
+            if not server.release_blocked_navigation.wait(timeout=BLOCKED_RESPONSE_TIMEOUT_SECONDS):
+                self.send_response(500)
+                self.send_header("Content-Type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"timed out waiting to unblock navigation")
+                return
+
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.end_headers()
+                self.wfile.write(b"<!doctype html><title>Pending navigation committed</title>")
+            finally:
+                server.blocked_navigation_response_finished.set()
             return
 
         if self.path.startswith("/nested"):
@@ -2114,6 +2147,179 @@ def expect_cross_site_fragment_navigation_from_ui_loads_document(
         raise AssertionError(f"Expected current URL {target_with_fragment}, got {actual_url}")
 
 
+def run_pending_navigation_browser_ui_back_test(
+    webdriver_port,
+    page_server,
+    url_a,
+    url_navigation_blocked,
+    url_redirect_to_navigation_blocked,
+):
+    session_id = create_session(webdriver_port)
+    log = [f"pending navigation browser UI back initial: {current_url(webdriver_port, session_id)}"]
+    try:
+        with page_server.a_request_lock:
+            initial_a_request_count = page_server.a_request_count
+
+        load_url_from_ui(webdriver_port, session_id, url_a)
+        expect_url(webdriver_port, session_id, "after pending navigation setup /a", url_a, log)
+        with page_server.a_request_lock:
+            a_request_count_after_setup = page_server.a_request_count
+        if a_request_count_after_setup != initial_a_request_count + 1:
+            raise AssertionError(
+                f"Expected one /a request during setup, got {a_request_count_after_setup - initial_a_request_count}\n"
+                + "\n".join(log)
+            )
+
+        execute_script(
+            webdriver_port,
+            session_id,
+            f"""
+window.beforeUnloadCount = 0;
+window.pendingNavigateCount = 0;
+window.pendingNavigateAbortCount = 0;
+addEventListener("beforeunload", () => ++window.beforeUnloadCount);
+navigation.addEventListener("navigate", event => {{
+    if (event.destination.url === {json.dumps(url_navigation_blocked)}
+        || event.destination.url === {json.dumps(url_redirect_to_navigation_blocked)}) {{
+        ++window.pendingNavigateCount;
+        event.signal.addEventListener("abort", () => ++window.pendingNavigateAbortCount, {{ once: true }});
+    }}
+}});
+return null;
+""",
+        )
+
+        def cancel_pending_navigation(label, start_navigation):
+            page_server.blocked_navigation_requested.clear()
+            page_server.release_blocked_navigation.clear()
+            page_server.blocked_navigation_response_finished.clear()
+
+            initial_state = execute_script(
+                webdriver_port,
+                session_id,
+                "return [window.beforeUnloadCount, window.pendingNavigateCount, window.pendingNavigateAbortCount];",
+            )
+
+            start_navigation()
+            wait_for_event(page_server.blocked_navigation_requested, f"{label} request")
+
+            before_cancel_state = execute_script(
+                webdriver_port,
+                session_id,
+                "return [location.href, window.beforeUnloadCount, window.pendingNavigateCount, window.pendingNavigateAbortCount];",
+            )
+            if (
+                before_cancel_state[0] != url_a
+                or before_cancel_state[1] != initial_state[0] + 1
+                or before_cancel_state[2] != initial_state[1] + 1
+                or before_cancel_state[3] != initial_state[2]
+            ):
+                raise AssertionError(
+                    f"Expected {label} to remain provisional over /a, got {before_cancel_state}\n" + "\n".join(log)
+                )
+
+            pending_history = session_history(webdriver_port, session_id)
+            pending_navigation = pending_history["ui"]["pendingSessionHistoryNavigation"]
+            if (
+                pending_history["ui"]["currentURL"] not in (url_navigation_blocked, url_redirect_to_navigation_blocked)
+                or pending_navigation.get("previousCurrentURL") != url_a
+                or history_entry_urls(pending_history["webContent"]) != [url_a]
+            ):
+                raise AssertionError(
+                    f"Expected {label} to be pending over /a, got {summarize_history_snapshot(pending_history)}\n"
+                    + "\n".join(log)
+                )
+
+            traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
+            rolled_back_history = wait_for_session_history(
+                webdriver_port,
+                session_id,
+                f"after canceling {label}",
+                lambda snapshot: (
+                    snapshot["ui"]["currentURL"] == url_a
+                    and history_entry_urls(snapshot["ui"]) == [url_a]
+                    and snapshot["ui"]["pendingSessionHistoryNavigation"] is None
+                    and snapshot["ui"]["pendingSessionHistoryTraversal"] is None
+                    and snapshot["ui"]["webContentHistoryMatchesUI"] is True
+                ),
+                log,
+            )
+            if history_entry_urls(rolled_back_history["webContent"]) != [url_a]:
+                raise AssertionError(
+                    f"Expected WebContent to remain on /a after {label}, got {summarize_history_snapshot(rolled_back_history)}\n"
+                    + "\n".join(log)
+                )
+
+            after_cancel_state = execute_script(
+                webdriver_port,
+                session_id,
+                "return [location.href, window.beforeUnloadCount, window.pendingNavigateCount, window.pendingNavigateAbortCount];",
+            )
+            if (
+                after_cancel_state[0] != url_a
+                or after_cancel_state[1] != before_cancel_state[1]
+                or after_cancel_state[2] != before_cancel_state[2]
+                or after_cancel_state[3] != before_cancel_state[3] + 1
+            ):
+                raise AssertionError(
+                    f"Expected {label} cancellation to abort only the pending navigation, got {after_cancel_state}\n"
+                    + "\n".join(log)
+                )
+
+            with page_server.a_request_lock:
+                if page_server.a_request_count != a_request_count_after_setup:
+                    raise AssertionError(f"{label} reloaded /a instead of preserving it\n" + "\n".join(log))
+
+            page_server.release_blocked_navigation.set()
+            wait_for_event(page_server.blocked_navigation_response_finished, f"{label} canceled response completion")
+            expect_url(webdriver_port, session_id, f"after releasing canceled {label}", url_a, log)
+            expect_ui_session_history(
+                webdriver_port,
+                session_id,
+                f"after releasing canceled {label}",
+                [url_a],
+                [0],
+                0,
+                False,
+                False,
+                log,
+                expect_web_content_matches_ui=True,
+                expected_web_content_known_used_steps=[0],
+                expected_web_content_current_step=0,
+            )
+
+        cancel_pending_navigation(
+            "renderer-initiated navigation",
+            lambda: execute_script(
+                webdriver_port,
+                session_id,
+                'document.querySelector("#pending").click(); return null;',
+            ),
+        )
+        cancel_pending_navigation(
+            "redirected renderer-initiated navigation",
+            lambda: execute_script(
+                webdriver_port,
+                session_id,
+                'document.querySelector("#pending-redirect").click(); return null;',
+            ),
+        )
+
+        traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
+        expect_url(webdriver_port, session_id, "after redundant back following pending cancellations", url_a, log)
+        expect_navigation_buttons(
+            webdriver_port,
+            session_id,
+            "after redundant back following pending cancellations",
+            False,
+            False,
+            log,
+        )
+    finally:
+        page_server.release_blocked_navigation.set()
+        request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
 def run_test(webdriver_binary):
     page_server = TestPageServer(("0.0.0.0", 0), TestPageHandler)
     page_server_thread = threading.Thread(target=page_server.serve_forever, daemon=True)
@@ -2149,6 +2355,8 @@ def run_test(webdriver_binary):
         url_c = f"http://127.0.0.1:{page_port}/c"
         url_d = f"http://localhost:{page_port}/d"
         url_redirect_to_b = f"http://localhost:{page_port}/redirect-to-b"
+        url_navigation_blocked = f"http://localhost:{page_port}/navigation-blocked"
+        url_redirect_to_navigation_blocked = f"http://localhost:{page_port}/redirect-to-navigation-blocked"
         url_nested = f"http://localhost:{page_port}/nested"
         url_state = f"http://localhost:{page_port}/state"
         url_state_replace_load = f"http://localhost:{page_port}/state?replace-load"
@@ -2175,6 +2383,14 @@ def run_test(webdriver_binary):
         url_fragment_target = f"http://127.0.0.1:{page_port}/fragment-target"
 
         expect_ladybird_test_hooks_require_capability(webdriver_port)
+
+        run_pending_navigation_browser_ui_back_test(
+            webdriver_port,
+            page_server,
+            url_a,
+            url_navigation_blocked,
+            url_redirect_to_navigation_blocked,
+        )
 
         session_id = create_session(webdriver_port)
         expect_second_ui_forward_during_pending_forward_does_not_hang(
@@ -4841,6 +5057,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         page_server.release_blocked_reload.set()
         page_server.release_blocked_process_swap_back.set()
         page_server.release_blocked_forward.set()
+        page_server.release_blocked_navigation.set()
         page_server.shutdown()
         page_server.server_close()
 

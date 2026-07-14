@@ -1872,9 +1872,9 @@ void ViewImplementation::did_traverse_the_history_to_step(Badge<WebContentClient
 }
 
 void ViewImplementation::did_check_if_traverse_history_step_is_canceled(
-    Badge<WebContentClient>, u64 request_id, i32 step, bool canceled)
+    Badge<WebContentClient>, u64 request_id, i32 step, Web::HTML::HistoryStepResult result)
 {
-    auto check_result = m_top_level_traversable.did_check_if_traverse_history_step_is_canceled(request_id, step, canceled);
+    auto check_result = m_top_level_traversable.did_check_if_traverse_history_step_is_canceled(request_id, step, result);
     if (check_result.should_update_webdriver_pending_navigation_to_current_url && m_webdriver_pending_navigation_url.has_value())
         m_webdriver_pending_navigation_url = m_url;
     if (check_result.should_reset_webdriver_pending_navigation_completion)
@@ -1884,6 +1884,20 @@ void ViewImplementation::did_check_if_traverse_history_step_is_canceled(
         complete_webdriver_pending_navigation_if_url_matches(m_url);
     if (check_result.should_update_navigation_action_state)
         update_navigation_action_state();
+
+    if (check_result.should_restore_pending_navigation) {
+        // NB: WebContent's stop_loading() does not send did_cancel_loading(), so clear the UI process's loading
+        //     bookkeeping before restoring the pending navigation.
+        set_loading_state(false);
+        m_is_waiting_for_navigation_start = false;
+        m_loading_navigation_id.clear();
+        m_loading_url.clear();
+        auto restored = restore_pending_session_history_navigation(check_result.dump_reason);
+        VERIFY(restored);
+        if (check_result.on_cancelation_check_complete)
+            check_result.on_cancelation_check_complete(move(check_result.outcome));
+        return;
+    }
 
     if (check_result.target.has_value()) {
         if (check_result.on_cancelation_check_complete)

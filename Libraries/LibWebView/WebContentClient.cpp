@@ -1474,10 +1474,10 @@ void WebContentClient::did_change_needs_beforeunload_check(u64 page_id, bool nee
 }
 
 void WebContentClient::did_check_if_traverse_history_step_is_canceled(
-    u64 page_id, u64 request_id, i32 step, bool canceled)
+    u64 page_id, u64 request_id, i32 step, Web::HTML::HistoryStepResult result)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_check_if_traverse_history_step_is_canceled({}, request_id, step, canceled);
+        view->did_check_if_traverse_history_step_is_canceled({}, request_id, step, result);
 }
 
 Messages::WebContentClient::DidRequestTraverseTheHistoryByDeltaResponse WebContentClient::did_request_traverse_the_history_by_delta(u64 page_id, i32 delta, Web::HistoryTraversalPrecheck history_traversal_precheck)
