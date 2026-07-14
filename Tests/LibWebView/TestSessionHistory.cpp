@@ -254,6 +254,47 @@ TEST_CASE(complete_web_content_update_replaces_mirror)
     expect_current_entry(history, 1, "https://b.example/"sv);
 }
 
+TEST_CASE(targeted_entry_updates_find_nested_history_entries_by_navigation_api_key)
+{
+    WebView::TraversableSessionHistory history;
+
+    Vector<Web::HTML::SessionHistoryEntryDescriptor> entries {
+        entry(0, "https://top.example/0"sv, 1, 1, "top-0"sv, "top-id-0"sv, Web::HTML::ScrollRestorationMode::Auto),
+        entry(1, "https://top.example/1"sv, 2, 2, "top-1"sv, "top-id-1"sv, Web::HTML::ScrollRestorationMode::Auto),
+    };
+
+    auto entries0 = {
+        entry(0, "https://child.example/0"sv, 3, 3, "child-0"sv, "child-id-0"sv, Web::HTML::ScrollRestorationMode::Auto),
+        entry(2, "https://child.example/1"sv, 4, 4, "child-1"sv, "child-id-1"sv, Web::HTML::ScrollRestorationMode::Auto),
+    };
+    entries[0].document_state.nested_histories.append(nested_history("frame-1"sv, entries0));
+    auto entries1 = {
+        entry(0, "https://child.example/0"sv, 3, 3, "child-0"sv, "child-id-0"sv, Web::HTML::ScrollRestorationMode::Auto),
+        entry(2, "https://child.example/1"sv, 4, 4, "child-1"sv, "child-id-1"sv, Web::HTML::ScrollRestorationMode::Auto),
+    };
+    entries[1].document_state.nested_histories.append(nested_history("frame-1"sv, entries1));
+
+    auto update_result = history.update_from_web_content(move(entries), { 0, 1, 2 }, 2);
+    EXPECT_EQ(update_result, WebView::TraversableSessionHistory::UpdateResult::CompleteSnapshot);
+
+    EXPECT(history.update_nested_navigation_api_state(navigable_id("frame-1"sv), Utf16String::from_utf8("child-1"sv), state_record(9)));
+    EXPECT(history.update_nested_scroll_restoration_mode(navigable_id("frame-1"sv), Utf16String::from_utf8("child-1"sv), Web::HTML::ScrollRestorationMode::Manual));
+
+    auto expect_copied_nested_histories_were_updated = [](Vector<Web::HTML::SessionHistoryEntryDescriptor> const& copied_entries) {
+        VERIFY(copied_entries.size() == 2);
+        for (auto const& top_level_entry : copied_entries) {
+            VERIFY(top_level_entry.document_state.nested_histories.size() == 1);
+            auto const& nested_entries = top_level_entry.document_state.nested_histories[0].entries;
+            VERIFY(nested_entries.size() == 2);
+            expect_entry_state(nested_entries[0], 3, 3, "child-0"sv, "child-id-0"sv, Web::HTML::ScrollRestorationMode::Auto);
+            expect_entry_state(nested_entries[1], 4, 9, "child-1"sv, "child-id-1"sv, Web::HTML::ScrollRestorationMode::Manual);
+        }
+    };
+
+    expect_copied_nested_histories_were_updated(history.entries());
+    expect_copied_nested_histories_were_updated(history.web_content_known_entries());
+}
+
 TEST_CASE(fresh_process_snapshot_does_not_drop_previous_entries)
 {
     WebView::TraversableSessionHistory history;

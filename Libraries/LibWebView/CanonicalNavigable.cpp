@@ -28,6 +28,13 @@ WebContentClient& CanonicalNavigable::reporting_client() const
     return *m_reporting_client;
 }
 
+bool CanonicalNavigable::is_hosted_by(WebContentClient const& client, u64 page_id) const
+{
+    if (m_host_locality == HostLocality::Remote)
+        return m_remote_client.ptr() == &client && m_remote_page_id == page_id;
+    return m_reporting_client.ptr() == &client && m_reporting_page_id == page_id;
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-top
 CanonicalTraversable& CanonicalNavigable::top_level_traversable()
 {
