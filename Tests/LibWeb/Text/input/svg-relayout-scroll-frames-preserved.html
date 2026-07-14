@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<svg width="200" height="200">
+    <path id="p" d="M 10 10 L 50 50" stroke="black" fill="none"/>
+    <foreignObject x="0" y="0" width="200" height="200">
+        <div id="scroller" xmlns="http://www.w3.org/1999/xhtml" style="overflow: auto; width: 100px; height: 100px;">
+            <div style="height: 500px; width: 50px; box-sizing: border-box; padding-top: 180px;">
+                <div id="probe" style="height: 20px;">X</div>
+            </div>
+        </div>
+    </foreignObject>
+</svg>
+<script>
+    asyncTest(async (done) => {
+        // Force initial layout to complete.
+        document.body.offsetHeight;
+
+        const scroller = document.getElementById("scroller");
+        scroller.scrollTop = 150;
+
+        // Trigger a partial relayout of the SVG subtree; the scroller inside must keep
+        // working afterwards, i.e. its reset paintable needs its scroll frame reassigned.
+        document.getElementById("p").setAttribute("d", "M 10 10 L 100 100");
+        document.body.offsetHeight;
+
+        println("scrollTop=" + scroller.scrollTop);
+
+        // The probe occupies y = [180, 200] in the scroller's content, so with
+        // scrollTop=150 it is visible at viewport y = [38, 58] (8px body margin).
+        const hit = document.elementFromPoint(30, 40);
+        println("hit=" + (hit ? (hit.id || hit.tagName) : "null"));
+        println(scroller.scrollTop === 150 && hit && hit.id === "probe" ? "PASS" : "FAIL");
+        done();
+    });
+</script>

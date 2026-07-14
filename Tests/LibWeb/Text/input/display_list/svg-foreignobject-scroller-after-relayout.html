@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="100" height="100">
+  <path id="p" d="M 10 10 L 50 50" stroke="black" fill="none"/>
+  <foreignObject x="0" y="0" width="100" height="100">
+    <div id="scroller" xmlns="http://www.w3.org/1999/xhtml" style="overflow:auto;width:80px;height:80px;">
+      <div style="height:300px;background:black;"></div>
+    </div>
+  </foreignObject>
+</svg>
+<script>
+test(() => {
+    // Force initial layout
+    internals.dumpDisplayList();
+
+    // Trigger a partial SVG relayout; the scroller's paintable is reset during the subtree
+    // commit and must get its scroll frame reassigned.
+    document.getElementById("p").setAttribute("d", "M 10 10 L 90 90");
+
+    // Capture the display list before any println() call: println() appends to the DOM,
+    // which would force a full layout instead of the partial relayout under test.
+    let displayList = internals.dumpDisplayList();
+
+    println(displayList);
+});
+</script>

@@ -1,0 +1,24 @@
+AccumulatedVisualContext Tree:
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+      [2] clip=[8,8 100x100] (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>))
+        [3] clip=[8,8 100x100] (PaintableWithLines(BlockContainer(anonymous)))
+          [4] clip=[8,8 80x80]
+            [5] scroll_frame_id=2 (PaintableWithLines(BlockContainer(anonymous)))
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x121]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x100]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x100]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 100x100]
+  StrokePath@2
+  CompositorWheelHitTestTarget@2 target_scroll_frame_index=0 rect=[8,8 100x100]
+  CompositorWheelHitTestTarget@3 target_scroll_frame_index=2 rect=[8,8 80x80]
+  CompositorScrollNode@3 scroll_frame_index=2 parent_scroll_frame_index=0 scrollport_rect=[8,8 80x80] max_scroll_offset=[0,220] is_viewport=false
+  CompositorWheelHitTestTarget@5 target_scroll_frame_index=2 rect=[8,8 80x300]
+  FillRect@5 rect=[8,8 80x300] color=rgb(0, 0, 0)
+  PaintScrollBar@3
+Restore@0
+
