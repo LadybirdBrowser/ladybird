@@ -1,0 +1,230 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1884 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 1868 0+0+8] children: not-inline
+      Box <div> at [8,8] [0+0+0 64 0+0+720] [0+0+0 32 0+0+0] [GFC] children: not-inline
+        ImageBox <img> at [8,8] [0+0+0 64 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,40] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,40] [0+0+0 64 0+0+720] [0+0+0 32 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-ratio> at [8,40] [0+0+0 64 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,72] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,72] [0+0+0 64 0+0+720] [0+0+0 32 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-ratio.calculated-maximum> at [8,72] [0+0+0 64 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,104] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,104] [0+0+0 800 0+0+-16] [0+0+0 400 0+0+0] [GFC] children: not-inline
+        ImageBox <img.unconstrained> at [8,104] [0+0+0 800 0+0+0] [0+0+0 400 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,504] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,504] [0+0+0 800 0+0+-16] [0+0+0 400 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-ratio.unconstrained> at [8,504] [0+0+0 800 0+0+0] [0+0+0 400 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,904] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,904] [0+0+0 200 0+0+584] [0+0+0 100 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-ratio.minimum-only> at [8,904] [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1004] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1004] [0+0+0 220 0+0+564] [0+0+0 120 0+0+0] [GFC] children: not-inline
+        ImageBox <img.border-box-minimum-only> at [18,1014] [0+10+0 200 0+10+0] [0+10+0 100 0+10+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1124] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1124] [0+0+0 240 0+0+544] [0+0+0 120 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-ratio.border-box-minimum-only> at [18,1134] [0+10+0 220 0+10+0] [0+10+0 100 0+10+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1244] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.definite-height> at [8,1244] [0+0+0 200 0+0+584] [0+0+0 200 0+0+0] [GFC] children: not-inline
+        ImageBox <img.percentage-minimum-only> at [8,1244] [0+0+0 200 0+0+0] [0+0+0 100 0+0+100] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1444] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.definite-height> at [8,1444] [0+0+0 200 0+0+584] [0+0+0 200 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-ratio.percentage-minimum-only> at [8,1444] [0+0+0 200 0+0+0] [0+0+0 100 0+0+100] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1644] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1644] [0+0+0 200 0+0+584] [0+0+0 32 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-ratio.conflicting-heights> at [8,1644] [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1676] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1676] [0+0+0 0 0+0+784] [0+0+0 32 0+0+0] [GFC] children: not-inline
+        ImageBox <img.cyclic-zero-minimum> at [8,1676] [0+0+0 0 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1708] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1708] [0+0+0 10 0+0+774] [0+0+0 2 0+0+0] [GFC] children: not-inline
+        ImageBox <img.cyclic-calculated-minimum> at [8,1708] [0+0+0 15 0+0+0] [0+0+0 2 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1710] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1710] [0+0+0 0 0+0+784] [0+0+0 0 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-ratio.cyclic-zero-minimum> at [8,1710] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1710] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1710] [0+0+0 0 0+0+784] [0+0+0 0 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-ratio.cyclic-zero-minimum.unconstrained> at [8,1710] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1710] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1710] [0+0+0 10 0+0+774] [0+0+0 2 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-ratio.cyclic-calculated-minimum> at [8,1710] [0+0+0 15 0+0+0] [0+0+0 2 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1712] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1712] [0+0+0 64 0+0+720] [0+0+0 16 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-ratio.cyclic-preferred> at [8,1712] [0+0+0 32 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1728] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1728] [0+0+0 200 0+0+584] [0+0+0 32 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-ratio.cyclic-maximum> at [8,1728] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1760] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1760] [0+0+0 20 0+0+764] [0+0+0 20 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-ratio.border-box-cyclic-minimum> at [18,1770] [0+10+0 0 0+10+0] [0+10+0 0 0+10+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1780] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1780] [0+0+0 32 0+0+752] [0+0+0 32 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-override> at [8,1780] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1812] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1812] [0+0+0 64 0+0+720] [0+0+0 32 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-auto-with-ratio> at [8,1812] [0+0+0 64 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1844] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div> at [8,1844] [0+0+0 32 0+0+752] [0+0+0 32 0+0+0] [GFC] children: not-inline
+        ImageBox <img.css-auto-with-ratio> at [8,1844] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] [SVG] children: not-inline
+      BlockContainer <(anonymous)> at [8,1876] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 808x1884]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x1884]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x1868]
+      Paintable (Box<DIV>) [8,8 64x32]
+        ImagePaintable (ImageBox<IMG>) [8,8 64x32]
+      PaintableWithLines (BlockContainer(anonymous)) [8,40 784x0]
+      Paintable (Box<DIV>) [8,40 64x32]
+        ImagePaintable (ImageBox<IMG>.css-ratio) [8,40 64x32]
+      PaintableWithLines (BlockContainer(anonymous)) [8,72 784x0]
+      Paintable (Box<DIV>) [8,72 64x32]
+        ImagePaintable (ImageBox<IMG>.css-ratio.calculated-maximum) [8,72 64x32]
+      PaintableWithLines (BlockContainer(anonymous)) [8,104 784x0]
+      Paintable (Box<DIV>) [8,104 800x400]
+        ImagePaintable (ImageBox<IMG>.unconstrained) [8,104 800x400]
+      PaintableWithLines (BlockContainer(anonymous)) [8,504 784x0]
+      Paintable (Box<DIV>) [8,504 800x400]
+        ImagePaintable (ImageBox<IMG>.css-ratio.unconstrained) [8,504 800x400]
+      PaintableWithLines (BlockContainer(anonymous)) [8,904 784x0]
+      Paintable (Box<DIV>) [8,904 200x100]
+        ImagePaintable (ImageBox<IMG>.css-ratio.minimum-only) [8,904 200x100]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1004 784x0]
+      Paintable (Box<DIV>) [8,1004 220x120]
+        ImagePaintable (ImageBox<IMG>.border-box-minimum-only) [8,1004 220x120]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1124 784x0]
+      Paintable (Box<DIV>) [8,1124 240x120]
+        ImagePaintable (ImageBox<IMG>.css-ratio.border-box-minimum-only) [8,1124 240x120]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1244 784x0]
+      Paintable (Box<DIV>.definite-height) [8,1244 200x200]
+        ImagePaintable (ImageBox<IMG>.percentage-minimum-only) [8,1244 200x100]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1444 784x0]
+      Paintable (Box<DIV>.definite-height) [8,1444 200x200]
+        ImagePaintable (ImageBox<IMG>.css-ratio.percentage-minimum-only) [8,1444 200x100]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1644 784x0]
+      Paintable (Box<DIV>) [8,1644 200x32]
+        ImagePaintable (ImageBox<IMG>.css-ratio.conflicting-heights) [8,1644 200x100]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1676 784x0]
+      Paintable (Box<DIV>) [8,1676 0x32]
+        ImagePaintable (ImageBox<IMG>.cyclic-zero-minimum) [8,1676 0x32]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1708 784x0]
+      Paintable (Box<DIV>) [8,1708 10x2]
+        ImagePaintable (ImageBox<IMG>.cyclic-calculated-minimum) [8,1708 15x2]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1710 784x0]
+      Paintable (Box<DIV>) [8,1710 0x0]
+        ImagePaintable (ImageBox<IMG>.css-ratio.cyclic-zero-minimum) [8,1710 0x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1710 784x0]
+      Paintable (Box<DIV>) [8,1710 0x0]
+        ImagePaintable (ImageBox<IMG>.css-ratio.cyclic-zero-minimum.unconstrained) [8,1710 0x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1710 784x0]
+      Paintable (Box<DIV>) [8,1710 10x2]
+        ImagePaintable (ImageBox<IMG>.css-ratio.cyclic-calculated-minimum) [8,1710 15x2]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1712 784x0]
+      Paintable (Box<DIV>) [8,1712 64x16]
+        ImagePaintable (ImageBox<IMG>.css-ratio.cyclic-preferred) [8,1712 32x16]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1728 784x0]
+      Paintable (Box<DIV>) [8,1728 200x32]
+        ImagePaintable (ImageBox<IMG>.css-ratio.cyclic-maximum) [8,1728 100x100]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1760 784x0]
+      Paintable (Box<DIV>) [8,1760 20x20]
+        ImagePaintable (ImageBox<IMG>.css-ratio.border-box-cyclic-minimum) [8,1760 20x20]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1780 784x0]
+      Paintable (Box<DIV>) [8,1780 32x32]
+        ImagePaintable (ImageBox<IMG>.css-override) [8,1780 32x32]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1812 784x0]
+      Paintable (Box<DIV>) [8,1812 64x32]
+        ImagePaintable (ImageBox<IMG>.css-auto-with-ratio) [8,1812 64x32]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1844 784x0]
+      Paintable (Box<DIV>) [8,1844 32x32]
+        ImagePaintable (ImageBox<IMG>.css-auto-with-ratio) [8,1844 32x32]
+      PaintableWithLines (BlockContainer(anonymous)) [8,1876 784x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x1884] (z-index: auto)

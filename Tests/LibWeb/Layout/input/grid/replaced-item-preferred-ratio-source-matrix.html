@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<style>
+    div {
+        display: grid;
+        grid-template-columns: max-content;
+        width: max-content;
+    }
+
+    img {
+        max-height: 32px;
+    }
+
+    .css-ratio {
+        aspect-ratio: 2 / 1;
+    }
+
+    .calculated-maximum {
+        max-height: calc(32px);
+    }
+
+    .unconstrained {
+        max-height: none;
+    }
+
+    .minimum-only {
+        max-height: none;
+        min-height: 100px;
+    }
+
+    .border-box-minimum-only {
+        box-sizing: border-box;
+        border: 10px solid black;
+        max-height: none;
+        min-height: 120px;
+    }
+
+    .definite-height {
+        align-items: start;
+        height: 200px;
+    }
+
+    .percentage-minimum-only {
+        max-height: none;
+        min-height: 50%;
+    }
+
+    .conflicting-heights {
+        min-height: 100px;
+        max-height: 32px;
+    }
+
+    .cyclic-zero-minimum {
+        min-width: 50%;
+    }
+
+    .cyclic-calculated-minimum {
+        min-width: calc(10px + 50%);
+        max-height: 2px;
+    }
+
+    .cyclic-preferred {
+        width: 50%;
+    }
+
+    .cyclic-maximum {
+        min-height: 100px;
+        max-width: 50%;
+    }
+
+    .border-box-cyclic-minimum {
+        box-sizing: border-box;
+        border: 10px solid black;
+        min-width: 50%;
+    }
+
+    .css-override {
+        aspect-ratio: 1 / 1;
+    }
+
+    .css-auto-with-ratio {
+        aspect-ratio: auto 1 / 1;
+    }
+</style>
+<div><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3C/svg%3E"></div>
+<div><img class="css-ratio" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="css-ratio calculated-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="unconstrained" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3C/svg%3E"></div>
+<div><img class="css-ratio unconstrained" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="css-ratio minimum-only" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="border-box-minimum-only" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3C/svg%3E"></div>
+<div><img class="css-ratio border-box-minimum-only" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="definite-height"><img class="percentage-minimum-only" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3C/svg%3E"></div>
+<div class="definite-height"><img class="css-ratio percentage-minimum-only" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="css-ratio conflicting-heights" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="cyclic-zero-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="cyclic-calculated-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="css-ratio cyclic-zero-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="css-ratio cyclic-zero-minimum unconstrained" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="css-ratio cyclic-calculated-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="css-ratio cyclic-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="css-ratio cyclic-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="css-ratio border-box-cyclic-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div><img class="css-override" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3C/svg%3E"></div>
+<div><img class="css-auto-with-ratio" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3C/svg%3E"></div>
+<div><img class="css-auto-with-ratio" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>

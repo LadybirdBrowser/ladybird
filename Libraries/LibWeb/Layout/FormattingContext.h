@@ -196,9 +196,8 @@ protected:
         ResolveAsZero,
         TreatAsInitialValue,
     };
-    // CSS Sizing resolves cyclic percentages differently for minimum sizes than for preferred/max sizes.
-    // In particular, replaced boxes resolve cyclic preferred/max sizes against zero for min-content
-    // contributions, while cyclic min sizes are treated as their initial value.
+    // NB: Selects the applicable cyclic-percentage intrinsic size contribution rule for minimum versus preferred and
+    //     maximum size properties.
     enum class CyclicPercentageSizeProperty {
         PreferredOrMaxSize,
         MinSize,

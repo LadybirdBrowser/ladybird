@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<style>
+    div {
+        display: grid;
+        grid-template-columns: max-content;
+        width: max-content;
+    }
+
+    img {
+        max-height: 32px;
+    }
+
+    .cyclic-preferred {
+        width: 50%;
+    }
+
+    .cyclic-calculated-preferred {
+        width: calc(10px + 50%);
+    }
+
+    .fixed-preferred {
+        width: 80px;
+    }
+
+    .calculated-preferred {
+        width: calc(80px);
+    }
+
+    .transferred-minimum {
+        min-height: 100px;
+    }
+
+    .cyclic-calculated-transferred-minimum {
+        min-height: calc(10px + 50%);
+    }
+
+    .capped-transferred-minimum {
+        min-height: 100px;
+        max-width: 150px;
+    }
+
+    .calculated-capped-transferred-minimum {
+        min-height: 100px;
+        max-width: calc(150px);
+    }
+
+    .cyclic-maximum {
+        min-height: 100px;
+        max-width: 50%;
+    }
+
+    .cyclic-minimum {
+        min-width: calc(10px + 50%);
+        max-height: 2px;
+    }
+
+    .cyclic-zero-minimum {
+        min-width: 50%;
+    }
+
+    .cyclic-zero-calculated-minimum {
+        min-width: calc(0px + 50%);
+    }
+
+    .calculated-minimum {
+        min-width: calc(80px);
+    }
+
+    .fixed-minimum-only,
+    .calculated-minimum-only {
+        max-height: none;
+        min-height: 100px;
+    }
+
+    .calculated-minimum-only {
+        min-height: calc(100px);
+    }
+
+    .border-box-maximum {
+        box-sizing: border-box;
+        border: 10px solid black;
+        max-height: calc(52px);
+    }
+
+    .definite-height {
+        align-items: start;
+        height: 100px;
+    }
+
+    .percentage-maximum {
+        max-height: 50%;
+    }
+
+    .available-width {
+        width: auto;
+    }
+</style>
+<div><img class="cyclic-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='red'/%3E%3C/svg%3E"></div>
+<div><img class="cyclic-calculated-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='green'/%3E%3C/svg%3E"></div>
+<div><img class="fixed-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='blue'/%3E%3C/svg%3E"></div>
+<div><img class="calculated-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='orange'/%3E%3C/svg%3E"></div>
+<div><img class="transferred-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='purple'/%3E%3C/svg%3E"></div>
+<div><img class="cyclic-calculated-transferred-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='pink'/%3E%3C/svg%3E"></div>
+<div><img class="capped-transferred-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='teal'/%3E%3C/svg%3E"></div>
+<div><img class="calculated-capped-transferred-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='gold'/%3E%3C/svg%3E"></div>
+<div><img class="cyclic-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='navy'/%3E%3C/svg%3E"></div>
+<div><img class="cyclic-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='maroon'/%3E%3C/svg%3E"></div>
+<div><img class="cyclic-zero-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='indigo'/%3E%3C/svg%3E"></div>
+<div><img class="cyclic-zero-calculated-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='violet'/%3E%3C/svg%3E"></div>
+<div><img class="calculated-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='coral'/%3E%3C/svg%3E"></div>
+<div><img class="fixed-minimum-only" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='lime'/%3E%3C/svg%3E"></div>
+<div><img class="calculated-minimum-only" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='aqua'/%3E%3C/svg%3E"></div>
+<div><img class="border-box-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='fuchsia'/%3E%3C/svg%3E"></div>
+<div class="definite-height"><img class="percentage-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='silver'/%3E%3C/svg%3E"></div>
+<div class="available-width"><img class="cyclic-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='olive'/%3E%3C/svg%3E"></div>
+<div class="available-width"><img class="cyclic-zero-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3Crect width='2' height='1' fill='crimson'/%3E%3C/svg%3E"></div>
