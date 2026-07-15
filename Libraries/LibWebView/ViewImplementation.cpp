@@ -58,6 +58,18 @@ Optional<ViewImplementation&> ViewImplementation::find_view_by_id(u64 id)
     return {};
 }
 
+Optional<ViewImplementation&> ViewImplementation::find_view_for_traversable(CanonicalTraversable const& traversable)
+{
+    Optional<ViewImplementation&> result;
+    for_each_view([&](auto& view) {
+        if (&view.traversable() != &traversable)
+            return IterationDecision::Continue;
+        result = view;
+        return IterationDecision::Break;
+    });
+    return result;
+}
+
 ViewImplementation::ViewImplementation(IsPrivate is_private)
     : m_is_private(is_private)
     , m_document_cookie_version_buffer(Core::create_shared_version_buffer())

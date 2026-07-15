@@ -2203,10 +2203,8 @@ void LocalTraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr
         if (delta < 0) {
             auto magnitude = static_cast<size_t>(-static_cast<i64>(delta));
             if (magnitude > current_step_index) {
-                if (source_snapshot_params && page().client().page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed)) {
-                    signal->resolve({});
-                    return;
-                }
+                if (source_snapshot_params)
+                    page().client().page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed);
                 signal->resolve({});
                 return;
             }
@@ -2214,10 +2212,8 @@ void LocalTraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr
         } else {
             auto magnitude = static_cast<size_t>(delta);
             if (magnitude >= all_steps.size() - current_step_index) {
-                if (source_snapshot_params && page().client().page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed)) {
-                    signal->resolve({});
-                    return;
-                }
+                if (source_snapshot_params)
+                    page().client().page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed);
                 signal->resolve({});
                 return;
             }
@@ -2226,10 +2222,8 @@ void LocalTraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr
 
         // 4. If allSteps[targetStepIndex] does not exist, then abort these steps.
         if (target_step_index >= all_steps.size()) {
-            if (source_snapshot_params && page().client().page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed)) {
-                signal->resolve({});
-                return;
-            }
+            if (source_snapshot_params)
+                page().client().page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed);
             signal->resolve({});
             return;
         }
@@ -2251,7 +2245,7 @@ void LocalTraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr
                 run_the_history_step_prechecks(target_step, true, source_snapshot_params, initiator_to_check, user_involvement, Bindings::NavigationType::Traverse, LocalNavigable::NavigationAPIAbortBehavior::Abort,
                     GC::create_function(heap(), [this, delta, signal](HistoryStepResult result, int, LocalNavigable::NavigationAPIAbortBehavior) {
                         if (result == HistoryStepResult::Applied)
-                            (void)page().client().page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::AlreadyDone);
+                            page().client().page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::AlreadyDone);
                         signal->resolve({});
                     }));
                 return;

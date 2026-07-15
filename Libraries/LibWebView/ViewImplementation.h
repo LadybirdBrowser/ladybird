@@ -69,6 +69,7 @@ public:
 
     static void for_each_view(Function<IterationDecision(ViewImplementation&)>);
     static Optional<ViewImplementation&> find_view_by_id(u64);
+    static Optional<ViewImplementation&> find_view_for_traversable(CanonicalTraversable const&);
 
     IsPrivate is_private() const { return m_is_private; }
 

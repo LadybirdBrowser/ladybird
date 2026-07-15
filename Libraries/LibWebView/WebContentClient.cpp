@@ -1496,26 +1496,20 @@ void WebContentClient::did_check_if_traverse_history_step_is_canceled(
         view->did_check_if_traverse_history_step_is_canceled({}, request_id, step, result);
 }
 
-Messages::WebContentClient::DidRequestTraverseTheHistoryByDeltaResponse WebContentClient::did_request_traverse_the_history_by_delta(u64 page_id, i32 delta, Web::HistoryTraversalPrecheck history_traversal_precheck)
+void WebContentClient::did_request_traverse_the_history_by_delta(u64 page_id, i32 delta, Web::HistoryTraversalPrecheck history_traversal_precheck)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        auto view_id = view->view_id();
-        // This request is already a synchronous IPC from WebContent, so defer
-        // the UI traversal before it possibly calls back into WebContent for
-        // cancelation checks.
-        Core::deferred_invoke([view_id, delta, history_traversal_precheck] {
-            auto view = ViewImplementation::find_view_by_id(view_id);
-            if (!view.has_value())
-                return;
-            auto check_for_cancelation = CheckForCancelation::IfWebContentCannotTraverseTarget;
-            if (history_traversal_precheck == Web::HistoryTraversalPrecheck::Needed)
-                check_for_cancelation = CheckForCancelation::Yes;
-            (void)view->traverse_the_history_by_delta(delta, check_for_cancelation);
-        });
-        return true;
-    }
+    auto* page_host = navigable_for_page(page_id);
+    if (!page_host)
+        return;
 
-    return false;
+    auto view = ViewImplementation::find_view_for_traversable(page_host->top_level_traversable());
+    if (!view.has_value())
+        return;
+
+    auto check_for_cancelation = history_traversal_precheck == Web::HistoryTraversalPrecheck::Needed
+        ? CheckForCancelation::Yes
+        : CheckForCancelation::IfWebContentCannotTraverseTarget;
+    (void)view->traverse_the_history_by_delta(delta, check_for_cancelation);
 }
 
 void WebContentClient::did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta)

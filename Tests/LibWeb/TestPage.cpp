@@ -37,15 +37,13 @@ public:
         visitor.visit(m_page);
     }
 
-    virtual bool page_did_request_traverse_the_history_by_delta(int delta, Web::HistoryTraversalPrecheck history_traversal_precheck) override
+    virtual void page_did_request_traverse_the_history_by_delta(int delta, Web::HistoryTraversalPrecheck history_traversal_precheck) override
     {
         ++traversal_request_count;
         last_traversal_delta = delta;
         last_history_traversal_precheck = history_traversal_precheck;
-        return accept_traversal_request;
     }
 
-    bool accept_traversal_request { true };
     size_t traversal_request_count { 0 };
     Optional<int> last_traversal_delta;
     Optional<Web::HistoryTraversalPrecheck> last_history_traversal_precheck;

@@ -587,7 +587,7 @@ public:
     virtual void page_did_update_session_history_entry_scroll_restoration_mode([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] HTML::ScrollRestorationMode scroll_restoration_mode) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }
     virtual String page_did_update_session_history_and_request_ui_process_session_history_for_testing([[maybe_unused]] Vector<HTML::SessionHistoryEntryDescriptor> const& entries, [[maybe_unused]] Vector<i32> const& used_steps, [[maybe_unused]] size_t current_used_step_index) { return "{}"_string; }
-    virtual bool page_did_request_traverse_the_history_by_delta([[maybe_unused]] int delta, [[maybe_unused]] HistoryTraversalPrecheck history_traversal_precheck) { return false; }
+    virtual void page_did_request_traverse_the_history_by_delta([[maybe_unused]] int delta, [[maybe_unused]] HistoryTraversalPrecheck history_traversal_precheck) { }
     virtual void page_did_change_needs_beforeunload_check([[maybe_unused]] bool needs_beforeunload_check) { }
 
     virtual void request_file(FileRequest) = 0;

@@ -189,10 +189,7 @@ void Page::reload()
 
 void Page::traverse_the_history_by_delta(int delta)
 {
-    if (m_client->page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed))
-        return;
-
-    top_level_traversable()->traverse_the_history_by_delta(delta);
+    m_client->page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed);
 }
 
 Gfx::Palette Page::palette() const

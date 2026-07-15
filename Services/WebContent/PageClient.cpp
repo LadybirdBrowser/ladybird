@@ -1118,9 +1118,9 @@ String PageClient::page_did_update_session_history_and_request_ui_process_sessio
     return client().did_update_session_history_and_request_ui_process_session_history_for_testing(m_id, entries, used_steps, current_used_step_index);
 }
 
-bool PageClient::page_did_request_traverse_the_history_by_delta(int delta, Web::HistoryTraversalPrecheck history_traversal_precheck)
+void PageClient::page_did_request_traverse_the_history_by_delta(int delta, Web::HistoryTraversalPrecheck history_traversal_precheck)
 {
-    return client().did_request_traverse_the_history_by_delta(m_id, delta, history_traversal_precheck);
+    client().async_did_request_traverse_the_history_by_delta(m_id, delta, history_traversal_precheck);
 }
 
 void PageClient::request_webdriver_history_traversal(int delta, Function<void(WebDriverHistoryTraversalResult)> on_complete)
