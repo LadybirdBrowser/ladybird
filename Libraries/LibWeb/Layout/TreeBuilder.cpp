@@ -756,7 +756,7 @@ static bool display_contents_text_needs_style_wrapper(DOM::Text& text_node, DOM:
     return !first_is_one_of(style_parent.computed_properties()->white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse);
 }
 
-TraversalDecision TreeBuilder::clear_stale_layout_and_paint_node(DOM::Node& node, DOM::Node const* content_visibility_hidden_root)
+TraversalDecision TreeBuilder::clear_stale_layout_and_paint_node(DOM::Node& node, DOM::Node const* cleared_subtree_root)
 {
     node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
     node.set_child_needs_layout_tree_update(false);
@@ -766,9 +766,9 @@ TraversalDecision TreeBuilder::clear_stale_layout_and_paint_node(DOM::Node& node
     // SVGPatternBox, SVGMaskBox, and SVGClipBox are created on behalf of a referencing
     // element and attached to that element's layout subtree. Skip them so they survive
     // cleanup of their DOM ancestor, unless their layout attachment is inside the
-    // subtree being hidden too.
+    // subtree being cleared too.
     if (layout_node && is_svg_resource_box(*layout_node)
-        && (!content_visibility_hidden_root || !layout_node_is_attached_to_dom_subtree(*layout_node, *content_visibility_hidden_root))) {
+        && (!cleared_subtree_root || !layout_node_is_attached_to_dom_subtree(*layout_node, *cleared_subtree_root))) {
         return TraversalDecision::SkipChildrenAndContinue;
     }
 
@@ -782,6 +782,34 @@ TraversalDecision TreeBuilder::clear_stale_layout_and_paint_node(DOM::Node& node
         static_cast<DOM::Element&>(node).clear_synthetic_pseudo_element_layout_nodes(Badge<TreeBuilder> {});
 
     return TraversalDecision::Continue;
+}
+
+void TreeBuilder::detach_top_layer_element_layout_subtree(DOM::Element& element)
+{
+    // NB: Called at DOM mutation processing time, outside layout tree construction.
+    if (auto element_layout_node = RefPtr { element.unsafe_layout_node() }) {
+        // Take along any anonymous wrapper table fixup created around the box; an emptied
+        // table wrapper left behind as a viewport child asserts during layout.
+        RefPtr<Layout::Node> layout_node_to_detach = element_layout_node;
+        if (auto* top_layer_placement = element_layout_node->topmost_layout_node_of_top_layer_placement())
+            layout_node_to_detach = top_layer_placement;
+        layout_node_to_detach->prepare_subtree_for_detach_from_layout_tree();
+        if (layout_node_to_detach->parent())
+            layout_node_to_detach->remove();
+    }
+    element.for_each_shadow_including_inclusive_descendant([&](auto& node) {
+        return clear_stale_layout_and_paint_node(node, &element);
+    });
+    // Assigned slottables are flat tree children of a slot, not DOM descendants.
+    if (auto* slot_element = as_if<HTML::HTMLSlotElement>(element)) {
+        for (auto const& slottable : slot_element->assigned_nodes_internal()) {
+            slottable.visit([&](DOM::Node& slottable_root) {
+                slottable_root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
+                    return clear_stale_layout_and_paint_node(node, &slottable_root);
+                });
+            });
+        }
+    }
 }
 
 static bool element_has_an_unrendered_flat_tree_ancestor(DOM::Element const& element)
@@ -808,8 +836,20 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     if (dom_node.is_element()) {
         auto& element = static_cast<DOM::Element&>(dom_node);
-        if (element.rendered_in_top_layer() && !context.layout_top_layer)
+        if (element.rendered_in_top_layer() && !context.layout_top_layer) {
+            // A member found here without an attached box was cleared together with a hidden
+            // ancestor subtree, and nothing is scheduled to rebuild it: request a top layer
+            // zone rebuild, which runs as another update_layout pass and re-marks every member
+            // itself. Marking the member here instead would strand dirty flags under ancestors
+            // whose walks already finished, and a later update_layout would then treat the
+            // detached member boxes as up to date.
+            // NB: Called during layout tree construction.
+            auto* element_layout_node = element.unsafe_layout_node();
+            bool element_box_is_missing_or_detached = !element_layout_node || !element_layout_node->parent();
+            if (element_box_is_missing_or_detached && !element.needs_layout_tree_update())
+                element.document().set_top_layer_needs_layout_zone_rebuild();
             return;
+        }
     }
     if (dom_node.is_element())
         dom_node.document().style_computer().push_ancestor(static_cast<DOM::Element const&>(dom_node));

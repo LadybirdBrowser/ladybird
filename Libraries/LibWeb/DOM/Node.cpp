@@ -1795,6 +1795,9 @@ static bool is_structural_boundary_self_rebuild_reason(SetNeedsLayoutTreeUpdateR
     case SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData:
     case SetNeedsLayoutTreeUpdateReason::ElementSetInnerHTML:
     case SetNeedsLayoutTreeUpdateReason::ShadowRootSetInnerHTML:
+    // The box of an element that entered the top layer leaves the parent's subtree,
+    // which is a child-list change.
+    case SetNeedsLayoutTreeUpdateReason::TopLayerMembershipChange:
         return true;
     default:
         return false;
@@ -1934,6 +1937,14 @@ void Node::removed_from(IsSubtreeRoot, Node*, Node&)
     m_in_editable_subtree = false;
     m_inside_blocking_wheel_event_handler = false;
     clear_layout_node_paintable();
+    // A top layer element's box is a viewport child rather than part of the parent's box
+    // subtree, so the parent rebuild triggered by this removal can never detach it.
+    if (m_layout_node) {
+        if (auto* top_layer_placement = m_layout_node->topmost_layout_node_of_top_layer_placement()) {
+            top_layer_placement->prepare_subtree_for_detach_from_layout_tree();
+            top_layer_placement->remove();
+        }
+    }
     m_layout_node = nullptr;
     m_paintable = nullptr;
 

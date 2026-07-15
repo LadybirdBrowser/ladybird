@@ -1115,7 +1115,20 @@ void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reaso
     //     boxes based on the element's own needs-layout-tree-update flag; the DOM parent's subtree rebuild skips them
     //     entirely. Mark the element itself in that case. This still propagates child-needs-layout-tree-update up to
     //     the document, which is what makes the top layer pass run.
-    if (auto parent = parent_element(); parent && !rendered_in_top_layer())
+    // NB: Called outside layout tree construction.
+    auto* layout_node = unsafe_layout_node();
+    // An element that just left the top layer keeps its box as a viewport child until the
+    // pending membership change is processed, so the parent must not be rebuilt for it either.
+    bool element_box_is_placed_in_top_layer = layout_node && layout_node->topmost_layout_node_of_top_layer_placement();
+    if (rendered_in_top_layer() || element_box_is_placed_in_top_layer) {
+        // An attached box is replaced in its viewport slot, keeping top layer order; a fresh
+        // insert of a detached member appends out of order, so it needs a zone rebuild.
+        if (!layout_node || !layout_node->parent())
+            document().set_top_layer_needs_layout_zone_rebuild();
+        set_needs_layout_tree_update(true, reason);
+        return;
+    }
+    if (auto parent = parent_element())
         parent->set_needs_layout_tree_update(true, reason);
     else
         set_needs_layout_tree_update(true, reason);

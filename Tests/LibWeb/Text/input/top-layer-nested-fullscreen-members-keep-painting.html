@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="first"><div id="last"></div></div>
+<script>
+    // Zone rebuilds over nested fullscreen members used to leave detached boxes behind and
+    // crash on the next paint; the trailing frames force paints after the last rebuild.
+    asyncTest(async (done) => {
+        const first = document.getElementById("first");
+        const last = document.getElementById("last");
+
+        const activate_by_click = () =>
+            new Promise((resolve) => {
+                document.addEventListener("click", resolve, { once: true });
+                internals.click(5, 5);
+            });
+        const fullscreen_change = () =>
+            new Promise((resolve) => (document.onfullscreenchange = resolve));
+        const next_frame = () =>
+            new Promise((resolve) => requestAnimationFrame(resolve));
+
+        await activate_by_click();
+        await Promise.all([first.requestFullscreen(), fullscreen_change()]);
+        println(`1: ${document.fullscreenElement?.id}`);
+
+        await activate_by_click();
+        await Promise.all([last.requestFullscreen(), fullscreen_change()]);
+        println(`2: ${document.fullscreenElement?.id}`);
+
+        await activate_by_click();
+        await Promise.all([first.requestFullscreen(), fullscreen_change()]);
+        println(`3: ${document.fullscreenElement?.id}`);
+
+        await next_frame();
+        await next_frame();
+        await next_frame();
+        println("painted");
+        done();
+    });
+</script>

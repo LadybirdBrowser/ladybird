@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/top-layer-slot-popover-hidden-removes-slotted-boxes-ref.html">
+<style>
+    #content {
+        width: 100px;
+        height: 100px;
+        background: red;
+    }
+    #marker {
+        width: 100px;
+        height: 100px;
+        background: green;
+    }
+</style>
+<div id="host"><div id="content"></div></div>
+<div id="marker"></div>
+<script>
+    const shadow_root = host.attachShadow({ mode: "open" });
+    shadow_root.innerHTML = '<slot id="s" popover></slot>';
+    const slot = shadow_root.getElementById("s");
+    slot.showPopover();
+    document.body.offsetHeight;
+    slot.hidePopover();
+</script>

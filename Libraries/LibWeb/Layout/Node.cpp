@@ -90,6 +90,16 @@ void Node::prepare_subtree_for_detach_from_layout_tree()
     });
 }
 
+Node* Node::topmost_layout_node_of_top_layer_placement()
+{
+    auto* direct_viewport_child_candidate = this;
+    while (direct_viewport_child_candidate->parent() && direct_viewport_child_candidate->parent()->is_anonymous())
+        direct_viewport_child_candidate = direct_viewport_child_candidate->parent();
+    if (!direct_viewport_child_candidate->parent() || !direct_viewport_child_candidate->parent()->is_viewport())
+        return nullptr;
+    return direct_viewport_child_candidate;
+}
+
 // https://www.w3.org/TR/css-display-3/#out-of-flow
 bool Node::is_out_of_flow(FormattingContext const& formatting_context) const
 {

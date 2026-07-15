@@ -805,6 +805,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_top_layer_elements);
     visitor.visit(m_top_layer_pending_removals);
+    visitor.visit(m_elements_with_pending_top_layer_membership_change);
     visitor.visit(m_showing_auto_popover_list);
     visitor.visit(m_showing_hint_popover_list);
     visitor.visit(m_popover_pointerdown_target);
@@ -2080,6 +2081,7 @@ void Document::update_layout(UpdateLayoutReason reason)
     constexpr size_t max_container_query_layout_passes = 8;
     for (size_t layout_pass = 0; layout_pass < max_container_query_layout_passes; ++layout_pass) {
         update_style();
+        process_pending_top_layer_layout_changes();
 
         auto const should_collect_devtools_layout_data = page().client().has_active_devtools_client();
         auto const force_devtools_layout_data_collection = should_collect_devtools_layout_data
@@ -2226,6 +2228,10 @@ void Document::update_layout(UpdateLayoutReason reason)
         }
 
         if (needs_style_update_after_layout())
+            continue;
+
+        // A zone rebuild requested during layout tree construction runs as another pass.
+        if (m_top_layer_needs_layout_zone_rebuild || !m_elements_with_pending_top_layer_membership_change.is_empty())
             continue;
 
         // The pass cap above bounds repeated container query style/layout cycles.
@@ -7948,7 +7954,7 @@ void Document::add_an_element_to_the_top_layer(GC::Ref<Element> element)
     // FIXME: 4. At the UA !important cascade origin, add a rule targeting el containing an overlay: auto declaration.
     element->set_rendered_in_top_layer(true);
     element->set_needs_style_update(true);
-    invalidate_layout_tree(InvalidateLayoutTreeReason::DocumentAddAnElementToTheTopLayer);
+    m_elements_with_pending_top_layer_membership_change.append(element);
 }
 
 // https://drafts.csswg.org/css-position-4/#request-an-element-to-be-removed-from-the-top-layer
@@ -7963,7 +7969,7 @@ void Document::request_an_element_to_be_remove_from_the_top_layer(GC::Ref<Elemen
     // FIXME: 3. Remove the UA !important overlay: auto rule targeting el.
     element->set_rendered_in_top_layer(false);
     element->set_needs_style_update(true);
-    invalidate_layout_tree(InvalidateLayoutTreeReason::DocumentRequestAnElementToBeRemovedFromTheTopLayer);
+    m_elements_with_pending_top_layer_membership_change.append(element);
 
     // 4. Append el to doc’s pending top layer removals.
     m_top_layer_pending_removals.set(element);
@@ -7983,7 +7989,7 @@ void Document::remove_an_element_from_the_top_layer_immediately(GC::Ref<Element>
     element->set_rendered_in_top_layer(false);
     element->set_needs_style_update(true);
 
-    invalidate_layout_tree(InvalidateLayoutTreeReason::DocumentImmediatelyRemoveElementFromTheTopLayer);
+    m_elements_with_pending_top_layer_membership_change.append(element);
 }
 
 // https://drafts.csswg.org/css-position-4/#process-top-layer-removals
@@ -8004,9 +8010,66 @@ void Document::process_top_layer_removals()
         m_top_layer_elements.remove(element);
         m_top_layer_pending_removals.remove(element);
     }
+}
 
-    if (!elements_to_remove.is_empty())
-        invalidate_layout_tree(InvalidateLayoutTreeReason::DocumentPendingTopLayerRemovalsProcessed);
+// The top layer is treated as a single rebuild zone: any membership change detaches the box
+// subtree of every rendered member and re-marks the members, after which the top layer pass of
+// the tree builder recreates all their boxes in top layer order. Runs after style update so
+// that elements that left the top layer are classified by their up-to-date computed display.
+void Document::process_pending_top_layer_layout_changes()
+{
+    if (m_elements_with_pending_top_layer_membership_change.is_empty() && !m_top_layer_needs_layout_zone_rebuild)
+        return;
+
+    auto elements_with_membership_change = move(m_elements_with_pending_top_layer_membership_change);
+    m_top_layer_needs_layout_zone_rebuild = false;
+
+    // An already pending full build recreates every box anyway.
+    if (!m_layout_root || needs_full_layout_tree_update())
+        return;
+
+    // Marks are applied only after every detach has run: detaching clears the flags across the
+    // detached subtree and would wipe the fresh mark of a member nested inside another member.
+    GC::RootVector<GC::Ref<Element>> elements_to_mark_for_layout_tree_update;
+
+    for (auto const& element : elements_with_membership_change) {
+        // NB: Elements that changed membership more than once are processed by their final state.
+        if (element->rendered_in_top_layer()) {
+            // An entering element whose box is still attached at its normal position leaves
+            // anonymous wrappers and inline fragments behind; the parent subtree rebuild heals
+            // that structure, while the top layer pass rebuilds the element itself.
+            // NB: Called during top layer processing, outside layout tree construction.
+            auto* element_layout_node = element->unsafe_layout_node();
+            bool element_has_box_at_normal_position = element_layout_node && element_layout_node->parent() && !element_layout_node->topmost_layout_node_of_top_layer_placement();
+            if (element_has_box_at_normal_position) {
+                if (auto* flat_tree_parent = element->flat_tree_parent(); flat_tree_parent && !flat_tree_parent->is_document())
+                    flat_tree_parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::TopLayerMembershipChange);
+            }
+        } else {
+            // A leaving element that is still rendered (fullscreen exit, mostly) needs a box
+            // back among already-built sibling boxes, which only a full rebuild can order.
+            bool element_is_still_rendered = element->is_connected()
+                && element->computed_properties()
+                && !element->computed_properties()->display().is_none();
+            if (element_is_still_rendered) {
+                invalidate_layout_tree(InvalidateLayoutTreeReason::TopLayerElementStillRenderedAfterRemoval);
+                return;
+            }
+            Layout::TreeBuilder::detach_top_layer_element_layout_subtree(element);
+            if (element->is_connected())
+                elements_to_mark_for_layout_tree_update.append(element);
+        }
+    }
+
+    for (auto const& member : m_top_layer_elements) {
+        if (!member->rendered_in_top_layer())
+            continue;
+        Layout::TreeBuilder::detach_top_layer_element_layout_subtree(member);
+        elements_to_mark_for_layout_tree_update.append(member);
+    }
+
+    for (auto const& element : elements_to_mark_for_layout_tree_update)
+        element->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::TopLayerMembershipChange);
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#topmost-auto-popover

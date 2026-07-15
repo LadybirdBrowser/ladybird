@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/top-layer-reshown-element-moves-to-top-ref.html">
+<style>
+    [popover] {
+        position: fixed;
+        left: 0;
+        top: 0;
+        margin: 0;
+        border: 0;
+        padding: 0;
+        width: 100px;
+        height: 100px;
+    }
+    #a {
+        background: red;
+    }
+    #b {
+        background: green;
+    }
+</style>
+<div id="a" popover="manual"></div>
+<div id="b" popover="manual"></div>
+<script>
+    a.showPopover();
+    b.showPopover();
+    document.body.offsetHeight;
+    // Re-showing a moves it to the end of the top layer, so its box must move above b's.
+    a.hidePopover();
+    a.showPopover();
+</script>

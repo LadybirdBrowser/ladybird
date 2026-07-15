@@ -106,7 +106,8 @@ enum class SetNeedsLayoutReason {
     X(NodeSetTextContent)                                 \
     X(None)                                               \
     X(ShadowRootSetInnerHTML)                             \
-    X(StyleChange)
+    X(StyleChange)                                        \
+    X(TopLayerMembershipChange)
 
 enum class SetNeedsLayoutTreeUpdateReason {
 #define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON(e) e,

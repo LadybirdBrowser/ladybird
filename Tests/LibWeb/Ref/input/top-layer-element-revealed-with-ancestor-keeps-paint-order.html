@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/top-layer-element-revealed-with-ancestor-keeps-paint-order-ref.html">
+<style>
+    dialog {
+        position: fixed;
+        inset: 0 auto auto 0;
+        margin: 0;
+        border: 0;
+        padding: 0;
+        height: 100px;
+    }
+    dialog::backdrop {
+        background: transparent;
+    }
+    #a {
+        width: 200px;
+        background: blue;
+    }
+    #b {
+        width: 100px;
+        background: green;
+    }
+</style>
+<div id="container">
+    <dialog id="a"></dialog>
+</div>
+<dialog id="b"></dialog>
+<script>
+    a.showModal();
+    b.showModal();
+    document.body.offsetHeight;
+    // Revealing the container must bring back the box of a, which was torn down together with
+    // the container's subtree, at a's top layer position: below b, not appended above it.
+    container.style.display = "none";
+    document.body.offsetHeight;
+    container.style.display = "block";
+</script>

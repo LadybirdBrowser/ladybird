@@ -99,6 +99,10 @@ public:
     void prepare_for_detach_from_layout_tree();
     void prepare_subtree_for_detach_from_layout_tree();
 
+    // Returns the direct viewport child above this node (the node itself or its outermost
+    // anonymous table-fixup wrapper), or null when the node is not placed as a top layer box.
+    Node* topmost_layout_node_of_top_layer_placement();
+
     virtual RefPtr<Painting::Paintable> create_paintable() const;
 
     DOM::Document& document();

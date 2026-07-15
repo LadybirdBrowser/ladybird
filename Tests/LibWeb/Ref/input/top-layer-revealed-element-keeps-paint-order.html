@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/top-layer-revealed-element-keeps-paint-order-ref.html">
+<style>
+    dialog {
+        position: fixed;
+        left: 0;
+        top: 0;
+        inset: 0 auto auto 0;
+        margin: 0;
+        border: 0;
+        padding: 0;
+        width: 100px;
+        height: 100px;
+    }
+    dialog::backdrop {
+        background: transparent;
+    }
+    #a {
+        background: red;
+    }
+    #b {
+        background: green;
+    }
+</style>
+<dialog id="a"></dialog>
+<dialog id="b"></dialog>
+<script>
+    a.showModal();
+    b.showModal();
+    // Hide a's box without leaving the top layer, then reveal it: the fresh box must return to
+    // a's top layer position (below b), not get appended above b.
+    a.style.display = "none";
+    document.body.offsetHeight;
+    a.style.display = "block";
+</script>

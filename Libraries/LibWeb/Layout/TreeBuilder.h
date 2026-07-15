@@ -31,6 +31,8 @@ public:
 
     void note_tree_restructuring_at(Layout::Node const&);
 
+    static void detach_top_layer_element_layout_subtree(DOM::Element&);
+
 private:
     struct Context {
         bool has_svg_root = false;
@@ -51,7 +53,7 @@ private:
     void update_layout_tree(DOM::Node&, Context&, MustCreateSubtree);
     void update_layout_tree_for_display_contents(DOM::Element&, Context&, MustCreateSubtree, bool should_create_layout_node);
     void update_layout_tree_for_svg_switch_children(SVG::SVGSwitchElement&, Context&, MustCreateSubtree);
-    TraversalDecision clear_stale_layout_and_paint_node(DOM::Node&, DOM::Node const* content_visibility_hidden_root = nullptr);
+    static TraversalDecision clear_stale_layout_and_paint_node(DOM::Node&, DOM::Node const* cleared_subtree_root = nullptr);
 
     void push_parent(Layout::NodeWithStyle& node) { m_ancestor_stack.append(&node); }
     void pop_parent() { m_ancestor_stack.take_last(); }
