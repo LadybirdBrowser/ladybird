@@ -219,7 +219,7 @@ void ViewportPaintable::reassign_scroll_frames()
 
 void ViewportPaintable::assign_scroll_frames()
 {
-    for_each_in_inclusive_subtree_of_type<Paintable>([&](auto& paintable_box) {
+    for_each_in_inclusive_subtree([&](auto& paintable_box) {
         paintable_box.set_enclosing_scroll_frame_index({});
         paintable_box.set_own_scroll_frame_index({});
 
@@ -250,7 +250,7 @@ void ViewportPaintable::assign_scroll_frames()
         if (paintable.is_fixed_position() || paintable.is_sticky_position())
             return TraversalDecision::Continue;
 
-        for (auto block = paintable.containing_block(); block; block = block->containing_block()) {
+        for (auto const* block = paintable.containing_block_ptr(); block; block = block->containing_block_ptr()) {
             if (auto index = block->own_scroll_frame_index(); index.value()) {
                 paintable.set_enclosing_scroll_frame_index(index);
                 return TraversalDecision::Continue;

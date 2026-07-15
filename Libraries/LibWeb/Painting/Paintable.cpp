@@ -84,19 +84,24 @@ DOM::Document& Paintable::document()
 
 RefPtr<Paintable> Paintable::containing_block() const
 {
+    return const_cast<Paintable*>(containing_block_ptr());
+}
+
+Paintable const* Paintable::containing_block_ptr() const
+{
     if (m_containing_block.has_value()) {
-        if (auto containing_block = m_containing_block->strong_ref())
+        if (auto* containing_block = m_containing_block->ptr())
             return containing_block;
     }
 
-    auto containing_block = [&] -> RefPtr<Paintable> {
+    auto* containing_block = [&] -> Paintable const* {
         auto containing_layout_box = layout_node().containing_block();
         if (!containing_layout_box)
             return nullptr;
-        auto paintable_box = containing_layout_box->paintable_box();
+        auto* paintable_box = containing_layout_box->paintable_ptr();
         if (!paintable_box)
             return nullptr;
-        return const_cast<Paintable&>(*paintable_box);
+        return paintable_box;
     }();
     m_containing_block = containing_block;
     return containing_block;
@@ -2807,7 +2812,7 @@ ScrollFrameIndex Paintable::nearest_scroll_frame_index() const
 {
     if (is_fixed_position())
         return {};
-    auto paintable = this->containing_block();
+    auto const* paintable = containing_block_ptr();
     while (paintable) {
         if (paintable->own_scroll_frame_index().value())
             return paintable->own_scroll_frame_index();
@@ -2815,7 +2820,7 @@ ScrollFrameIndex Paintable::nearest_scroll_frame_index() const
         // because they must reference a scrollport for their sticky offset computation.
         if (paintable->is_fixed_position() && !is_sticky_position())
             return {};
-        paintable = paintable->containing_block();
+        paintable = paintable->containing_block_ptr();
     }
     return {};
 }

@@ -103,6 +103,7 @@ public:
     GC::Ptr<HTML::LocalNavigable> navigable() const;
 
     RefPtr<Paintable> containing_block() const;
+    Paintable const* containing_block_ptr() const;
 
     template<typename T>
     bool fast_is() const = delete;

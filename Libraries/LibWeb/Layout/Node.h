@@ -94,6 +94,8 @@ public:
 
     RefPtr<Painting::Paintable> paintable() { return m_paintable; }
     RefPtr<Painting::Paintable const> paintable() const { return m_paintable; }
+    Painting::Paintable* paintable_ptr() { return m_paintable.ptr(); }
+    Painting::Paintable const* paintable_ptr() const { return m_paintable.ptr(); }
     void set_paintable(RefPtr<Painting::Paintable>);
     void clear_paintable();
     void prepare_for_detach_from_layout_tree();

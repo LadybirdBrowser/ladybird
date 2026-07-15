@@ -186,3 +186,58 @@ TEST_CASE(preorder_traversal_uses_sibling_links)
     EXPECT_EQ(values[3], 4);
     EXPECT_EQ(values[4], 3);
 }
+
+TEST_CASE(tree_traversal_does_not_retain_nodes)
+{
+    auto root = TestNode::create(0);
+    auto first = TestNode::create(1);
+    auto second = TestNode::create(2);
+    auto second_child = TestNode::create(3);
+
+    root->append_child(first);
+    root->append_child(second);
+    second->append_child(second_child);
+
+    Vector<unsigned> ref_counts;
+    root->for_each_in_inclusive_subtree([&](TestNode& node) {
+        ref_counts.append(node.ref_count());
+        return Web::TraversalDecision::Continue;
+    });
+
+    EXPECT_EQ(ref_counts.size(), 4u);
+    EXPECT_EQ(ref_counts[0], root->ref_count());
+    EXPECT_EQ(ref_counts[1], first->ref_count());
+    EXPECT_EQ(ref_counts[2], second->ref_count());
+    EXPECT_EQ(ref_counts[3], second_child->ref_count());
+
+    ref_counts.clear();
+    root->for_each_in_subtree([&](TestNode& node) {
+        ref_counts.append(node.ref_count());
+        return Web::TraversalDecision::Continue;
+    });
+
+    EXPECT_EQ(ref_counts.size(), 3u);
+    EXPECT_EQ(ref_counts[0], first->ref_count());
+    EXPECT_EQ(ref_counts[1], second->ref_count());
+    EXPECT_EQ(ref_counts[2], second_child->ref_count());
+
+    ref_counts.clear();
+    root->for_each_child([&](TestNode& node) {
+        ref_counts.append(node.ref_count());
+        return IterationDecision::Continue;
+    });
+
+    EXPECT_EQ(ref_counts.size(), 2u);
+    EXPECT_EQ(ref_counts[0], first->ref_count());
+    EXPECT_EQ(ref_counts[1], second->ref_count());
+
+    ref_counts.clear();
+    second_child->for_each_ancestor([&](TestNode const& node) {
+        ref_counts.append(node.ref_count());
+        return IterationDecision::Continue;
+    });
+
+    EXPECT_EQ(ref_counts.size(), 2u);
+    EXPECT_EQ(ref_counts[0], second->ref_count());
+    EXPECT_EQ(ref_counts[1], root->ref_count());
+}
