@@ -18,7 +18,7 @@ namespace TestWeb {
 
 bool is_valid_test_name(StringView test_name)
 {
-    auto valid_test_file_suffixes = { ".htm"sv, ".html"sv, ".svg"sv, ".xhtml"sv, ".xht"sv, ".pdf"sv };
+    auto valid_test_file_suffixes = { ".htm"sv, ".html"sv, ".svg"sv, ".xhtml"sv, ".xht"sv, ".xml"sv, ".pdf"sv };
     return any_of(valid_test_file_suffixes, [&](auto suffix) { return test_name.ends_with(suffix); });
 }
 
