@@ -16,10 +16,11 @@ namespace WebView {
 static constexpr size_t LOCAL_STORAGE_QUOTA = 5 * MiB;
 
 static constexpr u32 WEB_STORAGE_SCHEMA_BASELINE_VERSION = 1u;
+static constexpr u32 WEB_STORAGE_SCHEMA_LAST_ACCESS_TIME_VERSION = 2u;
 
 ErrorOr<Database::MigrationOutcome> StorageJar::migrate_schema(Database::Database& database, Database::MigrationMode mode)
 {
-    Array<Database::Migration, 1> migrations { {
+    Array<Database::Migration, 2> migrations { {
         { .version = WEB_STORAGE_SCHEMA_BASELINE_VERSION, .sql = R"#(
             CREATE TABLE IF NOT EXISTS WebStorage (
                 storage_endpoint INTEGER,
@@ -30,6 +31,13 @@ ErrorOr<Database::MigrationOutcome> StorageJar::migrate_schema(Database::Databas
                 PRIMARY KEY(storage_endpoint, storage_key, bottle_key)
             );
         )#"sv },
+        // A WebStorage table created before last_access_time existed is adopted as-is by the
+        // baseline CREATE ... IF NOT EXISTS above, so add the column to databases that lack it.
+        { .version = WEB_STORAGE_SCHEMA_LAST_ACCESS_TIME_VERSION, .backfill = [](Database::Database& database) -> ErrorOr<void> {
+             if (!TRY(database.column_exists("WebStorage"sv, "last_access_time"sv)))
+                 TRY(database.execute_raw("ALTER TABLE WebStorage ADD COLUMN last_access_time INTEGER;"));
+             return {};
+         } },
     } };
 
     return database.migrate("WebStorage"sv, migrations, mode);

@@ -20,7 +20,7 @@ TEST_CASE(storage_round_trips_on_fresh_database)
     jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "foo"_utf16, "bar"_utf16);
     EXPECT_EQ(jar->get_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "foo"_utf16), Optional<Utf16String> { "bar"_utf16 });
 
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("WebStorage"sv)), Optional<u32> { 1u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("WebStorage"sv)), Optional<u32> { 2u });
 }
 
 TEST_CASE(newer_storage_schema_reports_database_too_new)
@@ -32,4 +32,54 @@ TEST_CASE(newer_storage_schema_reports_database_too_new)
 
     EXPECT_EQ(TRY_OR_FAIL(WebView::StorageJar::migrate_schema(*database)), Database::MigrationOutcome::DatabaseTooNew);
     EXPECT_EQ(TRY_OR_FAIL(WebView::StorageJar::migrate_schema(*database, Database::MigrationMode::CheckOnly)), Database::MigrationOutcome::DatabaseTooNew);
+}
+
+TEST_CASE(migrates_web_storage_table_created_before_last_access_time)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+
+    TRY_OR_FAIL(database->execute_raw(R"#(
+        CREATE TABLE WebStorage (
+            storage_endpoint INTEGER,
+            storage_key TEXT,
+            bottle_key TEXT,
+            bottle_value TEXT,
+            PRIMARY KEY(storage_endpoint, storage_key, bottle_key)
+        );
+    )#"));
+
+    EXPECT_EQ(TRY_OR_FAIL(WebView::StorageJar::migrate_schema(*database)), Database::MigrationOutcome::Success);
+
+    auto jar = TRY_OR_FAIL(WebView::StorageJar::create(*database));
+
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "foo"_utf16, "bar"_utf16);
+    EXPECT_EQ(jar->get_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "foo"_utf16), Optional<Utf16String> { "bar"_utf16 });
+
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("WebStorage"sv)), Optional<u32> { 2u });
+}
+
+TEST_CASE(migration_to_add_last_access_time_is_idempotent)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+
+    TRY_OR_FAIL(database->execute_raw(R"#(
+        CREATE TABLE WebStorage (
+            storage_endpoint INTEGER,
+            storage_key TEXT,
+            bottle_key TEXT,
+            bottle_value TEXT,
+            last_access_time INTEGER,
+            PRIMARY KEY(storage_endpoint, storage_key, bottle_key)
+        );
+    )#"));
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE SchemaVersions (store TEXT PRIMARY KEY, version INTEGER NOT NULL);"));
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO SchemaVersions (store, version) VALUES ('WebStorage', 1);"));
+
+    EXPECT_EQ(TRY_OR_FAIL(WebView::StorageJar::migrate_schema(*database)), Database::MigrationOutcome::Success);
+
+    auto jar = TRY_OR_FAIL(WebView::StorageJar::create(*database));
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "foo"_utf16, "bar"_utf16);
+    EXPECT_EQ(jar->get_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "foo"_utf16), Optional<Utf16String> { "bar"_utf16 });
+
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("WebStorage"sv)), Optional<u32> { 2u });
 }

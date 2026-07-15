@@ -123,6 +123,8 @@ public:
 
     ErrorOr<bool> table_exists(StringView table);
 
+    ErrorOr<bool> column_exists(StringView table, StringView column);
+
     // The version recorded for the store in SchemaVersions, or empty if it has none yet.
     ErrorOr<Optional<u32>> schema_version(StringView store);
 
@@ -196,6 +198,7 @@ private:
     sqlite3* m_database { nullptr };
     Vector<sqlite3_stmt*> m_prepared_statements;
     Optional<StatementID> m_table_exists_statement;
+    Optional<StatementID> m_column_exists_statement;
     Optional<StatementID> m_schema_version_statement;
 };
 
