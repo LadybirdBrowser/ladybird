@@ -10,6 +10,7 @@
 #include <AK/Vector.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWebView/Export.h>
+#include <LibWebView/Forward.h>
 
 namespace WebView {
 
@@ -85,6 +86,7 @@ public:
     [[nodiscard]] bool web_content_can_traverse_to(TraversalTarget const&) const;
     [[nodiscard]] Optional<TraversalTarget> traversal_target_for_delta(int delta) const;
     [[nodiscard]] Optional<TraversalTarget> traversal_target_for_step(i32 step) const;
+    [[nodiscard]] Optional<Vector<Entry> const&> get_session_history_entries(CanonicalNavigable const&) const;
     [[nodiscard]] Optional<size_t> target_step_index_for_delta(int delta) const;
     [[nodiscard]] Optional<i32> step_at(size_t index) const;
     [[nodiscard]] Entry const* current_entry() const;

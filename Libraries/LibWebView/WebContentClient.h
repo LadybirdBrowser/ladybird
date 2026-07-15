@@ -216,6 +216,7 @@ private:
     virtual void did_request_traverse_the_history_by_delta(u64 page_id, i32 delta, Web::HistoryTraversalPrecheck) override;
     virtual void did_request_history_traversal_target_by_delta(u64 page_id, u64 request_id, i32 delta) override;
     virtual void did_request_traverse_the_history_to_step(u64 page_id, i32 step, Web::HistoryTraversalPrecheck) override;
+    virtual void did_request_navigation_api_traversal_target(u64 page_id, u64 request_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key) override;
     virtual void did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta) override;
     virtual Messages::WebContentClient::DidRequestWebdriverLoadUrlFromUiResponse did_request_webdriver_load_url_from_ui(u64 page_id, URL::URL url) override;
     virtual Messages::WebContentClient::DidRequestWebdriverTraverseHistoryFromUiResponse did_request_webdriver_traverse_history_from_ui(u64 page_id, i32 delta) override;

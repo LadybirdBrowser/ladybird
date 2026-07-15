@@ -8,6 +8,7 @@
 #include <AK/HashTable.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
+#include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/SessionHistory.h>
 
 namespace WebView {
@@ -1096,6 +1097,52 @@ Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::
         .target_step_is_top_level_entry = entry_for_step(step) != nullptr,
         .changes_top_level_entry = target_top_level_entry != current_top_level_entry,
     };
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
+Optional<Vector<TraversableSessionHistory::Entry> const&> TraversableSessionHistory::get_session_history_entries(CanonicalNavigable const& navigable) const
+{
+    // 1. Let traversable be navigable's traversable navigable.
+    // NB: The caller has already resolved navigable through its CanonicalTraversable.
+
+    // FIXME: 2. Assert: this is running within traversable's session history traversal queue.
+
+    // 3. If navigable is traversable, return traversable's session history entries.
+    if (navigable.is_top_level_traversable())
+        return m_entries;
+
+    // 4. Let docStates be an empty ordered set of document states.
+    Vector<Web::HTML::SessionHistoryDocumentStateDescriptor const*> document_states;
+    OrderedHashTable<Web::HTML::CrossProcessId> document_state_ids;
+    auto append_document_state = [&](Web::HTML::SessionHistoryDocumentStateDescriptor const& document_state) {
+        if (document_state_ids.set(document_state.id, AK::HashSetExistingEntryBehavior::Keep) == HashSetResult::InsertedNewEntry)
+            document_states.append(&document_state);
+    };
+
+    // 5. For each entry of traversable's session history entries, append entry's document state to docStates.
+    for (auto const& entry : m_entries)
+        append_document_state(entry.document_state);
+
+    // 6. For each docState of docStates:
+    for (size_t i = 0; i < document_states.size(); ++i) {
+        auto const& document_state = *document_states[i];
+
+        // 1. For each nestedHistory of docState's nested histories:
+        for (auto const& nested_history : document_state.nested_histories) {
+            // 1. If nestedHistory's id equals navigable's id, return nestedHistory's entries.
+            if (nested_history.id == navigable.id())
+                return nested_history.entries;
+
+            // 2. For each entry of nestedHistory's entries, append entry's document state to docStates.
+            for (auto const& entry : nested_history.entries)
+                append_document_state(entry.document_state);
+        }
+    }
+
+    // FIXME: The UI mirror can temporarily lack a newly-created navigable's nested history while WebContent and the
+    //        UI process converge. Once navigable creation is ordered with session history updates, apply the
+    //        specification's final assertion.
+    return {};
 }
 
 Optional<size_t> TraversableSessionHistory::target_step_index_for_delta(int delta) const

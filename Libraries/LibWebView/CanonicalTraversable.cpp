@@ -282,6 +282,25 @@ bool CanonicalTraversable::update_session_history_entry_scroll_restoration_mode(
     return m_session_history.update_nested_scroll_restoration_mode(navigable.id(), navigation_api_key, scroll_restoration_mode);
 }
 
+Optional<i32> CanonicalTraversable::navigation_api_traversal_target(CanonicalNavigable const& navigable, Utf16String const& navigation_api_key) const
+{
+    VERIFY(&navigable.top_level_traversable() == this);
+
+    // 1. Let navigableSHEs be the result of getting session history entries given navigable.
+    auto navigable_session_history_entries = m_session_history.get_session_history_entries(navigable);
+    if (!navigable_session_history_entries.has_value())
+        return {};
+
+    // 2. Let targetSHE be the session history entry in navigableSHEs whose navigation API key is key. If no such entry exists, then:
+    auto target_entry = navigable_session_history_entries->find_if([&](auto const& entry) {
+        return entry.navigation_api_key == navigation_api_key;
+    });
+    if (target_entry == navigable_session_history_entries->end())
+        return {};
+
+    return target_entry->step;
+}
+
 WebContentSessionHistoryUpdateResult CanonicalTraversable::update_session_history_from_web_content(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, bool pending_step_after_fallback_load_was_restored, bool seed_web_content_on_invalid_snapshot, URL::URL const& current_url)
 {
     auto update_result = m_session_history.update_from_web_content(move(entries), move(used_steps), current_used_step_index);

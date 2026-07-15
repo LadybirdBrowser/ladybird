@@ -1540,6 +1540,15 @@ void WebContentClient::did_request_traverse_the_history_to_step(u64 page_id, i32
     (void)view->traverse_the_history_to_step(step, check_for_cancelation);
 }
 
+void WebContentClient::did_request_navigation_api_traversal_target(u64 page_id, u64 request_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key)
+{
+    Optional<i32> target_step;
+    if (auto navigable = hosted_navigable_for_page(page_id, navigable_id); navigable.has_value())
+        target_step = navigable->top_level_traversable().navigation_api_traversal_target(*navigable, navigation_api_key);
+
+    async_resolve_session_history_traversal_target(page_id, request_id, target_step);
+}
+
 void WebContentClient::did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

@@ -590,6 +590,7 @@ public:
     virtual void page_did_request_traverse_the_history_by_delta([[maybe_unused]] int delta, [[maybe_unused]] HistoryTraversalPrecheck history_traversal_precheck) { }
     virtual void page_did_request_history_traversal_target_by_delta([[maybe_unused]] int delta, [[maybe_unused]] GC::Ref<GC::Function<void(Optional<int>)>> on_complete) { VERIFY_NOT_REACHED(); }
     virtual void page_did_request_traverse_the_history_to_step([[maybe_unused]] int step, [[maybe_unused]] HistoryTraversalPrecheck history_traversal_precheck) { VERIFY_NOT_REACHED(); }
+    virtual void page_did_request_navigation_api_traversal_target([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] GC::Ref<GC::Function<void(Optional<int>)>> on_complete) { VERIFY_NOT_REACHED(); }
     virtual void page_did_change_needs_beforeunload_check([[maybe_unused]] bool needs_beforeunload_check) { }
 
     virtual void request_file(FileRequest) = 0;

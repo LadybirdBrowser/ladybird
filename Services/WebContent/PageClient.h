@@ -251,6 +251,7 @@ private:
     virtual void page_did_request_traverse_the_history_by_delta(int delta, Web::HistoryTraversalPrecheck) override;
     virtual void page_did_request_history_traversal_target_by_delta(int delta, GC::Ref<GC::Function<void(Optional<int>)>> on_complete) override;
     virtual void page_did_request_traverse_the_history_to_step(int step, Web::HistoryTraversalPrecheck) override;
+    virtual void page_did_request_navigation_api_traversal_target(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, GC::Ref<GC::Function<void(Optional<int>)>> on_complete) override;
     virtual void request_file(Web::FileRequest) override;
     virtual void page_did_request_color_picker(Color current_color) override;
     virtual void page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;

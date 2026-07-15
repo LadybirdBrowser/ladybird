@@ -1137,6 +1137,13 @@ void PageClient::page_did_request_traverse_the_history_to_step(int step, Web::Hi
     client().async_did_request_traverse_the_history_to_step(m_id, step, history_traversal_precheck);
 }
 
+void PageClient::page_did_request_navigation_api_traversal_target(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, GC::Ref<GC::Function<void(Optional<int>)>> on_complete)
+{
+    auto request_id = m_next_session_history_traversal_target_request_id++;
+    m_pending_session_history_traversal_target_requests.set(request_id, on_complete);
+    client().async_did_request_navigation_api_traversal_target(m_id, request_id, navigable_id, navigation_api_key);
+}
+
 void PageClient::did_resolve_session_history_traversal_target(u64 request_id, Optional<i32> target_step)
 {
     auto callback = m_pending_session_history_traversal_target_requests.take(request_id);
