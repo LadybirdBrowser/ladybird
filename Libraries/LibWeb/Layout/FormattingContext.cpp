@@ -189,8 +189,6 @@ static Optional<CSSPixels> max_content_size_for_replaced_element_without_natural
     // If it has no preferred aspect ratio:
     // For both the min-content size and max-content size:
     // If the box has a <length> as its computed minimum size (min-width/min-height) in that dimension, use that size.
-    if (is_width && constraints.minimum_width.has_value())
-        return constraints.minimum_width.value();
     auto const& min_size = is_width ? box.computed_values().min_width() : box.computed_values().min_height();
     if (min_size.is_length_percentage() && !min_size.contains_percentage())
         return min_size.to_px(0);
@@ -2814,15 +2812,26 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box,
         // FIXME: If the box also has a preferred aspect ratio, then this min-content contribution is
         //        floored by any <length-percentage> minimum size from the opposite axis—resolving any
         //        such percentage against zero—transferred through the preferred aspect ratio.
-        if (auto const& width = box.computed_values().width(); width.is_percentage())
-            return width.to_px(0);
-        if (auto const& max_width = box.computed_values().max_width(); max_width.is_percentage())
-            return max_width.to_px(0);
+        // Note: The min-content contribution is, as always, also floored by the minimum size in its own axis.
+        if (box.computed_values().width().contains_percentage() || box.computed_values().max_width().contains_percentage()) {
+            auto const& min_width = box.computed_values().min_width();
+            if (!min_width.is_length_percentage())
+                return 0;
+
+            auto zero_percentage_basis_constraints = containing_block_constraints;
+            zero_percentage_basis_constraints.percentage_basis_width = 0;
+            return calculate_inner_width(box, AvailableSize::make_min_content(), min_width, zero_percentage_basis_constraints);
+        }
     }
     if (auto transferred_width = calculate_transferred_width_for_replaced_element(box, containing_block_constraints); transferred_width.has_value())
         return transferred_width.value();
-    if (auto auto_size = box.auto_content_box_size(); auto_size.has_width())
+    auto auto_size = box.auto_content_box_size();
+    if (auto_size.has_width())
         return auto_size.width.value();
+    if (box.is_replaced_box() && !box.has_preferred_aspect_ratio()) {
+        if (auto fallback_width = max_content_size_for_replaced_element_without_natural_size(box, auto_size, m_state.get(box), SizeDimension::Width); fallback_width.has_value())
+            return fallback_width.value();
+    }
 
     // Boxes with no children have zero intrinsic width.
     if (!box.has_children())

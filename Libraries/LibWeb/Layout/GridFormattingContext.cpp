@@ -2244,6 +2244,12 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
         CSSPixels containing_block_size = containing_block_size_for_item(item, dimension);
         Alignment alignment = alignment_for_item(item.box, dimension);
 
+        // https://drafts.csswg.org/css-grid-1/#grid-item-sizing
+        // A grid item is sized within the containing block defined by its grid area.
+        auto grid_area_constraints = grid_area_constraints_for_item(item);
+        if (dimension == GridDimension::Row)
+            grid_area_constraints.percentage_basis_height = containing_block_size;
+
         auto const& preferred_size = item.preferred_size(dimension);
 
         struct ItemAlignment {
@@ -2315,28 +2321,38 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
             AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_size_for_item(item, GridDimension::Row)))
         };
 
-        auto calculate_inner_size = [this, &item, dimension, available_space](CSS::Size const& size) {
+        auto calculate_inner_size = [this, &item, dimension, available_space, grid_area_constraints](CSS::Size const& size) {
             if (dimension == GridDimension::Column)
-                return calculate_inner_width(item.box, available_space.width, size, grid_area_constraints_for_item(item));
-            return calculate_inner_height(item.box, available_space, size, grid_area_constraints_for_item(item));
+                return calculate_inner_width(item.box, available_space.width, size, grid_area_constraints);
+            return calculate_inner_height(item.box, available_space, size, grid_area_constraints);
         };
 
-        auto tentative_size_for_replaced_element = [this, &item, dimension, available_space](CSS::Size const& size) {
+        auto tentative_size_for_replaced_element = [this, &item, dimension, available_space, grid_area_constraints](CSS::Size const& size) {
             if (dimension == GridDimension::Column)
-                return tentative_width_for_replaced_element(item.box, size, available_space, grid_area_constraints_for_item(item));
-            return tentative_height_for_replaced_element(item.box, size, available_space, grid_area_constraints_for_item(item));
+                return tentative_width_for_replaced_element(item.box, size, available_space, grid_area_constraints);
+            return tentative_height_for_replaced_element(item.box, size, available_space, grid_area_constraints);
         };
 
         ItemAlignment used_alignment;
-        auto hint = item.box.auto_content_box_size();
-        bool has_replaced_size_hint_in_this_axis = false;
+        auto natural_size = item.box.auto_content_box_size();
+        bool has_natural_size_in_relevant_axis = false;
         if (dimension == GridDimension::Column) {
-            has_replaced_size_hint_in_this_axis = hint.has_width() || (hint.has_height() && item.box.has_preferred_aspect_ratio());
+            has_natural_size_in_relevant_axis = natural_size.has_width() || (natural_size.has_height() && item.box.has_preferred_aspect_ratio());
         } else {
-            has_replaced_size_hint_in_this_axis = hint.has_height() || (hint.has_width() && item.box.has_preferred_aspect_ratio());
+            has_natural_size_in_relevant_axis = natural_size.has_height() || (natural_size.has_width() && item.box.has_preferred_aspect_ratio());
         }
 
-        if (item.box.is_replaced_box() && has_replaced_size_hint_in_this_axis) {
+        auto use_replaced_sizing = item.box.is_replaced_box() && has_natural_size_in_relevant_axis;
+
+        // https://drafts.csswg.org/css-grid-1/#grid-item-sizing
+        // If the grid item has no preferred aspect ratio, and no natural size in the relevant axis (if it is a replaced
+        // element), the grid item is sized as for 'align-self: stretch'.
+        // INTEROP: Blink, WebKit, and Gecko instead use replaced sizing for normal-aligned replaced items. Match that
+        //          behavior for leaf replaced boxes, while retaining our existing behavior for controls with children.
+        if (item.box.is_replaced_box() && alignment == Alignment::Normal && !item.box.is_replaced_box_with_children())
+            use_replaced_sizing = true;
+
+        if (use_replaced_sizing) {
             auto tentative_size = tentative_size_for_replaced_element(preferred_size);
             used_alignment = try_compute_size(tentative_size, item.preferred_size(dimension));
         } else {
@@ -2372,14 +2388,14 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
             } else if (preferred_size.is_auto() || preferred_size.is_fit_content()) {
                 CSSPixels fit_content_size;
                 if (dimension == GridDimension::Column) {
-                    fit_content_size = calculate_fit_content_width(item.box, available_space, grid_area_constraints_for_item(item));
+                    fit_content_size = calculate_fit_content_width(item.box, available_space, grid_area_constraints);
                 } else if (preferred_size.is_auto() && item.box.has_preferred_aspect_ratio() && *item.box.preferred_aspect_ratio() != 0 && item.used_values.has_definite_width()) {
                     // NB: When the item has a preferred aspect ratio and a definite width, resolve the
                     //     height through the aspect ratio instead of using fit-content sizing, which would
                     //     incorrectly use the available width (grid area width) instead of the item's width.
-                    fit_content_size = item.used_values.content_width() / *item.box.preferred_aspect_ratio();
+                    fit_content_size = calculate_inner_height(item.box, available_space, CSS::Size::make_auto(), grid_area_constraints);
                 } else {
-                    fit_content_size = calculate_fit_content_height(item.box, available_space, grid_area_constraints_for_item(item));
+                    fit_content_size = calculate_fit_content_height(item.box, available_space, grid_area_constraints);
                 }
                 used_alignment = try_compute_size(fit_content_size, preferred_size);
             } else {
@@ -2388,7 +2404,7 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
             }
         }
 
-        bool should_treat_maximum_size_as_none = dimension == GridDimension::Column ? should_treat_max_width_as_none(item.box, available_space.width, grid_area_constraints_for_item(item)) : should_treat_max_height_as_none(item.box, available_space.height, grid_area_constraints_for_item(item));
+        bool should_treat_maximum_size_as_none = dimension == GridDimension::Column ? should_treat_max_width_as_none(item.box, available_space.width, grid_area_constraints) : should_treat_max_height_as_none(item.box, available_space.height, grid_area_constraints);
         if (!should_treat_maximum_size_as_none) {
             auto const& maximum_size = item.maximum_size(dimension);
             auto max_size_px = calculate_inner_size(maximum_size);

@@ -1,0 +1,58 @@
+no intrinsic data: track 300, image 300x150
+cyclic minimum: track 300, image 300x150
+calculated cyclic minimum: track 300, image 300x150
+calculated cyclic minimum below fallback: track 300, image 350x150
+calculated cyclic minimum above fallback: track 400, image 600x150
+fixed minimum: track 400, image 400x150
+calculated minimum: track 400, image 400x150
+fixed maximum: track 100, image 100x150
+calculated maximum: track 100, image 100x150
+fixed preferred: track 100, image 100x150
+calculated preferred: track 100, image 100x150
+conflicting fixed min max: track 200, image 200x150
+cyclic maximum: track 300, image 150x150
+calculated cyclic maximum: track 300, image 170x150
+cyclic preferred: track 300, image 150x150
+calculated cyclic preferred: track 300, image 170x150
+conflicting cyclic min max: track 300, image 150x150
+opposite-axis minimum: track 300, image 300x200
+opposite-axis cyclic minimum: track 300, image 300x150
+border-box cyclic minimum: track 320, image 320x170
+natural width and cyclic minimum: track 120, image 120x150
+natural height and cyclic minimum: track 300, image 300x80
+natural dimensions and cyclic minimum: track 120, image 120x80
+CSS ratio and cyclic minimum: track 0, image 0x0
+auto CSS ratio and cyclic minimum: track 0, image 0x0
+min-content no intrinsic data: track 300, image 300x150
+min-content cyclic preferred: track 0, image 0x150
+min-content calculated cyclic preferred: track 0, image 20x150
+min-content cyclic maximum: track 0, image 0x150
+min-content calculated cyclic maximum: track 0, image 20x150
+min-content cyclic minimum: track 300, image 300x150
+min-content calculated cyclic minimum: track 300, image 300x150
+min-content calculated minimum above fallback: track 400, image 600x150
+min-content fixed minimum: track 400, image 400x150
+min-content fixed maximum: track 100, image 100x150
+min-content fixed preferred: track 100, image 100x150
+min-content conflicting fixed min max: track 200, image 200x150
+min-content natural width cyclic minimum: track 120, image 120x150
+min-content natural width calculated minimum: track 200, image 300x150
+min-content natural width calculated preferred: track 0, image 20x150
+min-content CSS ratio: track 0, image 0x0
+min-content CSS ratio cyclic preferred: track 0, image 0x0
+block no intrinsic data: track 150, image 300x150
+block cyclic minimum: track 150, image 300x150
+block calculated cyclic minimum: track 150, image 300x150
+block calculated minimum above fallback: track 200, image 300x300
+block fixed minimum: track 200, image 300x200
+block fixed maximum: track 100, image 300x100
+block calculated maximum: track 100, image 300x100
+block cyclic maximum: track 150, image 300x75
+block calculated cyclic maximum: track 150, image 300x95
+block cyclic preferred: track 150, image 300x75
+block calculated cyclic preferred: track 150, image 300x95
+block border-box cyclic minimum: track 170, image 320x170
+block border-box ratio from width: track 50, image 100x50
+block natural width: track 150, image 120x150
+block natural height: track 80, image 300x80
+block natural dimensions: track 80, image 120x80

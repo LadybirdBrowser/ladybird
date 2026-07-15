@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .case {
+        display: grid;
+        grid-template-columns: max-content;
+        width: max-content;
+    }
+
+    .min-content-case {
+        grid-template-columns: min-content;
+        width: min-content;
+    }
+
+    .row-case {
+        display: grid;
+        grid-template-columns: 100px;
+        grid-template-rows: max-content;
+        height: max-content;
+        width: 100px;
+    }
+
+    .cyclic-minimum {
+        min-width: 50%;
+    }
+
+    .cyclic-calculated-minimum {
+        min-width: calc(20px + 50%);
+    }
+
+    .cyclic-calculated-minimum-below-fallback {
+        min-width: calc(200px + 50%);
+    }
+
+    .cyclic-calculated-minimum-above-fallback {
+        min-width: calc(400px + 50%);
+    }
+
+    .fixed-minimum {
+        min-width: 400px;
+    }
+
+    .calculated-minimum {
+        min-width: calc(400px);
+    }
+
+    .fixed-maximum {
+        max-width: 100px;
+    }
+
+    .calculated-maximum {
+        max-width: calc(100px);
+    }
+
+    .fixed-preferred {
+        width: 100px;
+    }
+
+    .calculated-preferred {
+        width: calc(100px);
+    }
+
+    .conflicting-fixed-min-max {
+        min-width: 200px;
+        max-width: 100px;
+    }
+
+    .cyclic-maximum {
+        max-width: 50%;
+    }
+
+    .cyclic-calculated-maximum {
+        max-width: calc(20px + 50%);
+    }
+
+    .cyclic-preferred {
+        width: 50%;
+    }
+
+    .cyclic-calculated-preferred {
+        width: calc(20px + 50%);
+    }
+
+    .conflicting-cyclic-min-max {
+        min-width: 50%;
+        max-width: 25%;
+    }
+
+    .opposite-axis-minimum {
+        min-height: 200px;
+    }
+
+    .opposite-axis-cyclic-minimum {
+        min-height: 50%;
+    }
+
+    .border-box-cyclic-minimum {
+        box-sizing: border-box;
+        border: 10px solid;
+        min-width: 50%;
+    }
+
+    .css-ratio-cyclic-minimum {
+        aspect-ratio: 2 / 1;
+        min-width: 50%;
+    }
+
+    .css-ratio {
+        aspect-ratio: 2 / 1;
+    }
+
+    .css-auto-ratio-cyclic-minimum {
+        aspect-ratio: auto 2 / 1;
+        min-width: 50%;
+    }
+
+    .cyclic-block-minimum {
+        min-height: 50%;
+    }
+
+    .cyclic-calculated-block-minimum {
+        min-height: calc(20px + 50%);
+    }
+
+    .cyclic-calculated-block-minimum-above-fallback {
+        min-height: calc(200px + 50%);
+    }
+
+    .fixed-block-minimum {
+        min-height: 200px;
+    }
+
+    .fixed-block-maximum {
+        max-height: 100px;
+    }
+
+    .calculated-block-maximum {
+        max-height: calc(100px);
+    }
+
+    .cyclic-block-maximum {
+        max-height: 50%;
+    }
+
+    .cyclic-calculated-block-maximum {
+        max-height: calc(20px + 50%);
+    }
+
+    .cyclic-block-preferred {
+        height: 50%;
+    }
+
+    .cyclic-calculated-block-preferred {
+        height: calc(20px + 50%);
+    }
+
+    .border-box-cyclic-block-minimum {
+        box-sizing: border-box;
+        border: 10px solid;
+        min-height: 50%;
+    }
+
+    .border-box-ratio-from-width {
+        align-self: start;
+        aspect-ratio: 2 / 1;
+        box-sizing: border-box;
+        border: 10px solid;
+        width: 100px;
+    }
+</style>
+<div class="case" data-label="no intrinsic data"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="cyclic minimum"><img class="cyclic-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="calculated cyclic minimum"><img class="cyclic-calculated-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="calculated cyclic minimum below fallback"><img class="cyclic-calculated-minimum-below-fallback" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="calculated cyclic minimum above fallback"><img class="cyclic-calculated-minimum-above-fallback" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="fixed minimum"><img class="fixed-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="calculated minimum"><img class="calculated-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="fixed maximum"><img class="fixed-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="calculated maximum"><img class="calculated-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="fixed preferred"><img class="fixed-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="calculated preferred"><img class="calculated-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="conflicting fixed min max"><img class="conflicting-fixed-min-max" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="cyclic maximum"><img class="cyclic-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="calculated cyclic maximum"><img class="cyclic-calculated-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="cyclic preferred"><img class="cyclic-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="calculated cyclic preferred"><img class="cyclic-calculated-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="conflicting cyclic min max"><img class="conflicting-cyclic-min-max" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="opposite-axis minimum"><img class="opposite-axis-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="opposite-axis cyclic minimum"><img class="opposite-axis-cyclic-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="border-box cyclic minimum"><img class="border-box-cyclic-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="natural width and cyclic minimum"><img class="cyclic-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120'%3E%3C/svg%3E"></div>
+<div class="case" data-label="natural height and cyclic minimum"><img class="cyclic-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' height='80'%3E%3C/svg%3E"></div>
+<div class="case" data-label="natural dimensions and cyclic minimum"><img class="cyclic-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3C/svg%3E"></div>
+<div class="case" data-label="CSS ratio and cyclic minimum"><img class="css-ratio-cyclic-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case" data-label="auto CSS ratio and cyclic minimum"><img class="css-auto-ratio-cyclic-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content no intrinsic data"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content cyclic preferred"><img class="cyclic-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content calculated cyclic preferred"><img class="cyclic-calculated-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content cyclic maximum"><img class="cyclic-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content calculated cyclic maximum"><img class="cyclic-calculated-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content cyclic minimum"><img class="cyclic-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content calculated cyclic minimum"><img class="cyclic-calculated-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content calculated minimum above fallback"><img class="cyclic-calculated-minimum-above-fallback" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content fixed minimum"><img class="fixed-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content fixed maximum"><img class="fixed-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content fixed preferred"><img class="fixed-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content conflicting fixed min max"><img class="conflicting-fixed-min-max" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content natural width cyclic minimum"><img class="cyclic-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content natural width calculated minimum"><img class="cyclic-calculated-minimum-below-fallback" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content natural width calculated preferred"><img class="cyclic-calculated-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content CSS ratio"><img class="css-ratio" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="case min-content-case" data-label="min-content CSS ratio cyclic preferred"><img class="css-ratio cyclic-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block no intrinsic data"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block cyclic minimum"><img class="cyclic-block-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block calculated cyclic minimum"><img class="cyclic-calculated-block-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block calculated minimum above fallback"><img class="cyclic-calculated-block-minimum-above-fallback" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block fixed minimum"><img class="fixed-block-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block fixed maximum"><img class="fixed-block-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block calculated maximum"><img class="calculated-block-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block cyclic maximum"><img class="cyclic-block-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block calculated cyclic maximum"><img class="cyclic-calculated-block-maximum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block cyclic preferred"><img class="cyclic-block-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block calculated cyclic preferred"><img class="cyclic-calculated-block-preferred" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block border-box cyclic minimum"><img class="border-box-cyclic-block-minimum" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block border-box ratio from width"><img class="border-box-ratio-from-width" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block natural width"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block natural height"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' height='80'%3E%3C/svg%3E"></div>
+<div class="row-case" data-label="block natural dimensions"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3C/svg%3E"></div>
+<script>
+    asyncTest(async done => {
+        await Promise.all(Array.from(document.images, image => image.decode()));
+        for (const container of document.querySelectorAll(".case, .row-case")) {
+            const image = container.firstElementChild;
+            const containerRect = container.getBoundingClientRect();
+            const imageRect = image.getBoundingClientRect();
+            const trackSize = container.classList.contains("row-case") ? containerRect.height : containerRect.width;
+            println(`${container.dataset.label}: track ${trackSize}, image ${imageRect.width}x${imageRect.height}`);
+        }
+        done();
+    });
+</script>
