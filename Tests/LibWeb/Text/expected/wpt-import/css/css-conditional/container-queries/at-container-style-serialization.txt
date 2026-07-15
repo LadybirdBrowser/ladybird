@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 17 tests
 
-16 Pass
-1 Fail
+17 Pass
 Pass	Normalize spaces
 Pass	Empty declaration value - spaces
 Pass	Empty declaration value
 Pass	No declaration value
-Fail	Unknown CSS property after 'or'
+Pass	Unknown CSS property after 'or'
 Pass	Not a style function with space before '('
 Pass	Spaces preserved in custom property value
 Pass	Original string number in custom property value

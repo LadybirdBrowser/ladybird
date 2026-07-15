@@ -818,13 +818,19 @@ OwnPtr<GeneralEnclosed> Parser::parse_general_enclosed(TokenStream<ComponentValu
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
     auto const& first_token = tokens.consume_a_token();
+    auto serialize_general_enclosed = [](ComponentValue const& component_value) {
+        auto original_source_text = component_value.original_source_text();
+        if (!original_source_text.is_empty())
+            return Utf16String::from_utf8_without_validation(original_source_text.bytes_as_string_view());
+        return component_value.to_string();
+    };
 
     // `[ <function-token> <any-value>? ) ]`
     if (first_token.is_function()) {
         if (!contains_only_any_value(first_token.function().value, contains_only_any_value))
             return {};
         transaction.commit();
-        return GeneralEnclosed::create(first_token.to_string(), result);
+        return GeneralEnclosed::create(serialize_general_enclosed(first_token), result);
     }
 
     // `( <any-value>? )`
@@ -832,7 +838,7 @@ OwnPtr<GeneralEnclosed> Parser::parse_general_enclosed(TokenStream<ComponentValu
         if (!contains_only_any_value(first_token.block().value, contains_only_any_value))
             return {};
         transaction.commit();
-        return GeneralEnclosed::create(first_token.to_string(), result);
+        return GeneralEnclosed::create(serialize_general_enclosed(first_token), result);
     }
 
     return {};
