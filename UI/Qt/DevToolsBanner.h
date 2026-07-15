@@ -23,6 +23,7 @@ public:
     void set_port(u16 port);
 
 signals:
+    void launch_client_requested();
     void disable_requested();
 
 private:

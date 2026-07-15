@@ -503,6 +503,10 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     main_layout->addWidget(m_tabs_container, 1);
 
     m_devtools_banner = new DevToolsBanner(main_widget);
+    connect(m_devtools_banner, &DevToolsBanner::launch_client_requested, this, [] {
+        if (auto result = WebView::Application::the().launch_devtools_client(); result.is_error())
+            WebView::Application::the().display_error_dialog(MUST(String::formatted("Unable to launch the DevTools client: {}", result.error())));
+    });
     connect(m_devtools_banner, &DevToolsBanner::disable_requested, this, [] {
         MUST(WebView::Application::the().toggle_devtools_enabled());
     });
