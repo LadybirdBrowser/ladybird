@@ -660,7 +660,7 @@ OwnPtr<BooleanExpression> Parser::parse_style_feature(TokenStream<ComponentValue
                 return nullptr;
 
             transaction.commit();
-            return StyleFeature::create_plain(style_feature_name.release_value(), move(declaration->value));
+            return StyleFeature::create_plain(style_feature_name.release_value(), move(declaration->value), move(declaration->original_value_text));
         }
     }
 

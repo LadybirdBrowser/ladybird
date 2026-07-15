@@ -221,14 +221,16 @@ NonnullOwnPtr<StyleFeature> StyleFeature::create_boolean(PropertyNameAndID prope
     return adopt_own(*new StyleFeature(StyleFeaturePlain {
         .property = move(property),
         .value = {},
+        .original_value_text = {},
     }));
 }
 
-NonnullOwnPtr<StyleFeature> StyleFeature::create_plain(PropertyNameAndID property, Vector<Parser::ComponentValue> value)
+NonnullOwnPtr<StyleFeature> StyleFeature::create_plain(PropertyNameAndID property, Vector<Parser::ComponentValue> value, Optional<String> original_value_text)
 {
     return adopt_own(*new StyleFeature(StyleFeaturePlain {
         .property = move(property),
         .value = move(value),
+        .original_value_text = move(original_value_text),
     }));
 }
 
@@ -507,7 +509,9 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     if (auto const* range = m_feature.get_pointer<StyleRange>())
         return evaluate_style_range(*range, context);
 
-    auto const& [property, value] = m_feature.get<StyleFeaturePlain>();
+    auto const& feature = m_feature.get<StyleFeaturePlain>();
+    auto const& property = feature.property;
+    auto const& value = feature.value;
 
     // FIXME: Non-custom properties are valid style features, but if() is evaluated before the element's own
     //        non-custom computed values exist. Supporting these requires on-demand property resolution.
@@ -663,8 +667,12 @@ void StyleFeature::serialize_to(Utf16StringBuilder& builder) const
             if (!feature.value.has_value())
                 return;
             builder.append_ascii(": "sv);
-            auto serialized_value = serialize_a_series_of_component_values(feature.value.value());
-            builder.append(serialized_value.utf16_view());
+            if (feature.original_value_text.has_value()) {
+                builder.append(feature.original_value_text->bytes_as_string_view());
+            } else {
+                auto serialized_value = serialize_a_series_of_component_values(feature.value.value());
+                builder.append(serialized_value.utf16_view());
+            }
         },
         [&](StyleRange const& range) {
             auto serialized_left = serialize_style_range_value_to_utf16(range.left);
