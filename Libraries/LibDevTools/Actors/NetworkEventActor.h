@@ -29,6 +29,8 @@ public:
 
     void set_request_info(String url, String method, UnixDateTime start_time, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type);
     void set_browsing_context_ids(u64 browsing_context_id, u64 inner_window_id);
+    void set_referrer_policy(String);
+    void set_is_navigation_request(bool);
     void set_response_start(u32 status_code, Optional<String> reason_phrase);
     void set_response_headers(Vector<HTTP::Header> response_headers);
     void set_loaded_from_cache(bool);
@@ -65,6 +67,8 @@ private:
     bool m_loaded_from_cache { false };
     u64 m_browsing_context_id { 1 };
     u64 m_inner_window_id { 1 };
+    String m_referrer_policy;
+    bool m_is_navigation_request { false };
 
     ByteBuffer m_response_body;
     u64 m_body_size { 0 };

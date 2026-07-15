@@ -57,6 +57,16 @@ void NetworkEventActor::set_browsing_context_ids(u64 browsing_context_id, u64 in
     m_inner_window_id = inner_window_id;
 }
 
+void NetworkEventActor::set_referrer_policy(String referrer_policy)
+{
+    m_referrer_policy = move(referrer_policy);
+}
+
+void NetworkEventActor::set_is_navigation_request(bool is_navigation_request)
+{
+    m_is_navigation_request = is_navigation_request;
+}
+
 void NetworkEventActor::append_response_body(ByteBuffer data)
 {
     // Limit response body size to prevent memory issues
@@ -115,8 +125,10 @@ JsonObject NetworkEventActor::serialize_initial_event() const
     event.set("fromCache"sv, m_loaded_from_cache);
     event.set("fromServiceWorker"sv, false);
     event.set("isThirdPartyTrackingResource"sv, false);
-    // FIXME: Get actual referrer policy from request
-    event.set("referrerPolicy"sv, "strict-origin-when-cross-origin"sv);
+    if (m_referrer_policy.is_empty())
+        event.set("referrerPolicy"sv, "strict-origin-when-cross-origin"sv);
+    else
+        event.set("referrerPolicy"sv, m_referrer_policy);
     event.set("blockedReason"sv, 0);
     event.set("blockingExtension"sv, JsonValue {});
     event.set("channelId"sv, static_cast<i64>(m_request_id));
@@ -124,8 +136,7 @@ JsonObject NetworkEventActor::serialize_initial_event() const
     event.set("innerWindowId"sv, m_inner_window_id);
     // FIXME: Get request priority
     event.set("priority"sv, 0);
-    // FIXME: Detect if this is a navigation request
-    event.set("isNavigationRequest"sv, false);
+    event.set("isNavigationRequest"sv, m_is_navigation_request);
     event.set("chromeContext"sv, false);
 
     return event;

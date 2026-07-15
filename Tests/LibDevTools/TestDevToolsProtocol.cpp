@@ -1243,7 +1243,7 @@ public:
         on_console_message({ UnixDateTime::from_seconds_since_epoch(12), WebView::ConsoleError { "TypeError"_string, "bad things"_string, move(stack), true } });
     }
 
-    void emit_network_lifecycle() const
+    void emit_network_lifecycle(String referrer_policy = "strict-origin-when-cross-origin"_string, bool is_navigation_request = false) const
     {
         VERIFY(on_network_request_started);
         VERIFY(on_network_response_headers_received);
@@ -1263,8 +1263,8 @@ public:
             .request_headers = move(request_headers),
             .request_body = move(request_body),
             .initiator_type = "fetch"_string,
-            .referrer_policy = "strict-origin-when-cross-origin"_string,
-            .is_navigation_request = false });
+            .referrer_policy = move(referrer_policy),
+            .is_navigation_request = is_navigation_request });
 
         Vector<HTTP::Header> response_headers;
         response_headers.append({ ByteString::formatted("Content-Type"), ByteString::formatted("application/json") });
@@ -4131,7 +4131,7 @@ TEST_CASE(devtools_server_teardown_with_pending_actor_cleanup)
     pump(session->loop);
 }
 
-TEST_CASE(network_event_reports_target_context_ids)
+TEST_CASE(network_event_reports_request_metadata)
 {
     auto session = create_session("https://example.test/"sv, 42);
     auto& client = *session->client;
@@ -4140,10 +4140,12 @@ TEST_CASE(network_event_reports_target_context_ids)
     auto target = get_frame_target(client, actor_from(get_tab(client), "actor"sv));
     auto inner_window_id = target.get_integer<u64>("innerWindowId"sv).value();
 
-    session->delegate.emit_network_lifecycle();
+    session->delegate.emit_network_lifecycle("no-referrer"_string, true);
     auto network_event = read_resource(client, "network-event"sv);
     EXPECT_EQ(network_event.get_integer<u64>("browsingContextID"sv).value(), 42u);
     EXPECT_EQ(network_event.get_integer<u64>("innerWindowId"sv).value(), inner_window_id);
+    EXPECT_EQ(network_event.get_string("referrerPolicy"sv).value(), "no-referrer"sv);
+    EXPECT(network_event.get_bool("isNavigationRequest"sv).value());
 
     auto headers_update = read_resource(client, "network-event"sv, "resources-updated-array"sv);
     EXPECT_EQ(headers_update.get_integer<u64>("browsingContextID"sv).value(), 42u);
