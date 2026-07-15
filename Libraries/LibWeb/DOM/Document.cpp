@@ -6241,7 +6241,7 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect t
 
                 // Apply scroll margin to expand the scrollport for scroll containers.
                 auto& scroll_margin = observer.scroll_margin_values();
-                auto const& layout_node = container->layout_node_with_style_and_box_metrics();
+                auto const& layout_node = container->layout_node();
                 if (layout_node.is_scroll_container() && !scroll_margin.is_empty()) {
                     clip_rect.inflate(
                         scroll_margin[0].to_px(clip_rect.height()),

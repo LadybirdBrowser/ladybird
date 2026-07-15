@@ -311,7 +311,7 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
         //    it’s the result of getting the bounding box for the intersection root.
         rect = element->bounding_client_rect_assuming_layout_clean();
         if (auto paintable_box = element->paintable_box())
-            intersection_root_is_scrollable = paintable_box->layout_node_with_style_and_box_metrics().is_scroll_container();
+            intersection_root_is_scrollable = paintable_box->layout_node().is_scroll_container();
     }
 
     // When calculating the root intersection rectangle for a same-origin-domain target, the rectangle is then

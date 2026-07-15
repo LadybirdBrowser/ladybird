@@ -757,10 +757,8 @@ static Color effective_scrollbar_background_color(Paintable const& paintable_box
     auto background_color = paintable_box.document().canvas_background_color();
 
     Vector<Layout::NodeWithStyle const*> ancestors;
-    for (auto const* layout_node = &paintable_box.layout_node(); layout_node; layout_node = layout_node->parent()) {
-        if (auto const* layout_node_with_style = as_if<Layout::NodeWithStyle>(layout_node))
-            ancestors.append(layout_node_with_style);
-    }
+    for (Layout::NodeWithStyle const* layout_node = &paintable_box.layout_node(); layout_node; layout_node = layout_node->parent())
+        ancestors.append(layout_node);
 
     for (auto const* layout_node : ancestors.in_reverse()) {
         auto const& layout_node_with_style = *layout_node;
@@ -868,7 +866,7 @@ static void record_blocking_wheel_event_region(Paintable const& paintable_box, D
 ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintable const& paintable_box)
 {
     auto const& computed_values = paintable_box.computed_values();
-    auto const& layout_node = paintable_box.layout_node_with_style_and_box_metrics();
+    auto const& layout_node = paintable_box.layout_node();
 
     ResolvedCSSFilter result;
     for (auto const& filter_operation : computed_filter.filters()) {
@@ -945,7 +943,7 @@ NonnullRefPtr<Paintable> Paintable::create(Layout::Box const& layout_box)
     return adopt_ref(*new Paintable(layout_box));
 }
 
-Paintable::Paintable(Layout::Node const& layout_node)
+Paintable::Paintable(Layout::NodeWithStyleAndBoxModelMetrics const& layout_node)
     : m_layout_node(layout_node)
 {
     auto& computed_values = layout_node.computed_values();
@@ -967,7 +965,7 @@ Paintable::Paintable(Layout::Node const& layout_node)
 }
 
 Paintable::Paintable(Layout::Box const& layout_box)
-    : Paintable(static_cast<Layout::Node const&>(layout_box))
+    : Paintable(static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(layout_box))
 {
 }
 
@@ -998,11 +996,6 @@ void Paintable::detach_chrome_widgets()
         m_resize_handle->detach_from_paintable({});
         m_resize_handle = nullptr;
     }
-}
-
-Layout::NodeWithStyleAndBoxModelMetrics const& Paintable::layout_node_with_style_and_box_metrics() const
-{
-    return as<Layout::NodeWithStyleAndBoxModelMetrics const>(layout_node());
 }
 
 bool Paintable::has_css_transform() const
@@ -1380,7 +1373,7 @@ CSSPixelRect Paintable::overflow_clip_edge_rect() const
 Optional<CSSPixelRect> Paintable::get_clip_rect() const
 {
     auto clip = computed_values().clip();
-    if (clip.is_rect() && layout_node_with_style_and_box_metrics().is_absolutely_positioned()) {
+    if (clip.is_rect() && layout_node().is_absolutely_positioned()) {
         auto border_box = absolute_border_box_rect();
         return clip.to_rect().resolved(border_box);
     }
@@ -2492,18 +2485,18 @@ bool Paintable::has_css_borders() const
 void Paintable::paint_background(DisplayListRecordingContext& context) const
 {
     // If the body's background properties were propagated to the root element, do not re-paint the body's background.
-    if (body_background_is_propagated_to_root(layout_node_with_style_and_box_metrics()))
+    if (body_background_is_propagated_to_root(layout_node()))
         return;
 
     auto const& computed_values = this->computed_values();
 
     // https://drafts.csswg.org/css-backgrounds/#root-background
-    if (layout_node_with_style_and_box_metrics().is_root_element()) {
+    if (layout_node().is_root_element()) {
         auto background_rect = absolute_border_box_rect();
         Color background_color = computed_values.background_color();
         auto const* background_layers = &computed_values.background_layers();
 
-        auto& html_element = as<HTML::HTMLHtmlElement>(*layout_node_with_style_and_box_metrics().dom_node());
+        auto& html_element = as<HTML::HTMLHtmlElement>(*layout_node().dom_node());
         if (html_element.should_use_body_background_properties()) {
             background_layers = document().background_layers();
             background_color = document().background_color();

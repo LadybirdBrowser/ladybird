@@ -486,7 +486,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
                 // for the background-attachment property is treated as if it had a value of scroll.
                 auto has_transform_ancestor = false;
                 if (!is_root_element) {
-                    for (auto const* node = &layout_node; node && !node->is_viewport(); node = node->parent()) {
+                    for (Layout::NodeWithStyle const* node = &layout_node; node && !node->is_viewport(); node = node->parent()) {
                         if (node->has_css_transform()) {
                             has_transform_ancestor = true;
                             break;

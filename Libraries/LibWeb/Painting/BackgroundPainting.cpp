@@ -294,7 +294,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
         CSSPixels initial_image_x = image_rect.x();
         CSSPixels image_y = image_rect.y();
 
-        image.resolve_for_size(paintable_box.layout_node_with_style_and_box_metrics(), image_rect.size());
+        image.resolve_for_size(paintable_box.layout_node(), image_rect.size());
 
         auto for_each_image_device_rect = [&](auto callback) {
             while (image_y < css_clip_rect.bottom()) {

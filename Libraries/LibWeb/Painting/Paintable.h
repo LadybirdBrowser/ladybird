@@ -85,12 +85,12 @@ public:
     virtual bool forms_unconnected_subtree() const { return false; }
 
     bool has_layout_node() const { return m_layout_node; }
-    Layout::Node const& layout_node() const
+    Layout::NodeWithStyleAndBoxModelMetrics const& layout_node() const
     {
         VERIFY(m_layout_node);
         return *m_layout_node;
     }
-    Layout::Node& layout_node() { return const_cast<Layout::Node&>(const_cast<Paintable const&>(*this).layout_node()); }
+    Layout::NodeWithStyleAndBoxModelMetrics& layout_node() { return const_cast<Layout::NodeWithStyleAndBoxModelMetrics&>(const_cast<Paintable const&>(*this).layout_node()); }
 
     [[nodiscard]] GC::Ptr<DOM::Node> dom_node();
     [[nodiscard]] GC::Ptr<DOM::Node const> dom_node() const;
@@ -185,8 +185,6 @@ public:
 
     virtual Optional<CSSPixelRect> get_clip_area() const { return {}; }
     virtual Optional<DisplayListResource> calculate_clip(DisplayListRecordingContext&, CSSPixelRect const&) const { return {}; }
-
-    Layout::NodeWithStyleAndBoxModelMetrics const& layout_node_with_style_and_box_metrics() const;
 
     auto& box_model() { return m_box_model; }
     auto const& box_model() const { return m_box_model; }
@@ -434,7 +432,7 @@ public:
     [[nodiscard]] ScrollFrameIndex own_scroll_frame_index() const { return m_own_scroll_frame_index; }
 
 protected:
-    explicit Paintable(Layout::Node const&);
+    explicit Paintable(Layout::NodeWithStyleAndBoxModelMetrics const&);
     explicit Paintable(Layout::Box const&);
 
     void paint_with_inspector_overlay_context(DisplayListRecordingContext&, Function<void()> const&) const;
@@ -476,7 +474,7 @@ private:
     void invalidate_absolute_geometry_cache(InvalidateDescendantGeometry);
 
     GC::Weak<DOM::Node> m_dom_node;
-    WeakPtr<Layout::Node const> m_layout_node;
+    WeakPtr<Layout::NodeWithStyleAndBoxModelMetrics const> m_layout_node;
 
     SelectionState m_selection_state { SelectionState::None };
 

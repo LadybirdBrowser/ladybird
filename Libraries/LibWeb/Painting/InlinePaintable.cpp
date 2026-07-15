@@ -124,7 +124,7 @@ void InlinePaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
 
     if (phase == PaintPhase::Background && is_visible()) {
         paint_backdrop_filter(context);
-        bool background_is_propagated_to_root = body_background_is_propagated_to_root(layout_node_with_style_and_box_metrics());
+        bool background_is_propagated_to_root = body_background_is_propagated_to_root(layout_node());
         auto has_borders = has_css_borders();
         for_each_piece([&](auto const& piece) {
             if (piece.is_geometry_only_placeholder)
