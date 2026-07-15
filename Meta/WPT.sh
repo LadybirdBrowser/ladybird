@@ -66,6 +66,21 @@ run_dir_path() {
     echo "$runpath"
 }
 
+# Chunked instances share $HOME, so each wptrunner installing Ahem into ~/.fonts makes them race: the first
+# instance to finish removes the font while the others are still running. Install it once up front instead, and
+# let the instances run with --no-install-fonts.
+ensure_ahem_font() {
+    local font_dir="${HOME}/.fonts"
+    if [ -f "${font_dir}/Ahem.ttf" ]; then
+        return
+    fi
+
+    echo "Installing Ahem into ${font_dir}"
+    mkdir -p "${font_dir}"
+    cp "${WPT_SOURCE_DIR}/fonts/Ahem.ttf" "${font_dir}"
+    fc-cache
+}
+
 ensure_run_dir() {
     i="$1"; shift
     local runpath
@@ -102,7 +117,6 @@ WPT_ARGS=(
     "--webdriver-arg=--default-time-zone=UTC"
     "--webdriver-arg=--expose-experimental-interfaces"
     "--no-pause-after-test"
-    "--install-fonts"
     "${EXTRA_WPT_ARGS[@]}"
 )
 IMPORT_ARGS=()
@@ -563,13 +577,15 @@ run_wpt_chunked() {
     fi
 
     if [ "$procs" -le 1 ]; then
-        command=(./wpt run -f --browser-version="1.0-$(ladybird_git_hash)" --processes="${WPT_PROCESSES}" "$@")
+        command=(./wpt run -f --browser-version="1.0-$(ladybird_git_hash)" --processes="${WPT_PROCESSES}" --install-fonts "$@")
         echo "${command[@]}"
         "${command[@]}"
         return
     fi
 
     concurrency=$(( $(nproc) * 2 / procs ))
+
+    ensure_ahem_font
 
     echo "Preparing the venv setup..."
     base_venv="${BUILD_DIR}/wpt-prep/_venv"
@@ -600,6 +616,7 @@ run_wpt_chunked() {
             -f \
             --browser-version="1.0-$(ladybird_git_hash)"
             --processes="$concurrency" \
+            --no-install-fonts \
             "$@")
         echo "[INSTANCE $i / ns wptns$i] ${command[*]}"
         instance_run "$i" "$rundir" script -q "$logpath" -c "$(printf "%q " "${command[@]}")" &>/dev/null &
