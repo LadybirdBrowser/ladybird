@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/LexicalPath.h>
 #include <AK/Platform.h>
+#include <AK/Random.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Directory.h>
 #include <LibCore/Environment.h>
@@ -13,6 +15,7 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCore/TCPServer.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibMain/Main.h>
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWebView/Utilities.h>
@@ -35,7 +38,7 @@ static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpa
     return result;
 }
 
-static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, bool headless, bool expose_experimental_interfaces, bool expose_internals_object, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path)
+static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, ByteString const& profile_path, bool headless, bool expose_experimental_interfaces, bool expose_internals_object, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path)
 {
     Vector<ByteString> arguments;
 #if defined(AK_OS_MACOS)
@@ -55,7 +58,7 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
         arguments.append("--headless"sv);
 
     arguments.append("--allow-popups"sv);
-    arguments.append("--force-new-process"sv);
+    arguments.append(ByteString::formatted("--profile-path={}", profile_path));
     arguments.append("--enable-autoplay"sv);
     arguments.append("--disable-scrollbar-painting"sv);
     if (expose_experimental_interfaces)
@@ -137,6 +140,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto webdriver_socket_path = ByteString::formatted("{}/webdriver", TRY(Core::StandardPaths::runtime_directory()));
     TRY(Core::Directory::create(webdriver_socket_path, Core::Directory::CreateDirectories::Yes));
 
+    // Every browser instance launched by this WebDriver process shares one profile, which is removed on clean exit.
+    auto profile_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), ByteString::formatted("ladybird-webdriver-profile-{:016x}-{:016x}", get_random<u64>(), get_random<u64>())).string();
+
     auto& loop = Core::EventLoop::initialize_for_current_thread();
     Core::EventLoop::register_signal(SIGINT, handle_signal);
     Core::EventLoop::register_signal(SIGTERM, handle_signal);
@@ -159,7 +165,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
 
         auto launch_browser_callback = [&](ByteString const& webdriver_endpoint, bool headless) {
-            auto arguments = create_arguments(webdriver_endpoint, headless, expose_experimental_interfaces, expose_internals_object, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path);
+            auto arguments = create_arguments(webdriver_endpoint, profile_path, headless, expose_experimental_interfaces, expose_internals_object, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path);
             return launch_process("Ladybird"sv, arguments.span());
         };
 
@@ -183,5 +189,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto result = loop.exec();
     WebDriver::Session::close_all();
+
+    if (FileSystem::exists(profile_path)) {
+        if (auto removal_result = FileSystem::remove(profile_path, FileSystem::RecursionMode::Allowed); removal_result.is_error())
+            warnln("Unable to remove WebDriver profile '{}': {}", profile_path, removal_result.error());
+    }
+
     return result;
 }
