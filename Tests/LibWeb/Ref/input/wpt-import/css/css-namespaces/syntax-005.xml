@@ -1,0 +1,27 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <link rel="author" title="Anne van Kesteren" href="http://annevankesteren.nl/"/>
+  <link rel="author" title="Opera Software ASA" href="http://opera.com/"/>
+  <link rel="help" href="http://www.w3.org/TR/css-namespaces-3/#syntax"/>
+  <link rel="match" href="../../../../expected/wpt-import/css/css-namespaces/reference/ref-lime-5.xml"/>
+  <title>CSS Namespaces Test Suite: @namespace string and url() syntax</title>
+  <style>
+   test { background:red }
+  </style>
+  <style>
+   @namespace a url(test-a);
+   @namespace b url('test-b');
+   @namespace c url("test-c");
+   @namespace d 'test-d';
+   @namespace e "test-e";
+   a|test, b|test, c|test, d|test, e|test { background:lime }
+  </style>
+ </head>
+ <body>
+  <p><test xmlns="test-a">This sentence should have a green background.</test></p>
+  <p><test xmlns="test-b">This sentence should have a green background.</test></p>
+  <p><test xmlns="test-c">This sentence should have a green background.</test></p>
+  <p><test xmlns="test-d">This sentence should have a green background.</test></p>
+  <p><test xmlns="test-e">This sentence should have a green background.</test></p>
+ </body>
+</html>

@@ -1,0 +1,5 @@
+@charset "UTF-8";
+@namespace url("test");
+@namespace url("test2");
+*|test { background:lime }
+test { background:red }

@@ -1,0 +1,16 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <link rel="author" title="Anne van Kesteren" href="http://annevankesteren.nl/"/>
+  <link rel="author" title="Opera Software ASA" href="http://opera.com/"/>
+  <link rel="help" href="http://www.w3.org/TR/css-namespaces-3/#syntax"/>
+  <link rel="match" href="../../../../expected/wpt-import/css/css-namespaces/reference/ref-lime-1-block.xml"/>
+  <title>CSS Namespaces Test Suite: @namespace case-insensitivity</title>
+  <style>
+   @NAmespace x "http://www.w3.org/1999/xhtml";
+   x|p { background: lime }
+  </style>
+ </head>
+ <body>
+  <p>This sentence should have a green background.</p>
+ </body>
+</html>

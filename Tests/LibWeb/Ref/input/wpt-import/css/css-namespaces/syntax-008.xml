@@ -1,0 +1,23 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <link rel="author" title="Anne van Kesteren" href="http://annevankesteren.nl/"/>
+  <link rel="author" title="Opera Software ASA" href="http://opera.com/"/>
+  <link rel="help" href="http://www.w3.org/TR/css-namespaces-3/#syntax"/>
+  <link rel="match" href="../../../../expected/wpt-import/css/css-namespaces/reference/ref-lime-2.xml"/>
+  <title>CSS Namespaces Test Suite: escapes in prefix</title>
+  <style>
+   @namespace \72x url("test");
+   t { background:red }
+   r\78|t { background:lime }
+  </style>
+  <style>
+   @namespace \032  url("test"); /* two spaces, see CSS 2.1, 4.1.3 */
+   t2 { background:red }
+   \32|t2 { background:lime }
+  </style>
+ </head>
+ <body>
+  <p><t xmlns="test">This sentence should have a green background.</t></p>
+  <p><t2 xmlns="test">This sentence should have a green background.</t2></p>
+ </body>
+</html>

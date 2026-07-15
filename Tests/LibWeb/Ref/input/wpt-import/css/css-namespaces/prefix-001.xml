@@ -1,0 +1,20 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <link rel="author" title="Anne van Kesteren" href="http://annevankesteren.nl/"/>
+  <link rel="author" title="Opera Software ASA" href="http://opera.com/"/>
+  <link rel="help" href="http://www.w3.org/TR/css-namespaces-3/#prefixes"/>
+  <link rel="match" href="../../../../expected/wpt-import/css/css-namespaces/reference/ref-lime-1.xml"/>
+  <title>CSS Namespaces Test Suite: prefix case-sensitivity</title>
+  <style>
+   @namespace Foo "y";
+   @namespace foo "x";
+   test { background:red }
+   Foo|test { background:lime }
+   foo|test { background:red }
+   FOO|test { background:red }
+  </style>
+ </head>
+ <body>
+  <p><test xmlns="y">This sentence should have a green background.</test></p>
+ </body>
+</html>
