@@ -161,6 +161,8 @@ public:
         Yes,
     };
 
+    void build_computed_values(ComputedProperties&, DOM::AbstractElement, StyleScope const&) const;
+
 private:
     virtual void visit_edges(Visitor&) override;
 

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/FixedBitmap.h>
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
@@ -27,6 +28,8 @@
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/Ratio.h>
 #include <LibWeb/CSS/Size.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
@@ -39,7 +42,16 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/URL.h>
 
+namespace Web::DOM {
+
+class Document;
+
+}
+
 namespace Web::CSS {
+
+class ComputedProperties;
+class StyleScope;
 
 using ClipRule = FillRule;
 
@@ -575,15 +587,36 @@ inline Gfx::InterpolationColorSpace to_interpolation_color_space(ColorInterpolat
     VERIFY_NOT_REACHED();
 }
 
-class ComputedValues : public RefCounted<ComputedValues> {
+class ComputedValues final : public RefCounted<ComputedValues> {
     AK_MAKE_NONCOPYABLE(ComputedValues);
     AK_MAKE_NONMOVABLE(ComputedValues);
 
 public:
     class Builder;
+    class Mutator;
+
+    enum class WithAnimationsApplied {
+        No,
+        Yes,
+    };
+
+    static NonnullRefPtr<ComputedValues> create(ComputedProperties const&, DOM::Document const&, StyleScope const&, ColorResolutionContext);
+
+    RefPtr<StyleValue const> computed_style_value(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
+    ComputedValues const& base_values() const { return m_base_values ? *m_base_values : *this; }
+    bool has_animated_values() const { return m_base_values; }
+
+    bool is_property_important(PropertyID property_id) const { return m_property_important.get(property_bitmap_index(property_id)); }
+    bool is_property_inherited(PropertyID property_id) const { return m_property_inherited.get(property_bitmap_index(property_id)); }
+    bool depends_on_viewport_metrics() const { return m_depends_on_viewport_metrics; }
+    bool font_metrics_depend_on_viewport_metrics() const { return m_font_metrics_depend_on_viewport_metrics; }
+    bool in_display_none_subtree() const { return m_in_display_none_subtree; }
+    bool has_pseudo_element_style(PseudoElement pseudo_element) const { return m_pseudo_element_styles & (1ull << to_underlying(pseudo_element)); }
+    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
+    RefPtr<StyleValue const> raw_cascaded_font_size() const { return m_raw_cascaded_font_size; }
 
     ComputedValues() = default;
-    virtual ~ComputedValues() = default;
+    ~ComputedValues() = default;
 
     AspectRatio aspect_ratio() const { return m_noninherited.aspect_ratio; }
     BoxSizing box_sizing_for_aspect_ratio() const
@@ -826,6 +859,12 @@ public:
     WillChange const& will_change() const { return m_noninherited.will_change; }
 
 protected:
+    static size_t property_bitmap_index(PropertyID property_id)
+    {
+        VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+        return to_underlying(property_id) - to_underlying(first_longhand_property_id);
+    }
+
     void inherit_from(ComputedValues const& other) { m_inherited = other.m_inherited; }
 
     struct InheritedValues {
@@ -1027,237 +1066,268 @@ protected:
     };
 
     NonInheritedValues m_noninherited;
+    AK::FixedBitmap<number_of_longhand_properties> m_property_important { false };
+    AK::FixedBitmap<number_of_longhand_properties> m_property_inherited { false };
+    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_inheritance_dependent_specified_values;
+    RefPtr<StyleValue const> m_raw_cascaded_font_size;
+    RefPtr<ComputedValues const> m_base_values;
+    u64 m_pseudo_element_styles { 0 };
+    bool m_depends_on_viewport_metrics { false };
+    bool m_font_metrics_depend_on_viewport_metrics { false };
+    bool m_in_display_none_subtree { false };
 };
 
-class MutableComputedValues final : public ComputedValues {
+class ComputedValues::Mutator final {
+private:
+    friend class Builder;
+
+    explicit Mutator(ComputedValues& values)
+        : m_values(values)
+    {
+    }
+
 public:
     void inherit_from(ComputedValues const& other)
     {
-        ComputedValues::inherit_from(other);
+        m_values.inherit_from(other);
     }
 
-    void set_aspect_ratio(AspectRatio aspect_ratio) { m_noninherited.aspect_ratio = move(aspect_ratio); }
-    void set_caret_color(Color caret_color) { m_inherited.caret_color = caret_color; }
-    void set_font_list(NonnullRefPtr<Gfx::FontCascadeList const> font_list) { m_inherited.font_list = move(font_list); }
-    void set_font_size(CSSPixels font_size) { m_inherited.font_size = font_size; }
-    void set_font_weight(double font_weight) { m_inherited.font_weight = font_weight; }
-    void set_font_language_override(Optional<Utf16FlyString> font_language_override) { m_inherited.font_language_override = move(font_language_override); }
-    void set_font_variation_settings(HashMap<Utf16FlyString, double> value) { m_inherited.font_variation_settings = move(value); }
-    void set_line_height(LineHeightData line_height) { m_inherited.line_height = move(line_height); }
-    void set_border_spacing_horizontal(CSSPixels border_spacing_horizontal) { m_inherited.border_spacing_horizontal = move(border_spacing_horizontal); }
-    void set_border_spacing_vertical(CSSPixels border_spacing_vertical) { m_inherited.border_spacing_vertical = move(border_spacing_vertical); }
-    void set_caption_side(CaptionSide caption_side) { m_inherited.caption_side = caption_side; }
-    void set_color(Color color) { m_inherited.color = color; }
-    void set_color_interpolation(ColorInterpolation color_interpolation) { m_inherited.color_interpolation = color_interpolation; }
-    void set_color_interpolation_filters(ColorInterpolation color_interpolation_filters) { m_inherited.color_interpolation_filters = color_interpolation_filters; }
-    void set_color_scheme(PreferredColorScheme color_scheme) { m_inherited.color_scheme = color_scheme; }
-    void set_clip(Clip const& clip) { m_noninherited.clip = clip; }
-    void set_content(ContentData const& content) { m_noninherited.content = content; }
-    void set_content_visibility(ContentVisibility content_visibility) { m_inherited.content_visibility = content_visibility; }
-    void set_cursor(Vector<CursorData> cursor) { m_inherited.cursor = move(cursor); }
-    void set_image_rendering(ImageRendering value) { m_inherited.image_rendering = value; }
-    void set_pointer_events(PointerEvents value) { m_inherited.pointer_events = value; }
-    void set_background_color(Color color) { m_noninherited.background_color = color; }
-    void set_background_color_clip(BackgroundBox box) { m_noninherited.background_color_clip = box; }
-    void set_background_layers(Vector<BackgroundLayerData>&& layers) { m_noninherited.background_layers = move(layers); }
-    void set_mask_layers(Vector<BackgroundLayerData>&& layers) { m_noninherited.mask_layers = move(layers); }
-    void set_border_image(Optional<BorderImageData> border_image) { m_noninherited.border_image = move(border_image); }
-    void set_float(Float value) { m_noninherited.float_ = value; }
-    void set_clear(Clear value) { m_noninherited.clear = value; }
-    void set_z_index(Optional<int> value) { m_noninherited.z_index = move(value); }
-    void set_tab_size(Variant<CSSPixels, double> value) { m_inherited.tab_size = move(value); }
-    void set_text_align(TextAlign text_align) { m_inherited.text_align = text_align; }
-    void set_text_justify(TextJustify text_justify) { m_inherited.text_justify = text_justify; }
-    void set_text_decoration_line(Vector<TextDecorationLine> value) { m_noninherited.text_decoration_line = move(value); }
-    void set_text_decoration_thickness(TextDecorationThickness value) { m_noninherited.text_decoration_thickness = move(value); }
-    void set_text_decoration_skip_ink(TextDecorationSkipInk value) { m_inherited.text_decoration_skip_ink = value; }
-    void set_text_decoration_style(TextDecorationStyle value) { m_noninherited.text_decoration_style = value; }
-    void set_text_decoration_color(Color value) { m_noninherited.text_decoration_color = value; }
-    void set_text_transform(TextTransform value) { m_inherited.text_transform = value; }
-    void set_text_shadow(Vector<ShadowData>&& value) { m_inherited.text_shadow = move(value); }
-    void set_text_indent(TextIndentData value) { m_inherited.text_indent = move(value); }
-    void set_text_wrap_mode(TextWrapMode value) { m_inherited.text_wrap_mode = value; }
-    void set_text_overflow(TextOverflow value) { m_noninherited.text_overflow = value; }
-    void set_text_underline_offset(CSSPixels value) { m_inherited.text_underline_offset = value; }
-    void set_text_underline_position(TextUnderlinePosition value) { m_inherited.text_underline_position = value; }
-    void set_webkit_text_fill_color(Color value) { m_inherited.webkit_text_fill_color = value; }
-    void set_position(Positioning position) { m_noninherited.position = position; }
-    void set_position_anchor(Optional<Utf16FlyString> value) { m_noninherited.position_anchor = move(value); }
-    void set_white_space_collapse(WhiteSpaceCollapse value) { m_inherited.white_space_collapse = value; }
-    void set_white_space_trim(WhiteSpaceTrimData value) { m_noninherited.white_space_trim = value; }
-    void set_word_spacing(CSSPixels value) { m_inherited.word_spacing = value; }
-    void set_word_break(WordBreak value) { m_inherited.word_break = value; }
-    void set_font_variant_emoji(FontVariantEmoji value) { m_inherited.font_variant_emoji = value; }
-    void set_letter_spacing(CSSPixels value) { m_inherited.letter_spacing = value; }
-    void set_width(Size const& width) { m_noninherited.width = width; }
-    void set_min_width(Size const& width) { m_noninherited.min_width = width; }
-    void set_max_width(Size const& width) { m_noninherited.max_width = width; }
-    void set_height(Size const& height) { m_noninherited.height = height; }
-    void set_min_height(Size const& height) { m_noninherited.min_height = height; }
-    void set_max_height(Size const& height) { m_noninherited.max_height = height; }
-    void set_inset(LengthBox const& inset) { m_noninherited.inset = inset; }
-    void set_margin(LengthBox const& margin) { m_noninherited.margin = margin; }
-    void set_padding(LengthBox const& padding) { m_noninherited.padding = padding; }
-    void set_overflow_clip_margin(OverflowClipMarginData const& overflow_clip_margin) { m_noninherited.overflow_clip_margin = overflow_clip_margin; }
-    void set_overflow_x(Overflow value) { m_noninherited.overflow_x = value; }
-    void set_overflow_y(Overflow value) { m_noninherited.overflow_y = value; }
-    void set_list_style_type(ListStyleType value) { m_inherited.list_style_type = move(value); }
-    void set_list_style_position(ListStylePosition value) { m_inherited.list_style_position = move(value); }
-    void set_display(Display value) { m_noninherited.display = value; }
-    void set_display_before_box_type_transformation(Display value) { m_noninherited.display_before_box_type_transformation = value; }
-    void set_backdrop_filter(Filter const& backdrop_filter) { m_noninherited.backdrop_filter = backdrop_filter; }
-    void set_filter(Filter const& filter) { m_noninherited.filter = filter; }
+    void set_property_important(PropertyID property_id, bool value) { m_values.m_property_important.set(ComputedValues::property_bitmap_index(property_id), value); }
+    void set_property_inherited(PropertyID property_id, bool value) { m_values.m_property_inherited.set(ComputedValues::property_bitmap_index(property_id), value); }
+    void set_depends_on_viewport_metrics(bool value) { m_values.m_depends_on_viewport_metrics = value; }
+    void set_font_metrics_depend_on_viewport_metrics(bool value) { m_values.m_font_metrics_depend_on_viewport_metrics = value; }
+    void set_in_display_none_subtree(bool value) { m_values.m_in_display_none_subtree = value; }
+    void set_pseudo_element_styles(u64 value) { m_values.m_pseudo_element_styles = value; }
+    void set_inheritance_dependent_specified_values(HashMap<PropertyID, NonnullRefPtr<StyleValue const>> value) { m_values.m_inheritance_dependent_specified_values = move(value); }
+    void set_raw_cascaded_font_size(RefPtr<StyleValue const> value) { m_values.m_raw_cascaded_font_size = move(value); }
+    void set_base_values(NonnullRefPtr<ComputedValues const> value) { m_values.m_base_values = move(value); }
+
+    void set_aspect_ratio(AspectRatio aspect_ratio) { m_values.m_noninherited.aspect_ratio = move(aspect_ratio); }
+    void set_caret_color(Color caret_color) { m_values.m_inherited.caret_color = caret_color; }
+    void set_font_list(NonnullRefPtr<Gfx::FontCascadeList const> font_list) { m_values.m_inherited.font_list = move(font_list); }
+    void set_font_size(CSSPixels font_size) { m_values.m_inherited.font_size = font_size; }
+    void set_font_weight(double font_weight) { m_values.m_inherited.font_weight = font_weight; }
+    void set_font_language_override(Optional<Utf16FlyString> font_language_override) { m_values.m_inherited.font_language_override = move(font_language_override); }
+    void set_font_variation_settings(HashMap<Utf16FlyString, double> value) { m_values.m_inherited.font_variation_settings = move(value); }
+    void set_line_height(LineHeightData line_height) { m_values.m_inherited.line_height = move(line_height); }
+    void set_border_spacing_horizontal(CSSPixels border_spacing_horizontal) { m_values.m_inherited.border_spacing_horizontal = move(border_spacing_horizontal); }
+    void set_border_spacing_vertical(CSSPixels border_spacing_vertical) { m_values.m_inherited.border_spacing_vertical = move(border_spacing_vertical); }
+    void set_caption_side(CaptionSide caption_side) { m_values.m_inherited.caption_side = caption_side; }
+    void set_color(Color color) { m_values.m_inherited.color = color; }
+    void set_color_interpolation(ColorInterpolation color_interpolation) { m_values.m_inherited.color_interpolation = color_interpolation; }
+    void set_color_interpolation_filters(ColorInterpolation color_interpolation_filters) { m_values.m_inherited.color_interpolation_filters = color_interpolation_filters; }
+    void set_color_scheme(PreferredColorScheme color_scheme) { m_values.m_inherited.color_scheme = color_scheme; }
+    void set_clip(Clip const& clip) { m_values.m_noninherited.clip = clip; }
+    void set_content(ContentData const& content) { m_values.m_noninherited.content = content; }
+    void set_content_visibility(ContentVisibility content_visibility) { m_values.m_inherited.content_visibility = content_visibility; }
+    void set_cursor(Vector<CursorData> cursor) { m_values.m_inherited.cursor = move(cursor); }
+    void set_image_rendering(ImageRendering value) { m_values.m_inherited.image_rendering = value; }
+    void set_pointer_events(PointerEvents value) { m_values.m_inherited.pointer_events = value; }
+    void set_background_color(Color color) { m_values.m_noninherited.background_color = color; }
+    void set_background_color_clip(BackgroundBox box) { m_values.m_noninherited.background_color_clip = box; }
+    void set_background_layers(Vector<BackgroundLayerData>&& layers) { m_values.m_noninherited.background_layers = move(layers); }
+    void set_mask_layers(Vector<BackgroundLayerData>&& layers) { m_values.m_noninherited.mask_layers = move(layers); }
+    void set_border_image(Optional<BorderImageData> border_image) { m_values.m_noninherited.border_image = move(border_image); }
+    void set_float(Float value) { m_values.m_noninherited.float_ = value; }
+    void set_clear(Clear value) { m_values.m_noninherited.clear = value; }
+    void set_z_index(Optional<int> value) { m_values.m_noninherited.z_index = move(value); }
+    void set_tab_size(Variant<CSSPixels, double> value) { m_values.m_inherited.tab_size = move(value); }
+    void set_text_align(TextAlign text_align) { m_values.m_inherited.text_align = text_align; }
+    void set_text_justify(TextJustify text_justify) { m_values.m_inherited.text_justify = text_justify; }
+    void set_text_decoration_line(Vector<TextDecorationLine> value) { m_values.m_noninherited.text_decoration_line = move(value); }
+    void set_text_decoration_thickness(TextDecorationThickness value) { m_values.m_noninherited.text_decoration_thickness = move(value); }
+    void set_text_decoration_skip_ink(TextDecorationSkipInk value) { m_values.m_inherited.text_decoration_skip_ink = value; }
+    void set_text_decoration_style(TextDecorationStyle value) { m_values.m_noninherited.text_decoration_style = value; }
+    void set_text_decoration_color(Color value) { m_values.m_noninherited.text_decoration_color = value; }
+    void set_text_transform(TextTransform value) { m_values.m_inherited.text_transform = value; }
+    void set_text_shadow(Vector<ShadowData>&& value) { m_values.m_inherited.text_shadow = move(value); }
+    void set_text_indent(TextIndentData value) { m_values.m_inherited.text_indent = move(value); }
+    void set_text_wrap_mode(TextWrapMode value) { m_values.m_inherited.text_wrap_mode = value; }
+    void set_text_overflow(TextOverflow value) { m_values.m_noninherited.text_overflow = value; }
+    void set_text_underline_offset(CSSPixels value) { m_values.m_inherited.text_underline_offset = value; }
+    void set_text_underline_position(TextUnderlinePosition value) { m_values.m_inherited.text_underline_position = value; }
+    void set_webkit_text_fill_color(Color value) { m_values.m_inherited.webkit_text_fill_color = value; }
+    void set_position(Positioning position) { m_values.m_noninherited.position = position; }
+    void set_position_anchor(Optional<Utf16FlyString> value) { m_values.m_noninherited.position_anchor = move(value); }
+    void set_white_space_collapse(WhiteSpaceCollapse value) { m_values.m_inherited.white_space_collapse = value; }
+    void set_white_space_trim(WhiteSpaceTrimData value) { m_values.m_noninherited.white_space_trim = value; }
+    void set_word_spacing(CSSPixels value) { m_values.m_inherited.word_spacing = value; }
+    void set_word_break(WordBreak value) { m_values.m_inherited.word_break = value; }
+    void set_font_variant_emoji(FontVariantEmoji value) { m_values.m_inherited.font_variant_emoji = value; }
+    void set_letter_spacing(CSSPixels value) { m_values.m_inherited.letter_spacing = value; }
+    void set_width(Size const& width) { m_values.m_noninherited.width = width; }
+    void set_min_width(Size const& width) { m_values.m_noninherited.min_width = width; }
+    void set_max_width(Size const& width) { m_values.m_noninherited.max_width = width; }
+    void set_height(Size const& height) { m_values.m_noninherited.height = height; }
+    void set_min_height(Size const& height) { m_values.m_noninherited.min_height = height; }
+    void set_max_height(Size const& height) { m_values.m_noninherited.max_height = height; }
+    void set_inset(LengthBox const& inset) { m_values.m_noninherited.inset = inset; }
+    void set_margin(LengthBox const& margin) { m_values.m_noninherited.margin = margin; }
+    void set_padding(LengthBox const& padding) { m_values.m_noninherited.padding = padding; }
+    void set_overflow_clip_margin(OverflowClipMarginData const& overflow_clip_margin) { m_values.m_noninherited.overflow_clip_margin = overflow_clip_margin; }
+    void set_overflow_x(Overflow value) { m_values.m_noninherited.overflow_x = value; }
+    void set_overflow_y(Overflow value) { m_values.m_noninherited.overflow_y = value; }
+    void set_list_style_type(ListStyleType value) { m_values.m_inherited.list_style_type = move(value); }
+    void set_list_style_position(ListStylePosition value) { m_values.m_inherited.list_style_position = move(value); }
+    void set_display(Display value) { m_values.m_noninherited.display = value; }
+    void set_display_before_box_type_transformation(Display value) { m_values.m_noninherited.display_before_box_type_transformation = value; }
+    void set_backdrop_filter(Filter const& backdrop_filter) { m_values.m_noninherited.backdrop_filter = backdrop_filter; }
+    void set_filter(Filter const& filter) { m_values.m_noninherited.filter = filter; }
     void set_border_bottom_left_radius(BorderRadiusData value)
     {
-        if (value.is_initial() && !m_noninherited.has_noninitial_border_radii)
+        if (value.is_initial() && !m_values.m_noninherited.has_noninitial_border_radii)
             return;
-        m_noninherited.has_noninitial_border_radii = true;
-        m_noninherited.border_bottom_left_radius = move(value);
+        m_values.m_noninherited.has_noninitial_border_radii = true;
+        m_values.m_noninherited.border_bottom_left_radius = move(value);
     }
     void set_border_bottom_right_radius(BorderRadiusData value)
     {
-        if (value.is_initial() && !m_noninherited.has_noninitial_border_radii)
+        if (value.is_initial() && !m_values.m_noninherited.has_noninitial_border_radii)
             return;
-        m_noninherited.has_noninitial_border_radii = true;
-        m_noninherited.border_bottom_right_radius = move(value);
+        m_values.m_noninherited.has_noninitial_border_radii = true;
+        m_values.m_noninherited.border_bottom_right_radius = move(value);
     }
     void set_border_top_left_radius(BorderRadiusData value)
     {
-        if (value.is_initial() && !m_noninherited.has_noninitial_border_radii)
+        if (value.is_initial() && !m_values.m_noninherited.has_noninitial_border_radii)
             return;
-        m_noninherited.has_noninitial_border_radii = true;
-        m_noninherited.border_top_left_radius = move(value);
+        m_values.m_noninherited.has_noninitial_border_radii = true;
+        m_values.m_noninherited.border_top_left_radius = move(value);
     }
     void set_border_top_right_radius(BorderRadiusData value)
     {
-        if (value.is_initial() && !m_noninherited.has_noninitial_border_radii)
+        if (value.is_initial() && !m_values.m_noninherited.has_noninitial_border_radii)
             return;
-        m_noninherited.has_noninitial_border_radii = true;
-        m_noninherited.border_top_right_radius = move(value);
+        m_values.m_noninherited.has_noninitial_border_radii = true;
+        m_values.m_noninherited.border_top_right_radius = move(value);
     }
-    BorderData& border_left() { return m_noninherited.border_left; }
-    BorderData& border_top() { return m_noninherited.border_top; }
-    BorderData& border_right() { return m_noninherited.border_right; }
-    BorderData& border_bottom() { return m_noninherited.border_bottom; }
-    void set_flex_direction(FlexDirection value) { m_noninherited.flex_direction = value; }
-    void set_flex_wrap(FlexWrap value) { m_noninherited.flex_wrap = value; }
-    void set_flex_basis(FlexBasis value) { m_noninherited.flex_basis = move(value); }
-    void set_flex_grow(float value) { m_noninherited.flex_grow = value; }
-    void set_flex_shrink(float value) { m_noninherited.flex_shrink = value; }
-    void set_order(int value) { m_noninherited.order = value; }
-    void set_accent_color(Color value) { m_inherited.accent_color = value; }
-    void set_align_content(AlignContent value) { m_noninherited.align_content = value; }
-    void set_align_items(AlignItems value) { m_noninherited.align_items = value; }
-    void set_align_self(AlignSelf value) { m_noninherited.align_self = value; }
-    void set_appearance(Appearance value) { m_noninherited.appearance = value; }
-    void set_opacity(float value) { m_noninherited.opacity = value; }
-    void set_justify_content(JustifyContent value) { m_noninherited.justify_content = value; }
-    void set_justify_items(JustifyItems value) { m_noninherited.justify_items = value; }
-    void set_justify_self(JustifySelf value) { m_noninherited.justify_self = value; }
-    void set_box_shadow(Vector<ShadowData>&& value) { m_noninherited.box_shadow = move(value); }
-    void set_rotate(RefPtr<TransformationStyleValue const> value) { m_noninherited.rotate = move(value); }
-    void set_scale(RefPtr<TransformationStyleValue const> value) { m_noninherited.scale = move(value); }
-    void set_perspective(Optional<CSSPixels> value) { m_noninherited.perspective = move(value); }
-    void set_perspective_origin(Position value) { m_noninherited.perspective_origin = move(value); }
-    void set_transformations(Vector<NonnullRefPtr<TransformationStyleValue const>> value) { m_noninherited.transformations = move(value); }
-    void set_transform_box(TransformBox value) { m_noninherited.transform_box = value; }
-    void set_transform_origin(TransformOrigin value) { m_noninherited.transform_origin = value; }
-    void set_transform_style(TransformStyle value) { m_noninherited.transform_style = value; }
-    void set_translate(RefPtr<TransformationStyleValue const> value) { m_noninherited.translate = move(value); }
-    void set_box_sizing(BoxSizing value) { m_noninherited.box_sizing = value; }
-    void set_vertical_align(Variant<VerticalAlign, LengthPercentage> value) { m_noninherited.vertical_align = move(value); }
-    void set_visibility(Visibility value) { m_inherited.visibility = value; }
-    void set_grid_auto_columns(GridTrackSizeList value) { m_noninherited.grid_auto_columns = move(value); }
-    void set_grid_auto_rows(GridTrackSizeList value) { m_noninherited.grid_auto_rows = move(value); }
-    void set_grid_template_columns(GridTrackSizeList value) { m_noninherited.grid_template_columns = move(value); }
-    void set_grid_template_rows(GridTrackSizeList value) { m_noninherited.grid_template_rows = move(value); }
-    void set_grid_column_end(GridTrackPlacement value) { m_noninherited.grid_column_end = move(value); }
-    void set_grid_column_start(GridTrackPlacement value) { m_noninherited.grid_column_start = move(value); }
-    void set_grid_row_end(GridTrackPlacement value) { m_noninherited.grid_row_end = move(value); }
-    void set_grid_row_start(GridTrackPlacement value) { m_noninherited.grid_row_start = move(value); }
-    void set_column_count(ColumnCount value) { m_noninherited.column_count = value; }
-    void set_column_gap(Variant<LengthPercentage, NormalGap> const& column_gap) { m_noninherited.column_gap = column_gap; }
-    void set_column_span(ColumnSpan const column_span) { m_noninherited.column_span = column_span; }
-    void set_column_width(Size const& column_width) { m_noninherited.column_width = column_width; }
-    void set_column_height(Size const& column_height) { m_noninherited.column_height = column_height; }
-    void set_row_gap(Variant<LengthPercentage, NormalGap> const& row_gap) { m_noninherited.row_gap = row_gap; }
-    void set_border_collapse(BorderCollapse const border_collapse) { m_inherited.border_collapse = border_collapse; }
-    void set_empty_cells(EmptyCells const empty_cells) { m_inherited.empty_cells = empty_cells; }
-    void set_grid_template_areas(GridTemplateAreas grid_template_areas) { m_noninherited.grid_template_areas = move(grid_template_areas); }
-    void set_grid_auto_flow(GridAutoFlow grid_auto_flow) { m_noninherited.grid_auto_flow = grid_auto_flow; }
-    void set_table_layout(TableLayout value) { m_noninherited.table_layout = value; }
-    void set_quotes(QuotesData value) { m_inherited.quotes = move(value); }
-    void set_object_fit(ObjectFit value) { m_noninherited.object_fit = value; }
-    void set_object_position(Position value) { m_noninherited.object_position = move(value); }
-    void set_direction(Direction value) { m_inherited.direction = value; }
-    void set_dominant_baseline(Optional<BaselineMetric> value) { m_inherited.dominant_baseline = value; }
-    void set_unicode_bidi(UnicodeBidi value) { m_noninherited.unicode_bidi = value; }
-    void set_writing_mode(WritingMode value) { m_inherited.writing_mode = value; }
-    void set_user_select(UserSelect value) { m_noninherited.user_select = value; }
-    void set_isolation(Isolation value) { m_noninherited.isolation = value; }
-    void set_contain(Containment value) { m_noninherited.contain = move(value); }
-    void set_container_name(Vector<Utf16FlyString> value) { m_noninherited.container_name = move(value); }
-    void set_container_type(ContainerType value) { m_noninherited.container_type = move(value); }
-    void set_mix_blend_mode(MixBlendMode value) { m_noninherited.mix_blend_mode = value; }
-    void set_view_transition_name(Optional<Utf16FlyString> value) { m_noninherited.view_transition_name = move(value); }
-    void set_touch_action(TouchActionData value) { m_noninherited.touch_action = value; }
+    BorderData& border_left() { return m_values.m_noninherited.border_left; }
+    BorderData& border_top() { return m_values.m_noninherited.border_top; }
+    BorderData& border_right() { return m_values.m_noninherited.border_right; }
+    BorderData& border_bottom() { return m_values.m_noninherited.border_bottom; }
+    void set_flex_direction(FlexDirection value) { m_values.m_noninherited.flex_direction = value; }
+    void set_flex_wrap(FlexWrap value) { m_values.m_noninherited.flex_wrap = value; }
+    void set_flex_basis(FlexBasis value) { m_values.m_noninherited.flex_basis = move(value); }
+    void set_flex_grow(float value) { m_values.m_noninherited.flex_grow = value; }
+    void set_flex_shrink(float value) { m_values.m_noninherited.flex_shrink = value; }
+    void set_order(int value) { m_values.m_noninherited.order = value; }
+    void set_accent_color(Color value) { m_values.m_inherited.accent_color = value; }
+    void set_align_content(AlignContent value) { m_values.m_noninherited.align_content = value; }
+    void set_align_items(AlignItems value) { m_values.m_noninherited.align_items = value; }
+    void set_align_self(AlignSelf value) { m_values.m_noninherited.align_self = value; }
+    void set_appearance(Appearance value) { m_values.m_noninherited.appearance = value; }
+    void set_opacity(float value) { m_values.m_noninherited.opacity = value; }
+    void set_justify_content(JustifyContent value) { m_values.m_noninherited.justify_content = value; }
+    void set_justify_items(JustifyItems value) { m_values.m_noninherited.justify_items = value; }
+    void set_justify_self(JustifySelf value) { m_values.m_noninherited.justify_self = value; }
+    void set_box_shadow(Vector<ShadowData>&& value) { m_values.m_noninherited.box_shadow = move(value); }
+    void set_rotate(RefPtr<TransformationStyleValue const> value) { m_values.m_noninherited.rotate = move(value); }
+    void set_scale(RefPtr<TransformationStyleValue const> value) { m_values.m_noninherited.scale = move(value); }
+    void set_perspective(Optional<CSSPixels> value) { m_values.m_noninherited.perspective = move(value); }
+    void set_perspective_origin(Position value) { m_values.m_noninherited.perspective_origin = move(value); }
+    void set_transformations(Vector<NonnullRefPtr<TransformationStyleValue const>> value) { m_values.m_noninherited.transformations = move(value); }
+    void set_transform_box(TransformBox value) { m_values.m_noninherited.transform_box = value; }
+    void set_transform_origin(TransformOrigin value) { m_values.m_noninherited.transform_origin = value; }
+    void set_transform_style(TransformStyle value) { m_values.m_noninherited.transform_style = value; }
+    void set_translate(RefPtr<TransformationStyleValue const> value) { m_values.m_noninherited.translate = move(value); }
+    void set_box_sizing(BoxSizing value) { m_values.m_noninherited.box_sizing = value; }
+    void set_vertical_align(Variant<VerticalAlign, LengthPercentage> value) { m_values.m_noninherited.vertical_align = move(value); }
+    void set_visibility(Visibility value) { m_values.m_inherited.visibility = value; }
+    void set_grid_auto_columns(GridTrackSizeList value) { m_values.m_noninherited.grid_auto_columns = move(value); }
+    void set_grid_auto_rows(GridTrackSizeList value) { m_values.m_noninherited.grid_auto_rows = move(value); }
+    void set_grid_template_columns(GridTrackSizeList value) { m_values.m_noninherited.grid_template_columns = move(value); }
+    void set_grid_template_rows(GridTrackSizeList value) { m_values.m_noninherited.grid_template_rows = move(value); }
+    void set_grid_column_end(GridTrackPlacement value) { m_values.m_noninherited.grid_column_end = move(value); }
+    void set_grid_column_start(GridTrackPlacement value) { m_values.m_noninherited.grid_column_start = move(value); }
+    void set_grid_row_end(GridTrackPlacement value) { m_values.m_noninherited.grid_row_end = move(value); }
+    void set_grid_row_start(GridTrackPlacement value) { m_values.m_noninherited.grid_row_start = move(value); }
+    void set_column_count(ColumnCount value) { m_values.m_noninherited.column_count = value; }
+    void set_column_gap(Variant<LengthPercentage, NormalGap> const& column_gap) { m_values.m_noninherited.column_gap = column_gap; }
+    void set_column_span(ColumnSpan const column_span) { m_values.m_noninherited.column_span = column_span; }
+    void set_column_width(Size const& column_width) { m_values.m_noninherited.column_width = column_width; }
+    void set_column_height(Size const& column_height) { m_values.m_noninherited.column_height = column_height; }
+    void set_row_gap(Variant<LengthPercentage, NormalGap> const& row_gap) { m_values.m_noninherited.row_gap = row_gap; }
+    void set_border_collapse(BorderCollapse const border_collapse) { m_values.m_inherited.border_collapse = border_collapse; }
+    void set_empty_cells(EmptyCells const empty_cells) { m_values.m_inherited.empty_cells = empty_cells; }
+    void set_grid_template_areas(GridTemplateAreas grid_template_areas) { m_values.m_noninherited.grid_template_areas = move(grid_template_areas); }
+    void set_grid_auto_flow(GridAutoFlow grid_auto_flow) { m_values.m_noninherited.grid_auto_flow = grid_auto_flow; }
+    void set_table_layout(TableLayout value) { m_values.m_noninherited.table_layout = value; }
+    void set_quotes(QuotesData value) { m_values.m_inherited.quotes = move(value); }
+    void set_object_fit(ObjectFit value) { m_values.m_noninherited.object_fit = value; }
+    void set_object_position(Position value) { m_values.m_noninherited.object_position = move(value); }
+    void set_direction(Direction value) { m_values.m_inherited.direction = value; }
+    void set_dominant_baseline(Optional<BaselineMetric> value) { m_values.m_inherited.dominant_baseline = value; }
+    void set_unicode_bidi(UnicodeBidi value) { m_values.m_noninherited.unicode_bidi = value; }
+    void set_writing_mode(WritingMode value) { m_values.m_inherited.writing_mode = value; }
+    void set_user_select(UserSelect value) { m_values.m_noninherited.user_select = value; }
+    void set_isolation(Isolation value) { m_values.m_noninherited.isolation = value; }
+    void set_contain(Containment value) { m_values.m_noninherited.contain = move(value); }
+    void set_container_name(Vector<Utf16FlyString> value) { m_values.m_noninherited.container_name = move(value); }
+    void set_container_type(ContainerType value) { m_values.m_noninherited.container_type = move(value); }
+    void set_mix_blend_mode(MixBlendMode value) { m_values.m_noninherited.mix_blend_mode = value; }
+    void set_view_transition_name(Optional<Utf16FlyString> value) { m_values.m_noninherited.view_transition_name = move(value); }
+    void set_touch_action(TouchActionData value) { m_values.m_noninherited.touch_action = value; }
 
-    void set_fill(Optional<SVGPaint> value) { m_inherited.fill = move(value); }
-    void set_stroke(Optional<SVGPaint> value) { m_inherited.stroke = move(value); }
-    void set_fill_rule(FillRule value) { m_inherited.fill_rule = value; }
-    void set_fill_opacity(float value) { m_inherited.fill_opacity = value; }
-    void set_stroke_dasharray(Vector<Variant<LengthPercentage, float>> value) { m_inherited.stroke_dasharray = move(value); }
-    void set_stroke_dashoffset(LengthPercentage value) { m_inherited.stroke_dashoffset = move(value); }
-    void set_stroke_linecap(StrokeLinecap value) { m_inherited.stroke_linecap = move(value); }
-    void set_stroke_linejoin(StrokeLinejoin value) { m_inherited.stroke_linejoin = move(value); }
-    void set_vector_effect(VectorEffect value) { m_noninherited.vector_effect = value; }
-    void set_stroke_miterlimit(double value) { m_inherited.stroke_miterlimit = value; }
-    void set_stroke_opacity(float value) { m_inherited.stroke_opacity = value; }
-    void set_stroke_width(LengthPercentage value) { m_inherited.stroke_width = move(value); }
-    void set_stop_color(Color value) { m_noninherited.stop_color = value; }
-    void set_stop_opacity(float value) { m_noninherited.stop_opacity = value; }
-    void set_text_anchor(TextAnchor value) { m_inherited.text_anchor = value; }
-    void set_outline_color(Color value) { m_noninherited.outline_color = value; }
-    void set_outline_offset(CSSPixels value) { m_noninherited.outline_offset = move(value); }
-    void set_outline_style(OutlineStyle value) { m_noninherited.outline_style = value; }
-    void set_outline_width(CSSPixels value) { m_noninherited.outline_width = value; }
-    void set_mask(MaskReference value) { m_noninherited.mask = value; }
-    void set_mask_type(MaskType value) { m_noninherited.mask_type = value; }
-    void set_mask_image(AbstractImageStyleValue const& value) { m_noninherited.mask_image = value; }
-    void set_clip_path(ClipPathReference value) { m_noninherited.clip_path = move(value); }
-    void set_clip_rule(ClipRule value) { m_inherited.clip_rule = value; }
-    void set_flood_color(Color value) { m_noninherited.flood_color = value; }
-    void set_flood_opacity(float value) { m_noninherited.flood_opacity = value; }
-    void set_shape_rendering(ShapeRendering value) { m_noninherited.shape_rendering = value; }
-    void set_paint_order(PaintOrderList value) { m_inherited.paint_order = value; }
+    void set_fill(Optional<SVGPaint> value) { m_values.m_inherited.fill = move(value); }
+    void set_stroke(Optional<SVGPaint> value) { m_values.m_inherited.stroke = move(value); }
+    void set_fill_rule(FillRule value) { m_values.m_inherited.fill_rule = value; }
+    void set_fill_opacity(float value) { m_values.m_inherited.fill_opacity = value; }
+    void set_stroke_dasharray(Vector<Variant<LengthPercentage, float>> value) { m_values.m_inherited.stroke_dasharray = move(value); }
+    void set_stroke_dashoffset(LengthPercentage value) { m_values.m_inherited.stroke_dashoffset = move(value); }
+    void set_stroke_linecap(StrokeLinecap value) { m_values.m_inherited.stroke_linecap = move(value); }
+    void set_stroke_linejoin(StrokeLinejoin value) { m_values.m_inherited.stroke_linejoin = move(value); }
+    void set_vector_effect(VectorEffect value) { m_values.m_noninherited.vector_effect = value; }
+    void set_stroke_miterlimit(double value) { m_values.m_inherited.stroke_miterlimit = value; }
+    void set_stroke_opacity(float value) { m_values.m_inherited.stroke_opacity = value; }
+    void set_stroke_width(LengthPercentage value) { m_values.m_inherited.stroke_width = move(value); }
+    void set_stop_color(Color value) { m_values.m_noninherited.stop_color = value; }
+    void set_stop_opacity(float value) { m_values.m_noninherited.stop_opacity = value; }
+    void set_text_anchor(TextAnchor value) { m_values.m_inherited.text_anchor = value; }
+    void set_outline_color(Color value) { m_values.m_noninherited.outline_color = value; }
+    void set_outline_offset(CSSPixels value) { m_values.m_noninherited.outline_offset = move(value); }
+    void set_outline_style(OutlineStyle value) { m_values.m_noninherited.outline_style = value; }
+    void set_outline_width(CSSPixels value) { m_values.m_noninherited.outline_width = value; }
+    void set_mask(MaskReference value) { m_values.m_noninherited.mask = value; }
+    void set_mask_type(MaskType value) { m_values.m_noninherited.mask_type = value; }
+    void set_mask_image(AbstractImageStyleValue const& value) { m_values.m_noninherited.mask_image = value; }
+    void set_clip_path(ClipPathReference value) { m_values.m_noninherited.clip_path = move(value); }
+    void set_clip_rule(ClipRule value) { m_values.m_inherited.clip_rule = value; }
+    void set_flood_color(Color value) { m_values.m_noninherited.flood_color = value; }
+    void set_flood_opacity(float value) { m_values.m_noninherited.flood_opacity = value; }
+    void set_shape_rendering(ShapeRendering value) { m_values.m_noninherited.shape_rendering = value; }
+    void set_paint_order(PaintOrderList value) { m_values.m_inherited.paint_order = value; }
 
-    void set_cx(LengthPercentage cx) { m_noninherited.cx = move(cx); }
-    void set_cy(LengthPercentage cy) { m_noninherited.cy = move(cy); }
-    void set_r(LengthPercentage r) { m_noninherited.r = move(r); }
-    void set_rx(LengthPercentageOrAuto rx) { m_noninherited.rx = move(rx); }
-    void set_ry(LengthPercentageOrAuto ry) { m_noninherited.ry = move(ry); }
-    void set_x(LengthPercentage x) { m_noninherited.x = move(x); }
-    void set_y(LengthPercentage y) { m_noninherited.y = move(y); }
+    void set_cx(LengthPercentage cx) { m_values.m_noninherited.cx = move(cx); }
+    void set_cy(LengthPercentage cy) { m_values.m_noninherited.cy = move(cy); }
+    void set_r(LengthPercentage r) { m_values.m_noninherited.r = move(r); }
+    void set_rx(LengthPercentageOrAuto rx) { m_values.m_noninherited.rx = move(rx); }
+    void set_ry(LengthPercentageOrAuto ry) { m_values.m_noninherited.ry = move(ry); }
+    void set_x(LengthPercentage x) { m_values.m_noninherited.x = move(x); }
+    void set_y(LengthPercentage y) { m_values.m_noninherited.y = move(y); }
 
-    void set_math_shift(MathShift value) { m_inherited.math_shift = value; }
-    void set_math_style(MathStyle value) { m_inherited.math_style = value; }
-    void set_math_depth(int value) { m_inherited.math_depth = value; }
+    void set_math_shift(MathShift value) { m_values.m_inherited.math_shift = value; }
+    void set_math_style(MathStyle value) { m_values.m_inherited.math_style = value; }
+    void set_math_depth(int value) { m_values.m_inherited.math_depth = value; }
 
-    void set_scrollbar_color(ScrollbarColorData value) { m_inherited.scrollbar_color = move(value); }
-    void set_scrollbar_width(ScrollbarWidth value) { m_noninherited.scrollbar_width = value; }
-    void set_resize(Resize value) { m_noninherited.resize = value; }
+    void set_scrollbar_color(ScrollbarColorData value) { m_values.m_inherited.scrollbar_color = move(value); }
+    void set_scrollbar_width(ScrollbarWidth value) { m_values.m_noninherited.scrollbar_width = value; }
+    void set_resize(Resize value) { m_values.m_noninherited.resize = value; }
 
-    void set_counter_increment(Vector<CounterData> value) { m_noninherited.counter_increment = move(value); }
-    void set_counter_reset(Vector<CounterData> value) { m_noninherited.counter_reset = move(value); }
-    void set_counter_set(Vector<CounterData> value) { m_noninherited.counter_set = move(value); }
+    void set_counter_increment(Vector<CounterData> value) { m_values.m_noninherited.counter_increment = move(value); }
+    void set_counter_reset(Vector<CounterData> value) { m_values.m_noninherited.counter_reset = move(value); }
+    void set_counter_set(Vector<CounterData> value) { m_values.m_noninherited.counter_set = move(value); }
 
-    void set_will_change(WillChange value) { m_noninherited.will_change = move(value); }
+    void set_will_change(WillChange value) { m_values.m_noninherited.will_change = move(value); }
+
+private:
+    ComputedValues& m_values;
 };
 
 class ComputedValues::Builder {
 public:
     Builder()
-        : m_values(adopt_ref(*new MutableComputedValues))
+        : m_values(adopt_ref(*new ComputedValues))
+        , m_mutator(*m_values)
     {
     }
 
@@ -1266,6 +1336,15 @@ public:
     {
         m_values->m_inherited = values.m_inherited;
         m_values->m_noninherited = values.m_noninherited;
+        m_values->m_property_important = values.m_property_important;
+        m_values->m_property_inherited = values.m_property_inherited;
+        m_values->m_inheritance_dependent_specified_values = values.m_inheritance_dependent_specified_values;
+        m_values->m_raw_cascaded_font_size = values.m_raw_cascaded_font_size;
+        m_values->m_base_values = values.m_base_values;
+        m_values->m_pseudo_element_styles = values.m_pseudo_element_styles;
+        m_values->m_depends_on_viewport_metrics = values.m_depends_on_viewport_metrics;
+        m_values->m_font_metrics_depend_on_viewport_metrics = values.m_font_metrics_depend_on_viewport_metrics;
+        m_values->m_in_display_none_subtree = values.m_in_display_none_subtree;
     }
 
     static Builder create_inheriting_from(ComputedValues const& values)
@@ -1275,13 +1354,14 @@ public:
         return builder;
     }
 
-    MutableComputedValues* operator->() { return m_values.ptr(); }
-    MutableComputedValues const* operator->() const { return m_values.ptr(); }
+    Mutator* operator->() { return &m_mutator; }
+    Mutator const* operator->() const { return &m_mutator; }
 
     NonnullRefPtr<ComputedValues> build() { return m_values; }
 
 private:
-    NonnullRefPtr<MutableComputedValues> m_values;
+    NonnullRefPtr<ComputedValues> m_values;
+    Mutator m_mutator;
 };
 
 }

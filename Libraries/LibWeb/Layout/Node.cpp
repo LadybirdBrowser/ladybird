@@ -605,7 +605,7 @@ bool NodeWithStyle::is_sticky_position() const
 
 NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties const& computed_style)
     : Node(document, node)
-    , m_computed_values(adopt_ref(*new CSS::MutableComputedValues))
+    , m_computed_values(CSS::ComputedValues::Builder {}.build())
     , m_layout_index(document.allocate_layout_node_index())
 {
     m_has_style = true;
@@ -707,30 +707,37 @@ void NodeWithStyle::rebuild_image_observers()
     m_image_observers = move(new_observers);
 }
 
-void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
+}
+
+namespace Web::CSS {
+
+NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context)
 {
-    auto& computed_values = mutable_computed_values();
+    Builder builder;
+    auto& computed_values = *builder.operator->();
 
     // NOTE: color-scheme must be set first to ensure system colors can be resolved correctly.
-    auto color_scheme = computed_style.color_scheme(document().page().preferred_color_scheme(), document().supported_color_schemes());
+    auto color_scheme = computed_style.color_scheme(document.page().preferred_color_scheme(), document.supported_color_schemes());
     computed_values.set_color_scheme(color_scheme);
 
     // NOTE: We have to be careful that font-related properties get set in the right order.
     //       m_font is used by Length::to_px() when resolving sizes against this layout node.
     //       That's why it has to be set before everything else.
-    computed_values.set_font_list(computed_style.computed_font_list(document().font_computer()));
+    computed_values.set_font_list(computed_style.computed_font_list(document.font_computer()));
     computed_values.set_font_size(computed_style.font_size());
     computed_values.set_font_weight(computed_style.font_weight());
-    computed_values.set_line_height(computed_style.line_height_data(document().font_computer()));
+    computed_values.set_line_height(computed_style.line_height_data(document.font_computer()));
     computed_values.set_font_variant_emoji(computed_style.font_variant_emoji());
 
     // NOTE: color must be set after color-scheme to ensure currentColor can be resolved in other properties (e.g. background-color).
     // NOTE: color must be set after font_size as `CalculatedStyleValue`s can rely on it being set for resolving lengths.
-    computed_values.set_color(computed_style.color(CSS::PropertyID::Color, CSS::ColorResolutionContext::for_layout_node_with_style(*this)));
+    auto color = computed_style.color(CSS::PropertyID::Color, color_resolution_context);
+    computed_values.set_color(color);
 
     // NOTE: This color resolution context must be created after we set color above so that currentColor resolves correctly
     // FIXME: We should resolve colors to their absolute forms at compute time (i.e. by implementing the relevant absolutized methods)
-    auto color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*this);
+    color_resolution_context.current_color = color;
+    color_resolution_context.color_scheme = color_scheme;
 
     computed_values.set_accent_color(computed_style.accent_color(color_resolution_context));
 
@@ -834,7 +841,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_text_decoration_style(computed_style.text_decoration_style());
     computed_values.set_text_transform(computed_style.text_transform());
 
-    computed_values.set_list_style_type(computed_style.list_style_type(style_scope()));
+    computed_values.set_list_style_type(computed_style.list_style_type(style_scope));
     computed_values.set_list_style_position(computed_style.list_style_position());
 
     computed_values.set_text_decoration_color(computed_style.color(CSS::PropertyID::TextDecorationColor, color_resolution_context));
@@ -1078,13 +1085,52 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_contain(computed_style.contain());
     computed_values.set_container_name(computed_style.container_name());
     computed_values.set_container_type(computed_style.container_type());
-    computed_values.set_shape_rendering(computed_values.shape_rendering());
     computed_values.set_will_change(computed_style.will_change());
 
     computed_values.set_caret_color(computed_style.caret_color(color_resolution_context));
     computed_values.set_color_interpolation(computed_style.color_interpolation());
     computed_values.set_color_interpolation_filters(computed_style.color_interpolation_filters());
     computed_values.set_resize(computed_style.resize());
+
+    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+        auto property_id = static_cast<PropertyID>(i);
+        computed_values.set_property_important(property_id, computed_style.is_property_important(property_id));
+        computed_values.set_property_inherited(property_id, computed_style.is_property_inherited(property_id));
+    }
+    computed_values.set_depends_on_viewport_metrics(computed_style.depends_on_viewport_metrics());
+    computed_values.set_font_metrics_depend_on_viewport_metrics(computed_style.font_metrics_depend_on_viewport_metrics());
+    computed_values.set_in_display_none_subtree(computed_style.in_display_none_subtree());
+    u64 pseudo_element_styles = 0;
+    for (auto i = 0; i < to_underlying(PseudoElement::KnownPseudoElementCount); ++i) {
+        auto pseudo_element = static_cast<PseudoElement>(i);
+        if (computed_style.has_pseudo_element_style(pseudo_element))
+            pseudo_element_styles |= 1ull << i;
+    }
+    computed_values.set_pseudo_element_styles(pseudo_element_styles);
+    computed_values.set_inheritance_dependent_specified_values(computed_style.inheritance_dependent_specified_values());
+    computed_values.set_raw_cascaded_font_size(computed_style.raw_cascaded_font_size());
+
+    return builder.build();
+}
+
+}
+
+namespace Web::Layout {
+
+void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
+{
+    if (auto prebuilt_values = computed_style.computed_values()) {
+        m_computed_values = prebuilt_values.release_nonnull();
+    } else {
+        VERIFY(is<DOM::Document>(dom_node()));
+        CSS::ColorResolutionContext color_resolution_context {
+            .color_scheme = document().page().preferred_color_scheme(),
+            .current_color = CSS::InitialValues::color(),
+            .calculation_resolution_context = { .length_resolution_context = CSS::Length::ResolutionContext::for_document(document()) },
+        };
+        m_computed_values = CSS::ComputedValues::create(computed_style, document(), style_scope(), move(color_resolution_context));
+        computed_style.set_computed_values(m_computed_values);
+    }
 
     propagate_style_to_anonymous_wrappers();
 
@@ -1134,13 +1180,13 @@ CSS::StyleScope const& NodeWithStyle::style_scope() const
     return document().style_scope();
 }
 
-void NodeWithStyle::propagate_non_inherit_values(CSS::MutableComputedValues& values) const
+void NodeWithStyle::propagate_non_inherit_values(CSS::ComputedValues::Builder& builder) const
 {
     // NOTE: These properties are not inherited, but we still have to propagate them to anonymous wrappers.
-    values.set_text_decoration_line(computed_values().text_decoration_line());
-    values.set_text_decoration_thickness(computed_values().text_decoration_thickness());
-    values.set_text_decoration_color(computed_values().text_decoration_color());
-    values.set_text_decoration_style(computed_values().text_decoration_style());
+    builder->set_text_decoration_line(computed_values().text_decoration_line());
+    builder->set_text_decoration_thickness(computed_values().text_decoration_thickness());
+    builder->set_text_decoration_color(computed_values().text_decoration_color());
+    builder->set_text_decoration_style(computed_values().text_decoration_style());
 }
 
 void NodeWithStyle::propagate_style_to_anonymous_wrappers()
@@ -1154,7 +1200,7 @@ void NodeWithStyle::propagate_style_to_anonymous_wrappers()
     if (auto* table_wrapper = as_if<TableWrapper>(parent()); table_wrapper && display().is_table_inside()) {
         CSS::ComputedValues::Builder builder(table_wrapper->computed_values());
         builder->inherit_from(computed_values());
-        transfer_table_box_computed_values_to_wrapper_computed_values(*builder.operator->());
+        transfer_table_box_computed_values_to_wrapper_computed_values(builder);
         table_wrapper->set_computed_values(builder.build());
     }
 
@@ -1170,7 +1216,7 @@ void NodeWithStyle::propagate_style_to_anonymous_wrappers()
             }
             CSS::ComputedValues::Builder builder(child.computed_values());
             builder->inherit_from(computed_values());
-            propagate_non_inherit_values(*builder.operator->());
+            propagate_non_inherit_values(builder);
             child.set_computed_values(builder.build());
             child.propagate_style_to_anonymous_wrappers();
         }
@@ -1310,7 +1356,7 @@ NonnullRefPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
 {
     auto builder = CSS::ComputedValues::Builder::create_inheriting_from(computed_values());
     builder->set_display(CSS::Display(CSS::DisplayOutside::Block, CSS::DisplayInside::Flow));
-    propagate_non_inherit_values(*builder.operator->());
+    propagate_non_inherit_values(builder);
     // CSS 2.2 9.2.1.1 creates anonymous block boxes, but 9.4.1 states inline-block creates a BFC.
     // Set wrapper to inline-block to participate correctly in the IFC within the parent inline-block.
     if (display().is_inline_block() && !has_children())
@@ -1351,37 +1397,37 @@ void NodeWithStyle::reset_table_box_computed_values_used_by_wrapper_to_init_valu
     });
 }
 
-void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_values(CSS::MutableComputedValues& mutable_wrapper_computed_values)
+void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_values(CSS::ComputedValues::Builder& builder)
 {
     // The computed values of properties 'position', 'float', 'margin-*', 'top', 'right', 'bottom', and 'left' on the table element are used on the table wrapper box and not the table box;
     // all other values of non-inheritable properties are used on the table box and not the table wrapper box.
     // (Where the table element's values are not used on the table and table wrapper boxes, the initial values are used instead.)
     if (display().is_inline_outside())
-        mutable_wrapper_computed_values.set_display(CSS::Display::from_short(CSS::Display::Short::InlineBlock));
+        builder->set_display(CSS::Display::from_short(CSS::Display::Short::InlineBlock));
     else
-        mutable_wrapper_computed_values.set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
-    mutable_wrapper_computed_values.set_position(computed_values().position());
-    mutable_wrapper_computed_values.set_position_anchor(computed_values().position_anchor());
-    mutable_wrapper_computed_values.set_inset(computed_values().inset());
-    mutable_wrapper_computed_values.set_float(computed_values().float_());
-    mutable_wrapper_computed_values.set_clear(computed_values().clear());
+        builder->set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
+    builder->set_position(computed_values().position());
+    builder->set_position_anchor(computed_values().position_anchor());
+    builder->set_inset(computed_values().inset());
+    builder->set_float(computed_values().float_());
+    builder->set_clear(computed_values().clear());
     // CSS 2 moves table-root positioning and margins to the wrapper. The wrapper is also the grid item for
     // display:table, so grid placement, self-alignment, and order need to move there as well.
-    mutable_wrapper_computed_values.set_grid_column_end(computed_values().grid_column_end());
-    mutable_wrapper_computed_values.set_grid_column_start(computed_values().grid_column_start());
-    mutable_wrapper_computed_values.set_grid_row_end(computed_values().grid_row_end());
-    mutable_wrapper_computed_values.set_grid_row_start(computed_values().grid_row_start());
-    mutable_wrapper_computed_values.set_align_self(computed_values().align_self());
-    mutable_wrapper_computed_values.set_justify_self(computed_values().justify_self());
-    mutable_wrapper_computed_values.set_order(computed_values().order());
-    mutable_wrapper_computed_values.set_margin(computed_values().margin());
+    builder->set_grid_column_end(computed_values().grid_column_end());
+    builder->set_grid_column_start(computed_values().grid_column_start());
+    builder->set_grid_row_end(computed_values().grid_row_end());
+    builder->set_grid_row_start(computed_values().grid_row_start());
+    builder->set_align_self(computed_values().align_self());
+    builder->set_justify_self(computed_values().justify_self());
+    builder->set_order(computed_values().order());
+    builder->set_margin(computed_values().margin());
     // AD-HOC:
     // To match other browsers, z-index needs to be moved to the wrapper box as well,
     // even if the spec does not mention that: https://github.com/w3c/csswg-drafts/issues/11689
     // Note that there may be more properties that need to be added to this list.
-    mutable_wrapper_computed_values.set_z_index(computed_values().z_index());
+    builder->set_z_index(computed_values().z_index());
     // "clip" only takes effect on absolutely-positioned elements; the table box isn't one — the wrapper is.
-    mutable_wrapper_computed_values.set_clip(computed_values().clip());
+    builder->set_clip(computed_values().clip());
 
     reset_table_box_computed_values_used_by_wrapper_to_init_values();
 }

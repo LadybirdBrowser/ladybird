@@ -94,6 +94,6 @@ private:
     bool m_needs_scrollable_overflow_recalculation : 1 { false };
 };
 
-RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value);
+RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value, ComputedValues const* old_computed_values = nullptr, ComputedValues const* new_computed_values = nullptr);
 
 }

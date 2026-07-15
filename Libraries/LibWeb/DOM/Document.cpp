@@ -2303,12 +2303,12 @@ void Document::update_style_computer_viewport_rect()
 
 static bool element_or_pseudo_depends_on_viewport_metrics(Element const& element)
 {
-    if (auto computed_properties = element.computed_properties(); computed_properties && computed_properties->depends_on_viewport_metrics())
+    if (auto computed_values = element.computed_values(); computed_values && computed_values->depends_on_viewport_metrics())
         return true;
 
     bool depends_on_viewport_metrics = false;
     element.for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement const& pseudo_element) {
-        if (auto computed_properties = pseudo_element.computed_properties(); computed_properties && computed_properties->depends_on_viewport_metrics()) {
+        if (auto computed_values = pseudo_element.computed_values(); computed_values && computed_values->depends_on_viewport_metrics()) {
             depends_on_viewport_metrics = true;
             return IterationDecision::Break;
         }

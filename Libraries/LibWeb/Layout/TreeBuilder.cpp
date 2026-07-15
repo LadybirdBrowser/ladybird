@@ -1850,7 +1850,7 @@ Vector<NonnullRefPtr<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& 
         auto& parent = *table_box->parent();
 
         auto builder = CSS::ComputedValues::Builder::create_inheriting_from(table_box->computed_values());
-        table_box->transfer_table_box_computed_values_to_wrapper_computed_values(*builder.operator->());
+        table_box->transfer_table_box_computed_values_to_wrapper_computed_values(builder);
         auto wrapper_computed_values = builder.build();
 
         if (parent.is_table_wrapper()) {

@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
@@ -17,8 +18,52 @@
 
 namespace Web::CSS {
 
-static bool is_stacking_context_creating_value(CSS::PropertyID property_id, StyleValue const* value)
+static Optional<bool> typed_value_creates_stacking_context(PropertyID property_id, ComputedValues const& values)
 {
+    switch (property_id) {
+    case PropertyID::Opacity:
+        return values.opacity() < 1;
+    case PropertyID::Transform:
+        return !values.transformations().is_empty();
+    case PropertyID::Translate:
+        return values.translate() != nullptr;
+    case PropertyID::Rotate:
+        return values.rotate() != nullptr;
+    case PropertyID::Scale:
+        return values.scale() != nullptr;
+    case PropertyID::Filter:
+        return values.filter().has_filters();
+    case PropertyID::BackdropFilter:
+        return values.backdrop_filter().has_filters();
+    case PropertyID::ClipPath:
+        return values.clip_path().has_value();
+    case PropertyID::Mask:
+        return values.mask().has_value();
+    case PropertyID::MaskImage:
+        return values.mask_image() != nullptr;
+    case PropertyID::ViewTransitionName:
+        return values.view_transition_name().has_value();
+    case PropertyID::Isolation:
+        return values.isolation() == Isolation::Isolate;
+    case PropertyID::MixBlendMode:
+        return values.mix_blend_mode() != MixBlendMode::Normal;
+    case PropertyID::ZIndex:
+        return values.z_index().has_value();
+    case PropertyID::Perspective:
+        return values.perspective().has_value();
+    case PropertyID::TransformStyle:
+        return values.transform_style() != TransformStyle::Flat;
+    default:
+        return {};
+    }
+}
+
+static bool is_stacking_context_creating_value(CSS::PropertyID property_id, StyleValue const* value, ComputedValues const* computed_values = nullptr)
+{
+    if (computed_values) {
+        if (auto result = typed_value_creates_stacking_context(property_id, *computed_values); result.has_value())
+            return result.value();
+    }
     if (!value)
         return false;
 
@@ -139,18 +184,39 @@ static bool is_containing_block_establishing_value(CSS::PropertyID property_id, 
     }
 }
 
-static bool opacity_change_affects_paintable_visibility(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value)
+static bool opacity_change_affects_paintable_visibility(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value, ComputedValues const* old_computed_values, ComputedValues const* new_computed_values)
 {
     if (property_id != CSS::PropertyID::Opacity)
         return false;
 
-    auto old_opacity = old_value ? old_value->as_opacity_value().resolved() : 1.0f;
-    auto new_opacity = new_value ? new_value->as_opacity_value().resolved() : 1.0f;
+    auto old_opacity = old_computed_values ? old_computed_values->opacity() : old_value ? old_value->as_opacity_value().resolved()
+                                                                                        : 1.0f;
+    auto new_opacity = new_computed_values ? new_computed_values->opacity() : new_value ? new_value->as_opacity_value().resolved()
+                                                                                        : 1.0f;
     return (old_opacity == 0.0f) != (new_opacity == 0.0f);
 }
 
-static Optional<bool> transform_value_is_invertible(StyleValue const* value)
+static Optional<bool> transform_value_is_invertible(PropertyID property_id, StyleValue const* value, ComputedValues const* computed_values)
 {
+    if (computed_values) {
+        if (property_id == PropertyID::Scale) {
+            if (!computed_values->scale())
+                return true;
+            if (!computed_values->scale()->can_be_converted_to_matrix_without_reference_box())
+                return {};
+            return computed_values->scale()->to_matrix({}).is_invertible();
+        }
+        if (property_id == PropertyID::Transform) {
+            auto matrix = Gfx::FloatMatrix4x4::identity();
+            for (auto const& transformation : computed_values->transformations()) {
+                if (!transformation->can_be_converted_to_matrix_without_reference_box())
+                    return {};
+                matrix = matrix * transformation->to_matrix({});
+            }
+            return matrix.is_invertible();
+        }
+    }
+
     if (!value || value->to_keyword() == CSS::Keyword::None)
         return true;
 
@@ -178,26 +244,26 @@ static Optional<bool> transform_value_is_invertible(StyleValue const* value)
     return {};
 }
 
-static bool transform_change_requires_repaint(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value)
+static bool transform_change_requires_repaint(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value, ComputedValues const* old_computed_values, ComputedValues const* new_computed_values)
 {
     if (!AK::first_is_one_of(property_id, CSS::PropertyID::Transform, CSS::PropertyID::Scale))
         return false;
 
     // StackingContext::paint() omits non-invertibly transformed subtrees, so crossing
     // this boundary changes display-list contents, not just the visual context matrix.
-    auto old_invertible = transform_value_is_invertible(old_value);
-    auto new_invertible = transform_value_is_invertible(new_value);
+    auto old_invertible = transform_value_is_invertible(property_id, old_value, old_computed_values);
+    auto new_invertible = transform_value_is_invertible(property_id, new_value, new_computed_values);
     if (!old_invertible.has_value() || !new_invertible.has_value())
         return true;
     return old_invertible.value() != new_invertible.value();
 }
 
-static bool accumulated_visual_context_change_requires_repaint(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value)
+static bool accumulated_visual_context_change_requires_repaint(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value, ComputedValues const* old_computed_values, ComputedValues const* new_computed_values)
 {
-    if (opacity_change_affects_paintable_visibility(property_id, old_value, new_value))
+    if (opacity_change_affects_paintable_visibility(property_id, old_value, new_value, old_computed_values, new_computed_values))
         return true;
 
-    if (transform_change_requires_repaint(property_id, old_value, new_value))
+    if (transform_change_requires_repaint(property_id, old_value, new_value, old_computed_values, new_computed_values))
         return true;
 
     switch (property_id) {
@@ -218,7 +284,7 @@ static bool accumulated_visual_context_change_requires_repaint(CSS::PropertyID p
 // patched in place. Presence flips (e.g. transform none <-> non-none) change the tree structure and which boxes
 // establish abs/fixed positioning containing blocks, and must rebuild instead.
 // NB: Must only include properties whose data update_accumulated_visual_context_values() recomputes.
-static bool accumulated_visual_context_change_is_value_only(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value)
+static bool accumulated_visual_context_change_is_value_only(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value, ComputedValues const* old_computed_values, ComputedValues const* new_computed_values)
 {
     switch (property_id) {
     case CSS::PropertyID::TransformOrigin:
@@ -235,14 +301,14 @@ static bool accumulated_visual_context_change_is_value_only(CSS::PropertyID prop
     case CSS::PropertyID::MixBlendMode:
     case CSS::PropertyID::Perspective:
         // Value-only when the property contributes a node both before and after the change.
-        return is_stacking_context_creating_value(property_id, old_value)
-            && is_stacking_context_creating_value(property_id, new_value);
+        return is_stacking_context_creating_value(property_id, old_value, old_computed_values)
+            && is_stacking_context_creating_value(property_id, new_value, new_computed_values);
     default:
         return false;
     }
 }
 
-RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value)
+RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value, ComputedValues const* old_computed_values, ComputedValues const* new_computed_values)
 {
     RequiredInvalidationAfterStyleChange invalidation;
 
@@ -282,7 +348,9 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     // OPTIMIZATION: Special handling for CSS `visibility`:
     if (property_id == CSS::PropertyID::Visibility) {
         // We don't need to relayout if the visibility changes from visible to hidden or vice versa. Only collapse requires relayout.
-        if ((old_value && old_value->to_keyword() == CSS::Keyword::Collapse) != (new_value && new_value->to_keyword() == CSS::Keyword::Collapse))
+        auto old_is_collapsed = old_computed_values ? old_computed_values->visibility() == Visibility::Collapse : old_value && old_value->to_keyword() == CSS::Keyword::Collapse;
+        auto new_is_collapsed = new_computed_values ? new_computed_values->visibility() == Visibility::Collapse : new_value && new_value->to_keyword() == CSS::Keyword::Collapse;
+        if (old_is_collapsed != new_is_collapsed)
             invalidation.ensure_at_least(InvalidationLevel::Relayout);
         // Of course, we still have to repaint on any visibility change.
         invalidation.ensure_at_least(InvalidationLevel::Repaint);
@@ -312,8 +380,8 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
         } else {
             // OPTIMIZATION: Only rebuild stacking context tree when property crosses from a neutral value (doesn't create
             //               stacking context) to a creating value or vice versa.
-            bool old_creates = is_stacking_context_creating_value(property_id, old_value);
-            bool new_creates = is_stacking_context_creating_value(property_id, new_value);
+            bool old_creates = is_stacking_context_creating_value(property_id, old_value, old_computed_values);
+            bool new_creates = is_stacking_context_creating_value(property_id, new_value, new_computed_values);
             if (old_creates != new_creates) {
                 invalidation.set_needs_stacking_context_tree_rebuild();
             }
@@ -325,11 +393,11 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
 
     bool needs_repaint = true;
     if (CSS::property_affects_accumulated_visual_contexts(property_id)) {
-        if (accumulated_visual_context_change_is_value_only(property_id, old_value, new_value))
+        if (accumulated_visual_context_change_is_value_only(property_id, old_value, new_value, old_computed_values, new_computed_values))
             invalidation.ensure_at_least(AccumulatedVisualContextInvalidation::UpdateValues);
         else
             invalidation.ensure_at_least(AccumulatedVisualContextInvalidation::Rebuild);
-        if (!accumulated_visual_context_change_requires_repaint(property_id, old_value, new_value)
+        if (!accumulated_visual_context_change_requires_repaint(property_id, old_value, new_value, old_computed_values, new_computed_values)
             && !invalidation.needs_repaint()
             && !invalidation.recompute_descendant_styles)
             needs_repaint = false;

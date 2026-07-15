@@ -372,7 +372,7 @@ public:
 
     NonnullRefPtr<NodeWithStyle> create_anonymous_wrapper() const;
 
-    void transfer_table_box_computed_values_to_wrapper_computed_values(CSS::MutableComputedValues& wrapper_computed_values);
+    void transfer_table_box_computed_values_to_wrapper_computed_values(CSS::ComputedValues::Builder& wrapper_computed_values);
 
     bool is_body() const { return m_is_body; }
     bool is_scroll_container() const;
@@ -389,10 +389,8 @@ protected:
 private:
     virtual bool is_node_with_style() const final { return true; }
 
-    CSS::MutableComputedValues& mutable_computed_values() { return static_cast<CSS::MutableComputedValues&>(*m_computed_values); }
-
     void reset_table_box_computed_values_used_by_wrapper_to_init_values();
-    void propagate_non_inherit_values(CSS::MutableComputedValues&) const;
+    void propagate_non_inherit_values(CSS::ComputedValues::Builder&) const;
     void propagate_style_to_anonymous_wrappers();
 
     void rebuild_image_observers();

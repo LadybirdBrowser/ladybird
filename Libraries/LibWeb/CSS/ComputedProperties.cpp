@@ -61,6 +61,109 @@ namespace Web::CSS {
 
 static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= sizeof(u64) * 8);
 
+RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID property_id, WithAnimationsApplied with_animations_applied) const
+{
+    if (with_animations_applied == WithAnimationsApplied::No && m_base_values)
+        return m_base_values->computed_style_value(property_id);
+
+    auto color_style_value = [](Color color) {
+        return ColorStyleValue::create_from_color(color, ColorSyntax::Modern);
+    };
+    auto length_style_value = [](CSSPixels length) {
+        return LengthStyleValue::create(Length::make_px(length));
+    };
+
+    switch (property_id) {
+    case PropertyID::BackgroundColor:
+        return color_style_value(background_color());
+    case PropertyID::BorderBottomColor:
+        return color_style_value(border_bottom().color);
+    case PropertyID::BorderLeftColor:
+        return color_style_value(border_left().color);
+    case PropertyID::BorderRightColor:
+        return color_style_value(border_right().color);
+    case PropertyID::BorderTopColor:
+        return color_style_value(border_top().color);
+    case PropertyID::CaretColor:
+        return color_style_value(caret_color());
+    case PropertyID::Color:
+        return color_style_value(color());
+    case PropertyID::FloodColor:
+        return color_style_value(flood_color());
+    case PropertyID::StopColor:
+        return color_style_value(stop_color());
+    case PropertyID::TextDecorationColor:
+        return color_style_value(text_decoration_color());
+    case PropertyID::WebkitTextFillColor:
+        return color_style_value(webkit_text_fill_color());
+    case PropertyID::BorderBottomStyle:
+        return KeywordStyleValue::create(to_keyword(border_bottom().line_style));
+    case PropertyID::BorderLeftStyle:
+        return KeywordStyleValue::create(to_keyword(border_left().line_style));
+    case PropertyID::BorderRightStyle:
+        return KeywordStyleValue::create(to_keyword(border_right().line_style));
+    case PropertyID::BorderTopStyle:
+        return KeywordStyleValue::create(to_keyword(border_top().line_style));
+    case PropertyID::BorderBottomWidth:
+        return length_style_value(border_bottom().width);
+    case PropertyID::BorderLeftWidth:
+        return length_style_value(border_left().width);
+    case PropertyID::BorderRightWidth:
+        return length_style_value(border_right().width);
+    case PropertyID::BorderTopWidth:
+        return length_style_value(border_top().width);
+    case PropertyID::Display:
+        return DisplayStyleValue::create(display());
+    case PropertyID::FontSize:
+        return length_style_value(font_size());
+    case PropertyID::FontWeight:
+        return NumberStyleValue::create(font_weight());
+    case PropertyID::LineHeight:
+        return line_height_data().computed_value.visit(
+            [](LineHeightData::Normal) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Normal); },
+            [](double value) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(value); },
+            [&](CSSPixels value) -> NonnullRefPtr<StyleValue const> { return length_style_value(value); });
+    case PropertyID::Opacity:
+        return OpacityValueStyleValue::create(NumberStyleValue::create(opacity()));
+    case PropertyID::FillOpacity:
+        return OpacityValueStyleValue::create(NumberStyleValue::create(fill_opacity()));
+    case PropertyID::FloodOpacity:
+        return OpacityValueStyleValue::create(NumberStyleValue::create(flood_opacity()));
+    case PropertyID::StopOpacity:
+        return OpacityValueStyleValue::create(NumberStyleValue::create(stop_opacity()));
+    case PropertyID::StrokeOpacity:
+        return OpacityValueStyleValue::create(NumberStyleValue::create(stroke_opacity()));
+    case PropertyID::BoxSizing:
+        return KeywordStyleValue::create(to_keyword(box_sizing()));
+    case PropertyID::Clear:
+        return KeywordStyleValue::create(to_keyword(clear()));
+    case PropertyID::ContentVisibility:
+        return KeywordStyleValue::create(to_keyword(content_visibility()));
+    case PropertyID::Direction:
+        return KeywordStyleValue::create(to_keyword(direction()));
+    case PropertyID::Float:
+        return KeywordStyleValue::create(to_keyword(float_()));
+    case PropertyID::ImageRendering:
+        return KeywordStyleValue::create(to_keyword(image_rendering()));
+    case PropertyID::OverflowX:
+        return KeywordStyleValue::create(to_keyword(overflow_x()));
+    case PropertyID::OverflowY:
+        return KeywordStyleValue::create(to_keyword(overflow_y()));
+    case PropertyID::PointerEvents:
+        return KeywordStyleValue::create(to_keyword(pointer_events()));
+    case PropertyID::Position:
+        return KeywordStyleValue::create(to_keyword(position()));
+    case PropertyID::UserSelect:
+        return KeywordStyleValue::create(to_keyword(user_select()));
+    case PropertyID::Visibility:
+        return KeywordStyleValue::create(to_keyword(visibility()));
+    case PropertyID::WritingMode:
+        return KeywordStyleValue::create(to_keyword(writing_mode()));
+    default:
+        return {};
+    }
+}
+
 static size_t property_bitmap_index(PropertyID property_id)
 {
     VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
@@ -133,6 +236,13 @@ ComputedProperties::ComputedProperties(NonnullRefPtr<Data const> data, bool depe
 }
 
 ComputedProperties::~ComputedProperties() = default;
+
+NonnullRefPtr<ComputedProperties> ComputedProperties::copy_without_animations() const
+{
+    auto copy = adopt_ref(*new ComputedProperties(m_data, m_depends_on_viewport_metrics, m_font_metrics_depend_on_viewport_metrics));
+    copy->m_in_display_none_subtree = m_in_display_none_subtree;
+    return copy;
+}
 
 AnimatedProperties const& ComputedProperties::animated_properties() const
 {

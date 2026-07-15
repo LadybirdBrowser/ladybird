@@ -678,6 +678,12 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             // ancestor-dependent selectors still match for no `layout_node`
             // queries (for example `.outer .inner .target`).
             auto style = abstract_element.document().style_computer().compute_style_with_seeded_ancestors(abstract_element);
+            if (auto value = style->computed_values()->computed_style_value(property_id)) {
+                return StyleProperty {
+                    .property_id = property_id,
+                    .value = value.release_nonnull(),
+                };
+            }
             if (first_is_one_of(property_id,
                     PropertyID::BackgroundColor,
                     PropertyID::BorderBottomColor,

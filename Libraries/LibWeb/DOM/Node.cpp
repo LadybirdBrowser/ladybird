@@ -139,11 +139,11 @@ CSS::UserSelect Node::user_select_used_value() const
         element = flat_tree_parent_element();
     }
 
-    if (!element || !element->computed_properties())
+    if (!element || !element->computed_values())
         return CSS::UserSelect::None;
 
     // The used value is the same as the computed value, except:
-    auto computed_value = element->computed_properties()->user_select();
+    auto computed_value = element->computed_values()->user_select();
 
     // 1. on editable elements where the used value is always 'contain' regardless of the computed value
 
@@ -877,7 +877,7 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 
     if (is_connected()) {
         // NB: Called during DOM insertion, layout is not up to date.
-        if (auto* element = as_if<Element>(*this); element && element->computed_properties() && element->computed_properties()->display().is_contents() && parent_element()) {
+        if (auto* element = as_if<Element>(*this); element && element->computed_values() && element->computed_values()->display().is_contents() && parent_element()) {
             parent_element()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBeforeWithDisplayContents);
         }
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
@@ -1845,7 +1845,7 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
 
         // If this is an element with display: contents, we need to propagate the layout tree update to the parent.
         if (auto* element = as_if<Element>(*this)) {
-            if (element->computed_properties() && element->computed_properties()->display().is_contents()) {
+            if (element->computed_values() && element->computed_values()->display().is_contents()) {
                 if (auto parent_element = element->parent_or_shadow_host_element()) {
                     parent_element->set_needs_layout_tree_update(true, reason);
                 }

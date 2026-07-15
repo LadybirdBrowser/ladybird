@@ -1003,6 +1003,10 @@ static bool style_value_changed(CSS::StyleValue const& old_value, CSS::StyleValu
 static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(CSS::ComputedProperties const& old_style, CSS::ComputedProperties const& new_style, CSS::FontComputer const& font_computer, Layout::NodeWithStyle const* old_layout_node, DOM::AbstractElement& abstract_element)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
+    auto old_computed_values = old_style.computed_values();
+    auto new_computed_values = new_style.computed_values();
+    VERIFY(old_computed_values);
+    VERIFY(new_computed_values);
 
     if (old_style.computed_font_list(font_computer) != new_style.computed_font_list(font_computer))
         invalidation.ensure_at_least(CSS::InvalidationLevel::Relayout);
@@ -1015,7 +1019,7 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
             continue;
         if (CSS::is_inherited_property(property_id))
             invalidation.inherited_style_changed = true;
-        invalidation |= CSS::compute_property_invalidation(property_id, &old_value, &new_value);
+        invalidation |= CSS::compute_property_invalidation(property_id, &old_value, &new_value, old_computed_values, new_computed_values);
     }
 
     // NB: Even if the computed value hasn't changed the resolved counter style may have (e.g. if the relevant
@@ -1069,7 +1073,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         auto should_recompute = has_implicit_style
             || pseudo_element_style
             || (old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))
-            || (m_computed_properties && m_computed_properties->has_pseudo_element_style(pseudo_element));
+            || (m_computed_values && m_computed_values->has_pseudo_element_style(pseudo_element));
         if (!should_recompute)
             return;
 
@@ -1224,8 +1228,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
             document().partial_relayout_invalidation().record_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByStyleChange);
     }
 
-    auto old_non_animated_display_is_none = m_computed_properties ? m_computed_properties->property(CSS::PropertyID::Display, CSS::ComputedProperties::WithAnimationsApplied::No).as_display().display().is_none() : true;
-    auto new_non_animated_display_is_none = new_computed_properties->property(CSS::PropertyID::Display, CSS::ComputedProperties::WithAnimationsApplied::No).as_display().display().is_none();
+    auto old_non_animated_display_is_none = m_computed_values ? m_computed_values->base_values().display().is_none() : true;
+    auto new_non_animated_display_is_none = new_computed_properties->computed_values()->base_values().display().is_none();
 
     set_computed_properties({}, move(new_computed_properties));
 
@@ -1244,7 +1248,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     if (old_computed_properties && old_computed_properties->display().is_none() != m_computed_properties->display().is_none()) {
         if (m_computed_properties->display().is_none())
             set_in_display_none_subtree_on_descendant_styles();
-        else if (!m_computed_properties->in_display_none_subtree())
+        else if (!m_computed_values->in_display_none_subtree())
             mark_descendants_with_stale_styles_for_style_update();
     }
 
@@ -1272,12 +1276,20 @@ void Element::set_in_display_none_subtree_on_descendant_styles()
         auto* element = as_if<Element>(node);
         if (!element)
             return TraversalDecision::Continue;
-        auto const& style = element->m_computed_properties;
-        if (!style)
+        auto const& computed_values = element->m_computed_values;
+        if (!computed_values)
             return TraversalDecision::SkipChildrenAndContinue;
-        if (style->in_display_none_subtree())
+        if (computed_values->in_display_none_subtree())
             return TraversalDecision::SkipChildrenAndContinue;
-        style->set_in_display_none_subtree(Badge<Element> {});
+        CSS::ComputedValues::Builder builder(*computed_values);
+        builder->set_in_display_none_subtree(true);
+        if (computed_values->has_animated_values()) {
+            CSS::ComputedValues::Builder base_values_builder(computed_values->base_values());
+            base_values_builder->set_in_display_none_subtree(true);
+            builder->set_base_values(base_values_builder.build());
+        }
+        element->m_computed_values = builder.build();
+        element->m_computed_properties->set_in_display_none_subtree(Badge<Element> {});
         element->for_each_synthetic_pseudo_element([](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
             pseudo_element.set_computed_properties_in_display_none_subtree();
         });
@@ -1318,6 +1330,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style(Sch
 
     auto old_computed_properties = this->computed_properties();
     VERIFY(old_computed_properties);
+    auto old_computed_values = this->computed_values();
+    VERIFY(old_computed_values);
     auto computed_properties_builder = CSS::ComputedProperties::create_builder_with_base_values_from(*old_computed_properties);
     auto& new_computed_properties = computed_properties_builder.style();
     auto had_list_marker = old_computed_properties->display().is_list_item();
@@ -1326,7 +1340,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style(Sch
 
     HashMap<size_t, RefPtr<CSS::StyleValue const>> property_values_affected_by_inherited_style;
 
-    for (auto const& [property_id, specified_value] : old_computed_properties->inheritance_dependent_specified_values()) {
+    for (auto const& [property_id, specified_value] : old_computed_values->inheritance_dependent_specified_values()) {
         RefPtr old_value = old_computed_properties->property(property_id);
         computed_properties_builder.set_property_without_modifying_flags(property_id, specified_value);
         property_values_affected_by_inherited_style.set(to_underlying(property_id), old_value);
@@ -1337,7 +1351,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style(Sch
         auto property_id = static_cast<CSS::PropertyID>(i);
         RefPtr old_value = old_computed_properties->property(property_id);
 
-        if (!new_computed_properties.is_property_inherited(property_id))
+        if (!old_computed_values->is_property_inherited(property_id))
             continue;
 
         if (new_computed_properties.is_animated_property_inherited(property_id) || !new_computed_properties.has_animated_property(property_id)) {
@@ -1388,6 +1402,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style(Sch
     }
 
     m_computed_properties = CSS::ComputedProperties::create(move(computed_properties_builder));
+    document().style_computer().build_computed_values(*m_computed_properties, abstract_element, abstract_element.style_scope());
+    refresh_computed_values({});
 
     bool did_change_custom_properties = false;
     auto const element_style_changed = !invalidation.is_none();
@@ -1914,9 +1930,10 @@ int Element::client_top() const
     const_cast<Document&>(document()).update_style_if_needed_for_element(AbstractElement { const_cast<Element&>(*this) });
 
     // 1. If the element has no associated CSS layout box or if the CSS layout box is inline, return zero.
-    if (!computed_properties())
+    auto computed_values = this->computed_values();
+    if (!computed_values)
         return 0;
-    auto display = computed_properties()->display();
+    auto display = computed_values->display();
     if (display.is_none() || display.is_contents())
         return 0;
     if (display.is_inline_outside() && display.is_flow_inside())
@@ -1925,10 +1942,10 @@ int Element::client_top() const
     // 2. Return the computed value of the border-top-width property
     //    plus the height of any scrollbar rendered between the top padding edge and the top border edge,
     //    ignoring any transforms that apply to the element and its ancestors.
-    auto border_top_style = computed_properties()->line_style(CSS::PropertyID::BorderTopStyle);
-    if (border_top_style == CSS::LineStyle::None || border_top_style == CSS::LineStyle::Hidden)
+    auto const& border_top = computed_values->border_top();
+    if (border_top.line_style == CSS::LineStyle::None || border_top.line_style == CSS::LineStyle::Hidden)
         return 0;
-    return max(CSSPixels { 0 }, computed_properties()->length(CSS::PropertyID::BorderTopWidth).absolute_length_to_px()).to_int();
+    return border_top.width.to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-clientleft
@@ -1938,9 +1955,10 @@ int Element::client_left() const
     const_cast<Document&>(document()).update_style_if_needed_for_element(AbstractElement { const_cast<Element&>(*this) });
 
     // 1. If the element has no associated CSS layout box or if the CSS layout box is inline, return zero.
-    if (!computed_properties())
+    auto computed_values = this->computed_values();
+    if (!computed_values)
         return 0;
-    auto display = computed_properties()->display();
+    auto display = computed_values->display();
     if (display.is_none() || display.is_contents())
         return 0;
     if (display.is_inline_outside() && display.is_flow_inside())
@@ -1949,10 +1967,10 @@ int Element::client_left() const
     // 2. Return the computed value of the border-left-width property
     //    plus the width of any scrollbar rendered between the left padding edge and the left border edge,
     //    ignoring any transforms that apply to the element and its ancestors.
-    auto border_left_style = computed_properties()->line_style(CSS::PropertyID::BorderLeftStyle);
-    if (border_left_style == CSS::LineStyle::None || border_left_style == CSS::LineStyle::Hidden)
+    auto const& border_left = computed_values->border_left();
+    if (border_left.line_style == CSS::LineStyle::None || border_left.line_style == CSS::LineStyle::Hidden)
         return 0;
-    return max(CSSPixels { 0 }, computed_properties()->length(CSS::PropertyID::BorderLeftWidth).absolute_length_to_px()).to_int();
+    return border_left.width.to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-clientwidth
@@ -2065,6 +2083,7 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
     exit_fullscreen_on_element_removal();
 
     m_computed_properties = nullptr;
+    m_computed_values = nullptr;
     for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element_type, SyntheticPseudoElement&) {
         set_computed_properties(pseudo_element_type, nullptr);
     });
@@ -2405,14 +2424,14 @@ bool Element::is_potentially_scrollable(TreatOverflowClipOnBodyParentAsOverflowH
         return false;
 
     // - body’s parent element’s computed value of the overflow-x or overflow-y properties is neither visible nor clip.
-    if (parent_element()->computed_properties()->overflow_x() == CSS::Overflow::Visible || parent_element()->computed_properties()->overflow_y() == CSS::Overflow::Visible)
+    if (parent_element()->computed_values()->overflow_x() == CSS::Overflow::Visible || parent_element()->computed_values()->overflow_y() == CSS::Overflow::Visible)
         return false;
     // NOTE: When treating 'overflow:clip' as 'overflow:hidden', we can never fail this condition
-    if (treat_overflow_clip_on_body_parent_as_overflow_hidden == TreatOverflowClipOnBodyParentAsOverflowHidden::No && (parent_element()->computed_properties()->overflow_x() == CSS::Overflow::Clip || parent_element()->computed_properties()->overflow_y() == CSS::Overflow::Clip))
+    if (treat_overflow_clip_on_body_parent_as_overflow_hidden == TreatOverflowClipOnBodyParentAsOverflowHidden::No && (parent_element()->computed_values()->overflow_x() == CSS::Overflow::Clip || parent_element()->computed_values()->overflow_y() == CSS::Overflow::Clip))
         return false;
 
     // - body’s computed value of the overflow-x or overflow-y properties is neither visible nor clip.
-    if (first_is_one_of(computed_properties()->overflow_x(), CSS::Overflow::Visible, CSS::Overflow::Clip) || first_is_one_of(computed_properties()->overflow_y(), CSS::Overflow::Visible, CSS::Overflow::Clip))
+    if (first_is_one_of(computed_values()->overflow_x(), CSS::Overflow::Visible, CSS::Overflow::Clip) || first_is_one_of(computed_values()->overflow_y(), CSS::Overflow::Visible, CSS::Overflow::Clip))
         return false;
 
     return true;
@@ -2421,13 +2440,13 @@ bool Element::is_potentially_scrollable(TreatOverflowClipOnBodyParentAsOverflowH
 bool Element::is_scroll_container() const
 {
     // NB: We should only call this if we know that computed_properties has already been computed
-    VERIFY(computed_properties());
+    VERIFY(computed_values());
 
     if (is_document_element())
         return true;
 
-    return Layout::overflow_value_makes_box_a_scroll_container(computed_properties()->overflow_x())
-        || Layout::overflow_value_makes_box_a_scroll_container(computed_properties()->overflow_y());
+    return Layout::overflow_value_makes_box_a_scroll_container(computed_values()->overflow_x())
+        || Layout::overflow_value_makes_box_a_scroll_container(computed_values()->overflow_y());
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrolltop
@@ -3904,6 +3923,16 @@ RefPtr<CSS::ComputedProperties const> Element::computed_properties(Optional<CSS:
     return m_computed_properties;
 }
 
+RefPtr<CSS::ComputedValues const> Element::computed_values(Optional<CSS::PseudoElement> pseudo_element_type) const
+{
+    if (pseudo_element_type.has_value()) {
+        if (auto pseudo_element = get_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
+            return pseudo_element->computed_values();
+        return {};
+    }
+    return m_computed_values;
+}
+
 void Element::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const& badge, Optional<CSS::PseudoElement> pseudo_element_type, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)
 {
     DOM::AbstractElement abstract_element { *this, pseudo_element_type };
@@ -3935,7 +3964,23 @@ void Element::set_computed_properties(Optional<CSS::PseudoElement> pseudo_elemen
         return;
     }
     m_computed_properties = style;
+    m_computed_values = style ? style->computed_values() : nullptr;
+    VERIFY(!style || m_computed_values);
     computed_properties_changed();
+}
+
+void Element::refresh_computed_values(Optional<CSS::PseudoElement> pseudo_element_type)
+{
+    if (pseudo_element_type.has_value()) {
+        auto pseudo_element = get_synthetic_pseudo_element(*pseudo_element_type);
+        VERIFY(pseudo_element.has_value());
+        pseudo_element->refresh_computed_values();
+        return;
+    }
+
+    VERIFY(m_computed_properties);
+    m_computed_values = m_computed_properties->computed_values();
+    VERIFY(m_computed_values);
 }
 
 void Element::set_associated_shadow_host_pseudo_element(CSS::PseudoElement type)
@@ -4217,7 +4262,7 @@ bool Element::check_visibility(Optional<Bindings::CheckVisibilityOptions> option
 
     // 2. If an ancestor of this in the flat tree has content-visibility: hidden, return false.
     for (auto* element = flat_tree_parent_element(); element; element = element->flat_tree_parent_element()) {
-        if (element->computed_properties()->content_visibility() == CSS::ContentVisibility::Hidden)
+        if (element->computed_values()->content_visibility() == CSS::ContentVisibility::Hidden)
             return false;
     }
 
@@ -4229,7 +4274,7 @@ bool Element::check_visibility(Optional<Bindings::CheckVisibilityOptions> option
     //    ancestor of this in the flat tree, has a computed opacity value of 0, return false.
     if (options->opacity_property || options->check_opacity) {
         for (auto* element = this; element; element = element->flat_tree_parent_element()) {
-            if (element->computed_properties()->opacity() == 0.0f)
+            if (element->computed_values()->opacity() == 0.0f)
                 return false;
         }
     }
@@ -4237,7 +4282,7 @@ bool Element::check_visibility(Optional<Bindings::CheckVisibilityOptions> option
     // 4. If either the visibilityProperty or the checkVisibilityCSS dictionary members of options are true, and this
     //    is invisible, return false.
     if (options->visibility_property || options->check_visibility_css) {
-        if (computed_properties()->visibility() == CSS::Visibility::Hidden)
+        if (computed_values()->visibility() == CSS::Visibility::Hidden)
             return false;
     }
 
@@ -4247,7 +4292,7 @@ bool Element::check_visibility(Optional<Bindings::CheckVisibilityOptions> option
     auto const skipped_contents_due_to_content_visibility_auto = false;
     if (options->content_visibility_auto && skipped_contents_due_to_content_visibility_auto) {
         for (auto* element = flat_tree_parent_element(); element; element = element->flat_tree_parent_element()) {
-            if (element->computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
+            if (element->computed_values()->content_visibility() == CSS::ContentVisibility::Auto)
                 return false;
         }
     }
@@ -4333,12 +4378,12 @@ bool Element::skips_its_contents()
 {
     // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-hidden
     // The element skips its contents.
-    if (computed_properties()->content_visibility() == CSS::ContentVisibility::Hidden)
+    if (computed_values()->content_visibility() == CSS::ContentVisibility::Hidden)
         return true;
 
     // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
     // If the element is not relevant to the user, it also skips its contents.
-    if (computed_properties()->content_visibility() == CSS::ContentVisibility::Auto && !this->is_relevant_to_the_user()) {
+    if (computed_values()->content_visibility() == CSS::ContentVisibility::Auto && !this->is_relevant_to_the_user()) {
         return true;
     }
 

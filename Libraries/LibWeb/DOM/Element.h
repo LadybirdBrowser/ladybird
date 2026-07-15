@@ -223,7 +223,9 @@ public:
     Layout::NodeWithStyle const* unsafe_layout_node() const;
 
     RefPtr<CSS::ComputedProperties const> computed_properties(Optional<CSS::PseudoElement> = {}) const;
+    RefPtr<CSS::ComputedValues const> computed_values(Optional<CSS::PseudoElement> = {}) const;
     void set_computed_properties(Optional<CSS::PseudoElement>, RefPtr<CSS::ComputedProperties>);
+    void refresh_computed_values(Optional<CSS::PseudoElement>);
     void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, Optional<CSS::PseudoElement>, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&);
     void update_animated_properties_for_abstract_element(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&);
 
@@ -726,6 +728,7 @@ private:
     GC::Ptr<DOMTokenList> m_part_list;
 
     RefPtr<CSS::ComputedProperties> m_computed_properties;
+    RefPtr<CSS::ComputedValues const> m_computed_values;
     RefPtr<CSS::CustomPropertyData const> m_custom_property_data;
 
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;

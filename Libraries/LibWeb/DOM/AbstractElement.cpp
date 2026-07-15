@@ -149,6 +149,11 @@ CSS::ComputedProperties const* AbstractElement::computed_properties() const
     return m_element->computed_properties(m_pseudo_element);
 }
 
+CSS::ComputedValues const* AbstractElement::computed_values() const
+{
+    return m_element->computed_values(m_pseudo_element);
+}
+
 GC::Ptr<CSS::CSSStyleProperties const> AbstractElement::inline_style() const
 {
     if (!m_pseudo_element.has_value())

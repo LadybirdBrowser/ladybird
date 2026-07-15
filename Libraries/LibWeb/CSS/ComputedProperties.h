@@ -40,6 +40,12 @@ class Element;
 
 }
 
+namespace Web::Layout {
+
+class NodeWithStyle;
+
+}
+
 namespace Web::CSS {
 
 struct TransitionProperties {
@@ -150,6 +156,7 @@ public:
     bool font_metrics_depend_on_viewport_metrics() const { return m_font_metrics_depend_on_viewport_metrics; }
     // Whether the element this style was computed for has computed display none, or is a descendant of one that does.
     bool in_display_none_subtree() const { return m_in_display_none_subtree; }
+    RefPtr<ComputedValues> computed_values() const { return m_computed_values; }
     void set_in_display_none_subtree(Badge<DOM::Element>) { m_in_display_none_subtree = true; }
     void set_in_display_none_subtree(Badge<DOM::SyntheticPseudoElement>) { m_in_display_none_subtree = true; }
     bool has_pseudo_element_style(PseudoElement) const;
@@ -347,6 +354,11 @@ public:
     RefPtr<StyleValue const> raw_cascaded_font_size() const { return m_data->raw_cascaded_font_size; }
 
 private:
+    friend class Layout::NodeWithStyle;
+    friend class StyleComputer;
+
+    NonnullRefPtr<ComputedProperties> copy_without_animations() const;
+
     class Data final : public RefCounted<Data> {
     public:
         Data() = default;
@@ -374,6 +386,7 @@ private:
     AnimatedProperties const& animated_properties() const;
     AnimatedProperties& mutable_animated_properties();
     void set_animated_property_internal(PropertyID, NonnullRefPtr<StyleValue const>, AnimatedPropertyResultOfTransition, Inherited);
+    void set_computed_values(NonnullRefPtr<ComputedValues> values) const { m_computed_values = move(values); }
 
     NonnullRefPtr<Data const> m_data;
     RefPtr<AnimatedProperties> m_animated_properties;
@@ -383,6 +396,7 @@ private:
 
     mutable RefPtr<Gfx::FontCascadeList const> m_cached_computed_font_list;
     mutable RefPtr<Gfx::Font const> m_cached_first_available_computed_font;
+    mutable RefPtr<ComputedValues> m_computed_values;
     void clear_computed_font_list_cache()
     {
         m_cached_computed_font_list = nullptr;
