@@ -556,7 +556,7 @@ static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_
         return;
     if (!is_synthetic_pseudo_element(*pseudo_element))
         return;
-    if (abstract_element.computed_properties())
+    if (abstract_element.computed_values())
         return;
 
     auto& style_computer = abstract_element.document().style_computer();
@@ -635,7 +635,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
         }
 
         if (auto pseudo_element = abstract_element.pseudo_element(); layout_node && pseudo_element.has_value()) {
-            if (auto pseudo_style = abstract_element.element().computed_properties(*pseudo_element); pseudo_style && pseudo_style->display().is_contents())
+            if (auto pseudo_style = abstract_element.element().computed_values(*pseudo_element); pseudo_style && pseudo_style->display().is_contents())
                 layout_node = nullptr;
         }
 
@@ -678,13 +678,18 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             // ancestor-dependent selectors still match for no `layout_node`
             // queries (for example `.outer .inner .target`).
             auto style = abstract_element.document().style_computer().compute_style_with_seeded_ancestors(abstract_element);
-            if (auto value = style->computed_values()->computed_style_value(property_id)) {
+            auto computed_property_id = property_id;
+            if (property_is_logical_alias(property_id)) {
+                auto const& computed_values = *style->computed_values();
+                computed_property_id = map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { computed_values.writing_mode(), computed_values.direction() });
+            }
+            if (auto value = style->computed_values()->computed_style_value(computed_property_id)) {
                 return StyleProperty {
                     .property_id = property_id,
                     .value = value.release_nonnull(),
                 };
             }
-            if (first_is_one_of(property_id,
+            if (first_is_one_of(computed_property_id,
                     PropertyID::BackgroundColor,
                     PropertyID::BorderBottomColor,
                     PropertyID::BorderLeftColor,
@@ -702,9 +707,9 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                     .calculation_resolution_context = {},
                 };
                 color_resolution_context.current_color = style->color(PropertyID::Color, color_resolution_context);
-                auto const& value = style->property(property_id);
+                auto const& value = style->property(computed_property_id);
                 Optional<Color> color;
-                if (property_id == PropertyID::CaretColor && value.is_keyword() && value.to_keyword() == Keyword::Auto)
+                if (computed_property_id == PropertyID::CaretColor && value.is_keyword() && value.to_keyword() == Keyword::Auto)
                     color = style->color(PropertyID::Color, color_resolution_context);
                 else if (value.has_color())
                     color = value.to_color(color_resolution_context).value();
@@ -718,7 +723,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             }
             return StyleProperty {
                 .property_id = property_id,
-                .value = style->property(property_id),
+                .value = style->property(computed_property_id),
             };
         }
 
@@ -816,10 +821,10 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     };
 
     if (property_is_logical_alias(property_id)) {
-        auto computed_properties = element.computed_properties(pseudo_element);
+        auto computed_values = element.computed_values(pseudo_element);
         return style_value_for_computed_property(
             layout_node,
-            map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { computed_properties->writing_mode(), computed_properties->direction() }));
+            map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { computed_values->writing_mode(), computed_values->direction() }));
     }
 
     // A limited number of properties have special rules for producing their "resolved value".
@@ -1151,8 +1156,11 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             }
         }
 
-        if (!property_is_shorthand(property_id))
+        if (!property_is_shorthand(property_id)) {
+            if (auto value = element.computed_values(pseudo_element)->computed_style_value(property_id))
+                return value;
             return get_computed_value(property_id);
+        }
 
         // Handle shorthands in a generic way
         auto longhand_ids = longhands_for_shorthand(property_id);

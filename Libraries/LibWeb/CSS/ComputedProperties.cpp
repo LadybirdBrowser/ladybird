@@ -7,6 +7,7 @@
 
 #include <AK/NeverDestroyed.h>
 #include <AK/NonnullRawPtr.h>
+#include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibCore/DirIterator.h>
@@ -16,8 +17,10 @@
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/FontComputer.h>
+#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
+#include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -25,6 +28,7 @@
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
+#include <LibWeb/CSS/StyleValues/EmptyOptionalStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
@@ -40,6 +44,7 @@
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarColorStyleValue.h>
@@ -59,6 +64,14 @@
 
 namespace Web::CSS {
 
+ComputedValues::ComputedValues() = default;
+ComputedValues::~ComputedValues() = default;
+
+void ComputedValues::Mutator::set_animated_properties(AnimatedProperties const* value)
+{
+    m_values.m_animated_properties = value;
+}
+
 static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= sizeof(u64) * 8);
 
 RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID property_id, WithAnimationsApplied with_animations_applied) const
@@ -66,16 +79,116 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     if (with_animations_applied == WithAnimationsApplied::No && m_base_values)
         return m_base_values->computed_style_value(property_id);
 
+    if (auto inset = anchor_inset(property_id))
+        return inset;
+
     auto color_style_value = [](Color color) {
         return ColorStyleValue::create_from_color(color, ColorSyntax::Modern);
     };
     auto length_style_value = [](CSSPixels length) {
         return LengthStyleValue::create(Length::make_px(length));
     };
+    auto length_percentage_style_value = [](LengthPercentage const& length_percentage) -> NonnullRefPtr<StyleValue const> {
+        if (length_percentage.is_percentage())
+            return PercentageStyleValue::create(length_percentage.percentage());
+        if (length_percentage.is_length())
+            return LengthStyleValue::create(length_percentage.length());
+        return length_percentage.calculated();
+    };
+    auto length_percentage_or_auto_style_value = [](LengthPercentageOrAuto const& length_percentage) -> NonnullRefPtr<StyleValue const> {
+        if (length_percentage.is_auto())
+            return KeywordStyleValue::create(Keyword::Auto);
+        if (length_percentage.is_percentage())
+            return PercentageStyleValue::create(length_percentage.percentage());
+        if (length_percentage.is_length())
+            return LengthStyleValue::create(length_percentage.length());
+        return length_percentage.calculated();
+    };
+    auto size_style_value = [&](Size const& size) -> NonnullRefPtr<StyleValue const> {
+        if (size.is_none())
+            return KeywordStyleValue::create(Keyword::None);
+        if (size.is_percentage())
+            return PercentageStyleValue::create(size.percentage());
+        if (size.is_length())
+            return LengthStyleValue::create(size.length());
+        if (size.is_auto())
+            return KeywordStyleValue::create(Keyword::Auto);
+        if (size.is_calculated())
+            return size.calculated();
+        if (size.is_min_content())
+            return KeywordStyleValue::create(Keyword::MinContent);
+        if (size.is_max_content())
+            return KeywordStyleValue::create(Keyword::MaxContent);
+        if (auto available_space = size.fit_content_available_space(); available_space.has_value())
+            return FunctionStyleValue::create("fit-content"_utf16_fly_string, length_percentage_style_value(available_space.release_value()));
+        return KeywordStyleValue::create(Keyword::FitContent);
+    };
+    auto border_radius_style_value = [&](BorderRadiusData const& border_radius) -> NonnullRefPtr<StyleValue const> {
+        return BorderRadiusStyleValue::create(
+            length_percentage_style_value(border_radius.horizontal_radius),
+            length_percentage_style_value(border_radius.vertical_radius));
+    };
+    auto position_style_value = [&](Position const& position) -> NonnullRefPtr<StyleValue const> {
+        auto horizontal_edge = position.edge_x == PositionEdge::Left ? Optional<PositionEdge> {} : position.edge_x;
+        auto vertical_edge = position.edge_y == PositionEdge::Top ? Optional<PositionEdge> {} : position.edge_y;
+        return PositionStyleValue::create(
+            EdgeStyleValue::create(horizontal_edge, length_percentage_style_value(position.offset_x)),
+            EdgeStyleValue::create(vertical_edge, length_percentage_style_value(position.offset_y)));
+    };
+    auto svg_paint_style_value = [&](Optional<SVGPaint> const& paint) -> NonnullRefPtr<StyleValue const> {
+        if (!paint.has_value())
+            return KeywordStyleValue::create(Keyword::None);
+        if (paint->is_color())
+            return color_style_value(paint->as_color());
+        StyleValueVector values { URLStyleValue::create(paint->as_url()) };
+        if (paint->fallback_color().has_value())
+            values.append(color_style_value(*paint->fallback_color()));
+        else
+            values.append(EmptyOptionalStyleValue::create());
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    };
+    auto ratio_style_value = [](Ratio const& ratio) -> NonnullRefPtr<StyleValue const> {
+        return RatioStyleValue::create(
+            NumberStyleValue::create(ratio.numerator()),
+            NumberStyleValue::create(ratio.denominator()));
+    };
+    auto length_or_auto_style_value = [&](LengthOrAuto const& value) -> NonnullRefPtr<StyleValue const> {
+        if (value.is_auto())
+            return KeywordStyleValue::create(Keyword::Auto);
+        return LengthStyleValue::create(value.length());
+    };
 
     switch (property_id) {
+    case PropertyID::AccentColor:
+        return accent_color_value().computed_value.visit(
+            [](AccentColor::Auto) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Auto); },
+            [&](Color color) -> NonnullRefPtr<StyleValue const> { return color_style_value(color); });
+    case PropertyID::AlignContent:
+        return KeywordStyleValue::create(to_keyword(align_content()));
+    case PropertyID::AlignItems:
+        return KeywordStyleValue::create(to_keyword(align_items()));
+    case PropertyID::AlignSelf:
+        return KeywordStyleValue::create(to_keyword(align_self()));
+    case PropertyID::Appearance:
+        return KeywordStyleValue::create(to_keyword(appearance()));
+    case PropertyID::AspectRatio: {
+        if (!aspect_ratio().computed_ratio.has_value())
+            return KeywordStyleValue::create(Keyword::Auto);
+        auto ratio = ratio_style_value(*aspect_ratio().computed_ratio);
+        if (!aspect_ratio().computed_use_natural_aspect_ratio_if_available)
+            return ratio;
+        return StyleValueList::create(
+            { KeywordStyleValue::create(Keyword::Auto), move(ratio) },
+            StyleValueList::Separator::Space);
+    }
     case PropertyID::BackgroundColor:
         return color_style_value(background_color());
+    case PropertyID::BorderCollapse:
+        return KeywordStyleValue::create(to_keyword(border_collapse()));
+    case PropertyID::BorderSpacing:
+        return StyleValueList::create(
+            { length_style_value(border_spacing_horizontal()), length_style_value(border_spacing_vertical()) },
+            StyleValueList::Separator::Space);
     case PropertyID::BorderBottomColor:
         return color_style_value(border_bottom().color);
     case PropertyID::BorderLeftColor:
@@ -86,6 +199,20 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         return color_style_value(border_top().color);
     case PropertyID::CaretColor:
         return color_style_value(caret_color());
+    case PropertyID::CaptionSide:
+        return KeywordStyleValue::create(to_keyword(caption_side()));
+    case PropertyID::ClipRule:
+        return KeywordStyleValue::create(to_keyword(clip_rule()));
+    case PropertyID::ColorInterpolation:
+        return KeywordStyleValue::create(to_keyword(color_interpolation()));
+    case PropertyID::ColorInterpolationFilters:
+        return KeywordStyleValue::create(to_keyword(color_interpolation_filters()));
+    case PropertyID::ColumnHeight:
+        return size_style_value(column_height());
+    case PropertyID::ColumnSpan:
+        return KeywordStyleValue::create(to_keyword(column_span()));
+    case PropertyID::ColumnWidth:
+        return size_style_value(column_width());
     case PropertyID::Color:
         return color_style_value(color());
     case PropertyID::FloodColor:
@@ -95,6 +222,8 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     case PropertyID::TextDecorationColor:
         return color_style_value(text_decoration_color());
     case PropertyID::WebkitTextFillColor:
+        if (webkit_text_fill_color_is_current_color())
+            return KeywordStyleValue::create(Keyword::Currentcolor);
         return color_style_value(webkit_text_fill_color());
     case PropertyID::BorderBottomStyle:
         return KeywordStyleValue::create(to_keyword(border_bottom().line_style));
@@ -112,39 +241,456 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         return length_style_value(border_right().width);
     case PropertyID::BorderTopWidth:
         return length_style_value(border_top().width);
+    case PropertyID::BorderBottomLeftRadius:
+        return border_radius_style_value(border_bottom_left_radius());
+    case PropertyID::BorderBottomRightRadius:
+        return border_radius_style_value(border_bottom_right_radius());
+    case PropertyID::BorderTopLeftRadius:
+        return border_radius_style_value(border_top_left_radius());
+    case PropertyID::BorderTopRightRadius:
+        return border_radius_style_value(border_top_right_radius());
+    case PropertyID::Bottom:
+        return length_percentage_or_auto_style_value(inset().bottom());
+    case PropertyID::Height:
+        return size_style_value(height());
+    case PropertyID::Left:
+        return length_percentage_or_auto_style_value(inset().left());
+    case PropertyID::MarginBottom:
+        return length_percentage_or_auto_style_value(margin().bottom());
+    case PropertyID::MarginLeft:
+        return length_percentage_or_auto_style_value(margin().left());
+    case PropertyID::MarginRight:
+        return length_percentage_or_auto_style_value(margin().right());
+    case PropertyID::MarginTop:
+        return length_percentage_or_auto_style_value(margin().top());
+    case PropertyID::MaxHeight:
+        return size_style_value(max_height());
+    case PropertyID::MaxWidth:
+        return size_style_value(max_width());
+    case PropertyID::MinHeight:
+        return size_style_value(min_height());
+    case PropertyID::MinWidth:
+        return size_style_value(min_width());
+    case PropertyID::OutlineColor:
+        return color_style_value(outline_color());
+    case PropertyID::OutlineStyle:
+        return KeywordStyleValue::create(to_keyword(outline_style()));
+    case PropertyID::OutlineWidth:
+        return length_style_value(outline_width());
+    case PropertyID::PaddingBottom:
+        return length_percentage_or_auto_style_value(padding().bottom());
+    case PropertyID::PaddingLeft:
+        return length_percentage_or_auto_style_value(padding().left());
+    case PropertyID::PaddingRight:
+        return length_percentage_or_auto_style_value(padding().right());
+    case PropertyID::PaddingTop:
+        return length_percentage_or_auto_style_value(padding().top());
+    case PropertyID::ScrollMarginBottom:
+        return length_percentage_or_auto_style_value(scroll_margin().bottom());
+    case PropertyID::ScrollMarginLeft:
+        return length_percentage_or_auto_style_value(scroll_margin().left());
+    case PropertyID::ScrollMarginRight:
+        return length_percentage_or_auto_style_value(scroll_margin().right());
+    case PropertyID::ScrollMarginTop:
+        return length_percentage_or_auto_style_value(scroll_margin().top());
+    case PropertyID::ScrollPaddingBottom:
+        return length_percentage_or_auto_style_value(scroll_padding().bottom());
+    case PropertyID::ScrollPaddingLeft:
+        return length_percentage_or_auto_style_value(scroll_padding().left());
+    case PropertyID::ScrollPaddingRight:
+        return length_percentage_or_auto_style_value(scroll_padding().right());
+    case PropertyID::ScrollPaddingTop:
+        return length_percentage_or_auto_style_value(scroll_padding().top());
+    case PropertyID::Right:
+        return length_percentage_or_auto_style_value(inset().right());
+    case PropertyID::Top:
+        return length_percentage_or_auto_style_value(inset().top());
+    case PropertyID::Width:
+        return size_style_value(width());
     case PropertyID::Display:
         return DisplayStyleValue::create(display());
+    case PropertyID::DominantBaseline:
+        if (dominant_baseline().has_value())
+            return KeywordStyleValue::create(to_keyword(*dominant_baseline()));
+        return KeywordStyleValue::create(Keyword::Auto);
+    case PropertyID::ColorScheme:
+        if (color_schemes().is_empty())
+            return ColorSchemeStyleValue::normal();
+        return ColorSchemeStyleValue::create(color_schemes(), color_scheme_only());
+    case PropertyID::AnimationName: {
+        StyleValueVector values;
+        values.ensure_capacity(animation_names().size());
+        for (auto const& name : animation_names()) {
+            switch (name.syntax) {
+            case ComputedAnimationNameSyntax::None:
+                values.append(KeywordStyleValue::create(Keyword::None));
+                break;
+            case ComputedAnimationNameSyntax::CustomIdent:
+                values.append(CustomIdentStyleValue::create(name.name));
+                break;
+            case ComputedAnimationNameSyntax::String:
+                values.append(StringStyleValue::create(name.name));
+                break;
+            }
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::FontFamily: {
+        StyleValueVector values;
+        values.ensure_capacity(font_families().size());
+        for (auto const& family : font_families()) {
+            family.visit(
+                [&](GenericFontFamily generic_family) {
+                    values.append(KeywordStyleValue::create(to_keyword(generic_family)));
+                },
+                [&](ComputedFontFamilyName const& name) {
+                    if (name.syntax == ComputedFontFamilySyntax::String)
+                        values.append(StringStyleValue::create(name.name));
+                    else
+                        values.append(CustomIdentStyleValue::create(name.name));
+                });
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
     case PropertyID::FontSize:
         return length_style_value(font_size());
+    case PropertyID::FontStyle: {
+        ValueComparingRefPtr<StyleValue const> angle;
+        if (font_style().angle.has_value()) {
+            angle = font_style().angle->visit(
+                [](Angle const& angle) -> ValueComparingNonnullRefPtr<StyleValue const> { return AngleStyleValue::create(angle); },
+                [](NonnullRefPtr<CalculatedStyleValue const> const& angle) -> ValueComparingNonnullRefPtr<StyleValue const> { return angle; });
+        }
+        return FontStyleStyleValue::create(font_style().keyword, move(angle));
+    }
     case PropertyID::FontWeight:
         return NumberStyleValue::create(font_weight());
+    case PropertyID::FontWidth:
+        return PercentageStyleValue::create(font_width());
+    case PropertyID::FontKerning:
+        return KeywordStyleValue::create(to_keyword(font_feature_data().font_kerning));
+    case PropertyID::FontFeatureSettings: {
+        if (font_feature_data().font_feature_settings.is_empty())
+            return KeywordStyleValue::create(Keyword::Normal);
+        StyleValueVector settings;
+        for (auto const& [tag, value] : font_feature_data().font_feature_settings) {
+            settings.append(OpenTypeTaggedStyleValue::create(
+                OpenTypeTaggedStyleValue::Mode::FontFeatureSettings,
+                tag,
+                IntegerStyleValue::create(value)));
+        }
+        quick_sort(settings, [](auto const& a, auto const& b) {
+            return a->as_open_type_tagged().tag() < b->as_open_type_tagged().tag();
+        });
+        return StyleValueList::create(move(settings), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::FontLanguageOverride:
+        if (font_language_override().has_value())
+            return StringStyleValue::create(*font_language_override());
+        return KeywordStyleValue::create(Keyword::Normal);
+    case PropertyID::FontOpticalSizing:
+        return KeywordStyleValue::create(to_keyword(font_optical_sizing()));
+    case PropertyID::FontVariantCaps:
+        return KeywordStyleValue::create(to_keyword(font_feature_data().font_variant_caps));
+    case PropertyID::FontVariantAlternates: {
+        if (!font_feature_data().font_variant_alternates.has_value())
+            return KeywordStyleValue::create(Keyword::Normal);
+        auto const& alternates = *font_feature_data().font_variant_alternates;
+        StyleValueVector values;
+        if (alternates.historical_forms)
+            values.append(KeywordStyleValue::create(Keyword::HistoricalForms));
+        auto append_feature_value_function = [&](FontFeatureValueType type, Utf16FlyString name) {
+            StyleValueVector names;
+            for (auto const& entry : alternates.font_feature_value_entries) {
+                if (entry.type == type)
+                    names.append(CustomIdentStyleValue::create(entry.name));
+            }
+            if (!names.is_empty()) {
+                values.append(FunctionStyleValue::create(
+                    move(name),
+                    StyleValueList::create(move(names), StyleValueList::Separator::Space)));
+            }
+        };
+        append_feature_value_function(FontFeatureValueType::Stylistic, "stylistic"_utf16_fly_string);
+        append_feature_value_function(FontFeatureValueType::Styleset, "styleset"_utf16_fly_string);
+        append_feature_value_function(FontFeatureValueType::CharacterVariant, "character-variant"_utf16_fly_string);
+        append_feature_value_function(FontFeatureValueType::Swash, "swash"_utf16_fly_string);
+        append_feature_value_function(FontFeatureValueType::Ornaments, "ornaments"_utf16_fly_string);
+        append_feature_value_function(FontFeatureValueType::Annotation, "annotation"_utf16_fly_string);
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    }
+    case PropertyID::FontVariantEastAsian: {
+        if (!font_feature_data().font_variant_east_asian.has_value())
+            return KeywordStyleValue::create(Keyword::Normal);
+        auto const& east_asian = *font_feature_data().font_variant_east_asian;
+        StyleValueTuple tuple;
+        tuple.resize_with_default_value(3, nullptr);
+        if (east_asian.variant.has_value())
+            tuple[TupleStyleValue::Indices::FontVariantEastAsian::Variant] = KeywordStyleValue::create(to_keyword(*east_asian.variant));
+        if (east_asian.width.has_value())
+            tuple[TupleStyleValue::Indices::FontVariantEastAsian::Width] = KeywordStyleValue::create(to_keyword(*east_asian.width));
+        if (east_asian.ruby)
+            tuple[TupleStyleValue::Indices::FontVariantEastAsian::Ruby] = KeywordStyleValue::create(Keyword::Ruby);
+        return TupleStyleValue::create(move(tuple));
+    }
+    case PropertyID::FontVariantLigatures: {
+        if (!font_feature_data().font_variant_ligatures.has_value())
+            return KeywordStyleValue::create(Keyword::Normal);
+        auto const& ligatures = *font_feature_data().font_variant_ligatures;
+        if (ligatures.none)
+            return KeywordStyleValue::create(Keyword::None);
+        StyleValueTuple tuple;
+        tuple.resize_with_default_value(4, nullptr);
+        if (ligatures.common.has_value())
+            tuple[TupleStyleValue::Indices::FontVariantLigatures::Common] = KeywordStyleValue::create(to_keyword(*ligatures.common));
+        if (ligatures.discretionary.has_value())
+            tuple[TupleStyleValue::Indices::FontVariantLigatures::Discretionary] = KeywordStyleValue::create(to_keyword(*ligatures.discretionary));
+        if (ligatures.historical.has_value())
+            tuple[TupleStyleValue::Indices::FontVariantLigatures::Historical] = KeywordStyleValue::create(to_keyword(*ligatures.historical));
+        if (ligatures.contextual.has_value())
+            tuple[TupleStyleValue::Indices::FontVariantLigatures::Contextual] = KeywordStyleValue::create(to_keyword(*ligatures.contextual));
+        return TupleStyleValue::create(move(tuple));
+    }
+    case PropertyID::FontVariantNumeric: {
+        if (!font_feature_data().font_variant_numeric.has_value())
+            return KeywordStyleValue::create(Keyword::Normal);
+        auto const& numeric = *font_feature_data().font_variant_numeric;
+        StyleValueTuple tuple;
+        tuple.resize_with_default_value(5, nullptr);
+        if (numeric.figure.has_value())
+            tuple[TupleStyleValue::Indices::FontVariantNumeric::Figure] = KeywordStyleValue::create(to_keyword(*numeric.figure));
+        if (numeric.spacing.has_value())
+            tuple[TupleStyleValue::Indices::FontVariantNumeric::Spacing] = KeywordStyleValue::create(to_keyword(*numeric.spacing));
+        if (numeric.fraction.has_value())
+            tuple[TupleStyleValue::Indices::FontVariantNumeric::Fraction] = KeywordStyleValue::create(to_keyword(*numeric.fraction));
+        if (numeric.ordinal)
+            tuple[TupleStyleValue::Indices::FontVariantNumeric::Ordinal] = KeywordStyleValue::create(Keyword::Ordinal);
+        if (numeric.slashed_zero)
+            tuple[TupleStyleValue::Indices::FontVariantNumeric::SlashedZero] = KeywordStyleValue::create(Keyword::SlashedZero);
+        return TupleStyleValue::create(move(tuple));
+    }
+    case PropertyID::FontVariantPosition:
+        return KeywordStyleValue::create(to_keyword(font_feature_data().font_variant_position));
+    case PropertyID::FontVariationSettings: {
+        if (font_variation_settings().is_empty())
+            return KeywordStyleValue::create(Keyword::Normal);
+        StyleValueVector settings;
+        for (auto const& [tag, value] : font_variation_settings()) {
+            settings.append(OpenTypeTaggedStyleValue::create(
+                OpenTypeTaggedStyleValue::Mode::FontVariationSettings,
+                tag,
+                NumberStyleValue::create(value)));
+        }
+        quick_sort(settings, [](auto const& a, auto const& b) {
+            return a->as_open_type_tagged().tag() < b->as_open_type_tagged().tag();
+        });
+        return StyleValueList::create(move(settings), StyleValueList::Separator::Comma);
+    }
     case PropertyID::LineHeight:
         return line_height_data().computed_value.visit(
             [](LineHeightData::Normal) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Normal); },
             [](double value) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(value); },
             [&](CSSPixels value) -> NonnullRefPtr<StyleValue const> { return length_style_value(value); });
+    case PropertyID::LetterSpacing:
+        return length_style_value(letter_spacing());
     case PropertyID::Opacity:
         return OpacityValueStyleValue::create(NumberStyleValue::create(opacity()));
+    case PropertyID::PaintOrder:
+        if (paint_order() == InitialValues::paint_order())
+            return KeywordStyleValue::create(Keyword::Normal);
+        return StyleValueList::create(
+            { KeywordStyleValue::create(to_keyword(paint_order()[0])), KeywordStyleValue::create(to_keyword(paint_order()[1])) },
+            StyleValueList::Separator::Space);
     case PropertyID::FillOpacity:
         return OpacityValueStyleValue::create(NumberStyleValue::create(fill_opacity()));
+    case PropertyID::Fill:
+        return svg_paint_style_value(fill());
     case PropertyID::FloodOpacity:
         return OpacityValueStyleValue::create(NumberStyleValue::create(flood_opacity()));
     case PropertyID::StopOpacity:
         return OpacityValueStyleValue::create(NumberStyleValue::create(stop_opacity()));
     case PropertyID::StrokeOpacity:
         return OpacityValueStyleValue::create(NumberStyleValue::create(stroke_opacity()));
+    case PropertyID::Stroke:
+        return svg_paint_style_value(stroke());
     case PropertyID::BoxSizing:
         return KeywordStyleValue::create(to_keyword(box_sizing()));
+    case PropertyID::BoxShadow: {
+        if (box_shadow().is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        StyleValueVector shadows;
+        shadows.ensure_capacity(box_shadow().size());
+        for (auto const& shadow : box_shadow()) {
+            shadows.append(ShadowStyleValue::create(
+                ShadowStyleValue::ShadowType::Normal,
+                color_style_value(shadow.color),
+                length_style_value(shadow.offset_x),
+                length_style_value(shadow.offset_y),
+                length_style_value(shadow.blur_radius),
+                length_style_value(shadow.spread_distance),
+                shadow.placement));
+        }
+        return StyleValueList::create(move(shadows), StyleValueList::Separator::Comma);
+    }
     case PropertyID::Clear:
         return KeywordStyleValue::create(to_keyword(clear()));
+    case PropertyID::Clip: {
+        if (clip().is_auto())
+            return KeywordStyleValue::create(Keyword::Auto);
+        auto rect = clip().to_rect();
+        return RectStyleValue::create(
+            length_or_auto_style_value(rect.top_edge),
+            length_or_auto_style_value(rect.right_edge),
+            length_or_auto_style_value(rect.bottom_edge),
+            length_or_auto_style_value(rect.left_edge));
+    }
+    case PropertyID::ColumnCount:
+        if (column_count().is_auto())
+            return KeywordStyleValue::create(Keyword::Auto);
+        return IntegerStyleValue::create(column_count().value());
+    case PropertyID::ColumnGap:
+        return column_gap().visit(
+            [&](LengthPercentage const& gap) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(gap); },
+            [](NormalGap) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Normal); });
+    case PropertyID::ContainerName: {
+        if (container_name().is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        StyleValueVector names;
+        names.ensure_capacity(container_name().size());
+        for (auto const& name : container_name())
+            names.append(CustomIdentStyleValue::create(name));
+        return StyleValueList::create(move(names), StyleValueList::Separator::Space);
+    }
+    case PropertyID::ContainerType: {
+        if (container_type().is_empty())
+            return KeywordStyleValue::create(Keyword::Normal);
+        StyleValueVector types;
+        if (container_type().is_size_container)
+            types.append(KeywordStyleValue::create(Keyword::Size));
+        if (container_type().is_inline_size_container)
+            types.append(KeywordStyleValue::create(Keyword::InlineSize));
+        if (container_type().is_scroll_state_container)
+            types.append(KeywordStyleValue::create(Keyword::ScrollState));
+        return StyleValueList::create(move(types), StyleValueList::Separator::Space);
+    }
     case PropertyID::ContentVisibility:
         return KeywordStyleValue::create(to_keyword(content_visibility()));
+    case PropertyID::Cursor: {
+        if (cursor().size() == 1 && cursor().first().has<CursorPredefined>())
+            return KeywordStyleValue::create(to_keyword(cursor().first().get<CursorPredefined>()));
+        StyleValueVector cursors;
+        cursors.ensure_capacity(cursor().size());
+        for (auto const& cursor : cursor()) {
+            cursor.visit(
+                [&](NonnullRefPtr<CursorStyleValue const> const& cursor) { cursors.append(cursor); },
+                [&](CursorPredefined cursor) { cursors.append(KeywordStyleValue::create(to_keyword(cursor))); });
+        }
+        return StyleValueList::create(move(cursors), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::CounterIncrement:
+    case PropertyID::CounterReset:
+    case PropertyID::CounterSet: {
+        auto const* counters = &counter_increment();
+        if (property_id == PropertyID::CounterReset)
+            counters = &counter_reset();
+        else if (property_id == PropertyID::CounterSet)
+            counters = &counter_set();
+        if (counters->is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        Vector<CounterDefinition> definitions;
+        definitions.ensure_capacity(counters->size());
+        for (auto const& counter : *counters) {
+            ValueComparingRefPtr<StyleValue const> value;
+            if (counter.value.has_value())
+                value = IntegerStyleValue::create(*counter.value);
+            definitions.append(CounterDefinition {
+                .name = counter.name,
+                .is_reversed = counter.is_reversed,
+                .value = move(value),
+            });
+        }
+        return CounterDefinitionsStyleValue::create(move(definitions));
+    }
+    case PropertyID::Cx:
+        return length_percentage_style_value(cx());
+    case PropertyID::Cy:
+        return length_percentage_style_value(cy());
     case PropertyID::Direction:
         return KeywordStyleValue::create(to_keyword(direction()));
+    case PropertyID::EmptyCells:
+        return KeywordStyleValue::create(to_keyword(empty_cells()));
+    case PropertyID::FillRule:
+        return KeywordStyleValue::create(to_keyword(fill_rule()));
     case PropertyID::Float:
         return KeywordStyleValue::create(to_keyword(float_()));
+    case PropertyID::FlexDirection:
+        return KeywordStyleValue::create(to_keyword(flex_direction()));
+    case PropertyID::FlexBasis:
+        return flex_basis().visit(
+            [](FlexBasisContent) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Content); },
+            [&](Size const& size) -> NonnullRefPtr<StyleValue const> { return size_style_value(size); });
+    case PropertyID::FlexGrow:
+        return NumberStyleValue::create(flex_grow());
+    case PropertyID::FlexShrink:
+        return NumberStyleValue::create(flex_shrink());
+    case PropertyID::FlexWrap:
+        return KeywordStyleValue::create(to_keyword(flex_wrap()));
+    case PropertyID::FontVariantEmoji:
+        return KeywordStyleValue::create(to_keyword(font_variant_emoji()));
     case PropertyID::ImageRendering:
         return KeywordStyleValue::create(to_keyword(image_rendering()));
+    case PropertyID::Isolation:
+        return KeywordStyleValue::create(to_keyword(isolation()));
+    case PropertyID::JustifyContent:
+        return KeywordStyleValue::create(to_keyword(justify_content()));
+    case PropertyID::JustifyItems:
+        return KeywordStyleValue::create(to_keyword(justify_items()));
+    case PropertyID::JustifySelf:
+        return KeywordStyleValue::create(to_keyword(justify_self()));
+    case PropertyID::ListStylePosition:
+        return KeywordStyleValue::create(to_keyword(list_style_position()));
+    case PropertyID::ListStyleType:
+        return list_style_type().visit(
+            [](Empty) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::None); },
+            [](RefPtr<CounterStyle const> const& counter_style) -> NonnullRefPtr<StyleValue const> {
+                VERIFY(counter_style);
+                return CounterStyleStyleValue::create(counter_style->name());
+            },
+            [](Utf16String const& string) -> NonnullRefPtr<StyleValue const> { return StringStyleValue::create(string); });
+    case PropertyID::ListStyleImage:
+        if (list_style_image())
+            return *list_style_image();
+        return KeywordStyleValue::create(Keyword::None);
+    case PropertyID::MaskType:
+        return KeywordStyleValue::create(to_keyword(mask_type()));
+    case PropertyID::MathDepth:
+        return IntegerStyleValue::create(math_depth());
+    case PropertyID::MathShift:
+        return KeywordStyleValue::create(to_keyword(math_shift()));
+    case PropertyID::MathStyle:
+        return KeywordStyleValue::create(to_keyword(math_style()));
+    case PropertyID::MixBlendMode:
+        return KeywordStyleValue::create(to_keyword(mix_blend_mode()));
+    case PropertyID::ObjectFit:
+        return KeywordStyleValue::create(to_keyword(object_fit()));
+    case PropertyID::ObjectPosition:
+        return position_style_value(object_position());
+    case PropertyID::Order:
+        return IntegerStyleValue::create(order());
+    case PropertyID::OutlineOffset:
+        return length_style_value(outline_offset());
+    case PropertyID::Orphans:
+        return IntegerStyleValue::create(orphans());
+    case PropertyID::OverflowWrap:
+        switch (overflow_wrap()) {
+        case OverflowWrap::Normal:
+            return KeywordStyleValue::create(Keyword::Normal);
+        case OverflowWrap::BreakWord:
+            return KeywordStyleValue::create(Keyword::BreakWord);
+        case OverflowWrap::Anywhere:
+            return KeywordStyleValue::create(Keyword::Anywhere);
+        }
+        VERIFY_NOT_REACHED();
     case PropertyID::OverflowX:
         return KeywordStyleValue::create(to_keyword(overflow_x()));
     case PropertyID::OverflowY:
@@ -153,15 +699,259 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         return KeywordStyleValue::create(to_keyword(pointer_events()));
     case PropertyID::Position:
         return KeywordStyleValue::create(to_keyword(position()));
+    case PropertyID::PositionAnchor:
+        switch (position_anchor_value().type) {
+        case PositionAnchor::Type::Normal:
+            return KeywordStyleValue::create(Keyword::Normal);
+        case PositionAnchor::Type::None:
+            return KeywordStyleValue::create(Keyword::None);
+        case PositionAnchor::Type::Auto:
+            return KeywordStyleValue::create(Keyword::Auto);
+        case PositionAnchor::Type::Name:
+            VERIFY(position_anchor_value().name.has_value());
+            return CustomIdentStyleValue::create(*position_anchor_value().name);
+        }
+        VERIFY_NOT_REACHED();
+    case PropertyID::Perspective:
+        if (perspective().has_value())
+            return length_style_value(*perspective());
+        return KeywordStyleValue::create(Keyword::None);
+    case PropertyID::PerspectiveOrigin:
+        return position_style_value(perspective_origin());
+    case PropertyID::Resize:
+        return KeywordStyleValue::create(to_keyword(resize()));
+    case PropertyID::RowGap:
+        return row_gap().visit(
+            [&](LengthPercentage const& gap) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(gap); },
+            [](NormalGap) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Normal); });
+    case PropertyID::Quotes:
+        switch (quotes().type) {
+        case QuotesData::Type::None:
+            return KeywordStyleValue::create(Keyword::None);
+        case QuotesData::Type::Auto:
+            return KeywordStyleValue::create(Keyword::Auto);
+        case QuotesData::Type::Specified: {
+            StyleValueVector strings;
+            strings.ensure_capacity(quotes().strings.size() * 2);
+            for (auto const& pair : quotes().strings) {
+                strings.append(StringStyleValue::create(pair[0]));
+                strings.append(StringStyleValue::create(pair[1]));
+            }
+            return StyleValueList::create(move(strings), StyleValueList::Separator::Space);
+        }
+        }
+        VERIFY_NOT_REACHED();
+    case PropertyID::R:
+        return length_percentage_style_value(r());
+    case PropertyID::Rx:
+        return length_percentage_or_auto_style_value(rx());
+    case PropertyID::Ry:
+        return length_percentage_or_auto_style_value(ry());
+    case PropertyID::Rotate:
+        if (rotate())
+            return *rotate();
+        return KeywordStyleValue::create(Keyword::None);
+    case PropertyID::Scale:
+        if (scale())
+            return *scale();
+        return KeywordStyleValue::create(Keyword::None);
+    case PropertyID::ScrollbarColor:
+        if (scrollbar_color().is_auto)
+            return KeywordStyleValue::create(Keyword::Auto);
+        return ScrollbarColorStyleValue::create(
+            color_style_value(scrollbar_color().thumb_color),
+            color_style_value(scrollbar_color().track_color));
+    case PropertyID::ScrollbarWidth:
+        return KeywordStyleValue::create(to_keyword(scrollbar_width()));
+    case PropertyID::ShapeRendering:
+        return KeywordStyleValue::create(to_keyword(shape_rendering()));
+    case PropertyID::StrokeLinecap:
+        return KeywordStyleValue::create(to_keyword(stroke_linecap()));
+    case PropertyID::StrokeLinejoin:
+        return KeywordStyleValue::create(to_keyword(stroke_linejoin()));
+    case PropertyID::StrokeDasharray: {
+        if (stroke_dasharray().is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        StyleValueVector values;
+        values.ensure_capacity(stroke_dasharray().size());
+        for (auto const& value : stroke_dasharray()) {
+            values.append(value.visit(
+                [&](LengthPercentage const& length_percentage) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(length_percentage); },
+                [](float number) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(number); }));
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::StrokeDashoffset:
+        return length_percentage_style_value(stroke_dashoffset());
+    case PropertyID::StrokeMiterlimit:
+        return NumberStyleValue::create(stroke_miterlimit());
+    case PropertyID::StrokeWidth:
+        return length_percentage_style_value(stroke_width());
+    case PropertyID::TableLayout:
+        return KeywordStyleValue::create(to_keyword(table_layout()));
+    case PropertyID::TabSize:
+        return tab_size().visit(
+            [&](CSSPixels value) -> NonnullRefPtr<StyleValue const> { return length_style_value(value); },
+            [](double value) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(value); });
+    case PropertyID::TextDecorationLine: {
+        if (text_decoration_line().is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        StyleValueVector values;
+        values.ensure_capacity(text_decoration_line().size());
+        for (auto line : text_decoration_line())
+            values.append(KeywordStyleValue::create(to_keyword(line)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    }
+    case PropertyID::TextIndent:
+        return TextIndentStyleValue::create(
+            length_percentage_style_value(text_indent().length_percentage),
+            text_indent().hanging ? TextIndentStyleValue::Hanging::Yes : TextIndentStyleValue::Hanging::No,
+            text_indent().each_line ? TextIndentStyleValue::EachLine::Yes : TextIndentStyleValue::EachLine::No);
+    case PropertyID::TextAlign:
+        return KeywordStyleValue::create(to_keyword(text_align()));
+    case PropertyID::TextAnchor:
+        return KeywordStyleValue::create(to_keyword(text_anchor()));
+    case PropertyID::TextDecorationSkipInk:
+        return KeywordStyleValue::create(to_keyword(text_decoration_skip_ink()));
+    case PropertyID::TextDecorationStyle:
+        return KeywordStyleValue::create(to_keyword(text_decoration_style()));
+    case PropertyID::TextDecorationThickness:
+        return text_decoration_thickness().value.visit(
+            [](TextDecorationThickness::Auto) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Auto); },
+            [](TextDecorationThickness::FromFont) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::FromFont); },
+            [&](LengthPercentage const& thickness) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(thickness); });
+    case PropertyID::TextJustify:
+        return KeywordStyleValue::create(to_keyword(text_justify()));
+    case PropertyID::TextOverflow:
+        return KeywordStyleValue::create(to_keyword(text_overflow()));
+    case PropertyID::TextTransform:
+        return KeywordStyleValue::create(to_keyword(text_transform()));
+    case PropertyID::TextUnderlineOffset:
+        return text_underline_offset_value().computed_value.visit(
+            [](TextUnderlineOffset::Auto) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Auto); },
+            [&](LengthPercentage const& offset) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(offset); });
+    case PropertyID::TextWrapStyle:
+        return KeywordStyleValue::create(to_keyword(text_wrap_style()));
+    case PropertyID::TextShadow: {
+        if (text_shadow().is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        StyleValueVector shadows;
+        shadows.ensure_capacity(text_shadow().size());
+        for (auto const& shadow : text_shadow()) {
+            shadows.append(ShadowStyleValue::create(
+                ShadowStyleValue::ShadowType::Text,
+                color_style_value(shadow.color),
+                length_style_value(shadow.offset_x),
+                length_style_value(shadow.offset_y),
+                length_style_value(shadow.blur_radius),
+                {},
+                ShadowPlacement::Outer));
+        }
+        return StyleValueList::create(move(shadows), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::TextRendering:
+        return KeywordStyleValue::create(to_keyword(font_feature_data().text_rendering));
+    case PropertyID::TextUnderlinePosition:
+        return TextUnderlinePositionStyleValue::create(text_underline_position().horizontal, text_underline_position().vertical);
+    case PropertyID::TextWrapMode:
+        return KeywordStyleValue::create(to_keyword(text_wrap_mode()));
+    case PropertyID::TransformBox:
+        return KeywordStyleValue::create(to_keyword(transform_box()));
+    case PropertyID::Transform: {
+        if (transformations().is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        StyleValueVector values;
+        values.ensure_capacity(transformations().size());
+        for (auto const& transformation : transformations())
+            values.append(transformation);
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    }
+    case PropertyID::TransformOrigin:
+        return StyleValueList::create(
+            { length_percentage_style_value(transform_origin().x), length_percentage_style_value(transform_origin().y), length_percentage_style_value(transform_origin().z) },
+            StyleValueList::Separator::Space);
+    case PropertyID::TransformStyle:
+        return KeywordStyleValue::create(to_keyword(transform_style()));
+    case PropertyID::Translate:
+        if (translate())
+            return *translate();
+        return KeywordStyleValue::create(Keyword::None);
+    case PropertyID::UnicodeBidi:
+        return KeywordStyleValue::create(to_keyword(unicode_bidi()));
     case PropertyID::UserSelect:
         return KeywordStyleValue::create(to_keyword(user_select()));
+    case PropertyID::VectorEffect:
+        return KeywordStyleValue::create(to_keyword(vector_effect()));
+    case PropertyID::VerticalAlign:
+        return vertical_align().visit(
+            [](VerticalAlign alignment) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(to_keyword(alignment)); },
+            [&](LengthPercentage const& offset) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(offset); });
+    case PropertyID::ViewTransitionName:
+        if (view_transition_name().has_value())
+            return CustomIdentStyleValue::create(*view_transition_name());
+        return KeywordStyleValue::create(Keyword::None);
     case PropertyID::Visibility:
         return KeywordStyleValue::create(to_keyword(visibility()));
+    case PropertyID::Widows:
+        return IntegerStyleValue::create(widows());
+    case PropertyID::WhiteSpaceCollapse:
+        return KeywordStyleValue::create(to_keyword(white_space_collapse()));
+    case PropertyID::WhiteSpaceTrim: {
+        StyleValueVector values;
+        if (white_space_trim().discard_before)
+            values.append(KeywordStyleValue::create(Keyword::DiscardBefore));
+        if (white_space_trim().discard_after)
+            values.append(KeywordStyleValue::create(Keyword::DiscardAfter));
+        if (white_space_trim().discard_inner)
+            values.append(KeywordStyleValue::create(Keyword::DiscardInner));
+        if (values.is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    }
+    case PropertyID::WillChange: {
+        if (will_change().is_auto())
+            return KeywordStyleValue::create(Keyword::Auto);
+        StyleValueVector values;
+        values.ensure_capacity(will_change().entries().size());
+        for (auto const& entry : will_change().entries()) {
+            entry.visit(
+                [&](WillChange::Type type) {
+                    values.append(KeywordStyleValue::create(type == WillChange::Type::Contents ? Keyword::Contents : Keyword::ScrollPosition));
+                },
+                [&](PropertyID property_id) {
+                    values.append(CustomIdentStyleValue::create(string_from_property_id(property_id)));
+                });
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::WordBreak:
+        return KeywordStyleValue::create(to_keyword(word_break()));
     case PropertyID::WritingMode:
         return KeywordStyleValue::create(to_keyword(writing_mode()));
+    case PropertyID::WordSpacing:
+        return length_style_value(word_spacing());
+    case PropertyID::X:
+        return length_percentage_style_value(x());
+    case PropertyID::Y:
+        return length_percentage_style_value(y());
+    case PropertyID::ZIndex:
+        if (z_index().has_value())
+            return IntegerStyleValue::create(*z_index());
+        return KeywordStyleValue::create(Keyword::Auto);
     default:
         return {};
     }
+}
+
+RefPtr<StyleValue const> ComputedValues::computed_style_value_for_inheritance(PropertyID property_id, WithAnimationsApplied with_animations_applied) const
+{
+    if (with_animations_applied == WithAnimationsApplied::No && m_base_values)
+        return m_base_values->computed_style_value_for_inheritance(property_id);
+
+    if (auto value = m_inheritance_dependent_specified_values.get(property_id); value.has_value() && value.value()->depends_on_current_color())
+        return *value;
+
+    return computed_style_value(property_id, with_animations_applied);
 }
 
 static size_t property_bitmap_index(PropertyID property_id)

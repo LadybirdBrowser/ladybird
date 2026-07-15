@@ -3144,7 +3144,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
 
     // AD-HOC: The spec doesn't specify when to do this, but we need to apply scroll-margin and scroll-margin to target
     //         bounding border box (https://drafts.csswg.org/cssom-view-1/#example-51af1565).
-    auto scroll_margin = target.computed_properties()->length_box(CSS::PropertyID::ScrollMarginLeft, CSS::PropertyID::ScrollMarginTop, CSS::PropertyID::ScrollMarginRight, CSS::PropertyID::ScrollMarginBottom, CSS::Length::make_px(0));
+    auto const& scroll_margin = target.computed_values()->scroll_margin();
     auto scroll_margin_top = scroll_margin.top().to_px_or_zero(CSSPixels { 0 });
     auto scroll_margin_right = scroll_margin.right().to_px_or_zero(CSSPixels { 0 });
     auto scroll_margin_bottom = scroll_margin.bottom().to_px_or_zero(CSSPixels { 0 });
@@ -3155,22 +3155,22 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
     target_bounding_border_box.set_bottom(target_bounding_border_box.bottom() + scroll_margin_top + scroll_margin_bottom);
     target_bounding_border_box.set_left(target_bounding_border_box.left() - scroll_margin_left);
 
-    auto scrolling_box_computed_properties = [&scrolling_box]() -> RefPtr<CSS::ComputedProperties const> {
+    auto scrolling_box_computed_values = [&scrolling_box]() -> RefPtr<CSS::ComputedValues const> {
         if (scrolling_box.is_document()) {
             if (auto scrolling_element = scrolling_box.document().scrolling_element())
-                return scrolling_element->computed_properties();
+                return scrolling_element->computed_values();
             return nullptr;
         }
 
         if (auto const* element = as_if<DOM::Element>(scrolling_box)) {
-            return element->computed_properties();
+            return element->computed_values();
         }
 
         return nullptr;
     }();
 
-    if (scrolling_box_computed_properties) {
-        auto scroll_padding = scrolling_box_computed_properties->length_box(CSS::PropertyID::ScrollPaddingLeft, CSS::PropertyID::ScrollPaddingTop, CSS::PropertyID::ScrollPaddingRight, CSS::PropertyID::ScrollPaddingBottom, CSS::Length::make_px(0));
+    if (scrolling_box_computed_values) {
+        auto const& scroll_padding = scrolling_box_computed_values->scroll_padding();
         auto scrolling_box_width = scrolling_box_rect.width();
         auto scrolling_box_height = scrolling_box_rect.height();
 
@@ -4405,7 +4405,7 @@ i32 Element::number_of_owned_list_items() const
 GC::Ptr<Element> Element::list_owner() const
 {
     // Any element whose computed value of 'display' is 'list-item' has a list owner, which is determined as follows:
-    if (!m_is_contained_in_list_subtree && (!computed_properties() || !computed_properties()->display().is_list_item()))
+    if (!m_is_contained_in_list_subtree && (!computed_values() || !computed_values()->display().is_list_item()))
         return nullptr;
 
     // 1. If the element is not being rendered, return null; the element has no list owner.
@@ -5134,7 +5134,7 @@ void Element::for_each_numbered_item_owned_by_list_owner(Callback callback)
         if (!node->unsafe_layout_node())
             continue; // Skip nodes that do not participate in the layout.
 
-        if (!element->computed_properties()->display().is_list_item())
+        if (!element->computed_values()->display().is_list_item())
             continue; // Skip nodes that are not list items.
 
         if (callback(element) == IterationDecision::Break)
@@ -5170,9 +5170,9 @@ Optional<Utf16FlyString> Element::document_scoped_view_transition_name()
     // To get the document-scoped view transition name for an Element element:
 
     // 1. Let scopedViewTransitionName be the computed value of view-transition-name for element.
-    auto computed_properties = this->computed_properties();
-    VERIFY(computed_properties);
-    auto scoped_view_transition_name = computed_properties->view_transition_name();
+    auto computed_values = this->computed_values();
+    VERIFY(computed_values);
+    auto scoped_view_transition_name = computed_values->view_transition_name();
 
     // 2. If scopedViewTransitionName is associated with element’s node document, then return
     //    scopedViewTransitionName.

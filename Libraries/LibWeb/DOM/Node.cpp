@@ -3641,7 +3641,7 @@ bool Node::has_inclusive_ancestor_with_display_none_ignoring_animations() const
         if (!ancestor->is_element())
             continue;
         auto const& ancestor_element = static_cast<Element const&>(*ancestor);
-        if (ancestor_element.computed_properties() && ancestor_element.computed_properties()->property(CSS::PropertyID::Display, CSS::ComputedProperties::WithAnimationsApplied::No).as_display().display().is_none()) {
+        if (ancestor_element.computed_values() && ancestor_element.computed_values()->base_values().display().is_none()) {
             return true;
         }
     }

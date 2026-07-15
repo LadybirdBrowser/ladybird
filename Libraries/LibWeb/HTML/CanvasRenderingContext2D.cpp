@@ -1502,7 +1502,7 @@ void CanvasRenderingContext2D::set_filter(Utf16View filter)
                     m_element->document().update_style_if_needed_for_element(abstract_element);
 
                     Gfx::Color color = Gfx::Color::Black;
-                    if (drop_shadow.color && m_element->computed_properties()) {
+                    if (drop_shadow.color && m_element->computed_values()) {
                         auto color_context = CSS::ColorResolutionContext::for_element(abstract_element);
                         color = drop_shadow.color->to_color(color_context).value_or(Gfx::Color::Black);
                     }

@@ -9,15 +9,12 @@
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Invalidation/InvalidationSetMatcher.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
-#include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
-#include <LibWeb/CSS/StyleValues/StringStyleValue.h>
-#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -708,20 +705,10 @@ static void for_each_tree_affected_by_shadow_root_stylesheet_change(
     }
 }
 
-static bool style_value_references_animation_name(StyleValue const& value, Utf16FlyString const& animation_name)
+static bool computed_values_reference_animation_name(ComputedValues const& computed_values, Utf16FlyString const& animation_name)
 {
-    if (value.is_custom_ident())
-        return value.as_custom_ident().custom_ident() == animation_name;
-    if (value.is_string())
-        return value.as_string().string_value() == animation_name;
-
-    if (!value.is_value_list())
-        return false;
-
-    for (auto const& item : value.as_value_list().values()) {
-        if (item->is_custom_ident() && item->as_custom_ident().custom_ident() == animation_name)
-            return true;
-        if (item->is_string() && item->as_string().string_value() == animation_name)
+    for (auto const& name : computed_values.animation_names()) {
+        if (name.syntax != ComputedAnimationNameSyntax::None && name.name == animation_name)
             return true;
     }
 
@@ -730,16 +717,12 @@ static bool style_value_references_animation_name(StyleValue const& value, Utf16
 
 static bool element_or_pseudo_references_animation_name(DOM::Element const& element, Utf16FlyString const& animation_name)
 {
-    auto references_animation_name_in_properties = [&](CSS::ComputedProperties const& computed_properties) {
-        return style_value_references_animation_name(computed_properties.property(PropertyID::AnimationName), animation_name);
-    };
-
-    if (auto computed_properties = element.computed_properties(); computed_properties && references_animation_name_in_properties(*computed_properties))
+    if (auto computed_values = element.computed_values(); computed_values && computed_values_reference_animation_name(*computed_values, animation_name))
         return true;
 
     bool synthetic_pseudo_element_references_animation_name = false;
     element.for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement, Web::DOM::SyntheticPseudoElement const& pseudo_element) {
-        if (auto computed_properties = pseudo_element.computed_properties(); computed_properties && references_animation_name_in_properties(*computed_properties)) {
+        if (auto computed_values = pseudo_element.computed_values(); computed_values && computed_values_reference_animation_name(*computed_values, animation_name)) {
             synthetic_pseudo_element_references_animation_name = true;
             return IterationDecision::Break;
         }

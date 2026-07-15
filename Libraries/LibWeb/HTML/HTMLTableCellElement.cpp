@@ -111,7 +111,7 @@ void HTMLTableCellElement::apply_presentational_hints(Vector<CSS::StyleProperty>
     auto apply_border_style = [&](CSS::PropertyID style_property, CSS::PropertyID width_property, CSS::PropertyID color_property) {
         properties.append({ .property_id = style_property, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Inset) });
         properties.append({ .property_id = width_property, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(1)) });
-        properties.append({ .property_id = color_property, .value = table_element->computed_properties()->property(color_property) });
+        properties.append({ .property_id = color_property, .value = table_element->computed_values()->computed_style_value(color_property).release_nonnull() });
     };
     apply_border_style(CSS::PropertyID::BorderLeftStyle, CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor);
     apply_border_style(CSS::PropertyID::BorderTopStyle, CSS::PropertyID::BorderTopWidth, CSS::PropertyID::BorderTopColor);

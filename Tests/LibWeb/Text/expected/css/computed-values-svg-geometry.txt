@@ -1,0 +1,4 @@
+rx: 12px
+ry: 34px
+stroke-dasharray: 1px, 2
+stroke-width: 25%

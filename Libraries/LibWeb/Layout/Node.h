@@ -363,11 +363,11 @@ public:
 
     void clear_image_observers();
     void apply_style(CSS::ComputedProperties const&);
-    void attach_style_resources(CSS::ComputedProperties const&);
+    void attach_style_resources();
 
     Gfx::Font const& first_available_font() const;
     Vector<CSS::BackgroundLayerData> const& background_layers() const { return computed_values().background_layers(); }
-    CSS::AbstractImageStyleValue const* list_style_image() const { return m_list_style_image; }
+    CSS::AbstractImageStyleValue const* list_style_image() const { return computed_values().list_style_image(); }
     CSS::StyleScope const& style_scope() const;
 
     NonnullRefPtr<NodeWithStyle> create_anonymous_wrapper() const;
@@ -396,7 +396,6 @@ private:
     void rebuild_image_observers();
 
     NonnullRefPtr<CSS::ComputedValues> m_computed_values;
-    RefPtr<CSS::AbstractImageStyleValue const> m_list_style_image;
     Vector<NonnullOwnPtr<ImageObserver>> m_image_observers;
     u32 m_layout_index { 0 };
 };

@@ -1225,7 +1225,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
                 if (specified_values.contains(physical_longhand_id) && specified_values.get(physical_longhand_id) != nullptr && !property_is_set_by_use_initial.get(physical_longhand_id_bitmap_index) && !is_property_preferred(property_id, longhands_set_by_property_id.get(physical_longhand_id).value()))
                     return;
 
-                auto const& specified_value_with_css_wide_keywords_applied = [&]() -> StyleValue const& {
+                auto specified_value_with_css_wide_keywords_applied = [&]() -> NonnullRefPtr<StyleValue const> {
                     if (longhand_value.is_inherit() || (longhand_value.is_unset() && is_inherited_property(longhand_id))) {
                         if (auto inherited_animated_value = get_animated_inherit_value(longhand_id, abstract_element); inherited_animated_value.has_value())
                             return inherited_animated_value->value;
@@ -1239,7 +1239,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
                     if (longhand_value.is_revert() || longhand_value.is_revert_layer())
                         return computed_properties.property(longhand_id);
 
-                    return longhand_value;
+                    return NonnullRefPtr { longhand_value };
                 }();
 
                 longhands_set_by_property_id.set(physical_longhand_id, property_id);
@@ -2390,7 +2390,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::get_non_animated_inherit_value(Pr
         return property_initial_value(property_id);
 
     if (auto computed_values = parent_element->computed_values()) {
-        if (auto value = computed_values->computed_style_value(property_id, ComputedValues::WithAnimationsApplied::No))
+        if (auto value = computed_values->computed_style_value_for_inheritance(property_id, ComputedValues::WithAnimationsApplied::No))
             return value.release_nonnull();
     }
     return parent_element->computed_properties()->property(property_id, ComputedProperties::WithAnimationsApplied::No);
@@ -2400,21 +2400,20 @@ Optional<StyleComputer::AnimatedInheritValue> StyleComputer::get_animated_inheri
 {
     auto parent_element = abstract_element.element_to_inherit_style_from();
 
-    if (!parent_element.has_value() || !parent_element->computed_properties())
+    if (!parent_element.has_value() || !parent_element->computed_values())
         return {};
 
-    if (!parent_element->computed_properties()->has_animated_property(property_id))
+    auto computed_values = parent_element->computed_values();
+    auto const* animated_properties = computed_values->animated_properties();
+    if (!animated_properties || !animated_properties->has_property(property_id))
         return {};
 
-    if (auto animated_value = parent_element->computed_properties()->animated_property_values().get(property_id); animated_value.has_value())
-        return AnimatedInheritValue {
-            .value = *animated_value.value(),
-            .is_result_of_transition = parent_element->computed_properties()->is_animated_property_result_of_transition(property_id)
-                ? AnimatedPropertyResultOfTransition::Yes
-                : AnimatedPropertyResultOfTransition::No
-        };
-
-    return {};
+    return AnimatedInheritValue {
+        .value = animated_properties->property(property_id),
+        .is_result_of_transition = animated_properties->is_property_result_of_transition(property_id)
+            ? AnimatedPropertyResultOfTransition::Yes
+            : AnimatedPropertyResultOfTransition::No
+    };
 }
 
 Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedProperties const& style) const
@@ -2538,10 +2537,10 @@ ComputationContext StyleComputer::make_computation_context_for_property(Property
     auto subject_inline_axis_is_horizontal = [&]() {
         if (!abstract_element.has_value())
             return true;
-        if (auto computed_properties = abstract_element->computed_properties(); computed_properties)
-            return computed_properties->writing_mode() == WritingMode::HorizontalTb;
-        if (auto inheritance_parent = abstract_element->element_to_inherit_style_from(); inheritance_parent.has_value() && inheritance_parent->computed_properties())
-            return inheritance_parent->computed_properties()->writing_mode() == WritingMode::HorizontalTb;
+        if (auto computed_values = abstract_element->computed_values(); computed_values)
+            return computed_values->writing_mode() == WritingMode::HorizontalTb;
+        if (auto inheritance_parent = abstract_element->element_to_inherit_style_from(); inheritance_parent.has_value() && inheritance_parent->computed_values())
+            return inheritance_parent->computed_values()->writing_mode() == WritingMode::HorizontalTb;
         return true;
     }();
 
@@ -2586,7 +2585,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Property
         auto line_height_font_metrics = Length::FontMetrics {
             style.font_size(),
             style.first_available_computed_font(document().font_computer())->pixel_metrics(),
-            inheritance_parent.has_value() ? inheritance_parent->computed_properties()->line_height(document().font_computer()) : InitialValues::line_height()
+            inheritance_parent.has_value() ? inheritance_parent->computed_values()->line_height() : InitialValues::line_height()
         };
 
         return {
@@ -2698,19 +2697,19 @@ static void compute_text_align(ComputedProperties::Builder& builder, DOM::Abstra
     // either left or right. Computes to start when specified on the root element.
     if (text_align_keyword == Keyword::MatchParent) {
         if (auto const parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
-            auto const& parent_text_align = parent->computed_properties()->property(PropertyID::TextAlign);
-            auto const& parent_direction = parent->computed_properties()->direction();
-            switch (parent_text_align.to_keyword()) {
-            case Keyword::Start:
-                if (parent_direction == Direction::Ltr) {
+            auto const& parent_values = *parent->computed_values();
+            auto parent_text_align = parent_values.text_align();
+            switch (parent_text_align) {
+            case TextAlign::Start:
+                if (parent_values.direction() == Direction::Ltr) {
                     builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Left));
                 } else {
                     builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Right));
                 }
                 break;
 
-            case Keyword::End:
-                if (parent_direction == Direction::Ltr) {
+            case TextAlign::End:
+                if (parent_values.direction() == Direction::Ltr) {
                     builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Right));
                 } else {
                     builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Left));
@@ -2718,7 +2717,7 @@ static void compute_text_align(ComputedProperties::Builder& builder, DOM::Abstra
                 break;
 
             default:
-                builder.set_property(PropertyID::TextAlign, parent_text_align);
+                builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(to_keyword(parent_text_align)));
             }
         } else {
             builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Start));
@@ -2729,10 +2728,10 @@ static void compute_text_align(ComputedProperties::Builder& builder, DOM::Abstra
     //         computed text-align value. This is used to support the ad-hoc default <th> text-align behavior.
     if (text_align_keyword == Keyword::LibwebInheritOrCenter && abstract_element.element().local_name() == HTML::TagNames::th) {
         auto parent_element = abstract_element.element_to_inherit_style_from();
-        if (parent_element.has_value() && parent_element->computed_properties()) {
-            auto const& parent_text_align = parent_element->computed_properties()->property(PropertyID::TextAlign);
-            if (parent_text_align.to_keyword() != Keyword::Start) {
-                builder.set_property(PropertyID::TextAlign, parent_text_align, ComputedProperties::Inherited::Yes);
+        if (parent_element.has_value() && parent_element->computed_values()) {
+            auto parent_text_align = parent_element->computed_values()->text_align();
+            if (parent_text_align != TextAlign::Start) {
+                builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(to_keyword(parent_text_align)), ComputedProperties::Inherited::Yes);
                 return;
             }
         }
@@ -2764,12 +2763,12 @@ static BoxTypeTransformation required_box_type_transformation(ComputedProperties
     auto parent = abstract_element.element_to_inherit_style_from();
 
     // Climb out of `display: contents` context.
-    while (parent.has_value() && parent->computed_properties() && parent->computed_properties()->display().is_contents())
+    while (parent.has_value() && parent->computed_values() && parent->computed_values()->display().is_contents())
         parent = parent->element_to_inherit_style_from();
 
     // A parent with a grid or flex display value blockifies the box’s display type. [CSS-GRID-1] [CSS-FLEXBOX-1]
-    if (parent.has_value() && parent->computed_properties()) {
-        auto const& parent_display = parent->computed_properties()->display();
+    if (parent.has_value() && parent->computed_values()) {
+        auto const& parent_display = parent->computed_values()->display();
         if (parent_display.is_grid_inside() || parent_display.is_flex_inside())
             return BoxTypeTransformation::Blockify;
     }
@@ -2887,7 +2886,15 @@ NonnullRefPtr<ComputedProperties> StyleComputer::create_document_style() const
     builder.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
     builder.set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
     builder.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
-    return CSS::ComputedProperties::create(move(builder));
+    auto computed_properties = CSS::ComputedProperties::create(move(builder));
+    CSS::ColorResolutionContext color_resolution_context {
+        .color_scheme = document().page().preferred_color_scheme(),
+        .current_color = CSS::InitialValues::color(),
+        .current_color_style_value = &computed_properties->property(PropertyID::Color),
+        .calculation_resolution_context = { .length_resolution_context = CSS::Length::ResolutionContext::for_document(document()) },
+    };
+    computed_properties->set_computed_values(CSS::ComputedValues::create(*computed_properties, document(), document().style_scope(), move(color_resolution_context)));
+    return computed_properties;
 }
 
 NonnullRefPtr<ComputedProperties> StyleComputer::compute_style(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
@@ -2950,6 +2957,7 @@ void StyleComputer::build_computed_values(ComputedProperties& computed_propertie
 
     ComputedValues::Builder builder(*ComputedValues::create(computed_properties, document(), style_scope, move(color_resolution_context)));
     builder->set_base_values(move(base_values));
+    builder->set_animated_properties(animated_properties.ptr());
     computed_properties.set_computed_values(builder.build());
 }
 
@@ -3186,8 +3194,8 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
         bool inherited_font_metrics_depend_on_viewport_metrics = false;
         auto inherited_line_height = ancestor.element_to_inherit_style_from()
                                          .map([&](auto&& parent_element) {
-                                             inherited_font_metrics_depend_on_viewport_metrics = parent_element.computed_properties()->font_metrics_depend_on_viewport_metrics();
-                                             return parent_element.computed_properties()->line_height(document().font_computer());
+                                             inherited_font_metrics_depend_on_viewport_metrics = parent_element.computed_values()->font_metrics_depend_on_viewport_metrics();
+                                             return parent_element.computed_values()->line_height();
                                          })
                                          .value_or(InitialValues::line_height());
 
@@ -3198,7 +3206,7 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
             .root_font_metrics = m_root_element_font_metrics,
             .font_metrics_depend_on_viewport_metrics = current_size_depends_on_viewport_metrics || inherited_font_metrics_depend_on_viewport_metrics,
             .root_font_metrics_depend_on_viewport_metrics = m_root_element_font_metrics_depend_on_viewport_metrics,
-            .subject_inline_axis_is_horizontal = ancestor.computed_properties()->writing_mode() == WritingMode::HorizontalTb,
+            .subject_inline_axis_is_horizontal = ancestor.computed_values()->writing_mode() == WritingMode::HorizontalTb,
             .subject_element = &ancestor.element(),
         };
         resolution_context.set_did_resolve_viewport_relative_length(did_resolve_viewport_relative_length);
@@ -3323,7 +3331,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             }
             builder.set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
             if (computed_values_to_inherit_from)
-                value = computed_values_to_inherit_from->computed_style_value(inherited_property_id, ComputedValues::WithAnimationsApplied::No);
+                value = computed_values_to_inherit_from->computed_style_value_for_inheritance(inherited_property_id, ComputedValues::WithAnimationsApplied::No);
             if (!value)
                 value = computed_properties_to_inherit_from->property(inherited_property_id, ComputedProperties::WithAnimationsApplied::No);
             requires_computation = property_requires_computation_with_inherited_value(property_id);
@@ -3357,7 +3365,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
 
         // Store the resolved specified value for properties whose computation depends on inherited info, so they can
         // be re-resolved when an ancestor changes without keeping CascadedProperties alive on the element.
-        bool depends_on_inherited_info = !value->is_computationally_independent()
+        bool depends_on_inherited_info = value->depends_on_current_color()
+            || !value->is_computationally_independent()
             || (property_id == PropertyID::FontWeight && first_is_one_of(value->to_keyword(), Keyword::Bolder, Keyword::Lighter))
             || (property_id == PropertyID::FontSize && font_size_value_depends_on_inherited_font_size(*value))
             || (property_id == PropertyID::LineHeight && line_height_value_depends_on_computed_font_size(*value));
@@ -4178,11 +4187,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<S
     // an absolute length
 
     auto inherited_font_size = inheritance_parent.has_value()
-        ? inheritance_parent->computed_properties()->font_size()
+        ? inheritance_parent->computed_values()->font_size()
         : initial_font_size;
 
     auto inherited_math_depth = inheritance_parent.has_value()
-        ? inheritance_parent->computed_properties()->math_depth()
+        ? inheritance_parent->computed_values()->math_depth()
         : InitialValues::math_depth();
 
     // <absolute-size>
@@ -4267,7 +4276,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr
     // a number, see below
 
     auto inherited_font_weight = inheritance_parent.has_value()
-        ? inheritance_parent->computed_properties()->font_weight()
+        ? inheritance_parent->computed_values()->font_weight()
         : InitialValues::font_weight();
 
     // <number [1,1000]>
@@ -4506,11 +4515,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefP
 NonnullRefPtr<StyleValue const> StyleComputer::compute_math_depth(NonnullRefPtr<StyleValue const> const& absolutized_value, Optional<DOM::AbstractElement> const& inheritance_parent)
 {
     auto inherited_math_depth = inheritance_parent.has_value()
-        ? inheritance_parent->computed_properties()->math_depth()
+        ? inheritance_parent->computed_values()->math_depth()
         : InitialValues::math_depth();
 
     auto inherited_math_style = inheritance_parent.has_value()
-        ? inheritance_parent->computed_properties()->math_style()
+        ? inheritance_parent->computed_values()->math_style()
         : InitialValues::math_style();
 
     // The computed value of the math-depth value is determined as follows:

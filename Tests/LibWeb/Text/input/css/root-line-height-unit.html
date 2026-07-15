@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    html {
+        line-height: 20px;
+    }
+
+    text {
+        line-height: 80px;
+    }
+</style>
+<svg>
+    <text id="control" x="0" y="50">foo</text>
+    <text id="target" x="2rlh" y="50">foo</text>
+</svg>
+<script>
+    test(() => {
+        println(target.getBBox().x - control.getBBox().x);
+    });
+</script>

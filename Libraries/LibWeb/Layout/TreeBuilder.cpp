@@ -500,7 +500,7 @@ static Optional<FirstLetterTarget> find_first_letter_in_block(BlockContainer& bl
             break;
         // Stop descending if this child block defines its own ::first-letter: the child will style the first letter
         // inside it, so the ancestor's ::first-letter must not also claim the same letter.
-        if (auto* dom_element = as_if<DOM::Element>(inner_block->dom_node()); dom_element && dom_element->computed_properties(CSS::PseudoElement::FirstLetter))
+        if (auto* dom_element = as_if<DOM::Element>(inner_block->dom_node()); dom_element && dom_element->computed_values(CSS::PseudoElement::FirstLetter))
             break;
         if (auto target = find_first_letter_in_block(*inner_block); target.has_value())
             return target;
@@ -542,7 +542,7 @@ void TreeBuilder::create_first_letter_wrapper_if_needed(DOM::Element& element, B
         first_letter_slice = make_ref_counted<GeneratedTextNode>(document, Utf16String::from_utf16(text.utf16_view().substring_view(0, letter_end)));
     }
 
-    auto first_letter_wrapper = DOM::Element::create_layout_node_for_display_type(document, first_letter_style->display(), *first_letter_style, nullptr);
+    auto first_letter_wrapper = DOM::Element::create_layout_node_for_display_type(document, element.computed_values(CSS::PseudoElement::FirstLetter)->display(), *first_letter_style, nullptr);
     if (!first_letter_wrapper)
         return;
     first_letter_wrapper->set_generated_for(CSS::PseudoElement::FirstLetter, element);
@@ -573,7 +573,7 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     DOM::AbstractElement element_reference { element, pseudo_element };
     auto [pseudo_element_content, final_quote_nesting_level] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
     m_quote_nesting_level = final_quote_nesting_level;
-    auto pseudo_element_display = pseudo_element_style->display();
+    auto pseudo_element_display = element.computed_values(pseudo_element)->display();
 
     // ::before and ::after only exist if they have content. `content: normal` computes to `none` for them.
     // We also don't create them if they are `display: none`.
@@ -750,9 +750,9 @@ static DOM::Element* display_contents_style_parent_for_text_node(DOM::Text& text
 {
     auto* parent = text_node.flat_tree_parent();
     auto* parent_element = as_if<DOM::Element>(parent);
-    if (!parent_element || !parent_element->computed_properties())
+    if (!parent_element || !parent_element->computed_values())
         return nullptr;
-    if (!parent_element->computed_properties()->display().is_contents())
+    if (!parent_element->computed_values()->display().is_contents())
         return nullptr;
     return parent_element;
 }
@@ -762,7 +762,7 @@ static bool display_contents_text_needs_style_wrapper(DOM::Text& text_node, DOM:
     if (!text_node.data().is_ascii_whitespace())
         return true;
 
-    return !first_is_one_of(style_parent.computed_properties()->white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse);
+    return !first_is_one_of(style_parent.computed_values()->white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse);
 }
 
 TraversalDecision TreeBuilder::clear_stale_layout_and_paint_node(DOM::Node& node, DOM::Node const* cleared_subtree_root)
@@ -899,7 +899,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         if (is<DOM::Element>(dom_node)) {
             auto& element = static_cast<DOM::Element&>(dom_node);
             style = element.computed_properties();
-            display = style->display();
+            display = element.computed_values()->display();
             if (display.is_contents()) {
                 should_clear_stale_layout_subtree_if_no_layout_node = false;
                 update_layout_tree_for_display_contents(element, context, must_create_subtree, should_create_layout_node);
@@ -923,15 +923,15 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             // Elements inside a `display:none` subtree are skipped by
             // `Document::update_style_recursively`, so a bypass path (top-layer iteration, slot
             // projection, SVG mask/clip-path or pattern reference) may reach an element whose
-            // `needs_style_update` flag is still set or whose `computed_properties` is null. Route
+            // `needs_style_update` flag is still set or whose `computed_values` is null. Route
             // through `update_style_for_element`, which seeds the style computer's ancestor filter
             // so descendant-combinator selectors continue to match during the lazy re-cascade.
-            if (element.needs_style_update() || !element.computed_properties()) {
+            if (element.needs_style_update() || !element.computed_values()) {
                 document.update_style_for_element({ element });
                 element.set_needs_style_update(false);
             }
             style = element.computed_properties();
-            display = style->display();
+            display = element.computed_values()->display();
             if (display.is_none())
                 return;
             if (display.is_contents()) {
@@ -958,7 +958,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             }
         } else if (is<DOM::Document>(dom_node)) {
             style = style_computer.create_document_style();
-            display = style->display();
+            display = style->computed_values()->display();
             layout_node = make_ref_counted<Layout::Viewport>(static_cast<DOM::Document&>(dom_node), *style);
         } else if (is<DOM::Text>(dom_node)) {
             auto& text_node = static_cast<DOM::Text&>(dom_node);
@@ -1071,7 +1071,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     auto element_has_content_visibility_hidden = [&dom_node]() {
         if (is<DOM::Element>(dom_node)) {
             auto& element = static_cast<DOM::Element&>(dom_node);
-            return element.computed_properties()->content_visibility() == CSS::ContentVisibility::Hidden;
+            return element.computed_values()->content_visibility() == CSS::ContentVisibility::Hidden;
         }
         return false;
     }();
@@ -1153,7 +1153,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     if (is<HTML::HTMLSlotElement>(dom_node)) {
         auto& slot_element = static_cast<HTML::HTMLSlotElement&>(dom_node);
 
-        if (slot_element.computed_properties()->content_visibility() != CSS::ContentVisibility::Hidden) {
+        if (slot_element.computed_values()->content_visibility() != CSS::ContentVisibility::Hidden) {
             auto slottables = slot_element.assigned_nodes_internal();
             push_parent(as<NodeWithStyle>(*layout_node));
 
@@ -1215,7 +1215,7 @@ void TreeBuilder::update_layout_tree_for_display_contents(DOM::Element& element,
         CSS::resolve_counters(element_reference);
     }
 
-    auto element_has_content_visibility_hidden = element.computed_properties()->content_visibility() == CSS::ContentVisibility::Hidden;
+    auto element_has_content_visibility_hidden = element.computed_values()->content_visibility() == CSS::ContentVisibility::Hidden;
     if (!element_has_content_visibility_hidden)
         (void)create_pseudo_element_if_needed(element, CSS::PseudoElement::Before, AppendOrPrepend::Append);
 

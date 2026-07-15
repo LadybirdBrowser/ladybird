@@ -48,15 +48,15 @@ void SVGStopElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prop
 
 Gfx::Color SVGStopElement::stop_color()
 {
-    if (auto computed_properties = this->computed_properties())
-        return computed_properties->color(CSS::PropertyID::StopColor, CSS::ColorResolutionContext::for_element({ *this }));
+    if (auto computed_values = this->computed_values())
+        return computed_values->stop_color();
     return CSS::InitialValues::stop_color();
 }
 
 float SVGStopElement::stop_opacity() const
 {
-    if (auto computed_properties = this->computed_properties())
-        return computed_properties->stop_opacity();
+    if (auto computed_values = this->computed_values())
+        return computed_values->stop_opacity();
     return 1;
 }
 

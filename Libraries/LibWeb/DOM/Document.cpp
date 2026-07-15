@@ -1456,8 +1456,7 @@ CSS::PreferredColorScheme Document::canvas_color_scheme() const
     if (auto* html_element = this->html_element(); html_element && html_element->layout_node()) {
         root_color_scheme_was_computed = true;
         auto const& computed_values = html_element->layout_node()->computed_values();
-        auto const& color_scheme_value = html_element->computed_properties()->property(CSS::PropertyID::ColorScheme).as_color_scheme();
-        root_color_scheme_is_normal = color_scheme_value.schemes().is_empty();
+        root_color_scheme_is_normal = computed_values.color_schemes().is_empty();
         if (computed_values.color_scheme() == CSS::PreferredColorScheme::Dark) {
             color_scheme = CSS::PreferredColorScheme::Dark;
         } else if (root_color_scheme_is_normal && m_supported_color_schemes.has_value()) {
@@ -1846,25 +1845,25 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
     // - 'overflow' and its longhands (see CSS Overflow 3 § 3.3 Overflow Viewport Propagation)
     auto* body_element = root_element.first_child_of_type<HTML::HTMLBodyElement>();
     bool body_element_can_propagate_overflow = body_element
-        && !body_element->computed_properties()->display().is_none()
+        && !body_element->computed_values()->display().is_none()
         && body_element->unsafe_layout_node();
-    bool body_propagation_is_disabled_by_containment = root_element.is_html_html_element() && !root_element.computed_properties()->contain().is_empty();
-    if (body_element && !body_element->computed_properties()->contain().is_empty())
+    bool body_propagation_is_disabled_by_containment = root_element.is_html_html_element() && !root_element.computed_values()->contain().is_empty();
+    if (body_element && !body_element->computed_values()->contain().is_empty())
         body_propagation_is_disabled_by_containment = true;
 
     // UAs must apply the overflow-* values set on the root element to the viewport
     // when the root element’s display value is not none.
     auto root_element_layout_node = root_element.unsafe_layout_node();
-    auto const& root_element_computed_properties = *root_element.computed_properties();
+    auto const& root_element_computed_values = *root_element.computed_values();
     root_element_layout_node->modify_computed_values([&](auto& values) {
-        values.set_overflow_x(root_element_computed_properties.overflow_x());
-        values.set_overflow_y(root_element_computed_properties.overflow_y());
+        values.set_overflow_x(root_element_computed_values.overflow_x());
+        values.set_overflow_y(root_element_computed_values.overflow_y());
     });
     if (body_element_can_propagate_overflow) {
-        auto const& body_element_computed_properties = *body_element->computed_properties();
+        auto const& body_element_computed_values = *body_element->computed_values();
         body_element->unsafe_layout_node()->modify_computed_values([&](auto& values) {
-            values.set_overflow_x(body_element_computed_properties.overflow_x());
-            values.set_overflow_y(body_element_computed_properties.overflow_y());
+            values.set_overflow_x(body_element_computed_values.overflow_x());
+            values.set_overflow_y(body_element_computed_values.overflow_y());
         });
     }
 
@@ -1875,7 +1874,7 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
     // a body element whose display value is also not none,
     // user agents must instead apply the overflow-* values of the first such child element to the viewport.
     if (root_element.is_html_html_element() && !body_propagation_is_disabled_by_containment) {
-        if (root_element_computed_properties.overflow_x() == CSS::Overflow::Visible && root_element_computed_properties.overflow_y() == CSS::Overflow::Visible) {
+        if (root_element_computed_values.overflow_x() == CSS::Overflow::Visible && root_element_computed_values.overflow_y() == CSS::Overflow::Visible) {
             if (body_element_can_propagate_overflow)
                 overflow_origin_node = body_element->unsafe_layout_node();
         }

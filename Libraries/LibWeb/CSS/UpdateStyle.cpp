@@ -175,7 +175,7 @@ static void enter_style_update_frame(StyleUpdateFrame& frame, StyleComputer& sty
 
         if (frame.needs_full_style_update
             || node.needs_style_update()
-            || (frame.traversal == StyleUpdateTraversal::TraverseDisplayNoneSubtrees && !element.computed_properties())
+            || (frame.traversal == StyleUpdateTraversal::TraverseDisplayNoneSubtrees && !element.computed_values())
             || frame.parent_display_changed
             || frame.ancestor_needs_descendant_style_recompute
             || (frame.recompute_elements_depending_on_custom_properties && (element.style_uses_var_css_function() || element.style_uses_inherit_css_function()))
@@ -189,7 +189,7 @@ static void enter_style_update_frame(StyleUpdateFrame& frame, StyleComputer& sty
                 element.invalidate_descendant_styles_depending_on_style_container_query();
             }
         }
-        frame.is_display_none = element.computed_properties()->display().is_none();
+        frame.is_display_none = element.computed_values()->display().is_none();
 
         if (frame.invalidation_behavior == StyleInvalidationBehavior::Suppress)
             element.set_needs_style_update(false);
@@ -246,12 +246,12 @@ static bool should_update_style_for_child(StyleUpdateFrame const& frame, DOM::No
     //     slotted element's style cannot be computed either. Skip it; on-demand reads refresh it lazily via
     //     update_style_for_element, and assigned slottables are invalidated when the slot eventually gets style.
     if (auto const* element = as_if<DOM::Element>(child)) {
-        if (auto const slot = element->assigned_slot_internal(); slot && !slot->computed_properties())
+        if (auto const slot = element->assigned_slot_internal(); slot && !slot->computed_values())
             return false;
     }
 
     if (frame.traversal == StyleUpdateTraversal::TraverseDisplayNoneSubtrees) {
-        if (auto const* element = as_if<DOM::Element>(child); element && !element->computed_properties())
+        if (auto const* element = as_if<DOM::Element>(child); element && !element->computed_values())
             return true;
     }
 
@@ -539,7 +539,7 @@ ComputedProperties const* update_style_for_element(DOM::Document& document, DOM:
         if (!topmost_element_requiring_style.has_value()
             && (ancestor_needs_descendant_style_recompute
                 || ancestor->needs_style_update()
-                || !ancestor->computed_properties())) {
+                || !ancestor->computed_values())) {
             topmost_element_requiring_style = i - 1;
         }
 
@@ -549,7 +549,7 @@ ComputedProperties const* update_style_for_element(DOM::Document& document, DOM:
             ancestor_needs_descendant_style_recompute = true;
         }
 
-        if (auto const properties = ancestor->computed_properties(); properties && properties->display().is_none()) {
+        if (auto const values = ancestor->computed_values(); values && values->display().is_none()) {
             topmost_display_none_index = i - 1;
             if (mode == StyleUpdateMode::StopAtDisplayNone && !topmost_element_requiring_style.has_value())
                 return nullptr;
@@ -594,7 +594,7 @@ ComputedProperties const* update_style_for_element(DOM::Document& document, DOM:
 
         descendant_style_recompute_needed |= invalidation.recompute_descendant_styles;
 
-        if (element->computed_properties()->display().is_none()) {
+        if (element->computed_values()->display().is_none()) {
             if (mode == StyleUpdateMode::StopAtDisplayNone)
                 return nullptr;
             descendant_style_recompute_needed = false;
@@ -618,15 +618,15 @@ void update_style_for_subtree_including_display_none(DOM::Document& document, DO
 
     auto* update_root = &root;
     for (auto* ancestor = &root; ancestor; ancestor = ancestor->parent_or_shadow_host_element()) {
-        if (!ancestor->computed_properties())
+        if (!ancestor->computed_values())
             update_root = ancestor;
-        if (auto const properties = ancestor->computed_properties(); properties && properties->display().is_none())
+        if (auto const values = ancestor->computed_values(); values && values->display().is_none())
             update_root = ancestor;
     }
 
     auto force_descendant_style_recompute = update_root->child_needs_style_update();
 
-    if (update_root->computed_properties() && !update_root->needs_style_update() && !force_descendant_style_recompute)
+    if (update_root->computed_values() && !update_root->needs_style_update() && !force_descendant_style_recompute)
         return;
 
     VERIFY(&update_root->document() == &document);

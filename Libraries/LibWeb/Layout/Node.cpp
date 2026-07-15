@@ -9,9 +9,12 @@
 #include <AK/Demangle.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
@@ -690,18 +693,15 @@ void NodeWithStyle::rebuild_image_observers()
     Vector<NonnullOwnPtr<ImageObserver>> new_observers;
     for (auto const& layer : computed_values().background_layers())
         add_observer_for(layer.background_image.ptr(), new_observers);
-    add_observer_for(m_list_style_image.ptr(), new_observers);
+    add_observer_for(computed_values().list_style_image(), new_observers);
     for (auto const& layer : computed_values().mask_layers())
         add_observer_for(layer.background_image.ptr(), new_observers);
     for (auto const& cursor : computed_values().cursor()) {
         if (auto const* cursor_style_value = cursor.get_pointer<NonnullRefPtr<CSS::CursorStyleValue const>>())
             add_observer_for(&(*cursor_style_value)->image(), new_observers);
     }
-    if (auto const* element = as_if<DOM::Element>(dom_node())) {
-        auto const& border_image_source = element->computed_properties()->property(CSS::PropertyID::BorderImageSource);
-        if (border_image_source.is_abstract_image())
-            add_observer_for(&border_image_source.as_abstract_image(), new_observers);
-    }
+    if (auto const& border_image = computed_values().border_image(); border_image.has_value())
+        add_observer_for(border_image->source.ptr(), new_observers);
     // TODO: Observe other <image> accepting properties once we support them.
 
     m_image_observers = move(new_observers);
@@ -717,6 +717,8 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
     auto& computed_values = *builder.operator->();
 
     // NOTE: color-scheme must be set first to ensure system colors can be resolved correctly.
+    auto const& color_scheme_style_value = computed_style.property(PropertyID::ColorScheme).as_color_scheme();
+    computed_values.set_color_schemes(color_scheme_style_value.schemes(), color_scheme_style_value.only());
     auto color_scheme = computed_style.color_scheme(document.page().preferred_color_scheme(), document.supported_color_schemes());
     computed_values.set_color_scheme(color_scheme);
 
@@ -724,10 +726,47 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
     //       m_font is used by Length::to_px() when resolving sizes against this layout node.
     //       That's why it has to be set before everything else.
     computed_values.set_font_list(computed_style.computed_font_list(document.font_computer()));
+    Vector<ComputedFontFamily> font_families;
+    for (auto const& family : computed_style.property(PropertyID::FontFamily).as_value_list().values()) {
+        if (family->is_keyword()) {
+            font_families.append(keyword_to_generic_font_family(family->to_keyword()).value());
+        } else {
+            font_families.append(ComputedFontFamilyName {
+                .name = string_from_style_value(family),
+                .syntax = family->is_string() ? ComputedFontFamilySyntax::String : ComputedFontFamilySyntax::CustomIdent,
+            });
+        }
+    }
+    computed_values.set_font_families(move(font_families));
     computed_values.set_font_size(computed_style.font_size());
     computed_values.set_font_weight(computed_style.font_weight());
+    computed_values.set_font_width(computed_style.font_width());
+    auto const& font_style = computed_style.property(PropertyID::FontStyle).as_font_style();
+    Optional<Variant<Angle, NonnullRefPtr<CalculatedStyleValue const>>> font_style_angle;
+    if (font_style.angle()) {
+        if (font_style.angle()->is_angle())
+            font_style_angle = font_style.angle()->as_angle().angle();
+        else
+            font_style_angle = NonnullRefPtr { font_style.angle()->as_calculated() };
+    }
+    computed_values.set_font_style({ font_style.font_style(), move(font_style_angle) });
+    computed_values.set_font_optical_sizing(computed_style.font_optical_sizing());
+    computed_values.set_font_feature_data(computed_style.font_feature_data());
     computed_values.set_line_height(computed_style.line_height_data(document.font_computer()));
     computed_values.set_font_variant_emoji(computed_style.font_variant_emoji());
+
+    Vector<ComputedAnimationName> animation_names;
+    for (auto const& name : computed_style.property(PropertyID::AnimationName).as_value_list().values()) {
+        if (name->to_keyword() == Keyword::None) {
+            animation_names.empend();
+        } else {
+            animation_names.append(ComputedAnimationName {
+                .name = string_from_style_value(name),
+                .syntax = name->is_string() ? ComputedAnimationNameSyntax::String : ComputedAnimationNameSyntax::CustomIdent,
+            });
+        }
+    }
+    computed_values.set_animation_names(move(animation_names));
 
     // NOTE: color must be set after color-scheme to ensure currentColor can be resolved in other properties (e.g. background-color).
     // NOTE: color must be set after font_size as `CalculatedStyleValue`s can rely on it being set for resolving lengths.
@@ -739,7 +778,12 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
     color_resolution_context.current_color = color;
     color_resolution_context.color_scheme = color_scheme;
 
-    computed_values.set_accent_color(computed_style.accent_color(color_resolution_context));
+    auto const& accent_color_value = computed_style.property(CSS::PropertyID::AccentColor);
+    CSS::AccentColor accent_color;
+    accent_color.used_value = computed_style.accent_color(color_resolution_context);
+    if (accent_color_value.to_keyword() != CSS::Keyword::Auto)
+        accent_color.computed_value = accent_color.used_value;
+    computed_values.set_accent_color(move(accent_color));
 
     computed_values.set_vertical_align(computed_style.vertical_align());
 
@@ -803,21 +847,69 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
 
     // https://drafts.csswg.org/css-anchor-position-1/#position-anchor
     auto const& position_anchor_value = computed_style.property(CSS::PropertyID::PositionAnchor);
-    if (position_anchor_value.is_custom_ident())
-        computed_values.set_position_anchor(position_anchor_value.as_custom_ident().custom_ident());
+    CSS::PositionAnchor position_anchor;
+    if (position_anchor_value.is_custom_ident()) {
+        position_anchor.type = CSS::PositionAnchor::Type::Name;
+        position_anchor.name = position_anchor_value.as_custom_ident().custom_ident();
+    } else {
+        switch (position_anchor_value.to_keyword()) {
+        case CSS::Keyword::Normal:
+            position_anchor.type = CSS::PositionAnchor::Type::Normal;
+            break;
+        case CSS::Keyword::None:
+            position_anchor.type = CSS::PositionAnchor::Type::None;
+            break;
+        case CSS::Keyword::Auto:
+            position_anchor.type = CSS::PositionAnchor::Type::Auto;
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+    computed_values.set_position_anchor(move(position_anchor));
 
     computed_values.set_text_align(computed_style.text_align());
     computed_values.set_text_justify(computed_style.text_justify());
     computed_values.set_text_overflow(computed_style.text_overflow());
-    computed_values.set_text_underline_offset(computed_style.text_underline_offset());
+    auto const& text_underline_offset_value = computed_style.property(CSS::PropertyID::TextUnderlineOffset);
+    CSS::TextUnderlineOffset text_underline_offset;
+    text_underline_offset.used_value = computed_style.text_underline_offset();
+    if (text_underline_offset_value.to_keyword() != CSS::Keyword::Auto)
+        text_underline_offset.computed_value = CSS::LengthPercentage::from_style_value(text_underline_offset_value);
+    computed_values.set_text_underline_offset(move(text_underline_offset));
     computed_values.set_text_underline_position(computed_style.text_underline_position());
 
     computed_values.set_text_indent(computed_style.text_indent());
     computed_values.set_text_wrap_mode(computed_style.text_wrap_mode());
+    computed_values.set_text_wrap_style(CSS::keyword_to_text_wrap_style(computed_style.property(CSS::PropertyID::TextWrapStyle).to_keyword()).release_value());
     computed_values.set_tab_size(computed_style.tab_size());
 
     computed_values.set_white_space_collapse(computed_style.white_space_collapse());
     computed_values.set_word_break(computed_style.word_break());
+    switch (computed_style.property(CSS::PropertyID::OverflowWrap).to_keyword()) {
+    case CSS::Keyword::Normal:
+        computed_values.set_overflow_wrap(CSS::OverflowWrap::Normal);
+        break;
+    case CSS::Keyword::BreakWord:
+        computed_values.set_overflow_wrap(CSS::OverflowWrap::BreakWord);
+        break;
+    case CSS::Keyword::Anywhere:
+        computed_values.set_overflow_wrap(CSS::OverflowWrap::Anywhere);
+        break;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+    auto integer_from_style_value = [](CSS::StyleValue const& value) -> u64 {
+        i32 integer;
+        if (value.is_integer())
+            integer = value.as_integer().integer();
+        else
+            integer = value.as_calculated().resolve_integer({}).value();
+        VERIFY(integer >= 0);
+        return integer;
+    };
+    computed_values.set_orphans(integer_from_style_value(computed_style.property(CSS::PropertyID::Orphans)));
+    computed_values.set_widows(integer_from_style_value(computed_style.property(CSS::PropertyID::Widows)));
 
     computed_values.set_word_spacing(computed_style.word_spacing());
     computed_values.set_letter_spacing(computed_style.letter_spacing());
@@ -843,11 +935,17 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
 
     computed_values.set_list_style_type(computed_style.list_style_type(style_scope));
     computed_values.set_list_style_position(computed_style.list_style_position());
+    auto const& list_style_image = computed_style.property(PropertyID::ListStyleImage);
+    if (list_style_image.is_abstract_image())
+        computed_values.set_list_style_image(list_style_image.as_abstract_image());
 
     computed_values.set_text_decoration_color(computed_style.color(CSS::PropertyID::TextDecorationColor, color_resolution_context));
     computed_values.set_text_decoration_thickness(computed_style.text_decoration_thickness());
 
-    computed_values.set_webkit_text_fill_color(computed_style.color(CSS::PropertyID::WebkitTextFillColor, color_resolution_context));
+    auto const& webkit_text_fill_color = computed_style.property(CSS::PropertyID::WebkitTextFillColor);
+    computed_values.set_webkit_text_fill_color(
+        webkit_text_fill_color.to_color(color_resolution_context).value(),
+        webkit_text_fill_color.to_keyword() == Keyword::Currentcolor);
 
     computed_values.set_text_shadow(computed_style.text_shadow(color_resolution_context));
 
@@ -865,8 +963,15 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
     computed_values.set_max_height(computed_style.size_value(CSS::PropertyID::MaxHeight));
 
     computed_values.set_inset(computed_style.length_box(CSS::PropertyID::Left, CSS::PropertyID::Top, CSS::PropertyID::Right, CSS::PropertyID::Bottom, CSS::LengthPercentageOrAuto::make_auto()));
+    for (auto property_id : { PropertyID::Top, PropertyID::Right, PropertyID::Bottom, PropertyID::Left }) {
+        auto const& inset = computed_style.property(property_id);
+        if (inset.is_anchor())
+            computed_values.set_anchor_inset(property_id, inset);
+    }
     computed_values.set_margin(computed_style.length_box(CSS::PropertyID::MarginLeft, CSS::PropertyID::MarginTop, CSS::PropertyID::MarginRight, CSS::PropertyID::MarginBottom, CSS::Length::make_px(0)));
     computed_values.set_padding(computed_style.length_box(CSS::PropertyID::PaddingLeft, CSS::PropertyID::PaddingTop, CSS::PropertyID::PaddingRight, CSS::PropertyID::PaddingBottom, CSS::Length::make_px(0)));
+    computed_values.set_scroll_margin(computed_style.length_box(CSS::PropertyID::ScrollMarginLeft, CSS::PropertyID::ScrollMarginTop, CSS::PropertyID::ScrollMarginRight, CSS::PropertyID::ScrollMarginBottom, CSS::Length::make_px(0)));
+    computed_values.set_scroll_padding(computed_style.length_box(CSS::PropertyID::ScrollPaddingLeft, CSS::PropertyID::ScrollPaddingTop, CSS::PropertyID::ScrollPaddingRight, CSS::PropertyID::ScrollPaddingBottom, CSS::LengthPercentageOrAuto::make_auto()));
     {
         auto extract_side = [&](CSS::PropertyID property_id) -> CSS::OverflowClipMarginSide {
             auto const& value = computed_style.property(property_id);
@@ -956,13 +1061,10 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
     auto const& stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
-    // FIXME: Support calc()
     if (stroke_width.is_number())
         computed_values.set_stroke_width(CSS::Length::make_px(CSSPixels::nearest_value_for(stroke_width.as_number().number())));
-    else if (stroke_width.is_length())
-        computed_values.set_stroke_width(stroke_width.as_length().length());
-    else if (stroke_width.is_percentage())
-        computed_values.set_stroke_width(CSS::LengthPercentage { stroke_width.as_percentage().percentage() });
+    else
+        computed_values.set_stroke_width(CSS::LengthPercentage::from_style_value(stroke_width));
     computed_values.set_shape_rendering(computed_style.shape_rendering());
     computed_values.set_paint_order(computed_style.paint_order());
 
@@ -999,13 +1101,10 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
     auto const& stroke_dashoffset = computed_style.property(CSS::PropertyID::StrokeDashoffset);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
-    // FIXME: Support calc()
     if (stroke_dashoffset.is_number())
         computed_values.set_stroke_dashoffset(CSS::Length::make_px(CSSPixels::nearest_value_for(stroke_dashoffset.as_number().number())));
-    else if (stroke_dashoffset.is_length())
-        computed_values.set_stroke_dashoffset(stroke_dashoffset.as_length().length());
-    else if (stroke_dashoffset.is_percentage())
-        computed_values.set_stroke_dashoffset(CSS::LengthPercentage { stroke_dashoffset.as_percentage().percentage() });
+    else
+        computed_values.set_stroke_dashoffset(CSS::LengthPercentage::from_style_value(stroke_dashoffset));
 
     computed_values.set_stroke_linecap(computed_style.stroke_linecap());
     computed_values.set_stroke_linejoin(computed_style.stroke_linejoin());
@@ -1042,17 +1141,18 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
         if (values_list.size() == 2
             && values_list[0]->is_keyword() && values_list[0]->as_keyword().keyword() == CSS::Keyword::Auto
             && values_list[1]->is_ratio()) {
-            computed_values.set_aspect_ratio({ true, values_list[1]->as_ratio().resolved() });
+            auto ratio = values_list[1]->as_ratio().resolved();
+            computed_values.set_aspect_ratio({ true, ratio, true, ratio });
         }
     } else if (aspect_ratio.is_keyword() && aspect_ratio.as_keyword().keyword() == CSS::Keyword::Auto) {
-        computed_values.set_aspect_ratio({ true, {} });
+        computed_values.set_aspect_ratio({ true, {}, true, {} });
     } else if (aspect_ratio.is_ratio()) {
         // https://drafts.csswg.org/css-sizing-4/#aspect-ratio
         // If the <ratio> is degenerate, the property instead behaves as auto.
         if (aspect_ratio.as_ratio().resolved().is_degenerate())
-            computed_values.set_aspect_ratio({ true, {} });
+            computed_values.set_aspect_ratio({ true, {}, false, aspect_ratio.as_ratio().resolved() });
         else
-            computed_values.set_aspect_ratio({ false, aspect_ratio.as_ratio().resolved() });
+            computed_values.set_aspect_ratio({ false, aspect_ratio.as_ratio().resolved(), false, aspect_ratio.as_ratio().resolved() });
     }
 
     computed_values.set_touch_action(computed_style.touch_action());
@@ -1119,25 +1219,16 @@ namespace Web::Layout {
 
 void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 {
-    if (auto prebuilt_values = computed_style.computed_values()) {
-        m_computed_values = prebuilt_values.release_nonnull();
-    } else {
-        VERIFY(is<DOM::Document>(dom_node()));
-        CSS::ColorResolutionContext color_resolution_context {
-            .color_scheme = document().page().preferred_color_scheme(),
-            .current_color = CSS::InitialValues::color(),
-            .calculation_resolution_context = { .length_resolution_context = CSS::Length::ResolutionContext::for_document(document()) },
-        };
-        m_computed_values = CSS::ComputedValues::create(computed_style, document(), style_scope(), move(color_resolution_context));
-        computed_style.set_computed_values(m_computed_values);
-    }
+    auto prebuilt_values = computed_style.computed_values();
+    VERIFY(prebuilt_values);
+    m_computed_values = prebuilt_values.release_nonnull();
 
     propagate_style_to_anonymous_wrappers();
 
-    attach_style_resources(computed_style);
+    attach_style_resources();
 }
 
-void NodeWithStyle::attach_style_resources(CSS::ComputedProperties const& computed_style)
+void NodeWithStyle::attach_style_resources()
 {
     auto load_image = [&](CSS::AbstractImageStyleValue const* image) {
         if (image)
@@ -1156,12 +1247,7 @@ void NodeWithStyle::attach_style_resources(CSS::ComputedProperties const& comput
     }
     load_image(computed_values().mask_image().ptr());
 
-    m_list_style_image = nullptr;
-    auto const& list_style_image = computed_style.property(CSS::PropertyID::ListStyleImage);
-    if (list_style_image.is_abstract_image()) {
-        m_list_style_image = list_style_image.as_abstract_image();
-        load_image(m_list_style_image.ptr());
-    }
+    load_image(computed_values().list_style_image());
 
     rebuild_image_observers();
 }
@@ -1407,7 +1493,7 @@ void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_value
     else
         builder->set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
     builder->set_position(computed_values().position());
-    builder->set_position_anchor(computed_values().position_anchor());
+    builder->set_position_anchor(computed_values().position_anchor_value());
     builder->set_inset(computed_values().inset());
     builder->set_float(computed_values().float_());
     builder->set_clear(computed_values().clear());

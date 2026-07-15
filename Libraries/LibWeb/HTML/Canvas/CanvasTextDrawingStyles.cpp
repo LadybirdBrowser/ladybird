@@ -102,7 +102,7 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
 
         if (canvas_element.navigable() && canvas_element.is_connected()) {
             // NOTE: Since we can't set a math depth directly here we always use the inherited value for the computed value
-            computed_math_depth = canvas_element.computed_properties()->math_depth();
+            computed_math_depth = canvas_element.computed_values()->math_depth();
 
             // NOTE: The canvas itself is considered the inheritance parent
             inheritance_parent = canvas_element;

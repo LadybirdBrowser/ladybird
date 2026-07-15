@@ -38,7 +38,7 @@ Optional<Color> AbstractCanvasMixin::parse_a_css_color_value(Utf16View value) co
         [&](GC::Ref<HTMLCanvasElement> const& canvas_element) {
             canvas_element->document().update_style_if_needed_for_element(*canvas_element);
 
-            if (canvas_element->computed_properties())
+            if (canvas_element->computed_values())
                 return CSS::ColorResolutionContext::for_element(*canvas_element);
 
             return CSS::ColorResolutionContext {};

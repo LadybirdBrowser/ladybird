@@ -11,7 +11,7 @@
 #include <LibGC/Cell.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Rect.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Percentage.h>
@@ -51,7 +51,7 @@ static ContainerRelativeAxis logical_axis_to_physical_axis(bool inline_axis_is_h
 
 static bool query_container_is_eligible_for_axis(DOM::Element const& container, ContainerRelativeAxis axis)
 {
-    auto style = container.computed_properties();
+    auto style = container.computed_values();
     if (!style)
         return false;
 
@@ -266,17 +266,19 @@ Length::ResolutionContext Length::ResolutionContext::for_element(DOM::AbstractEl
 {
     auto const* root_element = element.element().document().document_element();
 
-    VERIFY(element.computed_properties());
+    auto const* computed_values = element.computed_values();
+    VERIFY(computed_values);
     VERIFY(root_element);
-    VERIFY(root_element->computed_properties());
+    auto root_computed_values = root_element->computed_values();
+    VERIFY(root_computed_values);
 
     return Length::ResolutionContext {
         .viewport_rect = element.element().navigable()->viewport_rect(),
-        .font_metrics = { element.computed_properties()->font_size(), element.computed_properties()->first_available_computed_font(element.document().font_computer())->pixel_metrics(), element.computed_properties()->line_height(element.document().font_computer()) },
-        .root_font_metrics = { root_element->computed_properties()->font_size(), root_element->computed_properties()->first_available_computed_font(element.document().font_computer())->pixel_metrics(), element.computed_properties()->line_height(element.document().font_computer()) },
-        .font_metrics_depend_on_viewport_metrics = element.computed_properties()->font_metrics_depend_on_viewport_metrics(),
-        .root_font_metrics_depend_on_viewport_metrics = root_element->computed_properties()->font_metrics_depend_on_viewport_metrics(),
-        .subject_inline_axis_is_horizontal = inline_axis_is_horizontal(element.computed_properties()->writing_mode()),
+        .font_metrics = { computed_values->font_size(), computed_values->font_list().font_for_code_point(' ').pixel_metrics(), computed_values->line_height() },
+        .root_font_metrics = { root_computed_values->font_size(), root_computed_values->font_list().font_for_code_point(' ').pixel_metrics(), root_computed_values->line_height() },
+        .font_metrics_depend_on_viewport_metrics = computed_values->font_metrics_depend_on_viewport_metrics(),
+        .root_font_metrics_depend_on_viewport_metrics = root_computed_values->font_metrics_depend_on_viewport_metrics(),
+        .subject_inline_axis_is_horizontal = inline_axis_is_horizontal(computed_values->writing_mode()),
         .subject_element = &element.element(),
     };
 }

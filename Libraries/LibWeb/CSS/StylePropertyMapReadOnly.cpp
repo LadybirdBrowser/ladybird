@@ -185,8 +185,8 @@ RefPtr<StyleValue const> StylePropertyMapReadOnly::get_style_value(Source& sourc
 
             if (property.id() >= first_longhand_property_id && property.id() <= last_longhand_property_id) {
                 // FIXME: This will only ever be null for pseudo-elements. What should we do in that case?
-                if (auto computed_properties = element.computed_properties())
-                    return computed_properties->property(property.id());
+                if (auto computed_values = element.computed_values())
+                    return computed_values->computed_style_value(property.id());
             }
 
             return nullptr;

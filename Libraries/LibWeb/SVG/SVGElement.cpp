@@ -388,11 +388,11 @@ GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::Pro
 {
     // FIXME: Create a proper animated value when animations are supported.
     auto make_length = [&](SVGLength::ReadOnly read_only) {
-        if (auto const computed_properties = this->computed_properties()) {
-            auto const& style_value = computed_properties->property(property);
+        if (auto const computed_values = this->computed_values()) {
+            auto style_value = computed_values->computed_style_value(property);
 
-            if (!style_value.has_auto() && (style_value.is_length() || style_value.is_percentage() || style_value.is_calculated()))
-                return SVGLength::from_length_percentage(realm(), CSS::LengthPercentage::from_style_value(style_value), read_only);
+            if (style_value && !style_value->has_auto() && (style_value->is_length() || style_value->is_percentage() || style_value->is_calculated()))
+                return SVGLength::from_length_percentage(realm(), CSS::LengthPercentage::from_style_value(*style_value), read_only);
         }
         return SVGLength::create(realm(), 0, 0, read_only);
     };

@@ -1,0 +1,13 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="target" style="counter-reset: chapter 2 section 5; counter-increment: item 3; counter-set: item 7"></div>
+<div id="initial"></div>
+<script>
+    test(() => {
+        const style = target.computedStyleMap();
+        println(`reset: ${style.get("counter-reset")}`);
+        println(`increment: ${style.get("counter-increment")}`);
+        println(`set: ${style.get("counter-set")}`);
+        println(`initial: ${initial.computedStyleMap().get("counter-reset")}`);
+    });
+</script>

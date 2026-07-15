@@ -716,6 +716,15 @@ static bool style_value_references_font_family(StyleValue const& font_family_val
     return false;
 }
 
+static bool computed_values_reference_font_family(ComputedValues const& computed_values, Utf16FlyString const& family_name)
+{
+    for (auto const& family : computed_values.font_families()) {
+        if (auto const* name = family.get_pointer<ComputedFontFamilyName>(); name && name->name.equals_ignoring_ascii_case(family_name))
+            return true;
+    }
+    return false;
+}
+
 void FontComputer::clear_computed_font_cache(Utf16FlyString const& family_name)
 {
     // Only clear cache entries that reference the loaded font family.
@@ -725,16 +734,16 @@ void FontComputer::clear_computed_font_cache(Utf16FlyString const& family_name)
 
     auto element_uses_font_family = [&](DOM::Element const& element) {
         // Check the element's own font-family.
-        if (auto style = element.computed_properties()) {
-            if (style_value_references_font_family(style->property(PropertyID::FontFamily), family_name))
+        if (auto style = element.computed_values()) {
+            if (computed_values_reference_font_family(*style, family_name))
                 return true;
         }
 
         // Check pseudo-elements, which may use a different font-family than the element itself.
         bool synthetic_pseudo_element_uses_font_family = false;
         element.for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement, Web::DOM::SyntheticPseudoElement const& pseudo_element) {
-            if (auto style = pseudo_element.computed_properties()) {
-                if (style_value_references_font_family(style->property(PropertyID::FontFamily), family_name)) {
+            if (auto style = pseudo_element.computed_values()) {
+                if (computed_values_reference_font_family(*style, family_name)) {
                     synthetic_pseudo_element_uses_font_family = true;
                     return IterationDecision::Break;
                 }

@@ -4554,8 +4554,8 @@ void LocalNavigable::reset_zoom()
 bool LocalNavigable::has_inclusive_ancestor_with_visibility_hidden() const
 {
     if (auto container = this->container()) {
-        if (auto container_computed_properties = container->computed_properties()) {
-            if (container_computed_properties->visibility() == CSS::Visibility::Hidden)
+        if (auto container_computed_values = container->computed_values()) {
+            if (container_computed_values->visibility() == CSS::Visibility::Hidden)
                 return true;
         }
         if (auto ancestor_navigable = container->document().navigable()) {

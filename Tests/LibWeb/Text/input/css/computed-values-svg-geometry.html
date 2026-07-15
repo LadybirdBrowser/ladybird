@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <g id="parent" style="rx: 12px; ry: 34px; stroke-dasharray: 1px 2; stroke-width: 25%">
+        <rect id="child" style="rx: inherit; ry: inherit; stroke-dasharray: inherit; stroke-width: inherit"></rect>
+    </g>
+</svg>
+<script>
+    test(() => {
+        const style = getComputedStyle(child);
+        println(`rx: ${style.rx}`);
+        println(`ry: ${style.ry}`);
+        println(`stroke-dasharray: ${style.strokeDasharray}`);
+        println(`stroke-width: ${style.strokeWidth}`);
+    });
+</script>

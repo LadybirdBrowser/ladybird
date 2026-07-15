@@ -651,8 +651,8 @@
     "high-quality",
     "pixelated",
     "smooth",
-    "optimizespeed=pixelated",
-    "optimizequality=smooth"
+    "optimizespeed",
+    "optimizequality"
   ],
   "isolation": [
     "auto",

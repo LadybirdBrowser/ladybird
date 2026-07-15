@@ -958,7 +958,7 @@ void HTMLInputElement::update_text_input_shadow_tree()
 
     if (m_type == TypeAttributeState::Number) {
         // The `textfield` appearance is used to hide the stepper buttons.
-        if (auto style = computed_properties(); style && style->appearance() == CSS::Appearance::Textfield) {
+        if (auto style = computed_values(); style && style->appearance() == CSS::Appearance::Textfield) {
             m_up_button_element->set_inline_style(stepper_button_style_when_hidden());
             m_down_button_element->set_inline_style(stepper_button_style_when_hidden());
         } else {

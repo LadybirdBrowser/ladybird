@@ -286,23 +286,20 @@ static NonnullRefPtr<StyleValue const> inherited_custom_property_value(DOM::Abst
 static ColorResolutionContext fallback_color_resolution_context_for_style_query(DOM::AbstractElement const& element, ComputationContext const& computation_context)
 {
     auto calculation_resolution_context = CalculationResolutionContext::from_computation_context(computation_context);
-    auto color_resolution_context_for_style = [&](ComputedProperties const& style) {
-        auto const& document = element.document();
-        auto color_scheme = style.color_scheme(document.page().preferred_color_scheme(), document.supported_color_schemes());
+    auto color_resolution_context_for_style = [&](ComputedValues const& style) {
         ColorResolutionContext color_resolution_context {
-            .color_scheme = color_scheme,
-            .current_color = InitialValues::color(),
+            .color_scheme = style.color_scheme(),
+            .current_color = style.color(),
             .calculation_resolution_context = calculation_resolution_context,
         };
-        color_resolution_context.current_color = style.color(PropertyID::Color, color_resolution_context);
         return color_resolution_context;
     };
 
-    if (auto const* style = element.computed_properties())
+    if (auto const* style = element.computed_values())
         return color_resolution_context_for_style(*style);
 
-    if (auto parent = element.element_to_inherit_style_from(); parent.has_value() && parent->computed_properties())
-        return color_resolution_context_for_style(*parent->computed_properties());
+    if (auto parent = element.element_to_inherit_style_from(); parent.has_value() && parent->computed_values())
+        return color_resolution_context_for_style(*parent->computed_values());
 
     return {
         .color_scheme = element.document().page().preferred_color_scheme(),
@@ -713,7 +710,7 @@ ContainerQuery::ContainerQuery(NonnullOwnPtr<BooleanExpression>&& condition)
 
 static bool container_satisfies_requirements(DOM::Element const& element, ContainerQueryFeatureRequirements const& requirements)
 {
-    auto style = element.computed_properties();
+    auto style = element.computed_values();
     if (!style)
         return false;
 
@@ -800,7 +797,7 @@ bool container_name_matches(DOM::Element const& element, Optional<Utf16FlyString
     if (!container_name.has_value())
         return true;
 
-    if (auto style = element.computed_properties())
+    if (auto style = element.computed_values())
         return style->container_name().contains_slow(*container_name);
 
     return false;

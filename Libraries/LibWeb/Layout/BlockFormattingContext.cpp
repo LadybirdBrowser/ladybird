@@ -1158,8 +1158,8 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     auto const* list_item_box = as_if<ListItemBox>(box);
     auto is_list_item_box_without_css_content = list_item_box != nullptr;
     if (auto const* dom_node = as_if<DOM::Element>(box.dom_node()); list_item_box && dom_node) {
-        if (auto const computed_properties = dom_node->computed_properties(CSS::PseudoElement::Marker))
-            is_list_item_box_without_css_content = !computed_properties->property(CSS::PropertyID::Content).is_content();
+        if (auto const computed_values = dom_node->computed_values(CSS::PseudoElement::Marker))
+            is_list_item_box_without_css_content = !computed_values->content().has_value();
     }
 
     if (is_list_item_box_without_css_content && list_item_box->marker()) {
