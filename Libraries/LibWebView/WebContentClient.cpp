@@ -1197,11 +1197,11 @@ void WebContentClient::did_output_js_console_message(u64 page_id, ConsoleOutput 
     }
 }
 
-void WebContentClient::did_start_network_request(u64 page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request)
+void WebContentClient::did_start_network_request(u64 page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::Request::Priority priority)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_network_request_started)
-            view->on_network_request_started(request_id, url, method, request_headers, move(request_body), move(initiator_type), move(referrer_policy), is_navigation_request);
+            view->on_network_request_started(request_id, url, method, request_headers, move(request_body), move(initiator_type), move(referrer_policy), is_navigation_request, priority);
     }
 }
 

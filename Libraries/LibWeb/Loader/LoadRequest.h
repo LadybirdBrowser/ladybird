@@ -58,6 +58,9 @@ public:
     bool is_navigation_request() const { return m_is_navigation_request; }
     void set_is_navigation_request(bool is_navigation_request) { m_is_navigation_request = is_navigation_request; }
 
+    Fetch::Infrastructure::Request::Priority priority() const { return m_priority; }
+    void set_priority(Fetch::Infrastructure::Request::Priority priority) { m_priority = priority; }
+
     Optional<URL::URL> const& source_url() const { return m_source_url; }
     void set_source_url(URL::URL source_url) { m_source_url = move(source_url); }
 
@@ -83,6 +86,7 @@ private:
     Fetch::Infrastructure::Request::Mode m_request_mode { Fetch::Infrastructure::Request::Mode::NoCORS };
     ReferrerPolicy::ReferrerPolicy m_referrer_policy { ReferrerPolicy::DEFAULT_REFERRER_POLICY };
     bool m_is_navigation_request { false };
+    Fetch::Infrastructure::Request::Priority m_priority { Fetch::Infrastructure::Request::Priority::Auto };
     Optional<URL::URL> m_source_url;
 };
 

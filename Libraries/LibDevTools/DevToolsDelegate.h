@@ -24,6 +24,7 @@
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
@@ -183,6 +184,7 @@ public:
         Optional<String> initiator_type;
         String referrer_policy;
         bool is_navigation_request { false };
+        Web::Fetch::Infrastructure::Request::Priority priority { Web::Fetch::Infrastructure::Request::Priority::Auto };
     };
 
     struct NetworkResponseData {

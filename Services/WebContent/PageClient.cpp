@@ -1328,9 +1328,9 @@ void PageClient::received_message_from_web_ui(Utf16String const& name, JS::Value
         m_web_ui->received_message_from_web_ui(name, data);
 }
 
-void PageClient::page_did_start_network_request(u64 request_id, URL::URL const& url, ByteString const& method, Vector<HTTP::Header> const& request_headers, ReadonlyBytes request_body, Optional<String> initiator_type, String const& referrer_policy, bool is_navigation_request)
+void PageClient::page_did_start_network_request(u64 request_id, URL::URL const& url, ByteString const& method, Vector<HTTP::Header> const& request_headers, ReadonlyBytes request_body, Optional<String> initiator_type, String const& referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::Request::Priority priority)
 {
-    client().async_did_start_network_request(m_id, request_id, url, method, request_headers, request_body, move(initiator_type), referrer_policy, is_navigation_request);
+    client().async_did_start_network_request(m_id, request_id, url, method, request_headers, request_body, move(initiator_type), referrer_policy, is_navigation_request, priority);
 }
 
 void PageClient::page_did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> const& response_headers, Requests::CameFromCache came_from_cache)

@@ -17,6 +17,7 @@
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
@@ -187,7 +188,7 @@ endpoint WebContentClient
     did_execute_js_console_input(u64 page_id, JsonValue result) =|
     did_output_js_console_message(u64 page_id, WebView::ConsoleOutput console_output) =|
 
-    did_start_network_request(u64 page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request) =|
+    did_start_network_request(u64 page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::Request::Priority priority) =|
     did_receive_network_response_headers(u64 page_id, u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers, Requests::CameFromCache came_from_cache) =|
     did_receive_network_response_body(u64 page_id, u64 request_id, ByteBuffer data) =|
     did_finish_network_request(u64 page_id, u64 request_id, u64 body_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error) =|

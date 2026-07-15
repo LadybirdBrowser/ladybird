@@ -1264,7 +1264,8 @@ public:
             .request_body = move(request_body),
             .initiator_type = "fetch"_string,
             .referrer_policy = move(referrer_policy),
-            .is_navigation_request = is_navigation_request });
+            .is_navigation_request = is_navigation_request,
+            .priority = Web::Fetch::Infrastructure::Request::Priority::Auto });
 
         Vector<HTTP::Header> response_headers;
         response_headers.append({ ByteString::formatted("Content-Type"), ByteString::formatted("application/json") });

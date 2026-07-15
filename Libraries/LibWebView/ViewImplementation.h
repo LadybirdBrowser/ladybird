@@ -33,6 +33,7 @@
 #include <LibRequests/Forward.h>
 #include <LibRequests/NetworkError.h>
 #include <LibWeb/Bindings/Navigation.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
@@ -351,7 +352,7 @@ public:
     Function<void(Web::HTML::ScriptRegistry::Description)> on_devtools_source_available;
     Function<void(JsonValue)> on_received_js_console_result;
     Function<void(ConsoleOutput)> on_console_message;
-    Function<void(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ByteBuffer, Optional<String>, String, bool)> on_network_request_started;
+    Function<void(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ByteBuffer, Optional<String>, String, bool, Web::Fetch::Infrastructure::Request::Priority)> on_network_request_started;
     Function<void(u64 request_id, u32 status_code, Optional<String> const&, Vector<HTTP::Header> const&, Requests::CameFromCache)> on_network_response_headers_received;
     Function<void(u64 request_id, ByteBuffer)> on_network_response_body_received;
     Function<void(u64 request_id, u64 body_size, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const&)> on_network_request_finished;
