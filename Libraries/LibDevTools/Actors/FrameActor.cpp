@@ -506,6 +506,7 @@ void FrameActor::on_network_request_started(DevToolsDelegate::NetworkRequestData
         actor.set_browsing_context_ids(tab->description().id, tab->inner_window_id());
     actor.set_referrer_policy(move(data.referrer_policy));
     actor.set_is_navigation_request(data.is_navigation_request);
+    actor.set_priority(data.priority);
     m_network_events.set(data.request_id, actor);
 
     JsonArray events;

@@ -12,6 +12,19 @@
 
 namespace DevTools {
 
+static i32 to_firefox_request_priority(Web::Fetch::Infrastructure::Request::Priority priority)
+{
+    switch (priority) {
+    case Web::Fetch::Infrastructure::Request::Priority::High:
+        return -10;
+    case Web::Fetch::Infrastructure::Request::Priority::Low:
+        return 10;
+    case Web::Fetch::Infrastructure::Request::Priority::Auto:
+        return 0;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 NonnullRefPtr<NetworkEventActor> NetworkEventActor::create(DevToolsServer& devtools, String name, u64 request_id)
 {
     return adopt_ref(*new NetworkEventActor(devtools, move(name), request_id));
@@ -65,6 +78,11 @@ void NetworkEventActor::set_referrer_policy(String referrer_policy)
 void NetworkEventActor::set_is_navigation_request(bool is_navigation_request)
 {
     m_is_navigation_request = is_navigation_request;
+}
+
+void NetworkEventActor::set_priority(Web::Fetch::Infrastructure::Request::Priority priority)
+{
+    m_priority = priority;
 }
 
 void NetworkEventActor::append_response_body(ByteBuffer data)
@@ -134,8 +152,7 @@ JsonObject NetworkEventActor::serialize_initial_event() const
     event.set("channelId"sv, static_cast<i64>(m_request_id));
     event.set("browsingContextID"sv, m_browsing_context_id);
     event.set("innerWindowId"sv, m_inner_window_id);
-    // FIXME: Get request priority
-    event.set("priority"sv, 0);
+    event.set("priority"sv, to_firefox_request_priority(m_priority));
     event.set("isNavigationRequest"sv, m_is_navigation_request);
     event.set("chromeContext"sv, false);
 

@@ -13,6 +13,7 @@
 #include <LibHTTP/Header.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 
 namespace DevTools {
 
@@ -31,6 +32,7 @@ public:
     void set_browsing_context_ids(u64 browsing_context_id, u64 inner_window_id);
     void set_referrer_policy(String);
     void set_is_navigation_request(bool);
+    void set_priority(Web::Fetch::Infrastructure::Request::Priority);
     void set_response_start(u32 status_code, Optional<String> reason_phrase);
     void set_response_headers(Vector<HTTP::Header> response_headers);
     void set_loaded_from_cache(bool);
@@ -69,6 +71,7 @@ private:
     u64 m_inner_window_id { 1 };
     String m_referrer_policy;
     bool m_is_navigation_request { false };
+    Web::Fetch::Infrastructure::Request::Priority m_priority { Web::Fetch::Infrastructure::Request::Priority::Auto };
 
     ByteBuffer m_response_body;
     u64 m_body_size { 0 };

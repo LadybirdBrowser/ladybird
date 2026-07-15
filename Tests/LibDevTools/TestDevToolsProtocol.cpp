@@ -1243,7 +1243,7 @@ public:
         on_console_message({ UnixDateTime::from_seconds_since_epoch(12), WebView::ConsoleError { "TypeError"_string, "bad things"_string, move(stack), true } });
     }
 
-    void emit_network_lifecycle(String referrer_policy = "strict-origin-when-cross-origin"_string, bool is_navigation_request = false) const
+    void emit_network_lifecycle(String referrer_policy = "strict-origin-when-cross-origin"_string, bool is_navigation_request = false, Web::Fetch::Infrastructure::Request::Priority priority = Web::Fetch::Infrastructure::Request::Priority::Auto) const
     {
         VERIFY(on_network_request_started);
         VERIFY(on_network_response_headers_received);
@@ -1265,7 +1265,7 @@ public:
             .initiator_type = "fetch"_string,
             .referrer_policy = move(referrer_policy),
             .is_navigation_request = is_navigation_request,
-            .priority = Web::Fetch::Infrastructure::Request::Priority::Auto });
+            .priority = priority });
 
         Vector<HTTP::Header> response_headers;
         response_headers.append({ ByteString::formatted("Content-Type"), ByteString::formatted("application/json") });
@@ -4141,12 +4141,13 @@ TEST_CASE(network_event_reports_request_metadata)
     auto target = get_frame_target(client, actor_from(get_tab(client), "actor"sv));
     auto inner_window_id = target.get_integer<u64>("innerWindowId"sv).value();
 
-    session->delegate.emit_network_lifecycle("no-referrer"_string, true);
+    session->delegate.emit_network_lifecycle("no-referrer"_string, true, Web::Fetch::Infrastructure::Request::Priority::High);
     auto network_event = read_resource(client, "network-event"sv);
     EXPECT_EQ(network_event.get_integer<u64>("browsingContextID"sv).value(), 42u);
     EXPECT_EQ(network_event.get_integer<u64>("innerWindowId"sv).value(), inner_window_id);
     EXPECT_EQ(network_event.get_string("referrerPolicy"sv).value(), "no-referrer"sv);
     EXPECT(network_event.get_bool("isNavigationRequest"sv).value());
+    EXPECT_EQ(network_event.get_integer<i64>("priority"sv).value(), -10);
 
     auto headers_update = read_resource(client, "network-event"sv, "resources-updated-array"sv);
     EXPECT_EQ(headers_update.get_integer<u64>("browsingContextID"sv).value(), 42u);
