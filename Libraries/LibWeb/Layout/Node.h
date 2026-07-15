@@ -444,12 +444,12 @@ inline CSS::ImmutableComputedValues const& Node::computed_values() const
 
 inline NodeWithStyle const* Node::parent() const
 {
-    return static_cast<NodeWithStyle const*>(Base::parent().ptr());
+    return static_cast<NodeWithStyle const*>(Base::parent_ptr());
 }
 
 inline NodeWithStyle* Node::parent()
 {
-    return static_cast<NodeWithStyle*>(Base::parent().ptr());
+    return static_cast<NodeWithStyle*>(Base::parent_ptr());
 }
 
 inline Gfx::Font const& NodeWithStyle::first_available_font() const
