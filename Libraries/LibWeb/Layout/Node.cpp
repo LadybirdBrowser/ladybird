@@ -116,8 +116,9 @@ static bool computed_values_establish_fixed_positioning_containing_block(Node co
     // positioned elements, specifying that property in will-change must cause the element to generate a containing
     // block for fixed positioned elements.
     auto const& will_change = computed_values.will_change();
+    auto has_will_change = !will_change.is_auto();
     auto will_change_property = [&](CSS::PropertyID property_id) {
-        return !will_change.is_auto() && will_change.has_property(property_id);
+        return has_will_change && will_change.has_property(property_id);
     };
 
     Optional<bool> is_transformable;

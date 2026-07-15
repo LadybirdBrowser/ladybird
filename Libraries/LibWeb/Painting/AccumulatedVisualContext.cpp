@@ -310,13 +310,15 @@ static Optional<PerspectiveData> compute_perspective_data(Paintable const& paint
 }
 
 // NB: Resolves the box's filter as a side effect, since the effects data embeds the resolved gfx filter.
-static Optional<EffectsData> compute_effects_data(Paintable& box, double pixel_ratio)
+static Optional<EffectsData> compute_effects_data(Paintable& box, CSS::ComputedValues const& computed_values, double pixel_ratio)
 {
-    auto const& computed_values = box.computed_values();
     if (computed_values.filter().has_filters())
         box.set_filter(resolve_css_filter(computed_values.filter(), box));
     else if (box.filter().has_filters() || box.filter().svg_filter_bounds.has_value())
         box.set_filter({});
+
+    if (!box.filter().has_filters() && computed_values.opacity() == 1 && computed_values.mix_blend_mode() == CSS::MixBlendMode::Normal)
+        return {};
 
     Optional<Gfx::Filter> gfx_filter;
     if (box.filter().has_filters())
@@ -357,8 +359,9 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         VisualContextIndex fixed_position;
     };
 
-    auto build_paintable_box = [&](Paintable& paintable_box, DescendantVisualContexts inherited_contexts) -> DescendantVisualContexts {
+    auto build_paintable_box = [&](Paintable& paintable_box, DescendantVisualContexts inherited_contexts, bool may_be_root_element) -> DescendantVisualContexts {
         auto first_visual_context_node_index = visual_context_tree.nodes().size();
+        auto& layout_node = paintable_box.layout_node();
 
         VisualContextIndex inherited_state;
 
@@ -381,7 +384,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         //     box. When the anchor is itself an anchor-positioned box, its layout position does not include its own
         //     paint-time shift, so each chained anchor's shift is emitted as well, masked to the axes that every link
         //     below it compensates in. The visited set and depth cap guard against malformed anchor chains.
-        if (auto const* box = as_if<Layout::Box>(&paintable_box.layout_node())) {
+        if (auto const* box = as_if<Layout::Box>(&layout_node)) {
             auto const& scroll_state = viewport_paintable.scroll_state();
             bool compensate_x = true;
             bool compensate_y = true;
@@ -428,9 +431,9 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
                 own_state = append_node(own_state, ScrollData { sticky_idx, true });
         }
 
-        auto const& computed_values = paintable_box.computed_values();
+        auto const& computed_values = layout_node.computed_values();
 
-        if (auto effects = compute_effects_data(paintable_box, pixel_ratio); effects.has_value())
+        if (auto effects = compute_effects_data(paintable_box, computed_values, pixel_ratio); effects.has_value())
             append_to_own_and_positioned_descendant_contexts(effects.value());
 
         if (auto transform_data = compute_transform(paintable_box, computed_values, pixel_ratio); transform_data.has_value()) {
@@ -449,7 +452,8 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         paintable_box.set_accumulated_visual_context(own_state);
 
         Vector<CSS::BackgroundLayerData> const* background_layers = &computed_values.background_layers();
-        if (paintable_box.layout_node_with_style_and_box_metrics().is_root_element()) {
+        auto is_root_element = may_be_root_element && layout_node.is_root_element();
+        if (is_root_element) {
             if (auto* html_element = as_if<HTML::HTMLHtmlElement>(paintable_box.dom_node().ptr())) {
                 if (html_element->should_use_body_background_properties())
                     background_layers = paintable_box.document().background_layers();
@@ -471,8 +475,8 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
                 // their ancestor elements) and do not have their background propagated to the canvas, a value of fixed
                 // for the background-attachment property is treated as if it had a value of scroll.
                 auto has_transform_ancestor = false;
-                if (!paintable_box.layout_node_with_style_and_box_metrics().is_root_element()) {
-                    for (auto const* node = &paintable_box.layout_node(); node && !node->is_viewport(); node = node->parent()) {
+                if (!is_root_element) {
+                    for (auto const* node = &layout_node; node && !node->is_viewport(); node = node->parent()) {
                         if (node->has_css_transform()) {
                             has_transform_ancestor = true;
                             break;
@@ -512,7 +516,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
 
         paintable_box.set_accumulated_visual_context_for_descendants(state_for_descendants);
         paintable_box.set_visual_context_node_range(first_visual_context_node_index, visual_context_tree.nodes().size());
-        auto positioning_containing_blocks = paintable_box.layout_node().establishes_positioning_containing_blocks();
+        auto positioning_containing_blocks = layout_node.establishes_positioning_containing_blocks();
         if (positioning_containing_blocks.absolute)
             state_for_absolute_position_descendants = state_for_descendants;
         if (positioning_containing_blocks.fixed)
@@ -534,16 +538,17 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
     struct PendingPaintable {
         Paintable* paintable;
         DescendantVisualContexts inherited_contexts;
+        bool may_be_root_element;
     };
     Vector<PendingPaintable, 64> pending_paintables;
     for (auto* child = viewport_paintable.last_child_ptr(); child; child = child->previous_sibling_ptr())
-        pending_paintables.append({ child, viewport_contexts });
+        pending_paintables.append({ child, viewport_contexts, true });
 
     while (!pending_paintables.is_empty()) {
         auto pending = pending_paintables.take_last();
-        auto child_contexts = build_paintable_box(*pending.paintable, pending.inherited_contexts);
+        auto child_contexts = build_paintable_box(*pending.paintable, pending.inherited_contexts, pending.may_be_root_element);
         for (auto* child = pending.paintable->last_child_ptr(); child; child = child->previous_sibling_ptr())
-            pending_paintables.append({ child, child_contexts });
+            pending_paintables.append({ child, child_contexts, false });
     }
 
     return visual_context_tree;
@@ -562,7 +567,7 @@ bool update_accumulated_visual_context_values(ViewportPaintable& viewport_painta
     auto pixel_ratio = viewport_paintable.document().page().client().device_pixels_per_css_pixel();
     auto const& computed_values = paintable_box.computed_values();
 
-    auto effects = compute_effects_data(paintable_box, pixel_ratio);
+    auto effects = compute_effects_data(paintable_box, computed_values, pixel_ratio);
     auto transform = compute_transform(paintable_box, computed_values, pixel_ratio);
     auto perspective = compute_perspective_data(paintable_box, computed_values, static_cast<float>(pixel_ratio));
 
