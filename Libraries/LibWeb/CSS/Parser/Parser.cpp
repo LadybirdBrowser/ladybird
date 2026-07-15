@@ -561,6 +561,10 @@ static Optional<StyleFeature::StyleRangeValue> parse_style_range_value(ReadonlyS
         }
     }
 
+    TokenStream value_tokens { trimmed_tokens };
+    if (!Parser::parse_declaration_value_as_span(value_tokens).has_value() || !value_tokens.is_empty())
+        return {};
+
     return StyleFeature::StyleRangeValue { Vector<ComponentValue> { trimmed_tokens } };
 }
 
