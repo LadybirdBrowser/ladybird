@@ -970,6 +970,12 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         }
     }
 
+    // A top layer member nested inside this member must be skipped at its normal position
+    // like anywhere else in the walk, so its own turn of the pass builds its viewport box.
+    Optional<TemporaryChange<bool>> layout_top_layer_cleared_for_member_descendants;
+    if (auto* element = as_if<DOM::Element>(dom_node); element && element->rendered_in_top_layer() && context.layout_top_layer)
+        layout_top_layer_cleared_for_member_descendants.emplace(context.layout_top_layer, false);
+
     if (dom_node.is_document()) {
         m_layout_root = layout_node;
     } else if (should_create_layout_node) {
@@ -1140,6 +1146,12 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
 void TreeBuilder::update_layout_tree_for_display_contents(DOM::Element& element, TreeBuilder::Context& context, MustCreateSubtree must_create_subtree, bool should_create_layout_node)
 {
+    // A display:contents member builds its children through this path, so the top layer flag
+    // is consumed here the same way update_layout_tree does for members with a box.
+    Optional<TemporaryChange<bool>> layout_top_layer_cleared_for_member_descendants;
+    if (element.rendered_in_top_layer() && context.layout_top_layer)
+        layout_top_layer_cleared_for_member_descendants.emplace(context.layout_top_layer, false);
+
     element.clear_synthetic_pseudo_element_layout_nodes(Badge<TreeBuilder> {});
 
     if (should_create_layout_node) {

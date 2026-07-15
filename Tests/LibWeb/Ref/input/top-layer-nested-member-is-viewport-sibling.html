@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/top-layer-nested-member-is-viewport-sibling-ref.html">
+<style>
+    dialog {
+        position: fixed;
+        inset: 0 auto auto 0;
+        margin: 0;
+        border: 0;
+        padding: 0;
+        width: 100px;
+        height: 100px;
+    }
+    dialog::backdrop {
+        background: transparent;
+    }
+    #outer {
+        background: green;
+        opacity: 0.5;
+        transform: translateX(200px);
+    }
+    #inner {
+        background: blue;
+    }
+</style>
+<dialog id="outer"><dialog id="inner"></dialog></dialog>
+<script>
+    // The inner dialog's box must escape the outer's opacity and transform.
+    outer.showModal();
+    inner.showModal();
+</script>
