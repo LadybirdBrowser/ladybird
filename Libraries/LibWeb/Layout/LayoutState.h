@@ -403,6 +403,7 @@ struct LayoutState {
     [[nodiscard]] Optional<ContainedAbsposChild> take_next_contained_abspos_child(Box const& target);
 
 private:
+    void resolve_paintable_containing_blocks(Node& root);
     void resolve_relative_positions();
 
     PagedStore<UsedValues> m_used_values_store;

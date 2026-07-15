@@ -84,27 +84,15 @@ DOM::Document& Paintable::document()
 
 RefPtr<Paintable> Paintable::containing_block() const
 {
-    return const_cast<Paintable*>(containing_block_ptr());
+    return m_containing_block;
 }
 
-Paintable const* Paintable::containing_block_ptr() const
+void Paintable::set_containing_block(Paintable* containing_block)
 {
-    if (m_containing_block.has_value()) {
-        if (auto* containing_block = m_containing_block->ptr())
-            return containing_block;
-    }
-
-    auto* containing_block = [&] -> Paintable const* {
-        auto containing_layout_box = layout_node().containing_block();
-        if (!containing_layout_box)
-            return nullptr;
-        auto* paintable_box = containing_layout_box->paintable_ptr();
-        if (!paintable_box)
-            return nullptr;
-        return paintable_box;
-    }();
+    if (m_containing_block == containing_block)
+        return;
     m_containing_block = containing_block;
-    return containing_block;
+    invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
 }
 
 CSS::ImmutableComputedValues const& Paintable::computed_values() const
@@ -979,7 +967,7 @@ Paintable::~Paintable()
 
 void Paintable::detach_from_layout_node(Badge<Layout::Node>)
 {
-    m_containing_block.clear();
+    m_containing_block = nullptr;
     m_layout_node.clear();
     detach_chrome_widgets();
 }
@@ -1064,7 +1052,7 @@ void Paintable::reset_for_relayout()
     while (first_child())
         first_child()->remove();
 
-    m_containing_block = {};
+    m_containing_block = nullptr;
 
     m_offset = {};
     m_content_size = {};

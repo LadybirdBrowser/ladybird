@@ -252,6 +252,19 @@ static void build_paint_tree(Node& node, Painting::Paintable* parent_paintable =
         build_paint_tree(*child, paintable_for_children);
 }
 
+void LayoutState::resolve_paintable_containing_blocks(Node& root)
+{
+    root.for_each_in_inclusive_subtree([](Node& node) {
+        auto* paintable = node.paintable_ptr();
+        if (!paintable)
+            return TraversalDecision::Continue;
+
+        auto* containing_block = node.containing_block();
+        paintable->set_containing_block(containing_block ? containing_block->paintable_ptr() : nullptr);
+        return TraversalDecision::Continue;
+    });
+}
+
 void LayoutState::commit(Box& root)
 {
     if (!root.is_viewport()) {
@@ -469,6 +482,7 @@ void LayoutState::commit_used_values_and_build_paint_tree(Box& root, RefPtr<Pain
     });
 
     build_paint_tree(root, parent_paintable.ptr(), insert_before_paintable.ptr());
+    resolve_paintable_containing_blocks(root);
 
     resolve_relative_positions();
 

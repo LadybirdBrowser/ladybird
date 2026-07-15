@@ -103,7 +103,7 @@ public:
     GC::Ptr<HTML::LocalNavigable> navigable() const;
 
     RefPtr<Paintable> containing_block() const;
-    Paintable const* containing_block_ptr() const;
+    Paintable const* containing_block_ptr() const { return m_containing_block; }
 
     template<typename T>
     bool fast_is() const = delete;
@@ -456,9 +456,9 @@ protected:
     CSSPixels available_scrollbar_length(ScrollDirection direction, ChromeMetrics const& chrome_metrics) const;
     Optional<CSSPixelRect> absolute_resizer_rect(ChromeMetrics const& chrome_metrics) const;
 
-    Optional<WeakPtr<Paintable>> mutable m_containing_block;
-
 private:
+    friend struct Layout::LayoutState;
+
     struct CachedPaintData;
     enum class InvalidateDescendantGeometry {
         No,
@@ -467,6 +467,7 @@ private:
 
     void detach_from_layout_node(Badge<Layout::Node>);
     void detach_chrome_widgets();
+    void set_containing_block(Paintable* containing_block);
 
     void paint_middle_button_scroll_indicator(DisplayListRecordingContext&) const;
     void acquire_cache_references_for_cached_commands(ReadonlyBytes) const;
@@ -475,6 +476,7 @@ private:
 
     GC::Weak<DOM::Node> m_dom_node;
     WeakPtr<Layout::NodeWithStyleAndBoxModelMetrics const> m_layout_node;
+    Paintable* m_containing_block { nullptr };
 
     SelectionState m_selection_state { SelectionState::None };
 
