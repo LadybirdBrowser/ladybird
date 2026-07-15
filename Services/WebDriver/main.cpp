@@ -106,6 +106,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool headless = false;
     Optional<StringView> debug_process;
     Optional<StringView> default_time_zone;
+    Optional<StringView> profiles_directory;
     Optional<StringView> resource_substitution_map_path;
 
     Core::ArgsParser args_parser;
@@ -119,6 +120,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
     args_parser.add_option(headless, "Launch browser without a graphical interface", "headless");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
+    args_parser.add_option(profiles_directory, "Directory in which to create the browser profile", "profiles-directory", 0, "path");
     args_parser.add_option(resource_substitution_map_path, "Path to JSON file mapping URLs to local files", "resource-map", 0, "path");
     args_parser.parse(arguments);
 
@@ -141,7 +143,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     TRY(Core::Directory::create(webdriver_socket_path, Core::Directory::CreateDirectories::Yes));
 
     // Every browser instance launched by this WebDriver process shares one profile, which is removed on clean exit.
-    auto profile_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), ByteString::formatted("ladybird-webdriver-profile-{:016x}-{:016x}", get_random<u64>(), get_random<u64>())).string();
+    auto profile_parent_directory = profiles_directory.has_value() ? ByteString { *profiles_directory } : Core::StandardPaths::tempfile_directory();
+    auto profile_path = LexicalPath::join(profile_parent_directory, ByteString::formatted("ladybird-webdriver-profile-{:016x}-{:016x}", get_random<u64>(), get_random<u64>())).string();
 
     auto& loop = Core::EventLoop::initialize_for_current_thread();
     Core::EventLoop::register_signal(SIGINT, handle_signal);
