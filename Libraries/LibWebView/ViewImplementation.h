@@ -29,6 +29,7 @@
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibHTTP/Header.h>
+#include <LibRequests/CameFromCache.h>
 #include <LibRequests/Forward.h>
 #include <LibRequests/NetworkError.h>
 #include <LibWeb/Bindings/Navigation.h>
@@ -351,7 +352,7 @@ public:
     Function<void(JsonValue)> on_received_js_console_result;
     Function<void(ConsoleOutput)> on_console_message;
     Function<void(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ByteBuffer, Optional<String>)> on_network_request_started;
-    Function<void(u64 request_id, u32 status_code, Optional<String> const&, Vector<HTTP::Header> const&)> on_network_response_headers_received;
+    Function<void(u64 request_id, u32 status_code, Optional<String> const&, Vector<HTTP::Header> const&, Requests::CameFromCache)> on_network_response_headers_received;
     Function<void(u64 request_id, ByteBuffer)> on_network_response_body_received;
     Function<void(u64 request_id, u64 body_size, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const&)> on_network_request_finished;
     Function<void(i32 count_waiting)> on_resource_status_change;

@@ -1315,7 +1315,10 @@ void Request::transfer_headers_to_client_if_needed()
 
 void Request::send_headers_to_client(Optional<IPC::File> javascript_bytecode, u64 javascript_bytecode_size, Optional<u64> javascript_bytecode_cache_vary_key)
 {
-    m_client->async_headers_became_available(m_request_id, m_response_headers->headers(), m_status_code, m_reason_phrase, move(javascript_bytecode), javascript_bytecode_size, javascript_bytecode_cache_vary_key);
+    auto came_from_cache = m_cache_status == CacheStatus::ReadFromCache
+        ? Requests::CameFromCache::Yes
+        : Requests::CameFromCache::No;
+    m_client->async_headers_became_available(m_request_id, m_response_headers->headers(), m_status_code, m_reason_phrase, move(javascript_bytecode), javascript_bytecode_size, javascript_bytecode_cache_vary_key, came_from_cache);
 }
 
 ErrorOr<void> Request::write_queued_bytes_without_blocking()

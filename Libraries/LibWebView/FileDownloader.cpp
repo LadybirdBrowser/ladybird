@@ -124,7 +124,7 @@ void FileDownloader::attach_request_to_download(u64 download_id, NonnullRefPtr<R
     active->request = request;
 
     request->set_unbuffered_request_callbacks(
-        [this, download_id](NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>) {
+        [this, download_id](NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CameFromCache) {
             auto* download = mutable_download_or_null(download_id);
             if (!download)
                 return;

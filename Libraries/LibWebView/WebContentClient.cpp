@@ -1205,11 +1205,11 @@ void WebContentClient::did_start_network_request(u64 page_id, u64 request_id, UR
     }
 }
 
-void WebContentClient::did_receive_network_response_headers(u64 page_id, u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers)
+void WebContentClient::did_receive_network_response_headers(u64 page_id, u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers, Requests::CameFromCache came_from_cache)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_network_response_headers_received)
-            view->on_network_response_headers_received(request_id, status_code, reason_phrase, response_headers);
+            view->on_network_response_headers_received(request_id, status_code, reason_phrase, response_headers, came_from_cache);
     }
 }
 

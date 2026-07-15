@@ -310,7 +310,7 @@ void Autocomplete::start_remote_query(AutocompleteQueryID query_id, Autocomplete
     m_request = Application::request_server_client(m_is_private).start_request("GET"sv, *url);
 
     m_request->set_buffered_request_finished_callback(
-        [this, query_id, engine, query = move(query)](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>, Core::ImmutableBytes payload) {
+        [this, query_id, engine, query = move(query)](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CameFromCache, Core::ImmutableBytes payload) {
             Core::deferred_invoke([this]() { m_request.clear(); });
 
             if (m_query_id != query_id) {

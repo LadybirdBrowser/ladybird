@@ -19,6 +19,7 @@
 #include <LibDevTools/Forward.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Header.h>
+#include <LibRequests/CameFromCache.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibWeb/CSS/Selector.h>
@@ -187,6 +188,7 @@ public:
         u32 status_code { 0 };
         Optional<String> reason_phrase;
         Vector<HTTP::Header> response_headers;
+        Requests::CameFromCache came_from_cache { Requests::CameFromCache::No };
     };
 
     struct NetworkRequestCompleteData {

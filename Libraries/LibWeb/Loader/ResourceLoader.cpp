@@ -400,7 +400,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
             request,
             [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete = move(on_complete), request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderList const& response_headers) {
                 log_success(request);
-                on_headers_received->function()(nullptr, response_headers, {}, {}, {}, {});
+                on_headers_received->function()(nullptr, response_headers, {}, {}, {}, {}, Requests::CameFromCache::No);
                 on_data_received->function()(Requests::ResponseData::from_bytes(data));
                 on_complete->function()(true, timing_info, {});
             });
@@ -411,7 +411,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
         handle_resource_load_request(
             request,
             [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
-                on_headers_received->function()(nullptr, load_result.response_headers, {}, {}, {}, {});
+                on_headers_received->function()(nullptr, load_result.response_headers, {}, {}, {}, {}, Requests::CameFromCache::No);
                 on_data_received->function()(Requests::ResponseData::from_bytes(load_result.data));
                 on_complete->function()(true, load_result.timing_info, {});
             },
@@ -427,7 +427,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
             request,
             [request, on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
                 log_success(request);
-                on_headers_received->function()(nullptr, load_result.response_headers, {}, {}, {}, {});
+                on_headers_received->function()(nullptr, load_result.response_headers, {}, {}, {}, {}, Requests::CameFromCache::No);
                 on_data_received->function()(Requests::ResponseData::from_bytes(load_result.data));
                 on_complete->function()(true, load_result.timing_info, {});
             },
@@ -452,13 +452,13 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
         return nullptr;
     }
 
-    auto protocol_headers_received = [this, on_headers_received = move(on_headers_received), request, &protocol_request = *protocol_request](auto const& response_headers, auto status_code, auto const& reason_phrase, auto javascript_bytecode, auto javascript_bytecode_cache_vary_key) {
+    auto protocol_headers_received = [this, on_headers_received = move(on_headers_received), request, &protocol_request = *protocol_request](auto const& response_headers, auto status_code, auto const& reason_phrase, auto javascript_bytecode, auto javascript_bytecode_cache_vary_key, auto came_from_cache) {
         handle_network_response_headers(request, response_headers);
 
         if (auto page = request.page())
-            page->client().page_did_receive_network_response_headers(protocol_request.id(), status_code.value_or(0), reason_phrase, response_headers->headers());
+            page->client().page_did_receive_network_response_headers(protocol_request.id(), status_code.value_or(0), reason_phrase, response_headers->headers(), came_from_cache);
 
-        on_headers_received->function()(&protocol_request, response_headers, move(status_code), reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key);
+        on_headers_received->function()(&protocol_request, response_headers, move(status_code), reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key, came_from_cache);
     };
 
     auto protocol_data_received = [on_data_received = move(on_data_received), request, request_id = protocol_request->id()](auto data) {

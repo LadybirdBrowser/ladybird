@@ -2899,8 +2899,8 @@ void Application::listen_for_network_events(DevTools::TabDescription const& desc
         on_request_started({ request_id, url.to_string(), MUST(String::from_byte_string(method)), UnixDateTime::now(), headers, move(request_body), move(initiator_type) });
     };
 
-    view->on_network_response_headers_received = [on_response_headers = move(on_response_headers)](u64 request_id, u32 status_code, Optional<String> const& reason_phrase, Vector<HTTP::Header> const& headers) {
-        on_response_headers({ request_id, status_code, reason_phrase, headers });
+    view->on_network_response_headers_received = [on_response_headers = move(on_response_headers)](u64 request_id, u32 status_code, Optional<String> const& reason_phrase, Vector<HTTP::Header> const& headers, Requests::CameFromCache came_from_cache) {
+        on_response_headers({ request_id, status_code, reason_phrase, headers, came_from_cache });
     };
 
     view->on_network_response_body_received = [on_response_body = move(on_response_body)](u64 request_id, ByteBuffer data) {

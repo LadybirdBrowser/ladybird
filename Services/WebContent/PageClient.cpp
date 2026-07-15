@@ -1333,9 +1333,9 @@ void PageClient::page_did_start_network_request(u64 request_id, URL::URL const& 
     client().async_did_start_network_request(m_id, request_id, url, method, request_headers, request_body, move(initiator_type));
 }
 
-void PageClient::page_did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> const& response_headers)
+void PageClient::page_did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> const& response_headers, Requests::CameFromCache came_from_cache)
 {
-    client().async_did_receive_network_response_headers(m_id, request_id, status_code, move(reason_phrase), response_headers);
+    client().async_did_receive_network_response_headers(m_id, request_id, status_code, move(reason_phrase), response_headers, came_from_cache);
 }
 
 void PageClient::page_did_receive_network_response_body(u64 request_id, ReadonlyBytes data)
