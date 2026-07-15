@@ -750,6 +750,9 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
             break;
         }
 
+        if (selectors.is_empty())
+            return;
+
         PropertiesAndCustomProperties properties;
         qualified_rule.for_each_as_declaration_list("keyframe"_utf16_fly_string, [&](auto const& declaration) {
             // https://drafts.csswg.org/css-animations-1/#keyframes
@@ -760,10 +763,9 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
             extract_property(declaration, properties);
         });
         auto style = CSSStyleProperties::create(realm(), move(properties.properties), move(properties.custom_properties));
-        for (auto& selector : selectors) {
-            auto keyframe_rule = CSSKeyframeRule::create(realm(), selector, *style);
-            keyframes.append(keyframe_rule);
-        }
+
+        auto keyframe_rule = CSSKeyframeRule::create(realm(), move(selectors), *style);
+        keyframes.append(keyframe_rule);
     });
 
     return CSSKeyframesRule::create(realm(), name, CSSRuleList::create(realm(), keyframes));

@@ -1,0 +1,25 @@
+<!doctype html>
+<style>
+    #target {
+        animation: anim 1s paused;
+    }
+
+    @keyframes anim {
+        0%,
+        50%,
+        100% {
+            color: red;
+        }
+
+        0%,
+        50%,
+        100% {
+            opacity: 0.5;
+            animation-timing-function: linear;
+        }
+    }
+</style>
+<div id="target"></div>
+<script>
+    document.querySelector("#target").getAnimations();
+</script>

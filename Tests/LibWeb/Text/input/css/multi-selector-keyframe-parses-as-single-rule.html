@@ -1,0 +1,19 @@
+<!doctype html>
+<style>
+    @keyframes foo {
+        0%,
+        100%,
+        from {
+            color: green;
+        }
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const keyframeRule = document.styleSheets[0].cssRules[0];
+
+        println(keyframeRule.cssRules.length);
+        println(keyframeRule.cssRules[0].keyText);
+    });
+</script>

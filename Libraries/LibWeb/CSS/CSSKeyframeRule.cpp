@@ -15,14 +15,14 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSKeyframeRule);
 
-GC::Ref<CSSKeyframeRule> CSSKeyframeRule::create(JS::Realm& realm, Percentage key, CSSStyleProperties& declarations)
+GC::Ref<CSSKeyframeRule> CSSKeyframeRule::create(JS::Realm& realm, Vector<Percentage>&& keys, CSSStyleProperties& declarations)
 {
-    return realm.create<CSSKeyframeRule>(realm, key, declarations);
+    return realm.create<CSSKeyframeRule>(realm, move(keys), declarations);
 }
 
-CSSKeyframeRule::CSSKeyframeRule(JS::Realm& realm, Percentage key, CSSStyleProperties& declarations)
+CSSKeyframeRule::CSSKeyframeRule(JS::Realm& realm, Vector<Percentage>&& keys, CSSStyleProperties& declarations)
     : CSSRule(realm, Type::Keyframe)
-    , m_key(key)
+    , m_keys(move(keys))
     , m_declarations(declarations)
 {
     m_declarations->set_parent_rule(*this);
@@ -43,7 +43,7 @@ void CSSKeyframeRule::initialize(JS::Realm& realm)
 Utf16String CSSKeyframeRule::serialized() const
 {
     Utf16StringBuilder builder;
-    builder.appendff("{}% {{ {} }}", key().value(), style()->serialized());
+    builder.appendff("{} {{ {} }}", key_text(), style()->serialized());
     return builder.to_string();
 }
 
@@ -52,7 +52,7 @@ void CSSKeyframeRule::dump(StringBuilder& builder, int indent_levels) const
     Base::dump(builder, indent_levels);
 
     dump_indent(builder, indent_levels + 1);
-    builder.appendff("Key: {}\n"sv, key_text());
+    builder.appendff("Keys: {}\n"sv, key_text());
     dump_style_properties(builder, style(), indent_levels + 1);
 }
 
