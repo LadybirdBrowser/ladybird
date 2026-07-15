@@ -231,12 +231,14 @@ RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin casc
 
 [[nodiscard]] static bool filter_namespace_rule(Optional<Utf16FlyString> const& element_namespace_uri, MatchingRule const& rule)
 {
-    // FIXME: Filter out non-default namespace using prefixes
-    if (rule.default_namespace.has_value()) {
-        if (!element_namespace_uri.has_value() || element_namespace_uri->view() != rule.default_namespace->view())
-            return false;
-    }
-    return true;
+    if (!rule.element_namespace_filter.has_value())
+        return true;
+
+    if (rule.element_namespace_filter->is_empty())
+        return !element_namespace_uri.has_value() || element_namespace_uri->is_empty();
+
+    return element_namespace_uri.has_value()
+        && element_namespace_uri->view() == rule.element_namespace_filter->view();
 }
 
 NonnullRefPtr<InvalidationPlan> StyleComputer::invalidation_plan_for_properties(Vector<InvalidationSet::Property> const& properties, StyleScope const& style_scope) const

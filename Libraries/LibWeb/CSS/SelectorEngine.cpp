@@ -1579,6 +1579,11 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     return false;
 }
 
+static bool is_in_null_namespace(DOM::Element const& element)
+{
+    return !element.namespace_uri().has_value() || element.namespace_uri()->is_empty();
+}
+
 static ALWAYS_INLINE bool matches_namespace(
     CSS::Selector::SimpleSelector::QualifiedName const& qualified_name,
     DOM::Element const& element,
@@ -1590,11 +1595,14 @@ static ALWAYS_INLINE bool matches_namespace(
         if (!style_sheet_for_rule || !style_sheet_for_rule->default_namespace_rule())
             return true;
         // "Otherwise it is equivalent to ns|E where ns is the default namespace."
+        if (style_sheet_for_rule->default_namespace_rule()->namespace_uri().is_empty())
+            return is_in_null_namespace(element);
+
         return element.namespace_uri().has_value()
             && fly_string_equals_utf16(style_sheet_for_rule->default_namespace_rule()->namespace_uri(), element.namespace_uri()->view());
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::None:
         // "elements with name E without a namespace"
-        return !element.namespace_uri().has_value();
+        return is_in_null_namespace(element);
     case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Any:
         // "elements with name E in any namespace, including those without a namespace"
         return true;
@@ -1612,7 +1620,7 @@ static ALWAYS_INLINE bool matches_namespace(
         // In CSS Namespaces a namespace name consisting of the empty string is taken to represent the null namespace
         // or lack of a namespace.
         if (selector_namespace.has_value() && selector_namespace.value().is_empty())
-            return !element.namespace_uri().has_value();
+            return is_in_null_namespace(element);
 
         return selector_namespace.has_value()
             && element.namespace_uri().has_value()

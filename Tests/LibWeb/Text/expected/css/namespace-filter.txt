@@ -1,0 +1,4 @@
+HTML element with class selector using SVG default namespace: rgba(0, 0, 0, 0)
+HTML element with any-namespace universal selector: rgb(0, 128, 0)
+SVG element with class selector using SVG default namespace: rgb(0, 128, 0)
+Null-namespace element with no-namespace universal selector: rgb(0, 128, 0)

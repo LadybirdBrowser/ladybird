@@ -85,6 +85,51 @@ void MatchingRule::visit_edges(GC::Cell::Visitor& visitor) const
     visitor.visit(scope_rule);
 }
 
+static Optional<Utf16FlyString> namespace_filter_for_qualified_name(Selector::SimpleSelector::QualifiedName const& qualified_name, CSSStyleSheet const& style_sheet)
+{
+    switch (qualified_name.namespace_type) {
+    case Selector::SimpleSelector::QualifiedName::NamespaceType::Default:
+        return style_sheet.default_namespace();
+    case Selector::SimpleSelector::QualifiedName::NamespaceType::None:
+        return Utf16FlyString {};
+    case Selector::SimpleSelector::QualifiedName::NamespaceType::Any:
+        return {};
+    case Selector::SimpleSelector::QualifiedName::NamespaceType::Named:
+        return style_sheet.namespace_uri(qualified_name.namespace_);
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static Selector::CompoundSelector const& target_compound_selector_for_namespace_filter(Selector const& selector)
+{
+    auto const& compound_selectors = selector.compound_selectors();
+    VERIFY(!compound_selectors.is_empty());
+
+    if (auto compound_selector = compound_selectors.last_matching([](auto const& compound_selector) {
+            return compound_selector.combinator != Selector::Combinator::PseudoElement;
+        });
+        compound_selector.has_value())
+        return compound_selector.value();
+
+    return compound_selectors.first();
+}
+
+static Optional<Utf16FlyString> element_namespace_filter_for_rule(Selector const& selector, CSSStyleSheet const& style_sheet)
+{
+    if (selector.is_slotted() || selector.has_part_pseudo_element())
+        return {};
+
+    auto const& compound_selector = target_compound_selector_for_namespace_filter(selector);
+    for (auto const& simple_selector : compound_selector.simple_selectors) {
+        if (simple_selector.type == Selector::SimpleSelector::Type::TagName
+            || simple_selector.type == Selector::SimpleSelector::Type::Universal) {
+            return namespace_filter_for_qualified_name(simple_selector.qualified_name(), style_sheet);
+        }
+    }
+
+    return style_sheet.default_namespace();
+}
+
 void RuleCache::visit_edges(GC::Cell::Visitor& visitor)
 {
     auto visit_vector = [&](auto& vector) {
@@ -610,7 +655,7 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                     .sheet = current_style_sheet,
                     .container_rule = container_rule,
                     .scope_rule = scope_rule,
-                    .default_namespace = current_style_sheet.default_namespace(),
+                    .element_namespace_filter = element_namespace_filter_for_rule(selector, current_style_sheet),
                     .selector = selector,
                     .selector_index = selector_index,
                     .style_sheet_index = style_sheet_index,

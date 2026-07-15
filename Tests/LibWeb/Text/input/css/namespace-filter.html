@@ -1,0 +1,46 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @namespace svg "http://www.w3.org/2000/svg";
+    @namespace "http://www.w3.org/2000/svg";
+
+    .html-class {
+        background-color: red;
+    }
+
+    *|*.html-any {
+        background-color: green;
+    }
+
+    .svg-class {
+        background-color: green;
+    }
+
+    |*.null-class {
+        background-color: green;
+    }
+</style>
+<body>
+<script>
+    test(() => {
+        const html = document.createElement("div");
+        html.className = "html-class";
+        document.body.appendChild(html);
+        println(`HTML element with class selector using SVG default namespace: ${getComputedStyle(html).backgroundColor}`);
+
+        const htmlAny = document.createElement("div");
+        htmlAny.className = "html-any";
+        document.body.appendChild(htmlAny);
+        println(`HTML element with any-namespace universal selector: ${getComputedStyle(htmlAny).backgroundColor}`);
+
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("class", "svg-class");
+        document.body.appendChild(svg);
+        println(`SVG element with class selector using SVG default namespace: ${getComputedStyle(svg).backgroundColor}`);
+
+        const nullElement = document.createElementNS("", "test");
+        nullElement.setAttribute("class", "null-class");
+        document.body.appendChild(nullElement);
+        println(`Null-namespace element with no-namespace universal selector: ${getComputedStyle(nullElement).backgroundColor}`);
+    });
+</script>

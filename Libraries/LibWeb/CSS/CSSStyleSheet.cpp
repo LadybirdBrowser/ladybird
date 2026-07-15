@@ -654,7 +654,7 @@ void CSSStyleSheet::recalculate_rule_caches()
         }
         case CSSRule::Type::Namespace: {
             auto& namespace_rule = as<CSSNamespaceRule>(*rule);
-            if (!namespace_rule.namespace_uri().is_empty() && namespace_rule.prefix().is_empty())
+            if (namespace_rule.prefix().is_empty())
                 m_default_namespace_rule = namespace_rule;
 
             m_namespace_rules.set(namespace_rule.prefix(), namespace_rule);

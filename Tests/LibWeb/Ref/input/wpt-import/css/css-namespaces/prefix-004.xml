@@ -1,0 +1,18 @@
+<root>
+ <head xmlns="http://www.w3.org/1999/xhtml">
+  <link rel="author" title="Anne van Kesteren" href="http://annevankesteren.nl/"/>
+  <link rel="author" title="Opera Software ASA" href="http://opera.com/"/>
+  <link rel="help" href="http://www.w3.org/TR/css-namespaces-3/#prefixes"/>
+  <link rel="match" href="../../../../expected/wpt-import/css/css-namespaces/reference/ref-lime-2-generic.xml"/>
+  <title>CSS Namespaces Test Suite: empty string default namespace</title>
+  <style>
+   @namespace "";
+   @namespace x "test";
+   *|t, *|root { display:block }
+   *|t, t[x] { background:lime }
+   t { background:red }
+  </style>
+ </head>
+ <t x="">This sentence should have a green background.</t>
+ <t xmlns="test">This sentence should have a green background.</t>
+</root>

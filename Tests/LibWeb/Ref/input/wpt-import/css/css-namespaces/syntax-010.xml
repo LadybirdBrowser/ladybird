@@ -1,0 +1,36 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <link rel="author" title="Anne van Kesteren" href="http://annevankesteren.nl/"/>
+  <link rel="author" title="Opera Software ASA" href="http://opera.com/"/>
+  <link rel="help" href="http://www.w3.org/TR/css-namespaces-3/#syntax"/>
+  <link rel="match" href="../../../../expected/wpt-import/css/css-namespaces/reference/ref-lime-3.xml"/>
+  <meta name="flags" content="invalid"/>
+  <title>CSS Namespaces Test Suite: duplicate @namespace declarations</title>
+  <style>
+   @namespace "1";
+   @namespace dummy "yummy";
+   @namespace "2";
+   *|t { background:lime }
+   t { background:red }
+  </style>
+  <style>
+   @namespace "1";
+   @namespace dummy "yummy";
+   @namespace "2";
+   *|t2 { background:red }
+   t2 { background:lime }
+  </style>
+  <style>
+   @namespace x "1";
+   @namespace dummy "yummy";
+   @namespace x "2";
+   *|t3 { background:red }
+   x|t3 { background:lime }
+  </style>
+ </head>
+ <body>
+  <p><t xmlns="1">This sentence should have a green background.</t></p>
+  <p><t2 xmlns="2">This sentence should have a green background.</t2></p>
+  <p><t3 xmlns="2">This sentence should have a green background.</t3></p>
+ </body>
+</html>

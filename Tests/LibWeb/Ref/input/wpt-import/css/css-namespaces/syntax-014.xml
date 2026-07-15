@@ -1,0 +1,31 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <link rel="author" title="Anne van Kesteren" href="http://annevankesteren.nl/"/>
+  <link rel="author" title="Opera Software ASA" href="http://opera.com/"/>
+  <link rel="help" href="http://www.w3.org/TR/css-namespaces-3/#syntax"/>
+  <link rel="match" href="../../../../expected/wpt-import/css/css-namespaces/reference/ref-lime-3.xml"/>
+  <meta name="flags" content="invalid"/>
+  <title>CSS Namespaces Test Suite: @namespace and invalid at-rules</title>
+  <style>
+   t, t2, t3 { background:red }
+  </style>
+  <style>
+   @import x {}
+   @namespace x "test";
+   x|t { background:lime }
+  </style>
+  <style>
+   @namespace x "test-top";
+   @foobar this is funny { not:sure }
+   @namespace "test";
+   @foobar this is funner;
+   t2 { background:lime }
+   x|t3 { background:lime }
+   </style>
+ </head>
+ <body>
+  <p><t xmlns="test">This sentence should have a green background.</t></p>
+  <p><t2 xmlns="test">This sentence should have a green background.</t2></p>
+  <p><t3 xmlns="test-top">This sentence should have a green background.</t3></p>
+ </body>
+</html>
