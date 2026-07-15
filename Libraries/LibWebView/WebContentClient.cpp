@@ -1512,6 +1512,34 @@ void WebContentClient::did_request_traverse_the_history_by_delta(u64 page_id, i3
     (void)view->traverse_the_history_by_delta(delta, check_for_cancelation);
 }
 
+void WebContentClient::did_request_history_traversal_target_by_delta(u64 page_id, u64 request_id, i32 delta)
+{
+    Optional<i32> target_step;
+    if (auto* page_host = navigable_for_page(page_id)) {
+        auto target = page_host->top_level_traversable().session_history().traversal_target_for_delta(delta);
+        if (target.has_value())
+            target_step = target->target_step;
+    }
+
+    async_resolve_session_history_traversal_target(page_id, request_id, target_step);
+}
+
+void WebContentClient::did_request_traverse_the_history_to_step(u64 page_id, i32 step, Web::HistoryTraversalPrecheck history_traversal_precheck)
+{
+    auto* page_host = navigable_for_page(page_id);
+    if (!page_host)
+        return;
+
+    auto view = ViewImplementation::find_view_for_traversable(page_host->top_level_traversable());
+    if (!view.has_value())
+        return;
+
+    auto check_for_cancelation = history_traversal_precheck == Web::HistoryTraversalPrecheck::Needed
+        ? CheckForCancelation::Yes
+        : CheckForCancelation::IfWebContentCannotTraverseTarget;
+    (void)view->traverse_the_history_to_step(step, check_for_cancelation);
+}
+
 void WebContentClient::did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

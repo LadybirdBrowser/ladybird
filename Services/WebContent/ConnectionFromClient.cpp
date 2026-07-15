@@ -334,6 +334,12 @@ void ConnectionFromClient::cancel_download(u64 page_id, u64 download_id)
         page->cancel_download(download_id);
 }
 
+void ConnectionFromClient::resolve_session_history_traversal_target(u64 page_id, u64 request_id, Optional<i32> target_step)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->did_resolve_session_history_traversal_target(request_id, target_step);
+}
+
 void ConnectionFromClient::traverse_the_history_to_step(u64 page_id, i32 step)
 {
     auto page = this->page(page_id);

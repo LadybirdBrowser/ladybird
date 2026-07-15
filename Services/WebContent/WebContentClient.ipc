@@ -144,6 +144,8 @@ endpoint WebContentClient
     did_close_browsing_context(u64 page_id) =|
     did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) =|
     did_request_traverse_the_history_by_delta(u64 page_id, i32 delta, Web::HistoryTraversalPrecheck history_traversal_precheck) =|
+    did_request_history_traversal_target_by_delta(u64 page_id, u64 request_id, i32 delta) =|
+    did_request_traverse_the_history_to_step(u64 page_id, i32 step, Web::HistoryTraversalPrecheck history_traversal_precheck) =|
     did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta) =|
     did_request_webdriver_load_url_from_ui(u64 page_id, URL::URL url) => (Web::WebDriver::Response response)
     did_request_webdriver_traverse_history_from_ui(u64 page_id, i32 delta) => (Web::WebDriver::Response response)

@@ -588,6 +588,8 @@ public:
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }
     virtual String page_did_update_session_history_and_request_ui_process_session_history_for_testing([[maybe_unused]] Vector<HTML::SessionHistoryEntryDescriptor> const& entries, [[maybe_unused]] Vector<i32> const& used_steps, [[maybe_unused]] size_t current_used_step_index) { return "{}"_string; }
     virtual void page_did_request_traverse_the_history_by_delta([[maybe_unused]] int delta, [[maybe_unused]] HistoryTraversalPrecheck history_traversal_precheck) { }
+    virtual void page_did_request_history_traversal_target_by_delta([[maybe_unused]] int delta, [[maybe_unused]] GC::Ref<GC::Function<void(Optional<int>)>> on_complete) { VERIFY_NOT_REACHED(); }
+    virtual void page_did_request_traverse_the_history_to_step([[maybe_unused]] int step, [[maybe_unused]] HistoryTraversalPrecheck history_traversal_precheck) { VERIFY_NOT_REACHED(); }
     virtual void page_did_change_needs_beforeunload_check([[maybe_unused]] bool needs_beforeunload_check) { }
 
     virtual void request_file(FileRequest) = 0;

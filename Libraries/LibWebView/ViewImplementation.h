@@ -118,6 +118,10 @@ public:
         int delta,
         CheckForCancelation = CheckForCancelation::Yes,
         Function<void(HistoryTraversalOutcome)> = nullptr);
+    [[nodiscard]] HistoryTraversalOutcome traverse_the_history_to_step(
+        i32 step,
+        CheckForCancelation = CheckForCancelation::Yes,
+        Function<void(HistoryTraversalOutcome)> = nullptr);
     [[nodiscard]] Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const;
 
     void zoom_in();
@@ -407,6 +411,7 @@ public:
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const = 0;
 
 protected:
+    HistoryTraversalOutcome start_history_traversal(HistoryTraversalDecision);
     virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation);
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const;
 

@@ -1059,7 +1059,17 @@ bool TraversableSessionHistory::web_content_can_traverse_to(TraversalTarget cons
 
 Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::traversal_target_for_delta(int delta) const
 {
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
+
+    // 1. Let allSteps be the result of getting all used history steps for traversable.
+    // NB: m_used_steps is the cached result for the canonical traversable session history.
+
+    // 2. Let currentStepIndex be the index of traversable's current session history step within allSteps.
+
+    // 3. Let targetStepIndex be currentStepIndex plus delta.
     auto target_step_index = target_step_index_for_delta(delta);
+
+    // 4. If allSteps[targetStepIndex] does not exist, then abort these steps.
     if (!target_step_index.has_value())
         return {};
 

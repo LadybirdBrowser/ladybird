@@ -83,6 +83,7 @@ public:
         bool will_replace_web_content_process { false };
         bool will_change_top_level_entry { false };
     };
+    void did_resolve_session_history_traversal_target(u64 request_id, Optional<i32> target_step);
     void request_webdriver_history_traversal(int delta, Function<void(WebDriverHistoryTraversalResult)>);
     void did_complete_webdriver_history_traversal(u64 request_id, bool accepted, bool will_replace_web_content_process, bool will_change_top_level_entry);
     Web::WebDriver::Response request_webdriver_load_url_from_ui(URL::URL const&);
@@ -248,6 +249,8 @@ private:
     virtual String page_did_request_ui_process_session_history_for_testing() override;
     virtual String page_did_update_session_history_and_request_ui_process_session_history_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor> const&, Vector<i32> const& used_steps, size_t current_used_step_index) override;
     virtual void page_did_request_traverse_the_history_by_delta(int delta, Web::HistoryTraversalPrecheck) override;
+    virtual void page_did_request_history_traversal_target_by_delta(int delta, GC::Ref<GC::Function<void(Optional<int>)>> on_complete) override;
+    virtual void page_did_request_traverse_the_history_to_step(int step, Web::HistoryTraversalPrecheck) override;
     virtual void request_file(Web::FileRequest) override;
     virtual void page_did_request_color_picker(Color current_color) override;
     virtual void page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;
@@ -309,6 +312,8 @@ private:
     HashMap<u64, Function<void(Web::WebDriver::Response)>> m_pending_webdriver_navigation_completion_requests;
     u64 m_next_webdriver_history_traversal_request_id { 0 };
     HashMap<u64, Function<void(WebDriverHistoryTraversalResult)>> m_pending_webdriver_history_traversal_requests;
+    u64 m_next_session_history_traversal_target_request_id { 0 };
+    HashMap<u64, GC::Ref<GC::Function<void(Optional<int>)>>> m_pending_session_history_traversal_target_requests;
 
     RefPtr<WebDriverConnection> m_webdriver;
     RefPtr<WebUIConnection> m_web_ui;
