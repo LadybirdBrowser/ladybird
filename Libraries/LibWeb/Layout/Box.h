@@ -108,8 +108,7 @@ public:
     }
     void reset_cached_intrinsic_sizes() const { m_cached_intrinsic_sizes.clear(); }
 
-    Box(DOM::Document&, DOM::Node*, CSS::ComputedProperties const&);
-    Box(DOM::Document&, DOM::Node*, NonnullRefPtr<CSS::ComputedValues>);
+    Box(DOM::Document&, DOM::Node*, NonnullRefPtr<CSS::ComputedValues const>);
 
 protected:
     virtual CSS::SizeWithAspectRatio compute_auto_content_box_size() const { return natural_size(); }

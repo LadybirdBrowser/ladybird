@@ -156,7 +156,6 @@ public:
     bool font_metrics_depend_on_viewport_metrics() const { return m_font_metrics_depend_on_viewport_metrics; }
     // Whether the element this style was computed for has computed display none, or is a descendant of one that does.
     bool in_display_none_subtree() const { return m_in_display_none_subtree; }
-    RefPtr<ComputedValues> computed_values() const { return m_computed_values; }
     void set_in_display_none_subtree(Badge<DOM::Element>) { m_in_display_none_subtree = true; }
     void set_in_display_none_subtree(Badge<DOM::SyntheticPseudoElement>) { m_in_display_none_subtree = true; }
     bool has_pseudo_element_style(PseudoElement) const;
@@ -186,7 +185,7 @@ public:
     TextUnderlinePosition text_underline_position() const;
     Vector<BackgroundLayerData> background_layers() const;
     Vector<BackgroundLayerData> mask_layers() const;
-    Optional<BorderImageData> border_image() const;
+    BorderImageData border_image() const;
     BackgroundBox background_color_clip() const;
     CSSPixels border_spacing_horizontal() const;
     CSSPixels border_spacing_vertical() const;
@@ -197,10 +196,6 @@ public:
     Color caret_color(ColorResolutionContext const&) const;
     Clear clear() const;
     ColumnSpan column_span() const;
-    struct ContentDataAndQuoteNestingLevel {
-        ContentData content_data;
-        u32 final_quote_nesting_level { 0 };
-    };
     ContentDataAndQuoteNestingLevel content(DOM::AbstractElement&, u32 initial_quote_nesting_level) const;
     ContentVisibility content_visibility() const;
     Vector<CursorData> cursor() const;
@@ -386,8 +381,6 @@ private:
     AnimatedProperties const& animated_properties() const;
     AnimatedProperties& mutable_animated_properties();
     void set_animated_property_internal(PropertyID, NonnullRefPtr<StyleValue const>, AnimatedPropertyResultOfTransition, Inherited);
-    void set_computed_values(NonnullRefPtr<ComputedValues> values) const { m_computed_values = move(values); }
-
     NonnullRefPtr<Data const> m_data;
     RefPtr<AnimatedProperties> m_animated_properties;
     bool m_depends_on_viewport_metrics { false };
@@ -396,7 +389,6 @@ private:
 
     mutable RefPtr<Gfx::FontCascadeList const> m_cached_computed_font_list;
     mutable RefPtr<Gfx::Font const> m_cached_first_available_computed_font;
-    mutable RefPtr<ComputedValues> m_computed_values;
     void clear_computed_font_list_cache()
     {
         m_cached_computed_font_list = nullptr;

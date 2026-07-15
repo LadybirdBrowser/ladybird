@@ -16,12 +16,7 @@
 
 namespace Web::Layout {
 
-Box::Box(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties const& style)
-    : NodeWithStyleAndBoxModelMetrics(document, node, style)
-{
-}
-
-Box::Box(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues> computed_values)
+Box::Box(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues const> computed_values)
     : NodeWithStyleAndBoxModelMetrics(document, node, move(computed_values))
 {
 }

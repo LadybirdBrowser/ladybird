@@ -28,6 +28,15 @@
 
 namespace Web::CSS {
 
+struct WEB_API StyleComputationResult {
+    StyleComputationResult(NonnullRefPtr<ComputedProperties>, NonnullRefPtr<ComputedValues const>);
+    StyleComputationResult(StyleComputationResult&&);
+    ~StyleComputationResult();
+
+    NonnullRefPtr<ComputedProperties> properties;
+    NonnullRefPtr<ComputedValues const> values;
+};
+
 // A counting bloom filter with 2 hash functions.
 // NOTE: If a counter overflows, it's kept maxed-out until the whole filter is cleared.
 template<typename CounterType, size_t key_bits>
@@ -103,11 +112,11 @@ public:
     void push_ancestor(DOM::Element const&);
     void pop_ancestor(DOM::Element const&);
 
-    [[nodiscard]] NonnullRefPtr<ComputedProperties> create_document_style() const;
+    [[nodiscard]] StyleComputationResult create_document_style() const;
 
-    [[nodiscard]] NonnullRefPtr<ComputedProperties> compute_style(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}) const;
-    [[nodiscard]] NonnullRefPtr<ComputedProperties> compute_style_with_seeded_ancestors(DOM::AbstractElement);
-    [[nodiscard]] RefPtr<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::AbstractElement, Optional<bool&> did_change_custom_properties) const;
+    [[nodiscard]] StyleComputationResult compute_style(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}) const;
+    [[nodiscard]] StyleComputationResult compute_style_with_seeded_ancestors(DOM::AbstractElement);
+    [[nodiscard]] Optional<StyleComputationResult> compute_pseudo_element_style_if_needed(DOM::AbstractElement, Optional<bool&> did_change_custom_properties) const;
     [[nodiscard]] JsonArray collect_devtools_applied_style_rules(DOM::AbstractElement, bool include_inherited, bool include_user_agent_styles);
 
     struct ScopedMatchingRule {
@@ -161,7 +170,7 @@ public:
         Yes,
     };
 
-    void build_computed_values(ComputedProperties&, DOM::AbstractElement, StyleScope const&) const;
+    [[nodiscard]] NonnullRefPtr<ComputedValues const> build_computed_values(ComputedProperties&, DOM::AbstractElement, StyleScope const&) const;
 
 private:
     virtual void visit_edges(Visitor&) override;

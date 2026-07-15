@@ -28,7 +28,7 @@ void SVGGeometryElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_path_length);
 }
 
-RefPtr<Layout::Node> SVGGeometryElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> SVGGeometryElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
 {
     return make_ref_counted<Layout::SVGGeometryBox>(document(), *this, style);
 }

@@ -32,7 +32,7 @@ void SVGFEFloodElement::visit_edges(Cell::Visitor& visitor)
     SVGFilterPrimitiveStandardAttributes::visit_edges(visitor);
 }
 
-RefPtr<Layout::Node> SVGFEFloodElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> SVGFEFloodElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
 {
     return make_ref_counted<Layout::SVGBox>(document(), *this, style);
 }

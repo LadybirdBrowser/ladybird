@@ -77,7 +77,7 @@ private:
 
     virtual bool is_html_video_element() const override { return true; }
 
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
+    virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
 
     WebIDL::ExceptionOr<void> determine_element_poster_frame(Optional<Utf16String> const& poster);
 

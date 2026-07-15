@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-SVGClipBox::SVGClipBox(DOM::Document& document, SVG::SVGClipPathElement& element, CSS::ComputedProperties const& style)
+SVGClipBox::SVGClipBox(DOM::Document& document, SVG::SVGClipPathElement& element, NonnullRefPtr<CSS::ComputedValues const> style)
     : SVGBox(document, element, style)
 {
 }

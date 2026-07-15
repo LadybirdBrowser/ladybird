@@ -105,6 +105,15 @@
 
 namespace Web::CSS {
 
+StyleComputationResult::StyleComputationResult(NonnullRefPtr<ComputedProperties> properties, NonnullRefPtr<ComputedValues const> values)
+    : properties(move(properties))
+    , values(move(values))
+{
+}
+
+StyleComputationResult::StyleComputationResult(StyleComputationResult&&) = default;
+StyleComputationResult::~StyleComputationResult() = default;
+
 GC_DEFINE_ALLOCATOR(StyleComputer);
 
 static void for_each_element_hash(DOM::Element const& element, auto callback)
@@ -1521,7 +1530,7 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
 {
     // FIXME: For now we don't bother registering transitions on the first computation since they can't run (because
     //        there is nothing to transition from) but this will change once we implement @starting-style
-    if (!abstract_element.computed_properties())
+    if (!abstract_element.computed_values())
         return;
     // FIXME: Add transition helpers on AbstractElement.
     auto& element = abstract_element.element();
@@ -2386,14 +2395,13 @@ NonnullRefPtr<StyleValue const> StyleComputer::get_non_animated_inherit_value(Pr
 {
     auto parent_element = abstract_element.element_to_inherit_style_from();
 
-    if (!parent_element.has_value() || !parent_element->computed_properties())
+    if (!parent_element.has_value() || !parent_element->computed_values())
         return property_initial_value(property_id);
 
-    if (auto computed_values = parent_element->computed_values()) {
-        if (auto value = computed_values->computed_style_value_for_inheritance(property_id, ComputedValues::WithAnimationsApplied::No))
-            return value.release_nonnull();
-    }
-    return parent_element->computed_properties()->property(property_id, ComputedProperties::WithAnimationsApplied::No);
+    auto value = parent_element->computed_values()->computed_style_value_for_inheritance(property_id, ComputedValues::WithAnimationsApplied::No);
+    VERIFY(value);
+
+    return value.release_nonnull();
 }
 
 Optional<StyleComputer::AnimatedInheritValue> StyleComputer::get_animated_inherit_value(PropertyID property_id, DOM::AbstractElement abstract_element)
@@ -2403,17 +2411,20 @@ Optional<StyleComputer::AnimatedInheritValue> StyleComputer::get_animated_inheri
     if (!parent_element.has_value() || !parent_element->computed_values())
         return {};
 
-    auto computed_values = parent_element->computed_values();
-    auto const* animated_properties = computed_values->animated_properties();
+    auto const* animated_properties = parent_element->computed_values()->animated_properties();
     if (!animated_properties || !animated_properties->has_property(property_id))
         return {};
 
-    return AnimatedInheritValue {
-        .value = animated_properties->property(property_id),
-        .is_result_of_transition = animated_properties->is_property_result_of_transition(property_id)
-            ? AnimatedPropertyResultOfTransition::Yes
-            : AnimatedPropertyResultOfTransition::No
-    };
+    if (auto animated_value = animated_properties->values().get(property_id); animated_value.has_value()) {
+        return AnimatedInheritValue {
+            .value = *animated_value.value(),
+            .is_result_of_transition = animated_properties->is_property_result_of_transition(property_id)
+                ? AnimatedPropertyResultOfTransition::Yes
+                : AnimatedPropertyResultOfTransition::No
+        };
+    }
+
+    return {};
 }
 
 Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedProperties const& style) const
@@ -2874,7 +2885,7 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties::Builder& bu
         builder.set_property(PropertyID::Display, DisplayStyleValue::create(new_display));
 }
 
-NonnullRefPtr<ComputedProperties> StyleComputer::create_document_style() const
+StyleComputationResult StyleComputer::create_document_style() const
 {
     auto builder = CSS::ComputedProperties::create_builder();
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
@@ -2893,20 +2904,20 @@ NonnullRefPtr<ComputedProperties> StyleComputer::create_document_style() const
         .current_color_style_value = &computed_properties->property(PropertyID::Color),
         .calculation_resolution_context = { .length_resolution_context = CSS::Length::ResolutionContext::for_document(document()) },
     };
-    computed_properties->set_computed_values(CSS::ComputedValues::create(*computed_properties, document(), document().style_scope(), move(color_resolution_context)));
-    return computed_properties;
+    auto computed_values = CSS::ComputedValues::create(*computed_properties, document(), document().style_scope(), move(color_resolution_context));
+    return { move(computed_properties), move(computed_values) };
 }
 
-NonnullRefPtr<ComputedProperties> StyleComputer::compute_style(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
+StyleComputationResult StyleComputer::compute_style(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
 {
     auto& style_scope = abstract_element.style_scope();
     auto computed_properties = compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties, style_scope);
     VERIFY(computed_properties);
-    build_computed_values(*computed_properties, abstract_element, style_scope);
-    return computed_properties.release_nonnull();
+    auto values = build_computed_values(*computed_properties, abstract_element, style_scope);
+    return { computed_properties.release_nonnull(), move(values) };
 }
 
-NonnullRefPtr<ComputedProperties> StyleComputer::compute_style_with_seeded_ancestors(DOM::AbstractElement abstract_element)
+StyleComputationResult StyleComputer::compute_style_with_seeded_ancestors(DOM::AbstractElement abstract_element)
 {
     auto const first_ancestor = [&] -> GC::Ptr<DOM::Element const> {
         if (abstract_element.pseudo_element().has_value())
@@ -2926,16 +2937,18 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_style_with_seeded_ances
     return compute_style(abstract_element);
 }
 
-RefPtr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
+Optional<StyleComputationResult> StyleComputer::compute_pseudo_element_style_if_needed(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
 {
     auto& style_scope = abstract_element.style_scope();
     auto computed_properties = compute_style_impl(abstract_element, ComputeStyleMode::CreatePseudoElementStyleIfNeeded, did_change_custom_properties, style_scope);
-    if (computed_properties)
-        build_computed_values(*computed_properties, abstract_element, style_scope);
-    return computed_properties;
+    if (computed_properties) {
+        auto values = build_computed_values(*computed_properties, abstract_element, style_scope);
+        return StyleComputationResult { computed_properties.release_nonnull(), move(values) };
+    }
+    return {};
 }
 
-void StyleComputer::build_computed_values(ComputedProperties& computed_properties, DOM::AbstractElement abstract_element, StyleScope const& style_scope) const
+NonnullRefPtr<ComputedValues const> StyleComputer::build_computed_values(ComputedProperties& computed_properties, DOM::AbstractElement abstract_element, StyleScope const& style_scope) const
 {
     VERIFY(computation_context_cache_is_empty());
     ScopeGuard clear_computation_context_cache = [&] { clear_computation_context_caches(); };
@@ -2950,15 +2963,13 @@ void StyleComputer::build_computed_values(ComputedProperties& computed_propertie
     auto base_properties = computed_properties.copy_without_animations();
     auto base_values = ComputedValues::create(*base_properties, document(), style_scope, color_resolution_context);
     auto animated_properties = computed_properties.animated_properties_snapshot();
-    if (!animated_properties || animated_properties->is_empty()) {
-        computed_properties.set_computed_values(move(base_values));
-        return;
-    }
+    if (!animated_properties || animated_properties->is_empty())
+        return base_values;
 
     ComputedValues::Builder builder(*ComputedValues::create(computed_properties, document(), style_scope, move(color_resolution_context)));
     builder->set_base_values(move(base_values));
     builder->set_animated_properties(animated_properties.ptr());
-    computed_properties.set_computed_values(builder.build());
+    return builder.build();
 }
 
 RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElement abstract_element, ComputeStyleMode mode, Optional<bool&> did_change_custom_properties, StyleScope const& style_scope) const
@@ -2980,7 +2991,7 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
             abstract_element_for_pseudo_element.set_inheritance_override(host_element);
 
         auto inherited_pseudo_element_style = compute_style(abstract_element_for_pseudo_element);
-        auto builder = ComputedProperties::create_builder_with_base_values_from(*inherited_pseudo_element_style);
+        auto builder = ComputedProperties::create_builder_with_base_values_from(*inherited_pseudo_element_style.properties);
 
         abstract_element.element().adjust_computed_style(builder);
         return ComputedProperties::create(move(builder));
@@ -3236,7 +3247,6 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         }
     }
 
-    auto const& computed_properties_to_inherit_from = abstract_element.element_to_inherit_style_from().map([](auto const& element) { return element.computed_properties(); }).value_or(nullptr);
     auto const& computed_values_to_inherit_from = abstract_element.element_to_inherit_style_from().map([](auto const& element) { return element.computed_values(); }).value_or(nullptr);
 
     Function<NonnullRefPtr<StyleValue const>(PropertyID)> const get_property_specified_value = [&](auto property_id) -> NonnullRefPtr<StyleValue const> {
@@ -3324,41 +3334,35 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         // In the color property, the used value of currentcolor is the resolved inherited value.
         should_inherit |= property_id == PropertyID::Color && value && value->to_keyword() == Keyword::Currentcolor;
 
-        if (should_inherit && computed_properties_to_inherit_from) {
+        if (should_inherit && computed_values_to_inherit_from) {
             if (explicitly_inherits_non_inherited_property) {
                 if (auto* parent = abstract_element.element().parent(); parent && is<DOM::ShadowRoot>(*parent))
                     parent->set_children_may_depend_on_non_inherited_property_inheritance();
             }
             builder.set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
-            if (computed_values_to_inherit_from)
-                value = computed_values_to_inherit_from->computed_style_value_for_inheritance(inherited_property_id, ComputedValues::WithAnimationsApplied::No);
-            if (!value)
-                value = computed_properties_to_inherit_from->property(inherited_property_id, ComputedProperties::WithAnimationsApplied::No);
+            value = get_non_animated_inherit_value(inherited_property_id, abstract_element);
             requires_computation = property_requires_computation_with_inherited_value(property_id);
             if (property_affects_font_metrics(inherited_property_id)) {
-                auto font_metrics_depend_on_viewport_metrics = computed_values_to_inherit_from
-                    ? computed_values_to_inherit_from->font_metrics_depend_on_viewport_metrics()
-                    : computed_properties_to_inherit_from->font_metrics_depend_on_viewport_metrics();
-                if (font_metrics_depend_on_viewport_metrics)
+                if (computed_values_to_inherit_from->font_metrics_depend_on_viewport_metrics())
                     builder.set_font_metrics_depend_on_viewport_metrics();
             }
 
             // FIXME: Do we need to recompute animated inherited values?
-            if (computed_properties_to_inherit_from->has_animated_property(inherited_property_id)) {
-                auto animated_value = computed_properties_to_inherit_from->animated_property_values().get(inherited_property_id);
+            if (auto const* animated_properties = computed_values_to_inherit_from->animated_properties(); animated_properties && animated_properties->has_property(inherited_property_id)) {
+                auto animated_value = animated_properties->values().get(inherited_property_id);
                 VERIFY(animated_value.has_value());
                 computed_style.set_animated_property(
                     Badge<StyleComputer> {},
                     property_id,
                     *animated_value.value(),
-                    computed_properties_to_inherit_from->is_animated_property_result_of_transition(inherited_property_id)
+                    animated_properties->is_property_result_of_transition(inherited_property_id)
                         ? AnimatedPropertyResultOfTransition::Yes
                         : AnimatedPropertyResultOfTransition::No,
                     ComputedProperties::Inherited::Yes);
             }
         }
 
-        if (!value || value->is_initial() || value->is_unset() || (should_inherit && !computed_properties_to_inherit_from)) {
+        if (!value || value->is_initial() || value->is_unset() || (should_inherit && !computed_values_to_inherit_from)) {
             value = property_initial_value(property_id);
             requires_computation = property_requires_computation_with_initial_value(property_id);
         }
@@ -3852,11 +3856,21 @@ static NonnullRefPtr<StyleValue const> compute_value_of_custom_property_impl(DOM
 
 ComputationContext StyleComputer::fallback_computation_context_for_custom_property(DOM::AbstractElement const& abstract_element) const
 {
-    if (auto const* style = abstract_element.computed_properties())
-        return make_computation_context_for_property(PropertyID::Color, *style, abstract_element);
+    auto context_from_computed_values = [&](DOM::AbstractElement const& styled_element) -> ComputationContext {
+        auto length_resolution_context = Length::ResolutionContext::for_element(styled_element);
+        length_resolution_context.subject_element = &abstract_element.element();
+        return {
+            .length_resolution_context = move(length_resolution_context),
+            .abstract_element = abstract_element,
+            .color_scheme = styled_element.computed_values()->color_scheme(),
+        };
+    };
 
-    if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value() && parent->computed_properties())
-        return make_computation_context_for_property(PropertyID::Color, *parent->computed_properties(), abstract_element);
+    if (abstract_element.computed_values())
+        return context_from_computed_values(abstract_element);
+
+    if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value() && parent->computed_values())
+        return context_from_computed_values(*parent);
 
     auto length_resolution_context = Length::ResolutionContext::for_document(document());
     length_resolution_context.subject_element = &abstract_element.element();
@@ -4045,8 +4059,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
     case PropertyID::FontSize: {
         auto parent = inheritance_parent();
         if (font_size_value_depends_on_inherited_font_size(*absolutized_value) && parent.has_value()) {
-            auto parent_properties = parent->computed_properties();
-            if (parent_properties && parent_properties->font_metrics_depend_on_viewport_metrics())
+            auto parent_values = parent->computed_values();
+            if (parent_values && parent_values->font_metrics_depend_on_viewport_metrics())
                 computation_context.length_resolution_context.record_viewport_relative_length_resolution();
         }
         return compute_font_size(absolutized_value, get_property_specified_value(PropertyID::MathDepth)->as_integer().integer(), parent);

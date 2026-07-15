@@ -11,7 +11,7 @@
 
 namespace Web::Layout {
 
-ListItemBox::ListItemBox(DOM::Document& document, DOM::Element* element, CSS::ComputedProperties const& style)
+ListItemBox::ListItemBox(DOM::Document& document, DOM::Element* element, NonnullRefPtr<CSS::ComputedValues const> style)
     : Layout::BlockContainer(document, element, style)
 {
 }

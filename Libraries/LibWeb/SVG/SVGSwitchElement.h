@@ -18,7 +18,7 @@ class SVGSwitchElement final : public SVGGraphicsElement {
 public:
     virtual ~SVGSwitchElement() override;
 
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
+    virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
 
 private:
     SVGSwitchElement(DOM::Document&, DOM::QualifiedName);

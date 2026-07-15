@@ -224,8 +224,8 @@ public:
 
     RefPtr<CSS::ComputedProperties const> computed_properties(Optional<CSS::PseudoElement> = {}) const;
     RefPtr<CSS::ComputedValues const> computed_values(Optional<CSS::PseudoElement> = {}) const;
-    void set_computed_properties(Optional<CSS::PseudoElement>, RefPtr<CSS::ComputedProperties>);
-    void refresh_computed_values(Optional<CSS::PseudoElement>);
+    void set_computed_style(Optional<CSS::PseudoElement>, RefPtr<CSS::ComputedProperties>, RefPtr<CSS::ComputedValues const>);
+    void refresh_computed_values(Optional<CSS::PseudoElement>, NonnullRefPtr<CSS::ComputedValues const>);
     void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, Optional<CSS::PseudoElement>, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&);
     void update_animated_properties_for_abstract_element(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&);
 
@@ -381,7 +381,7 @@ public:
     [[nodiscard]] Vector<CSSPixelRect> client_rects_assuming_layout_clean() const;
     [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean() const;
 
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&);
+    virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>);
     virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) { }
 
     virtual void did_receive_focus() { }
@@ -389,7 +389,7 @@ public:
     bool should_indicate_focus() const;
     virtual bool is_focusable() const override;
 
-    static RefPtr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, CSS::ComputedProperties const&, Element*);
+    static RefPtr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, NonnullRefPtr<CSS::ComputedValues const>, Element*);
 
     void clear_removed_attributes_for_style_invalidation() { m_removed_attributes_for_style_invalidation.clear(); }
     bool has_removed_attribute_for_style_invalidation(Utf16FlyString const& attribute_name) const
@@ -695,7 +695,7 @@ private:
     Utf16FlyString make_html_uppercased_qualified_name() const;
 
     void exit_fullscreen_on_element_removal();
-    CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedProperties const* old_originating_style);
+    CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style);
     void apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
     void set_in_display_none_subtree_on_descendant_styles();
     void mark_descendants_with_stale_styles_for_style_update();

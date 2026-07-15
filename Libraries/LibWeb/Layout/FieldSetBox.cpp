@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-FieldSetBox::FieldSetBox(DOM::Document& document, DOM::Element& element, CSS::ComputedProperties const& style)
+FieldSetBox::FieldSetBox(DOM::Document& document, DOM::Element& element, NonnullRefPtr<CSS::ComputedValues const> style)
     : BlockContainer(document, &element, style)
 {
     // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements

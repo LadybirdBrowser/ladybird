@@ -396,7 +396,7 @@ Optional<RelativeColorContext> ColorStyleValue::extract_channels_in_color_space(
     if (effective_origin->to_keyword() == Keyword::Currentcolor
         && color_resolution_context.current_color_style_value
         && !color_resolution_context.current_color_style_value->depends_on_current_color()) {
-        effective_origin = color_resolution_context.current_color_style_value;
+        effective_origin = color_resolution_context.current_color_style_value.ptr();
     }
 
     RefPtr<StyleValue const> resolved_origin_storage;

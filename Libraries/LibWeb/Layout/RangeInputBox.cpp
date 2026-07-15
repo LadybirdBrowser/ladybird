@@ -8,7 +8,7 @@
 
 namespace Web::Layout {
 
-RangeInputBox::RangeInputBox(DOM::Document& document, GC::Ptr<DOM::Element> element, CSS::ComputedProperties const& style)
+RangeInputBox::RangeInputBox(DOM::Document& document, GC::Ptr<DOM::Element> element, NonnullRefPtr<CSS::ComputedValues const> style)
     : BlockContainer(document, element, style)
 {
 }

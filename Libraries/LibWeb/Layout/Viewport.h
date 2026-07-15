@@ -15,7 +15,7 @@ class Viewport final : public BlockContainer {
     LAYOUT_NODE(Viewport, BlockContainer);
 
 public:
-    explicit Viewport(DOM::Document&, CSS::ComputedProperties const&);
+    explicit Viewport(DOM::Document&, NonnullRefPtr<CSS::ComputedValues const>);
     virtual ~Viewport() override;
 
     struct TextPosition {

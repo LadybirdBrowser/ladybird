@@ -16,7 +16,7 @@ class SVGClipBox final : public SVGBox {
     LAYOUT_NODE(SVGClipBox, SVGBox);
 
 public:
-    SVGClipBox(DOM::Document&, SVG::SVGClipPathElement&, CSS::ComputedProperties const&);
+    SVGClipBox(DOM::Document&, SVG::SVGClipPathElement&, NonnullRefPtr<CSS::ComputedValues const>);
     virtual ~SVGClipBox() override = default;
 
     SVG::SVGClipPathElement& dom_node() { return as<SVG::SVGClipPathElement>(SVGBox::dom_node()); }

@@ -37,7 +37,7 @@ void HTMLAudioElement::adjust_computed_style(CSS::ComputedProperties::Builder& s
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
-RefPtr<Layout::Node> HTMLAudioElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> HTMLAudioElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
 {
     return make_ref_counted<Layout::AudioBox>(document(), *this, style);
 }

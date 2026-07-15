@@ -15,7 +15,7 @@ class CheckBox final : public ReplacedBox {
     LAYOUT_NODE(CheckBox, ReplacedBox);
 
 public:
-    CheckBox(DOM::Document&, HTML::HTMLInputElement&, CSS::ComputedProperties const&);
+    CheckBox(DOM::Document&, HTML::HTMLInputElement&, NonnullRefPtr<CSS::ComputedValues const>);
     virtual ~CheckBox() override;
 
 private:

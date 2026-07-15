@@ -460,8 +460,8 @@ static RequiredInvalidationAfterStyleChange recompute_style_for_targeted_style_u
     if (element.parent())
         return element.recompute_style(did_change_custom_properties);
 
-    auto new_computed_properties = element.document().style_computer().compute_style({ element }, did_change_custom_properties);
-    element.set_computed_properties({}, move(new_computed_properties));
+    auto new_style = element.document().style_computer().compute_style({ element }, did_change_custom_properties);
+    element.set_computed_style({}, move(new_style.properties), move(new_style.values));
     element.set_needs_style_update(false);
     return {};
 }

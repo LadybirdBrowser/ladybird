@@ -12,7 +12,7 @@
 
 namespace Web::Layout {
 
-ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, CSS::ListStyleType style_type, CSS::ListStylePosition style_position, GC::Ref<DOM::Element> list_item_element, CSS::ComputedProperties const& style)
+ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, CSS::ListStyleType style_type, CSS::ListStylePosition style_position, GC::Ref<DOM::Element> list_item_element, NonnullRefPtr<CSS::ComputedValues const> style)
     : Box(document, nullptr, style)
     , m_list_style_type(style_type)
     , m_list_style_position(style_position)
@@ -44,6 +44,18 @@ Optional<Utf16String> ListItemMarkerBox::text() const
     // https://drafts.csswg.org/css-lists-3/#text-markers
     auto index = m_list_item_element->ordinal_value();
 
+    auto generate_from_counter_style = [&](RefPtr<CSS::CounterStyle const> const& counter_style) -> Optional<Utf16String> {
+        if (counter_style_is_rendered_with_custom_image(counter_style))
+            return {};
+
+        auto counter_representation = CSS::generate_a_counter_representation(counter_style, DOM::AbstractElement { *m_list_item_element }.style_scope(), index);
+
+        if (!counter_style)
+            return Utf16String::formatted("{}. ", counter_representation);
+
+        return Utf16String::formatted("{}{}{}", counter_style->prefix(), counter_representation, counter_style->suffix());
+    };
+
     return m_list_style_type.visit(
         [](Empty const&) -> Optional<Utf16String> {
             // none
@@ -57,21 +69,20 @@ Optional<Utf16String> ListItemMarkerBox::text() const
             // representation of the list-item counter value using the specified <counter-style>, prefixed by the prefix
             // of the <counter-style>, and followed by the suffix of the <counter-style>. If the specified
             // <counter-style> does not exist, decimal is assumed.
-            if (counter_style_is_rendered_with_custom_image(counter_style))
-                return {};
-
-            // NB: Fallback to decimal if the counter style does not exist is handled within generate_a_counter_representation()
-            auto counter_representation = CSS::generate_a_counter_representation(counter_style, DOM::AbstractElement { *m_list_item_element }.style_scope(), index);
-
-            if (!counter_style)
-                return Utf16String::formatted("{}. ", counter_representation);
-
-            return Utf16String::formatted("{}{}{}", counter_style->prefix(), counter_representation, counter_style->suffix());
+            return generate_from_counter_style(counter_style);
         },
         [](Utf16String const& string) -> Optional<Utf16String> {
             // <string>
             // The element’s marker string is the specified <string>.
             return string;
+        },
+        [&](Utf16FlyString const&) -> Optional<Utf16String> {
+            // NB: An unresolved <counter-style> falls back to decimal.
+            auto counter_representation = CSS::generate_a_counter_representation(nullptr, DOM::AbstractElement { *m_list_item_element }.style_scope(), index);
+            return Utf16String::formatted("{}. ", counter_representation);
+        },
+        [&](CSS::ListStyleSymbols const& symbols) -> Optional<Utf16String> {
+            return generate_from_counter_style(symbols.counter_style);
         });
 }
 

@@ -11,7 +11,7 @@
 
 namespace Web::Layout {
 
-VideoBox::VideoBox(DOM::Document& document, DOM::Element& element, CSS::ComputedProperties const& style)
+VideoBox::VideoBox(DOM::Document& document, DOM::Element& element, NonnullRefPtr<CSS::ComputedValues const> style)
     : ReplacedBox(document, element, style)
 {
 }

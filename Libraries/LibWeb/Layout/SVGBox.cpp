@@ -8,7 +8,7 @@
 
 namespace Web::Layout {
 
-SVGBox::SVGBox(DOM::Document& document, SVG::SVGElement& element, CSS::ComputedProperties const& style)
+SVGBox::SVGBox(DOM::Document& document, SVG::SVGElement& element, NonnullRefPtr<CSS::ComputedValues const> style)
     : Box(document, &element, style)
 {
 }

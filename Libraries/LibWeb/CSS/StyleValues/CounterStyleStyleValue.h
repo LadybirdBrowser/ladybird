@@ -31,6 +31,7 @@ public:
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     RefPtr<CounterStyle const> resolve_counter_style(StyleScope const&) const;
+    Variant<Utf16FlyString, SymbolsFunction> const& value() const { return m_value; }
 
     bool properties_equal(CounterStyleStyleValue const& other) const { return m_value == other.m_value; }
 

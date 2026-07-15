@@ -281,7 +281,7 @@ void HTMLImageElement::form_associated_element_attribute_changed(Utf16FlyString 
     }
 }
 
-RefPtr<Layout::Node> HTMLImageElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> HTMLImageElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
 {
     return make_ref_counted<Layout::ImageBox>(document(), *this, style, *this);
 }

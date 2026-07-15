@@ -47,7 +47,7 @@ void SVGSVGElement::visit_edges(Visitor& visitor)
     visitor.visit(m_active_view_element);
 }
 
-RefPtr<Layout::Node> SVGSVGElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> SVGSVGElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
 {
     return make_ref_counted<Layout::SVGSVGBox>(document(), *this, style);
 }

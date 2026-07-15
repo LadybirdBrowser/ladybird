@@ -91,31 +91,31 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Page/Page.h>
 
 namespace Web::CSS {
 
 ColorResolutionContext ColorResolutionContext::for_element(DOM::AbstractElement const& element)
 {
-    auto color_scheme = element.computed_properties()->color_scheme(element.document().page().preferred_color_scheme(), element.document().supported_color_schemes());
+    auto computed_values = element.computed_values();
+    VERIFY(computed_values);
 
     CalculationResolutionContext calculation_resolution_context { .length_resolution_context = Length::ResolutionContext::for_element(element) };
 
     return {
-        .color_scheme = color_scheme,
-        .current_color = element.computed_properties()->color(PropertyID::Color, { .color_scheme = color_scheme, .current_color = CSS::InitialValues::color(), .current_color_style_value = nullptr, .calculation_resolution_context = calculation_resolution_context }),
-        .current_color_style_value = &element.computed_properties()->property(PropertyID::Color),
+        .color_scheme = computed_values->color_scheme(),
+        .current_color = computed_values->color(),
+        .current_color_style_value = computed_values->color_style_value(),
         .calculation_resolution_context = calculation_resolution_context
     };
 }
 
 ColorResolutionContext ColorResolutionContext::for_layout_node_with_style(Layout::NodeWithStyle const& layout_node)
 {
-    StyleValue const* current_color_style_value = nullptr;
+    RefPtr<StyleValue const> current_color_style_value;
     if (auto* dom_node = layout_node.dom_node()) {
         if (auto* element = as_if<DOM::Element>(*dom_node)) {
-            if (auto computed_properties = element->computed_properties())
-                current_color_style_value = &computed_properties->property(PropertyID::Color);
+            if (auto computed_values = element->computed_values())
+                current_color_style_value = computed_values->color_style_value();
         }
     }
 

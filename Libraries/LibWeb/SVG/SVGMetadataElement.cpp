@@ -26,7 +26,7 @@ void SVGMetadataElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-RefPtr<Layout::Node> SVGMetadataElement::create_layout_node(CSS::ComputedProperties const&)
+RefPtr<Layout::Node> SVGMetadataElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const>)
 {
     return nullptr;
 }

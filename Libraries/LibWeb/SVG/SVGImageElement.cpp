@@ -202,7 +202,7 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
     }
 }
 
-RefPtr<Layout::Node> SVGImageElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> SVGImageElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
 {
     return make_ref_counted<Layout::SVGImageBox>(document(), *this, style);
 }

@@ -9,7 +9,7 @@
 
 namespace Web::Layout {
 
-CanvasBox::CanvasBox(DOM::Document& document, HTML::HTMLCanvasElement& element, CSS::ComputedProperties const& style)
+CanvasBox::CanvasBox(DOM::Document& document, HTML::HTMLCanvasElement& element, NonnullRefPtr<CSS::ComputedValues const> style)
     : ReplacedBox(document, element, style)
 {
 }

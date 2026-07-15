@@ -463,6 +463,8 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
 
     Vector<ResolvedBackgroundLayerData> resolved_layers;
     for (auto const& layer : layers) {
+        if (!layer.background_image)
+            continue;
         auto const& document = paintable_box.layout_node().document();
         if (!layer.background_image->is_paintable(document))
             continue;
@@ -570,7 +572,7 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         CSSPixels position_x = layer.position_x.to_px(space_x);
         CSSPixels position_y = layer.position_y.to_px(space_y);
 
-        resolved_layers.append({ .background_image = layer.background_image,
+        resolved_layers.append({ .background_image = *layer.background_image,
             .attachment = layer.attachment,
             .clip = layer.clip,
             .position_x = position_x,

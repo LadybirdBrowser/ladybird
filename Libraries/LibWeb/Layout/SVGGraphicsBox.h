@@ -17,7 +17,7 @@ class WEB_API SVGGraphicsBox : public SVGBox {
     LAYOUT_NODE(SVGGraphicsBox, SVGBox);
 
 public:
-    SVGGraphicsBox(DOM::Document&, SVG::SVGGraphicsElement&, CSS::ComputedProperties const&);
+    SVGGraphicsBox(DOM::Document&, SVG::SVGGraphicsElement&, NonnullRefPtr<CSS::ComputedValues const>);
     virtual ~SVGGraphicsBox() override = default;
 
     SVG::SVGGraphicsElement& dom_node() { return as<SVG::SVGGraphicsElement>(SVGBox::dom_node()); }

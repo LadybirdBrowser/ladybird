@@ -16,7 +16,7 @@ class VideoBox final : public ReplacedBox {
     GC_DECLARE_ALLOCATOR(VideoBox);
 
 public:
-    VideoBox(DOM::Document&, DOM::Element&, CSS::ComputedProperties const&);
+    VideoBox(DOM::Document&, DOM::Element&, NonnullRefPtr<CSS::ComputedValues const>);
 
     HTML::HTMLVideoElement& dom_node();
     HTML::HTMLVideoElement const& dom_node() const;

@@ -27,7 +27,7 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/DOM/Document.h>
@@ -410,15 +410,18 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         });
     }
 
-    if (show_computed_properties && layout_node.dom_node() && layout_node.dom_node()->is_element() && as<DOM::Element>(layout_node.dom_node())->computed_properties()) {
+    if (show_computed_properties && layout_node.dom_node() && layout_node.dom_node()->is_element() && as<DOM::Element>(layout_node.dom_node())->computed_values()) {
         struct NameAndValue {
             Utf16FlyString name;
             String value;
         };
         Vector<NameAndValue> properties;
-        as<DOM::Element>(*layout_node.dom_node()).computed_properties()->for_each_property([&](auto property_id, auto& value) {
-            properties.append({ CSS::string_from_property_id(property_id), value.to_string(CSS::SerializationMode::Normal) });
-        });
+        auto computed_values = as<DOM::Element>(*layout_node.dom_node()).computed_values();
+        for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
+            auto property_id = static_cast<CSS::PropertyID>(i);
+            auto value = computed_values->computed_style_value(property_id);
+            properties.append({ CSS::string_from_property_id(property_id), value->to_string(CSS::SerializationMode::Normal) });
+        }
         quick_sort(properties, [](auto& a, auto& b) { return a.name < b.name; });
 
         for (auto& property : properties) {

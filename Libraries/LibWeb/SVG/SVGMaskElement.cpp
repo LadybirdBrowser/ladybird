@@ -28,7 +28,7 @@ void SVGMaskElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-RefPtr<Layout::Node> SVGMaskElement::create_layout_node(CSS::ComputedProperties const&)
+RefPtr<Layout::Node> SVGMaskElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const>)
 {
     // Masks are handled as a special case in the TreeBuilder.
     return nullptr;

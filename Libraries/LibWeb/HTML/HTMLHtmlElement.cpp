@@ -46,7 +46,7 @@ bool HTMLHtmlElement::should_use_body_background_properties() const
     auto background_color = unsafe_layout_node()->computed_values().background_color();
     auto const& background_layers = unsafe_layout_node()->background_layers();
 
-    return background_layers.is_empty() && background_color == Color::Transparent;
+    return !any_of(background_layers, [](auto const& layer) { return layer.background_image != nullptr; }) && background_color == Color::Transparent;
 }
 
 }

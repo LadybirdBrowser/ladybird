@@ -47,7 +47,7 @@ public:
 
     Optional<Painting::PaintStyle> to_gfx_paint_style(SVGPaintContext const&, DisplayListRecordingContext&, Layout::Node const& target_layout_node) const;
 
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override { return nullptr; }
+    virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override { return nullptr; }
 
 protected:
     SVGPatternElement(DOM::Document&, DOM::QualifiedName);

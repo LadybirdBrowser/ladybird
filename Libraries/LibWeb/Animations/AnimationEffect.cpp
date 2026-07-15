@@ -855,8 +855,8 @@ AnimationUpdateContext::~AnimationUpdateContext()
         if (invalidation.is_none())
             continue;
 
-        target->document().style_computer().build_computed_values(*style, element, element.style_scope());
-        target->refresh_computed_values(element.pseudo_element());
+        auto computed_values = target->document().style_computer().build_computed_values(*style, element, element.style_scope());
+        target->refresh_computed_values(element.pseudo_element(), computed_values);
 
         // Traversal of the subtree is necessary to update the animated properties inherited from the target element.
         bool invalidated_assigned_slottables_for_descendant_slots = false;
@@ -872,7 +872,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
             if (!is<DOM::Element>(node))
                 return TraversalDecision::Continue;
             auto& element = static_cast<DOM::Element&>(node);
-            if (!element.computed_properties())
+            if (!element.computed_values())
                 return TraversalDecision::SkipChildrenAndContinue;
             auto element_invalidation = element.recompute_inherited_style();
             if (element_invalidation.is_none())
@@ -896,10 +896,10 @@ AnimationUpdateContext::~AnimationUpdateContext()
         // NB: Called from animation update context destructor during style recalculation.
         if (!element.pseudo_element().has_value()) {
             if (target->unsafe_layout_node())
-                target->unsafe_layout_node()->apply_style(*style);
+                target->unsafe_layout_node()->apply_style(computed_values);
         } else {
             if (auto pseudo_element_node = target->pseudo_element_unsafe_layout_node(element.pseudo_element().value()))
-                pseudo_element_node->apply_style(*style);
+                pseudo_element_node->apply_style(computed_values);
         }
 
         if (invalidation.changes_containing_block_establishment)

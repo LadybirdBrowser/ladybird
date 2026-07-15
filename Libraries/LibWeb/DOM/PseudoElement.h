@@ -56,9 +56,9 @@ public:
     RefPtr<CSS::ComputedProperties const> computed_properties() const override;
     RefPtr<CSS::ComputedValues const> computed_values() const override;
     void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&) override;
-    void set_computed_properties(RefPtr<CSS::ComputedProperties> value);
-    void refresh_computed_values();
-    void set_computed_properties_in_display_none_subtree();
+    void set_computed_style(RefPtr<CSS::ComputedProperties>, RefPtr<CSS::ComputedValues const>);
+    void refresh_computed_values(NonnullRefPtr<CSS::ComputedValues const>);
+    void set_computed_values_in_display_none_subtree();
 
     RefPtr<CSS::CustomPropertyData const> custom_property_data() const override;
     void set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value) override;

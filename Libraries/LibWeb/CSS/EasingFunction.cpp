@@ -356,6 +356,47 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
     VERIFY_NOT_REACHED();
 }
 
+NonnullRefPtr<StyleValue const> EasingFunction::to_style_value() const
+{
+    auto const& serialized = to_utf16_string();
+    if (serialized == "linear"_utf16)
+        return KeywordStyleValue::create(Keyword::Linear);
+    if (serialized == "ease"_utf16)
+        return KeywordStyleValue::create(Keyword::Ease);
+    if (serialized == "ease-in"_utf16)
+        return KeywordStyleValue::create(Keyword::EaseIn);
+    if (serialized == "ease-out"_utf16)
+        return KeywordStyleValue::create(Keyword::EaseOut);
+    if (serialized == "ease-in-out"_utf16)
+        return KeywordStyleValue::create(Keyword::EaseInOut);
+
+    return visit(
+        [](LinearEasingFunction const& linear) -> NonnullRefPtr<StyleValue const> {
+            Vector<EasingStyleValue::Linear::Stop> stops;
+            for (auto const& point : linear.control_points) {
+                ValueComparingRefPtr<StyleValue const> input;
+                if (point.input.has_value())
+                    input = PercentageStyleValue::create(Percentage { *point.input * 100 });
+                stops.append({ NumberStyleValue::create(point.output), move(input) });
+            }
+            return EasingStyleValue::create(EasingStyleValue::Linear { move(stops) });
+        },
+        [](CubicBezierEasingFunction const& cubic_bezier) -> NonnullRefPtr<StyleValue const> {
+            return EasingStyleValue::create(EasingStyleValue::CubicBezier {
+                NumberStyleValue::create(cubic_bezier.x1),
+                NumberStyleValue::create(cubic_bezier.y1),
+                NumberStyleValue::create(cubic_bezier.x2),
+                NumberStyleValue::create(cubic_bezier.y2),
+            });
+        },
+        [](StepsEasingFunction const& steps) -> NonnullRefPtr<StyleValue const> {
+            return EasingStyleValue::create(EasingStyleValue::Steps {
+                IntegerStyleValue::create(steps.interval_count),
+                steps.position,
+            });
+        });
+}
+
 double EasingFunction::evaluate_at(double input_progress, bool before_flag) const
 {
     return visit(

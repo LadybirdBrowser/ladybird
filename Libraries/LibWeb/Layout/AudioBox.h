@@ -17,7 +17,7 @@ class AudioBox final : public ReplacedBox {
     GC_DECLARE_ALLOCATOR(AudioBox);
 
 public:
-    AudioBox(DOM::Document&, DOM::Element&, CSS::ComputedProperties const&);
+    AudioBox(DOM::Document&, DOM::Element&, NonnullRefPtr<CSS::ComputedValues const>);
 
     HTML::HTMLAudioElement& dom_node();
     HTML::HTMLAudioElement const& dom_node() const;

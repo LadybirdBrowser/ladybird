@@ -12,21 +12,30 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OverflowClipMarginStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TupleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
@@ -606,28 +615,13 @@ bool NodeWithStyle::is_sticky_position() const
     return position == CSS::Positioning::Sticky;
 }
 
-NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties const& computed_style)
-    : Node(document, node)
-    , m_computed_values(CSS::ComputedValues::Builder {}.build())
-    , m_layout_index(document.allocate_layout_node_index())
-{
-    m_has_style = true;
-    m_is_body = node && node == document.body();
-    apply_style(computed_style);
-}
-
-NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues> computed_values)
+NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues const> computed_values)
     : Node(document, node)
     , m_computed_values(move(computed_values))
     , m_layout_index(document.allocate_layout_node_index())
 {
     m_has_style = true;
     m_is_body = node && node == document.body();
-}
-
-NodeWithStyleAndBoxModelMetrics::NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties const& style)
-    : NodeWithStyle(document, node, style)
-{
 }
 
 NodeWithStyle::ImageObserver::ImageObserver(NodeWithStyle& owner, NonnullRefPtr<CSS::ImageStyleValue const> image)
@@ -700,8 +694,8 @@ void NodeWithStyle::rebuild_image_observers()
         if (auto const* cursor_style_value = cursor.get_pointer<NonnullRefPtr<CSS::CursorStyleValue const>>())
             add_observer_for(&(*cursor_style_value)->image(), new_observers);
     }
-    if (auto const& border_image = computed_values().border_image(); border_image.has_value())
-        add_observer_for(border_image->source.ptr(), new_observers);
+    if (auto const& border_image = computed_values().border_image(); border_image.source)
+        add_observer_for(border_image.source.ptr(), new_observers);
     // TODO: Observe other <image> accepting properties once we support them.
 
     m_image_observers = move(new_observers);
@@ -716,11 +710,43 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
     Builder builder;
     auto& computed_values = *builder.operator->();
 
+    auto custom_ident_list = [&](PropertyID property_id) {
+        Vector<Utf16FlyString> names;
+        auto append_name = [&](StyleValue const& value) {
+            if (value.is_custom_ident())
+                names.append(value.as_custom_ident().custom_ident());
+        };
+        auto const& value = computed_style.property(property_id);
+        if (value.is_value_list()) {
+            for (auto const& item : value.as_value_list().values())
+                append_name(item);
+        } else {
+            append_name(value);
+        }
+        return names;
+    };
+    auto for_each_comma_separated_value = [&](CSS::PropertyID property_id, auto callback) {
+        auto const& value = computed_style.property(property_id);
+        if (value.is_value_list() && value.as_value_list().separator() == CSS::StyleValueList::Separator::Comma) {
+            for (auto const& item : value.as_value_list().values())
+                callback(item);
+        } else {
+            callback(value);
+        }
+    };
+
     // NOTE: color-scheme must be set first to ensure system colors can be resolved correctly.
     auto const& color_scheme_style_value = computed_style.property(PropertyID::ColorScheme).as_color_scheme();
     computed_values.set_color_schemes(color_scheme_style_value.schemes(), color_scheme_style_value.only());
     auto color_scheme = computed_style.color_scheme(document.page().preferred_color_scheme(), document.supported_color_schemes());
     computed_values.set_color_scheme(color_scheme);
+
+    computed_values.set_anchor_names(custom_ident_list(PropertyID::AnchorName));
+    auto const& anchor_scope = computed_style.property(PropertyID::AnchorScope);
+    computed_values.set_anchor_scope(AnchorScopeData {
+        .all = anchor_scope.to_keyword() == Keyword::All,
+        .names = custom_ident_list(PropertyID::AnchorScope),
+    });
 
     // NOTE: We have to be careful that font-related properties get set in the right order.
     //       m_font is used by Length::to_px() when resolving sizes against this layout node.
@@ -767,11 +793,79 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
         }
     }
     computed_values.set_animation_names(move(animation_names));
+    Vector<AnimationComposition> animation_compositions;
+    for_each_comma_separated_value(PropertyID::AnimationComposition, [&](StyleValue const& value) { animation_compositions.append(keyword_to_animation_composition(value.to_keyword()).release_value()); });
+    computed_values.set_animation_compositions(move(animation_compositions));
+    Vector<Time> animation_delays;
+    for_each_comma_separated_value(PropertyID::AnimationDelay, [&](StyleValue const& value) { animation_delays.append(Time::from_style_value(NonnullRefPtr<StyleValue const> { value }, {})); });
+    computed_values.set_animation_delays(move(animation_delays));
+    Vector<AnimationDirection> animation_directions;
+    for_each_comma_separated_value(PropertyID::AnimationDirection, [&](StyleValue const& value) { animation_directions.append(keyword_to_animation_direction(value.to_keyword()).release_value()); });
+    computed_values.set_animation_directions(move(animation_directions));
+    Vector<Optional<Time>> animation_durations;
+    for_each_comma_separated_value(PropertyID::AnimationDuration, [&](StyleValue const& value) {
+        animation_durations.append(value.to_keyword() == Keyword::Auto ? Optional<Time> {} : Time::from_style_value(NonnullRefPtr<StyleValue const> { value }, {}));
+    });
+    computed_values.set_animation_durations(move(animation_durations));
+    Vector<AnimationFillMode> animation_fill_modes;
+    for_each_comma_separated_value(PropertyID::AnimationFillMode, [&](StyleValue const& value) { animation_fill_modes.append(keyword_to_animation_fill_mode(value.to_keyword()).release_value()); });
+    computed_values.set_animation_fill_modes(move(animation_fill_modes));
+    Vector<double> animation_iteration_counts;
+    for_each_comma_separated_value(PropertyID::AnimationIterationCount, [&](StyleValue const& value) {
+        animation_iteration_counts.append(value.to_keyword() == Keyword::Infinite ? AK::Infinity<double> : number_from_style_value(value, {}));
+    });
+    computed_values.set_animation_iteration_counts(move(animation_iteration_counts));
+    Vector<AnimationPlayState> animation_play_states;
+    for_each_comma_separated_value(PropertyID::AnimationPlayState, [&](StyleValue const& value) { animation_play_states.append(keyword_to_animation_play_state(value.to_keyword()).release_value()); });
+    computed_values.set_animation_play_states(move(animation_play_states));
+    Vector<AnimationTimelineData> animation_timelines;
+    for_each_comma_separated_value(PropertyID::AnimationTimeline, [&](StyleValue const& value) {
+        AnimationTimelineData timeline;
+        if (value.to_keyword() == Keyword::Auto) {
+            timeline.type = AnimationTimelineData::Type::Auto;
+        } else if (value.to_keyword() == Keyword::None) {
+            timeline.type = AnimationTimelineData::Type::None;
+        } else if (value.is_custom_ident()) {
+            timeline.type = AnimationTimelineData::Type::Name;
+            timeline.name = value.as_custom_ident().custom_ident();
+        } else {
+            VERIFY(value.is_function());
+            auto const& function = value.as_function();
+            auto const& arguments = function.value()->as_tuple().tuple();
+            if (function.name() == "scroll"_utf16_fly_string) {
+                timeline.type = AnimationTimelineData::Type::Scroll;
+                if (arguments[TupleStyleValue::Indices::ScrollFunction::Scroller])
+                    timeline.scroller = keyword_to_scroller(arguments[TupleStyleValue::Indices::ScrollFunction::Scroller]->to_keyword()).release_value();
+                if (arguments[TupleStyleValue::Indices::ScrollFunction::Axis])
+                    timeline.axis = keyword_to_axis(arguments[TupleStyleValue::Indices::ScrollFunction::Axis]->to_keyword()).release_value();
+            } else {
+                VERIFY(function.name() == "view"_utf16_fly_string);
+                timeline.type = AnimationTimelineData::Type::View;
+                if (arguments[TupleStyleValue::Indices::ViewFunction::Axis])
+                    timeline.axis = keyword_to_axis(arguments[TupleStyleValue::Indices::ViewFunction::Axis]->to_keyword()).release_value();
+                if (auto const& inset = arguments[TupleStyleValue::Indices::ViewFunction::Inset]) {
+                    VERIFY(inset->is_value_list());
+                    auto const& values = inset->as_value_list().values();
+                    VERIFY(values.size() == 2);
+                    timeline.inset = {
+                        .start = LengthPercentageOrAuto::from_style_value(values[0]),
+                        .end = LengthPercentageOrAuto::from_style_value(values[1]),
+                    };
+                }
+            }
+        }
+        animation_timelines.append(move(timeline));
+    });
+    computed_values.set_animation_timelines(move(animation_timelines));
+    Vector<EasingFunction> animation_timing_functions;
+    for_each_comma_separated_value(PropertyID::AnimationTimingFunction, [&](StyleValue const& value) { animation_timing_functions.append(EasingFunction::from_style_value(value)); });
+    computed_values.set_animation_timing_functions(move(animation_timing_functions));
 
     // NOTE: color must be set after color-scheme to ensure currentColor can be resolved in other properties (e.g. background-color).
     // NOTE: color must be set after font_size as `CalculatedStyleValue`s can rely on it being set for resolving lengths.
     auto color = computed_style.color(CSS::PropertyID::Color, color_resolution_context);
     computed_values.set_color(color);
+    computed_values.set_color_style_value(&computed_style.property(CSS::PropertyID::Color));
 
     // NOTE: This color resolution context must be created after we set color above so that currentColor resolves correctly
     // FIXME: We should resolve colors to their absolute forms at compute time (i.e. by implementing the relevant absolutized methods)
@@ -792,9 +886,57 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
 
     auto mask_layers = computed_style.mask_layers();
     computed_values.set_mask_layers(move(mask_layers));
+    Vector<CSS::Position> mask_positions;
+    for_each_comma_separated_value(CSS::PropertyID::MaskPosition, [&](CSS::StyleValue const& value) {
+        auto const& position = value.as_position();
+        mask_positions.append({
+            .offset_x = CSS::LengthPercentage::from_style_value(position.edge_x()->as_edge().offset()),
+            .offset_y = CSS::LengthPercentage::from_style_value(position.edge_y()->as_edge().offset()),
+        });
+    });
+    computed_values.set_mask_positions(move(mask_positions));
 
     auto border_image = computed_style.border_image();
     computed_values.set_border_image(move(border_image));
+
+    auto const& content = computed_style.property(CSS::PropertyID::Content);
+    ComputedContentData computed_content;
+    if (content.to_keyword() == Keyword::None) {
+        computed_content.type = ComputedContentData::Type::None;
+    } else if (content.is_content()) {
+        computed_content.type = ComputedContentData::Type::List;
+        auto append_item = [](StyleValue const& item, Vector<ComputedContentItem>& items) {
+            if (item.is_string()) {
+                items.append(item.as_string().string_value().to_utf16_string());
+            } else if (item.is_keyword()) {
+                items.append(item.to_keyword());
+            } else if (item.is_counter()) {
+                auto const& counter = item.as_counter();
+                ComputedContentCounter computed_counter {
+                    .function = counter.function_type() == CounterStyleValue::CounterFunction::Counters ? ComputedContentCounter::Function::Counters : ComputedContentCounter::Function::Counter,
+                    .name = counter.counter_name(),
+                    .join_string = counter.join_string(),
+                    .style = counter.counter_style()->as_counter_style().value().visit(
+                        [](Utf16FlyString const& name) -> Variant<Utf16FlyString, ComputedContentCounter::SymbolsFunction> { return name; },
+                        [](CounterStyleStyleValue::SymbolsFunction const& symbols) -> Variant<Utf16FlyString, ComputedContentCounter::SymbolsFunction> {
+                            return ComputedContentCounter::SymbolsFunction { .type = symbols.type, .symbols = symbols.symbols };
+                        }),
+                };
+                items.append(move(computed_counter));
+            } else {
+                VERIFY(item.is_abstract_image());
+                items.append(NonnullRefPtr<AbstractImageStyleValue const> { item.as_abstract_image() });
+            }
+        };
+        auto const& content_style_value = content.as_content();
+        for (auto const& item : content_style_value.content().values())
+            append_item(item, computed_content.items);
+        if (auto const* alt_text = content_style_value.alt_text()) {
+            for (auto const& item : alt_text->values())
+                append_item(item, computed_content.alt_text);
+        }
+    }
+    computed_values.set_computed_content(move(computed_content));
 
     computed_values.set_background_color(computed_style.color(CSS::PropertyID::BackgroundColor, color_resolution_context));
     computed_values.set_background_color_clip(computed_style.background_color_clip());
@@ -816,6 +958,10 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
     computed_values.set_border_bottom_right_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderBottomRightRadius)));
     computed_values.set_border_top_left_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderTopLeftRadius)));
     computed_values.set_border_top_right_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderTopRightRadius)));
+    computed_values.set_corner_bottom_left_shape(computed_style.property(CSS::PropertyID::CornerBottomLeftShape).as_superellipse().parameter());
+    computed_values.set_corner_bottom_right_shape(computed_style.property(CSS::PropertyID::CornerBottomRightShape).as_superellipse().parameter());
+    computed_values.set_corner_top_left_shape(computed_style.property(CSS::PropertyID::CornerTopLeftShape).as_superellipse().parameter());
+    computed_values.set_corner_top_right_shape(computed_style.property(CSS::PropertyID::CornerTopRightShape).as_superellipse().parameter());
     computed_values.set_display(computed_style.display());
     computed_values.set_display_before_box_type_transformation(computed_style.display_before_box_type_transformation());
 
@@ -867,6 +1013,175 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
         }
     }
     computed_values.set_position_anchor(move(position_anchor));
+
+    auto position_area_from_style_value = [](CSS::StyleValue const& value) {
+        CSS::PositionAreaData area;
+        auto append_keyword = [&](CSS::StyleValue const& item) {
+            if (auto keyword = CSS::keyword_to_position_area(item.to_keyword()); keyword.has_value())
+                area.keywords.append(*keyword);
+        };
+        if (value.is_value_list()) {
+            for (auto const& item : value.as_value_list().values())
+                append_keyword(item);
+        } else {
+            append_keyword(value);
+        }
+        return area;
+    };
+    computed_values.set_position_area(position_area_from_style_value(computed_style.property(CSS::PropertyID::PositionArea)));
+
+    Vector<CSS::PositionTryFallbackData> position_try_fallbacks;
+    auto append_position_try_fallback = [&](CSS::StyleValue const& value) {
+        CSS::PositionTryFallbackData fallback;
+        auto apply_item = [&](CSS::StyleValue const& item) {
+            if (item.is_custom_ident()) {
+                fallback.name = item.as_custom_ident().custom_ident();
+            } else if (auto tactic = CSS::keyword_to_try_tactic(item.to_keyword()); tactic.has_value()) {
+                fallback.tactics.append(*tactic);
+            }
+        };
+        auto area = position_area_from_style_value(value);
+        if (!area.keywords.is_empty()) {
+            fallback.position_area = move(area);
+        } else if (value.is_value_list()) {
+            for (auto const& item : value.as_value_list().values()) {
+                if (item->is_value_list()) {
+                    for (auto const& child : item->as_value_list().values())
+                        apply_item(child);
+                } else {
+                    apply_item(item);
+                }
+            }
+        } else {
+            apply_item(value);
+        }
+        position_try_fallbacks.append(move(fallback));
+    };
+    auto const& position_try_fallbacks_value = computed_style.property(CSS::PropertyID::PositionTryFallbacks);
+    if (position_try_fallbacks_value.to_keyword() != CSS::Keyword::None) {
+        if (position_try_fallbacks_value.is_value_list() && position_try_fallbacks_value.as_value_list().separator() == CSS::StyleValueList::Separator::Comma) {
+            for (auto const& item : position_try_fallbacks_value.as_value_list().values())
+                append_position_try_fallback(item);
+        } else {
+            append_position_try_fallback(position_try_fallbacks_value);
+        }
+    }
+    computed_values.set_position_try_fallbacks(move(position_try_fallbacks));
+
+    auto const& position_try_order = computed_style.property(CSS::PropertyID::PositionTryOrder);
+    computed_values.set_position_try_order(position_try_order.to_keyword() == CSS::Keyword::Normal
+            ? Optional<CSS::TryOrder> {}
+            : CSS::keyword_to_try_order(position_try_order.to_keyword()));
+
+    auto const& position_visibility = computed_style.property(CSS::PropertyID::PositionVisibility);
+    CSS::PositionVisibilityData position_visibility_data {
+        .always = position_visibility.to_keyword() == CSS::Keyword::Always,
+        .anchors_visible = false,
+    };
+    auto apply_position_visibility_keyword = [&](CSS::Keyword keyword) {
+        switch (keyword) {
+        case CSS::Keyword::AnchorsValid:
+            position_visibility_data.anchors_valid = true;
+            break;
+        case CSS::Keyword::AnchorsVisible:
+            position_visibility_data.anchors_visible = true;
+            break;
+        case CSS::Keyword::NoOverflow:
+            position_visibility_data.no_overflow = true;
+            break;
+        default:
+            break;
+        }
+    };
+    if (position_visibility.is_value_list()) {
+        for (auto const& item : position_visibility.as_value_list().values())
+            apply_position_visibility_keyword(item->to_keyword());
+    } else {
+        apply_position_visibility_keyword(position_visibility.to_keyword());
+    }
+    computed_values.set_position_visibility(position_visibility_data);
+
+    auto timeline_names = [&](CSS::PropertyID property_id) {
+        Vector<Optional<Utf16FlyString>> names;
+        auto append = [&](CSS::StyleValue const& item) {
+            names.append(item.is_custom_ident() ? Optional<Utf16FlyString> { item.as_custom_ident().custom_ident() } : Optional<Utf16FlyString> {});
+        };
+        auto const& value = computed_style.property(property_id);
+        if (value.is_value_list()) {
+            for (auto const& item : value.as_value_list().values())
+                append(item);
+        } else {
+            append(value);
+        }
+        return names;
+    };
+    auto timeline_axes = [&](CSS::PropertyID property_id) {
+        Vector<CSS::Axis> axes;
+        auto append = [&](CSS::StyleValue const& item) { axes.append(CSS::keyword_to_axis(item.to_keyword()).release_value()); };
+        auto const& value = computed_style.property(property_id);
+        if (value.is_value_list()) {
+            for (auto const& item : value.as_value_list().values())
+                append(item);
+        } else {
+            append(value);
+        }
+        return axes;
+    };
+    computed_values.set_scroll_timeline_names(timeline_names(CSS::PropertyID::ScrollTimelineName));
+    computed_values.set_scroll_timeline_axes(timeline_axes(CSS::PropertyID::ScrollTimelineAxis));
+    computed_values.set_view_timeline_names(timeline_names(CSS::PropertyID::ViewTimelineName));
+    computed_values.set_view_timeline_axes(timeline_axes(CSS::PropertyID::ViewTimelineAxis));
+
+    auto const& timeline_scope = computed_style.property(CSS::PropertyID::TimelineScope);
+    computed_values.set_timeline_scope(CSS::TimelineScopeData {
+        .all = timeline_scope.to_keyword() == CSS::Keyword::All,
+        .names = custom_ident_list(CSS::PropertyID::TimelineScope),
+    });
+
+    Vector<CSS::ViewTimelineInsetData> view_timeline_insets;
+    auto append_view_timeline_inset = [&](CSS::StyleValue const& value) {
+        VERIFY(value.is_value_list());
+        auto const& values = value.as_value_list().values();
+        VERIFY(values.size() == 2);
+        view_timeline_insets.append({
+            .start = CSS::LengthPercentageOrAuto::from_style_value(values[0]),
+            .end = CSS::LengthPercentageOrAuto::from_style_value(values[1]),
+        });
+    };
+    auto const& view_timeline_inset = computed_style.property(CSS::PropertyID::ViewTimelineInset);
+    if (view_timeline_inset.as_value_list().separator() == CSS::StyleValueList::Separator::Comma) {
+        for (auto const& item : view_timeline_inset.as_value_list().values())
+            append_view_timeline_inset(item);
+    } else {
+        append_view_timeline_inset(view_timeline_inset);
+    }
+    computed_values.set_view_timeline_insets(move(view_timeline_insets));
+
+    Vector<Optional<Utf16FlyString>> transition_properties;
+    for_each_comma_separated_value(CSS::PropertyID::TransitionProperty, [&](CSS::StyleValue const& value) {
+        transition_properties.append(value.is_custom_ident() ? Optional<Utf16FlyString> { value.as_custom_ident().custom_ident() } : Optional<Utf16FlyString> {});
+    });
+    computed_values.set_transition_properties(move(transition_properties));
+    Vector<CSS::Time> transition_durations;
+    for_each_comma_separated_value(CSS::PropertyID::TransitionDuration, [&](CSS::StyleValue const& value) {
+        transition_durations.append(CSS::Time::from_style_value(NonnullRefPtr<CSS::StyleValue const> { value }, {}));
+    });
+    computed_values.set_transition_durations(move(transition_durations));
+    Vector<CSS::EasingFunction> transition_timing_functions;
+    for_each_comma_separated_value(CSS::PropertyID::TransitionTimingFunction, [&](CSS::StyleValue const& value) {
+        transition_timing_functions.append(CSS::EasingFunction::from_style_value(value));
+    });
+    computed_values.set_transition_timing_functions(move(transition_timing_functions));
+    Vector<CSS::Time> transition_delays;
+    for_each_comma_separated_value(CSS::PropertyID::TransitionDelay, [&](CSS::StyleValue const& value) {
+        transition_delays.append(CSS::Time::from_style_value(NonnullRefPtr<CSS::StyleValue const> { value }, {}));
+    });
+    computed_values.set_transition_delays(move(transition_delays));
+    Vector<CSS::TransitionBehavior> transition_behaviors;
+    for_each_comma_separated_value(CSS::PropertyID::TransitionBehavior, [&](CSS::StyleValue const& value) {
+        transition_behaviors.append(CSS::keyword_to_transition_behavior(value.to_keyword()).release_value());
+    });
+    computed_values.set_transition_behaviors(move(transition_behaviors));
 
     computed_values.set_text_align(computed_style.text_align());
     computed_values.set_text_justify(computed_style.text_justify());
@@ -933,7 +1248,19 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
     computed_values.set_text_decoration_style(computed_style.text_decoration_style());
     computed_values.set_text_transform(computed_style.text_transform());
 
-    computed_values.set_list_style_type(computed_style.list_style_type(style_scope));
+    auto list_style_type = computed_style.list_style_type(style_scope);
+    auto const& list_style_type_value = computed_style.property(PropertyID::ListStyleType);
+    if (list_style_type_value.is_counter_style() && list_style_type_value.as_counter_style().value().has<CounterStyleStyleValue::SymbolsFunction>()) {
+        auto const& symbols = list_style_type_value.as_counter_style().value().get<CounterStyleStyleValue::SymbolsFunction>();
+        auto counter_style = list_style_type.get<RefPtr<CounterStyle const>>();
+        VERIFY(counter_style);
+        list_style_type = ListStyleSymbols {
+            .counter_style = counter_style.release_nonnull(),
+            .type = symbols.type,
+            .symbols = symbols.symbols,
+        };
+    }
+    computed_values.set_list_style_type(move(list_style_type));
     computed_values.set_list_style_position(computed_style.list_style_position());
     auto const& list_style_image = computed_style.property(PropertyID::ListStyleImage);
     if (list_style_image.is_abstract_image())
@@ -1008,21 +1335,23 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
         // FIXME: Support <image-1d>
         border.color = computed_style.color(color_property, color_resolution_context);
         border.line_style = computed_style.line_style(style_property);
+        // FIXME: Interpolation can cause negative values - we clamp here but should instead clamp as part of interpolation
+        auto computed_width = max(CSSPixels { 0 }, computed_style.length(width_property).absolute_length_to_px());
 
         // If the border-style corresponding to a given border-width is none or hidden, then the used width is 0.
         // https://drafts.csswg.org/css-backgrounds/#border-width
         if (border.line_style == CSS::LineStyle::None || border.line_style == CSS::LineStyle::Hidden) {
             border.width = 0;
         } else {
-            // FIXME: Interpolation can cause negative values - we clamp here but should instead clamp as part of interpolation
-            border.width = max(CSSPixels { 0 }, computed_style.length(width_property).absolute_length_to_px());
+            border.width = computed_width;
         }
+        return computed_width;
     };
 
-    do_border_style(computed_values.border_left(), CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor, CSS::PropertyID::BorderLeftStyle);
-    do_border_style(computed_values.border_top(), CSS::PropertyID::BorderTopWidth, CSS::PropertyID::BorderTopColor, CSS::PropertyID::BorderTopStyle);
-    do_border_style(computed_values.border_right(), CSS::PropertyID::BorderRightWidth, CSS::PropertyID::BorderRightColor, CSS::PropertyID::BorderRightStyle);
-    do_border_style(computed_values.border_bottom(), CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor, CSS::PropertyID::BorderBottomStyle);
+    computed_values.set_border_left_computed_width(do_border_style(computed_values.border_left(), CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor, CSS::PropertyID::BorderLeftStyle));
+    computed_values.set_border_top_computed_width(do_border_style(computed_values.border_top(), CSS::PropertyID::BorderTopWidth, CSS::PropertyID::BorderTopColor, CSS::PropertyID::BorderTopStyle));
+    computed_values.set_border_right_computed_width(do_border_style(computed_values.border_right(), CSS::PropertyID::BorderRightWidth, CSS::PropertyID::BorderRightColor, CSS::PropertyID::BorderRightStyle));
+    computed_values.set_border_bottom_computed_width(do_border_style(computed_values.border_bottom(), CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor, CSS::PropertyID::BorderBottomStyle));
 
     if (auto const& outline_color = computed_style.property(CSS::PropertyID::OutlineColor); outline_color.has_color())
         computed_values.set_outline_color(outline_color.to_color(color_resolution_context).value());
@@ -1175,8 +1504,31 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
     computed_values.set_object_position(computed_style.object_position());
     computed_values.set_direction(computed_style.direction());
     computed_values.set_unicode_bidi(computed_style.unicode_bidi());
+    computed_values.set_scroll_behavior(CSS::keyword_to_scroll_behavior(computed_style.property(CSS::PropertyID::ScrollBehavior).to_keyword()).release_value());
     computed_values.set_scrollbar_color(computed_style.scrollbar_color(color_resolution_context));
+    computed_values.set_scrollbar_gutter(computed_style.property(CSS::PropertyID::ScrollbarGutter).as_scrollbar_gutter().value());
     computed_values.set_scrollbar_width(computed_style.scrollbar_width());
+    computed_values.set_shape_image_threshold(computed_style.property(CSS::PropertyID::ShapeImageThreshold).as_opacity_value().resolved());
+    computed_values.set_shape_margin(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::ShapeMargin)));
+    CSS::ShapeOutsideData shape_outside;
+    auto apply_shape_outside_item = [&](CSS::StyleValue const& item) {
+        if (item.is_url())
+            shape_outside.image = item.as_url().url();
+        else if (item.is_abstract_image())
+            shape_outside.image = NonnullRefPtr<CSS::AbstractImageStyleValue const> { item.as_abstract_image() };
+        else if (item.is_basic_shape())
+            shape_outside.basic_shape = item.as_basic_shape();
+        else if (auto shape_box = CSS::keyword_to_shape_box(item.to_keyword()); shape_box.has_value())
+            shape_outside.shape_box = *shape_box;
+    };
+    auto const& shape_outside_value = computed_style.property(CSS::PropertyID::ShapeOutside);
+    if (shape_outside_value.is_value_list()) {
+        for (auto const& item : shape_outside_value.as_value_list().values())
+            apply_shape_outside_item(item);
+    } else {
+        apply_shape_outside_item(shape_outside_value);
+    }
+    computed_values.set_shape_outside(move(shape_outside));
     computed_values.set_writing_mode(computed_style.writing_mode());
     computed_values.set_user_select(computed_style.user_select());
     computed_values.set_isolation(computed_style.isolation());
@@ -1217,11 +1569,9 @@ NonnullRefPtr<ComputedValues> ComputedValues::create(ComputedProperties const& c
 
 namespace Web::Layout {
 
-void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
+void NodeWithStyle::apply_style(NonnullRefPtr<CSS::ComputedValues const> computed_values)
 {
-    auto prebuilt_values = computed_style.computed_values();
-    VERIFY(prebuilt_values);
-    m_computed_values = prebuilt_values.release_nonnull();
+    m_computed_values = move(computed_values);
 
     propagate_style_to_anonymous_wrappers();
 
@@ -1239,8 +1589,8 @@ void NodeWithStyle::attach_style_resources()
         load_image(layer.background_image.ptr());
     for (auto const& layer : computed_values().mask_layers())
         load_image(layer.background_image.ptr());
-    if (auto const& border_image = computed_values().border_image(); border_image.has_value())
-        load_image(border_image->source.ptr());
+    if (auto const& border_image = computed_values().border_image(); border_image.source)
+        load_image(border_image.source.ptr());
     for (auto const& cursor_data : computed_values().cursor()) {
         if (auto const* cursor_style_value = cursor_data.get_pointer<NonnullRefPtr<CSS::CursorStyleValue const>>())
             load_image(&(*cursor_style_value)->image());
@@ -1451,7 +1801,7 @@ NonnullRefPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
     return *wrapper;
 }
 
-void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues> computed_values)
+void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const> computed_values)
 {
     m_computed_values = move(computed_values);
 }

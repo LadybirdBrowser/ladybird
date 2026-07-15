@@ -15,7 +15,7 @@ class NavigableContainerViewport final : public ReplacedBox {
     LAYOUT_NODE(NavigableContainerViewport, ReplacedBox);
 
 public:
-    NavigableContainerViewport(DOM::Document&, HTML::NavigableContainer&, CSS::ComputedProperties const&);
+    NavigableContainerViewport(DOM::Document&, HTML::NavigableContainer&, NonnullRefPtr<CSS::ComputedValues const>);
     virtual ~NavigableContainerViewport() override;
 
     [[nodiscard]] HTML::NavigableContainer const& dom_node() const { return as<HTML::NavigableContainer>(*ReplacedBox::dom_node()); }

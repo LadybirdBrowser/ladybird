@@ -47,7 +47,7 @@ void SVGForeignObjectElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_height);
 }
 
-RefPtr<Layout::Node> SVGForeignObjectElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> SVGForeignObjectElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
 {
     return make_ref_counted<Layout::SVGForeignObjectBox>(document(), *this, style);
 }

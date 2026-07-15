@@ -37,7 +37,7 @@ void SVGClipPathElement::attribute_changed(Utf16FlyString const& name, Optional<
         m_clip_path_units = AttributeParser::parse_units(value.value_or({}));
 }
 
-RefPtr<Layout::Node> SVGClipPathElement::create_layout_node(CSS::ComputedProperties const&)
+RefPtr<Layout::Node> SVGClipPathElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const>)
 {
     // Clip paths are handled as a special case in the TreeBuilder.
     return nullptr;

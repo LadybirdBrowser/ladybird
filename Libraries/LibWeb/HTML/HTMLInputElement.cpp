@@ -140,7 +140,7 @@ void HTMLInputElement::set_being_activated(bool activated)
         set_needs_repaint();
 }
 
-RefPtr<Layout::Node> HTMLInputElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
 {
     if (type_state() == TypeAttributeState::Hidden)
         return nullptr;
@@ -155,8 +155,8 @@ RefPtr<Layout::Node> HTMLInputElement::create_layout_node(CSS::ComputedPropertie
     // This specification introduces the appearance property to provide some control over this behavior.
     // In particular, using appearance: none allows authors to suppress the native appearance of widgets,
     // giving them a primitive appearance where CSS can be used to restyle them.
-    if (style.appearance() == CSS::Appearance::None) {
-        return Element::create_layout_node_for_display_type(document(), style.display(), style, this);
+    if (style->appearance() == CSS::Appearance::None) {
+        return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
     }
 
     switch (type_state()) {
@@ -173,7 +173,7 @@ RefPtr<Layout::Node> HTMLInputElement::create_layout_node(CSS::ComputedPropertie
         return make_ref_counted<Layout::RangeInputBox>(document(), *this, style);
     case TypeAttributeState::Color:
     case TypeAttributeState::FileUpload:
-        return Element::create_layout_node_for_display_type(document(), style.display(), style, this);
+        return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
     default:
         return make_ref_counted<Layout::TextInputBox>(document(), *this, style);
     }

@@ -338,7 +338,7 @@ private:
     mutable OwnPtr<ImageClient> m_image_client;
 };
 
-static NonnullRefPtr<ImageBox> create_content_image_box(DOM::Document& document, GC::Ptr<DOM::Element> element, CSS::ComputedProperties const& style, CSS::AbstractImageStyleValue& image)
+static NonnullRefPtr<ImageBox> create_content_image_box(DOM::Document& document, GC::Ptr<DOM::Element> element, NonnullRefPtr<CSS::ComputedValues const> style, CSS::AbstractImageStyleValue& image)
 {
     image.load_any_resources(document);
     auto image_provider = GeneratedContentImageProvider::create(document, image);
@@ -512,8 +512,7 @@ static Optional<FirstLetterTarget> find_first_letter_in_block(BlockContainer& bl
 
 void TreeBuilder::create_first_letter_wrapper_if_needed(DOM::Element& element, BlockContainer& block_container)
 {
-    auto first_letter_style = element.computed_properties(CSS::PseudoElement::FirstLetter);
-    if (!first_letter_style)
+    if (!element.computed_values(CSS::PseudoElement::FirstLetter))
         return;
 
     auto target = find_first_letter_in_block(block_container);
@@ -542,9 +541,13 @@ void TreeBuilder::create_first_letter_wrapper_if_needed(DOM::Element& element, B
         first_letter_slice = make_ref_counted<GeneratedTextNode>(document, Utf16String::from_utf16(text.utf16_view().substring_view(0, letter_end)));
     }
 
-    auto first_letter_wrapper = DOM::Element::create_layout_node_for_display_type(document, element.computed_values(CSS::PseudoElement::FirstLetter)->display(), *first_letter_style, nullptr);
+    auto first_letter_values = element.computed_values(CSS::PseudoElement::FirstLetter);
+    VERIFY(first_letter_values);
+    auto display = first_letter_values->display();
+    auto first_letter_wrapper = DOM::Element::create_layout_node_for_display_type(document, display, first_letter_values.release_nonnull(), nullptr);
     if (!first_letter_wrapper)
         return;
+    first_letter_wrapper->attach_style_resources();
     first_letter_wrapper->set_generated_for(CSS::PseudoElement::FirstLetter, element);
     first_letter_wrapper->set_children_are_inline(true);
     first_letter_wrapper->append_child(*first_letter_slice);
@@ -565,15 +568,15 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     if (auto existing_pseudo = element.get_synthetic_pseudo_element(pseudo_element); existing_pseudo.has_value() && existing_pseudo->layout_node())
         existing_pseudo->set_layout_node(nullptr);
 
-    auto pseudo_element_style = element.computed_properties(pseudo_element);
-    if (!pseudo_element_style)
+    auto pseudo_element_values = element.computed_values(pseudo_element);
+    if (!pseudo_element_values)
         return {};
 
     auto initial_quote_nesting_level = m_quote_nesting_level;
     DOM::AbstractElement element_reference { element, pseudo_element };
-    auto [pseudo_element_content, final_quote_nesting_level] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
+    auto [pseudo_element_content, final_quote_nesting_level] = pseudo_element_values->resolved_content(element_reference, initial_quote_nesting_level);
     m_quote_nesting_level = final_quote_nesting_level;
-    auto pseudo_element_display = element.computed_values(pseudo_element)->display();
+    auto pseudo_element_display = pseudo_element_values->display();
 
     // ::before and ::after only exist if they have content. `content: normal` computes to `none` for them.
     // We also don't create them if they are `display: none`.
@@ -608,7 +611,8 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
                 list_style_type,
                 list_box->computed_values().list_style_position(),
                 element,
-                *pseudo_element_style);
+                NonnullRefPtr { *pseudo_element_values });
+            list_item_marker->attach_style_resources();
             list_box->set_marker(list_item_marker);
             element.set_synthetic_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
             list_box->prepend_child(*list_item_marker);
@@ -617,15 +621,16 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
 
     RefPtr<NodeWithStyle> pseudo_element_node;
     if (pseudo_element_display.is_contents()) {
-        pseudo_element_node = make_ref_counted<InlineNode>(document, nullptr, *pseudo_element_style);
+        pseudo_element_node = make_ref_counted<InlineNode>(document, nullptr, NonnullRefPtr { *pseudo_element_values });
         pseudo_element_node->modify_computed_values([](auto& values) {
             values.set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
         });
     } else {
-        pseudo_element_node = DOM::Element::create_layout_node_for_display_type(document, pseudo_element_display, *pseudo_element_style, nullptr);
+        pseudo_element_node = DOM::Element::create_layout_node_for_display_type(document, pseudo_element_display, NonnullRefPtr { *pseudo_element_values }, nullptr);
         if (!pseudo_element_node)
             return {};
     }
+    pseudo_element_node->attach_style_resources();
 
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker
     if (is<ListItemBox>(*pseudo_element_node)) {
@@ -637,7 +642,8 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
             pseudo_element_node->computed_values().list_style_type(),
             pseudo_element_node->computed_values().list_style_position(),
             element,
-            marker_style);
+            marker_style.values);
+        list_item_marker->attach_style_resources();
         static_cast<ListItemBox&>(*pseudo_element_node).set_marker(list_item_marker);
         element.set_synthetic_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
         pseudo_element_node->prepend_child(*list_item_marker);
@@ -658,7 +664,7 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     CSS::resolve_counters(element_reference);
     // Now that we have counters, we can compute the content for real. Which is silly.
     if (pseudo_element_content.type == CSS::ContentData::Type::List) {
-        auto [new_content, _] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
+        auto [new_content, _] = pseudo_element_values->resolved_content(element_reference, initial_quote_nesting_level);
         pseudo_element_node->modify_computed_values([&](auto& values) {
             values.set_content(new_content);
         });
@@ -672,7 +678,8 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
                     layout_node = make_ref_counted<GeneratedTextNode>(document, *string);
                 } else {
                     auto& image = *item.get<NonnullRefPtr<CSS::AbstractImageStyleValue>>();
-                    layout_node = create_content_image_box(document, nullptr, *pseudo_element_style, image);
+                    layout_node = create_content_image_box(document, nullptr, NonnullRefPtr { pseudo_element_node->computed_values() }, image);
+                    static_cast<NodeWithStyle&>(*layout_node).attach_style_resources();
                 }
                 layout_node->set_generated_for(pseudo_element, element);
                 auto display = layout_node->is_text_node() ? CSS::Display::from_short(CSS::Display::Short::Inline) : as<NodeWithStyle>(*layout_node).display();
@@ -687,22 +694,17 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     return pseudo_element_node;
 }
 
-RefPtr<NodeWithStyle> TreeBuilder::create_content_replacement_if_needed(DOM::Element& element, CSS::ComputedProperties const& style) const
+RefPtr<NodeWithStyle> TreeBuilder::create_content_replacement_if_needed(DOM::Element& element, NonnullRefPtr<CSS::ComputedValues const> computed_values) const
 {
-    if (!style.property(CSS::PropertyID::Content).is_content())
-        return {};
-
-    DOM::AbstractElement element_reference { element };
-    auto [content, _] = style.content(element_reference, m_quote_nesting_level);
-
-    if (content.type != CSS::ContentData::Type::List
-        || content.data.size() != 1
-        || !content.data.first().has<NonnullRefPtr<CSS::AbstractImageStyleValue>>()) {
+    auto const& content = computed_values->computed_content();
+    if (content.type != CSS::ComputedContentData::Type::List
+        || content.items.size() != 1
+        || !content.items.first().has<NonnullRefPtr<CSS::AbstractImageStyleValue const>>()) {
         return {};
     }
 
-    auto& image = *content.data.first().get<NonnullRefPtr<CSS::AbstractImageStyleValue>>();
-    return create_content_image_box(element.document(), element, style, image);
+    auto& image = const_cast<CSS::AbstractImageStyleValue&>(*content.items.first().get<NonnullRefPtr<CSS::AbstractImageStyleValue const>>());
+    return create_content_image_box(element.document(), element, move(computed_values), image);
 }
 
 static bool is_ignorable_whitespace(Layout::Node const& node)
@@ -892,14 +894,14 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     }
 
     auto& style_computer = document.style_computer();
-    RefPtr<CSS::ComputedProperties const> style;
+    RefPtr<CSS::ComputedValues const> computed_values;
     CSS::Display display;
 
     if (!should_create_layout_node) {
         if (is<DOM::Element>(dom_node)) {
             auto& element = static_cast<DOM::Element&>(dom_node);
-            style = element.computed_properties();
-            display = element.computed_values()->display();
+            computed_values = element.computed_values();
+            display = computed_values->display();
             if (display.is_contents()) {
                 should_clear_stale_layout_subtree_if_no_layout_node = false;
                 update_layout_tree_for_display_contents(element, context, must_create_subtree, should_create_layout_node);
@@ -930,8 +932,8 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 document.update_style_for_element({ element });
                 element.set_needs_style_update(false);
             }
-            style = element.computed_properties();
-            display = element.computed_values()->display();
+            computed_values = element.computed_values();
+            display = computed_values->display();
             if (display.is_none())
                 return;
             if (display.is_contents()) {
@@ -939,33 +941,35 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 update_layout_tree_for_display_contents(element, context, must_create_subtree, should_create_layout_node);
                 return;
             }
-            if (auto content_replacement = create_content_replacement_if_needed(element, *style)) {
+            if (auto content_replacement = create_content_replacement_if_needed(element, NonnullRefPtr { *computed_values })) {
                 layout_node = content_replacement.release_nonnull();
             } else if (context.layout_svg_mask_or_clip_path) {
                 if (is<SVG::SVGMaskElement>(dom_node))
-                    layout_node = make_ref_counted<Layout::SVGMaskBox>(document, static_cast<SVG::SVGMaskElement&>(dom_node), *style);
+                    layout_node = make_ref_counted<Layout::SVGMaskBox>(document, static_cast<SVG::SVGMaskElement&>(dom_node), computed_values.release_nonnull());
                 else if (is<SVG::SVGClipPathElement>(dom_node))
-                    layout_node = make_ref_counted<Layout::SVGClipBox>(document, static_cast<SVG::SVGClipPathElement&>(dom_node), *style);
+                    layout_node = make_ref_counted<Layout::SVGClipBox>(document, static_cast<SVG::SVGClipPathElement&>(dom_node), computed_values.release_nonnull());
                 else
                     VERIFY_NOT_REACHED();
                 // Only layout direct uses of SVG masks/clipPaths.
                 context.layout_svg_mask_or_clip_path = false;
             } else if (context.layout_svg_pattern) {
-                layout_node = make_ref_counted<Layout::SVGPatternBox>(document, as<SVG::SVGPatternElement>(dom_node), *style);
+                layout_node = make_ref_counted<Layout::SVGPatternBox>(document, as<SVG::SVGPatternElement>(dom_node), computed_values.release_nonnull());
                 context.layout_svg_pattern = false;
             } else {
-                layout_node = element.create_layout_node(*style);
+                layout_node = element.create_layout_node(computed_values.release_nonnull());
             }
         } else if (is<DOM::Document>(dom_node)) {
-            style = style_computer.create_document_style();
-            display = style->computed_values()->display();
-            layout_node = make_ref_counted<Layout::Viewport>(static_cast<DOM::Document&>(dom_node), *style);
+            auto document_style = style_computer.create_document_style();
+            computed_values = move(document_style.values);
+            display = computed_values->display();
+            layout_node = make_ref_counted<Layout::Viewport>(static_cast<DOM::Document&>(dom_node), computed_values.release_nonnull());
         } else if (is<DOM::Text>(dom_node)) {
             auto& text_node = static_cast<DOM::Text&>(dom_node);
             layout_node = make_ref_counted<Layout::TextNode>(document, text_node);
             display = CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow);
             if (auto* style_parent = display_contents_style_parent_for_text_node(text_node); style_parent && display_contents_text_needs_style_wrapper(text_node, *style_parent)) {
-                auto wrapper = make_ref_counted<Layout::InlineNode>(document, nullptr, *style_parent->computed_properties());
+                auto wrapper = make_ref_counted<Layout::InlineNode>(document, nullptr, style_parent->computed_values().release_nonnull());
+                wrapper->attach_style_resources();
                 wrapper->modify_computed_values([&](auto& values) {
                     values.set_display(display);
                 });
@@ -978,6 +982,9 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     if (!layout_node)
         return;
+
+    if (is<DOM::Element>(dom_node) || is<DOM::Document>(dom_node))
+        as<NodeWithStyle>(*layout_node).attach_style_resources();
 
     if (layout_node->is_replaced_element()) {
         if (auto adjusted_display = adjusted_table_display_for_replaced_element(display); adjusted_display.has_value()) {

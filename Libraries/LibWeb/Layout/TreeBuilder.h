@@ -72,7 +72,7 @@ private:
 
     void insert_node_into_inline_or_block_ancestor(Layout::Node&, CSS::Display, AppendOrPrepend);
     RefPtr<NodeWithStyle> create_pseudo_element_if_needed(DOM::Element&, CSS::PseudoElement, Optional<AppendOrPrepend>);
-    RefPtr<NodeWithStyle> create_content_replacement_if_needed(DOM::Element&, CSS::ComputedProperties const&) const;
+    RefPtr<NodeWithStyle> create_content_replacement_if_needed(DOM::Element&, NonnullRefPtr<CSS::ComputedValues const>) const;
     static void create_first_letter_wrapper_if_needed(DOM::Element&, Layout::BlockContainer&);
 
     RefPtr<Layout::Node> m_layout_root;

@@ -377,7 +377,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     // Collect all masks (CSS mask-image, SVG <mask>, SVG <clipPath>).
     Vector<DisplayListRecorder::MaskInfo> masks;
 
-    if (!mask_layers.is_empty()) {
+    if (any_of(mask_layers, [](auto const& layer) { return layer.background_image != nullptr; })) {
         auto visual_context_tree = AccumulatedVisualContextTree::create();
         auto mask_display_list = DisplayList::create(visual_context_tree);
         DisplayListRecorder display_list_recorder(*mask_display_list, visual_context_tree, context.display_list_recorder().resource_storage());

@@ -15,7 +15,7 @@ class RadioButton final : public ReplacedBox {
     LAYOUT_NODE(RadioButton, ReplacedBox);
 
 public:
-    RadioButton(DOM::Document&, HTML::HTMLInputElement&, CSS::ComputedProperties const&);
+    RadioButton(DOM::Document&, HTML::HTMLInputElement&, NonnullRefPtr<CSS::ComputedValues const>);
     virtual ~RadioButton() override;
 
 private:

@@ -950,6 +950,10 @@
     "to-zero",
     "up"
   ],
+  "scroll-behavior": [
+    "auto",
+    "smooth"
+  ],
   "scrollbar-gutter": [
     "auto",
     "stable",

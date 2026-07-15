@@ -204,7 +204,7 @@ void HTMLObjectElement::set_data(Utf16View data)
     set_attribute_value(HTML::AttributeNames::data, data);
 }
 
-RefPtr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> HTMLObjectElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
 {
     switch (m_representation) {
     case Representation::Children:

@@ -12,7 +12,7 @@
 
 namespace Web::Layout {
 
-RadioButton::RadioButton(DOM::Document& document, HTML::HTMLInputElement& element, CSS::ComputedProperties const& style)
+RadioButton::RadioButton(DOM::Document& document, HTML::HTMLInputElement& element, NonnullRefPtr<CSS::ComputedValues const> style)
     : ReplacedBox(document, element, style)
 {
 }

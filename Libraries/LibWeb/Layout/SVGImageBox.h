@@ -16,7 +16,7 @@ class SVGImageBox : public SVGGraphicsBox {
     LAYOUT_NODE(SVGImageBox, SVGGraphicsBox);
 
 public:
-    SVGImageBox(DOM::Document&, SVG::SVGGraphicsElement&, CSS::ComputedProperties const&);
+    SVGImageBox(DOM::Document&, SVG::SVGGraphicsElement&, NonnullRefPtr<CSS::ComputedValues const>);
     virtual ~SVGImageBox() override = default;
 
     SVG::SVGImageElement& dom_node() { return static_cast<SVG::SVGImageElement&>(SVGGraphicsBox::dom_node()); }

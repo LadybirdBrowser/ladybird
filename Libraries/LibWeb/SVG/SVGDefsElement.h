@@ -18,7 +18,7 @@ class SVGDefsElement final : public SVGGraphicsElement {
 public:
     virtual ~SVGDefsElement();
 
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override
+    virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override
     {
         return nullptr;
     }

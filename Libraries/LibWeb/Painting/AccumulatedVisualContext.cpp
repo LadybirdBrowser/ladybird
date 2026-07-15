@@ -473,7 +473,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         if (background_layers) {
             bool has_fixed_background = false;
             for (auto const& layer : *background_layers) {
-                if (layer.attachment == CSS::BackgroundAttachment::Fixed) {
+                if (layer.background_image && layer.attachment == CSS::BackgroundAttachment::Fixed) {
                     has_fixed_background = true;
                     break;
                 }

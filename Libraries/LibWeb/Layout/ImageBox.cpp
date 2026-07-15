@@ -27,14 +27,14 @@ static ImageProvider const& image_provider_for_element(DOM::Element const& eleme
     VERIFY_NOT_REACHED();
 }
 
-ImageBox::ImageBox(DOM::Document& document, GC::Ptr<DOM::Element> element, CSS::ComputedProperties const& style, ImageProvider const& image_provider)
+ImageBox::ImageBox(DOM::Document& document, GC::Ptr<DOM::Element> element, NonnullRefPtr<CSS::ComputedValues const> style, ImageProvider const& image_provider)
     : ReplacedBox(document, element, style)
 {
     VERIFY(element);
     VERIFY(&image_provider == &image_provider_for_element(*element));
 }
 
-ImageBox::ImageBox(DOM::Document& document, GC::Ptr<DOM::Element> element, CSS::ComputedProperties const& style, NonnullOwnPtr<ImageProvider> image_provider)
+ImageBox::ImageBox(DOM::Document& document, GC::Ptr<DOM::Element> element, NonnullRefPtr<CSS::ComputedValues const> style, NonnullOwnPtr<ImageProvider> image_provider)
     : ReplacedBox(document, element, style)
     , m_owned_image_provider(move(image_provider))
 {

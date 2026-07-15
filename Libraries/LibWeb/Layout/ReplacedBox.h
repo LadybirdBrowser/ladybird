@@ -15,7 +15,7 @@ class ReplacedBox : public Box {
     LAYOUT_NODE(ReplacedBox, Box);
 
 public:
-    ReplacedBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::ComputedProperties const&);
+    ReplacedBox(DOM::Document&, GC::Ptr<DOM::Element>, NonnullRefPtr<CSS::ComputedValues const>);
     virtual ~ReplacedBox() override;
 
     GC::Ptr<DOM::Element const> dom_node() const { return as<DOM::Element>(Node::dom_node()); }

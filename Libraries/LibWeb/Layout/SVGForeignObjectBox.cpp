@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-SVGForeignObjectBox::SVGForeignObjectBox(DOM::Document& document, SVG::SVGForeignObjectElement& element, CSS::ComputedProperties const& style)
+SVGForeignObjectBox::SVGForeignObjectBox(DOM::Document& document, SVG::SVGForeignObjectElement& element, NonnullRefPtr<CSS::ComputedValues const> style)
     : BlockContainer(document, &element, style)
 {
 }

@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-AudioBox::AudioBox(DOM::Document& document, DOM::Element& element, CSS::ComputedProperties const& style)
+AudioBox::AudioBox(DOM::Document& document, DOM::Element& element, NonnullRefPtr<CSS::ComputedValues const> style)
     : ReplacedBox(document, element, style)
 {
 }

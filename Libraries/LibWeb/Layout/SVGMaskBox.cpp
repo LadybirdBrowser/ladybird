@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-SVGMaskBox::SVGMaskBox(DOM::Document& document, SVG::SVGMaskElement& element, CSS::ComputedProperties const& style)
+SVGMaskBox::SVGMaskBox(DOM::Document& document, SVG::SVGMaskElement& element, NonnullRefPtr<CSS::ComputedValues const> style)
     : SVGGraphicsBox(document, element, style)
 {
 }

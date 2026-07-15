@@ -15,7 +15,7 @@ class ListItemBox final : public BlockContainer {
     LAYOUT_NODE(ListItemBox, BlockContainer);
 
 public:
-    ListItemBox(DOM::Document&, DOM::Element*, CSS::ComputedProperties const&);
+    ListItemBox(DOM::Document&, DOM::Element*, NonnullRefPtr<CSS::ComputedValues const>);
     virtual ~ListItemBox() override;
 
     DOM::Element& dom_node() { return static_cast<DOM::Element&>(*BlockContainer::dom_node()); }

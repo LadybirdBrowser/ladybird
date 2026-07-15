@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="parent" style="shape-image-threshold: 50%">
+    <div id="child" style="shape-image-threshold: inherit"></div>
+</div>
+<script>
+    test(() => {
+        println(getComputedStyle(child).shapeImageThreshold);
+    });
+</script>

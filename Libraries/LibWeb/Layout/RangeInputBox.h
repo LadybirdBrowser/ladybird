@@ -15,7 +15,7 @@ class RangeInputBox final : public BlockContainer {
     LAYOUT_NODE(RangeInputBox, BlockContainer);
 
 public:
-    RangeInputBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::ComputedProperties const&);
+    RangeInputBox(DOM::Document&, GC::Ptr<DOM::Element>, NonnullRefPtr<CSS::ComputedValues const>);
 
     virtual ~RangeInputBox() override = default;
 

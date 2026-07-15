@@ -978,8 +978,8 @@ void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
 
 void KeyframeEffect::update_computed_properties_for_style(AnimationUpdateContext& context, DOM::AbstractElement abstract_element, CSS::ComputedProperties& computed_properties)
 {
-    context.elements.ensure(abstract_element, [&computed_properties] {
-        auto old_animated_properties = computed_properties.animated_properties_snapshot();
+    context.elements.ensure(abstract_element, [&abstract_element, &computed_properties] {
+        auto old_animated_properties = abstract_element.computed_values()->animated_properties_snapshot();
         computed_properties.reset_non_inherited_animated_properties({});
         return AnimationUpdateContext::ElementData { move(old_animated_properties), computed_properties };
     });

@@ -9,7 +9,7 @@
 
 namespace Web::Layout {
 
-SVGTextPathBox::SVGTextPathBox(DOM::Document& document, SVG::SVGTextPathElement& element, CSS::ComputedProperties const& style)
+SVGTextPathBox::SVGTextPathBox(DOM::Document& document, SVG::SVGTextPathElement& element, NonnullRefPtr<CSS::ComputedValues const> style)
     : SVGGraphicsBox(document, element, style)
 {
 }

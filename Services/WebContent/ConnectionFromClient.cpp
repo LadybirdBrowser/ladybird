@@ -589,7 +589,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
                     nodes_to_visit.enqueue(child.ptr());
                 if (auto* element = as_if<Web::DOM::Element>(node)) {
                     auto styles = doc->style_computer().compute_style({ *element });
-                    dump_style(MUST(String::formatted("Element {}", node->debug_description())), styles, element->custom_property_data({}));
+                    dump_style(MUST(String::formatted("Element {}", node->debug_description())), *styles.properties, element->custom_property_data({}));
 
                     element->for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement pseudo_element_type, Web::DOM::PseudoElement const& pseudo_element) {
                         if (!pseudo_element.computed_properties())

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<ol id="parent" style='list-style-type: symbols(cyclic "○" "●")'>
+    <li id="child" style="list-style-type: inherit"></li>
+</ol>
+<script>
+    test(() => {
+        println(getComputedStyle(child).listStyleType);
+    });
+</script>

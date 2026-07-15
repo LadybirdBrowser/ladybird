@@ -9,12 +9,7 @@
 
 namespace Web::Layout {
 
-BlockContainer::BlockContainer(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties const& style)
-    : Box(document, node, style)
-{
-}
-
-BlockContainer::BlockContainer(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues> computed_values)
+BlockContainer::BlockContainer(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues const> computed_values)
     : Box(document, node, move(computed_values))
 {
 }

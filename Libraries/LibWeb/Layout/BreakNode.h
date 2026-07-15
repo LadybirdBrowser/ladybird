@@ -15,7 +15,7 @@ class BreakNode final : public NodeWithStyleAndBoxModelMetrics {
     LAYOUT_NODE(BreakNode, NodeWithStyleAndBoxModelMetrics);
 
 public:
-    BreakNode(DOM::Document&, HTML::HTMLBRElement&, CSS::ComputedProperties const&);
+    BreakNode(DOM::Document&, HTML::HTMLBRElement&, NonnullRefPtr<CSS::ComputedValues const>);
     virtual ~BreakNode() override;
 
     HTML::HTMLBRElement const& dom_node() const { return as<HTML::HTMLBRElement>(*Node::dom_node()); }

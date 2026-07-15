@@ -17,7 +17,7 @@
 
 namespace Web::Layout {
 
-Viewport::Viewport(DOM::Document& document, CSS::ComputedProperties const& style)
+Viewport::Viewport(DOM::Document& document, NonnullRefPtr<CSS::ComputedValues const> style)
     : BlockContainer(document, &document, style)
 {
 }

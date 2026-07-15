@@ -28,6 +28,7 @@
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
+#include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EmptyOptionalStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
@@ -42,15 +43,18 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OverflowClipMarginStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TextIndentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TextUnderlinePositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
@@ -72,12 +76,27 @@ void ComputedValues::Mutator::set_animated_properties(AnimatedProperties const* 
     m_values.m_animated_properties = value;
 }
 
+RefPtr<AnimatedProperties const> ComputedValues::animated_properties_snapshot() const
+{
+    return m_animated_properties;
+}
+
+RefPtr<StyleValue const> ComputedValues::color_style_value() const
+{
+    if (m_inherited.color_style_value)
+        return m_inherited.color_style_value;
+    return computed_style_value(PropertyID::Color);
+}
+
 static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= sizeof(u64) * 8);
 
 RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID property_id, WithAnimationsApplied with_animations_applied) const
 {
     if (with_animations_applied == WithAnimationsApplied::No && m_base_values)
         return m_base_values->computed_style_value(property_id);
+
+    if (property_is_logical_alias(property_id))
+        property_id = map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { writing_mode(), direction() });
 
     if (auto inset = anchor_inset(property_id))
         return inset;
@@ -87,6 +106,12 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     };
     auto length_style_value = [](CSSPixels length) {
         return LengthStyleValue::create(Length::make_px(length));
+    };
+    auto border_image_slice_style_value = [](BorderImageSliceValue const& value) -> NonnullRefPtr<StyleValue const> {
+        return value.visit(
+            [](double number) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(number); },
+            [](Percentage percentage) -> NonnullRefPtr<StyleValue const> { return PercentageStyleValue::create(percentage); },
+            [](NonnullRefPtr<CalculatedStyleValue const> const& calculated) -> NonnullRefPtr<StyleValue const> { return calculated; });
     };
     auto length_percentage_style_value = [](LengthPercentage const& length_percentage) -> NonnullRefPtr<StyleValue const> {
         if (length_percentage.is_percentage())
@@ -103,6 +128,51 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         if (length_percentage.is_length())
             return LengthStyleValue::create(length_percentage.length());
         return length_percentage.calculated();
+    };
+    auto border_image_width_style_value = [&](BorderImageWidthValue const& value) -> NonnullRefPtr<StyleValue const> {
+        return value.visit(
+            [](double number) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(number); },
+            [&](LengthPercentage const& length_percentage) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(length_percentage); },
+            [](BorderImageWidthAuto) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Auto); });
+    };
+    auto border_image_outset_style_value = [](BorderImageOutsetValue const& value) -> NonnullRefPtr<StyleValue const> {
+        return value.visit(
+            [](double number) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(number); },
+            [](Length const& length) -> NonnullRefPtr<StyleValue const> { return LengthStyleValue::create(length); });
+    };
+    auto border_image_side_values = [](auto const& sides, auto const& to_style_value) {
+        auto top = to_style_value(sides.top);
+        auto right = to_style_value(sides.right);
+        auto bottom = to_style_value(sides.bottom);
+        auto left = to_style_value(sides.left);
+        StyleValueVector values { top };
+        if (!left->equals(*right)) {
+            values.append(move(right));
+            values.append(move(bottom));
+            values.append(move(left));
+        } else if (!top->equals(*bottom)) {
+            values.append(move(right));
+            values.append(move(bottom));
+        } else if (!top->equals(*right)) {
+            values.append(move(right));
+        }
+        return values;
+    };
+    auto computed_content_item_style_value = [](ComputedContentItem const& item) -> NonnullRefPtr<StyleValue const> {
+        return item.visit(
+            [](Utf16String const& string) -> NonnullRefPtr<StyleValue const> { return StringStyleValue::create(string); },
+            [](Keyword keyword) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(keyword); },
+            [](ComputedContentCounter const& counter) -> NonnullRefPtr<StyleValue const> {
+                auto counter_style = CounterStyleStyleValue::create(counter.style.visit(
+                    [](Utf16FlyString const& name) -> Variant<Utf16FlyString, CounterStyleStyleValue::SymbolsFunction> { return name; },
+                    [](ComputedContentCounter::SymbolsFunction const& symbols) -> Variant<Utf16FlyString, CounterStyleStyleValue::SymbolsFunction> {
+                        return CounterStyleStyleValue::SymbolsFunction { .type = symbols.type, .symbols = symbols.symbols };
+                    }));
+                if (counter.function == ComputedContentCounter::Function::Counters)
+                    return CounterStyleValue::create_counters(counter.name, counter.join_string, move(counter_style));
+                return CounterStyleValue::create_counter(counter.name, move(counter_style));
+            },
+            [](NonnullRefPtr<AbstractImageStyleValue const> const& image) -> NonnullRefPtr<StyleValue const> { return image; });
     };
     auto size_style_value = [&](Size const& size) -> NonnullRefPtr<StyleValue const> {
         if (size.is_none())
@@ -138,14 +208,27 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     auto svg_paint_style_value = [&](Optional<SVGPaint> const& paint) -> NonnullRefPtr<StyleValue const> {
         if (!paint.has_value())
             return KeywordStyleValue::create(Keyword::None);
+        if (paint->is_color() && paint->color_is_currentcolor())
+            return KeywordStyleValue::create(Keyword::Currentcolor);
         if (paint->is_color())
             return color_style_value(paint->as_color());
         StyleValueVector values { URLStyleValue::create(paint->as_url()) };
-        if (paint->fallback_color().has_value())
+        if (paint->color_is_currentcolor())
+            values.append(KeywordStyleValue::create(Keyword::Currentcolor));
+        else if (paint->fallback_color().has_value())
             values.append(color_style_value(*paint->fallback_color()));
         else
             values.append(EmptyOptionalStyleValue::create());
         return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    };
+    auto filter_style_value = [](Filter const& filter) -> NonnullRefPtr<StyleValue const> {
+        if (filter.is_none())
+            return KeywordStyleValue::create(Keyword::None);
+        Vector<FilterValue> filters;
+        filters.ensure_capacity(filter.filters().size());
+        for (auto const& filter_value : filter.filters())
+            filters.unchecked_append(filter_value);
+        return FilterValueListStyleValue::create(move(filters));
     };
     auto ratio_style_value = [](Ratio const& ratio) -> NonnullRefPtr<StyleValue const> {
         return RatioStyleValue::create(
@@ -156,6 +239,38 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         if (value.is_auto())
             return KeywordStyleValue::create(Keyword::Auto);
         return LengthStyleValue::create(value.length());
+    };
+    auto custom_ident_list_style_value = [](Vector<Utf16FlyString> const& names) -> NonnullRefPtr<StyleValue const> {
+        StyleValueVector values;
+        values.ensure_capacity(names.size());
+        for (auto const& name : names)
+            values.append(CustomIdentStyleValue::create(name));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    };
+    auto position_area_style_value = [](PositionAreaData const& area) -> NonnullRefPtr<StyleValue const> {
+        VERIFY(!area.keywords.is_empty());
+        if (area.keywords.size() == 1)
+            return KeywordStyleValue::create(to_keyword(area.keywords[0]));
+        StyleValueVector values;
+        for (auto keyword : area.keywords)
+            values.append(KeywordStyleValue::create(to_keyword(keyword)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    };
+    auto timeline_name_list_style_value = [](Vector<Optional<Utf16FlyString>> const& names) -> NonnullRefPtr<StyleValue const> {
+        StyleValueVector values;
+        for (auto const& name : names) {
+            if (name.has_value())
+                values.append(CustomIdentStyleValue::create(*name));
+            else
+                values.append(KeywordStyleValue::create(Keyword::None));
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    };
+    auto timeline_axis_list_style_value = [](Vector<Axis> const& axes) -> NonnullRefPtr<StyleValue const> {
+        StyleValueVector values;
+        for (auto axis : axes)
+            values.append(KeywordStyleValue::create(to_keyword(axis)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
     };
 
     switch (property_id) {
@@ -169,6 +284,16 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         return KeywordStyleValue::create(to_keyword(align_items()));
     case PropertyID::AlignSelf:
         return KeywordStyleValue::create(to_keyword(align_self()));
+    case PropertyID::AnchorName:
+        if (anchor_names().is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        return custom_ident_list_style_value(anchor_names());
+    case PropertyID::AnchorScope:
+        if (anchor_scope().all)
+            return KeywordStyleValue::create(Keyword::All);
+        if (anchor_scope().names.is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        return custom_ident_list_style_value(anchor_scope().names);
     case PropertyID::Appearance:
         return KeywordStyleValue::create(to_keyword(appearance()));
     case PropertyID::AspectRatio: {
@@ -183,9 +308,109 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     }
     case PropertyID::BackgroundColor:
         return color_style_value(background_color());
+    case PropertyID::BackgroundAttachment: {
+        StyleValueVector values;
+        for (auto const& layer : background_layers())
+            values.append(KeywordStyleValue::create(to_keyword(layer.attachment)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::BackgroundBlendMode: {
+        StyleValueVector values;
+        for (auto const& layer : background_layers())
+            values.append(KeywordStyleValue::create(to_keyword(layer.blend_mode)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::BackgroundClip: {
+        StyleValueVector values;
+        for (auto const& layer : background_layers())
+            values.append(KeywordStyleValue::create(to_keyword(layer.clip)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::BackgroundImage: {
+        StyleValueVector values;
+        for (auto const& layer : background_layers()) {
+            if (layer.background_image)
+                values.append(*layer.background_image);
+            else
+                values.append(KeywordStyleValue::create(Keyword::None));
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::BackgroundOrigin: {
+        StyleValueVector values;
+        for (auto const& layer : background_layers())
+            values.append(KeywordStyleValue::create(to_keyword(layer.origin)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::BackgroundPositionX: {
+        StyleValueVector values;
+        for (auto const& layer : background_layers())
+            values.append(EdgeStyleValue::create({}, length_percentage_style_value(layer.position_x)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::BackgroundPositionY: {
+        StyleValueVector values;
+        for (auto const& layer : background_layers())
+            values.append(EdgeStyleValue::create({}, length_percentage_style_value(layer.position_y)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::BackgroundRepeat: {
+        StyleValueVector values;
+        for (auto const& layer : background_layers())
+            values.append(RepeatStyleStyleValue::create(layer.repeat_x, layer.repeat_y));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::BackgroundSize: {
+        StyleValueVector values;
+        for (auto const& layer : background_layers()) {
+            switch (layer.size_type) {
+            case CSS::BackgroundSize::Contain:
+                values.append(KeywordStyleValue::create(Keyword::Contain));
+                break;
+            case CSS::BackgroundSize::Cover:
+                values.append(KeywordStyleValue::create(Keyword::Cover));
+                break;
+            case CSS::BackgroundSize::LengthPercentage:
+                values.append(BackgroundSizeStyleValue::create(
+                    length_percentage_or_auto_style_value(layer.size_x),
+                    length_percentage_or_auto_style_value(layer.size_y)));
+                break;
+            }
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
     case PropertyID::BorderCollapse:
         return KeywordStyleValue::create(to_keyword(border_collapse()));
+    case PropertyID::BorderImageOutset: {
+        auto values = border_image_side_values(border_image().outset, border_image_outset_style_value);
+        if (values.size() == 1)
+            return values.take_first();
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    }
+    case PropertyID::BorderImageRepeat:
+        return StyleValueList::create(
+            { KeywordStyleValue::create(to_keyword(border_image().repeat_x)), KeywordStyleValue::create(to_keyword(border_image().repeat_y)) },
+            StyleValueList::Separator::Space);
+    case PropertyID::BorderImageSlice:
+        return BorderImageSliceStyleValue::create(
+            border_image_slice_style_value(border_image().slice.top),
+            border_image_slice_style_value(border_image().slice.right),
+            border_image_slice_style_value(border_image().slice.bottom),
+            border_image_slice_style_value(border_image().slice.left),
+            border_image().fill);
+    case PropertyID::BorderImageSource:
+        if (border_image().source)
+            return *border_image().source;
+        return KeywordStyleValue::create(Keyword::None);
+    case PropertyID::BorderImageWidth: {
+        auto values = border_image_side_values(border_image().width, border_image_width_style_value);
+        if (values.size() == 1)
+            return values.take_first();
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    }
     case PropertyID::BorderSpacing:
+        if (border_spacing_horizontal() == border_spacing_vertical())
+            return length_style_value(border_spacing_horizontal());
         return StyleValueList::create(
             { length_style_value(border_spacing_horizontal()), length_style_value(border_spacing_vertical()) },
             StyleValueList::Separator::Space);
@@ -214,6 +439,8 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     case PropertyID::ColumnWidth:
         return size_style_value(column_width());
     case PropertyID::Color:
+        if (m_inherited.color_style_value && !m_inherited.color_style_value->depends_on_current_color())
+            return m_inherited.color_style_value;
         return color_style_value(color());
     case PropertyID::FloodColor:
         return color_style_value(flood_color());
@@ -234,13 +461,13 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     case PropertyID::BorderTopStyle:
         return KeywordStyleValue::create(to_keyword(border_top().line_style));
     case PropertyID::BorderBottomWidth:
-        return length_style_value(border_bottom().width);
+        return length_style_value(border_bottom_computed_width());
     case PropertyID::BorderLeftWidth:
-        return length_style_value(border_left().width);
+        return length_style_value(border_left_computed_width());
     case PropertyID::BorderRightWidth:
-        return length_style_value(border_right().width);
+        return length_style_value(border_right_computed_width());
     case PropertyID::BorderTopWidth:
-        return length_style_value(border_top().width);
+        return length_style_value(border_top_computed_width());
     case PropertyID::BorderBottomLeftRadius:
         return border_radius_style_value(border_bottom_left_radius());
     case PropertyID::BorderBottomRightRadius:
@@ -317,6 +544,50 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         if (color_schemes().is_empty())
             return ColorSchemeStyleValue::normal();
         return ColorSchemeStyleValue::create(color_schemes(), color_scheme_only());
+    case PropertyID::AnimationComposition: {
+        StyleValueVector values;
+        for (auto composition : animation_compositions())
+            values.append(KeywordStyleValue::create(to_keyword(composition)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::AnimationDelay: {
+        StyleValueVector values;
+        for (auto const& delay : animation_delays())
+            values.append(TimeStyleValue::create(delay));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::AnimationDirection: {
+        StyleValueVector values;
+        for (auto direction : animation_directions())
+            values.append(KeywordStyleValue::create(to_keyword(direction)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::AnimationDuration: {
+        StyleValueVector values;
+        for (auto const& duration : animation_durations()) {
+            if (duration.has_value())
+                values.append(TimeStyleValue::create(*duration));
+            else
+                values.append(KeywordStyleValue::create(Keyword::Auto));
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::AnimationFillMode: {
+        StyleValueVector values;
+        for (auto fill_mode : animation_fill_modes())
+            values.append(KeywordStyleValue::create(to_keyword(fill_mode)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::AnimationIterationCount: {
+        StyleValueVector values;
+        for (auto iteration_count : animation_iteration_counts()) {
+            if (isinf(iteration_count))
+                values.append(KeywordStyleValue::create(Keyword::Infinite));
+            else
+                values.append(NumberStyleValue::create(iteration_count));
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
     case PropertyID::AnimationName: {
         StyleValueVector values;
         values.ensure_capacity(animation_names().size());
@@ -335,6 +606,60 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         }
         return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
     }
+    case PropertyID::AnimationPlayState: {
+        StyleValueVector values;
+        for (auto play_state : animation_play_states())
+            values.append(KeywordStyleValue::create(to_keyword(play_state)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::AnimationTimeline: {
+        StyleValueVector values;
+        for (auto const& timeline : animation_timelines()) {
+            switch (timeline.type) {
+            case AnimationTimelineData::Type::Auto:
+                values.append(KeywordStyleValue::create(Keyword::Auto));
+                break;
+            case AnimationTimelineData::Type::None:
+                values.append(KeywordStyleValue::create(Keyword::None));
+                break;
+            case AnimationTimelineData::Type::Name:
+                values.append(CustomIdentStyleValue::create(timeline.name));
+                break;
+            case AnimationTimelineData::Type::Scroll: {
+                StyleValueTuple arguments;
+                arguments.resize_with_default_value(2, nullptr);
+                if (timeline.scroller != Scroller::Nearest)
+                    arguments[TupleStyleValue::Indices::ScrollFunction::Scroller] = KeywordStyleValue::create(to_keyword(timeline.scroller));
+                if (timeline.axis != Axis::Block)
+                    arguments[TupleStyleValue::Indices::ScrollFunction::Axis] = KeywordStyleValue::create(to_keyword(timeline.axis));
+                values.append(FunctionStyleValue::create("scroll"_utf16_fly_string, TupleStyleValue::create(move(arguments))));
+                break;
+            }
+            case AnimationTimelineData::Type::View: {
+                StyleValueTuple arguments;
+                arguments.resize_with_default_value(2, nullptr);
+                if (timeline.axis != Axis::Block)
+                    arguments[TupleStyleValue::Indices::ViewFunction::Axis] = KeywordStyleValue::create(to_keyword(timeline.axis));
+                if (!timeline.inset.start.is_auto() || !timeline.inset.end.is_auto()) {
+                    arguments[TupleStyleValue::Indices::ViewFunction::Inset] = StyleValueList::create(
+                        { length_percentage_or_auto_style_value(timeline.inset.start), length_percentage_or_auto_style_value(timeline.inset.end) },
+                        StyleValueList::Separator::Space);
+                }
+                values.append(FunctionStyleValue::create("view"_utf16_fly_string, TupleStyleValue::create(move(arguments))));
+                break;
+            }
+            }
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::AnimationTimingFunction: {
+        StyleValueVector values;
+        for (auto const& timing_function : animation_timing_functions())
+            values.append(timing_function.to_style_value());
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::BackdropFilter:
+        return filter_style_value(backdrop_filter());
     case PropertyID::FontFamily: {
         StyleValueVector values;
         values.ensure_capacity(font_families().size());
@@ -490,7 +815,7 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         return line_height_data().computed_value.visit(
             [](LineHeightData::Normal) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Normal); },
             [](double value) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(value); },
-            [&](CSSPixels value) -> NonnullRefPtr<StyleValue const> { return length_style_value(value); });
+            [](Length const& value) -> NonnullRefPtr<StyleValue const> { return LengthStyleValue::create(value); });
     case PropertyID::LetterSpacing:
         return length_style_value(letter_spacing());
     case PropertyID::Opacity:
@@ -534,6 +859,12 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     }
     case PropertyID::Clear:
         return KeywordStyleValue::create(to_keyword(clear()));
+    case PropertyID::ClipPath:
+        if (!clip_path().has_value())
+            return KeywordStyleValue::create(Keyword::None);
+        if (clip_path()->is_url())
+            return URLStyleValue::create(clip_path()->url());
+        return NonnullRefPtr { clip_path()->basic_shape() };
     case PropertyID::Clip: {
         if (clip().is_auto())
             return KeywordStyleValue::create(Keyword::Auto);
@@ -552,6 +883,22 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         return column_gap().visit(
             [&](LengthPercentage const& gap) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(gap); },
             [](NormalGap) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Normal); });
+    case PropertyID::Contain: {
+        if (contain().is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        StyleValueVector containment_types;
+        if (contain().size_containment)
+            containment_types.append(KeywordStyleValue::create(Keyword::Size));
+        if (contain().inline_size_containment)
+            containment_types.append(KeywordStyleValue::create(Keyword::InlineSize));
+        if (contain().layout_containment)
+            containment_types.append(KeywordStyleValue::create(Keyword::Layout));
+        if (contain().style_containment)
+            containment_types.append(KeywordStyleValue::create(Keyword::Style));
+        if (contain().paint_containment)
+            containment_types.append(KeywordStyleValue::create(Keyword::Paint));
+        return StyleValueList::create(move(containment_types), StyleValueList::Separator::Space);
+    }
     case PropertyID::ContainerName: {
         if (container_name().is_empty())
             return KeywordStyleValue::create(Keyword::None);
@@ -573,6 +920,28 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             types.append(KeywordStyleValue::create(Keyword::ScrollState));
         return StyleValueList::create(move(types), StyleValueList::Separator::Space);
     }
+    case PropertyID::Content:
+        switch (computed_content().type) {
+        case ComputedContentData::Type::Normal:
+            return KeywordStyleValue::create(Keyword::Normal);
+        case ComputedContentData::Type::None:
+            return KeywordStyleValue::create(Keyword::None);
+        case ComputedContentData::Type::List: {
+            StyleValueVector items;
+            for (auto const& item : computed_content().items)
+                items.append(computed_content_item_style_value(item));
+            StyleValueVector alt_text;
+            for (auto const& item : computed_content().alt_text)
+                alt_text.append(computed_content_item_style_value(item));
+            ValueComparingRefPtr<StyleValueList const> alt_text_style_value;
+            if (!alt_text.is_empty())
+                alt_text_style_value = StyleValueList::create(move(alt_text), StyleValueList::Separator::Space);
+            return ContentStyleValue::create(
+                StyleValueList::create(move(items), StyleValueList::Separator::Space),
+                move(alt_text_style_value));
+        }
+        }
+        VERIFY_NOT_REACHED();
     case PropertyID::ContentVisibility:
         return KeywordStyleValue::create(to_keyword(content_visibility()));
     case PropertyID::Cursor: {
@@ -611,6 +980,14 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         }
         return CounterDefinitionsStyleValue::create(move(definitions));
     }
+    case PropertyID::CornerBottomLeftShape:
+        return SuperellipseStyleValue::create(NumberStyleValue::create(corner_bottom_left_shape()));
+    case PropertyID::CornerBottomRightShape:
+        return SuperellipseStyleValue::create(NumberStyleValue::create(corner_bottom_right_shape()));
+    case PropertyID::CornerTopLeftShape:
+        return SuperellipseStyleValue::create(NumberStyleValue::create(corner_top_left_shape()));
+    case PropertyID::CornerTopRightShape:
+        return SuperellipseStyleValue::create(NumberStyleValue::create(corner_top_right_shape()));
     case PropertyID::Cx:
         return length_percentage_style_value(cx());
     case PropertyID::Cy:
@@ -635,6 +1012,30 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         return NumberStyleValue::create(flex_shrink());
     case PropertyID::FlexWrap:
         return KeywordStyleValue::create(to_keyword(flex_wrap()));
+    case PropertyID::Filter:
+        return filter_style_value(filter());
+    case PropertyID::GridAutoColumns:
+        return GridTrackSizeListStyleValue::create(grid_auto_columns());
+    case PropertyID::GridAutoFlow:
+        return GridAutoFlowStyleValue::create(
+            grid_auto_flow().row ? GridAutoFlowStyleValue::Axis::Row : GridAutoFlowStyleValue::Axis::Column,
+            grid_auto_flow().dense ? GridAutoFlowStyleValue::Dense::Yes : GridAutoFlowStyleValue::Dense::No);
+    case PropertyID::GridAutoRows:
+        return GridTrackSizeListStyleValue::create(grid_auto_rows());
+    case PropertyID::GridColumnEnd:
+        return GridTrackPlacementStyleValue::create(grid_column_end());
+    case PropertyID::GridColumnStart:
+        return GridTrackPlacementStyleValue::create(grid_column_start());
+    case PropertyID::GridRowEnd:
+        return GridTrackPlacementStyleValue::create(grid_row_end());
+    case PropertyID::GridRowStart:
+        return GridTrackPlacementStyleValue::create(grid_row_start());
+    case PropertyID::GridTemplateAreas:
+        return GridTemplateAreaStyleValue::create(grid_template_areas().areas, grid_template_areas().row_count, grid_template_areas().column_count);
+    case PropertyID::GridTemplateColumns:
+        return GridTrackSizeListStyleValue::create(grid_template_columns());
+    case PropertyID::GridTemplateRows:
+        return GridTrackSizeListStyleValue::create(grid_template_rows());
     case PropertyID::FontVariantEmoji:
         return KeywordStyleValue::create(to_keyword(font_variant_emoji()));
     case PropertyID::ImageRendering:
@@ -656,11 +1057,87 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
                 VERIFY(counter_style);
                 return CounterStyleStyleValue::create(counter_style->name());
             },
-            [](Utf16String const& string) -> NonnullRefPtr<StyleValue const> { return StringStyleValue::create(string); });
+            [](Utf16String const& string) -> NonnullRefPtr<StyleValue const> { return StringStyleValue::create(string); },
+            [](Utf16FlyString const& name) -> NonnullRefPtr<StyleValue const> { return CounterStyleStyleValue::create(name); },
+            [](ListStyleSymbols const& symbols) -> NonnullRefPtr<StyleValue const> {
+                return CounterStyleStyleValue::create(CounterStyleStyleValue::SymbolsFunction {
+                    .type = symbols.type,
+                    .symbols = symbols.symbols,
+                });
+            });
     case PropertyID::ListStyleImage:
         if (list_style_image())
             return *list_style_image();
         return KeywordStyleValue::create(Keyword::None);
+    case PropertyID::MaskClip: {
+        StyleValueVector values;
+        for (auto const& layer : mask_layers()) {
+            if (layer.mask_clip_is_no_clip)
+                values.append(KeywordStyleValue::create(Keyword::NoClip));
+            else
+                values.append(KeywordStyleValue::create(to_keyword(layer.mask_clip)));
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::MaskComposite: {
+        StyleValueVector values;
+        for (auto const& layer : mask_layers())
+            values.append(KeywordStyleValue::create(to_keyword(layer.mask_composite)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::MaskImage: {
+        StyleValueVector values;
+        for (auto const& layer : mask_layers()) {
+            if (layer.background_image)
+                values.append(*layer.background_image);
+            else
+                values.append(KeywordStyleValue::create(Keyword::None));
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::MaskMode: {
+        StyleValueVector values;
+        for (auto const& layer : mask_layers())
+            values.append(KeywordStyleValue::create(to_keyword(layer.mask_mode)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::MaskOrigin: {
+        StyleValueVector values;
+        for (auto const& layer : mask_layers())
+            values.append(KeywordStyleValue::create(to_keyword(layer.mask_origin)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::MaskPosition: {
+        StyleValueVector values;
+        for (auto const& position : mask_positions())
+            values.append(position_style_value(position));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::MaskRepeat: {
+        StyleValueVector values;
+        for (auto const& layer : mask_layers())
+            values.append(RepeatStyleStyleValue::create(layer.repeat_x, layer.repeat_y));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::MaskSize: {
+        StyleValueVector values;
+        for (auto const& layer : mask_layers()) {
+            switch (layer.size_type) {
+            case CSS::BackgroundSize::Contain:
+                values.append(KeywordStyleValue::create(Keyword::Contain));
+                break;
+            case CSS::BackgroundSize::Cover:
+                values.append(KeywordStyleValue::create(Keyword::Cover));
+                break;
+            case CSS::BackgroundSize::LengthPercentage:
+                values.append(BackgroundSizeStyleValue::create(
+                    length_percentage_or_auto_style_value(layer.size_x),
+                    length_percentage_or_auto_style_value(layer.size_y)));
+                break;
+            }
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
     case PropertyID::MaskType:
         return KeywordStyleValue::create(to_keyword(mask_type()));
     case PropertyID::MathDepth:
@@ -695,6 +1172,19 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         return KeywordStyleValue::create(to_keyword(overflow_x()));
     case PropertyID::OverflowY:
         return KeywordStyleValue::create(to_keyword(overflow_y()));
+    case PropertyID::OverflowClipMarginBottom:
+    case PropertyID::OverflowClipMarginLeft:
+    case PropertyID::OverflowClipMarginRight:
+    case PropertyID::OverflowClipMarginTop: {
+        auto const* side = &overflow_clip_margin().top;
+        if (property_id == PropertyID::OverflowClipMarginRight)
+            side = &overflow_clip_margin().right;
+        else if (property_id == PropertyID::OverflowClipMarginBottom)
+            side = &overflow_clip_margin().bottom;
+        else if (property_id == PropertyID::OverflowClipMarginLeft)
+            side = &overflow_clip_margin().left;
+        return OverflowClipMarginStyleValue::create(side->visual_box, length_style_value(side->offset));
+    }
     case PropertyID::PointerEvents:
         return KeywordStyleValue::create(to_keyword(pointer_events()));
     case PropertyID::Position:
@@ -712,6 +1202,44 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             return CustomIdentStyleValue::create(*position_anchor_value().name);
         }
         VERIFY_NOT_REACHED();
+    case PropertyID::PositionArea:
+        if (position_area().keywords.is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        return position_area_style_value(position_area());
+    case PropertyID::PositionTryFallbacks: {
+        if (position_try_fallbacks().is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        StyleValueVector fallbacks;
+        for (auto const& fallback : position_try_fallbacks()) {
+            if (fallback.position_area.has_value()) {
+                fallbacks.append(position_area_style_value(*fallback.position_area));
+                continue;
+            }
+            StyleValueVector values;
+            if (fallback.name.has_value())
+                values.append(CustomIdentStyleValue::create(*fallback.name));
+            for (auto tactic : fallback.tactics)
+                values.append(KeywordStyleValue::create(to_keyword(tactic)));
+            fallbacks.append(StyleValueList::create(move(values), StyleValueList::Separator::Space));
+        }
+        return StyleValueList::create(move(fallbacks), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::PositionTryOrder:
+        if (!position_try_order().has_value())
+            return KeywordStyleValue::create(Keyword::Normal);
+        return KeywordStyleValue::create(to_keyword(*position_try_order()));
+    case PropertyID::PositionVisibility: {
+        if (position_visibility().always)
+            return KeywordStyleValue::create(Keyword::Always);
+        StyleValueVector values;
+        if (position_visibility().anchors_valid)
+            values.append(KeywordStyleValue::create(Keyword::AnchorsValid));
+        if (position_visibility().anchors_visible)
+            values.append(KeywordStyleValue::create(Keyword::AnchorsVisible));
+        if (position_visibility().no_overflow)
+            values.append(KeywordStyleValue::create(Keyword::NoOverflow));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    }
     case PropertyID::Perspective:
         if (perspective().has_value())
             return length_style_value(*perspective());
@@ -755,14 +1283,40 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         if (scale())
             return *scale();
         return KeywordStyleValue::create(Keyword::None);
+    case PropertyID::ScrollTimelineAxis:
+        return timeline_axis_list_style_value(scroll_timeline_axes());
+    case PropertyID::ScrollTimelineName:
+        return timeline_name_list_style_value(scroll_timeline_names());
+    case PropertyID::ScrollBehavior:
+        return KeywordStyleValue::create(to_keyword(scroll_behavior()));
     case PropertyID::ScrollbarColor:
         if (scrollbar_color().is_auto)
             return KeywordStyleValue::create(Keyword::Auto);
         return ScrollbarColorStyleValue::create(
             color_style_value(scrollbar_color().thumb_color),
             color_style_value(scrollbar_color().track_color));
+    case PropertyID::ScrollbarGutter:
+        return ScrollbarGutterStyleValue::create(scrollbar_gutter());
     case PropertyID::ScrollbarWidth:
         return KeywordStyleValue::create(to_keyword(scrollbar_width()));
+    case PropertyID::ShapeImageThreshold:
+        return OpacityValueStyleValue::create(NumberStyleValue::create(shape_image_threshold()));
+    case PropertyID::ShapeMargin:
+        return length_percentage_style_value(shape_margin());
+    case PropertyID::ShapeOutside: {
+        if (shape_outside().image.has<URL>())
+            return URLStyleValue::create(shape_outside().image.get<URL>());
+        if (shape_outside().image.has<NonnullRefPtr<AbstractImageStyleValue const>>())
+            return shape_outside().image.get<NonnullRefPtr<AbstractImageStyleValue const>>();
+        if (!shape_outside().basic_shape && !shape_outside().shape_box.has_value())
+            return KeywordStyleValue::create(Keyword::None);
+        if (!shape_outside().shape_box.has_value())
+            return *shape_outside().basic_shape;
+        auto shape_box = KeywordStyleValue::create(to_keyword(*shape_outside().shape_box));
+        if (!shape_outside().basic_shape)
+            return shape_box;
+        return StyleValueList::create({ *shape_outside().basic_shape, move(shape_box) }, StyleValueList::Separator::Space);
+    }
     case PropertyID::ShapeRendering:
         return KeywordStyleValue::create(to_keyword(shape_rendering()));
     case PropertyID::StrokeLinecap:
@@ -832,6 +1386,12 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             [&](LengthPercentage const& offset) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(offset); });
     case PropertyID::TextWrapStyle:
         return KeywordStyleValue::create(to_keyword(text_wrap_style()));
+    case PropertyID::TimelineScope:
+        if (timeline_scope().all)
+            return KeywordStyleValue::create(Keyword::All);
+        if (timeline_scope().names.is_empty())
+            return KeywordStyleValue::create(Keyword::None);
+        return custom_ident_list_style_value(timeline_scope().names);
     case PropertyID::TextShadow: {
         if (text_shadow().is_empty())
             return KeywordStyleValue::create(Keyword::None);
@@ -872,6 +1432,65 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             StyleValueList::Separator::Space);
     case PropertyID::TransformStyle:
         return KeywordStyleValue::create(to_keyword(transform_style()));
+    case PropertyID::TransitionBehavior: {
+        StyleValueVector values;
+        for (auto behavior : transition_behaviors())
+            values.append(KeywordStyleValue::create(to_keyword(behavior)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::TransitionDelay: {
+        StyleValueVector values;
+        for (auto const& delay : transition_delays())
+            values.append(TimeStyleValue::create(delay));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::TransitionDuration: {
+        StyleValueVector values;
+        for (auto const& duration : transition_durations())
+            values.append(TimeStyleValue::create(duration));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::TransitionProperty: {
+        StyleValueVector values;
+        for (auto const& property : transition_properties()) {
+            if (property.has_value())
+                values.append(CustomIdentStyleValue::create(*property));
+            else
+                values.append(KeywordStyleValue::create(Keyword::None));
+        }
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::TransitionTimingFunction: {
+        StyleValueVector values;
+        for (auto const& timing_function : transition_timing_functions())
+            values.append(timing_function.to_style_value());
+        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::TouchAction: {
+        auto const action = touch_action();
+        if (action.allow_left && action.allow_right && action.allow_up && action.allow_down && action.allow_pinch_zoom) {
+            if (action.allow_other)
+                return KeywordStyleValue::create(Keyword::Auto);
+            return KeywordStyleValue::create(Keyword::Manipulation);
+        }
+        if (!action.allow_left && !action.allow_right && !action.allow_up && !action.allow_down && !action.allow_pinch_zoom)
+            return KeywordStyleValue::create(Keyword::None);
+
+        StyleValueVector values;
+        if (action.allow_left && action.allow_right)
+            values.append(KeywordStyleValue::create(Keyword::PanX));
+        else if (action.allow_left)
+            values.append(KeywordStyleValue::create(Keyword::PanLeft));
+        else if (action.allow_right)
+            values.append(KeywordStyleValue::create(Keyword::PanRight));
+        if (action.allow_up && action.allow_down)
+            values.append(KeywordStyleValue::create(Keyword::PanY));
+        else if (action.allow_up)
+            values.append(KeywordStyleValue::create(Keyword::PanUp));
+        else if (action.allow_down)
+            values.append(KeywordStyleValue::create(Keyword::PanDown));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    }
     case PropertyID::Translate:
         if (translate())
             return *translate();
@@ -882,6 +1501,19 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         return KeywordStyleValue::create(to_keyword(user_select()));
     case PropertyID::VectorEffect:
         return KeywordStyleValue::create(to_keyword(vector_effect()));
+    case PropertyID::ViewTimelineAxis:
+        return timeline_axis_list_style_value(view_timeline_axes());
+    case PropertyID::ViewTimelineInset: {
+        StyleValueVector insets;
+        for (auto const& inset : view_timeline_insets()) {
+            insets.append(StyleValueList::create(
+                { length_percentage_or_auto_style_value(inset.start), length_percentage_or_auto_style_value(inset.end) },
+                StyleValueList::Separator::Space));
+        }
+        return StyleValueList::create(move(insets), StyleValueList::Separator::Comma);
+    }
+    case PropertyID::ViewTimelineName:
+        return timeline_name_list_style_value(view_timeline_names());
     case PropertyID::VerticalAlign:
         return vertical_align().visit(
             [](VerticalAlign alignment) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(to_keyword(alignment)); },
@@ -1534,7 +2166,7 @@ LineHeightData ComputedProperties::line_height_data(FontComputer const& font_com
     } else if (value.is_number()) {
         data.computed_value = value.as_number().number();
     } else {
-        data.computed_value = value.as_length().length().absolute_length_to_px();
+        data.computed_value = value.as_length().length();
     }
 
     return data;
@@ -1721,12 +2353,6 @@ ImageRendering ComputedProperties::image_rendering() const
 // https://drafts.csswg.org/css-backgrounds-4/#layering
 Vector<BackgroundLayerData> ComputedProperties::background_layers() const
 {
-    auto const& background_image_values = property(PropertyID::BackgroundImage).as_value_list().values();
-
-    // OPTIMIZATION: If all background-image values are `none`, we can skip computing the layers entirely
-    if (all_of(background_image_values, [](auto const& value) { return value->to_keyword() == Keyword::None; }))
-        return {};
-
     auto coordinated_value_list = assemble_coordinated_value_list(
         PropertyID::BackgroundImage,
         {
@@ -1748,9 +2374,6 @@ Vector<BackgroundLayerData> ComputedProperties::background_layers() const
     for (size_t i = 0; i < coordinated_value_list.get(PropertyID::BackgroundImage)->size(); i++) {
         auto const& background_image_value = coordinated_value_list.get(PropertyID::BackgroundImage)->at(i);
 
-        if (background_image_value->to_keyword() == Keyword::None)
-            continue;
-
         auto const& background_attachment_value = coordinated_value_list.get(PropertyID::BackgroundAttachment)->at(i);
         auto const& background_blend_mode_value = coordinated_value_list.get(PropertyID::BackgroundBlendMode)->at(i);
         auto const& background_clip_value = coordinated_value_list.get(PropertyID::BackgroundClip)->at(i);
@@ -1760,9 +2383,9 @@ Vector<BackgroundLayerData> ComputedProperties::background_layers() const
         auto const& background_repeat_value = coordinated_value_list.get(PropertyID::BackgroundRepeat)->at(i);
         auto const& background_size_value = coordinated_value_list.get(PropertyID::BackgroundSize)->at(i);
 
-        BackgroundLayerData layer {
-            .background_image = background_image_value->as_abstract_image()
-        };
+        BackgroundLayerData layer;
+        if (background_image_value->is_abstract_image())
+            layer.background_image = background_image_value->as_abstract_image();
 
         layer.attachment = keyword_to_background_attachment(background_attachment_value->to_keyword()).value();
         layer.blend_mode = keyword_to_mix_blend_mode(background_blend_mode_value->to_keyword()).value();
@@ -1802,18 +2425,17 @@ Vector<BackgroundLayerData> ComputedProperties::background_layers() const
     return layers;
 }
 
-Optional<BorderImageData> ComputedProperties::border_image() const
+BorderImageData ComputedProperties::border_image() const
 {
     auto const& source = property(PropertyID::BorderImageSource);
-    if (!source.is_abstract_image())
-        return {};
-
-    auto expand_sides = [](StyleValue const& value) -> BorderImageSideValues {
-        if (value.is_value_list()) {
-            auto const& list = value.as_value_list();
-            return { list.value_at(0, true), list.value_at(1, true), list.value_at(2, true), list.value_at(3, true) };
-        }
-        return { value, value, value, value };
+    auto expand_sides = [](StyleValue const& value, auto convert) {
+        auto value_at = [&](size_t index) -> StyleValue const& {
+            if (value.is_value_list())
+                return value.as_value_list().value_at(index, true);
+            return value;
+        };
+        using Value = decltype(convert(value));
+        return BorderImageSideValues<Value> { convert(value_at(0)), convert(value_at(1)), convert(value_at(2)), convert(value_at(3)) };
     };
 
     auto const& repeat = property(PropertyID::BorderImageRepeat);
@@ -1823,11 +2445,28 @@ Optional<BorderImageData> ComputedProperties::border_image() const
     };
 
     auto const& slice = property(PropertyID::BorderImageSlice).as_border_image_slice();
+    auto convert_slice = [](StyleValue const& value) -> BorderImageSliceValue {
+        if (value.is_percentage())
+            return value.as_percentage().percentage();
+        if (value.is_calculated())
+            return NonnullRefPtr<CalculatedStyleValue const> { value.as_calculated() };
+        return value.as_number().number();
+    };
     return BorderImageData {
-        .source = source.as_abstract_image(),
-        .slice = { slice.top(), slice.right(), slice.bottom(), slice.left() },
-        .width = expand_sides(property(PropertyID::BorderImageWidth)),
-        .outset = expand_sides(property(PropertyID::BorderImageOutset)),
+        .source = source.is_abstract_image() ? RefPtr { source.as_abstract_image() } : nullptr,
+        .slice = { convert_slice(slice.top()), convert_slice(slice.right()), convert_slice(slice.bottom()), convert_slice(slice.left()) },
+        .width = expand_sides(property(PropertyID::BorderImageWidth), [](StyleValue const& value) -> BorderImageWidthValue {
+            if (value.is_number())
+                return value.as_number().number();
+            if (value.to_keyword() == Keyword::Auto)
+                return BorderImageWidthAuto {};
+            return LengthPercentage::from_style_value(value);
+        }),
+        .outset = expand_sides(property(PropertyID::BorderImageOutset), [](StyleValue const& value) -> BorderImageOutsetValue {
+            if (value.is_number())
+                return value.as_number().number();
+            return Length::from_style_value(value, {});
+        }),
         .fill = slice.fill(),
         .repeat_x = repeat_at(0),
         .repeat_y = repeat_at(1),
@@ -1845,10 +2484,9 @@ Vector<BackgroundLayerData> ComputedProperties::mask_layers() const
 
     auto const mask_image_values = property_values(PropertyID::MaskImage);
 
-    if (all_of(mask_image_values, [](auto const& value) { return value->to_keyword() == Keyword::None; }))
-        return {};
-
     auto mask_clip_values = property_values(PropertyID::MaskClip);
+    auto mask_composite_values = property_values(PropertyID::MaskComposite);
+    auto mask_mode_values = property_values(PropertyID::MaskMode);
     auto mask_origin_values = property_values(PropertyID::MaskOrigin);
     auto mask_position_values = property_values(PropertyID::MaskPosition);
     auto mask_repeat_values = property_values(PropertyID::MaskRepeat);
@@ -1860,26 +2498,32 @@ Vector<BackgroundLayerData> ComputedProperties::mask_layers() const
     for (size_t i = 0; i < mask_image_values.size(); i++) {
         auto const& mask_image_value = mask_image_values[i];
 
-        if (mask_image_value->to_keyword() == Keyword::None || !mask_image_value->is_abstract_image())
-            continue;
-
         auto const& mask_clip_value = mask_clip_values[i % mask_clip_values.size()];
+        auto const& mask_composite_value = mask_composite_values[i % mask_composite_values.size()];
+        auto const& mask_mode_value = mask_mode_values[i % mask_mode_values.size()];
         auto const& mask_origin_value = mask_origin_values[i % mask_origin_values.size()];
         auto const& mask_position_value = mask_position_values[i % mask_position_values.size()];
         auto const& mask_repeat_value = mask_repeat_values[i % mask_repeat_values.size()];
         auto const& mask_size_value = mask_size_values[i % mask_size_values.size()];
 
-        BackgroundLayerData layer {
-            .background_image = mask_image_value->as_abstract_image(),
-            .origin = BackgroundBox::BorderBox,
-            .clip = BackgroundBox::BorderBox,
-        };
+        BackgroundLayerData layer;
+        layer.origin = BackgroundBox::BorderBox;
+        layer.clip = BackgroundBox::BorderBox;
+        if (mask_image_value->is_abstract_image())
+            layer.background_image = mask_image_value->as_abstract_image();
 
         if (mask_clip_value->to_keyword() != Keyword::NoClip) {
+            layer.mask_clip = keyword_to_coord_box(mask_clip_value->to_keyword()).release_value();
             if (auto clip = keyword_to_background_box(mask_clip_value->to_keyword()); clip.has_value())
                 layer.clip = clip.release_value();
+        } else {
+            layer.mask_clip_is_no_clip = true;
         }
 
+        layer.mask_composite = keyword_to_compositing_operator(mask_composite_value->to_keyword()).release_value();
+        layer.mask_mode = keyword_to_masking_mode(mask_mode_value->to_keyword()).release_value();
+
+        layer.mask_origin = keyword_to_coord_box(mask_origin_value->to_keyword()).release_value();
         if (auto origin = keyword_to_background_box(mask_origin_value->to_keyword()); origin.has_value())
             layer.origin = origin.release_value();
 
@@ -2379,11 +3023,8 @@ ColumnSpan ComputedProperties::column_span() const
     return keyword_to_column_span(value.to_keyword()).release_value();
 }
 
-ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level) const
+static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, QuotesData const& quotes_data, DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level)
 {
-    auto const& value = property(PropertyID::Content);
-    auto quotes_data = quotes();
-
     auto quote_nesting_level = initial_quote_nesting_level;
 
     auto get_quote_string = [&](bool open, auto depth) {
@@ -2481,6 +3122,16 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
     }
 
     return { {}, quote_nesting_level };
+}
+
+ContentDataAndQuoteNestingLevel ComputedProperties::content(DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level) const
+{
+    return resolve_content(property(PropertyID::Content), quotes(), element_reference, initial_quote_nesting_level);
+}
+
+ContentDataAndQuoteNestingLevel ComputedValues::resolved_content(DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level) const
+{
+    return resolve_content(*computed_style_value(PropertyID::Content), quotes(), element_reference, initial_quote_nesting_level);
 }
 
 ContentVisibility ComputedProperties::content_visibility() const
@@ -2592,7 +3243,12 @@ ListStyleType ComputedProperties::list_style_type(StyleScope const& style_scope)
     if (value.is_string())
         return value.as_string().string_value().to_utf16_string();
 
-    return value.as_counter_style().resolve_counter_style(style_scope);
+    auto counter_style = value.as_counter_style().resolve_counter_style(style_scope);
+    if (counter_style)
+        return counter_style;
+
+    VERIFY(value.as_counter_style().value().has<Utf16FlyString>());
+    return value.as_counter_style().value().get<Utf16FlyString>();
 }
 
 ListStylePosition ComputedProperties::list_style_position() const

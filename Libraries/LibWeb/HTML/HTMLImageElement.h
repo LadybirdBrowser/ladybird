@@ -133,7 +133,7 @@ private:
     // https://html.spec.whatwg.org/multipage/embedded-content.html#the-img-element:dimension-attributes
     virtual bool supports_dimension_attributes() const override { return true; }
 
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
+    virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
     virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
 
     virtual void did_set_viewport_rect(CSSPixelRect const&) override;

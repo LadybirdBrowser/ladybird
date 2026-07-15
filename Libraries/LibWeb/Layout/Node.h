@@ -362,7 +362,7 @@ public:
     }
 
     void clear_image_observers();
-    void apply_style(CSS::ComputedProperties const&);
+    void apply_style(NonnullRefPtr<CSS::ComputedValues const>);
     void attach_style_resources();
 
     Gfx::Font const& first_available_font() const;
@@ -377,14 +377,13 @@ public:
     bool is_body() const { return m_is_body; }
     bool is_scroll_container() const;
 
-    void set_computed_values(NonnullRefPtr<CSS::ComputedValues>);
+    void set_computed_values(NonnullRefPtr<CSS::ComputedValues const>);
 
     u32 layout_index() const { return m_layout_index; }
     void set_layout_index(u32 index) { m_layout_index = index; }
 
 protected:
-    NodeWithStyle(DOM::Document&, DOM::Node*, CSS::ComputedProperties const&);
-    NodeWithStyle(DOM::Document&, DOM::Node*, NonnullRefPtr<CSS::ComputedValues>);
+    NodeWithStyle(DOM::Document&, DOM::Node*, NonnullRefPtr<CSS::ComputedValues const>);
 
 private:
     virtual bool is_node_with_style() const final { return true; }
@@ -395,7 +394,7 @@ private:
 
     void rebuild_image_observers();
 
-    NonnullRefPtr<CSS::ComputedValues> m_computed_values;
+    NonnullRefPtr<CSS::ComputedValues const> m_computed_values;
     Vector<NonnullOwnPtr<ImageObserver>> m_image_observers;
     u32 m_layout_index { 0 };
 };
@@ -410,9 +409,7 @@ public:
     bool is_inline_flow_interrupting_block() const;
 
 protected:
-    NodeWithStyleAndBoxModelMetrics(DOM::Document&, DOM::Node*, CSS::ComputedProperties const&);
-
-    NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues> computed_values)
+    NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues const> computed_values)
         : NodeWithStyle(document, node, move(computed_values))
     {
     }

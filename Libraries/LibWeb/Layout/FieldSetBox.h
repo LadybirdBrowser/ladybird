@@ -17,7 +17,7 @@ class FieldSetBox final : public BlockContainer {
     LAYOUT_NODE(FieldSetBox, BlockContainer);
 
 public:
-    FieldSetBox(DOM::Document&, DOM::Element&, CSS::ComputedProperties const&);
+    FieldSetBox(DOM::Document&, DOM::Element&, NonnullRefPtr<CSS::ComputedValues const>);
     virtual ~FieldSetBox() override;
 
     DOM::Element& dom_node() { return static_cast<DOM::Element&>(*BlockContainer::dom_node()); }

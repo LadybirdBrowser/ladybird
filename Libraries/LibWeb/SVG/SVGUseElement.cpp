@@ -438,7 +438,7 @@ GC::Ptr<SVGElement> SVGUseElement::animated_instance_root() const
     return instance_root();
 }
 
-RefPtr<Layout::Node> SVGUseElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> SVGUseElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
 {
     return make_ref_counted<Layout::SVGGraphicsBox>(document(), *this, style);
 }

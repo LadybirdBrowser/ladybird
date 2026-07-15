@@ -2145,27 +2145,29 @@ static CSSPixelRect destination_rect_for_track(BorderImageGrid const& grid, Bord
 static ResolvedBorderImageGeometry resolve_border_image_geometry(CSS::BorderImageData const& border_image, Gfx::IntSize source_size, CSSPixelRect border_box_rect, PixelBox border_width)
 {
     // https://drafts.csswg.org/css-backgrounds-3/#border-image-slice
-    auto resolve_slice = [](CSS::StyleValue const& value, CSSPixels reference_length) {
-        if (value.is_percentage())
-            return CSSPixels::nearest_value_for(reference_length * value.as_percentage().percentage().as_fraction());
-        return CSSPixels(value.as_number().number());
+    auto resolve_slice = [](CSS::BorderImageSliceValue const& value, CSSPixels reference_length) {
+        return value.visit(
+            [](double number) { return CSSPixels(number); },
+            [&](CSS::Percentage percentage) { return CSSPixels::nearest_value_for(reference_length * percentage.as_fraction()); },
+            [&](NonnullRefPtr<CSS::CalculatedStyleValue const> const& calculated) {
+                if (calculated->resolves_to_percentage())
+                    return CSSPixels::nearest_value_for(reference_length * calculated->resolve_percentage({}).value().as_fraction());
+                return CSSPixels(calculated->resolve_number({}).value());
+            });
     };
 
-    auto resolve_outset = [](CSS::StyleValue const& value, CSSPixels border_width) {
-        if (value.is_number())
-            return CSSPixels::nearest_value_for(border_width * value.as_number().number());
-        return CSS::Length::from_style_value(value, {}).absolute_length_to_px();
+    auto resolve_outset = [](CSS::BorderImageOutsetValue const& value, CSSPixels border_width) {
+        return value.visit(
+            [&](double number) { return CSSPixels::nearest_value_for(border_width * number); },
+            [](CSS::Length const& length) { return length.absolute_length_to_px(); });
     };
 
     // https://drafts.csswg.org/css-backgrounds-3/#border-image-width
-    auto resolve_width = [](CSS::StyleValue const& value, CSSPixels border_width, CSSPixels reference_length, CSSPixels auto_width) {
-        if (value.is_number())
-            return CSSPixels::nearest_value_for(border_width * value.as_number().number());
-        if (value.is_percentage())
-            return CSSPixels::nearest_value_for(reference_length * value.as_percentage().percentage().as_fraction());
-        if (value.to_keyword() == CSS::Keyword::Auto)
-            return auto_width;
-        return CSS::Length::from_style_value(value, {}).absolute_length_to_px();
+    auto resolve_width = [](CSS::BorderImageWidthValue const& value, CSSPixels border_width, CSSPixels reference_length, CSSPixels auto_width) {
+        return value.visit(
+            [&](double number) { return CSSPixels::nearest_value_for(border_width * number); },
+            [&](CSS::LengthPercentage const& length_percentage) { return length_percentage.to_px(reference_length); },
+            [&](CSS::BorderImageWidthAuto) { return auto_width; });
     };
 
     auto shrink_opposite_sides_to_fit = [](CSSPixels& first, CSSPixels& second, CSSPixels available) {
@@ -2329,15 +2331,15 @@ static void paint_border_image_slice(DisplayListRecordingContext& context, Gfx::
 static bool paint_border_image(DisplayListRecordingContext& context, Paintable const& paintable_box, BordersData const& borders_data, CSSPixelRect const& border_box_rect)
 {
     auto const& border_image = paintable_box.computed_values().border_image();
-    if (!border_image.has_value())
+    if (!border_image.source)
         return false;
 
     // FIXME: Support all abstract image sources here. NodeWithStyle loads and observes gradients and
     // image-set(), but this painting path currently only handles raster images.
-    if (!border_image->source->is_image())
+    if (!border_image.source->is_image())
         return false;
 
-    auto const& image = border_image->source->as_image();
+    auto const& image = border_image.source->as_image();
     auto const& document = paintable_box.document();
     if (!image.is_paintable(document))
         return false;
@@ -2353,10 +2355,10 @@ static bool paint_border_image(DisplayListRecordingContext& context, Paintable c
         .bottom = borders_data.bottom.width,
         .left = borders_data.left.width,
     };
-    auto geometry = resolve_border_image_geometry(*border_image, frame.size(), border_box_rect, border_width);
+    auto geometry = resolve_border_image_geometry(border_image, frame.size(), border_box_rect, border_width);
 
-    auto repeat_x = border_image->repeat_x;
-    auto repeat_y = border_image->repeat_y;
+    auto repeat_x = border_image.repeat_x;
+    auto repeat_y = border_image.repeat_y;
 
     auto image_rendering = paintable_box.computed_values().image_rendering();
 
@@ -2392,7 +2394,7 @@ static bool paint_border_image(DisplayListRecordingContext& context, Paintable c
 
     for (auto row : { BorderImageTrack::Start, BorderImageTrack::Center, BorderImageTrack::End }) {
         for (auto column : { BorderImageTrack::Start, BorderImageTrack::Center, BorderImageTrack::End }) {
-            if (column == BorderImageTrack::Center && row == BorderImageTrack::Center && !border_image->fill)
+            if (column == BorderImageTrack::Center && row == BorderImageTrack::Center && !border_image.fill)
                 continue; // The centre is only painted when the 'fill' keyword is present.
             paint_piece(column, row);
         }

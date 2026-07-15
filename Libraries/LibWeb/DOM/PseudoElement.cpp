@@ -51,29 +51,28 @@ RefPtr<CSS::ComputedValues const> SyntheticPseudoElement::computed_values() cons
 
 void SyntheticPseudoElement::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement abstract_element, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)
 {
-    if (!m_computed_properties)
+    if (!m_computed_values)
         return;
+    VERIFY(m_computed_properties);
     effect.update_computed_properties_for_style(context, abstract_element, *m_computed_properties);
 }
 
-void SyntheticPseudoElement::set_computed_properties(RefPtr<CSS::ComputedProperties> value)
+void SyntheticPseudoElement::set_computed_style(RefPtr<CSS::ComputedProperties> properties, RefPtr<CSS::ComputedValues const> values)
 {
-    m_computed_properties = value;
-    m_computed_values = value ? value->computed_values() : nullptr;
-    VERIFY(!value || m_computed_values);
+    VERIFY(properties == nullptr || values != nullptr);
+    m_computed_properties = move(properties);
+    m_computed_values = move(values);
 }
 
-void SyntheticPseudoElement::refresh_computed_values()
+void SyntheticPseudoElement::refresh_computed_values(NonnullRefPtr<CSS::ComputedValues const> values)
 {
-    VERIFY(m_computed_properties);
-    m_computed_values = m_computed_properties->computed_values();
     VERIFY(m_computed_values);
+    m_computed_values = move(values);
 }
 
-void SyntheticPseudoElement::set_computed_properties_in_display_none_subtree()
+void SyntheticPseudoElement::set_computed_values_in_display_none_subtree()
 {
-    if (m_computed_properties) {
-        m_computed_properties->set_in_display_none_subtree(Badge<SyntheticPseudoElement> {});
+    if (m_computed_values) {
         CSS::ComputedValues::Builder builder(*m_computed_values);
         builder->set_in_display_none_subtree(true);
         if (m_computed_values->has_animated_values()) {
