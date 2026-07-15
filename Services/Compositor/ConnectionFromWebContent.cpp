@@ -49,16 +49,16 @@ void ConnectionFromWebContent::dispatch_mouse_event_to_web_content(u64 page_id, 
     async_mouse_event(page_id, event);
 }
 
-void ConnectionFromWebContent::verify_context_is_owned_by_this_connection(Web::Compositor::CompositorContextId context_id)
+bool ConnectionFromWebContent::context_is_owned_by_this_connection(Web::Compositor::CompositorContextId context_id)
 {
     switch (m_compositor_state->check_context_owner(context_id, *this)) {
     case CompositorState::ContextOwnerCheckResult::OwnedByClient:
-        return;
+        return true;
     case CompositorState::ContextOwnerCheckResult::ContextUnavailable:
-        VERIFY_NOT_REACHED();
+        return false;
     case CompositorState::ContextOwnerCheckResult::ConflictingOwner:
         did_misbehave("WebContent tried to use a compositor context owned by another connection");
-        VERIFY_NOT_REACHED();
+        return false;
     }
 
     VERIFY_NOT_REACHED();
@@ -66,55 +66,64 @@ void ConnectionFromWebContent::verify_context_is_owned_by_this_connection(Web::C
 
 void ConnectionFromWebContent::set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
     m_compositor_state->set_parent_context(context_id, parent_context_id);
 }
 
 void ConnectionFromWebContent::stop_presenting_to_client(Web::Compositor::CompositorContextId context_id)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
     m_compositor_state->stop_presenting_to_client(context_id);
 }
 
 void ConnectionFromWebContent::destroy_context(Web::Compositor::CompositorContextId context_id)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
     m_compositor_state->destroy_context(context_id);
 }
 
 void ConnectionFromWebContent::update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction resource_transaction, Web::Painting::ScrollStateSnapshot scroll_state_snapshot)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
     m_compositor_state->update_display_list(context_id, move(display_list), move(visual_context_tree), move(resource_transaction), move(scroll_state_snapshot));
 }
 
 void ConnectionFromWebContent::update_image_frame_resources(Web::Compositor::CompositorContextId context_id, Vector<Web::Painting::DisplayListImageFrameResource> image_frames)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
     m_compositor_state->update_image_frame_resources(context_id, move(image_frames));
 }
 
 void ConnectionFromWebContent::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
     m_compositor_state->update_visual_context_tree(context_id, move(visual_context_tree));
 }
 
 void ConnectionFromWebContent::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot scroll_state_snapshot)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
     m_compositor_state->update_scroll_state(context_id, move(scroll_state_snapshot));
 }
 
 void ConnectionFromWebContent::update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> frame)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
     m_compositor_state->update_video_frame(context_id, frame_id, move(frame));
 }
 
 void ConnectionFromWebContent::clear_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
     m_compositor_state->clear_video_frame(context_id, frame_id);
 }
 
@@ -190,13 +199,15 @@ Messages::CompositorWebContentServer::WebglReadBufferSubDataResponse ConnectionF
 
 void ConnectionFromWebContent::invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
     m_compositor_state->invalidate_wheel_event_listener_state(context_id, generation);
 }
 
 Messages::CompositorWebContentServer::AsyncScrollByResponse ConnectionFromWebContent::async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return Web::Compositor::AsyncScrollEnqueueResult {};
     auto result = m_compositor_state->async_scroll_by(context_id, document_id, position, delta, viewport_rect, operation_tracking);
     if (result.accepted)
         async_request_rendering_update();
@@ -205,25 +216,29 @@ Messages::CompositorWebContentServer::AsyncScrollByResponse ConnectionFromWebCon
 
 Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse ConnectionFromWebContent::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return Web::Compositor::PendingAsyncScrollUpdates {};
     return m_compositor_state->take_pending_async_scroll_updates(context_id);
 }
 
 void ConnectionFromWebContent::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
     m_compositor_state->viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
 void ConnectionFromWebContent::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
     m_compositor_state->present_frame(context_id, viewport_rect, damage_rect);
 }
 
 void ConnectionFromWebContent::request_screenshot(Web::Compositor::CompositorContextId context_id, Web::Compositor::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap)
 {
-    verify_context_is_owned_by_this_connection(context_id);
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
     if (m_compositor_state->request_screenshot(context_id, target_bitmap))
         async_did_complete_screenshot(request_id);
     else
