@@ -315,10 +315,12 @@ static Optional<EffectsData> compute_effects_data(Paintable& box, double pixel_r
     auto const& computed_values = box.computed_values();
     if (computed_values.filter().has_filters())
         box.set_filter(resolve_css_filter(computed_values.filter(), box));
-    else
+    else if (box.filter().has_filters() || box.filter().svg_filter_bounds.has_value())
         box.set_filter({});
 
-    auto gfx_filter = to_gfx_filter(box.filter(), pixel_ratio);
+    Optional<Gfx::Filter> gfx_filter;
+    if (box.filter().has_filters())
+        gfx_filter = to_gfx_filter(box.filter(), pixel_ratio);
     EffectsData effects {
         computed_values.opacity(),
         mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode()),
