@@ -379,7 +379,8 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
         return item;
     }
 
-    if (m_current_node->is_absolutely_positioned()) {
+    auto const& current_node_with_style = as<NodeWithStyle>(*m_current_node);
+    if (current_node_with_style.is_absolutely_positioned()) {
         auto const& node = *m_current_node;
         auto has_unattached_inline_start_edges = m_extra_leading_metrics.has_value()
             && (m_extra_leading_metrics->margin != 0 || m_extra_leading_metrics->border != 0 || m_extra_leading_metrics->padding != 0);
@@ -391,7 +392,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
         };
     }
 
-    if (m_current_node->is_floating()) {
+    if (current_node_with_style.is_floating()) {
         auto const& node = *m_current_node;
         skip_to_next();
         return Item {

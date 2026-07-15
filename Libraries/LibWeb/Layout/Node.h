@@ -125,17 +125,21 @@ public:
     virtual bool can_have_children() const { return true; }
 
     bool is_inline() const;
-    bool is_inline_block() const;
-    bool is_inline_table() const;
 
     bool is_replaced_element() const;
-    bool has_replaced_element_table_display_adjustment() const;
     bool is_atomic_inline() const;
     bool is_fragmented_inline() const;
     NodeWithStyleAndBoxModelMetrics const* nearest_fragmented_inline_ancestor() const;
-    bool is_transformable() const;
 
     bool is_out_of_flow(FormattingContext const&) const;
+
+    // An element is called out of flow if it is floated, absolutely positioned, or is the root element.
+    // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
+    bool is_out_of_flow() const;
+
+    // An element is called in-flow if it is not out-of-flow.
+    // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
+    bool is_in_flow() const { return !is_out_of_flow(); }
 
     // These are used to optimize hot is<T> variants for some classes where dynamic_cast is too slow.
     virtual bool is_box() const { return false; }
@@ -168,12 +172,6 @@ public:
 
     template<typename T>
     bool fast_is() const = delete;
-
-    bool is_floating() const;
-    bool is_positioned() const;
-    bool is_absolutely_positioned() const;
-    bool is_fixed_position() const;
-    bool is_sticky_position() const;
 
     bool is_flex_item() const { return m_is_flex_item; }
     void set_flex_item(bool b) { m_is_flex_item = b; }
@@ -217,18 +215,6 @@ public:
     // https://www.w3.org/TR/CSS22/visuren.html#anonymous-block-level
     Box const* non_anonymous_containing_block() const;
 
-    bool establishes_stacking_context() const;
-
-    struct PositioningContainingBlockEstablishment {
-        bool absolute;
-        bool fixed;
-    };
-
-    bool computed_values_establish_absolute_positioning_containing_block() const;
-    bool establishes_an_absolute_positioning_containing_block() const;
-    bool establishes_a_fixed_positioning_containing_block() const;
-    PositioningContainingBlockEstablishment establishes_positioning_containing_blocks() const;
-
     Gfx::Font const& first_available_font() const;
     Gfx::Font const& font(DisplayListRecordingContext&) const;
     Gfx::Font const& font(float scale_factor) const;
@@ -246,23 +232,8 @@ public:
     u32 initial_quote_nesting_level() const { return m_initial_quote_nesting_level; }
     void set_initial_quote_nesting_level(u32 value) { m_initial_quote_nesting_level = value; }
 
-    // An element is called out of flow if it is floated, absolutely positioned, or is the root element.
-    // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
-    bool is_out_of_flow() const { return is_floating() || is_absolutely_positioned(); }
-
-    // An element is called in-flow if it is not out-of-flow.
-    // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
-    bool is_in_flow() const { return !is_out_of_flow(); }
-
     // https://drafts.csswg.org/css-ui/#propdef-user-select
     CSS::UserSelect user_select_used_value() const;
-
-    // https://drafts.csswg.org/css-contain-2/#containment-types
-    bool has_size_containment() const;
-    bool has_inline_size_containment() const;
-    bool has_layout_containment() const;
-    bool has_style_containment() const;
-    bool has_paint_containment() const;
 
     [[nodiscard]] bool has_been_wrapped_in_table_wrapper() const { return m_has_been_wrapped_in_table_wrapper; }
     void set_has_been_wrapped_in_table_wrapper(bool value) { m_has_been_wrapped_in_table_wrapper = value; }
@@ -332,6 +303,46 @@ public:
     CSS::MutableComputedValues& mutable_computed_values() { return static_cast<CSS::MutableComputedValues&>(*m_computed_values); }
     CSS::Display display() const { return computed_values().display(); }
     CSS::Display display_before_box_type_transformation() const { return computed_values().display_before_box_type_transformation(); }
+    bool is_inline_block() const;
+    bool is_inline_table() const;
+    bool has_replaced_element_table_display_adjustment() const;
+    bool is_transformable() const;
+
+    bool is_floating() const;
+    bool is_positioned() const;
+    bool is_absolutely_positioned() const;
+    bool is_fixed_position() const;
+    bool is_sticky_position() const;
+
+    // https://www.w3.org/TR/css-display-3/#out-of-flow
+    bool is_out_of_flow(FormattingContext const&) const;
+
+    // An element is called out of flow if it is floated, absolutely positioned, or is the root element.
+    // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
+    bool is_out_of_flow() const { return is_floating() || is_absolutely_positioned(); }
+
+    // An element is called in-flow if it is not out-of-flow.
+    // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
+    bool is_in_flow() const { return !is_out_of_flow(); }
+
+    bool establishes_stacking_context() const;
+    bool computed_values_establish_absolute_positioning_containing_block() const;
+    bool establishes_an_absolute_positioning_containing_block() const;
+    bool establishes_a_fixed_positioning_containing_block() const;
+
+    struct PositioningContainingBlockEstablishment {
+        bool absolute;
+        bool fixed;
+    };
+    PositioningContainingBlockEstablishment establishes_positioning_containing_blocks() const;
+
+    // https://drafts.csswg.org/css-contain-2/#containment-types
+    bool has_size_containment() const;
+    bool has_inline_size_containment() const;
+    bool has_layout_containment() const;
+    bool has_style_containment() const;
+    bool has_paint_containment() const;
+
     [[nodiscard]] bool has_css_transform() const
     {
         auto const& computed_values = this->computed_values();

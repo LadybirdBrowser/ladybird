@@ -89,8 +89,8 @@ static bool is_out_of_flow_table_internal_child_of_table_root(Layout::NodeWithSt
     return parent.display().is_table_inside()
         && child_with_style
         && !child.is_anonymous()
-        && child.is_out_of_flow()
-        && !child.has_replaced_element_table_display_adjustment()
+        && child_with_style->is_out_of_flow()
+        && !child_with_style->has_replaced_element_table_display_adjustment()
         && child_with_style->display_before_box_type_transformation().is_internal_table();
 }
 
@@ -1179,7 +1179,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     // Giving an element style containment has the following effects:
     // 2. The effects of the 'content' property’s 'open-quote', 'close-quote', 'no-open-quote' and 'no-close-quote' must
     //    be scoped to the element’s sub-tree.
-    if (layout_node->has_style_or_parent_with_style() && layout_node->has_style_containment()) {
+    if (auto const* node_with_style = as_if<NodeWithStyle>(*layout_node); node_with_style && node_with_style->has_style_containment()) {
         m_quote_nesting_level = prior_quote_nesting_level;
     }
 
