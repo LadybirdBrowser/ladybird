@@ -692,17 +692,33 @@ OwnPtr<BooleanExpression> Parser::parse_container_query_feature(TokenStream<Comp
         TokenStream inner_tokens { block.value };
         if (auto size_feature = parse_size_feature(inner_tokens)) {
             inner_tokens.discard_whitespace();
-            if (inner_tokens.has_next_token())
+            if (inner_tokens.has_next_token()) {
+                ErrorReporter::the().report(InvalidQueryError {
+                    .query_type = "@container"_utf16_fly_string,
+                    .value_string = tokens.dump_string(),
+                    .description = "Trailing tokens in size feature."_string });
                 return nullptr;
+            }
 
             transaction.commit();
             return size_feature;
         }
+
+        ErrorReporter::the().report(InvalidQueryError {
+            .query_type = "@container"_utf16_fly_string,
+            .value_string = tokens.dump_string(),
+            .description = "Failed to parse parenthesis block as a size feature."_string });
+        return nullptr;
     }
 
     // FIXME: `style( <style-query> )`
     // FIXME: `scroll-state( <scroll-state-query> )`
     // FIXME: `anchored( <anchored-query> )`
+
+    ErrorReporter::the().report(InvalidQueryError {
+        .query_type = "@container"_utf16_fly_string,
+        .value_string = tokens.dump_string(),
+        .description = MUST(String::formatted("Unexpected token in query feature: {}.", tokens.next_token().to_debug_string())) });
     return nullptr;
 }
 
