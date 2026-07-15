@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #contents {
+        display: contents;
+        color: rgb(10, 20, 30);
+        line-height: 1.5;
+        margin: 1px 2px 3px 4px;
+        margin-inline-start: 9px;
+        writing-mode: vertical-rl;
+        direction: rtl;
+        background-image: linear-gradient(currentcolor, rgb(40, 50, 60));
+    }
+
+    #none {
+        display: none;
+        color: rgb(70, 80, 90);
+        line-height: normal;
+        padding: 5px 6px 7px 8px;
+    }
+
+    #pseudo::before {
+        content: "hidden";
+        display: none;
+        color: rgb(100, 110, 120);
+        margin: 11px 12px 13px 14px;
+    }
+</style>
+<div id="contents"></div>
+<div id="none"></div>
+<div id="pseudo"></div>
+<script>
+    test(() => {
+        const contentsStyle = getComputedStyle(contents);
+        println(`contents display: ${contentsStyle.display}`);
+        println(`contents color: ${contentsStyle.color}`);
+        println(`contents line-height: ${contentsStyle.lineHeight}`);
+        println(`contents margins: ${contentsStyle.marginTop} ${contentsStyle.marginRight} ${contentsStyle.marginBottom} ${contentsStyle.marginLeft}`);
+        println(`contents margin shorthand: ${contentsStyle.margin}`);
+        println(`contents logical margin: ${contentsStyle.marginInlineStart}`);
+        println(`contents background image: ${contentsStyle.backgroundImage}`);
+
+        const noneStyle = getComputedStyle(none);
+        println(`none display: ${noneStyle.display}`);
+        println(`none color: ${noneStyle.color}`);
+        println(`none line-height: ${noneStyle.lineHeight}`);
+        println(`none padding shorthand: ${noneStyle.padding}`);
+
+        const pseudoStyle = getComputedStyle(pseudo, "::before");
+        println(`pseudo display: ${pseudoStyle.display}`);
+        println(`pseudo color: ${pseudoStyle.color}`);
+        println(`pseudo margin shorthand: ${pseudoStyle.margin}`);
+    });
+</script>
