@@ -21,6 +21,7 @@
 #include <LibCore/TimeZoneWatcher.h>
 #include <LibDatabase/Database.h>
 #include <LibDevTools/DevToolsServer.h>
+#include <LibDevTools/FirefoxClient.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibImageDecoderClient/Client.h>
@@ -1350,6 +1351,24 @@ ErrorOr<void> Application::launch_devtools_server()
     return {};
 }
 
+ErrorOr<void> Application::launch_devtools_client()
+{
+    if (!m_devtools || !m_browser_options.devtools_port.has_value())
+        return Error::from_string_literal("DevTools is not currently enabled");
+
+    if (m_devtools->has_active_connection())
+        return Error::from_string_literal("A DevTools client is already connected");
+
+    auto view = active_web_view();
+    if (!view.has_value())
+        return Error::from_string_literal("No active tab is available for DevTools");
+
+    if (!m_devtools_client)
+        m_devtools_client = DevTools::FirefoxClient::create();
+
+    return m_devtools_client->ensure_running(*m_browser_options.devtools_port, view->view_id());
+}
+
 static NonnullRefPtr<Core::Timer> load_page_for_screenshot_and_exit(Core::EventLoop& event_loop, HeadlessWebView& view, URL::URL const& url, u32 screenshot_timeout)
 {
     outln("Taking screenshot after {} seconds", screenshot_timeout);
@@ -2228,6 +2247,7 @@ NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_edit_book
 ErrorOr<void> Application::toggle_devtools_enabled()
 {
     if (m_devtools) {
+        m_devtools_client.clear();
         m_devtools.clear();
         on_devtools_disabled();
     } else {
@@ -3082,6 +3102,11 @@ void Application::did_disconnect_devtools_client(DevTools::TabDescription const&
         return;
 
     view->did_disconnect_devtools_client();
+}
+
+void Application::did_close_devtools_connection()
+{
+    m_devtools_client.clear();
 }
 
 }

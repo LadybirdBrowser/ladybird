@@ -272,6 +272,7 @@ public:
     void apply_view_options(Badge<ViewImplementation>, ViewImplementation&);
 
     ErrorOr<void> toggle_devtools_enabled();
+    ErrorOr<void> launch_devtools_client();
     void refresh_tab_list();
 
     Optional<Core::TimeZoneWatcher&> time_zone_watcher();
@@ -405,6 +406,7 @@ private:
     virtual void stop_listening_for_navigation_events(DevTools::TabDescription const&) const override;
     virtual void did_connect_devtools_client(DevTools::TabDescription const&) const override;
     virtual void did_disconnect_devtools_client(DevTools::TabDescription const&) const override;
+    virtual void did_close_devtools_connection() override;
 
     static Application* s_the;
 
@@ -516,6 +518,7 @@ private:
 #endif
 
     OwnPtr<DevTools::DevToolsServer> m_devtools;
+    OwnPtr<DevTools::FirefoxClient> m_devtools_client;
 
     mutable HashMap<u64, u64> m_navigation_listener_ids;
 };
