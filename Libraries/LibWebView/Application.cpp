@@ -1151,6 +1151,9 @@ void Application::handle_compositor_process_death()
         m_compositor_recovery_state = CompositorRecoveryState::Idle;
         recover_compositor_process();
     });
+
+    if (on_compositor_process_death)
+        on_compositor_process_death();
 }
 
 void Application::recover_compositor_process()

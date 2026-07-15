@@ -150,6 +150,8 @@ public:
     bool dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
     void notify_compositor_presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId, i32 bitmap_id);
 
+    Function<void()> on_compositor_process_death;
+
     virtual Optional<ViewImplementation&> active_web_view() const { return {}; }
     virtual Vector<ViewImplementation&> active_window_web_views() const { return {}; }
     virtual bool activate_tab_with_url(URL::URL const&) const { return false; }

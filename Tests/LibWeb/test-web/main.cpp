@@ -1158,6 +1158,19 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     Vector<TestCompletion> non_passing_tests;
     bool fail_fast_triggered = false;
 
+    // If the Compositor dies, it takes the rendering pipeline of every in-flight test with it. So, fail all those as
+    // Crashed, not Pass. WebView::Application restarts the Compositor afterwards, so subsequent tests still run.
+    app.on_compositor_process_death = [&]() {
+        warnln("test-web: Compositor process died; failing all in-flight tests as crashed");
+        for (auto& view : views) {
+            if (auto index = s_current_test_index_by_view.get(view.ptr()); index.has_value()) {
+                test_run_capture.write_test_output(*view);
+                view->on_test_complete({ *index, TestResult::Crashed });
+            }
+        }
+    };
+    ScopeGuard clear_compositor_death_hook = [&] { app.on_compositor_process_death = {}; };
+
     for (auto [view_id, view] : enumerate(views)) {
         set_ui_callbacks_for_tests(*view, test_run_capture);
         view->clear_content_blockers();
