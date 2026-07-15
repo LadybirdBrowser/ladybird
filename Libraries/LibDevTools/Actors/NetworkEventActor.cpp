@@ -46,6 +46,11 @@ void NetworkEventActor::set_response_headers(Vector<HTTP::Header> response_heade
     m_response_headers = move(response_headers);
 }
 
+void NetworkEventActor::set_loaded_from_cache(bool loaded_from_cache)
+{
+    m_loaded_from_cache = loaded_from_cache;
+}
+
 void NetworkEventActor::append_response_body(ByteBuffer data)
 {
     // Limit response body size to prevent memory issues
@@ -101,8 +106,7 @@ JsonObject NetworkEventActor::serialize_initial_event() const
     event.set("isXHR"sv, is_xhr);
     event.set("cause"sv, move(cause));
     event.set("private"sv, false);
-    // FIXME: Detect if response is from cache
-    event.set("fromCache"sv, false);
+    event.set("fromCache"sv, m_loaded_from_cache);
     event.set("fromServiceWorker"sv, false);
     event.set("isThirdPartyTrackingResource"sv, false);
     // FIXME: Get actual referrer policy from request

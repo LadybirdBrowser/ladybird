@@ -28,6 +28,7 @@ public:
     void set_request_info(String url, String method, UnixDateTime start_time, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type);
     void set_response_start(u32 status_code, Optional<String> reason_phrase);
     void set_response_headers(Vector<HTTP::Header> response_headers);
+    void set_loaded_from_cache(bool);
     void append_response_body(ByteBuffer data);
     void set_request_complete(u64 body_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error);
 
@@ -58,6 +59,7 @@ private:
     Optional<u32> m_status_code;
     Optional<String> m_reason_phrase;
     Vector<HTTP::Header> m_response_headers;
+    bool m_loaded_from_cache { false };
 
     ByteBuffer m_response_body;
     u64 m_body_size { 0 };

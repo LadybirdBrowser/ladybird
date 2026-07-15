@@ -528,6 +528,8 @@ void FrameActor::on_network_response_headers_received(DevToolsDelegate::NetworkR
 
     auto& actor = *it->value;
     actor.set_response_start(data.status_code, data.reason_phrase);
+    auto loaded_from_cache = data.came_from_cache == Requests::CameFromCache::Yes;
+    actor.set_loaded_from_cache(loaded_from_cache);
 
     // Extract Content-Type before moving headers
     String mime_type;
@@ -546,6 +548,7 @@ void FrameActor::on_network_response_headers_received(DevToolsDelegate::NetworkR
     resource_updates.set("statusText"sv, data.reason_phrase.value_or(String {}));
     resource_updates.set("headersSize"sv, headers_size);
     resource_updates.set("mimeType"sv, mime_type);
+    resource_updates.set("fromCache"sv, loaded_from_cache);
     // FIXME: Get actual HTTP version from response
     resource_updates.set("httpVersion"sv, "HTTP/1.1"sv);
     // FIXME: Get actual remote address and port from connection

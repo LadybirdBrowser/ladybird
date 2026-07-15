@@ -21,6 +21,7 @@
 #include <LibDevTools/IndexedDBSerialization.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibHTTP/Header.h>
+#include <LibRequests/CameFromCache.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
@@ -1268,7 +1269,8 @@ public:
         on_network_response_headers_received({ .request_id = 100,
             .status_code = 200,
             .reason_phrase = "OK"_string,
-            .response_headers = move(response_headers) });
+            .response_headers = move(response_headers),
+            .came_from_cache = Requests::CameFromCache::Yes });
 
         ByteBuffer response_body;
         response_body.append("{\"ok\":true}", 11);
@@ -4151,8 +4153,11 @@ TEST_CASE(console_network_navigation_and_accessibility)
     auto network_event = read_resource(client, "network-event"sv);
     EXPECT_EQ(network_event.get_string("method"sv).value(), "POST"sv);
     EXPECT(network_event.get_bool("isXHR"sv).value());
+    EXPECT(!network_event.get_bool("fromCache"sv).value());
     auto network_actor = network_event.get_string("actor"sv).release_value();
-    (void)read_resource(client, "network-event"sv, "resources-updated-array"sv);
+    auto headers_update = read_resource(client, "network-event"sv, "resources-updated-array"sv);
+    auto header_resource_updates = headers_update.get_object("resourceUpdates"sv).release_value();
+    EXPECT(header_resource_updates.get_bool("fromCache"sv).value());
     (void)read_resource(client, "network-event"sv, "resources-updated-array"sv);
 
     JsonObject content_request;
