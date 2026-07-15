@@ -1091,6 +1091,7 @@ public:
     void set_top_layer_needs_layout_zone_rebuild() { m_top_layer_needs_layout_zone_rebuild = true; }
 
     OrderedHashTable<GC::Ref<Element>> const& top_layer_elements() const { return m_top_layer_elements; }
+    bool top_layer_pending_removals_contains(GC::Ref<Element> element) const { return m_top_layer_pending_removals.contains(element); }
 
     // AD-HOC: These lists are managed dynamically instead of being generated as needed.
     // Spec issue: https://github.com/whatwg/html/issues/11007

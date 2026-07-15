@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/top-layer-dialog-reshown-same-task-ref.html">
+<style>
+    dialog {
+        position: fixed;
+        left: 0;
+        top: 0;
+        margin: 0;
+        border: 0;
+        padding: 0;
+        width: 100px;
+        height: 100px;
+        background: green;
+    }
+    dialog::backdrop {
+        background: red;
+    }
+</style>
+<dialog id="dialog"></dialog>
+<script>
+    dialog.showModal();
+    document.body.offsetHeight;
+    // Closing leaves the dialog in the top layer as a pending removal until the event loop
+    // processes removals; re-showing in the same task must cancel that pending removal and
+    // render the dialog in the top layer again, ::backdrop included.
+    dialog.close();
+    dialog.showModal();
+</script>

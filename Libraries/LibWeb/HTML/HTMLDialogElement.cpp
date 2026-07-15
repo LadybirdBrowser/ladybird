@@ -239,7 +239,10 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogEleme
 
     // 15. If subject's node document's top layer does not already contain subject, then add an element to the top
     //     layer given subject.
-    if (!subject.document().top_layer_elements().contains(subject))
+    // AD-HOC: A dialog closed and re-shown before removals were processed is contained only as
+    //         a pending removal; adding again cancels that pending removal.
+    if (!subject.document().top_layer_elements().contains(subject)
+        || subject.document().top_layer_pending_removals_contains(subject))
         subject.document().add_an_element_to_the_top_layer(subject);
 
     // FIXME: 16. Set subject's previously focused element to the focused element.
