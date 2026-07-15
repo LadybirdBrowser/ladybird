@@ -106,29 +106,21 @@ bool Node::is_out_of_flow(FormattingContext const& formatting_context) const
     return false;
 }
 
-// https://drafts.csswg.org/css-position-3/#absolute-positioning-containing-block
-// Checks if the computed values of this node would establish an absolute positioning
-// containing block. This is separate from establishes_an_absolute_positioning_containing_block()
-// because that function also checks is<Box>, but we need these checks for inline elements too.
-bool Node::computed_values_establish_absolute_positioning_containing_block() const
+// https://drafts.csswg.org/css-position-3/#fixed-positioning-containing-block
+static bool computed_values_establish_fixed_positioning_containing_block(Node const& node)
 {
-    auto const& computed_values = this->computed_values();
+    auto const& computed_values = node.computed_values();
 
     // https://drafts.csswg.org/css-will-change/#will-change
-    // If any non-initial value of a property would cause the element to generate a containing block for absolutely
+    // If any non-initial value of a property would cause the element to generate a containing block for fixed
     // positioned elements, specifying that property in will-change must cause the element to generate a containing
-    // block for absolutely positioned elements.
+    // block for fixed positioned elements.
     auto will_change_property = [&](CSS::PropertyID property_id) {
         return computed_values.will_change().has_property(property_id);
     };
 
-    // https://drafts.csswg.org/css-position/#position-property
-    // Values other than 'static' make the box a positioned box, and cause it to establish an absolute positioning
-    // containing block for its descendants.
-    if (computed_values.position() != CSS::Positioning::Static || will_change_property(CSS::PropertyID::Position))
-        return true;
-
-    if (is_transformable()) {
+    auto is_transformable = node.is_transformable();
+    if (is_transformable) {
         // https://drafts.csswg.org/css-transforms-1/#propdef-transform
         // Any computed value other than none for the transform affects containing block and stacking context.
         if (!computed_values.transformations().is_empty() || will_change_property(CSS::PropertyID::Transform))
@@ -144,21 +136,21 @@ bool Node::computed_values_establish_absolute_positioning_containing_block() con
     // https://drafts.csswg.org/css-transforms-2/#propdef-perspective
     // The use of this property with any value other than 'none' establishes a stacking context. It also establishes
     // a containing block for all descendants, just like the 'transform' property does.
-    if (is_transformable() && (computed_values.perspective().has_value() || will_change_property(CSS::PropertyID::Perspective)))
+    if (is_transformable && (computed_values.perspective().has_value() || will_change_property(CSS::PropertyID::Perspective)))
         return true;
 
     // https://drafts.csswg.org/filter-effects-1/#FilterProperty
     // A value other than none for the filter property results in the creation of a containing block for absolute and
     // fixed positioned descendants, unless the element it applies to is a document root element in the current
     // browsing context.
-    if ((computed_values.filter().has_filters() || will_change_property(CSS::PropertyID::Filter)) && !is_root_element())
+    if ((computed_values.filter().has_filters() || will_change_property(CSS::PropertyID::Filter)) && !node.is_root_element())
         return true;
 
     // https://drafts.csswg.org/filter-effects-2/#BackdropFilterProperty
     // A computed value of other than none results in the creation of both a stacking context and a containing block
     // for absolute and fixed position descendants, unless the element it applies to is a document root element in the
     // current browsing context.
-    if ((computed_values.backdrop_filter().has_filters() || will_change_property(CSS::PropertyID::BackdropFilter)) && !is_root_element())
+    if ((computed_values.backdrop_filter().has_filters() || will_change_property(CSS::PropertyID::BackdropFilter)) && !node.is_root_element())
         return true;
 
     // https://drafts.csswg.org/css-contain-2/#containment-types
@@ -166,13 +158,13 @@ bool Node::computed_values_establish_absolute_positioning_containing_block() con
     //    containing block.
     // 4. The paint containment box establishes an absolute positioning containing block and a fixed positioning
     //    containing block.
-    if (has_layout_containment() || has_paint_containment() || will_change_property(CSS::PropertyID::Contain))
+    if (node.has_layout_containment() || node.has_paint_containment() || will_change_property(CSS::PropertyID::Contain))
         return true;
 
     // https://drafts.csswg.org/css-transforms-2/#transform-style-property
     // A computed value of 'preserve-3d' for 'transform-style' on a transformable element establishes both a
     // stacking context and a containing block for all descendants.
-    if (is_transformable() && (computed_values.transform_style() == CSS::TransformStyle::Preserve3d || will_change_property(CSS::PropertyID::TransformStyle)))
+    if (is_transformable && (computed_values.transform_style() == CSS::TransformStyle::Preserve3d || will_change_property(CSS::PropertyID::TransformStyle)))
         return true;
 
     // https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block-concept
@@ -180,6 +172,23 @@ bool Node::computed_values_establish_absolute_positioning_containing_block() con
     //        positioning containing block for ::view-transition and its descendants.
 
     return false;
+}
+
+// https://drafts.csswg.org/css-position-3/#absolute-positioning-containing-block
+// Checks if the computed values of this node would establish an absolute positioning
+// containing block. This is separate from establishes_an_absolute_positioning_containing_block()
+// because that function also checks is<Box>, but we need these checks for inline elements too.
+bool Node::computed_values_establish_absolute_positioning_containing_block() const
+{
+    auto const& computed_values = this->computed_values();
+
+    // https://drafts.csswg.org/css-position/#position-property
+    // Values other than 'static' make the box a positioned box, and cause it to establish an absolute positioning
+    // containing block for its descendants.
+    if (computed_values.position() != CSS::Positioning::Static || computed_values.will_change().has_property(CSS::PropertyID::Position))
+        return true;
+
+    return computed_values_establish_fixed_positioning_containing_block(*this);
 }
 
 // https://drafts.csswg.org/css-position-3/#absolute-positioning-containing-block
@@ -210,68 +219,30 @@ bool Node::establishes_a_fixed_positioning_containing_block() const
     if (is_svg_foreign_object_box())
         return true;
 
+    return computed_values_establish_fixed_positioning_containing_block(*this);
+}
+
+Node::PositioningContainingBlockEstablishment Node::establishes_positioning_containing_blocks() const
+{
+    if (!is<Box>(*this))
+        return {};
+
+    // https://github.com/w3c/fxtf-drafts/issues/307#issuecomment-499612420
+    // foreignObject establishes a containing block for absolutely and fixed positioned elements.
+    if (is_svg_foreign_object_box())
+        return { true, true };
+
+    auto establishes_fixed_positioning_containing_block = computed_values_establish_fixed_positioning_containing_block(*this);
+    if (establishes_fixed_positioning_containing_block)
+        return { true, true };
+
+    if (is<Viewport>(*this))
+        return { true, false };
+
     auto const& computed_values = this->computed_values();
-
-    // https://drafts.csswg.org/css-will-change/#will-change
-    // If any non-initial value of a property would cause the element to generate a containing block for fixed
-    // positioned elements, specifying that property in will-change must cause the element to generate a containing
-    // block for fixed positioned elements.
-    auto will_change_property = [&](CSS::PropertyID property_id) {
-        return computed_values.will_change().has_property(property_id);
-    };
-
-    if (is_transformable()) {
-        // https://drafts.csswg.org/css-transforms-1/#propdef-transform
-        // Any computed value other than none for the transform affects containing block and stacking context.
-        if (!computed_values.transformations().is_empty() || will_change_property(CSS::PropertyID::Transform))
-            return true;
-        if (computed_values.translate() || will_change_property(CSS::PropertyID::Translate))
-            return true;
-        if (computed_values.rotate() || will_change_property(CSS::PropertyID::Rotate))
-            return true;
-        if (computed_values.scale() || will_change_property(CSS::PropertyID::Scale))
-            return true;
-    }
-
-    // https://drafts.csswg.org/css-transforms-2/#propdef-perspective
-    // The use of this property with any value other than 'none' establishes a stacking context. It also establishes
-    // a containing block for all descendants, just like the 'transform' property does.
-    if (is_transformable() && (computed_values.perspective().has_value() || will_change_property(CSS::PropertyID::Perspective)))
-        return true;
-
-    // https://drafts.csswg.org/filter-effects-1/#FilterProperty
-    // A value other than none for the filter property results in the creation of a containing block for absolute and
-    // fixed positioned descendants, unless the element it applies to is a document root element in the current
-    // browsing context.
-    if ((computed_values.filter().has_filters() || will_change_property(CSS::PropertyID::Filter)) && !is_root_element())
-        return true;
-
-    // https://drafts.csswg.org/filter-effects-2/#BackdropFilterProperty
-    // A computed value of other than none results in the creation of both a stacking context and a containing block
-    // for absolute and fixed position descendants, unless the element it applies to is a document root element in the
-    // current browsing context.
-    if ((computed_values.backdrop_filter().has_filters() || will_change_property(CSS::PropertyID::BackdropFilter)) && !is_root_element())
-        return true;
-
-    // https://drafts.csswg.org/css-contain-2/#containment-types
-    // 4. The layout containment box establishes an absolute positioning containing block and a fixed positioning
-    //    containing block.
-    // 4. The paint containment box establishes an absolute positioning containing block and a fixed positioning
-    //    containing block.
-    if (has_layout_containment() || has_paint_containment() || will_change_property(CSS::PropertyID::Contain))
-        return true;
-
-    // https://drafts.csswg.org/css-transforms-2/#transform-style-property
-    // A computed value of 'preserve-3d' for 'transform-style' on a transformable element establishes both a
-    // stacking context and a containing block for all descendants.
-    if (is_transformable() && (computed_values.transform_style() == CSS::TransformStyle::Preserve3d || will_change_property(CSS::PropertyID::TransformStyle)))
-        return true;
-
-    // https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block-concept
-    // FIXME: The snapshot containing block is considered to be an absolute positioning containing block and a fixed
-    //        positioning containing block for ::view-transition and its descendants.
-
-    return false;
+    auto establishes_absolute_positioning_containing_block = computed_values.position() != CSS::Positioning::Static
+        || computed_values.will_change().has_property(CSS::PropertyID::Position);
+    return { establishes_absolute_positioning_containing_block, false };
 }
 
 static Box* nearest_ancestor_capable_of_forming_a_containing_block(Node& node)

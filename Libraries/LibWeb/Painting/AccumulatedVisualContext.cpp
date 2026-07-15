@@ -505,9 +505,10 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
 
         paintable_box.set_accumulated_visual_context_for_descendants(state_for_descendants);
         paintable_box.set_visual_context_node_range(first_visual_context_node_index, visual_context_tree.nodes().size());
-        if (paintable_box.layout_node().establishes_an_absolute_positioning_containing_block())
+        auto positioning_containing_blocks = paintable_box.layout_node().establishes_positioning_containing_blocks();
+        if (positioning_containing_blocks.absolute)
             state_for_absolute_position_descendants = state_for_descendants;
-        if (paintable_box.layout_node().establishes_a_fixed_positioning_containing_block())
+        if (positioning_containing_blocks.fixed)
             state_for_fixed_position_descendants = state_for_descendants;
 
         return DescendantVisualContexts {

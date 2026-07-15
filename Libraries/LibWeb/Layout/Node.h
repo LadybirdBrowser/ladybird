@@ -216,9 +216,15 @@ public:
 
     bool establishes_stacking_context() const;
 
+    struct PositioningContainingBlockEstablishment {
+        bool absolute;
+        bool fixed;
+    };
+
     bool computed_values_establish_absolute_positioning_containing_block() const;
     bool establishes_an_absolute_positioning_containing_block() const;
     bool establishes_a_fixed_positioning_containing_block() const;
+    PositioningContainingBlockEstablishment establishes_positioning_containing_blocks() const;
 
     Gfx::Font const& first_available_font() const;
     Gfx::Font const& font(DisplayListRecordingContext&) const;
