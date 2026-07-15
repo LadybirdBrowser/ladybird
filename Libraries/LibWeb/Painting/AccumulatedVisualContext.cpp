@@ -350,7 +350,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         VisualContextIndex fixed_position;
     };
 
-    auto build_paintable_box = [&](auto& self, Paintable& paintable_box, DescendantVisualContexts inherited_contexts) -> void {
+    auto build_paintable_box = [&](Paintable& paintable_box, DescendantVisualContexts inherited_contexts) -> DescendantVisualContexts {
         auto first_visual_context_node_index = visual_context_tree.nodes().size();
 
         VisualContextIndex inherited_state;
@@ -510,15 +510,11 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         if (paintable_box.layout_node().establishes_a_fixed_positioning_containing_block())
             state_for_fixed_position_descendants = state_for_descendants;
 
-        DescendantVisualContexts child_contexts {
+        return DescendantVisualContexts {
             state_for_descendants,
             state_for_absolute_position_descendants,
             state_for_fixed_position_descendants,
         };
-        paintable_box.for_each_child_of_type<Paintable>([&](Paintable& child) {
-            self(self, child, child_contexts);
-            return IterationDecision::Continue;
-        });
     };
 
     DescendantVisualContexts viewport_contexts {
@@ -526,10 +522,21 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         viewport_state_for_descendants,
         visual_viewport_context_index,
     };
-    viewport_paintable.for_each_child_of_type<Paintable>([&](Paintable& child) {
-        build_paintable_box(build_paintable_box, child, viewport_contexts);
-        return IterationDecision::Continue;
-    });
+
+    struct PendingPaintable {
+        Paintable* paintable;
+        DescendantVisualContexts inherited_contexts;
+    };
+    Vector<PendingPaintable, 64> pending_paintables;
+    for (auto* child = viewport_paintable.last_child_ptr(); child; child = child->previous_sibling_ptr())
+        pending_paintables.append({ child, viewport_contexts });
+
+    while (!pending_paintables.is_empty()) {
+        auto pending = pending_paintables.take_last();
+        auto child_contexts = build_paintable_box(*pending.paintable, pending.inherited_contexts);
+        for (auto* child = pending.paintable->last_child_ptr(); child; child = child->previous_sibling_ptr())
+            pending_paintables.append({ child, child_contexts });
+    }
 
     return visual_context_tree;
 }
