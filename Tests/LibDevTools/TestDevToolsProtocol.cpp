@@ -636,7 +636,7 @@ class TestDevToolsDelegate final : public DevTools::DevToolsDelegate {
 public:
     virtual Vector<DevTools::TabDescription> tab_list() const override
     {
-        return { { .id = 1, .title = "Fixture page"_string, .url = tab_url } };
+        return { { .id = tab_id, .title = "Fixture page"_string, .url = tab_url } };
     }
 
     virtual Vector<DevTools::CSSProperty> css_property_list() const override
@@ -1365,6 +1365,7 @@ public:
     mutable Function<void(Vector<HTTP::Cookie::Cookie>)> on_host_cookie_change;
     mutable HashMap<u64, Function<void(DevToolsDelegate::StorageChange)>> storage_change_listeners;
     String tab_url { "https://example.test/"_string };
+    u64 tab_id { 1 };
     mutable HashMap<u64, Function<void(JsonObject)>> indexed_database_change_listeners;
 
     struct NavigationListener {
@@ -1688,10 +1689,11 @@ struct TestSession {
     OwnPtr<ProtocolClient> client;
 };
 
-static NonnullOwnPtr<TestSession> create_session(StringView tab_url = "https://example.test/"sv)
+static NonnullOwnPtr<TestSession> create_session(StringView tab_url = "https://example.test/"sv, u64 tab_id = 1)
 {
     auto session = make<TestSession>();
     session->delegate.tab_url = MUST(String::from_utf8(tab_url));
+    session->delegate.tab_id = tab_id;
     session->server = MUST(DevTools::DevToolsServer::create(session->delegate, 0));
     session->client = ProtocolClient::connect(session->loop, *session->server);
     return session;
@@ -4125,6 +4127,29 @@ TEST_CASE(devtools_server_teardown_with_pending_actor_cleanup)
     session->server->connection()->on_connection_closed();
     session->server.clear();
     pump(session->loop);
+}
+
+TEST_CASE(network_event_reports_target_context_ids)
+{
+    auto session = create_session("https://example.test/"sv, 42);
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto target = get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+    auto inner_window_id = target.get_integer<u64>("innerWindowId"sv).value();
+
+    session->delegate.emit_network_lifecycle();
+    auto network_event = read_resource(client, "network-event"sv);
+    EXPECT_EQ(network_event.get_integer<u64>("browsingContextID"sv).value(), 42u);
+    EXPECT_EQ(network_event.get_integer<u64>("innerWindowId"sv).value(), inner_window_id);
+
+    auto headers_update = read_resource(client, "network-event"sv, "resources-updated-array"sv);
+    EXPECT_EQ(headers_update.get_integer<u64>("browsingContextID"sv).value(), 42u);
+    EXPECT_EQ(headers_update.get_integer<u64>("innerWindowId"sv).value(), inner_window_id);
+
+    auto completion_update = read_resource(client, "network-event"sv, "resources-updated-array"sv);
+    EXPECT_EQ(completion_update.get_integer<u64>("browsingContextID"sv).value(), 42u);
+    EXPECT_EQ(completion_update.get_integer<u64>("innerWindowId"sv).value(), inner_window_id);
 }
 
 TEST_CASE(console_network_navigation_and_accessibility)

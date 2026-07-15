@@ -24,8 +24,11 @@ public:
     virtual ~NetworkEventActor() override;
 
     u64 request_id() const { return m_request_id; }
+    u64 browsing_context_id() const { return m_browsing_context_id; }
+    u64 inner_window_id() const { return m_inner_window_id; }
 
     void set_request_info(String url, String method, UnixDateTime start_time, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type);
+    void set_browsing_context_ids(u64 browsing_context_id, u64 inner_window_id);
     void set_response_start(u32 status_code, Optional<String> reason_phrase);
     void set_response_headers(Vector<HTTP::Header> response_headers);
     void set_loaded_from_cache(bool);
@@ -60,6 +63,8 @@ private:
     Optional<String> m_reason_phrase;
     Vector<HTTP::Header> m_response_headers;
     bool m_loaded_from_cache { false };
+    u64 m_browsing_context_id { 1 };
+    u64 m_inner_window_id { 1 };
 
     ByteBuffer m_response_body;
     u64 m_body_size { 0 };

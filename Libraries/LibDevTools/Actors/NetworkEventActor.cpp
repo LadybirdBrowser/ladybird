@@ -51,6 +51,12 @@ void NetworkEventActor::set_loaded_from_cache(bool loaded_from_cache)
     m_loaded_from_cache = loaded_from_cache;
 }
 
+void NetworkEventActor::set_browsing_context_ids(u64 browsing_context_id, u64 inner_window_id)
+{
+    m_browsing_context_id = browsing_context_id;
+    m_inner_window_id = inner_window_id;
+}
+
 void NetworkEventActor::append_response_body(ByteBuffer data)
 {
     // Limit response body size to prevent memory issues
@@ -114,10 +120,8 @@ JsonObject NetworkEventActor::serialize_initial_event() const
     event.set("blockedReason"sv, 0);
     event.set("blockingExtension"sv, JsonValue {});
     event.set("channelId"sv, static_cast<i64>(m_request_id));
-    // FIXME: Get actual browsing context ID from the page
-    event.set("browsingContextID"sv, 1);
-    // FIXME: Get actual inner window ID
-    event.set("innerWindowId"sv, 1);
+    event.set("browsingContextID"sv, m_browsing_context_id);
+    event.set("innerWindowId"sv, m_inner_window_id);
     // FIXME: Get request priority
     event.set("priority"sv, 0);
     // FIXME: Detect if this is a navigation request

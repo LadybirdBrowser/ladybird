@@ -502,6 +502,8 @@ void FrameActor::on_network_request_started(DevToolsDelegate::NetworkRequestData
 {
     auto& actor = devtools().register_actor<NetworkEventActor>(data.request_id);
     actor.set_request_info(move(data.url), move(data.method), data.start_time, move(data.request_headers), move(data.request_body), move(data.initiator_type));
+    if (auto tab = m_tab.strong_ref())
+        actor.set_browsing_context_ids(tab->description().id, tab->inner_window_id());
     m_network_events.set(data.request_id, actor);
 
     JsonArray events;
@@ -563,8 +565,8 @@ void FrameActor::on_network_response_headers_received(DevToolsDelegate::NetworkR
     update_entry.set("resourceId"sv, static_cast<i64>(data.request_id));
     update_entry.set("resourceType"sv, "network-event"sv);
     update_entry.set("resourceUpdates"sv, move(resource_updates));
-    update_entry.set("browsingContextID"sv, 1);
-    update_entry.set("innerWindowId"sv, 1);
+    update_entry.set("browsingContextID"sv, actor.browsing_context_id());
+    update_entry.set("innerWindowId"sv, actor.inner_window_id());
 
     JsonArray updates;
     updates.must_append(move(update_entry));
@@ -616,8 +618,8 @@ void FrameActor::on_network_request_finished(DevToolsDelegate::NetworkRequestCom
     update_entry.set("resourceId"sv, static_cast<i64>(data.request_id));
     update_entry.set("resourceType"sv, "network-event"sv);
     update_entry.set("resourceUpdates"sv, move(resource_updates));
-    update_entry.set("browsingContextID"sv, 1);
-    update_entry.set("innerWindowId"sv, 1);
+    update_entry.set("browsingContextID"sv, actor.browsing_context_id());
+    update_entry.set("innerWindowId"sv, actor.inner_window_id());
 
     JsonArray updates;
     updates.must_append(move(update_entry));
