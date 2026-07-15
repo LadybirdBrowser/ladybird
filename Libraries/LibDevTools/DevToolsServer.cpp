@@ -16,6 +16,7 @@
 #include <LibDevTools/Actors/ProcessActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Connection.h>
+#include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
 
 namespace DevTools {
@@ -155,6 +156,8 @@ void DevToolsServer::close_connection()
         weak_self->m_connection = nullptr;
         weak_self->m_actor_registry.clear();
         weak_self->m_root_actor = nullptr;
+
+        weak_self->m_delegate.did_close_devtools_connection();
     });
 }
 
