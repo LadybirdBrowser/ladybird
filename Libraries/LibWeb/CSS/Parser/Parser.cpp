@@ -637,8 +637,17 @@ OwnPtr<BooleanExpression> Parser::parse_style_feature(TokenStream<ComponentValue
         m_rule_context.take_last();
         if (declaration.has_value()) {
             tokens.discard_whitespace();
-            if (tokens.has_next_token() || declaration->important == Important::Yes)
+            if (tokens.has_next_token())
                 return nullptr;
+
+            // The <style-feature-value> production matches any valid <declaration-value> as long as it doesn't contain
+            // <mf-lt>, <mf-gt> and <mf-eq> tokens.
+            if (declaration->value.contains([](ComponentValue const& value) {
+                    return value.is(Token::Type::Delim)
+                        && first_is_one_of(static_cast<char>(value.token().delim()), '<', '>', '=');
+                })) {
+                return nullptr;
+            }
 
             auto style_feature_name = parse_style_feature_name(declaration->name);
             if (!style_feature_name.has_value())

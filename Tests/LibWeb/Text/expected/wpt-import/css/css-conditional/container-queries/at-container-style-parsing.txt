@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 41 tests
 
-38 Pass
-3 Fail
+39 Pass
+2 Fail
 Pass	Query condition should be valid: style(--my-prop: foo)
 Pass	Query condition should be valid: style(--my-prop: foo - bar ())
 Pass	Query condition should be valid: style(not ((--foo: calc(10px + 2em)) and ((--foo: url(x)))))
 Pass	Query condition should be valid: style((--foo: bar) or (--bar: 10px))
 Pass	Query condition should be valid: style(--my-prop:)
 Pass	Query condition should be valid: style(--my-prop: )
-Fail	Query condition should be valid: style(--foo: bar !important)
+Pass	Query condition should be valid: style(--foo: bar !important)
 Pass	Query condition should be valid: style(--foo)
 Pass	Query condition should be valid: style(--my-prop: attr(data-foo))
 Pass	Query condition should be valid: style(--foo >= --bar)
