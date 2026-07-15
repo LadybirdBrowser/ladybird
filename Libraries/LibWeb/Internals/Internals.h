@@ -92,6 +92,7 @@ public:
     void set_content_blocking_enabled(bool enabled);
     WebIDL::UnsignedLongLong partial_layout_count();
     WebIDL::UnsignedLongLong full_layout_count();
+    WebIDL::UnsignedLongLong accumulated_visual_context_tree_build_count();
     void set_autoplay_policy(Utf16String const& policy);
 
     Utf16String get_computed_role(DOM::Element& element);

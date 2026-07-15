@@ -1804,7 +1804,6 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
     unsafe_paintable()->reassign_scroll_frames();
 
     set_needs_accumulated_visual_contexts_update(true);
-    update_paint_and_hit_testing_properties_if_needed();
 
     // Selection state lives on paintable fragments, which the commit has rebuilt.
     if (auto range = get_selection()->range())
@@ -2873,7 +2872,7 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
 {
     auto inverse_transform_point = [](Painting::Paintable const& paintable_box, CSSPixelPoint position) -> Optional<CSSPixelPoint> {
         auto viewport_paintable = paintable_box.document().unsafe_paintable();
-        if (!viewport_paintable || !viewport_paintable->has_visual_context_tree())
+        if (!viewport_paintable)
             return {};
         auto pixel_ratio = static_cast<float>(paintable_box.document().page().client().device_pixels_per_css_pixel());
         auto const& visual_context_tree = viewport_paintable->visual_context_tree();

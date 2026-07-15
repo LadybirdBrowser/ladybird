@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="target" style="width: 100px; height: 100px"></div>
+<script>
+    test(() => {
+        const target = document.getElementById('target');
+
+        target.getBoundingClientRect();
+        const initialBuildCount = internals.accumulatedVisualContextTreeBuildCount();
+        const lines = [];
+
+        for (const width of [110, 120, 130]) {
+            target.style.width = `${width}px`;
+            lines.push(`offset width: ${target.offsetWidth}`);
+        }
+
+        lines.push(`builds after layout-only reads: ${internals.accumulatedVisualContextTreeBuildCount() - initialBuildCount}`);
+
+        lines.push(`bounding rect width: ${target.getBoundingClientRect().width}`);
+        lines.push(`builds after transform-sensitive read: ${internals.accumulatedVisualContextTreeBuildCount() - initialBuildCount}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

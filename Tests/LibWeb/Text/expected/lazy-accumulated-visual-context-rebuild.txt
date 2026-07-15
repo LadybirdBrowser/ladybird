@@ -1,0 +1,6 @@
+offset width: 110
+offset width: 120
+offset width: 130
+builds after layout-only reads: 0
+bounding rect width: 130
+builds after transform-sensitive read: 1

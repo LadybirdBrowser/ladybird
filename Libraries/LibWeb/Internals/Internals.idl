@@ -82,6 +82,7 @@ interface Internals {
     undefined setContentBlockingEnabled(boolean enabled);
     unsigned long long partialLayoutCount();
     unsigned long long fullLayoutCount();
+    unsigned long long accumulatedVisualContextTreeBuildCount();
     undefined setAutoplayPolicy(Utf16DOMString policy);
 
     Utf16DOMString getComputedRole(Element element);

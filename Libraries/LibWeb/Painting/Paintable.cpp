@@ -2578,7 +2578,7 @@ BorderRadiiData Paintable::normalized_border_radii_data(ShrinkRadiiForBorders sh
 Optional<CSSPixelPoint> Paintable::transform_point_to_local(CSSPixelPoint screen_position) const
 {
     auto viewport_paintable = document().paintable();
-    if (!viewport_paintable || !viewport_paintable->has_visual_context_tree())
+    if (!viewport_paintable)
         return screen_position;
     auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
     auto const& scroll_state = viewport_paintable->scroll_state_snapshot();
@@ -2592,7 +2592,7 @@ Optional<CSSPixelPoint> Paintable::transform_point_to_local(CSSPixelPoint screen
 Optional<CSSPixelPoint> Paintable::transform_point_to_local_for_descendants(CSSPixelPoint screen_position) const
 {
     auto viewport_paintable = document().paintable();
-    if (!viewport_paintable || !viewport_paintable->has_visual_context_tree())
+    if (!viewport_paintable)
         return screen_position;
     auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
     auto const& scroll_state = viewport_paintable->scroll_state_snapshot();
@@ -2606,7 +2606,7 @@ Optional<CSSPixelPoint> Paintable::transform_point_to_local_for_descendants(CSSP
 CSSPixelRect Paintable::transform_rect_to_viewport(CSSPixelRect const& rect, AccumulatedVisualContextTree::IncludeVisualViewportTransform include_visual_viewport_transform) const
 {
     auto viewport_paintable = document().paintable();
-    if (!viewport_paintable || !viewport_paintable->has_visual_context_tree())
+    if (!viewport_paintable)
         return rect;
     auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
     auto const& scroll_state = viewport_paintable->scroll_state_snapshot();
@@ -2618,7 +2618,7 @@ CSSPixelRect Paintable::transform_rect_to_viewport(CSSPixelRect const& rect, Acc
 CSSPixelPoint Paintable::inverse_transform_point(CSSPixelPoint screen_position) const
 {
     auto viewport_paintable = document().paintable();
-    if (!viewport_paintable || !viewport_paintable->has_visual_context_tree())
+    if (!viewport_paintable)
         return screen_position;
     auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
     auto const& visual_context_tree = viewport_paintable->visual_context_tree();

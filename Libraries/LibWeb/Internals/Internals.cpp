@@ -574,6 +574,14 @@ WebIDL::UnsignedLongLong Internals::full_layout_count()
     return window().associated_document().full_layout_count();
 }
 
+WebIDL::UnsignedLongLong Internals::accumulated_visual_context_tree_build_count()
+{
+    auto paintable = window().associated_document().unsafe_paintable();
+    if (!paintable)
+        return 0;
+    return paintable->accumulated_visual_context_tree_build_count();
+}
+
 void Internals::set_autoplay_policy(Utf16String const& policy)
 {
     if (auto parsed = HTML::autoplay_policy_from_string(policy.utf16_view()); parsed.has_value())

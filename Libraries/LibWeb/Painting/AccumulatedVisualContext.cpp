@@ -625,7 +625,8 @@ bool update_accumulated_visual_context_values(ViewportPaintable& viewport_painta
 
 void update_visual_viewport_accumulated_visual_context(ViewportPaintable& viewport_paintable)
 {
-    viewport_paintable.visual_context_tree().set_visual_viewport_transform(visual_viewport_transform_data(viewport_paintable.document()));
+    VERIFY(viewport_paintable.m_visual_context_tree.has_value());
+    viewport_paintable.m_visual_context_tree->set_visual_viewport_transform(visual_viewport_transform_data(viewport_paintable.document()));
 }
 
 VisualContextIndex AccumulatedVisualContextTree::append(VisualContextData data, VisualContextIndex parent_index)

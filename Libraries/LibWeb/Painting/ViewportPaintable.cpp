@@ -42,6 +42,25 @@ ViewportPaintable::ViewportPaintable(Layout::Viewport const& layout_viewport)
 
 ViewportPaintable::~ViewportPaintable() = default;
 
+void ViewportPaintable::ensure_visual_context_tree() const
+{
+    const_cast<DOM::Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
+}
+
+AccumulatedVisualContextTree const& ViewportPaintable::visual_context_tree() const
+{
+    ensure_visual_context_tree();
+    VERIFY(m_visual_context_tree.has_value());
+    return *m_visual_context_tree;
+}
+
+AccumulatedVisualContextTree& ViewportPaintable::visual_context_tree()
+{
+    ensure_visual_context_tree();
+    VERIFY(m_visual_context_tree.has_value());
+    return *m_visual_context_tree;
+}
+
 struct BlockingWheelEventRegionState {
     bool has_blocking_wheel_event_listeners { false };
     bool has_blocking_wheel_event_region_covering_viewport { false };
@@ -247,6 +266,7 @@ void ViewportPaintable::assign_scroll_frames()
 void ViewportPaintable::assign_accumulated_visual_contexts()
 {
     auto visual_context_tree = build_accumulated_visual_context_tree(*this);
+    ++m_accumulated_visual_context_tree_build_count;
     auto is_compatible = m_visual_context_tree.has_value() && visual_context_tree.is_compatible_with(*m_visual_context_tree);
     if (m_force_incompatible_visual_context_tree_rebuild_for_testing) {
         m_force_incompatible_visual_context_tree_rebuild_for_testing = false;
