@@ -462,8 +462,11 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     m_profile = TRY(Profile::create(profile_selection, profile_roots));
 #endif
 
+    // Browsers launched by WebDriver are driven directly and must never join an existing browser process.
+    bool coordinate_browser_process = !headless_mode.has_value() && !webdriver_endpoint.has_value() && should_coordinate_browser_process();
+
     // Synchronous IPC used to forward URLs to an existing browser process requires an event loop.
-    if (!headless_mode.has_value() && should_coordinate_browser_process()) {
+    if (coordinate_browser_process) {
         m_browser_options.headless_mode = headless_mode;
         m_event_loop = &create_platform_event_loop();
     }
@@ -495,7 +498,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 #endif
 
     m_browser_process = make<BrowserProcess>();
-    if (!headless_mode.has_value() && should_coordinate_browser_process()) {
+    if (coordinate_browser_process) {
         auto disposition = TRY(m_browser_process->connect(raw_urls, new_window ? NewWindow::Yes : NewWindow::No, profile().paths().runtime, profile_identity));
         if (disposition == BrowserProcess::ProcessDisposition::ExitProcess) {
             m_should_exit_after_profile_coordination = true;
