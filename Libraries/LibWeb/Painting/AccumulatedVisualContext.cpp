@@ -122,7 +122,11 @@ static Optional<Gfx::AffineTransform> svg_to_css_pixels_transform(Paintable cons
 // https://drafts.csswg.org/css-transforms-2/#ctm
 Optional<TransformData> compute_transform(Paintable const& paintable_box, CSS::ComputedValues const& computed_values, double pixel_ratio)
 {
-    if (!paintable_box.has_css_transform())
+    auto has_transform = !computed_values.transformations().is_empty()
+        || computed_values.rotate()
+        || computed_values.translate()
+        || computed_values.scale();
+    if (!has_transform || !paintable_box.layout_node().is_transformable())
         return {};
 
     // The transformation matrix is computed from the transform, transform-origin, translate, rotate, scale, and
@@ -174,11 +178,8 @@ Optional<TransformData> compute_transform(Paintable const& paintable_box, CSS::C
 // https://drafts.csswg.org/css-transforms-2/#perspective-matrix
 static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(Paintable const& paintable_box, CSS::ComputedValues const& computed_values)
 {
-    if (!paintable_box.layout_node().is_transformable())
-        return {};
-
     auto perspective = computed_values.perspective();
-    if (!perspective.has_value())
+    if (!perspective.has_value() || !paintable_box.layout_node().is_transformable())
         return {};
 
     // The perspective matrix is computed as follows:
@@ -216,7 +217,9 @@ static Optional<ClipData> compute_clip_data(Paintable const& paintable_box, CSS:
     //    any such mechanism through other properties, such as overflow, resize, or text-overflow.
     //    NOTE: This clipping shape respects overflow-clip-margin, allowing an element with paint containment
     //          to still slightly overflow its normal bounds.
-    if (paintable_box.layout_node().has_paint_containment()) {
+    auto has_paint_containment = computed_values.contain().paint_containment
+        || computed_values.content_visibility() == CSS::ContentVisibility::Auto;
+    if (has_paint_containment && paintable_box.layout_node().has_paint_containment()) {
         // NOTE: Note: The behavior is described in this paragraph is equivalent to changing 'overflow-x: visible' into
         //       'overflow-x: clip' and 'overflow-y: visible' into 'overflow-y: clip' at used value time, while leaving other
         //       values of 'overflow-x' and 'overflow-y' unchanged.
@@ -266,8 +269,10 @@ static Optional<ClipData> compute_clip_data(Paintable const& paintable_box, CSS:
     return {};
 }
 
-static Optional<ClipData> compute_css_clip_data(Paintable const& paintable_box, DevicePixelConverter const& converter)
+static Optional<ClipData> compute_css_clip_data(Paintable const& paintable_box, CSS::ComputedValues const& computed_values, DevicePixelConverter const& converter)
 {
+    if (!computed_values.clip().is_rect())
+        return {};
     if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value()) {
         auto effective_rect = effective_css_clip_rect(*css_clip);
         return ClipData { converter.rounded_device_rect(effective_rect), {} };
@@ -433,7 +438,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             paintable_box.set_has_non_invertible_css_transform(false);
         }
 
-        if (auto css_clip = compute_css_clip_data(paintable_box, converter); css_clip.has_value())
+        if (auto css_clip = compute_css_clip_data(paintable_box, computed_values, converter); css_clip.has_value())
             append_to_own_and_positioned_descendant_contexts(css_clip.value());
 
         if (auto clip_path_data = compute_basic_shape_clip_path_data(paintable_box, computed_values, converter, scale); clip_path_data.has_value())

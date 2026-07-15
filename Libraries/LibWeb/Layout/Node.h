@@ -255,14 +255,12 @@ public:
 
     [[nodiscard]] bool has_css_transform() const
     {
-        if (!is_transformable())
-            return false;
-
         auto const& computed_values = this->computed_values();
-        return !computed_values.transformations().is_empty()
+        auto has_transform = !computed_values.transformations().is_empty()
             || computed_values.rotate()
             || computed_values.translate()
             || computed_values.scale();
+        return has_transform && is_transformable();
     }
 
     // https://drafts.csswg.org/css-ui/#propdef-user-select
