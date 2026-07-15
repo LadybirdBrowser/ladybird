@@ -295,6 +295,8 @@ Paintable::SelectionStyle Paintable::selection_style_for_node(Layout::Node const
     // Selections render in a muted color while the window does not have focus.
     auto navigable = layout_node.document().navigable();
     auto window_is_active = navigable && navigable->is_focused();
+    auto const* layout_node_with_style = as_if<Layout::NodeWithStyle>(layout_node);
+    auto const& style_source = layout_node_with_style ? *layout_node_with_style : *layout_node.parent();
 
     auto default_style_for_color_scheme = [&](CSS::PreferredColorScheme color_scheme, bool use_palette_for_normal_color_scheme = true) {
         auto palette = layout_node.document().page().palette();
@@ -310,17 +312,17 @@ Paintable::SelectionStyle Paintable::selection_style_for_node(Layout::Node const
 
     // For text nodes, check the parent element since text nodes don't have computed properties.
     if (!node)
-        return default_style_for_color_scheme(layout_node.computed_values().color_scheme());
+        return default_style_for_color_scheme(style_source.computed_values().color_scheme());
 
     DOM::Element const* element = as_if<DOM::Element>(*node);
     if (!element)
         element = node->parent_element();
     if (!element)
-        return default_style_for_color_scheme(layout_node.computed_values().color_scheme());
+        return default_style_for_color_scheme(style_source.computed_values().color_scheme());
 
     auto color_scheme_is_normal = element->computed_properties()->property(CSS::PropertyID::ColorScheme).as_color_scheme().schemes().is_empty();
     auto use_palette_for_normal_color_scheme = color_scheme_is_normal && !layout_node.document().supported_color_schemes().has_value();
-    auto default_style = default_style_for_color_scheme(layout_node.computed_values().color_scheme(), use_palette_for_normal_color_scheme);
+    auto default_style = default_style_for_color_scheme(style_source.computed_values().color_scheme(), use_palette_for_normal_color_scheme);
 
     auto style_from_element = [&](DOM::Element const& element) -> Optional<SelectionStyle> {
         auto element_layout_node = element.layout_node();
@@ -423,7 +425,7 @@ void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offse
 {
     auto scroll_to_cursor = [&](PaintableFragment const& fragment) {
         auto cursor_rect = fragment.range_rect(SelectionState::StartAndEnd, offset, offset);
-        auto const& computed_values = fragment.layout_node().computed_values();
+        auto const& computed_values = fragment.style_source().computed_values();
         if (computed_values.writing_mode() == CSS::WritingMode::HorizontalTb) {
             if (computed_values.inline_axis_is_reverse())
                 cursor_rect.set_x(cursor_rect.x() - 1);

@@ -3961,7 +3961,7 @@ void collect_clipboard_text(DOM::Node const& node, DOM::Range const& range, Vect
         return;
     }
 
-    auto display = layout_node->computed_values().display();
+    auto display = as<Layout::NodeWithStyle>(*layout_node).display();
     if (display.is_table_cell() && node.next_sibling())
         items.append("\t"_utf16);
     if (display.is_table_row() && node.next_sibling())

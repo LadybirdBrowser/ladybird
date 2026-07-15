@@ -53,6 +53,14 @@ public:
         {
             return border_start + padding_start + width + padding_end + border_end;
         }
+
+        NodeWithStyle const& style_source() const
+        {
+            VERIFY(node);
+            if (auto const* node_with_style = as_if<NodeWithStyle>(*node))
+                return *node_with_style;
+            return *node->parent();
+        }
     };
 
     InlineLevelIterator(Layout::InlineFormattingContext&, LayoutState&, Layout::BlockContainer const& containing_block, LayoutState::UsedValues const& containing_block_used_values, LayoutInput const&, LayoutMode);

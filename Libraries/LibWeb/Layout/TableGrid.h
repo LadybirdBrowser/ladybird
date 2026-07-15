@@ -57,18 +57,23 @@ public:
 
     static bool is_table_row_group(Node const& node)
     {
-        auto const& display = node.display();
+        auto const* node_with_style = as_if<NodeWithStyle>(node);
+        if (!node_with_style)
+            return false;
+        auto const& display = node_with_style->display();
         return display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group();
     }
 
     static bool is_table_row(Node const& node)
     {
-        return node.display().is_table_row();
+        auto const* node_with_style = as_if<NodeWithStyle>(node);
+        return node_with_style && node_with_style->display().is_table_row();
     }
 
     static bool is_table_column_group(Node const& node)
     {
-        return node.display().is_table_column_group();
+        auto const* node_with_style = as_if<NodeWithStyle>(node);
+        return node_with_style && node_with_style->display().is_table_column_group();
     }
 
     template<typename Matcher, typename Callback>

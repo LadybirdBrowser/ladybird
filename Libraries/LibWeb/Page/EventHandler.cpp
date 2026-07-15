@@ -3261,7 +3261,7 @@ void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<
             auto* host_layout_node = host_element ? host_element->layout_node() : nullptr;
             auto const* cursor_data = &paintable->computed_values().cursor();
             if (hit_text_node && host_layout_node)
-                cursor_data = &host_layout_node->computed_values().cursor();
+                cursor_data = &as<Layout::NodeWithStyle>(*host_layout_node).computed_values().cursor();
 
             auto* host_node_with_style = host_layout_node ? as_if<Layout::NodeWithStyle>(*host_layout_node) : nullptr;
             auto is_selectable_text_node = hit_text_node

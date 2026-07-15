@@ -341,7 +341,7 @@ static Utf16String apply_text_transform(Utf16String const& string, CSS::TextTran
 
 TextNode::TextForRenderingCacheKey TextNode::create_text_for_rendering_cache_key() const
 {
-    auto text_transform = computed_values().text_transform();
+    auto text_transform = parent()->computed_values().text_transform();
     Optional<Utf16String> lang;
     if (first_is_one_of(text_transform, CSS::TextTransform::Uppercase, CSS::TextTransform::Lowercase, CSS::TextTransform::Capitalize)) {
         if (auto parent_element = parent_element_for_text_transform())
@@ -350,7 +350,7 @@ TextNode::TextForRenderingCacheKey TextNode::create_text_for_rendering_cache_key
 
     return {
         .text_transform = text_transform,
-        .white_space_collapse = computed_values().white_space_collapse(),
+        .white_space_collapse = parent()->computed_values().white_space_collapse(),
         .lang = move(lang),
         .is_password_input = is_password_input(),
         .dom_start_offset = dom_start_offset(),
@@ -508,7 +508,7 @@ TextNode::ChunkList const& TextNode::chunks_for_layout(bool should_wrap_lines, b
 {
     auto const& cache = ensure_text_dependent_cache();
 
-    auto const& computed_values = this->computed_values();
+    auto const& computed_values = parent()->computed_values();
     ChunkCacheKey key {
         .should_wrap_lines = should_wrap_lines,
         .should_respect_linebreaks = should_respect_linebreaks,
@@ -546,7 +546,7 @@ static bool is_interword_space(u32 code_point)
 }
 
 TextNode::ChunkIterator::ChunkIterator(TextNode const& text_node, bool should_wrap_lines, bool should_respect_linebreaks)
-    : ChunkIterator(text_node, text_node.text_for_rendering(), text_node.grapheme_segmenter(), text_node.line_segmenter(), text_node.computed_values().word_break(), should_wrap_lines, should_respect_linebreaks)
+    : ChunkIterator(text_node, text_node.text_for_rendering(), text_node.grapheme_segmenter(), text_node.line_segmenter(), text_node.parent()->computed_values().word_break(), should_wrap_lines, should_respect_linebreaks)
 {
 }
 
@@ -556,13 +556,13 @@ TextNode::ChunkIterator::ChunkIterator(TextNode const& text_node, Utf16View cons
     : m_should_wrap_lines(should_wrap_lines)
     , m_should_respect_linebreaks(should_respect_linebreaks)
     , m_view(text)
-    , m_font_cascade_list(text_node.computed_values().font_list())
+    , m_font_cascade_list(text_node.parent()->computed_values().font_list())
     , m_grapheme_segmenter(grapheme_segmenter)
     , m_line_segmenter(line_segmenter)
     , m_word_break(word_break)
-    , m_font_variant_emoji(text_node.computed_values().font_variant_emoji())
+    , m_font_variant_emoji(text_node.parent()->computed_values().font_variant_emoji())
 {
-    m_should_collapse_whitespace = first_is_one_of(text_node.computed_values().white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks);
+    m_should_collapse_whitespace = first_is_one_of(text_node.parent()->computed_values().white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks);
 }
 
 static Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)

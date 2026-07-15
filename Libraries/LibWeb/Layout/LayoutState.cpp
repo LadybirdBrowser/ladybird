@@ -167,10 +167,11 @@ static InlineAncestorChainRelativeOffset accumulated_relative_insets_from_inline
     for (auto const* ancestor = first_ancestor; ancestor && ancestor != stop_at; ancestor = ancestor->parent()) {
         if (!is<Layout::NodeWithStyleAndBoxModelMetrics>(*ancestor))
             break;
-        if (!ancestor->display().is_inline_outside() || !ancestor->display().is_flow_inside())
+        auto const& ancestor_with_style = static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(*ancestor);
+        if (!ancestor_with_style.display().is_inline_outside() || !ancestor_with_style.display().is_flow_inside())
             break;
         result.found_fragmented_inline_node |= ancestor->is_fragmented_inline();
-        if (ancestor->computed_values().position() == CSS::Positioning::Relative) {
+        if (ancestor_with_style.computed_values().position() == CSS::Positioning::Relative) {
             VERIFY(ancestor->paintable());
             auto const& ancestor_paintable_box = *ancestor->paintable();
             auto const& inset = ancestor_paintable_box.box_model().inset;

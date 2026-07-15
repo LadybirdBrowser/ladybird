@@ -41,7 +41,9 @@ void LineBox::add_fragment(Node const& layout_node, size_t start, size_t length,
     CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_width,
     CSSPixels content_height, CSSPixels border_box_top, CSSPixels border_box_bottom, RefPtr<Gfx::GlyphRun> glyph_run)
 {
-    bool text_align_is_justify = layout_node.computed_values().text_align() == CSS::TextAlign::Justify;
+    auto const* layout_node_with_style = as_if<NodeWithStyle>(layout_node);
+    auto const& style_source = layout_node_with_style ? *layout_node_with_style : *layout_node.parent();
+    bool text_align_is_justify = style_source.computed_values().text_align() == CSS::TextAlign::Justify;
     if (glyph_run && !text_align_is_justify && !m_fragments.is_empty()
         && &m_fragments.last().layout_node() == &layout_node
         && &m_fragments.last().m_glyph_run->font() == &glyph_run->font()
@@ -85,7 +87,7 @@ void LineBox::clamp_static_position_markers_to_inline_length()
 CSSPixels LineBox::calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespace should_remove)
 {
     auto should_trim = [](LineBoxFragment* fragment) {
-        auto white_space_collapse = fragment->layout_node().computed_values().white_space_collapse();
+        auto white_space_collapse = fragment->style_source().computed_values().white_space_collapse();
 
         return white_space_collapse == CSS::WhiteSpaceCollapse::Collapse || white_space_collapse == CSS::WhiteSpaceCollapse::PreserveBreaks;
     };
@@ -134,7 +136,7 @@ CSSPixels LineBox::calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespac
             break;
 
         auto const& font = last_fragment->glyph_run() ? last_fragment->glyph_run()->font() : last_fragment->layout_node().first_available_font();
-        CSSPixels last_character_width = CSSPixels(font.glyph_width(last_character)) + last_fragment->layout_node().computed_values().letter_spacing();
+        CSSPixels last_character_width = CSSPixels(font.glyph_width(last_character)) + last_fragment->style_source().computed_values().letter_spacing();
         whitespace_width += last_character_width;
         trailing_whitespace_width += last_character_width;
         if (should_remove == RemoveTrailingWhitespace::Yes) {

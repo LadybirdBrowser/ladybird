@@ -247,7 +247,7 @@ static bool text_fragment_is_hit_testable(PaintableFragment const& fragment)
     if (!text_node)
         return false;
 
-    auto const& computed_values = text_node->computed_values();
+    auto const& computed_values = text_node->parent()->computed_values();
     if (computed_values.visibility() != CSS::Visibility::Visible || computed_values.opacity() == 0)
         return false;
     if (auto const* node = text_node->dom_text(); node && node->is_inert())

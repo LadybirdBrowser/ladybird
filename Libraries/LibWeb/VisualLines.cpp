@@ -19,7 +19,7 @@ namespace Web {
 
 bool white_space_preserves_newlines(Layout::TextNode const& layout_node)
 {
-    return first_is_one_of(layout_node.computed_values().white_space_collapse(),
+    return first_is_one_of(layout_node.parent()->computed_values().white_space_collapse(),
         CSS::WhiteSpaceCollapse::Preserve, CSS::WhiteSpaceCollapse::PreserveBreaks);
 }
 

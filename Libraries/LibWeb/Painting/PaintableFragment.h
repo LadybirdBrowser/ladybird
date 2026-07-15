@@ -30,6 +30,7 @@ public:
         VERIFY(m_layout_node);
         return *m_layout_node;
     }
+    Layout::NodeWithStyle const& style_source() const;
     bool has_layout_node() const { return !!m_layout_node; }
     // For in-place layout tree updates that replace the referenced node.
     void set_layout_node(Layout::Node const& layout_node) { m_layout_node = layout_node; }
@@ -42,7 +43,7 @@ public:
 
     // Interrupting block-level boxes (block-in-inline) are recorded as phantom fragments; most
     // fragment consumers (hit testing, render spans, client rects) must skip them.
-    bool is_block_level_box() const { return layout_node().display().is_block_outside(); }
+    bool is_block_level_box() const;
 
     size_t start_offset() const { return m_start_offset; }
     size_t length_in_code_units() const { return m_length_in_code_units; }

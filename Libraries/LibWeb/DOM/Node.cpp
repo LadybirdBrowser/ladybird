@@ -3469,8 +3469,8 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
                 const_cast<DOM::Document&>(document).update_layout(DOM::UpdateLayoutReason::NodeNameOrDescription);
                 auto const* layout_node = child_node->layout_node();
                 if (layout_node) {
-                    auto display = layout_node->display();
-                    if (display.is_inline_outside() && display.is_flow_inside()) {
+                    auto const* layout_node_with_style = as_if<Layout::NodeWithStyle>(*layout_node);
+                    if (!layout_node_with_style || (layout_node_with_style->display().is_inline_outside() && layout_node_with_style->display().is_flow_inside())) {
                         should_add_space = false;
                     }
                 }

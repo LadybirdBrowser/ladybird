@@ -39,10 +39,11 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
         // 5. Let current cell be the first td or th element child in the tr element being processed.
         for (auto child = row.first_child(); child; child = child->next_sibling()) {
             // NB: This actually applies to children with `display: table-cell`, not just td/th elements.
-            if (!child->display().is_table_cell())
+            auto const* child_box = as_if<Box>(*child);
+            if (!child_box || !child_box->display().is_table_cell())
                 continue;
 
-            auto& current_cell = as<Box>(*child);
+            auto& current_cell = const_cast<Box&>(*child_box);
 
             // 6. Cells: While x_current is less than x_width and the slot with coordinate (x_current, y_current)
             //    already has a cell assigned to it, increase x_current by 1.

@@ -37,10 +37,11 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
 {
     CSSPixels caption_height = 0;
     for (auto child = table_box().first_child(); child; child = child->next_sibling()) {
-        if (!child->display().is_table_caption() || child->computed_values().caption_side() != phase) {
+        auto const* child_box_ptr = as_if<Box>(*child);
+        if (!child_box_ptr || !child_box_ptr->display().is_table_caption() || child_box_ptr->computed_values().caption_side() != phase) {
             continue;
         }
-        auto const& child_box = as<Box>(*child);
+        auto const& child_box = *child_box_ptr;
         // Captions live inside the table wrapper, so their quirks percentage height basis derives
         // from the wrapper, not from anything the table box inherited.
         auto const& caption_constraints = m_participant_constraints;
@@ -493,12 +494,11 @@ CSSPixels TableFormattingContext::compute_capmin()
     CSSPixels capmin = 0;
     auto width_of_table_wrapper_containing_block = m_table_constraints.percentage_basis_width.value_or(0);
     for (auto child = table_box().first_child(); child; child = child->next_sibling()) {
-        if (!child->display().is_table_caption()) {
+        auto const* child_box = as_if<Box>(*child);
+        if (!child_box || !child_box->display().is_table_caption()) {
             continue;
         }
-        VERIFY(child->is_box());
-        auto const& child_box = static_cast<Box const&>(*child);
-        auto const& computed_values = child_box.computed_values();
+        auto const& computed_values = child_box->computed_values();
 
         auto margin_left = computed_values.margin().left().resolved_or_auto(width_of_table_wrapper_containing_block).to_px_or_zero();
         auto margin_right = computed_values.margin().right().resolved_or_auto(width_of_table_wrapper_containing_block).to_px_or_zero();
@@ -514,9 +514,9 @@ CSSPixels TableFormattingContext::compute_capmin()
                 + margin_right;
         };
 
-        auto caption_min_content_contribution = outer_size_for_inner_size(calculate_min_content_width(child_box, m_participant_constraints));
+        auto caption_min_content_contribution = outer_size_for_inner_size(calculate_min_content_width(*child_box, m_participant_constraints));
         if (!computed_values.width().is_auto() && !computed_values.width().contains_percentage()) {
-            auto preferred_inner_width = calculate_inner_width(child_box, AvailableSize::make_definite(width_of_table_wrapper_containing_block), computed_values.width(), m_participant_constraints);
+            auto preferred_inner_width = calculate_inner_width(*child_box, AvailableSize::make_definite(width_of_table_wrapper_containing_block), computed_values.width(), m_participant_constraints);
             caption_min_content_contribution = max(caption_min_content_contribution, outer_size_for_inner_size(preferred_inner_width));
         }
 
@@ -1344,7 +1344,10 @@ void TableFormattingContext::position_cell_boxes()
         auto child = cell.box.first_child();
         if (!child || child->next_sibling())
             return false;
-        auto const& display = child->computed_values().display();
+        auto const* child_with_style = as_if<NodeWithStyle>(*child);
+        if (!child_with_style)
+            return false;
+        auto const& display = child_with_style->display();
         return display.is_flex_inside() || display.is_grid_inside();
     };
 
@@ -1467,7 +1470,7 @@ bool TableFormattingContext::border_is_less_specific(CSS::BorderData const& a, C
 
 CSS::BorderData const& TableFormattingContext::border_data_conflicting_edge(TableFormattingContext::ConflictingEdge const& conflicting_edge)
 {
-    auto const& style = conflicting_edge.element->computed_values();
+    auto const& style = as<NodeWithStyle>(*conflicting_edge.element).computed_values();
     switch (conflicting_edge.side) {
     case ConflictingSide::Top: {
         return style.border_top();
@@ -1644,11 +1647,12 @@ void TableFormattingContext::BorderConflictFinder::collect_conflicting_col_eleme
     m_col_elements_by_index.resize(m_context->m_columns.size());
     size_t column_index = 0;
     for (auto child = m_context->table_box().first_child(); child; child = child->next_sibling()) {
-        if (!child->display().is_table_column_group()) {
+        auto const* child_with_style = as_if<NodeWithStyle>(*child);
+        if (!child_with_style || !child_with_style->display().is_table_column_group()) {
             continue;
         }
         for (auto child_of_column_group = child->first_child(); child_of_column_group; child_of_column_group = child_of_column_group->next_sibling()) {
-            VERIFY(child_of_column_group->display().is_table_column());
+            VERIFY(as<NodeWithStyle>(*child_of_column_group).display().is_table_column());
             auto const& col_node = static_cast<HTML::HTMLElement const&>(*child_of_column_group->dom_node());
             unsigned span = col_node.get_attribute_value(HTML::AttributeNames::span).to_number<unsigned>().value_or(1);
             m_col_elements_by_index.resize(column_index + span);

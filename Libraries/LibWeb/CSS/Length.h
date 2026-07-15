@@ -63,7 +63,7 @@ public:
     struct ResolutionContext {
         [[nodiscard]] static ResolutionContext for_document(DOM::Document const&);
         [[nodiscard]] static ResolutionContext for_element(DOM::AbstractElement const&);
-        [[nodiscard]] static ResolutionContext for_layout_node(Layout::Node const&);
+        [[nodiscard]] static ResolutionContext for_layout_node(Layout::NodeWithStyle const&);
 
         CSSPixelRect viewport_rect;
         FontMetrics font_metrics;
@@ -133,7 +133,7 @@ public:
 
     [[nodiscard]] CSSPixels to_px(ResolutionContext const&) const;
 
-    [[nodiscard]] ALWAYS_INLINE CSSPixels to_px(Layout::Node const& node) const
+    [[nodiscard]] ALWAYS_INLINE CSSPixels to_px(Layout::NodeWithStyle const& node) const
     {
         if (is_absolute())
             return absolute_length_to_px();
@@ -209,7 +209,7 @@ public:
     static Length from_style_value(NonnullRefPtr<StyleValue const> const&, Optional<Length> percentage_basis);
 
 private:
-    [[nodiscard]] CSSPixels to_px_slow_case(Layout::Node const&) const;
+    [[nodiscard]] CSSPixels to_px_slow_case(Layout::NodeWithStyle const&) const;
 
     LengthUnit m_unit;
     double m_value { 0 };

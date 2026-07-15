@@ -117,10 +117,10 @@ void InlineLevelIterator::exit_node_with_box_model_metrics()
 Layout::Node const* InlineLevelIterator::next_inline_node_in_pre_order(Layout::Node const& current, Layout::Node const* stay_within)
 {
     if (current.first_child()
-        && (current.first_child()->display().is_inline_outside()
+        && (current.first_child()->is_inline()
             || is_inline_flow_interrupting_block(*current.first_child())
             || current.first_child()->is_out_of_flow(m_inline_formatting_context))
-        && current.display().is_flow_inside()
+        && as<NodeWithStyle>(current).display().is_flow_inside()
         && !is_inline_flow_interrupting_block(current)
         && !current.is_atomic_inline()) {
         if (!current.is_box() || !static_cast<Box const&>(current).is_out_of_flow(m_inline_formatting_context))
@@ -169,7 +169,7 @@ void InlineLevelIterator::skip_to_next()
     if (m_next_node
         && is<Layout::NodeWithStyleAndBoxModelMetrics>(*m_next_node)
         && m_next_node->is_inline()
-        && m_next_node->display().is_flow_inside()
+        && static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(*m_next_node).display().is_flow_inside()
         && !m_next_node->is_out_of_flow(m_inline_formatting_context)
         && !m_next_node->is_atomic_inline())
         enter_node_with_box_model_metrics(static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(*m_next_node));
@@ -192,7 +192,7 @@ CSSPixels InlineLevelIterator::next_non_whitespace_sequence_width()
         auto const& next_item = m_items[i];
         if (next_item.type == InlineLevelIterator::Item::Type::ForcedBreak || next_item.type == InlineLevelIterator::Item::Type::BlockLevelBox)
             break;
-        if (next_item.node->computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
+        if (next_item.style_source().computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
             if (next_item.type != InlineLevelIterator::Item::Type::Text)
                 break;
             if (next_item.is_collapsible_whitespace)
@@ -279,7 +279,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
                 // Create an empty chunk for editable empty text fields
                 chunk_opt = TextNode::Chunk {
                     .view = {},
-                    .font = text_node->computed_values().font_list().first(),
+                    .font = text_node->parent()->computed_values().font_list().first(),
                     .is_all_whitespace = true,
                     .text_type = Gfx::GlyphRun::TextType::Common,
                 };
@@ -312,9 +312,9 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
         if (do_respect_linebreak && chunk.has_breaking_newline)
             return Item { .type = Item::Type::ForcedBreak };
 
-        auto letter_spacing = text_node->computed_values().letter_spacing();
+        auto letter_spacing = text_node->parent()->computed_values().letter_spacing();
         // FIXME: We should apply word spacing to all word-separator characters not just breaking tabs
-        auto word_spacing = text_node->computed_values().word_spacing();
+        auto word_spacing = text_node->parent()->computed_values().word_spacing();
 
         auto x = 0.0f;
         if (chunk.has_breaking_tab) {
@@ -323,7 +323,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
             CSSPixels accumulated_width = m_accumulated_width_for_tabs;
 
             // https://drafts.csswg.org/css-text/#tab-size-property
-            auto tab_width = text_node->computed_values().tab_size().visit(
+            auto tab_width = text_node->parent()->computed_values().tab_size().visit(
                 [&](CSSPixels const& css_pixels) -> CSSPixels {
                     return css_pixels;
                 },
@@ -464,8 +464,8 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
 
 void InlineLevelIterator::enter_text_node(Layout::TextNode const& text_node)
 {
-    auto white_space_collapse = text_node.computed_values().white_space_collapse();
-    auto text_wrap_mode = text_node.computed_values().text_wrap_mode();
+    auto white_space_collapse = text_node.parent()->computed_values().white_space_collapse();
+    auto text_wrap_mode = text_node.parent()->computed_values().text_wrap_mode();
 
     // https://drafts.csswg.org/css-text-4/#collapse
     bool do_wrap_lines = text_wrap_mode == CSS::TextWrapMode::Wrap;

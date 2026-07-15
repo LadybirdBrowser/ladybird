@@ -69,6 +69,19 @@ PaintableFragment::PaintableFragment(PaintableWithLines const& paintable_with_li
     }
 }
 
+bool PaintableFragment::is_block_level_box() const
+{
+    auto const* layout_node_with_style = as_if<Layout::NodeWithStyle>(layout_node());
+    return layout_node_with_style && layout_node_with_style->display().is_block_outside();
+}
+
+Layout::NodeWithStyle const& PaintableFragment::style_source() const
+{
+    if (auto const* node_with_style = as_if<Layout::NodeWithStyle>(layout_node()))
+        return *node_with_style;
+    return *layout_node().parent();
+}
+
 void PaintableFragment::set_selection_state(Paintable::SelectionState state)
 {
     if (m_selection_state == state)

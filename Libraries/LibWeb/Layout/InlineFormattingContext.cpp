@@ -199,7 +199,7 @@ void InlineFormattingContext::compute_inline_box_pieces()
                 continue;
             auto fragment_index = committed_fragment_index++;
             auto const& fragment_node = fragment.layout_node();
-            bool is_interrupting_block_fragment = fragment_node.display().is_block_outside();
+            bool is_interrupting_block_fragment = fragment.style_source().display().is_block_outside();
 
             auto fragment_position = fragment.offset();
             auto fragment_size = fragment.size();
@@ -724,7 +724,7 @@ void InlineFormattingContext::generate_line_boxes()
 
         // Ignore collapsible whitespace chunks at the start of line, and if the last fragment already ends in whitespace.
         if (item.is_collapsible_whitespace && (line_boxes.is_empty() || line_boxes.last().is_empty_or_ends_in_whitespace() || line_boxes.last().has_block_level_box())) {
-            if (item.node->computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
+            if (item.style_source().computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
                 auto next_width = iterator.next_non_whitespace_sequence_width();
                 if (next_width > 0) {
                     line_builder.prepare_to_append_inline_content();
@@ -748,7 +748,7 @@ void InlineFormattingContext::generate_line_boxes()
         case InlineLevelIterator::Item::Type::ForcedBreak: {
             line_builder.break_line(LineBuilder::ForcedBreak::Yes);
             if (item.node) {
-                auto introduce_clearance = parent().clear_floating_boxes(*item.node, *this, m_layout_input->content_box_position_in_bfc_root.value());
+                auto introduce_clearance = parent().clear_floating_boxes(as<NodeWithStyle>(*item.node), *this, m_layout_input->content_box_position_in_bfc_root.value());
                 if (introduce_clearance == BlockFormattingContext::DidIntroduceClearance::Yes) {
                     line_builder.did_introduce_clearance(vertical_float_clearance());
                     parent().reset_margin_state();
@@ -800,7 +800,7 @@ void InlineFormattingContext::generate_line_boxes()
                 line_builder.commit_pending_margin_before_float();
                 if (!is<ListItemMarkerBox>(*box))
                     m_state.create(*box, m_layout_input->containing_block_constraints.percentage_basis_width, m_layout_input->containing_block_constraints.percentage_basis_height);
-                (void)parent().clear_floating_boxes(*item.node, *this, m_layout_input->content_box_position_in_bfc_root.value());
+                (void)parent().clear_floating_boxes(as<NodeWithStyle>(*item.node), *this, m_layout_input->content_box_position_in_bfc_root.value());
                 // Even if this introduces clearance, we do NOT reset the margin state, because that is clearance
                 // between floats and does not contribute to the height of the Inline Formatting Context.
                 line_builder.set_unbreakable_run_width_interrupted_by_float(iterator.next_non_whitespace_sequence_width());
@@ -812,7 +812,7 @@ void InlineFormattingContext::generate_line_boxes()
             auto& text_node = as<Layout::TextNode>(*item.node);
             line_builder.prepare_to_append_inline_content();
 
-            if (text_node.computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
+            if (text_node.parent()->computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
                 bool is_whitespace = false;
                 CSSPixels next_width = 0;
                 // If we're in a whitespace-collapsing context, we can simply check the flag.
@@ -849,7 +849,7 @@ void InlineFormattingContext::generate_line_boxes()
                 item.margin_start,
                 item.margin_end,
                 item.width,
-                text_node.computed_values().line_height(),
+                text_node.parent()->computed_values().line_height(),
                 move(item.glyph_run));
             break;
         }

@@ -299,9 +299,9 @@ Length::ResolutionContext Length::ResolutionContext::for_document(DOM::Document 
     };
 }
 
-Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::Node const& node)
+Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::NodeWithStyle const& node)
 {
-    Layout::Node const* root_layout_node;
+    Layout::NodeWithStyle const* root_layout_node;
     DOM::Element const* subject_element = nullptr;
 
     if (is<DOM::Document>(node.dom_node())) {
@@ -331,7 +331,7 @@ CSSPixels Length::to_px(ResolutionContext const& context) const
     return CSSPixels::nearest_value_for(to_px_without_rounding(context));
 }
 
-CSSPixels Length::to_px_slow_case(Layout::Node const& layout_node) const
+CSSPixels Length::to_px_slow_case(Layout::NodeWithStyle const& layout_node) const
 {
     if (!layout_node.document().browsing_context())
         return 0;

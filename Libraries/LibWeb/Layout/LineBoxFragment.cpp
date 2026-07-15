@@ -34,6 +34,13 @@ LineBoxFragment::LineBoxFragment(Node const& layout_node, size_t start, size_t l
     }
 }
 
+NodeWithStyle const& LineBoxFragment::style_source() const
+{
+    if (auto const* node_with_style = as_if<NodeWithStyle>(layout_node()))
+        return *node_with_style;
+    return *layout_node().parent();
+}
+
 CSSPixelPoint LineBoxFragment::offset() const
 {
     if (m_writing_mode != CSS::WritingMode::HorizontalTb)

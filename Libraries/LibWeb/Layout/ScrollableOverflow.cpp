@@ -187,7 +187,7 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
                 // NB: Reserve one pixel of reachable inline-axis overflow for an end-of-line caret. This keeps the
                 //     caret at its insertion position while allowing a text control to scroll the painted bar fully
                 //     into view, matching the caret overflow accounted for by other engines.
-                auto const& computed_values = fragment.layout_node().computed_values();
+                auto const& computed_values = fragment.style_source().computed_values();
                 if (inline_axis_is_horizontal(computed_values.writing_mode())) {
                     if (computed_values.inline_axis_is_reverse())
                         fragment_rect.set_left(fragment_rect.left() - 1);

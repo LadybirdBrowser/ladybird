@@ -106,7 +106,7 @@ bool Node::is_out_of_flow(FormattingContext const& formatting_context) const
     // A layout node is out of flow if either:
 
     // 1. It is floated (which requires that floating is not inhibited).
-    if (!formatting_context.inhibits_floating() && computed_values().float_() != CSS::Float::None)
+    if (!formatting_context.inhibits_floating() && is_floating())
         return true;
 
     // 2. It is "absolutely positioned".
@@ -117,7 +117,7 @@ bool Node::is_out_of_flow(FormattingContext const& formatting_context) const
 }
 
 // https://drafts.csswg.org/css-position-3/#fixed-positioning-containing-block
-static bool computed_values_establish_fixed_positioning_containing_block(Node const& node)
+static bool computed_values_establish_fixed_positioning_containing_block(NodeWithStyle const& node)
 {
     auto const& computed_values = node.computed_values();
 
@@ -201,7 +201,7 @@ static bool computed_values_establish_fixed_positioning_containing_block(Node co
 // because that function also checks is<Box>, but we need these checks for inline elements too.
 bool Node::computed_values_establish_absolute_positioning_containing_block() const
 {
-    auto const& computed_values = this->computed_values();
+    auto const& computed_values = as<NodeWithStyle>(*this).computed_values();
 
     // https://drafts.csswg.org/css-position/#position-property
     // Values other than 'static' make the box a positioned box, and cause it to establish an absolute positioning
@@ -210,7 +210,7 @@ bool Node::computed_values_establish_absolute_positioning_containing_block() con
         || (!computed_values.will_change().is_auto() && computed_values.will_change().has_property(CSS::PropertyID::Position)))
         return true;
 
-    return computed_values_establish_fixed_positioning_containing_block(*this);
+    return computed_values_establish_fixed_positioning_containing_block(as<NodeWithStyle>(*this));
 }
 
 // https://drafts.csswg.org/css-position-3/#absolute-positioning-containing-block
@@ -241,7 +241,7 @@ bool Node::establishes_a_fixed_positioning_containing_block() const
     if (is_svg_foreign_object_box())
         return true;
 
-    return computed_values_establish_fixed_positioning_containing_block(*this);
+    return computed_values_establish_fixed_positioning_containing_block(as<NodeWithStyle>(*this));
 }
 
 Node::PositioningContainingBlockEstablishment Node::establishes_positioning_containing_blocks() const
@@ -254,11 +254,11 @@ Node::PositioningContainingBlockEstablishment Node::establishes_positioning_cont
     if (is_svg_foreign_object_box())
         return { true, true };
 
-    auto establishes_fixed_positioning_containing_block = computed_values_establish_fixed_positioning_containing_block(*this);
+    auto establishes_fixed_positioning_containing_block = computed_values_establish_fixed_positioning_containing_block(as<NodeWithStyle>(*this));
     if (establishes_fixed_positioning_containing_block)
         return { true, true };
 
-    auto const& computed_values = this->computed_values();
+    auto const& computed_values = as<NodeWithStyle>(*this).computed_values();
     auto establishes_absolute_positioning_containing_block = computed_values.position() != CSS::Positioning::Static
         || (!computed_values.will_change().is_auto() && computed_values.will_change().has_property(CSS::PropertyID::Position));
     if (establishes_absolute_positioning_containing_block)
@@ -293,7 +293,7 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
         return;
     }
 
-    auto position = computed_values().position();
+    auto position = as<NodeWithStyle>(*this).computed_values().position();
 
     // https://drafts.csswg.org/css-position-3/#absolute-cb
     if (position == CSS::Positioning::Absolute) {
@@ -430,7 +430,7 @@ bool Node::establishes_stacking_context() const
     if (is_root_element())
         return true;
 
-    auto const& computed_values = this->computed_values();
+    auto const& computed_values = as<NodeWithStyle>(*this).computed_values();
 
     auto position = computed_values.position();
 
@@ -565,40 +565,45 @@ Viewport& Node::root()
 
 bool Node::is_floating() const
 {
-    if (!has_style())
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    if (!node_with_style)
         return false;
     // flex-items don't float.
     if (is_flex_item())
         return false;
-    return computed_values().float_() != CSS::Float::None;
+    return node_with_style->computed_values().float_() != CSS::Float::None;
 }
 
 bool Node::is_positioned() const
 {
-    return has_style() && computed_values().position() != CSS::Positioning::Static;
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    return node_with_style && node_with_style->computed_values().position() != CSS::Positioning::Static;
 }
 
 bool Node::is_absolutely_positioned() const
 {
-    if (!has_style())
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    if (!node_with_style)
         return false;
-    auto position = computed_values().position();
+    auto position = node_with_style->computed_values().position();
     return position == CSS::Positioning::Absolute || position == CSS::Positioning::Fixed;
 }
 
 bool Node::is_fixed_position() const
 {
-    if (!has_style())
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    if (!node_with_style)
         return false;
-    auto position = computed_values().position();
+    auto position = node_with_style->computed_values().position();
     return position == CSS::Positioning::Fixed;
 }
 
 bool Node::is_sticky_position() const
 {
-    if (!has_style())
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    if (!node_with_style)
         return false;
-    auto position = computed_values().position();
+    auto position = node_with_style->computed_values().position();
     return position == CSS::Positioning::Sticky;
 }
 
@@ -1191,39 +1196,28 @@ String Node::debug_description() const
     return MUST(builder.to_string());
 }
 
-CSS::Display Node::display() const
-{
-    if (!has_style()) {
-        // NOTE: No style means this is dumb text content.
-        return CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow);
-    }
-
-    return computed_values().display();
-}
-
-CSS::Display Node::display_before_box_type_transformation() const
-{
-    if (!has_style()) {
-        return CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow);
-    }
-
-    return computed_values().display_before_box_type_transformation();
-}
-
 bool Node::is_inline() const
 {
-    return display().is_inline_outside();
+    if (is<TextNode>(*this))
+        return true;
+    return as<NodeWithStyle>(*this).display().is_inline_outside();
 }
 
 bool Node::is_inline_block() const
 {
-    auto display = this->display();
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    if (!node_with_style)
+        return false;
+    auto display = node_with_style->display();
     return display.is_inline_outside() && display.is_flow_root_inside();
 }
 
 bool Node::is_inline_table() const
 {
-    auto display = this->display();
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    if (!node_with_style)
+        return false;
+    auto display = node_with_style->display();
     return display.is_inline_outside() && display.is_table_inside();
 }
 
@@ -1238,7 +1232,7 @@ bool Node::has_replaced_element_table_display_adjustment() const
 {
     if (!is_replaced_element())
         return false;
-    auto display = display_before_box_type_transformation();
+    auto display = as<NodeWithStyle>(*this).display_before_box_type_transformation();
     return display.is_table_inside() || display.is_internal_table() || display.is_table_caption();
 }
 
@@ -1246,14 +1240,17 @@ bool Node::is_atomic_inline() const
 {
     if (is_replaced_element() || is_list_item_marker_box())
         return true;
-    auto display = this->display();
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    if (!node_with_style)
+        return false;
+    auto display = node_with_style->display();
     return display.is_inline_outside() && !display.is_flow_inside();
 }
 
 bool Node::is_fragmented_inline() const
 {
     return is_inline_node()
-        || (is_list_item_box() && display().is_inline_outside() && display().is_flow_inside());
+        || (is_list_item_box() && as<NodeWithStyle>(*this).display().is_inline_outside() && as<NodeWithStyle>(*this).display().is_flow_inside());
 }
 
 NodeWithStyleAndBoxModelMetrics const* Node::nearest_fragmented_inline_ancestor() const
@@ -1294,7 +1291,7 @@ bool Node::is_transformable() const
     //   table-column boxes, and table-column-group boxes [CSS2].
     bool is_element_or_pseudo_element = is<DOM::Element>(dom_node) || is_generated_for_pseudo_element();
     if (is_element_or_pseudo_element && is_box()) {
-        auto display = this->display();
+        auto display = as<NodeWithStyle>(*this).display();
         if (display.is_table_column() || display.is_table_column_group())
             return false;
 
@@ -1501,7 +1498,9 @@ CSS::UserSelect Node::user_select_used_value() const
             return node->user_select_used_value();
     }
 
-    auto computed_value = computed_values().user_select();
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    auto const& computed_values = node_with_style ? node_with_style->computed_values() : parent()->computed_values();
+    auto computed_value = computed_values.user_select();
     if (computed_value != CSS::UserSelect::Auto)
         return computed_value;
 
@@ -1517,26 +1516,30 @@ CSS::UserSelect Node::user_select_used_value() const
 // https://drafts.csswg.org/css-contain-2/#containment-size
 bool Node::has_size_containment() const
 {
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    if (!node_with_style)
+        return false;
+
     // However, giving an element size containment has no effect if any of the following are true:
 
     // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
     // Note: This is the principal box
 
     // - if its inner display type is 'table'
-    if (display().is_table_inside())
+    if (node_with_style->display().is_table_inside())
         return false;
 
     // - if its principal box is an internal table box
-    if (display().is_internal_table())
+    if (node_with_style->display().is_internal_table())
         return false;
 
     // - if its principal box is an internal ruby box or a non-atomic inline-level box
     // FIXME: Implement this.
 
-    if (computed_values().contain().size_containment)
+    if (node_with_style->computed_values().contain().size_containment)
         return true;
 
-    if (computed_values().container_type().is_size_container)
+    if (node_with_style->computed_values().container_type().is_size_container)
         return true;
 
     return false;
@@ -1544,26 +1547,30 @@ bool Node::has_size_containment() const
 // https://drafts.csswg.org/css-contain-2/#containment-inline-size
 bool Node::has_inline_size_containment() const
 {
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    if (!node_with_style)
+        return false;
+
     // Giving an element inline-size containment has no effect if any of the following are true:
 
     // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
     // Note: This is the principal box
 
     // - if its inner display type is 'table'
-    if (display().is_table_inside())
+    if (node_with_style->display().is_table_inside())
         return false;
 
     // - if its principal box is an internal table box
-    if (display().is_internal_table())
+    if (node_with_style->display().is_internal_table())
         return false;
 
     // - if its principal box is an internal ruby box or a non-atomic inline-level box
     // FIXME: Implement this.
 
-    if (computed_values().contain().inline_size_containment)
+    if (node_with_style->computed_values().contain().inline_size_containment)
         return true;
 
-    if (computed_values().container_type().is_inline_size_container)
+    if (node_with_style->computed_values().container_type().is_inline_size_container)
         return true;
 
     return false;
@@ -1571,7 +1578,10 @@ bool Node::has_inline_size_containment() const
 // https://drafts.csswg.org/css-contain-2/#containment-layout
 bool Node::has_layout_containment() const
 {
-    auto const& computed_values = this->computed_values();
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    if (!node_with_style)
+        return false;
+    auto const& computed_values = node_with_style->computed_values();
     auto has_layout_containment = computed_values.contain().layout_containment;
 
     // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
@@ -1587,12 +1597,12 @@ bool Node::has_layout_containment() const
     // Note: This is the principal box
 
     // - if its principal box is an internal table box other than 'table-cell'
-    if (display().is_internal_table() && !display().is_table_cell())
+    if (node_with_style->display().is_internal_table() && !node_with_style->display().is_table_cell())
         return false;
 
     // - if its principal box is an internal ruby box or a non-atomic inline-level box
     // FIXME: Also check for internal ruby boxes.
-    if (display().is_inline_outside() && display().is_flow_inside() && !is_replaced_box())
+    if (node_with_style->display().is_inline_outside() && node_with_style->display().is_flow_inside() && !is_replaced_box())
         return false;
 
     return true;
@@ -1600,21 +1610,25 @@ bool Node::has_layout_containment() const
 // https://drafts.csswg.org/css-contain-2/#containment-style
 bool Node::has_style_containment() const
 {
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    if (!node_with_style)
+        return false;
+
     // However, giving an element style containment has no effect if any of the following are true:
 
     // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
     // Note: This is the principal box
 
-    if (computed_values().contain().style_containment)
+    if (node_with_style->computed_values().contain().style_containment)
         return true;
 
-    if (computed_values().container_type().is_size_container || computed_values().container_type().is_inline_size_container)
+    if (node_with_style->computed_values().container_type().is_size_container || node_with_style->computed_values().container_type().is_inline_size_container)
         return true;
 
     // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
     // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
     // paint containment for the element.
-    if (computed_values().content_visibility() == CSS::ContentVisibility::Auto)
+    if (node_with_style->computed_values().content_visibility() == CSS::ContentVisibility::Auto)
         return true;
 
     return false;
@@ -1622,7 +1636,10 @@ bool Node::has_style_containment() const
 // https://drafts.csswg.org/css-contain-2/#containment-paint
 bool Node::has_paint_containment() const
 {
-    auto const& computed_values = this->computed_values();
+    auto const* node_with_style = as_if<NodeWithStyle>(*this);
+    if (!node_with_style)
+        return false;
+    auto const& computed_values = node_with_style->computed_values();
     auto has_paint_containment = computed_values.contain().paint_containment;
 
     // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
@@ -1638,12 +1655,12 @@ bool Node::has_paint_containment() const
     // Note: This is the principal box
 
     // - if its principal box is an internal table box other than 'table-cell'
-    if (display().is_internal_table() && !display().is_table_cell())
+    if (node_with_style->display().is_internal_table() && !node_with_style->display().is_table_cell())
         return false;
 
     // - if its principal box is an internal ruby box or a non-atomic inline-level box
     // FIXME: Also check for internal ruby boxes.
-    if (display().is_inline_outside() && display().is_flow_inside() && !is_replaced_box())
+    if (node_with_style->display().is_inline_outside() && node_with_style->display().is_flow_inside() && !is_replaced_box())
         return false;
 
     return true;

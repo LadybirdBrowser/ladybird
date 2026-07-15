@@ -326,7 +326,8 @@ static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collec
     if (!layout_node->has_style_or_parent_with_style())
         return items;
 
-    auto const& computed_values = layout_node->computed_values();
+    auto const* layout_node_with_style = as_if<Layout::NodeWithStyle>(*layout_node);
+    auto const& computed_values = layout_node_with_style ? layout_node_with_style->computed_values() : layout_node->parent()->computed_values();
 
     // 2. If node's computed value of 'visibility' is not 'visible', then return items.
     if (computed_values.visibility() != CSS::Visibility::Visible)

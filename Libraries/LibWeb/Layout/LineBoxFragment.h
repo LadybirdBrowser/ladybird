@@ -27,6 +27,7 @@ public:
         VERIFY(m_layout_node);
         return *m_layout_node;
     }
+    NodeWithStyle const& style_source() const;
     size_t start() const { return m_start; }
     size_t length_in_code_units() const { return m_length_in_code_units; }
 

@@ -124,9 +124,6 @@ public:
 
     virtual bool can_have_children() const { return true; }
 
-    CSS::Display display() const;
-    CSS::Display display_before_box_type_transformation() const;
-
     bool is_inline() const;
     bool is_inline_block() const;
     bool is_inline_table() const;
@@ -236,8 +233,6 @@ public:
     Gfx::Font const& font(DisplayListRecordingContext&) const;
     Gfx::Font const& font(float scale_factor) const;
 
-    CSS::ImmutableComputedValues const& computed_values() const;
-
     NodeWithStyle* parent();
     NodeWithStyle const* parent() const;
 
@@ -258,16 +253,6 @@ public:
     // An element is called in-flow if it is not out-of-flow.
     // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
     bool is_in_flow() const { return !is_out_of_flow(); }
-
-    [[nodiscard]] bool has_css_transform() const
-    {
-        auto const& computed_values = this->computed_values();
-        auto has_transform = !computed_values.transformations().is_empty()
-            || computed_values.rotate()
-            || computed_values.translate()
-            || computed_values.scale();
-        return has_transform && is_transformable();
-    }
 
     // https://drafts.csswg.org/css-ui/#propdef-user-select
     CSS::UserSelect user_select_used_value() const;
@@ -345,6 +330,17 @@ public:
 
     CSS::ImmutableComputedValues const& computed_values() const { return static_cast<CSS::ImmutableComputedValues const&>(*m_computed_values); }
     CSS::MutableComputedValues& mutable_computed_values() { return static_cast<CSS::MutableComputedValues&>(*m_computed_values); }
+    CSS::Display display() const { return computed_values().display(); }
+    CSS::Display display_before_box_type_transformation() const { return computed_values().display_before_box_type_transformation(); }
+    [[nodiscard]] bool has_css_transform() const
+    {
+        auto const& computed_values = this->computed_values();
+        auto has_transform = !computed_values.transformations().is_empty()
+            || computed_values.rotate()
+            || computed_values.translate()
+            || computed_values.scale();
+        return has_transform && is_transformable();
+    }
 
     void clear_image_observers();
     void apply_style(CSS::ComputedProperties const&);
@@ -431,15 +427,6 @@ inline Gfx::Font const& Node::font(float scale_factor) const
 {
     auto const& font = first_available_font();
     return font.with_size(font.point_size() * scale_factor);
-}
-
-inline CSS::ImmutableComputedValues const& Node::computed_values() const
-{
-    VERIFY(has_style_or_parent_with_style());
-
-    if (m_has_style)
-        return static_cast<NodeWithStyle const*>(this)->computed_values();
-    return parent()->computed_values();
 }
 
 inline NodeWithStyle const* Node::parent() const

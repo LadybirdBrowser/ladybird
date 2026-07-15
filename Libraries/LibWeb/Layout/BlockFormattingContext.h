@@ -81,7 +81,7 @@ public:
         No,
     };
 
-    [[nodiscard]] DidIntroduceClearance clear_floating_boxes(Node const& child_box, Optional<InlineFormattingContext&> inline_formatting_context, CSSPixelPoint containing_block_position_in_root);
+    [[nodiscard]] DidIntroduceClearance clear_floating_boxes(NodeWithStyle const& child_box, Optional<InlineFormattingContext&> inline_formatting_context, CSSPixelPoint containing_block_position_in_root);
 
     void reset_margin_state() { m_margin_state.reset(); }
 

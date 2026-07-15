@@ -1767,7 +1767,7 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
             : child_used_values->border_box_height();
         auto const block_axis_line_height = inline_node.computed_values().line_height();
         auto const block_axis_start = [&] {
-            if (fragment.layout_node().computed_values().block_axis_is_reverse())
+            if (fragment.style_source().computed_values().block_axis_is_reverse())
                 return fragment.block_offset() + child_used_values->border_box_right() - block_axis_line_height;
             return fragment.block_offset() - (is_horizontal ? child_used_values->border_box_top() : child_used_values->border_box_left());
         }();

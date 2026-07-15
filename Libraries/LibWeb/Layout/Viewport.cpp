@@ -74,7 +74,7 @@ void Viewport::update_text_blocks()
     };
 
     for_each_in_inclusive_subtree([&](auto const& layout_node) {
-        if (layout_node.display().is_none())
+        if (auto const* layout_node_with_style = as_if<NodeWithStyle>(layout_node); layout_node_with_style && layout_node_with_style->display().is_none())
             return TraversalDecision::Continue;
 
         auto const pseudo = layout_node.generated_for_pseudo_element();
@@ -86,7 +86,7 @@ void Viewport::update_text_blocks()
         }
 
         if (auto* text_node = as_if<Layout::TextNode>(layout_node)) {
-            auto const& computed_values = text_node->computed_values();
+            auto const& computed_values = text_node->parent()->computed_values();
             if (computed_values.visibility() != CSS::Visibility::Visible || computed_values.opacity() == 0)
                 return TraversalDecision::Continue;
 

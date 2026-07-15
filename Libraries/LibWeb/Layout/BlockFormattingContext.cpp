@@ -1472,7 +1472,7 @@ void BlockFormattingContext::resolve_horizontal_box_model_metrics(Box const& box
     box_state.padding_right = computed_values.padding().right().to_px_or_zero(width_of_containing_block);
 }
 
-BlockFormattingContext::DidIntroduceClearance BlockFormattingContext::clear_floating_boxes(Node const& child_box, Optional<InlineFormattingContext&> inline_formatting_context, CSSPixelPoint containing_block_position_in_root)
+BlockFormattingContext::DidIntroduceClearance BlockFormattingContext::clear_floating_boxes(NodeWithStyle const& child_box, Optional<InlineFormattingContext&> inline_formatting_context, CSSPixelPoint containing_block_position_in_root)
 {
     auto const& computed_values = child_box.computed_values();
     auto result = DidIntroduceClearance::No;

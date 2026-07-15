@@ -350,7 +350,7 @@ void LineBuilder::update_last_line()
     auto line_box_baseline = [&] {
         CSSPixels line_box_baseline = strut_baseline;
         for (auto& fragment : line_box.fragments()) {
-            auto const line_height = fragment.layout_node().computed_values().line_height();
+            auto const line_height = fragment.style_source().computed_values().line_height();
 
             CSSPixels fragment_baseline = 0;
             if (fragment.layout_node().is_text_node()) {
@@ -365,14 +365,14 @@ void LineBuilder::update_last_line()
 
             // NOTE: For fragments with a <length-percentage> vertical-align, shift the line box baseline down by the resolved amount.
             //       This ensures that we make enough vertical space on the line for any manually-aligned fragments.
-            if (auto const* length_percentage = fragment.layout_node().computed_values().vertical_align().get_pointer<CSS::LengthPercentage>()) {
+            if (auto const* length_percentage = fragment.style_source().computed_values().vertical_align().get_pointer<CSS::LengthPercentage>()) {
                 fragment_baseline += length_percentage->to_px(line_height);
             }
 
             if (fragment_baseline > line_box_baseline) {
                 if (!fragment.layout_node().is_text_node()) {
                     auto const& box = as<Layout::Box>(fragment.layout_node());
-                    auto const& vertical_align = fragment.layout_node().computed_values().vertical_align();
+                    auto const& vertical_align = fragment.style_source().computed_values().vertical_align();
                     should_align_strut_to_line_box_baseline |= box.display().is_inline_outside()
                         && box.display().is_flex_inside()
                         && vertical_align.has<CSS::VerticalAlign>()
@@ -461,7 +461,7 @@ void LineBuilder::update_last_line()
             .height = fragment.height(),
             .effective_box_top_offset = fragment.border_box_top(),
             .effective_box_bottom_offset = fragment.border_box_top(),
-            .line_height = fragment.layout_node().computed_values().line_height(),
+            .line_height = fragment.style_source().computed_values().line_height(),
         };
         if (fragment.is_atomic_inline()) {
             auto const& fragment_box_state = m_layout_state.get(static_cast<Box const&>(fragment.layout_node()));
@@ -470,7 +470,7 @@ void LineBuilder::update_last_line()
         }
 
         // Position the fragment according to the vertical-align of its own styled inline element.
-        auto const& own_vertical_align = fragment.layout_node().computed_values().vertical_align();
+        auto const& own_vertical_align = fragment.style_source().computed_values().vertical_align();
         CSSPixels new_fragment_block_offset = block_offset_value_for_alignment(own_vertical_align, fragment_metrics);
 
         // A 'top'- or 'bottom'-aligned box forms the root of its own aligned subtree and is positioned relative to the
@@ -478,9 +478,7 @@ void LineBuilder::update_last_line()
         auto* own_alignment = own_vertical_align.get_pointer<CSS::VerticalAlign>();
         bool own_alignment_is_line_relative = own_alignment && first_is_one_of(*own_alignment, CSS::VerticalAlign::Top, CSS::VerticalAlign::Bottom);
 
-        auto const& node = fragment.layout_node().has_style()
-            ? static_cast<NodeWithStyle const&>(fragment.layout_node())
-            : *fragment.layout_node().parent();
+        auto const& node = fragment.style_source();
         auto const* containing_block = &m_context.containing_block();
         auto const* first_ancestor = &node == containing_block ? nullptr : node.parent();
         for (auto const* ancestor = first_ancestor;
@@ -514,13 +512,13 @@ void LineBuilder::update_last_line()
             } else {
                 auto font_metrics = fragment.layout_node().first_available_font().pixel_metrics();
                 auto typographic_height = CSSPixels::nearest_value_for(font_metrics.ascent + font_metrics.descent);
-                auto leading = fragment.layout_node().computed_values().line_height() - typographic_height;
+                auto leading = fragment.style_source().computed_values().line_height() - typographic_height;
                 auto half_leading = leading / 2;
                 top_of_inline_box = (fragment.block_offset() + fragment.baseline() - CSSPixels::nearest_value_for(font_metrics.ascent) - half_leading);
                 bottom_of_inline_box = (fragment.block_offset() + fragment.baseline() + CSSPixels::nearest_value_for(font_metrics.descent) + half_leading);
             }
-            if (auto const* length_percentage = fragment.layout_node().computed_values().vertical_align().get_pointer<CSS::LengthPercentage>()) {
-                bottom_of_inline_box += length_percentage->to_px(fragment.layout_node().computed_values().line_height());
+            if (auto const* length_percentage = fragment.style_source().computed_values().vertical_align().get_pointer<CSS::LengthPercentage>()) {
+                bottom_of_inline_box += length_percentage->to_px(fragment.style_source().computed_values().line_height());
             }
         }
 
