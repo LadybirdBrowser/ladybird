@@ -177,6 +177,7 @@ public:
     void set_environments_top_level_url(Utf16String const& url);
     void set_geolocation_emulated_position(double latitude, double longitude, double accuracy);
 
+    u64 parser_non_append_insertions();
     DOM::Document::StyleInvalidationCounters const& style_invalidation_counters() const;
     GC::Ref<JS::Object> style_invalidation_counters_object() const;
     void reset_style_invalidation_counters();
