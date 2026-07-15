@@ -299,8 +299,16 @@ public:
         NonnullRefPtr<CSS::ImageStyleValue const> m_image;
     };
 
-    CSS::ImmutableComputedValues const& computed_values() const { return static_cast<CSS::ImmutableComputedValues const&>(*m_computed_values); }
-    CSS::MutableComputedValues& mutable_computed_values() { return static_cast<CSS::MutableComputedValues&>(*m_computed_values); }
+    CSS::ComputedValues const& computed_values() const { return *m_computed_values; }
+
+    template<typename Callback>
+    void modify_computed_values(Callback callback)
+    {
+        CSS::ComputedValues::Builder builder(computed_values());
+        callback(*builder.operator->());
+        set_computed_values(builder.build());
+    }
+
     CSS::Display display() const { return computed_values().display(); }
     CSS::Display display_before_box_type_transformation() const { return computed_values().display_before_box_type_transformation(); }
     bool is_inline_block() const;
@@ -355,6 +363,7 @@ public:
 
     void clear_image_observers();
     void apply_style(CSS::ComputedProperties const&);
+    void attach_style_resources(CSS::ComputedProperties const&);
 
     Gfx::Font const& first_available_font() const;
     Vector<CSS::BackgroundLayerData> const& background_layers() const { return computed_values().background_layers(); }
@@ -363,30 +372,32 @@ public:
 
     NonnullRefPtr<NodeWithStyle> create_anonymous_wrapper() const;
 
-    void transfer_table_box_computed_values_to_wrapper_computed_values(CSS::ComputedValues& wrapper_computed_values);
+    void transfer_table_box_computed_values_to_wrapper_computed_values(CSS::MutableComputedValues& wrapper_computed_values);
 
     bool is_body() const { return m_is_body; }
     bool is_scroll_container() const;
 
-    void set_computed_values(NonnullOwnPtr<CSS::ComputedValues>);
+    void set_computed_values(NonnullRefPtr<CSS::ComputedValues>);
 
     u32 layout_index() const { return m_layout_index; }
     void set_layout_index(u32 index) { m_layout_index = index; }
 
 protected:
     NodeWithStyle(DOM::Document&, DOM::Node*, CSS::ComputedProperties const&);
-    NodeWithStyle(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
+    NodeWithStyle(DOM::Document&, DOM::Node*, NonnullRefPtr<CSS::ComputedValues>);
 
 private:
     virtual bool is_node_with_style() const final { return true; }
 
+    CSS::MutableComputedValues& mutable_computed_values() { return static_cast<CSS::MutableComputedValues&>(*m_computed_values); }
+
     void reset_table_box_computed_values_used_by_wrapper_to_init_values();
-    void propagate_non_inherit_values(NodeWithStyle& target_node) const;
+    void propagate_non_inherit_values(CSS::MutableComputedValues&) const;
     void propagate_style_to_anonymous_wrappers();
 
     void rebuild_image_observers();
 
-    NonnullOwnPtr<CSS::ComputedValues> m_computed_values;
+    NonnullRefPtr<CSS::ComputedValues> m_computed_values;
     RefPtr<CSS::AbstractImageStyleValue const> m_list_style_image;
     Vector<NonnullOwnPtr<ImageObserver>> m_image_observers;
     u32 m_layout_index { 0 };
@@ -404,7 +415,7 @@ public:
 protected:
     NodeWithStyleAndBoxModelMetrics(DOM::Document&, DOM::Node*, CSS::ComputedProperties const&);
 
-    NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, NonnullOwnPtr<CSS::ComputedValues> computed_values)
+    NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues> computed_values)
         : NodeWithStyle(document, node, move(computed_values))
     {
     }

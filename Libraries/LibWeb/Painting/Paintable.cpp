@@ -95,7 +95,7 @@ void Paintable::set_containing_block(Paintable* containing_block)
     invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
 }
 
-CSS::ImmutableComputedValues const& Paintable::computed_values() const
+CSS::ComputedValues const& Paintable::computed_values() const
 {
     return layout_node().computed_values();
 }
@@ -334,7 +334,7 @@ Paintable::SelectionStyle Paintable::selection_style_for_node(Layout::Node const
 
         // Only use text-shadow if it was explicitly set in the ::selection rule, not inherited.
         if (!computed_selection_style->is_property_inherited(CSS::PropertyID::TextShadow)) {
-            auto const& css_shadows = computed_selection_style->text_shadow(*element_layout_node);
+            auto const& css_shadows = computed_selection_style->text_shadow(context);
             Vector<ShadowData> shadows;
             shadows.ensure_capacity(css_shadows.size());
             for (auto const& shadow : css_shadows)

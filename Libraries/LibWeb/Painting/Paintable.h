@@ -96,7 +96,7 @@ public:
     [[nodiscard]] GC::Ptr<DOM::Node const> dom_node() const;
     void set_dom_node(GC::Ptr<DOM::Node>);
 
-    CSS::ImmutableComputedValues const& computed_values() const;
+    CSS::ComputedValues const& computed_values() const;
 
     bool visible_for_hit_testing() const;
 

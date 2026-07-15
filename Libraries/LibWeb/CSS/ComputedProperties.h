@@ -187,7 +187,7 @@ public:
     Clip clip() const;
     Display display() const;
     Float float_() const;
-    Color caret_color(Layout::NodeWithStyle const&) const;
+    Color caret_color(ColorResolutionContext const&) const;
     Clear clear() const;
     ColumnSpan column_span() const;
     struct ContentDataAndQuoteNestingLevel {
@@ -210,7 +210,7 @@ public:
     TextDecorationStyle text_decoration_style() const;
     TextDecorationThickness text_decoration_thickness() const;
     TextTransform text_transform() const;
-    Vector<ShadowData> text_shadow(Layout::Node const&) const;
+    Vector<ShadowData> text_shadow(ColorResolutionContext const&) const;
     TextIndentData text_indent() const;
     TextWrapMode text_wrap_mode() const;
     ListStyleType list_style_type(StyleScope const&) const;
@@ -236,7 +236,7 @@ public:
     JustifySelf justify_self() const;
     Overflow overflow_x() const;
     Overflow overflow_y() const;
-    Vector<ShadowData> box_shadow(Layout::Node const&) const;
+    Vector<ShadowData> box_shadow(ColorResolutionContext const&) const;
     BoxSizing box_sizing() const;
     PointerEvents pointer_events() const;
     Variant<VerticalAlign, LengthPercentage> vertical_align() const;
@@ -321,6 +321,7 @@ public:
     int math_depth() const;
     [[nodiscard]] static CSSPixels normal_line_height(Gfx::FontPixelMetrics const&);
     [[nodiscard]] CSSPixels line_height(FontComputer const&) const;
+    [[nodiscard]] LineHeightData line_height_data(FontComputer const&) const;
     [[nodiscard]] CSSPixels font_size() const;
     double font_weight() const;
     Percentage font_width() const;
@@ -335,7 +336,7 @@ public:
     QuotesData quotes() const;
     Vector<CounterData> counter_data(PropertyID) const;
 
-    ScrollbarColorData scrollbar_color(Layout::NodeWithStyle const& layout_node) const;
+    ScrollbarColorData scrollbar_color(ColorResolutionContext const&) const;
     ScrollbarWidth scrollbar_width() const;
     Resize resize() const;
 
@@ -366,7 +367,7 @@ private:
     ComputedProperties(NonnullRefPtr<Data const>, bool depends_on_viewport_metrics, bool font_metrics_depend_on_viewport_metrics);
 
     Overflow overflow(PropertyID) const;
-    Vector<ShadowData> shadow(PropertyID, Layout::Node const&) const;
+    Vector<ShadowData> shadow(PropertyID, ColorResolutionContext const&) const;
     Position position_value(PropertyID) const;
 
     Data const& data() const { return *m_data; }

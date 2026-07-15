@@ -618,7 +618,9 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     RefPtr<NodeWithStyle> pseudo_element_node;
     if (pseudo_element_display.is_contents()) {
         pseudo_element_node = make_ref_counted<InlineNode>(document, nullptr, *pseudo_element_style);
-        pseudo_element_node->mutable_computed_values().set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
+        pseudo_element_node->modify_computed_values([](auto& values) {
+            values.set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
+        });
     } else {
         pseudo_element_node = DOM::Element::create_layout_node_for_display_type(document, pseudo_element_display, *pseudo_element_style, nullptr);
         if (!pseudo_element_node)
@@ -649,13 +651,17 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     element.set_synthetic_pseudo_element_node({}, pseudo_element, pseudo_element_node);
     if (insertion_mode.has_value())
         insert_node_into_inline_or_block_ancestor(*pseudo_element_node, pseudo_element_node->display(), insertion_mode.value());
-    pseudo_element_node->mutable_computed_values().set_content(pseudo_element_content);
+    pseudo_element_node->modify_computed_values([&](auto& values) {
+        values.set_content(pseudo_element_content);
+    });
 
     CSS::resolve_counters(element_reference);
     // Now that we have counters, we can compute the content for real. Which is silly.
     if (pseudo_element_content.type == CSS::ContentData::Type::List) {
         auto [new_content, _] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
-        pseudo_element_node->mutable_computed_values().set_content(new_content);
+        pseudo_element_node->modify_computed_values([&](auto& values) {
+            values.set_content(new_content);
+        });
 
         // FIXME: Handle images, and multiple values
         if (new_content.type == CSS::ContentData::Type::List) {
@@ -960,7 +966,9 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             display = CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow);
             if (auto* style_parent = display_contents_style_parent_for_text_node(text_node); style_parent && display_contents_text_needs_style_wrapper(text_node, *style_parent)) {
                 auto wrapper = make_ref_counted<Layout::InlineNode>(document, nullptr, *style_parent->computed_properties());
-                wrapper->mutable_computed_values().set_display(display);
+                wrapper->modify_computed_values([&](auto& values) {
+                    values.set_display(display);
+                });
                 wrapper->set_children_are_inline(true);
                 wrapper->append_child(*layout_node);
                 layout_node = move(wrapper);
@@ -974,8 +982,9 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     if (layout_node->is_replaced_element()) {
         if (auto adjusted_display = adjusted_table_display_for_replaced_element(display); adjusted_display.has_value()) {
             display = *adjusted_display;
-            auto& computed_values = as<NodeWithStyle>(*layout_node).mutable_computed_values();
-            computed_values.set_display(display);
+            as<NodeWithStyle>(*layout_node).modify_computed_values([&](auto& values) {
+                values.set_display(display);
+            });
         }
     }
 
@@ -1301,17 +1310,19 @@ void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, Layo
         // If the box does not overflow in the vertical axis, then it is centered vertically.
         // FIXME: Only apply alignment when box overflows
         auto flex_wrapper = parent.create_anonymous_wrapper();
-        auto& flex_computed_values = flex_wrapper->mutable_computed_values();
-        flex_computed_values.set_display(CSS::Display { CSS::DisplayOutside::Block, CSS::DisplayInside::Flex });
-        flex_computed_values.set_justify_content(CSS::JustifyContent::Center);
-        flex_computed_values.set_flex_direction(CSS::FlexDirection::Column);
-        flex_computed_values.set_height(CSS::Size::make_percentage(CSS::Percentage(100)));
+        flex_wrapper->modify_computed_values([](auto& values) {
+            values.set_display(CSS::Display { CSS::DisplayOutside::Block, CSS::DisplayInside::Flex });
+            values.set_justify_content(CSS::JustifyContent::Center);
+            values.set_flex_direction(CSS::FlexDirection::Column);
+            values.set_height(CSS::Size::make_percentage(CSS::Percentage(100)));
+        });
 
         auto content_box_wrapper = parent.create_anonymous_wrapper();
-        auto& content_computed_values = content_box_wrapper->mutable_computed_values();
         // Let percentage-sized descendants shrink to fixed-height buttons instead of the flex
         // item's automatic minimum size.
-        content_computed_values.set_min_height(CSS::Size::make_px(CSSPixels(0)));
+        content_box_wrapper->modify_computed_values([](auto& values) {
+            values.set_min_height(CSS::Size::make_px(CSSPixels(0)));
+        });
         content_box_wrapper->set_children_are_inline(parent.children_are_inline());
 
         Vector<NonnullRefPtr<Node>> sequence;
@@ -1430,8 +1441,9 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, Layout:
     if (auto* fieldset_box = as_if<FieldSetBox>(layout_node)) {
         if (auto legend = fieldset_box->rendered_legend()) {
             auto wrapper = fieldset_box->create_anonymous_wrapper();
-            auto& wrapper_mutable_values = wrapper->mutable_computed_values();
-            wrapper_mutable_values.set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
+            wrapper->modify_computed_values([](auto& values) {
+                values.set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
+            });
 
             // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
             // The following properties are expected to inherit from the fieldset element:
@@ -1440,13 +1452,14 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, Layout:
             //     grid-column-gap, grid-row-gap, grid-template-areas, grid-template-columns, grid-template-rows),
             //     justify-content, justify-items, overflow, padding, text-overflow, unicode-bidi
             // FIXME: Transfer all of these properties, not just overflow.
-            auto& fieldset_mutable_values = fieldset_box->mutable_computed_values();
-
-            wrapper_mutable_values.set_overflow_x(fieldset_box->computed_values().overflow_x());
-            fieldset_mutable_values.set_overflow_x(CSS::InitialValues::overflow());
-
-            wrapper_mutable_values.set_overflow_y(fieldset_box->computed_values().overflow_y());
-            fieldset_mutable_values.set_overflow_y(CSS::InitialValues::overflow());
+            wrapper->modify_computed_values([&](auto& values) {
+                values.set_overflow_x(fieldset_box->computed_values().overflow_x());
+                values.set_overflow_y(fieldset_box->computed_values().overflow_y());
+            });
+            fieldset_box->modify_computed_values([](auto& values) {
+                values.set_overflow_x(CSS::InitialValues::overflow());
+                values.set_overflow_y(CSS::InitialValues::overflow());
+            });
 
             for (auto child = fieldset_box->first_child(); child;) {
                 auto next = child->next_sibling();
@@ -1719,9 +1732,9 @@ static void wrap_in_anonymous(Vector<NonnullRefPtr<Node>>& sequence, Node* neare
 {
     VERIFY(!sequence.is_empty());
     auto& parent = *sequence.first()->parent();
-    auto computed_values = parent.computed_values().clone_inherited_values();
-    static_cast<CSS::MutableComputedValues&>(*computed_values).set_display(display);
-    auto wrapper = make_ref_counted<WrapperBoxType>(parent.document(), nullptr, move(computed_values));
+    auto builder = CSS::ComputedValues::Builder::create_inheriting_from(parent.computed_values());
+    builder->set_display(display);
+    auto wrapper = make_ref_counted<WrapperBoxType>(parent.document(), nullptr, builder.build());
     for (auto& child : sequence) {
         parent.remove_child(*child);
         wrapper->append_child(*child);
@@ -1836,8 +1849,9 @@ Vector<NonnullRefPtr<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& 
         auto nearest_sibling = table_box->next_sibling();
         auto& parent = *table_box->parent();
 
-        auto wrapper_computed_values = table_box->computed_values().clone_inherited_values();
-        table_box->transfer_table_box_computed_values_to_wrapper_computed_values(*wrapper_computed_values);
+        auto builder = CSS::ComputedValues::Builder::create_inheriting_from(table_box->computed_values());
+        table_box->transfer_table_box_computed_values_to_wrapper_computed_values(*builder.operator->());
+        auto wrapper_computed_values = builder.build();
 
         if (parent.is_table_wrapper()) {
             auto& existing_wrapper = static_cast<TableWrapper&>(parent);
@@ -1867,12 +1881,11 @@ static void fixup_row(Box& row_box, TableGrid const& table_grid, size_t row_inde
         if (table_grid.occupancy_grid().contains({ column_index, row_index }))
             continue;
 
-        auto computed_values = row_box.computed_values().clone_inherited_values();
-        auto& mutable_computed_values = static_cast<CSS::MutableComputedValues&>(*computed_values);
-        mutable_computed_values.set_display(Web::CSS::Display { CSS::DisplayInternal::TableCell });
+        auto builder = CSS::ComputedValues::Builder::create_inheriting_from(row_box.computed_values());
+        builder->set_display(Web::CSS::Display { CSS::DisplayInternal::TableCell });
         // Ensure that the cell (with zero content height) will have the same height as the row by setting vertical-align to middle.
-        mutable_computed_values.set_vertical_align(CSS::VerticalAlign::Middle);
-        auto cell_box = make_ref_counted<BlockContainer>(row_box.document(), nullptr, move(computed_values));
+        builder->set_vertical_align(CSS::VerticalAlign::Middle);
+        auto cell_box = make_ref_counted<BlockContainer>(row_box.document(), nullptr, builder.build());
         row_box.append_child(cell_box);
     }
 }

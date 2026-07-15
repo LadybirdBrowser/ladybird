@@ -10,6 +10,7 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
+#include <AK/RefCounted.h>
 #include <AK/Utf16FlyString.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/InterpolationColorSpace.h>
@@ -537,6 +538,13 @@ struct TextDecorationThickness {
     Variant<Auto, FromFont, LengthPercentage> value;
 };
 
+struct LineHeightData {
+    struct Normal { };
+
+    Variant<Normal, double, CSSPixels> computed_value { Normal {} };
+    CSSPixels used_value { InitialValues::line_height() };
+};
+
 // FIXME: Find a better place for this helper.
 inline Gfx::ScalingMode to_gfx_scaling_mode(ImageRendering css_value, Gfx::IntSize source, Gfx::IntSize target)
 {
@@ -567,13 +575,15 @@ inline Gfx::InterpolationColorSpace to_interpolation_color_space(ColorInterpolat
     VERIFY_NOT_REACHED();
 }
 
-class ComputedValues {
+class ComputedValues : public RefCounted<ComputedValues> {
     AK_MAKE_NONCOPYABLE(ComputedValues);
     AK_MAKE_NONMOVABLE(ComputedValues);
 
 public:
+    class Builder;
+
     ComputedValues() = default;
-    ~ComputedValues() = default;
+    virtual ~ComputedValues() = default;
 
     AspectRatio aspect_ratio() const { return m_noninherited.aspect_ratio; }
     BoxSizing box_sizing_for_aspect_ratio() const
@@ -794,7 +804,8 @@ public:
     double font_weight() const { return m_inherited.font_weight; }
     Optional<Utf16FlyString> font_language_override() const { return m_inherited.font_language_override; }
     HashMap<Utf16FlyString, double> font_variation_settings() const { return m_inherited.font_variation_settings; }
-    CSSPixels line_height() const { return m_inherited.line_height; }
+    CSSPixels line_height() const { return m_inherited.line_height.used_value; }
+    LineHeightData const& line_height_data() const { return m_inherited.line_height; }
 
     Color outline_color() const { return m_noninherited.outline_color; }
     CSSPixels outline_offset() const { return m_noninherited.outline_offset; }
@@ -814,14 +825,9 @@ public:
     Resize resize() const { return m_noninherited.resize; }
     WillChange const& will_change() const { return m_noninherited.will_change; }
 
-    NonnullOwnPtr<ComputedValues> clone_inherited_values() const
-    {
-        auto clone = make<ComputedValues>();
-        clone->m_inherited = m_inherited;
-        return clone;
-    }
-
 protected:
+    void inherit_from(ComputedValues const& other) { m_inherited = other.m_inherited; }
+
     struct InheritedValues {
         Color caret_color { InitialValues::caret_color() };
         CSSPixels font_size { InitialValues::font_size() };
@@ -829,7 +835,7 @@ protected:
         double font_weight { InitialValues::font_weight() };
         Optional<Utf16FlyString> font_language_override;
         HashMap<Utf16FlyString, double> font_variation_settings;
-        CSSPixels line_height { InitialValues::line_height() };
+        LineHeightData line_height;
         BorderCollapse border_collapse { InitialValues::border_collapse() };
         CaptionSide caption_side { InitialValues::caption_side() };
         EmptyCells empty_cells { InitialValues::empty_cells() };
@@ -1023,14 +1029,11 @@ protected:
     NonInheritedValues m_noninherited;
 };
 
-class ImmutableComputedValues final : public ComputedValues {
-};
-
 class MutableComputedValues final : public ComputedValues {
 public:
     void inherit_from(ComputedValues const& other)
     {
-        m_inherited = static_cast<MutableComputedValues const&>(other).m_inherited;
+        ComputedValues::inherit_from(other);
     }
 
     void set_aspect_ratio(AspectRatio aspect_ratio) { m_noninherited.aspect_ratio = move(aspect_ratio); }
@@ -1040,7 +1043,7 @@ public:
     void set_font_weight(double font_weight) { m_inherited.font_weight = font_weight; }
     void set_font_language_override(Optional<Utf16FlyString> font_language_override) { m_inherited.font_language_override = move(font_language_override); }
     void set_font_variation_settings(HashMap<Utf16FlyString, double> value) { m_inherited.font_variation_settings = move(value); }
-    void set_line_height(CSSPixels line_height) { m_inherited.line_height = line_height; }
+    void set_line_height(LineHeightData line_height) { m_inherited.line_height = move(line_height); }
     void set_border_spacing_horizontal(CSSPixels border_spacing_horizontal) { m_inherited.border_spacing_horizontal = move(border_spacing_horizontal); }
     void set_border_spacing_vertical(CSSPixels border_spacing_vertical) { m_inherited.border_spacing_vertical = move(border_spacing_vertical); }
     void set_caption_side(CaptionSide caption_side) { m_inherited.caption_side = caption_side; }
@@ -1249,6 +1252,36 @@ public:
     void set_counter_set(Vector<CounterData> value) { m_noninherited.counter_set = move(value); }
 
     void set_will_change(WillChange value) { m_noninherited.will_change = move(value); }
+};
+
+class ComputedValues::Builder {
+public:
+    Builder()
+        : m_values(adopt_ref(*new MutableComputedValues))
+    {
+    }
+
+    explicit Builder(ComputedValues const& values)
+        : Builder()
+    {
+        m_values->m_inherited = values.m_inherited;
+        m_values->m_noninherited = values.m_noninherited;
+    }
+
+    static Builder create_inheriting_from(ComputedValues const& values)
+    {
+        Builder builder;
+        builder.m_values->m_inherited = values.m_inherited;
+        return builder;
+    }
+
+    MutableComputedValues* operator->() { return m_values.ptr(); }
+    MutableComputedValues const* operator->() const { return m_values.ptr(); }
+
+    NonnullRefPtr<ComputedValues> build() { return m_values; }
+
+private:
+    NonnullRefPtr<MutableComputedValues> m_values;
 };
 
 }

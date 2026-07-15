@@ -2293,11 +2293,13 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
     };
 
     auto const& existing_inset = box.computed_values().inset();
-    box.mutable_computed_values().set_inset({
-        resolve_inset(top_contains_anchor, top, existing_inset.top(), CSS::PropertyID::Top, false, false),
-        resolve_inset(right_contains_anchor, right, existing_inset.right(), CSS::PropertyID::Right, true, true),
-        resolve_inset(bottom_contains_anchor, bottom, existing_inset.bottom(), CSS::PropertyID::Bottom, true, false),
-        resolve_inset(left_contains_anchor, left, existing_inset.left(), CSS::PropertyID::Left, false, true),
+    box.modify_computed_values([&](auto& values) {
+        values.set_inset({
+            resolve_inset(top_contains_anchor, top, existing_inset.top(), CSS::PropertyID::Top, false, false),
+            resolve_inset(right_contains_anchor, right, existing_inset.right(), CSS::PropertyID::Right, true, true),
+            resolve_inset(bottom_contains_anchor, bottom, existing_inset.bottom(), CSS::PropertyID::Bottom, true, false),
+            resolve_inset(left_contains_anchor, left, existing_inset.left(), CSS::PropertyID::Left, false, true),
+        });
     });
 
     if (compensates_for_scroll_in_x || compensates_for_scroll_in_y)

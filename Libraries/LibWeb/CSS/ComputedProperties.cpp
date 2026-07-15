@@ -624,6 +624,22 @@ CSSPixels ComputedProperties::line_height(FontComputer const& font_computer) con
     VERIFY_NOT_REACHED();
 }
 
+LineHeightData ComputedProperties::line_height_data(FontComputer const& font_computer) const
+{
+    auto const& value = property(PropertyID::LineHeight);
+    LineHeightData data { .used_value = line_height(font_computer) };
+
+    if (value.is_keyword() && value.to_keyword() == Keyword::Normal) {
+        data.computed_value = LineHeightData::Normal {};
+    } else if (value.is_number()) {
+        data.computed_value = value.as_number().number();
+    } else {
+        data.computed_value = value.as_length().length().absolute_length_to_px();
+    }
+
+    return data;
+}
+
 Optional<int> ComputedProperties::z_index() const
 {
     auto const& value = property(PropertyID::ZIndex);
@@ -1439,14 +1455,14 @@ Float ComputedProperties::float_() const
     return keyword_to_float(value.to_keyword()).release_value();
 }
 
-Color ComputedProperties::caret_color(Layout::NodeWithStyle const& node) const
+Color ComputedProperties::caret_color(ColorResolutionContext const& color_resolution_context) const
 {
     auto const& value = property(PropertyID::CaretColor);
     if (value.is_keyword() && value.to_keyword() == Keyword::Auto)
-        return node.computed_values().color();
+        return color_resolution_context.current_color.value_or(InitialValues::color());
 
     if (value.has_color())
-        return value.to_color(ColorResolutionContext::for_layout_node_with_style(node)).value();
+        return value.to_color(color_resolution_context).value();
 
     return InitialValues::caret_color();
 }
@@ -1701,11 +1717,11 @@ Overflow ComputedProperties::overflow(PropertyID property_id) const
     return keyword_to_overflow(value.to_keyword()).release_value();
 }
 
-Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, Layout::Node const& layout_node) const
+Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, ColorResolutionContext const& color_resolution_context) const
 {
     auto const& value = property(property_id);
 
-    auto make_shadow_data = [&layout_node](ShadowStyleValue const& value) -> Optional<ShadowData> {
+    auto make_shadow_data = [&color_resolution_context](ShadowStyleValue const& value) -> Optional<ShadowData> {
         auto offset_x = Length::from_style_value(value.offset_x(), {}).absolute_length_to_px();
         auto offset_y = Length::from_style_value(value.offset_y(), {}).absolute_length_to_px();
         auto blur_radius = Length::from_style_value(value.blur_radius(), {}).absolute_length_to_px();
@@ -1715,7 +1731,7 @@ Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, Layout::No
             offset_y,
             blur_radius,
             spread_distance,
-            value.color()->to_color(ColorResolutionContext::for_layout_node_with_style(as<Layout::NodeWithStyle>(layout_node))).value(),
+            value.color()->to_color(color_resolution_context).value(),
             value.placement()
         };
     };
@@ -1737,14 +1753,14 @@ Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, Layout::No
     return shadow_data;
 }
 
-Vector<ShadowData> ComputedProperties::box_shadow(Layout::Node const& layout_node) const
+Vector<ShadowData> ComputedProperties::box_shadow(ColorResolutionContext const& color_resolution_context) const
 {
-    return shadow(PropertyID::BoxShadow, layout_node);
+    return shadow(PropertyID::BoxShadow, color_resolution_context);
 }
 
-Vector<ShadowData> ComputedProperties::text_shadow(Layout::Node const& layout_node) const
+Vector<ShadowData> ComputedProperties::text_shadow(ColorResolutionContext const& color_resolution_context) const
 {
-    return shadow(PropertyID::TextShadow, layout_node);
+    return shadow(PropertyID::TextShadow, color_resolution_context);
 }
 
 TextIndentData ComputedProperties::text_indent() const
@@ -2561,7 +2577,7 @@ Vector<CounterData> ComputedProperties::counter_data(PropertyID property_id) con
     return {};
 }
 
-ScrollbarColorData ComputedProperties::scrollbar_color(Layout::NodeWithStyle const& layout_node) const
+ScrollbarColorData ComputedProperties::scrollbar_color(ColorResolutionContext const& color_resolution_context) const
 {
     auto const& value = property(PropertyID::ScrollbarColor);
     if (value.is_keyword() && value.as_keyword().keyword() == Keyword::Auto)
@@ -2569,8 +2585,8 @@ ScrollbarColorData ComputedProperties::scrollbar_color(Layout::NodeWithStyle con
 
     if (value.is_scrollbar_color()) {
         auto& scrollbar_color_value = value.as_scrollbar_color();
-        auto thumb_color = scrollbar_color_value.thumb_color()->to_color(ColorResolutionContext::for_layout_node_with_style(layout_node)).value();
-        auto track_color = scrollbar_color_value.track_color()->to_color(ColorResolutionContext::for_layout_node_with_style(layout_node)).value();
+        auto thumb_color = scrollbar_color_value.thumb_color()->to_color(color_resolution_context).value();
+        auto track_color = scrollbar_color_value.track_color()->to_color(color_resolution_context).value();
         return {
             .thumb_color = thumb_color,
             .track_color = track_color,

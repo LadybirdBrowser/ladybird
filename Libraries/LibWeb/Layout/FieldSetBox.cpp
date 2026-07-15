@@ -17,7 +17,9 @@ FieldSetBox::FieldSetBox(DOM::Document& document, DOM::Element& element, CSS::Co
     // If the computed outer display type is inline, the fieldset is expected to behave as inline-block. Otherwise, it
     // is expected to behave as flow-root. This does not change the computed value.
     if (display().is_flow_inside())
-        mutable_computed_values().set_display(CSS::Display { display().outside(), CSS::DisplayInside::FlowRoot });
+        modify_computed_values([&](auto& values) {
+            values.set_display(CSS::Display { display().outside(), CSS::DisplayInside::FlowRoot });
+        });
 }
 
 FieldSetBox::~FieldSetBox() = default;
