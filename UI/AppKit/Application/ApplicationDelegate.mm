@@ -182,11 +182,16 @@
     auto message = MUST(String::formatted("DevTools is enabled on port {}", WebView::Application::browser_options().devtools_port));
 
     [self.info_bar showWithMessage:Ladybird::string_to_ns_string(message)
-                dismissButtonTitle:@"Disable"
-              dismissButtonClicked:^{
-                  MUST(WebView::Application::the().toggle_devtools_enabled());
-              }
-                         activeTab:self.active_tab];
+        actionButtonTitle:@"Open Client"
+        actionButtonClicked:^{
+            if (auto result = WebView::Application::the().launch_devtools_client(); result.is_error())
+                WebView::Application::the().display_error_dialog(MUST(String::formatted("Unable to launch the DevTools client: {}", result.error())));
+        }
+        dismissButtonTitle:@"Disable"
+        dismissButtonClicked:^{
+            MUST(WebView::Application::the().toggle_devtools_enabled());
+        }
+        activeTab:self.active_tab];
 }
 
 - (void)onDevtoolsDisabled
