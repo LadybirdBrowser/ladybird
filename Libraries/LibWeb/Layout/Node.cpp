@@ -1694,8 +1694,14 @@ bool NodeWithStyleAndBoxModelMetrics::is_inline_flow_interrupting_block() const
 
 void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason)
 {
-    if (m_needs_layout_update)
-        return;
+    if (m_needs_layout_update) {
+        // A dirty node normally implies already-dirty ancestors, but a partial relayout root
+        // was marked without dirtying its ancestors, so a new invalidation arriving on the
+        // root itself must still propagate to them.
+        bool is_partial_relayout_root_candidate = is_svg_svg_box() && !(parent() && (parent()->is_svg_box() || parent()->is_svg_svg_box()));
+        if (!is_partial_relayout_root_candidate)
+            return;
+    }
 
     if constexpr (UPDATE_LAYOUT_DEBUG) {
         // NOTE: We check some conditions here to avoid debug spam in documents that don't do layout.
