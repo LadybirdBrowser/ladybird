@@ -34,6 +34,8 @@ public:
 
     void set_name(Utf16String const& name) { m_name = Utf16FlyString { name }; }
 
+    virtual Optional<JS::Value> item_value(size_t index) const override;
+
 private:
     CSSKeyframesRule(JS::Realm&, Utf16FlyString name, GC::Ref<CSSRuleList> keyframes);
     virtual void visit_edges(Visitor&) override;

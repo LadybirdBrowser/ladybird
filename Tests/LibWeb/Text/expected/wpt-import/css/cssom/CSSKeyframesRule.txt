@@ -2,6 +2,7 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
+1 Pass
+1 Fail
 Fail	name, cssRules, appendRule, findRule, deleteRule
-Fail	indexed getter, length
+Pass	indexed getter, length

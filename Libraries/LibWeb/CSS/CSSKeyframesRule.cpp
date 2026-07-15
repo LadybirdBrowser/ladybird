@@ -26,6 +26,8 @@ CSSKeyframesRule::CSSKeyframesRule(JS::Realm& realm, Utf16FlyString name, GC::Re
     , m_name(move(name))
     , m_rules(move(keyframes))
 {
+    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = true };
+
     for (auto& rule : *m_rules)
         rule->set_parent_rule(this);
 }
@@ -58,6 +60,11 @@ Utf16String CSSKeyframesRule::serialized() const
 WebIDL::UnsignedLong CSSKeyframesRule::length() const
 {
     return m_rules->length();
+}
+
+Optional<JS::Value> CSSKeyframesRule::item_value(size_t index) const
+{
+    return m_rules->item_value(index);
 }
 
 void CSSKeyframesRule::dump(StringBuilder& builder, int indent_levels) const
