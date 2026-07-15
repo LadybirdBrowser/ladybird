@@ -119,14 +119,18 @@ static Optional<Gfx::AffineTransform> svg_to_css_pixels_transform(Paintable cons
     return {};
 }
 
+static bool computed_values_have_transform(CSS::ComputedValues const& computed_values)
+{
+    return !computed_values.transformations().is_empty()
+        || !computed_values.rotate().is_null()
+        || !computed_values.translate().is_null()
+        || !computed_values.scale().is_null();
+}
+
 // https://drafts.csswg.org/css-transforms-2/#ctm
 Optional<TransformData> compute_transform(Paintable const& paintable_box, CSS::ComputedValues const& computed_values, double pixel_ratio)
 {
-    auto has_transform = !computed_values.transformations().is_empty()
-        || computed_values.rotate()
-        || computed_values.translate()
-        || computed_values.scale();
-    if (!has_transform || !paintable_box.layout_node().is_transformable())
+    if (!computed_values_have_transform(computed_values) || !paintable_box.layout_node().is_transformable())
         return {};
 
     // The transformation matrix is computed from the transform, transform-origin, translate, rotate, scale, and
@@ -436,15 +440,21 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         if (auto effects = compute_effects_data(paintable_box, computed_values, pixel_ratio); effects.has_value())
             append_to_own_and_positioned_descendant_contexts(effects.value());
 
-        if (auto transform_data = compute_transform(paintable_box, computed_values, pixel_ratio); transform_data.has_value()) {
-            paintable_box.set_has_non_invertible_css_transform(!transform_data->matrix.is_invertible());
-            own_state = append_node(own_state, *transform_data);
+        if (computed_values_have_transform(computed_values)) {
+            if (auto transform_data = compute_transform(paintable_box, computed_values, pixel_ratio); transform_data.has_value()) {
+                paintable_box.set_has_non_invertible_css_transform(!transform_data->matrix.is_invertible());
+                own_state = append_node(own_state, *transform_data);
+            } else {
+                paintable_box.set_has_non_invertible_css_transform(false);
+            }
         } else {
             paintable_box.set_has_non_invertible_css_transform(false);
         }
 
-        if (auto css_clip = compute_css_clip_data(paintable_box, computed_values, converter); css_clip.has_value())
-            append_to_own_and_positioned_descendant_contexts(css_clip.value());
+        if (computed_values.clip().is_rect()) {
+            if (auto css_clip = compute_css_clip_data(paintable_box, computed_values, converter); css_clip.has_value())
+                append_to_own_and_positioned_descendant_contexts(css_clip.value());
+        }
 
         if (auto clip_path_data = compute_basic_shape_clip_path_data(paintable_box, computed_values, converter, scale); clip_path_data.has_value())
             append_to_own_and_positioned_descendant_contexts(clip_path_data.value());
@@ -502,11 +512,19 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         // Build state for descendants: own state + perspective + clip + scroll.
         VisualContextIndex state_for_descendants = own_state;
 
-        if (auto perspective_data = compute_perspective_data(paintable_box, computed_values, scale); perspective_data.has_value())
-            state_for_descendants = append_node(state_for_descendants, *perspective_data);
+        if (computed_values.perspective().has_value()) {
+            if (auto perspective_data = compute_perspective_data(paintable_box, computed_values, scale); perspective_data.has_value())
+                state_for_descendants = append_node(state_for_descendants, *perspective_data);
+        }
 
-        if (auto clip_data = compute_clip_data(paintable_box, computed_values, converter); clip_data.has_value())
-            state_for_descendants = append_node(state_for_descendants, clip_data.value());
+        auto may_have_clip = computed_values.overflow_x() != CSS::Overflow::Visible
+            || computed_values.overflow_y() != CSS::Overflow::Visible
+            || computed_values.contain().paint_containment
+            || computed_values.content_visibility() == CSS::ContentVisibility::Auto;
+        if (may_have_clip) {
+            if (auto clip_data = compute_clip_data(paintable_box, computed_values, converter); clip_data.has_value())
+                state_for_descendants = append_node(state_for_descendants, clip_data.value());
+        }
 
         if (paintable_box.own_scroll_frame_index().value()) {
             auto is_sticky_without_scrollable_overflow = paintable_box.is_sticky_position() && paintable_box.enclosing_scroll_frame_index() == paintable_box.own_scroll_frame_index();
