@@ -4468,30 +4468,6 @@ unsafe fn utf16_namespace_uri_from_ffi(
     Some(unsafe { utf16_string_from_ffi(ptr, len) })
 }
 
-unsafe fn owned_attributes_from_ffi(
-    attributes: *const RustFfiHtmlParserAttribute,
-    attribute_count: usize,
-) -> Vec<OwnedAttribute> {
-    if attributes.is_null() || attribute_count == 0 {
-        return Vec::new();
-    }
-
-    let attributes = unsafe { std::slice::from_raw_parts(attributes, attribute_count) };
-    attributes
-        .iter()
-        .map(|attribute| OwnedAttribute {
-            local_name: unsafe { utf16_string_from_ffi(attribute.local_name_ptr, attribute.local_name_len) },
-            prefix: if attribute.prefix_len == 0 {
-                None
-            } else {
-                Some(unsafe { utf16_string_from_ffi(attribute.prefix_ptr, attribute.prefix_len) })
-            },
-            namespace_: attribute.namespace_,
-            value: unsafe { utf16_string_from_ffi(attribute.value_ptr, attribute.value_len) },
-        })
-        .collect()
-}
-
 unsafe fn owned_context_attributes_from_ffi(
     attributes: *const RustFfiHtmlParserContextAttribute,
     attribute_count: usize,
