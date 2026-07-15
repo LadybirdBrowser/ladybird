@@ -784,6 +784,20 @@ TraversalDecision TreeBuilder::clear_stale_layout_and_paint_node(DOM::Node& node
     return TraversalDecision::Continue;
 }
 
+static bool element_has_an_unrendered_flat_tree_ancestor(DOM::Element const& element)
+{
+    for (auto const* ancestor = element.flat_tree_parent(); ancestor; ancestor = ancestor->flat_tree_parent()) {
+        auto const* ancestor_element = as_if<DOM::Element>(*ancestor);
+        if (!ancestor_element)
+            continue;
+        // Null style means the style update pass skipped a display:none subtree.
+        auto ancestor_style = ancestor_element->computed_properties();
+        if (!ancestor_style || ancestor_style->display().is_none())
+            return true;
+    }
+    return false;
+}
+
 void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& context, MustCreateSubtree must_create_subtree)
 {
     // NB: Called during layout tree construction.
@@ -1063,8 +1077,15 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 // generate boxes as if they were siblings of the root element.
                 TemporaryChange<bool> layout_mask(context.layout_top_layer, true);
                 for (auto const& top_layer_element : document.top_layer_elements()) {
-                    if (top_layer_element->rendered_in_top_layer())
-                        update_layout_tree(top_layer_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
+                    if (!top_layer_element->rendered_in_top_layer())
+                        continue;
+                    if (element_has_an_unrendered_flat_tree_ancestor(top_layer_element)) {
+                        top_layer_element->for_each_shadow_including_inclusive_descendant([&](auto& node) {
+                            return clear_stale_layout_and_paint_node(node, top_layer_element.ptr());
+                        });
+                        continue;
+                    }
+                    update_layout_tree(top_layer_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
                 }
             }
             pop_parent();

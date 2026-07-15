@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/top-layer-element-inside-display-none-subtree-ref.html">
+<style>
+    #visible-marker {
+        width: 100px;
+        height: 100px;
+        background: green;
+    }
+    #hidden-container {
+        display: none;
+    }
+    dialog {
+        position: fixed;
+        left: 0;
+        top: 0;
+        margin: 0;
+        border: 0;
+        padding: 0;
+        width: 100px;
+        height: 100px;
+        background: red;
+    }
+    dialog::backdrop {
+        background: red;
+    }
+</style>
+<div id="visible-marker"></div>
+<div id="hidden-container">
+    <dialog id="dialog"></dialog>
+</div>
+<script>
+    dialog.showModal();
+</script>
