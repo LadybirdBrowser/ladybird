@@ -31,6 +31,10 @@ DevToolsBanner::DevToolsBanner(QWidget* parent)
     layout->addWidget(m_label);
     layout->addStretch();
 
+    auto* launch_client_button = new QPushButton("Open Client", this);
+    connect(launch_client_button, &QPushButton::clicked, this, &DevToolsBanner::launch_client_requested);
+    layout->addWidget(launch_client_button);
+
     auto* disable_button = new QPushButton("Disable", this);
     connect(disable_button, &QPushButton::clicked, this, &DevToolsBanner::disable_requested);
     layout->addWidget(disable_button);
