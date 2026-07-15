@@ -2895,8 +2895,18 @@ void Application::listen_for_network_events(DevTools::TabDescription const& desc
     if (!view.has_value())
         return;
 
-    view->on_network_request_started = [on_request_started = move(on_request_started)](u64 request_id, URL::URL const& url, ByteString const& method, Vector<HTTP::Header> const& headers, ByteBuffer request_body, Optional<String> initiator_type) {
-        on_request_started({ request_id, url.to_string(), MUST(String::from_byte_string(method)), UnixDateTime::now(), headers, move(request_body), move(initiator_type) });
+    view->on_network_request_started = [on_request_started = move(on_request_started)](u64 request_id, URL::URL const& url, ByteString const& method, Vector<HTTP::Header> const& headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request) {
+        on_request_started({
+            .request_id = request_id,
+            .url = url.to_string(),
+            .method = MUST(String::from_byte_string(method)),
+            .start_time = UnixDateTime::now(),
+            .request_headers = headers,
+            .request_body = move(request_body),
+            .initiator_type = move(initiator_type),
+            .referrer_policy = move(referrer_policy),
+            .is_navigation_request = is_navigation_request,
+        });
     };
 
     view->on_network_response_headers_received = [on_response_headers = move(on_response_headers)](u64 request_id, u32 status_code, Optional<String> const& reason_phrase, Vector<HTTP::Header> const& headers, Requests::CameFromCache came_from_cache) {

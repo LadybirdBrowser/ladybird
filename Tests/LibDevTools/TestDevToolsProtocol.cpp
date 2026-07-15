@@ -1262,7 +1262,9 @@ public:
             .start_time = UnixDateTime::from_seconds_since_epoch(20),
             .request_headers = move(request_headers),
             .request_body = move(request_body),
-            .initiator_type = "fetch"_string });
+            .initiator_type = "fetch"_string,
+            .referrer_policy = "strict-origin-when-cross-origin"_string,
+            .is_navigation_request = false });
 
         Vector<HTTP::Header> response_headers;
         response_headers.append({ ByteString::formatted("Content-Type"), ByteString::formatted("application/json") });

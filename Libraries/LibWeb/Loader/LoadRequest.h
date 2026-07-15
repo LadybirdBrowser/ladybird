@@ -17,6 +17,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web {
 
@@ -51,6 +52,12 @@ public:
     Fetch::Infrastructure::Request::Mode request_mode() const { return m_request_mode; }
     void set_request_mode(Fetch::Infrastructure::Request::Mode request_mode) { m_request_mode = request_mode; }
 
+    ReferrerPolicy::ReferrerPolicy referrer_policy() const { return m_referrer_policy; }
+    void set_referrer_policy(ReferrerPolicy::ReferrerPolicy referrer_policy) { m_referrer_policy = referrer_policy; }
+
+    bool is_navigation_request() const { return m_is_navigation_request; }
+    void set_is_navigation_request(bool is_navigation_request) { m_is_navigation_request = is_navigation_request; }
+
     Optional<URL::URL> const& source_url() const { return m_source_url; }
     void set_source_url(URL::URL source_url) { m_source_url = move(source_url); }
 
@@ -74,6 +81,8 @@ private:
     Optional<Fetch::Infrastructure::Request::InitiatorType> m_initiator_type;
     Optional<Fetch::Infrastructure::Request::Destination> m_destination;
     Fetch::Infrastructure::Request::Mode m_request_mode { Fetch::Infrastructure::Request::Mode::NoCORS };
+    ReferrerPolicy::ReferrerPolicy m_referrer_policy { ReferrerPolicy::DEFAULT_REFERRER_POLICY };
+    bool m_is_navigation_request { false };
     Optional<URL::URL> m_source_url;
 };
 

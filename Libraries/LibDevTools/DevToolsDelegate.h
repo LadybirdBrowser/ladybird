@@ -181,6 +181,8 @@ public:
         Vector<HTTP::Header> request_headers;
         ByteBuffer request_body;
         Optional<String> initiator_type;
+        String referrer_policy;
+        bool is_navigation_request { false };
     };
 
     struct NetworkResponseData {

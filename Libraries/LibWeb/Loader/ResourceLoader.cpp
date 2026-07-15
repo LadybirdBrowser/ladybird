@@ -520,7 +520,8 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
         Optional<String> initiator_type_string;
         if (request.initiator_type().has_value())
             initiator_type_string = MUST(Fetch::Infrastructure::initiator_type_to_string(request.initiator_type().value()).view().to_utf8());
-        page->client().page_did_start_network_request(protocol_request->id(), request.url().value(), request.method(), request.headers().headers(), request.body(), move(initiator_type_string));
+        auto referrer_policy = MUST(String::from_utf8(ReferrerPolicy::to_string(request.referrer_policy())));
+        page->client().page_did_start_network_request(protocol_request->id(), request.url().value(), request.method(), request.headers().headers(), request.body(), move(initiator_type_string), referrer_policy, request.is_navigation_request());
     }
 
     ++m_pending_loads;
