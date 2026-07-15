@@ -5279,8 +5279,17 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         page_server.release_blocked_reload.set()
         wait_for_event(page_server.reload_blocked_document_ran, "reload document after crash recovery")
         expect_url(webdriver_port, session_id, "after blocked reload crash recovery", url_reload_blocked, log)
-        expect_current_ui_entry_reload_pending(
-            webdriver_port, session_id, "after blocked reload crash recovery", False, log
+        wait_for_session_history(
+            webdriver_port,
+            session_id,
+            "reload pending clears after blocked reload crash recovery",
+            lambda snapshot: (
+                not history_current_entry(snapshot["ui"])["reloadPending"]
+                and not snapshot["ui"]["waitingToSeedWebContent"]
+                and not snapshot["ui"]["waitingForWebContentSeedAck"]
+                and not snapshot["ui"]["reseedAfterCurrentHistoryLoad"]
+            ),
+            log,
         )
 
         expect_cross_site_fragment_navigation_from_ui_loads_document(
