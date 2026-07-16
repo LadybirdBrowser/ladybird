@@ -17,6 +17,31 @@
 
 namespace WebView {
 
+static constexpr auto s_pages = to_array<WebUI::Page>({
+    { "about"sv, "About URLs"sv, WebUI::PageType::Static },
+    { "bookmarks"sv, "Bookmarks"sv, WebUI::PageType::Dynamic },
+    { "downloads"sv, "Downloads"sv, WebUI::PageType::Dynamic },
+    { "history"sv, "History"sv, WebUI::PageType::Dynamic },
+    { "newtab"sv, "New Tab"sv, WebUI::PageType::Static },
+    { "processes"sv, "Task Manager"sv, WebUI::PageType::Dynamic },
+    { "settings"sv, "Settings"sv, WebUI::PageType::Dynamic },
+    { "version"sv, "Version"sv, WebUI::PageType::Dynamic },
+});
+
+ReadonlySpan<WebUI::Page> WebUI::pages()
+{
+    return s_pages;
+}
+
+Optional<WebUI::Page const&> WebUI::page_for_host(StringView host)
+{
+    for (auto const& page : s_pages) {
+        if (page.host == host)
+            return page;
+    }
+    return {};
+}
+
 template<typename WebUIType>
 static ErrorOr<NonnullRefPtr<WebUIType>> create_web_ui(WebContentClient& client, u64 page_id, String host)
 {
@@ -33,23 +58,27 @@ static ErrorOr<NonnullRefPtr<WebUIType>> create_web_ui(WebContentClient& client,
 
 ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, u64 page_id, String host)
 {
+    auto page = page_for_host(host);
+    if (!page.has_value() || page->type == PageType::Static)
+        return nullptr;
+
     RefPtr<WebUI> web_ui;
 
-    if (host == "bookmarks"sv)
+    if (page->host == "bookmarks"sv)
         web_ui = TRY(create_web_ui<BookmarksUI>(client, page_id, move(host)));
-    else if (host == "downloads"sv)
+    else if (page->host == "downloads"sv)
         web_ui = TRY(create_web_ui<DownloadsUI>(client, page_id, move(host)));
-    else if (host == "history"sv)
+    else if (page->host == "history"sv)
         web_ui = TRY(create_web_ui<HistoryUI>(client, page_id, move(host)));
-    else if (host == "processes"sv)
+    else if (page->host == "processes"sv)
         web_ui = TRY(create_web_ui<ProcessesUI>(client, page_id, move(host)));
-    else if (host == "settings"sv)
+    else if (page->host == "settings"sv)
         web_ui = TRY(create_web_ui<SettingsUI>(client, page_id, move(host)));
-    else if (host == "version"sv)
+    else if (page->host == "version"sv)
         web_ui = TRY(create_web_ui<VersionUI>(client, page_id, move(host)));
 
-    if (web_ui)
-        web_ui->register_interfaces();
+    VERIFY(web_ui);
+    web_ui->register_interfaces();
 
     return web_ui;
 }
