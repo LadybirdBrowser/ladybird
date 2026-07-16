@@ -1589,10 +1589,10 @@ static ThrowCompletionOr<void> set_typed_array_from_array_like(VM& vm, TypedArra
         return vm.throw_completion<RangeError>(ErrorType::TypedArrayInvalidTargetOffset, "finite");
 
     // 7. If srcLength + targetOffset > targetLength, throw a RangeError exception.
-    Checked<size_t> checked = source_length;
-
-    if (target_offset > static_cast<double>(NumericLimits<size_t>::max()))
+    if (target_offset > MAX_ARRAY_LIKE_INDEX)
         return vm.throw_completion<RangeError>(ErrorType::TypedArrayOverflowOrOutOfBounds, "target offset");
+
+    Checked<size_t> checked = source_length;
     checked += static_cast<size_t>(target_offset);
 
     if (checked.has_overflow() || checked.value() > target_length)
