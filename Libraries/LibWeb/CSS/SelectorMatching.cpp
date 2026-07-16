@@ -1104,13 +1104,16 @@ extern "C" bool selector_ffi_is_document_root(void const* element)
     return is<HTML::HTMLHtmlElement>(ffi_element(element));
 }
 
+extern "C" bool selector_ffi_is_shadow_tree_slot(void const* element)
+{
+    auto const* slot = as_if<HTML::HTMLSlotElement>(ffi_element(element));
+    return slot && slot->root().is_shadow_root();
+}
+
 extern "C" CSS::SelectorFFI::ElementAndShadowHost selector_ffi_slotted_parent(void* context, void const* element)
 {
     auto& match_context = rust_match_context(context);
     auto const& target = ffi_element(element);
-    if (auto const* target_as_slot = as_if<HTML::HTMLSlotElement>(target); target_as_slot && target_as_slot->root().is_shadow_root())
-        return {};
-
     for (auto slot = target.assigned_slot_internal(); slot; slot = slot->assigned_slot_internal()) {
         auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(slot->root());
         if (slot_shadow_root != match_context.rule_shadow_root)

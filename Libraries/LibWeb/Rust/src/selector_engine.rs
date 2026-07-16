@@ -376,6 +376,7 @@ pub trait SelectorDom {
     fn has_same_type(&mut self, first: Self::Element, second: Self::Element) -> bool;
     fn is_document_root(&mut self, element: Self::Element) -> bool;
 
+    fn is_shadow_tree_slot(&mut self, element: Self::Element) -> bool;
     fn slotted_parent(&mut self, element: Self::Element) -> Option<(Self::Element, Option<Self::Element>)>;
     fn part_parent(
         &mut self,
@@ -1225,17 +1226,21 @@ fn pseudo_element_transition_target<Dom: SelectorDom>(
         PseudoElementValue::CompoundSelector(slotted_selector)
             if pseudo_element_selector.pseudo_element == PseudoElementType::Slotted =>
         {
-            if target.pseudo_element.is_some()
-                || !matches_selector_internal(
-                    slotted_selector,
-                    target,
-                    shadow_host,
-                    scope,
-                    SelectorKind::Normal,
-                    None,
-                    dom,
-                )
-            {
+            // NB: A slot in a shadow tree can never be a slotted element itself. Bail before
+            //     matching the argument selector, so that matching it doesn't record selector
+            //     involvement metadata on the slot element.
+            if target.pseudo_element.is_some() || dom.is_shadow_tree_slot(target.element) {
+                return None;
+            }
+            if !matches_selector_internal(
+                slotted_selector,
+                target,
+                shadow_host,
+                scope,
+                SelectorKind::Normal,
+                None,
+                dom,
+            ) {
                 return None;
             }
             dom.slotted_parent(target.element)
@@ -1548,6 +1553,7 @@ unsafe extern "C" {
     fn selector_ffi_has_same_type(first: *const c_void, second: *const c_void) -> bool;
     fn selector_ffi_is_document_root(element: *const c_void) -> bool;
 
+    fn selector_ffi_is_shadow_tree_slot(element: *const c_void) -> bool;
     fn selector_ffi_slotted_parent(context: *mut c_void, element: *const c_void) -> FfiElementAndShadowHost;
     fn selector_ffi_part_parent(
         context: *mut c_void,
@@ -1766,6 +1772,10 @@ impl SelectorDom for FfiDom {
 
     fn is_document_root(&mut self, element: FfiElement) -> bool {
         unsafe { selector_ffi_is_document_root(element.0) }
+    }
+
+    fn is_shadow_tree_slot(&mut self, element: FfiElement) -> bool {
+        unsafe { selector_ffi_is_shadow_tree_slot(element.0) }
     }
 
     fn slotted_parent(&mut self, element: FfiElement) -> Option<(FfiElement, Option<FfiElement>)> {
@@ -2389,6 +2399,10 @@ mod tests {
 
         fn is_document_root(&mut self, element: usize) -> bool {
             element == 0
+        }
+
+        fn is_shadow_tree_slot(&mut self, _element: usize) -> bool {
+            false
         }
 
         fn slotted_parent(&mut self, _element: usize) -> Option<(usize, Option<usize>)> {

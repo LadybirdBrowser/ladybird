@@ -153,6 +153,7 @@ extern "C" bool selector_ffi_has_no_element_or_nonempty_text_children(void const
 extern "C" bool selector_ffi_has_same_type(void const* first, void const* second);
 extern "C" bool selector_ffi_is_document_root(void const* element);
 
+extern "C" bool selector_ffi_is_shadow_tree_slot(void const* element);
 extern "C" ElementAndShadowHost selector_ffi_slotted_parent(void* context, void const* element);
 extern "C" ElementAndShadowHost selector_ffi_part_parent(void* context, void const* element, StringView const* identifiers, size_t identifier_count, bool allow_same_shadow_root_scope, void const* shadow_host);
 
