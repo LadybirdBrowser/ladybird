@@ -111,7 +111,10 @@ protected:
         return src_span.slice(src_offset, src_length_override);
     }
 
-    static ErrorOr<ByteBuffer> copy_buffer_source_to_byte_buffer(WebIDL::BufferSource src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override = 0)
+    // The callback's view may point straight into the JS heap: it must not escape the
+    // callback, run script, or allocate on the JS heap while held.
+    template<typename Callback>
+    static ErrorOr<void> with_buffer_source_bytes(WebIDL::BufferSource src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override, Callback&& callback)
     {
         auto array_buffer = src_data.viewed_array_buffer();
         if (!array_buffer || array_buffer->is_detached()) [[unlikely]]
@@ -120,7 +123,8 @@ protected:
         if (src_data.is_out_of_bounds()) {
             if (src_offset != 0 || src_length_override != 0) [[unlikely]]
                 return Error::from_errno(EINVAL);
-            return ByteBuffer::create_uninitialized(0);
+            callback(ReadonlyBytes {});
+            return {};
         }
 
         auto element_size = src_data.element_size();
@@ -148,7 +152,10 @@ protected:
         if (byte_length > array_buffer->byte_length() - byte_offset_in_buffer.value()) [[unlikely]]
             return Error::from_errno(EINVAL);
 
-        return array_buffer->copy_to_byte_buffer(byte_offset_in_buffer.value(), byte_length);
+        array_buffer->with_readonly_bytes(byte_offset_in_buffer.value(), byte_length, [&](ReadonlyBytes bytes) {
+            callback(bytes);
+        });
+        return {};
     }
 
     template<typename T>

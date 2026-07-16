@@ -212,14 +212,15 @@ void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL
 {
     m_context->make_current();
 
-    ByteBuffer src_data_storage;
-    ReadonlyBytes src_data_span;
-    if (!src_data.has<Empty>()) {
-        src_data_storage = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { src_data.downcast<WebIDL::ArrayBufferViewVariant>() }, /* src_offset= */ 0), GL_INVALID_OPERATION);
-        src_data_span = src_data_storage;
+    if (src_data.has<Empty>()) {
+        m_context->tex_image3d_robust_angle(target, level, internalformat, width, height, depth, border, format, type, 0, nullptr);
+        return;
     }
 
-    m_context->tex_image3d_robust_angle(target, level, internalformat, width, height, depth, border, format, type, src_data_span.size(), src_data_span.data());
+    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { src_data.downcast<WebIDL::ArrayBufferViewVariant>() }, /* src_offset= */ 0, /* src_length_override= */ 0, [&](ReadonlyBytes src_data_bytes) {
+        m_context->tex_image3d_robust_angle(target, level, internalformat, width, height, depth, border, format, type, src_data_bytes.size(), src_data_bytes.data());
+    }),
+        GL_INVALID_OPERATION);
 }
 
 void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, TexImageSource source)
@@ -244,9 +245,10 @@ void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL
 {
     m_context->make_current();
 
-    auto src_data_span = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { src_data }, src_offset), GL_INVALID_OPERATION);
-
-    m_context->tex_image3d_robust_angle(target, level, internalformat, width, height, depth, border, format, type, src_data_span.size(), src_data_span.data());
+    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { src_data }, src_offset, /* src_length_override= */ 0, [&](ReadonlyBytes src_data_bytes) {
+        m_context->tex_image3d_robust_angle(target, level, internalformat, width, height, depth, border, format, type, src_data_bytes.size(), src_data_bytes.data());
+    }),
+        GL_INVALID_OPERATION);
 }
 
 void WebGL2RenderingContextImpl::tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, TexImageSource source)
@@ -264,14 +266,15 @@ void WebGL2RenderingContextImpl::tex_sub_image3d(WebIDL::UnsignedLong target, We
 {
     m_context->make_current();
 
-    ByteBuffer src_data_storage;
-    ReadonlyBytes src_data_span;
-    if (!src_data.has<Empty>()) {
-        src_data_storage = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { src_data.downcast<WebIDL::ArrayBufferViewVariant>() }, src_offset), GL_INVALID_OPERATION);
-        src_data_span = src_data_storage;
+    if (src_data.has<Empty>()) {
+        m_context->tex_sub_image3d_robust_angle(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, 0, nullptr);
+        return;
     }
 
-    m_context->tex_sub_image3d_robust_angle(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, src_data_span.size(), src_data_span.data());
+    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { src_data.downcast<WebIDL::ArrayBufferViewVariant>() }, src_offset, /* src_length_override= */ 0, [&](ReadonlyBytes src_data_bytes) {
+        m_context->tex_sub_image3d_robust_angle(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, src_data_bytes.size(), src_data_bytes.data());
+    }),
+        GL_INVALID_OPERATION);
 }
 
 void WebGL2RenderingContextImpl::uniform1ui(GC::Ptr<WebGLUniformLocation> location, WebIDL::UnsignedLong v0)
@@ -1355,8 +1358,10 @@ void WebGL2RenderingContextImpl::compressed_tex_image3d(WebIDL::UnsignedLong tar
         return;
     }
 
-    auto pixels = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { src_data }, src_offset, src_length_override), GL_INVALID_VALUE);
-    m_context->compressed_tex_image3d_robust_angle(target, level, internalformat, width, height, depth, border, pixels.size(), pixels.size(), pixels.data());
+    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { src_data }, src_offset, src_length_override, [&](ReadonlyBytes pixels_bytes) {
+        m_context->compressed_tex_image3d_robust_angle(target, level, internalformat, width, height, depth, border, pixels_bytes.size(), pixels_bytes.size(), pixels_bytes.data());
+    }),
+        GL_INVALID_VALUE);
 }
 
 void WebGL2RenderingContextImpl::compressed_tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, WebIDL::ArrayBufferView src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override)
@@ -1368,8 +1373,10 @@ void WebGL2RenderingContextImpl::compressed_tex_sub_image3d(WebIDL::UnsignedLong
         return;
     }
 
-    auto pixels = SET_ERROR_VALUE_IF_ERROR(copy_buffer_source_to_byte_buffer(WebIDL::BufferSource { src_data }, src_offset, src_length_override), GL_INVALID_VALUE);
-    m_context->compressed_tex_sub_image3d_robust_angle(target, level, xoffset, yoffset, zoffset, width, height, depth, format, pixels.size(), pixels.size(), pixels.data());
+    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { src_data }, src_offset, src_length_override, [&](ReadonlyBytes pixels_bytes) {
+        m_context->compressed_tex_sub_image3d_robust_angle(target, level, xoffset, yoffset, zoffset, width, height, depth, format, pixels_bytes.size(), pixels_bytes.size(), pixels_bytes.data());
+    }),
+        GL_INVALID_VALUE);
 }
 
 }

@@ -34,8 +34,17 @@ struct TestVM {
 struct ExposedWebGLRenderingContextBase : Web::WebGL::WebGLRenderingContextBase {
     WEB_NON_IDL_PLATFORM_OBJECT(ExposedWebGLRenderingContextBase, Web::WebGL::WebGLRenderingContextBase);
 
-    using Web::WebGL::WebGLRenderingContextBase::copy_buffer_source_to_byte_buffer;
+    using Web::WebGL::WebGLRenderingContextBase::with_buffer_source_bytes;
 };
+
+ErrorOr<ByteBuffer> buffer_source_bytes(Web::WebIDL::BufferSource source, u64 src_offset, u32 src_length_override = 0)
+{
+    ByteBuffer bytes;
+    TRY(ExposedWebGLRenderingContextBase::with_buffer_source_bytes(source, src_offset, src_length_override, [&](ReadonlyBytes view) {
+        bytes = MUST(ByteBuffer::copy(view));
+    }));
+    return bytes;
+}
 
 GC::Ref<JS::ArrayBuffer> create_shrunken_resizable_array_buffer(JS::VM& vm)
 {
@@ -129,11 +138,11 @@ TEST_CASE(buffer_source_copy_and_checked_write_handle_in_bounds_views)
     Web::WebIDL::BufferSource typed_array_source { typed_array_view };
     EXPECT_EQ(typed_array_source.byte_length(), 4u);
 
-    auto typed_array_bytes = MUST(ExposedWebGLRenderingContextBase::copy_buffer_source_to_byte_buffer(typed_array_source, 1));
+    auto typed_array_bytes = MUST(buffer_source_bytes(typed_array_source, 1));
     EXPECT_EQ(typed_array_bytes.size(), 2uz);
     EXPECT_EQ(typed_array_bytes[0], 0x16);
     EXPECT_EQ(typed_array_bytes[1], 0x17);
-    EXPECT(ExposedWebGLRenderingContextBase::copy_buffer_source_to_byte_buffer(typed_array_source, 3).is_error());
+    EXPECT(buffer_source_bytes(typed_array_source, 3).is_error());
 
     u8 one_byte = 0xaa;
     EXPECT(typed_array_view.write_checked({ &one_byte, 1 }).is_error());
@@ -149,7 +158,7 @@ TEST_CASE(buffer_source_copy_and_checked_write_handle_in_bounds_views)
     Web::WebIDL::BufferSource data_view_source { data_view_view };
     EXPECT_EQ(data_view_source.byte_length(), 4u);
 
-    auto data_view_bytes = MUST(ExposedWebGLRenderingContextBase::copy_buffer_source_to_byte_buffer(data_view_source, 2, 2));
+    auto data_view_bytes = MUST(buffer_source_bytes(data_view_source, 2, 2));
     EXPECT_EQ(data_view_bytes.size(), 2uz);
     EXPECT_EQ(data_view_bytes[0], 0x1a);
     EXPECT_EQ(data_view_bytes[1], 0x1b);
@@ -164,21 +173,21 @@ TEST_CASE(buffer_source_copy_and_checked_write_handle_in_bounds_views)
     EXPECT_EQ(final_bytes[10], 0xe1);
 }
 
-TEST_CASE(webgl_buffer_source_copy_treats_out_of_bounds_views_as_empty)
+TEST_CASE(webgl_buffer_source_bytes_treats_out_of_bounds_views_as_empty)
 {
     TestVM test_vm;
 
     Web::WebIDL::BufferSource typed_array_source { typed_array_view(*test_vm.vm) };
-    auto typed_array_bytes = MUST(ExposedWebGLRenderingContextBase::copy_buffer_source_to_byte_buffer(typed_array_source, 0));
+    auto typed_array_bytes = MUST(buffer_source_bytes(typed_array_source, 0));
     EXPECT_EQ(typed_array_bytes.size(), 0uz);
-    EXPECT(ExposedWebGLRenderingContextBase::copy_buffer_source_to_byte_buffer(typed_array_source, 1).is_error());
-    EXPECT(ExposedWebGLRenderingContextBase::copy_buffer_source_to_byte_buffer(typed_array_source, 0, 1).is_error());
+    EXPECT(buffer_source_bytes(typed_array_source, 1).is_error());
+    EXPECT(buffer_source_bytes(typed_array_source, 0, 1).is_error());
 
     Web::WebIDL::BufferSource data_view_source { make_data_view(*test_vm.vm) };
-    auto data_view_bytes = MUST(ExposedWebGLRenderingContextBase::copy_buffer_source_to_byte_buffer(data_view_source, 0));
+    auto data_view_bytes = MUST(buffer_source_bytes(data_view_source, 0));
     EXPECT_EQ(data_view_bytes.size(), 0uz);
-    EXPECT(ExposedWebGLRenderingContextBase::copy_buffer_source_to_byte_buffer(data_view_source, 1).is_error());
-    EXPECT(ExposedWebGLRenderingContextBase::copy_buffer_source_to_byte_buffer(data_view_source, 0, 1).is_error());
+    EXPECT(buffer_source_bytes(data_view_source, 1).is_error());
+    EXPECT(buffer_source_bytes(data_view_source, 0, 1).is_error());
 }
 
 TEST_CASE(array_buffer_view_checked_write_handles_out_of_bounds_views)
