@@ -489,6 +489,7 @@ set(SOURCES
     HTML/BrowsingContext.cpp
     HTML/BrowsingContextGroup.cpp
     HTML/Canvas/AbstractCanvasMixin.cpp
+    HTML/Canvas/Canvas2DContextBase.cpp
     HTML/Canvas/CanvasDrawImage.cpp
     HTML/Canvas/CanvasFillStrokeStyles.cpp
     HTML/Canvas/CanvasPath.cpp

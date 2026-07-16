@@ -18,7 +18,7 @@ class CanvasTextDrawingStyles : protected virtual AbstractCanvasMixin {
 public:
     ~CanvasTextDrawingStyles() = default;
     Utf16String font() const;
-    void set_font(Utf16View font);
+    void set_font(Utf16View font) override;
 
     // https://html.spec.whatwg.org/multipage/canvas.html#font-style-source-object
     Variant<DOM::Document*, HTML::WorkerGlobalScope*> get_font_source_for_font_style_source_object(CanvasType& font_style_source_object);
@@ -34,7 +34,7 @@ public:
 
     Utf16String letter_spacing() const;
     void set_letter_spacing(Utf16View);
-    float resolved_letter_spacing() const;
+    float resolved_letter_spacing() const override;
 
 protected:
     CanvasTextDrawingStyles() = default;

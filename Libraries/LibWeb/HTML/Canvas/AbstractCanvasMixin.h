@@ -25,6 +25,8 @@ protected:
     virtual Gfx::Path& mutable_path() = 0;
     virtual Gfx::CanvasCommandList* canvas_command_list() = 0;
     virtual CSS::ComputationContext computation_context_for_drawing_state() const = 0;
+    virtual void set_font(Utf16View font) = 0;
+    virtual float resolved_letter_spacing() const = 0;
     Optional<Color> parse_a_css_color_value(Utf16View value) const;
 };
 

@@ -8,144 +8,28 @@
 
 #pragma once
 
-#include <AK/Optional.h>
-#include <AK/Utf16FlyString.h>
-#include <AK/Utf16String.h>
-#include <LibGfx/Forward.h>
-#include <LibGfx/Path.h>
-#include <LibGfx/TextLayout.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Compositor/Types.h>
-#include <LibWeb/HTML/Canvas/CanvasCompositing.h>
-#include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
-#include <LibWeb/HTML/Canvas/CanvasDrawPath.h>
-#include <LibWeb/HTML/Canvas/CanvasFillStrokeStyles.h>
-#include <LibWeb/HTML/Canvas/CanvasFilters.h>
-#include <LibWeb/HTML/Canvas/CanvasImageData.h>
-#include <LibWeb/HTML/Canvas/CanvasImageSmoothing.h>
-#include <LibWeb/HTML/Canvas/CanvasPath.h>
-#include <LibWeb/HTML/Canvas/CanvasPathDrawingStyles.h>
-#include <LibWeb/HTML/Canvas/CanvasRect.h>
-#include <LibWeb/HTML/Canvas/CanvasSettings.h>
-#include <LibWeb/HTML/Canvas/CanvasShadowStyles.h>
-#include <LibWeb/HTML/Canvas/CanvasState.h>
-#include <LibWeb/HTML/Canvas/CanvasText.h>
+#include <LibWeb/HTML/Canvas/Canvas2DContextBase.h>
 #include <LibWeb/HTML/Canvas/CanvasTextDrawingStyles.h>
-#include <LibWeb/HTML/Canvas/CanvasTransform.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
 class CanvasRenderingContext2D
-    : public Bindings::PlatformObject
-    , public CanvasPath
-    , public CanvasState
-    , public CanvasTransform
-    , public CanvasFillStrokeStyles
-    , public CanvasShadowStyles
-    , public CanvasFilters
-    , public CanvasRect
-    , public CanvasDrawPath
-    , public CanvasText
-    , public CanvasDrawImage
-    , public CanvasImageData
-    , public CanvasImageSmoothing
-    , public CanvasCompositing
-    , public CanvasSettings
-    , public CanvasPathDrawingStyles
+    : public Canvas2DContextBase
     , public CanvasTextDrawingStyles<HTMLCanvasElement> {
 
-    WEB_PLATFORM_OBJECT(CanvasRenderingContext2D, Bindings::PlatformObject);
+    WEB_PLATFORM_OBJECT(CanvasRenderingContext2D, Canvas2DContextBase);
     GC_DECLARE_ALLOCATOR(CanvasRenderingContext2D);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     static JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> create(JS::Realm&, HTMLCanvasElement&, JS::Value options);
 
-    // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
-    bool origin_clean() const { return m_origin_clean; }
     virtual ~CanvasRenderingContext2D() override;
-
-    virtual void fill_rect(float x, float y, float width, float height) override;
-    virtual void stroke_rect(float x, float y, float width, float height) override;
-    virtual void clear_rect(float x, float y, float width, float height) override;
-
-    virtual WebIDL::ExceptionOr<void> draw_image_internal(CanvasImageSource const&, float source_x, float source_y, float source_width, float source_height, float destination_x, float destination_y, float destination_width, float destination_height) override;
-
-    virtual void begin_path() override;
-    virtual void stroke() override;
-    virtual void stroke(Path2D const& path) override;
-
-    virtual void fill_text(Utf16View, float x, float y, Optional<double> max_width) override;
-    virtual void stroke_text(Utf16View, float x, float y, Optional<double> max_width) override;
-
-    virtual void fill(Utf16FlyString const& fill_rule) override;
-    virtual void fill(Path2D& path, Utf16FlyString const& fill_rule) override;
-
-    virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) const override;
-    virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(ImageData const& image_data) const override;
-    virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) override;
-    virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y) override;
-    virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y, float dirty_x, float dirty_y, float dirty_width, float dirty_height) override;
-    WebIDL::ExceptionOr<void> put_pixels_from_an_image_data_onto_a_bitmap(ImageData&, Gfx::CanvasCommandList&, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height);
-
-    virtual void reset_to_default_state() override;
 
     GC::Ref<HTMLCanvasElement> canvas_for_binding() const;
 
-    virtual Bindings::CanvasRenderingContext2DSettings get_context_attributes() const override { return m_context_attributes; }
-
-    virtual GC::Ref<TextMetrics> measure_text(Utf16View) override;
-
-    virtual void clip(Utf16FlyString const& fill_rule) override;
-    virtual void clip(Path2D& path, Utf16FlyString const& fill_rule) override;
-
-    virtual bool is_point_in_path(double x, double y, Utf16FlyString const& fill_rule) override;
-    virtual bool is_point_in_path(Path2D const& path, double x, double y, Utf16FlyString const& fill_rule) override;
-
-    virtual bool image_smoothing_enabled() const override;
-    virtual void set_image_smoothing_enabled(bool) override;
-    virtual Bindings::ImageSmoothingQuality image_smoothing_quality() const override;
-    virtual void set_image_smoothing_quality(Bindings::ImageSmoothingQuality) override;
-
-    virtual float global_alpha() const override;
-    virtual void set_global_alpha(float) override;
-
-    virtual Utf16String global_composite_operation() const override;
-    virtual void set_global_composite_operation(Utf16View) override;
-
-    virtual Utf16String filter() const override;
-    virtual void set_filter(Utf16View) override;
-
-    virtual float shadow_offset_x() const override;
-    virtual void set_shadow_offset_x(float) override;
-    virtual float shadow_offset_y() const override;
-    virtual void set_shadow_offset_y(float) override;
-    virtual float shadow_blur() const override;
-    virtual void set_shadow_blur(float) override;
-    virtual Utf16String shadow_color() const override;
-    virtual void set_shadow_color(Utf16View) override;
-
-    void set_size(Gfx::IntSize const&);
-    void prepare_for_compositing();
-
-    void ensure_backing_storage();
-
-    void discard_backing_storage();
-
-    void notify_backing_storage_lost();
-
-    Optional<Painting::CanvasId> canvas_id() const;
-
-    RefPtr<Gfx::Bitmap> read_pixels(Gfx::IntRect const&);
-
 protected:
-    [[nodiscard]] Gfx::CanvasCommandList* canvas_command_list() override;
     Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() override { return m_element; }
     Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() const override { return m_element; }
-    JS::Realm& my_realm() override { return realm(); }
-    Gfx::Path& mutable_path() override { return path(); }
 
 private:
     CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&, Bindings::CanvasRenderingContext2DSettings);
@@ -153,55 +37,16 @@ private:
     virtual bool is_canvas_rendering_context_2d() const final { return true; }
 
     virtual void initialize(JS::Realm&) override;
-    virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
-    virtual size_t external_memory_size() const override;
 
-    struct PreparedText {
-        Vector<NonnullRefPtr<Gfx::GlyphRun>> glyph_runs;
-        Gfx::TextAlignment physical_alignment;
-        Gfx::FloatRect bounding_box;
-    };
-
-    void did_draw(Gfx::FloatRect const&);
-
-    RefPtr<Gfx::FontCascadeList const> font_cascade_list();
-
-    PreparedText prepare_text(Utf16View, float max_width = INFINITY);
-
-    [[nodiscard]] Gfx::Path rect_path(float x, float y, float width, float height);
-    [[nodiscard]] Gfx::Path text_path(Utf16View, float x, float y, Optional<double> max_width);
-
-    Gfx::Color clear_color() const;
-
-    void stroke_internal(Gfx::Path);
-    void fill_internal(Gfx::Path, Gfx::WindingRule);
-    void clip_internal(Gfx::Path&, Gfx::WindingRule);
-    void paint_shadow_for_fill_internal(Gfx::Path const&, Gfx::WindingRule);
-    void paint_shadow_for_stroke_internal(Gfx::Path const&, Gfx::Path::CapStyle, Gfx::Path::JoinStyle, Vector<float> const&);
-
-    bool ensure_remote_canvas_context();
-
-    bool has_backing_storage() const { return m_transport != nullptr; }
+    virtual void did_draw_hook() override;
+    virtual Page* page_for_compositor() override;
+    virtual void backing_storage_created_hook() override;
+    virtual DOM::EventTarget& context_event_target() override;
+    virtual Gfx::Color resolve_drop_shadow_color(CSS::DropShadowFilterStyleValue const&) const override;
 
     GC::Ref<HTMLCanvasElement> m_element;
-
-    RefPtr<RemoteCanvas2DTransport> m_transport;
-
-    // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
-    bool m_origin_clean { true };
-
-    Gfx::IntSize m_size;
-    Bindings::CanvasRenderingContext2DSettings m_context_attributes;
 };
-
-enum class CanvasImageSourceUsability {
-    Bad,
-    Good,
-};
-
-WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasImageSource const&);
-bool image_is_not_origin_clean(CanvasImageSource const&);
 
 }
 
