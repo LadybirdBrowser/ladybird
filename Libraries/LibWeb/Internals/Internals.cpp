@@ -784,8 +784,7 @@ Utf16String Internals::dump_ui_process_session_history()
 {
     auto& document = window().associated_document();
     if (auto navigable = document.navigable()) {
-        if (auto traversable = navigable->traversable_navigable();
-            traversable && document.page().client().should_report_session_history_updates()) {
+        if (auto traversable = navigable->traversable_navigable(); traversable) {
             auto session_history_snapshot = traversable->create_session_history_snapshot();
             return dump_string_to_utf16(document.page().client().page_did_update_session_history_and_request_ui_process_session_history_for_testing(
                 session_history_snapshot.top_level_session_history_entries,

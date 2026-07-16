@@ -504,10 +504,8 @@ void LocalTraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Fu
         auto entries_for_navigation_api = get_session_history_entries_for_the_navigation_api(*this, m_current_session_history_step);
         active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, active_entry);
 
-        if (page().client().should_report_session_history_updates()) {
-            auto session_history_snapshot = create_session_history_snapshot();
-            page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
-        }
+        auto session_history_snapshot = create_session_history_snapshot();
+        page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
 
         signal->resolve({});
         on_complete->function()();
@@ -1548,21 +1546,19 @@ void ApplyHistoryStepState::complete()
         m_traversable->m_current_session_history_step = used_target_step;
 
         // AD-HOC: Report the updated session history descriptors to the UI-process mirror.
-        if (m_traversable->page().client().should_report_session_history_updates()) {
-            auto save_active_entry_persisted_state = LocalTraversableNavigable::SaveActiveEntryPersistedState::Yes;
-            // NB: During history traversal, the active entry can point at the target
-            //     entry before the active document's queued history-step update has
-            //     restored the target entry's persisted state. Do not overwrite that
-            //     target entry with the document's pre-restoration viewport offset.
-            if (m_navigation_type == Bindings::NavigationType::Traverse) {
-                auto document = m_traversable->active_document();
-                auto active_entry = m_traversable->active_session_history_entry();
-                if (document && active_entry && document->latest_entry() != active_entry)
-                    save_active_entry_persisted_state = LocalTraversableNavigable::SaveActiveEntryPersistedState::No;
-            }
-            auto session_history_snapshot = m_traversable->create_session_history_snapshot(save_active_entry_persisted_state);
-            m_traversable->page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
+        auto save_active_entry_persisted_state = LocalTraversableNavigable::SaveActiveEntryPersistedState::Yes;
+        // NB: During history traversal, the active entry can point at the target
+        //     entry before the active document's queued history-step update has
+        //     restored the target entry's persisted state. Do not overwrite that
+        //     target entry with the document's pre-restoration viewport offset.
+        if (m_navigation_type == Bindings::NavigationType::Traverse) {
+            auto document = m_traversable->active_document();
+            auto active_entry = m_traversable->active_session_history_entry();
+            if (document && active_entry && document->latest_entry() != active_entry)
+                save_active_entry_persisted_state = LocalTraversableNavigable::SaveActiveEntryPersistedState::No;
         }
+        auto session_history_snapshot = m_traversable->create_session_history_snapshot(save_active_entry_persisted_state);
+        m_traversable->page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
 
         VERIFY(m_traversable->m_session_history_entries.size() > 0);
         m_traversable->page().client().page_did_change_url(m_traversable->current_session_history_entry()->url());
@@ -2333,10 +2329,8 @@ void LocalTraversableNavigable::apply_the_reload_history_step(UserNavigationInvo
                 if (auto current_entry = current_session_history_entry(); current_entry && current_entry->document_state()->reload_pending()) {
                     current_entry->document_state()->set_reload_pending(false);
 
-                    if (page().client().should_report_session_history_updates()) {
-                        auto session_history_snapshot = create_session_history_snapshot();
-                        page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
-                    }
+                    auto session_history_snapshot = create_session_history_snapshot();
+                    page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
                 }
             }
             on_complete->function()(result);
@@ -2451,10 +2445,8 @@ bool LocalTraversableNavigable::try_to_synchronously_commit_same_document_naviga
         }
     }
 
-    if (page().client().should_report_session_history_updates()) {
-        auto session_history_snapshot = create_session_history_snapshot(SaveActiveEntryPersistedState::Yes);
-        page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
-    }
+    auto session_history_snapshot = create_session_history_snapshot(SaveActiveEntryPersistedState::Yes);
+    page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
 
     VERIFY(session_history_entries().size() > 0);
     page().client().page_did_change_url(current_session_history_entry()->url());

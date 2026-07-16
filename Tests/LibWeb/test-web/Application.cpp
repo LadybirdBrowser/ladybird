@@ -87,8 +87,6 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
     // Ensure consistent time zone operations across different machine configurations.
     web_content_options.default_time_zone = "UTC"sv;
 
-    web_content_options.report_session_history_updates_in_test_mode = WebView::ReportSessionHistoryUpdatesInTestMode::Yes;
-
     if (dump_gc_graph) {
         // Force all tests to run in serial if we are interested in the GC graph.
         test_concurrency = 1;

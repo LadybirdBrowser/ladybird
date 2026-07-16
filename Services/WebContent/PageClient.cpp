@@ -64,7 +64,6 @@ namespace WebContent {
 
 static bool s_is_headless { false };
 static bool s_async_scrolling_enabled { false };
-static bool s_should_report_session_history_updates_in_test_mode { false };
 static constexpr size_t s_max_download_data_ipc_chunk_size = 16 * MiB;
 
 GC_DEFINE_ALLOCATOR(PageClient);
@@ -92,11 +91,6 @@ void PageClient::set_is_headless(bool is_headless)
 void PageClient::set_async_scrolling_enabled(bool enabled)
 {
     s_async_scrolling_enabled = enabled;
-}
-
-void PageClient::set_should_report_session_history_updates_in_test_mode(bool should_report)
-{
-    s_should_report_session_history_updates_in_test_mode = should_report;
 }
 
 GC::Ref<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
@@ -1083,11 +1077,6 @@ void PageClient::page_did_change_needs_beforeunload_check(bool needs_beforeunloa
 void PageClient::send_current_needs_beforeunload_check()
 {
     client().async_did_change_needs_beforeunload_check(m_id, page().needs_beforeunload_check());
-}
-
-bool PageClient::should_report_session_history_updates() const
-{
-    return !Web::HTML::Window::in_test_mode() || s_should_report_session_history_updates_in_test_mode;
 }
 
 void PageClient::page_did_update_session_history(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries, Vector<i32> const& used_steps, size_t current_used_step_index)

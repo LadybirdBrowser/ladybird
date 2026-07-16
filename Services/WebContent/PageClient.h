@@ -46,7 +46,6 @@ public:
     static void set_is_headless(bool);
 
     static void set_async_scrolling_enabled(bool);
-    static void set_should_report_session_history_updates_in_test_mode(bool);
 
     virtual Web::Page& page() override { return *m_page; }
     virtual Web::Page const& page() const override { return *m_page; }
@@ -242,7 +241,6 @@ private:
     virtual void page_did_request_activate_tab() override;
     virtual void page_did_close_top_level_traversable() override;
     virtual void page_did_change_needs_beforeunload_check(bool needs_beforeunload_check) override;
-    virtual bool should_report_session_history_updates() const override;
     virtual void page_did_update_session_history(Vector<Web::HTML::SessionHistoryEntryDescriptor> const&, Vector<i32> const& used_steps, size_t current_used_step_index) override;
     virtual void page_did_update_session_history_entry_navigation_api_state(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Web::HTML::StorageSerializationRecord const& navigation_api_state) override;
     virtual void page_did_update_session_history_entry_scroll_restoration_mode(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode) override;

@@ -45,9 +45,6 @@ static void report_navigation_api_state_update(DOM::Document& document, SessionH
         return;
 
     auto traversable = navigable->traversable_navigable();
-    if (!traversable->page().client().should_report_session_history_updates())
-        return;
-
     traversable->page().client().page_did_update_session_history_entry_navigation_api_state(navigable->id(), entry.navigation_api_key(), entry.navigation_api_state());
 }
 
