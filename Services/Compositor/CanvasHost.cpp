@@ -161,6 +161,34 @@ void CanvasHost::execute_webgl_commands(Web::Painting::CanvasId canvas_id, Reado
         m_canvas_surface_registry.set_canvas_surface(canvas_id, surface.release_nonnull());
 }
 
+void CanvasHost::set_webgl_shared_command_buffer(Web::Painting::CanvasId canvas_id, Web::WebGL::WebGLSharedCommandBuffer shared_command_buffer)
+{
+    auto* context = this->context(canvas_id);
+    VERIFY(context);
+    as_webgl(*context).set_shared_command_buffer(move(shared_command_buffer));
+}
+
+bool CanvasHost::execute_webgl_commands_from_shared_buffer(Web::Painting::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+{
+    auto* context = this->context(canvas_id);
+    VERIFY(context);
+    auto& webgl_context = as_webgl(*context);
+
+    auto commands = webgl_context.shared_command_buffer_range(offset, size_in_bytes);
+    if (!commands.has_value())
+        return false;
+
+    // WebContent can rewrite shared bytes while they execute, so a malformed stream is
+    // a misbehaving peer rather than a Compositor bug; report instead of crashing.
+    if (webgl_context.execute_commands(*commands, bitmaps).is_error())
+        return false;
+    webgl_context.store_executed_flush_sequence_number(flush_sequence_number);
+
+    if (auto surface = webgl_context.surface())
+        m_canvas_surface_registry.set_canvas_surface(canvas_id, surface.release_nonnull());
+    return true;
+}
+
 ErrorOr<ByteBuffer> CanvasHost::execute_webgl_sync_call(Web::Painting::CanvasId canvas_id, ByteBuffer request)
 {
     auto* context = this->context(canvas_id);

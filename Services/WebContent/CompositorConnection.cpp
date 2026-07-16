@@ -202,6 +202,39 @@ Optional<Web::Painting::CanvasId> CompositorConnection::create_webgl_context(Web
     return response->canvas_id();
 }
 
+void CompositorConnection::set_webgl_command_buffer(Web::Painting::CanvasId canvas_id, Core::AnonymousBuffer const& command_buffer)
+{
+    if (!can_send_message_to_compositor())
+        return;
+
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::WebglSetCommandBuffer::static_encode(canvas_id, command_buffer));
+    if (post_message(encoded_message).is_error())
+        did_lose_compositor();
+}
+
+void CompositorConnection::send_webgl_commands_from_shared_buffer(Web::Painting::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+{
+    if (!can_send_message_to_compositor())
+        return;
+
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::WebglCommandsFromSharedBuffer::static_encode(canvas_id, offset, size_in_bytes, flush_sequence_number, bitmaps));
+    if (post_message(encoded_message).is_error())
+        did_lose_compositor();
+}
+
+bool CompositorConnection::drain_webgl_command_buffer(Web::Painting::CanvasId canvas_id)
+{
+    if (!can_send_message_to_compositor())
+        return false;
+
+    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::WebglDrainCommandBuffer>(canvas_id);
+    if (!response) {
+        did_lose_compositor();
+        return false;
+    }
+    return true;
+}
+
 void CompositorConnection::send_webgl_commands(Web::Painting::CanvasId canvas_id, ByteBuffer const& commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)
 {
     if (!can_send_message_to_compositor())

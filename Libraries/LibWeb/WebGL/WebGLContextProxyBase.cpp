@@ -20,6 +20,7 @@ WebGLContextProxyBase::WebGLContextProxyBase(NonnullRefPtr<RemoteWebGLTransport>
     , m_webgl_version(webgl_version)
     , m_supported_extensions(move(supported_extensions))
 {
+    initialize_shared_command_buffer();
 }
 
 WebGLContextProxyBase::~WebGLContextProxyBase()
@@ -32,17 +33,111 @@ void WebGLContextProxyBase::restore(NonnullRefPtr<RemoteWebGLTransport> transpor
     m_transport = move(transport);
     m_supported_extensions = move(supported_extensions);
     m_lost = false;
-    m_commands.clear_with_capacity();
+    m_out_of_line_commands.clear_with_capacity();
     m_pending_bitmaps.clear_with_capacity();
     m_string_cache.clear();
+    initialize_shared_command_buffer();
+}
+
+void WebGLContextProxyBase::initialize_shared_command_buffer()
+{
+    m_shared_data_cursor = 0;
+    m_shared_data_flush_base = 0;
+    m_last_published_flush_sequence_number = 0;
+
+    auto shared_command_buffer_or_error = WebGLSharedCommandBuffer::create();
+    if (shared_command_buffer_or_error.is_error()) {
+        m_shared_command_buffer = {};
+        return;
+    }
+    m_shared_command_buffer = shared_command_buffer_or_error.release_value();
+    m_transport->set_shared_command_buffer(m_shared_command_buffer.buffer());
+}
+
+void WebGLContextProxyBase::record_bytes(WebGLCommandType type, ReadonlyBytes payload, ReadonlyBytes inline_data)
+{
+    if (m_lost)
+        return;
+
+    if (!m_shared_command_buffer.is_valid()) {
+        m_out_of_line_commands.append_bytes(type, payload, inline_data);
+        if (m_out_of_line_commands.size_in_bytes() >= max_pending_command_bytes)
+            flush_commands();
+        return;
+    }
+
+    auto data_region = m_shared_command_buffer.data_region();
+    auto record_size = WebGLCommandList::padded_record_size(payload, inline_data);
+
+    if (record_size > data_region.size()) {
+        flush_commands();
+        WebGLCommandList oversized_command_list;
+        oversized_command_list.append_bytes(type, payload, inline_data);
+        m_transport->send_commands(oversized_command_list.buffer(), {});
+        return;
+    }
+
+    rewind_shared_data_cursor_if_all_published_commands_executed();
+    ensure_shared_data_capacity(record_size);
+    if (m_lost)
+        return;
+
+    WebGLCommandList::write_record(data_region.slice(m_shared_data_cursor, record_size), type, payload, inline_data);
+    m_shared_data_cursor += record_size;
+    if (m_shared_data_cursor - m_shared_data_flush_base >= max_pending_command_bytes)
+        flush_commands();
+}
+
+void WebGLContextProxyBase::rewind_shared_data_cursor_if_all_published_commands_executed()
+{
+    if (m_shared_data_cursor == 0 || m_shared_data_cursor != m_shared_data_flush_base)
+        return;
+    if (m_shared_command_buffer.executed_flush_sequence_number() >= m_last_published_flush_sequence_number) {
+        m_shared_data_cursor = 0;
+        m_shared_data_flush_base = 0;
+    }
+}
+
+void WebGLContextProxyBase::ensure_shared_data_capacity(size_t record_size)
+{
+    auto data_region_capacity = m_shared_command_buffer.data_region().size();
+    VERIFY(record_size <= data_region_capacity);
+    if (record_size <= data_region_capacity - m_shared_data_cursor)
+        return;
+
+    flush_commands();
+    VERIFY(m_shared_data_cursor == m_shared_data_flush_base);
+    if (m_shared_command_buffer.executed_flush_sequence_number() < m_last_published_flush_sequence_number) {
+        if (!m_transport->wait_until_published_commands_executed()) {
+            set_lost();
+            return;
+        }
+        VERIFY(m_shared_command_buffer.executed_flush_sequence_number() >= m_last_published_flush_sequence_number);
+    }
+    m_shared_data_cursor = 0;
+    m_shared_data_flush_base = 0;
 }
 
 void WebGLContextProxyBase::flush_commands()
 {
-    if (m_commands.is_empty())
+    if (m_shared_command_buffer.is_valid()) {
+        if (m_shared_data_cursor == m_shared_data_flush_base)
+            return;
+        m_last_published_flush_sequence_number++;
+        m_transport->send_commands_from_shared_buffer(
+            m_shared_data_flush_base,
+            m_shared_data_cursor - m_shared_data_flush_base,
+            m_last_published_flush_sequence_number,
+            m_pending_bitmaps);
+        m_shared_data_flush_base = m_shared_data_cursor;
+        m_pending_bitmaps.clear_with_capacity();
         return;
-    m_transport->send_commands(m_commands.buffer(), m_pending_bitmaps);
-    m_commands.clear_with_capacity();
+    }
+
+    if (m_out_of_line_commands.is_empty())
+        return;
+    m_transport->send_commands(m_out_of_line_commands.buffer(), m_pending_bitmaps);
+    m_out_of_line_commands.clear_with_capacity();
     m_pending_bitmaps.clear_with_capacity();
 }
 
@@ -54,6 +149,16 @@ u32 WebGLContextProxyBase::append_pending_bitmap(Gfx::DecodedImageFrame frame)
 
     if (m_pending_bitmaps.size() >= max_bitmap_attachments_per_message)
         flush_commands();
+
+    // Reserve space for the upcoming bitmap-referencing command now: a capacity flush
+    // between this append and its record would publish the bitmap with the wrong batch.
+    static constexpr size_t reserved_record_size_for_bitmap_command = 256;
+    static_assert(sizeof(WebGLCommandHeader) + sizeof(Commands::TexImage2DFromBitmap) <= reserved_record_size_for_bitmap_command);
+    static_assert(sizeof(WebGLCommandHeader) + sizeof(Commands::TexSubImage2DFromBitmap) <= reserved_record_size_for_bitmap_command);
+    static_assert(sizeof(WebGLCommandHeader) + sizeof(Commands::TexImage3DFromBitmap) <= reserved_record_size_for_bitmap_command);
+    static_assert(sizeof(WebGLCommandHeader) + sizeof(Commands::TexSubImage3DFromBitmap) <= reserved_record_size_for_bitmap_command);
+    if (m_shared_command_buffer.is_valid())
+        ensure_shared_data_capacity(reserved_record_size_for_bitmap_command);
 
     auto bitmap_index = static_cast<u32>(m_pending_bitmaps.size());
     m_pending_bitmaps.append(move(frame));

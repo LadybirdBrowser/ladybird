@@ -7,6 +7,7 @@
 #include <Compositor/ConnectionFromWebContent.h>
 #include <LibCore/System.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/WebGL/WebGLSharedCommandBuffer.h>
 
 namespace Compositor {
 
@@ -154,6 +155,29 @@ Messages::CompositorWebContentServer::CreateWebglContextResponse ConnectionFromW
 {
     auto result = m_canvas_host.create_webgl_context(webgl_version, size, depth, stencil, antialias);
     return { result.success, result.canvas_id, move(result.supported_extensions) };
+}
+
+void ConnectionFromWebContent::webgl_set_command_buffer(Web::Painting::CanvasId canvas_id, Core::AnonymousBuffer command_buffer)
+{
+    auto shared_command_buffer = Web::WebGL::WebGLSharedCommandBuffer::adopt_received_buffer(move(command_buffer));
+    if (!shared_command_buffer.has_value()) {
+        did_misbehave("WebContent sent an invalid WebGL shared command buffer");
+        return;
+    }
+
+    m_canvas_host.set_webgl_shared_command_buffer(canvas_id, shared_command_buffer.release_value());
+}
+
+void ConnectionFromWebContent::webgl_commands_from_shared_buffer(Web::Painting::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> bitmaps)
+{
+    if (!m_canvas_host.execute_webgl_commands_from_shared_buffer(canvas_id, offset, size_in_bytes, flush_sequence_number, bitmaps))
+        did_misbehave("WebContent published an invalid WebGL shared command buffer range");
+}
+
+void ConnectionFromWebContent::webgl_drain_command_buffer(Web::Painting::CanvasId)
+{
+    // The empty reply is the point: it proves every earlier message on this connection,
+    // including all published command ranges, has already been processed.
 }
 
 void ConnectionFromWebContent::webgl_commands(Web::Painting::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Gfx::DecodedImageFrame> bitmaps)

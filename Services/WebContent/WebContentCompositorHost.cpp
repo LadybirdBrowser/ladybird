@@ -52,6 +52,27 @@ private:
         m_canvas_id.clear();
     }
 
+    virtual void set_shared_command_buffer(Core::AnonymousBuffer const& command_buffer) override
+    {
+        if (!m_canvas_id.has_value())
+            return;
+        m_connection->set_webgl_command_buffer(*m_canvas_id, command_buffer);
+    }
+
+    virtual void send_commands_from_shared_buffer(u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps) override
+    {
+        if (!m_canvas_id.has_value())
+            return;
+        m_connection->send_webgl_commands_from_shared_buffer(*m_canvas_id, offset, size_in_bytes, flush_sequence_number, bitmaps);
+    }
+
+    virtual bool wait_until_published_commands_executed() override
+    {
+        if (!m_canvas_id.has_value())
+            return false;
+        return m_connection->drain_webgl_command_buffer(*m_canvas_id);
+    }
+
     virtual void send_commands(ByteBuffer const& commands, Vector<Gfx::DecodedImageFrame> const& bitmaps) override
     {
         if (!m_canvas_id.has_value())

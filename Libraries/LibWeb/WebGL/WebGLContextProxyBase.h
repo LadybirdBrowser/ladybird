@@ -23,6 +23,7 @@
 #include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
 #include <LibWeb/WebGL/WebGLCommandList.h>
+#include <LibWeb/WebGL/WebGLSharedCommandBuffer.h>
 
 namespace Web::WebGL {
 
@@ -82,12 +83,10 @@ protected:
     template<typename Command>
     void record(Command const& command, ReadonlyBytes inline_data = {})
     {
-        if (m_lost)
-            return;
-        m_commands.append(command, inline_data);
-        if (m_commands.size_in_bytes() >= max_pending_command_bytes)
-            flush_commands();
+        record_bytes(Command::command_type, { &command, sizeof(command) }, inline_data);
     }
+
+    void record_bytes(WebGLCommandType, ReadonlyBytes payload, ReadonlyBytes inline_data);
 
     ByteBuffer send_sync_call(ByteBuffer request);
     bool is_lost() const { return m_lost; }
@@ -96,11 +95,18 @@ protected:
 
 private:
     u32 append_pending_bitmap(Gfx::DecodedImageFrame);
+    void initialize_shared_command_buffer();
+    void rewind_shared_data_cursor_if_all_published_commands_executed();
+    void ensure_shared_data_capacity(size_t record_size);
 
     NonnullRefPtr<RemoteWebGLTransport> m_transport;
     WebGLVersion m_webgl_version { WebGLVersion::WebGL1 };
     Vector<String> m_supported_extensions;
-    WebGLCommandList m_commands;
+    WebGLSharedCommandBuffer m_shared_command_buffer;
+    size_t m_shared_data_cursor { 0 };
+    size_t m_shared_data_flush_base { 0 };
+    u64 m_last_published_flush_sequence_number { 0 };
+    WebGLCommandList m_out_of_line_commands;
     Vector<Gfx::DecodedImageFrame> m_pending_bitmaps;
     u32 m_next_object_id { 1 };
     bool m_lost { false };

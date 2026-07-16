@@ -39,6 +39,18 @@ OwnPtr<HostWebGLContext> HostWebGLContext::create(RefPtr<Gfx::SkiaBackendContext
     return adopt_own(*new HostWebGLContext(gl_context.release_nonnull()));
 }
 
+Optional<ReadonlyBytes> HostWebGLContext::shared_command_buffer_range(u64 offset, u64 size_in_bytes) const
+{
+    if (!m_shared_command_buffer.is_valid())
+        return {};
+    auto data_region = m_shared_command_buffer.data_region();
+    if (offset % WebGLCommandList::command_alignment != 0)
+        return {};
+    if (offset > data_region.size() || size_in_bytes > data_region.size() - offset)
+        return {};
+    return data_region.slice(offset, size_in_bytes);
+}
+
 ErrorOr<void> HostWebGLContext::execute_commands(ReadonlyBytes bytes, Vector<Gfx::DecodedImageFrame> const& bitmaps)
 {
     m_gl_context->make_current();
