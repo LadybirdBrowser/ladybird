@@ -6,6 +6,7 @@
 
 #include <LibTest/TestCase.h>
 #include <LibWebView/Omnibox.h>
+#include <LibWebView/WebUI.h>
 
 namespace {
 
@@ -23,7 +24,7 @@ AutocompleteSuggestion row(AutocompleteSuggestionSource source, StringView text)
         .favicon_base64_png = {},
         .highlight_input = {},
         .can_be_automatically_selected = true,
-        .can_be_inline_completed = source == AutocompleteSuggestionSource::History,
+        .can_be_inline_completed = source == AutocompleteSuggestionSource::History || source == AutocompleteSuggestionSource::WebUI,
     };
 }
 
@@ -62,6 +63,11 @@ AutocompleteSuggestion search_row(StringView query)
 AutocompleteSuggestion literal_row(StringView url)
 {
     return row(AutocompleteSuggestionSource::LiteralURL, url);
+}
+
+AutocompleteSuggestion web_ui_row(StringView url)
+{
+    return row(AutocompleteSuggestionSource::WebUI, url);
 }
 
 class ScriptedProvider final : public WebView::OmniboxSuggestionProvider {
@@ -186,6 +192,46 @@ struct Harness {
     Optional<size_t> visible_selection;
 };
 
+}
+
+TEST_CASE(all_web_ui_pages_are_suggested)
+{
+    static constexpr Array expected_urls {
+        "about:about"sv,
+        "about:bookmarks"sv,
+        "about:downloads"sv,
+        "about:history"sv,
+        "about:newtab"sv,
+        "about:processes"sv,
+        "about:settings"sv,
+        "about:version"sv,
+    };
+
+    auto suggestions = WebView::web_ui_autocomplete_suggestions("about:"sv);
+
+    EXPECT_EQ(WebView::WebUI::pages().size(), expected_urls.size());
+    EXPECT_EQ(suggestions.size(), expected_urls.size());
+    for (size_t index = 0; index < expected_urls.size(); ++index) {
+        EXPECT_EQ(suggestions[index].source, WebView::AutocompleteSuggestionSource::WebUI);
+        EXPECT_EQ(suggestions[index].text, expected_urls[index]);
+    }
+}
+
+TEST_CASE(web_ui_pages_are_matched_by_case_insensitive_url_prefix)
+{
+    auto suggestions = WebView::web_ui_autocomplete_suggestions("ABOUT:SET"sv);
+
+    EXPECT_EQ(suggestions.size(), 1u);
+    EXPECT_EQ(suggestions[0].text, "about:settings"sv);
+    EXPECT_EQ(suggestions[0].title, "Settings"sv);
+    EXPECT(suggestions[0].can_be_automatically_selected);
+    EXPECT(suggestions[0].can_be_inline_completed);
+}
+
+TEST_CASE(web_ui_pages_are_not_suggested_for_unrelated_input)
+{
+    EXPECT(WebView::web_ui_autocomplete_suggestions("settings"sv).is_empty());
+    EXPECT(WebView::web_ui_autocomplete_suggestions("about:foo"sv).is_empty());
 }
 
 TEST_CASE(fast_typing_publishes_each_local_generation)
@@ -607,6 +653,23 @@ TEST_CASE(a_literal_url_suggestion_never_completes)
 
     harness.omnibox.return_pressed();
     EXPECT_EQ(harness.commits.last(), "t.example/path"sv);
+}
+
+TEST_CASE(a_web_ui_suggestion_completes_and_commits_as_a_url)
+{
+    Harness harness;
+    harness.begin_editing();
+    harness.display_text = "about:set"_string;
+    harness.omnibox.text_edited(harness.display_text, true);
+
+    harness.provider->deliver({ web_ui_row("about:settings"sv) });
+    EXPECT_EQ(harness.display_text, "about:settings"sv);
+    EXPECT_EQ(harness.selection_start, 9u);
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 0u);
+
+    harness.omnibox.return_pressed();
+    EXPECT_EQ(harness.commits.last(), "about:settings"sv);
+    EXPECT_EQ(harness.provider->engagements.last().destination_kind, WebView::OmniboxDestinationKind::URL);
 }
 
 TEST_CASE(an_automatic_default_does_not_imply_inline_completion)

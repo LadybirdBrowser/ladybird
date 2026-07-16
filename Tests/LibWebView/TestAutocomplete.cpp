@@ -217,6 +217,26 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Core::EventLoop::current().spin_until([&]() { return whitespace_query_completed; });
     }
 
+    auto about_query_completed = false;
+    {
+        WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
+        autocomplete.on_autocomplete_query_complete = [&](auto, auto const& suggestions, WebView::AutocompleteResultKind kind) {
+            if (kind != WebView::AutocompleteResultKind::Final)
+                return;
+            VERIFY(!suggestions.contains([](auto const& suggestion) {
+                return suggestion.source == WebView::AutocompleteSuggestionSource::Search;
+            }));
+            VERIFY(suggestions.contains([](auto const& suggestion) {
+                return suggestion.source == WebView::AutocompleteSuggestionSource::WebUI
+                    && suggestion.text == "about:settings"sv;
+            }));
+            autocomplete.cancel_pending_query();
+            about_query_completed = true;
+        };
+        autocomplete.query_autocomplete_engine(100, "about:set"_string);
+        Core::EventLoop::current().spin_until([&]() { return about_query_completed; });
+    }
+
     // A closed loopback port makes the request fail fast and deterministically, with no real network.
     // Its on_finish synchronously delivers the final result. A data: URL cannot be used because the request
     // server's DNS path requires a host.

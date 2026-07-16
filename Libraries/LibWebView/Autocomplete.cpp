@@ -24,10 +24,12 @@
 #include <LibWebView/HistoryDebug.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/URL.h>
+#include <LibWebView/WebUI.h>
 
 namespace WebView {
 
 static constexpr auto file_url_prefix = "file://"sv;
+static constexpr auto about_url_prefix = "about:"sv;
 
 static constexpr auto builtin_autocomplete_engines = to_array<AutocompleteEngine>({
     { "DuckDuckGo"sv, "https://duckduckgo.com/ac/?q={}"sv },
@@ -147,6 +149,37 @@ Vector<String> filter_remote_autocomplete_suggestions(StringView input, Vector<S
     suggestions.remove_all_matching([input](auto const& suggestion) {
         return !suggestion.bytes_as_string_view().starts_with(input, CaseSensitivity::CaseInsensitive);
     });
+    return suggestions;
+}
+
+Vector<AutocompleteSuggestion> web_ui_autocomplete_suggestions(StringView input)
+{
+    if (!input.starts_with(about_url_prefix, CaseSensitivity::CaseInsensitive))
+        return {};
+
+    Vector<AutocompleteSuggestion> suggestions;
+    suggestions.ensure_capacity(WebUI::pages().size());
+
+    for (auto const& page : WebUI::pages()) {
+        auto url = MUST(String::formatted("about:{}", page.host));
+        if (!url.bytes_as_string_view().starts_with(input, CaseSensitivity::CaseInsensitive))
+            continue;
+
+        suggestions.unchecked_append({
+            .source = AutocompleteSuggestionSource::WebUI,
+            .text = move(url),
+            .title = MUST(String::from_utf8(page.title)),
+            .subtitle = {},
+            .favicon_base64_png = {},
+            .highlight_input = {},
+            .match_class = AutocompleteMatchClass::URLPrefix,
+            .relevance = 1100,
+            .is_verbatim = false,
+            .can_be_automatically_selected = true,
+            .can_be_inline_completed = true,
+        });
+    }
+
     return suggestions;
 }
 
@@ -275,6 +308,13 @@ void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, Strin
         return;
     }
 
+    if (m_trimmed_query.bytes_as_string_view().starts_with(about_url_prefix, CaseSensitivity::CaseInsensitive)) {
+        m_remote_suggestions.clear();
+        m_remote_query_complete = true;
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping remote autocomplete for about URL query '{}'", m_trimmed_query);
+        return;
+    }
+
     auto engine = Application::settings().autocomplete_engine();
     if (!engine.has_value()) {
         m_remote_suggestions.clear();
@@ -362,13 +402,15 @@ void Autocomplete::deliver_current_result()
     if (!m_query_id.has_value())
         return;
 
-    auto verbatim_suggestion = literal_url_suggestion(m_query);
-    if (!verbatim_suggestion.has_value())
+    auto web_ui_suggestions = web_ui_autocomplete_suggestions(m_trimmed_query);
+    auto verbatim_suggestion = web_ui_suggestions.is_empty() ? literal_url_suggestion(m_query) : Optional<AutocompleteSuggestion> {};
+    if (web_ui_suggestions.is_empty() && !verbatim_suggestion.has_value())
         verbatim_suggestion = search_for_query_suggestion(m_query);
+    web_ui_suggestions.extend(m_local_suggestions);
     auto merged_suggestions = mux_autocomplete_suggestions(
         m_trimmed_query,
         move(verbatim_suggestion),
-        m_local_suggestions,
+        move(web_ui_suggestions),
         make_remote_suggestions(m_remote_suggestions),
         m_max_suggestions);
     for (auto& suggestion : merged_suggestions)

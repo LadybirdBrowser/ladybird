@@ -38,6 +38,7 @@ static constexpr auto default_autocomplete_suggestion_limit = 8uz;
 
 enum class AutocompleteSuggestionSource {
     LiteralURL,
+    WebUI,
     History,
     Bookmark,
     Adaptive,
@@ -91,6 +92,7 @@ WEBVIEW_API Optional<AutocompleteEngine const&> find_autocomplete_engine_by_name
 WEBVIEW_API String autocomplete_suggestion_display_text(AutocompleteSuggestion const&);
 WEBVIEW_API Vector<AutocompleteMatchRange> autocomplete_match_ranges(StringView input, StringView text);
 WEBVIEW_API Vector<String> filter_remote_autocomplete_suggestions(StringView input, Vector<String> suggestions);
+WEBVIEW_API Vector<AutocompleteSuggestion> web_ui_autocomplete_suggestions(StringView input);
 WEBVIEW_API bool autocomplete_urls_match(StringView left, StringView right);
 WEBVIEW_API bool autocomplete_url_can_complete(StringView query, StringView suggestion);
 
