@@ -11,6 +11,8 @@
 #include <LibWeb/CSS/AncestorFilter.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
+#include <LibWeb/CSS/SelectorRustBridge.h>
+#include <LibWeb/CSS/SelectorRustFFI.h>
 #include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {
@@ -143,6 +145,13 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
     collect_ancestor_hashes();
 
     m_can_use_fast_matches = can_selector_use_fast_matches(*this);
+    m_rust_selector = compile_selector_for_matching(*this);
+    VERIFY(m_rust_selector);
+}
+
+Selector::~Selector()
+{
+    SelectorFFI::rust_selector_destroy(m_rust_selector);
 }
 
 static void append_integer(Utf16StringBuilder& builder, i64 value)

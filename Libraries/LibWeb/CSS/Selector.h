@@ -23,6 +23,12 @@
 
 namespace Web::CSS {
 
+namespace SelectorFFI {
+
+struct RustSelector;
+
+}
+
 using SelectorList = Vector<NonnullRefPtr<class Selector>>;
 
 // This is a <complex-selector> in the spec. https://www.w3.org/TR/selectors-4/#complex
@@ -243,7 +249,7 @@ public:
         return adopt_ref(*new Selector(move(compound_selectors)));
     }
 
-    ~Selector() = default;
+    ~Selector();
 
     Vector<CompoundSelector> const& compound_selectors() const { return m_compound_selectors; }
     Optional<PseudoElement> target_pseudo_element() const { return m_target_pseudo_element; }
@@ -267,6 +273,12 @@ public:
     bool is_slotted() const { return m_contains_slotted_pseudo_element; }
     bool has_part_pseudo_element() const { return m_contains_part_pseudo_element; }
 
+    SelectorFFI::RustSelector const& rust_selector() const
+    {
+        VERIFY(m_rust_selector);
+        return *m_rust_selector;
+    }
+
 private:
     explicit Selector(Vector<CompoundSelector>&&);
 
@@ -286,6 +298,7 @@ private:
     void collect_ancestor_hashes();
 
     Array<u32, 8> m_ancestor_hashes;
+    SelectorFFI::RustSelector* m_rust_selector { nullptr };
 };
 
 bool is_legacy_single_colon_pseudo_element(PseudoElement);

@@ -238,6 +238,7 @@ set(SOURCES
     CSS/Screen.cpp
     CSS/ScreenOrientation.cpp
     CSS/Selector.cpp
+    CSS/SelectorRustBridge.cpp
     CSS/SelectorEngine.cpp
     CSS/Serialize.cpp
     CSS/Size.cpp
