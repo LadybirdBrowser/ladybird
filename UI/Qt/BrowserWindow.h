@@ -149,6 +149,13 @@ public:
             callback(*m_tabs_container->tab(i));
     }
 
+    template<typename Callback>
+    void for_each_tab(Callback&& callback) const
+    {
+        for (int i = 0; i < m_tabs_container->count(); ++i)
+            callback(const_cast<Tab const&>(*m_tabs_container->tab(i)));
+    }
+
     void update_tabs_display();
 
     void rebuild_bookmarks_menu();
