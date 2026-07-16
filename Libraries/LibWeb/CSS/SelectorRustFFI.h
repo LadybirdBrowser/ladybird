@@ -78,6 +78,7 @@ struct StringView {
 
 struct SimpleSelector {
     SimpleSelectorType type;
+    void const* cxx_simple_selector;
 
     NamespaceType namespace_type;
     StringView namespace_;
@@ -131,15 +132,15 @@ extern "C" void rust_selector_destroy(RustSelector*);
 extern "C" bool rust_selector_matches(RustSelector const*, void const* element, u8 pseudo_element, void const* shadow_host, void* context, void const* scope);
 extern "C" bool rust_selector_matches_originating_element(RustSelector const*, u8 pseudo_element, void const* element, void const* shadow_host, void* context, void const* scope);
 
-extern "C" bool selector_ffi_matches_universal(void* context, void const* element, NamespaceType, StringView namespace_);
-extern "C" bool selector_ffi_matches_tag_name(void* context, void const* element, NamespaceType, StringView namespace_, StringView name, StringView lowercase_name, u8 matching_mode);
-extern "C" bool selector_ffi_matches_id(void const* element, StringView);
-extern "C" bool selector_ffi_matches_class(void const* element, StringView);
-extern "C" bool selector_ffi_matches_attribute(void* context, void const* element, NamespaceType, StringView namespace_, StringView name, StringView lowercase_name, AttributeMatchType, AttributeCaseType, StringView value);
+extern "C" bool selector_ffi_matches_universal(void* context, void const* element, void const* cxx_simple_selector);
+extern "C" bool selector_ffi_matches_tag_name(void* context, void const* element, void const* cxx_simple_selector, u8 matching_mode);
+extern "C" bool selector_ffi_matches_id(void const* element, void const* cxx_simple_selector);
+extern "C" bool selector_ffi_matches_class(void const* element, void const* cxx_simple_selector);
+extern "C" bool selector_ffi_matches_attribute(void* context, void const* element, void const* cxx_simple_selector);
 extern "C" bool selector_ffi_matches_pseudo_class(void const* element, u8 pseudo_class);
 extern "C" bool selector_ffi_matches_language(void const* element, StringView language);
 extern "C" bool selector_ffi_matches_direction(void const* element, Direction);
-extern "C" bool selector_ffi_matches_state(void const* element, StringView identifier);
+extern "C" bool selector_ffi_matches_state(void const* element, void const* cxx_simple_selector);
 extern "C" bool selector_ffi_matches_heading(void const* element, i64 const* levels, size_t level_count);
 
 extern "C" void const* selector_ffi_parent_element(void const* element, void const* shadow_host);

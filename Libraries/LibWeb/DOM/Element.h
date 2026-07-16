@@ -198,6 +198,7 @@ public:
     void for_each_attribute(Function<void(Utf16FlyString const&, Utf16View)>) const;
 
     bool has_class(Utf16View, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
+    bool has_class(Utf16FlyString const&, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
     Vector<Utf16FlyString> const& class_names() const { return m_classes; }
 
     // https://html.spec.whatwg.org/multipage/embedded-content-other.html#dimension-attributes
@@ -846,6 +847,19 @@ inline GC::Ptr<Element const> Node::parent_element() const
 inline bool Element::has_class(Utf16View class_name, CaseSensitivity case_sensitivity) const
 {
     if (case_sensitivity == CaseSensitivity::CaseSensitive) {
+        return any_of(m_classes, [&](auto& it) {
+            return it == class_name;
+        });
+    }
+    return any_of(m_classes, [&](auto& it) {
+        return it.equals_ignoring_ascii_case(class_name);
+    });
+}
+
+inline bool Element::has_class(Utf16FlyString const& class_name, CaseSensitivity case_sensitivity) const
+{
+    if (case_sensitivity == CaseSensitivity::CaseSensitive) {
+        // NB: Comparing two interned strings is a pointer comparison.
         return any_of(m_classes, [&](auto& it) {
             return it == class_name;
         });

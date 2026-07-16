@@ -145,6 +145,9 @@ private:
     SelectorFFI::SimpleSelector compile_simple_selector(Selector::SimpleSelector const& simple_selector)
     {
         SelectorFFI::SimpleSelector output {};
+        // NB: The C++ simple selector outlives the compiled Rust selector, so matching callbacks
+        //     can use this pointer to compare interned strings without copying them.
+        output.cxx_simple_selector = &simple_selector;
 
         switch (simple_selector.type) {
         case Selector::SimpleSelector::Type::Universal:

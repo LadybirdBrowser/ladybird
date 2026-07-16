@@ -40,6 +40,16 @@ pub struct QualifiedName {
     pub namespace: SelectorString,
     pub name: SelectorString,
     pub lowercase_name: SelectorString,
+    /// Pointer to the C++ simple selector this was compiled from, so that matching callbacks can
+    /// compare its interned strings without copying. Zero in unit tests.
+    pub cxx_simple_selector: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NameSelector {
+    pub name: SelectorString,
+    /// See [`QualifiedName::cxx_simple_selector`].
+    pub cxx_simple_selector: usize,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -171,6 +181,8 @@ pub struct PseudoClassSelector {
     pub direction: Option<Direction>,
     pub identifier: Option<SelectorString>,
     pub levels: Box<[i64]>,
+    /// See [`QualifiedName::cxx_simple_selector`].
+    pub cxx_simple_selector: usize,
 }
 
 impl PseudoClassSelector {
@@ -184,6 +196,7 @@ impl PseudoClassSelector {
             direction: None,
             identifier: None,
             levels: Box::new([]),
+            cxx_simple_selector: 0,
         }
     }
 }
@@ -232,8 +245,8 @@ pub struct PseudoElementSelector {
 pub enum SimpleSelector {
     Universal(QualifiedName),
     TagName(QualifiedName),
-    Id(SelectorString),
-    Class(SelectorString),
+    Id(NameSelector),
+    Class(NameSelector),
     Attribute(AttributeSelector),
     PseudoClass(PseudoClassSelector),
     PseudoElement(PseudoElementSelector),
@@ -360,8 +373,8 @@ pub trait SelectorDom {
         qualified_name: &QualifiedName,
         mode: TagNameMatchingMode,
     ) -> bool;
-    fn matches_id_selector(&mut self, element: Self::Element, id: &[u16]) -> bool;
-    fn matches_class_selector(&mut self, element: Self::Element, class_name: &[u16]) -> bool;
+    fn matches_id_selector(&mut self, element: Self::Element, id: &NameSelector) -> bool;
+    fn matches_class_selector(&mut self, element: Self::Element, class_name: &NameSelector) -> bool;
     fn matches_attribute_selector(&mut self, element: Self::Element, attribute: &AttributeSelector) -> bool;
     fn matches_pseudo_class_state(&mut self, element: Self::Element, pseudo_class: &PseudoClassSelector) -> bool;
 
@@ -1450,6 +1463,7 @@ pub struct FfiStringView {
 #[repr(C)]
 pub struct FfiSimpleSelector {
     pub selector_type: FfiSimpleSelectorType,
+    pub cxx_simple_selector: *const c_void,
     pub namespace_type: FfiNamespaceType,
     pub namespace: FfiStringView,
     pub name: FfiStringView,
@@ -1511,35 +1525,25 @@ unsafe extern "C" {
     fn selector_ffi_matches_universal(
         context: *mut c_void,
         element: *const c_void,
-        namespace_type: FfiNamespaceType,
-        namespace: FfiStringView,
+        cxx_simple_selector: *const c_void,
     ) -> bool;
     fn selector_ffi_matches_tag_name(
         context: *mut c_void,
         element: *const c_void,
-        namespace_type: FfiNamespaceType,
-        namespace: FfiStringView,
-        name: FfiStringView,
-        lowercase_name: FfiStringView,
+        cxx_simple_selector: *const c_void,
         matching_mode: u8,
     ) -> bool;
-    fn selector_ffi_matches_id(element: *const c_void, id: FfiStringView) -> bool;
-    fn selector_ffi_matches_class(element: *const c_void, class_name: FfiStringView) -> bool;
+    fn selector_ffi_matches_id(element: *const c_void, cxx_simple_selector: *const c_void) -> bool;
+    fn selector_ffi_matches_class(element: *const c_void, cxx_simple_selector: *const c_void) -> bool;
     fn selector_ffi_matches_attribute(
         context: *mut c_void,
         element: *const c_void,
-        namespace_type: FfiNamespaceType,
-        namespace: FfiStringView,
-        name: FfiStringView,
-        lowercase_name: FfiStringView,
-        match_type: FfiAttributeMatchType,
-        case_type: FfiAttributeCaseType,
-        value: FfiStringView,
+        cxx_simple_selector: *const c_void,
     ) -> bool;
     fn selector_ffi_matches_pseudo_class(element: *const c_void, pseudo_class: u8) -> bool;
     fn selector_ffi_matches_language(element: *const c_void, language: FfiStringView) -> bool;
     fn selector_ffi_matches_direction(element: *const c_void, direction: FfiDirection) -> bool;
-    fn selector_ffi_matches_state(element: *const c_void, identifier: FfiStringView) -> bool;
+    fn selector_ffi_matches_state(element: *const c_void, cxx_simple_selector: *const c_void) -> bool;
     fn selector_ffi_matches_heading(element: *const c_void, levels: *const i64, level_count: usize) -> bool;
 
     fn selector_ffi_parent_element(element: *const c_void, shadow_host: *const c_void) -> *const c_void;
@@ -1594,35 +1598,6 @@ fn ffi_string_view(string: &[u16]) -> FfiStringView {
     }
 }
 
-fn ffi_namespace_type(namespace_type: NamespaceType) -> FfiNamespaceType {
-    match namespace_type {
-        NamespaceType::Default => FfiNamespaceType::Default,
-        NamespaceType::None => FfiNamespaceType::None,
-        NamespaceType::Any => FfiNamespaceType::Any,
-        NamespaceType::Named => FfiNamespaceType::Named,
-    }
-}
-
-fn ffi_attribute_match_type(match_type: AttributeMatchType) -> FfiAttributeMatchType {
-    match match_type {
-        AttributeMatchType::HasAttribute => FfiAttributeMatchType::HasAttribute,
-        AttributeMatchType::ExactValue => FfiAttributeMatchType::ExactValue,
-        AttributeMatchType::ContainsWord => FfiAttributeMatchType::ContainsWord,
-        AttributeMatchType::ContainsString => FfiAttributeMatchType::ContainsString,
-        AttributeMatchType::StartsWithSegment => FfiAttributeMatchType::StartsWithSegment,
-        AttributeMatchType::StartsWithString => FfiAttributeMatchType::StartsWithString,
-        AttributeMatchType::EndsWithString => FfiAttributeMatchType::EndsWithString,
-    }
-}
-
-fn ffi_attribute_case_type(case_type: AttributeCaseType) -> FfiAttributeCaseType {
-    match case_type {
-        AttributeCaseType::Default => FfiAttributeCaseType::Default,
-        AttributeCaseType::Sensitive => FfiAttributeCaseType::Sensitive,
-        AttributeCaseType::Insensitive => FfiAttributeCaseType::Insensitive,
-    }
-}
-
 fn ffi_combinator(combinator: Combinator) -> FfiCombinator {
     match combinator {
         Combinator::None => FfiCombinator::None,
@@ -1651,14 +1626,7 @@ impl SelectorDom for FfiDom {
     type Element = FfiElement;
 
     fn matches_universal_selector(&mut self, element: FfiElement, name: &QualifiedName) -> bool {
-        unsafe {
-            selector_ffi_matches_universal(
-                self.context,
-                element.0,
-                ffi_namespace_type(name.namespace_type),
-                ffi_string_view(&name.namespace),
-            )
-        }
+        unsafe { selector_ffi_matches_universal(self.context, element.0, name.cxx_simple_selector as *const c_void) }
     }
 
     fn matches_tag_name_selector(
@@ -1671,10 +1639,7 @@ impl SelectorDom for FfiDom {
             selector_ffi_matches_tag_name(
                 self.context,
                 element.0,
-                ffi_namespace_type(name.namespace_type),
-                ffi_string_view(&name.namespace),
-                ffi_string_view(&name.name),
-                ffi_string_view(&name.lowercase_name),
+                name.cxx_simple_selector as *const c_void,
                 match mode {
                     TagNameMatchingMode::Normal => 0,
                     TagNameMatchingMode::Fast => 1,
@@ -1683,12 +1648,12 @@ impl SelectorDom for FfiDom {
         }
     }
 
-    fn matches_id_selector(&mut self, element: FfiElement, id: &[u16]) -> bool {
-        unsafe { selector_ffi_matches_id(element.0, ffi_string_view(id)) }
+    fn matches_id_selector(&mut self, element: FfiElement, id: &NameSelector) -> bool {
+        unsafe { selector_ffi_matches_id(element.0, id.cxx_simple_selector as *const c_void) }
     }
 
-    fn matches_class_selector(&mut self, element: FfiElement, class_name: &[u16]) -> bool {
-        unsafe { selector_ffi_matches_class(element.0, ffi_string_view(class_name)) }
+    fn matches_class_selector(&mut self, element: FfiElement, class_name: &NameSelector) -> bool {
+        unsafe { selector_ffi_matches_class(element.0, class_name.cxx_simple_selector as *const c_void) }
     }
 
     fn matches_attribute_selector(&mut self, element: FfiElement, attribute: &AttributeSelector) -> bool {
@@ -1696,13 +1661,7 @@ impl SelectorDom for FfiDom {
             selector_ffi_matches_attribute(
                 self.context,
                 element.0,
-                ffi_namespace_type(attribute.qualified_name.namespace_type),
-                ffi_string_view(&attribute.qualified_name.namespace),
-                ffi_string_view(&attribute.qualified_name.name),
-                ffi_string_view(&attribute.qualified_name.lowercase_name),
-                ffi_attribute_match_type(attribute.match_type),
-                ffi_attribute_case_type(attribute.case_type),
-                ffi_string_view(&attribute.value),
+                attribute.qualified_name.cxx_simple_selector as *const c_void,
             )
         }
     }
@@ -1722,9 +1681,12 @@ impl SelectorDom for FfiDom {
                 },
                 _ => false,
             },
-            PseudoClassType::State => pseudo_class.identifier.as_ref().is_some_and(|identifier| unsafe {
-                selector_ffi_matches_state(element.0, ffi_string_view(identifier))
-            }),
+            PseudoClassType::State => {
+                pseudo_class.identifier.is_some()
+                    && unsafe {
+                        selector_ffi_matches_state(element.0, pseudo_class.cxx_simple_selector as *const c_void)
+                    }
+            }
             PseudoClassType::Heading => unsafe {
                 selector_ffi_matches_heading(element.0, pseudo_class.levels.as_ptr(), pseudo_class.levels.len())
             },
@@ -2040,6 +2002,7 @@ fn qualified_name_from_ffi(selector: &FfiSimpleSelector) -> QualifiedName {
         namespace: unsafe { string_from_ffi(selector.namespace) },
         name: unsafe { string_from_ffi(selector.name) },
         lowercase_name: unsafe { string_from_ffi(selector.lowercase_name) },
+        cxx_simple_selector: selector.cxx_simple_selector as usize,
     }
 }
 
@@ -2052,8 +2015,14 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
     match selector.selector_type {
         FfiSimpleSelectorType::Universal => SimpleSelector::Universal(qualified_name_from_ffi(selector)),
         FfiSimpleSelectorType::TagName => SimpleSelector::TagName(qualified_name_from_ffi(selector)),
-        FfiSimpleSelectorType::Id => SimpleSelector::Id(unsafe { string_from_ffi(selector.name) }),
-        FfiSimpleSelectorType::Class => SimpleSelector::Class(unsafe { string_from_ffi(selector.name) }),
+        FfiSimpleSelectorType::Id => SimpleSelector::Id(NameSelector {
+            name: unsafe { string_from_ffi(selector.name) },
+            cxx_simple_selector: selector.cxx_simple_selector as usize,
+        }),
+        FfiSimpleSelectorType::Class => SimpleSelector::Class(NameSelector {
+            name: unsafe { string_from_ffi(selector.name) },
+            cxx_simple_selector: selector.cxx_simple_selector as usize,
+        }),
         FfiSimpleSelectorType::Attribute => SimpleSelector::Attribute(AttributeSelector {
             match_type: selector.attribute_match_type.into(),
             qualified_name: qualified_name_from_ffi(selector),
@@ -2095,6 +2064,7 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
                 direction,
                 identifier,
                 levels,
+                cxx_simple_selector: selector.cxx_simple_selector as usize,
             })
         }
         FfiSimpleSelectorType::PseudoElement => {
@@ -2338,15 +2308,15 @@ mod tests {
                 .eq(name.lowercase_name.iter().copied())
         }
 
-        fn matches_id_selector(&mut self, _element: usize, _id: &[u16]) -> bool {
+        fn matches_id_selector(&mut self, _element: usize, _id: &NameSelector) -> bool {
             false
         }
 
-        fn matches_class_selector(&mut self, element: usize, class_name: &[u16]) -> bool {
+        fn matches_class_selector(&mut self, element: usize, class_name: &NameSelector) -> bool {
             self.nodes[element]
                 .classes
                 .iter()
-                .any(|class| class.encode_utf16().eq(class_name.iter().copied()))
+                .any(|class| class.encode_utf16().eq(class_name.name.iter().copied()))
         }
 
         fn matches_attribute_selector(&mut self, _element: usize, _attribute: &AttributeSelector) -> bool {
@@ -2454,7 +2424,10 @@ mod tests {
     }
 
     fn class(name: &str) -> SimpleSelector {
-        SimpleSelector::Class(name.encode_utf16().collect())
+        SimpleSelector::Class(NameSelector {
+            name: name.encode_utf16().collect(),
+            cxx_simple_selector: 0,
+        })
     }
 
     fn compound(combinator: Combinator, simple_selectors: Vec<SimpleSelector>) -> CompoundSelector {
@@ -2505,7 +2478,11 @@ mod tests {
             .iter()
             .map(|combinator| CompoundSelector {
                 combinator: *combinator,
-                simple_selectors: vec![SimpleSelector::Id(Box::from([b'x' as u16]))].into_boxed_slice(),
+                simple_selectors: vec![SimpleSelector::Id(NameSelector {
+                    name: Box::from([b'x' as u16]),
+                    cxx_simple_selector: 0,
+                })]
+                .into_boxed_slice(),
             })
             .collect::<Vec<_>>()
             .into_boxed_slice();
@@ -2664,6 +2641,7 @@ mod tests {
             direction: None,
             identifier: None,
             levels: Box::new([]),
+            cxx_simple_selector: 0,
         });
         let selector = selector(vec![compound(Combinator::None, vec![class("anchor"), has])]);
         let mut dom = test_tree();
@@ -2694,6 +2672,7 @@ mod tests {
             direction: None,
             identifier: None,
             levels: Box::new([]),
+            cxx_simple_selector: 0,
         });
         let selector = selector(vec![compound(Combinator::None, vec![nth_child])]);
         let mut dom = test_tree();

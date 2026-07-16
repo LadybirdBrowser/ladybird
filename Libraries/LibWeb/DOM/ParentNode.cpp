@@ -249,7 +249,7 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(Utf16View class_n
 
     return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [list_of_class_names = move(list_of_class_names), quirks_mode = document().in_quirks_mode()](Element const& element) {
         for (auto& name : list_of_class_names) {
-            if (!element.has_class(name, quirks_mode ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive))
+            if (!element.has_class(name.utf16_view(), quirks_mode ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive))
                 return false;
         }
         return !list_of_class_names.is_empty();
