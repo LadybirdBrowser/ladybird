@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
 
-    // Encoding-detection header — namespace Web::HTML::Parser, rust_detect_encoding only.
+    // Encoding-detection header - namespace Web::HTML::Parser, rust_detect_encoding only.
     let mut html_config = base_config;
     html_config.namespaces = Some(vec!["Web".to_string(), "HTML".to_string(), "Parser".to_string()]);
     html_config.export.include = vec!["rust_detect_encoding".to_string()];

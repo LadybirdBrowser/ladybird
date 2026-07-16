@@ -57,6 +57,17 @@ enum class AttributeCaseType : u8 {
     Insensitive,
 };
 
+enum class TagNameMatchingMode : u8 {
+    Normal,
+    Fast,
+};
+
+enum class HasCacheResult : u8 {
+    NotCached,
+    NotMatched,
+    Matched,
+};
+
 enum class Direction : u8 {
     None,
     LeftToRight,
@@ -129,11 +140,12 @@ struct ElementAndShadowHost {
 
 extern "C" RustSelector* rust_selector_create(Selector const*);
 extern "C" void rust_selector_destroy(RustSelector*);
-extern "C" bool rust_selector_matches(RustSelector const*, void const* element, u8 pseudo_element, void const* shadow_host, void* context, void const* scope);
-extern "C" bool rust_selector_matches_originating_element(RustSelector const*, u8 pseudo_element, void const* element, void const* shadow_host, void* context, void const* scope);
+extern "C" u8 rust_selector_target_pseudo_element(RustSelector const*);
+extern "C" bool rust_selector_matches(RustSelector const*, void const* element, u8 pseudo_element, void const* shadow_host, void* context, void const* scope, bool collects_selector_involvement_metadata, bool inside_has_argument);
+extern "C" bool rust_selector_matches_originating_element(RustSelector const*, u8 pseudo_element, void const* element, void const* shadow_host, void* context, void const* scope, bool collects_selector_involvement_metadata, bool inside_has_argument);
 
 extern "C" bool selector_ffi_matches_universal(void* context, void const* element, void const* cxx_simple_selector);
-extern "C" bool selector_ffi_matches_tag_name(void* context, void const* element, void const* cxx_simple_selector, u8 matching_mode);
+extern "C" bool selector_ffi_matches_tag_name(void* context, void const* element, void const* cxx_simple_selector, TagNameMatchingMode matching_mode);
 extern "C" bool selector_ffi_matches_id(void const* element, void const* cxx_simple_selector);
 extern "C" bool selector_ffi_matches_class(void const* element, void const* cxx_simple_selector);
 extern "C" bool selector_ffi_matches_attribute(void* context, void const* element, void const* cxx_simple_selector);
@@ -164,10 +176,8 @@ extern "C" void selector_ffi_note_sibling_combinator(void* context, void const* 
 extern "C" void selector_ffi_note_has_sibling_combinator_anchor(void* context, void const* anchor);
 extern "C" void selector_ffi_note_has_sibling_combinator_element(void* context, void const* element);
 extern "C" void selector_ffi_note_has_scope_element(void* context, void const* element);
-extern "C" bool selector_ffi_collects_selector_involvement_metadata(void* context);
-extern "C" bool selector_ffi_inside_has_argument(void* context);
 extern "C" void selector_ffi_set_inside_has_argument(void* context, bool value);
-extern "C" u8 selector_ffi_has_cache_get(void* context, u64 selector_id, void const* anchor);
+extern "C" HasCacheResult selector_ffi_has_cache_get(void* context, u64 selector_id, void const* anchor);
 extern "C" void selector_ffi_has_cache_set(void* context, u64 selector_id, void const* anchor, bool result);
 extern "C" bool selector_ffi_should_reject_has_argument(void* context, void const* selector, void const* anchor);
 

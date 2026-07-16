@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/SelectorRustBridge.h>
@@ -84,12 +85,26 @@ static SelectorFFI::AttributeCaseType attribute_case_type_to_ffi(Selector::Simpl
     VERIFY_NOT_REACHED();
 }
 
-static u8 pseudo_element_to_ffi(PseudoElement pseudo_element)
+u8 pseudo_element_to_ffi(Optional<PseudoElement> pseudo_element)
 {
-    if (pseudo_element == PseudoElement::UnknownWebKit)
-        return 20;
-    VERIFY(pseudo_element < PseudoElement::KnownPseudoElementCount);
-    return to_underlying(pseudo_element);
+    if (!pseudo_element.has_value())
+        return NumericLimits<u8>::max();
+    // NB: The Rust PseudoElementType enum is generated from PseudoElements.json with UnknownWebKit
+    //     appended after the known pseudo-elements, matching this encoding.
+    if (*pseudo_element == PseudoElement::UnknownWebKit)
+        return to_underlying(PseudoElement::KnownPseudoElementCount);
+    VERIFY(*pseudo_element < PseudoElement::KnownPseudoElementCount);
+    return to_underlying(*pseudo_element);
+}
+
+Optional<PseudoElement> pseudo_element_from_ffi(u8 pseudo_element)
+{
+    if (pseudo_element == NumericLimits<u8>::max())
+        return {};
+    if (pseudo_element == to_underlying(PseudoElement::KnownPseudoElementCount))
+        return PseudoElement::UnknownWebKit;
+    VERIFY(pseudo_element < to_underlying(PseudoElement::KnownPseudoElementCount));
+    return static_cast<PseudoElement>(pseudo_element);
 }
 
 class SelectorCompiler {

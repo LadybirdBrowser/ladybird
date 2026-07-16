@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <LibWeb/CSS/PseudoElement.h>
+
 namespace Web::CSS {
 
 class Selector;
@@ -17,5 +20,7 @@ struct RustSelector;
 }
 
 SelectorFFI::RustSelector* compile_selector_for_matching(Selector const&);
+u8 pseudo_element_to_ffi(Optional<PseudoElement>);
+Optional<PseudoElement> pseudo_element_from_ffi(u8);
 
 }

@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/SelectorMatching.h>
+#include <LibWeb/CSS/SelectorRustBridge.h>
 #include <LibWeb/CSS/SelectorRustFFI.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
@@ -652,26 +653,18 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
     VERIFY_NOT_REACHED();
 }
 
-static u8 pseudo_element_for_rust(Optional<CSS::PseudoElement> pseudo_element)
-{
-    if (!pseudo_element.has_value())
-        return NumericLimits<u8>::max();
-    if (*pseudo_element == CSS::PseudoElement::UnknownWebKit)
-        return 20;
-    VERIFY(*pseudo_element < CSS::PseudoElement::KnownPseudoElementCount);
-    return to_underlying(*pseudo_element);
-}
-
 bool matches(CSS::Selector const& selector, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host,
     MatchContext& context, GC::Ptr<DOM::ParentNode const> scope)
 {
     return CSS::SelectorFFI::rust_selector_matches(
         &selector.rust_selector(),
         &target.element(),
-        pseudo_element_for_rust(target.pseudo_element()),
+        CSS::pseudo_element_to_ffi(target.pseudo_element()),
         shadow_host.ptr(),
         &context,
-        scope.ptr());
+        scope.ptr(),
+        context.collect_per_element_selector_involvement_metadata,
+        context.inside_has_argument_match);
 }
 
 bool matches_originating_element_for_pseudo_element(CSS::Selector const& selector, CSS::PseudoElement pseudo_element, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope)
@@ -680,11 +673,13 @@ bool matches_originating_element_for_pseudo_element(CSS::Selector const& selecto
 
     return CSS::SelectorFFI::rust_selector_matches_originating_element(
         &selector.rust_selector(),
-        pseudo_element_for_rust(pseudo_element),
+        CSS::pseudo_element_to_ffi(pseudo_element),
         &target.element(),
         shadow_host.ptr(),
         &context,
-        scope.ptr());
+        scope.ptr(),
+        context.collect_per_element_selector_involvement_metadata,
+        context.inside_has_argument_match);
 }
 
 static MatchContext& rust_match_context(void* context)
@@ -763,8 +758,10 @@ using CSS::SelectorFFI::AttributeCaseType;
 using CSS::SelectorFFI::AttributeMatchType;
 using CSS::SelectorFFI::Combinator;
 using CSS::SelectorFFI::Direction;
+using CSS::SelectorFFI::HasCacheResult;
 using CSS::SelectorFFI::NamespaceType;
 using CSS::SelectorFFI::StringView;
+using CSS::SelectorFFI::TagNameMatchingMode;
 
 #define DECLARE_SELECTOR_FFI_CALLBACK(function) \
     extern "C" decltype(CSS::SelectorFFI::function) function
@@ -812,7 +809,7 @@ extern "C" bool selector_ffi_matches_universal(void* context, void const* elemen
     return matches_namespace(qualified_name, ffi_element(element), match_context.style_sheet_for_rule);
 }
 
-extern "C" bool selector_ffi_matches_tag_name(void* context, void const* element, void const* cxx_simple_selector, u8 matching_mode)
+extern "C" bool selector_ffi_matches_tag_name(void* context, void const* element, void const* cxx_simple_selector, TagNameMatchingMode matching_mode)
 {
     auto& match_context = rust_match_context(context);
     auto const& target = ffi_element(element);
@@ -821,7 +818,7 @@ extern "C" bool selector_ffi_matches_tag_name(void* context, void const* element
         && target.document().document_type() == DOM::Document::Type::HTML;
     auto const& name_to_match = is_html_element_in_html_document ? qualified_name.name.lowercase_name : qualified_name.name.name;
     bool name_matches;
-    if (is_html_element_in_html_document || matching_mode == 1)
+    if (is_html_element_in_html_document || matching_mode == TagNameMatchingMode::Fast)
         name_matches = target.local_name() == name_to_match;
     else
         name_matches = target.local_name().equals_ignoring_ascii_case(name_to_match);
@@ -1288,35 +1285,25 @@ extern "C" void selector_ffi_note_has_scope_element(void* context, void const* e
         const_cast<DOM::Element&>(ffi_element(element)).set_in_has_scope(true);
 }
 
-extern "C" bool selector_ffi_collects_selector_involvement_metadata(void* context)
-{
-    return rust_match_context(context).collect_per_element_selector_involvement_metadata;
-}
-
-extern "C" bool selector_ffi_inside_has_argument(void* context)
-{
-    return rust_match_context(context).inside_has_argument_match;
-}
-
 extern "C" void selector_ffi_set_inside_has_argument(void* context, bool value)
 {
     rust_match_context(context).inside_has_argument_match = value;
 }
 
-extern "C" u8 selector_ffi_has_cache_get(void* context, u64 selector_id, void const* anchor)
+extern "C" HasCacheResult selector_ffi_has_cache_get(void* context, u64 selector_id, void const* anchor)
 {
     auto& match_context = rust_match_context(context);
     auto& counters = ffi_element(anchor).document().style_invalidation_counters();
     ++counters.has_match_invocations;
     if (!match_context.has_result_cache)
-        return 0;
+        return HasCacheResult::NotCached;
     auto cached = match_context.has_result_cache->get({ selector_id, &ffi_element(anchor) });
     if (!cached.has_value()) {
         ++counters.has_result_cache_misses;
-        return 0;
+        return HasCacheResult::NotCached;
     }
     ++counters.has_result_cache_hits;
-    return cached.value() == HasMatchResult::Matched ? 2 : 1;
+    return cached.value() == HasMatchResult::Matched ? HasCacheResult::Matched : HasCacheResult::NotMatched;
 }
 
 extern "C" void selector_ffi_has_cache_set(void* context, u64 selector_id, void const* anchor, bool result)

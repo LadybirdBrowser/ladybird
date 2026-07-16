@@ -46,16 +46,6 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
         }
     }
 
-    if (!m_compound_selectors.is_empty()) {
-        auto const& rightmost_compound = m_compound_selectors.last();
-        if (!rightmost_compound.simple_selectors.is_empty()
-            && rightmost_compound.simple_selectors.first().type == SimpleSelector::Type::PseudoElement) {
-            auto pseudo_element = rightmost_compound.simple_selectors.first().pseudo_element().type();
-            if (!first_is_one_of(pseudo_element, PseudoElement::Slotted, PseudoElement::Part))
-                m_target_pseudo_element = pseudo_element;
-        }
-    }
-
     // https://drafts.csswg.org/css-nesting-1/#contain-the-nesting-selector
     // "A selector is said to contain the nesting selector if, when it was parsed as any type of selector,
     // a <delim-token> with the value "&" (U+0026 AMPERSAND) was encountered."
@@ -96,6 +86,7 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
 
     m_rust_selector = compile_selector_for_matching(*this);
     VERIFY(m_rust_selector);
+    m_target_pseudo_element = pseudo_element_from_ffi(SelectorFFI::rust_selector_target_pseudo_element(m_rust_selector));
 }
 
 Selector::~Selector()
