@@ -361,16 +361,6 @@ ErrorOr<bool> Database::table_exists(StringView table)
     return exists;
 }
 
-ErrorOr<bool> Database::column_exists(StringView table, StringView column)
-{
-    if (!m_column_exists_statement.has_value())
-        m_column_exists_statement = TRY(prepare_statement("SELECT 1 FROM pragma_table_info(?) WHERE name = ?;"sv));
-
-    bool exists = false;
-    TRY(try_execute_statement(*m_column_exists_statement, [&](auto) { exists = true; }, TRY(String::from_utf8(table)), TRY(String::from_utf8(column))));
-    return exists;
-}
-
 ErrorOr<Optional<u32>> Database::schema_version(StringView store)
 {
     if (!TRY(table_exists("SchemaVersions"sv)))
