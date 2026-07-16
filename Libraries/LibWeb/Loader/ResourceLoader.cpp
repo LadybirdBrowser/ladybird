@@ -304,8 +304,8 @@ void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler 
         on_load_counter_change();
 }
 
-template<typename Callback>
-void ResourceLoader::handle_about_load_request(LoadRequest const& request, Callback callback)
+template<typename ResourceHandler, typename ErrorHandler>
+void ResourceLoader::handle_about_load_request(LoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error)
 {
     auto const& url = request.url().value();
 
@@ -327,16 +327,15 @@ void ResourceLoader::handle_about_load_request(LoadRequest const& request, Callb
         if (!resource.is_error()) {
             auto const& buffer = resource.value()->data();
             ReadonlyBytes data(buffer.data(), buffer.size());
-            callback(data, timing_info, response_headers);
+            on_resource(data, timing_info, response_headers);
             return;
         }
     }
 
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(
         m_heap,
-        [callback, timing_info, response_headers = move(response_headers)]() mutable {
-            auto buffer = ByteString::empty().to_byte_buffer();
-            callback(buffer.bytes(), timing_info, response_headers);
+        [on_error, error_message = ByteString::formatted("No such about page: {}", serialized_path)]() {
+            on_error(error_message);
         }));
 }
 
@@ -398,11 +397,16 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
     if (url.scheme() == "about"sv) {
         handle_about_load_request(
             request,
-            [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete = move(on_complete), request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderList const& response_headers) {
+            [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete, request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderList const& response_headers) {
                 log_success(request);
                 on_headers_received->function()(nullptr, response_headers, {}, {}, {}, {}, Requests::CameFromCache::No);
                 on_data_received->function()(Requests::ResponseData::from_bytes(data));
                 on_complete->function()(true, timing_info, {});
+            },
+            [on_complete, request](ByteString const& message) {
+                log_failure(request, message);
+                Requests::RequestTimingInfo fixme_implement_timing_info {};
+                on_complete->function()(false, fixme_implement_timing_info, StringView(message));
             });
         return nullptr;
     }
