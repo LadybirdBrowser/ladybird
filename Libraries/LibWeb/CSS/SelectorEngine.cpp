@@ -2656,6 +2656,13 @@ extern "C" void selector_ffi_note_has_scope_element(void* context, void const* e
         const_cast<DOM::Element&>(ffi_element(element)).set_in_has_scope(true);
 }
 
+extern "C" bool selector_ffi_collects_selector_involvement_metadata(void* context)
+{
+    auto& rust_context = rust_match_context(context);
+    return rust_context.apply_side_effects
+        && rust_context.context.collect_per_element_selector_involvement_metadata;
+}
+
 extern "C" bool selector_ffi_inside_has_argument(void* context)
 {
     return rust_match_context(context).inside_has_argument_match;
@@ -2692,6 +2699,18 @@ extern "C" void selector_ffi_has_cache_set(void* context, u64 selector_id, void 
     auto& rust_context = rust_match_context(context);
     if (rust_context.apply_side_effects && rust_context.context.has_result_cache)
         rust_context.context.has_result_cache->set({ selector_id, &ffi_element(anchor) }, result ? HasMatchResult::Matched : HasMatchResult::NotMatched);
+}
+
+extern "C" bool selector_ffi_should_reject_has_argument(void* context, void const* selector, void const* anchor)
+{
+    auto& rust_context = rust_match_context(context);
+    if (!rust_context.apply_side_effects)
+        return false;
+    VERIFY(selector);
+    return should_reject_with_has_fast_reject_filter(
+        *static_cast<CSS::Selector const*>(selector),
+        ffi_element(anchor),
+        rust_context.context);
 }
 
 }

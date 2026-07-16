@@ -250,6 +250,7 @@ pub struct CompoundSelector {
 #[derive(Debug)]
 pub struct CompiledSelector {
     id: u64,
+    cxx_selector: usize,
     pub compound_selectors: Box<[CompoundSelector]>,
     pub target_pseudo_element: Option<PseudoElementType>,
     pub can_use_fast_matches: bool,
@@ -266,6 +267,10 @@ impl Eq for CompiledSelector {}
 
 impl CompiledSelector {
     pub fn new(compound_selectors: Box<[CompoundSelector]>) -> Arc<Self> {
+        Self::new_with_cxx_selector(compound_selectors, std::ptr::null())
+    }
+
+    fn new_with_cxx_selector(compound_selectors: Box<[CompoundSelector]>, cxx_selector: *const c_void) -> Arc<Self> {
         let id = NEXT_SELECTOR_ID.fetch_add(1, Ordering::Relaxed);
         assert_ne!(id, 0, "selector IDs must not wrap");
 
@@ -298,6 +303,7 @@ impl CompiledSelector {
 
         Arc::new(Self {
             id,
+            cxx_selector: cxx_selector as usize,
             compound_selectors,
             target_pseudo_element,
             can_use_fast_matches,
@@ -307,6 +313,10 @@ impl CompiledSelector {
 
     pub fn id(&self) -> u64 {
         self.id
+    }
+
+    fn cxx_selector(&self) -> *const c_void {
+        self.cxx_selector as *const c_void
     }
 }
 
@@ -387,6 +397,7 @@ pub trait SelectorDom {
     fn note_has_sibling_combinator_anchor(&mut self, anchor: Self::Element);
     fn note_has_sibling_combinator_element(&mut self, element: Self::Element);
     fn note_has_scope_element(&mut self, element: Self::Element);
+    fn collects_selector_involvement_metadata(&mut self) -> bool;
 
     fn enter_has_argument_matching(&mut self) -> bool;
     fn leave_has_argument_matching(&mut self, previous_value: bool);
@@ -935,12 +946,92 @@ fn matches_has_pseudo_class<Dom: SelectorDom>(
     let previous_inside_has = dom.enter_has_argument_matching();
     let result = if dom.should_reject_has_argument(selector, anchor) {
         false
+    } else if dom.collects_selector_involvement_metadata() {
+        matches_relative_selector(selector, 0, anchor, shadow_host, scope, anchor, dom)
+    } else if let Some(simple_selector) = simple_has_child_tag_selector(selector) {
+        matches_has_child_tag_fast_path(simple_selector, anchor, shadow_host, dom)
+    } else if let Some(compound_selector) = simple_has_descendant_tag_and_class_compound(selector) {
+        matches_has_descendant_tag_and_class_fast_path(selector, compound_selector, anchor, shadow_host, dom)
     } else {
         matches_relative_selector(selector, 0, anchor, shadow_host, scope, anchor, dom)
     };
     dom.leave_has_argument_matching(previous_inside_has);
     dom.has_cache_set(selector.id(), anchor, result);
     result
+}
+
+fn simple_has_child_tag_selector(selector: &CompiledSelector) -> Option<&SimpleSelector> {
+    let [compound_selector] = &*selector.compound_selectors else {
+        return None;
+    };
+    if compound_selector.combinator != Combinator::ImmediateChild {
+        return None;
+    }
+    let [simple_selector @ SimpleSelector::TagName(_)] = &*compound_selector.simple_selectors else {
+        return None;
+    };
+    Some(simple_selector)
+}
+
+fn simple_has_descendant_tag_and_class_compound(selector: &CompiledSelector) -> Option<&CompoundSelector> {
+    let [compound_selector] = &*selector.compound_selectors else {
+        return None;
+    };
+    if compound_selector.combinator != Combinator::Descendant
+        || compound_selector.simple_selectors.is_empty()
+        || !compound_selector
+            .simple_selectors
+            .iter()
+            .all(|selector| matches!(selector, SimpleSelector::TagName(_) | SimpleSelector::Class(_)))
+    {
+        return None;
+    }
+    Some(compound_selector)
+}
+
+fn matches_has_child_tag_fast_path<Dom: SelectorDom>(
+    simple_selector: &SimpleSelector,
+    anchor: Dom::Element,
+    shadow_host: Option<Dom::Element>,
+    dom: &mut Dom,
+) -> bool {
+    let mut child = dom.first_element_child(anchor);
+    while let Some(element) = child {
+        if matches_simple_selector(
+            simple_selector,
+            MatchTarget {
+                element,
+                pseudo_element: None,
+            },
+            shadow_host,
+            None,
+            SelectorKind::Normal,
+            TagNameMatchingMode::Fast,
+            dom,
+        ) {
+            return true;
+        }
+        child = dom.next_element_sibling(element);
+    }
+    false
+}
+
+fn matches_has_descendant_tag_and_class_fast_path<Dom: SelectorDom>(
+    selector: &CompiledSelector,
+    compound_selector: &CompoundSelector,
+    anchor: Dom::Element,
+    shadow_host: Option<Dom::Element>,
+    dom: &mut Dom,
+) -> bool {
+    let mut descendant = dom.first_element_descendant(anchor);
+    while let Some(element) = descendant {
+        if fast_matches_compound_selector(compound_selector, element, shadow_host, dom) {
+            cache_matching_has_ancestors(selector.id(), element, anchor, dom);
+            return true;
+        }
+        descendant = dom.next_element_descendant(element, anchor);
+    }
+    false
 }
 
 fn matches_relative_selector<Dom: SelectorDom>(
@@ -1403,6 +1494,7 @@ pub struct FfiCompoundSelector {
 
 #[repr(C)]
 pub struct FfiSelector {
+    pub cxx_selector: *const c_void,
     pub compound_selectors: *const FfiCompoundSelector,
     pub compound_selector_count: usize,
 }
@@ -1490,10 +1582,16 @@ unsafe extern "C" {
     fn selector_ffi_note_has_sibling_combinator_anchor(context: *mut c_void, anchor: *const c_void);
     fn selector_ffi_note_has_sibling_combinator_element(context: *mut c_void, element: *const c_void);
     fn selector_ffi_note_has_scope_element(context: *mut c_void, element: *const c_void);
+    fn selector_ffi_collects_selector_involvement_metadata(context: *mut c_void) -> bool;
     fn selector_ffi_inside_has_argument(context: *mut c_void) -> bool;
     fn selector_ffi_set_inside_has_argument(context: *mut c_void, value: bool);
     fn selector_ffi_has_cache_get(context: *mut c_void, selector_id: u64, anchor: *const c_void) -> u8;
     fn selector_ffi_has_cache_set(context: *mut c_void, selector_id: u64, anchor: *const c_void, result: bool);
+    fn selector_ffi_should_reject_has_argument(
+        context: *mut c_void,
+        selector: *const c_void,
+        anchor: *const c_void,
+    ) -> bool;
 }
 
 fn ffi_string_view(string: &[u16]) -> FfiStringView {
@@ -1750,6 +1848,10 @@ impl SelectorDom for FfiDom {
         unsafe { selector_ffi_note_has_scope_element(self.context, element.0) }
     }
 
+    fn collects_selector_involvement_metadata(&mut self) -> bool {
+        unsafe { selector_ffi_collects_selector_involvement_metadata(self.context) }
+    }
+
     fn enter_has_argument_matching(&mut self) -> bool {
         let previous_value = unsafe { selector_ffi_inside_has_argument(self.context) };
         unsafe { selector_ffi_set_inside_has_argument(self.context, true) };
@@ -1773,8 +1875,8 @@ impl SelectorDom for FfiDom {
         unsafe { selector_ffi_has_cache_set(self.context, selector_id, anchor.0, result) }
     }
 
-    fn should_reject_has_argument(&mut self, _selector: &CompiledSelector, _anchor: FfiElement) -> bool {
-        false
+    fn should_reject_has_argument(&mut self, selector: &CompiledSelector, anchor: FfiElement) -> bool {
+        unsafe { selector_ffi_should_reject_has_argument(self.context, selector.cxx_selector(), anchor.0) }
     }
 }
 
@@ -2047,7 +2149,7 @@ unsafe fn compiled_selector_from_ffi(selector: &FfiSelector) -> Arc<CompiledSele
         })
         .collect::<Vec<_>>()
         .into_boxed_slice();
-    CompiledSelector::new(compound_selectors)
+    CompiledSelector::new_with_cxx_selector(compound_selectors, selector.cxx_selector)
 }
 
 /// # Safety
@@ -2345,6 +2447,10 @@ mod tests {
         fn note_has_sibling_combinator_anchor(&mut self, _anchor: usize) {}
         fn note_has_sibling_combinator_element(&mut self, _element: usize) {}
         fn note_has_scope_element(&mut self, _element: usize) {}
+
+        fn collects_selector_involvement_metadata(&mut self) -> bool {
+            false
+        }
 
         fn enter_has_argument_matching(&mut self) -> bool {
             let previous_value = self.inside_has;

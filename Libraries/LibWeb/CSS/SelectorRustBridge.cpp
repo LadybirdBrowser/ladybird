@@ -116,6 +116,7 @@ public:
         }
 
         SelectorFFI::Selector ffi_selector {
+            .cxx_selector = &selector,
             .compound_selectors = m_compound_selectors.data(),
             .compound_selector_count = m_compound_selectors.size(),
         };

@@ -117,6 +117,7 @@ struct CompoundSelector {
 };
 
 struct Selector {
+    void const* cxx_selector;
     CompoundSelector const* compound_selectors;
     size_t compound_selector_count;
 };
@@ -164,9 +165,11 @@ extern "C" void selector_ffi_note_sibling_combinator(void* context, void const* 
 extern "C" void selector_ffi_note_has_sibling_combinator_anchor(void* context, void const* anchor);
 extern "C" void selector_ffi_note_has_sibling_combinator_element(void* context, void const* element);
 extern "C" void selector_ffi_note_has_scope_element(void* context, void const* element);
+extern "C" bool selector_ffi_collects_selector_involvement_metadata(void* context);
 extern "C" bool selector_ffi_inside_has_argument(void* context);
 extern "C" void selector_ffi_set_inside_has_argument(void* context, bool value);
 extern "C" u8 selector_ffi_has_cache_get(void* context, u64 selector_id, void const* anchor);
 extern "C" void selector_ffi_has_cache_set(void* context, u64 selector_id, void const* anchor, bool result);
+extern "C" bool selector_ffi_should_reject_has_argument(void* context, void const* selector, void const* anchor);
 
 }
