@@ -23,6 +23,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::WorkerAgentStartRequest const&
     TRY(encoder.encode(request.outside_settings));
     TRY(encoder.encode(request.storage_key));
     TRY(encoder.encode(request.caller_is_secure_context));
+    TRY(encoder.encode(request.maximum_frames_per_second));
     TRY(encoder.encode(request.owner_token));
     return {};
 }
@@ -41,6 +42,7 @@ ErrorOr<Web::HTML::WorkerAgentStartRequest> decode(Decoder& decoder)
         .outside_settings = TRY(decoder.decode<Web::HTML::SerializedEnvironmentSettingsObject>()),
         .storage_key = TRY(decoder.decode<Web::StorageAPI::StorageKey>()),
         .caller_is_secure_context = TRY(decoder.decode<bool>()),
+        .maximum_frames_per_second = TRY(decoder.decode<double>()),
         .owner_token = TRY(decoder.decode<Web::HTML::WorkerAgentOwnerToken>()),
     };
 }

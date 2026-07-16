@@ -71,6 +71,7 @@ public:
     }
     void set_zoom_level(double zoom_level);
     void set_maximum_frames_per_second(double maximum_frames_per_second);
+    virtual double maximum_frames_per_second() const override { return m_maximum_frames_per_second; }
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);

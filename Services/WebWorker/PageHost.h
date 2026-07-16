@@ -53,6 +53,8 @@ public:
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
     virtual void report_finished_handling_input_event([[maybe_unused]] u64 page_id, [[maybe_unused]] Web::EventResult event_was_handled) override { VERIFY_NOT_REACHED(); }
     virtual void request_frame() override { VERIFY_NOT_REACHED(); }
+    virtual double maximum_frames_per_second() const override { return m_maximum_frames_per_second; }
+    void set_maximum_frames_per_second(double maximum_frames_per_second) { m_maximum_frames_per_second = maximum_frames_per_second; }
     void did_finish_loading_worker_script(bool worker_is_secure_context);
     void did_fail_loading_worker_script();
 
@@ -66,6 +68,7 @@ private:
     OwnPtr<Web::Compositor::CompositorHost> m_compositor_host;
     GC::Ref<Web::Page> m_page;
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
+    double m_maximum_frames_per_second { 60.0 };
 };
 
 }

@@ -475,6 +475,7 @@ public:
     virtual double zoom_level() const = 0;
     virtual double device_pixel_ratio() const = 0;
     virtual double device_pixels_per_css_pixel() const = 0;
+    virtual double maximum_frames_per_second() const { return 60.0; }
     virtual CSS::PreferredColorScheme preferred_color_scheme() const = 0;
     virtual CSS::PreferredContrast preferred_contrast() const = 0;
     virtual CSS::PreferredMotion preferred_motion() const = 0;

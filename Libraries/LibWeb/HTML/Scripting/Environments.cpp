@@ -14,6 +14,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -525,8 +526,10 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
             };
         }
         VERIFY(is<WorkerGlobalScope>(global_object()));
+        auto const* dedicated_worker_global_scope = as_if<DedicatedWorkerGlobalScope>(global_object());
         return SerializedWorkerGlobalScope {
             .relevant_settings_object_is_secure_context = relevant_settings_object_is_secure_context,
+            .is_supported_animation_frame_provider = dedicated_worker_global_scope && dedicated_worker_global_scope->is_supported(),
         };
     }();
 

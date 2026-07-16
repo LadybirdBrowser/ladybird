@@ -10,3 +10,5 @@ interface DedicatedWorkerGlobalScope : WorkerGlobalScope {
     attribute EventHandler onmessage;
     attribute EventHandler onmessageerror;
 };
+
+DedicatedWorkerGlobalScope includes AnimationFrameProvider;

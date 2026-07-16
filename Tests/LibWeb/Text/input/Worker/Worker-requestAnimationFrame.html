@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const workerScript = `
+            const results = [];
+            results.push("has requestAnimationFrame: " + (typeof self.requestAnimationFrame === "function"));
+            results.push("has cancelAnimationFrame: " + (typeof self.cancelAnimationFrame === "function"));
+
+            const cancelledHandle = self.requestAnimationFrame(() => {
+                results.push("FAIL: cancelled callback ran");
+            });
+            self.cancelAnimationFrame(cancelledHandle);
+
+            self.requestAnimationFrame(timestamp => {
+                results.push("callback ran with numeric timestamp: " + (typeof timestamp === "number"));
+                self.requestAnimationFrame(secondTimestamp => {
+                    results.push("second frame not before first: " + (secondTimestamp >= timestamp));
+                    self.postMessage(results);
+                });
+            });
+        `;
+        const blob = new Blob([workerScript], { type: "application/javascript" });
+        const worker = new Worker(URL.createObjectURL(blob));
+        worker.onmessage = evt => {
+            for (const line of evt.data)
+                println(line);
+            done();
+        };
+    });
+</script>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#concept-AnimationFrameProvider-supported
+    // A dedicated worker is a supported AnimationFrameProvider only if its owner set reaches a
+    // Document: a worker nested inside a page-owned dedicated worker is supported, while a worker
+    // nested inside a shared worker is not and must throw "NotSupportedError".
+    asyncTest(done => {
+        function testNestedInDedicatedWorker(next) {
+            const parentScript = `
+                const nestedScript = 'try { requestAnimationFrame(() => postMessage("raf callback ran")); } catch (e) { postMessage("raf threw: " + e.name); }';
+                const nested = new Worker(URL.createObjectURL(new Blob([nestedScript], { type: "application/javascript" })));
+                nested.onmessage = evt => postMessage(evt.data);
+            `;
+            const blob = new Blob([parentScript], { type: "application/javascript" });
+            const worker = new Worker(URL.createObjectURL(blob));
+            worker.onmessage = evt => {
+                println("nested in dedicated worker: " + evt.data);
+                next();
+            };
+        }
+
+        function testNestedInSharedWorker(next) {
+            const sharedScript = `
+                onconnect = event => {
+                    const port = event.ports[0];
+                    const nestedScript = 'let result; try { requestAnimationFrame(() => {}); result = "raf did not throw"; } catch (e) { result = "raf threw: " + e.name; } try { cancelAnimationFrame(1); result += ", caf did not throw"; } catch (e) { result += ", caf threw: " + e.name; } postMessage(result);';
+                    const nested = new Worker(URL.createObjectURL(new Blob([nestedScript], { type: "application/javascript" })));
+                    nested.onmessage = evt => port.postMessage(evt.data);
+                };
+            `;
+            const blob = new Blob([sharedScript], { type: "application/javascript" });
+            const worker = new SharedWorker(URL.createObjectURL(blob), "raf-supported-test");
+            worker.port.onmessage = evt => {
+                println("nested in shared worker: " + evt.data);
+                next();
+            };
+            worker.port.start();
+        }
+
+        testNestedInDedicatedWorker(() => testNestedInSharedWorker(done));
+    });
+</script>

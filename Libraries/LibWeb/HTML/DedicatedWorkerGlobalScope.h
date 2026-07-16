@@ -29,6 +29,16 @@ public:
 
     void close();
 
+    WebIDL::ExceptionOr<WebIDL::UnsignedLong> request_animation_frame(GC::Ref<WebIDL::CallbackType>);
+    WebIDL::ExceptionOr<void> cancel_animation_frame(WebIDL::UnsignedLong handle);
+
+    // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#concept-AnimationFrameProvider-supported
+    bool is_supported() const;
+
+    // Requests a near-term "update the rendering of that dedicated worker" pass:
+    // run pending animation frame callbacks and commit OffscreenCanvas frames.
+    void schedule_rendering_update();
+
     WebIDL::CallbackType* onmessage();
     void set_onmessage(WebIDL::CallbackType* callback);
 
@@ -41,6 +51,14 @@ private:
     DedicatedWorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
 
     virtual void initialize_web_interfaces_impl() override;
+    virtual void visit_edges(Cell::Visitor&) override;
+
+    AnimationFrameCallbackDriver& animation_frame_callback_driver();
+    bool has_animation_frame_callbacks() const;
+    void run_rendering_update();
+
+    GC::Ptr<AnimationFrameCallbackDriver> m_animation_frame_callback_driver;
+    GC::Ptr<Platform::Timer> m_rendering_update_timer;
 };
 
 }

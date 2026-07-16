@@ -23,7 +23,8 @@ endpoint WebWorkerServer {
                  Utf16String name,
                  Web::HTML::TransferDataEncoder message_port,
                  Web::HTML::SerializedEnvironmentSettingsObject outside_settings,
-                 Web::Bindings::AgentType agent_type) =|
+                 Web::Bindings::AgentType agent_type,
+                 double maximum_frames_per_second) =|
 
     connect_shared_worker(Web::HTML::TransferDataEncoder message_port,
                           Web::HTML::SerializedEnvironmentSettingsObject outside_settings) =|

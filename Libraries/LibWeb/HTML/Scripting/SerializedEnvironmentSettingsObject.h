@@ -31,6 +31,12 @@ struct SerializedWindow {
 
 struct SerializedWorkerGlobalScope {
     bool relevant_settings_object_is_secure_context { false };
+
+    // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#concept-AnimationFrameProvider-supported
+    // Whether the serialized global is a DedicatedWorkerGlobalScope that is a supported
+    // AnimationFrameProvider. Recorded at serialization time so that a nested dedicated
+    // worker can compute its own supported-ness without reaching across processes.
+    bool is_supported_animation_frame_provider { false };
 };
 
 using SerializedGlobal = Variant<SerializedWindow, SerializedWorkerGlobalScope>;

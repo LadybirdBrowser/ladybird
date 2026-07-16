@@ -1,0 +1,2 @@
+nested in dedicated worker: raf callback ran
+nested in shared worker: raf threw: NotSupportedError, caf threw: NotSupportedError

@@ -1,0 +1,4 @@
+has requestAnimationFrame: true
+has cancelAnimationFrame: true
+callback ran with numeric timestamp: true
+second frame not before first: true
