@@ -1,6 +1,7 @@
 const enableAutoscroll = document.querySelector("#enable-autoscroll");
 const enablePrimaryPaste = document.querySelector("#enable-primary-paste");
 const enablePrimaryPasteGroup = document.querySelector("#enable-primary-paste-group");
+const restorePreviousSession = document.querySelector("#restore-previous-session");
 
 let BROWSING_BEHAVIOR = {};
 
@@ -13,6 +14,7 @@ const loadSettings = settings => {
 
     enableAutoscroll.checked = !!BROWSING_BEHAVIOR.enableAutoscroll;
     enablePrimaryPaste.checked = !!BROWSING_BEHAVIOR.enablePrimaryPaste;
+    restorePreviousSession.checked = !!BROWSING_BEHAVIOR.restorePreviousSession;
 };
 
 function addChangeHandler(input, name) {
@@ -24,6 +26,7 @@ function addChangeHandler(input, name) {
 
 addChangeHandler(enableAutoscroll, "enableAutoscroll");
 addChangeHandler(enablePrimaryPaste, "enablePrimaryPaste");
+addChangeHandler(restorePreviousSession, "restorePreviousSession");
 
 document.addEventListener("WebUIMessage", event => {
     if (event.detail.name === "loadFeatures") {
