@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // While an img element's image is still loading (or its lazy load is deferred), the element
+    // must render as blank space, not as its alt text; the fallback text is only for images that
+    // failed or that have no source at all. This matches Chrome and Firefox, and avoids flashing
+    // alt text on pages that are still loading their images.
+    asyncTest(async (done) => {
+        const TINY_PNG_BASE64 =
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+        const httpServer = httpTestServer();
+        const testID = crypto.randomUUID();
+        const unblockToken = `img-pending-alt-text-${testID}`;
+        const pendingURL = await httpServer.createEcho("GET", `/img-pending-alt-text-${testID}`, {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body: TINY_PNG_BASE64,
+            body_encoding: "base64",
+            wait_for_unblock: unblockToken,
+        });
+        const brokenURL = await httpServer.createEcho("GET", `/img-broken-alt-text-${testID}`, {
+            status: 404,
+            body: "not found",
+        });
+
+        const rendersBlank = (img) => img.getBoundingClientRect().width === 0;
+
+        const pendingImage = document.createElement("img");
+        pendingImage.alt = "some alt text";
+        pendingImage.src = pendingURL;
+        document.body.appendChild(pendingImage);
+        const pendingImageLoaded = new Promise((resolve) => (pendingImage.onload = resolve));
+
+        // Let the queued "update the image data" start the (stalled) fetch before looking.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        println(`pending image renders blank: ${rendersBlank(pendingImage)}`);
+
+        const brokenImage = document.createElement("img");
+        brokenImage.alt = "some alt text";
+        brokenImage.src = brokenURL;
+        document.body.appendChild(brokenImage);
+        await new Promise((resolve) => (brokenImage.onerror = resolve));
+        println(`broken image renders alt text: ${!rendersBlank(brokenImage)}`);
+
+        const sourcelessImage = document.createElement("img");
+        sourcelessImage.alt = "some alt text";
+        document.body.appendChild(sourcelessImage);
+        println(`src-less image renders alt text: ${!rendersBlank(sourcelessImage)}`);
+
+        const lazyImage = document.createElement("img");
+        lazyImage.alt = "some alt text";
+        lazyImage.loading = "lazy";
+        lazyImage.style.position = "absolute";
+        lazyImage.style.top = "100000px";
+        lazyImage.src = "/never-fetched.png";
+        document.body.appendChild(lazyImage);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        println(`deferred lazy image renders blank: ${rendersBlank(lazyImage)}`);
+
+        await fetch(new URL(`/unblock/${unblockToken}`, pendingURL));
+        await pendingImageLoaded;
+        println(`unblocked image loaded with natural width: ${pendingImage.naturalWidth}`);
+
+        done();
+    });
+</script>
