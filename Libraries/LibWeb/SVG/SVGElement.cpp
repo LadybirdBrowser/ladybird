@@ -273,10 +273,33 @@ void SVGElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor,
     remove_from_use_element_that_reference_this();
 
     // A <mask>, <clipPath>, or <pattern> referenced via url(#id) is laid out as a resource box attached to the
-    // referencing element's layout subtree. So it outlives this element's own DOM node. Rebuild the layout tree
-    // while this element is still alive — so those stale resource boxes are dropped before this node is collected.
+    // referencing element's layout subtree. So it outlives this element's own DOM node. Rebuild those referencing
+    // subtrees while this element is still alive — so the stale resource boxes are dropped before this node is
+    // collected.
+    mark_resource_box_referencing_elements_for_layout_tree_update();
+
+    // References that resolve during display list recording (e.g. gradient or filter url(#id) references) don't
+    // build resource boxes, so there may be no layout invalidation to trigger re-recording. Request it explicitly
+    // to drop the visual effects of the removed element.
     if (id().has_value())
-        document().set_needs_full_layout_tree_update(true);
+        document().set_needs_repaint(Badge<SVGElement> {}, InvalidateDisplayList::Yes);
+}
+
+void SVGElement::register_resource_box_referencing_element(Badge<Layout::TreeBuilder>, DOM::Element& referencing_element)
+{
+    m_resource_box_referencing_elements.remove_all_matching([&](auto& weak_element) {
+        return !weak_element || weak_element == &referencing_element;
+    });
+    m_resource_box_referencing_elements.append(referencing_element);
+}
+
+void SVGElement::mark_resource_box_referencing_elements_for_layout_tree_update()
+{
+    for (auto& weak_referencing_element : m_resource_box_referencing_elements) {
+        if (auto referencing_element = weak_referencing_element.ptr())
+            referencing_element->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::SVGResourceElementRemoved);
+    }
+    m_resource_box_referencing_elements.clear();
 }
 
 void SVGElement::remove_from_use_element_that_reference_this()

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGC/Weak.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
@@ -37,6 +38,8 @@ public:
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
+    void register_resource_box_referencing_element(Badge<Layout::TreeBuilder>, DOM::Element&);
+
 protected:
     SVGElement(DOM::Document&, DOM::QualifiedName);
 
@@ -52,6 +55,7 @@ protected:
 
     void update_use_elements_that_reference_this();
     void remove_from_use_element_that_reference_this();
+    void mark_resource_box_referencing_elements_for_layout_tree_update();
 
 private:
     // ^HTML::GlobalEventHandlers
@@ -60,6 +64,11 @@ private:
     virtual bool is_svg_element() const final { return true; }
 
     GC::Ptr<SVGAnimatedString> m_class_name_animated_string;
+
+    // Elements whose layout subtrees contain a <mask>, <clipPath>, or <pattern> resource box built
+    // from this element. Their subtrees must be rebuilt when this element is removed, since resource
+    // boxes are not attached under this element's own layout position.
+    Vector<GC::Weak<DOM::Element>> m_resource_box_referencing_elements;
 };
 
 }

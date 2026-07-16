@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/svg-gradient-in-defs-removed-repaint-ref.html">
+<svg width="100" height="100">
+    <defs>
+        <linearGradient id="g">
+            <stop offset="0" stop-color="red"/>
+            <stop offset="1" stop-color="red"/>
+        </linearGradient>
+    </defs>
+    <rect width="100" height="100" fill="url(#g)"/>
+</svg>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("g").remove();
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

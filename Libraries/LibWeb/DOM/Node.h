@@ -107,6 +107,7 @@ enum class SetNeedsLayoutReason {
     X(None)                                               \
     X(ShadowRootSetInnerHTML)                             \
     X(StyleChange)                                        \
+    X(SVGResourceElementRemoved)                          \
     X(TopLayerMembershipChange)
 
 enum class SetNeedsLayoutTreeUpdateReason {

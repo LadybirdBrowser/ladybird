@@ -1360,6 +1360,7 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, Layout:
                 }
             }
             update_layout_tree(const_cast<SVG::SVGElement&>(*mask_or_clip_path), context, MustCreateSubtree::Yes);
+            const_cast<SVG::SVGElement&>(*mask_or_clip_path).register_resource_box_referencing_element({}, graphics_element);
             pop_parent();
         };
         if (auto mask = graphics_element.mask())
@@ -1385,6 +1386,11 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, Layout:
                 }
             }
             update_layout_tree(const_cast<SVG::SVGPatternElement&>(*content_element), context, MustCreateSubtree::Yes);
+            // NB: The referenced pattern may inherit its content from another pattern via href. Removing either
+            //     element invalidates the attached resource box, so register the referencer with both.
+            const_cast<SVG::SVGPatternElement&>(*content_element).register_resource_box_referencing_element({}, graphics_element);
+            if (pattern != content_element)
+                const_cast<SVG::SVGPatternElement&>(*pattern).register_resource_box_referencing_element({}, graphics_element);
             pop_parent();
         };
         if (auto fill = graphics_element.fill_pattern())
