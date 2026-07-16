@@ -358,8 +358,8 @@ static ALWAYS_INLINE i32 wasm_cl_finish_call(BytecodeInterpreter& interpreter, C
             return 1;
         if (config.frame().arity() == 1)
             config.compiled_call_result_scratch() = config.value_stack().unsafe_take_last();
-        if (!config.label_stack().is_empty())
-            config.label_stack().take_last();
+        if (config.label_stack().size() > config.frame().label_index())
+            config.label_stack().shrink(config.frame().label_index(), true);
         return 0;
     }
 
