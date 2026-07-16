@@ -157,6 +157,11 @@ test("very large targetOffset", () => {
         }).toThrowWithMessage(RangeError, "Overflow or out of bounds in target offset");
 
         expect(() => {
+            // set_typed_array_from_typed_array
+            typedArray.set(typedArray, 2 ** 64);
+        }).toThrowWithMessage(RangeError, "Overflow or out of bounds in target offset");
+
+        expect(() => {
             // set_typed_array_from_array_like
             typedArray.set([], 2 ** 128);
         }).toThrowWithMessage(RangeError, "Overflow or out of bounds in target offset");
