@@ -103,8 +103,7 @@ struct BatchInput {
 // any rebuild that changes those will simply miss the cache rather than try to
 // execute incompatible bytes.
 constexpr u64 cache_blob_magic = 0x4354494A4D534157ULL; // "WASMJITC" little-endian
-// Version 7: compiled entry blocks zero-initialize their own locals; callers no longer pre-zero.
-constexpr u32 cache_blob_format_version = 7;
+constexpr u32 cache_blob_format_version = 8;
 
 struct CacheBlobHeader {
     u64 magic;
