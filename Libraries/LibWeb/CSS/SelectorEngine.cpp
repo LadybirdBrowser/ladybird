@@ -1949,23 +1949,12 @@ bool matches(CSS::Selector const& selector, DOM::AbstractElement const& target, 
     MatchContext& context, GC::Ptr<DOM::ParentNode const> scope,
     SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor)
 {
-    bool result;
-    if (selector_kind == SelectorKind::Normal
-        && !target.pseudo_element().has_value()
-        && selector.can_use_fast_matches()
-        && !(scope && (selector.contains_pseudo_class(CSS::PseudoClass::Scope) || selector.contains_the_nesting_selector()))) {
-        result = fast_matches(selector, target.element(), shadow_host, context);
-    } else {
-        VERIFY(!selector.compound_selectors().is_empty());
-        result = selector.target_pseudo_element() == target.pseudo_element()
-            && matches_compound_selector(selector, selector.compound_selectors().size() - 1, target, shadow_host, context, scope, selector_kind, anchor);
-    }
-
     RustMatchContext rust_context {
         .context = context,
+        .apply_side_effects = true,
         .inside_has_argument_match = context.inside_has_argument_match,
     };
-    [[maybe_unused]] auto rust_result = CSS::SelectorFFI::rust_selector_matches(
+    return CSS::SelectorFFI::rust_selector_matches(
         &selector.rust_selector(),
         &target.element(),
         pseudo_element_for_rust(target.pseudo_element()),
@@ -1974,48 +1963,24 @@ bool matches(CSS::Selector const& selector, DOM::AbstractElement const& target, 
         scope.ptr(),
         to_underlying(selector_kind),
         anchor.ptr());
-    ASSERT(result == rust_result);
-    return result;
 }
 
 bool matches_originating_element_for_pseudo_element(CSS::Selector const& selector, CSS::PseudoElement pseudo_element, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope)
 {
     VERIFY(!target.pseudo_element().has_value());
 
-    auto result = [&] {
-        auto const& compound_selectors = selector.compound_selectors();
-        for (size_t i = compound_selectors.size(); i > 0; --i) {
-            auto const compound_index = i - 1;
-            auto const& compound_selector = compound_selectors[compound_index];
-            if (compound_selector.combinator != CSS::Selector::Combinator::PseudoElement)
-                continue;
-            if (compound_selector.simple_selectors.is_empty())
-                continue;
-            auto const& simple_selector = compound_selector.simple_selectors.first();
-            if (simple_selector.type != CSS::Selector::SimpleSelector::Type::PseudoElement)
-                continue;
-            if (simple_selector.pseudo_element().type() != pseudo_element)
-                continue;
-            if (compound_index == 0)
-                return false;
-            return matches_compound_selector(selector, compound_index - 1, target, shadow_host, context, scope, SelectorKind::Normal);
-        }
-        return false;
-    }();
-
     RustMatchContext rust_context {
         .context = context,
+        .apply_side_effects = true,
         .inside_has_argument_match = context.inside_has_argument_match,
     };
-    [[maybe_unused]] auto rust_result = CSS::SelectorFFI::rust_selector_matches_originating_element(
+    return CSS::SelectorFFI::rust_selector_matches_originating_element(
         &selector.rust_selector(),
         pseudo_element_for_rust(pseudo_element),
         &target.element(),
         shadow_host.ptr(),
         &rust_context,
         scope.ptr());
-    ASSERT(result == rust_result);
-    return result;
 }
 
 static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& simple_selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context)
