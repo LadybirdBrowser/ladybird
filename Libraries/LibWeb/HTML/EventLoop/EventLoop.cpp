@@ -420,6 +420,13 @@ void EventLoop::update_the_rendering()
             // NOTE: Recalculation of styles is handled by update_layout()
             document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
 
+            // AD-HOC: Script that ran earlier in this rendering update may have spun the event loop (e.g. with a
+            //         synchronous XHR) and run tasks that stopped document from being actively rendered, for example
+            //         by detaching it from its navigable after its iframe was removed. update_layout() is a no-op for
+            //         such documents, which can leave them without a paint tree, so skip the rest of this step.
+            if (!document->navigable() || document->navigable()->active_document() != document)
+                break;
+
             // Clamp viewport scroll offset to valid range after layout, in case the
             // scrollable overflow area has shrunk (e.g. after a viewport size change).
             if (auto navigable = document->navigable())
@@ -533,7 +540,9 @@ void EventLoop::update_the_rendering()
     // 22. For each doc of docs, update the rendering or user interface of doc and its node navigable to reflect the current state.
     for (auto& doc : docs.in_reverse()) {
         auto navigable = doc->navigable();
-        if (!navigable->needs_repaint())
+        // AD-HOC: Script that ran earlier in this rendering update may have spun the event loop and run tasks that
+        //         detached doc from its navigable (e.g. after its iframe was removed).
+        if (!navigable || !navigable->needs_repaint())
             continue;
         // OPTIMIZATION: Don't paint navigables hidden by an ancestor iframe with visibility: hidden.
         //               needs_repaint() stays true — so, once the navigable becomes visible, it's painted.

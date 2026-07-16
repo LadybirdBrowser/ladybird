@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!-- Test: Insert a display:none iframe (so its about:blank document is never laid out and never
+     gets a paint tree), then remove it from an animation frame callback and immediately perform a
+     synchronous XHR. Removing the iframe queues a deferred task that detaches the child document
+     from its navigable, and the sync XHR spins the event loop from inside the rendering update,
+     running that task before the update's style/layout step. That document is still in the
+     update's docs set, so the style/layout step processes a detached document with no paintable,
+     which the content-visibility step used to dereference. -->
+<html class="test-wait">
+<body>
+<script>
+    addEventListener("load", () => {
+        setTimeout(() => {
+            const iframe = document.createElement("iframe");
+            iframe.style.display = "none";
+            document.body.appendChild(iframe);
+            requestAnimationFrame(() => {
+                iframe.remove();
+                try {
+                    // The fetch fails for file: URLs, but send() still spins the event loop long
+                    // enough to run the queued detach task, which is all this test needs.
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("GET", "../../Assets/blank.html", false);
+                    xhr.send();
+                } catch {}
+                requestAnimationFrame(() => {
+                    document.documentElement.classList.remove("test-wait");
+                });
+            });
+        }, 0);
+    });
+</script>
+</body>
+</html>
