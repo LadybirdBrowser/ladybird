@@ -286,7 +286,6 @@ static ALWAYS_INLINE i32 wasm_cl_run_compiled(BytecodeInterpreter& interpreter, 
 {
     BytecodeInterpreter::CallFrameHandle handle { interpreter, config };
     config.set_frame_lightweight(*entry.module, callee_locals, *entry.expression, entry.arity);
-    config.setup_call_record_for_current_frame();
     config.ip() = 0;
 
     interpreter.clear_trap();

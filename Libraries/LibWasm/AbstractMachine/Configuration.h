@@ -93,19 +93,6 @@ public:
         // Skip capacity hints and label push (Cranelift uses its own structured control flow).
     }
 
-    void setup_call_record_for_current_frame()
-    {
-        auto max_call_rec_size = m_frame_stack.last().expression().compiled_instructions.max_call_rec_size;
-        if (max_call_rec_size > 0) {
-            m_current_call_record.clear_with_capacity();
-            m_current_call_record.ensure_capacity(max_call_rec_size);
-            m_current_call_record.resize_and_keep_capacity(max_call_rec_size);
-            m_call_record_base = m_current_call_record.data();
-        } else {
-            m_call_record_base = nullptr;
-        }
-    }
-
     ALWAYS_INLINE auto& frame() const { return m_frame_stack.last(); }
     ALWAYS_INLINE auto& frame() { return m_frame_stack.last(); }
     ALWAYS_INLINE auto& ip() const { return m_ip; }
@@ -171,6 +158,8 @@ public:
         ~CallFrameHandle()
         {
             if (moved_call_record.has_value()) {
+                // Recycle the callee's lazily-allocated record instead of freeing it under the caller.
+                configuration.release_call_record_allocation();
                 configuration.m_current_call_record = moved_call_record.release_value();
                 configuration.m_call_record_base = configuration.m_current_call_record.data();
             } else {
@@ -212,6 +201,16 @@ public:
             arguments = m_call_argument_freelist.take_last();
 
         arguments.ensure_capacity(max(max_size, frame().module().cached_minimum_call_record_allocation_size));
+    }
+
+    // Hand the current frame's call-record buffer back to the freelist so the next compiled call can
+    // reuse it, rather than freeing it under the caller and reallocating on the following call.
+    void release_call_record_allocation()
+    {
+        if (m_current_call_record.capacity() == ArgumentsStaticSize || m_call_argument_freelist.size() >= 16)
+            return;
+        m_current_call_record.clear_with_capacity();
+        m_call_argument_freelist.unchecked_append(move(m_current_call_record));
     }
 
     void release_arguments_allocation(Vector<Value, ArgumentsStaticSize>& arguments, bool expect_frame = true)
