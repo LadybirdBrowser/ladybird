@@ -1,0 +1,19 @@
+compound: true
+descendant: true
+adjacent sibling: true
+subsequent sibling: true
+attribute insensitive: true
+attribute sensitive: false
+logical: true
+positional: true
+relative descendant: true
+relative child: true
+relative sibling: true
+closest: true
+query selector all: 3
+XML tag case: true/false
+XML namespace wildcard: true
+XML attribute namespace wildcard: true
+host: yes
+slotted: yes
+part query: false

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="fixture">
+    <section class="outer" data-mode="MiXeD">
+        <span class="first item"></span>
+        <span class="second item"><b class="needle"></b></span>
+        <span class="third item"></span>
+    </section>
+</div>
+<script>
+    test(() => {
+        const outer = document.querySelector(".outer");
+        const second = document.querySelector(".second");
+        const needle = document.querySelector(".needle");
+
+        println(`compound: ${second.matches("section > span.item.second")}`);
+        println(`descendant: ${needle.matches("#fixture .outer .needle")}`);
+        println(`adjacent sibling: ${second.matches(".first + .second")}`);
+        println(`subsequent sibling: ${document.querySelector(".third").matches(".first ~ .third")}`);
+        println(`attribute insensitive: ${outer.matches('[data-mode="mixed" i]')}`);
+        println(`attribute sensitive: ${outer.matches('[data-mode="mixed" s]')}`);
+        println(`logical: ${second.matches(":is(.first, .second):not(.third)")}`);
+        println(`positional: ${second.matches(":nth-child(2 of .item)")}`);
+        println(`relative descendant: ${outer.matches(":has(.second .needle)")}`);
+        println(`relative child: ${outer.matches(":has(> .first)")}`);
+        println(`relative sibling: ${document.querySelector(".first").matches(":has(+ .second)")}`);
+        println(`closest: ${needle.closest("section") === outer}`);
+        println(`query selector all: ${outer.querySelectorAll(":scope > .item").length}`);
+        const xml = document.implementation.createDocument("urn:example", "ex:root");
+        const child = xml.createElementNS("urn:example", "ex:Child");
+        child.setAttributeNS("urn:attributes", "attr:value", "yes");
+        xml.documentElement.appendChild(child);
+
+        println(`XML tag case: ${child.matches("Child")}/${child.matches("child")}`);
+        println(`XML namespace wildcard: ${child.matches("*|Child")}`);
+        println(`XML attribute namespace wildcard: ${child.matches("[*|value]")}`);
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>
+                :host(.active) { --host-match: yes; }
+                ::slotted(.assigned) { --slot-match: yes; }
+                .part { part: exposed; }
+            </style>
+            <slot></slot>
+            <span class="part"></span>
+        `;
+        host.className = "active";
+        const assigned = document.createElement("span");
+        assigned.className = "assigned";
+        host.appendChild(assigned);
+
+        println(`host: ${getComputedStyle(host).getPropertyValue("--host-match").trim()}`);
+        println(`slotted: ${getComputedStyle(assigned).getPropertyValue("--slot-match").trim()}`);
+        println(`part query: ${shadowRoot.querySelector(".part").matches(":scope .part")}`);
+    });
+</script>
