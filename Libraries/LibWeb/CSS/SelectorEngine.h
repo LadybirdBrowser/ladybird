@@ -24,7 +24,7 @@ enum class HasMatchResult : u8 {
 };
 
 struct HasResultCacheKey {
-    CSS::Selector const* selector;
+    u64 selector_id;
     GC::Ptr<DOM::Element const> element;
 
     void visit_edges(GC::Cell::Visitor& visitor)
@@ -38,7 +38,7 @@ struct HasResultCacheKey {
 struct HasResultCacheKeyTraits : Traits<HasResultCacheKey> {
     static unsigned hash(HasResultCacheKey const& key)
     {
-        return pair_int_hash(ptr_hash(key.selector), ptr_hash(key.element.ptr()));
+        return pair_int_hash(u64_hash(key.selector_id), ptr_hash(key.element.ptr()));
     }
 };
 

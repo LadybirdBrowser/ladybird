@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/SelectorEngine.h>
+#include <LibWeb/CSS/SelectorRustFFI.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -39,6 +40,12 @@
 #include <LibWeb/SVG/SVGAElement.h>
 
 namespace Web::SelectorEngine {
+
+struct RustMatchContext {
+    MatchContext& context;
+    bool apply_side_effects { false };
+    bool inside_has_argument_match { false };
+};
 
 static bool fly_string_equals_utf16(Utf16FlyString const& fly_string, Utf16View utf16_string)
 {
@@ -329,7 +336,7 @@ static bool matches_has_descendant_tag_and_class_fast_path(CSS::Selector const& 
 
     if (has && matching_descendant && context.has_result_cache) {
         for (auto ancestor = matching_descendant->parent_element(); ancestor && ancestor.ptr() != &anchor; ancestor = ancestor->parent_element())
-            context.has_result_cache->set({ &selector, ancestor.ptr() }, HasMatchResult::Matched);
+            context.has_result_cache->set({ selector.rust_selector_id(), ancestor.ptr() }, HasMatchResult::Matched);
     }
 
     return has;
@@ -476,7 +483,7 @@ static inline bool matches_relative_selector(CSS::Selector const& selector, size
         // Cache ancestors as also matching (they have the matching descendant too)
         if (has && matching_descendant && context.has_result_cache) {
             for (auto ancestor = matching_descendant->parent_element(); ancestor && ancestor.ptr() != &element; ancestor = ancestor->parent_element()) {
-                context.has_result_cache->set({ &selector, ancestor.ptr() }, HasMatchResult::Matched);
+                context.has_result_cache->set({ selector.rust_selector_id(), ancestor.ptr() }, HasMatchResult::Matched);
             }
         }
         return has;
@@ -545,7 +552,7 @@ static inline bool matches_has_pseudo_class(CSS::Selector const& selector, DOM::
     ++counters.has_match_invocations;
 
     if (context.has_result_cache) {
-        if (auto cached = context.has_result_cache->get({ &selector, &anchor }); cached.has_value()) {
+        if (auto cached = context.has_result_cache->get({ selector.rust_selector_id(), &anchor }); cached.has_value()) {
             ++counters.has_result_cache_hits;
             return cached.value() == HasMatchResult::Matched;
         }
@@ -570,7 +577,7 @@ static inline bool matches_has_pseudo_class(CSS::Selector const& selector, DOM::
     }
 
     if (context.has_result_cache)
-        context.has_result_cache->set({ &selector, &anchor }, result ? HasMatchResult::Matched : HasMatchResult::NotMatched);
+        context.has_result_cache->set({ selector.rust_selector_id(), &anchor }, result ? HasMatchResult::Matched : HasMatchResult::NotMatched);
 
     return result;
 }
@@ -1928,46 +1935,87 @@ bool matches_compound_selector(CSS::Selector const& selector, int component_list
 
 bool fast_matches(CSS::Selector const& selector, DOM::Element const& element_to_match, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context);
 
+static u8 pseudo_element_for_rust(Optional<CSS::PseudoElement> pseudo_element)
+{
+    if (!pseudo_element.has_value())
+        return NumericLimits<u8>::max();
+    if (*pseudo_element == CSS::PseudoElement::UnknownWebKit)
+        return 20;
+    VERIFY(*pseudo_element < CSS::PseudoElement::KnownPseudoElementCount);
+    return to_underlying(*pseudo_element);
+}
+
 bool matches(CSS::Selector const& selector, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host,
     MatchContext& context, GC::Ptr<DOM::ParentNode const> scope,
     SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor)
 {
+    bool result;
     if (selector_kind == SelectorKind::Normal
         && !target.pseudo_element().has_value()
         && selector.can_use_fast_matches()
-        && !(scope && (selector.contains_pseudo_class(CSS::PseudoClass::Scope) || selector.contains_the_nesting_selector())))
-        return fast_matches(selector, target.element(), shadow_host, context);
+        && !(scope && (selector.contains_pseudo_class(CSS::PseudoClass::Scope) || selector.contains_the_nesting_selector()))) {
+        result = fast_matches(selector, target.element(), shadow_host, context);
+    } else {
+        VERIFY(!selector.compound_selectors().is_empty());
+        result = selector.target_pseudo_element() == target.pseudo_element()
+            && matches_compound_selector(selector, selector.compound_selectors().size() - 1, target, shadow_host, context, scope, selector_kind, anchor);
+    }
 
-    VERIFY(!selector.compound_selectors().is_empty());
-    if (selector.target_pseudo_element() != target.pseudo_element())
-        return false;
-
-    return matches_compound_selector(selector, selector.compound_selectors().size() - 1, target, shadow_host, context, scope, selector_kind, anchor);
+    RustMatchContext rust_context {
+        .context = context,
+        .inside_has_argument_match = context.inside_has_argument_match,
+    };
+    [[maybe_unused]] auto rust_result = CSS::SelectorFFI::rust_selector_matches(
+        &selector.rust_selector(),
+        &target.element(),
+        pseudo_element_for_rust(target.pseudo_element()),
+        shadow_host.ptr(),
+        &rust_context,
+        scope.ptr(),
+        to_underlying(selector_kind),
+        anchor.ptr());
+    ASSERT(result == rust_result);
+    return result;
 }
 
 bool matches_originating_element_for_pseudo_element(CSS::Selector const& selector, CSS::PseudoElement pseudo_element, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope)
 {
     VERIFY(!target.pseudo_element().has_value());
 
-    auto const& compound_selectors = selector.compound_selectors();
-    for (size_t i = compound_selectors.size(); i > 0; --i) {
-        auto const compound_index = i - 1;
-        auto const& compound_selector = compound_selectors[compound_index];
-        if (compound_selector.combinator != CSS::Selector::Combinator::PseudoElement)
-            continue;
-        if (compound_selector.simple_selectors.is_empty())
-            continue;
-        auto const& simple_selector = compound_selector.simple_selectors.first();
-        if (simple_selector.type != CSS::Selector::SimpleSelector::Type::PseudoElement)
-            continue;
-        if (simple_selector.pseudo_element().type() != pseudo_element)
-            continue;
-        if (compound_index == 0)
-            return false;
-        return matches_compound_selector(selector, compound_index - 1, target, shadow_host, context, scope, SelectorKind::Normal);
-    }
+    auto result = [&] {
+        auto const& compound_selectors = selector.compound_selectors();
+        for (size_t i = compound_selectors.size(); i > 0; --i) {
+            auto const compound_index = i - 1;
+            auto const& compound_selector = compound_selectors[compound_index];
+            if (compound_selector.combinator != CSS::Selector::Combinator::PseudoElement)
+                continue;
+            if (compound_selector.simple_selectors.is_empty())
+                continue;
+            auto const& simple_selector = compound_selector.simple_selectors.first();
+            if (simple_selector.type != CSS::Selector::SimpleSelector::Type::PseudoElement)
+                continue;
+            if (simple_selector.pseudo_element().type() != pseudo_element)
+                continue;
+            if (compound_index == 0)
+                return false;
+            return matches_compound_selector(selector, compound_index - 1, target, shadow_host, context, scope, SelectorKind::Normal);
+        }
+        return false;
+    }();
 
-    return false;
+    RustMatchContext rust_context {
+        .context = context,
+        .inside_has_argument_match = context.inside_has_argument_match,
+    };
+    [[maybe_unused]] auto rust_result = CSS::SelectorFFI::rust_selector_matches_originating_element(
+        &selector.rust_selector(),
+        pseudo_element_for_rust(pseudo_element),
+        &target.element(),
+        shadow_host.ptr(),
+        &rust_context,
+        scope.ptr());
+    ASSERT(result == rust_result);
+    return result;
 }
 
 static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& simple_selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context)
@@ -2070,6 +2118,580 @@ bool fast_matches(CSS::Selector const& selector, DOM::Element const& element_to_
             VERIFY_NOT_REACHED();
         }
     }
+}
+
+static RustMatchContext& rust_match_context(void* context)
+{
+    VERIFY(context);
+    return *static_cast<RustMatchContext*>(context);
+}
+
+static DOM::Element const& ffi_element(void const* element)
+{
+    VERIFY(element);
+    return *static_cast<DOM::Element const*>(element);
+}
+
+static Utf16View ffi_string_view(CSS::SelectorFFI::StringView string)
+{
+    static_assert(sizeof(u16) == sizeof(char16_t));
+    if (string.length == 0)
+        return {};
+    VERIFY(string.data);
+    return { reinterpret_cast<char16_t const*>(string.data), string.length };
+}
+
+static bool matches_ffi_namespace(CSS::SelectorFFI::NamespaceType namespace_type, Utf16View namespace_, DOM::Element const& element, GC::Ptr<CSS::CSSStyleSheet const> style_sheet_for_rule)
+{
+    switch (namespace_type) {
+    case CSS::SelectorFFI::NamespaceType::Default:
+        if (!style_sheet_for_rule || !style_sheet_for_rule->default_namespace_rule())
+            return true;
+        return element.namespace_uri().has_value()
+            && style_sheet_for_rule->default_namespace_rule()->namespace_uri() == element.namespace_uri()->view();
+    case CSS::SelectorFFI::NamespaceType::None:
+        return !element.namespace_uri().has_value();
+    case CSS::SelectorFFI::NamespaceType::Any:
+        return true;
+    case CSS::SelectorFFI::NamespaceType::Named: {
+        if (!style_sheet_for_rule)
+            return false;
+        auto selector_namespace = style_sheet_for_rule->namespace_uri(namespace_);
+        if (selector_namespace.has_value() && selector_namespace->is_empty())
+            return !element.namespace_uri().has_value();
+        return selector_namespace.has_value()
+            && element.namespace_uri().has_value()
+            && *selector_namespace == element.namespace_uri()->view();
+    }
+    }
+    VERIFY_NOT_REACHED();
+}
+
+using CSS::SelectorFFI::AttributeCaseType;
+using CSS::SelectorFFI::AttributeMatchType;
+using CSS::SelectorFFI::Combinator;
+using CSS::SelectorFFI::Direction;
+using CSS::SelectorFFI::NamespaceType;
+using CSS::SelectorFFI::StringView;
+
+extern "C" bool selector_ffi_matches_universal(void* context, void const* element, NamespaceType namespace_type, StringView namespace_)
+{
+    auto& match_context = rust_match_context(context).context;
+    return matches_ffi_namespace(namespace_type, ffi_string_view(namespace_), ffi_element(element), match_context.style_sheet_for_rule);
+}
+
+extern "C" bool selector_ffi_matches_tag_name(void* context, void const* element, NamespaceType namespace_type, StringView namespace_, StringView name, StringView lowercase_name, u8 matching_mode)
+{
+    auto& match_context = rust_match_context(context).context;
+    auto const& target = ffi_element(element);
+    bool const is_html_element_in_html_document = target.namespace_uri() == Namespace::HTML
+        && target.document().document_type() == DOM::Document::Type::HTML;
+    auto const name_to_match = is_html_element_in_html_document ? ffi_string_view(lowercase_name) : ffi_string_view(name);
+    bool name_matches;
+    if (is_html_element_in_html_document || matching_mode == 1)
+        name_matches = target.local_name().view() == name_to_match;
+    else
+        name_matches = target.local_name().view().equals_ignoring_ascii_case(name_to_match);
+    return name_matches
+        && matches_ffi_namespace(namespace_type, ffi_string_view(namespace_), target, match_context.style_sheet_for_rule);
+}
+
+extern "C" bool selector_ffi_matches_id(void const* element, StringView id)
+{
+    auto const& target = ffi_element(element);
+    return target.id().has_value() && target.id()->view() == ffi_string_view(id);
+}
+
+extern "C" bool selector_ffi_matches_class(void const* element, StringView class_name)
+{
+    auto const& target = ffi_element(element);
+    auto case_sensitivity = target.document().in_quirks_mode() ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive;
+    return target.has_class(ffi_string_view(class_name), case_sensitivity);
+}
+
+static bool matches_ffi_attribute_value(CSS::SelectorFFI::AttributeMatchType match_type, Utf16View selector_value, Utf16View element_value, CaseSensitivity case_sensitivity)
+{
+    bool const case_insensitive = case_sensitivity == CaseSensitivity::CaseInsensitive;
+    auto values_equal = [&](Utf16View first, Utf16View second) {
+        return case_insensitive ? first.equals_ignoring_ascii_case(second) : first == second;
+    };
+
+    switch (match_type) {
+    case CSS::SelectorFFI::AttributeMatchType::HasAttribute:
+        return true;
+    case CSS::SelectorFFI::AttributeMatchType::ExactValue:
+        return values_equal(element_value, selector_value);
+    case CSS::SelectorFFI::AttributeMatchType::ContainsWord:
+        if (selector_value.is_empty())
+            return false;
+        return element_value.split_view(' ', SplitBehavior::Nothing).contains([&](auto value) { return values_equal(value, selector_value); });
+    case CSS::SelectorFFI::AttributeMatchType::ContainsString:
+        return !selector_value.is_empty()
+            && (case_insensitive ? element_value.find_code_unit_offset_ignoring_case(selector_value).has_value() : element_value.contains(selector_value));
+    case CSS::SelectorFFI::AttributeMatchType::StartsWithSegment:
+        if (element_value.is_empty())
+            return selector_value.is_empty();
+        if (selector_value.is_empty() || element_value.length_in_code_units() < selector_value.length_in_code_units())
+            return false;
+        if (element_value.length_in_code_units() == selector_value.length_in_code_units())
+            return values_equal(element_value, selector_value);
+        return values_equal(element_value.substring_view(0, selector_value.length_in_code_units()), selector_value)
+            && element_value.code_unit_at(selector_value.length_in_code_units()) == '-';
+    case CSS::SelectorFFI::AttributeMatchType::StartsWithString:
+        return !selector_value.is_empty()
+            && selector_value.length_in_code_units() <= element_value.length_in_code_units()
+            && values_equal(element_value.substring_view(0, selector_value.length_in_code_units()), selector_value);
+    case CSS::SelectorFFI::AttributeMatchType::EndsWithString:
+        return !selector_value.is_empty()
+            && selector_value.length_in_code_units() <= element_value.length_in_code_units()
+            && values_equal(element_value.substring_view(element_value.length_in_code_units() - selector_value.length_in_code_units()), selector_value);
+    }
+    VERIFY_NOT_REACHED();
+}
+
+extern "C" bool selector_ffi_matches_attribute(void* context, void const* element, NamespaceType namespace_type, StringView namespace_, StringView name, StringView lowercase_name, AttributeMatchType match_type, AttributeCaseType case_type, StringView value)
+{
+    auto& match_context = rust_match_context(context).context;
+    auto const& target = ffi_element(element);
+    auto const attribute_name = ffi_string_view(name);
+    auto const lowercase_attribute_name = ffi_string_view(lowercase_name);
+    auto const selector_value = ffi_string_view(value);
+
+    CaseSensitivity case_sensitivity;
+    switch (case_type) {
+    case AttributeCaseType::Sensitive:
+        case_sensitivity = CaseSensitivity::CaseSensitive;
+        break;
+    case AttributeCaseType::Insensitive:
+        case_sensitivity = CaseSensitivity::CaseInsensitive;
+        break;
+    case AttributeCaseType::Default:
+        case_sensitivity = target.document().is_html_document()
+                && target.namespace_uri() == Namespace::HTML
+                && namespace_type == NamespaceType::Default
+                && fly_string_is_one_of_utf16(
+                    attribute_name,
+                    HTML::AttributeNames::accept, HTML::AttributeNames::accept_charset, HTML::AttributeNames::align,
+                    HTML::AttributeNames::alink, HTML::AttributeNames::axis, HTML::AttributeNames::bgcolor, HTML::AttributeNames::charset,
+                    HTML::AttributeNames::checked, HTML::AttributeNames::clear, HTML::AttributeNames::codetype, HTML::AttributeNames::color,
+                    HTML::AttributeNames::compact, HTML::AttributeNames::declare, HTML::AttributeNames::defer, HTML::AttributeNames::dir,
+                    HTML::AttributeNames::direction, HTML::AttributeNames::disabled, HTML::AttributeNames::enctype, HTML::AttributeNames::face,
+                    HTML::AttributeNames::frame, HTML::AttributeNames::hreflang, HTML::AttributeNames::http_equiv, HTML::AttributeNames::lang,
+                    HTML::AttributeNames::language, HTML::AttributeNames::link, HTML::AttributeNames::media, HTML::AttributeNames::method,
+                    HTML::AttributeNames::multiple, HTML::AttributeNames::nohref, HTML::AttributeNames::noresize, HTML::AttributeNames::noshade,
+                    HTML::AttributeNames::nowrap, HTML::AttributeNames::readonly, HTML::AttributeNames::rel, HTML::AttributeNames::rev,
+                    HTML::AttributeNames::rules, HTML::AttributeNames::scope, HTML::AttributeNames::scrolling, HTML::AttributeNames::selected,
+                    HTML::AttributeNames::shape, HTML::AttributeNames::target, HTML::AttributeNames::text, HTML::AttributeNames::type,
+                    HTML::AttributeNames::valign, HTML::AttributeNames::valuetype, HTML::AttributeNames::vlink)
+            ? CaseSensitivity::CaseInsensitive
+            : CaseSensitivity::CaseSensitive;
+        break;
+    }
+
+    auto attribute_matches = [&](DOM::Attr const& attribute) {
+        return matches_ffi_attribute_value(match_type, selector_value, attribute.value().utf16_view(), case_sensitivity);
+    };
+
+    switch (namespace_type) {
+    case NamespaceType::Default:
+    case NamespaceType::None: {
+        auto const name_to_match = target.document().is_html_document() && target.namespace_uri() == Namespace::HTML
+            ? lowercase_attribute_name
+            : attribute_name;
+        for (u32 i = 0; i < target.attributes()->length(); ++i) {
+            auto const* attribute = target.attributes()->item(i);
+            if (!attribute->namespace_uri().has_value() && attribute->local_name().view() == name_to_match)
+                return attribute_matches(*attribute);
+        }
+        return false;
+    }
+    case NamespaceType::Any: {
+        bool const use_lowercase_name = target.document().is_html_document() && target.namespace_uri() == Namespace::HTML;
+        auto const name_to_match = use_lowercase_name ? lowercase_attribute_name : attribute_name;
+        for (u32 i = 0; i < target.attributes()->length(); ++i) {
+            auto const* attribute = target.attributes()->item(i);
+            if (attribute->local_name().view() == name_to_match && attribute_matches(*attribute))
+                return true;
+        }
+        return false;
+    }
+    case NamespaceType::Named: {
+        if (!match_context.style_sheet_for_rule)
+            return false;
+        auto selector_namespace = match_context.style_sheet_for_rule->namespace_uri(ffi_string_view(namespace_));
+        if (!selector_namespace.has_value())
+            return false;
+        for (u32 i = 0; i < target.attributes()->length(); ++i) {
+            auto const* attribute = target.attributes()->item(i);
+            if (attribute->namespace_uri().has_value()
+                && *selector_namespace == attribute->namespace_uri()->view()
+                && attribute->local_name().view() == attribute_name)
+                return attribute_matches(*attribute);
+        }
+        return false;
+    }
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static bool is_rust_structural_or_functional_pseudo_class(CSS::PseudoClass pseudo_class)
+{
+    return first_is_one_of(
+        pseudo_class,
+        CSS::PseudoClass::Empty,
+        CSS::PseudoClass::FirstChild,
+        CSS::PseudoClass::FirstOfType,
+        CSS::PseudoClass::Has,
+        CSS::PseudoClass::Host,
+        CSS::PseudoClass::Is,
+        CSS::PseudoClass::LastChild,
+        CSS::PseudoClass::LastOfType,
+        CSS::PseudoClass::Not,
+        CSS::PseudoClass::NthChild,
+        CSS::PseudoClass::NthLastChild,
+        CSS::PseudoClass::NthLastOfType,
+        CSS::PseudoClass::NthOfType,
+        CSS::PseudoClass::OnlyChild,
+        CSS::PseudoClass::OnlyOfType,
+        CSS::PseudoClass::Root,
+        CSS::PseudoClass::Scope,
+        CSS::PseudoClass::Where,
+        CSS::PseudoClass::Dir,
+        CSS::PseudoClass::Heading,
+        CSS::PseudoClass::Lang,
+        CSS::PseudoClass::State);
+}
+
+extern "C" bool selector_ffi_matches_pseudo_class(void* context, void const* element, u8 pseudo_class_value)
+{
+    auto pseudo_class = static_cast<CSS::PseudoClass>(pseudo_class_value);
+    VERIFY(pseudo_class < CSS::PseudoClass::__Count);
+    VERIFY(!is_rust_structural_or_functional_pseudo_class(pseudo_class));
+    CSS::Selector::SimpleSelector::PseudoClassSelector selector { .type = pseudo_class };
+    auto& match_context = rust_match_context(context).context;
+    return matches_pseudo_class(selector, DOM::AbstractElement { ffi_element(element) }, nullptr, match_context, nullptr, SelectorKind::Normal);
+}
+
+extern "C" bool selector_ffi_matches_language(void const* element, StringView language)
+{
+    auto element_language = ffi_element(element).lang();
+    return element_language.has_value()
+        && language_range_matches_tag(ffi_string_view(language), *element_language);
+}
+
+extern "C" bool selector_ffi_matches_direction(void const* element, Direction direction)
+{
+    switch (ffi_element(element).directionality()) {
+    case DOM::Element::Directionality::Ltr:
+        return direction == Direction::LeftToRight;
+    case DOM::Element::Directionality::Rtl:
+        return direction == Direction::RightToLeft;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+extern "C" bool selector_ffi_matches_state(void const* element, StringView identifier)
+{
+    auto const& target = ffi_element(element);
+    if (!target.is_custom())
+        return false;
+    if (auto custom_state_set = target.custom_state_set())
+        return custom_state_set->has_state(Utf16FlyString::from_utf16(ffi_string_view(identifier)));
+    return false;
+}
+
+extern "C" bool selector_ffi_matches_heading(void const* element, i64 const* levels, size_t level_count)
+{
+    auto const* heading = as_if<HTML::HTMLHeadingElement>(ffi_element(element));
+    if (!heading)
+        return false;
+    if (level_count == 0)
+        return true;
+    VERIFY(levels);
+    return ReadonlySpan<i64> { levels, level_count }.contains_slow(heading->heading_level());
+}
+
+extern "C" void const* selector_ffi_parent_element(void const* element, void const* shadow_host)
+{
+    auto const& target = ffi_element(element);
+    if (!shadow_host)
+        return target.parent_element();
+    if (element == shadow_host)
+        return nullptr;
+    return target.parent_or_shadow_host_element();
+}
+
+extern "C" void const* selector_ffi_parent_element_in_light_tree(void const* element)
+{
+    return ffi_element(element).parent_element();
+}
+
+extern "C" void const* selector_ffi_previous_element_sibling(void const* element)
+{
+    return ffi_element(element).previous_element_sibling();
+}
+
+extern "C" void const* selector_ffi_next_element_sibling(void const* element)
+{
+    return ffi_element(element).next_element_sibling();
+}
+
+extern "C" void const* selector_ffi_first_element_child(void const* element)
+{
+    return ffi_element(element).first_child_of_type<DOM::Element>();
+}
+
+extern "C" void const* selector_ffi_last_element_child(void const* element)
+{
+    return ffi_element(element).last_child_of_type<DOM::Element>();
+}
+
+extern "C" void const* selector_ffi_first_element_descendant(void const* element)
+{
+    auto const& root = ffi_element(element);
+    for (auto const* node = root.first_child(); node; node = node->next_in_pre_order(&root)) {
+        if (node->is_element())
+            return static_cast<DOM::Element const*>(node);
+    }
+    return nullptr;
+}
+
+extern "C" void const* selector_ffi_next_element_descendant(void const* element, void const* root)
+{
+    auto const& root_element = ffi_element(root);
+    for (auto const* node = static_cast<DOM::Node const*>(&ffi_element(element))->next_in_pre_order(&root_element); node; node = node->next_in_pre_order(&root_element)) {
+        if (node->is_element())
+            return static_cast<DOM::Element const*>(node);
+    }
+    return nullptr;
+}
+
+extern "C" bool selector_ffi_has_no_element_or_nonempty_text_children(void const* element)
+{
+    auto const& target = ffi_element(element);
+    if (!target.has_children())
+        return true;
+    if (target.first_child_of_type<DOM::Element>())
+        return false;
+    bool has_nonempty_text_child = false;
+    target.for_each_child_of_type<DOM::Text>([&](auto const& text) {
+        if (!text.data().is_empty()) {
+            has_nonempty_text_child = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    return !has_nonempty_text_child;
+}
+
+extern "C" bool selector_ffi_has_same_type(void const* first, void const* second)
+{
+    auto const& first_element = ffi_element(first);
+    auto const& second_element = ffi_element(second);
+    return first_element.local_name() == second_element.local_name()
+        && first_element.namespace_uri() == second_element.namespace_uri();
+}
+
+extern "C" bool selector_ffi_is_document_root(void const* element)
+{
+    return is<HTML::HTMLHtmlElement>(ffi_element(element));
+}
+
+extern "C" CSS::SelectorFFI::ElementAndShadowHost selector_ffi_slotted_parent(void* context, void const* element)
+{
+    auto& match_context = rust_match_context(context).context;
+    auto const& target = ffi_element(element);
+    if (auto const* target_as_slot = as_if<HTML::HTMLSlotElement>(target); target_as_slot && target_as_slot->root().is_shadow_root())
+        return {};
+
+    for (auto slot = target.assigned_slot_internal(); slot; slot = slot->assigned_slot_internal()) {
+        auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(slot->root());
+        if (slot_shadow_root != match_context.rule_shadow_root)
+            continue;
+        return {
+            .element = slot,
+            .shadow_host = slot_shadow_root ? slot_shadow_root->host() : nullptr,
+        };
+    }
+    return {};
+}
+
+extern "C" CSS::SelectorFFI::ElementAndShadowHost selector_ffi_part_parent(void* context, void const* element, StringView const* identifiers, size_t identifier_count, bool allow_same_shadow_root_scope, void const* shadow_host)
+{
+    auto& match_context = rust_match_context(context).context;
+    auto const& target_element = ffi_element(element);
+    DOM::AbstractElement target { target_element };
+
+    for (auto ancestor_shadow_root = target_element.containing_shadow_root();
+        ancestor_shadow_root;
+        ancestor_shadow_root = ancestor_shadow_root->containing_shadow_root()) {
+        bool const is_direct_child_scope = ancestor_shadow_root->host()->containing_shadow_root() == match_context.rule_shadow_root;
+        bool const is_host_part_own_scope = allow_same_shadow_root_scope && ancestor_shadow_root == match_context.rule_shadow_root;
+        if (!is_direct_child_scope && !is_host_part_own_scope)
+            continue;
+
+        bool all_part_names_match = true;
+        for (size_t i = 0; i < identifier_count; ++i) {
+            auto part_name = Utf16FlyString::from_utf16(ffi_string_view(identifiers[i]));
+            auto matching_parts = ancestor_shadow_root->part_element_map().get(part_name);
+            if (!matching_parts.has_value() || !matching_parts->contains(target)) {
+                all_part_names_match = false;
+                break;
+            }
+        }
+        if (!all_part_names_match)
+            continue;
+
+        auto const& host = *ancestor_shadow_root->host();
+        auto const* next_shadow_host = static_cast<DOM::Element const*>(shadow_host);
+        bool const is_internal_part = match_context.rule_shadow_root
+            && match_context.rule_shadow_root == host.shadow_root();
+        if (!is_internal_part) {
+            if (auto containing_shadow_root = host.containing_shadow_root())
+                next_shadow_host = containing_shadow_root->host();
+            else
+                next_shadow_host = nullptr;
+        }
+        return { .element = &host, .shadow_host = next_shadow_host };
+    }
+    return {};
+}
+
+static void note_structural_pseudo_class_match_attempt(RustMatchContext& rust_context, DOM::Element& element)
+{
+    if (&element != rust_context.context.subject)
+        element.set_affected_by_structural_pseudo_class_in_non_subject_position();
+}
+
+extern "C" void selector_ffi_note_structural_pseudo_class(void* context, void const* element, u8 pseudo_class_value)
+{
+    auto& rust_context = rust_match_context(context);
+    if (!rust_context.apply_side_effects || !rust_context.context.collect_per_element_selector_involvement_metadata)
+        return;
+    auto& target = const_cast<DOM::Element&>(ffi_element(element));
+    auto pseudo_class = static_cast<CSS::PseudoClass>(pseudo_class_value);
+    switch (pseudo_class) {
+    case CSS::PseudoClass::FirstChild:
+        target.set_affected_by_first_child_pseudo_class(true);
+        break;
+    case CSS::PseudoClass::LastChild:
+        target.set_affected_by_last_child_pseudo_class(true);
+        break;
+    case CSS::PseudoClass::OnlyChild:
+        target.set_affected_by_first_child_pseudo_class(true);
+        target.set_affected_by_last_child_pseudo_class(true);
+        break;
+    case CSS::PseudoClass::FirstOfType:
+    case CSS::PseudoClass::NthChild:
+    case CSS::PseudoClass::NthOfType:
+        target.set_affected_by_forward_positional_pseudo_class(true);
+        break;
+    case CSS::PseudoClass::LastOfType:
+    case CSS::PseudoClass::NthLastChild:
+    case CSS::PseudoClass::NthLastOfType:
+        target.set_affected_by_backward_positional_pseudo_class(true);
+        break;
+    case CSS::PseudoClass::OnlyOfType:
+        target.set_affected_by_forward_positional_pseudo_class(true);
+        target.set_affected_by_backward_positional_pseudo_class(true);
+        break;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+    note_structural_pseudo_class_match_attempt(rust_context, target);
+}
+
+extern "C" void selector_ffi_note_has_pseudo_class(void* context, void const* element)
+{
+    auto& rust_context = rust_match_context(context);
+    if (!rust_context.apply_side_effects || !rust_context.context.collect_per_element_selector_involvement_metadata)
+        return;
+    auto& target = const_cast<DOM::Element&>(ffi_element(element));
+    if (&target == rust_context.context.subject)
+        target.set_affected_by_has_pseudo_class_in_subject_position(true);
+    else
+        target.set_affected_by_has_pseudo_class_in_non_subject_position();
+}
+
+extern "C" void selector_ffi_note_sibling_combinator(void* context, void const* element, Combinator combinator, size_t sibling_invalidation_distance)
+{
+    auto& rust_context = rust_match_context(context);
+    if (!rust_context.apply_side_effects || !rust_context.context.collect_per_element_selector_involvement_metadata)
+        return;
+    auto& target = const_cast<DOM::Element&>(ffi_element(element));
+    if (combinator == Combinator::NextSibling) {
+        target.set_affected_by_direct_sibling_combinator(true);
+        target.set_sibling_invalidation_distance(max(sibling_invalidation_distance, target.sibling_invalidation_distance()));
+    } else {
+        VERIFY(combinator == Combinator::SubsequentSibling);
+        target.set_affected_by_indirect_sibling_combinator(true);
+    }
+    if (&target != rust_context.context.subject)
+        target.set_affected_by_sibling_combinator_in_non_subject_position();
+}
+
+extern "C" void selector_ffi_note_has_sibling_combinator_anchor(void* context, void const* anchor)
+{
+    auto& rust_context = rust_match_context(context);
+    if (rust_context.apply_side_effects && rust_context.context.collect_per_element_selector_involvement_metadata)
+        const_cast<DOM::Element&>(ffi_element(anchor)).set_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator(true);
+}
+
+extern "C" void selector_ffi_note_has_sibling_combinator_element(void* context, void const* element)
+{
+    auto& rust_context = rust_match_context(context);
+    if (!rust_context.apply_side_effects || !rust_context.context.collect_per_element_selector_involvement_metadata)
+        return;
+    auto& target = const_cast<DOM::Element&>(ffi_element(element));
+    target.set_in_has_scope(true);
+    target.set_in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator(true);
+}
+
+extern "C" void selector_ffi_note_has_scope_element(void* context, void const* element)
+{
+    auto& rust_context = rust_match_context(context);
+    if (rust_context.apply_side_effects
+        && rust_context.inside_has_argument_match
+        && rust_context.context.collect_per_element_selector_involvement_metadata)
+        const_cast<DOM::Element&>(ffi_element(element)).set_in_has_scope(true);
+}
+
+extern "C" bool selector_ffi_inside_has_argument(void* context)
+{
+    return rust_match_context(context).inside_has_argument_match;
+}
+
+extern "C" void selector_ffi_set_inside_has_argument(void* context, bool value)
+{
+    auto& rust_context = rust_match_context(context);
+    rust_context.inside_has_argument_match = value;
+    if (rust_context.apply_side_effects)
+        rust_context.context.inside_has_argument_match = value;
+}
+
+extern "C" u8 selector_ffi_has_cache_get(void* context, u64 selector_id, void const* anchor)
+{
+    auto& rust_context = rust_match_context(context);
+    if (!rust_context.apply_side_effects)
+        return 0;
+    auto& counters = ffi_element(anchor).document().style_invalidation_counters();
+    ++counters.has_match_invocations;
+    if (!rust_context.context.has_result_cache)
+        return 0;
+    auto cached = rust_context.context.has_result_cache->get({ selector_id, &ffi_element(anchor) });
+    if (!cached.has_value()) {
+        ++counters.has_result_cache_misses;
+        return 0;
+    }
+    ++counters.has_result_cache_hits;
+    return cached.value() == HasMatchResult::Matched ? 2 : 1;
+}
+
+extern "C" void selector_ffi_has_cache_set(void* context, u64 selector_id, void const* anchor, bool result)
+{
+    auto& rust_context = rust_match_context(context);
+    if (rust_context.apply_side_effects && rust_context.context.has_result_cache)
+        rust_context.context.has_result_cache->set({ selector_id, &ffi_element(anchor) }, result ? HasMatchResult::Matched : HasMatchResult::NotMatched);
 }
 
 }

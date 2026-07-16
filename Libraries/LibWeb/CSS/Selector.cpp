@@ -154,6 +154,11 @@ Selector::~Selector()
     SelectorFFI::rust_selector_destroy(m_rust_selector);
 }
 
+u64 Selector::rust_selector_id() const
+{
+    return SelectorFFI::rust_selector_id(&rust_selector());
+}
+
 static void append_integer(Utf16StringBuilder& builder, i64 value)
 {
     if (value == 0) {

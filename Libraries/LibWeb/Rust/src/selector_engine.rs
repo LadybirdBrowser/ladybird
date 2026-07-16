@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use std::ffi::c_void;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -91,6 +92,7 @@ pub enum Direction {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
 pub enum PseudoClassType {
     Active,
     AnyLink,
@@ -186,6 +188,7 @@ impl PseudoClassSelector {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
 pub enum PseudoElementType {
     After,
     Backdrop,
@@ -1408,6 +1411,373 @@ pub struct RustSelector {
     selector: Arc<CompiledSelector>,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(transparent)]
+struct FfiElement(*const c_void);
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+struct FfiElementAndShadowHost {
+    element: *const c_void,
+    shadow_host: *const c_void,
+}
+
+unsafe extern "C" {
+    fn selector_ffi_matches_universal(
+        context: *mut c_void,
+        element: *const c_void,
+        namespace_type: FfiNamespaceType,
+        namespace: FfiStringView,
+    ) -> bool;
+    fn selector_ffi_matches_tag_name(
+        context: *mut c_void,
+        element: *const c_void,
+        namespace_type: FfiNamespaceType,
+        namespace: FfiStringView,
+        name: FfiStringView,
+        lowercase_name: FfiStringView,
+        matching_mode: u8,
+    ) -> bool;
+    fn selector_ffi_matches_id(element: *const c_void, id: FfiStringView) -> bool;
+    fn selector_ffi_matches_class(element: *const c_void, class_name: FfiStringView) -> bool;
+    fn selector_ffi_matches_attribute(
+        context: *mut c_void,
+        element: *const c_void,
+        namespace_type: FfiNamespaceType,
+        namespace: FfiStringView,
+        name: FfiStringView,
+        lowercase_name: FfiStringView,
+        match_type: FfiAttributeMatchType,
+        case_type: FfiAttributeCaseType,
+        value: FfiStringView,
+    ) -> bool;
+    fn selector_ffi_matches_pseudo_class(context: *mut c_void, element: *const c_void, pseudo_class: u8) -> bool;
+    fn selector_ffi_matches_language(element: *const c_void, language: FfiStringView) -> bool;
+    fn selector_ffi_matches_direction(element: *const c_void, direction: FfiDirection) -> bool;
+    fn selector_ffi_matches_state(element: *const c_void, identifier: FfiStringView) -> bool;
+    fn selector_ffi_matches_heading(element: *const c_void, levels: *const i64, level_count: usize) -> bool;
+
+    fn selector_ffi_parent_element(element: *const c_void, shadow_host: *const c_void) -> *const c_void;
+    fn selector_ffi_parent_element_in_light_tree(element: *const c_void) -> *const c_void;
+    fn selector_ffi_previous_element_sibling(element: *const c_void) -> *const c_void;
+    fn selector_ffi_next_element_sibling(element: *const c_void) -> *const c_void;
+    fn selector_ffi_first_element_child(element: *const c_void) -> *const c_void;
+    fn selector_ffi_last_element_child(element: *const c_void) -> *const c_void;
+    fn selector_ffi_first_element_descendant(element: *const c_void) -> *const c_void;
+    fn selector_ffi_next_element_descendant(element: *const c_void, root: *const c_void) -> *const c_void;
+    fn selector_ffi_has_no_element_or_nonempty_text_children(element: *const c_void) -> bool;
+    fn selector_ffi_has_same_type(first: *const c_void, second: *const c_void) -> bool;
+    fn selector_ffi_is_document_root(element: *const c_void) -> bool;
+
+    fn selector_ffi_slotted_parent(context: *mut c_void, element: *const c_void) -> FfiElementAndShadowHost;
+    fn selector_ffi_part_parent(
+        context: *mut c_void,
+        element: *const c_void,
+        identifiers: *const FfiStringView,
+        identifier_count: usize,
+        allow_same_shadow_root_scope: bool,
+        shadow_host: *const c_void,
+    ) -> FfiElementAndShadowHost;
+
+    fn selector_ffi_note_structural_pseudo_class(context: *mut c_void, element: *const c_void, pseudo_class: u8);
+    fn selector_ffi_note_has_pseudo_class(context: *mut c_void, element: *const c_void);
+    fn selector_ffi_note_sibling_combinator(
+        context: *mut c_void,
+        element: *const c_void,
+        combinator: FfiCombinator,
+        sibling_invalidation_distance: usize,
+    );
+    fn selector_ffi_note_has_sibling_combinator_anchor(context: *mut c_void, anchor: *const c_void);
+    fn selector_ffi_note_has_sibling_combinator_element(context: *mut c_void, element: *const c_void);
+    fn selector_ffi_note_has_scope_element(context: *mut c_void, element: *const c_void);
+    fn selector_ffi_inside_has_argument(context: *mut c_void) -> bool;
+    fn selector_ffi_set_inside_has_argument(context: *mut c_void, value: bool);
+    fn selector_ffi_has_cache_get(context: *mut c_void, selector_id: u64, anchor: *const c_void) -> u8;
+    fn selector_ffi_has_cache_set(context: *mut c_void, selector_id: u64, anchor: *const c_void, result: bool);
+}
+
+fn ffi_string_view(string: &[u16]) -> FfiStringView {
+    FfiStringView {
+        data: string.as_ptr(),
+        length: string.len(),
+    }
+}
+
+fn ffi_namespace_type(namespace_type: NamespaceType) -> FfiNamespaceType {
+    match namespace_type {
+        NamespaceType::Default => FfiNamespaceType::Default,
+        NamespaceType::None => FfiNamespaceType::None,
+        NamespaceType::Any => FfiNamespaceType::Any,
+        NamespaceType::Named => FfiNamespaceType::Named,
+    }
+}
+
+fn ffi_attribute_match_type(match_type: AttributeMatchType) -> FfiAttributeMatchType {
+    match match_type {
+        AttributeMatchType::HasAttribute => FfiAttributeMatchType::HasAttribute,
+        AttributeMatchType::ExactValue => FfiAttributeMatchType::ExactValue,
+        AttributeMatchType::ContainsWord => FfiAttributeMatchType::ContainsWord,
+        AttributeMatchType::ContainsString => FfiAttributeMatchType::ContainsString,
+        AttributeMatchType::StartsWithSegment => FfiAttributeMatchType::StartsWithSegment,
+        AttributeMatchType::StartsWithString => FfiAttributeMatchType::StartsWithString,
+        AttributeMatchType::EndsWithString => FfiAttributeMatchType::EndsWithString,
+    }
+}
+
+fn ffi_attribute_case_type(case_type: AttributeCaseType) -> FfiAttributeCaseType {
+    match case_type {
+        AttributeCaseType::Default => FfiAttributeCaseType::Default,
+        AttributeCaseType::Sensitive => FfiAttributeCaseType::Sensitive,
+        AttributeCaseType::Insensitive => FfiAttributeCaseType::Insensitive,
+    }
+}
+
+fn ffi_combinator(combinator: Combinator) -> FfiCombinator {
+    match combinator {
+        Combinator::None => FfiCombinator::None,
+        Combinator::ImmediateChild => FfiCombinator::ImmediateChild,
+        Combinator::Descendant => FfiCombinator::Descendant,
+        Combinator::NextSibling => FfiCombinator::NextSibling,
+        Combinator::SubsequentSibling => FfiCombinator::SubsequentSibling,
+        Combinator::Column => FfiCombinator::Column,
+        Combinator::PseudoElement => FfiCombinator::PseudoElement,
+    }
+}
+
+fn ffi_element(element: *const c_void) -> Option<FfiElement> {
+    (!element.is_null()).then_some(FfiElement(element))
+}
+
+fn ffi_element_and_shadow_host(value: FfiElementAndShadowHost) -> Option<(FfiElement, Option<FfiElement>)> {
+    Some((ffi_element(value.element)?, ffi_element(value.shadow_host)))
+}
+
+struct FfiDom {
+    context: *mut c_void,
+}
+
+impl SelectorDom for FfiDom {
+    type Element = FfiElement;
+
+    fn matches_universal_selector(&mut self, element: FfiElement, name: &QualifiedName) -> bool {
+        unsafe {
+            selector_ffi_matches_universal(
+                self.context,
+                element.0,
+                ffi_namespace_type(name.namespace_type),
+                ffi_string_view(&name.namespace),
+            )
+        }
+    }
+
+    fn matches_tag_name_selector(
+        &mut self,
+        element: FfiElement,
+        name: &QualifiedName,
+        mode: TagNameMatchingMode,
+    ) -> bool {
+        unsafe {
+            selector_ffi_matches_tag_name(
+                self.context,
+                element.0,
+                ffi_namespace_type(name.namespace_type),
+                ffi_string_view(&name.namespace),
+                ffi_string_view(&name.name),
+                ffi_string_view(&name.lowercase_name),
+                match mode {
+                    TagNameMatchingMode::Normal => 0,
+                    TagNameMatchingMode::Fast => 1,
+                },
+            )
+        }
+    }
+
+    fn matches_id_selector(&mut self, element: FfiElement, id: &[u16]) -> bool {
+        unsafe { selector_ffi_matches_id(element.0, ffi_string_view(id)) }
+    }
+
+    fn matches_class_selector(&mut self, element: FfiElement, class_name: &[u16]) -> bool {
+        unsafe { selector_ffi_matches_class(element.0, ffi_string_view(class_name)) }
+    }
+
+    fn matches_attribute_selector(&mut self, element: FfiElement, attribute: &AttributeSelector) -> bool {
+        unsafe {
+            selector_ffi_matches_attribute(
+                self.context,
+                element.0,
+                ffi_namespace_type(attribute.qualified_name.namespace_type),
+                ffi_string_view(&attribute.qualified_name.namespace),
+                ffi_string_view(&attribute.qualified_name.name),
+                ffi_string_view(&attribute.qualified_name.lowercase_name),
+                ffi_attribute_match_type(attribute.match_type),
+                ffi_attribute_case_type(attribute.case_type),
+                ffi_string_view(&attribute.value),
+            )
+        }
+    }
+
+    fn matches_pseudo_class_state(&mut self, element: FfiElement, pseudo_class: &PseudoClassSelector) -> bool {
+        match pseudo_class.pseudo_class {
+            PseudoClassType::Lang => pseudo_class
+                .languages
+                .iter()
+                .any(|language| unsafe { selector_ffi_matches_language(element.0, ffi_string_view(language)) }),
+            PseudoClassType::Dir => match pseudo_class.direction {
+                Some(Direction::LeftToRight) => unsafe {
+                    selector_ffi_matches_direction(element.0, FfiDirection::LeftToRight)
+                },
+                Some(Direction::RightToLeft) => unsafe {
+                    selector_ffi_matches_direction(element.0, FfiDirection::RightToLeft)
+                },
+                _ => false,
+            },
+            PseudoClassType::State => pseudo_class.identifier.as_ref().is_some_and(|identifier| unsafe {
+                selector_ffi_matches_state(element.0, ffi_string_view(identifier))
+            }),
+            PseudoClassType::Heading => unsafe {
+                selector_ffi_matches_heading(element.0, pseudo_class.levels.as_ptr(), pseudo_class.levels.len())
+            },
+            _ => unsafe { selector_ffi_matches_pseudo_class(self.context, element.0, pseudo_class.pseudo_class as u8) },
+        }
+    }
+
+    fn parent_element(&mut self, element: FfiElement, shadow_host: Option<FfiElement>) -> Option<FfiElement> {
+        ffi_element(unsafe {
+            selector_ffi_parent_element(element.0, shadow_host.map_or(std::ptr::null(), |host| host.0))
+        })
+    }
+
+    fn parent_element_in_light_tree(&mut self, element: FfiElement) -> Option<FfiElement> {
+        ffi_element(unsafe { selector_ffi_parent_element_in_light_tree(element.0) })
+    }
+
+    fn previous_element_sibling(&mut self, element: FfiElement) -> Option<FfiElement> {
+        ffi_element(unsafe { selector_ffi_previous_element_sibling(element.0) })
+    }
+
+    fn next_element_sibling(&mut self, element: FfiElement) -> Option<FfiElement> {
+        ffi_element(unsafe { selector_ffi_next_element_sibling(element.0) })
+    }
+
+    fn first_element_child(&mut self, element: FfiElement) -> Option<FfiElement> {
+        ffi_element(unsafe { selector_ffi_first_element_child(element.0) })
+    }
+
+    fn last_element_child(&mut self, element: FfiElement) -> Option<FfiElement> {
+        ffi_element(unsafe { selector_ffi_last_element_child(element.0) })
+    }
+
+    fn first_element_descendant(&mut self, element: FfiElement) -> Option<FfiElement> {
+        ffi_element(unsafe { selector_ffi_first_element_descendant(element.0) })
+    }
+
+    fn next_element_descendant(&mut self, element: FfiElement, root: FfiElement) -> Option<FfiElement> {
+        ffi_element(unsafe { selector_ffi_next_element_descendant(element.0, root.0) })
+    }
+
+    fn has_no_element_or_nonempty_text_children(&mut self, element: FfiElement) -> bool {
+        unsafe { selector_ffi_has_no_element_or_nonempty_text_children(element.0) }
+    }
+
+    fn has_same_type(&mut self, first: FfiElement, second: FfiElement) -> bool {
+        unsafe { selector_ffi_has_same_type(first.0, second.0) }
+    }
+
+    fn is_document_root(&mut self, element: FfiElement) -> bool {
+        unsafe { selector_ffi_is_document_root(element.0) }
+    }
+
+    fn slotted_parent(&mut self, element: FfiElement) -> Option<(FfiElement, Option<FfiElement>)> {
+        ffi_element_and_shadow_host(unsafe { selector_ffi_slotted_parent(self.context, element.0) })
+    }
+
+    fn part_parent(
+        &mut self,
+        element: FfiElement,
+        identifiers: &[SelectorString],
+        allow_same_shadow_root_scope: bool,
+        shadow_host: Option<FfiElement>,
+    ) -> Option<(FfiElement, Option<FfiElement>)> {
+        let identifiers = identifiers
+            .iter()
+            .map(|identifier| ffi_string_view(identifier))
+            .collect::<Vec<_>>();
+        ffi_element_and_shadow_host(unsafe {
+            selector_ffi_part_parent(
+                self.context,
+                element.0,
+                identifiers.as_ptr(),
+                identifiers.len(),
+                allow_same_shadow_root_scope,
+                shadow_host.map_or(std::ptr::null(), |host| host.0),
+            )
+        })
+    }
+
+    fn note_structural_pseudo_class(&mut self, element: FfiElement, pseudo_class: PseudoClassType) {
+        unsafe { selector_ffi_note_structural_pseudo_class(self.context, element.0, pseudo_class as u8) }
+    }
+
+    fn note_has_pseudo_class(&mut self, element: FfiElement) {
+        unsafe { selector_ffi_note_has_pseudo_class(self.context, element.0) }
+    }
+
+    fn note_sibling_combinator(
+        &mut self,
+        element: FfiElement,
+        combinator: Combinator,
+        sibling_invalidation_distance: usize,
+    ) {
+        unsafe {
+            selector_ffi_note_sibling_combinator(
+                self.context,
+                element.0,
+                ffi_combinator(combinator),
+                sibling_invalidation_distance,
+            );
+        }
+    }
+
+    fn note_has_sibling_combinator_anchor(&mut self, anchor: FfiElement) {
+        unsafe { selector_ffi_note_has_sibling_combinator_anchor(self.context, anchor.0) }
+    }
+
+    fn note_has_sibling_combinator_element(&mut self, element: FfiElement) {
+        unsafe { selector_ffi_note_has_sibling_combinator_element(self.context, element.0) }
+    }
+
+    fn note_has_scope_element(&mut self, element: FfiElement) {
+        unsafe { selector_ffi_note_has_scope_element(self.context, element.0) }
+    }
+
+    fn enter_has_argument_matching(&mut self) -> bool {
+        let previous_value = unsafe { selector_ffi_inside_has_argument(self.context) };
+        unsafe { selector_ffi_set_inside_has_argument(self.context, true) };
+        previous_value
+    }
+
+    fn leave_has_argument_matching(&mut self, previous_value: bool) {
+        unsafe { selector_ffi_set_inside_has_argument(self.context, previous_value) }
+    }
+
+    fn has_cache_get(&mut self, selector_id: u64, anchor: FfiElement) -> Option<bool> {
+        match unsafe { selector_ffi_has_cache_get(self.context, selector_id, anchor.0) } {
+            0 => None,
+            1 => Some(false),
+            2 => Some(true),
+            value => panic!("invalid :has() cache value {value}"),
+        }
+    }
+
+    fn has_cache_set(&mut self, selector_id: u64, anchor: FfiElement, result: bool) {
+        unsafe { selector_ffi_has_cache_set(self.context, selector_id, anchor.0, result) }
+    }
+
+    fn should_reject_has_argument(&mut self, _selector: &CompiledSelector, _anchor: FfiElement) -> bool {
+        false
+    }
+}
+
 impl From<FfiCombinator> for Combinator {
     fn from(value: FfiCombinator) -> Self {
         match value {
@@ -1700,6 +2070,81 @@ pub unsafe extern "C" fn rust_selector_destroy(selector: *mut RustSelector) {
             drop(unsafe { Box::from_raw(selector) });
         }
     });
+}
+
+/// # Safety
+/// `selector` must point to a live `RustSelector`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_selector_id(selector: *const RustSelector) -> u64 {
+    abort_on_panic(|| {
+        assert!(!selector.is_null());
+        unsafe { (*selector).selector.id() }
+    })
+}
+
+/// # Safety
+/// All pointers must remain valid for this call. `element` must point to a C++
+/// DOM element and `context` must point to a C++ Rust matching context.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_selector_matches(
+    selector: *const RustSelector,
+    element: *const c_void,
+    pseudo_element: u8,
+    shadow_host: *const c_void,
+    context: *mut c_void,
+    scope: *const c_void,
+    selector_kind: u8,
+    anchor: *const c_void,
+) -> bool {
+    abort_on_panic(|| {
+        assert!(!selector.is_null());
+        assert!(!element.is_null());
+        assert!(!context.is_null());
+        let target = MatchTarget {
+            element: FfiElement(element),
+            pseudo_element: (pseudo_element != u8::MAX).then(|| pseudo_element_from_ffi(pseudo_element)),
+        };
+        matches_selector_internal(
+            unsafe { &(*selector).selector },
+            target,
+            ffi_element(shadow_host),
+            ffi_element(scope),
+            match selector_kind {
+                0 => SelectorKind::Normal,
+                1 => SelectorKind::Relative,
+                _ => panic!("invalid selector kind {selector_kind}"),
+            },
+            ffi_element(anchor),
+            &mut FfiDom { context },
+        )
+    })
+}
+
+/// # Safety
+/// All pointers must remain valid for this call. `element` must point to a C++
+/// DOM element and `context` must point to a C++ Rust matching context.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_selector_matches_originating_element(
+    selector: *const RustSelector,
+    pseudo_element: u8,
+    element: *const c_void,
+    shadow_host: *const c_void,
+    context: *mut c_void,
+    scope: *const c_void,
+) -> bool {
+    abort_on_panic(|| {
+        assert!(!selector.is_null());
+        assert!(!element.is_null());
+        assert!(!context.is_null());
+        matches_originating_element_for_pseudo_element(
+            unsafe { &(*selector).selector },
+            pseudo_element_from_ffi(pseudo_element),
+            FfiElement(element),
+            ffi_element(shadow_host),
+            ffi_element(scope),
+            &mut FfiDom { context },
+        )
+    })
 }
 
 fn can_simple_selector_use_fast_matches(simple_selector: &SimpleSelector) -> bool {

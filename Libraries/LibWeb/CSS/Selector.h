@@ -279,6 +279,8 @@ public:
         return *m_rust_selector;
     }
 
+    u64 rust_selector_id() const;
+
 private:
     explicit Selector(Vector<CompoundSelector>&&);
 
