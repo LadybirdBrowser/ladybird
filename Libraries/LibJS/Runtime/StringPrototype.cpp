@@ -824,7 +824,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::repeat)
     if (string->is_empty())
         return PrimitiveString::create(vm, Utf16String {});
 
-    if (n > static_cast<double>(NumericLimits<size_t>::max()))
+    if (n > MAX_ARRAY_LIKE_INDEX)
         return vm.throw_completion<RangeError>(ErrorType::StringRepeatCountMustNotOverflow);
 
     auto count = static_cast<size_t>(n);
