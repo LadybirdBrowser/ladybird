@@ -13,11 +13,6 @@ namespace Wasm {
 
 void Configuration::unwind_impl()
 {
-    if (m_compiled_direct_call_depth > 0) {
-        m_compiled_direct_call_depth--;
-        m_depth--;
-        return;
-    }
     m_depth--;
 
     Optional<Vector<Value, ArgumentsStaticSize>> released_locals;

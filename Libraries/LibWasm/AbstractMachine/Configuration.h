@@ -119,9 +119,6 @@ public:
     ALWAYS_INLINE Value* locals_base() const { return m_locals_base; }
     ALWAYS_INLINE void set_locals_base(Value* base) { m_locals_base = base; }
 
-    // When > 0, unwind_impl skips the frame pop (the direct call didn't push a frame).
-    size_t m_compiled_direct_call_depth { 0 };
-
     static constexpr size_t locals_base_offset() { return __builtin_offsetof(Configuration, m_locals_base); }
     static constexpr size_t default_memory_offset() { return __builtin_offsetof(Configuration, m_default_memory); }
     static constexpr size_t compiled_call_result_scratch_offset() { return __builtin_offsetof(Configuration, m_compiled_call_result_scratch); }
@@ -153,11 +150,9 @@ public:
     struct CallFrameHandle {
         explicit CallFrameHandle(Configuration& configuration)
             : configuration(configuration)
-            , saved_direct_call_depth(configuration.m_compiled_direct_call_depth)
         {
             if (configuration.m_call_record_base)
                 moved_call_record = move(configuration.m_current_call_record);
-            configuration.m_compiled_direct_call_depth = 0;
             configuration.depth()++;
             configuration.m_call_record_base = nullptr;
         }
@@ -173,12 +168,10 @@ public:
                 configuration.m_call_record_base = nullptr;
             }
             configuration.unwind({}, *this);
-            configuration.m_compiled_direct_call_depth = saved_direct_call_depth;
         }
 
         Configuration& configuration;
         Optional<Vector<Value, ArgumentsStaticSize>> moved_call_record;
-        size_t saved_direct_call_depth;
     };
 
     void unwind(Badge<CallFrameHandle>, CallFrameHandle const&) { unwind_impl(); }
