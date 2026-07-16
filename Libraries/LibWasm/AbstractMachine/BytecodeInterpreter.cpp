@@ -6964,7 +6964,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 return nullptr;
         }
         for (auto& gi : callee->body().instructions()) {
-            if (first_is_one_of(gi.opcode(), Instructions::call, Instructions::call_indirect))
+            if (first_is_one_of(gi.opcode(),
+                    Instructions::call, Instructions::call_indirect,
+                    Instructions::return_call, Instructions::return_call_indirect,
+                    Instructions::call_ref, Instructions::return_call_ref))
                 return nullptr;
         }
         return callee;
