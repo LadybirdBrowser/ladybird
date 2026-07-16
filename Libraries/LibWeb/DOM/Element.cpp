@@ -39,7 +39,7 @@
 #include <LibWeb/CSS/Invalidation/PartInvalidator.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/SelectorEngine.h>
+#include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StylePropertyMap.h>
@@ -1589,8 +1589,8 @@ WebIDL::ExceptionOr<bool> Element::matches(Utf16View selectors) const
 
     // 3. If the result of match a selector against an element, using s, this, and scoping root this, returns success, then return true; otherwise, return false.
     for (auto const& s : query->selectors()) {
-        SelectorEngine::MatchContext context;
-        if (SelectorEngine::matches(s, *this, nullptr, context, static_cast<ParentNode const*>(this)))
+        SelectorMatching::MatchContext context;
+        if (SelectorMatching::matches(s, *this, nullptr, context, static_cast<ParentNode const*>(this)))
             return true;
     }
     return false;
@@ -1609,8 +1609,8 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(Utf16View selectors) c
     auto matches_selectors = [this](CSS::SelectorList const& selector_list, Element const* element) {
         // 4. For each element in elements, if match a selector against an element, using s, element, and scoping root this, returns success, return element.
         for (auto const& selector : selector_list) {
-            SelectorEngine::MatchContext context;
-            if (SelectorEngine::matches(selector, *element, nullptr, context, this))
+            SelectorMatching::MatchContext context;
+            if (SelectorMatching::matches(selector, *element, nullptr, context, this))
                 return true;
         }
         return false;

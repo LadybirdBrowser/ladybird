@@ -5,7 +5,7 @@
  */
 
 #include <LibGC/WeakInlines.h>
-#include <LibWeb/CSS/SelectorEngine.h>
+#include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -91,8 +91,8 @@ GC::Ptr<Element> SelectorQuery::query_first(ParentNode& root) const
     // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
     root.for_each_in_subtree_of_type<Element>([&](auto& element) {
         for (auto const& selector : m_selectors) {
-            SelectorEngine::MatchContext context;
-            if (SelectorEngine::matches(selector, element, nullptr, context, root)) {
+            SelectorMatching::MatchContext context;
+            if (SelectorMatching::matches(selector, element, nullptr, context, root)) {
                 result = &element;
                 return TraversalDecision::Break;
             }
@@ -126,8 +126,8 @@ GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
     // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
     root.for_each_in_subtree_of_type<Element>([&](auto& element) {
         for (auto const& selector : m_selectors) {
-            SelectorEngine::MatchContext context;
-            if (SelectorEngine::matches(selector, element, nullptr, context, root)) {
+            SelectorMatching::MatchContext context;
+            if (SelectorMatching::matches(selector, element, nullptr, context, root)) {
                 elements.append(element);
                 break;
             }

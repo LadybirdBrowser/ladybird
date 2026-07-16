@@ -109,7 +109,6 @@ public:
             auto const& stored_simple_selectors = m_simple_selector_lists.last();
             m_compound_selectors.append({
                 .combinator = combinator_to_ffi(compound_selector.combinator),
-                .is_implicit_universal_anchor = compound_selector.is_implicit_universal_anchor,
                 .simple_selectors = stored_simple_selectors.data(),
                 .simple_selector_count = stored_simple_selectors.size(),
             });

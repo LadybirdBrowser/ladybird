@@ -31,60 +31,10 @@ static bool component_value_contains_nesting_selector(Parser::ComponentValue con
     return false;
 }
 
-static bool can_selector_use_fast_matches(Selector const& selector)
-{
-    for (auto const& compound_selector : selector.compound_selectors()) {
-        if (!first_is_one_of(compound_selector.combinator,
-                Selector::Combinator::None, Selector::Combinator::Descendant, Selector::Combinator::ImmediateChild)) {
-            return false;
-        }
-
-        for (auto const& simple_selector : compound_selector.simple_selectors) {
-            if (simple_selector.type == Selector::SimpleSelector::Type::PseudoClass) {
-                auto const pseudo_class = simple_selector.pseudo_class().type;
-                if (!first_is_one_of(pseudo_class,
-                        PseudoClass::Active,
-                        PseudoClass::AnyLink,
-                        PseudoClass::Autofill,
-                        PseudoClass::Checked,
-                        PseudoClass::Disabled,
-                        PseudoClass::Empty,
-                        PseudoClass::Enabled,
-                        PseudoClass::FirstChild,
-                        PseudoClass::Focus,
-                        PseudoClass::FocusVisible,
-                        PseudoClass::FocusWithin,
-                        PseudoClass::Hover,
-                        PseudoClass::LastChild,
-                        PseudoClass::Link,
-                        PseudoClass::LocalLink,
-                        PseudoClass::OnlyChild,
-                        PseudoClass::Root,
-                        PseudoClass::State,
-                        PseudoClass::Unchecked,
-                        PseudoClass::Visited))
-                    return false;
-            } else if (!first_is_one_of(simple_selector.type,
-                           Selector::SimpleSelector::Type::TagName,
-                           Selector::SimpleSelector::Type::Universal,
-                           Selector::SimpleSelector::Type::Class,
-                           Selector::SimpleSelector::Type::Id,
-                           Selector::SimpleSelector::Type::Attribute)) {
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
-
 Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
     : m_compound_selectors(move(compound_selectors))
 {
     for (auto const& compound_selector : m_compound_selectors) {
-        if (compound_selector.combinator == Combinator::PseudoElement)
-            m_contains_pseudo_element_transition = true;
-
         for (auto const& simple_selector : compound_selector.simple_selectors) {
             if (simple_selector.type != SimpleSelector::Type::PseudoElement)
                 continue;
@@ -144,7 +94,6 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
 
     collect_ancestor_hashes();
 
-    m_can_use_fast_matches = can_selector_use_fast_matches(*this);
     m_rust_selector = compile_selector_for_matching(*this);
     VERIFY(m_rust_selector);
 }
@@ -152,11 +101,6 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
 Selector::~Selector()
 {
     SelectorFFI::rust_selector_destroy(m_rust_selector);
-}
-
-u64 Selector::rust_selector_id() const
-{
-    return SelectorFFI::rust_selector_id(&rust_selector());
 }
 
 static void append_integer(Utf16StringBuilder& builder, i64 value)
@@ -1112,36 +1056,6 @@ Optional<Selector::SimpleSelector> Selector::SimpleSelector::absolutized(Selecto
     VERIFY_NOT_REACHED();
 }
 
-size_t Selector::sibling_invalidation_distance() const
-{
-    if (m_sibling_invalidation_distance.has_value())
-        return *m_sibling_invalidation_distance;
-
-    m_sibling_invalidation_distance = 0;
-    size_t current_distance = 0;
-    for (auto const& compound_selector : compound_selectors()) {
-        if (compound_selector.combinator == Combinator::None || compound_selector.combinator == Combinator::PseudoElement)
-            continue;
-
-        if (compound_selector.combinator == Combinator::SubsequentSibling) {
-            m_sibling_invalidation_distance = NumericLimits<size_t>::max();
-            return *m_sibling_invalidation_distance;
-        }
-
-        if (compound_selector.combinator == Combinator::NextSibling) {
-            current_distance++;
-        } else {
-            m_sibling_invalidation_distance = max(*m_sibling_invalidation_distance, current_distance);
-            current_distance = 0;
-        }
-    }
-
-    if (current_distance > 0) {
-        m_sibling_invalidation_distance = max(*m_sibling_invalidation_distance, current_distance);
-    }
-    return *m_sibling_invalidation_distance;
-}
-
 SelectorList adapt_nested_relative_selector_list(SelectorList const& selectors, StyleNestingParent style_nesting_parent)
 {
     // "Nested style rules differ from non-nested rules in the following ways:
@@ -1255,47 +1169,6 @@ SelectorList absolutize_selectors_relative_to(SelectorList const& selectors, GC:
             absolutized_selectors.append(absolutized.release_nonnull());
     }
     return absolutized_selectors;
-}
-
-// https://drafts.csswg.org/css-syntax-3/#anb-microsyntax
-bool Selector::SimpleSelector::ANPlusBPattern::matches(int index) const
-{
-    // "If both a and b are equal to zero, the pseudo-class represents no element in the document tree."
-    if (step_size == 0 && offset == 0)
-        return false;
-
-    // When "step_size == -1", selector represents first "offset" elements in document tree.
-    if (step_size == -1)
-        return !(offset <= 0 || index > offset);
-
-    // When "step_size == 1", selector represents last "offset" elements in document tree.
-    if (step_size == 1)
-        return !(offset < 0 || index < offset);
-
-    // When "step_size == 0", selector picks only the "offset" element.
-    if (step_size == 0)
-        return index == offset;
-
-    // If both are negative, nothing can match.
-    if (step_size < 0 && offset < 0)
-        return false;
-
-    // Like "a % b", but handles negative integers correctly. Done in 64 bits because "index - offset" and "-step_size"
-    // overflow a 32-bit int for an extreme An+B value such as :nth-child(2n-2147483648).
-    auto const canonical_modulo = [](i64 a, i64 b) -> i64 {
-        i64 c = a % b;
-        if ((c < 0 && b > 0) || (c > 0 && b < 0)) {
-            c += b;
-        }
-        return c;
-    };
-
-    // When "step_size < 0", we start at "offset" and count backwards.
-    if (step_size < 0)
-        return index <= offset && canonical_modulo(static_cast<i64>(index) - offset, -static_cast<i64>(step_size)) == 0;
-
-    // Otherwise, we start at "offset" and count forwards.
-    return index >= offset && canonical_modulo(static_cast<i64>(index) - offset, step_size) == 0;
 }
 
 // https://drafts.csswg.org/css-syntax-3/#serializing-anb

@@ -11,12 +11,7 @@
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/DOM/Element.h>
 
-namespace Web::SelectorEngine {
-
-enum class SelectorKind {
-    Normal,
-    Relative,
-};
+namespace Web::SelectorMatching {
 
 enum class HasMatchResult : u8 {
     Matched,
@@ -89,14 +84,14 @@ struct MatchContext {
     // True while we are evaluating the argument of a :has() pseudo-class.
     // Elements visited by selector walks (descendants, siblings, etc.) while
     // this is set get marked as in_has_scope so the invalidation walker can
-    // later terminate once it leaves the scope. Transparent to callers; set
-    // by matches_has_pseudo_class with a ScopeGuard.
+    // later terminate once it leaves the scope. Transparent to callers;
+    // toggled from the Rust engine via selector_ffi_set_inside_has_argument.
     bool inside_has_argument_match { false };
     HasResultCache* has_result_cache { nullptr };
     HasFastRejectFilterCache* has_fast_reject_filter_cache { nullptr };
 };
 
-bool matches(CSS::Selector const&, DOM::AbstractElement const&, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope = {}, SelectorKind selector_kind = SelectorKind::Normal, GC::Ptr<DOM::Element const> anchor = nullptr);
+bool matches(CSS::Selector const&, DOM::AbstractElement const&, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope = {});
 bool matches_originating_element_for_pseudo_element(CSS::Selector const&, CSS::PseudoElement, DOM::AbstractElement const&, GC::Ptr<DOM::Element const> shadow_host, MatchContext&, GC::Ptr<DOM::ParentNode const> scope = {});
 
 }

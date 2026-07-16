@@ -12,7 +12,7 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Invalidation/InvalidationSetMatcher.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/SelectorEngine.h>
+#include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/DOM/Document.h>
@@ -349,11 +349,11 @@ static bool element_matches_anchor_rule(DOM::Element const& element, Rule const&
     if (!Invalidation::element_matches_any_invalidation_set_property(element, rule.anchor_set))
         return false;
     if (rule.anchor_selector) {
-        SelectorEngine::MatchContext context {
+        SelectorMatching::MatchContext context {
             .style_sheet_for_rule = rule.style_sheet_for_rule,
             .rule_shadow_root = rule_shadow_root,
         };
-        if (!SelectorEngine::matches(*rule.anchor_selector, element, shadow_host, context))
+        if (!SelectorMatching::matches(*rule.anchor_selector, element, shadow_host, context))
             return false;
     }
     return true;
@@ -772,12 +772,12 @@ static ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects_for_
                 auto const* element = as_if<DOM::Element>(node);
                 if (!element)
                     continue;
-                SelectorEngine::MatchContext context {
+                SelectorMatching::MatchContext context {
                     .style_sheet_for_rule = style_sheet,
                     .subject = *element,
                     .rule_shadow_root = &shadow_root,
                 };
-                if (SelectorEngine::matches(selector, *element, shadow_root.host(), context))
+                if (SelectorMatching::matches(selector, *element, shadow_root.host(), context))
                     return true;
             }
         }

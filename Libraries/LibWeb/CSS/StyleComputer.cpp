@@ -50,7 +50,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
-#include <LibWeb/CSS/SelectorEngine.h>
+#include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -291,13 +291,13 @@ static bool scope_selector_matches(Selector const& selector, DOM::Element const&
     if (&element == &subject && selector.contains_pseudo_class(PseudoClass::Has))
         const_cast<DOM::Element&>(element).set_affected_by_has_pseudo_class_in_non_subject_position();
 
-    SelectorEngine::MatchContext context {
+    SelectorMatching::MatchContext context {
         .style_sheet_for_rule = scope_style_sheet,
         .subject = subject,
         .rule_shadow_root = rule_root,
         .collect_per_element_selector_involvement_metadata = true,
     };
-    return SelectorEngine::matches(selector, DOM::AbstractElement(element), shadow_host, context, scope);
+    return SelectorMatching::matches(selector, DOM::AbstractElement(element), shadow_host, context, scope);
 }
 
 struct ResolvedScope {
@@ -779,7 +779,7 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
         if (!resolved_scope.has_value())
             continue;
 
-        SelectorEngine::MatchContext context {
+        SelectorMatching::MatchContext context {
             .style_sheet_for_rule = *rule.sheet,
             .subject = abstract_element.element(),
             .rule_shadow_root = rule_root,
@@ -794,14 +794,14 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
                     if (*matching_pseudo_element_styles & pseudo_element_bit)
                         continue;
                     if (selector.contains_pseudo_class(PseudoClass::Has)
-                        || SelectorEngine::matches_originating_element_for_pseudo_element(selector, *pseudo_element, abstract_element, shadow_host_to_use, context, resolved_scope->root)) {
+                        || SelectorMatching::matches_originating_element_for_pseudo_element(selector, *pseudo_element, abstract_element, shadow_host_to_use, context, resolved_scope->root)) {
                         *matching_pseudo_element_styles |= pseudo_element_bit;
                     }
                 }
                 continue;
             }
         }
-        if (!SelectorEngine::matches(selector, abstract_element, shadow_host_to_use, context, resolved_scope->root))
+        if (!SelectorMatching::matches(selector, abstract_element, shadow_host_to_use, context, resolved_scope->root))
             continue;
         if (resolved_scope->root == &abstract_element.element()
             && !selector.contains_pseudo_class(PseudoClass::Scope)
@@ -4618,12 +4618,12 @@ void StyleComputer::reset_ancestor_filter()
 void StyleComputer::reset_has_result_cache()
 {
     if (!m_has_result_cache)
-        m_has_result_cache = make<SelectorEngine::HasResultCache>();
+        m_has_result_cache = make<SelectorMatching::HasResultCache>();
     else
         m_has_result_cache->clear();
 
     if (!m_has_fast_reject_filter_cache)
-        m_has_fast_reject_filter_cache = make<SelectorEngine::HasFastRejectFilterCache>();
+        m_has_fast_reject_filter_cache = make<SelectorMatching::HasFastRejectFilterCache>();
     else
         m_has_fast_reject_filter_cache->clear();
 }

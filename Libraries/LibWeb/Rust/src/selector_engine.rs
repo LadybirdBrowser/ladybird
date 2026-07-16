@@ -243,7 +243,6 @@ pub enum SimpleSelector {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompoundSelector {
     pub combinator: Combinator,
-    pub is_implicit_universal_anchor: bool,
     pub simple_selectors: Box<[SimpleSelector]>,
 }
 
@@ -1487,7 +1486,6 @@ pub struct FfiSimpleSelector {
 #[repr(C)]
 pub struct FfiCompoundSelector {
     pub combinator: FfiCombinator,
-    pub is_implicit_universal_anchor: bool,
     pub simple_selectors: *const FfiSimpleSelector,
     pub simple_selector_count: usize,
 }
@@ -1543,7 +1541,7 @@ unsafe extern "C" {
         case_type: FfiAttributeCaseType,
         value: FfiStringView,
     ) -> bool;
-    fn selector_ffi_matches_pseudo_class(context: *mut c_void, element: *const c_void, pseudo_class: u8) -> bool;
+    fn selector_ffi_matches_pseudo_class(element: *const c_void, pseudo_class: u8) -> bool;
     fn selector_ffi_matches_language(element: *const c_void, language: FfiStringView) -> bool;
     fn selector_ffi_matches_direction(element: *const c_void, direction: FfiDirection) -> bool;
     fn selector_ffi_matches_state(element: *const c_void, identifier: FfiStringView) -> bool;
@@ -1735,7 +1733,7 @@ impl SelectorDom for FfiDom {
             PseudoClassType::Heading => unsafe {
                 selector_ffi_matches_heading(element.0, pseudo_class.levels.as_ptr(), pseudo_class.levels.len())
             },
-            _ => unsafe { selector_ffi_matches_pseudo_class(self.context, element.0, pseudo_class.pseudo_class as u8) },
+            _ => unsafe { selector_ffi_matches_pseudo_class(element.0, pseudo_class.pseudo_class as u8) },
         }
     }
 
@@ -2140,7 +2138,6 @@ unsafe fn compiled_selector_from_ffi(selector: &FfiSelector) -> Arc<CompiledSele
         .iter()
         .map(|compound| CompoundSelector {
             combinator: compound.combinator.into(),
-            is_implicit_universal_anchor: compound.is_implicit_universal_anchor,
             simple_selectors: unsafe { ffi_slice(compound.simple_selectors, compound.simple_selector_count) }
                 .iter()
                 .map(|simple| unsafe { simple_selector_from_ffi(simple) })
@@ -2175,16 +2172,6 @@ pub unsafe extern "C" fn rust_selector_destroy(selector: *mut RustSelector) {
 }
 
 /// # Safety
-/// `selector` must point to a live `RustSelector`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_id(selector: *const RustSelector) -> u64 {
-    abort_on_panic(|| {
-        assert!(!selector.is_null());
-        unsafe { (*selector).selector.id() }
-    })
-}
-
-/// # Safety
 /// All pointers must remain valid for this call. `element` must point to a C++
 /// DOM element and `context` must point to a C++ Rust matching context.
 #[unsafe(no_mangle)]
@@ -2195,8 +2182,6 @@ pub unsafe extern "C" fn rust_selector_matches(
     shadow_host: *const c_void,
     context: *mut c_void,
     scope: *const c_void,
-    selector_kind: u8,
-    anchor: *const c_void,
 ) -> bool {
     abort_on_panic(|| {
         assert!(!selector.is_null());
@@ -2206,17 +2191,15 @@ pub unsafe extern "C" fn rust_selector_matches(
             element: FfiElement(element),
             pseudo_element: (pseudo_element != u8::MAX).then(|| pseudo_element_from_ffi(pseudo_element)),
         };
+        // NB: Relative matching with an anchor only happens inside :has() argument evaluation,
+        //     which stays within the Rust engine, so the entry point always matches normally.
         matches_selector_internal(
             unsafe { &(*selector).selector },
             target,
             ffi_element(shadow_host),
             ffi_element(scope),
-            match selector_kind {
-                0 => SelectorKind::Normal,
-                1 => SelectorKind::Relative,
-                _ => panic!("invalid selector kind {selector_kind}"),
-            },
-            ffi_element(anchor),
+            SelectorKind::Normal,
+            None,
             &mut FfiDom { context },
         )
     })
@@ -2482,7 +2465,6 @@ mod tests {
     fn compound(combinator: Combinator, simple_selectors: Vec<SimpleSelector>) -> CompoundSelector {
         CompoundSelector {
             combinator,
-            is_implicit_universal_anchor: false,
             simple_selectors: simple_selectors.into_boxed_slice(),
         }
     }
@@ -2528,7 +2510,6 @@ mod tests {
             .iter()
             .map(|combinator| CompoundSelector {
                 combinator: *combinator,
-                is_implicit_universal_anchor: false,
                 simple_selectors: vec![SimpleSelector::Id(Box::from([b'x' as u16]))].into_boxed_slice(),
             })
             .collect::<Vec<_>>()
@@ -2582,7 +2563,6 @@ mod tests {
 
         let pseudo = CompiledSelector::new(Box::new([CompoundSelector {
             combinator: Combinator::None,
-            is_implicit_universal_anchor: false,
             simple_selectors: Box::new([SimpleSelector::PseudoClass(PseudoClassSelector::without_arguments(
                 PseudoClassType::NthChild,
             ))]),

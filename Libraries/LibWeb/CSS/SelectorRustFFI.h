@@ -111,7 +111,6 @@ struct SimpleSelector {
 
 struct CompoundSelector {
     Combinator combinator;
-    bool is_implicit_universal_anchor;
     SimpleSelector const* simple_selectors;
     size_t simple_selector_count;
 };
@@ -129,8 +128,7 @@ struct ElementAndShadowHost {
 
 extern "C" RustSelector* rust_selector_create(Selector const*);
 extern "C" void rust_selector_destroy(RustSelector*);
-extern "C" u64 rust_selector_id(RustSelector const*);
-extern "C" bool rust_selector_matches(RustSelector const*, void const* element, u8 pseudo_element, void const* shadow_host, void* context, void const* scope, u8 selector_kind, void const* anchor);
+extern "C" bool rust_selector_matches(RustSelector const*, void const* element, u8 pseudo_element, void const* shadow_host, void* context, void const* scope);
 extern "C" bool rust_selector_matches_originating_element(RustSelector const*, u8 pseudo_element, void const* element, void const* shadow_host, void* context, void const* scope);
 
 extern "C" bool selector_ffi_matches_universal(void* context, void const* element, NamespaceType, StringView namespace_);
@@ -138,7 +136,7 @@ extern "C" bool selector_ffi_matches_tag_name(void* context, void const* element
 extern "C" bool selector_ffi_matches_id(void const* element, StringView);
 extern "C" bool selector_ffi_matches_class(void const* element, StringView);
 extern "C" bool selector_ffi_matches_attribute(void* context, void const* element, NamespaceType, StringView namespace_, StringView name, StringView lowercase_name, AttributeMatchType, AttributeCaseType, StringView value);
-extern "C" bool selector_ffi_matches_pseudo_class(void* context, void const* element, u8 pseudo_class);
+extern "C" bool selector_ffi_matches_pseudo_class(void const* element, u8 pseudo_class);
 extern "C" bool selector_ffi_matches_language(void const* element, StringView language);
 extern "C" bool selector_ffi_matches_direction(void const* element, Direction);
 extern "C" bool selector_ffi_matches_state(void const* element, StringView identifier);

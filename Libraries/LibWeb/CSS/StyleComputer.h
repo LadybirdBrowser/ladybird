@@ -20,7 +20,7 @@
 #include <LibWeb/CSS/CascadeOrigin.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Selector.h>
-#include <LibWeb/CSS/SelectorEngine.h>
+#include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleInvalidationData.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/Export.h>
@@ -257,8 +257,8 @@ private:
     mutable u64 m_multi_bucket_rule_generation { 0 };
 
     OwnPtr<CountingBloomFilter<u8, 14>> m_ancestor_filter;
-    OwnPtr<SelectorEngine::HasResultCache> m_has_result_cache;
-    OwnPtr<SelectorEngine::HasFastRejectFilterCache> m_has_fast_reject_filter_cache;
+    OwnPtr<SelectorMatching::HasResultCache> m_has_result_cache;
+    OwnPtr<SelectorMatching::HasFastRejectFilterCache> m_has_fast_reject_filter_cache;
 };
 
 inline bool StyleComputer::should_reject_with_ancestor_filter(Selector const& selector) const
