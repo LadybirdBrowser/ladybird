@@ -286,6 +286,7 @@ private:
     virtual bool supports_dimension_attributes() const override { return type_state() == TypeAttributeState::ImageButton; }
 
     // ^Layout::ImageProvider
+    virtual bool is_image_pending() const override;
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override { return image_data(); }
 
     virtual void initialize(JS::Realm&) override;

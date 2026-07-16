@@ -108,6 +108,7 @@ public:
     bool allows_auto_sizes() const;
 
     // ^Layout::ImageProvider
+    virtual bool is_image_pending() const override;
     virtual GC::Ptr<DecodedImageData> decoded_image_data() const override;
     virtual Optional<CSSPixels> intrinsic_width() const override;
     virtual Optional<CSSPixels> intrinsic_height() const override;

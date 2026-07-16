@@ -1,5 +1,5 @@
-pending image renders blank: false
+pending image renders blank: true
 broken image renders alt text: true
 src-less image renders alt text: true
-deferred lazy image renders blank: false
+deferred lazy image renders blank: true
 unblocked image loaded with natural width: 1

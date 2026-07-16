@@ -22,6 +22,16 @@ public:
 
     bool is_image_available() const { return decoded_image_data() != nullptr; }
 
+    // Whether image data is expected to become available later, e.g. a fetch is still in progress
+    // or a lazy load is deferred.
+    virtual bool is_image_pending() const { return false; }
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#images-3
+    // The alt text fallback is only for images that are known not to render (they failed, or there
+    // is nothing to load); while an image is still expected to arrive, the element renders as
+    // blank space, matching other engines.
+    bool renders_as_alt_text() const { return !is_image_available() && !is_image_pending(); }
+
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const = 0;
 
     virtual Optional<CSSPixels> intrinsic_width() const;

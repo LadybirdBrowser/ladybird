@@ -59,6 +59,8 @@ public:
         return lazy_loading_attribute() == LazyLoading::Lazy;
     }
 
+    [[nodiscard]] bool has_lazy_load_resumption_steps() const { return m_lazy_load_resumption_steps; }
+
     void set_lazy_load_resumption_steps(Function<void()> steps)
     {
         auto& element = static_cast<T&>(*this);

@@ -87,7 +87,7 @@ void ImagePaintable::reset_for_relayout()
     Paintable::reset_for_relayout();
 
     if (!m_is_svg_image) {
-        m_renders_as_alt_text = !m_image_provider.is_image_available();
+        m_renders_as_alt_text = m_image_provider.renders_as_alt_text();
         if (auto const* image_box = as_if<Layout::ImageBox>(layout_node())) {
             if (auto element = image_box->dom_node())
                 m_alt_text = element->get_attribute_value(HTML::AttributeNames::alt);
@@ -105,7 +105,7 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     if (phase == PaintPhase::Foreground) {
         auto image_rect = absolute_rect();
         auto image_rect_device_pixels = context.rounded_device_rect(image_rect);
-        auto renders_as_alt_text = m_is_svg_image ? m_renders_as_alt_text : !m_image_provider.is_image_available();
+        auto renders_as_alt_text = m_is_svg_image ? m_renders_as_alt_text : m_image_provider.renders_as_alt_text();
         if (renders_as_alt_text) {
             if (!m_alt_text.is_empty()) {
                 auto enclosing_rect = context.enclosing_device_rect(image_rect).to_type<int>();

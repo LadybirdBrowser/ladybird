@@ -64,6 +64,10 @@ CSS::SizeWithAspectRatio ImageBox::natural_size() const
         };
     }
 
+    // While a load is still pending we render blank space, not the alt text.
+    if (image_provider.is_image_pending())
+        return { 0, 0, {} };
+
     Utf16String alt;
     if (auto element = dom_node())
         alt = element->get_attribute_value(HTML::AttributeNames::alt);
@@ -91,7 +95,7 @@ void ImageBox::dom_node_did_update_alt_text(Badge<ImageProvider>)
 
 bool ImageBox::renders_as_alt_text() const
 {
-    return !image_provider().is_image_available();
+    return image_provider().renders_as_alt_text();
 }
 
 RefPtr<Painting::Paintable> ImageBox::create_paintable() const

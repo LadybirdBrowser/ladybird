@@ -1774,6 +1774,10 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16View value
             });
 
             m_load_event_delayer.clear();
+
+            // NB: The element may have been rendering as blank space while the load was pending;
+            //     now that the load failed it renders its alt text instead.
+            set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLInputElementSrcAttribute);
         });
 
     if (m_resource_request->needs_fetching()) {
@@ -2300,6 +2304,11 @@ GC::Ptr<DecodedImageData> HTMLInputElement::image_data() const
     if (m_resource_request)
         return m_resource_request->image_data();
     return nullptr;
+}
+
+bool HTMLInputElement::is_image_pending() const
+{
+    return m_resource_request && m_resource_request->is_fetching();
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex

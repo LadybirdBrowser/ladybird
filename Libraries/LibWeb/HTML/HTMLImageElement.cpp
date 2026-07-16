@@ -792,6 +792,10 @@ after_step_7:
             abort_the_image_request(realm(), m_pending_request);
             m_pending_request = nullptr;
 
+            // AD-HOC: The element may have been rendering as blank space while a load was pending;
+            //         now that the current request is broken it renders its alt text instead.
+            set_needs_layout_update_or_repaint_after_image_data_change(*this, DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
+
             // 2. Queue an element task on the DOM manipulation task source given the img element and the following steps:
             queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, maybe_omit_events, previous_url] {
                 // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
@@ -833,6 +837,10 @@ after_step_7:
 
             // 3. Set the pending request to null.
             m_pending_request = nullptr;
+
+            // AD-HOC: The element may have been rendering as blank space while a load was pending;
+            //         now that the current request is broken it renders its alt text instead.
+            set_needs_layout_update_or_repaint_after_image_data_change(*this, DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
 
             // 4. Queue an element task on the DOM manipulation task source given the img element and the following steps:
             queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, selected_source, maybe_omit_events, previous_url] {
@@ -1045,6 +1053,10 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
             // upgrade the pending request to the current request if image request is the pending request,
             if (image_request == m_pending_request)
                 upgrade_pending_request_to_current_request();
+
+            // AD-HOC: The element may have been rendering as blank space while the load was pending;
+            //         now that the current request is broken it renders its alt text instead.
+            set_needs_layout_update_or_repaint_after_image_data_change(*this, DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
 
             // and then, if maybe omit events is not set or previousURL is not equal to urlString,
             // queue an element task on the DOM manipulation task source given the img element
@@ -1438,6 +1450,18 @@ GC::Ptr<DecodedImageData> HTMLImageElement::decoded_image_data() const
     if (!m_current_request)
         return nullptr;
     return m_current_request->image_data();
+}
+
+bool HTMLImageElement::is_image_pending() const
+{
+    // INTEROP: Modeled on Blink's ImageIsPotentiallyAvailable: an image whose fetch is still in
+    //          progress, or whose lazy load is deferred, is expected to produce image data later,
+    //          so the element renders as blank space instead of its alt text while waiting.
+    if (!m_current_request || m_current_request->state() == ImageRequest::State::Broken)
+        return false;
+    if (m_current_request->is_fetching() || m_pending_request)
+        return true;
+    return has_lazy_load_resumption_steps();
 }
 
 Optional<CSSPixels> HTMLImageElement::intrinsic_width() const
