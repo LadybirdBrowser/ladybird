@@ -100,7 +100,6 @@ struct BrowserOptions {
 enum class HTTPDiskCacheMode {
     Disabled,
     Enabled,
-    Partitioned,
     Testing,
 };
 

@@ -90,8 +90,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         auto mode = TRY([&]() -> ErrorOr<HTTP::DiskCache::Mode> {
             if (http_disk_cache_mode == "enabled"sv)
                 return HTTP::DiskCache::Mode::Normal;
-            if (http_disk_cache_mode == "partitioned"sv)
-                return HTTP::DiskCache::Mode::Partitioned;
             if (http_disk_cache_mode == "testing"sv)
                 return HTTP::DiskCache::Mode::Testing;
             return Error::from_string_literal("Unrecognized disk cache mode");

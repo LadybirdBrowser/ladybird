@@ -62,7 +62,7 @@ static HTTP::CacheEntryWriter& create_cache_entry(HTTP::DiskCache& disk_cache, T
 
 TEST_CASE(associated_data_round_trips_with_cache_entry)
 {
-    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root()));
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
     TestCacheRequest request;
 
     auto url = parse_url("https://example.com/script.js"sv);
@@ -94,7 +94,7 @@ TEST_CASE(associated_data_round_trips_with_cache_entry)
 
 TEST_CASE(replacing_cache_entry_removes_associated_data)
 {
-    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root()));
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
     TestCacheRequest request;
 
     auto url = parse_url("https://example.com/script.js"sv);
@@ -125,7 +125,7 @@ TEST_CASE(replacing_cache_entry_removes_associated_data)
 
 TEST_CASE(flush_returns_mappable_body_file)
 {
-    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root()));
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
     TestCacheRequest request;
 
     auto url = parse_url("https://example.com/script.js"sv);
@@ -143,7 +143,7 @@ TEST_CASE(flush_returns_mappable_body_file)
 
 TEST_CASE(replacing_cache_entry_keeps_existing_body_mapping_stable)
 {
-    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root()));
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
     TestCacheRequest request;
 
     auto url = parse_url("https://example.com/script.js"sv);
@@ -170,7 +170,7 @@ TEST_CASE(replacing_cache_entry_keeps_existing_body_mapping_stable)
 
 TEST_CASE(associated_data_round_trips_with_explicit_vary_key)
 {
-    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root()));
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
     TestCacheRequest request;
 
     auto url = parse_url("https://example.com/script.js"sv);
@@ -201,7 +201,7 @@ TEST_CASE(associated_data_round_trips_with_explicit_vary_key)
 
 TEST_CASE(associated_data_participates_in_cache_eviction)
 {
-    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root()));
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
     TestCacheRequest request;
 
     auto url = parse_url("https://example.com/script.js"sv);

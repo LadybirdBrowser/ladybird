@@ -262,18 +262,18 @@ TEST_CASE(profile_caches_are_isolated)
     auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("first-profile-bytecode"sv.bytes()));
 
     {
-        auto cache = TRY_OR_FAIL(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Normal, LexicalPath { first_profile.paths().cache }));
+        auto cache = TRY_OR_FAIL(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Normal, LexicalPath { first_profile.paths().cache })).release_value();
         EXPECT(TRY_OR_FAIL(cache.create_synthetic_entry(url, "GET"sv)));
         EXPECT(TRY_OR_FAIL(cache.store_associated_data(url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
     }
 
     {
-        auto cache = TRY_OR_FAIL(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Normal, LexicalPath { second_profile.paths().cache }));
+        auto cache = TRY_OR_FAIL(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Normal, LexicalPath { second_profile.paths().cache })).release_value();
         EXPECT(!TRY_OR_FAIL(cache.retrieve_associated_data(url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode)).has_value());
     }
 
     {
-        auto cache = TRY_OR_FAIL(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Normal, LexicalPath { first_profile.paths().cache }));
+        auto cache = TRY_OR_FAIL(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Normal, LexicalPath { first_profile.paths().cache })).release_value();
         auto retrieved_bytecode = TRY_OR_FAIL(cache.retrieve_associated_data(url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
         VERIFY(retrieved_bytecode.has_value());
         EXPECT_EQ(retrieved_bytecode->bytes(), bytecode.bytes());
