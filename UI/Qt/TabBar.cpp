@@ -809,6 +809,7 @@ void TabBar::contextMenuEvent(QContextMenuEvent* event)
     if (tab_index < 0)
         return;
 
+    m_pressed_tab = nullptr;
     if (auto* tab = m_tab_widget->tab(tab_index))
         tab->context_menu()->exec(event->globalPos());
 }
