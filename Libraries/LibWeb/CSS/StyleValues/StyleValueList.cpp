@@ -20,7 +20,7 @@ namespace Web::CSS {
 
 bool StyleValueList::Properties::operator==(Properties const& other) const
 {
-    return separator == other.separator && values.span() == other.values.span();
+    return separator == other.separator && collapsible == other.collapsible && values.span() == other.values.span();
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> StyleValueList::absolutized(ComputationContext const& computation_context) const
@@ -35,7 +35,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValueList::absolutized(Comput
             result.append(move(absolutized_value));
             for (size_t j = i + 1; j < m_properties.values.size(); ++j)
                 result.append(m_properties.values[j]->absolutized(computation_context));
-            return StyleValueList::create(move(result), m_properties.separator);
+            return StyleValueList::create(move(result), m_properties.separator, m_properties.collapsible);
         }
     }
     return *this;
