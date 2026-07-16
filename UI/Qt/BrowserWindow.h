@@ -127,8 +127,9 @@ public:
 
     WebContentView& view() const { return m_current_tab->view(); }
     WebView::IsPrivate is_private() const { return m_is_private; }
+    bool is_popup_window() const { return m_is_popup_window == IsPopupWindow::Yes; }
 
-    int tab_count() { return m_tabs_container->count(); }
+    int tab_count() const { return m_tabs_container->count(); }
     int tab_index(Tab*);
 
     Tab& create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocation);

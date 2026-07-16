@@ -50,6 +50,8 @@ public:
     void reopen_recently_closed_tab();
     void open_file();
     void quit();
+    bool restore_previous_session();
+    void save_session_before_last_window_closes(BrowserWindow const&);
     bool confirm_cancel_active_downloads(QWidget* parent = nullptr);
     void initialize_macos_application_menu();
     QMenu* qt_bookmarks_menu() const;
@@ -121,6 +123,7 @@ private:
 
     OwnPtr<QApplication> m_application;
     BrowserWindow* m_active_window { nullptr };
+    bool m_is_quitting { false };
 };
 
 }
