@@ -20,6 +20,8 @@ class BookmarkStore;
 class CanonicalNavigable;
 class CanonicalTraversable;
 class CompositorClient;
+class CompositorConnection;
+class CompositorHostBase;
 class CookieJar;
 class HistoryStore;
 class HSTSStore;

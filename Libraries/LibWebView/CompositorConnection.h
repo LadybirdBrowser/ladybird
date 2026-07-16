@@ -27,10 +27,11 @@
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/WebGL/Types.h>
+#include <LibWebView/Forward.h>
 
-namespace WebContent {
+namespace WebView {
 
-class CompositorConnection final
+class WEBVIEW_API CompositorConnection final
     : public IPC::ConnectionToServer<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>
     , public CompositorWebContentClientEndpoint {
     C_OBJECT_ABSTRACT(CompositorConnection)

@@ -4,16 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <WebContent/CompositorConnection.h>
+#include <LibWebView/CompositorConnection.h>
 
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/EventLoop.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <WebContent/WebContentCompositorHost.h>
 
-namespace WebContent {
+namespace WebView {
 
 CompositorConnection::CompositorConnection(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>(*this, move(transport))

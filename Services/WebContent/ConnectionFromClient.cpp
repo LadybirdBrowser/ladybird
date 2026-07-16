@@ -81,9 +81,9 @@
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWebView/Attribute.h>
+#include <LibWebView/CompositorConnection.h>
 #include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/ViewImplementation.h>
-#include <WebContent/CompositorConnection.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
@@ -100,7 +100,7 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
 
 ConnectionFromClient::~ConnectionFromClient() = default;
 
-CompositorConnection* ConnectionFromClient::compositor_process_connection() const
+WebView::CompositorConnection* ConnectionFromClient::compositor_process_connection() const
 {
     if (!m_compositor_connection || !m_compositor_connection->is_open())
         return nullptr;
@@ -238,7 +238,7 @@ void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
 void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle handle)
 {
     auto transport = MUST(handle.create_transport());
-    m_compositor_connection = adopt_ref(*new CompositorConnection(move(transport)));
+    m_compositor_connection = adopt_ref(*new WebView::CompositorConnection(move(transport)));
     m_compositor_connection->on_mouse_event = [this](u64 page_id, Web::MouseEvent event) {
         mouse_event(page_id, move(event));
     };

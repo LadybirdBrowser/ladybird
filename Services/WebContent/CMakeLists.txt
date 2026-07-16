@@ -1,7 +1,6 @@
 include(audio)
 
 set(SOURCES
-    CompositorConnection.cpp
     ConnectionFromClient.cpp
     ConsoleGlobalEnvironmentExtensions.cpp
     DevToolsConsoleClient.cpp
