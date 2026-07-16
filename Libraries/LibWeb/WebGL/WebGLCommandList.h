@@ -44,6 +44,9 @@ public:
 
     void append_bytes(WebGLCommandType, ReadonlyBytes payload, ReadonlyBytes inline_data);
 
+    static size_t padded_record_size(ReadonlyBytes payload, ReadonlyBytes inline_data);
+    static void write_record(Bytes destination, WebGLCommandType, ReadonlyBytes payload, ReadonlyBytes inline_data);
+
     template<typename Callback>
     static ErrorOr<void> for_each_command(ReadonlyBytes bytes, Callback&& callback)
     {
