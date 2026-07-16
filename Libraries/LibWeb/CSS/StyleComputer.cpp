@@ -105,15 +105,6 @@
 
 namespace Web::CSS {
 
-StyleComputationResult::StyleComputationResult(NonnullRefPtr<ComputedProperties> properties, NonnullRefPtr<ComputedValues const> values)
-    : properties(move(properties))
-    , values(move(values))
-{
-}
-
-StyleComputationResult::StyleComputationResult(StyleComputationResult&&) = default;
-StyleComputationResult::~StyleComputationResult() = default;
-
 GC_DEFINE_ALLOCATOR(StyleComputer);
 
 static void for_each_element_hash(DOM::Element const& element, auto callback)
@@ -1473,8 +1464,10 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         if (existing_animation_index.has_value()) {
             auto existing_animation = existing_animations.take(*existing_animation_index);
 
-            as<Animations::KeyframeEffect>(*existing_animation->effect()).set_key_frame_set(resolve_keyframes());
-            existing_animation->apply_css_properties(animation_properties);
+            if (auto effect = existing_animation->effect()) {
+                as<Animations::KeyframeEffect>(*effect).set_key_frame_set(resolve_keyframes());
+                existing_animation->apply_css_properties(animation_properties);
+            }
             existing_animation->set_animation_name_index(i);
             new_animations.append(existing_animation);
             continue;
@@ -1574,7 +1567,7 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
 }
 
 // https://drafts.csswg.org/css-transitions/#starting
-void StyleComputer::start_needed_transitions(ComputedProperties const& previous_style, ComputedProperties::Builder& new_style_builder, DOM::AbstractElement abstract_element) const
+void StyleComputer::start_needed_transitions(ComputedValues const& previous_style, ComputedProperties::Builder& new_style_builder, DOM::AbstractElement abstract_element) const
 {
     auto& new_style = new_style_builder.style();
 
@@ -1592,6 +1585,8 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
     VERIFY(current_time->type == Animations::TimeValue::Type::Milliseconds);
     auto style_change_event_time = current_time->value;
 
+    auto after_change_style = build_computed_values(new_style, abstract_element, abstract_element.style_scope());
+
     // FIXME: Add some transition helpers to AbstractElement.
     auto& element = abstract_element.element();
     auto pseudo_element = abstract_element.pseudo_element();
@@ -1600,8 +1595,19 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
     //               which appear in transition-property and one for those which have existing transitions
     for (auto property_id : element.property_ids_with_matching_transition_property_entry(pseudo_element)) {
         auto matching_transition_properties = element.property_transition_attributes(pseudo_element, property_id).value();
-        auto const& before_change_value = previous_style.property(property_id, ComputedProperties::WithAnimationsApplied::Yes);
-        auto const& after_change_value = new_style.property(property_id, ComputedProperties::WithAnimationsApplied::No);
+        auto before_change_style_value = previous_style.computed_style_value(property_id, ComputedValues::WithAnimationsApplied::Yes);
+        auto after_change_style_value = after_change_style->computed_style_value(property_id, ComputedValues::WithAnimationsApplied::No);
+        VERIFY(before_change_style_value);
+        VERIFY(after_change_style_value);
+        auto const& before_change_value = *before_change_style_value;
+        auto const& after_change_value = *after_change_style_value;
+        auto originates_from_current_color = [](ComputedValues const& style, PropertyID property_id) {
+            auto value = style.inheritance_dependent_specified_values().get(property_id);
+            return value.has_value() && value.value()->to_keyword() == Keyword::Currentcolor;
+        };
+        bool before_change_style_is_different = !before_change_value.equals(after_change_value);
+        if (originates_from_current_color(previous_style, property_id) && originates_from_current_color(*after_change_style, property_id))
+            before_change_style_is_different = false;
 
         auto existing_transition = element.property_transition(pseudo_element, property_id);
         bool has_running_transition = existing_transition && !existing_transition->is_finished() && !existing_transition->is_idle();
@@ -1623,7 +1629,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             // - there is a matching transition-property value, and
             // NOTE: We only iterate over properties for which this is true
             // - the before-change style is different from the after-change style for that property, and the values for the property are transitionable,
-            (!before_change_value.equals(after_change_value) && property_values_are_transitionable(property_id, before_change_value, after_change_value, element, matching_transition_properties.transition_behavior)) &&
+            (before_change_style_is_different && property_values_are_transitionable(property_id, before_change_value, after_change_value, element, matching_transition_properties.transition_behavior)) &&
             // - the element does not have a completed transition for the property
             //   or the end value of the completed transition is different from the after-change style for the property,
             (!has_completed_transition || !existing_transition->transition_end_value()->equals(after_change_value)) &&
@@ -1679,7 +1685,9 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             // 1. If the current value of the property in the running transition is equal to the value of the property in the after-change style,
             //    or if these two values are not transitionable,
             //    then implementations must cancel the running transition.
-            auto& current_value = new_style.property(property_id, ComputedProperties::WithAnimationsApplied::Yes);
+            auto current_style_value = after_change_style->computed_style_value(property_id, ComputedValues::WithAnimationsApplied::Yes);
+            VERIFY(current_style_value);
+            auto const& current_value = *current_style_value;
             if (current_value.equals(after_change_value) || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties.transition_behavior)) {
                 dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.1");
                 existing_transition->cancel();
@@ -2885,7 +2893,7 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties::Builder& bu
         builder.set_property(PropertyID::Display, DisplayStyleValue::create(new_display));
 }
 
-StyleComputationResult StyleComputer::create_document_style() const
+NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const
 {
     auto builder = CSS::ComputedProperties::create_builder();
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
@@ -2905,19 +2913,18 @@ StyleComputationResult StyleComputer::create_document_style() const
         .calculation_resolution_context = { .length_resolution_context = CSS::Length::ResolutionContext::for_document(document()) },
     };
     auto computed_values = CSS::ComputedValues::create(*computed_properties, document(), document().style_scope(), move(color_resolution_context));
-    return { move(computed_properties), move(computed_values) };
+    return computed_values;
 }
 
-StyleComputationResult StyleComputer::compute_style(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
+NonnullRefPtr<ComputedValues const> StyleComputer::compute_style(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
 {
     auto& style_scope = abstract_element.style_scope();
     auto computed_properties = compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties, style_scope);
     VERIFY(computed_properties);
-    auto values = build_computed_values(*computed_properties, abstract_element, style_scope);
-    return { computed_properties.release_nonnull(), move(values) };
+    return build_computed_values(*computed_properties, abstract_element, style_scope);
 }
 
-StyleComputationResult StyleComputer::compute_style_with_seeded_ancestors(DOM::AbstractElement abstract_element)
+NonnullRefPtr<ComputedValues const> StyleComputer::compute_style_with_seeded_ancestors(DOM::AbstractElement abstract_element)
 {
     auto const first_ancestor = [&] -> GC::Ptr<DOM::Element const> {
         if (abstract_element.pseudo_element().has_value())
@@ -2937,13 +2944,12 @@ StyleComputationResult StyleComputer::compute_style_with_seeded_ancestors(DOM::A
     return compute_style(abstract_element);
 }
 
-Optional<StyleComputationResult> StyleComputer::compute_pseudo_element_style_if_needed(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
+RefPtr<ComputedValues const> StyleComputer::compute_pseudo_element_style_if_needed(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
 {
     auto& style_scope = abstract_element.style_scope();
     auto computed_properties = compute_style_impl(abstract_element, ComputeStyleMode::CreatePseudoElementStyleIfNeeded, did_change_custom_properties, style_scope);
     if (computed_properties) {
-        auto values = build_computed_values(*computed_properties, abstract_element, style_scope);
-        return StyleComputationResult { computed_properties.release_nonnull(), move(values) };
+        return build_computed_values(*computed_properties, abstract_element, style_scope);
     }
     return {};
 }
@@ -2969,7 +2975,52 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_computed_values(Compute
     ComputedValues::Builder builder(*ComputedValues::create(computed_properties, document(), style_scope, move(color_resolution_context)));
     builder->set_base_values(move(base_values));
     builder->set_animated_properties(animated_properties.ptr());
-    return builder.build();
+    return move(builder).build();
+}
+
+NonnullRefPtr<ComputedProperties> StyleComputer::reconstruct_computed_properties(ComputedValues const& computed_values) const
+{
+    auto builder = ComputedProperties::create_builder();
+    auto const& base_values = computed_values.base_values();
+
+    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+        auto property_id = static_cast<PropertyID>(i);
+        auto value = base_values.computed_style_value_for_inheritance(property_id);
+        VERIFY(value);
+        builder.set_property(
+            property_id,
+            value.release_nonnull(),
+            computed_values.is_property_inherited(property_id) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No,
+            computed_values.is_property_important(property_id) ? Important::Yes : Important::No);
+    }
+
+    builder.set_display_before_box_type_transformation(base_values.display_before_box_type_transformation());
+    if (computed_values.depends_on_viewport_metrics())
+        builder.set_depends_on_viewport_metrics();
+    if (computed_values.font_metrics_depend_on_viewport_metrics())
+        builder.set_font_metrics_depend_on_viewport_metrics();
+    if (computed_values.in_display_none_subtree())
+        builder.set_in_display_none_subtree();
+    for (auto i = 0; i < to_underlying(PseudoElement::KnownPseudoElementCount); ++i) {
+        auto pseudo_element = static_cast<PseudoElement>(i);
+        if (computed_values.has_pseudo_element_style(pseudo_element))
+            builder.set_has_pseudo_element_style(pseudo_element);
+    }
+    for (auto const& [property_id, value] : computed_values.inheritance_dependent_specified_values())
+        builder.add_inheritance_dependent_specified_value(property_id, value);
+    if (auto raw_cascaded_font_size = computed_values.raw_cascaded_font_size())
+        builder.set_raw_cascaded_font_size(raw_cascaded_font_size.release_nonnull());
+
+    auto style = ComputedProperties::create(move(builder));
+    if (auto animated_properties = computed_values.animated_properties()) {
+        for (auto const& [property_id, value] : animated_properties->values()) {
+            style->set_animated_property(
+                Badge<StyleComputer> {}, property_id, value,
+                animated_properties->is_property_result_of_transition(property_id) ? AnimatedPropertyResultOfTransition::Yes : AnimatedPropertyResultOfTransition::No,
+                animated_properties->is_property_inherited(property_id) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+        }
+    }
+    return style;
 }
 
 RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElement abstract_element, ComputeStyleMode mode, Optional<bool&> did_change_custom_properties, StyleScope const& style_scope) const
@@ -2990,8 +3041,10 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
         else
             abstract_element_for_pseudo_element.set_inheritance_override(host_element);
 
-        auto inherited_pseudo_element_style = compute_style(abstract_element_for_pseudo_element);
-        auto builder = ComputedProperties::create_builder_with_base_values_from(*inherited_pseudo_element_style.properties);
+        auto& inherited_style_scope = abstract_element_for_pseudo_element.style_scope();
+        auto inherited_pseudo_element_style = compute_style_impl(abstract_element_for_pseudo_element, ComputeStyleMode::Normal, {}, inherited_style_scope);
+        VERIFY(inherited_pseudo_element_style);
+        auto builder = ComputedProperties::create_builder_with_base_values_from(*inherited_pseudo_element_style);
 
         abstract_element.element().adjust_computed_style(builder);
         return ComputedProperties::create(move(builder));
@@ -3439,7 +3492,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     // Transition declarations [css-transitions-1]
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
     compute_transitioned_properties(computed_style, abstract_element);
-    if (auto previous_style = abstract_element.computed_properties()) {
+    if (auto previous_style = abstract_element.computed_values()) {
         // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
         // In Level 1 of this specification, transitions can only start during a style change event for elements which
         // have a defined before-change style established by the previous style change event. That means a transition
@@ -3447,7 +3500,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         // FIXME: If an element does not have a before-change style for a given style change event, the starting style
         //        is used instead of the before-change style to compare with the after-change style to start
         //        transitions.
-        if (!abstract_element.computed_values()->in_display_none_subtree() && !parent_style_in_display_none_subtree)
+        if (!previous_style->in_display_none_subtree() && !parent_style_in_display_none_subtree)
             start_needed_transitions(*previous_style, builder, abstract_element);
     }
 

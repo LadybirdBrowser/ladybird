@@ -8056,9 +8056,10 @@ void Document::process_pending_top_layer_layout_changes()
         } else {
             // A leaving element that is still rendered (fullscreen exit, mostly) needs a box
             // back among already-built sibling boxes, which only a full rebuild can order.
+            auto computed_values = element->computed_values();
             bool element_is_still_rendered = element->is_connected()
-                && element->computed_properties()
-                && !element->computed_properties()->display().is_none();
+                && computed_values
+                && !computed_values->display().is_none();
             if (element_is_still_rendered) {
                 invalidate_layout_tree(InvalidateLayoutTreeReason::TopLayerElementStillRenderedAfterRemoval);
                 return;

@@ -572,10 +572,10 @@ static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_
 
     bool did_change_custom_properties = false;
     auto style = style_computer.compute_pseudo_element_style_if_needed(abstract_element, did_change_custom_properties);
-    if (style.has_value())
-        abstract_element.element().set_computed_style(*pseudo_element, move(style->properties), move(style->values));
+    if (style)
+        abstract_element.element().set_computed_style(*pseudo_element, move(style));
     else
-        abstract_element.element().set_computed_style(*pseudo_element, nullptr, nullptr);
+        abstract_element.element().set_computed_style(*pseudo_element, nullptr);
 }
 
 Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndID const& property_name_and_id) const
@@ -680,31 +680,22 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
 
         if (!layout_node) {
             auto computed_values = abstract_element.computed_values();
-            auto computed_properties = abstract_element.computed_properties();
-            Optional<StyleComputationResult> transient_style;
+            RefPtr<ComputedValues const> transient_style;
             if (!computed_values) {
                 // A synthetic pseudo-element without matching rules has no durable style. Seed the ancestor chain
                 // before this one-off computation so ancestor-dependent selectors still match.
                 transient_style = abstract_element.document().style_computer().compute_style_with_seeded_ancestors(abstract_element);
-                computed_values = transient_style->values;
-                computed_properties = transient_style->properties;
+                computed_values = transient_style;
             }
 
             auto computed_value_for_property = [&](PropertyID computed_property_id) -> NonnullRefPtr<StyleValue const> {
                 if (property_is_logical_alias(computed_property_id))
                     computed_property_id = map_logical_alias_to_physical_property(computed_property_id, LogicalAliasMappingContext { computed_values->writing_mode(), computed_values->direction() });
-                auto computed_value = computed_values->computed_style_value(computed_property_id).release_nonnull();
-                if (computed_property_id == PropertyID::Color)
-                    return computed_value;
-                if (computed_properties) {
-                    auto const& generic_value = computed_properties->property(computed_property_id);
-                    // NB: Color keywords need the resolved typed color when there is no layout node.
-                    if (property_accepts_type(computed_property_id, ValueType::Color) && generic_value.is_keyword() && first_is_one_of(generic_value.to_keyword(), Keyword::Auto, Keyword::Currentcolor))
-                        return computed_value;
-                    // NB: Keep the generic value until typed reconstruction is structurally lossless for this property.
-                    if (*computed_value != generic_value)
-                        return generic_value;
+                if (computed_property_id == PropertyID::BackgroundColor) {
+                    if (auto style_value = computed_values->background_color_style_value(); style_value && !style_value->depends_on_current_color())
+                        return style_value.release_nonnull();
                 }
+                auto computed_value = computed_values->computed_style_value(computed_property_id).release_nonnull();
                 return computed_value;
             };
 
@@ -816,12 +807,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     };
 
     auto get_computed_value = [&element, pseudo_element](PropertyID property_id) -> NonnullRefPtr<StyleValue const> {
-        auto computed_value = element.computed_values(pseudo_element)->computed_style_value(property_id).release_nonnull();
-        auto const& generic_value = element.computed_properties(pseudo_element)->property(property_id);
-        // NB: Keep the generic value until typed reconstruction is structurally lossless for this property.
-        if (*computed_value != generic_value)
-            return generic_value;
-        return computed_value;
+        return element.computed_values(pseudo_element)->computed_style_value(property_id).release_nonnull();
     };
 
     if (property_is_logical_alias(property_id)) {
@@ -855,7 +841,10 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // -> A resolved value special case property like color defined in another specification
         //    The resolved value is the used value.
     case PropertyID::BackgroundColor:
-        return resolve_color_style_value(*get_computed_value(property_id), layout_node.computed_values().background_color(), &layout_node);
+        return resolve_color_style_value(
+            *layout_node.computed_values().background_color_style_value(),
+            layout_node.computed_values().background_color(),
+            &layout_node);
     case PropertyID::BorderBottomColor:
         return resolve_color_style_value(*get_computed_value(property_id), layout_node.computed_values().border_bottom().color, &layout_node);
     case PropertyID::BorderLeftColor:

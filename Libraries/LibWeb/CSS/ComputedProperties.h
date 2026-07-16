@@ -25,7 +25,6 @@
 #include <LibWeb/CSS/PseudoClassBitmap.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleProperty.h>
-#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
@@ -61,7 +60,7 @@ enum class AnimatedPropertyResultOfTransition : u8 {
     Yes
 };
 
-class WEB_API ComputedProperties final : public RefCounted<ComputedProperties> {
+class ComputedProperties final : public RefCounted<ComputedProperties> {
 public:
     ~ComputedProperties();
 
@@ -220,9 +219,9 @@ public:
     FlexDirection flex_direction() const;
     FlexWrap flex_wrap() const;
     FlexBasis flex_basis() const;
-    float flex_grow() const;
-    float flex_shrink() const;
-    int order() const;
+    double flex_grow() const;
+    double flex_shrink() const;
+    i32 order() const;
     Color accent_color(ColorResolutionContext const&) const;
     AlignContent align_content() const;
     AlignItems align_items() const;

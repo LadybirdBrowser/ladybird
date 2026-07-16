@@ -461,12 +461,12 @@ static RequiredInvalidationAfterStyleChange recompute_style_for_targeted_style_u
         return element.recompute_style(did_change_custom_properties);
 
     auto new_style = element.document().style_computer().compute_style({ element }, did_change_custom_properties);
-    element.set_computed_style({}, move(new_style.properties), move(new_style.values));
+    element.set_computed_style({}, move(new_style));
     element.set_needs_style_update(false);
     return {};
 }
 
-ComputedProperties const* update_style_for_element(DOM::Document& document, DOM::AbstractElement const& abstract_element, StyleUpdateMode mode)
+ComputedValues const* update_style_for_element(DOM::Document& document, DOM::AbstractElement const& abstract_element, StyleUpdateMode mode)
 {
     // Refresh computed properties for an abstract element without requiring every unrelated dirty element in the
     // document to be resolved. This walks the flat-tree inheritance chain and re-cascades from the rootmost stale
@@ -566,7 +566,7 @@ ComputedProperties const* update_style_for_element(DOM::Document& document, DOM:
         if (mode == StyleUpdateMode::Normal && !inheritance_chain.is_empty())
             topmost_element_to_recompute = 0;
         else
-            return abstract_element.computed_properties();
+            return abstract_element.computed_values();
     }
 
     document.style_computer().reset_has_result_cache();
@@ -609,7 +609,7 @@ ComputedProperties const* update_style_for_element(DOM::Document& document, DOM:
         }
     }
 
-    return abstract_element.computed_properties();
+    return abstract_element.computed_values();
 }
 
 void update_style_for_subtree_including_display_none(DOM::Document& document, DOM::Element const& subtree_root)
@@ -698,12 +698,12 @@ void Document::update_style_if_needed_for_element(AbstractElement const& abstrac
     CSS::update_style_if_needed_for_element(*this, abstract_element);
 }
 
-CSS::ComputedProperties const* Document::update_style_for_element(AbstractElement const& abstract_element)
+CSS::ComputedValues const* Document::update_style_for_element(AbstractElement const& abstract_element)
 {
     return CSS::update_style_for_element(*this, abstract_element);
 }
 
-CSS::ComputedProperties const* Document::update_style_for_element(AbstractElement const& abstract_element, StyleUpdateMode mode)
+CSS::ComputedValues const* Document::update_style_for_element(AbstractElement const& abstract_element, StyleUpdateMode mode)
 {
     return CSS::update_style_for_element(*this, abstract_element, mode);
 }

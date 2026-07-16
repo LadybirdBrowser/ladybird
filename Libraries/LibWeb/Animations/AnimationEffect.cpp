@@ -931,7 +931,12 @@ AnimationUpdateContext::~AnimationUpdateContext()
         }
 
         if (invalidation.needs_repaint()) {
-            target->set_needs_repaint();
+            if (element.pseudo_element().has_value()) {
+                if (auto pseudo_element_node = target->pseudo_element_unsafe_layout_node(*element.pseudo_element()); pseudo_element_node && pseudo_element_node->paintable())
+                    pseudo_element_node->paintable()->set_needs_repaint();
+            } else {
+                target->set_needs_repaint();
+            }
         }
         if (invalidation.needs_stacking_context_tree_rebuild())
             element.document().invalidate_stacking_context_tree();

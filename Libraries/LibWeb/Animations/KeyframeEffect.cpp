@@ -976,15 +976,20 @@ void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
     target->update_animated_properties({}, pseudo_element_type(), *this, context);
 }
 
-void KeyframeEffect::update_computed_properties_for_style(AnimationUpdateContext& context, DOM::AbstractElement abstract_element, CSS::ComputedProperties& computed_properties)
+void KeyframeEffect::update_computed_properties_for_style(AnimationUpdateContext& context, DOM::AbstractElement abstract_element)
 {
-    context.elements.ensure(abstract_element, [&abstract_element, &computed_properties] {
-        auto old_animated_properties = abstract_element.computed_values()->animated_properties_snapshot();
-        computed_properties.reset_non_inherited_animated_properties({});
-        return AnimationUpdateContext::ElementData { move(old_animated_properties), computed_properties };
+    auto& style_computer = abstract_element.element().document().style_computer();
+    auto& element_data = context.elements.ensure(abstract_element, [&abstract_element, &style_computer] {
+        auto computed_values = abstract_element.computed_values();
+        VERIFY(computed_values);
+        auto old_animated_properties = computed_values->animated_properties_snapshot();
+        auto computed_properties = style_computer.reconstruct_computed_properties(*computed_values);
+        computed_properties->reset_non_inherited_animated_properties({});
+        return AnimationUpdateContext::ElementData { move(old_animated_properties), move(computed_properties) };
     });
 
-    abstract_element.element().document().style_computer().collect_animation_into(abstract_element, *this, computed_properties);
+    VERIFY(element_data.target_style);
+    style_computer.collect_animation_into(abstract_element, *this, *element_data.target_style);
 }
 
 Bindings::CompositeOperation css_animation_composition_to_bindings_composite_operation(CSS::AnimationComposition composition)

@@ -1915,7 +1915,7 @@ static bool style_value_contains_anchor(CSS::StyleValue const& value)
     return false;
 }
 
-// NB: Generated boxes for pseudo-elements are anonymous, so their computed properties live in
+// NB: Generated boxes for pseudo-elements are anonymous, so their computed values live in
 //     the generator element under the relevant pseudo-element rather than on a DOM node of
 //     their own.
 static Optional<DOM::AbstractElement> abstract_element_for_box(Box const& box)
@@ -1933,13 +1933,18 @@ bool FormattingContext::box_inset_properties_contain_anchor_functions(Box const&
     if (!abstract_element.has_value())
         return false;
 
-    auto const* computed = abstract_element->computed_properties();
+    auto const* computed = abstract_element->computed_values();
     if (!computed)
         return false;
-    return style_value_contains_anchor(computed->property(CSS::PropertyID::Top))
-        || style_value_contains_anchor(computed->property(CSS::PropertyID::Right))
-        || style_value_contains_anchor(computed->property(CSS::PropertyID::Bottom))
-        || style_value_contains_anchor(computed->property(CSS::PropertyID::Left));
+    auto top = computed->computed_style_value(CSS::PropertyID::Top);
+    auto right = computed->computed_style_value(CSS::PropertyID::Right);
+    auto bottom = computed->computed_style_value(CSS::PropertyID::Bottom);
+    auto left = computed->computed_style_value(CSS::PropertyID::Left);
+    VERIFY(top && right && bottom && left);
+    return style_value_contains_anchor(*top)
+        || style_value_contains_anchor(*right)
+        || style_value_contains_anchor(*bottom)
+        || style_value_contains_anchor(*left);
 }
 
 static Box const* nearest_scroll_container_ancestor(Box const& box)

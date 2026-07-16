@@ -322,7 +322,7 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
     }
     case PropertyID::Border: {
         // `border` only has a reasonable value if border-image is it's initial value (in which case it is omitted)
-        if (!longhand(PropertyID::BorderImage)->equals(property_initial_value(PropertyID::BorderImage)))
+        if (longhand(PropertyID::BorderImage)->to_string(mode) != property_initial_value(PropertyID::BorderImage)->to_string(mode))
             return;
 
         auto all_longhands_same_value = [](ValueComparingRefPtr<StyleValue const> const& shorthand) -> bool {

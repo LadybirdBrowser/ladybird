@@ -27,7 +27,7 @@ enum class StyleUpdateMode : u8 {
 
 WEB_API void update_style(DOM::Document&);
 WEB_API void update_style_if_needed_for_element(DOM::Document&, DOM::AbstractElement const&);
-WEB_API ComputedProperties const* update_style_for_element(DOM::Document&, DOM::AbstractElement const&, StyleUpdateMode = StyleUpdateMode::Normal);
+WEB_API ComputedValues const* update_style_for_element(DOM::Document&, DOM::AbstractElement const&, StyleUpdateMode = StyleUpdateMode::Normal);
 // Refresh computed style for a subtree, including descendants under display:none.
 WEB_API void update_style_for_subtree_including_display_none(DOM::Document&, DOM::Element const&);
 WEB_API bool element_needs_style_update(DOM::Document const&, DOM::AbstractElement const&);

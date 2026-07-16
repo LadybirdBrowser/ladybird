@@ -31,7 +31,6 @@
 #include <LibIPC/Transport.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -1516,8 +1515,8 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
                         if (auto const* style_property = data->get(property->name()))
                             computed_value = style_property->value->to_string(Web::CSS::SerializationMode::Normal);
                     }
-                } else if (auto computed_properties = element->computed_properties()) {
-                    computed_value = computed_properties->property(property->id()).to_string(Web::CSS::SerializationMode::Normal);
+                } else if (auto computed_values = element->computed_values()) {
+                    computed_value = computed_values->computed_style_value(property->id())->to_string(Web::CSS::SerializationMode::Normal);
                 }
             }
         }

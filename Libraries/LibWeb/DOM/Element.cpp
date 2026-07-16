@@ -1000,7 +1000,7 @@ static bool style_value_changed(CSS::StyleValue const& old_value, CSS::StyleValu
     return !old_value.equals(new_value);
 }
 
-static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(CSS::ComputedProperties const& old_style, CSS::ComputedValues const& old_computed_values, CSS::ComputedProperties const& new_style, CSS::ComputedValues const& new_computed_values, Layout::NodeWithStyle const* old_layout_node, DOM::AbstractElement& abstract_element)
+static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(CSS::ComputedValues const& old_computed_values, CSS::ComputedValues const& new_computed_values, Layout::NodeWithStyle const* old_layout_node, DOM::AbstractElement& abstract_element)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
@@ -1016,19 +1016,14 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
             new_physical_property_id = CSS::map_logical_alias_to_physical_property(property_id, CSS::LogicalAliasMappingContext { new_computed_values.writing_mode(), new_computed_values.direction() });
         }
 
-        auto old_typed_value = old_computed_values.computed_style_value(old_physical_property_id);
-        auto new_typed_value = new_computed_values.computed_style_value(new_physical_property_id);
-        auto const& old_generic_value = old_style.property(property_id);
-        auto const& new_generic_value = new_style.property(property_id);
-        // NB: Keep the generic value until typed reconstruction is structurally lossless for this property.
-        auto const* old_value = old_typed_value && *old_typed_value == old_generic_value ? old_typed_value.ptr() : &old_generic_value;
-        auto const* new_value = new_typed_value && *new_typed_value == new_generic_value ? new_typed_value.ptr() : &new_generic_value;
+        auto old_value = old_computed_values.computed_style_value(old_physical_property_id);
+        auto new_value = new_computed_values.computed_style_value(new_physical_property_id);
 
         if (!style_value_changed(*old_value, *new_value))
             continue;
         if (CSS::is_inherited_property(property_id))
             invalidation.inherited_style_changed = true;
-        invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value, &old_computed_values, &new_computed_values);
+        invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), new_value.ptr(), &old_computed_values, &new_computed_values);
     }
 
     // NB: Even if the computed value hasn't changed the resolved counter style may have (e.g. if the relevant
@@ -1040,13 +1035,13 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
 
         // NB: We only propagate content to computed values for relevant elements so if the old layout node doesn't
         //     have a value for content we know it isn't a relevant element and invalidation isn't required.
-        if (old_content.has_value() && old_content->counter_style_dependencies != new_style.content(abstract_element, 0).content_data.counter_style_dependencies)
+        if (old_content.has_value() && old_content->counter_style_dependencies != new_computed_values.resolved_content(abstract_element, 0).content_data.counter_style_dependencies)
             invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
 
         auto const& old_list_style_type = old_computed_values.list_style_type();
 
         if (old_list_style_type.has<RefPtr<CSS::CounterStyle const>>()) {
-            auto const& new_list_style_type = new_style.list_style_type(abstract_element.style_scope());
+            auto const& new_list_style_type = new_computed_values.list_style_type();
 
             if (new_list_style_type.has<RefPtr<CSS::CounterStyle const>>()) {
                 ValueComparingRefPtr<CSS::CounterStyle const> old_counter_style = old_list_style_type.get<RefPtr<CSS::CounterStyle const>>();
@@ -1078,7 +1073,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
 
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
     auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element, bool has_implicit_style = false) {
-        auto pseudo_element_style = computed_properties(pseudo_element);
         auto pseudo_element_values = computed_values(pseudo_element);
         auto should_recompute = has_implicit_style
             || pseudo_element_values
@@ -1092,18 +1086,17 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties);
 
         // TODO: Can we be smarter about invalidation?
-        if (pseudo_element_values && new_pseudo_element_style.has_value()) {
-            VERIFY(pseudo_element_style);
+        if (pseudo_element_values && new_pseudo_element_style) {
             DOM::AbstractElement abstract_element { *this, pseudo_element };
-            invalidation |= compute_required_invalidation(*pseudo_element_style, *pseudo_element_values, *new_pseudo_element_style->properties, *new_pseudo_element_style->values, pseudo_element_unsafe_layout_node(pseudo_element), abstract_element);
-        } else if (pseudo_element_values || new_pseudo_element_style.has_value()) {
+            invalidation |= compute_required_invalidation(*pseudo_element_values, *new_pseudo_element_style, pseudo_element_unsafe_layout_node(pseudo_element), abstract_element);
+        } else if (pseudo_element_values || new_pseudo_element_style) {
             invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
         }
 
-        if (new_pseudo_element_style.has_value())
-            set_computed_style(pseudo_element, move(new_pseudo_element_style->properties), move(new_pseudo_element_style->values));
+        if (new_pseudo_element_style)
+            set_computed_style(pseudo_element, move(new_pseudo_element_style));
         else
-            set_computed_style(pseudo_element, nullptr, nullptr);
+            set_computed_style(pseudo_element, nullptr);
     };
 
     recompute_pseudo_element_style(CSS::PseudoElement::Before);
@@ -1204,17 +1197,13 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 
     auto& style_computer = document().style_computer();
     auto new_style = style_computer.compute_style({ *this }, did_change_custom_properties);
-    auto& new_computed_properties = new_style.properties;
-
-    auto old_computed_properties = m_computed_properties;
     auto old_computed_values = m_computed_values;
     bool had_list_marker = false;
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
-    if (m_computed_properties) {
+    if (m_computed_values) {
         DOM::AbstractElement abstract_element { *this };
-        VERIFY(m_computed_values);
-        invalidation = compute_required_invalidation(*m_computed_properties, *m_computed_values, *new_computed_properties, *new_style.values, unsafe_layout_node(), abstract_element);
+        invalidation = compute_required_invalidation(*m_computed_values, *new_style, unsafe_layout_node(), abstract_element);
         had_list_marker = m_computed_values->display().is_list_item();
     } else {
         invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
@@ -1235,7 +1224,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
             }
         }
         bool element_has_anchor_names = false;
-        for (auto const& name : new_style.values->anchor_names()) {
+        for (auto const& name : new_style->anchor_names()) {
             element_has_anchor_names = true;
             anchor_names.register_name(name, *this);
         }
@@ -1248,9 +1237,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     }
 
     auto old_non_animated_display_is_none = m_computed_values ? m_computed_values->base_values().display().is_none() : true;
-    auto new_non_animated_display_is_none = new_style.values->base_values().display().is_none();
+    auto new_non_animated_display_is_none = new_style->base_values().display().is_none();
 
-    set_computed_style({}, move(new_computed_properties), move(new_style.values));
+    set_computed_style({}, move(new_style));
 
     if (old_non_animated_display_is_none != new_non_animated_display_is_none) {
         for_each_shadow_including_inclusive_descendant([&](auto& node) {
@@ -1305,9 +1294,9 @@ void Element::set_in_display_none_subtree_on_descendant_styles()
         if (computed_values->has_animated_values()) {
             CSS::ComputedValues::Builder base_values_builder(computed_values->base_values());
             base_values_builder->set_in_display_none_subtree(true);
-            builder->set_base_values(base_values_builder.build());
+            builder->set_base_values(move(base_values_builder).build());
         }
-        element->m_computed_values = builder.build();
+        element->m_computed_values = move(builder).build();
         element->for_each_synthetic_pseudo_element([](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
             pseudo_element.set_computed_values_in_display_none_subtree();
         });
@@ -1346,10 +1335,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style(Sch
     auto& counters = document().style_invalidation_counters();
     counters.element_inherited_style_recomputations++;
 
-    auto old_computed_properties = this->computed_properties();
-    VERIFY(old_computed_properties);
     auto old_computed_values = this->computed_values();
     VERIFY(old_computed_values);
+    auto old_computed_properties = document().style_computer().reconstruct_computed_properties(*old_computed_values);
     auto computed_properties_builder = CSS::ComputedProperties::create_builder_with_base_values_from(*old_computed_properties);
     auto& new_computed_properties = computed_properties_builder.style();
     auto had_list_marker = old_computed_values->display().is_list_item();
@@ -1422,8 +1410,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style(Sch
         invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), &new_value);
     }
 
-    m_computed_properties = CSS::ComputedProperties::create(move(computed_properties_builder));
-    auto computed_values = document().style_computer().build_computed_values(*m_computed_properties, abstract_element, abstract_element.style_scope());
+    auto computed_properties = CSS::ComputedProperties::create(move(computed_properties_builder));
+    auto computed_values = document().style_computer().build_computed_values(*computed_properties, abstract_element, abstract_element.style_scope());
     refresh_computed_values({}, move(computed_values));
 
     bool did_change_custom_properties = false;
@@ -2103,10 +2091,9 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
     play_or_cancel_animations_after_display_property_change();
     exit_fullscreen_on_element_removal();
 
-    m_computed_properties = nullptr;
     m_computed_values = nullptr;
     for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element_type, SyntheticPseudoElement&) {
-        set_computed_style(pseudo_element_type, nullptr, nullptr);
+        set_computed_style(pseudo_element_type, nullptr);
     });
 }
 
@@ -3934,16 +3921,6 @@ size_t Element::attribute_list_size() const
     return m_attributes ? m_attributes->length() : 0;
 }
 
-RefPtr<CSS::ComputedProperties const> Element::computed_properties(Optional<CSS::PseudoElement> pseudo_element_type) const
-{
-    if (pseudo_element_type.has_value()) {
-        if (auto pseudo_element = get_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
-            return pseudo_element->computed_properties();
-        return {};
-    }
-    return m_computed_properties;
-}
-
 RefPtr<CSS::ComputedValues const> Element::computed_values(Optional<CSS::PseudoElement> pseudo_element_type) const
 {
     if (pseudo_element_type.has_value()) {
@@ -3970,22 +3947,19 @@ void Element::update_animated_properties_for_abstract_element(Badge<Web::Animati
 {
     if (!m_computed_values)
         return;
-    VERIFY(m_computed_properties);
-    effect.update_computed_properties_for_style(context, abstract_element, *m_computed_properties);
+    effect.update_computed_properties_for_style(context, abstract_element);
 }
 
-void Element::set_computed_style(Optional<CSS::PseudoElement> pseudo_element_type, RefPtr<CSS::ComputedProperties> properties, RefPtr<CSS::ComputedValues const> values)
+void Element::set_computed_style(Optional<CSS::PseudoElement> pseudo_element_type, RefPtr<CSS::ComputedValues const> values)
 {
-    VERIFY(properties == nullptr || values != nullptr);
     if (pseudo_element_type.has_value()) {
         VERIFY(is_synthetic_pseudo_element(*pseudo_element_type));
-        if (properties)
-            ensure_synthetic_pseudo_element(*pseudo_element_type).set_computed_style(move(properties), move(values));
+        if (values)
+            ensure_synthetic_pseudo_element(*pseudo_element_type).set_computed_style(move(values));
         else if (auto existing_pseudo_element = get_synthetic_pseudo_element(*pseudo_element_type); existing_pseudo_element.has_value())
-            existing_pseudo_element->set_computed_style(nullptr, nullptr);
+            existing_pseudo_element->set_computed_style(nullptr);
         return;
     }
-    m_computed_properties = move(properties);
     m_computed_values = move(values);
     computed_properties_changed();
 }

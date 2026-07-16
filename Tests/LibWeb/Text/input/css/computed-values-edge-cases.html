@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #overflow {
+        overflow-clip-margin: content-box calc(10px + 5px);
+    }
+
+    #aspect-ratio {
+        width: 100px;
+        height: auto;
+        aspect-ratio: auto 0 / 1;
+    }
+</style>
+<div id="overflow"></div>
+<canvas id="aspect-ratio"></canvas>
+<script>
+    test(() => {
+        println(`overflow-clip-margin: ${getComputedStyle(document.getElementById("overflow")).overflowClipMargin}`);
+        println(`degenerate auto aspect-ratio height: ${document.getElementById("aspect-ratio").getBoundingClientRect().height}`);
+    });
+</script>

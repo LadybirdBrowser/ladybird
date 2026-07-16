@@ -46,6 +46,7 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/Time.h>
 #include <LibWeb/CSS/URL.h>
+#include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
@@ -565,6 +566,7 @@ private:
 
 struct BackgroundLayerData {
     RefPtr<AbstractImageStyleValue const> background_image;
+    RefPtr<StyleValue const> image_style_value;
     BackgroundAttachment attachment { BackgroundAttachment::Scroll };
     BackgroundBox origin { BackgroundBox::PaddingBox };
     BackgroundBox clip { BackgroundBox::BorderBox };
@@ -602,6 +604,8 @@ struct BorderImageData {
     BorderImageSideValues<BorderImageSliceValue> slice { Percentage(100), Percentage(100), Percentage(100), Percentage(100) };
     BorderImageSideValues<BorderImageWidthValue> width { 1.0, 1.0, 1.0, 1.0 };
     BorderImageSideValues<BorderImageOutsetValue> outset { 0.0, 0.0, 0.0, 0.0 };
+    u8 width_value_count { 1 };
+    u8 outset_value_count { 1 };
     bool fill { false };
     BorderImageRepeat repeat_x { BorderImageRepeat::Stretch };
     BorderImageRepeat repeat_y { BorderImageRepeat::Stretch };
@@ -658,6 +662,7 @@ struct ShadowData {
     CSSPixels blur_radius { 0 };
     CSSPixels spread_distance { 0 };
     Color color {};
+    ColorSyntax color_syntax { ColorSyntax::Legacy };
     ShadowPlacement placement { ShadowPlacement::Outer };
 };
 
@@ -818,7 +823,7 @@ inline Gfx::InterpolationColorSpace to_interpolation_color_space(ColorInterpolat
     VERIFY_NOT_REACHED();
 }
 
-class ComputedValues final : public RefCounted<ComputedValues> {
+class WEB_API ComputedValues final : public RefCounted<ComputedValues> {
     AK_MAKE_NONCOPYABLE(ComputedValues);
     AK_MAKE_NONMOVABLE(ComputedValues);
 
@@ -831,7 +836,7 @@ public:
         Yes,
     };
 
-    static NonnullRefPtr<ComputedValues> create(ComputedProperties const&, DOM::Document const&, StyleScope const&, ColorResolutionContext);
+    static NonnullRefPtr<ComputedValues const> create(ComputedProperties const&, DOM::Document const&, StyleScope const&, ColorResolutionContext);
 
     RefPtr<StyleValue const> computed_style_value(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     RefPtr<StyleValue const> computed_style_value_for_inheritance(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
@@ -850,7 +855,6 @@ public:
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
     RefPtr<StyleValue const> raw_cascaded_font_size() const { return m_raw_cascaded_font_size; }
 
-    ComputedValues();
     ~ComputedValues();
 
     AspectRatio aspect_ratio() const { return m_noninherited.aspect_ratio; }
@@ -866,6 +870,7 @@ public:
     Vector<AnimationPlayState> const& animation_play_states() const { return m_noninherited.animation_play_states; }
     Vector<AnimationTimelineData> const& animation_timelines() const { return m_noninherited.animation_timelines; }
     Vector<EasingFunction> const& animation_timing_functions() const { return m_noninherited.animation_timing_functions; }
+    StyleValueVector const& animation_timing_function_style_values() const { return m_noninherited.animation_timing_function_style_values; }
     BoxSizing box_sizing_for_aspect_ratio() const
     {
         // https://drafts.csswg.org/css-sizing-4/#aspect-ratio
@@ -932,6 +937,7 @@ public:
     Vector<Optional<Utf16FlyString>> const& transition_properties() const { return m_noninherited.transition_properties; }
     Vector<Time> const& transition_durations() const { return m_noninherited.transition_durations; }
     Vector<EasingFunction> const& transition_timing_functions() const { return m_noninherited.transition_timing_functions; }
+    StyleValueVector const& transition_timing_function_style_values() const { return m_noninherited.transition_timing_function_style_values; }
     Vector<Time> const& transition_delays() const { return m_noninherited.transition_delays; }
     Vector<TransitionBehavior> const& transition_behaviors() const { return m_noninherited.transition_behaviors; }
     WhiteSpaceCollapse white_space_collapse() const { return m_inherited.white_space_collapse; }
@@ -943,12 +949,14 @@ public:
     FontVariantEmoji font_variant_emoji() const { return m_inherited.font_variant_emoji; }
     CSSPixels const& word_spacing() const { return m_inherited.word_spacing; }
     CSSPixels letter_spacing() const { return m_inherited.letter_spacing; }
+    RefPtr<StyleValue const> word_spacing_style_value() const { return m_inherited.word_spacing_style_value; }
+    RefPtr<StyleValue const> letter_spacing_style_value() const { return m_inherited.letter_spacing_style_value; }
     FlexDirection flex_direction() const { return m_noninherited.flex_direction; }
     FlexWrap flex_wrap() const { return m_noninherited.flex_wrap; }
     FlexBasis const& flex_basis() const { return m_noninherited.flex_basis; }
-    float flex_grow() const { return m_noninherited.flex_grow; }
-    float flex_shrink() const { return m_noninherited.flex_shrink; }
-    int order() const { return m_noninherited.order; }
+    double flex_grow() const { return m_noninherited.flex_grow; }
+    double flex_shrink() const { return m_noninherited.flex_shrink; }
+    i32 order() const { return m_noninherited.order; }
     AccentColor const& accent_color_value() const { return m_inherited.accent_color; }
     Optional<Color> accent_color() const
     {
@@ -960,6 +968,7 @@ public:
     AlignItems align_items() const { return m_noninherited.align_items; }
     AlignSelf align_self() const { return m_noninherited.align_self; }
     Appearance appearance() const { return m_noninherited.appearance; }
+    Appearance computed_appearance() const { return m_noninherited.computed_appearance; }
     float opacity() const { return m_noninherited.opacity; }
     Visibility visibility() const { return m_inherited.visibility; }
     ImageRendering image_rendering() const { return m_inherited.image_rendering; }
@@ -1086,6 +1095,7 @@ public:
 
     Color color() const { return m_inherited.color; }
     Color background_color() const { return m_noninherited.background_color; }
+    RefPtr<StyleValue const> background_color_style_value() const { return m_noninherited.background_color_style_value; }
     BackgroundBox background_color_clip() const { return m_noninherited.background_color_clip; }
     Vector<BackgroundLayerData> const& background_layers() const { return m_noninherited.background_layers; }
     Vector<BackgroundLayerData> const& mask_layers() const { return m_noninherited.mask_layers; }
@@ -1122,6 +1132,8 @@ public:
     Color flood_color() const { return m_noninherited.flood_color; }
     float flood_opacity() const { return m_noninherited.flood_opacity; }
     PaintOrderList paint_order() const { return m_inherited.paint_order; }
+    u8 paint_order_serialization_length() const { return m_inherited.paint_order_serialization_length; }
+    bool paint_order_is_normal() const { return m_inherited.paint_order_is_normal; }
 
     LengthPercentage const& cx() const { return m_noninherited.cx; }
     LengthPercentage const& cy() const { return m_noninherited.cy; }
@@ -1156,6 +1168,7 @@ public:
 
     Color outline_color() const { return m_noninherited.outline_color; }
     CSSPixels outline_offset() const { return m_noninherited.outline_offset; }
+    RefPtr<StyleValue const> outline_offset_style_value() const { return m_noninherited.outline_offset_style_value; }
     OutlineStyle outline_style() const { return m_noninherited.outline_style; }
     CSSPixels outline_width() const { return m_noninherited.outline_width; }
 
@@ -1177,7 +1190,9 @@ public:
     ShapeOutsideData const& shape_outside() const { return m_noninherited.shape_outside; }
     WillChange const& will_change() const { return m_noninherited.will_change; }
 
-protected:
+private:
+    ComputedValues();
+
     static size_t property_bitmap_index(PropertyID property_id)
     {
         VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
@@ -1240,6 +1255,8 @@ protected:
         Visibility visibility { InitialValues::visibility() };
         CSSPixels word_spacing { InitialValues::word_spacing() };
         CSSPixels letter_spacing { InitialValues::letter_spacing() };
+        RefPtr<StyleValue const> word_spacing_style_value;
+        RefPtr<StyleValue const> letter_spacing_style_value;
         ListStyleType list_style_type { InitialValues::list_style_type() };
         QuotesData quotes { InitialValues::quotes() };
         Direction direction { InitialValues::direction() };
@@ -1251,6 +1268,8 @@ protected:
         Optional<SVGPaint> fill;
         Optional<SVGPaint> stroke;
         PaintOrderList paint_order { InitialValues::paint_order() };
+        u8 paint_order_serialization_length { 0 };
+        bool paint_order_is_normal { true };
         StrokeLinejoin stroke_linejoin { InitialValues::stroke_linejoin() };
         TextAnchor text_anchor { InitialValues::text_anchor() };
         ClipRule clip_rule { InitialValues::clip_rule() };
@@ -1282,6 +1301,7 @@ protected:
         Vector<AnimationPlayState> animation_play_states { AnimationPlayState::Running };
         Vector<AnimationTimelineData> animation_timelines { AnimationTimelineData {} };
         Vector<EasingFunction> animation_timing_functions { EasingFunction::ease() };
+        StyleValueVector animation_timing_function_style_values;
         Float float_ { InitialValues::float_() };
         Clear clear { InitialValues::clear() };
         TextOverflow text_overflow { InitialValues::text_overflow() };
@@ -1300,6 +1320,7 @@ protected:
         Vector<Optional<Utf16FlyString>> transition_properties { Optional<Utf16FlyString> { "all"_utf16_fly_string } };
         Vector<Time> transition_durations { Time::make_seconds(0) };
         Vector<EasingFunction> transition_timing_functions { EasingFunction::ease() };
+        StyleValueVector transition_timing_function_style_values;
         Vector<Time> transition_delays { Time::make_seconds(0) };
         Vector<TransitionBehavior> transition_behaviors { TransitionBehavior::Normal };
         Optional<int> z_index;
@@ -1337,6 +1358,10 @@ protected:
         BorderData border_top;
         BorderData border_right;
         BorderData border_bottom;
+        RefPtr<StyleValue const> border_left_color_style_value;
+        RefPtr<StyleValue const> border_top_color_style_value;
+        RefPtr<StyleValue const> border_right_color_style_value;
+        RefPtr<StyleValue const> border_bottom_color_style_value;
         CSSPixels border_left_computed_width { 0 };
         CSSPixels border_top_computed_width { 0 };
         CSSPixels border_right_computed_width { 0 };
@@ -1350,7 +1375,8 @@ protected:
         double corner_top_left_shape { 1 };
         double corner_top_right_shape { 1 };
         Color background_color { InitialValues::background_color() };
-        int order { InitialValues::order() };
+        RefPtr<StyleValue const> background_color_style_value;
+        i32 order { InitialValues::order() };
         Vector<BackgroundLayerData> background_layers { BackgroundLayerData {} };
         Vector<BackgroundLayerData> mask_layers { [] {
             BackgroundLayerData layer;
@@ -1366,11 +1392,12 @@ protected:
 
         Color flood_color { InitialValues::flood_color() };
         FlexBasis flex_basis { InitialValues::flex_basis() };
-        float flex_grow { InitialValues::flex_grow() };
-        float flex_shrink { InitialValues::flex_shrink() };
+        double flex_grow { InitialValues::flex_grow() };
+        double flex_shrink { InitialValues::flex_shrink() };
         AlignItems align_items { InitialValues::align_items() };
         AlignSelf align_self { InitialValues::align_self() };
         Appearance appearance { InitialValues::appearance() };
+        Appearance computed_appearance { Appearance::None };
         JustifyContent justify_content { InitialValues::justify_content() };
         JustifyItems justify_items { InitialValues::justify_items() };
         JustifySelf justify_self { InitialValues::justify_self() };
@@ -1407,6 +1434,7 @@ protected:
         Color outline_color { InitialValues::outline_color() };
         CSSPixels outline_width { InitialValues::outline_width() };
         CSSPixels outline_offset { InitialValues::outline_offset() };
+        RefPtr<StyleValue const> outline_offset_style_value;
         TableLayout table_layout { InitialValues::table_layout() };
         UnicodeBidi unicode_bidi { InitialValues::unicode_bidi() };
         UserSelect user_select { InitialValues::user_select() };
@@ -1503,6 +1531,7 @@ public:
     void set_animation_play_states(Vector<AnimationPlayState> value) { m_values.m_noninherited.animation_play_states = move(value); }
     void set_animation_timelines(Vector<AnimationTimelineData> value) { m_values.m_noninherited.animation_timelines = move(value); }
     void set_animation_timing_functions(Vector<EasingFunction> value) { m_values.m_noninherited.animation_timing_functions = move(value); }
+    void set_animation_timing_function_style_values(StyleValueVector value) { m_values.m_noninherited.animation_timing_function_style_values = move(value); }
     void set_caret_color(Color caret_color) { m_values.m_inherited.caret_color = caret_color; }
     void set_font_list(NonnullRefPtr<Gfx::FontCascadeList const> font_list) { m_values.m_inherited.font_list = move(font_list); }
     void set_font_families(Vector<ComputedFontFamily> value) { m_values.m_inherited.font_families = move(value); }
@@ -1536,6 +1565,7 @@ public:
     void set_image_rendering(ImageRendering value) { m_values.m_inherited.image_rendering = value; }
     void set_pointer_events(PointerEvents value) { m_values.m_inherited.pointer_events = value; }
     void set_background_color(Color color) { m_values.m_noninherited.background_color = color; }
+    void set_background_color_style_value(StyleValue const& value) { m_values.m_noninherited.background_color_style_value = value; }
     void set_background_color_clip(BackgroundBox box) { m_values.m_noninherited.background_color_clip = box; }
     void set_background_layers(Vector<BackgroundLayerData>&& layers) { m_values.m_noninherited.background_layers = move(layers); }
     void set_mask_layers(Vector<BackgroundLayerData>&& layers) { m_values.m_noninherited.mask_layers = move(layers); }
@@ -1580,11 +1610,14 @@ public:
     void set_transition_properties(Vector<Optional<Utf16FlyString>> value) { m_values.m_noninherited.transition_properties = move(value); }
     void set_transition_durations(Vector<Time> value) { m_values.m_noninherited.transition_durations = move(value); }
     void set_transition_timing_functions(Vector<EasingFunction> value) { m_values.m_noninherited.transition_timing_functions = move(value); }
+    void set_transition_timing_function_style_values(StyleValueVector value) { m_values.m_noninherited.transition_timing_function_style_values = move(value); }
     void set_transition_delays(Vector<Time> value) { m_values.m_noninherited.transition_delays = move(value); }
     void set_transition_behaviors(Vector<TransitionBehavior> value) { m_values.m_noninherited.transition_behaviors = move(value); }
     void set_white_space_collapse(WhiteSpaceCollapse value) { m_values.m_inherited.white_space_collapse = value; }
     void set_white_space_trim(WhiteSpaceTrimData value) { m_values.m_noninherited.white_space_trim = value; }
     void set_word_spacing(CSSPixels value) { m_values.m_inherited.word_spacing = value; }
+    void set_word_spacing_style_value(StyleValue const& value) { m_values.m_inherited.word_spacing_style_value = value; }
+    void set_letter_spacing_style_value(StyleValue const& value) { m_values.m_inherited.letter_spacing_style_value = value; }
     void set_word_break(WordBreak value) { m_values.m_inherited.word_break = value; }
     void set_overflow_wrap(OverflowWrap value) { m_values.m_inherited.overflow_wrap = value; }
     void set_orphans(u64 value) { m_values.m_inherited.orphans = value; }
@@ -1667,6 +1700,10 @@ public:
     BorderData& border_top() { return m_values.m_noninherited.border_top; }
     BorderData& border_right() { return m_values.m_noninherited.border_right; }
     BorderData& border_bottom() { return m_values.m_noninherited.border_bottom; }
+    void set_border_left_color_style_value(StyleValue const& value) { m_values.m_noninherited.border_left_color_style_value = value; }
+    void set_border_top_color_style_value(StyleValue const& value) { m_values.m_noninherited.border_top_color_style_value = value; }
+    void set_border_right_color_style_value(StyleValue const& value) { m_values.m_noninherited.border_right_color_style_value = value; }
+    void set_border_bottom_color_style_value(StyleValue const& value) { m_values.m_noninherited.border_bottom_color_style_value = value; }
     void set_border_left_computed_width(CSSPixels value) { m_values.m_noninherited.border_left_computed_width = value; }
     void set_border_top_computed_width(CSSPixels value) { m_values.m_noninherited.border_top_computed_width = value; }
     void set_border_right_computed_width(CSSPixels value) { m_values.m_noninherited.border_right_computed_width = value; }
@@ -1674,14 +1711,15 @@ public:
     void set_flex_direction(FlexDirection value) { m_values.m_noninherited.flex_direction = value; }
     void set_flex_wrap(FlexWrap value) { m_values.m_noninherited.flex_wrap = value; }
     void set_flex_basis(FlexBasis value) { m_values.m_noninherited.flex_basis = move(value); }
-    void set_flex_grow(float value) { m_values.m_noninherited.flex_grow = value; }
-    void set_flex_shrink(float value) { m_values.m_noninherited.flex_shrink = value; }
-    void set_order(int value) { m_values.m_noninherited.order = value; }
+    void set_flex_grow(double value) { m_values.m_noninherited.flex_grow = value; }
+    void set_flex_shrink(double value) { m_values.m_noninherited.flex_shrink = value; }
+    void set_order(i32 value) { m_values.m_noninherited.order = value; }
     void set_accent_color(AccentColor value) { m_values.m_inherited.accent_color = move(value); }
     void set_align_content(AlignContent value) { m_values.m_noninherited.align_content = value; }
     void set_align_items(AlignItems value) { m_values.m_noninherited.align_items = value; }
     void set_align_self(AlignSelf value) { m_values.m_noninherited.align_self = value; }
     void set_appearance(Appearance value) { m_values.m_noninherited.appearance = value; }
+    void set_computed_appearance(Appearance value) { m_values.m_noninherited.computed_appearance = value; }
     void set_opacity(float value) { m_values.m_noninherited.opacity = value; }
     void set_justify_content(JustifyContent value) { m_values.m_noninherited.justify_content = value; }
     void set_justify_items(JustifyItems value) { m_values.m_noninherited.justify_items = value; }
@@ -1751,6 +1789,7 @@ public:
     void set_text_anchor(TextAnchor value) { m_values.m_inherited.text_anchor = value; }
     void set_outline_color(Color value) { m_values.m_noninherited.outline_color = value; }
     void set_outline_offset(CSSPixels value) { m_values.m_noninherited.outline_offset = move(value); }
+    void set_outline_offset_style_value(StyleValue const& value) { m_values.m_noninherited.outline_offset_style_value = value; }
     void set_outline_style(OutlineStyle value) { m_values.m_noninherited.outline_style = value; }
     void set_outline_width(CSSPixels value) { m_values.m_noninherited.outline_width = value; }
     void set_mask(MaskReference value) { m_values.m_noninherited.mask = value; }
@@ -1762,6 +1801,11 @@ public:
     void set_flood_opacity(float value) { m_values.m_noninherited.flood_opacity = value; }
     void set_shape_rendering(ShapeRendering value) { m_values.m_noninherited.shape_rendering = value; }
     void set_paint_order(PaintOrderList value) { m_values.m_inherited.paint_order = value; }
+    void set_paint_order_serialization(u8 length, bool is_normal)
+    {
+        m_values.m_inherited.paint_order_serialization_length = length;
+        m_values.m_inherited.paint_order_is_normal = is_normal;
+    }
 
     void set_cx(LengthPercentage cx) { m_values.m_noninherited.cx = move(cx); }
     void set_cy(LengthPercentage cy) { m_values.m_noninherited.cy = move(cy); }
@@ -1829,7 +1873,7 @@ public:
     Mutator* operator->() { return &m_mutator; }
     Mutator const* operator->() const { return &m_mutator; }
 
-    NonnullRefPtr<ComputedValues> build() { return m_values; }
+    NonnullRefPtr<ComputedValues const> build() && { return move(m_values); }
 
 private:
     NonnullRefPtr<ComputedValues> m_values;

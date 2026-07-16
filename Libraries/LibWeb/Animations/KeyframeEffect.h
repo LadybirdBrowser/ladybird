@@ -107,7 +107,7 @@ public:
     virtual bool is_keyframe_effect() const override { return true; }
 
     virtual void update_computed_properties(AnimationUpdateContext&) override;
-    void update_computed_properties_for_style(AnimationUpdateContext&, DOM::AbstractElement, CSS::ComputedProperties&);
+    void update_computed_properties_for_style(AnimationUpdateContext&, DOM::AbstractElement);
 
 private:
     KeyframeEffect(JS::Realm&);

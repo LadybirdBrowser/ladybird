@@ -2,9 +2,11 @@
 <script src="../include.js"></script>
 <div id="light" style="color-scheme: light; color: HighlightText"></div>
 <div id="dark" style="color-scheme: dark; color: HighlightText"></div>
+<div id="canvas-text" style="color-scheme: dark; color: CanvasText"></div>
 <script>
 test(() => {
     println(`Light HighlightText: ${getComputedStyle(document.getElementById("light")).color}`);
     println(`Dark HighlightText: ${getComputedStyle(document.getElementById("dark")).color}`);
+    println(`Dark CanvasText: ${getComputedStyle(document.getElementById("canvas-text")).color}`);
 });
 </script>

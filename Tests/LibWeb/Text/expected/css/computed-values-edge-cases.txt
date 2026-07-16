@@ -1,0 +1,2 @@
+overflow-clip-margin: content-box 15px
+degenerate auto aspect-ratio height: 50

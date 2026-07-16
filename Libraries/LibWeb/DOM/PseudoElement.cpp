@@ -39,11 +39,6 @@ void SyntheticPseudoElement::set_layout_node(Layout::NodeWithStyle* value)
     m_layout_node = value;
 }
 
-RefPtr<CSS::ComputedProperties const> SyntheticPseudoElement::computed_properties() const
-{
-    return m_computed_properties;
-}
-
 RefPtr<CSS::ComputedValues const> SyntheticPseudoElement::computed_values() const
 {
     return m_computed_values;
@@ -53,14 +48,11 @@ void SyntheticPseudoElement::update_animated_properties(Badge<Web::Animations::K
 {
     if (!m_computed_values)
         return;
-    VERIFY(m_computed_properties);
-    effect.update_computed_properties_for_style(context, abstract_element, *m_computed_properties);
+    effect.update_computed_properties_for_style(context, abstract_element);
 }
 
-void SyntheticPseudoElement::set_computed_style(RefPtr<CSS::ComputedProperties> properties, RefPtr<CSS::ComputedValues const> values)
+void SyntheticPseudoElement::set_computed_style(RefPtr<CSS::ComputedValues const> values)
 {
-    VERIFY(properties == nullptr || values != nullptr);
-    m_computed_properties = move(properties);
     m_computed_values = move(values);
 }
 
@@ -78,9 +70,9 @@ void SyntheticPseudoElement::set_computed_values_in_display_none_subtree()
         if (m_computed_values->has_animated_values()) {
             CSS::ComputedValues::Builder base_values_builder(m_computed_values->base_values());
             base_values_builder->set_in_display_none_subtree(true);
-            builder->set_base_values(base_values_builder.build());
+            builder->set_base_values(move(base_values_builder).build());
         }
-        m_computed_values = builder.build();
+        m_computed_values = move(builder).build();
     }
 }
 
@@ -139,11 +131,6 @@ Layout::NodeWithStyle* ElementReferencePseudoElement::layout_node() const
 Layout::NodeWithStyle* ElementReferencePseudoElement::unsafe_layout_node() const
 {
     return m_referenced_element->unsafe_layout_node();
-}
-
-RefPtr<CSS::ComputedProperties const> ElementReferencePseudoElement::computed_properties() const
-{
-    return m_referenced_element->computed_properties({});
 }
 
 RefPtr<CSS::ComputedValues const> ElementReferencePseudoElement::computed_values() const

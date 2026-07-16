@@ -642,7 +642,7 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
             pseudo_element_node->computed_values().list_style_type(),
             pseudo_element_node->computed_values().list_style_position(),
             element,
-            marker_style.values);
+            marker_style);
         list_item_marker->attach_style_resources();
         static_cast<ListItemBox&>(*pseudo_element_node).set_marker(list_item_marker);
         element.set_synthetic_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
@@ -830,7 +830,7 @@ static bool element_has_an_unrendered_flat_tree_ancestor(DOM::Element const& ele
         if (!ancestor_element)
             continue;
         // Null style means the style update pass skipped a display:none subtree.
-        auto ancestor_style = ancestor_element->computed_properties();
+        auto ancestor_style = ancestor_element->computed_values();
         if (!ancestor_style || ancestor_style->display().is_none())
             return true;
     }
@@ -960,7 +960,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             }
         } else if (is<DOM::Document>(dom_node)) {
             auto document_style = style_computer.create_document_style();
-            computed_values = move(document_style.values);
+            computed_values = move(document_style);
             display = computed_values->display();
             layout_node = make_ref_counted<Layout::Viewport>(static_cast<DOM::Document&>(dom_node), computed_values.release_nonnull());
         } else if (is<DOM::Text>(dom_node)) {
@@ -1741,7 +1741,7 @@ static void wrap_in_anonymous(Vector<NonnullRefPtr<Node>>& sequence, Node* neare
     auto& parent = *sequence.first()->parent();
     auto builder = CSS::ComputedValues::Builder::create_inheriting_from(parent.computed_values());
     builder->set_display(display);
-    auto wrapper = make_ref_counted<WrapperBoxType>(parent.document(), nullptr, builder.build());
+    auto wrapper = make_ref_counted<WrapperBoxType>(parent.document(), nullptr, move(builder).build());
     for (auto& child : sequence) {
         parent.remove_child(*child);
         wrapper->append_child(*child);
@@ -1858,7 +1858,7 @@ Vector<NonnullRefPtr<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& 
 
         auto builder = CSS::ComputedValues::Builder::create_inheriting_from(table_box->computed_values());
         table_box->transfer_table_box_computed_values_to_wrapper_computed_values(builder);
-        auto wrapper_computed_values = builder.build();
+        auto wrapper_computed_values = move(builder).build();
 
         if (parent.is_table_wrapper()) {
             auto& existing_wrapper = static_cast<TableWrapper&>(parent);
@@ -1892,7 +1892,7 @@ static void fixup_row(Box& row_box, TableGrid const& table_grid, size_t row_inde
         builder->set_display(Web::CSS::Display { CSS::DisplayInternal::TableCell });
         // Ensure that the cell (with zero content height) will have the same height as the row by setting vertical-align to middle.
         builder->set_vertical_align(CSS::VerticalAlign::Middle);
-        auto cell_box = make_ref_counted<BlockContainer>(row_box.document(), nullptr, builder.build());
+        auto cell_box = make_ref_counted<BlockContainer>(row_box.document(), nullptr, move(builder).build());
         row_box.append_child(cell_box);
     }
 }

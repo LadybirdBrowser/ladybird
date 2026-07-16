@@ -9,14 +9,23 @@
         margin-inline-start: 9px;
         writing-mode: vertical-rl;
         direction: rtl;
+        background-color: currentcolor;
         background-image: linear-gradient(currentcolor, rgb(40, 50, 60));
     }
 
     #none {
         display: none;
         color: rgb(70, 80, 90);
+        background-color: lab(50 20 30);
         line-height: normal;
         padding: 5px 6px 7px 8px;
+    }
+
+    #colors {
+        border-top-color: lab(50 20 30);
+        border-right-color: lch(60 40 120);
+        border-bottom-color: oklab(0.5 0.1 0.2);
+        border-left-color: oklch(0.6 0.15 240);
     }
 
     #pseudo::before {
@@ -28,6 +37,7 @@
 </style>
 <div id="contents"></div>
 <div id="none"></div>
+<div id="colors"></div>
 <div id="pseudo"></div>
 <script>
     test(() => {
@@ -38,13 +48,18 @@
         println(`contents margins: ${contentsStyle.marginTop} ${contentsStyle.marginRight} ${contentsStyle.marginBottom} ${contentsStyle.marginLeft}`);
         println(`contents margin shorthand: ${contentsStyle.margin}`);
         println(`contents logical margin: ${contentsStyle.marginInlineStart}`);
+        println(`contents background color: ${contentsStyle.backgroundColor}`);
         println(`contents background image: ${contentsStyle.backgroundImage}`);
 
         const noneStyle = getComputedStyle(none);
         println(`none display: ${noneStyle.display}`);
         println(`none color: ${noneStyle.color}`);
+        println(`none background color: ${noneStyle.backgroundColor}`);
         println(`none line-height: ${noneStyle.lineHeight}`);
         println(`none padding shorthand: ${noneStyle.padding}`);
+
+        const colorsStyle = getComputedStyle(colors);
+        println(`border colors: ${colorsStyle.borderTopColor} ${colorsStyle.borderRightColor} ${colorsStyle.borderBottomColor} ${colorsStyle.borderLeftColor}`);
 
         const pseudoStyle = getComputedStyle(pseudo, "::before");
         println(`pseudo display: ${pseudoStyle.display}`);

@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -104,6 +105,16 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     auto color_style_value = [](Color color) {
         return ColorStyleValue::create_from_color(color, ColorSyntax::Modern);
     };
+    auto shadow_color_style_value = [](ShadowData const& shadow) -> NonnullRefPtr<StyleValue const> {
+        if (shadow.color_syntax == ColorSyntax::Legacy)
+            return ColorStyleValue::create_from_color(shadow.color, ColorSyntax::Legacy);
+        return ColorFunctionStyleValue::create(
+            ColorStyleValue::ColorType::sRGB,
+            NumberStyleValue::create(shadow.color.red() / 255.0),
+            NumberStyleValue::create(shadow.color.green() / 255.0),
+            NumberStyleValue::create(shadow.color.blue() / 255.0),
+            NumberStyleValue::create(shadow.color.alpha() / 255.0));
+    };
     auto length_style_value = [](CSSPixels length) {
         return LengthStyleValue::create(Length::make_px(length));
     };
@@ -140,22 +151,18 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             [](double number) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(number); },
             [](Length const& length) -> NonnullRefPtr<StyleValue const> { return LengthStyleValue::create(length); });
     };
-    auto border_image_side_values = [](auto const& sides, auto const& to_style_value) {
+    auto border_image_side_values = [](auto const& sides, u8 value_count, auto const& to_style_value) {
         auto top = to_style_value(sides.top);
         auto right = to_style_value(sides.right);
         auto bottom = to_style_value(sides.bottom);
         auto left = to_style_value(sides.left);
         StyleValueVector values { top };
-        if (!left->equals(*right)) {
+        if (value_count >= 2)
             values.append(move(right));
+        if (value_count >= 3)
             values.append(move(bottom));
+        if (value_count >= 4)
             values.append(move(left));
-        } else if (!top->equals(*bottom)) {
-            values.append(move(right));
-            values.append(move(bottom));
-        } else if (!top->equals(*right)) {
-            values.append(move(right));
-        }
         return values;
     };
     auto computed_content_item_style_value = [](ComputedContentItem const& item) -> NonnullRefPtr<StyleValue const> {
@@ -295,7 +302,7 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             return KeywordStyleValue::create(Keyword::None);
         return custom_ident_list_style_value(anchor_scope().names);
     case PropertyID::Appearance:
-        return KeywordStyleValue::create(to_keyword(appearance()));
+        return KeywordStyleValue::create(to_keyword(computed_appearance()));
     case PropertyID::AspectRatio: {
         if (!aspect_ratio().computed_ratio.has_value())
             return KeywordStyleValue::create(Keyword::Auto);
@@ -382,7 +389,7 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     case PropertyID::BorderCollapse:
         return KeywordStyleValue::create(to_keyword(border_collapse()));
     case PropertyID::BorderImageOutset: {
-        auto values = border_image_side_values(border_image().outset, border_image_outset_style_value);
+        auto values = border_image_side_values(border_image().outset, border_image().outset_value_count, border_image_outset_style_value);
         if (values.size() == 1)
             return values.take_first();
         return StyleValueList::create(move(values), StyleValueList::Separator::Space);
@@ -403,7 +410,7 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             return *border_image().source;
         return KeywordStyleValue::create(Keyword::None);
     case PropertyID::BorderImageWidth: {
-        auto values = border_image_side_values(border_image().width, border_image_width_style_value);
+        auto values = border_image_side_values(border_image().width, border_image().width_value_count, border_image_width_style_value);
         if (values.size() == 1)
             return values.take_first();
         return StyleValueList::create(move(values), StyleValueList::Separator::Space);
@@ -415,12 +422,20 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             { length_style_value(border_spacing_horizontal()), length_style_value(border_spacing_vertical()) },
             StyleValueList::Separator::Space);
     case PropertyID::BorderBottomColor:
+        if (m_noninherited.border_bottom_color_style_value && !m_noninherited.border_bottom_color_style_value->depends_on_current_color())
+            return m_noninherited.border_bottom_color_style_value;
         return color_style_value(border_bottom().color);
     case PropertyID::BorderLeftColor:
+        if (m_noninherited.border_left_color_style_value && !m_noninherited.border_left_color_style_value->depends_on_current_color())
+            return m_noninherited.border_left_color_style_value;
         return color_style_value(border_left().color);
     case PropertyID::BorderRightColor:
+        if (m_noninherited.border_right_color_style_value && !m_noninherited.border_right_color_style_value->depends_on_current_color())
+            return m_noninherited.border_right_color_style_value;
         return color_style_value(border_right().color);
     case PropertyID::BorderTopColor:
+        if (m_noninherited.border_top_color_style_value && !m_noninherited.border_top_color_style_value->depends_on_current_color())
+            return m_noninherited.border_top_color_style_value;
         return color_style_value(border_top().color);
     case PropertyID::CaretColor:
         return color_style_value(caret_color());
@@ -653,6 +668,10 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
     }
     case PropertyID::AnimationTimingFunction: {
+        if (!animation_timing_function_style_values().is_empty()) {
+            auto values = animation_timing_function_style_values();
+            return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+        }
         StyleValueVector values;
         for (auto const& timing_function : animation_timing_functions())
             values.append(timing_function.to_style_value());
@@ -817,15 +836,21 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             [](double value) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(value); },
             [](Length const& value) -> NonnullRefPtr<StyleValue const> { return LengthStyleValue::create(value); });
     case PropertyID::LetterSpacing:
+        if (letter_spacing_style_value())
+            return letter_spacing_style_value();
         return length_style_value(letter_spacing());
     case PropertyID::Opacity:
         return OpacityValueStyleValue::create(NumberStyleValue::create(opacity()));
-    case PropertyID::PaintOrder:
-        if (paint_order() == InitialValues::paint_order())
+    case PropertyID::PaintOrder: {
+        if (paint_order_is_normal())
             return KeywordStyleValue::create(Keyword::Normal);
-        return StyleValueList::create(
-            { KeywordStyleValue::create(to_keyword(paint_order()[0])), KeywordStyleValue::create(to_keyword(paint_order()[1])) },
-            StyleValueList::Separator::Space);
+        if (paint_order_serialization_length() == 1)
+            return KeywordStyleValue::create(to_keyword(paint_order()[0]));
+        StyleValueVector values;
+        for (u8 i = 0; i < paint_order_serialization_length(); ++i)
+            values.append(KeywordStyleValue::create(to_keyword(paint_order()[i])));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    }
     case PropertyID::FillOpacity:
         return OpacityValueStyleValue::create(NumberStyleValue::create(fill_opacity()));
     case PropertyID::Fill:
@@ -848,7 +873,7 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         for (auto const& shadow : box_shadow()) {
             shadows.append(ShadowStyleValue::create(
                 ShadowStyleValue::ShadowType::Normal,
-                color_style_value(shadow.color),
+                shadow_color_style_value(shadow),
                 length_style_value(shadow.offset_x),
                 length_style_value(shadow.offset_y),
                 length_style_value(shadow.blur_radius),
@@ -1088,7 +1113,9 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     case PropertyID::MaskImage: {
         StyleValueVector values;
         for (auto const& layer : mask_layers()) {
-            if (layer.background_image)
+            if (layer.image_style_value)
+                values.append(*layer.image_style_value);
+            else if (layer.background_image)
                 values.append(*layer.background_image);
             else
                 values.append(KeywordStyleValue::create(Keyword::None));
@@ -1155,6 +1182,8 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     case PropertyID::Order:
         return IntegerStyleValue::create(order());
     case PropertyID::OutlineOffset:
+        if (outline_offset_style_value())
+            return outline_offset_style_value();
         return length_style_value(outline_offset());
     case PropertyID::Orphans:
         return IntegerStyleValue::create(orphans());
@@ -1400,7 +1429,7 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         for (auto const& shadow : text_shadow()) {
             shadows.append(ShadowStyleValue::create(
                 ShadowStyleValue::ShadowType::Text,
-                color_style_value(shadow.color),
+                shadow_color_style_value(shadow),
                 length_style_value(shadow.offset_x),
                 length_style_value(shadow.offset_y),
                 length_style_value(shadow.blur_radius),
@@ -1461,6 +1490,10 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
     }
     case PropertyID::TransitionTimingFunction: {
+        if (!transition_timing_function_style_values().is_empty()) {
+            auto values = transition_timing_function_style_values();
+            return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
+        }
         StyleValueVector values;
         for (auto const& timing_function : transition_timing_functions())
             values.append(timing_function.to_style_value());
@@ -1561,6 +1594,8 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     case PropertyID::WritingMode:
         return KeywordStyleValue::create(to_keyword(writing_mode()));
     case PropertyID::WordSpacing:
+        if (word_spacing_style_value())
+            return word_spacing_style_value();
         return length_style_value(word_spacing());
     case PropertyID::X:
         return length_percentage_style_value(x());
@@ -2319,29 +2354,22 @@ FlexBasis ComputedProperties::flex_basis() const
     return size_value(PropertyID::FlexBasis);
 }
 
-float ComputedProperties::flex_grow() const
+double ComputedProperties::flex_grow() const
 {
     auto const& value = property(PropertyID::FlexGrow);
-    if (!value.is_number())
-        return 0;
-    return value.as_number().number();
+    return number_from_style_value(NonnullRefPtr<StyleValue const> { value }, {});
 }
 
-float ComputedProperties::flex_shrink() const
+double ComputedProperties::flex_shrink() const
 {
     auto const& value = property(PropertyID::FlexShrink);
-    if (!value.is_number())
-        return 1;
-    return value.as_number().number();
+    return number_from_style_value(NonnullRefPtr<StyleValue const> { value }, {});
 }
 
-int ComputedProperties::order() const
+i32 ComputedProperties::order() const
 {
     auto const& value = property(PropertyID::Order);
-    // FIXME: Support calc()
-    if (!value.is_integer())
-        return 0;
-    return value.as_integer().integer();
+    return int_from_style_value(NonnullRefPtr<StyleValue const> { value });
 }
 
 ImageRendering ComputedProperties::image_rendering() const
@@ -2384,6 +2412,7 @@ Vector<BackgroundLayerData> ComputedProperties::background_layers() const
         auto const& background_size_value = coordinated_value_list.get(PropertyID::BackgroundSize)->at(i);
 
         BackgroundLayerData layer;
+        layer.image_style_value = background_image_value;
         if (background_image_value->is_abstract_image())
             layer.background_image = background_image_value->as_abstract_image();
 
@@ -2445,6 +2474,9 @@ BorderImageData ComputedProperties::border_image() const
     };
 
     auto const& slice = property(PropertyID::BorderImageSlice).as_border_image_slice();
+    auto component_count = [](StyleValue const& value) -> u8 {
+        return value.is_value_list() ? value.as_value_list().size() : 1;
+    };
     auto convert_slice = [](StyleValue const& value) -> BorderImageSliceValue {
         if (value.is_percentage())
             return value.as_percentage().percentage();
@@ -2467,6 +2499,8 @@ BorderImageData ComputedProperties::border_image() const
                 return value.as_number().number();
             return Length::from_style_value(value, {});
         }),
+        .width_value_count = component_count(property(PropertyID::BorderImageWidth)),
+        .outset_value_count = component_count(property(PropertyID::BorderImageOutset)),
         .fill = slice.fill(),
         .repeat_x = repeat_at(0),
         .repeat_y = repeat_at(1),
@@ -2507,6 +2541,7 @@ Vector<BackgroundLayerData> ComputedProperties::mask_layers() const
         auto const& mask_size_value = mask_size_values[i % mask_size_values.size()];
 
         BackgroundLayerData layer;
+        layer.image_style_value = mask_image_value;
         layer.origin = BackgroundBox::BorderBox;
         layer.clip = BackgroundBox::BorderBox;
         if (mask_image_value->is_abstract_image())
@@ -3282,12 +3317,28 @@ Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, ColorResol
         auto offset_y = Length::from_style_value(value.offset_y(), {}).absolute_length_to_px();
         auto blur_radius = Length::from_style_value(value.blur_radius(), {}).absolute_length_to_px();
         auto spread_distance = Length::from_style_value(value.spread_distance(), {}).absolute_length_to_px();
+        auto color_syntax = [&] {
+            if (!value.color()->is_color())
+                return ColorSyntax::Legacy;
+            auto const& color = value.color()->as_color();
+            if (!color.color_type().has_value())
+                return color.color_syntax();
+            switch (*color.color_type()) {
+            case ColorStyleValue::ColorType::RGB:
+            case ColorStyleValue::ColorType::HSL:
+            case ColorStyleValue::ColorType::HWB:
+                return ColorSyntax::Legacy;
+            default:
+                return ColorSyntax::Modern;
+            }
+        }();
         return ShadowData {
             offset_x,
             offset_y,
             blur_radius,
             spread_distance,
             value.color()->to_color(color_resolution_context).value(),
+            color_syntax,
             value.placement()
         };
     };

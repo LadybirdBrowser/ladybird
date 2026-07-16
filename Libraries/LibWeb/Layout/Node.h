@@ -306,7 +306,7 @@ public:
     {
         CSS::ComputedValues::Builder builder(computed_values());
         callback(*builder.operator->());
-        set_computed_values(builder.build());
+        set_computed_values(move(builder).build());
     }
 
     CSS::Display display() const { return computed_values().display(); }

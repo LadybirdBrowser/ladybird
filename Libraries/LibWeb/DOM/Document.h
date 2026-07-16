@@ -428,8 +428,8 @@ public:
     void set_suppresses_attribute_style_invalidation(bool suppresses) { m_suppresses_attribute_style_invalidation = suppresses; }
     void update_style_if_needed_for_element(AbstractElement const&);
     using StyleUpdateMode = CSS::StyleUpdateMode;
-    CSS::ComputedProperties const* update_style_for_element(AbstractElement const&);
-    CSS::ComputedProperties const* update_style_for_element(AbstractElement const&, StyleUpdateMode);
+    CSS::ComputedValues const* update_style_for_element(AbstractElement const&);
+    CSS::ComputedValues const* update_style_for_element(AbstractElement const&, StyleUpdateMode);
     [[nodiscard]] bool element_needs_style_update(AbstractElement const&) const;
     void update_layout(UpdateLayoutReason);
     enum class PartialRelayoutResult : u8 {
