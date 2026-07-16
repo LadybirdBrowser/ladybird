@@ -170,6 +170,7 @@ pub fn compile_to_bytes(
     outcome_return_value: u64,
     result_arity: u32,
     num_locals: u32,
+    num_params: u32,
     local_types: &[u8],
 ) -> Result<CompiledFunction, &'static str> {
     CraneliftCompiler::compile_to_bytes(
@@ -178,6 +179,7 @@ pub fn compile_to_bytes(
         outcome_return_value,
         result_arity,
         num_locals,
+        num_params,
         local_types,
     )
 }

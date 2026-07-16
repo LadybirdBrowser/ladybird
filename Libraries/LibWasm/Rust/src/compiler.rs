@@ -93,6 +93,7 @@ impl CraneliftCompiler {
         outcome_return_value: u64,
         result_arity: u32,
         num_locals: u32,
+        num_params: u32,
         local_types: &[u8],
     ) -> Result<CompiledFunction, &'static str> {
         for insn in insns {
@@ -401,6 +402,7 @@ impl CraneliftCompiler {
 
         const F64_KIND: u8 = 3;
         let num_locals = num_locals as usize;
+        let num_params = num_params as usize;
         let local_is_f64: Vec<bool> = (0..num_locals)
             .map(|i| local_types.get(i).copied() == Some(F64_KIND))
             .collect();
@@ -431,17 +433,7 @@ impl CraneliftCompiler {
         };
         let mut dirty_locals = vec![false; num_locals];
         for (i, var) in local_vars.iter().enumerate() {
-            let lb = builder.use_var(locals_base_var);
-            let offset = (i as i32) * value_size;
-            if local_is_f64[i] {
-                builder.declare_var(*var, types::F64);
-                let val = builder.ins().load(types::F64, MemFlags::trusted(), lb, offset);
-                builder.def_var(*var, val);
-            } else {
-                builder.declare_var(*var, types::I64);
-                let val = builder.ins().load(types::I64, MemFlags::trusted(), lb, offset);
-                builder.def_var(*var, val);
-            }
+            builder.declare_var(*var, if local_is_f64[i] { types::F64 } else { types::I64 });
         }
 
         if has_raw_call {
@@ -967,6 +959,52 @@ impl CraneliftCompiler {
             }};
         }
 
+        // On a fresh call only the parameters are initialized by the caller.
+        macro_rules! init_locals_fresh {
+            ($builder:expr) => {{
+                if local_vars.is_empty() {
+                    if num_locals > num_params {
+                        let lb = $builder.use_var(locals_base_var);
+                        let zero = $builder.ins().iconst(types::I64, 0);
+                        for i in num_params..num_locals {
+                            let offset = (i as i32) * value_size;
+                            $builder.ins().store(MemFlags::trusted(), zero, lb, offset);
+                            $builder.ins().store(MemFlags::trusted(), zero, lb, offset + 8);
+                        }
+                    }
+                } else {
+                    let lb = $builder.use_var(locals_base_var);
+                    for (i, var) in local_vars.iter().enumerate() {
+                        if i < num_params {
+                            let ty = if local_is_f64[i] { types::F64 } else { types::I64 };
+                            let offset = (i as i32) * value_size;
+                            let val = $builder.ins().load(ty, MemFlags::trusted(), lb, offset);
+                            $builder.def_var(*var, val);
+                        } else if local_is_f64[i] {
+                            let zero = $builder.ins().f64const(0.0);
+                            $builder.def_var(*var, zero);
+                        } else {
+                            let zero = $builder.ins().iconst(types::I64, 0);
+                            $builder.def_var(*var, zero);
+                        }
+                    }
+                }
+            }};
+        }
+        macro_rules! init_locals_resume {
+            ($builder:expr) => {{
+                if !local_vars.is_empty() {
+                    let lb = $builder.use_var(locals_base_var);
+                    for (i, var) in local_vars.iter().enumerate() {
+                        let ty = if local_is_f64[i] { types::F64 } else { types::I64 };
+                        let offset = (i as i32) * value_size;
+                        let val = $builder.ins().load(ty, MemFlags::trusted(), lb, offset);
+                        $builder.def_var(*var, val);
+                    }
+                }
+            }};
+        }
+
         // If we have any tier-up checkpoints, the interpreter will eventually need to jump to some point in the function other than the entry block, so prepare dispatch blocks for that.
         // Note that the initial block will already have the correct register state loaded, so we don't need to sync registers for the tier-up dispatch targets.
         let has_tier_up = insns.iter().any(|i| i.opcode == op::SYNTHETIC_TIER_UP);
@@ -975,12 +1013,26 @@ impl CraneliftCompiler {
         let tier_up_body_start: Option<Block> = if has_tier_up {
             let body_start = builder.create_block();
             let dispatch = builder.create_block();
+            let fresh = builder.create_block();
+            let resume = builder.create_block();
             let is_tier_up = builder.ins().icmp_imm(IntCC::NotEqual, tier_up_target_ip, 0);
-            builder.ins().brif(is_tier_up, dispatch, &[], body_start, &[]);
+            builder.ins().brif(is_tier_up, resume, &[], fresh, &[]);
+
+            builder.switch_to_block(resume);
+            builder.seal_block(resume);
+            init_locals_resume!(builder);
+            builder.ins().jump(dispatch, &[]);
+
+            builder.switch_to_block(fresh);
+            builder.seal_block(fresh);
+            init_locals_fresh!(builder);
+            builder.ins().jump(body_start, &[]);
+
             builder.switch_to_block(body_start);
             tier_up_dispatch_tail = Some(dispatch);
             Some(body_start)
         } else {
+            init_locals_fresh!(builder);
             None
         };
 

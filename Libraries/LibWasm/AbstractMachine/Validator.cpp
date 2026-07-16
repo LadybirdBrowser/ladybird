@@ -5162,6 +5162,7 @@ ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Ex
             expression.compiled_instructions.cranelift_eligible = true;
             expression.compiled_instructions.cranelift_result_arity = static_cast<u32>(result_types.size());
             expression.compiled_instructions.cranelift_local_count = static_cast<u32>(m_context.locals.size()) + expression.compiled_instructions.cranelift_inlined_locals;
+            expression.compiled_instructions.cranelift_param_count = static_cast<u32>(m_context.current_function_parameter_count);
             expression.compiled_instructions.cranelift_local_types.ensure_capacity(m_context.locals.size());
             for (auto& type : m_context.locals)
                 expression.compiled_instructions.cranelift_local_types.unchecked_append(to_underlying(type.kind()));

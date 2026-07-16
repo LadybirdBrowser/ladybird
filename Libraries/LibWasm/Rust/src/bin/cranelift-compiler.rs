@@ -44,7 +44,7 @@ struct InputFunctionEntry {
     result_arity: u32,
     num_locals: u32,
     locals_offset: u32,
-    _pad: u32,
+    num_params: u32,
 }
 
 #[repr(C)]
@@ -308,6 +308,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         outcome_return,
                         entry.result_arity,
                         entry.num_locals,
+                        entry.num_params,
                         local_types,
                     ) {
                         out.push((i, compiled));

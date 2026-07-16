@@ -54,7 +54,7 @@ struct InputFunctionEntry {
     u32 result_arity;
     u32 num_locals;
     u32 locals_offset;
-    u32 _pad;
+    u32 num_params;
 };
 
 struct OutputFunctionEntry {
@@ -96,13 +96,15 @@ struct BatchInput {
     u32 function_index;
     CompiledInstructions* target;
     u32 num_locals;
+    u32 num_params;
 };
 
 // Disk-cache blob format. Stable: cached files name format_version + layout_hash so
 // any rebuild that changes those will simply miss the cache rather than try to
 // execute incompatible bytes.
 constexpr u64 cache_blob_magic = 0x4354494A4D534157ULL; // "WASMJITC" little-endian
-constexpr u32 cache_blob_format_version = 6;
+// Version 7: compiled entry blocks zero-initialize their own locals; callers no longer pre-zero.
+constexpr u32 cache_blob_format_version = 7;
 
 struct CacheBlobHeader {
     u64 magic;
@@ -314,7 +316,7 @@ static NEVER_INLINE COLD i32 wasm_cl_run_compiled_with_heap_locals(BytecodeInter
     auto* callee_locals = heap_locals.data();
     for (size_t i = 0; i < arg_count; i++)
         callee_locals[i] = args[i];
-    __builtin_memset(callee_locals + arg_count, 0, entry.total_local_count * sizeof(Value));
+    // The non-argument slots are left uninitialized; the compiled entry block zeroes its own locals.
     return wasm_cl_run_compiled(interpreter, config, entry, callee_locals);
 }
 
@@ -350,10 +352,10 @@ static ALWAYS_INLINE i32 wasm_cl_finish_call(BytecodeInterpreter& interpreter, C
         if (arg_count + entry.total_local_count > 64) [[unlikely]]
             return wasm_cl_run_compiled_with_heap_locals(interpreter, config, entry, args.data(), arg_count);
 
+        // Only the arguments are written; the compiled entry block zeroes its own locals.
         Value callee_locals[64];
         for (size_t i = 0; i < arg_count; i++)
             callee_locals[i] = args[i];
-        __builtin_memset(callee_locals + arg_count, 0, entry.total_local_count * sizeof(Value));
         return wasm_cl_run_compiled(interpreter, config, entry, callee_locals);
     }
 
@@ -850,14 +852,14 @@ static ALWAYS_INLINE i32 wasm_cl_direct_call_impl(BytecodeInterpreter& interpret
         return 1;
     }
 
-    // Stack-allocate callee locals: args + zero-initialized locals.
+    // Stack-allocate callee locals: only the arguments are written here, the compiled entry block
+    // zeroes its own locals.
     if (arg_count + entry.total_local_count > 64) [[unlikely]]
         return wasm_cl_run_compiled_with_heap_locals(interpreter, config, entry, args, arg_count);
 
     Value callee_locals[64];
     for (size_t i = 0; i < arg_count; i++)
         callee_locals[i] = args[i];
-    __builtin_memset(callee_locals + arg_count, 0, entry.total_local_count * sizeof(Value));
     return wasm_cl_run_compiled(interpreter, config, entry, callee_locals);
 }
 
@@ -1245,7 +1247,7 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
             .result_arity = input.result_arity,
             .num_locals = input.num_locals,
             .locals_offset = static_cast<u32>(locals_cursor),
-            ._pad = 0,
+            .num_params = input.num_params,
         };
         __builtin_memcpy(base + insn_cursor, input.insns.data(), input.insns.size() * sizeof(CraneliftInsn));
         insn_cursor += input.insns.size() * sizeof(CraneliftInsn);
@@ -1496,7 +1498,7 @@ bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity)
         }
     }
 
-    cranelift_cache_state().pending_batch.append({ move(flat), result_arity, s_active_function_index, &compiled, compiled.cranelift_local_count });
+    cranelift_cache_state().pending_batch.append({ move(flat), result_arity, s_active_function_index, &compiled, compiled.cranelift_local_count, compiled.cranelift_param_count });
     return false; // Not compiled yet, will be compiled in flush.
 #endif
 }
