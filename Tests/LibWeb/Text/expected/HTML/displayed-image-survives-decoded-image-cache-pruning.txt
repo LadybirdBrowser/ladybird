@@ -1,1 +1,1 @@
-recreated image is completely available: false
+recreated image is completely available: true

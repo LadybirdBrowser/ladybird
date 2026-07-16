@@ -91,6 +91,14 @@ GC::Ptr<DecodedImageData> SharedResourceRequest::image_data() const
     return m_image_data;
 }
 
+bool SharedResourceRequest::can_be_pruned_from_memory_cache() const
+{
+    // NB: Pruning an image that still has clients (e.g. a live element displaying it) frees no memory, since the
+    //     clients keep the decoded data alive, but it forces a refetch if script recreates an element with the
+    //     same URL, e.g. when a framework re-renders the page.
+    return m_image_data && !m_image_data->has_clients();
+}
+
 void SharedResourceRequest::touch_memory_cache_entry()
 {
     m_cache_touch_serial = ++s_next_memory_cache_touch_serial;

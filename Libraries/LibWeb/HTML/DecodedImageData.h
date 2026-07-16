@@ -51,11 +51,12 @@ public:
     virtual Optional<CSSPixels> intrinsic_height() const = 0;
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const = 0;
 
+    bool has_clients() const { return !m_clients.is_empty(); }
+
 protected:
     DecodedImageData();
 
     void notify_clients_did_update();
-    bool has_clients() const { return !m_clients.is_empty(); }
     virtual void on_client_registered() { }
 
 private:
