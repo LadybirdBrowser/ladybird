@@ -6673,8 +6673,11 @@ Outcome BytecodeInterpreter::call_address(Configuration& configuration, Function
         Vector<Value, ArgumentsStaticSize> args;
 
         if (call_type == CallType::UsingCallRecord) {
-            configuration.take_call_record(args);
-            args.shrink(type->parameters().size(), true);
+            auto param_count = type->parameters().size();
+            configuration.get_arguments_allocation_if_possible(args, param_count);
+            args.ensure_capacity(param_count);
+            for (size_t i = 0; i < param_count; ++i)
+                args.unchecked_append(configuration.call_record_entry(i));
         } else {
             configuration.get_arguments_allocation_if_possible(args, type->parameters().size());
 

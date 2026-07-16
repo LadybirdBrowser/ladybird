@@ -75,6 +75,20 @@ public:
 
     ALWAYS_INLINE void ensure_capacity(size_t total) { VERIFY(total <= max_values); }
 
+    ALWAYS_INLINE Value* allocate(size_t count)
+    {
+        VERIFY(static_cast<size_t>(m_limit - m_top) >= count);
+        auto* result = m_top;
+        m_top += count;
+        return result;
+    }
+    ALWAYS_INLINE Value* mark() const { return m_top; }
+    ALWAYS_INLINE void release_to(Value* mark)
+    {
+        VERIFY(mark >= m_base && mark <= m_top);
+        m_top = mark;
+    }
+
     // The conservative GC scans a little past the top;
     // a value handed out by unsafe_take_last() can still be live in a caller's register when a collection runs.
     size_t conservative_scan_size() const { return min(size() + 8, max_values); }

@@ -34,7 +34,7 @@ void Configuration::unwind_impl()
     }
 
     if (released_locals.has_value())
-        release_arguments_allocation(released_locals.value(), m_locals_base != nullptr);
+        release_arguments_allocation(released_locals.value());
 }
 
 Result Configuration::call(Interpreter& interpreter, FunctionAddress address, Vector<Value, ArgumentsStaticSize>& arguments)

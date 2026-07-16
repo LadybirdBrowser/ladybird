@@ -145,7 +145,7 @@ void AbstractMachine::RootsProvider::for_each_conservative_range(AK::Function<vo
     for (auto* configuration : m_store.active_configurations()) {
         report_values(configuration->value_stack().data(), configuration->value_stack().conservative_scan_size());
         report_values(configuration->regs.data(), configuration->regs.size());
-        report_values(configuration->m_current_call_record.data(), configuration->m_current_call_record.size());
+        report_values(configuration->m_call_record_stack.data(), configuration->m_call_record_stack.conservative_scan_size());
         for (auto& arguments : configuration->m_call_argument_freelist)
             report_values(arguments.data(), arguments.capacity());
         for (auto& owned_locals : configuration->m_owned_locals_stack)

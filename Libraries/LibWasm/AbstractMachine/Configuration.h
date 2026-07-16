@@ -66,14 +66,15 @@ public:
         }
         m_label_stack.append(label);
 
+        // A tail call replaces the current frame, so release its record first; otherwise a
+        // tail-call loop would grow the record region without bound.
+        if (is_tailcall == IsTailcall::Yes && m_call_record_base)
+            m_call_record_stack.release_to(m_call_record_base);
         auto max_call_rec_size = frame.expression().compiled_instructions.max_call_rec_size;
-        if (max_call_rec_size > 0) {
-            get_arguments_allocation_if_possible(m_current_call_record, max_call_rec_size);
-            m_current_call_record.resize_and_keep_capacity(max_call_rec_size);
-            m_call_record_base = m_current_call_record.data();
-        } else {
+        if (max_call_rec_size > 0)
+            m_call_record_base = m_call_record_stack.allocate(max_call_rec_size);
+        else
             m_call_record_base = nullptr;
-        }
     }
     // Lightweight set_frame for direct Cranelift-to-Cranelift calls.
     void set_frame_lightweight(ModuleInstance const& module, Value* locals_ptr,
@@ -131,47 +132,29 @@ public:
     ALWAYS_INLINE void set_call_record_base(Value* base) { m_call_record_base = base; }
     ALWAYS_INLINE void setup_call_record(size_t max_call_rec_size)
     {
-        get_arguments_allocation_if_possible(m_current_call_record, max_call_rec_size);
-        m_current_call_record.resize_and_keep_capacity(max_call_rec_size);
-        m_call_record_base = m_current_call_record.data();
-    }
-    ALWAYS_INLINE Vector<Value, ArgumentsStaticSize> take_call_record_vector()
-    {
-        auto result = move(m_current_call_record);
-        m_call_record_base = nullptr;
-        return result;
-    }
-    ALWAYS_INLINE void restore_call_record_vector(Vector<Value, ArgumentsStaticSize>&& vec)
-    {
-        m_current_call_record = move(vec);
-        m_call_record_base = m_current_call_record.data();
+        m_call_record_base = m_call_record_stack.allocate(max_call_rec_size);
     }
 
     struct CallFrameHandle {
         explicit CallFrameHandle(Configuration& configuration)
             : configuration(configuration)
+            , saved_call_record_base(configuration.m_call_record_base)
+            , saved_call_record_mark(configuration.m_call_record_stack.mark())
         {
-            if (configuration.m_call_record_base)
-                moved_call_record = move(configuration.m_current_call_record);
             configuration.depth()++;
             configuration.m_call_record_base = nullptr;
         }
 
         ~CallFrameHandle()
         {
-            if (moved_call_record.has_value()) {
-                // Recycle the callee's lazily-allocated record instead of freeing it under the caller.
-                configuration.release_call_record_allocation();
-                configuration.m_current_call_record = moved_call_record.release_value();
-                configuration.m_call_record_base = configuration.m_current_call_record.data();
-            } else {
-                configuration.m_call_record_base = nullptr;
-            }
+            configuration.m_call_record_stack.release_to(saved_call_record_mark);
+            configuration.m_call_record_base = saved_call_record_base;
             configuration.unwind({}, *this);
         }
 
         Configuration& configuration;
-        Optional<Vector<Value, ArgumentsStaticSize>> moved_call_record;
+        Value* saved_call_record_base;
+        Value* saved_call_record_mark;
     };
 
     void unwind(Badge<CallFrameHandle>, CallFrameHandle const&) { unwind_impl(); }
@@ -203,33 +186,9 @@ public:
         arguments.ensure_capacity(max(max_size, frame().module().cached_minimum_call_record_allocation_size));
     }
 
-    // Hand the current frame's call-record buffer back to the freelist so the next compiled call can
-    // reuse it, rather than freeing it under the caller and reallocating on the following call.
-    void release_call_record_allocation()
-    {
-        if (m_current_call_record.capacity() == ArgumentsStaticSize || m_call_argument_freelist.size() >= 16)
-            return;
-        m_current_call_record.clear_with_capacity();
-        m_call_argument_freelist.unchecked_append(move(m_current_call_record));
-    }
-
-    void release_arguments_allocation(Vector<Value, ArgumentsStaticSize>& arguments, bool expect_frame = true)
+    void release_arguments_allocation(Vector<Value, ArgumentsStaticSize>& arguments)
     {
         arguments.clear_with_capacity(); // Clear to avoid copying, but keep capacity for reuse.
-        auto size = expect_frame ? frame().expression().compiled_instructions.max_call_rec_size : 0;
-
-        if (size > 0) {
-            // If we need a call record, keep this as the current one.
-            if (!m_call_record_base) {
-                m_current_call_record = move(arguments);
-                m_current_call_record.resize_and_keep_capacity(size);
-                m_call_record_base = m_current_call_record.data();
-                return;
-            }
-
-            if (m_current_call_record.size() < size)
-                m_current_call_record.resize_and_keep_capacity(size);
-        }
 
         if (arguments.capacity() != ArgumentsStaticSize) {
             if (m_call_argument_freelist.size() >= 16) {
@@ -239,12 +198,6 @@ public:
 
             m_call_argument_freelist.unchecked_append(move(arguments));
         }
-    }
-
-    void take_call_record(Vector<Value, ArgumentsStaticSize>& call_record)
-    {
-        call_record = move(m_current_call_record);
-        m_call_record_base = nullptr;
     }
 
     template<SourceAddressMix mix>
@@ -347,10 +300,10 @@ public:
 
     Store& m_store;
     ValueStack m_value_stack;
+    ValueStack m_call_record_stack;
     Vector<Label, 64, FastLastAccess::Yes> m_label_stack;
     Vector<Frame> m_frame_stack;
     Vector<Vector<Value, ArgumentsStaticSize>> m_owned_locals_stack;
-    Vector<Value, ArgumentsStaticSize> m_current_call_record;
     Vector<Vector<Value, ArgumentsStaticSize>, 16, FastLastAccess::Yes> m_call_argument_freelist;
     size_t m_depth { 0 };
     u64 m_ip { 0 };

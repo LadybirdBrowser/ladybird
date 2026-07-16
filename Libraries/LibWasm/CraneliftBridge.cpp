@@ -321,7 +321,7 @@ static NEVER_INLINE COLD i32 wasm_cl_run_compiled_with_heap_locals(BytecodeInter
     return wasm_cl_run_compiled(interpreter, config, entry, callee_locals);
 }
 
-static ALWAYS_INLINE i32 wasm_cl_finish_call(BytecodeInterpreter& interpreter, Configuration& config, FunctionAddress address, Vector<Value, ArgumentsStaticSize>& args)
+static ALWAYS_INLINE i32 wasm_cl_finish_call(BytecodeInterpreter& interpreter, Configuration& config, FunctionAddress address, Value const* args, size_t arg_count)
 {
     if (interpreter.trap_if_insufficient_native_stack_space())
         return 1;
@@ -349,9 +349,8 @@ static ALWAYS_INLINE i32 wasm_cl_finish_call(BytecodeInterpreter& interpreter, C
             .max_call_rec_size = static_cast<u32>(ci.max_call_rec_size),
         };
 
-        auto arg_count = args.size();
         if (arg_count + entry.total_local_count > 64) [[unlikely]]
-            return wasm_cl_run_compiled_with_heap_locals(interpreter, config, entry, args.data(), arg_count);
+            return wasm_cl_run_compiled_with_heap_locals(interpreter, config, entry, args, arg_count);
 
         // Opt out of -ftrivial-auto-var-init: only the argument slots are written below, and the
         // compiled entry block initializes its own locals, so nothing reads the rest.
@@ -361,11 +360,16 @@ static ALWAYS_INLINE i32 wasm_cl_finish_call(BytecodeInterpreter& interpreter, C
         return wasm_cl_run_compiled(interpreter, config, entry, callee_locals);
     }
 
+    Vector<Value, ArgumentsStaticSize> args_vec;
+    config.get_arguments_allocation_if_possible(args_vec, arg_count);
+    args_vec.ensure_capacity(arg_count);
+    for (size_t i = 0; i < arg_count; i++)
+        args_vec.unchecked_append(args[i]);
+
     // direct-threaded interpreter path:
-    // CallFrameHandle saves/zeros/restores the direct call counter automatically.
     if (auto* wasm_function = instance->get_pointer<WasmFunction>(); wasm_function && !config.should_limit_instruction_count() && wasm_function->code().func().body().compiled_instructions.direct) {
         BytecodeInterpreter::CallFrameHandle handle { interpreter, config };
-        if (auto prepare_result = config.prepare_wasm_call(*wasm_function, args); prepare_result.is_error()) {
+        if (auto prepare_result = config.prepare_wasm_call(*wasm_function, args_vec); prepare_result.is_error()) {
             interpreter.set_trap(prepare_result.release_error());
             return 1;
         }
@@ -388,10 +392,10 @@ static ALWAYS_INLINE i32 wasm_cl_finish_call(BytecodeInterpreter& interpreter, C
     Wasm::Result result { Vector<Value> {} };
     if (instance->has<WasmFunction>()) {
         BytecodeInterpreter::CallFrameHandle handle { interpreter, config };
-        result = config.call(interpreter, address, args);
+        result = config.call(interpreter, address, args_vec);
     } else {
-        result = config.call(interpreter, address, args);
-        config.release_arguments_allocation(args);
+        result = config.call(interpreter, address, args_vec);
+        config.release_arguments_allocation(args_vec);
     }
 
     if (result.is_trap()) {
@@ -824,19 +828,12 @@ i32 wasm_cl_call_with_record(void* interp_ptr, void* config_ptr, i32 func_index)
     FunctionType const* type { nullptr };
     instance->visit([&](auto const& function) { type = &function.type(); });
 
-    Vector<Value, ArgumentsStaticSize> args;
-    config.take_call_record(args);
-    args.shrink(type->parameters().size(), true);
-    return wasm_cl_finish_call(interpreter, config, address, args);
+    return wasm_cl_finish_call(interpreter, config, address, config.call_record_base(), type->parameters().size());
 }
 
 static NEVER_INLINE COLD i32 wasm_cl_direct_call_fallback(BytecodeInterpreter& interpreter, Configuration& config, i32 func_index, Value const* args, size_t arg_count)
 {
-    Vector<Value, ArgumentsStaticSize> args_vec;
-    args_vec.ensure_capacity(arg_count);
-    for (size_t i = 0; i < arg_count; i++)
-        args_vec.unchecked_append(args[i]);
-    return wasm_cl_finish_call(interpreter, config, config.frame().module().functions()[func_index], args_vec);
+    return wasm_cl_finish_call(interpreter, config, config.frame().module().functions()[func_index], args, arg_count);
 }
 
 // Direct compiled-to-compiled call. Falls back to wasm_cl_finish_call for non-compiled targets.
