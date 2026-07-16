@@ -12,8 +12,8 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/SelectorRustBridge.h>
-#include <LibWeb/CSS/SelectorRustFFI.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/SelectorRustFFI.h>
 
 namespace Web::CSS {
 

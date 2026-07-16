@@ -8,12 +8,9 @@
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/SelectorRustBridge.h>
-#include <LibWeb/CSS/SelectorRustFFI.h>
+#include <LibWeb/SelectorRustFFI.h>
 
 namespace Web::CSS {
-
-static_assert(to_underlying(PseudoClass::__Count) == 65);
-static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) == 20);
 
 static SelectorFFI::Combinator combinator_to_ffi(Selector::Combinator combinator)
 {
@@ -166,23 +163,23 @@ private:
 
         switch (simple_selector.type) {
         case Selector::SimpleSelector::Type::Universal:
-            output.type = SelectorFFI::SimpleSelectorType::Universal;
+            output.selector_type = SelectorFFI::SimpleSelectorType::Universal;
             compile_qualified_name(output, simple_selector.qualified_name());
             break;
         case Selector::SimpleSelector::Type::TagName:
-            output.type = SelectorFFI::SimpleSelectorType::TagName;
+            output.selector_type = SelectorFFI::SimpleSelectorType::TagName;
             compile_qualified_name(output, simple_selector.qualified_name());
             break;
         case Selector::SimpleSelector::Type::Id:
-            output.type = SelectorFFI::SimpleSelectorType::Id;
+            output.selector_type = SelectorFFI::SimpleSelectorType::Id;
             output.name = store_string(simple_selector.id_name());
             break;
         case Selector::SimpleSelector::Type::Class:
-            output.type = SelectorFFI::SimpleSelectorType::Class;
+            output.selector_type = SelectorFFI::SimpleSelectorType::Class;
             output.name = store_string(simple_selector.class_name());
             break;
         case Selector::SimpleSelector::Type::Attribute: {
-            output.type = SelectorFFI::SimpleSelectorType::Attribute;
+            output.selector_type = SelectorFFI::SimpleSelectorType::Attribute;
             auto const& attribute = simple_selector.attribute();
             compile_qualified_name(output, attribute.qualified_name);
             output.attribute_match_type = attribute_match_type_to_ffi(attribute.match_type);
@@ -191,18 +188,18 @@ private:
             break;
         }
         case Selector::SimpleSelector::Type::PseudoClass:
-            output.type = SelectorFFI::SimpleSelectorType::PseudoClass;
+            output.selector_type = SelectorFFI::SimpleSelectorType::PseudoClass;
             compile_pseudo_class(output, simple_selector.pseudo_class());
             break;
         case Selector::SimpleSelector::Type::PseudoElement:
-            output.type = SelectorFFI::SimpleSelectorType::PseudoElement;
+            output.selector_type = SelectorFFI::SimpleSelectorType::PseudoElement;
             compile_pseudo_element(output, simple_selector.pseudo_element());
             break;
         case Selector::SimpleSelector::Type::Nesting:
-            output.type = SelectorFFI::SimpleSelectorType::Nesting;
+            output.selector_type = SelectorFFI::SimpleSelectorType::Nesting;
             break;
         case Selector::SimpleSelector::Type::Invalid:
-            output.type = SelectorFFI::SimpleSelectorType::Invalid;
+            output.selector_type = SelectorFFI::SimpleSelectorType::Invalid;
             break;
         }
 

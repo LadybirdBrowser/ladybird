@@ -10,7 +10,6 @@
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/SelectorRustBridge.h>
-#include <LibWeb/CSS/SelectorRustFFI.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -34,6 +33,7 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/SelectorRustFFI.h>
 
 namespace Web::SelectorMatching {
 

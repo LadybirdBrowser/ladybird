@@ -13,7 +13,6 @@ mod selector_engine;
 
 pub use libweb_html_tokenizer as html_tokenizer;
 
-use std::ffi::c_void;
 use std::panic::AssertUnwindSafe;
 use std::panic::catch_unwind;
 
@@ -49,31 +48,5 @@ unsafe fn bytes_from_raw<'a>(bytes: *const u8, len: usize) -> Option<&'a [u8]> {
             return None;
         }
         Some(std::slice::from_raw_parts(bytes, len))
-    }
-}
-
-/// # Safety
-/// - `input` and `input_len` must point to a valid string
-/// - `ctx` must be a valid pointer to a CallbackContext
-/// - Parameters provided to `callback` must be valid pointers
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_css_tokenize(
-    input: *const u8,
-    input_len: usize,
-    ctx: *mut c_void,
-    callback: unsafe extern "C" fn(ctx: *mut c_void, token: *const CssToken),
-) {
-    unsafe {
-        abort_on_panic(|| {
-            let Some(input) = bytes_from_raw(input, input_len) else {
-                return;
-            };
-
-            css_tokenizer::tokenize(input, |token, filtered_input| {
-                let value = token.value_as_utf16();
-                let ffi_token = token.as_ffi(filtered_input, &value);
-                callback(ctx, &raw const ffi_token);
-            });
-        });
     }
 }

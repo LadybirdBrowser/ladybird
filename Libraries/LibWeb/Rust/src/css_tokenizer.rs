@@ -5,6 +5,7 @@
  */
 
 use std::char;
+use std::ffi::c_void;
 use std::ops::Range;
 use std::ptr;
 
@@ -75,6 +76,32 @@ pub struct CssToken {
     pub start_column: usize,
     pub end_line: usize,
     pub end_column: usize,
+}
+
+/// # Safety
+/// - `input` and `input_len` must point to a valid string
+/// - `ctx` must be a valid pointer to a CallbackContext
+/// - Parameters provided to `callback` must be valid pointers
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_css_tokenize(
+    input: *const u8,
+    input_len: usize,
+    ctx: *mut c_void,
+    callback: unsafe extern "C" fn(ctx: *mut c_void, token: *const CssToken),
+) {
+    unsafe {
+        crate::abort_on_panic(|| {
+            let Some(input) = crate::bytes_from_raw(input, input_len) else {
+                return;
+            };
+
+            tokenize(input, |token, filtered_input| {
+                let value = token.value_as_utf16();
+                let ffi_token = token.as_ffi(filtered_input, &value);
+                callback(ctx, &raw const ffi_token);
+            });
+        });
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]

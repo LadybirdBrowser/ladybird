@@ -34,7 +34,8 @@ foreach(root_output_file IN LISTS root_output_files)
 endforeach()
 
 if (NOT latest_source_header STREQUAL "")
-    file(MAKE_DIRECTORY "${FFI_OUTPUT_DIR}")
+    get_filename_component(destination_header_directory "${FFI_OUTPUT_DIR}/${FFI_HEADER}" DIRECTORY)
+    file(MAKE_DIRECTORY "${destination_header_directory}")
     execute_process(
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${latest_source_header}" "${FFI_OUTPUT_DIR}/${FFI_HEADER}"
         COMMAND_ERROR_IS_FATAL ANY

@@ -9,20 +9,38 @@
 set_property(GLOBAL PROPERTY JOB_POOLS "${JOB_POOLS};cargo=1")
 
 function(import_rust_crate)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR;FFI_HEADER" "FEATURES")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR;FFI_HEADER" "FEATURES;FFI_HEADERS")
 
     if (NOT ARG_FFI_OUTPUT_DIR)
         set(ARG_FFI_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     endif()
+    set(ffi_headers ${ARG_FFI_HEADERS})
     if (ARG_FFI_HEADER)
-        set(ffi_output "${ARG_FFI_OUTPUT_DIR}/${ARG_FFI_HEADER}")
+        list(APPEND ffi_headers "${ARG_FFI_HEADER}")
     endif()
+    set(ffi_output "")
+    foreach(ffi_header IN LISTS ffi_headers)
+        list(APPEND ffi_output "${ARG_FFI_OUTPUT_DIR}/${ffi_header}")
+    endforeach()
 
     _rust_crate_common_setup(
         MANIFEST_PATH "${ARG_MANIFEST_PATH}"
         CRATE_NAME ${ARG_CRATE_NAME}
         FFI_OUTPUT_DIR "${ARG_FFI_OUTPUT_DIR}"
     )
+
+    set(sync_ffi_header_commands "")
+    foreach(ffi_header IN LISTS ffi_headers)
+        list(APPEND sync_ffi_header_commands
+            COMMAND
+                ${CMAKE_COMMAND}
+                    -DCARGO_BUILD_SCRIPT_DIR=${cargo_output_dir}/build
+                    -DCRATE_NAME=${ARG_CRATE_NAME}
+                    -DFFI_HEADER=${ffi_header}
+                    -DFFI_OUTPUT_DIR=${ARG_FFI_OUTPUT_DIR}
+                    -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/sync_rust_ffi_header.cmake"
+        )
+    endforeach()
 
     set(cargo_feature_flags "")
     if (ARG_FEATURES)
@@ -50,13 +68,7 @@ function(import_rust_crate)
                 --lib
                 ${cargo_feature_flags}
                 ${cargo_common_flags}
-        COMMAND
-            ${CMAKE_COMMAND}
-                -DCARGO_BUILD_SCRIPT_DIR=${cargo_output_dir}/build
-                -DCRATE_NAME=${ARG_CRATE_NAME}
-                -DFFI_HEADER=${ARG_FFI_HEADER}
-                -DFFI_OUTPUT_DIR=${ARG_FFI_OUTPUT_DIR}
-                -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/sync_rust_ffi_header.cmake"
+        ${sync_ffi_header_commands}
         DEPENDS "${manifest_path}"
             "${workspace_dir}/Cargo.lock" "${workspace_dir}/Cargo.toml"
             "${RUST_RUSTC}" "${CMAKE_SOURCE_DIR}/rust-toolchain.toml"

@@ -1305,7 +1305,11 @@ foreach(angle_target IN LISTS ANGLE_TARGETS)
     target_compile_options(LibWeb PRIVATE $<TARGET_PROPERTY:${angle_target},INTERFACE_COMPILE_OPTIONS>)
 endforeach()
 
-import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust FFI_HEADER RustFFI.h)
+import_rust_crate(
+    MANIFEST_PATH Rust/Cargo.toml
+    CRATE_NAME libweb_rust
+    FFI_HEADERS RustFFI.h SelectorRustFFI.h HTML/Parser/RustFFI.h
+)
 
 set(content_blocker_rust_features "")
 if (NOT BUILD_SHARED_LIBS)

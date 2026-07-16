@@ -14,6 +14,7 @@ chardetng = "1.0.0"
 
 [build-dependencies]
 cbindgen = "0.29"
+serde_json = { version = "1", features = ["preserve_order"] }
 
 [lints]
 workspace = true
