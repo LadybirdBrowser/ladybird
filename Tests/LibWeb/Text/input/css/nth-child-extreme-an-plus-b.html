@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<ol>
+    <li id="first"></li>
+    <li id="second"></li>
+    <li id="third"></li>
+    <li id="fourth"></li>
+    <li id="fifth"></li>
+</ol>
+<script>
+    test(() => {
+        const selectors = [
+            ":nth-child(2n-2147483648)",
+            ":nth-child(-2147483648n+1)",
+            ":nth-child(2147483647n+1)",
+            ":nth-child(0n+3)",
+            ":nth-child(-2n+5)",
+        ];
+        for (const id of ["first", "second", "third", "fourth", "fifth"]) {
+            const element = document.getElementById(id);
+            const results = selectors.map(selector => element.matches(selector));
+            println(`${id}: ${results.join(",")}`);
+        }
+    });
+</script>

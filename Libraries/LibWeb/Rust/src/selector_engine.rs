@@ -79,8 +79,9 @@ impl AnPlusBPattern {
         if self.step_size == 0 {
             return index == self.offset;
         }
-        let delta = index - self.offset;
-        delta.checked_rem(self.step_size) == Some(0) && delta / self.step_size >= 0
+        let delta = i64::from(index) - i64::from(self.offset);
+        let step_size = i64::from(self.step_size);
+        delta % step_size == 0 && delta / step_size >= 0
     }
 }
 
@@ -2553,6 +2554,41 @@ mod tests {
                 offset: 2
             }
             .matches(2)
+        );
+        assert!(
+            AnPlusBPattern {
+                step_size: 2,
+                offset: i32::MIN
+            }
+            .matches(2)
+        );
+        assert!(
+            !AnPlusBPattern {
+                step_size: 2,
+                offset: i32::MIN
+            }
+            .matches(1)
+        );
+        assert!(
+            AnPlusBPattern {
+                step_size: i32::MIN,
+                offset: 1
+            }
+            .matches(1)
+        );
+        assert!(
+            !AnPlusBPattern {
+                step_size: i32::MIN,
+                offset: 1
+            }
+            .matches(2)
+        );
+        assert!(
+            AnPlusBPattern {
+                step_size: i32::MAX,
+                offset: i32::MIN
+            }
+            .matches(i32::MAX - 1)
         );
     }
 
