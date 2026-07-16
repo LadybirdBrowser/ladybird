@@ -15,6 +15,10 @@
             ":nth-child(2147483647n+1)",
             ":nth-child(0n+3)",
             ":nth-child(-2n+5)",
+            ":nth-child(n-2)",
+            ":nth-child(n-2147483648)",
+            ":nth-last-child(n-2)",
+            ":nth-of-type(n-2)",
         ];
         for (const id of ["first", "second", "third", "fourth", "fifth"]) {
             const element = document.getElementById(id);
