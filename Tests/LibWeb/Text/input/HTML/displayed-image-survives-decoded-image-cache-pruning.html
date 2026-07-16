@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // A document's decoded image caches (the shared resource requests and the list of available
+    // images) are pruned to fixed size/count limits as image loads complete. An image that is
+    // still displayed by a live element must survive that pruning: evicting it frees no memory
+    // (the displaying element keeps the decoded data alive), but it forces a refetch when script
+    // recreates an element with the same URL, e.g. when a framework re-renders the page.
+    asyncTest(async (done) => {
+        const keptImage = document.createElement("img");
+        keptImage.src = "../../../Assets/120.png";
+        document.body.appendChild(keptImage);
+        await new Promise((resolve, reject) => {
+            keptImage.onload = resolve;
+            keptImage.onerror = () => reject(new Error("Failed to load kept image"));
+        });
+
+        // Load enough other images to overflow the cache's count limit.
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext("2d");
+        const fillerLoads = [];
+        for (let i = 0; i < 100; ++i) {
+            context.fillStyle = `rgb(${i % 256}, ${Math.floor(i / 256)}, 0)`;
+            context.fillRect(0, 0, 1, 1);
+            const filler = document.createElement("img");
+            filler.src = canvas.toDataURL();
+            fillerLoads.push(new Promise((resolve, reject) => {
+                filler.onload = resolve;
+                filler.onerror = () => reject(new Error("Failed to load filler image"));
+            }));
+        }
+        await Promise.all(fillerLoads);
+
+        const recreated = document.createElement("img");
+        recreated.src = "../../../Assets/120.png";
+        println(`recreated image is completely available: ${recreated.complete && recreated.naturalWidth > 0}`);
+        done();
+    });
+</script>
