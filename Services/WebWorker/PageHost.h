@@ -44,6 +44,11 @@ public:
     virtual void request_file(Web::FileRequest) override;
     virtual Web::HTML::WorkerAgentId start_worker_agent(Web::HTML::WorkerAgentStartRequest&&) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;
+    virtual bool supports_compositor() const override { return true; }
+    virtual void ensure_compositor_host() override;
+    virtual Web::Compositor::CompositorHost* compositor_host() override { return m_compositor_host.ptr(); }
+    virtual Web::Compositor::CompositorHost const* compositor_host() const override { return m_compositor_host.ptr(); }
+    void compositor_process_lost();
     virtual bool is_headless() const override { VERIFY_NOT_REACHED(); }
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
     virtual void report_finished_handling_input_event([[maybe_unused]] u64 page_id, [[maybe_unused]] Web::EventResult event_was_handled) override { VERIFY_NOT_REACHED(); }
@@ -58,6 +63,7 @@ private:
     void setup_palette();
 
     ConnectionFromClient& m_client;
+    OwnPtr<Web::Compositor::CompositorHost> m_compositor_host;
     GC::Ref<Web::Page> m_page;
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
 };

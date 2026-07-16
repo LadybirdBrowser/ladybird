@@ -140,6 +140,7 @@ public:
 
     Web::Compositor::CompositorContextId allocate_compositor_context_id();
     ErrorOr<void> connect_web_content_to_compositor(WebContentClient&);
+    ErrorOr<IPC::TransportHandle> connect_new_compositor_canvas_client();
     void register_compositor_context(WebContentClient&, Web::Compositor::CompositorContextId, Optional<u64> page_id);
     ErrorOr<void> try_register_compositor_context(WebContentClient&, Web::Compositor::CompositorContextId, Optional<u64> page_id);
     void update_compositor_viewport(Web::Compositor::CompositorContextId, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress = Web::Compositor::WindowResizingInProgress::No);

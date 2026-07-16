@@ -1,6 +1,7 @@
 set(WEBWORKER_SOURCES
     ConnectionFromClient.cpp
     PageHost.cpp
+    WebWorkerCompositorHost.cpp
     WorkerHost.cpp
 )
 

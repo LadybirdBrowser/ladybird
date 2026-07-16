@@ -13,6 +13,7 @@ endpoint WebWorkerServer {
 
     connect_to_request_server(IPC::TransportHandle handle) =|
     connect_to_image_decoder(IPC::TransportHandle handle) =|
+    connect_to_compositor(IPC::TransportHandle handle) =|
 
     set_system_font_family(String family) =|
 

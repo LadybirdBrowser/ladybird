@@ -9,6 +9,7 @@
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <WebWorker/ConnectionFromClient.h>
 #include <WebWorker/PageHost.h>
+#include <WebWorker/WebWorkerCompositorHost.h>
 
 namespace WebWorker {
 
@@ -126,6 +127,18 @@ Web::HTML::WorkerAgentId PageHost::start_worker_agent(Web::HTML::WorkerAgentStar
 void PageHost::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
 {
     m_client.async_close_worker_agent(agent_id, owner_token);
+}
+
+void PageHost::ensure_compositor_host()
+{
+    if (m_compositor_host)
+        return;
+    m_compositor_host = create_web_worker_compositor_host(m_client);
+}
+
+void PageHost::compositor_process_lost()
+{
+    page().notify_all_webgl_contexts_lost();
 }
 
 void PageHost::did_finish_loading_worker_script(bool worker_is_secure_context)

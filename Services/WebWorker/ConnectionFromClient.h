@@ -17,6 +17,7 @@
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Worker/WebWorkerClientEndpoint.h>
 #include <LibWeb/Worker/WebWorkerServerEndpoint.h>
+#include <LibWebView/Forward.h>
 #include <WebWorker/Forward.h>
 #include <WebWorker/PageHost.h>
 
@@ -39,6 +40,8 @@ public:
     PageHost& page_host() { return *m_page_host; }
     PageHost const& page_host() const { return *m_page_host; }
 
+    WebView::CompositorConnection* compositor_process_connection() const;
+
     Function<void(IPC::TransportHandle const&)> on_request_server_connection;
     Function<void(IPC::TransportHandle const&)> on_image_decoder_connection;
 
@@ -50,6 +53,7 @@ private:
 
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
+    virtual void connect_to_compositor(IPC::TransportHandle handle) override;
     virtual void set_system_font_family(String family) override;
     virtual void start_worker(URL::URL url, Web::Bindings::WorkerType type, Web::Bindings::RequestCredentials credentials, Utf16String name, Web::HTML::TransferDataEncoder, Web::HTML::SerializedEnvironmentSettingsObject, Web::Bindings::AgentType) override;
     virtual void connect_shared_worker(Web::HTML::TransferDataEncoder, Web::HTML::SerializedEnvironmentSettingsObject) override;
@@ -61,6 +65,8 @@ private:
     virtual void broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) override;
 
     GC::Root<PageHost> m_page_host;
+
+    RefPtr<WebView::CompositorConnection> m_compositor_connection;
 
     // FIXME: Route console messages to the Browser UI using a ConsoleClient
 

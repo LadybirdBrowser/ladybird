@@ -7,6 +7,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibIPC/File.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebWorkerClient.h>
@@ -118,6 +119,9 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, W
     auto image_decoder_handle = MUST(connect_new_image_decoder_client());
     client->async_connect_to_request_server(move(request_server_handle));
     client->async_connect_to_image_decoder(move(image_decoder_handle));
+
+    if (auto compositor_handle = Application::the().connect_new_compositor_canvas_client(); !compositor_handle.is_error())
+        client->async_connect_to_compositor(compositor_handle.release_value());
 
     Vector<Owner> owners;
     owners.append(owner);

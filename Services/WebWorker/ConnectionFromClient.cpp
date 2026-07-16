@@ -9,6 +9,7 @@
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWebView/CompositorConnection.h>
 #include <WebWorker/ConnectionFromClient.h>
 #include <WebWorker/PageHost.h>
 #include <WebWorker/WorkerHost.h>
@@ -34,6 +35,30 @@ void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
 {
     if (on_image_decoder_connection)
         on_image_decoder_connection(handle);
+}
+
+void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
+{
+    auto transport = MUST(handle.create_transport());
+    m_compositor_connection = adopt_ref(*new WebView::CompositorConnection(move(transport)));
+    m_compositor_connection->on_compositor_lost = [this] {
+        m_page_host->compositor_process_lost();
+    };
+
+#ifdef AK_OS_WINDOWS
+    // Perform Windows peer PID handshake before any other IPC
+    if constexpr (requires { m_compositor_connection->transport().set_peer_pid(0); }) {
+        auto response = m_compositor_connection->send_sync<Messages::CompositorWebContentServer::InitTransport>(Core::System::getpid());
+        m_compositor_connection->transport().set_peer_pid(response->compositor_pid());
+    }
+#endif
+}
+
+WebView::CompositorConnection* ConnectionFromClient::compositor_process_connection() const
+{
+    if (!m_compositor_connection || !m_compositor_connection->is_open())
+        return nullptr;
+    return m_compositor_connection.ptr();
 }
 
 void ConnectionFromClient::set_system_font_family(String family)
