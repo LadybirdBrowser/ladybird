@@ -91,7 +91,11 @@ public:
             auto const& memories = module.memories();
             m_default_memory = memories.is_empty() ? nullptr : m_store.unsafe_get(memories[0]);
         }
-        // Skip capacity hints and label push (Cranelift uses its own structured control flow).
+        // Compiled code pushes to the value stack without bounds checks, so verify here that the
+        // frame's whole stack usage fits the reservation.
+        if (auto hint = expression.stack_usage_hint(); hint.has_value())
+            m_value_stack.ensure_capacity(m_value_stack.size() + *hint);
+        // Skip the label push (Cranelift uses its own structured control flow).
     }
 
     ALWAYS_INLINE auto& frame() const { return m_frame_stack.last(); }
@@ -121,6 +125,8 @@ public:
     static constexpr size_t locals_base_offset() { return __builtin_offsetof(Configuration, m_locals_base); }
     static constexpr size_t default_memory_offset() { return __builtin_offsetof(Configuration, m_default_memory); }
     static constexpr size_t compiled_call_result_scratch_offset() { return __builtin_offsetof(Configuration, m_compiled_call_result_scratch); }
+    static constexpr size_t value_stack_base_offset() { return __builtin_offsetof(Configuration, m_value_stack) + ValueStack::base_offset(); }
+    static constexpr size_t value_stack_top_offset() { return __builtin_offsetof(Configuration, m_value_stack) + ValueStack::top_offset(); }
 
     ALWAYS_INLINE Value& call_record_entry(size_t index) { return m_call_record_base[index]; }
     ALWAYS_INLINE Value const& call_record_entry(size_t index) const { return m_call_record_base[index]; }

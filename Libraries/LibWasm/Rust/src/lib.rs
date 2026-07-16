@@ -92,6 +92,8 @@ pub struct RuntimeHelpers {
     pub memory_buffer_size_offset: u32,
     pub memory_buffer_storage_offset_offset: u32,
     pub compiled_call_result_scratch_offset: u32,
+    pub value_stack_base_offset: u32,
+    pub value_stack_top_offset: u32,
 }
 
 /// Stable index assigned to each runtime helper. Embedded in cranelift `ExternalName`

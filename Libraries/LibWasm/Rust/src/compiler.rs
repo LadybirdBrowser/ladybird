@@ -206,13 +206,10 @@ impl CraneliftCompiler {
             mem_size_sig:      i64 fn(ptr, i32);
             mem_grow_sig:      i32 fn(ptr, i32, i32);
             read_global_sig:   i64 fn(ptr, i32);
-            stack_pop_sig:     i64 fn(ptr);
-            stack_size_sig:    i64 fn(ptr);
             callrec_read_sig:  i64 fn(ptr, i32);
             call_wr_sig:       i32 fn(ptr, ptr, i32);
             set_trap_sig:      void fn(ptr, ptr, i32);
             write_global_sig:  void fn(ptr, i32, i64);
-            stack_push_sig:    void fn(ptr, i64);
             stack_cleanup_sig: void fn(ptr, i64, i32);
             callrec_write_sig: void fn(ptr, i32, i64);
         }
@@ -255,9 +252,6 @@ impl CraneliftCompiler {
         let h_mem_grow = decl_helper!(mem_grow_sig, HelperId::memory_grow);
         let h_read_global = decl_helper!(read_global_sig, HelperId::read_global);
         let h_write_global = decl_helper!(write_global_sig, HelperId::write_global);
-        let h_stack_push = decl_helper!(stack_push_sig, HelperId::stack_push);
-        let h_stack_pop = decl_helper!(stack_pop_sig, HelperId::stack_pop);
-        let h_stack_size = decl_helper!(stack_size_sig, HelperId::stack_size);
         let h_stack_cleanup = decl_helper!(stack_cleanup_sig, HelperId::stack_cleanup);
         let h_callrec_read = decl_helper!(callrec_read_sig, HelperId::callrec_read);
         let h_callrec_write = decl_helper!(callrec_write_sig, HelperId::callrec_write);
@@ -273,6 +267,8 @@ impl CraneliftCompiler {
         let memory_buffer_storage_offset_offset = helpers.memory_buffer_storage_offset_offset as i32;
         let primitive_storage_cage_offset_mask = helpers.primitive_storage_cage_offset_mask as i64;
         let compiled_call_result_scratch_offset = helpers.compiled_call_result_scratch_offset as i32;
+        let value_stack_base_offset = helpers.value_stack_base_offset as i32;
+        let value_stack_top_offset = helpers.value_stack_top_offset as i32;
         let wasm_memory_flags = MemFlags::new().with_notrap();
         let interp_var = Variable::from_u32(8);
         builder.declare_var(interp_var, ptr_type);
@@ -463,13 +459,52 @@ impl CraneliftCompiler {
             builder.declare_var(*var, ty);
         }
 
+        // set_frame_lightweight verifies the stack-usage hint before these unchecked operations.
+        macro_rules! emit_stack_push {
+            ($builder:expr, $val:expr) => {{
+                let v = $val;
+                let cfg = $builder.use_var(config_var);
+                let top = $builder
+                    .ins()
+                    .load(ptr_type, MemFlags::trusted(), cfg, value_stack_top_offset);
+                $builder.ins().store(MemFlags::trusted(), v, top, 0);
+                let zero_tag = $builder.ins().iconst(types::I64, 0);
+                $builder.ins().store(MemFlags::trusted(), zero_tag, top, 8);
+                let new_top = $builder.ins().iadd_imm(top, i64::from(value_size));
+                $builder
+                    .ins()
+                    .store(MemFlags::trusted(), new_top, cfg, value_stack_top_offset);
+            }};
+        }
+        macro_rules! emit_stack_pop {
+            ($builder:expr) => {{
+                let cfg = $builder.use_var(config_var);
+                let top = $builder
+                    .ins()
+                    .load(ptr_type, MemFlags::trusted(), cfg, value_stack_top_offset);
+                let new_top = $builder.ins().iadd_imm(top, -i64::from(value_size));
+                $builder
+                    .ins()
+                    .store(MemFlags::trusted(), new_top, cfg, value_stack_top_offset);
+                $builder.ins().load(types::I64, MemFlags::trusted(), new_top, 0)
+            }};
+        }
+        macro_rules! emit_stack_size {
+            ($builder:expr) => {{
+                let cfg = $builder.use_var(config_var);
+                let top = $builder
+                    .ins()
+                    .load(ptr_type, MemFlags::trusted(), cfg, value_stack_top_offset);
+                let base = $builder
+                    .ins()
+                    .load(ptr_type, MemFlags::trusted(), cfg, value_stack_base_offset);
+                let bytes = $builder.ins().isub(top, base);
+                $builder.ins().ushr_imm(bytes, 4)
+            }};
+        }
+
         if has_raw_call {
-            let stack_size_fp = builder.ins().func_addr(ptr_type, h_stack_size);
-            let cfg_for_size = builder.use_var(config_var);
-            let stack_size_call = builder
-                .ins()
-                .call_indirect(stack_size_sig, stack_size_fp, &[cfg_for_size]);
-            let initial_stack_size = builder.inst_results(stack_size_call)[0];
+            let initial_stack_size = emit_stack_size!(builder);
             builder.def_var(initial_stack_size_var, initial_stack_size);
         } else {
             let zero = builder.ins().iconst(types::I64, 0);
@@ -488,10 +523,7 @@ impl CraneliftCompiler {
                         sp -= 1;
                         $builder.use_var(stack_vars[sp])
                     } else {
-                        let fp = $builder.ins().func_addr(ptr_type, h_stack_pop);
-                        let cfg = $builder.use_var(config_var);
-                        let call = $builder.ins().call_indirect(stack_pop_sig, fp, &[cfg]);
-                        $builder.inst_results(call)[0]
+                        emit_stack_pop!($builder)
                     }
                 } else {
                     let fp = $builder.ins().func_addr(ptr_type, h_callrec_read);
@@ -506,13 +538,24 @@ impl CraneliftCompiler {
         // flush virtual stack slots 0..sp to the real value stack
         macro_rules! flush_vstack_to_real {
             ($builder:expr) => {{
-                if max_stack_depth > 0 {
+                if max_stack_depth > 0 && sp > 0 {
+                    let cfg = $builder.use_var(config_var);
+                    let top = $builder
+                        .ins()
+                        .load(ptr_type, MemFlags::trusted(), cfg, value_stack_top_offset);
+                    let zero_tag = $builder.ins().iconst(types::I64, 0);
                     for i in 0..sp {
                         let val = $builder.use_var(stack_vars[i]);
-                        let fp = $builder.ins().func_addr(ptr_type, h_stack_push);
-                        let cfg = $builder.use_var(config_var);
-                        $builder.ins().call_indirect(stack_push_sig, fp, &[cfg, val]);
+                        let offset = (i as i32) * value_size;
+                        $builder.ins().store(MemFlags::trusted(), val, top, offset);
+                        $builder
+                            .ins()
+                            .store(MemFlags::trusted(), zero_tag, top, offset + 8);
                     }
+                    let new_top = $builder.ins().iadd_imm(top, i64::from(sp as i32 * value_size));
+                    $builder
+                        .ins()
+                        .store(MemFlags::trusted(), new_top, cfg, value_stack_top_offset);
                 }
                 sp = 0;
             }};
@@ -521,15 +564,24 @@ impl CraneliftCompiler {
         macro_rules! push_top_n_to_real {
             ($builder:expr, $n:expr) => {{
                 let n = $n as usize;
-                if max_stack_depth > 0 && sp >= n {
-                    // vstack enabled: push only top n values to real stack.
+                if max_stack_depth > 0 && sp >= n && n > 0 {
+                    let cfg = $builder.use_var(config_var);
+                    let top = $builder
+                        .ins()
+                        .load(ptr_type, MemFlags::trusted(), cfg, value_stack_top_offset);
+                    let zero_tag = $builder.ins().iconst(types::I64, 0);
                     for i in 0..n {
-                        let idx = sp - n + i;
-                        let val = $builder.use_var(stack_vars[idx]);
-                        let fp = $builder.ins().func_addr(ptr_type, h_stack_push);
-                        let cfg = $builder.use_var(config_var);
-                        $builder.ins().call_indirect(stack_push_sig, fp, &[cfg, val]);
+                        let val = $builder.use_var(stack_vars[sp - n + i]);
+                        let offset = (i as i32) * value_size;
+                        $builder.ins().store(MemFlags::trusted(), val, top, offset);
+                        $builder
+                            .ins()
+                            .store(MemFlags::trusted(), zero_tag, top, offset + 8);
                     }
+                    let new_top = $builder.ins().iadd_imm(top, i64::from(n as i32 * value_size));
+                    $builder
+                        .ins()
+                        .store(MemFlags::trusted(), new_top, cfg, value_stack_top_offset);
                 }
             }};
         }
@@ -548,9 +600,7 @@ impl CraneliftCompiler {
                         stack_ty[sp] = Bank::Int;
                         sp += 1;
                     } else {
-                        let fp = $builder.ins().func_addr(ptr_type, h_stack_push);
-                        let cfg = $builder.use_var(config_var);
-                        $builder.ins().call_indirect(stack_push_sig, fp, &[cfg, val]);
+                        emit_stack_push!($builder, val);
                     }
                 } else {
                     let fp = $builder.ins().func_addr(ptr_type, h_callrec_write);
@@ -583,10 +633,7 @@ impl CraneliftCompiler {
                             $builder.ins().bitcast(types::F64, MemFlags::new(), raw)
                         }
                     } else {
-                        let fp = $builder.ins().func_addr(ptr_type, h_stack_pop);
-                        let cfg = $builder.use_var(config_var);
-                        let call = $builder.ins().call_indirect(stack_pop_sig, fp, &[cfg]);
-                        let raw = $builder.inst_results(call)[0];
+                        let raw = emit_stack_pop!($builder);
                         $builder.ins().bitcast(types::F64, MemFlags::new(), raw)
                     }
                 } else {
@@ -617,9 +664,7 @@ impl CraneliftCompiler {
                         stack_ty[sp] = Bank::F64;
                         sp += 1;
                     } else {
-                        let fp = $builder.ins().func_addr(ptr_type, h_stack_push);
-                        let cfg = $builder.use_var(config_var);
-                        $builder.ins().call_indirect(stack_push_sig, fp, &[cfg, bits]);
+                        emit_stack_push!($builder, bits);
                     }
                 } else {
                     let fp = $builder.ins().func_addr(ptr_type, h_callrec_write);
@@ -654,10 +699,7 @@ impl CraneliftCompiler {
                             $builder.ins().bitcast(types::F32, MemFlags::new(), raw32)
                         }
                     } else {
-                        let fp = $builder.ins().func_addr(ptr_type, h_stack_pop);
-                        let cfg = $builder.use_var(config_var);
-                        let call = $builder.ins().call_indirect(stack_pop_sig, fp, &[cfg]);
-                        let raw = $builder.inst_results(call)[0];
+                        let raw = emit_stack_pop!($builder);
                         let raw32 = $builder.ins().ireduce(types::I32, raw);
                         $builder.ins().bitcast(types::F32, MemFlags::new(), raw32)
                     }
@@ -693,9 +735,7 @@ impl CraneliftCompiler {
                         stack_ty[sp] = Bank::F32;
                         sp += 1;
                     } else {
-                        let fp = $builder.ins().func_addr(ptr_type, h_stack_push);
-                        let cfg = $builder.use_var(config_var);
-                        $builder.ins().call_indirect(stack_push_sig, fp, &[cfg, bits]);
+                        emit_stack_push!($builder, bits);
                     }
                 } else {
                     let fp = $builder.ins().func_addr(ptr_type, h_callrec_write);
@@ -1223,10 +1263,7 @@ impl CraneliftCompiler {
                         let var = Variable::from_u32(next_var_id);
                         next_var_id += 1;
                         builder.declare_var(var, types::I64);
-                        let stack_size_fp = builder.ins().func_addr(ptr_type, h_stack_size);
-                        let cfg = builder.use_var(config_var);
-                        let call = builder.ins().call_indirect(stack_size_sig, stack_size_fp, &[cfg]);
-                        let cur = builder.inst_results(call)[0];
+                        let cur = emit_stack_size!(builder);
                         let entry = builder.ins().iadd_imm(cur, -(param_count as i64));
                         builder.def_var(var, entry);
                         Some(var)
@@ -1254,10 +1291,7 @@ impl CraneliftCompiler {
                         let var = Variable::from_u32(next_var_id);
                         next_var_id += 1;
                         builder.declare_var(var, types::I64);
-                        let stack_size_fp = builder.ins().func_addr(ptr_type, h_stack_size);
-                        let cfg = builder.use_var(config_var);
-                        let call = builder.ins().call_indirect(stack_size_sig, stack_size_fp, &[cfg]);
-                        let cur = builder.inst_results(call)[0];
+                        let cur = emit_stack_size!(builder);
                         let entry = builder.ins().iadd_imm(cur, -(param_count as i64));
                         builder.def_var(var, entry);
                         Some(var)
@@ -1294,10 +1328,7 @@ impl CraneliftCompiler {
                         let var = Variable::from_u32(next_var_id);
                         next_var_id += 1;
                         builder.declare_var(var, types::I64);
-                        let stack_size_fp = builder.ins().func_addr(ptr_type, h_stack_size);
-                        let cfg = builder.use_var(config_var);
-                        let call = builder.ins().call_indirect(stack_size_sig, stack_size_fp, &[cfg]);
-                        let cur = builder.inst_results(call)[0];
+                        let cur = emit_stack_size!(builder);
                         let entry = builder.ins().iadd_imm(cur, -(_param_count as i64));
                         builder.def_var(var, entry);
                         Some(var)
@@ -1396,10 +1427,7 @@ impl CraneliftCompiler {
                                 let result = if sp > 0 {
                                     builder.use_var(stack_vars[sp - 1])
                                 } else {
-                                    let fp = builder.ins().func_addr(ptr_type, h_stack_pop);
-                                    let cfg = builder.use_var(config_var);
-                                    let call = builder.ins().call_indirect(stack_pop_sig, fp, &[cfg]);
-                                    builder.inst_results(call)[0]
+                                    emit_stack_pop!(builder)
                                 };
                                 builder.def_var(stack_vars[entry], result);
                             }
@@ -1643,10 +1671,7 @@ impl CraneliftCompiler {
                                 let result = if sp > 0 {
                                     builder.use_var(stack_vars[sp - 1])
                                 } else {
-                                    let fp = builder.ins().func_addr(ptr_type, h_stack_pop);
-                                    let cfg = builder.use_var(config_var);
-                                    let call = builder.ins().call_indirect(stack_pop_sig, fp, &[cfg]);
-                                    builder.inst_results(call)[0]
+                                    emit_stack_pop!(builder)
                                 };
                                 builder.def_var(stack_vars[entry], result);
                             } else if max_stack_depth == 0 {
@@ -2275,10 +2300,7 @@ impl CraneliftCompiler {
                     do_call_and_check!(builder, call_fn_sig, cfp, &[iv, cv, func_idx]);
                     // The helper pushes results to value_stack; pop to the actual destination.
                     if insn.destination != STACK_MARKER {
-                        let pop_fp = builder.ins().func_addr(ptr_type, h_stack_pop);
-                        let cfg = builder.use_var(config_var);
-                        let call = builder.ins().call_indirect(stack_pop_sig, pop_fp, &[cfg]);
-                        let result = builder.inst_results(call)[0];
+                        let result = emit_stack_pop!(builder);
                         write_dst!(builder, insn.destination, result);
                     }
                 }
@@ -2299,10 +2321,7 @@ impl CraneliftCompiler {
                         &[iv, cv, table_idx, type_idx, element_index]
                     );
                     if insn.destination != STACK_MARKER {
-                        let pop_fp = builder.ins().func_addr(ptr_type, h_stack_pop);
-                        let cfg = builder.use_var(config_var);
-                        let call = builder.ins().call_indirect(stack_pop_sig, pop_fp, &[cfg]);
-                        let result = builder.inst_results(call)[0];
+                        let result = emit_stack_pop!(builder);
                         write_dst!(builder, insn.destination, result);
                     }
                 }

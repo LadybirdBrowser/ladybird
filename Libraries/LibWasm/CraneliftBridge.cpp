@@ -176,6 +176,8 @@ static u64 compute_layout_hash(RuntimeHelpers const& h)
     hash = fnv1a(hash, h.memory_buffer_size_offset);
     hash = fnv1a(hash, h.memory_buffer_storage_offset_offset);
     hash = fnv1a(hash, h.compiled_call_result_scratch_offset);
+    hash = fnv1a(hash, h.value_stack_base_offset);
+    hash = fnv1a(hash, h.value_stack_top_offset);
     hash = fnv1a(hash, h.primitive_storage_cage_offset_mask);
     return hash;
 }
@@ -980,6 +982,8 @@ static RuntimeHelpers make_runtime_helpers()
         .memory_buffer_size_offset = static_cast<u32>(MemoryBuffer::size_offset()),
         .memory_buffer_storage_offset_offset = static_cast<u32>(MemoryBuffer::storage_offset_offset()),
         .compiled_call_result_scratch_offset = static_cast<u32>(Configuration::compiled_call_result_scratch_offset()),
+        .value_stack_base_offset = static_cast<u32>(Configuration::value_stack_base_offset()),
+        .value_stack_top_offset = static_cast<u32>(Configuration::value_stack_top_offset()),
     };
 }
 
