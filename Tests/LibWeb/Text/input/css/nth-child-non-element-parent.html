@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        function populate(parent) {
+            const first = document.createElement("span");
+            first.className = "candidate";
+            const second = document.createElement("em");
+            const third = document.createElement("span");
+            third.className = "candidate";
+            parent.append("text", first, document.createComment("comment"), second, "text", third);
+            return { first, second, third };
+        }
+
+        function check(name, parent) {
+            const { first, second, third } = populate(parent);
+            println(`${name} nth-child: ${first.matches(":nth-child(1)")},${second.matches(":nth-child(2)")},${third.matches(":nth-child(3)")}`);
+            println(`${name} nth-last-child: ${first.matches(":nth-last-child(3)")},${second.matches(":nth-last-child(2)")},${third.matches(":nth-last-child(1)")}`);
+            println(`${name} filtered nth-child: ${first.matches(":nth-child(1 of .candidate)")},${third.matches(":nth-child(2 of .candidate)")}`);
+            println(`${name} filtered nth-last-child: ${first.matches(":nth-last-child(2 of .candidate)")},${third.matches(":nth-last-child(1 of .candidate)")}`);
+            println(`${name} nth-of-type: ${first.matches(":nth-of-type(1)")},${third.matches(":nth-of-type(2)")}`);
+            println(`${name} nth-last-of-type: ${first.matches(":nth-last-of-type(2)")},${third.matches(":nth-last-of-type(1)")}`);
+            println(`${name} query: ${parent.querySelectorAll("em:nth-child(2)").length}`);
+        }
+
+        check("fragment", document.createDocumentFragment());
+        check("shadow root", document.getElementById("host").attachShadow({ mode: "open" }));
+    });
+</script>

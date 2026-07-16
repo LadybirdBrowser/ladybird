@@ -1,0 +1,14 @@
+fragment nth-child: true,true,true
+fragment nth-last-child: true,true,true
+fragment filtered nth-child: true,true
+fragment filtered nth-last-child: true,true
+fragment nth-of-type: true,true
+fragment nth-last-of-type: true,true
+fragment query: 1
+shadow root nth-child: true,true,true
+shadow root nth-last-child: true,true,true
+shadow root filtered nth-child: true,true
+shadow root filtered nth-last-child: true,true
+shadow root nth-of-type: true,true
+shadow root nth-last-of-type: true,true
+shadow root query: 1

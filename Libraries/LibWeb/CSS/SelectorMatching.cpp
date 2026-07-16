@@ -1053,11 +1053,6 @@ extern "C" void const* selector_ffi_first_element_child(void const* element)
     return ffi_element(element).first_child_of_type<DOM::Element>();
 }
 
-extern "C" void const* selector_ffi_last_element_child(void const* element)
-{
-    return ffi_element(element).last_child_of_type<DOM::Element>();
-}
-
 extern "C" void const* selector_ffi_first_element_descendant(void const* element)
 {
     auto const& root = ffi_element(element);

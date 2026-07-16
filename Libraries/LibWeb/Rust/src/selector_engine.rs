@@ -370,7 +370,6 @@ pub trait SelectorDom {
     fn previous_element_sibling(&mut self, element: Self::Element) -> Option<Self::Element>;
     fn next_element_sibling(&mut self, element: Self::Element) -> Option<Self::Element>;
     fn first_element_child(&mut self, element: Self::Element) -> Option<Self::Element>;
-    fn last_element_child(&mut self, element: Self::Element) -> Option<Self::Element>;
     fn first_element_descendant(&mut self, element: Self::Element) -> Option<Self::Element>;
     fn next_element_descendant(&mut self, element: Self::Element, root: Self::Element) -> Option<Self::Element>;
     fn has_no_element_or_nonempty_text_children(&mut self, element: Self::Element) -> bool;
@@ -862,34 +861,24 @@ fn matches_nth_pseudo_class<Dom: SelectorDom>(
             if !matches_selector_list(target, dom) {
                 return false;
             }
-            let mut child = dom
-                .parent_element_in_light_tree(target)
-                .and_then(|parent| dom.first_element_child(parent));
-            while let Some(element) = child {
-                if element == target {
-                    break;
-                }
+            let mut sibling = dom.previous_element_sibling(target);
+            while let Some(element) = sibling {
                 if matches_selector_list(element, dom) {
                     index += 1;
                 }
-                child = dom.next_element_sibling(element);
+                sibling = dom.previous_element_sibling(element);
             }
         }
         PseudoClassType::NthLastChild => {
             if !matches_selector_list(target, dom) {
                 return false;
             }
-            let mut child = dom
-                .parent_element_in_light_tree(target)
-                .and_then(|parent| dom.last_element_child(parent));
-            while let Some(element) = child {
-                if element == target {
-                    break;
-                }
+            let mut sibling = dom.next_element_sibling(target);
+            while let Some(element) = sibling {
                 if matches_selector_list(element, dom) {
                     index += 1;
                 }
-                child = dom.previous_element_sibling(element);
+                sibling = dom.next_element_sibling(element);
             }
         }
         PseudoClassType::NthOfType => {
@@ -1553,7 +1542,6 @@ unsafe extern "C" {
     fn selector_ffi_previous_element_sibling(element: *const c_void) -> *const c_void;
     fn selector_ffi_next_element_sibling(element: *const c_void) -> *const c_void;
     fn selector_ffi_first_element_child(element: *const c_void) -> *const c_void;
-    fn selector_ffi_last_element_child(element: *const c_void) -> *const c_void;
     fn selector_ffi_first_element_descendant(element: *const c_void) -> *const c_void;
     fn selector_ffi_next_element_descendant(element: *const c_void, root: *const c_void) -> *const c_void;
     fn selector_ffi_has_no_element_or_nonempty_text_children(element: *const c_void) -> bool;
@@ -1758,10 +1746,6 @@ impl SelectorDom for FfiDom {
 
     fn first_element_child(&mut self, element: FfiElement) -> Option<FfiElement> {
         ffi_element(unsafe { selector_ffi_first_element_child(element.0) })
-    }
-
-    fn last_element_child(&mut self, element: FfiElement) -> Option<FfiElement> {
-        ffi_element(unsafe { selector_ffi_last_element_child(element.0) })
     }
 
     fn first_element_descendant(&mut self, element: FfiElement) -> Option<FfiElement> {
@@ -2385,10 +2369,6 @@ mod tests {
 
         fn first_element_child(&mut self, element: usize) -> Option<usize> {
             self.children(element).next()
-        }
-
-        fn last_element_child(&mut self, element: usize) -> Option<usize> {
-            self.children(element).next_back()
         }
 
         fn first_element_descendant(&mut self, element: usize) -> Option<usize> {

@@ -147,7 +147,6 @@ extern "C" void const* selector_ffi_parent_element_in_light_tree(void const* ele
 extern "C" void const* selector_ffi_previous_element_sibling(void const* element);
 extern "C" void const* selector_ffi_next_element_sibling(void const* element);
 extern "C" void const* selector_ffi_first_element_child(void const* element);
-extern "C" void const* selector_ffi_last_element_child(void const* element);
 extern "C" void const* selector_ffi_first_element_descendant(void const* element);
 extern "C" void const* selector_ffi_next_element_descendant(void const* element, void const* root);
 extern "C" bool selector_ffi_has_no_element_or_nonempty_text_children(void const* element);
