@@ -40,7 +40,7 @@ ladybird_utility(css-tokenizer SOURCES css-tokenizer.cpp LIBS LibFileSystem LibM
 target_link_libraries(TestContentBlocker PRIVATE LibURL)
 target_link_libraries(TestControlMessageQueue PRIVATE LibSync)
 target_link_libraries(TestDisplayListDamage PRIVATE LibGfx)
-target_link_libraries(TestFetchResponse PRIVATE LibGC LibHTTP LibJS)
+target_link_libraries(TestFetchResponse PRIVATE LibGC LibHTTP LibJS LibRequests LibURL)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestAccumulatedVisualContext PRIVATE LibGfx)
 target_link_libraries(TestImageData PRIVATE LibGC LibJS)

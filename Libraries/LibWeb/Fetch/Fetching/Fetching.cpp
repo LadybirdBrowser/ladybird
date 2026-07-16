@@ -1486,6 +1486,13 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
     if (!location_url_or_error.is_error() && !location_url_or_error.value().has_value())
         return PendingResponse::create(vm, request, response);
 
+    // AD-HOC: Navigation responses are kept alive in RequestServer so they can be transferred to the UI process if
+    //         they become downloads. This response will be discarded in favor of either a network error or the
+    //         redirect response, so release that hold and stop the request if it is still active.
+    internal_response->release_request_for_transfer();
+    if (auto const& request_server_request = internal_response->request_server_request(); request_server_request.has_value() && request_server_request->request)
+        request_server_request->request->stop();
+
     // 5. If locationURL is failure, then return a network error.
     if (location_url_or_error.is_error())
         return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request redirect URL is invalid"_string));
