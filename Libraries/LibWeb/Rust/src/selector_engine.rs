@@ -307,6 +307,977 @@ impl CompiledSelector {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MatchTarget<Element> {
+    pub element: Element,
+    pub pseudo_element: Option<PseudoElementType>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SelectorKind {
+    Normal,
+    Relative,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TagNameMatchingMode {
+    Normal,
+    Fast,
+}
+
+#[derive(Clone, Copy)]
+struct MatchState<Element> {
+    scope: Option<Element>,
+    selector_kind: SelectorKind,
+    anchor: Option<Element>,
+}
+
+struct PseudoElementTransition<Element> {
+    target: MatchTarget<Element>,
+    shadow_host: Option<Element>,
+}
+
+pub trait SelectorDom {
+    type Element: Copy + Eq;
+
+    fn matches_universal_selector(&mut self, element: Self::Element, qualified_name: &QualifiedName) -> bool;
+    fn matches_tag_name_selector(
+        &mut self,
+        element: Self::Element,
+        qualified_name: &QualifiedName,
+        mode: TagNameMatchingMode,
+    ) -> bool;
+    fn matches_id_selector(&mut self, element: Self::Element, id: &[u16]) -> bool;
+    fn matches_class_selector(&mut self, element: Self::Element, class_name: &[u16]) -> bool;
+    fn matches_attribute_selector(&mut self, element: Self::Element, attribute: &AttributeSelector) -> bool;
+    fn matches_pseudo_class_state(&mut self, element: Self::Element, pseudo_class: &PseudoClassSelector) -> bool;
+
+    fn parent_element(&mut self, element: Self::Element, shadow_host: Option<Self::Element>) -> Option<Self::Element>;
+    fn parent_element_in_light_tree(&mut self, element: Self::Element) -> Option<Self::Element>;
+    fn previous_element_sibling(&mut self, element: Self::Element) -> Option<Self::Element>;
+    fn next_element_sibling(&mut self, element: Self::Element) -> Option<Self::Element>;
+    fn first_element_child(&mut self, element: Self::Element) -> Option<Self::Element>;
+    fn last_element_child(&mut self, element: Self::Element) -> Option<Self::Element>;
+    fn first_element_descendant(&mut self, element: Self::Element) -> Option<Self::Element>;
+    fn next_element_descendant(&mut self, element: Self::Element, root: Self::Element) -> Option<Self::Element>;
+    fn has_no_element_or_nonempty_text_children(&mut self, element: Self::Element) -> bool;
+    fn has_same_type(&mut self, first: Self::Element, second: Self::Element) -> bool;
+    fn is_document_root(&mut self, element: Self::Element) -> bool;
+
+    fn slotted_parent(&mut self, element: Self::Element) -> Option<(Self::Element, Option<Self::Element>)>;
+    fn part_parent(
+        &mut self,
+        element: Self::Element,
+        identifiers: &[SelectorString],
+        allow_same_shadow_root_scope: bool,
+        shadow_host: Option<Self::Element>,
+    ) -> Option<(Self::Element, Option<Self::Element>)>;
+
+    fn note_structural_pseudo_class(&mut self, element: Self::Element, pseudo_class: PseudoClassType);
+    fn note_has_pseudo_class(&mut self, element: Self::Element);
+    fn note_sibling_combinator(
+        &mut self,
+        element: Self::Element,
+        combinator: Combinator,
+        sibling_invalidation_distance: usize,
+    );
+    fn note_has_sibling_combinator_anchor(&mut self, anchor: Self::Element);
+    fn note_has_sibling_combinator_element(&mut self, element: Self::Element);
+    fn note_has_scope_element(&mut self, element: Self::Element);
+
+    fn enter_has_argument_matching(&mut self) -> bool;
+    fn leave_has_argument_matching(&mut self, previous_value: bool);
+    fn has_cache_get(&mut self, selector_id: u64, anchor: Self::Element) -> Option<bool>;
+    fn has_cache_set(&mut self, selector_id: u64, anchor: Self::Element, result: bool);
+    fn should_reject_has_argument(&mut self, selector: &CompiledSelector, anchor: Self::Element) -> bool;
+}
+
+pub fn matches_selector<Dom: SelectorDom>(
+    selector: &CompiledSelector,
+    target: MatchTarget<Dom::Element>,
+    shadow_host: Option<Dom::Element>,
+    scope: Option<Dom::Element>,
+    dom: &mut Dom,
+) -> bool {
+    matches_selector_internal(selector, target, shadow_host, scope, SelectorKind::Normal, None, dom)
+}
+
+pub fn matches_originating_element_for_pseudo_element<Dom: SelectorDom>(
+    selector: &CompiledSelector,
+    pseudo_element: PseudoElementType,
+    target: Dom::Element,
+    shadow_host: Option<Dom::Element>,
+    scope: Option<Dom::Element>,
+    dom: &mut Dom,
+) -> bool {
+    for component_list_index in (0..selector.compound_selectors.len()).rev() {
+        let compound_selector = &selector.compound_selectors[component_list_index];
+        if compound_selector.combinator != Combinator::PseudoElement {
+            continue;
+        }
+        let Some(SimpleSelector::PseudoElement(pseudo_element_selector)) = compound_selector.simple_selectors.first()
+        else {
+            continue;
+        };
+        if pseudo_element_selector.pseudo_element != pseudo_element {
+            continue;
+        }
+        if component_list_index == 0 {
+            return false;
+        }
+        return matches_compound_selector(
+            selector,
+            component_list_index - 1,
+            MatchTarget {
+                element: target,
+                pseudo_element: None,
+            },
+            shadow_host,
+            MatchState {
+                scope,
+                selector_kind: SelectorKind::Normal,
+                anchor: None,
+            },
+            dom,
+        );
+    }
+    false
+}
+
+fn matches_selector_internal<Dom: SelectorDom>(
+    selector: &CompiledSelector,
+    target: MatchTarget<Dom::Element>,
+    shadow_host: Option<Dom::Element>,
+    scope: Option<Dom::Element>,
+    selector_kind: SelectorKind,
+    anchor: Option<Dom::Element>,
+    dom: &mut Dom,
+) -> bool {
+    if selector_kind == SelectorKind::Normal && target.pseudo_element.is_none() && selector.can_use_fast_matches {
+        return fast_matches(selector, target.element, shadow_host, dom);
+    }
+
+    if selector.target_pseudo_element != target.pseudo_element {
+        return false;
+    }
+    let Some(component_list_index) = selector.compound_selectors.len().checked_sub(1) else {
+        return false;
+    };
+    matches_compound_selector(
+        selector,
+        component_list_index,
+        target,
+        shadow_host,
+        MatchState {
+            scope,
+            selector_kind,
+            anchor,
+        },
+        dom,
+    )
+}
+
+fn matches_compound_selector<Dom: SelectorDom>(
+    selector: &CompiledSelector,
+    component_list_index: usize,
+    target: MatchTarget<Dom::Element>,
+    shadow_host: Option<Dom::Element>,
+    state: MatchState<Dom::Element>,
+    dom: &mut Dom,
+) -> bool {
+    let compound_selector = &selector.compound_selectors[component_list_index];
+    let is_has = |simple_selector: &SimpleSelector| {
+        matches!(
+            simple_selector,
+            SimpleSelector::PseudoClass(PseudoClassSelector {
+                pseudo_class: PseudoClassType::Has,
+                ..
+            })
+        )
+    };
+
+    for simple_selector in compound_selector
+        .simple_selectors
+        .iter()
+        .rev()
+        .filter(|selector| !is_has(selector))
+    {
+        if !matches_simple_selector(
+            simple_selector,
+            target,
+            shadow_host,
+            state.scope,
+            state.selector_kind,
+            TagNameMatchingMode::Normal,
+            dom,
+        ) {
+            return false;
+        }
+    }
+    for simple_selector in compound_selector
+        .simple_selectors
+        .iter()
+        .rev()
+        .filter(|selector| is_has(selector))
+    {
+        if !matches_simple_selector(
+            simple_selector,
+            target,
+            shadow_host,
+            state.scope,
+            state.selector_kind,
+            TagNameMatchingMode::Normal,
+            dom,
+        ) {
+            return false;
+        }
+    }
+
+    if state.selector_kind == SelectorKind::Relative && component_list_index == 0 {
+        return Some(target.element) != state.anchor;
+    }
+
+    match compound_selector.combinator {
+        Combinator::None => state.selector_kind != SelectorKind::Relative,
+        Combinator::PseudoElement => {
+            let Some(previous_target) =
+                pseudo_element_transition_target(selector, component_list_index, target, shadow_host, state.scope, dom)
+            else {
+                return false;
+            };
+            let Some(previous_index) = component_list_index.checked_sub(1) else {
+                return false;
+            };
+            matches_compound_selector(
+                selector,
+                previous_index,
+                previous_target.target,
+                previous_target.shadow_host,
+                state,
+                dom,
+            )
+        }
+        Combinator::Descendant => {
+            let Some(previous_index) = component_list_index.checked_sub(1) else {
+                return false;
+            };
+            let mut ancestor = traverse_up(target, shadow_host, dom);
+            while let Some(element) = ancestor {
+                if Some(element) == state.anchor {
+                    return false;
+                }
+                dom.note_has_scope_element(element);
+                if matches_compound_selector(
+                    selector,
+                    previous_index,
+                    MatchTarget {
+                        element,
+                        pseudo_element: None,
+                    },
+                    shadow_host,
+                    state,
+                    dom,
+                ) {
+                    return true;
+                }
+                ancestor = dom.parent_element(element, shadow_host);
+            }
+            false
+        }
+        Combinator::ImmediateChild => {
+            let Some(previous_index) = component_list_index.checked_sub(1) else {
+                return false;
+            };
+            let Some(parent) = traverse_up(target, shadow_host, dom) else {
+                return false;
+            };
+            dom.note_has_scope_element(parent);
+            matches_compound_selector(
+                selector,
+                previous_index,
+                MatchTarget {
+                    element: parent,
+                    pseudo_element: None,
+                },
+                shadow_host,
+                state,
+                dom,
+            )
+        }
+        Combinator::NextSibling => {
+            dom.note_sibling_combinator(
+                target.element,
+                Combinator::NextSibling,
+                selector.sibling_invalidation_distance,
+            );
+            let Some(previous_index) = component_list_index.checked_sub(1) else {
+                return false;
+            };
+            let Some(sibling) = dom.previous_element_sibling(target.element) else {
+                return false;
+            };
+            dom.note_has_scope_element(sibling);
+            matches_compound_selector(
+                selector,
+                previous_index,
+                MatchTarget {
+                    element: sibling,
+                    pseudo_element: None,
+                },
+                shadow_host,
+                state,
+                dom,
+            )
+        }
+        Combinator::SubsequentSibling => {
+            dom.note_sibling_combinator(
+                target.element,
+                Combinator::SubsequentSibling,
+                selector.sibling_invalidation_distance,
+            );
+            let Some(previous_index) = component_list_index.checked_sub(1) else {
+                return false;
+            };
+            let mut sibling = dom.previous_element_sibling(target.element);
+            while let Some(element) = sibling {
+                dom.note_has_scope_element(element);
+                if matches_compound_selector(
+                    selector,
+                    previous_index,
+                    MatchTarget {
+                        element,
+                        pseudo_element: None,
+                    },
+                    shadow_host,
+                    state,
+                    dom,
+                ) {
+                    return true;
+                }
+                sibling = dom.previous_element_sibling(element);
+            }
+            false
+        }
+        Combinator::Column => unimplemented!("column combinator matching"),
+    }
+}
+
+fn matches_simple_selector<Dom: SelectorDom>(
+    simple_selector: &SimpleSelector,
+    target: MatchTarget<Dom::Element>,
+    shadow_host: Option<Dom::Element>,
+    scope: Option<Dom::Element>,
+    selector_kind: SelectorKind,
+    tag_name_matching_mode: TagNameMatchingMode,
+    dom: &mut Dom,
+) -> bool {
+    if should_block_shadow_host_matching(simple_selector, target.element, shadow_host, scope) {
+        return false;
+    }
+
+    match simple_selector {
+        SimpleSelector::Universal(qualified_name) => {
+            target.pseudo_element.is_none() && dom.matches_universal_selector(target.element, qualified_name)
+        }
+        SimpleSelector::TagName(qualified_name) => {
+            target.pseudo_element.is_none()
+                && dom.matches_tag_name_selector(target.element, qualified_name, tag_name_matching_mode)
+        }
+        SimpleSelector::Id(id) => target.pseudo_element.is_none() && dom.matches_id_selector(target.element, id),
+        SimpleSelector::Class(class_name) => {
+            target.pseudo_element.is_none() && dom.matches_class_selector(target.element, class_name)
+        }
+        SimpleSelector::Attribute(attribute) => {
+            target.pseudo_element.is_none() && dom.matches_attribute_selector(target.element, attribute)
+        }
+        SimpleSelector::PseudoClass(pseudo_class) => {
+            matches_pseudo_class(pseudo_class, target, shadow_host, scope, selector_kind, dom)
+        }
+        SimpleSelector::PseudoElement(pseudo_element) => match pseudo_element.pseudo_element {
+            PseudoElementType::Slotted | PseudoElementType::Part => target.pseudo_element.is_none(),
+            pseudo_element => target.pseudo_element == Some(pseudo_element),
+        },
+        SimpleSelector::Nesting => {
+            target.pseudo_element.is_none()
+                && scope.map_or_else(|| dom.is_document_root(target.element), |scope| scope == target.element)
+        }
+        SimpleSelector::Invalid => false,
+    }
+}
+
+fn traverse_up<Dom: SelectorDom>(
+    target: MatchTarget<Dom::Element>,
+    shadow_host: Option<Dom::Element>,
+    dom: &mut Dom,
+) -> Option<Dom::Element> {
+    if target.pseudo_element.is_some() {
+        return Some(target.element);
+    }
+    dom.parent_element(target.element, shadow_host)
+}
+
+fn should_block_shadow_host_matching<Element: Copy + Eq>(
+    simple_selector: &SimpleSelector,
+    element: Element,
+    shadow_host: Option<Element>,
+    scope: Option<Element>,
+) -> bool {
+    if shadow_host != Some(element) {
+        return false;
+    }
+    match simple_selector {
+        SimpleSelector::PseudoClass(pseudo_class) => {
+            !(matches!(
+                pseudo_class.pseudo_class,
+                PseudoClassType::Host | PseudoClassType::Has | PseudoClassType::Is | PseudoClassType::Where
+            ) || pseudo_class.pseudo_class == PseudoClassType::Scope && scope == Some(element))
+        }
+        SimpleSelector::Nesting | SimpleSelector::PseudoElement(_) => false,
+        _ => true,
+    }
+}
+
+fn matches_pseudo_class<Dom: SelectorDom>(
+    pseudo_class: &PseudoClassSelector,
+    target: MatchTarget<Dom::Element>,
+    shadow_host: Option<Dom::Element>,
+    scope: Option<Dom::Element>,
+    selector_kind: SelectorKind,
+    dom: &mut Dom,
+) -> bool {
+    use PseudoClassType::*;
+
+    match pseudo_class.pseudo_class {
+        Is | Where => pseudo_class.argument_selector_list.iter().any(|selector| {
+            matches_selector_internal(selector, target, shadow_host, scope, SelectorKind::Normal, None, dom)
+        }),
+        Not => pseudo_class.argument_selector_list.iter().all(|selector| {
+            !matches_selector_internal(selector, target, shadow_host, scope, SelectorKind::Normal, None, dom)
+        }),
+        Has => {
+            if target.pseudo_element.is_some() || selector_kind == SelectorKind::Relative {
+                return false;
+            }
+            dom.note_has_pseudo_class(target.element);
+            pseudo_class
+                .argument_selector_list
+                .iter()
+                .any(|selector| matches_has_pseudo_class(selector, target.element, shadow_host, scope, dom))
+        }
+        Host => {
+            if target.pseudo_element.is_some() || shadow_host != Some(target.element) {
+                return false;
+            }
+            pseudo_class.argument_selector_list.first().is_none_or(|selector| {
+                matches_selector_internal(
+                    selector,
+                    MatchTarget {
+                        element: target.element,
+                        pseudo_element: None,
+                    },
+                    None,
+                    None,
+                    SelectorKind::Normal,
+                    None,
+                    dom,
+                )
+            })
+        }
+        Scope => {
+            target.pseudo_element.is_none()
+                && scope.map_or_else(|| dom.is_document_root(target.element), |scope| scope == target.element)
+        }
+        FirstChild | LastChild | OnlyChild | FirstOfType | LastOfType | OnlyOfType | NthChild | NthLastChild
+        | NthOfType | NthLastOfType => {
+            if target.pseudo_element.is_some() {
+                return false;
+            }
+            dom.note_structural_pseudo_class(target.element, pseudo_class.pseudo_class);
+            match pseudo_class.pseudo_class {
+                FirstChild => dom.previous_element_sibling(target.element).is_none(),
+                LastChild => dom.next_element_sibling(target.element).is_none(),
+                OnlyChild => {
+                    dom.previous_element_sibling(target.element).is_none()
+                        && dom.next_element_sibling(target.element).is_none()
+                }
+                FirstOfType => previous_sibling_with_same_type(target.element, dom).is_none(),
+                LastOfType => next_sibling_with_same_type(target.element, dom).is_none(),
+                OnlyOfType => {
+                    previous_sibling_with_same_type(target.element, dom).is_none()
+                        && next_sibling_with_same_type(target.element, dom).is_none()
+                }
+                NthChild | NthLastChild | NthOfType | NthLastOfType => {
+                    matches_nth_pseudo_class(pseudo_class, target.element, shadow_host, dom)
+                }
+                _ => unreachable!(),
+            }
+        }
+        Empty => target.pseudo_element.is_none() && dom.has_no_element_or_nonempty_text_children(target.element),
+        Root => target.pseudo_element.is_none() && dom.is_document_root(target.element),
+        _ => target.pseudo_element.is_none() && dom.matches_pseudo_class_state(target.element, pseudo_class),
+    }
+}
+
+fn matches_nth_pseudo_class<Dom: SelectorDom>(
+    pseudo_class: &PseudoClassSelector,
+    target: Dom::Element,
+    shadow_host: Option<Dom::Element>,
+    dom: &mut Dom,
+) -> bool {
+    let matches_selector_list = |element: Dom::Element, dom: &mut Dom| {
+        pseudo_class.argument_selector_list.is_empty()
+            || pseudo_class.argument_selector_list.iter().any(|selector| {
+                matches_selector_internal(
+                    selector,
+                    MatchTarget {
+                        element,
+                        pseudo_element: None,
+                    },
+                    shadow_host,
+                    None,
+                    SelectorKind::Normal,
+                    None,
+                    dom,
+                )
+            })
+    };
+
+    let mut index = 1i32;
+    match pseudo_class.pseudo_class {
+        PseudoClassType::NthChild => {
+            if !matches_selector_list(target, dom) {
+                return false;
+            }
+            let mut child = dom
+                .parent_element_in_light_tree(target)
+                .and_then(|parent| dom.first_element_child(parent));
+            while let Some(element) = child {
+                if element == target {
+                    break;
+                }
+                if matches_selector_list(element, dom) {
+                    index += 1;
+                }
+                child = dom.next_element_sibling(element);
+            }
+        }
+        PseudoClassType::NthLastChild => {
+            if !matches_selector_list(target, dom) {
+                return false;
+            }
+            let mut child = dom
+                .parent_element_in_light_tree(target)
+                .and_then(|parent| dom.last_element_child(parent));
+            while let Some(element) = child {
+                if element == target {
+                    break;
+                }
+                if matches_selector_list(element, dom) {
+                    index += 1;
+                }
+                child = dom.previous_element_sibling(element);
+            }
+        }
+        PseudoClassType::NthOfType => {
+            let mut sibling = previous_sibling_with_same_type(target, dom);
+            while let Some(element) = sibling {
+                index += 1;
+                sibling = previous_sibling_with_same_type(element, dom);
+            }
+        }
+        PseudoClassType::NthLastOfType => {
+            let mut sibling = next_sibling_with_same_type(target, dom);
+            while let Some(element) = sibling {
+                index += 1;
+                sibling = next_sibling_with_same_type(element, dom);
+            }
+        }
+        _ => unreachable!(),
+    }
+    pseudo_class.an_plus_b_pattern.matches(index)
+}
+
+fn previous_sibling_with_same_type<Dom: SelectorDom>(element: Dom::Element, dom: &mut Dom) -> Option<Dom::Element> {
+    let mut sibling = dom.previous_element_sibling(element);
+    while let Some(candidate) = sibling {
+        if dom.has_same_type(candidate, element) {
+            return Some(candidate);
+        }
+        sibling = dom.previous_element_sibling(candidate);
+    }
+    None
+}
+
+fn next_sibling_with_same_type<Dom: SelectorDom>(element: Dom::Element, dom: &mut Dom) -> Option<Dom::Element> {
+    let mut sibling = dom.next_element_sibling(element);
+    while let Some(candidate) = sibling {
+        if dom.has_same_type(candidate, element) {
+            return Some(candidate);
+        }
+        sibling = dom.next_element_sibling(candidate);
+    }
+    None
+}
+
+fn matches_has_pseudo_class<Dom: SelectorDom>(
+    selector: &CompiledSelector,
+    anchor: Dom::Element,
+    shadow_host: Option<Dom::Element>,
+    scope: Option<Dom::Element>,
+    dom: &mut Dom,
+) -> bool {
+    if let Some(result) = dom.has_cache_get(selector.id(), anchor) {
+        return result;
+    }
+    let previous_inside_has = dom.enter_has_argument_matching();
+    let result = if dom.should_reject_has_argument(selector, anchor) {
+        false
+    } else {
+        matches_relative_selector(selector, 0, anchor, shadow_host, scope, anchor, dom)
+    };
+    dom.leave_has_argument_matching(previous_inside_has);
+    dom.has_cache_set(selector.id(), anchor, result);
+    result
+}
+
+fn matches_relative_selector<Dom: SelectorDom>(
+    selector: &CompiledSelector,
+    compound_index: usize,
+    element: Dom::Element,
+    shadow_host: Option<Dom::Element>,
+    scope: Option<Dom::Element>,
+    anchor: Dom::Element,
+    dom: &mut Dom,
+) -> bool {
+    if compound_index >= selector.compound_selectors.len() {
+        return matches_selector_internal(
+            selector,
+            MatchTarget {
+                element,
+                pseudo_element: None,
+            },
+            shadow_host,
+            scope,
+            SelectorKind::Relative,
+            Some(anchor),
+            dom,
+        );
+    }
+
+    match selector.compound_selectors[compound_index].combinator {
+        Combinator::None => false,
+        Combinator::Descendant => {
+            let mut descendant = dom.first_element_descendant(element);
+            while let Some(candidate) = descendant {
+                dom.note_has_scope_element(candidate);
+                if matches_selector_internal(
+                    selector,
+                    MatchTarget {
+                        element: candidate,
+                        pseudo_element: None,
+                    },
+                    shadow_host,
+                    scope,
+                    SelectorKind::Relative,
+                    Some(anchor),
+                    dom,
+                ) {
+                    cache_matching_has_ancestors(selector.id(), candidate, element, dom);
+                    return true;
+                }
+                descendant = dom.next_element_descendant(candidate, element);
+            }
+            false
+        }
+        Combinator::ImmediateChild => {
+            let mut child = dom.first_element_child(element);
+            while let Some(candidate) = child {
+                dom.note_has_scope_element(candidate);
+                if matches_compound_selector(
+                    selector,
+                    compound_index,
+                    MatchTarget {
+                        element: candidate,
+                        pseudo_element: None,
+                    },
+                    shadow_host,
+                    MatchState {
+                        scope,
+                        selector_kind: SelectorKind::Relative,
+                        anchor: Some(anchor),
+                    },
+                    dom,
+                ) && matches_relative_selector(
+                    selector,
+                    compound_index + 1,
+                    candidate,
+                    shadow_host,
+                    scope,
+                    anchor,
+                    dom,
+                ) {
+                    return true;
+                }
+                child = dom.next_element_sibling(candidate);
+            }
+            false
+        }
+        Combinator::NextSibling => {
+            dom.note_has_sibling_combinator_anchor(anchor);
+            let Some(sibling) = dom.next_element_sibling(element) else {
+                return false;
+            };
+            dom.note_has_scope_element(sibling);
+            dom.note_has_sibling_combinator_element(sibling);
+            matches_compound_selector(
+                selector,
+                compound_index,
+                MatchTarget {
+                    element: sibling,
+                    pseudo_element: None,
+                },
+                shadow_host,
+                MatchState {
+                    scope,
+                    selector_kind: SelectorKind::Relative,
+                    anchor: Some(anchor),
+                },
+                dom,
+            ) && matches_relative_selector(selector, compound_index + 1, sibling, shadow_host, scope, anchor, dom)
+        }
+        Combinator::SubsequentSibling => {
+            dom.note_has_sibling_combinator_anchor(anchor);
+            let mut sibling = dom.next_element_sibling(element);
+            while let Some(candidate) = sibling {
+                dom.note_has_scope_element(candidate);
+                dom.note_has_sibling_combinator_element(candidate);
+                if matches_compound_selector(
+                    selector,
+                    compound_index,
+                    MatchTarget {
+                        element: candidate,
+                        pseudo_element: None,
+                    },
+                    shadow_host,
+                    MatchState {
+                        scope,
+                        selector_kind: SelectorKind::Relative,
+                        anchor: Some(anchor),
+                    },
+                    dom,
+                ) && matches_relative_selector(
+                    selector,
+                    compound_index + 1,
+                    candidate,
+                    shadow_host,
+                    scope,
+                    anchor,
+                    dom,
+                ) {
+                    return true;
+                }
+                sibling = dom.next_element_sibling(candidate);
+            }
+            false
+        }
+        Combinator::PseudoElement | Combinator::Column => false,
+    }
+}
+
+fn cache_matching_has_ancestors<Dom: SelectorDom>(
+    selector_id: u64,
+    matching_descendant: Dom::Element,
+    anchor: Dom::Element,
+    dom: &mut Dom,
+) {
+    let mut ancestor = dom.parent_element_in_light_tree(matching_descendant);
+    while let Some(element) = ancestor {
+        if element == anchor {
+            break;
+        }
+        dom.has_cache_set(selector_id, element, true);
+        ancestor = dom.parent_element_in_light_tree(element);
+    }
+}
+
+fn compound_may_match_host_for_part_scope(compound_selector: &CompoundSelector) -> bool {
+    compound_selector.simple_selectors.iter().any(|simple_selector| {
+        let SimpleSelector::PseudoClass(pseudo_class) = simple_selector else {
+            return false;
+        };
+        if pseudo_class.pseudo_class == PseudoClassType::Host {
+            return true;
+        }
+        pseudo_class.pseudo_class == PseudoClassType::Is
+            && pseudo_class.argument_selector_list.iter().any(|selector| {
+                selector.compound_selectors.iter().any(|compound| {
+                    compound.simple_selectors.iter().any(|simple| {
+                        matches!(
+                            simple,
+                            SimpleSelector::PseudoClass(PseudoClassSelector {
+                                pseudo_class: PseudoClassType::Host,
+                                ..
+                            })
+                        )
+                    })
+                })
+            })
+    })
+}
+
+fn pseudo_element_transition_target<Dom: SelectorDom>(
+    selector: &CompiledSelector,
+    component_list_index: usize,
+    target: MatchTarget<Dom::Element>,
+    shadow_host: Option<Dom::Element>,
+    scope: Option<Dom::Element>,
+    dom: &mut Dom,
+) -> Option<PseudoElementTransition<Dom::Element>> {
+    let compound_selector = &selector.compound_selectors[component_list_index];
+    let SimpleSelector::PseudoElement(pseudo_element_selector) = compound_selector.simple_selectors.first()? else {
+        return None;
+    };
+
+    match &pseudo_element_selector.value {
+        PseudoElementValue::CompoundSelector(slotted_selector)
+            if pseudo_element_selector.pseudo_element == PseudoElementType::Slotted =>
+        {
+            if target.pseudo_element.is_some()
+                || !matches_selector_internal(
+                    slotted_selector,
+                    target,
+                    shadow_host,
+                    scope,
+                    SelectorKind::Normal,
+                    None,
+                    dom,
+                )
+            {
+                return None;
+            }
+            dom.slotted_parent(target.element)
+                .map(|(slot, host)| PseudoElementTransition {
+                    target: MatchTarget {
+                        element: slot,
+                        pseudo_element: None,
+                    },
+                    shadow_host: host,
+                })
+        }
+        PseudoElementValue::Identifiers(identifiers)
+            if pseudo_element_selector.pseudo_element == PseudoElementType::Part =>
+        {
+            if target.pseudo_element.is_some() || component_list_index == 0 {
+                return None;
+            }
+            let allow_same_shadow_root_scope =
+                compound_may_match_host_for_part_scope(&selector.compound_selectors[component_list_index - 1]);
+            dom.part_parent(target.element, identifiers, allow_same_shadow_root_scope, shadow_host)
+                .map(|(host, next_shadow_host)| PseudoElementTransition {
+                    target: MatchTarget {
+                        element: host,
+                        pseudo_element: None,
+                    },
+                    shadow_host: next_shadow_host,
+                })
+        }
+        _ if target.pseudo_element == Some(pseudo_element_selector.pseudo_element) => Some(PseudoElementTransition {
+            target: MatchTarget {
+                element: target.element,
+                pseudo_element: None,
+            },
+            shadow_host,
+        }),
+        _ => None,
+    }
+}
+
+fn fast_matches<Dom: SelectorDom>(
+    selector: &CompiledSelector,
+    element_to_match: Dom::Element,
+    shadow_host: Option<Dom::Element>,
+    dom: &mut Dom,
+) -> bool {
+    let mut current = element_to_match;
+    let mut compound_selector_index = selector.compound_selectors.len() - 1;
+    if !fast_matches_compound_selector(
+        &selector.compound_selectors[compound_selector_index],
+        current,
+        shadow_host,
+        dom,
+    ) {
+        return false;
+    }
+
+    let mut backtrack_state = None;
+    loop {
+        let compound_selector = &selector.compound_selectors[compound_selector_index];
+        match compound_selector.combinator {
+            Combinator::None => return true,
+            Combinator::Descendant => {
+                backtrack_state = dom
+                    .parent_element_in_light_tree(current)
+                    .map(|parent| (parent, compound_selector_index));
+                compound_selector_index -= 1;
+                let previous_compound = &selector.compound_selectors[compound_selector_index];
+                let mut ancestor = dom.parent_element_in_light_tree(current);
+                loop {
+                    let Some(element) = ancestor else {
+                        return false;
+                    };
+                    if fast_matches_compound_selector(previous_compound, element, shadow_host, dom) {
+                        current = element;
+                        break;
+                    }
+                    ancestor = dom.parent_element_in_light_tree(element);
+                }
+            }
+            Combinator::ImmediateChild => {
+                compound_selector_index -= 1;
+                let Some(parent) = dom.parent_element_in_light_tree(current) else {
+                    return false;
+                };
+                current = parent;
+                if !fast_matches_compound_selector(
+                    &selector.compound_selectors[compound_selector_index],
+                    current,
+                    shadow_host,
+                    dom,
+                ) {
+                    let Some((element, index)) = backtrack_state.take() else {
+                        return false;
+                    };
+                    current = element;
+                    compound_selector_index = index;
+                }
+            }
+            _ => unreachable!("selector marked fast-matchable contains an unsupported combinator"),
+        }
+    }
+}
+
+fn fast_matches_compound_selector<Dom: SelectorDom>(
+    compound_selector: &CompoundSelector,
+    element: Dom::Element,
+    shadow_host: Option<Dom::Element>,
+    dom: &mut Dom,
+) -> bool {
+    compound_selector.simple_selectors.iter().all(|simple_selector| {
+        matches_simple_selector(
+            simple_selector,
+            MatchTarget {
+                element,
+                pseudo_element: None,
+            },
+            shadow_host,
+            None,
+            SelectorKind::Normal,
+            TagNameMatchingMode::Fast,
+            dom,
+        )
+    })
+}
+
 #[derive(Clone, Copy)]
 #[repr(u8)]
 pub enum FfiSimpleSelectorType {
@@ -787,6 +1758,219 @@ fn sibling_invalidation_distance(compound_selectors: &[CompoundSelector]) -> usi
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
+
+    #[derive(Default)]
+    struct TestNode {
+        parent: Option<usize>,
+        tag_name: &'static str,
+        classes: &'static [&'static str],
+    }
+
+    #[derive(Default)]
+    struct TestDom {
+        nodes: Vec<TestNode>,
+        has_cache: HashMap<(u64, usize), bool>,
+        inside_has: bool,
+    }
+
+    impl TestDom {
+        fn is_descendant_of(&self, element: usize, ancestor: usize) -> bool {
+            let mut parent = self.nodes[element].parent;
+            while let Some(candidate) = parent {
+                if candidate == ancestor {
+                    return true;
+                }
+                parent = self.nodes[candidate].parent;
+            }
+            false
+        }
+
+        fn children(&self, element: usize) -> impl DoubleEndedIterator<Item = usize> + '_ {
+            self.nodes
+                .iter()
+                .enumerate()
+                .filter_map(move |(index, node)| (node.parent == Some(element)).then_some(index))
+        }
+    }
+
+    impl SelectorDom for TestDom {
+        type Element = usize;
+
+        fn matches_universal_selector(&mut self, _element: usize, _name: &QualifiedName) -> bool {
+            true
+        }
+
+        fn matches_tag_name_selector(
+            &mut self,
+            element: usize,
+            name: &QualifiedName,
+            _mode: TagNameMatchingMode,
+        ) -> bool {
+            self.nodes[element]
+                .tag_name
+                .encode_utf16()
+                .eq(name.lowercase_name.iter().copied())
+        }
+
+        fn matches_id_selector(&mut self, _element: usize, _id: &[u16]) -> bool {
+            false
+        }
+
+        fn matches_class_selector(&mut self, element: usize, class_name: &[u16]) -> bool {
+            self.nodes[element]
+                .classes
+                .iter()
+                .any(|class| class.encode_utf16().eq(class_name.iter().copied()))
+        }
+
+        fn matches_attribute_selector(&mut self, _element: usize, _attribute: &AttributeSelector) -> bool {
+            false
+        }
+
+        fn matches_pseudo_class_state(&mut self, _element: usize, _pseudo_class: &PseudoClassSelector) -> bool {
+            false
+        }
+
+        fn parent_element(&mut self, element: usize, shadow_host: Option<usize>) -> Option<usize> {
+            (Some(element) != shadow_host)
+                .then(|| self.nodes[element].parent)
+                .flatten()
+        }
+
+        fn parent_element_in_light_tree(&mut self, element: usize) -> Option<usize> {
+            self.nodes[element].parent
+        }
+
+        fn previous_element_sibling(&mut self, element: usize) -> Option<usize> {
+            let parent = self.nodes[element].parent?;
+            self.children(parent).take_while(|sibling| *sibling != element).last()
+        }
+
+        fn next_element_sibling(&mut self, element: usize) -> Option<usize> {
+            let parent = self.nodes[element].parent?;
+            self.children(parent).skip_while(|sibling| *sibling != element).nth(1)
+        }
+
+        fn first_element_child(&mut self, element: usize) -> Option<usize> {
+            self.children(element).next()
+        }
+
+        fn last_element_child(&mut self, element: usize) -> Option<usize> {
+            self.children(element).next_back()
+        }
+
+        fn first_element_descendant(&mut self, element: usize) -> Option<usize> {
+            (0..self.nodes.len()).find(|candidate| self.is_descendant_of(*candidate, element))
+        }
+
+        fn next_element_descendant(&mut self, element: usize, root: usize) -> Option<usize> {
+            ((element + 1)..self.nodes.len()).find(|candidate| self.is_descendant_of(*candidate, root))
+        }
+
+        fn has_no_element_or_nonempty_text_children(&mut self, element: usize) -> bool {
+            self.children(element).next().is_none()
+        }
+
+        fn has_same_type(&mut self, first: usize, second: usize) -> bool {
+            self.nodes[first].tag_name == self.nodes[second].tag_name
+        }
+
+        fn is_document_root(&mut self, element: usize) -> bool {
+            element == 0
+        }
+
+        fn slotted_parent(&mut self, _element: usize) -> Option<(usize, Option<usize>)> {
+            None
+        }
+
+        fn part_parent(
+            &mut self,
+            _element: usize,
+            _identifiers: &[SelectorString],
+            _allow_same_shadow_root_scope: bool,
+            _shadow_host: Option<usize>,
+        ) -> Option<(usize, Option<usize>)> {
+            None
+        }
+
+        fn note_structural_pseudo_class(&mut self, _element: usize, _pseudo_class: PseudoClassType) {}
+        fn note_has_pseudo_class(&mut self, _element: usize) {}
+        fn note_sibling_combinator(&mut self, _element: usize, _combinator: Combinator, _distance: usize) {}
+        fn note_has_sibling_combinator_anchor(&mut self, _anchor: usize) {}
+        fn note_has_sibling_combinator_element(&mut self, _element: usize) {}
+        fn note_has_scope_element(&mut self, _element: usize) {}
+
+        fn enter_has_argument_matching(&mut self) -> bool {
+            let previous_value = self.inside_has;
+            self.inside_has = true;
+            previous_value
+        }
+
+        fn leave_has_argument_matching(&mut self, previous_value: bool) {
+            self.inside_has = previous_value;
+        }
+
+        fn has_cache_get(&mut self, selector_id: u64, anchor: usize) -> Option<bool> {
+            self.has_cache.get(&(selector_id, anchor)).copied()
+        }
+
+        fn has_cache_set(&mut self, selector_id: u64, anchor: usize, result: bool) {
+            self.has_cache.insert((selector_id, anchor), result);
+        }
+
+        fn should_reject_has_argument(&mut self, _selector: &CompiledSelector, _anchor: usize) -> bool {
+            false
+        }
+    }
+
+    fn class(name: &str) -> SimpleSelector {
+        SimpleSelector::Class(name.encode_utf16().collect())
+    }
+
+    fn compound(combinator: Combinator, simple_selectors: Vec<SimpleSelector>) -> CompoundSelector {
+        CompoundSelector {
+            combinator,
+            is_implicit_universal_anchor: false,
+            simple_selectors: simple_selectors.into_boxed_slice(),
+        }
+    }
+
+    fn selector(compound_selectors: Vec<CompoundSelector>) -> Arc<CompiledSelector> {
+        CompiledSelector::new(compound_selectors.into_boxed_slice())
+    }
+
+    fn test_tree() -> TestDom {
+        TestDom {
+            nodes: vec![
+                TestNode {
+                    tag_name: "html",
+                    ..Default::default()
+                },
+                TestNode {
+                    parent: Some(0),
+                    tag_name: "div",
+                    classes: &["anchor", "outer"],
+                },
+                TestNode {
+                    parent: Some(1),
+                    tag_name: "section",
+                    classes: &["hit", "middle"],
+                },
+                TestNode {
+                    parent: Some(2),
+                    tag_name: "span",
+                    classes: &["hit", "target"],
+                },
+                TestNode {
+                    parent: Some(1),
+                    tag_name: "span",
+                    classes: &["hit"],
+                },
+            ],
+            ..Default::default()
+        }
+    }
 
     fn selector_with_combinators(combinators: &[Combinator]) -> Arc<CompiledSelector> {
         let compounds = combinators
@@ -876,5 +2060,91 @@ mod tests {
         assert_ne!(first.id(), 0);
         assert_ne!(first.id(), second.id());
         assert_eq!(first, second);
+    }
+
+    #[test]
+    fn matches_combinators_with_descendant_backtracking() {
+        let selector = selector(vec![
+            compound(Combinator::None, vec![class("outer")]),
+            compound(Combinator::ImmediateChild, vec![class("middle")]),
+            compound(Combinator::Descendant, vec![class("target")]),
+        ]);
+        let mut dom = test_tree();
+        assert!(matches_selector(
+            &selector,
+            MatchTarget {
+                element: 3,
+                pseudo_element: None,
+            },
+            None,
+            None,
+            &mut dom,
+        ));
+        assert!(!matches_selector(
+            &selector,
+            MatchTarget {
+                element: 4,
+                pseudo_element: None,
+            },
+            None,
+            None,
+            &mut dom,
+        ));
+    }
+
+    #[test]
+    fn matches_relative_has_selectors() {
+        let relative_selector = selector(vec![compound(Combinator::ImmediateChild, vec![class("hit")])]);
+        let has = SimpleSelector::PseudoClass(PseudoClassSelector {
+            pseudo_class: PseudoClassType::Has,
+            an_plus_b_pattern: AnPlusBPattern::default(),
+            argument_selector_list: vec![relative_selector].into_boxed_slice(),
+            languages: Box::new([]),
+            direction: None,
+            identifier: None,
+            levels: Box::new([]),
+        });
+        let selector = selector(vec![compound(Combinator::None, vec![class("anchor"), has])]);
+        let mut dom = test_tree();
+        assert!(matches_selector(
+            &selector,
+            MatchTarget {
+                element: 1,
+                pseudo_element: None,
+            },
+            None,
+            None,
+            &mut dom,
+        ));
+        assert!(!dom.inside_has);
+    }
+
+    #[test]
+    fn matches_nth_child_of_selector_lists() {
+        let of_selector = selector(vec![compound(Combinator::None, vec![class("hit")])]);
+        let nth_child = SimpleSelector::PseudoClass(PseudoClassSelector {
+            pseudo_class: PseudoClassType::NthChild,
+            an_plus_b_pattern: AnPlusBPattern {
+                step_size: 0,
+                offset: 2,
+            },
+            argument_selector_list: vec![of_selector].into_boxed_slice(),
+            languages: Box::new([]),
+            direction: None,
+            identifier: None,
+            levels: Box::new([]),
+        });
+        let selector = selector(vec![compound(Combinator::None, vec![nth_child])]);
+        let mut dom = test_tree();
+        assert!(matches_selector(
+            &selector,
+            MatchTarget {
+                element: 4,
+                pseudo_element: None,
+            },
+            None,
+            None,
+            &mut dom,
+        ));
     }
 }
