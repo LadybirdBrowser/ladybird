@@ -3,6 +3,7 @@ set(SOURCES
     AbstractMachine/BytecodeInterpreter.cpp
     AbstractMachine/Configuration.cpp
     AbstractMachine/Validator.cpp
+    AbstractMachine/ValueStack.cpp
     Parser/Parser.cpp
     Printer/Printer.cpp
     TypeSystem.cpp

@@ -16,6 +16,7 @@
 #include <AK/RedBlackTree.h>
 #include <AK/SIMDExtras.h>
 #include <AK/SaturatingMath.h>
+#include <AK/ScopeGuard.h>
 #include <AK/ScopedValueRollback.h>
 #include <AK/Time.h>
 #include <AK/TypeCasts.h>
@@ -377,7 +378,8 @@ static constexpr u64 trace_missing = NumericLimits<u64>::max();
         auto [in_count, out_count] = instruction_operand_counts(instruction->opcode());                                                                                                                                       \
         u64 src_lows[3] { trace_missing, trace_missing, trace_missing };                                                                                                                                                      \
         u64 src_highs[3] { trace_missing, trace_missing, trace_missing };                                                                                                                                                     \
-        ScopedValueRollback stack { configuration.value_stack() };                                                                                                                                                            \
+        auto saved_stack_size = configuration.value_stack().size();                                                                                                                                                           \
+        ScopeGuard restore_stack { [&] { configuration.value_stack().restore_size(saved_stack_size); } };                                                                                                                     \
         for (ssize_t i = 0; i < in_count; ++i) {                                                                                                                                                                              \
             auto value = configuration.take_source<source_address_mix>(i, addresses.sources);                                                                                                                                 \
             src_lows[i] = value.value().low();                                                                                                                                                                                \

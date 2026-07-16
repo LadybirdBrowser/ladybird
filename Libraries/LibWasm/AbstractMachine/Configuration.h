@@ -8,6 +8,7 @@
 
 #include <AK/DoublyLinkedList.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
+#include <LibWasm/AbstractMachine/ValueStack.h>
 #include <LibWasm/Types.h>
 
 namespace Wasm {
@@ -346,7 +347,7 @@ public:
     void unwind_impl();
 
     Store& m_store;
-    Vector<Value, 64, FastLastAccess::Yes> m_value_stack;
+    ValueStack m_value_stack;
     Vector<Label, 64, FastLastAccess::Yes> m_label_stack;
     Vector<Frame> m_frame_stack;
     Vector<Vector<Value, ArgumentsStaticSize>> m_owned_locals_stack;
