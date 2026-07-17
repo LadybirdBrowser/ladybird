@@ -83,6 +83,41 @@ pub enum StyleValueData {
         edge: u8,
         offset: RetainedStyleValue,
     },
+    /// The guaranteed-invalid value: https://drafts.csswg.org/css-variables/#guaranteed-invalid-value
+    GuaranteedInvalid,
+    /// An absent optional value in a shorthand.
+    EmptyOptional,
+    /// grid-auto-flow.
+    GridAutoFlow { row: bool, dense: bool },
+    /// text-underline-position. Both fields are C++ `enum class ... : u8` values, opaque to Rust.
+    TextUnderlinePosition { horizontal: u8, vertical: u8 },
+    /// contrast-color() with its retained color style value.
+    ContrastColor { color: RetainedStyleValue },
+    /// superellipse() with its retained parameter style value.
+    Superellipse { parameter: RetainedStyleValue },
+    /// A pending-substitution value retaining the shorthand value it came from.
+    PendingSubstitution {
+        original_shorthand_value: RetainedStyleValue,
+    },
+    /// scrollbar-color with retained thumb and track color values.
+    ScrollbarColor {
+        thumb_color: RetainedStyleValue,
+        track_color: RetainedStyleValue,
+    },
+    /// rect() with four retained edge style values.
+    Rect {
+        top: RetainedStyleValue,
+        right: RetainedStyleValue,
+        bottom: RetainedStyleValue,
+        left: RetainedStyleValue,
+    },
+    /// A border-radius rect of four retained corner radius style values.
+    BorderRadiusRect {
+        top_left: RetainedStyleValue,
+        top_right: RetainedStyleValue,
+        bottom_right: RetainedStyleValue,
+        bottom_left: RetainedStyleValue,
+    },
 }
 
 #[unsafe(no_mangle)]
@@ -184,6 +219,110 @@ pub unsafe extern "C" fn rust_style_value_create_edge(
             has_edge,
             edge,
             offset: RetainedStyleValue { pointer: offset },
+        }))
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_guaranteed_invalid() -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::GuaranteedInvalid)))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_empty_optional() -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::EmptyOptional)))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_grid_auto_flow(row: bool, dense: bool) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::GridAutoFlow { row, dense })))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_text_underline_position(horizontal: u8, vertical: u8) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::TextUnderlinePosition { horizontal, vertical })))
+}
+
+/// Takes ownership of one strong reference to the color.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_contrast_color(color: *const c_void) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::ContrastColor {
+            color: RetainedStyleValue { pointer: color },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the parameter.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_superellipse(parameter: *const c_void) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Superellipse {
+            parameter: RetainedStyleValue { pointer: parameter },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the original shorthand value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_pending_substitution(
+    original_shorthand_value: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::PendingSubstitution {
+            original_shorthand_value: RetainedStyleValue {
+                pointer: original_shorthand_value,
+            },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each color.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_scrollbar_color(
+    thumb_color: *const c_void,
+    track_color: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::ScrollbarColor {
+            thumb_color: RetainedStyleValue { pointer: thumb_color },
+            track_color: RetainedStyleValue { pointer: track_color },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each edge.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_rect(
+    top: *const c_void,
+    right: *const c_void,
+    bottom: *const c_void,
+    left: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Rect {
+            top: RetainedStyleValue { pointer: top },
+            right: RetainedStyleValue { pointer: right },
+            bottom: RetainedStyleValue { pointer: bottom },
+            left: RetainedStyleValue { pointer: left },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each corner radius.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_border_radius_rect(
+    top_left: *const c_void,
+    top_right: *const c_void,
+    bottom_right: *const c_void,
+    bottom_left: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::BorderRadiusRect {
+            top_left: RetainedStyleValue { pointer: top_left },
+            top_right: RetainedStyleValue { pointer: top_right },
+            bottom_right: RetainedStyleValue { pointer: bottom_right },
+            bottom_left: RetainedStyleValue { pointer: bottom_left },
         }))
     })
 }

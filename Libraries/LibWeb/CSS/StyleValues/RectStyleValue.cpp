@@ -18,12 +18,12 @@ ValueComparingNonnullRefPtr<RectStyleValue const> RectStyleValue::create(Nonnull
 
 ValueComparingNonnullRefPtr<StyleValue const> RectStyleValue::absolutized(ComputationContext const& context) const
 {
-    auto top_absolutized = m_top->absolutized(context);
-    auto right_absolutized = m_right->absolutized(context);
-    auto bottom_absolutized = m_bottom->absolutized(context);
-    auto left_absolutized = m_left->absolutized(context);
+    auto top_absolutized = top()->absolutized(context);
+    auto right_absolutized = right()->absolutized(context);
+    auto bottom_absolutized = bottom()->absolutized(context);
+    auto left_absolutized = left()->absolutized(context);
 
-    if (top_absolutized == m_top && right_absolutized == m_right && bottom_absolutized == m_bottom && left_absolutized == m_left)
+    if (top_absolutized == top() && right_absolutized == right() && bottom_absolutized == bottom() && left_absolutized == left())
         return *this;
 
     return RectStyleValue::create(top_absolutized, right_absolutized, bottom_absolutized, left_absolutized);
@@ -32,13 +32,13 @@ ValueComparingNonnullRefPtr<StyleValue const> RectStyleValue::absolutized(Comput
 void RectStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     builder.append("rect("sv);
-    m_top->serialize(builder, mode);
+    top()->serialize(builder, mode);
     builder.append(", "sv);
-    m_right->serialize(builder, mode);
+    right()->serialize(builder, mode);
     builder.append(", "sv);
-    m_bottom->serialize(builder, mode);
+    bottom()->serialize(builder, mode);
     builder.append(", "sv);
-    m_left->serialize(builder, mode);
+    left()->serialize(builder, mode);
     builder.append(")"sv);
 }
 

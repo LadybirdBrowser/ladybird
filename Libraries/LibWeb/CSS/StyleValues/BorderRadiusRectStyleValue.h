@@ -8,6 +8,7 @@
 
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -29,41 +30,35 @@ public:
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
-    NonnullRefPtr<StyleValue const> top_left() const { return m_top_left; }
-    NonnullRefPtr<StyleValue const> top_right() const { return m_top_right; }
-    NonnullRefPtr<StyleValue const> bottom_right() const { return m_bottom_right; }
-    NonnullRefPtr<StyleValue const> bottom_left() const { return m_bottom_left; }
+    ValueComparingNonnullRefPtr<StyleValue const> top_left() const { return *static_cast<StyleValue const*>(m_value->border_radius_rect.top_left.pointer); }
+    ValueComparingNonnullRefPtr<StyleValue const> top_right() const { return *static_cast<StyleValue const*>(m_value->border_radius_rect.top_right.pointer); }
+    ValueComparingNonnullRefPtr<StyleValue const> bottom_right() const { return *static_cast<StyleValue const*>(m_value->border_radius_rect.bottom_right.pointer); }
+    ValueComparingNonnullRefPtr<StyleValue const> bottom_left() const { return *static_cast<StyleValue const*>(m_value->border_radius_rect.bottom_left.pointer); }
 
     bool properties_equal(BorderRadiusRectStyleValue const& other) const
     {
-        return m_top_left == other.m_top_left
-            && m_top_right == other.m_top_right
-            && m_bottom_right == other.m_bottom_right
-            && m_bottom_left == other.m_bottom_left;
+        return top_left() == other.top_left()
+            && top_right() == other.top_right()
+            && bottom_right() == other.bottom_right()
+            && bottom_left() == other.bottom_left();
     }
 
     virtual bool is_computationally_independent() const override
     {
-        return m_top_left->is_computationally_independent()
-            && m_top_right->is_computationally_independent()
-            && m_bottom_right->is_computationally_independent()
-            && m_bottom_left->is_computationally_independent();
+        return top_left()->is_computationally_independent()
+            && top_right()->is_computationally_independent()
+            && bottom_right()->is_computationally_independent()
+            && bottom_left()->is_computationally_independent();
     }
 
 private:
     BorderRadiusRectStyleValue(NonnullRefPtr<StyleValue const> top_left, NonnullRefPtr<StyleValue const> top_right, NonnullRefPtr<StyleValue const> bottom_right, NonnullRefPtr<StyleValue const> bottom_left)
         : StyleValueWithDefaultOperators(Type::BorderRadiusRect)
-        , m_top_left(move(top_left))
-        , m_top_right(move(top_right))
-        , m_bottom_right(move(bottom_right))
-        , m_bottom_left(move(bottom_left))
+        , m_value(StyleValueFFI::rust_style_value_create_border_radius_rect(&top_left.leak_ref(), &top_right.leak_ref(), &bottom_right.leak_ref(), &bottom_left.leak_ref()))
     {
     }
 
-    ValueComparingNonnullRefPtr<StyleValue const> m_top_left;
-    ValueComparingNonnullRefPtr<StyleValue const> m_top_right;
-    ValueComparingNonnullRefPtr<StyleValue const> m_bottom_right;
-    ValueComparingNonnullRefPtr<StyleValue const> m_bottom_left;
+    RustStyleValueHandle m_value;
 };
 
 }

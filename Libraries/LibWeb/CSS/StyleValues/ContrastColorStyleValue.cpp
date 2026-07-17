@@ -10,10 +10,10 @@ namespace Web::CSS {
 
 Optional<Color> ContrastColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
-    auto color = m_color->to_color(color_resolution_context);
-    if (!color.has_value())
+    auto resolved_color = color()->to_color(color_resolution_context);
+    if (!resolved_color.has_value())
         return {};
-    return color->suggested_foreground_color();
+    return resolved_color->suggested_foreground_color();
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ContrastColorStyleValue::absolutized(ComputationContext const& context) const
@@ -28,8 +28,8 @@ ValueComparingNonnullRefPtr<StyleValue const> ContrastColorStyleValue::absolutiz
     if (auto color = to_color(color_resolution_context); color.has_value())
         return create_from_color(*color, ColorSyntax::Modern);
 
-    auto absolutized_color = m_color->absolutized(context);
-    if (absolutized_color == m_color)
+    auto absolutized_color = color()->absolutized(context);
+    if (absolutized_color == color())
         return *this;
     return create(move(absolutized_color));
 }
@@ -39,13 +39,13 @@ bool ContrastColorStyleValue::equals(StyleValue const& other) const
     auto const* other_contrast_color = as_if<ContrastColorStyleValue>(other);
     if (!other_contrast_color)
         return false;
-    return m_color == other_contrast_color->m_color;
+    return color() == other_contrast_color->color();
 }
 
 void ContrastColorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     builder.append("contrast-color("sv);
-    m_color->serialize(builder, mode);
+    color()->serialize(builder, mode);
     builder.append(')');
 }
 

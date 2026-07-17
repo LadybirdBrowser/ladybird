@@ -10,6 +10,7 @@
 #pragma once
 
 #include <LibWeb/CSS/EdgeRect.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -19,46 +20,40 @@ public:
     static ValueComparingNonnullRefPtr<RectStyleValue const> create(NonnullRefPtr<StyleValue const> top, NonnullRefPtr<StyleValue const> right, NonnullRefPtr<StyleValue const> bottom, NonnullRefPtr<StyleValue const> left);
     virtual ~RectStyleValue() override = default;
 
-    NonnullRefPtr<StyleValue const> top() const { return m_top; }
-    NonnullRefPtr<StyleValue const> right() const { return m_right; }
-    NonnullRefPtr<StyleValue const> bottom() const { return m_bottom; }
-    NonnullRefPtr<StyleValue const> left() const { return m_left; }
+    ValueComparingNonnullRefPtr<StyleValue const> top() const { return *static_cast<StyleValue const*>(m_value->rect.top.pointer); }
+    ValueComparingNonnullRefPtr<StyleValue const> right() const { return *static_cast<StyleValue const*>(m_value->rect.right.pointer); }
+    ValueComparingNonnullRefPtr<StyleValue const> bottom() const { return *static_cast<StyleValue const*>(m_value->rect.bottom.pointer); }
+    ValueComparingNonnullRefPtr<StyleValue const> left() const { return *static_cast<StyleValue const*>(m_value->rect.left.pointer); }
 
-    EdgeRect rect() const { return { LengthOrAuto::from_style_value(m_top, {}), LengthOrAuto::from_style_value(m_right, {}), LengthOrAuto::from_style_value(m_bottom, {}), LengthOrAuto::from_style_value(m_left, {}) }; }
+    EdgeRect rect() const { return { LengthOrAuto::from_style_value(top(), {}), LengthOrAuto::from_style_value(right(), {}), LengthOrAuto::from_style_value(bottom(), {}), LengthOrAuto::from_style_value(left(), {}) }; }
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     bool properties_equal(RectStyleValue const& other) const
     {
-        return m_top == other.m_top
-            && m_right == other.m_right
-            && m_bottom == other.m_bottom
-            && m_left == other.m_left;
+        return top() == other.top()
+            && right() == other.right()
+            && bottom() == other.bottom()
+            && left() == other.left();
     }
 
     virtual bool is_computationally_independent() const override
     {
-        return m_top->is_computationally_independent()
-            && m_right->is_computationally_independent()
-            && m_bottom->is_computationally_independent()
-            && m_left->is_computationally_independent();
+        return top()->is_computationally_independent()
+            && right()->is_computationally_independent()
+            && bottom()->is_computationally_independent()
+            && left()->is_computationally_independent();
     }
 
 private:
     explicit RectStyleValue(NonnullRefPtr<StyleValue const> top, NonnullRefPtr<StyleValue const> right, NonnullRefPtr<StyleValue const> bottom, NonnullRefPtr<StyleValue const> left)
         : StyleValueWithDefaultOperators(Type::Rect)
-        , m_top(move(top))
-        , m_right(move(right))
-        , m_bottom(move(bottom))
-        , m_left(move(left))
+        , m_value(StyleValueFFI::rust_style_value_create_rect(&top.leak_ref(), &right.leak_ref(), &bottom.leak_ref(), &left.leak_ref()))
     {
     }
 
-    ValueComparingNonnullRefPtr<StyleValue const> m_top;
-    ValueComparingNonnullRefPtr<StyleValue const> m_right;
-    ValueComparingNonnullRefPtr<StyleValue const> m_bottom;
-    ValueComparingNonnullRefPtr<StyleValue const> m_left;
+    RustStyleValueHandle m_value;
 };
 
 }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -27,17 +28,19 @@ public:
 
     virtual bool is_computationally_independent() const override
     {
-        return m_color->is_computationally_independent();
+        return color()->is_computationally_independent();
     }
 
 private:
     explicit ContrastColorStyleValue(ValueComparingNonnullRefPtr<StyleValue const> color)
         : ColorStyleValue({}, ColorSyntax::Modern)
-        , m_color(move(color))
+        , m_value(StyleValueFFI::rust_style_value_create_contrast_color(&color.leak_ref()))
     {
     }
 
-    ValueComparingNonnullRefPtr<StyleValue const> m_color;
+    ValueComparingNonnullRefPtr<StyleValue const> color() const { return *static_cast<StyleValue const*>(m_value->contrast_color.color.pointer); }
+
+    RustStyleValueHandle m_value;
 };
 
 }

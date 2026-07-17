@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -32,8 +33,11 @@ public:
 private:
     GuaranteedInvalidStyleValue()
         : StyleValueWithDefaultOperators(Type::GuaranteedInvalid)
+        , m_value(StyleValueFFI::rust_style_value_create_guaranteed_invalid())
     {
     }
+
+    RustStyleValueHandle m_value;
 };
 
 }

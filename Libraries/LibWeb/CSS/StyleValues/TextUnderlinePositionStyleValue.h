@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -18,25 +19,23 @@ public:
     }
     virtual ~TextUnderlinePositionStyleValue() override = default;
 
-    TextUnderlinePositionHorizontal horizontal() const { return m_horizontal; }
-    TextUnderlinePositionVertical vertical() const { return m_vertical; }
+    TextUnderlinePositionHorizontal horizontal() const { return static_cast<TextUnderlinePositionHorizontal>(m_value->text_underline_position.horizontal); }
+    TextUnderlinePositionVertical vertical() const { return static_cast<TextUnderlinePositionVertical>(m_value->text_underline_position.vertical); }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
-    bool properties_equal(TextUnderlinePositionStyleValue const& other) const { return m_horizontal == other.m_horizontal && m_vertical == other.m_vertical; }
+    bool properties_equal(TextUnderlinePositionStyleValue const& other) const { return horizontal() == other.horizontal() && vertical() == other.vertical(); }
 
     virtual bool is_computationally_independent() const override { return true; }
 
 private:
     explicit TextUnderlinePositionStyleValue(TextUnderlinePositionHorizontal horizontal, TextUnderlinePositionVertical vertical)
         : StyleValueWithDefaultOperators(Type::TextUnderlinePosition)
-        , m_horizontal(horizontal)
-        , m_vertical(vertical)
+        , m_value(StyleValueFFI::rust_style_value_create_text_underline_position(to_underlying(horizontal), to_underlying(vertical)))
     {
     }
 
-    TextUnderlinePositionHorizontal m_horizontal;
-    TextUnderlinePositionVertical m_vertical;
+    RustStyleValueHandle m_value;
 };
 
 }
