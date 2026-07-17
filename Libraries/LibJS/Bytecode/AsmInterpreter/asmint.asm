@@ -607,9 +607,7 @@ macro load_property_lookup_cache(cache, fail_label)
     load64 caches, [exe, EXECUTABLE_PROPERTY_LOOKUP_CACHES_DATA]
     load64 cache, [caches, cache, PROPERTY_LOOKUP_CACHE_SIZE]
     branch_zero cache, fail_label
-    branch_bits_clear cache, PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG, .data_loaded
-    sub cache, PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG
-.data_loaded:
+    and cache, PROPERTY_LOOKUP_CACHE_DATA_POINTER_MASK
 end
 
 macro load_global_variable_cache(cache)
