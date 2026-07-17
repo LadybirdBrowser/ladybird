@@ -55,6 +55,44 @@ impl Drop for RetainedUtf16FlyString {
     }
 }
 
+/// Implements `Drop` for a `Retained*List` struct: releases the Rust-owned boxed slice,
+/// dropping each element (which releases the element's own retained references).
+macro_rules! retained_list_drop {
+    ($list:ident) => {
+        impl Drop for $list {
+            fn drop(&mut self) {
+                if !self.pointer.is_null() {
+                    drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+                }
+            }
+        }
+    };
+}
+
+/// Implements the shared behavior for a `Retained*List` struct whose `from_raw` input is an
+/// array of its own element type: `from_raw` copies `length` elements into a Rust-owned boxed
+/// slice, assuming ownership of the elements' retained references, and `Drop` releases them.
+macro_rules! retained_list {
+    ($list:ident, $element:ty) => {
+        impl $list {
+            /// Takes ownership of the elements' retained references.
+            ///
+            /// # Safety
+            /// `elements` must point to `length` valid elements whose retained references this
+            /// list may assume ownership of.
+            unsafe fn from_raw(elements: *const $element, length: usize) -> Self {
+                let slice: Box<[$element]> = (0..length)
+                    .map(|i| unsafe { std::ptr::read(elements.add(i)) })
+                    .collect();
+                let length = slice.len();
+                let pointer = Box::into_raw(slice) as *mut $element;
+                Self { pointer, length }
+            }
+        }
+        retained_list_drop!($list);
+    };
+}
+
 /// A retained, Rust-owned array of style value references.
 #[repr(C)]
 pub struct RetainedStyleValueList {
@@ -79,13 +117,7 @@ impl RetainedStyleValueList {
     }
 }
 
-impl Drop for RetainedStyleValueList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
+retained_list_drop!(RetainedStyleValueList);
 
 /// A Rust-owned array of C++ PropertyID values (`enum class PropertyID : u16`, opaque to Rust).
 #[repr(C)]
@@ -94,24 +126,7 @@ pub struct RetainedPropertyIdList {
     length: usize,
 }
 
-impl RetainedPropertyIdList {
-    /// # Safety
-    /// `ids` must point to `length` valid property ids.
-    unsafe fn from_raw(ids: *const u16, length: usize) -> Self {
-        let slice: Box<[u16]> = (0..length).map(|i| unsafe { *ids.add(i) }).collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut u16;
-        Self { pointer, length }
-    }
-}
-
-impl Drop for RetainedPropertyIdList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
+retained_list!(RetainedPropertyIdList, u16);
 
 /// A retained AK::String, stored as its one-word raw representation. Owns one reference to the
 /// underlying string data unless it is a short string; the C++ bridge handles both cases.
@@ -143,29 +158,7 @@ pub struct RetainedRequestUrlModifierList {
     length: usize,
 }
 
-impl RetainedRequestUrlModifierList {
-    /// Takes ownership of the modifiers' retained strings.
-    ///
-    /// # Safety
-    /// `modifiers` must point to `length` valid modifiers whose retained strings this list may
-    /// assume ownership of.
-    unsafe fn from_raw(modifiers: *const RetainedRequestUrlModifier, length: usize) -> Self {
-        let slice: Box<[RetainedRequestUrlModifier]> = (0..length)
-            .map(|i| unsafe { std::ptr::read(modifiers.add(i)) })
-            .collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedRequestUrlModifier;
-        Self { pointer, length }
-    }
-}
-
-impl Drop for RetainedRequestUrlModifierList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
+retained_list!(RetainedRequestUrlModifierList, RetainedRequestUrlModifier);
 
 /// A Rust-owned array of bytes, used for lists of C++ u8 enum values.
 #[repr(C)]
@@ -174,24 +167,7 @@ pub struct RetainedByteList {
     length: usize,
 }
 
-impl RetainedByteList {
-    /// # Safety
-    /// `bytes` must point to `length` valid bytes.
-    unsafe fn from_raw(bytes: *const u8, length: usize) -> Self {
-        let slice: Box<[u8]> = (0..length).map(|i| unsafe { *bytes.add(i) }).collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut u8;
-        Self { pointer, length }
-    }
-}
-
-impl Drop for RetainedByteList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
+retained_list!(RetainedByteList, u8);
 
 /// A Rust-owned array of retained AK::Utf16FlyString values.
 #[repr(C)]
@@ -217,13 +193,7 @@ impl RetainedUtf16FlyStringList {
     }
 }
 
-impl Drop for RetainedUtf16FlyStringList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
+retained_list_drop!(RetainedUtf16FlyStringList);
 
 /// A retained counter definition: the counter name, the reversed flag and an optional retained
 /// value (null when absent).
@@ -241,29 +211,7 @@ pub struct RetainedCounterDefinitionList {
     length: usize,
 }
 
-impl RetainedCounterDefinitionList {
-    /// Takes ownership of the definitions' retained strings and values.
-    ///
-    /// # Safety
-    /// `definitions` must point to `length` valid definitions whose retained strings and values
-    /// this list may assume ownership of.
-    unsafe fn from_raw(definitions: *const RetainedCounterDefinition, length: usize) -> Self {
-        let slice: Box<[RetainedCounterDefinition]> = (0..length)
-            .map(|i| unsafe { std::ptr::read(definitions.add(i)) })
-            .collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedCounterDefinition;
-        Self { pointer, length }
-    }
-}
-
-impl Drop for RetainedCounterDefinitionList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
+retained_list!(RetainedCounterDefinitionList, RetainedCounterDefinition);
 
 /// A retained image-set() option: the image, its resolution and an optional type string (a
 /// retained AK::Utf16String raw, 0 when absent, released through the same bridge as fly
@@ -283,28 +231,7 @@ pub struct RetainedImageSetOptionList {
     length: usize,
 }
 
-impl RetainedImageSetOptionList {
-    /// Takes ownership of the options' retained values and strings.
-    ///
-    /// # Safety
-    /// `options` must point to `length` valid options whose retained values and strings this
-    /// list may assume ownership of.
-    unsafe fn from_raw(options: *const RetainedImageSetOption, length: usize) -> Self {
-        let slice: Box<[RetainedImageSetOption]> =
-            (0..length).map(|i| unsafe { std::ptr::read(options.add(i)) }).collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedImageSetOption;
-        Self { pointer, length }
-    }
-}
-
-impl Drop for RetainedImageSetOptionList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
+retained_list!(RetainedImageSetOptionList, RetainedImageSetOption);
 
 /// A retained gradient color stop: an optional transition hint, then an optional color,
 /// position and second position (each null when absent). The layout matches the C++
@@ -324,27 +251,7 @@ pub struct RetainedColorStopList {
     length: usize,
 }
 
-impl RetainedColorStopList {
-    /// Takes ownership of the stops' retained values.
-    ///
-    /// # Safety
-    /// `stops` must point to `length` valid stops whose retained values this list may assume
-    /// ownership of.
-    unsafe fn from_raw(stops: *const RetainedColorStop, length: usize) -> Self {
-        let slice: Box<[RetainedColorStop]> = (0..length).map(|i| unsafe { std::ptr::read(stops.add(i)) }).collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedColorStop;
-        Self { pointer, length }
-    }
-}
-
-impl Drop for RetainedColorStopList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
+retained_list!(RetainedColorStopList, RetainedColorStop);
 
 /// A retained named grid area: the retained area name and its grid line indices.
 #[repr(C)]
@@ -363,27 +270,7 @@ pub struct RetainedGridAreaList {
     length: usize,
 }
 
-impl RetainedGridAreaList {
-    /// Takes ownership of the areas' retained names.
-    ///
-    /// # Safety
-    /// `areas` must point to `length` valid areas whose retained names this list may assume
-    /// ownership of.
-    unsafe fn from_raw(areas: *const RetainedGridArea, length: usize) -> Self {
-        let slice: Box<[RetainedGridArea]> = (0..length).map(|i| unsafe { std::ptr::read(areas.add(i)) }).collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedGridArea;
-        Self { pointer, length }
-    }
-}
-
-impl Drop for RetainedGridAreaList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
+retained_list!(RetainedGridAreaList, RetainedGridArea);
 
 /// A retained linear() easing stop: the output value and an optional input (null when absent).
 #[repr(C)]
@@ -399,28 +286,7 @@ pub struct RetainedLinearEasingStopList {
     length: usize,
 }
 
-impl RetainedLinearEasingStopList {
-    /// Takes ownership of the stops' retained values.
-    ///
-    /// # Safety
-    /// `stops` must point to `length` valid stops whose retained values this list may assume
-    /// ownership of.
-    unsafe fn from_raw(stops: *const RetainedLinearEasingStop, length: usize) -> Self {
-        let slice: Box<[RetainedLinearEasingStop]> =
-            (0..length).map(|i| unsafe { std::ptr::read(stops.add(i)) }).collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedLinearEasingStop;
-        Self { pointer, length }
-    }
-}
-
-impl Drop for RetainedLinearEasingStopList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
+retained_list!(RetainedLinearEasingStopList, RetainedLinearEasingStop);
 
 /// Borrowed input description of one grid track list entry, used when creating a grid track
 /// size list. Kinds: 0 = line names, 1 = a single size, 2 = minmax, 3 = repeat with a nested
@@ -523,13 +389,7 @@ impl RetainedGridTrackEntryList {
     }
 }
 
-impl Drop for RetainedGridTrackEntryList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
+retained_list_drop!(RetainedGridTrackEntryList);
 
 /// A retained polygon point: the x and y style values.
 #[repr(C)]
@@ -545,27 +405,7 @@ pub struct RetainedShapePointList {
     length: usize,
 }
 
-impl RetainedShapePointList {
-    /// Takes ownership of the points' retained values.
-    ///
-    /// # Safety
-    /// `points` must point to `length` valid points whose retained values this list may assume
-    /// ownership of.
-    unsafe fn from_raw(points: *const RetainedShapePoint, length: usize) -> Self {
-        let slice: Box<[RetainedShapePoint]> = (0..length).map(|i| unsafe { std::ptr::read(points.add(i)) }).collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedShapePoint;
-        Self { pointer, length }
-    }
-}
-
-impl Drop for RetainedShapePointList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
+retained_list!(RetainedShapePointList, RetainedShapePoint);
 
 /// A strong reference to a C++ CalculationNode held from Rust-owned value data. The node tree
 /// is still C++-structured during the migration, like retained style values.
@@ -598,25 +438,7 @@ pub struct RetainedNumericRangeList {
     length: usize,
 }
 
-impl RetainedNumericRangeList {
-    /// # Safety
-    /// `ranges` must point to `length` valid ranges.
-    unsafe fn from_raw(ranges: *const RetainedNumericRangeByType, length: usize) -> Self {
-        let slice: Box<[RetainedNumericRangeByType]> =
-            (0..length).map(|i| unsafe { std::ptr::read(ranges.add(i)) }).collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedNumericRangeByType;
-        Self { pointer, length }
-    }
-}
-
-impl Drop for RetainedNumericRangeList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
+retained_list!(RetainedNumericRangeList, RetainedNumericRangeByType);
 
 /// The data of a single immutable CSS style value.
 ///
