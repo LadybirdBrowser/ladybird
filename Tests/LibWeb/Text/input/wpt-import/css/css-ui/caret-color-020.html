@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Basic User Interface Test: caret-color currentcolor test animation</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="http://www.w3.org/TR/css3-ui/#caret-color">
+<link rel="help" href="https://www.w3.org/TR/web-animations-1/#dom-animatable-animate">
+<link rel="help" href="https://www.w3.org/TR/css3-color/#color0">
+<meta name="assert" content="Test checks that 'currentcolor' value for caret-color property is interpolable.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  textarea {
+    color: magenta;
+  }
+</style>
+<body>
+  <textarea id="textarea"></textarea>
+  <div id=log></div>
+
+  <script>
+    test(
+      function(){
+        var textarea = document.getElementById("textarea");
+        var keyframes = [
+          { caretColor: 'currentcolor' },
+          { caretColor: 'lime' }
+        ];
+        var options = {
+          duration: 10,
+          fill: "forwards"
+        };
+
+        var player = textarea.animate(keyframes, options);
+        player.pause();
+        player.currentTime = 5;
+        var rgb = getComputedStyle(textarea).caretColor.match(/\d+/g);
+        /* Only testing that the rgb value is some intermediary value,
+           but not checking which, as we only care that the value is interpolated,
+           not about the numerical accuracy of interpolation,
+           which is something tests for the animation spec ought to worry about. */
+        assert_true( rgb[0] < 255 && rgb[0] > 0, "the red channel is interpolated");
+        assert_true( rgb[1] < 255 && rgb[1] > 0, "the green channel is interpolated");
+        assert_true( rgb[2] < 255 && rgb[2] > 0, "the blue channel is interpolated");
+      }, "caret-color: currentcolor is interpolable");
+</script>
+</body>

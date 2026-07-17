@@ -1,0 +1,49 @@
+﻿<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Basic User Interface Test: caret-color computed values</title>
+<link rel="author" title="Florian Rivoal" href="mailto:florian@rivoal.net">
+<link rel="help" href="http://www.w3.org/TR/css3-ui/#caret-color">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#currentcolor-color">
+<meta name="flags" content="dom">
+<meta name="assert" content="Test checks that the resolved value of auto, currentcolor and initial for caret-color property, is the used value.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+#d1 {
+	color: lime;
+	caret-color: auto;
+}
+#d2 {
+	color: cyan;
+	caret-color: currentcolor;
+}
+#d3 {
+	color: magenta;
+	caret-color: initial;
+}
+</style>
+<body>
+  <div id=d1></div>
+  <div id=d2></div>
+  <div id=d3></div>
+  <div id=log></div>
+
+<script>
+test(
+  function(){
+   var d1 = document.getElementById("d1");
+   assert_equals(window.getComputedStyle(d1)["caret-color"], "rgb(0, 255, 0)");
+  }, "Check the resolved value of 'auto'");
+test(
+  function(){
+   var d2 = document.getElementById("d2");
+   assert_equals(window.getComputedStyle(d2)["caret-color"], "rgb(0, 255, 255)");
+  }, "Check the resolved value of 'currentcolor'");
+test(
+  function(){
+   var d3 = document.getElementById("d3");
+   assert_equals(window.getComputedStyle(d3)["caret-color"], "rgb(255, 0, 255)");
+  }, "Check the resolved value of 'initial'");
+</script>
+</body>
+</html>

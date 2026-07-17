@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Check the resolved value of 'auto'
+Pass	Check the resolved value of 'currentcolor'
+Pass	Check the resolved value of 'initial'

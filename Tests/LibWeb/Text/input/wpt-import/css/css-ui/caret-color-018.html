@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Basic User Interface Test: caret-color test animation</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="http://www.w3.org/TR/css3-ui/#caret-color">
+<link rel="help" href="https://www.w3.org/TR/web-animations-1/#dom-animatable-animate">
+<link rel="help" href="https://www.w3.org/TR/css3-color/#color0">
+<meta name="assert" content="Test checks that caret-color is animatable as a color, and that the computed values during the animation are the expected ones.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  textarea {
+    caret-color: red;
+  }
+</style>
+<body>
+  <textarea id="textarea"></textarea>
+  <div id=log></div>
+
+  <script>
+    test(
+      function(){
+        var textarea = document.getElementById("textarea");
+        assert_equals(getComputedStyle(textarea).caretColor, 'rgb(255, 0, 0)');
+
+        var keyframes = [
+          { caretColor: 'magenta' },
+          { caretColor: 'lime' }
+        ];
+        var options = {
+          duration: 10,
+          fill: "forwards"
+        };
+
+        var player = textarea.animate(keyframes, options);
+        player.pause();
+        player.currentTime = 0;
+        assert_equals(getComputedStyle(textarea).caretColor, 'rgb(255, 0, 255)');
+        player.currentTime = 5;
+        assert_equals(getComputedStyle(textarea).caretColor, 'rgb(128, 128, 128)');
+        player.currentTime = 10;
+        assert_equals(getComputedStyle(textarea).caretColor, 'rgb(0, 255, 0)');
+      }, "The caret-color property is animatable");
+</script>
+</body>
