@@ -1,0 +1,11 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const value of ["hue-rotate(0.0)", "hue-rotate(0e0)"]) {
+            target.style.filter = value;
+            println(`${value}: ${target.style.filter}`);
+        }
+    });
+</script>
