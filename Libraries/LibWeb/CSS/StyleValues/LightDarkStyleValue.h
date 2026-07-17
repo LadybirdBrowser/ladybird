@@ -28,7 +28,7 @@ public:
 
 private:
     LightDarkStyleValue(ValueComparingNonnullRefPtr<StyleValue const> light, ValueComparingNonnullRefPtr<StyleValue const> dark)
-        : ColorStyleValue({}, ColorSyntax::Modern, StyleValueFFI::rust_style_value_create_light_dark(&light.leak_ref(), &dark.leak_ref()))
+        : ColorStyleValue(StyleValueFFI::rust_style_value_create_light_dark(false, 0, to_underlying(ColorSyntax::Modern), &light.leak_ref(), &dark.leak_ref()))
     {
     }
 

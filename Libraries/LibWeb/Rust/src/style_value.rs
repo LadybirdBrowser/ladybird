@@ -440,6 +440,16 @@ pub struct RetainedNumericRangeList {
 
 retained_list!(RetainedNumericRangeList, RetainedNumericRangeByType);
 
+/// The shared leading fields of every color variant payload: the optional color type and the
+/// color syntax. Placing this first in each color payload lets C++ read it without knowing
+/// which color variant it has.
+#[repr(C)]
+pub struct ColorBase {
+    has_color_type: bool,
+    color_type: u8,
+    color_syntax: u8,
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -518,7 +528,10 @@ pub enum StyleValueData {
     /// text-underline-position. Both fields are C++ `enum class ... : u8` values, opaque to Rust.
     TextUnderlinePosition { horizontal: u8, vertical: u8 },
     /// contrast-color() with its retained color style value.
-    ContrastColor { color: RetainedStyleValue },
+    ContrastColor {
+        color_base: ColorBase,
+        color: RetainedStyleValue,
+    },
     /// superellipse() with its retained parameter style value.
     Superellipse { parameter: RetainedStyleValue },
     /// A pending-substitution value retaining the shorthand value it came from.
@@ -649,6 +662,7 @@ pub enum StyleValueData {
     /// retained alpha, an optional name and an optional retained origin color for relative
     /// color syntax.
     ColorFunction {
+        color_base: ColorBase,
         channel_0: RetainedStyleValue,
         channel_1: RetainedStyleValue,
         channel_2: RetainedStyleValue,
@@ -660,6 +674,7 @@ pub enum StyleValueData {
     /// color-mix() with its optional retained interpolation method value and two components,
     /// each a retained color with an optional retained percentage.
     ColorMix {
+        color_base: ColorBase,
         color_interpolation_method: RetainedStyleValue,
         first_color: RetainedStyleValue,
         first_percentage: RetainedStyleValue,
@@ -668,11 +683,6 @@ pub enum StyleValueData {
     },
     /// The shared data of every color style value: an optional color type and the color syntax
     /// (both C++ enums on ColorStyleValue, opaque to Rust).
-    Color {
-        has_color_type: bool,
-        color_type: u8,
-        color_syntax: u8,
-    },
     /// linear-gradient(): a direction (either a retained angle value or a side-or-corner
     /// keyword), the retained color stops, the gradient type, the repeating flag, an optional
     /// retained interpolation method and the color syntax. Enums are C++ types, opaque to Rust.
@@ -773,6 +783,7 @@ pub enum StyleValueData {
     },
     /// light-dark() with its two retained color style values.
     LightDark {
+        color_base: ColorBase,
         light: RetainedStyleValue,
         dark: RetainedStyleValue,
     },
@@ -1020,9 +1031,19 @@ pub extern "C" fn rust_style_value_create_text_underline_position(horizontal: u8
 
 /// Takes ownership of one strong reference to the color.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_contrast_color(color: *const c_void) -> *mut StyleValueData {
+pub unsafe extern "C" fn rust_style_value_create_contrast_color(
+    has_color_type: bool,
+    color_type: u8,
+    color_syntax: u8,
+    color: *const c_void,
+) -> *mut StyleValueData {
     abort_on_panic(|| {
         Box::into_raw(Box::new(StyleValueData::ContrastColor {
+            color_base: ColorBase {
+                has_color_type,
+                color_type,
+                color_syntax,
+            },
             color: RetainedStyleValue { pointer: color },
         }))
     })
@@ -1406,11 +1427,19 @@ pub unsafe extern "C" fn rust_style_value_create_counter(
 /// Takes ownership of one strong reference to each color.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_light_dark(
+    has_color_type: bool,
+    color_type: u8,
+    color_syntax: u8,
     light: *const c_void,
     dark: *const c_void,
 ) -> *mut StyleValueData {
     abort_on_panic(|| {
         Box::into_raw(Box::new(StyleValueData::LightDark {
+            color_base: ColorBase {
+                has_color_type,
+                color_type,
+                color_syntax,
+            },
             light: RetainedStyleValue { pointer: light },
             dark: RetainedStyleValue { pointer: dark },
         }))
@@ -1729,25 +1758,13 @@ pub unsafe extern "C" fn rust_style_value_create_cursor(
     })
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_color(
-    has_color_type: bool,
-    color_type: u8,
-    color_syntax: u8,
-) -> *mut StyleValueData {
-    abort_on_panic(|| {
-        Box::into_raw(Box::new(StyleValueData::Color {
-            has_color_type,
-            color_type,
-            color_syntax,
-        }))
-    })
-}
-
 /// Takes ownership of one strong reference to each non-null value and one leaked reference to
 /// the name when present.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_color_function(
+    has_color_type: bool,
+    color_type: u8,
+    color_syntax: u8,
     channel_0: *const c_void,
     channel_1: *const c_void,
     channel_2: *const c_void,
@@ -1758,6 +1775,11 @@ pub unsafe extern "C" fn rust_style_value_create_color_function(
 ) -> *mut StyleValueData {
     abort_on_panic(|| {
         Box::into_raw(Box::new(StyleValueData::ColorFunction {
+            color_base: ColorBase {
+                has_color_type,
+                color_type,
+                color_syntax,
+            },
             channel_0: RetainedStyleValue { pointer: channel_0 },
             channel_1: RetainedStyleValue { pointer: channel_1 },
             channel_2: RetainedStyleValue { pointer: channel_2 },
@@ -1772,6 +1794,9 @@ pub unsafe extern "C" fn rust_style_value_create_color_function(
 /// Takes ownership of one strong reference to each non-null value.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_color_mix(
+    has_color_type: bool,
+    color_type: u8,
+    color_syntax: u8,
     color_interpolation_method: *const c_void,
     first_color: *const c_void,
     first_percentage: *const c_void,
@@ -1780,6 +1805,11 @@ pub unsafe extern "C" fn rust_style_value_create_color_mix(
 ) -> *mut StyleValueData {
     abort_on_panic(|| {
         Box::into_raw(Box::new(StyleValueData::ColorMix {
+            color_base: ColorBase {
+                has_color_type,
+                color_type,
+                color_syntax,
+            },
             color_interpolation_method: RetainedStyleValue {
                 pointer: color_interpolation_method,
             },

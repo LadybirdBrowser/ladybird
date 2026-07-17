@@ -44,6 +44,7 @@ private:
     {
         // The Rust allocation takes ownership of one strong reference to each non-null value.
         return StyleValueFFI::rust_style_value_create_color_mix(
+            false, 0, to_underlying(ColorSyntax::Modern),
             retain_style_value_for_rust(color_interpolation_method.ptr()),
             retain_style_value_for_rust(first_component.color.ptr()), retain_style_value_for_rust(first_component.percentage.ptr()),
             retain_style_value_for_rust(second_component.color.ptr()), retain_style_value_for_rust(second_component.percentage.ptr()));

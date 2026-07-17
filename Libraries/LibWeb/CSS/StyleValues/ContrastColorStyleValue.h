@@ -32,7 +32,7 @@ public:
 
 private:
     explicit ContrastColorStyleValue(ValueComparingNonnullRefPtr<StyleValue const> color)
-        : ColorStyleValue({}, ColorSyntax::Modern, StyleValueFFI::rust_style_value_create_contrast_color(&color.leak_ref()))
+        : ColorStyleValue(StyleValueFFI::rust_style_value_create_contrast_color(false, 0, to_underlying(ColorSyntax::Modern), &color.leak_ref()))
     {
     }
 

@@ -104,11 +104,11 @@ private:
         ColorSyntax color_syntax,
         Optional<Utf16FlyString> name,
         ValueComparingRefPtr<StyleValue const> origin_color)
-        : ColorStyleValue(color_type, color_syntax, make_color_function_data(c1, c2, c3, alpha, name, origin_color))
+        : ColorStyleValue(make_color_function_data(color_type, color_syntax, c1, c2, c3, alpha, name, origin_color))
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_color_function_data(NonnullRefPtr<StyleValue const> const& c1, NonnullRefPtr<StyleValue const> const& c2, NonnullRefPtr<StyleValue const> const& c3, RefPtr<StyleValue const> const& alpha, Optional<Utf16FlyString> const& name, RefPtr<StyleValue const> const& origin_color)
+    static StyleValueFFI::StyleValueData* make_color_function_data(Optional<ColorType> color_type, ColorSyntax color_syntax, NonnullRefPtr<StyleValue const> const& c1, NonnullRefPtr<StyleValue const> const& c2, NonnullRefPtr<StyleValue const> const& c3, RefPtr<StyleValue const> const& alpha, Optional<Utf16FlyString> const& name, RefPtr<StyleValue const> const& origin_color)
     {
         // The Rust allocation takes ownership of one strong reference to each non-null value
         // and one leaked reference to the name when present.
@@ -119,7 +119,7 @@ private:
             alpha->ref();
         if (origin_color)
             origin_color->ref();
-        return StyleValueFFI::rust_style_value_create_color_function(c1.ptr(), c2.ptr(), c3.ptr(), alpha.ptr(), name.has_value(), name.has_value() ? name->to_raw_leaked() : 0, origin_color.ptr());
+        return StyleValueFFI::rust_style_value_create_color_function(color_type.has_value(), color_type_byte(color_type), to_underlying(color_syntax), c1.ptr(), c2.ptr(), c3.ptr(), alpha.ptr(), name.has_value(), name.has_value() ? name->to_raw_leaked() : 0, origin_color.ptr());
     }
 };
 

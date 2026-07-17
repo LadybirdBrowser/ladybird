@@ -20,6 +20,14 @@
 
 namespace Web::CSS {
 
+// The base class color_type()/color_syntax() accessors read the ColorBase prefix through the
+// color_function arm without knowing which color variant they have; every color variant payload
+// must keep the prefix as its first field.
+static_assert(offsetof(StyleValueFFI::StyleValueData::ColorFunction_Body, color_base) == 0);
+static_assert(offsetof(StyleValueFFI::StyleValueData::ColorMix_Body, color_base) == 0);
+static_assert(offsetof(StyleValueFFI::StyleValueData::LightDark_Body, color_base) == 0);
+static_assert(offsetof(StyleValueFFI::StyleValueData::ContrastColor_Body, color_base) == 0);
+
 ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<Utf16FlyString> name)
 {
     return ColorFunctionStyleValue::create(
