@@ -1786,12 +1786,12 @@ handler PutByValue
     load_operand prop, m_property
     extract_tag base_tag, base
     branch_ne base_tag, OBJECT_TAG, .slow
-    # Check property is non-negative int32
+    # Check property is int32. Every fast path below performs an unsigned bounds
+    # check, which also rejects zero-extended negative indices.
     extract_tag prop_tag, prop
     branch_ne prop_tag, INT32_TAG, .slow
     mov index, prop
     and index, 0xFFFFFFFF
-    branch_bit_set index, 31, .slow
     unbox_object obj, base
     # Check IsTypedArray flag -- branch to typed-array path early.
     load8 flags, [obj, OBJECT_FLAGS]
@@ -2018,7 +2018,6 @@ handler GetByValue
     branch_ne prop_tag, INT32_TAG, .slow
     mov index, prop
     and index, 0xFFFFFFFF
-    branch_bit_set index, 31, .slow
     unbox_object obj, base
     load8 flags, [obj, OBJECT_FLAGS]
     branch_bits_set flags, OBJECT_FLAG_IS_TYPED_ARRAY, .try_typed_array
