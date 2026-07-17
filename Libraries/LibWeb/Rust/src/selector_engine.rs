@@ -6,6 +6,7 @@
 
 use std::ffi::c_void;
 use std::marker::PhantomData;
+use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -17,6 +18,19 @@ pub type SelectorString = Box<[u16]>;
 /// A selector list owns references to selectors that have already been compiled. `Rc` allows
 /// functional pseudo-classes to share those selectors with the C++ selector tree that owns them.
 pub type SelectorList = Box<[Rc<CompiledSelector>]>;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct RetainedCxxPointer(Option<NonNull<c_void>>);
+
+impl RetainedCxxPointer {
+    fn new(pointer: *const c_void) -> Self {
+        Self(NonNull::new(pointer.cast_mut()))
+    }
+
+    fn as_ptr(self) -> *const c_void {
+        self.0.map_or(std::ptr::null(), |pointer| pointer.as_ptr().cast_const())
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -51,14 +65,14 @@ pub struct QualifiedName {
     pub lowercase_name: SelectorString,
     /// Pointer to the C++ simple selector this was compiled from, so that matching callbacks can
     /// compare its interned strings without copying. Null in unit tests.
-    pub cxx_simple_selector: *const c_void,
+    cxx_simple_selector: RetainedCxxPointer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NameSelector {
     pub name: SelectorString,
     /// See [`QualifiedName::cxx_simple_selector`].
-    pub cxx_simple_selector: *const c_void,
+    cxx_simple_selector: RetainedCxxPointer,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -129,7 +143,7 @@ pub struct PseudoClassSelector {
     pub identifier: Option<SelectorString>,
     pub levels: Box<[i64]>,
     /// See [`QualifiedName::cxx_simple_selector`].
-    pub cxx_simple_selector: *const c_void,
+    cxx_simple_selector: RetainedCxxPointer,
 }
 
 impl PseudoClassSelector {
@@ -143,7 +157,7 @@ impl PseudoClassSelector {
             direction: None,
             identifier: None,
             levels: Box::new([]),
-            cxx_simple_selector: std::ptr::null(),
+            cxx_simple_selector: RetainedCxxPointer::default(),
         }
     }
 }
@@ -193,7 +207,7 @@ pub struct CompiledSelector {
     id: u64,
     /// The C++ selector that owns the source data. This is only used by C++ callbacks and is null
     /// for selectors constructed by Rust unit tests.
-    cxx_selector: *const c_void,
+    cxx_selector: RetainedCxxPointer,
     pub compound_selectors: Box<[CompoundSelector]>,
     /// The pseudo-element required on the initial match target, if this selector ends in one.
     pub target_pseudo_element: Option<PseudoElementType>,
@@ -216,10 +230,13 @@ impl Eq for CompiledSelector {}
 impl CompiledSelector {
     #[cfg(test)]
     fn new(compound_selectors: Box<[CompoundSelector]>) -> Rc<Self> {
-        Self::new_with_cxx_selector(compound_selectors, std::ptr::null())
+        Self::new_with_cxx_selector(compound_selectors, RetainedCxxPointer::default())
     }
 
-    fn new_with_cxx_selector(compound_selectors: Box<[CompoundSelector]>, cxx_selector: *const c_void) -> Rc<Self> {
+    fn new_with_cxx_selector(
+        compound_selectors: Box<[CompoundSelector]>,
+        cxx_selector: RetainedCxxPointer,
+    ) -> Rc<Self> {
         let id = NEXT_SELECTOR_ID.fetch_add(1, Ordering::Relaxed);
         assert_ne!(id, 0, "selector IDs must not wrap");
 
@@ -265,7 +282,7 @@ impl CompiledSelector {
     }
 
     fn cxx_selector(&self) -> *const c_void {
-        self.cxx_selector
+        self.cxx_selector.as_ptr()
     }
 }
 
@@ -1509,7 +1526,7 @@ enum FfiNodeKind {
 struct FfiNode<'a> {
     pointer: *const c_void,
     kind: FfiNodeKind,
-    marker: PhantomData<&'a c_void>,
+    marker: PhantomData<&'a FfiCallScope>,
 }
 
 impl PartialEq for FfiNode<'_> {
@@ -1609,45 +1626,21 @@ fn ffi_string_view(string: &[u16]) -> FfiStringView {
     }
 }
 
-unsafe fn ffi_node<'a>(pointer: *const c_void, kind: FfiNodeKind) -> Option<FfiNode<'a>> {
-    (!pointer.is_null()).then_some(FfiNode {
-        pointer,
-        kind,
-        marker: PhantomData,
-    })
-}
-
-unsafe fn ffi_element<'a>(element: *const c_void) -> Option<FfiNode<'a>> {
-    // SAFETY: The caller guarantees that a non-null pointer identifies a live DOM element.
-    unsafe { ffi_node(element, FfiNodeKind::Element) }
-}
-
-unsafe fn ffi_scope<'a>(scope: *const c_void) -> Option<FfiNode<'a>> {
-    // SAFETY: The caller guarantees that a non-null pointer identifies a live parent node.
-    unsafe { ffi_node(scope, FfiNodeKind::Scope) }
-}
-
-unsafe fn ffi_element_and_shadow_host<'a>(
-    value: FfiElementAndShadowHost,
-) -> Option<(FfiNode<'a>, Option<FfiNode<'a>>)> {
-    // SAFETY: The C++ callback guarantees that both non-null pointers identify live DOM elements.
-    Some((unsafe { ffi_element(value.element) }?, unsafe {
-        ffi_element(value.shadow_host)
-    }))
-}
+struct FfiCallScope;
 
 struct FfiDom<'a> {
     context: *mut c_void,
-    marker: PhantomData<&'a mut c_void>,
+    marker: PhantomData<&'a mut FfiCallScope>,
     // NB: Both flags are mirrored here so that the hot matching loops can skip the note_*
     //     callbacks without crossing the FFI; the common case collects no metadata.
     collects_selector_involvement_metadata: bool,
     inside_has_argument: bool,
 }
 
-impl FfiDom<'_> {
+impl<'a> FfiDom<'a> {
     unsafe fn new(
         context: *mut c_void,
+        _call_scope: &'a mut FfiCallScope,
         collects_selector_involvement_metadata: bool,
         inside_has_argument: bool,
     ) -> Self {
@@ -1658,6 +1651,34 @@ impl FfiDom<'_> {
             inside_has_argument,
         }
     }
+    unsafe fn node(&self, pointer: *const c_void, kind: FfiNodeKind) -> Option<FfiNode<'a>> {
+        (!pointer.is_null()).then_some(FfiNode {
+            pointer,
+            kind,
+            marker: PhantomData,
+        })
+    }
+
+    unsafe fn element(&self, element: *const c_void) -> Option<FfiNode<'a>> {
+        // SAFETY: The caller guarantees that a non-null pointer identifies a live DOM element.
+        unsafe { self.node(element, FfiNodeKind::Element) }
+    }
+
+    unsafe fn scope(&self, scope: *const c_void) -> Option<FfiNode<'a>> {
+        // SAFETY: The caller guarantees that a non-null pointer identifies a live parent node.
+        unsafe { self.node(scope, FfiNodeKind::Scope) }
+    }
+
+    unsafe fn element_and_shadow_host(
+        &self,
+        value: FfiElementAndShadowHost,
+    ) -> Option<(FfiNode<'a>, Option<FfiNode<'a>>)> {
+        // SAFETY: The C++ callback guarantees that both non-null pointers identify live DOM
+        // elements.
+        Some((unsafe { self.element(value.element) }?, unsafe {
+            self.element(value.shadow_host)
+        }))
+    }
 }
 
 impl<'a> SelectorDom for FfiDom<'a> {
@@ -1666,7 +1687,13 @@ impl<'a> SelectorDom for FfiDom<'a> {
     fn matches_universal_selector(&mut self, element: FfiNode<'a>, name: &QualifiedName) -> bool {
         // SAFETY: `FfiDom` guarantees that the context, element, and retained simple selector
         // remain valid for the duration of matching.
-        unsafe { selector_ffi_matches_universal(self.context, element.as_element_pointer(), name.cxx_simple_selector) }
+        unsafe {
+            selector_ffi_matches_universal(
+                self.context,
+                element.as_element_pointer(),
+                name.cxx_simple_selector.as_ptr(),
+            )
+        }
     }
 
     fn matches_tag_name_selector(
@@ -1681,7 +1708,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
             selector_ffi_matches_tag_name(
                 self.context,
                 element.as_element_pointer(),
-                name.cxx_simple_selector,
+                name.cxx_simple_selector.as_ptr(),
                 mode,
             )
         }
@@ -1690,13 +1717,13 @@ impl<'a> SelectorDom for FfiDom<'a> {
     fn matches_id_selector(&mut self, element: FfiNode<'a>, id: &NameSelector) -> bool {
         // SAFETY: `FfiDom` guarantees that the element and retained simple selector remain valid
         // for the duration of matching.
-        unsafe { selector_ffi_matches_id(element.as_element_pointer(), id.cxx_simple_selector) }
+        unsafe { selector_ffi_matches_id(element.as_element_pointer(), id.cxx_simple_selector.as_ptr()) }
     }
 
     fn matches_class_selector(&mut self, element: FfiNode<'a>, class_name: &NameSelector) -> bool {
         // SAFETY: `FfiDom` guarantees that the element and retained simple selector remain valid
         // for the duration of matching.
-        unsafe { selector_ffi_matches_class(element.as_element_pointer(), class_name.cxx_simple_selector) }
+        unsafe { selector_ffi_matches_class(element.as_element_pointer(), class_name.cxx_simple_selector.as_ptr()) }
     }
 
     fn matches_attribute_selector(&mut self, element: FfiNode<'a>, attribute: &AttributeSelector) -> bool {
@@ -1706,7 +1733,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
             selector_ffi_matches_attribute(
                 self.context,
                 element.as_element_pointer(),
-                attribute.qualified_name.cxx_simple_selector,
+                attribute.qualified_name.cxx_simple_selector.as_ptr(),
             )
         }
     }
@@ -1734,7 +1761,10 @@ impl<'a> SelectorDom for FfiDom<'a> {
                     // SAFETY: `FfiDom` guarantees that the element and retained simple selector
                     // remain valid for the duration of matching.
                     && unsafe {
-                        selector_ffi_matches_state(element.as_element_pointer(), pseudo_class.cxx_simple_selector)
+                        selector_ffi_matches_state(
+                            element.as_element_pointer(),
+                            pseudo_class.cxx_simple_selector.as_ptr(),
+                        )
                     }
             }
             PseudoClassType::Heading => {
@@ -1761,7 +1791,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         // SAFETY: `FfiDom` guarantees that the input handles remain valid. The callback returns
         // either null or another live element borrowed for the same lifetime.
         unsafe {
-            ffi_element(selector_ffi_parent_element(
+            self.element(selector_ffi_parent_element(
                 element.as_element_pointer(),
                 shadow_host.map_or(std::ptr::null(), |host| host.as_element_pointer()),
             ))
@@ -1771,38 +1801,38 @@ impl<'a> SelectorDom for FfiDom<'a> {
     fn parent_element_in_light_tree(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
-        unsafe { ffi_element(selector_ffi_parent_element_in_light_tree(element.as_element_pointer())) }
+        unsafe { self.element(selector_ffi_parent_element_in_light_tree(element.as_element_pointer())) }
     }
 
     fn previous_element_sibling(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
-        unsafe { ffi_element(selector_ffi_previous_element_sibling(element.as_element_pointer())) }
+        unsafe { self.element(selector_ffi_previous_element_sibling(element.as_element_pointer())) }
     }
 
     fn next_element_sibling(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
-        unsafe { ffi_element(selector_ffi_next_element_sibling(element.as_element_pointer())) }
+        unsafe { self.element(selector_ffi_next_element_sibling(element.as_element_pointer())) }
     }
 
     fn first_element_child(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
-        unsafe { ffi_element(selector_ffi_first_element_child(element.as_element_pointer())) }
+        unsafe { self.element(selector_ffi_first_element_child(element.as_element_pointer())) }
     }
 
     fn first_element_descendant(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
-        unsafe { ffi_element(selector_ffi_first_element_descendant(element.as_element_pointer())) }
+        unsafe { self.element(selector_ffi_first_element_descendant(element.as_element_pointer())) }
     }
 
     fn next_element_descendant(&mut self, element: FfiNode<'a>, root: FfiNode<'a>) -> Option<FfiNode<'a>> {
         // SAFETY: `FfiDom` guarantees that both element handles remain valid for this call. The
         // callback returns either null or another live element borrowed for the same lifetime.
         unsafe {
-            ffi_element(selector_ffi_next_element_descendant(
+            self.element(selector_ffi_next_element_descendant(
                 element.as_element_pointer(),
                 root.as_element_pointer(),
             ))
@@ -1832,7 +1862,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
     fn slotted_parent(&mut self, element: FfiNode<'a>) -> Option<(FfiNode<'a>, Option<FfiNode<'a>>)> {
         // SAFETY: `FfiDom` guarantees that the context and element remain valid. The callback
         // returns null or live elements borrowed for the same lifetime.
-        unsafe { ffi_element_and_shadow_host(selector_ffi_slotted_parent(self.context, element.as_element_pointer())) }
+        unsafe { self.element_and_shadow_host(selector_ffi_slotted_parent(self.context, element.as_element_pointer())) }
     }
 
     fn part_parent(
@@ -1850,7 +1880,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         // identifier views remain valid for this call, and the callback returns null or live
         // elements borrowed for the same lifetime.
         unsafe {
-            ffi_element_and_shadow_host(selector_ffi_part_parent(
+            self.element_and_shadow_host(selector_ffi_part_parent(
                 self.context,
                 element.as_element_pointer(),
                 identifiers.as_ptr(),
@@ -1973,6 +2003,16 @@ unsafe fn copy_ffi_slice<T: Copy>(data: *const T, length: usize) -> Box<[T]> {
     unsafe { std::slice::from_raw_parts(data, length) }.into()
 }
 
+unsafe fn borrow_ffi_slice<T, Owner: ?Sized>(data: *const T, length: usize, _owner: &Owner) -> &[T] {
+    if length == 0 {
+        return &[];
+    }
+    assert!(!data.is_null());
+    // SAFETY: The caller guarantees that `data` points to `length` initialized values that remain
+    // valid while `owner` is borrowed.
+    unsafe { std::slice::from_raw_parts(data, length) }
+}
+
 unsafe fn string_from_ffi(value: FfiStringView) -> SelectorString {
     // SAFETY: The caller guarantees that the string view is valid.
     unsafe { copy_ffi_slice(value.data, value.length) }
@@ -1987,7 +2027,7 @@ unsafe fn qualified_name_from_ffi(selector: &FfiSimpleSelector) -> QualifiedName
         name: unsafe { string_from_ffi(selector.name) },
         // SAFETY: The caller guarantees that every string view in `selector` is valid.
         lowercase_name: unsafe { string_from_ffi(selector.lowercase_name) },
-        cxx_simple_selector: selector.cxx_simple_selector,
+        cxx_simple_selector: RetainedCxxPointer::new(selector.cxx_simple_selector),
     }
 }
 
@@ -2010,12 +2050,12 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
         FfiSimpleSelectorType::Id => SimpleSelector::Id(NameSelector {
             // SAFETY: The caller guarantees that every string view in `selector` is valid.
             name: unsafe { string_from_ffi(selector.name) },
-            cxx_simple_selector: selector.cxx_simple_selector,
+            cxx_simple_selector: RetainedCxxPointer::new(selector.cxx_simple_selector),
         }),
         FfiSimpleSelectorType::Class => SimpleSelector::Class(NameSelector {
             // SAFETY: The caller guarantees that every string view in `selector` is valid.
             name: unsafe { string_from_ffi(selector.name) },
-            cxx_simple_selector: selector.cxx_simple_selector,
+            cxx_simple_selector: RetainedCxxPointer::new(selector.cxx_simple_selector),
         }),
         FfiSimpleSelectorType::Attribute => SimpleSelector::Attribute(AttributeSelector {
             match_type: selector.attribute_match_type,
@@ -2029,7 +2069,7 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
             // SAFETY: The caller guarantees that the argument selector array and all handles in it
             // are valid.
             let argument_selector_list = unsafe {
-                copy_ffi_slice(selector.argument_selectors, selector.argument_selector_count)
+                borrow_ffi_slice(selector.argument_selectors, selector.argument_selector_count, selector)
                     .iter()
                     .map(|handle| selector_from_handle(*handle))
                     .collect::<Vec<_>>()
@@ -2038,7 +2078,7 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
             // SAFETY: The caller guarantees that the language array and every string view in it
             // are valid.
             let languages = unsafe {
-                copy_ffi_slice(selector.languages, selector.language_count)
+                borrow_ffi_slice(selector.languages, selector.language_count, selector)
                     .iter()
                     .map(|language| string_from_ffi(*language))
                     .collect::<Vec<_>>()
@@ -2068,7 +2108,7 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
                 direction,
                 identifier,
                 levels,
-                cxx_simple_selector: selector.cxx_simple_selector,
+                cxx_simple_selector: RetainedCxxPointer::new(selector.cxx_simple_selector),
             })
         }
         FfiSimpleSelectorType::PseudoElement => {
@@ -2084,9 +2124,10 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
                     // SAFETY: The caller guarantees that the identifier array and every string
                     // view in it are valid.
                     PseudoElementValue::Identifiers(unsafe {
-                        copy_ffi_slice(
+                        borrow_ffi_slice(
                             selector.pseudo_element_identifiers,
                             selector.pseudo_element_identifier_count,
+                            selector,
                         )
                         .iter()
                         .map(|identifier| string_from_ffi(*identifier))
@@ -2112,20 +2153,52 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
 
 unsafe fn compiled_selector_from_ffi(selector: &FfiSelector) -> Rc<CompiledSelector> {
     // SAFETY: The caller guarantees that the compound selector array is valid.
-    let compound_selectors = unsafe { copy_ffi_slice(selector.compound_selectors, selector.compound_selector_count) }
-        .iter()
-        .map(|compound| CompoundSelector {
-            combinator: compound.combinator,
-            // SAFETY: The caller guarantees that every simple selector array is valid.
-            simple_selectors: unsafe { copy_ffi_slice(compound.simple_selectors, compound.simple_selector_count) }
+    let compound_selectors =
+        unsafe { borrow_ffi_slice(selector.compound_selectors, selector.compound_selector_count, selector) }
+            .iter()
+            .map(|compound| CompoundSelector {
+                combinator: compound.combinator,
+                // SAFETY: The caller guarantees that every simple selector array is valid.
+                simple_selectors: unsafe {
+                    borrow_ffi_slice(compound.simple_selectors, compound.simple_selector_count, compound)
+                }
                 .iter()
                 .map(|simple| unsafe { simple_selector_from_ffi(simple) })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
-        })
-        .collect::<Vec<_>>()
-        .into_boxed_slice();
-    CompiledSelector::new_with_cxx_selector(compound_selectors, selector.cxx_selector)
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+    CompiledSelector::new_with_cxx_selector(compound_selectors, RetainedCxxPointer::new(selector.cxx_selector))
+}
+
+unsafe fn with_ffi_dom<R>(
+    element: *const c_void,
+    shadow_host: *const c_void,
+    context: *mut c_void,
+    scope: *const c_void,
+    collects_selector_involvement_metadata: bool,
+    inside_has_argument: bool,
+    callback: impl for<'a> FnOnce(FfiNode<'a>, Option<FfiNode<'a>>, Option<FfiNode<'a>>, &mut FfiDom<'a>) -> R,
+) -> R {
+    let mut call_scope = FfiCallScope;
+    // SAFETY: The caller guarantees that the context remains valid for the duration of the
+    // callback. Borrowing `call_scope` prevents the DOM wrapper and its nodes from escaping it.
+    let mut dom = unsafe {
+        FfiDom::new(
+            context,
+            &mut call_scope,
+            collects_selector_involvement_metadata,
+            inside_has_argument,
+        )
+    };
+    // SAFETY: The caller guarantees that `element` points to a DOM element.
+    let element = unsafe { dom.element(element) }.unwrap();
+    // SAFETY: The caller guarantees that a non-null `shadow_host` points to a DOM element.
+    let shadow_host = unsafe { dom.element(shadow_host) };
+    // SAFETY: The caller guarantees that a non-null `scope` points to a DOM parent node.
+    let scope = unsafe { dom.scope(scope) };
+    callback(element, shadow_host, scope, &mut dom)
 }
 
 /// # Safety
@@ -2193,33 +2266,30 @@ pub unsafe extern "C" fn rust_selector_matches(
         assert!(!selector.is_null());
         assert!(!element.is_null());
         assert!(!context.is_null());
-        // SAFETY: The caller guarantees that the selector handle, DOM nodes, and matching context
-        // remain valid and retain their stated types for the duration of this call.
+        // SAFETY: The caller guarantees that the selector handle remains valid for this call.
         let selector = unsafe { &(*selector).selector };
-        // SAFETY: `element` is non-null and the caller guarantees that it points to a DOM element.
-        let element = unsafe { ffi_element(element) }.unwrap();
-        // SAFETY: The caller guarantees that a non-null `shadow_host` points to a DOM element.
-        let shadow_host = unsafe { ffi_element(shadow_host) };
-        // SAFETY: The caller guarantees that a non-null `scope` points to a DOM parent node.
-        let scope = unsafe { ffi_scope(scope) };
-        // SAFETY: The caller guarantees that `context` and every DOM node used by the callbacks
-        // remain valid for the entire matching operation.
-        let mut dom = unsafe { FfiDom::new(context, collects_selector_involvement_metadata, inside_has_argument) };
-        let target = MatchTarget {
-            element,
-            pseudo_element: (pseudo_element != u8::MAX).then(|| pseudo_element_from_ffi(pseudo_element)),
-        };
-        // NB: Relative matching with an anchor only happens inside :has() argument evaluation,
-        //     which stays within the Rust engine, so the entry point always matches normally.
-        matches_selector_internal(
-            selector,
-            target,
-            shadow_host,
-            scope,
-            SelectorKind::Normal,
-            None,
-            &mut dom,
-        )
+        // SAFETY: The caller guarantees that the matching context and DOM nodes remain valid and
+        // retain their stated types for the duration of this call.
+        unsafe {
+            with_ffi_dom(
+                element,
+                shadow_host,
+                context,
+                scope,
+                collects_selector_involvement_metadata,
+                inside_has_argument,
+                |element, shadow_host, scope, dom| {
+                    let target = MatchTarget {
+                        element,
+                        pseudo_element: (pseudo_element != u8::MAX).then(|| pseudo_element_from_ffi(pseudo_element)),
+                    };
+                    // NB: Relative matching with an anchor only happens inside :has() argument
+                    //     evaluation, which stays within the Rust engine, so the entry point
+                    //     always matches normally.
+                    matches_selector_internal(selector, target, shadow_host, scope, SelectorKind::Normal, None, dom)
+                },
+            )
+        }
     })
 }
 
@@ -2243,26 +2313,30 @@ pub unsafe extern "C" fn rust_selector_matches_originating_element(
         assert!(!selector.is_null());
         assert!(!element.is_null());
         assert!(!context.is_null());
-        // SAFETY: The caller guarantees that the selector handle, DOM nodes, and matching context
-        // remain valid and retain their stated types for the duration of this call.
+        // SAFETY: The caller guarantees that the selector handle remains valid for this call.
         let selector = unsafe { &(*selector).selector };
-        // SAFETY: `element` is non-null and the caller guarantees that it points to a DOM element.
-        let element = unsafe { ffi_element(element) }.unwrap();
-        // SAFETY: The caller guarantees that a non-null `shadow_host` points to a DOM element.
-        let shadow_host = unsafe { ffi_element(shadow_host) };
-        // SAFETY: The caller guarantees that a non-null `scope` points to a DOM parent node.
-        let scope = unsafe { ffi_scope(scope) };
-        // SAFETY: The caller guarantees that `context` and every DOM node used by the callbacks
-        // remain valid for the entire matching operation.
-        let mut dom = unsafe { FfiDom::new(context, collects_selector_involvement_metadata, inside_has_argument) };
-        matches_originating_element_for_pseudo_element(
-            selector,
-            pseudo_element_from_ffi(pseudo_element),
-            element,
-            shadow_host,
-            scope,
-            &mut dom,
-        )
+        // SAFETY: The caller guarantees that the matching context and DOM nodes remain valid and
+        // retain their stated types for the duration of this call.
+        unsafe {
+            with_ffi_dom(
+                element,
+                shadow_host,
+                context,
+                scope,
+                collects_selector_involvement_metadata,
+                inside_has_argument,
+                |element, shadow_host, scope, dom| {
+                    matches_originating_element_for_pseudo_element(
+                        selector,
+                        pseudo_element_from_ffi(pseudo_element),
+                        element,
+                        shadow_host,
+                        scope,
+                        dom,
+                    )
+                },
+            )
+        }
     })
 }
 
@@ -2498,7 +2572,7 @@ mod tests {
     fn class(name: &str) -> SimpleSelector {
         SimpleSelector::Class(NameSelector {
             name: name.encode_utf16().collect(),
-            cxx_simple_selector: std::ptr::null(),
+            cxx_simple_selector: RetainedCxxPointer::default(),
         })
     }
 
@@ -2552,7 +2626,7 @@ mod tests {
                 combinator: *combinator,
                 simple_selectors: vec![SimpleSelector::Id(NameSelector {
                     name: Box::from([b'x' as u16]),
-                    cxx_simple_selector: std::ptr::null(),
+                    cxx_simple_selector: RetainedCxxPointer::default(),
                 })]
                 .into_boxed_slice(),
             })
@@ -2713,7 +2787,7 @@ mod tests {
             direction: None,
             identifier: None,
             levels: Box::new([]),
-            cxx_simple_selector: std::ptr::null(),
+            cxx_simple_selector: RetainedCxxPointer::default(),
         });
         let selector = selector(vec![compound(Combinator::None, vec![class("anchor"), has])]);
         let mut dom = test_tree();
@@ -2744,7 +2818,7 @@ mod tests {
             direction: None,
             identifier: None,
             levels: Box::new([]),
-            cxx_simple_selector: std::ptr::null(),
+            cxx_simple_selector: RetainedCxxPointer::default(),
         });
         let selector = selector(vec![compound(Combinator::None, vec![nth_child])]);
         let mut dom = test_tree();
