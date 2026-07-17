@@ -146,6 +146,9 @@ public:
             return {};
         return static_cast<CSS::PseudoElement>(m_data->generated_for - 1);
     }
+    // The principal box of a pseudo-element has no DOM node, but unlike an anonymous wrapper it has its own
+    // computed style.
+    bool is_pseudo_element_principal_box() const;
     bool is_generated_for_before_pseudo_element() const { return m_data->generated_for == encode_generated_for(CSS::PseudoElement::Before); }
     bool is_generated_for_after_pseudo_element() const { return m_data->generated_for == encode_generated_for(CSS::PseudoElement::After); }
     bool is_generated_for_backdrop_pseudo_element() const { return m_data->generated_for == encode_generated_for(CSS::PseudoElement::Backdrop); }
@@ -626,6 +629,8 @@ public:
     bool is_fixed_position() const;
     bool is_sticky_position() const;
 
+    bool is_text_decoration_propagation_boundary() const;
+
     // An element is called out of flow if it is floated, absolutely positioned, or is the root element.
     // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
     bool is_out_of_flow() const { return is_floating() || is_absolutely_positioned(); }
@@ -690,7 +695,6 @@ private:
     virtual bool is_node_with_style() const final { return true; }
 
     void reset_table_box_computed_values_used_by_wrapper_to_init_values();
-    void propagate_non_inherit_values(CSS::ComputedValues::Builder&) const;
     void propagate_style_to_anonymous_wrappers();
     void publish_style_record_to_node_data();
 

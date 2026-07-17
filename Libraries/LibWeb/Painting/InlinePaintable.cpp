@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BinarySearch.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
@@ -41,6 +42,25 @@ void InlinePaintable::reset_for_relayout()
 PaintableWithLines const* InlinePaintable::inline_root() const
 {
     return as_if<PaintableWithLines>(containing_block().ptr());
+}
+
+InlineBoxPiece const* InlinePaintable::piece_for_line(u32 line_index) const
+{
+    auto const* root = inline_root();
+    if (!root)
+        return nullptr;
+    // This box has at most one piece per line, so its piece indices are ordered by line.
+    auto const& pieces = root->inline_box_pieces();
+    auto index = lower_bound_index(m_piece_indices, line_index, [&](u32 piece_index, u32 line) {
+        if (pieces[piece_index].line_index < line)
+            return -1;
+        if (pieces[piece_index].line_index > line)
+            return 1;
+        return 0;
+    });
+    if (index < m_piece_indices.size() && pieces[m_piece_indices[index]].line_index == line_index)
+        return &pieces[m_piece_indices[index]];
+    return nullptr;
 }
 
 CSSPixelRect InlinePaintable::absolute_piece_border_box_rect(InlineBoxPiece const& piece) const

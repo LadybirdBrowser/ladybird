@@ -19,12 +19,21 @@ impl StaticPositionMarker {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct InlineBoxBaseline {
+    pub(crate) box_: Node,
+    pub(crate) baseline: CssPixels,
+    pub(crate) accumulated_vertical_shift: CssPixels,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct LineBoxData {
     pub(crate) fragments: Vec<LineBoxFragmentData>,
     pub(crate) static_position_markers: Vec<StaticPositionMarker>,
+    pub(crate) inline_box_baselines: Vec<InlineBoxBaseline>,
     pub(crate) inline_length: CssPixels,
     pub(crate) block_length: CssPixels,
+    pub(crate) block_start: CssPixels,
     pub(crate) block_end: CssPixels,
     pub(crate) baseline: CssPixels,
     pub(crate) block_level_box_block_end_margin: CssPixels,
@@ -41,8 +50,10 @@ impl LineBoxData {
         Self {
             fragments: Vec::new(),
             static_position_markers: Vec::new(),
+            inline_box_baselines: Vec::new(),
             inline_length: CssPixels::default(),
             block_length: CssPixels::default(),
+            block_start: CssPixels::default(),
             block_end: CssPixels::default(),
             baseline: CssPixels::default(),
             block_level_box_block_end_margin: CssPixels::default(),
@@ -140,6 +151,22 @@ impl LineBoxData {
             writing_mode: self.writing_mode,
             preceded_by_in_flow_content: !self.fragments.is_empty() || preceded_by_inline_box_start_edges,
         });
+    }
+
+    pub(crate) fn set_inline_box_baseline(&mut self, box_: Node, baseline: CssPixels, accumulated_vertical_shift: CssPixels) -> bool {
+        if self.inline_box_baselines.iter().any(|entry| entry.box_ == box_) {
+            return false;
+        }
+        self.inline_box_baselines.push(InlineBoxBaseline {
+            box_,
+            baseline,
+            accumulated_vertical_shift,
+        });
+        true
+    }
+
+    pub(crate) fn inline_box_baseline(&self, box_: Node) -> Option<InlineBoxBaseline> {
+        self.inline_box_baselines.iter().find(|entry| entry.box_ == box_).copied()
     }
 
     pub(crate) fn clamp_static_position_markers_to_inline_length(&mut self) {

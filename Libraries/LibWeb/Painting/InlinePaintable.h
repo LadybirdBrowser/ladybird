@@ -26,6 +26,8 @@ public:
 
     void set_piece_indices(Vector<u32> piece_indices) { m_piece_indices = move(piece_indices); }
 
+    InlineBoxPiece const* piece_for_line(u32 line_index) const;
+
     template<typename Callback>
     void for_each_piece(Callback callback) const
     {

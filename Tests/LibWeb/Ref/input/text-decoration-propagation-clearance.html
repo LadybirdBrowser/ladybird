@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/text-decoration-propagation-clearance-ref.html">
+<style>
+    .float {
+        float: left;
+        width: 40px;
+        height: 100px;
+    }
+    .cover {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 300px;
+        height: 40px;
+        background-color: black;
+    }
+</style>
+<div class="float"></div>
+<div style="text-decoration: underline"><span>text<br clear="left"></span></div>
+<div class="cover"></div>

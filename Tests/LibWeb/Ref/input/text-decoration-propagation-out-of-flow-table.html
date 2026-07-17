@@ -1,0 +1,9 @@
+<!doctype html>
+<link rel="match" href="../expected/text-decoration-propagation-out-of-flow-table-ref.html" />
+<style>
+    div { text-decoration: underline; }
+    table { border-collapse: collapse; }
+    td { padding: 0; }
+</style>
+<div>text<table style="float: right"><tr><td>floated</td></tr></table></div>
+<div style="position: relative">text<table style="position: absolute; right: 0"><tr><td>positioned</td></tr></table></div>

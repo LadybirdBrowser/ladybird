@@ -32,6 +32,7 @@ public:
         size_t length_in_code_units;
         RefPtr<Gfx::GlyphRun> glyph_run;
         CSSPixels baseline;
+        CSSPixels accumulated_vertical_shift;
         CSS::WritingMode writing_mode;
         bool has_trailing_whitespace;
     };
@@ -79,6 +80,8 @@ public:
     CaretMatch caret_match(size_t offset, TextAffinity) const;
 
     CSSPixels baseline() const { return m_baseline; }
+    // Displacement out of the baseline-aligned position, accumulated over the inline box ancestors.
+    CSSPixels accumulated_vertical_shift() const { return m_accumulated_vertical_shift; }
     CSSPixelPoint offset() const { return m_offset; }
     void set_offset(CSSPixelPoint offset) { m_offset = offset; }
     CSSPixelSize size() const { return m_size; }
@@ -128,9 +131,6 @@ public:
 
     Utf16View text() const;
 
-    CSSPixels text_decoration_thickness() const { return m_text_decoration_thickness; }
-    void set_text_decoration_thickness(CSSPixels thickness) { m_text_decoration_thickness = thickness; }
-
 private:
     Optional<SelectionOffsets> compute_selection_offsets(SelectionState, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const;
     CSSPixelRect rect_for_selection_offsets(SelectionOffsets const&) const;
@@ -146,7 +146,7 @@ private:
     RefPtr<Gfx::GlyphRun> m_glyph_run;
     Vector<ShadowData> m_shadows;
     CSSPixels m_baseline;
-    CSSPixels m_text_decoration_thickness { 0 };
+    CSSPixels m_accumulated_vertical_shift;
     CSS::WritingMode m_writing_mode;
     SelectionState m_selection_state { SelectionState::None };
     u32 m_trailing_whitespace_length_in_code_units { 0 };
