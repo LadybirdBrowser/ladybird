@@ -10,6 +10,7 @@ mod rust_allocator;
 mod css_tokenizer;
 mod encoding_detection;
 mod selector_engine;
+mod style_value;
 
 pub use libweb_html_tokenizer as html_tokenizer;
 

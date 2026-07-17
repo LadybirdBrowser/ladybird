@@ -208,6 +208,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         Path::new("SelectorRustFFI.h"),
     );
 
+    // Style value header - namespace Web::CSS::StyleValueFFI. The StyleValueData layout is
+    // exposed so converted C++ StyleValue subclasses can read variant payloads inline without
+    // an FFI call.
+    let mut style_value_config = base_config.clone();
+    style_value_config.namespaces = Some(vec!["Web".to_string(), "CSS".to_string(), "StyleValueFFI".to_string()]);
+    style_value_config.export.include = vec!["StyleValueData".to_string()];
+
+    generate_ffi_header(
+        style_value_config,
+        &[manifest_dir.join("src/style_value.rs")],
+        &out_dir,
+        &ffi_out_dir,
+        Path::new("StyleValueRustFFI.h"),
+    );
+
     // Encoding-detection header - namespace Web::HTML::Parser, rust_detect_encoding only.
     let mut html_config = base_config;
     html_config.namespaces = Some(vec!["Web".to_string(), "HTML".to_string(), "Parser".to_string()]);
