@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 83 tests
 
-82 Pass
-1 Fail
+83 Pass
 Pass	Property filter value 'none'
 Pass	Property filter value 'blur(100px)'
 Pass	Property filter value 'blur()'
@@ -27,7 +26,7 @@ Pass	Property filter value 'contrast(calc(-10))'
 Pass	Property filter value 'contrast(calc(-10%))'
 Pass	Property filter value 'contrast(calc(10 + (sign(2cqw - 10px) * 5)))'
 Pass	Property filter value 'contrast(calc(100% + (sign(2cqw - 10px) * 50%)))'
-Fail	Property filter value 'drop-shadow(1px 2px)'
+Pass	Property filter value 'drop-shadow(1px 2px)'
 Pass	Property filter value 'drop-shadow(rgb(4, 5, 6) 1px 2px 0px)'
 Pass	Property filter value 'drop-shadow(rgb(4, 5, 6) calc(1px) 2px 0px)'
 Pass	Property filter value 'drop-shadow(rgb(4, 5, 6) calc(10px + (sign(2cqw - 10px) * 5px)) 2px 0px)'

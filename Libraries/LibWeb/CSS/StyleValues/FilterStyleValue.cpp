@@ -141,8 +141,8 @@ ValueComparingNonnullRefPtr<StyleValue const> DropShadowFilterStyleValue::absolu
     auto const& shadow = this->shadow();
     auto absolutized_offset_x = shadow.offset_x()->absolutized(computation_context);
     auto absolutized_offset_y = shadow.offset_y()->absolutized(computation_context);
-    auto absolutized_radius = shadow.blur_radius_or_null() ? ValueComparingRefPtr<StyleValue const> { shadow.blur_radius_or_null()->absolutized(computation_context) } : nullptr;
-    auto absolutized_color = shadow.color_or_null() ? ValueComparingRefPtr<StyleValue const> { shadow.color_or_null()->absolutized(computation_context) } : nullptr;
+    auto absolutized_radius = shadow.blur_radius()->absolutized(computation_context);
+    auto absolutized_color = shadow.color()->absolutized(computation_context);
 
     if (absolutized_offset_x->equals(shadow.offset_x())
         && absolutized_offset_y->equals(shadow.offset_y())

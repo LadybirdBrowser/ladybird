@@ -238,14 +238,27 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             values.append(EmptyOptionalStyleValue::create());
         return StyleValueList::create(move(values), StyleValueList::Separator::Space);
     };
-    auto filter_style_value = [](Filter const& filter) -> NonnullRefPtr<StyleValue const> {
+    auto filter_style_value = [&](Filter const& filter) -> NonnullRefPtr<StyleValue const> {
         if (filter.is_none())
             return KeywordStyleValue::create(Keyword::None);
         auto filter_values = filter.filters();
         StyleValueVector filters;
         MUST(filters.try_ensure_capacity(filter_values.size()));
-        for (auto const& filter_value : filter_values)
+        for (auto const& filter_value : filter_values) {
+            if (filter_value->is_filter() && filter_value->as_filter().kind() == FilterStyleValue::Kind::DropShadow) {
+                auto const& drop_shadow = static_cast<DropShadowFilterStyleValue const&>(filter_value->as_filter());
+                auto const& drop_shadow_color = drop_shadow.color();
+                if (drop_shadow_color && drop_shadow_color->to_keyword() == Keyword::Currentcolor) {
+                    filters.unchecked_append(DropShadowFilterStyleValue::create(
+                        drop_shadow.offset_x(),
+                        drop_shadow.offset_y(),
+                        drop_shadow.radius(),
+                        color_style_value(color())));
+                    continue;
+                }
+            }
             filters.unchecked_append(filter_value);
+        }
         return StyleValueList::create(move(filters), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
     };
     auto ratio_style_value = [](Ratio const& ratio) -> NonnullRefPtr<StyleValue const> {
