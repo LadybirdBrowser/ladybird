@@ -10,19 +10,19 @@ namespace Web::CSS {
 
 ValueComparingNonnullRefPtr<StyleValue const> FunctionStyleValue::absolutized(ComputationContext const& context) const
 {
-    auto absolutized_value = m_value->absolutized(context);
+    auto absolutized_value = value()->absolutized(context);
 
-    if (absolutized_value == m_value)
+    if (absolutized_value == value())
         return *this;
 
-    return FunctionStyleValue::create(m_name, absolutized_value);
+    return FunctionStyleValue::create(name(), absolutized_value);
 }
 
 void FunctionStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    builder.append(m_name.view());
+    builder.append(name().view());
     builder.append('(');
-    m_value->serialize(builder, mode);
+    value()->serialize(builder, mode);
     builder.append(')');
 }
 

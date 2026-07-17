@@ -15,9 +15,7 @@ ValueComparingNonnullRefPtr<TextIndentStyleValue const> TextIndentStyleValue::cr
 
 TextIndentStyleValue::TextIndentStyleValue(NonnullRefPtr<StyleValue const> length_percentage, Hanging hanging, EachLine each_line)
     : StyleValueWithDefaultOperators(Type::TextIndent)
-    , m_length_percentage(move(length_percentage))
-    , m_hanging(hanging == Hanging::Yes)
-    , m_each_line(each_line == EachLine::Yes)
+    , m_value(StyleValueFFI::rust_style_value_create_text_indent(&length_percentage.leak_ref(), hanging == Hanging::Yes, each_line == EachLine::Yes))
 {
 }
 
@@ -25,28 +23,28 @@ TextIndentStyleValue::~TextIndentStyleValue() = default;
 
 void TextIndentStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    m_length_percentage->serialize(builder, mode);
-    if (m_each_line)
+    length_percentage().serialize(builder, mode);
+    if (each_line())
         builder.append(" each-line"sv);
-    if (m_hanging)
+    if (hanging())
         builder.append(" hanging"sv);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> TextIndentStyleValue::absolutized(ComputationContext const& context) const
 {
-    auto new_length_percentage = m_length_percentage->absolutized(context);
-    if (new_length_percentage->equals(m_length_percentage))
+    auto new_length_percentage = length_percentage().absolutized(context);
+    if (new_length_percentage->equals(length_percentage()))
         return *this;
     return create(move(new_length_percentage),
-        m_hanging ? Hanging::Yes : Hanging::No,
-        m_each_line ? EachLine::Yes : EachLine::No);
+        hanging() ? Hanging::Yes : Hanging::No,
+        each_line() ? EachLine::Yes : EachLine::No);
 }
 
 bool TextIndentStyleValue::properties_equal(TextIndentStyleValue const& other) const
 {
-    return m_length_percentage == other.m_length_percentage
-        && m_each_line == other.m_each_line
-        && m_hanging == other.m_hanging;
+    return length_percentage() == other.length_percentage()
+        && each_line() == other.each_line()
+        && hanging() == other.hanging();
 }
 
 }

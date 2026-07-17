@@ -128,6 +128,40 @@ pub enum StyleValueData {
     },
     /// A CSS `<string>`.
     String { string: RetainedUtf16FlyString },
+    /// An unrecognized CSS function, kept as its name and argument value.
+    Function {
+        name: RetainedUtf16FlyString,
+        value: RetainedStyleValue,
+    },
+    /// An OpenType tag with its value, from font-feature-settings or font-variation-settings.
+    /// The mode is the C++ OpenTypeTaggedStyleValue::Mode, opaque to Rust.
+    OpenTypeTagged {
+        mode: u8,
+        tag: RetainedUtf16FlyString,
+        value: RetainedStyleValue,
+    },
+    /// font-style: a keyword (the C++ `enum class FontStyleKeyword : u8`, opaque to Rust) and
+    /// an optional oblique angle style value (null when absent).
+    FontStyle {
+        font_style: u8,
+        angle_value: RetainedStyleValue,
+    },
+    /// text-indent: a length-percentage style value plus the hanging and each-line flags.
+    TextIndent {
+        length_percentage: RetainedStyleValue,
+        hanging: bool,
+        each_line: bool,
+    },
+    /// overflow-clip-margin: an optional visual box (the C++ `enum class BackgroundBox : u8`,
+    /// opaque to Rust) and an offset style value.
+    OverflowClipMargin {
+        has_visual_box: bool,
+        visual_box: u8,
+        offset: RetainedStyleValue,
+    },
+    /// sibling-count() or sibling-index(). Both fields are C++ `enum class ... : u8` values,
+    /// opaque to Rust.
+    TreeCountingFunction { function: u8, computed_type: u8 },
     /// A CSS `<custom-ident>`.
     CustomIdent { custom_ident: RetainedUtf16FlyString },
     /// A border-radius rect of four retained corner radius style values.
@@ -362,6 +396,94 @@ pub extern "C" fn rust_style_value_create_custom_ident(custom_ident: usize) -> *
     abort_on_panic(|| {
         Box::into_raw(Box::new(StyleValueData::CustomIdent {
             custom_ident: RetainedUtf16FlyString { raw: custom_ident },
+        }))
+    })
+}
+
+/// Takes ownership of one leaked reference to the name and one strong reference to the value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_function(name: usize, value: *const c_void) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Function {
+            name: RetainedUtf16FlyString { raw: name },
+            value: RetainedStyleValue { pointer: value },
+        }))
+    })
+}
+
+/// Takes ownership of one leaked reference to the tag and one strong reference to the value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_open_type_tagged(
+    mode: u8,
+    tag: usize,
+    value: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::OpenTypeTagged {
+            mode,
+            tag: RetainedUtf16FlyString { raw: tag },
+            value: RetainedStyleValue { pointer: value },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the angle value if it is non-null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_font_style(
+    font_style: u8,
+    angle_value: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::FontStyle {
+            font_style,
+            angle_value: RetainedStyleValue { pointer: angle_value },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the length-percentage.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_text_indent(
+    length_percentage: *const c_void,
+    hanging: bool,
+    each_line: bool,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::TextIndent {
+            length_percentage: RetainedStyleValue {
+                pointer: length_percentage,
+            },
+            hanging,
+            each_line,
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the offset.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_overflow_clip_margin(
+    has_visual_box: bool,
+    visual_box: u8,
+    offset: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::OverflowClipMargin {
+            has_visual_box,
+            visual_box,
+            offset: RetainedStyleValue { pointer: offset },
+        }))
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_tree_counting_function(
+    function: u8,
+    computed_type: u8,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::TreeCountingFunction {
+            function,
+            computed_type,
         }))
     })
 }

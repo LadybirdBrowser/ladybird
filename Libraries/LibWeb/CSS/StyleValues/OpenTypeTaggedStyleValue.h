@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -26,8 +27,9 @@ public:
     }
     virtual ~OpenTypeTaggedStyleValue() override = default;
 
-    Utf16FlyString const& tag() const { return m_tag; }
-    ValueComparingNonnullRefPtr<StyleValue const> const& value() const { return m_value; }
+    Mode mode() const { return static_cast<Mode>(m_value->open_type_tagged.mode); }
+    Utf16FlyString tag() const { return Utf16FlyString::from_raw(m_value->open_type_tagged.tag.raw); }
+    ValueComparingNonnullRefPtr<StyleValue const> value() const { return *static_cast<StyleValue const*>(m_value->open_type_tagged.value.pointer); }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
@@ -35,20 +37,16 @@ public:
 
     bool properties_equal(OpenTypeTaggedStyleValue const&) const;
 
-    virtual bool is_computationally_independent() const override { return m_value->is_computationally_independent(); }
+    virtual bool is_computationally_independent() const override { return value()->is_computationally_independent(); }
 
 private:
     explicit OpenTypeTaggedStyleValue(Mode mode, Utf16FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)
         : StyleValueWithDefaultOperators(Type::OpenTypeTagged)
-        , m_mode(mode)
-        , m_tag(move(tag))
-        , m_value(move(value))
+        , m_value(StyleValueFFI::rust_style_value_create_open_type_tagged(to_underlying(mode), tag.to_raw_leaked(), &value.leak_ref()))
     {
     }
 
-    Mode m_mode;
-    Utf16FlyString m_tag;
-    ValueComparingNonnullRefPtr<StyleValue const> m_value;
+    RustStyleValueHandle m_value;
 };
 
 }
