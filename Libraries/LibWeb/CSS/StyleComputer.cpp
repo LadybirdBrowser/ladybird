@@ -1307,6 +1307,14 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
     };
 
     VERIFY(computation_context_cache_is_empty());
+    auto const& color_computation_context = get_computation_context_for_property(PropertyID::Color, computed_properties, abstract_element);
+    ColorResolutionContext color_resolution_context {
+        .color_scheme = color_computation_context.color_scheme,
+        .current_color = InitialValues::color(),
+        .current_color_style_value = &computed_properties.property(PropertyID::Color),
+        .calculation_resolution_context = { .length_resolution_context = color_computation_context.length_resolution_context },
+    };
+    color_resolution_context.current_color = computed_properties.color(PropertyID::Color, color_resolution_context);
 
     for (auto const& [property_id, specifying_keyframes] : keyframes_specifying_property) {
         // A property is usually specified by at least the initial and final keyframes, but a value that stays
@@ -1361,7 +1369,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
         if (auto composited_end_value = composite_value(property_id, underlying_value, end, to_composite_operation(ordered_keyframes[end_keyframe].frame->composite)))
             end = *composited_end_value;
 
-        if (auto next_value = interpolate_property(*effect->target(), property_id, *start, *end, interval_progress, AllowDiscrete::Yes)) {
+        if (auto next_value = interpolate_property(*effect->target(), property_id, *start, *end, interval_progress, AllowDiscrete::Yes, &color_resolution_context)) {
             dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} = {}", string_from_property_id(property_id), interval_progress, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal), next_value->to_string(SerializationMode::Normal));
             computed_properties.set_animated_property(Badge<StyleComputer> {}, property_id, *next_value, is_result_of_transition);
         } else {

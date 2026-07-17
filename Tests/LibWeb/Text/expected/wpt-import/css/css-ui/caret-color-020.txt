@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	caret-color: currentcolor is interpolable
+1 Pass
+Pass	caret-color: currentcolor is interpolable

@@ -581,7 +581,7 @@ static Optional<GridTrackSizeList> interpolate_grid_track_size_list(DOM::Element
     return result;
 }
 
-ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& element, PropertyID property_id, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
+ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& element, PropertyID property_id, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete, ColorResolutionContext const* color_resolution_context)
 {
     auto from = with_keyword_values_resolved(element, property_id, a_from);
     auto to = with_keyword_values_resolved(element, property_id, a_to);
@@ -591,11 +591,11 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
     auto animation_type = animation_type_from_longhand_property(property_id);
     switch (animation_type) {
     case AnimationType::ByComputedValue:
-        return interpolate_value(element, calculation_context, from, to, delta, allow_discrete);
+        return interpolate_value(element, calculation_context, from, to, delta, allow_discrete, color_resolution_context);
     case AnimationType::None:
         return to;
     case AnimationType::RepeatableList:
-        return interpolate_repeatable_list(element, calculation_context, from, to, delta, allow_discrete);
+        return interpolate_repeatable_list(element, calculation_context, from, to, delta, allow_discrete, color_resolution_context);
     case AnimationType::Custom: {
         if (property_id == PropertyID::Transform) {
             if (auto interpolated_transform = interpolate_transform(element, calculation_context, from, to, delta, allow_discrete))
@@ -617,7 +617,7 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
             static auto const& oblique_0deg_value = FontStyleStyleValue::create(FontStyleKeyword::Oblique, AngleStyleValue::create(Angle::make_degrees(0))).leak_ref();
             auto from_value = from->as_font_style().font_style() == FontStyleKeyword::Normal ? ValueComparingNonnullRefPtr<StyleValue const> { oblique_0deg_value } : from;
             auto to_value = to->as_font_style().font_style() == FontStyleKeyword::Normal ? ValueComparingNonnullRefPtr<StyleValue const> { oblique_0deg_value } : to;
-            return interpolate_value(element, calculation_context, from_value, to_value, delta, allow_discrete);
+            return interpolate_value(element, calculation_context, from_value, to_value, delta, allow_discrete, color_resolution_context);
         }
 
         if (property_id == PropertyID::FontVariationSettings) {
@@ -632,7 +632,7 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
 
             // The values in these lists have already been deduplicated and sorted at this point, so we can use
             // interpolate_value() to interpolate them pairwise.
-            return interpolate_value(element, calculation_context, from, to, delta, allow_discrete);
+            return interpolate_value(element, calculation_context, from, to, delta, allow_discrete, color_resolution_context);
         }
 
         // https://drafts.csswg.org/web-animations-1/#animating-visibility
@@ -754,7 +754,7 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
 
             // Otherwise, repeat both dash patterns of start and end value list until the length of elements in
             // both value lists match. Each item is then combined by computed value.
-            if (auto result = interpolate_repeatable_list(element, calculation_context, from, to, delta, allow_discrete))
+            if (auto result = interpolate_repeatable_list(element, calculation_context, from, to, delta, allow_discrete, color_resolution_context))
                 return result.release_nonnull();
             return interpolate_discrete(from, to, delta, allow_discrete);
         }
@@ -1507,8 +1507,21 @@ static NonnullRefPtr<StyleValue const> length_percentage_or_auto_to_style_value(
     VERIFY_NOT_REACHED();
 }
 
-static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete)
+static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete, ColorResolutionContext const* color_resolution_context)
 {
+    ColorResolutionContext fallback_color_resolution_context {};
+    if (from.has_color() && to.has_color()) {
+        if (!color_resolution_context) {
+            if (auto* node = element.unsafe_layout_node())
+                fallback_color_resolution_context = ColorResolutionContext::for_layout_node_with_style(*node);
+            color_resolution_context = &fallback_color_resolution_context;
+        }
+        if (auto interpolated = interpolate_color(from, to, delta, {}, *color_resolution_context))
+            return interpolated;
+        if (from.type() == StyleValue::Type::Color && to.type() == StyleValue::Type::Color)
+            return ColorStyleValue::create_from_color(Color::Black, ColorSyntax::Modern);
+    }
+
     if (from.type() != to.type() || from.is_calculated() || to.is_calculated()) {
         // Handle mixed percentage and dimension types, as well as CalculatedStyleValues
         // https://www.w3.org/TR/css-values-4/#mixed-percentages
@@ -1594,7 +1607,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                 // If both shapes are the same type, that type is ellipse() or circle(), and the radiuses are specified
                 // as <length-percentage> (rather than keywords), interpolate between each value in the shape functions.
                 auto const& to_circle = to_shape.get<Circle>();
-                auto interpolated_radius = interpolate_value_impl(element, basic_shape_calculation_context, from_circle.radius, to_circle.radius, delta, AllowDiscrete::No);
+                auto interpolated_radius = interpolate_value_impl(element, basic_shape_calculation_context, from_circle.radius, to_circle.radius, delta, AllowDiscrete::No, color_resolution_context);
                 auto interpolated_position = interpolate_optional_position(from_circle.position, to_circle.position);
                 if (!interpolated_radius || !interpolated_position.has_value())
                     return {};
@@ -1603,7 +1616,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             },
             [&](Ellipse const& from_ellipse) -> Optional<BasicShape> {
                 auto const& to_ellipse = to_shape.get<Ellipse>();
-                auto interpolated_radius = interpolate_value_impl(element, basic_shape_calculation_context, from_ellipse.radius, to_ellipse.radius, delta, AllowDiscrete::No);
+                auto interpolated_radius = interpolate_value_impl(element, basic_shape_calculation_context, from_ellipse.radius, to_ellipse.radius, delta, AllowDiscrete::No, color_resolution_context);
                 auto interpolated_position = interpolate_optional_position(from_ellipse.position, to_ellipse.position);
                 if (!interpolated_radius || !interpolated_position.has_value())
                     return {};
@@ -1646,8 +1659,8 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         auto const& to_horizontal_radius = to.as_border_radius().horizontal_radius();
         auto const& from_vertical_radius = from.as_border_radius().vertical_radius();
         auto const& to_vertical_radius = to.as_border_radius().vertical_radius();
-        auto interpolated_horizontal_radius = interpolate_value_impl(element, calculation_context, from_horizontal_radius, to_horizontal_radius, delta, allow_discrete);
-        auto interpolated_vertical_radius = interpolate_value_impl(element, calculation_context, from_vertical_radius, to_vertical_radius, delta, allow_discrete);
+        auto interpolated_horizontal_radius = interpolate_value_impl(element, calculation_context, from_horizontal_radius, to_horizontal_radius, delta, allow_discrete, color_resolution_context);
+        auto interpolated_vertical_radius = interpolate_value_impl(element, calculation_context, from_vertical_radius, to_vertical_radius, delta, allow_discrete, color_resolution_context);
         if (!interpolated_horizontal_radius || !interpolated_vertical_radius)
             return {};
         return BorderRadiusStyleValue::create(interpolated_horizontal_radius.release_nonnull(), interpolated_vertical_radius.release_nonnull());
@@ -1670,31 +1683,23 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         auto const& from_bottom_left = from.as_border_radius_rect().bottom_left();
         auto const& to_bottom_left = to.as_border_radius_rect().bottom_left();
 
-        auto interpolated_top_left = interpolate_value_impl(element, border_radius_rect_computation_context, from_top_left, to_top_left, delta, allow_discrete);
-        auto interpolated_top_right = interpolate_value_impl(element, border_radius_rect_computation_context, from_top_right, to_top_right, delta, allow_discrete);
-        auto interpolated_bottom_right = interpolate_value_impl(element, border_radius_rect_computation_context, from_bottom_right, to_bottom_right, delta, allow_discrete);
-        auto interpolated_bottom_left = interpolate_value_impl(element, border_radius_rect_computation_context, from_bottom_left, to_bottom_left, delta, allow_discrete);
+        auto interpolated_top_left = interpolate_value_impl(element, border_radius_rect_computation_context, from_top_left, to_top_left, delta, allow_discrete, color_resolution_context);
+        auto interpolated_top_right = interpolate_value_impl(element, border_radius_rect_computation_context, from_top_right, to_top_right, delta, allow_discrete, color_resolution_context);
+        auto interpolated_bottom_right = interpolate_value_impl(element, border_radius_rect_computation_context, from_bottom_right, to_bottom_right, delta, allow_discrete, color_resolution_context);
+        auto interpolated_bottom_left = interpolate_value_impl(element, border_radius_rect_computation_context, from_bottom_left, to_bottom_left, delta, allow_discrete, color_resolution_context);
 
         if (!interpolated_top_left || !interpolated_top_right || !interpolated_bottom_right || !interpolated_bottom_left)
             return {};
 
         return BorderRadiusRectStyleValue::create(interpolated_top_left.release_nonnull(), interpolated_top_right.release_nonnull(), interpolated_bottom_right.release_nonnull(), interpolated_bottom_left.release_nonnull());
     }
-    case StyleValue::Type::Color: {
-        // NB: Called during style interpolation.
-        ColorResolutionContext color_resolution_context {};
-        if (auto* node = element.unsafe_layout_node())
-            color_resolution_context = ColorResolutionContext::for_layout_node_with_style(*node);
-
-        if (auto interpolated = interpolate_color(from, to, delta, {}, color_resolution_context))
-            return interpolated;
-        return ColorStyleValue::create_from_color(Color::Black, ColorSyntax::Modern);
-    }
+    case StyleValue::Type::Color:
+        VERIFY_NOT_REACHED();
     case StyleValue::Type::Edge: {
         auto const& from_offset = from.as_edge().offset();
         auto const& to_offset = to.as_edge().offset();
 
-        if (auto interpolated_value = interpolate_value_impl(element, calculation_context, from_offset, to_offset, delta, allow_discrete))
+        if (auto interpolated_value = interpolate_value_impl(element, calculation_context, from_offset, to_offset, delta, allow_discrete, color_resolution_context))
             return EdgeStyleValue::create({}, interpolated_value);
 
         return {};
@@ -1846,10 +1851,10 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         auto const& from_rect = from.as_rect();
         auto const& to_rect = to.as_rect();
 
-        auto interpolated_top = interpolate_value_impl(element, calculation_context, from_rect.top(), to_rect.top(), delta, allow_discrete);
-        auto interpolated_right = interpolate_value_impl(element, calculation_context, from_rect.right(), to_rect.right(), delta, allow_discrete);
-        auto interpolated_bottom = interpolate_value_impl(element, calculation_context, from_rect.bottom(), to_rect.bottom(), delta, allow_discrete);
-        auto interpolated_left = interpolate_value_impl(element, calculation_context, from_rect.left(), to_rect.left(), delta, allow_discrete);
+        auto interpolated_top = interpolate_value_impl(element, calculation_context, from_rect.top(), to_rect.top(), delta, allow_discrete, color_resolution_context);
+        auto interpolated_right = interpolate_value_impl(element, calculation_context, from_rect.right(), to_rect.right(), delta, allow_discrete, color_resolution_context);
+        auto interpolated_bottom = interpolate_value_impl(element, calculation_context, from_rect.bottom(), to_rect.bottom(), delta, allow_discrete, color_resolution_context);
+        auto interpolated_left = interpolate_value_impl(element, calculation_context, from_rect.left(), to_rect.left(), delta, allow_discrete, color_resolution_context);
 
         if (!interpolated_top || !interpolated_right || !interpolated_bottom || !interpolated_left)
             return {};
@@ -1966,7 +1971,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         StyleValueVector interpolated_values;
         interpolated_values.ensure_capacity(from_list.size());
         for (size_t i = 0; i < from_list.size(); ++i) {
-            auto interpolated = interpolate_value(element, calculation_context, from_list.values()[i], to_list.values()[i], delta, AllowDiscrete::No);
+            auto interpolated = interpolate_value(element, calculation_context, from_list.values()[i], to_list.values()[i], delta, AllowDiscrete::No, color_resolution_context);
             if (!interpolated)
                 return {};
 
@@ -1980,7 +1985,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
     }
 }
 
-RefPtr<StyleValue const> interpolate_repeatable_list(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete)
+RefPtr<StyleValue const> interpolate_repeatable_list(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete, ColorResolutionContext const* color_resolution_context)
 {
     // https://www.w3.org/TR/web-animations/#repeatable-list
     // Same as by computed value except that if the two lists have differing numbers of items, they are first repeated to the least common multiple number of items.
@@ -1993,7 +1998,7 @@ RefPtr<StyleValue const> interpolate_repeatable_list(DOM::Element& element, Calc
         // then the property values combine as discrete
         auto list_size = AK::lcm(from_list.size(), to_list.size());
         for (size_t i = 0; i < list_size; ++i) {
-            auto value = interpolate_value(element, calculation_context, from_list.value_at(i, true), to_list.value_at(i, true), delta, AllowDiscrete::No);
+            auto value = interpolate_value(element, calculation_context, from_list.value_at(i, true), to_list.value_at(i, true), delta, AllowDiscrete::No, color_resolution_context);
             if (!value)
                 return false;
             append_callback(*value);
@@ -2017,7 +2022,7 @@ RefPtr<StyleValue const> interpolate_repeatable_list(DOM::Element& element, Calc
     else if (!to.is_value_list() && from.is_value_list())
         to_list = make_single_value_list(to, from.as_value_list().size(), from.as_value_list().separator());
     else if (!from.is_value_list() && !to.is_value_list())
-        return interpolate_value(element, calculation_context, from, to, delta, allow_discrete);
+        return interpolate_value(element, calculation_context, from, to, delta, allow_discrete, color_resolution_context);
 
     StyleValueVector interpolated_values;
     if (!make_repeatable_list(from_list->as_value_list(), to_list->as_value_list(), [&](auto const& value) { interpolated_values.append(value); }))
@@ -2153,9 +2158,9 @@ static StyleValueVector accumulate_filter_function(StyleValueList const& underly
     return result;
 }
 
-RefPtr<StyleValue const> interpolate_value(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete)
+RefPtr<StyleValue const> interpolate_value(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete, ColorResolutionContext const* color_resolution_context)
 {
-    if (auto result = interpolate_value_impl(element, calculation_context, from, to, delta, allow_discrete))
+    if (auto result = interpolate_value_impl(element, calculation_context, from, to, delta, allow_discrete, color_resolution_context))
         return result;
     return interpolate_discrete(from, to, delta, allow_discrete);
 }

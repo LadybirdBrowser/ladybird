@@ -18,13 +18,13 @@ enum class AllowDiscrete {
     Yes,
     No,
 };
-ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element&, PropertyID, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
+ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element&, PropertyID, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete, ColorResolutionContext const* = nullptr);
 
 // https://drafts.csswg.org/css-transitions/#transitionable
 bool property_values_are_transitionable(PropertyID, StyleValue const& old_value, StyleValue const& new_value, DOM::Element&, TransitionBehavior);
 
-RefPtr<StyleValue const> interpolate_value(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
-RefPtr<StyleValue const> interpolate_repeatable_list(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
+RefPtr<StyleValue const> interpolate_value(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete, ColorResolutionContext const* = nullptr);
+RefPtr<StyleValue const> interpolate_repeatable_list(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete, ColorResolutionContext const* = nullptr);
 RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
 RefPtr<StyleValue const> interpolate_transform(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
 

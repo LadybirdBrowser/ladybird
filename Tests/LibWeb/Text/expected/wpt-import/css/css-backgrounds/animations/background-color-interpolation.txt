@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 172 tests
 
-162 Pass
-10 Fail
+172 Pass
 Pass	CSS Transitions: property <background-color> from neutral to [green] at (-0.3) should be [rgb(0, 0, 0)]
 Pass	CSS Transitions: property <background-color> from neutral to [green] at (0) should be [rgb(0, 0, 0)]
 Pass	CSS Transitions: property <background-color> from neutral to [green] at (0.3) should be [rgb(0, 38, 0)]
@@ -162,17 +161,17 @@ Pass	CSS Transitions with transition: all: property <background-color> from [cur
 Pass	CSS Transitions with transition: all: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0.75) should be [rgba(0, 208, 47, 0.69)]
 Pass	CSS Transitions with transition: all: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (1) should be [rgba(0, 255, 0, 0.75)]
 Pass	CSS Transitions with transition: all: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (1.5) should be [rgba(0, 255, 0, 0.88)]
-Fail	CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (-0.5) should be [rgba(0, 0, 255, 0.38)]
+Pass	CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (-0.5) should be [rgba(0, 0, 255, 0.38)]
 Pass	CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0) should be [rgba(0, 0, 255, 0.5)]
-Fail	CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0.25) should be [rgba(0, 85, 170, 0.56)]
-Fail	CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0.5) should be [rgba(0, 153, 102, 0.63)]
-Fail	CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0.75) should be [rgba(0, 208, 47, 0.69)]
+Pass	CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0.25) should be [rgba(0, 85, 170, 0.56)]
+Pass	CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0.5) should be [rgba(0, 153, 102, 0.63)]
+Pass	CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0.75) should be [rgba(0, 208, 47, 0.69)]
 Pass	CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (1) should be [rgba(0, 255, 0, 0.75)]
-Fail	CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (1.5) should be [rgba(0, 255, 0, 0.88)]
-Fail	Web Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (-0.5) should be [rgba(0, 0, 255, 0.38)]
+Pass	CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (1.5) should be [rgba(0, 255, 0, 0.88)]
+Pass	Web Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (-0.5) should be [rgba(0, 0, 255, 0.38)]
 Pass	Web Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0) should be [rgba(0, 0, 255, 0.5)]
-Fail	Web Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0.25) should be [rgba(0, 85, 170, 0.56)]
-Fail	Web Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0.5) should be [rgba(0, 153, 102, 0.63)]
-Fail	Web Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0.75) should be [rgba(0, 208, 47, 0.69)]
+Pass	Web Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0.25) should be [rgba(0, 85, 170, 0.56)]
+Pass	Web Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0.5) should be [rgba(0, 153, 102, 0.63)]
+Pass	Web Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0.75) should be [rgba(0, 208, 47, 0.69)]
 Pass	Web Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (1) should be [rgba(0, 255, 0, 0.75)]
-Fail	Web Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (1.5) should be [rgba(0, 255, 0, 0.88)]
+Pass	Web Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (1.5) should be [rgba(0, 255, 0, 0.88)]
