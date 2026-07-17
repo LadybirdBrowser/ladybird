@@ -2,7 +2,7 @@
  * Copyright (c) 2020-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2020, Nico Weber <thakis@chromium.org>
  * Copyright (c) 2021, Petróczi Zoltán <petroczizoltan@tutanota.com>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2026, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -61,7 +61,7 @@ ThrowCompletionOr<Value> DateConstructor::call()
     auto& vm = this->vm();
 
     // 1. If NewTarget is undefined, return ToDateString(SystemUTCEpochMilliseconds()).
-    return PrimitiveString::create(vm, to_date_string(Temporal::system_utc_epoch_milliseconds(vm)));
+    return PrimitiveString::create(vm, to_date_string(Temporal::system_utc_epoch_milliseconds()));
 }
 
 // 21.4.2.1 Date ( ...values ), https://tc39.es/ecma262/#sec-date
@@ -76,7 +76,7 @@ ThrowCompletionOr<GC::Ref<Object>> DateConstructor::construct(FunctionObject& ne
     // 3. If numberOfArgs = 0, then
     if (vm.argument_count() == 0) {
         // a. Let dv be SystemUTCEpochMilliseconds().
-        date_value = Temporal::system_utc_epoch_milliseconds(vm);
+        date_value = Temporal::system_utc_epoch_milliseconds();
     }
     // 4. Else if numberOfArgs = 1, then
     else if (vm.argument_count() == 1) {
@@ -164,7 +164,7 @@ ThrowCompletionOr<GC::Ref<Object>> DateConstructor::construct(FunctionObject& ne
 JS_DEFINE_NATIVE_FUNCTION(DateConstructor::now)
 {
     // 1. Return SystemUTCEpochMilliseconds().
-    return Temporal::system_utc_epoch_milliseconds(vm);
+    return Temporal::system_utc_epoch_milliseconds();
 }
 
 // 21.4.3.2 Date.parse ( string ), https://tc39.es/ecma262/#sec-date.parse

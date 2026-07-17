@@ -1,10 +1,11 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Time.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Temporal/Now.h>
@@ -121,16 +122,16 @@ JS_DEFINE_NATIVE_FUNCTION(Now::plain_time_iso)
 }
 
 // 2.3.2 SystemUTCEpochMilliseconds ( ), https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochmilliseconds
-double system_utc_epoch_milliseconds(VM& vm)
+double system_utc_epoch_milliseconds()
 {
     // 1. Let global be GetGlobalObject().
-    auto const& global = vm.get_global_object();
-
     // 2. Let nowNs be HostSystemUTCEpochNanoseconds(global).
-    auto now_ns = vm.host_system_utc_epoch_nanoseconds(global);
+    // AD-HOC: Every caller of SystemUTCEpochMilliseconds is via Date.now and the Date constructor, which do not need
+    //         nanosecond precision. We can avoid unnecessary bigint math by returning milliseconds directly.
+    auto now_ns = AK::UnixDateTime::now().nanoseconds_since_epoch();
 
     // 3. Return 𝔽(floor(nowNs / 10**6)).
-    return big_floor(now_ns, NANOSECONDS_PER_MILLISECOND).to_double();
+    return floor(now_ns / 1'000'000);
 }
 
 // 2.3.3 SystemUTCEpochNanoseconds ( ), https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
