@@ -26,7 +26,7 @@ public:
     bool has_filters() const { return m_filter_value_list; }
     bool is_none() const { return !has_filters(); }
 
-    StyleValueVector const& filters() const;
+    StyleValueVector filters() const;
 
 private:
     RefPtr<StyleValueList const> m_filter_value_list { nullptr };

@@ -10,7 +10,7 @@
 
 namespace Web::CSS {
 
-StyleValueVector const& Filter::filters() const
+StyleValueVector Filter::filters() const
 {
     VERIFY(has_filters());
     return m_filter_value_list->values();

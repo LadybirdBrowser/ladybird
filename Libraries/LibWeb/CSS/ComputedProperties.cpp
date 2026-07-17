@@ -231,9 +231,10 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     auto filter_style_value = [](Filter const& filter) -> NonnullRefPtr<StyleValue const> {
         if (filter.is_none())
             return KeywordStyleValue::create(Keyword::None);
+        auto filter_values = filter.filters();
         StyleValueVector filters;
-        MUST(filters.try_ensure_capacity(filter.filters().size()));
-        for (auto const& filter_value : filter.filters())
+        MUST(filters.try_ensure_capacity(filter_values.size()));
+        for (auto const& filter_value : filter_values)
             filters.unchecked_append(filter_value);
         return StyleValueList::create(move(filters), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
     };
@@ -2515,7 +2516,7 @@ Vector<BackgroundLayerData> ComputedProperties::mask_layers() const
     auto property_values = [&](PropertyID property_id) {
         auto const& value = property(property_id);
         if (value.is_value_list())
-            return value.as_value_list().values();
+            return StyleValueVector { value.as_value_list().values() };
         return StyleValueVector { value };
     };
 
@@ -3226,7 +3227,7 @@ Vector<TextDecorationLine> ComputedProperties::text_decoration_line() const
 
     if (value.is_value_list()) {
         Vector<TextDecorationLine> lines;
-        auto& values = value.as_value_list().values();
+        auto values = value.as_value_list().values();
         for (auto const& item : values) {
             lines.append(keyword_to_text_decoration_line(item->to_keyword()).value());
         }
@@ -3824,7 +3825,7 @@ Containment ComputedProperties::contain() const
         break;
     default:
         if (value.is_value_list()) {
-            auto& values = value.as_value_list().values();
+            auto values = value.as_value_list().values();
             for (auto const& item : values) {
                 switch (item->to_keyword()) {
                 case Keyword::Size:
@@ -3862,7 +3863,7 @@ Vector<Utf16FlyString> ComputedProperties::container_name() const
     Vector<Utf16FlyString> names;
 
     if (value.is_value_list()) {
-        auto& values = value.as_value_list().values();
+        auto values = value.as_value_list().values();
         for (auto const& item : values)
             names.append(item->as_custom_ident().custom_ident());
     } else {
@@ -3882,7 +3883,7 @@ ContainerType ComputedProperties::container_type() const
         return container_type;
 
     if (value.is_value_list()) {
-        auto& values = value.as_value_list().values();
+        auto values = value.as_value_list().values();
         for (auto const& item : values) {
             switch (item->to_keyword()) {
             case Keyword::Size:

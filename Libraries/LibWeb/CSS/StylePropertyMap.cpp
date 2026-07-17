@@ -282,7 +282,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::append(Utf16FlyString property_name,
     StyleValueVector value_list;
     if (existing_value) {
         if (existing_value->is_value_list())
-            value_list.extend(existing_value->as_value_list().values());
+            value_list.extend(StyleValueVector { existing_value->as_value_list().values() });
         else
             value_list.append(existing_value.release_nonnull());
     }

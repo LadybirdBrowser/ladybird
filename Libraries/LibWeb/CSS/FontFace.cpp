@@ -62,7 +62,7 @@ static FontWeightRange compute_weight_range(StyleValue const& value)
     if (value.to_keyword() == Keyword::Auto || value.to_keyword() == Keyword::Normal)
         return { 400, 400 };
 
-    auto& weight_values = value.as_value_list().values();
+    auto weight_values = value.as_value_list().values();
     if (weight_values.size() == 1) {
         auto one_weight = static_cast<int>(StyleComputer::compute_font_weight(weight_values[0], {})->as_number().number());
         return { one_weight, one_weight };

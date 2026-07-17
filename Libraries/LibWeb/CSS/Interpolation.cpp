@@ -217,7 +217,7 @@ static RefPtr<FilterStyleValue const> interpolate_filter_function(DOM::Element& 
 
 static bool contains_url(StyleValueList const& list)
 {
-    return list.values().contains([](auto& it) { return it->is_url(); });
+    return any_of(list.values(), [](auto& it) { return it->is_url(); });
 }
 
 // https://drafts.fxtf.org/filter-effects/#interpolation-of-filters
@@ -235,9 +235,11 @@ static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& elem
 
     auto interpolate_filter_values = [&](StyleValueList const& from, StyleValueList const& to) -> RefPtr<StyleValueList const> {
         StyleValueVector interpolated_filter_values;
+        auto from_values = from.values();
+        auto to_values = to.values();
         for (size_t i = 0; i < from.size(); ++i) {
-            auto const& from_value = from.values()[i]->as_filter();
-            auto const& to_value = to.values()[i]->as_filter();
+            auto const& from_value = from_values[i]->as_filter();
+            auto const& to_value = to_values[i]->as_filter();
 
             auto interpolated_value = interpolate_filter_function(element, calculation_context, from_value, to_value, delta, allow_discrete);
             if (!interpolated_value)
@@ -260,7 +262,7 @@ static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& elem
 
         // 1. Append the missing equivalent <filter-function>s from the longer list to the end of the shorter list. The new added <filter-function>s must be initialized to their initial values for interpolation.
         auto append_missing_values_to = [&](StyleValueList const& short_list, StyleValueList const& longer_list) -> ValueComparingNonnullRefPtr<StyleValueList> {
-            StyleValueVector new_filter_list = short_list.values();
+            StyleValueVector new_filter_list { short_list.values() };
             for (size_t i = new_filter_list.size(); i < longer_list.size(); ++i)
                 new_filter_list.append(FilterStyleValue::initial_value_for(longer_list.values()[i]->as_filter(), true));
             return make_filter_value_list(move(new_filter_list));
@@ -1341,7 +1343,7 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, Calculati
         if (value.to_keyword() == Keyword::None)
             return {};
 
-        return value.as_value_list().values();
+        return StyleValueVector { value.as_value_list().values() };
     };
 
     static constexpr auto extend_list_if_necessary = [](StyleValueVector& values, StyleValueVector const& other) {
@@ -2566,8 +2568,8 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
             // Given two filter values representing an base value (base filter list) and a value to add (added filter list),
             // returns the concatenation of the the two lists: ‘base filter list added filter list’.
             if (composite_operation == Bindings::CompositeOperation::Add) {
-                StyleValueVector result = underlying_list.values();
-                result.extend(animated_list.values());
+                StyleValueVector result { underlying_list.values() };
+                result.extend(StyleValueVector { animated_list.values() });
                 return StyleValueList::create(move(result), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
             }
 

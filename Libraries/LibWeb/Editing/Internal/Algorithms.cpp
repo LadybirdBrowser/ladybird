@@ -633,9 +633,7 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const& command, GC::Re
             return;
         VERIFY(style_value->is_value_list());
         auto const& value_list = style_value->as_value_list();
-        auto& old_values = value_list.values();
-
-        auto new_values = old_values;
+        CSS::StyleValueVector new_values { value_list.values() };
         auto was_removed = new_values.remove_all_matching([&](ValueComparingNonnullRefPtr<CSS::StyleValue const> const& value) {
             return value->is_keyword() && value->as_keyword().keyword() == keyword_to_delete;
         });

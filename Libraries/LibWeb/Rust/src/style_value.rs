@@ -54,6 +54,38 @@ impl Drop for RetainedUtf16FlyString {
     }
 }
 
+/// A retained, Rust-owned array of style value references.
+#[repr(C)]
+pub struct RetainedStyleValueList {
+    pointer: *mut RetainedStyleValue,
+    length: usize,
+}
+
+impl RetainedStyleValueList {
+    /// Takes ownership of one strong reference to each value.
+    ///
+    /// # Safety
+    /// `values` must point to `length` valid style value pointers.
+    unsafe fn from_raw(values: *const *const c_void, length: usize) -> Self {
+        let slice: Box<[RetainedStyleValue]> = (0..length)
+            .map(|i| RetainedStyleValue {
+                pointer: unsafe { *values.add(i) },
+            })
+            .collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedStyleValue;
+        Self { pointer, length }
+    }
+}
+
+impl Drop for RetainedStyleValueList {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+        }
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -247,6 +279,13 @@ pub enum StyleValueData {
         is_polar: bool,
         color_space: u8,
         hue_interpolation_method: u8,
+    },
+    /// A list of style values. The separator and collapsible flag come from the C++
+    /// StyleValueList enums, opaque to Rust.
+    ValueList {
+        values: RetainedStyleValueList,
+        separator: u8,
+        collapsible: bool,
     },
     /// A CSS `<custom-ident>`.
     CustomIdent { custom_ident: RetainedUtf16FlyString },
@@ -782,6 +821,23 @@ pub extern "C" fn rust_style_value_create_color_interpolation_method(
             is_polar,
             color_space,
             hue_interpolation_method,
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each of the `length` values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_value_list(
+    values: *const *const c_void,
+    length: usize,
+    separator: u8,
+    collapsible: bool,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::ValueList {
+            values: unsafe { RetainedStyleValueList::from_raw(values, length) },
+            separator,
+            collapsible,
         }))
     })
 }

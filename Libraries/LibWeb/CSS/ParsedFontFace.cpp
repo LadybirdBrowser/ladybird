@@ -82,7 +82,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
             weight = { 400, 400 };
         } else {
             auto absolutized = value->absolutized(computation_context);
-            auto& weight_values = absolutized->as_value_list().values();
+            auto weight_values = absolutized->as_value_list().values();
             if (weight_values.size() == 1) {
                 auto one_weight = static_cast<int>(StyleComputer::compute_font_weight(weight_values[0], {})->as_number().number());
                 weight = { one_weight, one_weight };

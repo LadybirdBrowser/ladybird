@@ -18,24 +18,20 @@
 
 namespace Web::CSS {
 
-bool StyleValueList::Properties::operator==(Properties const& other) const
-{
-    return separator == other.separator && collapsible == other.collapsible && values.span() == other.values.span();
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> StyleValueList::absolutized(ComputationContext const& computation_context) const
 {
-    for (size_t i = 0; i < m_properties.values.size(); ++i) {
-        auto absolutized_value = m_properties.values[i]->absolutized(computation_context);
-        if (absolutized_value != m_properties.values[i]) {
+    auto values = this->values();
+    for (size_t i = 0; i < values.size(); ++i) {
+        auto absolutized_value = values[i]->absolutized(computation_context);
+        if (absolutized_value != values[i]) {
             StyleValueVector result;
-            result.ensure_capacity(m_properties.values.size());
+            result.ensure_capacity(values.size());
             for (size_t j = 0; j < i; ++j)
-                result.append(m_properties.values[j]);
+                result.append(values[j]);
             result.append(move(absolutized_value));
-            for (size_t j = i + 1; j < m_properties.values.size(); ++j)
-                result.append(m_properties.values[j]->absolutized(computation_context));
-            return StyleValueList::create(move(result), m_properties.separator, m_properties.collapsible);
+            for (size_t j = i + 1; j < values.size(); ++j)
+                result.append(values[j]->absolutized(computation_context));
+            return StyleValueList::create(move(result), separator(), collapsible());
         }
     }
     return *this;
@@ -43,45 +39,46 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValueList::absolutized(Comput
 
 void StyleValueList::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    if (m_properties.values.is_empty())
+    auto values = this->values();
+    if (values.is_empty())
         return;
 
-    auto separator = ""sv;
-    switch (m_properties.separator) {
+    auto separator_string = ""sv;
+    switch (separator()) {
     case Separator::Space:
-        separator = " "sv;
+        separator_string = " "sv;
         break;
     case Separator::Comma:
-        separator = ", "sv;
+        separator_string = ", "sv;
         break;
     default:
         VERIFY_NOT_REACHED();
     }
 
-    auto first_value = m_properties.values.first();
-    if (all_of(m_properties.values, [&](auto const& property) { return property == first_value; }) && m_properties.separator != Separator::Comma && m_properties.collapsible == Collapsible::Yes && !first_value->is_empty_optional()) {
+    auto first_value = values.first();
+    if (all_of(values, [&](auto const& property) { return property == first_value; }) && separator() != Separator::Comma && collapsible() == Collapsible::Yes && !first_value->is_empty_optional()) {
         first_value->serialize(builder, mode);
         return;
     }
 
     bool first = true;
 
-    for (size_t i = 0; i < m_properties.values.size(); ++i) {
-        if (m_properties.values[i]->is_empty_optional())
+    for (size_t i = 0; i < values.size(); ++i) {
+        if (values[i]->is_empty_optional())
             continue;
 
         if (!first)
-            builder.append(separator);
+            builder.append(separator_string);
 
         first = false;
-        m_properties.values[i]->serialize(builder, mode);
+        values[i]->serialize(builder, mode);
     }
 }
 
 void StyleValueList::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
     Base::set_style_sheet(style_sheet);
-    for (auto& value : m_properties.values)
+    for (auto& value : values())
         const_cast<StyleValue&>(*value).set_style_sheet(style_sheet);
 }
 
@@ -89,13 +86,13 @@ Vector<Parser::ComponentValue> StyleValueList::tokenize() const
 {
     Vector<Parser::ComponentValue> component_values;
     bool first = true;
-    for (auto const& value : m_properties.values) {
+    for (auto const& value : values()) {
         if (value->is_empty_optional())
             continue;
         if (first) {
             first = false;
         } else {
-            if (m_properties.separator == Separator::Comma)
+            if (separator() == Separator::Comma)
                 component_values.empend(Parser::Token::create(Parser::Token::Type::Comma));
             component_values.empend(Parser::Token::create_whitespace(" "_string));
         }
@@ -106,7 +103,7 @@ Vector<Parser::ComponentValue> StyleValueList::tokenize() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-transform-list
-static GC::Ptr<CSSStyleValue> reify_a_transform_list(JS::Realm& realm, StyleValueVector const& values)
+static GC::Ptr<CSSStyleValue> reify_a_transform_list(JS::Realm& realm, ReadonlySpan<ValueComparingNonnullRefPtr<StyleValue const>> values)
 {
     GC::RootVector<GC::Ref<CSSTransformComponent>> transform_components;
     for (auto const& transform : values) {
@@ -123,10 +120,12 @@ static GC::Ptr<CSSStyleValue> reify_a_transform_list(JS::Realm& realm, StyleValu
 
 GC::Ref<CSSStyleValue> StyleValueList::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
 {
+    auto values = this->values();
+
     // NB: <transform-list> is a StyleValueList that contains TransformStyleValues. If that's what we are, follow the
     //     steps for reifying that.
-    if (all_of(m_properties.values, [](auto const& it) { return it->is_transformation(); })) {
-        if (auto transform_list = reify_a_transform_list(realm, m_properties.values))
+    if (all_of(values, [](auto const& it) { return it->is_transformation(); })) {
+        if (auto transform_list = reify_a_transform_list(realm, values))
             return transform_list.as_nonnull();
     }
 
@@ -144,7 +143,7 @@ StyleValueVector StyleValueList::subdivide_into_iterations(PropertyNameAndID con
 
     // 2. Otherwise, divide whole value into individual iterations, as appropriate for property, and return a list
     //    containing the iterations in order.
-    return values();
+    return StyleValueVector { values() };
 }
 
 }

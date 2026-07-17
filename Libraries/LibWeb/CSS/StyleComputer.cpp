@@ -4189,9 +4189,10 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_feature_tag_value_li
         return absolutized_value;
 
     auto const& value_list = absolutized_value->as_value_list();
+    auto values = value_list.values();
     OrderedHashMap<Utf16FlyString, NonnullRefPtr<OpenTypeTaggedStyleValue const>> axis_tags_map;
-    for (size_t i = 0; i < value_list.values().size(); i++) {
-        auto const& axis_tag = value_list.values().at(i)->as_open_type_tagged();
+    for (size_t i = 0; i < values.size(); i++) {
+        auto const& axis_tag = values.at(i)->as_open_type_tagged();
         axis_tags_map.set(axis_tag.tag(), axis_tag);
     }
 
@@ -4533,8 +4534,9 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefP
     auto const& value_list = absolutized_value->as_value_list();
     VERIFY(value_list.size() == 2);
 
-    auto const& block_value = value_list.values().at(0);
-    auto const& inline_value = value_list.values().at(1);
+    auto values = value_list.values();
+    auto const& block_value = values.at(0);
+    auto const& inline_value = values.at(1);
     if (block_value->as_keyword().keyword() == Keyword::SpanAll) {
         switch (inline_value->as_keyword().keyword()) {
         case Keyword::Start:

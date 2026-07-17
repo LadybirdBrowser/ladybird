@@ -1432,7 +1432,8 @@ void Canvas2DContextBase::set_filter(Utf16View filter)
     auto style_value = parser.parse_as_css_value(CSS::PropertyID::Filter);
 
     if (style_value && style_value->is_value_list()) {
-        auto filter_value_list = style_value->absolutized(computation_context_for_drawing_state())->as_value_list().values();
+        auto absolutized_style_value = style_value->absolutized(computation_context_for_drawing_state());
+        auto filter_value_list = absolutized_style_value->as_value_list().values();
 
         // 4. Set this's current filter to the given value.
         for (auto& item : filter_value_list) {

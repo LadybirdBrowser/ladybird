@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -28,13 +29,21 @@ public:
         return adopt_ref(*new (nothrow) StyleValueList(move(values), separator, collapsible));
     }
 
-    size_t size() const { return m_properties.values.size(); }
-    StyleValueVector const& values() const { return m_properties.values; }
+    size_t size() const { return m_value->value_list.values.length; }
+    StyleValueVector values() const
+    {
+        auto const& list = m_value->value_list.values;
+        StyleValueVector values;
+        values.ensure_capacity(list.length);
+        for (size_t i = 0; i < list.length; ++i)
+            values.unchecked_append(*static_cast<StyleValue const*>(list.pointer[i].pointer));
+        return values;
+    }
     ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i, bool allow_loop) const
     {
         if (allow_loop)
-            return m_properties.values[i % size()];
-        return m_properties.values[i];
+            return value_at(i % size());
+        return value_at(i);
     }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
@@ -44,34 +53,55 @@ public:
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
-    bool properties_equal(StyleValueList const& other) const { return m_properties == other.m_properties; }
+    bool properties_equal(StyleValueList const& other) const
+    {
+        if (separator() != other.separator() || collapsible() != other.collapsible() || size() != other.size())
+            return false;
+        for (size_t i = 0; i < size(); ++i) {
+            if (value_at(i) != other.value_at(i))
+                return false;
+        }
+        return true;
+    }
 
     virtual bool is_computationally_independent() const override
     {
-        return all_of(m_properties.values, [](auto& value) { return value->is_computationally_independent(); });
+        for (size_t i = 0; i < size(); ++i) {
+            if (!value_at(i)->is_computationally_independent())
+                return false;
+        }
+        return true;
     }
 
-    Separator separator() const { return m_properties.separator; }
+    Separator separator() const { return static_cast<Separator>(m_value->value_list.separator); }
 
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
 
 private:
     StyleValueList(StyleValueVector&& values, Separator separator, Collapsible collapsible = Collapsible::Yes)
         : StyleValueWithDefaultOperators(Type::ValueList)
-        , m_properties {
-            .separator = separator,
-            .collapsible = collapsible,
-            .values = move(values),
-        }
+        , m_value(make_value_list_data(move(values), separator, collapsible))
     {
     }
 
-    struct Properties {
-        Separator separator;
-        Collapsible collapsible;
-        StyleValueVector values;
-        bool operator==(Properties const&) const;
-    } m_properties;
+    ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i) const
+    {
+        return *static_cast<StyleValue const*>(m_value->value_list.values.pointer[i].pointer);
+    }
+
+    static StyleValueFFI::StyleValueData* make_value_list_data(StyleValueVector&& values, Separator separator, Collapsible collapsible)
+    {
+        // The Rust allocation takes ownership of one strong reference to each value.
+        Vector<void const*> pointers;
+        pointers.ensure_capacity(values.size());
+        for (auto& value : values)
+            pointers.unchecked_append(&value.leak_ref());
+        return StyleValueFFI::rust_style_value_create_value_list(pointers.data(), pointers.size(), to_underlying(separator), collapsible == Collapsible::Yes);
+    }
+
+    Collapsible collapsible() const { return m_value->value_list.collapsible ? Collapsible::Yes : Collapsible::No; }
+
+    RustStyleValueHandle m_value;
 };
 
 }
