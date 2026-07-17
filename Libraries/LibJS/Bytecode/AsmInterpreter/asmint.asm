@@ -1837,7 +1837,7 @@ handler PutByValue
     load_operand src, m_src
     store64 [elements, index, 8], src
     dispatch_next
-.try_holey_array_slow:
+.try_holey_array_slow: @cold
     call_interp asm_try_put_by_value_holey_array, result
     branch_nonzero result, .slow
     dispatch_next
@@ -1914,7 +1914,7 @@ handler PutByValue
     caged_primitive_storage_address addr, elements, cached_offset, index, 1
     store16 [addr, 0], src_int32
     dispatch_next
-.try_typed_array_slow:
+.try_typed_array_slow: @cold
     call_interp asm_try_put_by_value_typed_array, result
     branch_nonzero result, .slow
     dispatch_next
@@ -2147,7 +2147,7 @@ handler GetByValue
     box_int32_clean dst, raw
     store_operand m_dst, dst
     dispatch_next
-.try_typed_array_slow:
+.try_typed_array_slow: @cold
     call_interp asm_try_get_by_value_typed_array, result
     branch_nonzero result, .slow
     dispatch_next
@@ -2769,11 +2769,11 @@ handler Call
     load32 native_pc, [exec_ctx, EXECUTION_CONTEXT_PROGRAM_COUNTER]
     mov pc, native_pc
     goto_handler pc
-.call_exit_asm:
+.call_exit_asm: @cold
     # No JS handler caught the native exception; bail out of the asm
     # dispatch loop and let the C++ caller of run_asm() see the throw.
     exit
-.call_slow:
+.call_slow: @cold
     call_slow_path asm_slow_path_call
 end
 
