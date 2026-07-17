@@ -531,6 +531,42 @@ impl Drop for RetainedGridTrackEntryList {
     }
 }
 
+/// A retained polygon point: the x and y style values.
+#[repr(C)]
+pub struct RetainedShapePoint {
+    x: RetainedStyleValue,
+    y: RetainedStyleValue,
+}
+
+/// A Rust-owned array of retained polygon points.
+#[repr(C)]
+pub struct RetainedShapePointList {
+    pointer: *mut RetainedShapePoint,
+    length: usize,
+}
+
+impl RetainedShapePointList {
+    /// Takes ownership of the points' retained values.
+    ///
+    /// # Safety
+    /// `points` must point to `length` valid points whose retained values this list may assume
+    /// ownership of.
+    unsafe fn from_raw(points: *const RetainedShapePoint, length: usize) -> Self {
+        let slice: Box<[RetainedShapePoint]> = (0..length).map(|i| unsafe { std::ptr::read(points.add(i)) }).collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedShapePoint;
+        Self { pointer, length }
+    }
+}
+
+impl Drop for RetainedShapePointList {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+        }
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -559,6 +595,20 @@ pub enum StyleValueData {
     Resolution { value: f64, unit: u8 },
     /// A CSS `<time>`. The unit is the C++ `enum class TimeUnit : u8`, opaque to Rust.
     Time { value: f64, unit: u8 },
+    /// A basic shape. Kinds: inset (0), xywh (1) and rect (2) use five retained value slots;
+    /// circle (3) and ellipse (4) use two; polygon (5) uses the fill rule and points; path (6)
+    /// uses the fill rule and the retained serialized path data string.
+    BasicShape {
+        kind: u8,
+        v0: RetainedStyleValue,
+        v1: RetainedStyleValue,
+        v2: RetainedStyleValue,
+        v3: RetainedStyleValue,
+        v4: RetainedStyleValue,
+        fill_rule: u8,
+        points: RetainedShapePointList,
+        path_string: RetainedUtf16FlyString,
+    },
     /// A CSS `<ratio>`, e.g. `16 / 9`. The numerator and denominator are style values.
     Ratio {
         numerator: RetainedStyleValue,
@@ -1963,6 +2013,36 @@ pub unsafe extern "C" fn rust_style_value_create_grid_track_size_list(
             is_subgrid,
             preserve_line_name_sets,
             entries: unsafe { RetainedGridTrackEntryList::from_raw(entries, entry_count) },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each non-null value, of the points' retained
+/// values and of one leaked reference to the path string when present.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_basic_shape(
+    kind: u8,
+    v0: *const c_void,
+    v1: *const c_void,
+    v2: *const c_void,
+    v3: *const c_void,
+    v4: *const c_void,
+    fill_rule: u8,
+    points: *const RetainedShapePoint,
+    point_count: usize,
+    path_string: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::BasicShape {
+            kind,
+            v0: RetainedStyleValue { pointer: v0 },
+            v1: RetainedStyleValue { pointer: v1 },
+            v2: RetainedStyleValue { pointer: v2 },
+            v3: RetainedStyleValue { pointer: v3 },
+            v4: RetainedStyleValue { pointer: v4 },
+            fill_rule,
+            points: unsafe { RetainedShapePointList::from_raw(points, point_count) },
+            path_string: RetainedUtf16FlyString { raw: path_string },
         }))
     })
 }

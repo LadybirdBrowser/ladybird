@@ -10,6 +10,7 @@
 #include <AK/Variant.h>
 #include <LibGfx/WindingRule.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/SVG/AttributeParser.h>
 
@@ -159,16 +160,16 @@ public:
     }
     virtual ~BasicShapeStyleValue() override;
 
-    BasicShape const& basic_shape() const { return m_basic_shape; }
+    BasicShape const& basic_shape() const;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
-    bool properties_equal(BasicShapeStyleValue const& other) const { return m_basic_shape == other.m_basic_shape; }
+    bool properties_equal(BasicShapeStyleValue const& other) const { return basic_shape() == other.basic_shape(); }
 
     virtual bool is_computationally_independent() const override
     {
-        return m_basic_shape.visit([](auto const& shape) { return shape.is_computationally_independent(); });
+        return basic_shape().visit([](auto const& shape) { return shape.is_computationally_independent(); });
     }
 
     Gfx::Path to_path(CSSPixelRect reference_box) const;
@@ -176,11 +177,17 @@ public:
 private:
     BasicShapeStyleValue(BasicShape basic_shape)
         : StyleValueWithDefaultOperators(Type::BasicShape)
-        , m_basic_shape(move(basic_shape))
+        , m_value(make_basic_shape_data(basic_shape))
     {
     }
 
-    BasicShape m_basic_shape;
+    static StyleValueFFI::StyleValueData* make_basic_shape_data(BasicShape const&);
+
+    RustStyleValueHandle m_value;
+
+    // NB: The materialized shape is a cache of the Rust-owned value data (rebuilding a path
+    //     shape re-parses its serialized path data); the Rust allocation stays authoritative.
+    mutable Optional<BasicShape> m_materialized_shape;
 };
 
 }
