@@ -184,6 +184,7 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_unlinkat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_umask(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_uname(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_utimensat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_wait4(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_waitid(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_write(if_defined, if_not_defined) if_defined
@@ -472,6 +473,10 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #    undef IF_DEFINED_umask
 #    define IF_DEFINED_umask(if_defined, if_not_defined) if_not_defined
 #endif
+#ifndef __NR_utimensat
+#    undef IF_DEFINED_utimensat
+#    define IF_DEFINED_utimensat(if_defined, if_not_defined) if_not_defined
+#endif
 #ifndef __NR_wait4
 #    undef IF_DEFINED_wait4
 #    define IF_DEFINED_wait4(if_defined, if_not_defined) if_not_defined
@@ -686,6 +691,9 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_unlinkat
         CASE_SYSCALL_NAME(unlinkat);
 #endif
+#ifdef __NR_utimensat
+        CASE_SYSCALL_NAME(utimensat);
+#endif
     default:
         return "unknown";
     }
@@ -855,6 +863,9 @@ void SeccompPolicy::allow_filesystem_writes()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fdatasync);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fallocate);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, flock);
+    // NB: Mesa's shader disk cache updates entry mtimes for LRU eviction, and glibc routes the
+    //     whole utime() family through utimensat() on modern kernels.
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, utimensat);
 
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
     append(SECCOMP_LOAD_ARGUMENT(1));
