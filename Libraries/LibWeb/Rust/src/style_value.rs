@@ -888,6 +888,13 @@ pub enum StyleValueData {
         color_interpolation_method: RetainedStyleValue,
         color_syntax: u8,
     },
+    /// A url() image. Only the CSS URL is immutable value data; the style sheet attachment and
+    /// loading state stay on the C++ side.
+    Image {
+        url: RetainedString,
+        url_type: u8,
+        url_modifiers: RetainedRequestUrlModifierList,
+    },
     /// image-set() with its retained options.
     ImageSet { options: RetainedImageSetOptionList },
     /// An easing function: linear() with its retained stops (kind 0), cubic-bezier() with four
@@ -2131,6 +2138,23 @@ pub unsafe extern "C" fn rust_style_value_create_calculated(
             percentages_resolve_as,
             resolve_numbers_as_integers,
             accepted_ranges: unsafe { RetainedNumericRangeList::from_raw(accepted_ranges, accepted_range_count) },
+        }))
+    })
+}
+
+/// Takes ownership of one leaked reference to the URL string and each modifier string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_image(
+    url: usize,
+    url_type: u8,
+    url_modifiers: *const RetainedRequestUrlModifier,
+    url_modifier_count: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Image {
+            url: RetainedString { raw: url },
+            url_type,
+            url_modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(url_modifiers, url_modifier_count) },
         }))
     })
 }

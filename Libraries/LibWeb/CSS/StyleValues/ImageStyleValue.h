@@ -17,6 +17,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DecodedImageData.h>
@@ -115,7 +116,13 @@ private:
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
-    URL m_url;
+    URL url_value() const;
+
+    static StyleValueFFI::StyleValueData* make_image_url_data(URL const&);
+
+    RustStyleValueHandle m_value;
+
+    // NB: Style sheet attachment and loading state, not value data.
     Optional<::URL::URL> m_style_resource_base_url;
     Optional<bool> m_parent_style_sheet_origin_clean;
     bool m_should_absolutize_url_for_computed_value { false };
