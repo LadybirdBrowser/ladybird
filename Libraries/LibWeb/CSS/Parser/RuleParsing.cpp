@@ -633,7 +633,7 @@ Vector<Percentage> Parser::parse_keyframe_selectors(TokenStream<ComponentValue>&
                 .prelude = tokens.dump_string(),
                 .description = "Invalid selector."_string,
             });
-            break;
+            return {};
         }
         auto read_a_selector = false;
         if (next_token.is_ident("from"_utf16)) {
@@ -654,11 +654,17 @@ Vector<Percentage> Parser::parse_keyframe_selectors(TokenStream<ComponentValue>&
             tokens.discard_whitespace();
             if (tokens.next_token().is(Token::Type::Comma)) {
                 tokens.discard_a_token(); // ,
+                tokens.discard_whitespace();
+                if (!tokens.has_next_token())
+                    return {};
                 continue;
             }
+
+            if (!tokens.has_next_token())
+                break;
         }
 
-        break;
+        return {};
     }
 
     return selectors;

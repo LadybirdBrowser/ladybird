@@ -1,0 +1,32 @@
+<!doctype html>
+<style>
+    @keyframes foo {
+        0% trailing tokens {
+            color: red;
+        }
+    }
+    @keyframes missing-comma {
+        0% 100% {
+            color: red;
+        }
+    }
+    @keyframes trailing-comma {
+        0%, {
+            color: red;
+        }
+    }
+    @keyframes non-token {
+        0%, foo() {
+            color: red;
+        }
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(document.styleSheets[0].cssRules[0].length);
+        println(document.styleSheets[0].cssRules[1].length);
+        println(document.styleSheets[0].cssRules[2].length);
+        println(document.styleSheets[0].cssRules[3].length);
+    });
+</script>
