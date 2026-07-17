@@ -219,6 +219,25 @@ pub fn outline_cold_blocks(instructions: &[AsmInstruction]) -> Result<(Vec<AsmIn
     ))
 }
 
+/// Remove unconditional jumps whose destination is already the next emitted
+/// instruction.
+pub fn omit_jumps_to_next_label(instructions: &mut Vec<AsmInstruction>) {
+    let mut index = 0;
+    while index + 1 < instructions.len() {
+        let jumps_to_next_label = instructions[index].mnemonic == "jmp"
+            && instructions[index + 1].mnemonic == "label"
+            && matches!(
+                (instructions[index].operands.first(), instructions[index + 1].operands.first()),
+                (Some(Operand::Label(target)), Some(Operand::Label(label))) if target == label
+            );
+        if jumps_to_next_label {
+            instructions.remove(index);
+        } else {
+            index += 1;
+        }
+    }
+}
+
 /// Mutable state accumulated during handler code generation.
 pub struct HandlerState {
     /// Cold fixup blocks emitted after the main handler body (e.g. NaN canonicalization).
@@ -423,6 +442,19 @@ mod tests {
         assert!(matches!(&uniquified[1].operands[0], Operand::Label(label) if label == ".slow"));
     }
 
+    #[test]
+    fn omits_jump_to_next_label() {
+        let mut instructions = vec![
+            AsmInstruction { mnemonic: "jmp".into(), operands: vec![Operand::Label(".done".into())] },
+            AsmInstruction { mnemonic: "label".into(), operands: vec![Operand::Label(".done".into())] },
+            AsmInstruction { mnemonic: "exit".into(), operands: vec![] },
+        ];
+
+        omit_jumps_to_next_label(&mut instructions);
+
+        assert_eq!(instructions.len(), 2);
+        assert_eq!(instructions[0].mnemonic, "label");
+    }
     use bytecode_def::OpLayout;
 
     fn test_program() -> Program {

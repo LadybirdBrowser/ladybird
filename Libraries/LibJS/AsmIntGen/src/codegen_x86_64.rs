@@ -10,7 +10,7 @@ use crate::registers::{Arch, resolve_register};
 use crate::shared::{
     HandlerState, ResolvedMemoryIndex, get_immediate_value, resolve_adjacent_memory_pair,
     resolve_field_ref, resolve_label, resolve_memory_operand, substitute_macro,
-    outline_cold_blocks, uniquify_macro_labels, w,
+    omit_jumps_to_next_label, outline_cold_blocks, uniquify_macro_labels, w,
 };
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -465,8 +465,10 @@ fn generate_handler(out: &mut String, handler: &Handler, program: &Program, abi:
     w!(out, ".p2align 4");
     w!(out, "asm_handler_{}:", handler.name);
 
-    let (hot_instructions, cold_instructions) = outline_cold_blocks(&instructions)
+    let (mut hot_instructions, mut cold_instructions) = outline_cold_blocks(&instructions)
         .unwrap_or_else(|error| panic!("invalid cold block in handler '{}': {error}", handler.name));
+    omit_jumps_to_next_label(&mut hot_instructions);
+    omit_jumps_to_next_label(&mut cold_instructions);
 
     for instruction in &hot_instructions {
         emit_instruction(out, instruction, handler, program, &mut state, abi);

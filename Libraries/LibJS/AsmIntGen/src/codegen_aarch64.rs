@@ -8,8 +8,9 @@ use crate::allocator::flatten_and_allocate;
 use crate::parser::{AsmInstruction, Handler, ObjectFormat, Operand, Program};
 use crate::registers::{Arch, resolve_register};
 use crate::shared::{
-    AdjacentMemoryPair, HandlerState, get_immediate_value, resolve_adjacent_memory_pair,
-    outline_cold_blocks, resolve_field_ref, resolve_label, substitute_macro, uniquify_macro_labels, w,
+    AdjacentMemoryPair, HandlerState, get_immediate_value, omit_jumps_to_next_label,
+    outline_cold_blocks, resolve_adjacent_memory_pair, resolve_field_ref, resolve_label,
+    substitute_macro, uniquify_macro_labels, w,
 };
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -531,8 +532,10 @@ fn generate_handler(
     // x21 = pb + pc is set by the dispatch sequence that branches here.
     // It is callee-saved, so it survives C++ calls within the handler.
 
-    let (hot_instructions, cold_instructions) = outline_cold_blocks(&instructions)
+    let (mut hot_instructions, mut cold_instructions) = outline_cold_blocks(&instructions)
         .unwrap_or_else(|error| panic!("invalid cold block in handler '{}': {error}", handler.name));
+    omit_jumps_to_next_label(&mut hot_instructions);
+    omit_jumps_to_next_label(&mut cold_instructions);
 
     for instruction in &hot_instructions {
         emit_instruction(out, instruction, handler, program, &mut state, pinned);
