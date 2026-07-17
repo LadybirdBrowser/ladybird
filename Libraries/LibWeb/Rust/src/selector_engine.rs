@@ -14,6 +14,8 @@ use crate::abort_on_panic;
 static NEXT_SELECTOR_ID: AtomicU64 = AtomicU64::new(1);
 
 pub type SelectorString = Box<[u16]>;
+/// A selector list owns references to selectors that have already been compiled. `Rc` allows
+/// functional pseudo-classes to share those selectors with the C++ selector tree that owns them.
 pub type SelectorList = Box<[Rc<CompiledSelector>]>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -175,17 +177,31 @@ pub enum SimpleSelector {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompoundSelector {
+    /// The combinator relating this compound to the compound immediately to its left. The
+    /// leftmost compound therefore has `Combinator::None`.
     pub combinator: Combinator,
     pub simple_selectors: Box<[SimpleSelector]>,
 }
 
+/// The immutable representation used by every matching path.
+///
+/// Compounds retain their parsed left-to-right order. Matching starts at the final compound and
+/// follows each compound's combinator toward the beginning of this slice.
 #[derive(Debug)]
 pub struct CompiledSelector {
+    /// Process-local identity used for `:has()` cache keys. Equality deliberately ignores it.
     id: u64,
+    /// The C++ selector that owns the source data. This is only used by C++ callbacks and is null
+    /// for selectors constructed by Rust unit tests.
     cxx_selector: *const c_void,
     pub compound_selectors: Box<[CompoundSelector]>,
+    /// The pseudo-element required on the initial match target, if this selector ends in one.
     pub target_pseudo_element: Option<PseudoElementType>,
+    /// Whether matching needs only light-tree parent traversal and the simple selectors accepted
+    /// by `fast_matches()`.
     pub can_use_fast_matches: bool,
+    /// The greatest number of consecutive next-sibling combinators in any sibling traversal.
+    /// `usize::MAX` represents the unbounded distance of a subsequent-sibling combinator.
     pub sibling_invalidation_distance: usize,
 }
 
@@ -274,8 +290,12 @@ pub enum TagNameMatchingMode {
 
 #[derive(Clone, Copy)]
 struct MatchState<Element> {
+    /// The element against which `:scope` and the nesting selector are resolved.
     scope: Option<Element>,
+    /// Relative selectors have an implied compound for their anchor to the left of their first
+    /// explicit combinator.
     selector_kind: SelectorKind,
+    /// The `:has()` subject. Right-to-left traversal must not cross or match this element.
     anchor: Option<Element>,
 }
 
@@ -284,6 +304,11 @@ struct PseudoElementTransition<Element> {
     shadow_host: Option<Element>,
 }
 
+/// The operations the selector algorithm needs from a DOM implementation.
+///
+/// Keeping traversal and primitive selector checks behind this interface lets the matching
+/// algorithm remain in safe, testable Rust. The production implementation forwards these
+/// operations to LibWeb through the FFI, while unit tests use an in-memory tree.
 pub trait SelectorDom {
     type Element: Copy + Eq;
 
@@ -402,6 +427,8 @@ fn matches_selector_internal<Dom: SelectorDom>(
     anchor: Option<Dom::Element>,
     dom: &mut Dom,
 ) -> bool {
+    // OPTIMIZATION: The fast matcher handles the common subset without constructing match state
+    //               or invoking the general recursive matcher.
     if selector_kind == SelectorKind::Normal && target.pseudo_element.is_none() && selector.can_use_fast_matches {
         return fast_matches(selector, target.element, shadow_host, dom);
     }
@@ -434,6 +461,20 @@ fn matches_compound_selector<Dom: SelectorDom>(
     state: MatchState<Dom::Element>,
     dom: &mut Dom,
 ) -> bool {
+    // https://drafts.csswg.org/selectors-4/#match-a-selector-against-an-element
+    // To match a complex selector against an element, process it compound selector at a time,
+    // in right-to-left order. This process is defined recursively as follows:
+    //
+    // - If any simple selectors in the rightmost compound selector does not match the element,
+    //   return failure.
+    //
+    // - Otherwise, if there is only one compound selector in the complex selector, return
+    //   success.
+    //
+    // - Otherwise, consider all possible elements that could be related to this element by the
+    //   rightmost combinator. If the operation of matching the selector consisting of this
+    //   selector with the rightmost compound selector and rightmost combinator removed against
+    //   any one of these elements returns success, then return success. Otherwise, return failure.
     let compound_selector = &selector.compound_selectors[component_list_index];
     let is_has = |simple_selector: &SimpleSelector| {
         matches!(
@@ -445,6 +486,8 @@ fn matches_compound_selector<Dom: SelectorDom>(
         )
     };
 
+    // OPTIMIZATION: Evaluate :has() last. Its subtree traversal is substantially more expensive
+    //               than the other simple selectors and cannot affect their result.
     for simple_selector in compound_selector
         .simple_selectors
         .iter()
@@ -671,6 +714,13 @@ fn should_block_shadow_host_matching<Element: Copy + Eq>(
     shadow_host: Option<Element>,
     scope: Option<Element>,
 ) -> bool {
+    // https://drafts.csswg.org/css-scoping-1/#host-element-in-tree
+    // When considered within its own shadow trees, the shadow host is featureless. Only the
+    // :host, :host(), and :host-context() pseudo-classes are allowed to match it.
+    //
+    // NB: :has(), :is(), :where(), nesting, and pseudo-elements are admitted here because they
+    //     may contain :host or form part of a selector whose originating element is the host.
+    //     Their inner selectors are checked independently and cannot make the host non-featureless.
     if shadow_host != Some(element) {
         return false;
     }
@@ -704,6 +754,11 @@ fn matches_pseudo_class<Dom: SelectorDom>(
             !matches_selector_internal(selector, target, shadow_host, scope, SelectorKind::Normal, None, dom)
         }),
         Has => {
+            // https://drafts.csswg.org/selectors-4/#relational
+            // The relational pseudo-class, :has(), is a functional pseudo-class taking a
+            // <relative-selector-list> as an argument. It represents an element if any of the
+            // relative selectors would match at least one element when anchored against this
+            // element.
             if target.pseudo_element.is_some() || selector_kind == SelectorKind::Relative {
                 return false;
             }
@@ -714,6 +769,10 @@ fn matches_pseudo_class<Dom: SelectorDom>(
                 .any(|selector| matches_has_pseudo_class(selector, target.element, shadow_host, scope, dom))
         }
         Host => {
+            // https://drafts.csswg.org/css-scoping-1/#host-selector
+            // When evaluated in the context of a shadow tree, it matches the shadow tree’s shadow
+            // host if the shadow host, in its normal context, matches the selector argument. In any
+            // other context, it matches nothing.
             if target.pseudo_element.is_some() || shadow_host != Some(target.element) {
                 return false;
             }
@@ -773,6 +832,12 @@ fn matches_nth_pseudo_class<Dom: SelectorDom>(
     shadow_host: Option<Dom::Element>,
     dom: &mut Dom,
 ) -> bool {
+    // https://drafts.csswg.org/selectors-4/#child-index
+    // The pseudo-classes defined in this section select elements based on their index amongst
+    // their inclusive siblings.
+    //
+    // NB: This definition intentionally includes elements without parents and elements whose
+    //     parent is not an element. The target itself supplies the initial one-based index.
     let matches_selector_list = |element: Dom::Element, dom: &mut Dom| {
         pseudo_class.argument_selector_list.is_empty()
             || pseudo_class.argument_selector_list.iter().any(|selector| {
@@ -869,6 +934,8 @@ fn matches_has_pseudo_class<Dom: SelectorDom>(
         return result;
     }
     let previous_inside_has = dom.enter_has_argument_matching();
+    // OPTIMIZATION: Selector-involvement metadata must observe the same traversal as the general
+    //               matcher, so specialized traversal is only safe when metadata is not collected.
     let result = if dom.should_reject_has_argument(selector, anchor) {
         false
     } else if dom.collects_selector_involvement_metadata() {
@@ -968,6 +1035,14 @@ fn matches_relative_selector<Dom: SelectorDom>(
     anchor: Dom::Element,
     dom: &mut Dom,
 ) -> bool {
+    // https://drafts.csswg.org/selectors-4/#relative
+    // Relative selectors begin with a combinator, with a selector representing the anchor element
+    // implied at the start of the selector. (If no combinator is present, the descendant
+    // combinator is implied.)
+    //
+    // NB: This walks left-to-right from that implied anchor to enumerate candidates. Once a
+    //     candidate is found, `matches_compound_selector()` verifies the corresponding compound
+    //     right-to-left, preserving the normal matching semantics for the rest of the selector.
     if compound_index >= selector.compound_selectors.len() {
         return matches_selector_internal(
             selector,
@@ -1109,6 +1184,9 @@ fn cache_matching_has_ancestors<Dom: SelectorDom>(
     anchor: Dom::Element,
     dom: &mut Dom,
 ) {
+    // OPTIMIZATION: If a descendant satisfies this relative selector, every ancestor between it
+    //               and the current anchor has the same satisfying descendant. Populate those
+    //               positive results while the traversal path is already known.
     let mut ancestor = dom.parent_element_in_light_tree(matching_descendant);
     while let Some(element) = ancestor {
         if element == anchor {
@@ -1161,6 +1239,11 @@ fn pseudo_element_transition_target<Dom: SelectorDom>(
         PseudoElementValue::CompoundSelector(slotted_selector)
             if pseudo_element_selector.pseudo_element == PseudoElementType::Slotted =>
         {
+            // https://drafts.csswg.org/css-scoping-1/#slotted-pseudo
+            // The ::slotted() pseudo-element represents the elements that are:
+            //
+            // - assigned, after flattening, to the slot that is ::slotted’s originating element
+            // - matched by its <compound-selector> argument
             // NB: A slot in a shadow tree can never be a slotted element itself. Bail before
             //     matching the argument selector, so that matching it doesn't record selector
             //     involvement metadata on the slot element.
@@ -1190,6 +1273,9 @@ fn pseudo_element_transition_target<Dom: SelectorDom>(
         PseudoElementValue::Identifiers(identifiers)
             if pseudo_element_selector.pseudo_element == PseudoElementType::Part =>
         {
+            // https://drafts.csswg.org/css-shadow-parts-1/#part
+            // The ::part() pseudo-element only matches anything when the originating element is a
+            // shadow host.
             if target.pseudo_element.is_some() || component_list_index == 0 {
                 return None;
             }
@@ -1221,6 +1307,9 @@ fn fast_matches<Dom: SelectorDom>(
     shadow_host: Option<Dom::Element>,
     dom: &mut Dom,
 ) -> bool {
+    // OPTIMIZATION: This iterative matcher accepts only descendant and child combinators. A
+    //               descendant may initially match an ancestor that makes a later child chain
+    //               fail, so retain the next ancestor and resume the descendant search there.
     let mut current = element_to_match;
     let mut compound_selector_index = selector.compound_selectors.len() - 1;
     if !fast_matches_compound_selector(
@@ -2212,6 +2301,9 @@ fn can_simple_selector_use_fast_matches(simple_selector: &SimpleSelector) -> boo
 }
 
 fn sibling_invalidation_distance(compound_selectors: &[CompoundSelector]) -> usize {
+    // Sibling invalidation only needs to reach as far as the longest uninterrupted chain of next
+    // siblings. Child, descendant, and column combinators start a new sibling traversal, while a
+    // subsequent-sibling combinator makes the distance unbounded.
     let mut maximum_distance = 0usize;
     let mut current_distance = 0usize;
 
