@@ -167,6 +167,32 @@ impl Drop for RetainedRequestUrlModifierList {
     }
 }
 
+/// A Rust-owned array of bytes, used for lists of C++ u8 enum values.
+#[repr(C)]
+pub struct RetainedByteList {
+    pointer: *mut u8,
+    length: usize,
+}
+
+impl RetainedByteList {
+    /// # Safety
+    /// `bytes` must point to `length` valid bytes.
+    unsafe fn from_raw(bytes: *const u8, length: usize) -> Self {
+        let slice: Box<[u8]> = (0..length).map(|i| unsafe { *bytes.add(i) }).collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut u8;
+        Self { pointer, length }
+    }
+}
+
+impl Drop for RetainedByteList {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+        }
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -379,6 +405,19 @@ pub enum StyleValueData {
         url: RetainedString,
         url_type: u8,
         modifiers: RetainedRequestUrlModifierList,
+    },
+    /// A @font-face source: either local() with a retained family name value, or a URL (encoded
+    /// as in [`StyleValueData::Url`]) with an optional format string and a list of font
+    /// technologies (C++ `enum class FontTech : u8`, opaque to Rust).
+    FontSource {
+        is_local: bool,
+        local_name: RetainedStyleValue,
+        url: RetainedString,
+        url_type: u8,
+        url_modifiers: RetainedRequestUrlModifierList,
+        has_format: bool,
+        format: RetainedUtf16FlyString,
+        tech: RetainedByteList,
     },
     /// A radial gradient size: one or two components, each either a RadialExtent keyword (the
     /// C++ `enum class RadialExtent : u8`, opaque to Rust) or a retained style value.
@@ -1051,6 +1090,35 @@ pub unsafe extern "C" fn rust_style_value_create_url(
             url: RetainedString { raw: url },
             url_type,
             modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(modifiers, modifier_count) },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the local name if local, or one leaked reference
+/// to the URL string and each modifier string otherwise, plus the format string when present.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_font_source(
+    is_local: bool,
+    local_name: *const c_void,
+    url: usize,
+    url_type: u8,
+    url_modifiers: *const RetainedRequestUrlModifier,
+    url_modifier_count: usize,
+    has_format: bool,
+    format: usize,
+    tech: *const u8,
+    tech_count: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::FontSource {
+            is_local,
+            local_name: RetainedStyleValue { pointer: local_name },
+            url: RetainedString { raw: url },
+            url_type,
+            url_modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(url_modifiers, url_modifier_count) },
+            has_format,
+            format: RetainedUtf16FlyString { raw: format },
+            tech: unsafe { RetainedByteList::from_raw(tech, tech_count) },
         }))
     })
 }

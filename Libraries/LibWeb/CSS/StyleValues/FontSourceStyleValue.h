@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/URL.h>
 
@@ -25,9 +26,22 @@ public:
     }
     virtual ~FontSourceStyleValue() override;
 
-    Source const& source() const { return m_source; }
-    Optional<Utf16FlyString> const& format() const { return m_format; }
-    Vector<FontTech> const& tech() const { return m_tech; }
+    Source source() const;
+    Optional<Utf16FlyString> format() const
+    {
+        if (!m_value->font_source.has_format)
+            return {};
+        return Utf16FlyString::from_raw(m_value->font_source.format.raw);
+    }
+    Vector<FontTech> tech() const
+    {
+        auto const& list = m_value->font_source.tech;
+        Vector<FontTech> tech;
+        tech.ensure_capacity(list.length);
+        for (size_t i = 0; i < list.length; ++i)
+            tech.unchecked_append(static_cast<FontTech>(list.pointer[i]));
+        return tech;
+    }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
@@ -38,9 +52,9 @@ public:
 private:
     FontSourceStyleValue(Source source, Optional<Utf16FlyString> format, Vector<FontTech> tech);
 
-    Source m_source;
-    Optional<Utf16FlyString> m_format;
-    Vector<FontTech> m_tech;
+    static StyleValueFFI::StyleValueData* make_font_source_data(Source const&, Optional<Utf16FlyString> const&, Vector<FontTech> const&);
+
+    RustStyleValueHandle m_value;
 };
 
 }
