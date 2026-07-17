@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 
@@ -121,28 +122,34 @@ public:
     }
     virtual ~EasingStyleValue() override = default;
 
-    Function const& function() const { return m_function; }
+    Function const& function() const;
 
-    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { m_function.serialize(builder, mode); }
-    virtual void serialize(Utf16StringBuilder& builder, SerializationMode mode) const override { m_function.serialize(builder, mode); }
+    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { function().serialize(builder, mode); }
+    virtual void serialize(Utf16StringBuilder& builder, SerializationMode mode) const override { function().serialize(builder, mode); }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
-    bool properties_equal(EasingStyleValue const& other) const { return m_function == other.m_function; }
+    bool properties_equal(EasingStyleValue const& other) const { return function() == other.function(); }
 
     virtual bool is_computationally_independent() const override
     {
-        return m_function.visit([](auto const& function) { return function.is_computationally_independent(); });
+        return function().visit([](auto const& function) { return function.is_computationally_independent(); });
     }
 
 private:
     EasingStyleValue(Function const& function)
         : StyleValueWithDefaultOperators(Type::Easing)
-        , m_function(function)
+        , m_value(make_easing_data(function))
     {
     }
 
-    Function m_function;
+    static StyleValueFFI::StyleValueData* make_easing_data(Function const&);
+
+    RustStyleValueHandle m_value;
+
+    // NB: The materialized function is a cache of the Rust-owned value data; it also carries the
+    //     cubic-bezier sample cache. The Rust allocation stays authoritative.
+    mutable Optional<Function> m_materialized_function;
 };
 
 }

@@ -385,6 +385,43 @@ impl Drop for RetainedGridAreaList {
     }
 }
 
+/// A retained linear() easing stop: the output value and an optional input (null when absent).
+#[repr(C)]
+pub struct RetainedLinearEasingStop {
+    output: RetainedStyleValue,
+    input: RetainedStyleValue,
+}
+
+/// A Rust-owned array of retained linear() easing stops.
+#[repr(C)]
+pub struct RetainedLinearEasingStopList {
+    pointer: *mut RetainedLinearEasingStop,
+    length: usize,
+}
+
+impl RetainedLinearEasingStopList {
+    /// Takes ownership of the stops' retained values.
+    ///
+    /// # Safety
+    /// `stops` must point to `length` valid stops whose retained values this list may assume
+    /// ownership of.
+    unsafe fn from_raw(stops: *const RetainedLinearEasingStop, length: usize) -> Self {
+        let slice: Box<[RetainedLinearEasingStop]> =
+            (0..length).map(|i| unsafe { std::ptr::read(stops.add(i)) }).collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedLinearEasingStop;
+        Self { pointer, length }
+    }
+}
+
+impl Drop for RetainedLinearEasingStopList {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+        }
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -631,6 +668,19 @@ pub enum StyleValueData {
     },
     /// image-set() with its retained options.
     ImageSet { options: RetainedImageSetOptionList },
+    /// An easing function: linear() with its retained stops (kind 0), cubic-bezier() with four
+    /// retained control values (kind 1), or steps() with a retained interval count and a step
+    /// position (kind 2, the C++ `enum class StepPosition : u8`, opaque to Rust).
+    Easing {
+        kind: u8,
+        linear_stops: RetainedLinearEasingStopList,
+        x1: RetainedStyleValue,
+        y1: RetainedStyleValue,
+        x2: RetainedStyleValue,
+        y2: RetainedStyleValue,
+        number_of_intervals: RetainedStyleValue,
+        step_position: u8,
+    },
     /// A cursor with its retained image value and optional retained hotspot coordinates (both
     /// null or both non-null).
     Cursor {
@@ -1750,6 +1800,36 @@ pub unsafe extern "C" fn rust_style_value_create_grid_template_area(
             grid_areas: unsafe { RetainedGridAreaList::from_raw(areas, area_count) },
             row_count,
             column_count,
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each non-null value and of the stops' retained
+/// values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_easing(
+    kind: u8,
+    linear_stops: *const RetainedLinearEasingStop,
+    linear_stop_count: usize,
+    x1: *const c_void,
+    y1: *const c_void,
+    x2: *const c_void,
+    y2: *const c_void,
+    number_of_intervals: *const c_void,
+    step_position: u8,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Easing {
+            kind,
+            linear_stops: unsafe { RetainedLinearEasingStopList::from_raw(linear_stops, linear_stop_count) },
+            x1: RetainedStyleValue { pointer: x1 },
+            y1: RetainedStyleValue { pointer: y1 },
+            x2: RetainedStyleValue { pointer: x2 },
+            y2: RetainedStyleValue { pointer: y2 },
+            number_of_intervals: RetainedStyleValue {
+                pointer: number_of_intervals,
+            },
+            step_position,
         }))
     })
 }

@@ -17,6 +17,51 @@
 
 namespace Web::CSS {
 
+StyleValueFFI::StyleValueData* EasingStyleValue::make_easing_data(Function const& function)
+{
+    // The Rust allocation takes ownership of one strong reference to each non-null value.
+    return function.visit(
+        [&](Linear const& linear) {
+            Vector<StyleValueFFI::RetainedLinearEasingStop> stops;
+            stops.ensure_capacity(linear.stops.size());
+            for (auto const& stop : linear.stops)
+                stops.unchecked_append({ { retain_style_value_for_rust(stop.output.ptr()) }, { retain_style_value_for_rust(stop.input.ptr()) } });
+            return StyleValueFFI::rust_style_value_create_easing(0, stops.data(), stops.size(), nullptr, nullptr, nullptr, nullptr, nullptr, 0);
+        },
+        [&](CubicBezier const& bezier) {
+            return StyleValueFFI::rust_style_value_create_easing(1, nullptr, 0, retain_style_value_for_rust(bezier.x1.ptr()), retain_style_value_for_rust(bezier.y1.ptr()), retain_style_value_for_rust(bezier.x2.ptr()), retain_style_value_for_rust(bezier.y2.ptr()), nullptr, 0);
+        },
+        [&](Steps const& steps) {
+            return StyleValueFFI::rust_style_value_create_easing(2, nullptr, 0, nullptr, nullptr, nullptr, nullptr, retain_style_value_for_rust(steps.number_of_intervals.ptr()), to_underlying(steps.position));
+        });
+}
+
+EasingStyleValue::Function const& EasingStyleValue::function() const
+{
+    if (!m_materialized_function.has_value()) {
+        auto const& data = m_value->easing;
+        switch (data.kind) {
+        case 0: {
+            Vector<Linear::Stop> stops;
+            stops.ensure_capacity(data.linear_stops.length);
+            for (size_t i = 0; i < data.linear_stops.length; ++i) {
+                auto const& stop = data.linear_stops.pointer[i];
+                stops.unchecked_append(Linear::Stop { *static_cast<StyleValue const*>(stop.output.pointer), static_cast<StyleValue const*>(stop.input.pointer) });
+            }
+            m_materialized_function = Function { Linear { move(stops) } };
+            break;
+        }
+        case 1:
+            m_materialized_function = Function { CubicBezier { *static_cast<StyleValue const*>(data.x1.pointer), *static_cast<StyleValue const*>(data.y1.pointer), *static_cast<StyleValue const*>(data.x2.pointer), *static_cast<StyleValue const*>(data.y2.pointer) } };
+            break;
+        default:
+            m_materialized_function = Function { Steps { *static_cast<StyleValue const*>(data.number_of_intervals.pointer), static_cast<StepPosition>(data.step_position) } };
+            break;
+        }
+    }
+    return *m_materialized_function;
+}
+
 // https://drafts.csswg.org/css-easing/#linear-easing-function-serializing
 void EasingStyleValue::Linear::serialize(Utf16StringBuilder& builder, SerializationMode mode) const
 {
@@ -102,7 +147,7 @@ void EasingStyleValue::Function::serialize(Utf16StringBuilder& builder, Serializ
 
 ValueComparingNonnullRefPtr<StyleValue const> EasingStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    auto const& absolutized_function = m_function.visit(
+    auto const& absolutized_function = function().visit(
         [&](Linear const& linear) -> Function {
             Vector<Linear::Stop> absolutized_stops;
 
