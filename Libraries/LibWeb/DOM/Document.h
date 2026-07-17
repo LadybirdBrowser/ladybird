@@ -442,11 +442,11 @@ public:
     [[nodiscard]] u64 full_layout_count() const { return m_full_layout_count; }
     [[nodiscard]] bool layout_is_up_to_date() const;
     void clear_devtools_layout_inspection_data();
-    enum class UpdateScrollableOverflowMode : u8 {
-        AfterLayout,
-        Scheduled,
+    enum class ScrollableOverflowDerivedStructureUpdates : u8 {
+        UpdateAfterMeasure,
+        HandledByAfterLayoutCommit,
     };
-    void update_scrollable_overflow(UpdateScrollableOverflowMode);
+    void update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates);
     void update_paint_and_hit_testing_properties_if_needed();
     void update_animated_style_if_needed();
     void update_style_computer_viewport_rect();
@@ -1341,6 +1341,7 @@ private:
         Yes,
     };
     void after_layout_commit(LayoutTreeChanged);
+    void rebuild_sticky_insets_and_reassign_scroll_frames();
 
     void run_unloading_cleanup_steps();
 

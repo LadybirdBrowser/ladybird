@@ -192,7 +192,6 @@ public:
     struct OverflowData {
         CSSPixelRect scrollable_overflow_rect;
         bool has_scrollable_overflow { false };
-        CSSPixelPoint scroll_offset {};
     };
 
     // Offset from the top left of the containing block's content edge.

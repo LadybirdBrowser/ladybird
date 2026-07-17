@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Vector.h>
 #include <LibWeb/Forward.h>
@@ -18,15 +19,7 @@ namespace Web::Layout {
 // Map from each containing block to the boxes it contains.
 using ContainedBoxesMap = HashMap<Box const*, Vector<Box const*>>;
 
-struct ScrollableOverflowMeasurementWork {
-    ContainedBoxesMap contained_boxes_map;
-    Vector<Box const*> boxes_to_measure;
-};
-
-// Walks the committed layout tree once, collecting the boxes whose paintable has no stored overflow
-// data (i.e. that need measuring) along with a complete contained-boxes map. The complete map can
-// be cached across style-only overflow recalculations and refreshed after layout tree changes.
-[[nodiscard]] ScrollableOverflowMeasurementWork collect_scrollable_overflow_measurement_work(Node const& root);
+[[nodiscard]] ContainedBoxesMap collect_scrollable_overflow_contained_boxes(Node const& root, Function<void(Box const&)> box_visitor = {});
 
 // https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-region
 // Measures the scrollable overflow of the given box and stores it on the box's paintable.

@@ -17,25 +17,19 @@
 
 namespace Web::Layout {
 
-ScrollableOverflowMeasurementWork collect_scrollable_overflow_measurement_work(Node const& root)
+ContainedBoxesMap collect_scrollable_overflow_contained_boxes(Node const& root, Function<void(Box const&)> box_visitor)
 {
-    auto needs_measurement = [](Box const& box) {
-        auto paintable = box.paintable_box();
-        return paintable && !paintable->overflow_data().has_value();
-    };
-
-    ScrollableOverflowMeasurementWork work;
-    root.for_each_in_inclusive_subtree([&](auto& node) {
-        auto const* box = as_if<Box>(node);
-        if (!box || !box->paintable_box())
+    ContainedBoxesMap contained_boxes_map;
+    root.for_each_in_inclusive_subtree_of_type<Box>([&](auto& box) {
+        if (!box.paintable_box())
             return TraversalDecision::Continue;
-        if (needs_measurement(*box))
-            work.boxes_to_measure.append(box);
-        if (auto const* containing_block = box->containing_block())
-            work.contained_boxes_map.ensure(containing_block).append(box);
+        if (box_visitor)
+            box_visitor(box);
+        if (auto const* containing_block = box.containing_block())
+            contained_boxes_map.ensure(containing_block).append(&box);
         return TraversalDecision::Continue;
     });
-    return work;
+    return contained_boxes_map;
 }
 
 struct PhysicalOverflowDirections {
