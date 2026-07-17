@@ -14,7 +14,7 @@ namespace Web::CSS {
 
 void CounterStyleStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    m_value.visit(
+    value().visit(
         [&](Utf16FlyString const& name) {
             builder.append(name);
         },
@@ -34,7 +34,7 @@ void CounterStyleStyleValue::serialize(StringBuilder& builder, SerializationMode
 
 RefPtr<CounterStyle const> CounterStyleStyleValue::resolve_counter_style(StyleScope const& style_scope) const
 {
-    return m_value.visit(
+    return value().visit(
         [&](Utf16FlyString const& name) -> RefPtr<CounterStyle const> {
             return style_scope.get_registered_counter_style(name);
         },

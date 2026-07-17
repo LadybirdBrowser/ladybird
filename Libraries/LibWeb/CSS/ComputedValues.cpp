@@ -600,7 +600,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     auto list_style_type = computed_style.list_style_type(style_scope);
     auto const& list_style_type_value = computed_style.property(PropertyID::ListStyleType);
     if (list_style_type_value.is_counter_style() && list_style_type_value.as_counter_style().value().has<CounterStyleStyleValue::SymbolsFunction>()) {
-        auto const& symbols = list_style_type_value.as_counter_style().value().get<CounterStyleStyleValue::SymbolsFunction>();
+        auto counter_style_value = list_style_type_value.as_counter_style().value();
+        auto const& symbols = counter_style_value.get<CounterStyleStyleValue::SymbolsFunction>();
         auto counter_style = list_style_type.get<RefPtr<CounterStyle const>>();
         VERIFY(counter_style);
         list_style_type = ListStyleSymbols {

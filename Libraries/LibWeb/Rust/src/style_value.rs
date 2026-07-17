@@ -427,6 +427,24 @@ pub enum StyleValueData {
         content: RetainedStyleValue,
         alt_text: RetainedStyleValue,
     },
+    /// A @counter-style system descriptor: a plain system keyword (kind 0, the C++ `enum class
+    /// CounterStyleSystem : u8`, opaque to Rust), fixed with an optional retained first symbol
+    /// (kind 1), or extends with a retained counter style name (kind 2).
+    CounterStyleSystem {
+        kind: u8,
+        system: u8,
+        first_symbol: RetainedStyleValue,
+        name: RetainedUtf16FlyString,
+    },
+    /// A counter style reference: either a retained counter style name, or a symbols() function
+    /// with its type (the C++ `enum class SymbolsType : u8`, opaque to Rust) and retained
+    /// symbol strings.
+    CounterStyle {
+        is_symbols: bool,
+        name: RetainedUtf16FlyString,
+        symbols_type: u8,
+        symbols: RetainedUtf16FlyStringList,
+    },
     /// counter-increment, counter-reset or counter-set with its retained counter definitions.
     CounterDefinitions {
         counter_definitions: RetainedCounterDefinitionList,
@@ -1296,6 +1314,45 @@ pub unsafe extern "C" fn rust_style_value_create_grid_track_placement(
             value: RetainedStyleValue { pointer: value },
             has_name,
             name: RetainedUtf16FlyString { raw: name },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the first symbol and one leaked reference to the
+/// name when they are present.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_counter_style_system(
+    kind: u8,
+    system: u8,
+    first_symbol: *const c_void,
+    name: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::CounterStyleSystem {
+            kind,
+            system,
+            first_symbol: RetainedStyleValue { pointer: first_symbol },
+            name: RetainedUtf16FlyString { raw: name },
+        }))
+    })
+}
+
+/// Takes ownership of one leaked reference to the name (0 when this is a symbols() function)
+/// and to each symbol string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_counter_style(
+    is_symbols: bool,
+    name: usize,
+    symbols_type: u8,
+    symbols: *const usize,
+    symbol_count: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::CounterStyle {
+            is_symbols,
+            name: RetainedUtf16FlyString { raw: name },
+            symbols_type,
+            symbols: unsafe { RetainedUtf16FlyStringList::from_raw(symbols, symbol_count) },
         }))
     })
 }
