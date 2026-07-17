@@ -11,6 +11,7 @@
 
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -22,18 +23,18 @@ public:
     }
     virtual ~PercentageStyleValue() override = default;
 
-    Percentage const& percentage() const { return m_percentage; }
-    virtual double raw_value() const override { return m_percentage.value(); }
+    Percentage percentage() const { return Percentage(m_value->percentage.value); }
+    virtual double raw_value() const override { return m_value->percentage.value; }
     virtual Utf16FlyString unit_name() const override { return "percent"_utf16_fly_string; }
 
-    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(m_percentage.to_string()); }
+    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(percentage().to_string()); }
 
     bool equals(StyleValue const& other) const override
     {
         if (type() != other.type())
             return false;
         auto const& other_percentage = other.as_percentage();
-        return m_percentage == other_percentage.m_percentage;
+        return percentage() == other_percentage.percentage();
     }
 
     virtual bool is_computationally_independent() const override { return true; }
@@ -41,11 +42,11 @@ public:
 private:
     PercentageStyleValue(Percentage&& percentage)
         : DimensionStyleValue(Type::Percentage)
-        , m_percentage(percentage)
+        , m_value(StyleValueFFI::rust_style_value_create_percentage(percentage.value()))
     {
     }
 
-    Percentage m_percentage;
+    RustStyleValueHandle m_value;
 };
 
 }

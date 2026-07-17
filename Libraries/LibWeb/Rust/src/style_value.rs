@@ -28,6 +28,20 @@ pub enum StyleValueData {
     Number { value: f64 },
     /// A CSS `<integer>`.
     Integer { value: i32 },
+    /// A CSS `<angle>`. The unit is the C++ `enum class AngleUnit : u8`, opaque to Rust.
+    Angle { value: f64, unit: u8 },
+    /// A CSS `<flex>`. The unit is the C++ `enum class FlexUnit : u8`, opaque to Rust.
+    Flex { value: f64, unit: u8 },
+    /// A CSS `<frequency>`. The unit is the C++ `enum class FrequencyUnit : u8`, opaque to Rust.
+    Frequency { value: f64, unit: u8 },
+    /// A CSS `<length>`. The unit is the C++ `enum class LengthUnit : u8`, opaque to Rust.
+    Length { value: f64, unit: u8 },
+    /// A CSS `<percentage>`.
+    Percentage { value: f64 },
+    /// A CSS `<resolution>`. The unit is the C++ `enum class ResolutionUnit : u8`, opaque to Rust.
+    Resolution { value: f64, unit: u8 },
+    /// A CSS `<time>`. The unit is the C++ `enum class TimeUnit : u8`, opaque to Rust.
+    Time { value: f64, unit: u8 },
 }
 
 #[unsafe(no_mangle)]
@@ -43,6 +57,41 @@ pub extern "C" fn rust_style_value_create_number(value: f64) -> *mut StyleValueD
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_integer(value: i32) -> *mut StyleValueData {
     abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Integer { value })))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_angle(value: f64, unit: u8) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Angle { value, unit })))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_flex(value: f64, unit: u8) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Flex { value, unit })))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_frequency(value: f64, unit: u8) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Frequency { value, unit })))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_length(value: f64, unit: u8) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Length { value, unit })))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_percentage(value: f64) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Percentage { value })))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_resolution(value: f64, unit: u8) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Resolution { value, unit })))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_time(value: f64, unit: u8) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Time { value, unit })))
 }
 
 #[unsafe(no_mangle)]

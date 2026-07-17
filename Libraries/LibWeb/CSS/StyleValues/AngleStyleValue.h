@@ -11,6 +11,7 @@
 
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -22,9 +23,9 @@ public:
     }
     virtual ~AngleStyleValue() override;
 
-    Angle const& angle() const { return m_angle; }
-    virtual double raw_value() const override { return m_angle.raw_value(); }
-    virtual Utf16FlyString unit_name() const override { return m_angle.unit_name(); }
+    Angle angle() const { return Angle(m_value->angle.value, static_cast<AngleUnit>(m_value->angle.unit)); }
+    virtual double raw_value() const override { return m_value->angle.value; }
+    virtual Utf16FlyString unit_name() const override { return angle().unit_name(); }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
@@ -37,7 +38,7 @@ public:
 private:
     explicit AngleStyleValue(Angle angle);
 
-    Angle m_angle;
+    RustStyleValueHandle m_value;
 };
 
 }
