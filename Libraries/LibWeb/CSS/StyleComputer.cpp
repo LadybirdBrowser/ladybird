@@ -1251,10 +1251,13 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
         }
 
         auto const& underlying_value = computed_properties.property(property_id);
-        if (auto composited_start_value = composite_value(property_id, underlying_value, start, to_composite_operation(ordered_keyframes[start_keyframe].frame->composite)))
+        auto start_composite_operation = to_composite_operation(ordered_keyframes[start_keyframe].frame->composite);
+        auto end_composite_operation = to_composite_operation(ordered_keyframes[end_keyframe].frame->composite);
+
+        if (auto composited_start_value = composite_value(property_id, underlying_value, start, start_composite_operation, color_resolution_context))
             start = *composited_start_value;
 
-        if (auto composited_end_value = composite_value(property_id, underlying_value, end, to_composite_operation(ordered_keyframes[end_keyframe].frame->composite)))
+        if (auto composited_end_value = composite_value(property_id, underlying_value, end, end_composite_operation, color_resolution_context))
             end = *composited_end_value;
 
         if (auto next_value = interpolate_property(*effect->target(), property_id, *start, *end, interval_progress, AllowDiscrete::Yes, &color_resolution_context)) {

@@ -30,6 +30,6 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element&, CalculationContext
 
 RefPtr<StyleValue const> interpolate_color(StyleValue const& from, StyleValue const& to, float delta, Optional<ColorInterpolationMethodStyleValue::ColorInterpolationMethod>, ColorResolutionContext const&);
 
-RefPtr<StyleValue const> composite_value(PropertyID, StyleValue const& a_underlying_value, StyleValue const& a_animated_value, Bindings::CompositeOperation);
+RefPtr<StyleValue const> composite_value(PropertyID, StyleValue const& a_underlying_value, StyleValue const& a_animated_value, Bindings::CompositeOperation, ColorResolutionContext const& = {});
 
 }

@@ -2031,7 +2031,7 @@ RefPtr<StyleValue const> interpolate_repeatable_list(DOM::Element& element, Calc
 }
 
 // https://drafts.csswg.org/filter-effects/#accumulation
-static StyleValueVector accumulate_filter_function(StyleValueList const& underlying_list, StyleValueList const& animated_list)
+static StyleValueVector accumulate_filter_function(StyleValueList const& underlying_list, StyleValueList const& animated_list, ColorResolutionContext const& color_resolution_context)
 {
     // Accumulation of <filter-value-list>s follows the same matching and extending rules as interpolation, falling
     // back to replace behavior if the lists do not match. However instead of interpolating the matching
@@ -2042,7 +2042,7 @@ static StyleValueVector accumulate_filter_function(StyleValueList const& underly
     if (contains_url(underlying_list) || contains_url(animated_list))
         return {};
 
-    auto accumulate_filter = [](FilterStyleValue const& underlying, FilterStyleValue const& animated) -> RefPtr<FilterStyleValue const> {
+    auto accumulate_filter = [&](FilterStyleValue const& underlying, FilterStyleValue const& animated) -> RefPtr<FilterStyleValue const> {
         if (underlying.kind() != animated.kind())
             return {};
 
@@ -2105,20 +2105,18 @@ static StyleValueVector accumulate_filter_function(StyleValueList const& underly
                 accumulated_radius = LengthStyleValue::create(Length::make_px(underlying_radius + animated_radius));
             }
 
-            RefPtr<StyleValue const> accumulated_color = animated_shadow.color();
-            if (underlying_shadow.color() && animated_shadow.color()) {
-                ColorResolutionContext color_resolution_context {};
-                auto underlying_color = underlying_shadow.color()->to_color(color_resolution_context);
-                auto animated_color = animated_shadow.color()->to_color(color_resolution_context);
-                if (underlying_color.has_value() && animated_color.has_value()) {
-                    auto accumulated = Color(
-                        min(255, underlying_color->red() + animated_color->red()),
-                        min(255, underlying_color->green() + animated_color->green()),
-                        min(255, underlying_color->blue() + animated_color->blue()),
-                        min(255, underlying_color->alpha() + animated_color->alpha()));
-                    accumulated_color = ColorStyleValue::create_from_color(accumulated, ColorSyntax::Legacy);
-                }
-            }
+            auto element_color = color_resolution_context.current_color.value_or(Color::Black);
+            auto resolve_color = [&](RefPtr<StyleValue const> const& color) {
+                return color ? color->to_color(color_resolution_context).value_or(element_color) : element_color;
+            };
+            auto underlying_color = resolve_color(underlying_shadow.color());
+            auto animated_color = resolve_color(animated_shadow.color());
+            auto accumulated = Color(
+                min(255, underlying_color.red() + animated_color.red()),
+                min(255, underlying_color.green() + animated_color.green()),
+                min(255, underlying_color.blue() + animated_color.blue()),
+                min(255, underlying_color.alpha() + animated_color.alpha()));
+            auto accumulated_color = ColorStyleValue::create_from_color(accumulated, ColorSyntax::Legacy);
 
             return DropShadowFilterStyleValue::create(
                 offset_x,
@@ -2286,7 +2284,7 @@ static RefPtr<StyleValue const> composite_mixed_value(StyleValue const& underlyi
     return {};
 }
 
-RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue const& underlying_value, StyleValue const& animated_value, Bindings::CompositeOperation composite_operation)
+RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue const& underlying_value, StyleValue const& animated_value, Bindings::CompositeOperation composite_operation, ColorResolutionContext const& color_resolution_context)
 {
     auto calculation_context = CalculationContext::for_property(PropertyNameAndID::from_id(property_id));
 
@@ -2575,7 +2573,7 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
             }
 
             VERIFY(composite_operation == Bindings::CompositeOperation::Accumulate);
-            auto result = accumulate_filter_function(underlying_list, animated_list);
+            auto result = accumulate_filter_function(underlying_list, animated_list, color_resolution_context);
             if (result.is_empty())
                 return {};
 

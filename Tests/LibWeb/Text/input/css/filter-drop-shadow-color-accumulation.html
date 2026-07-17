@@ -1,0 +1,20 @@
+<!doctype html>
+<div id="target" style="color: blue; filter: drop-shadow(1px 2px)"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const animation = target.animate(
+            [
+                { filter: "drop-shadow(3px 4px currentColor)", composite: "accumulate" },
+                { filter: "drop-shadow(5px 6px red)", composite: "accumulate" },
+            ],
+            { duration: 1000, fill: "both" }
+        );
+        animation.pause();
+
+        for (const time of [0, 500, 1000]) {
+            animation.currentTime = time;
+            println(`${time}: ${getComputedStyle(target).filter}`);
+        }
+    });
+</script>
