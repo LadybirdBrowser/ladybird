@@ -45,11 +45,12 @@ static void mark_as_attr_tainted(Vector<Parser::ComponentValue>& values)
         value.set_attr_tainted();
 }
 
-StringView UnresolvedStyleValue::comparison_text() const
+String UnresolvedStyleValue::comparison_text() const
 {
-    if (!m_value_comparison_text.is_empty())
-        return m_value_comparison_text.bytes_as_string_view();
-    return m_source_text.bytes_as_string_view().trim_whitespace();
+    auto value_comparison_text = this->value_comparison_text();
+    if (!value_comparison_text.is_empty())
+        return value_comparison_text;
+    return MUST(source_text().trim_ascii_whitespace());
 }
 
 ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<String> original_source_text, SourceTextMode source_text_mode, bool contains_attr_tainted_values)
@@ -76,23 +77,25 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
 
 UnresolvedStyleValue::UnresolvedStyleValue(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values)
     : StyleValue(Type::Unresolved)
-    , m_source_text(move(source_text))
-    , m_value_comparison_text(move(value_comparison_text))
-    , m_substitution_functions_presence(substitution_presence)
-    , m_contains_attr_tainted_values(contains_attr_tainted_values)
+    , m_value(StyleValueFFI::rust_style_value_create_unresolved(
+          source_text.to_raw_leaked(), value_comparison_text.to_raw_leaked(),
+          substitution_presence.attr, substitution_presence.env, substitution_presence.if_,
+          substitution_presence.inherit, substitution_presence.var, contains_attr_tainted_values))
 {
 }
 
 void UnresolvedStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    builder.append(m_source_text);
+    builder.append(source_text());
 }
 
 Vector<Parser::ComponentValue> UnresolvedStyleValue::values() const
 {
-    auto parser = Parser::Parser::create(Parser::ParsingParams {}, m_value_comparison_text.is_empty() ? m_source_text : m_value_comparison_text);
+    auto source_text = this->source_text();
+    auto value_comparison_text = this->value_comparison_text();
+    auto parser = Parser::Parser::create(Parser::ParsingParams {}, value_comparison_text.is_empty() ? source_text : value_comparison_text);
     auto values = parser.parse_as_list_of_component_values();
-    if (m_contains_attr_tainted_values)
+    if (contains_attr_tainted_values())
         mark_as_attr_tainted(values);
     return values;
 }

@@ -12,6 +12,7 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -31,12 +32,16 @@ public:
     virtual Vector<Parser::ComponentValue> tokenize() const override;
 
     Vector<Parser::ComponentValue> values() const;
-    bool contains_arbitrary_substitution_function() const { return m_substitution_functions_presence.has_any(); }
-    bool contains_attr_tainted_values() const { return m_contains_attr_tainted_values; }
-    bool includes_attr_function() const { return m_substitution_functions_presence.attr; }
-    bool includes_inherit_function() const { return m_substitution_functions_presence.inherit; }
-    bool includes_if_function() const { return m_substitution_functions_presence.if_; }
-    bool includes_var_function() const { return m_substitution_functions_presence.var; }
+    bool contains_arbitrary_substitution_function() const
+    {
+        auto const& data = m_value->unresolved;
+        return data.presence_attr || data.presence_env || data.presence_if || data.presence_inherit || data.presence_var;
+    }
+    bool contains_attr_tainted_values() const { return m_value->unresolved.contains_attr_tainted_values; }
+    bool includes_attr_function() const { return m_value->unresolved.presence_attr; }
+    bool includes_inherit_function() const { return m_value->unresolved.presence_inherit; }
+    bool includes_if_function() const { return m_value->unresolved.presence_if; }
+    bool includes_var_function() const { return m_value->unresolved.presence_var; }
 
     virtual bool equals(StyleValue const& other) const override;
 
@@ -47,12 +52,12 @@ public:
 private:
     UnresolvedStyleValue(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence, bool contains_attr_tainted_values);
 
-    StringView comparison_text() const;
+    String comparison_text() const;
 
-    String m_source_text;
-    String m_value_comparison_text;
-    Parser::SubstitutionFunctionsPresence m_substitution_functions_presence {};
-    bool m_contains_attr_tainted_values { false };
+    String source_text() const { return String::from_raw(m_value->unresolved.source_text.raw); }
+    String value_comparison_text() const { return String::from_raw(m_value->unresolved.value_comparison_text.raw); }
+
+    RustStyleValueHandle m_value;
 };
 
 }

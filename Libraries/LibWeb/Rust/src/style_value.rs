@@ -193,6 +193,38 @@ impl Drop for RetainedByteList {
     }
 }
 
+/// A Rust-owned array of retained AK::Utf16FlyString values.
+#[repr(C)]
+pub struct RetainedUtf16FlyStringList {
+    pointer: *mut RetainedUtf16FlyString,
+    length: usize,
+}
+
+impl RetainedUtf16FlyStringList {
+    /// Takes ownership of one leaked reference to each string.
+    ///
+    /// # Safety
+    /// `strings` must point to `length` valid leaked string raws.
+    unsafe fn from_raw(strings: *const usize, length: usize) -> Self {
+        let slice: Box<[RetainedUtf16FlyString]> = (0..length)
+            .map(|i| RetainedUtf16FlyString {
+                raw: unsafe { *strings.add(i) },
+            })
+            .collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedUtf16FlyString;
+        Self { pointer, length }
+    }
+}
+
+impl Drop for RetainedUtf16FlyStringList {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+        }
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -399,6 +431,24 @@ pub enum StyleValueData {
     /// A display value: the raw bytes of the C++ Display value type (a tag plus a union of
     /// packed u8 enums), opaque to Rust.
     Display { raw: u32 },
+    /// color-scheme with its retained scheme names and the only keyword flag.
+    ColorScheme {
+        schemes: RetainedUtf16FlyStringList,
+        only: bool,
+    },
+    /// An unresolved value containing arbitrary substitution functions, kept as its retained
+    /// source text, an optional normalized comparison text (empty when absent), the presence
+    /// flags of each substitution function and the attr-taint flag.
+    Unresolved {
+        source_text: RetainedString,
+        value_comparison_text: RetainedString,
+        presence_attr: bool,
+        presence_env: bool,
+        presence_if: bool,
+        presence_inherit: bool,
+        presence_var: bool,
+        contains_attr_tainted_values: bool,
+    },
     /// A CSS url() or src() with its retained URL string, type (the C++ URL::Type, opaque to
     /// Rust) and request URL modifiers.
     Url {
@@ -1119,6 +1169,49 @@ pub unsafe extern "C" fn rust_style_value_create_font_source(
             has_format,
             format: RetainedUtf16FlyString { raw: format },
             tech: unsafe { RetainedByteList::from_raw(tech, tech_count) },
+        }))
+    })
+}
+
+/// Takes ownership of one leaked reference to each scheme name.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_color_scheme(
+    schemes: *const usize,
+    scheme_count: usize,
+    only: bool,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::ColorScheme {
+            schemes: unsafe { RetainedUtf16FlyStringList::from_raw(schemes, scheme_count) },
+            only,
+        }))
+    })
+}
+
+/// Takes ownership of one leaked reference to each string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_unresolved(
+    source_text: usize,
+    value_comparison_text: usize,
+    presence_attr: bool,
+    presence_env: bool,
+    presence_if: bool,
+    presence_inherit: bool,
+    presence_var: bool,
+    contains_attr_tainted_values: bool,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Unresolved {
+            source_text: RetainedString { raw: source_text },
+            value_comparison_text: RetainedString {
+                raw: value_comparison_text,
+            },
+            presence_attr,
+            presence_env,
+            presence_if,
+            presence_inherit,
+            presence_var,
+            contains_attr_tainted_values,
         }))
     })
 }
