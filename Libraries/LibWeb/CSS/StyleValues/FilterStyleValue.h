@@ -95,8 +95,8 @@ public:
     ShadowStyleValue const& shadow() const { return m_shadow; }
     ValueComparingNonnullRefPtr<StyleValue const> offset_x() const { return m_shadow->offset_x(); }
     ValueComparingNonnullRefPtr<StyleValue const> offset_y() const { return m_shadow->offset_y(); }
-    ValueComparingRefPtr<StyleValue const> const& radius() const { return m_shadow->blur_radius_or_null(); }
-    ValueComparingRefPtr<StyleValue const> const& color() const { return m_shadow->color_or_null(); }
+    ValueComparingRefPtr<StyleValue const> radius() const { return m_shadow->blur_radius_or_null(); }
+    ValueComparingRefPtr<StyleValue const> color() const { return m_shadow->color_or_null(); }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;

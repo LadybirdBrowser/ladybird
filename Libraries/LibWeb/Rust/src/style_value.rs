@@ -195,6 +195,35 @@ pub enum StyleValueData {
         anchor_side: RetainedStyleValue,
         fallback_value: RetainedStyleValue,
     },
+    /// A CSS `<position>` with its two retained edge style values.
+    Position {
+        edge_x: RetainedStyleValue,
+        edge_y: RetainedStyleValue,
+    },
+    /// A shadow. The type and placement are C++ enums, opaque to Rust; the color, blur radius
+    /// and spread distance are optional retained style values (null when absent).
+    Shadow {
+        shadow_type: u8,
+        color: RetainedStyleValue,
+        offset_x: RetainedStyleValue,
+        offset_y: RetainedStyleValue,
+        blur_radius: RetainedStyleValue,
+        spread_distance: RetainedStyleValue,
+        placement: u8,
+    },
+    /// content with its retained content list and optional alt-text list (null when absent).
+    Content {
+        content: RetainedStyleValue,
+        alt_text: RetainedStyleValue,
+    },
+    /// counter() or counters(). The function is the C++ CounterFunction enum, opaque to Rust;
+    /// the join string is empty for counter().
+    Counter {
+        function: u8,
+        counter_name: RetainedUtf16FlyString,
+        counter_style: RetainedStyleValue,
+        join_string: RetainedUtf16FlyString,
+    },
     /// A CSS `<custom-ident>`.
     CustomIdent { custom_ident: RetainedUtf16FlyString },
     /// A border-radius rect of four retained corner radius style values.
@@ -600,6 +629,80 @@ pub unsafe extern "C" fn rust_style_value_create_anchor(
             fallback_value: RetainedStyleValue {
                 pointer: fallback_value,
             },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each edge.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_position(
+    edge_x: *const c_void,
+    edge_y: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Position {
+            edge_x: RetainedStyleValue { pointer: edge_x },
+            edge_y: RetainedStyleValue { pointer: edge_y },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each non-null style value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_shadow(
+    shadow_type: u8,
+    color: *const c_void,
+    offset_x: *const c_void,
+    offset_y: *const c_void,
+    blur_radius: *const c_void,
+    spread_distance: *const c_void,
+    placement: u8,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Shadow {
+            shadow_type,
+            color: RetainedStyleValue { pointer: color },
+            offset_x: RetainedStyleValue { pointer: offset_x },
+            offset_y: RetainedStyleValue { pointer: offset_y },
+            blur_radius: RetainedStyleValue { pointer: blur_radius },
+            spread_distance: RetainedStyleValue {
+                pointer: spread_distance,
+            },
+            placement,
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the content list and, when non-null, the
+/// alt-text list.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_content(
+    content: *const c_void,
+    alt_text: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Content {
+            content: RetainedStyleValue { pointer: content },
+            alt_text: RetainedStyleValue { pointer: alt_text },
+        }))
+    })
+}
+
+/// Takes ownership of one leaked reference to each string and one strong reference to the
+/// counter style.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_counter(
+    function: u8,
+    counter_name: usize,
+    counter_style: *const c_void,
+    join_string: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Counter {
+            function,
+            counter_name: RetainedUtf16FlyString { raw: counter_name },
+            counter_style: RetainedStyleValue { pointer: counter_style },
+            join_string: RetainedUtf16FlyString { raw: join_string },
         }))
     })
 }

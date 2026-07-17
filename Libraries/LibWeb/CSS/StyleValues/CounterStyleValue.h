@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -29,10 +30,10 @@ public:
     }
     virtual ~CounterStyleValue() override;
 
-    CounterFunction function_type() const { return m_properties.function; }
-    auto counter_name() const { return m_properties.counter_name; }
-    auto counter_style() const { return m_properties.counter_style; }
-    auto join_string() const { return m_properties.join_string; }
+    CounterFunction function_type() const { return static_cast<CounterFunction>(m_value->counter.function); }
+    Utf16FlyString counter_name() const { return Utf16FlyString::from_raw(m_value->counter.counter_name.raw); }
+    ValueComparingNonnullRefPtr<StyleValue const> counter_style() const { return *static_cast<StyleValue const*>(m_value->counter.counter_style.pointer); }
+    Utf16FlyString join_string() const { return Utf16FlyString::from_raw(m_value->counter.join_string.raw); }
 
     Utf16String resolve(DOM::AbstractElement&) const;
 
@@ -40,18 +41,12 @@ public:
 
     bool properties_equal(CounterStyleValue const& other) const;
 
-    virtual bool is_computationally_independent() const override { return m_properties.counter_style->is_computationally_independent(); }
+    virtual bool is_computationally_independent() const override { return counter_style()->is_computationally_independent(); }
 
 private:
     explicit CounterStyleValue(CounterFunction, Utf16FlyString counter_name, ValueComparingNonnullRefPtr<StyleValue const> counter_style, Utf16FlyString join_string);
 
-    struct Properties {
-        CounterFunction function;
-        Utf16FlyString counter_name;
-        ValueComparingNonnullRefPtr<StyleValue const> counter_style;
-        Utf16FlyString join_string;
-        bool operator==(Properties const&) const = default;
-    } m_properties;
+    RustStyleValueHandle m_value;
 };
 
 }
