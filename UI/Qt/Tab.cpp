@@ -156,6 +156,8 @@ private:
     QIcon m_progress_icon;
 };
 
+static constexpr int TOOLBAR_BUTTON_SIZE = 34;
+
 static QToolButton* create_toolbar_button(QWidget& parent, QAction& action)
 {
     auto* button = new QToolButton(&parent);
@@ -163,7 +165,7 @@ static QToolButton* create_toolbar_button(QWidget& parent, QAction& action)
     button->setAutoRaise(true);
     button->setFocusPolicy(Qt::NoFocus);
     button->setIconSize({ 20, 20 });
-    button->setFixedSize(36, 36);
+    button->setFixedSize(TOOLBAR_BUTTON_SIZE, TOOLBAR_BUTTON_SIZE);
 
     // FIXME: In Menu.cpp, we set the initial visibility of the action before we've associated it with this QToolButton.
     //        It would be nicer if we didn't have to do this here.
@@ -599,7 +601,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_downloads_button->setAutoRaise(true);
     m_downloads_button->setFocusPolicy(Qt::NoFocus);
     m_downloads_button->setIconSize({ 20, 20 });
-    m_downloads_button->setFixedSize(36, 36);
+    m_downloads_button->setFixedSize(TOOLBAR_BUTTON_SIZE, TOOLBAR_BUTTON_SIZE);
     m_downloads_button->setVisible(m_open_downloads_page_action->isVisible());
     QObject::connect(m_downloads_button, &QToolButton::clicked, this, [this] {
         show_downloads_popover();
@@ -617,11 +619,12 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     });
 
     m_hamburger_button = new HamburgerButton(m_toolbar);
+    m_hamburger_button->setObjectName("LadybirdHamburgerButton");
     m_hamburger_button->setText("Show &Menu");
     m_hamburger_button->setToolTip("Show Menu");
     m_hamburger_button->setIcon(create_chrome_icon(ChromeIcon::Menu, palette()));
     m_hamburger_button->setIconSize({ 20, 20 });
-    m_hamburger_button->setFixedSize(36, 36);
+    m_hamburger_button->setFixedSize(TOOLBAR_BUTTON_SIZE, TOOLBAR_BUTTON_SIZE);
     m_hamburger_button->setAutoRaise(true);
     m_hamburger_button->setFocusPolicy(Qt::NoFocus);
     m_hamburger_button->setPopupMode(QToolButton::InstantPopup);

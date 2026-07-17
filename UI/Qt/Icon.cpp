@@ -263,9 +263,9 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal de
         break;
     case ChromeIcon::Menu:
         painter.setPen(chrome_icon_pen(color, 1.55));
-        painter.drawLine(QPointF(4.1, 6.2), QPointF(15.9, 6.2));
-        painter.drawLine(QPointF(4.1, 10.0), QPointF(15.9, 10.0));
-        painter.drawLine(QPointF(4.1, 13.8), QPointF(15.9, 13.8));
+        painter.drawLine(QPointF(4.1, 5.7), QPointF(15.9, 5.7));
+        painter.drawLine(QPointF(4.1, 9.5), QPointF(15.9, 9.5));
+        painter.drawLine(QPointF(4.1, 13.3), QPointF(15.9, 13.3));
         break;
     case ChromeIcon::Star:
         draw_star_icon(painter, color, false);

@@ -348,10 +348,10 @@ QWidget#LadybirdNavigationToolbar QToolButton {{
     color: {5};
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 17px;
-    min-width: 34px;
-    min-height: 34px;
-    margin: 1px 0;
+    border-radius: 16px;
+    min-width: 32px;
+    min-height: 32px;
+    margin: 0 0 2px 0;
     padding: 0;
 }}
 
@@ -374,6 +374,10 @@ QWidget#LadybirdNavigationToolbar QToolButton:disabled {{
 
 QWidget#LadybirdNavigationToolbar QToolButton::menu-indicator {{
     image: none;
+}}
+
+QWidget#LadybirdNavigationToolbar QToolButton#LadybirdHamburgerButton {{
+    margin: 1px 0;
 }}
 
 QPushButton#LadybirdPrivateBadge {{
