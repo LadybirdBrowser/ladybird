@@ -10,6 +10,19 @@
 
 namespace Web::CSS {
 
+static StyleValueFFI::StyleValueData* make_anchor_size_data(Optional<Utf16FlyString> const& anchor_name, Optional<AnchorSize> const& anchor_size, ValueComparingRefPtr<StyleValue const> const& fallback_value)
+{
+    // The Rust allocation takes ownership of one strong reference to the fallback value.
+    if (fallback_value)
+        fallback_value->ref();
+    return StyleValueFFI::rust_style_value_create_anchor_size(
+        anchor_name.has_value(),
+        anchor_name.has_value() ? anchor_name->to_raw_leaked() : 0,
+        anchor_size.has_value(),
+        anchor_size.has_value() ? to_underlying(*anchor_size) : 0,
+        fallback_value.ptr());
+}
+
 ValueComparingNonnullRefPtr<AnchorSizeStyleValue const> AnchorSizeStyleValue::create(
     Optional<Utf16FlyString> const& anchor_name, Optional<AnchorSize> const& anchor_size,
     ValueComparingRefPtr<StyleValue const> const& fallback_value)
@@ -22,7 +35,7 @@ AnchorSizeStyleValue::AnchorSizeStyleValue(
     Optional<AnchorSize> const& anchor_size,
     ValueComparingRefPtr<StyleValue const> const& fallback_value)
     : StyleValueWithDefaultOperators(Type::AnchorSize)
-    , m_properties { .anchor_name = anchor_name, .anchor_size = anchor_size, .fallback_value = fallback_value }
+    , m_value(make_anchor_size_data(anchor_name, anchor_size, fallback_value))
 {
 }
 

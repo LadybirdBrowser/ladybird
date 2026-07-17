@@ -15,7 +15,7 @@ namespace Web::CSS {
 
 RepeatStyleStyleValue::RepeatStyleStyleValue(Repetition repeat_x, Repetition repeat_y)
     : StyleValueWithDefaultOperators(Type::RepeatStyle)
-    , m_properties { .repeat_x = repeat_x, .repeat_y = repeat_y }
+    , m_value(StyleValueFFI::rust_style_value_create_repeat_style(to_underlying(repeat_x), to_underlying(repeat_y)))
 {
 }
 
@@ -23,21 +23,21 @@ RepeatStyleStyleValue::~RepeatStyleStyleValue() = default;
 
 void RepeatStyleStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    if (m_properties.repeat_x == m_properties.repeat_y) {
-        builder.append(CSS::to_string(m_properties.repeat_x));
+    if (repeat_x() == repeat_y()) {
+        builder.append(CSS::to_string(repeat_x()));
         return;
     }
 
-    if (m_properties.repeat_x == Repetition::Repeat && m_properties.repeat_y == Repetition::NoRepeat) {
+    if (repeat_x() == Repetition::Repeat && repeat_y() == Repetition::NoRepeat) {
         builder.append("repeat-x"sv);
         return;
     }
-    if (m_properties.repeat_x == Repetition::NoRepeat && m_properties.repeat_y == Repetition::Repeat) {
+    if (repeat_x() == Repetition::NoRepeat && repeat_y() == Repetition::Repeat) {
         builder.append("repeat-y"sv);
         return;
     }
 
-    builder.appendff("{} {}", CSS::to_string(m_properties.repeat_x), CSS::to_string(m_properties.repeat_y));
+    builder.appendff("{} {}", CSS::to_string(repeat_x()), CSS::to_string(repeat_y()));
 }
 
 }

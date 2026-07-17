@@ -162,6 +162,39 @@ pub enum StyleValueData {
     /// sibling-count() or sibling-index(). Both fields are C++ `enum class ... : u8` values,
     /// opaque to Rust.
     TreeCountingFunction { function: u8, computed_type: u8 },
+    /// background-size with its two retained size style values.
+    BackgroundSize {
+        size_x: RetainedStyleValue,
+        size_y: RetainedStyleValue,
+    },
+    /// A background repeat-style. Both fields are the C++ `enum class Repetition : u8`, opaque
+    /// to Rust.
+    RepeatStyle { repeat_x: u8, repeat_y: u8 },
+    /// border-image-slice: four retained offset style values and the fill keyword.
+    BorderImageSlice {
+        top: RetainedStyleValue,
+        right: RetainedStyleValue,
+        bottom: RetainedStyleValue,
+        left: RetainedStyleValue,
+        fill: bool,
+    },
+    /// anchor-size(): an optional anchor name, an optional size keyword (the C++ `enum class
+    /// AnchorSize : u8`, opaque to Rust) and an optional retained fallback value.
+    AnchorSize {
+        has_anchor_name: bool,
+        anchor_name: RetainedUtf16FlyString,
+        has_anchor_size: bool,
+        anchor_size: u8,
+        fallback_value: RetainedStyleValue,
+    },
+    /// anchor(): an optional anchor name, the retained side style value and an optional
+    /// retained fallback value.
+    Anchor {
+        has_anchor_name: bool,
+        anchor_name: RetainedUtf16FlyString,
+        anchor_side: RetainedStyleValue,
+        fallback_value: RetainedStyleValue,
+    },
     /// A CSS `<custom-ident>`.
     CustomIdent { custom_ident: RetainedUtf16FlyString },
     /// A border-radius rect of four retained corner radius style values.
@@ -484,6 +517,89 @@ pub extern "C" fn rust_style_value_create_tree_counting_function(
         Box::into_raw(Box::new(StyleValueData::TreeCountingFunction {
             function,
             computed_type,
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each size.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_background_size(
+    size_x: *const c_void,
+    size_y: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::BackgroundSize {
+            size_x: RetainedStyleValue { pointer: size_x },
+            size_y: RetainedStyleValue { pointer: size_y },
+        }))
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_repeat_style(repeat_x: u8, repeat_y: u8) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::RepeatStyle { repeat_x, repeat_y })))
+}
+
+/// Takes ownership of one strong reference to each offset.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_border_image_slice(
+    top: *const c_void,
+    right: *const c_void,
+    bottom: *const c_void,
+    left: *const c_void,
+    fill: bool,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::BorderImageSlice {
+            top: RetainedStyleValue { pointer: top },
+            right: RetainedStyleValue { pointer: right },
+            bottom: RetainedStyleValue { pointer: bottom },
+            left: RetainedStyleValue { pointer: left },
+            fill,
+        }))
+    })
+}
+
+/// Takes ownership of one leaked reference to the anchor name (0 when absent) and one strong
+/// reference to the fallback value if it is non-null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_anchor_size(
+    has_anchor_name: bool,
+    anchor_name: usize,
+    has_anchor_size: bool,
+    anchor_size: u8,
+    fallback_value: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::AnchorSize {
+            has_anchor_name,
+            anchor_name: RetainedUtf16FlyString { raw: anchor_name },
+            has_anchor_size,
+            anchor_size,
+            fallback_value: RetainedStyleValue {
+                pointer: fallback_value,
+            },
+        }))
+    })
+}
+
+/// Takes ownership of one leaked reference to the anchor name (0 when absent), one strong
+/// reference to the side and one strong reference to the fallback value if it is non-null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_anchor(
+    has_anchor_name: bool,
+    anchor_name: usize,
+    anchor_side: *const c_void,
+    fallback_value: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Anchor {
+            has_anchor_name,
+            anchor_name: RetainedUtf16FlyString { raw: anchor_name },
+            anchor_side: RetainedStyleValue { pointer: anchor_side },
+            fallback_value: RetainedStyleValue {
+                pointer: fallback_value,
+            },
         }))
     })
 }

@@ -9,6 +9,7 @@
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/StyleValues/AbstractNonMathCalcFunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -27,25 +28,25 @@ public:
 
     virtual bool is_computationally_independent() const override { return true; }
 
-    Optional<Utf16FlyString const&> anchor_name() const { return m_properties.anchor_name; }
+    Optional<Utf16FlyString> anchor_name() const
+    {
+        if (!m_value->anchor.has_anchor_name)
+            return {};
+        return Utf16FlyString::from_raw(m_value->anchor.anchor_name.raw);
+    }
     ValueComparingNonnullRefPtr<StyleValue const> anchor_side() const
     {
-        return m_properties.anchor_side;
+        return *static_cast<StyleValue const*>(m_value->anchor.anchor_side.pointer);
     }
     ValueComparingRefPtr<StyleValue const> fallback_value() const
     {
-        return m_properties.fallback_value;
+        return static_cast<StyleValue const*>(m_value->anchor.fallback_value.pointer);
     }
 
 private:
     AnchorStyleValue(Optional<Utf16FlyString> const& anchor_name, ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side, ValueComparingRefPtr<StyleValue const> const& fallback_value);
 
-    struct Properties {
-        Optional<Utf16FlyString> anchor_name;
-        ValueComparingNonnullRefPtr<StyleValue const> anchor_side;
-        ValueComparingRefPtr<StyleValue const> fallback_value;
-        bool operator==(Properties const&) const = default;
-    } m_properties;
+    RustStyleValueHandle m_value;
 };
 
 }

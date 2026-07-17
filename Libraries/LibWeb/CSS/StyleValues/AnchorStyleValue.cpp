@@ -11,6 +11,20 @@
 
 namespace Web::CSS {
 
+static StyleValueFFI::StyleValueData* make_anchor_data(Optional<Utf16FlyString> const& anchor_name, ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side, ValueComparingRefPtr<StyleValue const> const& fallback_value)
+{
+    // The Rust allocation takes ownership of one strong reference to the side and, when present,
+    // the fallback value.
+    anchor_side->ref();
+    if (fallback_value)
+        fallback_value->ref();
+    return StyleValueFFI::rust_style_value_create_anchor(
+        anchor_name.has_value(),
+        anchor_name.has_value() ? anchor_name->to_raw_leaked() : 0,
+        anchor_side.ptr(),
+        fallback_value.ptr());
+}
+
 ValueComparingNonnullRefPtr<AnchorStyleValue const> AnchorStyleValue::create(
     Optional<Utf16FlyString> const& anchor_name,
     ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side,
@@ -23,7 +37,7 @@ AnchorStyleValue::AnchorStyleValue(Optional<Utf16FlyString> const& anchor_name,
     ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side,
     ValueComparingRefPtr<StyleValue const> const& fallback_value)
     : AbstractNonMathCalcFunctionStyleValue(Type::Anchor)
-    , m_properties { .anchor_name = anchor_name, .anchor_side = anchor_side, .fallback_value = fallback_value }
+    , m_value(make_anchor_data(anchor_name, anchor_side, fallback_value))
 {
 }
 
@@ -61,7 +75,7 @@ RefPtr<CalculationNode const> AnchorStyleValue::resolve_to_calculation_node(Calc
 
     // If any of these conditions are false, the anchor() function computes to its specified fallback value. If no
     // fallback value is specified, it makes the declaration referencing it invalid at computed-value time.
-    auto const& fallback_value = m_properties.fallback_value;
+    auto fallback_value = this->fallback_value();
     if (!fallback_value)
         return nullptr;
 
@@ -77,7 +91,8 @@ bool AnchorStyleValue::equals(StyleValue const& other) const
     if (type() != other.type())
         return false;
 
-    return m_properties == other.as_anchor().m_properties;
+    auto const& other_anchor = other.as_anchor();
+    return anchor_name() == other_anchor.anchor_name() && anchor_side() == other_anchor.anchor_side() && fallback_value() == other_anchor.fallback_value();
 }
 
 }
