@@ -10,6 +10,7 @@
 #pragma once
 
 #include <LibWeb/CSS/Keyword.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -45,7 +46,7 @@ public:
     }
     virtual ~KeywordStyleValue() override = default;
 
-    Keyword keyword() const { return m_keyword; }
+    Keyword keyword() const { return static_cast<Keyword>(m_value->keyword.keyword); }
 
     static bool is_color(Keyword);
     virtual bool has_color() const override;
@@ -56,7 +57,7 @@ public:
     virtual Vector<Parser::ComponentValue> tokenize() const override;
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const override;
 
-    bool properties_equal(KeywordStyleValue const& other) const { return m_keyword == other.m_keyword; }
+    bool properties_equal(KeywordStyleValue const& other) const { return keyword() == other.keyword(); }
 
     virtual bool is_computationally_independent() const override
     {
@@ -64,7 +65,7 @@ public:
             return false;
 
         // FIXME: Are there any other color keywords which aren't computationally independent?
-        if (first_is_one_of(m_keyword, Keyword::Accentcolor, Keyword::Accentcolortext))
+        if (first_is_one_of(keyword(), Keyword::Accentcolor, Keyword::Accentcolortext))
             return false;
 
         // FIXME: Are there any other keywords which aren't computationally independent?
@@ -74,11 +75,11 @@ public:
 private:
     explicit KeywordStyleValue(Keyword keyword)
         : StyleValueWithDefaultOperators(Type::Keyword)
-        , m_keyword(keyword)
+        , m_value(StyleValueFFI::rust_style_value_create_keyword(to_underlying(keyword)))
     {
     }
 
-    Keyword m_keyword { Keyword::Invalid };
+    RustStyleValueHandle m_value;
 };
 
 }

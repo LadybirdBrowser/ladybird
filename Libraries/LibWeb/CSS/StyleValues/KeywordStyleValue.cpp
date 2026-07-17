@@ -205,14 +205,14 @@ ValueComparingNonnullRefPtr<StyleValue const> KeywordStyleValue::absolutized(Com
 
 Vector<Parser::ComponentValue> KeywordStyleValue::tokenize() const
 {
-    return { Parser::Token::create_ident(utf16_fly_string_from_keyword(m_keyword)) };
+    return { Parser::Token::create_ident(utf16_fly_string_from_keyword(keyword())) };
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-ident
 GC::Ref<CSSStyleValue> KeywordStyleValue::reify(JS::Realm& realm, Utf16FlyString const&) const
 {
     // 1. Return a new CSSKeywordValue with its value internal slot set to the serialization of ident.
-    return CSSKeywordValue::create(realm, utf16_fly_string_from_keyword(m_keyword));
+    return CSSKeywordValue::create(realm, utf16_fly_string_from_keyword(keyword()));
 }
 
 }
