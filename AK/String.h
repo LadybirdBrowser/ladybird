@@ -57,6 +57,31 @@ public:
     [[nodiscard]] static String from_utf8_without_validation(ReadonlyBytes);
     [[nodiscard]] static String from_ascii_without_validation(ReadonlyBytes);
 
+    // NB: These round-trip the one-word raw representation through FFI bridges (e.g. the LibWeb
+    //     Rust style value data), which retain the raw value and manage its reference manually.
+    //     to_raw_leaked() leaks one reference to the bridge, from_raw() reconstructs a string
+    //     without consuming the bridge's reference, and unref_raw() releases it.
+    [[nodiscard]] FlatPtr to_raw_leaked() const
+    {
+        if (!is_short_string())
+            data_without_union_member_assertion()->ref();
+        return raw({});
+    }
+
+    [[nodiscard]] static String from_raw(FlatPtr raw)
+    {
+        auto string = adopt_raw(raw);
+        if (!string.is_short_string())
+            string.data_without_union_member_assertion()->ref();
+        return string;
+    }
+
+    static void unref_raw(FlatPtr raw)
+    {
+        // Adopt the bridge's reference and let it drop.
+        auto string = adopt_raw(raw);
+    }
+
     [[nodiscard]] static constexpr String from_ascii_short_string_without_validation(char const* data, size_t length)
     {
         VERIFY(length <= Detail::MAX_SHORT_STRING_BYTE_COUNT);
@@ -230,6 +255,16 @@ private:
     friend struct SentinelOptionalTraits<String>;
 
     using ShortString = Detail::ShortString;
+
+    // Adopts a raw value previously produced by to_raw_leaked(), together with ownership of one
+    // reference to its data if it is not a short string.
+    [[nodiscard]] static String adopt_raw(FlatPtr raw)
+    {
+        String string;
+        auto const** data = __builtin_launder(&string.m_impl.data);
+        *data = bit_cast<Detail::StringData const*>(raw);
+        return string;
+    }
 
     constexpr bool is_invalid() const
     {

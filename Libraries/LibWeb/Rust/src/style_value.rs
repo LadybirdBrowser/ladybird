@@ -19,6 +19,7 @@ use crate::abort_on_panic;
 unsafe extern "C" {
     fn ladybird_style_value_unref(style_value: *const c_void);
     fn ladybird_utf16_fly_string_unref(raw: usize);
+    fn ladybird_string_unref(raw: usize);
 }
 
 /// A strong reference to a C++ StyleValue held from Rust-owned value data.
@@ -105,6 +106,60 @@ impl RetainedPropertyIdList {
 }
 
 impl Drop for RetainedPropertyIdList {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+        }
+    }
+}
+
+/// A retained AK::String, stored as its one-word raw representation. Owns one reference to the
+/// underlying string data unless it is a short string; the C++ bridge handles both cases.
+#[repr(C)]
+pub struct RetainedString {
+    raw: usize,
+}
+
+impl Drop for RetainedString {
+    fn drop(&mut self) {
+        unsafe { ladybird_string_unref(self.raw) };
+    }
+}
+
+/// A retained CSS request URL modifier: the modifier type and either an enum value or a retained
+/// string value (raw 0 when the value is an enum). All enums are C++ `enum class ... : u8`
+/// values, opaque to Rust.
+#[repr(C)]
+pub struct RetainedRequestUrlModifier {
+    modifier_type: u8,
+    enum_value: u8,
+    string_value: RetainedUtf16FlyString,
+}
+
+/// A Rust-owned array of retained request URL modifiers.
+#[repr(C)]
+pub struct RetainedRequestUrlModifierList {
+    pointer: *mut RetainedRequestUrlModifier,
+    length: usize,
+}
+
+impl RetainedRequestUrlModifierList {
+    /// Takes ownership of the modifiers' retained strings.
+    ///
+    /// # Safety
+    /// `modifiers` must point to `length` valid modifiers whose retained strings this list may
+    /// assume ownership of.
+    unsafe fn from_raw(modifiers: *const RetainedRequestUrlModifier, length: usize) -> Self {
+        let slice: Box<[RetainedRequestUrlModifier]> = (0..length)
+            .map(|i| unsafe { std::ptr::read(modifiers.add(i)) })
+            .collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedRequestUrlModifier;
+        Self { pointer, length }
+    }
+}
+
+impl Drop for RetainedRequestUrlModifierList {
     fn drop(&mut self) {
         if !self.pointer.is_null() {
             drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
@@ -318,6 +373,13 @@ pub enum StyleValueData {
     /// A display value: the raw bytes of the C++ Display value type (a tag plus a union of
     /// packed u8 enums), opaque to Rust.
     Display { raw: u32 },
+    /// A CSS url() or src() with its retained URL string, type (the C++ URL::Type, opaque to
+    /// Rust) and request URL modifiers.
+    Url {
+        url: RetainedString,
+        url_type: u8,
+        modifiers: RetainedRequestUrlModifierList,
+    },
     /// A radial gradient size: one or two components, each either a RadialExtent keyword (the
     /// C++ `enum class RadialExtent : u8`, opaque to Rust) or a retained style value.
     RadialSize {
@@ -971,6 +1033,24 @@ pub unsafe extern "C" fn rust_style_value_create_radial_size(
             is_extent_1,
             extent_1,
             value_1: RetainedStyleValue { pointer: value_1 },
+        }))
+    })
+}
+
+/// Takes ownership of one leaked reference to the URL string and to each modifier's retained
+/// string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_url(
+    url: usize,
+    url_type: u8,
+    modifiers: *const RetainedRequestUrlModifier,
+    modifier_count: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Url {
+            url: RetainedString { raw: url },
+            url_type,
+            modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(modifiers, modifier_count) },
         }))
     })
 }

@@ -33,12 +33,13 @@ public:
     ~RequestURLModifier() = default;
     void modify_request(GC::Ref<Fetch::Infrastructure::Request>) const;
     Type type() const { return m_type; }
+    using Value = Variant<CrossOriginModifierValue, ReferrerPolicyModifierValue, Utf16FlyString>;
+    Value const& value() const { return m_value; }
     String to_string() const;
     Utf16String to_utf16_string() const;
     bool operator==(RequestURLModifier const&) const;
 
 private:
-    using Value = Variant<CrossOriginModifierValue, ReferrerPolicyModifierValue, Utf16FlyString>;
     RequestURLModifier(Type, Value);
 
     Type m_type;

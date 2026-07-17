@@ -858,7 +858,8 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
     ResolvedCSSFilter result;
     for (auto const& filter_operation : computed_filter.filters()) {
         if (filter_operation->is_url()) {
-            auto& url_string = filter_operation->as_url().url().url();
+            auto url = filter_operation->as_url().url();
+            auto const& url_string = url.url();
             if (url_string.is_empty() || !url_string.starts_with('#'))
                 continue;
             auto fragment_or_error = url_string.substring_from_byte_offset(1);

@@ -285,3 +285,9 @@ extern "C" void ladybird_utf16_fly_string_unref(size_t raw)
 {
     Utf16FlyString::unref_raw(raw);
 }
+
+// Called when Rust-owned style value data drops a retained String.
+extern "C" void ladybird_string_unref(size_t raw)
+{
+    String::unref_raw(raw);
+}
