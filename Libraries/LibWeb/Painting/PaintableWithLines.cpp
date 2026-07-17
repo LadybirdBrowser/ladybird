@@ -340,6 +340,28 @@ static Layout::NodeWithStyle const& text_decoration_source(Layout::TextNode cons
     return *source;
 }
 
+static CSSPixels resolve_text_decoration_thickness(CSS::TextDecorationThickness const& thickness, CSSPixels glyph_height, Layout::NodeWithStyle const& decorating_node)
+{
+    return thickness.value.visit(
+        [glyph_height](CSS::TextDecorationThickness::Auto) {
+            // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-auto
+            // The UA chooses an appropriate thickness for text decoration lines; see below.
+            return max(glyph_height.scaled(0.1), 1);
+        },
+        [glyph_height](CSS::TextDecorationThickness::FromFont) {
+            // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-from-font
+            // If the first available font has metrics indicating a preferred underline width, use that width,
+            // otherwise behaves as auto.
+            // FIXME: Implement this properly.
+            return max(glyph_height.scaled(0.1), 1);
+        },
+        [&](CSS::LengthPercentage const& length_percentage) {
+            // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-length-percentage
+            auto resolved_length = length_percentage.resolved(CSS::Length(1, CSS::LengthUnit::Em).to_px(decorating_node)).to_px(decorating_node);
+            return max(resolved_length, 1);
+        });
+}
+
 static void resolve_text_fragment_properties(PaintableWithLines const& paintable_with_lines)
 {
     for (auto& fragment : const_cast<PaintableWithLines&>(paintable_with_lines).fragments()) {
@@ -349,27 +371,8 @@ static void resolve_text_fragment_properties(PaintableWithLines const& paintable
 
         auto const& font = text_node->first_available_font();
         auto const glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
-        auto const line_thickness = [&] {
-            auto const& thickness = text_decoration_source(*text_node).text_decoration_thickness();
-            return thickness.value.visit(
-                [glyph_height](CSS::TextDecorationThickness::Auto) {
-                    // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-auto
-                    // The UA chooses an appropriate thickness for text decoration lines; see below.
-                    return max(glyph_height.scaled(0.1), 1);
-                },
-                [glyph_height](CSS::TextDecorationThickness::FromFont) {
-                    // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-from-font
-                    // If the first available font has metrics indicating a preferred underline width, use that width,
-                    // otherwise behaves as auto.
-                    // FIXME: Implement this properly.
-                    return max(glyph_height.scaled(0.1), 1);
-                },
-                [&](CSS::LengthPercentage const& length_percentage) {
-                    // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-length-percentage
-                    auto resolved_length = length_percentage.resolved(CSS::Length(1, CSS::LengthUnit::Em).to_px(*text_node->parent())).to_px(*text_node->parent());
-                    return max(resolved_length, 1);
-                });
-        }();
+        auto const line_thickness = resolve_text_decoration_thickness(
+            text_decoration_source(*text_node).text_decoration_thickness(), glyph_height, *text_node->parent());
         fragment.set_text_decoration_thickness(line_thickness);
 
         auto const& text_shadow = text_node->parent()->text_shadow();
@@ -765,42 +768,21 @@ static Vector<DecorationSegment> compute_skip_ink_segments(
     return segments;
 }
 
-void paint_text_decoration(DisplayListRecordingContext& context, Layout::TextNode const& text_node, PaintableFragment::FragmentSpan const& span)
+static void paint_decoration_lines(DisplayListRecordingContext& context, Layout::TextNode const& text_node,
+    PaintableFragment const& fragment, CSSPixelRect const& fragment_box,
+    Vector<CSS::TextDecorationLine> const& text_decoration_lines, CSS::TextDecorationStyle line_style,
+    Color line_color, CSSPixels decoration_thickness)
 {
-    auto const& fragment = span.fragment;
     auto& recorder = context.display_list_recorder();
     auto& font = fragment.layout_node().first_available_font();
     CSSPixels glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
     auto baseline = fragment.baseline();
 
-    // Use span's text decoration if explicitly set, otherwise use the decorating box's computed values.
-    Color line_color;
-    CSS::TextDecorationStyle line_style;
-    Vector<CSS::TextDecorationLine> text_decoration_lines;
     auto const& decoration_source = text_decoration_source(text_node);
-    if (span.text_decoration.has_value()) {
-        line_color = span.text_decoration->color;
-        line_style = span.text_decoration->style;
-        text_decoration_lines = span.text_decoration->line;
-    } else {
-        line_color = decoration_source.text_decoration_color();
-        line_style = decoration_source.text_decoration_style();
-        text_decoration_lines = decoration_source.text_decoration_line();
-    }
-
-    // Compute the decoration box for this span.
-    auto fragment_box = fragment.absolute_rect();
-    if (span.start_code_unit != 0 || span.end_code_unit != fragment.length_in_code_units()) {
-        auto span_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd,
-            fragment.dom_start_offset_in_node() + span.start_code_unit,
-            fragment.dom_start_offset_in_node() + span.end_code_unit);
-        fragment_box.set_x(span_rect.x());
-        fragment_box.set_width(span_rect.width());
-    }
     auto text_underline_offset = decoration_source.text_underline_offset();
     auto text_underline_position = decoration_source.text_underline_position();
     for (auto line : text_decoration_lines) {
-        auto line_thickness = fragment.text_decoration_thickness();
+        auto line_thickness = decoration_thickness;
 
         if (line == CSS::TextDecorationLine::SpellingError) {
             // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-line-spelling-error
@@ -981,6 +963,33 @@ void paint_text_decoration(DisplayListRecordingContext& context, Layout::TextNod
         }
         }
     }
+}
+
+void paint_text_decoration(DisplayListRecordingContext& context, Layout::TextNode const& text_node, PaintableFragment::FragmentSpan const& span)
+{
+    auto const& fragment = span.fragment;
+
+    // Compute the decoration box for this span.
+    auto fragment_box = fragment.absolute_rect();
+    if (span.start_code_unit != 0 || span.end_code_unit != fragment.length_in_code_units()) {
+        auto span_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd,
+            fragment.dom_start_offset_in_node() + span.start_code_unit,
+            fragment.dom_start_offset_in_node() + span.end_code_unit);
+        fragment_box.set_x(span_rect.x());
+        fragment_box.set_width(span_rect.width());
+    }
+
+    // A span with an explicit text decoration (from ::selection) replaces the decorations this text would
+    // otherwise be painted with.
+    if (span.text_decoration.has_value()) {
+        paint_decoration_lines(context, text_node, fragment, fragment_box, span.text_decoration->line,
+            span.text_decoration->style, span.text_decoration->color, fragment.text_decoration_thickness());
+        return;
+    }
+
+    auto const& decoration_source = text_decoration_source(text_node);
+    paint_decoration_lines(context, text_node, fragment, fragment_box, decoration_source.text_decoration_line(),
+        decoration_source.text_decoration_style(), decoration_source.text_decoration_color(), fragment.text_decoration_thickness());
 }
 
 Gfx::Path build_triangle_wave_path(Gfx::IntPoint from, Gfx::IntPoint to, float amplitude)
