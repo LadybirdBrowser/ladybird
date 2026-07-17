@@ -8,10 +8,11 @@
 
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-class RadialSizeStyleValue : public StyleValueWithDefaultOperators<RadialSizeStyleValue> {
+class WEB_API RadialSizeStyleValue : public StyleValueWithDefaultOperators<RadialSizeStyleValue> {
 public:
     using Component = Variant<RadialExtent, NonnullRefPtr<StyleValue const>>;
     static ValueComparingNonnullRefPtr<RadialSizeStyleValue const> create(Vector<Component> components)
@@ -47,7 +48,7 @@ public:
     CSSPixels resolve_circle_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box) const;
     CSSPixelSize resolve_ellipse_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box) const;
 
-    bool properties_equal(RadialSizeStyleValue const& other) const { return components() == other.components(); }
+    bool properties_equal(RadialSizeStyleValue const& other) const;
 
     virtual bool is_computationally_independent() const override
     {

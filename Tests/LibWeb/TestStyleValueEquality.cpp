@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 
 // These tests build separately-allocated style values with equal (or deliberately unequal)
@@ -89,6 +90,19 @@ TEST_CASE(conic_gradient_equality_considers_color_syntax)
 
     EXPECT(legacy->equals(*make_conic_gradient(ColorSyntax::Legacy)));
     EXPECT(!legacy->equals(*modern));
+}
+
+TEST_CASE(radial_size_equality_is_deep)
+{
+    auto make_size = [](double width, double height) {
+        Vector<RadialSizeStyleValue::Component> components;
+        components.append(NonnullRefPtr<StyleValue const> { NumberStyleValue::create(width) });
+        components.append(NonnullRefPtr<StyleValue const> { NumberStyleValue::create(height) });
+        return RadialSizeStyleValue::create(move(components));
+    };
+
+    EXPECT(make_size(50, 30)->equals(*make_size(50, 30)));
+    EXPECT(!make_size(50, 30)->equals(*make_size(50, 40)));
 }
 
 TEST_CASE(unresolved_equality_trims_only_ascii_whitespace)
