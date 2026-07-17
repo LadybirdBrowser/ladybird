@@ -1104,14 +1104,29 @@ fn emit_instruction(
             }
         }
 
-        // mul: maps to x86 imul (2-operand: dst *= src, or 3-operand: dst = src * imm)
+        // mul: use a shift for in-place power-of-two scaling, otherwise map to x86 imul.
         "mul" => {
-            let ops: Vec<String> = insn
-                .operands
-                .iter()
-                .map(|o| resolve_op(o, handler, program))
-                .collect();
-            w!(out, "    imul {}", ops.join(", "));
+            if insn.operands.len() == 3 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                if let Some(value) = get_immediate_value(&insn.operands[2], program)
+                    && value > 0
+                    && (value as u64).is_power_of_two()
+                    && dst == src
+                {
+                    w!(out, "    shl {dst}, {}", (value as u64).trailing_zeros());
+                } else {
+                    let value = resolve_op(&insn.operands[2], handler, program);
+                    w!(out, "    imul {dst}, {src}, {value}");
+                }
+            } else {
+                let ops: Vec<String> = insn
+                    .operands
+                    .iter()
+                    .map(|o| resolve_op(o, handler, program))
+                    .collect();
+                w!(out, "    imul {}", ops.join(", "));
+            }
         }
 
         "exit" => {
@@ -1992,6 +2007,33 @@ mod tests {
 
             assert!(out.is_empty());
         }
+    }
+
+    #[test]
+    fn lowers_in_place_power_of_two_multiply_to_shift() {
+        let program = test_program();
+        let handler = call_handler();
+        let instruction = AsmInstruction {
+            mnemonic: "mul".into(),
+            operands: vec![
+                Operand::Register("rdx".into()),
+                Operand::Register("rdx".into()),
+                Operand::Immediate(64),
+            ],
+        };
+        let mut out = String::new();
+        let mut state = HandlerState::new();
+
+        emit_instruction(
+            &mut out,
+            &instruction,
+            &handler,
+            &program,
+            &mut state,
+            X86_64Abi::SysV,
+        );
+
+        assert_eq!(out, "    shl rdx, 6\n");
     }
 
     #[test]

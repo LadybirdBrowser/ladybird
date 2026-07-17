@@ -2167,8 +2167,12 @@ fn emit_instruction(
                 let dst = resolve_op(&insn.operands[0], handler, program);
                 let src = resolve_op(&insn.operands[1], handler, program);
                 if let Some(val) = get_immediate_value(&insn.operands[2], program) {
-                    emit_mov_imm(out, "x9", val);
-                    w!(out, "    mul {dst}, {src}, x9");
+                    if val > 0 && (val as u64).is_power_of_two() {
+                        w!(out, "    lsl {dst}, {src}, #{}", (val as u64).trailing_zeros());
+                    } else {
+                        emit_mov_imm(out, "x9", val);
+                        w!(out, "    mul {dst}, {src}, x9");
+                    }
                 } else {
                     let imm_reg = resolve_op(&insn.operands[2], handler, program);
                     w!(out, "    mul {dst}, {src}, {imm_reg}");
@@ -3114,6 +3118,34 @@ mod tests {
 
             assert!(out.is_empty());
         }
+    }
+
+    #[test]
+    fn lowers_power_of_two_multiply_to_shift() {
+        let program = coff_program(Vec::new());
+        let handler = &program.handlers[0];
+        let pinned = PinnedConstants::new(&program);
+        let instruction = AsmInstruction {
+            mnemonic: "mul".into(),
+            operands: vec![
+                Operand::Register("x1".into()),
+                Operand::Register("x2".into()),
+                Operand::Immediate(64),
+            ],
+        };
+        let mut out = String::new();
+        let mut state = HandlerState::new();
+
+        emit_instruction(
+            &mut out,
+            &instruction,
+            handler,
+            &program,
+            &mut state,
+            &pinned,
+        );
+
+        assert_eq!(out, "    lsl x1, x2, #6\n");
     }
 
     #[test]
