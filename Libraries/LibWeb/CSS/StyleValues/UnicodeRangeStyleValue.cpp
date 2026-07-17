@@ -10,7 +10,7 @@ namespace Web::CSS {
 
 UnicodeRangeStyleValue::UnicodeRangeStyleValue(Gfx::UnicodeRange unicode_range)
     : StyleValueWithDefaultOperators(Type::UnicodeRange)
-    , m_unicode_range(unicode_range)
+    , m_value(StyleValueFFI::rust_style_value_create_unicode_range(unicode_range.min_code_point(), unicode_range.max_code_point()))
 {
 }
 
@@ -18,12 +18,12 @@ UnicodeRangeStyleValue::~UnicodeRangeStyleValue() = default;
 
 void UnicodeRangeStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    builder.append(m_unicode_range.to_string());
+    builder.append(unicode_range().to_string());
 }
 
 bool UnicodeRangeStyleValue::properties_equal(UnicodeRangeStyleValue const& other) const
 {
-    return m_unicode_range == other.m_unicode_range;
+    return unicode_range() == other.unicode_range();
 }
 
 }

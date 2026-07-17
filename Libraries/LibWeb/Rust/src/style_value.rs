@@ -32,7 +32,10 @@ pub struct RetainedStyleValue {
 
 impl Drop for RetainedStyleValue {
     fn drop(&mut self) {
-        unsafe { ladybird_style_value_unref(self.pointer) };
+        // A null pointer represents an absent optional reference.
+        if !self.pointer.is_null() {
+            unsafe { ladybird_style_value_unref(self.pointer) };
+        }
     }
 }
 
@@ -68,6 +71,17 @@ pub enum StyleValueData {
     Ratio {
         numerator: RetainedStyleValue,
         denominator: RetainedStyleValue,
+    },
+    /// A unicode-range, e.g. `U+0025-00FF`.
+    UnicodeRange { min_code_point: u32, max_code_point: u32 },
+    /// A CSS `<opacity-value>`: a number, percentage or calculated style value.
+    OpacityValue { value: RetainedStyleValue },
+    /// One edge of a CSS `<position>`: an optional edge keyword (the C++ `enum class
+    /// PositionEdge : u8`, opaque to Rust) and an optional offset style value (null when absent).
+    Edge {
+        has_edge: bool,
+        edge: u8,
+        offset: RetainedStyleValue,
     },
 }
 
@@ -131,6 +145,45 @@ pub unsafe extern "C" fn rust_style_value_create_ratio(
         Box::into_raw(Box::new(StyleValueData::Ratio {
             numerator: RetainedStyleValue { pointer: numerator },
             denominator: RetainedStyleValue { pointer: denominator },
+        }))
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_unicode_range(
+    min_code_point: u32,
+    max_code_point: u32,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::UnicodeRange {
+            min_code_point,
+            max_code_point,
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_opacity_value(value: *const c_void) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::OpacityValue {
+            value: RetainedStyleValue { pointer: value },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the offset if it is non-null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_edge(
+    has_edge: bool,
+    edge: u8,
+    offset: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Edge {
+            has_edge,
+            edge,
+            offset: RetainedStyleValue { pointer: offset },
         }))
     })
 }

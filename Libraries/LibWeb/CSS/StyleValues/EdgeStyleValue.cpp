@@ -14,10 +14,10 @@ namespace Web::CSS {
 
 bool EdgeStyleValue::is_center(SerializationMode mode) const
 {
-    if (m_properties.edge == PositionEdge::Center)
+    if (edge() == PositionEdge::Center)
         return true;
 
-    if (m_properties.offset && m_properties.offset->to_string(mode) == "50%"sv)
+    if (offset_style_value() && offset_style_value()->to_string(mode) == "50%"sv)
         return true;
 
     return false;
@@ -25,30 +25,30 @@ bool EdgeStyleValue::is_center(SerializationMode mode) const
 
 void EdgeStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    if (m_properties.edge.has_value())
-        builder.append(CSS::to_string(m_properties.edge.value()));
+    if (edge().has_value())
+        builder.append(CSS::to_string(edge().value()));
 
-    if (m_properties.edge.has_value() && m_properties.offset)
+    if (edge().has_value() && offset_style_value())
         builder.append(' ');
 
-    if (m_properties.offset)
-        m_properties.offset->serialize(builder, mode);
+    if (offset_style_value())
+        offset_style_value()->serialize(builder, mode);
 }
 
 ValueComparingNonnullRefPtr<EdgeStyleValue const> EdgeStyleValue::with_resolved_keywords() const
 {
-    if (m_properties.edge == PositionEdge::Center)
+    if (edge() == PositionEdge::Center)
         return EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage(50)));
 
     CalculationContext calculation_context {
         .percentages_resolve_as = ValueType::Length,
     };
 
-    if (m_properties.edge == PositionEdge::Right || m_properties.edge == PositionEdge::Bottom) {
-        if (!m_properties.offset)
+    if (edge() == PositionEdge::Right || edge() == PositionEdge::Bottom) {
+        if (!offset_style_value())
             return EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage(100)));
 
-        auto negated_offset = NegateCalculationNode::create(CalculationNode::from_style_value(*m_properties.offset, calculation_context));
+        auto negated_offset = NegateCalculationNode::create(CalculationNode::from_style_value(*offset_style_value(), calculation_context));
 
         auto flipped_offset = simplify_a_calculation_tree(
             SumCalculationNode::create({ NumericCalculationNode::create(Percentage { 100 }, calculation_context), negated_offset }),
@@ -60,16 +60,16 @@ ValueComparingNonnullRefPtr<EdgeStyleValue const> EdgeStyleValue::with_resolved_
         return EdgeStyleValue::create({}, flipped_percentage_style_value);
     }
 
-    if (!m_properties.offset)
+    if (!offset_style_value())
         return EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage(0)));
 
-    return EdgeStyleValue::create({}, m_properties.offset);
+    return EdgeStyleValue::create({}, offset_style_value());
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> EdgeStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     auto absolutized_offset = with_resolved_keywords()->offset()->absolutized(computation_context);
-    if (!m_properties.edge.has_value() && m_properties.offset == absolutized_offset)
+    if (!edge().has_value() && offset_style_value() == absolutized_offset)
         return *this;
     return EdgeStyleValue::create({}, absolutized_offset);
 }

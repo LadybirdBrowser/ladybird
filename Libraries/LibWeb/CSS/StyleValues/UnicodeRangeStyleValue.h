@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibGfx/Font/UnicodeRange.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -19,7 +20,7 @@ public:
     }
     virtual ~UnicodeRangeStyleValue() override;
 
-    Gfx::UnicodeRange const& unicode_range() const { return m_unicode_range; }
+    Gfx::UnicodeRange unicode_range() const { return Gfx::UnicodeRange(m_value->unicode_range.min_code_point, m_value->unicode_range.max_code_point); }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
@@ -30,7 +31,7 @@ public:
 private:
     UnicodeRangeStyleValue(Gfx::UnicodeRange);
 
-    Gfx::UnicodeRange m_unicode_range;
+    RustStyleValueHandle m_value;
 };
 
 }
