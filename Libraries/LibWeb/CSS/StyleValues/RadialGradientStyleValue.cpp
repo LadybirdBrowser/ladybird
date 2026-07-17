@@ -15,6 +15,17 @@
 
 namespace Web::CSS {
 
+StyleValueFFI::StyleValueData* RadialGradientStyleValue::make_radial_gradient_data(EndingShape ending_shape, NonnullRefPtr<StyleValue const> const& size, NonnullRefPtr<PositionStyleValue const> const& position, Vector<ColorStopListElement> const& color_stop_list, GradientRepeating repeating, RefPtr<StyleValue const> const& color_interpolation_method, ColorSyntax color_syntax)
+{
+    // The Rust allocation takes ownership of one strong reference to each non-null value.
+    auto stops = retain_color_stops_for_rust(color_stop_list);
+    return StyleValueFFI::rust_style_value_create_radial_gradient(
+        static_cast<u8>(to_underlying(ending_shape)),
+        retain_style_value_for_rust(size.ptr()), retain_style_value_for_rust(position.ptr()),
+        stops.data(), stops.size(), repeating == GradientRepeating::Yes,
+        retain_style_value_for_rust(color_interpolation_method.ptr()), to_underlying(color_syntax));
+}
+
 void RadialGradientStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     if (is_repeating())
@@ -22,51 +33,51 @@ void RadialGradientStyleValue::serialize(StringBuilder& builder, SerializationMo
     builder.append("radial-gradient("sv);
 
     // AD-HOC: We need to check the serialized size to determine if it should be included.
-    auto const& serialized_size = m_properties.size->to_string(mode);
+    auto const& serialized_size = size_value()->to_string(mode);
 
     bool has_size = serialized_size != "farthest-corner"sv;
-    bool has_position = !m_properties.position->is_center(mode);
-    bool has_color_space = m_properties.color_interpolation_method && m_properties.color_interpolation_method->as_color_interpolation_method().color_interpolation_method() != ColorInterpolationMethodStyleValue::default_color_interpolation_method(m_properties.color_syntax);
+    bool has_position = !position_value()->is_center(mode);
+    bool has_color_space = color_interpolation_method_value() && color_interpolation_method_value()->as_color_interpolation_method().color_interpolation_method() != ColorInterpolationMethodStyleValue::default_color_interpolation_method(gradient_color_syntax());
 
     if (has_size)
-        m_properties.size->serialize(builder, mode);
+        size_value()->serialize(builder, mode);
 
     if (has_position) {
         if (has_size)
             builder.append(' ');
 
         builder.append("at "sv);
-        m_properties.position->serialize(builder, mode);
+        position_value()->serialize(builder, mode);
     }
 
     if (has_color_space) {
         if (has_size || has_position)
             builder.append(' ');
 
-        m_properties.color_interpolation_method->serialize(builder, mode);
+        color_interpolation_method_value()->serialize(builder, mode);
     }
 
     if (has_size || has_position || has_color_space)
         builder.append(", "sv);
 
-    serialize_color_stop_list(builder, m_properties.color_stop_list, mode);
+    serialize_color_stop_list(builder, color_stop_list(), mode);
     builder.append(')');
 }
 
 CSSPixelSize RadialGradientStyleValue::resolve_size(CSSPixelPoint center, CSSPixelRect const& reference_box) const
 {
-    if (m_properties.ending_shape == EndingShape::Circle) {
-        auto radius = m_properties.size->as_radial_size().resolve_circle_size(center, reference_box);
+    if (ending_shape() == EndingShape::Circle) {
+        auto radius = size_value()->as_radial_size().resolve_circle_size(center, reference_box);
         return CSSPixelSize { radius, radius };
     }
 
-    return m_properties.size->as_radial_size().resolve_ellipse_size(center, reference_box);
+    return size_value()->as_radial_size().resolve_ellipse_size(center, reference_box);
 }
 
 void RadialGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize paint_size) const
 {
     CSSPixelRect gradient_box { { 0, 0 }, paint_size };
-    auto center = m_properties.position->resolved(gradient_box);
+    auto center = position_value()->resolved(gradient_box);
     auto gradient_size = resolve_size(center, gradient_box);
 
     if (m_resolved_size != paint_size) {
@@ -82,17 +93,17 @@ void RadialGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& nod
 ValueComparingNonnullRefPtr<StyleValue const> RadialGradientStyleValue::absolutized(ComputationContext const& context) const
 {
     Vector<ColorStopListElement> absolutized_color_stops;
-    absolutized_color_stops.ensure_capacity(m_properties.color_stop_list.size());
-    for (auto const& color_stop : m_properties.color_stop_list) {
+    absolutized_color_stops.ensure_capacity(color_stop_list().size());
+    for (auto const& color_stop : color_stop_list()) {
         absolutized_color_stops.unchecked_append(color_stop.absolutized(context));
     }
 
-    auto absolutized_size = m_properties.size->absolutized(context);
-    NonnullRefPtr absolutized_position = m_properties.position->absolutized(context)->as_position();
+    auto absolutized_size = size_value()->absolutized(context);
+    NonnullRefPtr absolutized_position = position_value()->absolutized(context)->as_position();
 
-    auto absolutized_color_interpolation_method = m_properties.color_interpolation_method ? ValueComparingRefPtr<StyleValue const> { m_properties.color_interpolation_method->absolutized(context) } : nullptr;
+    auto absolutized_color_interpolation_method = color_interpolation_method_value() ? ValueComparingRefPtr<StyleValue const> { color_interpolation_method_value()->absolutized(context) } : nullptr;
 
-    return create(m_properties.ending_shape, move(absolutized_size), move(absolutized_position), move(absolutized_color_stops), m_properties.repeating, move(absolutized_color_interpolation_method));
+    return create(ending_shape(), move(absolutized_size), move(absolutized_position), move(absolutized_color_stops), (is_repeating() ? GradientRepeating::Yes : GradientRepeating::No), move(absolutized_color_interpolation_method));
 }
 
 bool RadialGradientStyleValue::equals(StyleValue const& other) const
@@ -100,15 +111,21 @@ bool RadialGradientStyleValue::equals(StyleValue const& other) const
     if (type() != other.type())
         return false;
     auto& other_gradient = other.as_radial_gradient();
-    return m_properties == other_gradient.m_properties;
+    return ending_shape() == other_gradient.ending_shape()
+        && size_value() == other_gradient.size_value()
+        && position_value() == other_gradient.position_value()
+        && color_stop_list() == other_gradient.color_stop_list()
+        && is_repeating() == other_gradient.is_repeating()
+        && color_interpolation_method_value() == other_gradient.color_interpolation_method_value()
+        && gradient_color_syntax() == other_gradient.gradient_color_syntax();
 }
 
 bool RadialGradientStyleValue::is_computationally_independent() const
 {
-    return m_properties.size->is_computationally_independent()
-        && m_properties.position->is_computationally_independent()
-        && all_of(m_properties.color_stop_list, [&](auto const& stop) { return stop.color_stop.color->is_computationally_independent(); })
-        && (!m_properties.color_interpolation_method || m_properties.color_interpolation_method->is_computationally_independent());
+    return size_value()->is_computationally_independent()
+        && position_value()->is_computationally_independent()
+        && all_of(color_stop_list(), [](auto const& stop) { return stop.is_computationally_independent(); })
+        && (!color_interpolation_method_value() || color_interpolation_method_value()->is_computationally_independent());
 }
 
 void RadialGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const

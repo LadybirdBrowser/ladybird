@@ -13,10 +13,11 @@
 #include <LibWeb/CSS/ColorFunctionDescriptor.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-class ColorFunctionStyleValue final : public ColorStyleValue {
+class WEB_API ColorFunctionStyleValue final : public ColorStyleValue {
 public:
     static ValueComparingNonnullRefPtr<ColorFunctionStyleValue const> create(
         ColorType,

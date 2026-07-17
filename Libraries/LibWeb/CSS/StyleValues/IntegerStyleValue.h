@@ -8,10 +8,11 @@
 
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-class IntegerStyleValue final : public StyleValue {
+class WEB_API IntegerStyleValue final : public StyleValue {
 public:
     static ValueComparingNonnullRefPtr<IntegerStyleValue const> create(i32 value)
     {

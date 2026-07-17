@@ -31,6 +31,12 @@ set(TEST_SOURCES
     TestWebGLSpanWithStorage.cpp
 )
 
+if (NOT WIN32)
+    list(APPEND TEST_SOURCES
+        TestStyleValueEquality.cpp
+    )
+endif()
+
 foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibWeb LIBS LibWeb)
 endforeach()

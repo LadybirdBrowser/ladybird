@@ -12,10 +12,11 @@
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-class KeywordStyleValue : public StyleValueWithDefaultOperators<KeywordStyleValue> {
+class WEB_API KeywordStyleValue : public StyleValueWithDefaultOperators<KeywordStyleValue> {
 public:
     static ValueComparingNonnullRefPtr<KeywordStyleValue const> create(Keyword keyword)
     {

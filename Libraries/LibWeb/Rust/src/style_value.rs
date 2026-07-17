@@ -567,6 +567,29 @@ pub enum StyleValueData {
         color_interpolation_method: RetainedStyleValue,
         color_syntax: u8,
     },
+    /// conic-gradient(): an optional retained from-angle, the retained position, the retained
+    /// color stops, the repeating flag, an optional retained interpolation method and the color
+    /// syntax (a C++ enum, opaque to Rust).
+    ConicGradient {
+        from_angle: RetainedStyleValue,
+        position: RetainedStyleValue,
+        color_stop_list: RetainedColorStopList,
+        repeating: bool,
+        color_interpolation_method: RetainedStyleValue,
+        color_syntax: u8,
+    },
+    /// radial-gradient(): the ending shape (a C++ enum, opaque to Rust), the retained size and
+    /// position values, the retained color stops, the repeating flag, an optional retained
+    /// interpolation method and the color syntax.
+    RadialGradient {
+        ending_shape: u8,
+        size: RetainedStyleValue,
+        position: RetainedStyleValue,
+        color_stop_list: RetainedColorStopList,
+        repeating: bool,
+        color_interpolation_method: RetainedStyleValue,
+        color_syntax: u8,
+    },
     /// image-set() with its retained options.
     ImageSet { options: RetainedImageSetOptionList },
     /// A cursor with its retained image value and optional retained hotspot coordinates (both
@@ -1606,6 +1629,60 @@ pub unsafe extern "C" fn rust_style_value_create_linear_gradient(
             side_or_corner,
             color_stop_list: unsafe { RetainedColorStopList::from_raw(stops, stop_count) },
             gradient_type,
+            repeating,
+            color_interpolation_method: RetainedStyleValue {
+                pointer: color_interpolation_method,
+            },
+            color_syntax,
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each non-null value and of the stops' retained
+/// values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_conic_gradient(
+    from_angle: *const c_void,
+    position: *const c_void,
+    stops: *const RetainedColorStop,
+    stop_count: usize,
+    repeating: bool,
+    color_interpolation_method: *const c_void,
+    color_syntax: u8,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::ConicGradient {
+            from_angle: RetainedStyleValue { pointer: from_angle },
+            position: RetainedStyleValue { pointer: position },
+            color_stop_list: unsafe { RetainedColorStopList::from_raw(stops, stop_count) },
+            repeating,
+            color_interpolation_method: RetainedStyleValue {
+                pointer: color_interpolation_method,
+            },
+            color_syntax,
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each non-null value and of the stops' retained
+/// values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_radial_gradient(
+    ending_shape: u8,
+    size: *const c_void,
+    position: *const c_void,
+    stops: *const RetainedColorStop,
+    stop_count: usize,
+    repeating: bool,
+    color_interpolation_method: *const c_void,
+    color_syntax: u8,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::RadialGradient {
+            ending_shape,
+            size: RetainedStyleValue { pointer: size },
+            position: RetainedStyleValue { pointer: position },
+            color_stop_list: unsafe { RetainedColorStopList::from_raw(stops, stop_count) },
             repeating,
             color_interpolation_method: RetainedStyleValue {
                 pointer: color_interpolation_method,

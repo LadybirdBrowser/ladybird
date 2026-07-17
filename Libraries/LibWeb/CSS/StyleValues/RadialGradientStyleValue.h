@@ -12,11 +12,13 @@
 #include <AK/Vector.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Painting/GradientPainting.h>
 
 namespace Web::CSS {
 
-class RadialGradientStyleValue final : public AbstractImageStyleValue {
+class WEB_API RadialGradientStyleValue final : public AbstractImageStyleValue {
 public:
     enum class EndingShape {
         Circle,
@@ -39,17 +41,18 @@ public:
 
     virtual bool is_computationally_independent() const override;
 
-    Vector<ColorStopListElement> const& color_stop_list() const
+    Vector<ColorStopListElement> color_stop_list() const
     {
-        return m_properties.color_stop_list;
+        auto const& list = m_value->radial_gradient.color_stop_list;
+        return color_stops_from_rust_data(list.pointer, list.length);
     }
 
     ColorInterpolationMethodStyleValue::ColorInterpolationMethod interpolation_method() const
     {
-        if (m_properties.color_interpolation_method)
-            return m_properties.color_interpolation_method->as_color_interpolation_method().color_interpolation_method();
+        if (auto interpolation_method_value = color_interpolation_method_value())
+            return interpolation_method_value->as_color_interpolation_method().color_interpolation_method();
 
-        return ColorInterpolationMethodStyleValue::default_color_interpolation_method(m_properties.color_syntax);
+        return ColorInterpolationMethodStyleValue::default_color_interpolation_method(gradient_color_syntax());
     }
 
     bool is_paintable(DOM::Document const&) const override { return true; }
@@ -58,27 +61,27 @@ public:
 
     CSSPixelSize resolve_size(CSSPixelPoint, CSSPixelRect const&) const;
 
-    bool is_repeating() const { return m_properties.repeating == GradientRepeating::Yes; }
+    bool is_repeating() const { return m_value->radial_gradient.repeating; }
 
     virtual ~RadialGradientStyleValue() override = default;
 
 private:
     RadialGradientStyleValue(EndingShape ending_shape, NonnullRefPtr<StyleValue const> size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, ValueComparingRefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::RadialGradient)
-        , m_properties { .ending_shape = ending_shape, .size = move(size), .position = move(position), .color_stop_list = move(color_stop_list), .repeating = repeating, .color_interpolation_method = move(color_interpolation_method), .color_syntax = color_syntax }
+        , m_value(make_radial_gradient_data(ending_shape, size, position, color_stop_list, repeating, color_interpolation_method, color_syntax))
     {
     }
 
-    struct Properties {
-        EndingShape ending_shape;
-        ValueComparingNonnullRefPtr<StyleValue const> size;
-        ValueComparingNonnullRefPtr<PositionStyleValue const> position;
-        Vector<ColorStopListElement> color_stop_list;
-        GradientRepeating repeating;
-        ValueComparingRefPtr<StyleValue const> color_interpolation_method;
-        ColorSyntax color_syntax;
-        bool operator==(Properties const&) const = default;
-    } m_properties;
+    static StyleValueFFI::StyleValueData* make_radial_gradient_data(EndingShape, NonnullRefPtr<StyleValue const> const&, NonnullRefPtr<PositionStyleValue const> const&, Vector<ColorStopListElement> const&, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
+
+    ValueComparingNonnullRefPtr<StyleValue const> size_value() const { return *static_cast<StyleValue const*>(m_value->radial_gradient.size.pointer); }
+    ValueComparingNonnullRefPtr<PositionStyleValue const> position_value() const { return *static_cast<PositionStyleValue const*>(m_value->radial_gradient.position.pointer); }
+    EndingShape ending_shape() const { return static_cast<EndingShape>(m_value->radial_gradient.ending_shape); }
+    ColorSyntax gradient_color_syntax() const { return static_cast<ColorSyntax>(m_value->radial_gradient.color_syntax); }
+
+    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return static_cast<StyleValue const*>(m_value->radial_gradient.color_interpolation_method.pointer); }
+
+    RustStyleValueHandle m_value;
 
     mutable Optional<CSSPixelSize> m_resolved_size;
 

@@ -11,17 +11,24 @@
 
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Painting/GradientPainting.h>
 
 namespace Web::CSS {
 
-class ConicGradientStyleValue final : public AbstractImageStyleValue {
+class WEB_API ConicGradientStyleValue final : public AbstractImageStyleValue {
 public:
     static ValueComparingNonnullRefPtr<ConicGradientStyleValue const> create(ValueComparingRefPtr<StyleValue const> from_angle, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, RefPtr<StyleValue const> color_interpolation_method)
     {
         VERIFY(!color_stop_list.is_empty());
         bool any_non_legacy = color_stop_list.find_first_index_if([](auto const& stop) { return !stop.color_stop.color->is_keyword() && stop.color_stop.color->as_color().color_syntax() == ColorSyntax::Modern; }).has_value();
         return adopt_ref(*new (nothrow) ConicGradientStyleValue(move(from_angle), move(position), move(color_stop_list), repeating, move(color_interpolation_method), any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
+    }
+    static ValueComparingNonnullRefPtr<ConicGradientStyleValue const> create(ValueComparingRefPtr<StyleValue const> from_angle, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, RefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)
+    {
+        VERIFY(!color_stop_list.is_empty());
+        return adopt_ref(*new (nothrow) ConicGradientStyleValue(move(from_angle), move(position), move(color_stop_list), repeating, move(color_interpolation_method), color_syntax));
     }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
@@ -32,17 +39,18 @@ public:
     virtual bool equals(StyleValue const& other) const override;
     virtual bool is_computationally_independent() const override;
 
-    Vector<ColorStopListElement> const& color_stop_list() const
+    Vector<ColorStopListElement> color_stop_list() const
     {
-        return m_properties.color_stop_list;
+        auto const& list = m_value->conic_gradient.color_stop_list;
+        return color_stops_from_rust_data(list.pointer, list.length);
     }
 
     ColorInterpolationMethodStyleValue::ColorInterpolationMethod interpolation_method() const
     {
-        if (m_properties.color_interpolation_method)
-            return m_properties.color_interpolation_method->as_color_interpolation_method().color_interpolation_method();
+        if (auto interpolation_method_value = color_interpolation_method_value())
+            return interpolation_method_value->as_color_interpolation_method().color_interpolation_method();
 
-        return ColorInterpolationMethodStyleValue::default_color_interpolation_method(m_properties.color_syntax);
+        return ColorInterpolationMethodStyleValue::default_color_interpolation_method(gradient_color_syntax());
     }
 
     float angle_degrees() const;
@@ -53,24 +61,24 @@ public:
 
     virtual ~ConicGradientStyleValue() override = default;
 
-    bool is_repeating() const { return m_properties.repeating == GradientRepeating::Yes; }
+    bool is_repeating() const { return m_value->conic_gradient.repeating; }
 
 private:
     ConicGradientStyleValue(ValueComparingRefPtr<StyleValue const> from_angle, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, ValueComparingRefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::ConicGradient)
-        , m_properties { .from_angle = move(from_angle), .position = move(position), .color_stop_list = move(color_stop_list), .repeating = repeating, .color_interpolation_method = move(color_interpolation_method), .color_syntax = color_syntax }
+        , m_value(make_conic_gradient_data(from_angle, position, color_stop_list, repeating, color_interpolation_method, color_syntax))
     {
     }
 
-    struct Properties {
-        ValueComparingRefPtr<StyleValue const> from_angle;
-        ValueComparingNonnullRefPtr<PositionStyleValue const> position;
-        Vector<ColorStopListElement> color_stop_list;
-        GradientRepeating repeating;
-        ValueComparingRefPtr<StyleValue const> color_interpolation_method;
-        ColorSyntax color_syntax;
-        bool operator==(Properties const&) const = default;
-    } m_properties;
+    static StyleValueFFI::StyleValueData* make_conic_gradient_data(RefPtr<StyleValue const> const&, NonnullRefPtr<PositionStyleValue const> const&, Vector<ColorStopListElement> const&, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
+
+    ValueComparingRefPtr<StyleValue const> from_angle_value() const { return static_cast<StyleValue const*>(m_value->conic_gradient.from_angle.pointer); }
+    ColorSyntax gradient_color_syntax() const { return static_cast<ColorSyntax>(m_value->conic_gradient.color_syntax); }
+    ValueComparingNonnullRefPtr<PositionStyleValue const> position_value() const { return *static_cast<PositionStyleValue const*>(m_value->conic_gradient.position.pointer); }
+
+    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return static_cast<StyleValue const*>(m_value->conic_gradient.color_interpolation_method.pointer); }
+
+    RustStyleValueHandle m_value;
 
     mutable Optional<CSSPixelSize> m_resolved_size;
 

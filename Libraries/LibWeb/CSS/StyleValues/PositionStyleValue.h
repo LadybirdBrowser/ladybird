@@ -13,10 +13,11 @@
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-class PositionStyleValue final : public StyleValueWithDefaultOperators<PositionStyleValue> {
+class WEB_API PositionStyleValue final : public StyleValueWithDefaultOperators<PositionStyleValue> {
 public:
     static ValueComparingNonnullRefPtr<PositionStyleValue const> create(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y);
     static ValueComparingNonnullRefPtr<PositionStyleValue const> create_center();

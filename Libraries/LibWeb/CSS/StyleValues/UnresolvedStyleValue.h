@@ -14,10 +14,11 @@
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-class UnresolvedStyleValue final : public StyleValue {
+class WEB_API UnresolvedStyleValue final : public StyleValue {
 public:
     enum class SourceTextMode : u8 {
         Trim,
