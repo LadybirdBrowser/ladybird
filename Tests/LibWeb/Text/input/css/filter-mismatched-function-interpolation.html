@@ -1,0 +1,20 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const animation = target.animate(
+            [
+                { filter: "brightness(0)" },
+                { filter: "contrast(1)" },
+            ],
+            { duration: 1000, fill: "both" }
+        );
+        animation.pause();
+
+        for (const time of [0, 250, 500, 1000]) {
+            animation.currentTime = time;
+            println(`${time}: ${getComputedStyle(target).filter}`);
+        }
+    });
+</script>

@@ -167,7 +167,9 @@ static RefPtr<FilterStyleValue const> interpolate_filter_function(DOM::Element& 
     case FilterStyleValue::Kind::Color: {
         auto const& from_value = static_cast<ColorFilterStyleValue const&>(from);
         auto const& to_value = static_cast<ColorFilterStyleValue const&>(to);
-        auto operation = delta >= 0.5f ? to_value.operation() : from_value.operation();
+        if (from_value.operation() != to_value.operation())
+            return {};
+        auto operation = from_value.operation();
 
         CalculationContext filter_function_calculation_context = calculation_context;
         switch (operation) {

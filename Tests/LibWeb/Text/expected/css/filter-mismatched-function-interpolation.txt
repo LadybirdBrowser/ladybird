@@ -1,0 +1,4 @@
+0: brightness(0)
+250: brightness(0)
+500: contrast(1)
+1000: contrast(1)
