@@ -12,7 +12,29 @@
 //! layout of [`StyleValueData`] is exposed to C++ through cbindgen so that hot accessors compile
 //! to inline field reads with no FFI call.
 
+use std::ffi::c_void;
+
 use crate::abort_on_panic;
+
+unsafe extern "C" {
+    fn ladybird_style_value_unref(style_value: *const c_void);
+}
+
+/// A strong reference to a C++ StyleValue held from Rust-owned value data.
+///
+/// While the StyleValue subclasses are converted one type at a time, nested values still point
+/// at C++ objects; dropping the Rust allocation releases the reference. Once every type is
+/// converted these become references between Rust allocations instead.
+#[repr(C)]
+pub struct RetainedStyleValue {
+    pointer: *const c_void,
+}
+
+impl Drop for RetainedStyleValue {
+    fn drop(&mut self) {
+        unsafe { ladybird_style_value_unref(self.pointer) };
+    }
+}
 
 /// The data of a single immutable CSS style value.
 ///
@@ -42,6 +64,11 @@ pub enum StyleValueData {
     Resolution { value: f64, unit: u8 },
     /// A CSS `<time>`. The unit is the C++ `enum class TimeUnit : u8`, opaque to Rust.
     Time { value: f64, unit: u8 },
+    /// A CSS `<ratio>`, e.g. `16 / 9`. The numerator and denominator are style values.
+    Ratio {
+        numerator: RetainedStyleValue,
+        denominator: RetainedStyleValue,
+    },
 }
 
 #[unsafe(no_mangle)]
@@ -92,6 +119,20 @@ pub extern "C" fn rust_style_value_create_resolution(value: f64, unit: u8) -> *m
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_time(value: f64, unit: u8) -> *mut StyleValueData {
     abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Time { value, unit })))
+}
+
+/// Takes ownership of one strong reference to each of the numerator and denominator.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_ratio(
+    numerator: *const c_void,
+    denominator: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Ratio {
+            numerator: RetainedStyleValue { pointer: numerator },
+            denominator: RetainedStyleValue { pointer: denominator },
+        }))
+    })
 }
 
 #[unsafe(no_mangle)]

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -28,22 +29,23 @@ public:
 
     bool properties_equal(RatioStyleValue const& other) const
     {
-        return m_numerator == other.m_numerator
-            && m_denominator == other.m_denominator;
+        return numerator() == other.numerator()
+            && denominator() == other.denominator();
     }
 
-    virtual bool is_computationally_independent() const override { return m_numerator->is_computationally_independent() && m_denominator->is_computationally_independent(); }
+    virtual bool is_computationally_independent() const override { return numerator()->is_computationally_independent() && denominator()->is_computationally_independent(); }
 
 private:
     RatioStyleValue(ValueComparingNonnullRefPtr<StyleValue const> numerator, ValueComparingNonnullRefPtr<StyleValue const> denominator)
         : StyleValueWithDefaultOperators(Type::Ratio)
-        , m_numerator(move(numerator))
-        , m_denominator(move(denominator))
+        , m_value(StyleValueFFI::rust_style_value_create_ratio(&numerator.leak_ref(), &denominator.leak_ref()))
     {
     }
 
-    ValueComparingNonnullRefPtr<StyleValue const> m_numerator;
-    ValueComparingNonnullRefPtr<StyleValue const> m_denominator;
+    ValueComparingNonnullRefPtr<StyleValue const> numerator() const { return *static_cast<StyleValue const*>(m_value->ratio.numerator.pointer); }
+    ValueComparingNonnullRefPtr<StyleValue const> denominator() const { return *static_cast<StyleValue const*>(m_value->ratio.denominator.pointer); }
+
+    RustStyleValueHandle m_value;
 };
 
 }

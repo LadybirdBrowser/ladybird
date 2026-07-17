@@ -14,15 +14,15 @@ namespace Web::CSS {
 
 Ratio RatioStyleValue::resolved() const
 {
-    return { number_from_style_value(m_numerator, {}), number_from_style_value(m_denominator, {}) };
+    return { number_from_style_value(numerator(), {}), number_from_style_value(denominator(), {}) };
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> RatioStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    auto absolutized_numerator = m_numerator->absolutized(computation_context);
-    auto absolutized_denominator = m_denominator->absolutized(computation_context);
+    auto absolutized_numerator = numerator()->absolutized(computation_context);
+    auto absolutized_denominator = denominator()->absolutized(computation_context);
 
-    if (absolutized_numerator == m_numerator && absolutized_denominator == m_denominator)
+    if (absolutized_numerator == numerator() && absolutized_denominator == denominator())
         return *this;
 
     return RatioStyleValue::create(move(absolutized_numerator), move(absolutized_denominator));
@@ -30,27 +30,27 @@ ValueComparingNonnullRefPtr<StyleValue const> RatioStyleValue::absolutized(Compu
 
 void RatioStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    m_numerator->serialize(builder, mode);
+    numerator()->serialize(builder, mode);
     builder.append(" / "sv);
-    m_denominator->serialize(builder, mode);
+    denominator()->serialize(builder, mode);
 }
 
 void RatioStyleValue::serialize(Utf16StringBuilder& builder, SerializationMode mode) const
 {
-    m_numerator->serialize(builder, mode);
+    numerator()->serialize(builder, mode);
     builder.append_ascii(" / "sv);
-    m_denominator->serialize(builder, mode);
+    denominator()->serialize(builder, mode);
 }
 
 Vector<Parser::ComponentValue> RatioStyleValue::tokenize() const
 {
     Vector<Parser::ComponentValue> component_values;
 
-    component_values.extend(m_numerator->tokenize());
+    component_values.extend(numerator()->tokenize());
     component_values.empend(Parser::Token::create_whitespace(" "_string));
     component_values.empend(Parser::Token::create_delim('/'));
     component_values.empend(Parser::Token::create_whitespace(" "_string));
-    component_values.extend(m_denominator->tokenize());
+    component_values.extend(denominator()->tokenize());
 
     return component_values;
 }

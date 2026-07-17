@@ -92,6 +92,11 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Node.h>
 
+extern "C" void ladybird_style_value_unref(void const*);
+extern "C" void ladybird_utf16_fly_string_unref(size_t);
+extern "C" void ladybird_string_unref(size_t);
+extern "C" void ladybird_calculation_node_unref(void const*);
+
 namespace Web::CSS {
 
 ColorResolutionContext ColorResolutionContext::for_element(DOM::AbstractElement const& element)
@@ -267,4 +272,10 @@ Keyword StyleValue::to_keyword() const
     return Keyword::Invalid;
 }
 
+}
+
+// Called when Rust-owned style value data drops a reference to a C++ style value it retained.
+extern "C" void ladybird_style_value_unref(void const* style_value)
+{
+    static_cast<Web::CSS::StyleValue const*>(style_value)->unref();
 }
