@@ -20,7 +20,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                       "A"
                   TextNode <#text> (not painted)
                 BlockContainer <(anonymous)> at [62.5625,66.5] table-cell [0+1+0 21.71875 0+0+0] [0+1+18.5 0 18.5+0+0] [BFC] children: not-inline
-                BlockContainer <(anonymous)> at [84.28125,66] table-cell [0+0+0 21.71875 0+1+0] [0+0+19 0 19+0+0] [BFC] children: not-inline
+                BlockContainer <(anonymous)> at [84.28125,66.5] table-cell [0+0+0 21.71875 0+1+0] [0+1+18.5 0 18.5+0+0] [BFC] children: not-inline
               Box <tr> at [9,85] table-row [0+0+0 98 0+0+0] [0+0+0 38 0+0+0] children: not-inline
                 BlockContainer <td> at [20,96] table-cell [0+1+10 30.5625 10+1+0] [0+1+10 16 10+1+0] [BFC] children: inline
                   frag 0 from TextNode start: 0, length: 1, rect: [20,96 14.265625x16] baseline: 12.796875

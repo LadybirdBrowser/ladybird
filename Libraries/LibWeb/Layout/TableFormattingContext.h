@@ -150,61 +150,7 @@ private:
 
     CSSPixels compute_row_content_height(Cell const& cell) const;
 
-    enum class ConflictingSide {
-        Top,
-        Bottom,
-        Left,
-        Right,
-    };
-
-    struct ConflictingEdge {
-        Node const* element { nullptr };
-        Painting::Paintable::ConflictingElementKind element_kind;
-        ConflictingSide side;
-        Optional<size_t> row;
-        Optional<size_t> column;
-    };
-
-    static TableFormattingContext::ConflictingEdge const& winning_conflicting_edge(TableFormattingContext::ConflictingEdge const& a, TableFormattingContext::ConflictingEdge const& b);
-
-    static CSS::BorderData const& border_data_conflicting_edge(ConflictingEdge const& conflicting_edge);
-    static Painting::Paintable::BorderDataWithElementKind const border_data_with_element_kind_from_conflicting_edge(ConflictingEdge const& conflicting_edge);
-
-    class BorderConflictFinder {
-    public:
-        BorderConflictFinder(TableFormattingContext const* context);
-        Vector<ConflictingEdge> conflicting_edges(Cell const&, ConflictingSide) const;
-
-    private:
-        void collect_conflicting_col_elements();
-        void collect_conflicting_row_group_elements();
-
-        void collect_cell_conflicting_edges(Vector<ConflictingEdge>&, Cell const&, ConflictingSide) const;
-        void collect_row_conflicting_edges(Vector<ConflictingEdge>&, Cell const&, ConflictingSide) const;
-        void collect_row_group_conflicting_edges(Vector<ConflictingEdge>&, Cell const&, ConflictingSide) const;
-        void collect_column_group_conflicting_edges(Vector<ConflictingEdge>&, Cell const&, ConflictingSide) const;
-        void collect_table_box_conflicting_edges(Vector<ConflictingEdge>&, Cell const&, ConflictingSide) const;
-
-        Node const* get_col_element(size_t index) const
-        {
-            if (index >= m_col_elements_by_index.size())
-                return nullptr;
-            return m_col_elements_by_index[index];
-        }
-
-        struct RowGroupInfo {
-            Node const* row_group { nullptr };
-            size_t start_index;
-            size_t row_count;
-        };
-
-        Vector<Node const*> m_col_elements_by_index;
-        Vector<Optional<RowGroupInfo>> m_row_group_elements_by_index;
-        TableFormattingContext const* m_context;
-    };
-
     Vector<Cell> m_cells;
-    Vector<Vector<Optional<Cell const&>>> m_cells_by_coordinate;
     Vector<Column> m_columns;
     Vector<Row> m_rows;
 };
