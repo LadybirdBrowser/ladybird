@@ -21,16 +21,28 @@
 
 namespace Web::CSS {
 
+StyleValueFFI::StyleValueData* CursorStyleValue::make_cursor_data(NonnullRefPtr<AbstractImageStyleValue const> const& image, RefPtr<StyleValue const> const& x, RefPtr<StyleValue const> const& y)
+{
+    // The Rust allocation takes ownership of one strong reference to the image and to each
+    // non-null coordinate.
+    image->ref();
+    if (x)
+        x->ref();
+    if (y)
+        y->ref();
+    return StyleValueFFI::rust_style_value_create_cursor(image.ptr(), x.ptr(), y.ptr());
+}
+
 void CursorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    m_properties.image->serialize(builder, mode);
+    image().serialize(builder, mode);
 
-    if (m_properties.x) {
-        VERIFY(m_properties.y);
+    if (x()) {
+        VERIFY(y());
         builder.append(' ');
-        m_properties.x->serialize(builder, mode);
+        x()->serialize(builder, mode);
         builder.append(' ');
-        m_properties.y->serialize(builder, mode);
+        y()->serialize(builder, mode);
     }
 }
 
@@ -39,25 +51,25 @@ ValueComparingNonnullRefPtr<StyleValue const> CursorStyleValue::absolutized(Comp
     RefPtr<StyleValue const> absolutized_x;
     RefPtr<StyleValue const> absolutized_y;
 
-    if (m_properties.x)
-        absolutized_x = m_properties.x->absolutized(computation_context);
+    if (x())
+        absolutized_x = x()->absolutized(computation_context);
 
-    if (m_properties.y)
-        absolutized_y = m_properties.y->absolutized(computation_context);
+    if (y())
+        absolutized_y = y()->absolutized(computation_context);
 
-    return CursorStyleValue::create(m_properties.image->absolutized(computation_context)->as_abstract_image(), absolutized_x, absolutized_y);
+    return CursorStyleValue::create(image().absolutized(computation_context)->as_abstract_image(), absolutized_x, absolutized_y);
 }
 
 bool CursorStyleValue::is_computationally_independent() const
 {
-    return m_properties.image->is_computationally_independent()
-        && (!m_properties.x || m_properties.x->is_computationally_independent())
-        && (!m_properties.y || m_properties.y->is_computationally_independent());
+    return image().is_computationally_independent()
+        && (!x() || x()->is_computationally_independent())
+        && (!y() || y()->is_computationally_independent());
 }
 
 Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithStyle const& layout_node) const
 {
-    auto const& image = *m_properties.image;
+    auto const& image = this->image();
     auto const& document = layout_node.document();
     if (!image.is_paintable(document))
         return {};
@@ -123,10 +135,10 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
     // value of "0 0" were specified."
     // FIXME: Make use of embedded hotspots.
     Gfx::IntPoint hotspot = { 0, 0 };
-    if (m_properties.x && m_properties.y) {
+    if (x() && y()) {
         VERIFY(document.window());
 
-        hotspot = { number_from_style_value(*m_properties.x, {}), number_from_style_value(*m_properties.y, {}) };
+        hotspot = { number_from_style_value(*x(), {}), number_from_style_value(*y(), {}) };
     }
 
     return Gfx::ImageCursor {

@@ -445,6 +445,13 @@ pub enum StyleValueData {
         symbols_type: u8,
         symbols: RetainedUtf16FlyStringList,
     },
+    /// A cursor with its retained image value and optional retained hotspot coordinates (both
+    /// null or both non-null).
+    Cursor {
+        image: RetainedStyleValue,
+        x: RetainedStyleValue,
+        y: RetainedStyleValue,
+    },
     /// counter-increment, counter-reset or counter-set with its retained counter definitions.
     CounterDefinitions {
         counter_definitions: RetainedCounterDefinitionList,
@@ -1353,6 +1360,22 @@ pub unsafe extern "C" fn rust_style_value_create_counter_style(
             name: RetainedUtf16FlyString { raw: name },
             symbols_type,
             symbols: unsafe { RetainedUtf16FlyStringList::from_raw(symbols, symbol_count) },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the image and to each non-null coordinate.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_cursor(
+    image: *const c_void,
+    x: *const c_void,
+    y: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Cursor {
+            image: RetainedStyleValue { pointer: image },
+            x: RetainedStyleValue { pointer: x },
+            y: RetainedStyleValue { pointer: y },
         }))
     })
 }
