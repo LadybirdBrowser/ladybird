@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -93,8 +92,6 @@ private:
     }
 
     PropertyID shorthand_property() const { return static_cast<PropertyID>(m_value->shorthand.shorthand_property); }
-
-    RustStyleValueHandle m_value;
 };
 
 }

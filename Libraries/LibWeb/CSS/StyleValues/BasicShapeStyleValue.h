@@ -10,7 +10,6 @@
 #include <AK/Variant.h>
 #include <LibGfx/WindingRule.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/SVG/AttributeParser.h>
 
@@ -176,14 +175,11 @@ public:
 
 private:
     BasicShapeStyleValue(BasicShape basic_shape)
-        : StyleValueWithDefaultOperators(Type::BasicShape)
-        , m_value(make_basic_shape_data(basic_shape))
+        : StyleValueWithDefaultOperators(Type::BasicShape, make_basic_shape_data(basic_shape))
     {
     }
 
     static StyleValueFFI::StyleValueData* make_basic_shape_data(BasicShape const&);
-
-    RustStyleValueHandle m_value;
 
     // NB: The materialized shape is a cache of the Rust-owned value data (rebuilding a path
     //     shape re-parses its serialized path data); the Rust allocation stays authoritative.

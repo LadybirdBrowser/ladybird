@@ -8,7 +8,6 @@
 
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -34,12 +33,9 @@ public:
 
 private:
     explicit CustomIdentStyleValue(Utf16FlyString custom_ident)
-        : StyleValueWithDefaultOperators(Type::CustomIdent)
-        , m_value(StyleValueFFI::rust_style_value_create_custom_ident(custom_ident.to_raw_leaked()))
+        : StyleValueWithDefaultOperators(Type::CustomIdent, StyleValueFFI::rust_style_value_create_custom_ident(custom_ident.to_raw_leaked()))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

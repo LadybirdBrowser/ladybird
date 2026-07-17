@@ -12,7 +12,6 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 
@@ -57,8 +56,6 @@ private:
 
     String source_text() const { return String::from_raw(m_value->unresolved.source_text.raw); }
     String value_comparison_text() const { return String::from_raw(m_value->unresolved.value_comparison_text.raw); }
-
-    RustStyleValueHandle m_value;
 };
 
 }

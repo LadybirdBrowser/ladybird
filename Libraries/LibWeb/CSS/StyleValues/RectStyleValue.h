@@ -10,7 +10,6 @@
 #pragma once
 
 #include <LibWeb/CSS/EdgeRect.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -48,12 +47,9 @@ public:
 
 private:
     explicit RectStyleValue(NonnullRefPtr<StyleValue const> top, NonnullRefPtr<StyleValue const> right, NonnullRefPtr<StyleValue const> bottom, NonnullRefPtr<StyleValue const> left)
-        : StyleValueWithDefaultOperators(Type::Rect)
-        , m_value(StyleValueFFI::rust_style_value_create_rect(&top.leak_ref(), &right.leak_ref(), &bottom.leak_ref(), &left.leak_ref()))
+        : StyleValueWithDefaultOperators(Type::Rect, StyleValueFFI::rust_style_value_create_rect(&top.leak_ref(), &right.leak_ref(), &bottom.leak_ref(), &left.leak_ref()))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

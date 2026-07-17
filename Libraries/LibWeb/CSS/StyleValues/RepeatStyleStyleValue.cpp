@@ -14,8 +14,7 @@
 namespace Web::CSS {
 
 RepeatStyleStyleValue::RepeatStyleStyleValue(Repetition repeat_x, Repetition repeat_y)
-    : StyleValueWithDefaultOperators(Type::RepeatStyle)
-    , m_value(StyleValueFFI::rust_style_value_create_repeat_style(to_underlying(repeat_x), to_underlying(repeat_y)))
+    : StyleValueWithDefaultOperators(Type::RepeatStyle, StyleValueFFI::rust_style_value_create_repeat_style(to_underlying(repeat_x), to_underlying(repeat_y)))
 {
 }
 

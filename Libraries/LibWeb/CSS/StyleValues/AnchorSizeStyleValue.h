@@ -8,7 +8,6 @@
 
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/PercentageOr.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -49,8 +48,6 @@ private:
         Optional<Utf16FlyString> const& anchor_name,
         Optional<AnchorSize> const& anchor_size,
         ValueComparingRefPtr<StyleValue const> const& fallback_value);
-
-    RustStyleValueHandle m_value;
 };
 
 }

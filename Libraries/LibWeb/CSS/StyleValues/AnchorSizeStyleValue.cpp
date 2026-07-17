@@ -34,8 +34,7 @@ AnchorSizeStyleValue::AnchorSizeStyleValue(
     Optional<Utf16FlyString> const& anchor_name,
     Optional<AnchorSize> const& anchor_size,
     ValueComparingRefPtr<StyleValue const> const& fallback_value)
-    : StyleValueWithDefaultOperators(Type::AnchorSize)
-    , m_value(make_anchor_size_data(anchor_name, anchor_size, fallback_value))
+    : StyleValueWithDefaultOperators(Type::AnchorSize, make_anchor_size_data(anchor_name, anchor_size, fallback_value))
 {
 }
 

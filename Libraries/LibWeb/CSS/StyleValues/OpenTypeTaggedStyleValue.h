@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -41,12 +40,9 @@ public:
 
 private:
     explicit OpenTypeTaggedStyleValue(Mode mode, Utf16FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)
-        : StyleValueWithDefaultOperators(Type::OpenTypeTagged)
-        , m_value(StyleValueFFI::rust_style_value_create_open_type_tagged(to_underlying(mode), tag.to_raw_leaked(), &value.leak_ref()))
+        : StyleValueWithDefaultOperators(Type::OpenTypeTagged, StyleValueFFI::rust_style_value_create_open_type_tagged(to_underlying(mode), tag.to_raw_leaked(), &value.leak_ref()))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

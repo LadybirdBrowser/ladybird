@@ -10,7 +10,6 @@
 #pragma once
 
 #include <LibWeb/CSS/GridTrackPlacement.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -45,8 +44,7 @@ public:
 
 private:
     explicit GridTrackPlacementStyleValue(GridTrackPlacement grid_track_placement)
-        : StyleValueWithDefaultOperators(Type::GridTrackPlacement)
-        , m_value(make_grid_track_placement_data(grid_track_placement))
+        : StyleValueWithDefaultOperators(Type::GridTrackPlacement, make_grid_track_placement_data(grid_track_placement))
     {
     }
 
@@ -75,8 +73,6 @@ private:
         }
         return StyleValueFFI::rust_style_value_create_grid_track_placement(kind, value, name.has_value(), name.has_value() ? name->to_raw_leaked() : 0);
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

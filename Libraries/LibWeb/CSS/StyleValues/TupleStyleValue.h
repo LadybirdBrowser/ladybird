@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -76,8 +75,7 @@ public:
 
 private:
     explicit TupleStyleValue(StyleValueTuple values)
-        : StyleValueWithDefaultOperators(Type::Tuple)
-        , m_value(make_tuple_data(move(values)))
+        : StyleValueWithDefaultOperators(Type::Tuple, make_tuple_data(move(values)))
     {
     }
 
@@ -87,7 +85,6 @@ private:
         auto pointers = leak_style_value_pointers_for_rust(values);
         return StyleValueFFI::rust_style_value_create_tuple(pointers.data(), pointers.size());
     }
-    RustStyleValueHandle m_value;
 };
 
 }

@@ -11,7 +11,6 @@
 
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -37,8 +36,6 @@ public:
 
 private:
     explicit AngleStyleValue(Angle angle);
-
-    RustStyleValueHandle m_value;
 };
 
 }

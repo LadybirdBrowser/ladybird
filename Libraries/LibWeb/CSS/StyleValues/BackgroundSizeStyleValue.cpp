@@ -12,8 +12,7 @@
 namespace Web::CSS {
 
 BackgroundSizeStyleValue::BackgroundSizeStyleValue(ValueComparingNonnullRefPtr<StyleValue const> size_x, ValueComparingNonnullRefPtr<StyleValue const> size_y)
-    : StyleValueWithDefaultOperators(Type::BackgroundSize)
-    , m_value(StyleValueFFI::rust_style_value_create_background_size(&size_x.leak_ref(), &size_y.leak_ref()))
+    : StyleValueWithDefaultOperators(Type::BackgroundSize, StyleValueFFI::rust_style_value_create_background_size(&size_x.leak_ref(), &size_y.leak_ref()))
 {
 }
 

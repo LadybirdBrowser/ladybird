@@ -11,7 +11,6 @@
 
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -37,12 +36,9 @@ public:
 
 private:
     explicit FrequencyStyleValue(Frequency frequency)
-        : DimensionStyleValue(Type::Frequency)
-        , m_value(StyleValueFFI::rust_style_value_create_frequency(frequency.raw_value(), to_underlying(frequency.unit())))
+        : DimensionStyleValue(Type::Frequency, StyleValueFFI::rust_style_value_create_frequency(frequency.raw_value(), to_underlying(frequency.unit())))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

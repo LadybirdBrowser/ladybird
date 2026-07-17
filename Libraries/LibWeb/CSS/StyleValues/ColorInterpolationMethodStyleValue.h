@@ -8,7 +8,6 @@
 
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -52,8 +51,7 @@ public:
 
 private:
     explicit ColorInterpolationMethodStyleValue(ColorInterpolationMethod color_space)
-        : StyleValueWithDefaultOperators(Type::ColorInterpolationMethod)
-        , m_value(make_color_interpolation_method_data(color_space))
+        : StyleValueWithDefaultOperators(Type::ColorInterpolationMethod, make_color_interpolation_method_data(color_space))
     {
     }
 
@@ -67,8 +65,6 @@ private:
                 return StyleValueFFI::rust_style_value_create_color_interpolation_method(true, to_underlying(polar.color_space), to_underlying(polar.hue_interpolation_method));
             });
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

@@ -21,6 +21,11 @@ class RustStyleValueHandle {
     AK_MAKE_NONCOPYABLE(RustStyleValueHandle);
 
 public:
+    // NB: An empty handle exists only for the transitional types that still keep their data in
+    //     C++ members (BorderRadiusStyleValue, FilterStyleValue); it goes away once they are
+    //     converted.
+    RustStyleValueHandle() = default;
+
     explicit RustStyleValueHandle(StyleValueFFI::StyleValueData* value)
         : m_value(value)
     {

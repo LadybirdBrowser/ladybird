@@ -21,7 +21,6 @@
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/Resolution.h>
 #include <LibWeb/CSS/StyleValues/AbstractNonMathCalcFunctionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
@@ -123,8 +122,7 @@ public:
 
 private:
     explicit CalculatedStyleValue(NonnullRefPtr<CalculationNode const> calculation, NumericType resolved_type, CalculationContext context)
-        : StyleValue(Type::Calculated)
-        , m_value(make_calculated_data(calculation, resolved_type, context))
+        : StyleValue(Type::Calculated, make_calculated_data(calculation, resolved_type, context))
     {
     }
 
@@ -145,8 +143,6 @@ private:
 
     NumericType resolved_type() const;
     CalculationContext calculation_context() const;
-
-    RustStyleValueHandle m_value;
 };
 
 #define ENUMERATE_CALCULATION_NODE_TYPES(X) \

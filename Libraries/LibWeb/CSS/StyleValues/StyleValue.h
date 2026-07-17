@@ -29,6 +29,7 @@
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/SerializationMode.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -198,7 +199,14 @@ public:
     virtual bool is_computationally_independent() const = 0;
 
 protected:
+    StyleValue(Type, StyleValueFFI::StyleValueData*);
+
+    // NB: Only for the transitional types that still keep their data in C++ members
+    //     (BorderRadiusStyleValue, FilterStyleValue); goes away once they are converted.
     explicit StyleValue(Type);
+
+    // The single Rust-owned allocation holding this value's data.
+    RustStyleValueHandle m_value;
 
 private:
     Type m_type;

@@ -61,8 +61,8 @@ public:
     static Optional<RelativeColorContext> extract_channels_in_color_space(StyleValue const& origin_color, ColorType target_color_type, ColorResolutionContext const&);
 
 protected:
-    explicit ColorStyleValue(Optional<ColorType> color_type, ColorSyntax color_syntax)
-        : StyleValue(Type::Color)
+    ColorStyleValue(Optional<ColorType> color_type, ColorSyntax color_syntax, StyleValueFFI::StyleValueData* value)
+        : StyleValue(Type::Color, value)
         , m_color_base_value(StyleValueFFI::rust_style_value_create_color(color_type.has_value(), color_type.has_value() ? static_cast<u8>(to_underlying(*color_type)) : 0, to_underlying(color_syntax)))
     {
     }

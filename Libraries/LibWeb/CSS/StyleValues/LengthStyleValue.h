@@ -11,7 +11,6 @@
 
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS {
@@ -35,12 +34,9 @@ public:
 
 private:
     explicit LengthStyleValue(Length const& length)
-        : DimensionStyleValue(Type::Length)
-        , m_value(StyleValueFFI::rust_style_value_create_length(length.raw_value(), to_underlying(length.unit())))
+        : DimensionStyleValue(Type::Length, StyleValueFFI::rust_style_value_create_length(length.raw_value(), to_underlying(length.unit())))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

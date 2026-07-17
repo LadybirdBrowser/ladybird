@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 
@@ -61,8 +60,7 @@ public:
 
 private:
     explicit RadialSizeStyleValue(Vector<Component> components)
-        : StyleValueWithDefaultOperators(Type::RadialSize)
-        , m_value(make_radial_size_data(components))
+        : StyleValueWithDefaultOperators(Type::RadialSize, make_radial_size_data(components))
     {
     }
 
@@ -86,8 +84,6 @@ private:
             is_extent(components[0]), extent_of(components[0]), value_of(components[0]),
             has_second && is_extent(components[1]), has_second ? extent_of(components[1]) : 0, has_second ? value_of(components[1]) : nullptr);
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

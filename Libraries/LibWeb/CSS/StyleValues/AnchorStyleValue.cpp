@@ -36,8 +36,7 @@ ValueComparingNonnullRefPtr<AnchorStyleValue const> AnchorStyleValue::create(
 AnchorStyleValue::AnchorStyleValue(Optional<Utf16FlyString> const& anchor_name,
     ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side,
     ValueComparingRefPtr<StyleValue const> const& fallback_value)
-    : AbstractNonMathCalcFunctionStyleValue(Type::Anchor)
-    , m_value(make_anchor_data(anchor_name, anchor_side, fallback_value))
+    : AbstractNonMathCalcFunctionStyleValue(Type::Anchor, make_anchor_data(anchor_name, anchor_side, fallback_value))
 {
 }
 

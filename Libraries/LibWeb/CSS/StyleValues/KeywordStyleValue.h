@@ -10,7 +10,6 @@
 #pragma once
 
 #include <LibWeb/CSS/Keyword.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 
@@ -75,12 +74,9 @@ public:
 
 private:
     explicit KeywordStyleValue(Keyword keyword)
-        : StyleValueWithDefaultOperators(Type::Keyword)
-        , m_value(StyleValueFFI::rust_style_value_create_keyword(to_underlying(keyword)))
+        : StyleValueWithDefaultOperators(Type::Keyword, StyleValueFFI::rust_style_value_create_keyword(to_underlying(keyword)))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

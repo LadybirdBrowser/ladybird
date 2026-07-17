@@ -8,7 +8,6 @@
 
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -75,8 +74,6 @@ private:
         double alpha_multiplier;
     };
     PercentageNormalizationResult normalize_percentages(ComputationContext const&) const;
-
-    RustStyleValueHandle m_value;
 };
 
 }

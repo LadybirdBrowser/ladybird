@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 
@@ -38,12 +37,9 @@ public:
 
 private:
     explicit IntegerStyleValue(i32 value)
-        : StyleValue(Type::Integer)
-        , m_value(StyleValueFFI::rust_style_value_create_integer(value))
+        : StyleValue(Type::Integer, StyleValueFFI::rust_style_value_create_integer(value))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

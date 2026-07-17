@@ -132,6 +132,12 @@ ColorResolutionContext ColorResolutionContext::for_layout_node_with_style(Layout
     };
 }
 
+StyleValue::StyleValue(Type type, StyleValueFFI::StyleValueData* value)
+    : m_value(value)
+    , m_type(type)
+{
+}
+
 StyleValue::StyleValue(Type type)
     : m_type(type)
 {

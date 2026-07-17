@@ -10,7 +10,6 @@
 #pragma once
 
 #include <LibGfx/Matrix4x4.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/TransformFunctions.h>
 
@@ -67,8 +66,7 @@ public:
 
 private:
     TransformationStyleValue(PropertyID property, TransformFunction transform_function, StyleValueVector&& values)
-        : StyleValueWithDefaultOperators(Type::Transformation)
-        , m_value(make_transformation_data(property, transform_function, move(values)))
+        : StyleValueWithDefaultOperators(Type::Transformation, make_transformation_data(property, transform_function, move(values)))
     {
     }
 
@@ -87,8 +85,6 @@ private:
     }
 
     PropertyID property() const { return static_cast<PropertyID>(m_value->transformation.property); }
-
-    RustStyleValueHandle m_value;
 };
 
 }

@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -35,8 +34,7 @@ public:
 
 private:
     EdgeStyleValue(Optional<PositionEdge> edge, RefPtr<StyleValue const> const& offset)
-        : StyleValueWithDefaultOperators(Type::Edge)
-        , m_value(make_edge_data(edge, offset))
+        : StyleValueWithDefaultOperators(Type::Edge, make_edge_data(edge, offset))
     {
     }
 
@@ -56,8 +54,6 @@ private:
     }
 
     ValueComparingRefPtr<StyleValue const> offset_style_value() const { return static_cast<StyleValue const*>(m_value->edge.offset.pointer); }
-
-    RustStyleValueHandle m_value;
 };
 
 }

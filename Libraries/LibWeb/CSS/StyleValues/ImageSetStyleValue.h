@@ -10,7 +10,6 @@
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -73,7 +72,6 @@ private:
 
     static StyleValueFFI::StyleValueData* make_image_set_data(Vector<Option> const&);
 
-    RustStyleValueHandle m_value;
     mutable AbstractImageStyleValue const* m_selected_image { nullptr };
     mutable double m_selected_resolution { 1 };
 };

@@ -23,8 +23,8 @@ public:
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const override;
 
 protected:
-    explicit DimensionStyleValue(Type type)
-        : StyleValue(type)
+    DimensionStyleValue(Type type, StyleValueFFI::StyleValueData* value)
+        : StyleValue(type, value)
     {
     }
 };

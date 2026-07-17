@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -50,8 +49,7 @@ public:
 
 private:
     explicit CounterStyleStyleValue(Variant<Utf16FlyString, SymbolsFunction> value)
-        : StyleValueWithDefaultOperators(Type::CounterStyle)
-        , m_value(make_counter_style_data(value))
+        : StyleValueWithDefaultOperators(Type::CounterStyle, make_counter_style_data(value))
     {
     }
 
@@ -70,8 +68,6 @@ private:
                 return StyleValueFFI::rust_style_value_create_counter_style(true, 0, to_underlying(symbols_function.type), raws.data(), raws.size());
             });
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

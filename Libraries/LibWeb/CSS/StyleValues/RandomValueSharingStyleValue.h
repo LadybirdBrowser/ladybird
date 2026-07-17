@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -54,8 +53,7 @@ public:
 
 private:
     explicit RandomValueSharingStyleValue(RefPtr<StyleValue const> fixed_value, bool is_auto, Optional<Utf16FlyString> name, bool element_shared)
-        : StyleValueWithDefaultOperators(Type::RandomValueSharing)
-        , m_value(make_random_value_sharing_data(fixed_value, is_auto, name, element_shared))
+        : StyleValueWithDefaultOperators(Type::RandomValueSharing, make_random_value_sharing_data(fixed_value, is_auto, name, element_shared))
     {
     }
 
@@ -76,7 +74,6 @@ private:
         return Utf16FlyString::from_raw(m_value->random_value_sharing.name.raw);
     }
     bool element_shared() const { return m_value->random_value_sharing.element_shared; }
-    RustStyleValueHandle m_value;
 };
 
 }

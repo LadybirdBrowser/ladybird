@@ -112,8 +112,7 @@ ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(::URL
 }
 
 ImageStyleValue::ImageStyleValue(URL const& url, Optional<::URL::URL> style_resource_base_url)
-    : AbstractImageStyleValue(Type::Image)
-    , m_value(make_image_url_data(url))
+    : AbstractImageStyleValue(Type::Image, make_image_url_data(url))
     , m_style_resource_base_url(move(style_resource_base_url))
 {
 }

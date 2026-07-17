@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -44,12 +43,9 @@ public:
 
 private:
     ScrollbarGutterStyleValue(ScrollbarGutter value)
-        : StyleValueWithDefaultOperators(Type::ScrollbarGutter)
-        , m_value(StyleValueFFI::rust_style_value_create_scrollbar_gutter(to_underlying(value)))
+        : StyleValueWithDefaultOperators(Type::ScrollbarGutter, StyleValueFFI::rust_style_value_create_scrollbar_gutter(to_underlying(value)))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

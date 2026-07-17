@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/CSS/Display.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 
@@ -29,13 +28,10 @@ public:
 
 private:
     explicit DisplayStyleValue(Display const& display)
-        : StyleValueWithDefaultOperators(Type::Display)
-        , m_value(StyleValueFFI::rust_style_value_create_display(bit_cast<u32>(display)))
+        : StyleValueWithDefaultOperators(Type::Display, StyleValueFFI::rust_style_value_create_display(bit_cast<u32>(display)))
     {
         static_assert(sizeof(Display) == sizeof(u32));
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

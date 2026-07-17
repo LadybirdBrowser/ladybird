@@ -8,7 +8,6 @@
 
 #include <AK/OwnPtr.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -29,12 +28,9 @@ public:
 private:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     explicit ScrollbarColorStyleValue(NonnullRefPtr<StyleValue const> thumb_color, NonnullRefPtr<StyleValue const> track_color)
-        : StyleValueWithDefaultOperators(Type::ScrollbarColor)
-        , m_value(StyleValueFFI::rust_style_value_create_scrollbar_color(&thumb_color.leak_ref(), &track_color.leak_ref()))
+        : StyleValueWithDefaultOperators(Type::ScrollbarColor, StyleValueFFI::rust_style_value_create_scrollbar_color(&thumb_color.leak_ref(), &track_color.leak_ref()))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

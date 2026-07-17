@@ -9,8 +9,7 @@
 namespace Web::CSS {
 
 UnicodeRangeStyleValue::UnicodeRangeStyleValue(Gfx::UnicodeRange unicode_range)
-    : StyleValueWithDefaultOperators(Type::UnicodeRange)
-    , m_value(StyleValueFFI::rust_style_value_create_unicode_range(unicode_range.min_code_point(), unicode_range.max_code_point()))
+    : StyleValueWithDefaultOperators(Type::UnicodeRange, StyleValueFFI::rust_style_value_create_unicode_range(unicode_range.min_code_point(), unicode_range.max_code_point()))
 {
 }
 

@@ -9,7 +9,6 @@
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -35,12 +34,9 @@ public:
 
 private:
     explicit StringStyleValue(Utf16FlyString string)
-        : StyleValueWithDefaultOperators(Type::String)
-        , m_value(StyleValueFFI::rust_style_value_create_string(string.to_raw_leaked()))
+        : StyleValueWithDefaultOperators(Type::String, StyleValueFFI::rust_style_value_create_string(string.to_raw_leaked()))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

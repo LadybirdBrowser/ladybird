@@ -10,7 +10,6 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Cursor.h>
 #include <LibWeb/CSS/Length.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Forward.h>
 
@@ -42,8 +41,7 @@ private:
     CursorStyleValue(ValueComparingNonnullRefPtr<AbstractImageStyleValue const> image,
         RefPtr<StyleValue const> x,
         RefPtr<StyleValue const> y)
-        : StyleValueWithDefaultOperators(Type::Cursor)
-        , m_value(make_cursor_data(image, x, y))
+        : StyleValueWithDefaultOperators(Type::Cursor, make_cursor_data(image, x, y))
     {
     }
 
@@ -53,8 +51,6 @@ private:
 
     ValueComparingRefPtr<StyleValue const> x() const { return static_cast<StyleValue const*>(m_value->cursor.x.pointer); }
     ValueComparingRefPtr<StyleValue const> y() const { return static_cast<StyleValue const*>(m_value->cursor.y.pointer); }
-
-    RustStyleValueHandle m_value;
 
     mutable Optional<Color> m_cached_bitmap_color;
     mutable Optional<Gfx::ShareableBitmap> m_cached_bitmap;

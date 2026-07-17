@@ -8,7 +8,6 @@
 
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -37,14 +36,11 @@ public:
 
 private:
     explicit SuperellipseStyleValue(ValueComparingNonnullRefPtr<StyleValue const> const& parameter)
-        : StyleValueWithDefaultOperators(Type::Superellipse)
-        , m_value(StyleValueFFI::rust_style_value_create_superellipse(&NonnullRefPtr<StyleValue const>(parameter).leak_ref()))
+        : StyleValueWithDefaultOperators(Type::Superellipse, StyleValueFFI::rust_style_value_create_superellipse(&NonnullRefPtr<StyleValue const>(parameter).leak_ref()))
     {
     }
 
     ValueComparingNonnullRefPtr<StyleValue const> parameter_style_value() const { return *static_cast<StyleValue const*>(m_value->superellipse.parameter.pointer); }
-
-    RustStyleValueHandle m_value;
 };
 
 }

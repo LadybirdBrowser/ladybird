@@ -11,7 +11,6 @@
 
 #include <LibGfx/Color.h>
 #include <LibWeb/CSS/Length.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -76,8 +75,7 @@ private:
         ValueComparingRefPtr<StyleValue const> blur_radius,
         ValueComparingRefPtr<StyleValue const> spread_distance,
         ShadowPlacement placement)
-        : StyleValueWithDefaultOperators(Type::Shadow)
-        , m_value(make_shadow_data(shadow_type, color, offset_x, offset_y, blur_radius, spread_distance, placement))
+        : StyleValueWithDefaultOperators(Type::Shadow, make_shadow_data(shadow_type, color, offset_x, offset_y, blur_radius, spread_distance, placement))
     {
     }
 
@@ -96,7 +94,6 @@ private:
     }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
-    RustStyleValueHandle m_value;
 };
 
 }

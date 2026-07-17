@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -33,14 +32,11 @@ public:
 
 private:
     explicit ContrastColorStyleValue(ValueComparingNonnullRefPtr<StyleValue const> color)
-        : ColorStyleValue({}, ColorSyntax::Modern)
-        , m_value(StyleValueFFI::rust_style_value_create_contrast_color(&color.leak_ref()))
+        : ColorStyleValue({}, ColorSyntax::Modern, StyleValueFFI::rust_style_value_create_contrast_color(&color.leak_ref()))
     {
     }
 
     ValueComparingNonnullRefPtr<StyleValue const> color() const { return *static_cast<StyleValue const*>(m_value->contrast_color.color.pointer); }
-
-    RustStyleValueHandle m_value;
 };
 
 }

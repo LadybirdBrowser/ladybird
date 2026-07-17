@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibGfx/Font/UnicodeRange.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -30,8 +29,6 @@ public:
 
 private:
     UnicodeRangeStyleValue(Gfx::UnicodeRange);
-
-    RustStyleValueHandle m_value;
 };
 
 }

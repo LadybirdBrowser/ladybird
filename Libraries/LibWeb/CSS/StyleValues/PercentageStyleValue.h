@@ -11,7 +11,6 @@
 
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -41,12 +40,9 @@ public:
 
 private:
     PercentageStyleValue(Percentage&& percentage)
-        : DimensionStyleValue(Type::Percentage)
-        , m_value(StyleValueFFI::rust_style_value_create_percentage(percentage.value()))
+        : DimensionStyleValue(Type::Percentage, StyleValueFFI::rust_style_value_create_percentage(percentage.value()))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

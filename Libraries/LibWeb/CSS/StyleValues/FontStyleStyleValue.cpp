@@ -14,8 +14,7 @@
 namespace Web::CSS {
 
 FontStyleStyleValue::FontStyleStyleValue(FontStyleKeyword font_style, ValueComparingRefPtr<StyleValue const> angle_value)
-    : StyleValueWithDefaultOperators(Type::FontStyle)
-    , m_value(make_font_style_data(font_style, angle_value))
+    : StyleValueWithDefaultOperators(Type::FontStyle, make_font_style_data(font_style, angle_value))
 {
 }
 

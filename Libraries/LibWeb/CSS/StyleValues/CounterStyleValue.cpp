@@ -29,8 +29,7 @@ static StyleValueFFI::StyleValueData* make_counter_data(CounterStyleValue::Count
 }
 
 CounterStyleValue::CounterStyleValue(CounterFunction function, Utf16FlyString counter_name, ValueComparingNonnullRefPtr<StyleValue const> counter_style, Utf16FlyString join_string)
-    : StyleValueWithDefaultOperators(Type::Counter)
-    , m_value(make_counter_data(function, counter_name, counter_style, join_string))
+    : StyleValueWithDefaultOperators(Type::Counter, make_counter_data(function, counter_name, counter_style, join_string))
 {
 }
 

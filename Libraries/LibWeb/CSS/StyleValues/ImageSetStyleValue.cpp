@@ -44,8 +44,7 @@ ValueComparingNonnullRefPtr<ImageSetStyleValue const> ImageSetStyleValue::create
 }
 
 ImageSetStyleValue::ImageSetStyleValue(Vector<Option> options)
-    : AbstractImageStyleValue(Type::ImageSet)
-    , m_value(make_image_set_data(options))
+    : AbstractImageStyleValue(Type::ImageSet, make_image_set_data(options))
 {
 }
 

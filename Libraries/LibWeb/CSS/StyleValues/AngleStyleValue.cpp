@@ -12,8 +12,7 @@
 namespace Web::CSS {
 
 AngleStyleValue::AngleStyleValue(Angle angle)
-    : DimensionStyleValue(Type::Angle)
-    , m_value(StyleValueFFI::rust_style_value_create_angle(angle.raw_value(), to_underlying(angle.unit())))
+    : DimensionStyleValue(Type::Angle, StyleValueFFI::rust_style_value_create_angle(angle.raw_value(), to_underlying(angle.unit())))
 {
 }
 

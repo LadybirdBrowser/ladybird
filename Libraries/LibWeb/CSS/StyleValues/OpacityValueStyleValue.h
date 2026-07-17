@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -35,14 +34,11 @@ public:
 
 private:
     OpacityValueStyleValue(NonnullRefPtr<StyleValue const>&& value)
-        : StyleValueWithDefaultOperators(Type::OpacityValue)
-        , m_value(StyleValueFFI::rust_style_value_create_opacity_value(&value.leak_ref()))
+        : StyleValueWithDefaultOperators(Type::OpacityValue, StyleValueFFI::rust_style_value_create_opacity_value(&value.leak_ref()))
     {
     }
 
     ValueComparingNonnullRefPtr<StyleValue const> value() const { return *static_cast<StyleValue const*>(m_value->opacity_value.value.pointer); }
-
-    RustStyleValueHandle m_value;
 };
 
 }

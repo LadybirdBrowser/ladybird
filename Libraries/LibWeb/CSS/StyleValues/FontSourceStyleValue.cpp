@@ -47,8 +47,7 @@ FontSourceStyleValue::Source FontSourceStyleValue::source() const
 }
 
 FontSourceStyleValue::FontSourceStyleValue(Source source, Optional<Utf16FlyString> format, Vector<FontTech> tech)
-    : StyleValueWithDefaultOperators(Type::FontSource)
-    , m_value(make_font_source_data(source, format, tech))
+    : StyleValueWithDefaultOperators(Type::FontSource, make_font_source_data(source, format, tech))
 {
 }
 

@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 
@@ -58,8 +57,7 @@ public:
 
 private:
     explicit CounterDefinitionsStyleValue(Vector<CounterDefinition> counter_definitions)
-        : StyleValueWithDefaultOperators(Type::CounterDefinitions)
-        , m_value(make_counter_definitions_data(counter_definitions))
+        : StyleValueWithDefaultOperators(Type::CounterDefinitions, make_counter_definitions_data(counter_definitions))
     {
     }
 
@@ -76,8 +74,6 @@ private:
         }
         return StyleValueFFI::rust_style_value_create_counter_definitions(ffi_definitions.data(), ffi_definitions.size());
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

@@ -21,8 +21,7 @@ ValueComparingNonnullRefPtr<ColorMixStyleValue const> ColorMixStyleValue::create
 }
 
 ColorMixStyleValue::ColorMixStyleValue(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component)
-    : ColorStyleValue({}, ColorSyntax::Modern)
-    , m_value(make_color_mix_data(color_interpolation_method, first_component, second_component))
+    : ColorStyleValue({}, ColorSyntax::Modern, make_color_mix_data(color_interpolation_method, first_component, second_component))
 {
 }
 

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -37,8 +36,7 @@ public:
 
 private:
     explicit PendingSubstitutionStyleValue(StyleValue const& original_shorthand_value)
-        : StyleValueWithDefaultOperators(Type::PendingSubstitution)
-        , m_value(make_pending_substitution_data(original_shorthand_value))
+        : StyleValueWithDefaultOperators(Type::PendingSubstitution, make_pending_substitution_data(original_shorthand_value))
     {
     }
 
@@ -48,8 +46,6 @@ private:
         original_shorthand_value.ref();
         return StyleValueFFI::rust_style_value_create_pending_substitution(&original_shorthand_value);
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

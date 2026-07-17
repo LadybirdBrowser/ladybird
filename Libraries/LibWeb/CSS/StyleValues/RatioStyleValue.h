@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -37,15 +36,12 @@ public:
 
 private:
     RatioStyleValue(ValueComparingNonnullRefPtr<StyleValue const> numerator, ValueComparingNonnullRefPtr<StyleValue const> denominator)
-        : StyleValueWithDefaultOperators(Type::Ratio)
-        , m_value(StyleValueFFI::rust_style_value_create_ratio(&numerator.leak_ref(), &denominator.leak_ref()))
+        : StyleValueWithDefaultOperators(Type::Ratio, StyleValueFFI::rust_style_value_create_ratio(&numerator.leak_ref(), &denominator.leak_ref()))
     {
     }
 
     ValueComparingNonnullRefPtr<StyleValue const> numerator() const { return *static_cast<StyleValue const*>(m_value->ratio.numerator.pointer); }
     ValueComparingNonnullRefPtr<StyleValue const> denominator() const { return *static_cast<StyleValue const*>(m_value->ratio.denominator.pointer); }
-
-    RustStyleValueHandle m_value;
 };
 
 }

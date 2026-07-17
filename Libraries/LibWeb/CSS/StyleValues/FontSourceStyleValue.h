@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/URL.h>
 
@@ -53,8 +52,6 @@ private:
     FontSourceStyleValue(Source source, Optional<Utf16FlyString> format, Vector<FontTech> tech);
 
     static StyleValueFFI::StyleValueData* make_font_source_data(Source const&, Optional<Utf16FlyString> const&, Vector<FontTech> const&);
-
-    RustStyleValueHandle m_value;
 };
 
 }

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -41,12 +40,9 @@ public:
 
 private:
     BorderImageSliceStyleValue(ValueComparingNonnullRefPtr<StyleValue const> top, ValueComparingNonnullRefPtr<StyleValue const> right, ValueComparingNonnullRefPtr<StyleValue const> bottom, ValueComparingNonnullRefPtr<StyleValue const> left, bool fill)
-        : StyleValueWithDefaultOperators(Type::BorderImageSlice)
-        , m_value(StyleValueFFI::rust_style_value_create_border_image_slice(&top.leak_ref(), &right.leak_ref(), &bottom.leak_ref(), &left.leak_ref(), fill))
+        : StyleValueWithDefaultOperators(Type::BorderImageSlice, StyleValueFFI::rust_style_value_create_border_image_slice(&top.leak_ref(), &right.leak_ref(), &bottom.leak_ref(), &left.leak_ref(), fill))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

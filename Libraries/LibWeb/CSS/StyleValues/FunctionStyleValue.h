@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -31,14 +30,11 @@ public:
 
 private:
     FunctionStyleValue(Utf16FlyString name, NonnullRefPtr<StyleValue const> value)
-        : StyleValueWithDefaultOperators(Type::Function)
-        , m_value(StyleValueFFI::rust_style_value_create_function(name.to_raw_leaked(), &value.leak_ref()))
+        : StyleValueWithDefaultOperators(Type::Function, StyleValueFFI::rust_style_value_create_function(name.to_raw_leaked(), &value.leak_ref()))
     {
     }
 
     virtual ~FunctionStyleValue() override = default;
-
-    RustStyleValueHandle m_value;
 };
 
 }

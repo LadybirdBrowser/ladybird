@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/CSS/StyleValues/AbstractNonMathCalcFunctionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -45,12 +44,9 @@ private:
     ComputedType computed_type() const { return static_cast<ComputedType>(m_value->tree_counting_function.computed_type); }
 
     TreeCountingFunctionStyleValue(TreeCountingFunction function, ComputedType computed_type)
-        : AbstractNonMathCalcFunctionStyleValue(Type::TreeCountingFunction)
-        , m_value(StyleValueFFI::rust_style_value_create_tree_counting_function(to_underlying(function), to_underlying(computed_type)))
+        : AbstractNonMathCalcFunctionStyleValue(Type::TreeCountingFunction, StyleValueFFI::rust_style_value_create_tree_counting_function(to_underlying(function), to_underlying(computed_type)))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

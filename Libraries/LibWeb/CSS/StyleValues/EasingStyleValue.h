@@ -10,7 +10,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 
@@ -138,14 +137,11 @@ public:
 
 private:
     EasingStyleValue(Function const& function)
-        : StyleValueWithDefaultOperators(Type::Easing)
-        , m_value(make_easing_data(function))
+        : StyleValueWithDefaultOperators(Type::Easing, make_easing_data(function))
     {
     }
 
     static StyleValueFFI::StyleValueData* make_easing_data(Function const&);
-
-    RustStyleValueHandle m_value;
 
     // NB: The materialized function is a cache of the Rust-owned value data; it also carries the
     //     cubic-bezier sample cache. The Rust allocation stays authoritative.

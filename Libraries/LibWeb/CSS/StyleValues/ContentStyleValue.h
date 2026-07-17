@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -35,14 +34,11 @@ public:
 
 private:
     ContentStyleValue(ValueComparingNonnullRefPtr<StyleValueList const> content, ValueComparingRefPtr<StyleValueList const> alt_text)
-        : StyleValueWithDefaultOperators(Type::Content)
-        , m_value(make_content_data(move(content), alt_text))
+        : StyleValueWithDefaultOperators(Type::Content, make_content_data(move(content), alt_text))
     {
     }
 
     static StyleValueFFI::StyleValueData* make_content_data(ValueComparingNonnullRefPtr<StyleValueList const>, ValueComparingRefPtr<StyleValueList const> const&);
-
-    RustStyleValueHandle m_value;
 };
 
 }

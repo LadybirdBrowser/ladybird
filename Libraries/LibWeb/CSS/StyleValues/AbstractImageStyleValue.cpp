@@ -6,7 +6,6 @@
 
 #include "AbstractImageStyleValue.h"
 #include <LibWeb/CSS/CSSImageValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/Layout/Node.h>
 
 namespace Web::CSS {

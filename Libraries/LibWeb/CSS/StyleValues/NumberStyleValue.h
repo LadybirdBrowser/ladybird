@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 
@@ -40,12 +39,9 @@ public:
 
 private:
     explicit NumberStyleValue(double value)
-        : StyleValue(Type::Number)
-        , m_value(StyleValueFFI::rust_style_value_create_number(value))
+        : StyleValue(Type::Number, StyleValueFFI::rust_style_value_create_number(value))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

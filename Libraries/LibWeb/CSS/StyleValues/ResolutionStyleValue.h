@@ -8,7 +8,6 @@
 
 #include <LibWeb/CSS/Resolution.h>
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -35,12 +34,9 @@ public:
 
 private:
     explicit ResolutionStyleValue(Resolution resolution)
-        : DimensionStyleValue(Type::Resolution)
-        , m_value(StyleValueFFI::rust_style_value_create_resolution(resolution.raw_value(), to_underlying(resolution.unit())))
+        : DimensionStyleValue(Type::Resolution, StyleValueFFI::rust_style_value_create_resolution(resolution.raw_value(), to_underlying(resolution.unit())))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

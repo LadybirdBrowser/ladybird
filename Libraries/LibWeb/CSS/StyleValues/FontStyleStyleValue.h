@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -50,8 +49,6 @@ private:
             angle_value->ref();
         return StyleValueFFI::rust_style_value_create_font_style(to_underlying(font_style), angle_value.ptr());
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

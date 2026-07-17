@@ -12,7 +12,6 @@
 #include <AK/HashMap.h>
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/GridTrackSize.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -50,8 +49,7 @@ public:
 
 private:
     explicit GridTemplateAreaStyleValue(HashMap<Utf16FlyString, GridArea> grid_areas, size_t row_count, size_t column_count)
-        : StyleValueWithDefaultOperators(Type::GridTemplateArea)
-        , m_value(make_grid_template_area_data(grid_areas, row_count, column_count))
+        : StyleValueWithDefaultOperators(Type::GridTemplateArea, make_grid_template_area_data(grid_areas, row_count, column_count))
     {
     }
 
@@ -64,8 +62,6 @@ private:
             areas.unchecked_append({ { name.to_raw_leaked() }, area.row_start, area.row_end, area.column_start, area.column_end });
         return StyleValueFFI::rust_style_value_create_grid_template_area(areas.data(), areas.size(), row_count, column_count);
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

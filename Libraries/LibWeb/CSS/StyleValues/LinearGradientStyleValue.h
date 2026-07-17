@@ -13,7 +13,6 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/Painting/GradientPainting.h>
 
 namespace Web::CSS {
@@ -98,8 +97,7 @@ public:
 
 private:
     LinearGradientStyleValue(GradientDirection direction, Vector<ColorStopListElement> color_stop_list, GradientType type, GradientRepeating repeating, ValueComparingRefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)
-        : AbstractImageStyleValue(Type::LinearGradient)
-        , m_value(make_linear_gradient_data(direction, color_stop_list, type, repeating, color_interpolation_method, color_syntax))
+        : AbstractImageStyleValue(Type::LinearGradient, make_linear_gradient_data(direction, color_stop_list, type, repeating, color_interpolation_method, color_syntax))
     {
     }
 
@@ -108,8 +106,6 @@ private:
     ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return static_cast<StyleValue const*>(m_value->linear_gradient.color_interpolation_method.pointer); }
     GradientType gradient_type() const { return static_cast<GradientType>(m_value->linear_gradient.gradient_type); }
     ColorSyntax gradient_color_syntax() const { return static_cast<ColorSyntax>(m_value->linear_gradient.color_syntax); }
-
-    RustStyleValueHandle m_value;
 
     mutable Optional<CSSPixelSize> m_resolved_size;
     mutable Optional<Painting::LinearGradientData> m_resolved;

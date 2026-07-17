@@ -15,8 +15,7 @@ ValueComparingNonnullRefPtr<OverflowClipMarginStyleValue const> OverflowClipMarg
 }
 
 OverflowClipMarginStyleValue::OverflowClipMarginStyleValue(Optional<BackgroundBox> visual_box, NonnullRefPtr<StyleValue const> offset)
-    : StyleValueWithDefaultOperators(Type::OverflowClipMargin)
-    , m_value(StyleValueFFI::rust_style_value_create_overflow_clip_margin(visual_box.has_value(), visual_box.has_value() ? to_underlying(*visual_box) : 0, &offset.leak_ref()))
+    : StyleValueWithDefaultOperators(Type::OverflowClipMargin, StyleValueFFI::rust_style_value_create_overflow_clip_margin(visual_box.has_value(), visual_box.has_value() ? to_underlying(*visual_box) : 0, &offset.leak_ref()))
 {
 }
 

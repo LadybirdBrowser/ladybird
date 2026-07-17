@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -79,8 +78,7 @@ public:
 
 private:
     StyleValueList(StyleValueVector&& values, Separator separator, Collapsible collapsible = Collapsible::Yes)
-        : StyleValueWithDefaultOperators(Type::ValueList)
-        , m_value(make_value_list_data(move(values), separator, collapsible))
+        : StyleValueWithDefaultOperators(Type::ValueList, make_value_list_data(move(values), separator, collapsible))
     {
     }
 
@@ -97,8 +95,6 @@ private:
     }
 
     Collapsible collapsible() const { return m_value->value_list.collapsible ? Collapsible::Yes : Collapsible::No; }
-
-    RustStyleValueHandle m_value;
 };
 
 }

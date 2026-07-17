@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -30,12 +29,9 @@ public:
 
 private:
     explicit TextUnderlinePositionStyleValue(TextUnderlinePositionHorizontal horizontal, TextUnderlinePositionVertical vertical)
-        : StyleValueWithDefaultOperators(Type::TextUnderlinePosition)
-        , m_value(StyleValueFFI::rust_style_value_create_text_underline_position(to_underlying(horizontal), to_underlying(vertical)))
+        : StyleValueWithDefaultOperators(Type::TextUnderlinePosition, StyleValueFFI::rust_style_value_create_text_underline_position(to_underlying(horizontal), to_underlying(vertical)))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

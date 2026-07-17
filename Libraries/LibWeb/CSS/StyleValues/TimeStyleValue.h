@@ -10,7 +10,6 @@
 #pragma once
 
 #include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/Time.h>
 
 namespace Web::CSS {
@@ -37,12 +36,9 @@ public:
 
 private:
     explicit TimeStyleValue(Time time)
-        : DimensionStyleValue(Type::Time)
-        , m_value(StyleValueFFI::rust_style_value_create_time(time.raw_value(), to_underlying(time.unit())))
+        : DimensionStyleValue(Type::Time, StyleValueFFI::rust_style_value_create_time(time.raw_value(), to_underlying(time.unit())))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

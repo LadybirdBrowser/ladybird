@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -35,12 +34,9 @@ public:
 
 private:
     explicit GridAutoFlowStyleValue(Axis axis, Dense dense)
-        : StyleValueWithDefaultOperators(Type::GridAutoFlow)
-        , m_value(StyleValueFFI::rust_style_value_create_grid_auto_flow(axis == Axis::Row, dense == Dense::Yes))
+        : StyleValueWithDefaultOperators(Type::GridAutoFlow, StyleValueFFI::rust_style_value_create_grid_auto_flow(axis == Axis::Row, dense == Dense::Yes))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

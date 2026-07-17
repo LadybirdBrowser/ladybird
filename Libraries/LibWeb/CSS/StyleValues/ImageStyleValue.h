@@ -17,7 +17,6 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DecodedImageData.h>
@@ -119,8 +118,6 @@ private:
     URL url_value() const;
 
     static StyleValueFFI::StyleValueData* make_image_url_data(URL const&);
-
-    RustStyleValueHandle m_value;
 
     // NB: Style sheet attachment and loading state, not value data.
     Optional<::URL::URL> m_style_resource_base_url;

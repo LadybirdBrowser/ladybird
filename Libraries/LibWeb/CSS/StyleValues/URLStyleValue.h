@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/URL.h>
 
@@ -75,8 +74,7 @@ public:
 
 private:
     URLStyleValue(URL const& url)
-        : StyleValueWithDefaultOperators(Type::URL)
-        , m_value(make_url_data(url))
+        : StyleValueWithDefaultOperators(Type::URL, make_url_data(url))
     {
     }
 
@@ -86,8 +84,6 @@ private:
         auto modifiers = retain_url_modifiers_for_rust(url);
         return StyleValueFFI::rust_style_value_create_url(url.url().to_raw_leaked(), to_underlying(url.type()), modifiers.data(), modifiers.size());
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

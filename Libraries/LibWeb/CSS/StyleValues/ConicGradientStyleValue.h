@@ -11,7 +11,6 @@
 
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Painting/GradientPainting.h>
 
@@ -65,8 +64,7 @@ public:
 
 private:
     ConicGradientStyleValue(ValueComparingRefPtr<StyleValue const> from_angle, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, ValueComparingRefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)
-        : AbstractImageStyleValue(Type::ConicGradient)
-        , m_value(make_conic_gradient_data(from_angle, position, color_stop_list, repeating, color_interpolation_method, color_syntax))
+        : AbstractImageStyleValue(Type::ConicGradient, make_conic_gradient_data(from_angle, position, color_stop_list, repeating, color_interpolation_method, color_syntax))
     {
     }
 
@@ -77,8 +75,6 @@ private:
     ValueComparingNonnullRefPtr<PositionStyleValue const> position_value() const { return *static_cast<PositionStyleValue const*>(m_value->conic_gradient.position.pointer); }
 
     ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return static_cast<StyleValue const*>(m_value->conic_gradient.color_interpolation_method.pointer); }
-
-    RustStyleValueHandle m_value;
 
     mutable Optional<CSSPixelSize> m_resolved_size;
 

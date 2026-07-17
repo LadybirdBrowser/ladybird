@@ -104,8 +104,7 @@ private:
         ColorSyntax color_syntax,
         Optional<Utf16FlyString> name,
         ValueComparingRefPtr<StyleValue const> origin_color)
-        : ColorStyleValue(color_type, color_syntax)
-        , m_value(make_color_function_data(c1, c2, c3, alpha, name, origin_color))
+        : ColorStyleValue(color_type, color_syntax, make_color_function_data(c1, c2, c3, alpha, name, origin_color))
     {
     }
 
@@ -122,8 +121,6 @@ private:
             origin_color->ref();
         return StyleValueFFI::rust_style_value_create_color_function(c1.ptr(), c2.ptr(), c3.ptr(), alpha.ptr(), name.has_value(), name.has_value() ? name->to_raw_leaked() : 0, origin_color.ptr());
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

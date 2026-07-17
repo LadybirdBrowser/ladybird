@@ -12,7 +12,6 @@
 #include <AK/Vector.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Painting/GradientPainting.h>
 
@@ -67,8 +66,7 @@ public:
 
 private:
     RadialGradientStyleValue(EndingShape ending_shape, NonnullRefPtr<StyleValue const> size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, ValueComparingRefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)
-        : AbstractImageStyleValue(Type::RadialGradient)
-        , m_value(make_radial_gradient_data(ending_shape, size, position, color_stop_list, repeating, color_interpolation_method, color_syntax))
+        : AbstractImageStyleValue(Type::RadialGradient, make_radial_gradient_data(ending_shape, size, position, color_stop_list, repeating, color_interpolation_method, color_syntax))
     {
     }
 
@@ -80,8 +78,6 @@ private:
     ColorSyntax gradient_color_syntax() const { return static_cast<ColorSyntax>(m_value->radial_gradient.color_syntax); }
 
     ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return static_cast<StyleValue const*>(m_value->radial_gradient.color_interpolation_method.pointer); }
-
-    RustStyleValueHandle m_value;
 
     mutable Optional<CSSPixelSize> m_resolved_size;
 

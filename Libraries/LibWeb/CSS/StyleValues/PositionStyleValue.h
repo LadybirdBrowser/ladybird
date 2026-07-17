@@ -11,7 +11,6 @@
 
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 
@@ -38,12 +37,9 @@ public:
 
 private:
     PositionStyleValue(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y)
-        : StyleValueWithDefaultOperators(Type::Position)
-        , m_value(StyleValueFFI::rust_style_value_create_position(&edge_x.leak_ref(), &edge_y.leak_ref()))
+        : StyleValueWithDefaultOperators(Type::Position, StyleValueFFI::rust_style_value_create_position(&edge_x.leak_ref(), &edge_y.leak_ref()))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

@@ -8,7 +8,6 @@
 
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -53,12 +52,9 @@ public:
 
 private:
     BorderRadiusRectStyleValue(NonnullRefPtr<StyleValue const> top_left, NonnullRefPtr<StyleValue const> top_right, NonnullRefPtr<StyleValue const> bottom_right, NonnullRefPtr<StyleValue const> bottom_left)
-        : StyleValueWithDefaultOperators(Type::BorderRadiusRect)
-        , m_value(StyleValueFFI::rust_style_value_create_border_radius_rect(&top_left.leak_ref(), &top_right.leak_ref(), &bottom_right.leak_ref(), &bottom_left.leak_ref()))
+        : StyleValueWithDefaultOperators(Type::BorderRadiusRect, StyleValueFFI::rust_style_value_create_border_radius_rect(&top_left.leak_ref(), &top_right.leak_ref(), &bottom_right.leak_ref(), &bottom_left.leak_ref()))
     {
     }
-
-    RustStyleValueHandle m_value;
 };
 
 }

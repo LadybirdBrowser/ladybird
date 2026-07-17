@@ -8,7 +8,6 @@
 
 #include <AK/Optional.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -34,8 +33,6 @@ public:
 
 private:
     OverflowClipMarginStyleValue(Optional<BackgroundBox> visual_box, NonnullRefPtr<StyleValue const> offset);
-
-    RustStyleValueHandle m_value;
 };
 
 }

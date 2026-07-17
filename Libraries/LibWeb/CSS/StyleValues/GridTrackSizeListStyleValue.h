@@ -10,7 +10,6 @@
 #pragma once
 
 #include <LibWeb/CSS/GridTrackSize.h>
-#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -38,14 +37,11 @@ public:
 
 private:
     explicit GridTrackSizeListStyleValue(CSS::GridTrackSizeList grid_track_size_list)
-        : StyleValueWithDefaultOperators(Type::GridTrackSizeList)
-        , m_value(make_grid_track_size_list_data(grid_track_size_list))
+        : StyleValueWithDefaultOperators(Type::GridTrackSizeList, make_grid_track_size_list_data(grid_track_size_list))
     {
     }
 
     static StyleValueFFI::StyleValueData* make_grid_track_size_list_data(CSS::GridTrackSizeList const&);
-
-    RustStyleValueHandle m_value;
 };
 
 }
