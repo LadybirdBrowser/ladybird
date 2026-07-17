@@ -2138,7 +2138,7 @@ handler GetByValue
     load32 raw, [addr, 0]
     branch_bit_set raw, 31, .ta_uint32_to_double
     jmp .ta_box_int32
-.ta_uint32_to_double:
+.ta_uint32_to_double: @cold
     int_to_double slot_dbl, raw
     fp_mov dst, slot_dbl
     store_operand m_dst, dst
@@ -2207,7 +2207,7 @@ handler GetLength
     box_int32 dst, length
     store_operand m_dst, dst
     dispatch_next
-.length_double:
+.length_double: @cold
     int_to_double length_dbl, length
     fp_mov dst, length_dbl
     store_operand m_dst, dst
@@ -2801,7 +2801,7 @@ handler CallBuiltinMathAbs
     box_int32_clean dst, int_value
     store_operand m_dst, dst
     dispatch_next
-.abs_overflow:
+.abs_overflow: @cold
     # INT32_MIN: abs(-2147483648) = 2147483648.0
     unbox_int32 int_value, arg
     neg int_value
@@ -2983,7 +2983,7 @@ handler CallBuiltinStringPrototypeCharCodeAt
     store_operand m_dst, dst
     dispatch_next
 
-.out_of_bounds:
+.out_of_bounds: @cold
     mov dst, CANON_NAN_BITS
     store_operand m_dst, dst
     dispatch_next
