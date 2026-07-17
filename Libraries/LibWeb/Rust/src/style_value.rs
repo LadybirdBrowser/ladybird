@@ -879,6 +879,20 @@ pub enum StyleValueData {
         bottom_right: RetainedStyleValue,
         bottom_left: RetainedStyleValue,
     },
+    /// A single corner radius: the horizontal and vertical radii and whether they differ.
+    BorderRadius {
+        is_elliptical: bool,
+        horizontal_radius: RetainedStyleValue,
+        vertical_radius: RetainedStyleValue,
+    },
+    /// A filter function. Kinds: blur (0, value = radius), drop-shadow (1, value = shadow),
+    /// hue-rotate (2, value = angle), color (3, value = amount, with the color operation).
+    /// The kind and the color operation are C++ enum values, opaque to Rust.
+    Filter {
+        kind: u8,
+        color_operation: u8,
+        value: RetainedStyleValue,
+    },
 }
 
 #[unsafe(no_mangle)]
@@ -1066,6 +1080,42 @@ pub unsafe extern "C" fn rust_style_value_create_rect(
             right: RetainedStyleValue { pointer: right },
             bottom: RetainedStyleValue { pointer: bottom },
             left: RetainedStyleValue { pointer: left },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the filter's value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_filter(
+    kind: u8,
+    color_operation: u8,
+    value: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Filter {
+            kind,
+            color_operation,
+            value: RetainedStyleValue { pointer: value },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each radius.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_border_radius(
+    is_elliptical: bool,
+    horizontal_radius: *const c_void,
+    vertical_radius: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::BorderRadius {
+            is_elliptical,
+            horizontal_radius: RetainedStyleValue {
+                pointer: horizontal_radius,
+            },
+            vertical_radius: RetainedStyleValue {
+                pointer: vertical_radius,
+            },
         }))
     })
 }

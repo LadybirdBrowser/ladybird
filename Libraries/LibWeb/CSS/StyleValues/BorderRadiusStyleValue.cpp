@@ -13,21 +13,25 @@ namespace Web::CSS {
 
 void BorderRadiusStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    if (m_properties.horizontal_radius == m_properties.vertical_radius) {
-        m_properties.horizontal_radius->serialize(builder, mode);
+    auto horizontal_radius = this->horizontal_radius();
+    auto vertical_radius = this->vertical_radius();
+    if (horizontal_radius == vertical_radius) {
+        horizontal_radius->serialize(builder, mode);
         return;
     }
-    m_properties.horizontal_radius->serialize(builder, mode);
+    horizontal_radius->serialize(builder, mode);
     builder.append(' ');
-    m_properties.vertical_radius->serialize(builder, mode);
+    vertical_radius->serialize(builder, mode);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> BorderRadiusStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    auto absolutized_horizontal_radius = m_properties.horizontal_radius->absolutized(computation_context);
-    auto absolutized_vertical_radius = m_properties.vertical_radius->absolutized(computation_context);
+    auto horizontal_radius = this->horizontal_radius();
+    auto vertical_radius = this->vertical_radius();
+    auto absolutized_horizontal_radius = horizontal_radius->absolutized(computation_context);
+    auto absolutized_vertical_radius = vertical_radius->absolutized(computation_context);
 
-    if (absolutized_vertical_radius == m_properties.vertical_radius && absolutized_horizontal_radius == m_properties.horizontal_radius)
+    if (absolutized_vertical_radius == vertical_radius && absolutized_horizontal_radius == horizontal_radius)
         return *this;
 
     return BorderRadiusStyleValue::create(absolutized_horizontal_radius, absolutized_vertical_radius);

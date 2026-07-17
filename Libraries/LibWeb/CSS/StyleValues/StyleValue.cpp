@@ -138,11 +138,6 @@ StyleValue::StyleValue(Type type, StyleValueFFI::StyleValueData* value)
 {
 }
 
-StyleValue::StyleValue(Type type)
-    : m_type(type)
-{
-}
-
 String StyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;

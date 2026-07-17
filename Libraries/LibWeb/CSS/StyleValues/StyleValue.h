@@ -201,10 +201,6 @@ public:
 protected:
     StyleValue(Type, StyleValueFFI::StyleValueData*);
 
-    // NB: Only for the transitional types that still keep their data in C++ members
-    //     (BorderRadiusStyleValue, FilterStyleValue); goes away once they are converted.
-    explicit StyleValue(Type);
-
     // The single Rust-owned allocation holding this value's data.
     RustStyleValueHandle m_value;
 

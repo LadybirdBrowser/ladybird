@@ -26,19 +26,21 @@ public:
 
     virtual ~FilterStyleValue() override = default;
 
-    Kind kind() const { return m_kind; }
+    Kind kind() const { return static_cast<Kind>(m_value->filter.kind); }
     virtual bool contains_url() const { return false; }
     static ValueComparingNonnullRefPtr<FilterStyleValue const> initial_value_for(FilterStyleValue const&, bool use_transparent_drop_shadow_color);
 
 protected:
-    explicit FilterStyleValue(Kind kind)
-        : StyleValue(Type::Filter)
-        , m_kind(kind)
+    explicit FilterStyleValue(StyleValueFFI::StyleValueData* data)
+        : StyleValue(Type::Filter, data)
     {
     }
 
-private:
-    Kind m_kind;
+    static StyleValueFFI::StyleValueData* make_filter_data(Kind kind, u8 color_operation, StyleValue const* value)
+    {
+        // The Rust allocation takes ownership of one strong reference to the value.
+        return StyleValueFFI::rust_style_value_create_filter(to_underlying(kind), color_operation, retain_style_value_for_rust(value));
+    }
 };
 
 // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-blur
@@ -49,22 +51,19 @@ public:
         return adopt_ref(*new (nothrow) BlurFilterStyleValue(move(radius)));
     }
 
-    ValueComparingNonnullRefPtr<StyleValue const> const& radius() const { return m_radius; }
+    ValueComparingNonnullRefPtr<StyleValue const> radius() const { return *static_cast<StyleValue const*>(m_value->filter.value.pointer); }
     float resolved_radius() const;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
-    virtual bool is_computationally_independent() const override { return m_radius->is_computationally_independent(); }
+    virtual bool is_computationally_independent() const override { return radius()->is_computationally_independent(); }
     virtual bool equals(StyleValue const&) const override;
 
 private:
     explicit BlurFilterStyleValue(ValueComparingNonnullRefPtr<StyleValue const> radius)
-        : FilterStyleValue(Kind::Blur)
-        , m_radius(move(radius))
+        : FilterStyleValue(make_filter_data(Kind::Blur, 0, radius.ptr()))
     {
     }
-
-    ValueComparingNonnullRefPtr<StyleValue const> m_radius;
 };
 
 // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-drop-shadow
@@ -91,29 +90,26 @@ public:
         return adopt_ref(*new (nothrow) DropShadowFilterStyleValue(move(shadow)));
     }
 
-    ValueComparingNonnullRefPtr<ShadowStyleValue const> const& shadow_style_value() const { return m_shadow; }
-    ShadowStyleValue const& shadow() const { return m_shadow; }
-    ValueComparingNonnullRefPtr<StyleValue const> offset_x() const { return m_shadow->offset_x(); }
-    ValueComparingNonnullRefPtr<StyleValue const> offset_y() const { return m_shadow->offset_y(); }
-    ValueComparingRefPtr<StyleValue const> radius() const { return m_shadow->blur_radius_or_null(); }
-    ValueComparingRefPtr<StyleValue const> color() const { return m_shadow->color_or_null(); }
+    ValueComparingNonnullRefPtr<ShadowStyleValue const> shadow_style_value() const { return shadow(); }
+    ShadowStyleValue const& shadow() const { return *static_cast<ShadowStyleValue const*>(m_value->filter.value.pointer); }
+    ValueComparingNonnullRefPtr<StyleValue const> offset_x() const { return shadow().offset_x(); }
+    ValueComparingNonnullRefPtr<StyleValue const> offset_y() const { return shadow().offset_y(); }
+    ValueComparingRefPtr<StyleValue const> radius() const { return shadow().blur_radius_or_null(); }
+    ValueComparingRefPtr<StyleValue const> color() const { return shadow().color_or_null(); }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual bool is_computationally_independent() const override
     {
-        return m_shadow->is_computationally_independent();
+        return shadow().is_computationally_independent();
     }
     virtual bool equals(StyleValue const&) const override;
 
 private:
     explicit DropShadowFilterStyleValue(ValueComparingNonnullRefPtr<ShadowStyleValue const> shadow)
-        : FilterStyleValue(Kind::DropShadow)
-        , m_shadow(move(shadow))
+        : FilterStyleValue(make_filter_data(Kind::DropShadow, 0, shadow.ptr()))
     {
     }
-
-    ValueComparingNonnullRefPtr<ShadowStyleValue const> m_shadow;
 };
 
 // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-hue-rotate
@@ -124,22 +120,19 @@ public:
         return adopt_ref(*new (nothrow) HueRotateFilterStyleValue(move(angle)));
     }
 
-    ValueComparingNonnullRefPtr<StyleValue const> const& angle() const { return m_angle; }
+    ValueComparingNonnullRefPtr<StyleValue const> angle() const { return *static_cast<StyleValue const*>(m_value->filter.value.pointer); }
     float angle_degrees() const;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
-    virtual bool is_computationally_independent() const override { return m_angle->is_computationally_independent(); }
+    virtual bool is_computationally_independent() const override { return angle()->is_computationally_independent(); }
     virtual bool equals(StyleValue const&) const override;
 
 private:
     explicit HueRotateFilterStyleValue(ValueComparingNonnullRefPtr<StyleValue const> angle)
-        : FilterStyleValue(Kind::HueRotate)
-        , m_angle(move(angle))
+        : FilterStyleValue(make_filter_data(Kind::HueRotate, 0, angle.ptr()))
     {
     }
-
-    ValueComparingNonnullRefPtr<StyleValue const> m_angle;
 };
 
 // https://drafts.csswg.org/filter-effects-1/#supported-filter-functions
@@ -151,25 +144,20 @@ public:
         return adopt_ref(*new (nothrow) ColorFilterStyleValue(operation, move(amount)));
     }
 
-    Gfx::ColorFilterType operation() const { return m_operation; }
-    ValueComparingNonnullRefPtr<StyleValue const> const& amount() const { return m_amount; }
+    Gfx::ColorFilterType operation() const { return static_cast<Gfx::ColorFilterType>(m_value->filter.color_operation); }
+    ValueComparingNonnullRefPtr<StyleValue const> amount() const { return *static_cast<StyleValue const*>(m_value->filter.value.pointer); }
     float resolved_amount() const;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
-    virtual bool is_computationally_independent() const override { return m_amount->is_computationally_independent(); }
+    virtual bool is_computationally_independent() const override { return amount()->is_computationally_independent(); }
     virtual bool equals(StyleValue const&) const override;
 
 private:
     ColorFilterStyleValue(Gfx::ColorFilterType operation, ValueComparingNonnullRefPtr<StyleValue const> amount)
-        : FilterStyleValue(Kind::Color)
-        , m_operation(operation)
-        , m_amount(move(amount))
+        : FilterStyleValue(make_filter_data(Kind::Color, static_cast<u8>(to_underlying(operation)), amount.ptr()))
     {
     }
-
-    Gfx::ColorFilterType m_operation;
-    ValueComparingNonnullRefPtr<StyleValue const> m_amount;
 };
 
 bool is_filter_style_value_list(StyleValue const&);
