@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 14 tests
 
-5 Pass
-9 Fail
+7 Pass
+7 Fail
 Pass	'0%' should be a valid keyframe selector
 Pass	'10%' should be a valid keyframe selector
 Pass	'100%' should be a valid keyframe selector
@@ -16,5 +16,5 @@ Fail	'calc(10% * sibling-index())' should be a valid keyframe selector
 Fail	'calc(10% * sign(1em - 1px))' should be a valid keyframe selector
 Fail	'entry calc(10%)' should be a valid keyframe selector
 Fail	'exit calc(60%)' should be a valid keyframe selector
-Fail	'-10%' should not be a valid keyframe selector
-Fail	'120%' should not be a valid keyframe selector
+Pass	'-10%' should not be a valid keyframe selector
+Pass	'120%' should not be a valid keyframe selector

@@ -645,9 +645,13 @@ Vector<Percentage> Parser::parse_keyframe_selectors(TokenStream<ComponentValue>&
             selectors.append(Percentage(100));
             read_a_selector = true;
         } else if (next_token.is(Token::Type::Percentage)) {
-            tokens.discard_a_token(); // <percentage>
-            selectors.append(Percentage(next_token.token().percentage()));
-            read_a_selector = true;
+            auto percentage_value = next_token.token().percentage();
+
+            if (percentage_value >= 0 && percentage_value <= 100) {
+                tokens.discard_a_token(); // <percentage>
+                selectors.append(Percentage(percentage_value));
+                read_a_selector = true;
+            }
         }
 
         if (read_a_selector) {
