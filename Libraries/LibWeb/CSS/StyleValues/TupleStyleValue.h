@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -18,18 +19,26 @@ public:
     }
     virtual ~TupleStyleValue() override = default;
 
-    StyleValueTuple const& tuple() const { return m_tuple; }
+    StyleValueTuple tuple() const
+    {
+        auto const& list = m_value->tuple.values;
+        StyleValueTuple tuple;
+        tuple.ensure_capacity(list.length);
+        for (size_t i = 0; i < list.length; ++i)
+            tuple.unchecked_append(static_cast<StyleValue const*>(list.pointer[i].pointer));
+        return tuple;
+    }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     // FIXME: Support tokenization and reification
 
-    bool properties_equal(TupleStyleValue const& other) const { return m_tuple == other.m_tuple; }
+    bool properties_equal(TupleStyleValue const& other) const { return tuple() == other.tuple(); }
 
     virtual bool is_computationally_independent() const override
     {
-        return all_of(m_tuple, [](auto& value) { return !value || value->is_computationally_independent(); });
+        return all_of(tuple(), [](auto& value) { return !value || value->is_computationally_independent(); });
     }
 
     struct Indices {
@@ -68,11 +77,20 @@ public:
 private:
     explicit TupleStyleValue(StyleValueTuple values)
         : StyleValueWithDefaultOperators(Type::Tuple)
-        , m_tuple(move(values))
+        , m_value(make_tuple_data(move(values)))
     {
     }
 
-    StyleValueTuple m_tuple;
+    static StyleValueFFI::StyleValueData* make_tuple_data(StyleValueTuple&& values)
+    {
+        // The Rust allocation takes ownership of one strong reference to each non-null value.
+        Vector<void const*> pointers;
+        pointers.ensure_capacity(values.size());
+        for (auto& value : values)
+            pointers.unchecked_append(value.leak_ref());
+        return StyleValueFFI::rust_style_value_create_tuple(pointers.data(), pointers.size());
+    }
+    RustStyleValueHandle m_value;
 };
 
 }

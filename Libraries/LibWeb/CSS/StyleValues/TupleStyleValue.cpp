@@ -11,8 +11,9 @@ namespace Web::CSS {
 void TupleStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     auto first = true;
+    auto tuple = this->tuple();
 
-    for (auto const& value : m_tuple) {
+    for (auto const& value : tuple) {
         if (value) {
             if (!first)
                 builder.append(' ');
@@ -24,12 +25,13 @@ void TupleStyleValue::serialize(StringBuilder& builder, SerializationMode mode) 
 
 ValueComparingNonnullRefPtr<StyleValue const> TupleStyleValue::absolutized(ComputationContext const& context) const
 {
+    auto tuple = this->tuple();
     StyleValueTuple absolutized_tuple;
-    absolutized_tuple.ensure_capacity(m_tuple.size());
+    absolutized_tuple.ensure_capacity(tuple.size());
 
     bool any_value_changed = false;
 
-    for (auto const& value : m_tuple) {
+    for (auto const& value : tuple) {
         if (value) {
             auto absolutized_value = value->absolutized(context);
 

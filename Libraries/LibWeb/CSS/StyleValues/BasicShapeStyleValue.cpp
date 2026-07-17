@@ -127,7 +127,7 @@ Gfx::Path Inset::to_path(CSSPixelRect reference_box) const
 void Inset::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     builder.append("inset("sv);
-    builder.append(serialize_a_positional_value_list({ top, right, bottom, left }, mode));
+    builder.append(serialize_a_positional_value_list(StyleValueVector { top, right, bottom, left }, mode));
 
     auto serialized_border_radius = border_radius->to_string(mode);
 

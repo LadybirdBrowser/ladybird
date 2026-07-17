@@ -86,6 +86,32 @@ impl Drop for RetainedStyleValueList {
     }
 }
 
+/// A Rust-owned array of C++ PropertyID values (`enum class PropertyID : u16`, opaque to Rust).
+#[repr(C)]
+pub struct RetainedPropertyIdList {
+    pointer: *mut u16,
+    length: usize,
+}
+
+impl RetainedPropertyIdList {
+    /// # Safety
+    /// `ids` must point to `length` valid property ids.
+    unsafe fn from_raw(ids: *const u16, length: usize) -> Self {
+        let slice: Box<[u16]> = (0..length).map(|i| unsafe { *ids.add(i) }).collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut u16;
+        Self { pointer, length }
+    }
+}
+
+impl Drop for RetainedPropertyIdList {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+        }
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -286,6 +312,22 @@ pub enum StyleValueData {
         values: RetainedStyleValueList,
         separator: u8,
         collapsible: bool,
+    },
+    /// A tuple of optional style values (null entries represent absent optionals).
+    Tuple { values: RetainedStyleValueList },
+    /// A transform function with its argument values. The property (PropertyID : u16) and
+    /// function are C++ enums, opaque to Rust.
+    Transformation {
+        property: u16,
+        transform_function: u8,
+        values: RetainedStyleValueList,
+    },
+    /// A shorthand property value: the shorthand id, its longhand ids (both C++
+    /// `enum class PropertyID : u16`, opaque to Rust) and their values.
+    Shorthand {
+        shorthand_property: u16,
+        sub_properties: RetainedPropertyIdList,
+        values: RetainedStyleValueList,
     },
     /// A CSS `<custom-ident>`.
     CustomIdent { custom_ident: RetainedUtf16FlyString },
@@ -838,6 +880,54 @@ pub unsafe extern "C" fn rust_style_value_create_value_list(
             values: unsafe { RetainedStyleValueList::from_raw(values, length) },
             separator,
             collapsible,
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each non-null value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_tuple(
+    values: *const *const c_void,
+    length: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Tuple {
+            values: unsafe { RetainedStyleValueList::from_raw(values, length) },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_transformation(
+    property: u16,
+    transform_function: u8,
+    values: *const *const c_void,
+    length: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Transformation {
+            property,
+            transform_function,
+            values: unsafe { RetainedStyleValueList::from_raw(values, length) },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each value; the property ids are copied.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_shorthand(
+    shorthand_property: u16,
+    sub_properties: *const u16,
+    sub_property_count: usize,
+    values: *const *const c_void,
+    value_count: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Shorthand {
+            shorthand_property,
+            sub_properties: unsafe { RetainedPropertyIdList::from_raw(sub_properties, sub_property_count) },
+            values: unsafe { RetainedStyleValueList::from_raw(values, value_count) },
         }))
     })
 }

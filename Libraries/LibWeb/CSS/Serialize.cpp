@@ -501,7 +501,7 @@ String serialize_a_series_of_component_values_preserving_original_source_text(Re
     return builder.to_string_without_validation();
 }
 
-String serialize_a_positional_value_list(StyleValueVector const& values, SerializationMode mode)
+String serialize_a_positional_value_list(ReadonlySpan<ValueComparingNonnullRefPtr<StyleValue const>> values, SerializationMode mode)
 {
     switch (values.size()) {
     case 2: {

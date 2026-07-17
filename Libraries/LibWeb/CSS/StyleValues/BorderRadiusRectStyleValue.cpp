@@ -13,11 +13,11 @@ namespace Web::CSS {
 void BorderRadiusRectStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     auto horizontal_radii_serialized = serialize_a_positional_value_list(
-        { top_left()->as_border_radius().horizontal_radius(), top_right()->as_border_radius().horizontal_radius(), bottom_right()->as_border_radius().horizontal_radius(), bottom_left()->as_border_radius().horizontal_radius() },
+        StyleValueVector { top_left()->as_border_radius().horizontal_radius(), top_right()->as_border_radius().horizontal_radius(), bottom_right()->as_border_radius().horizontal_radius(), bottom_left()->as_border_radius().horizontal_radius() },
         mode);
 
     auto vertical_radii_serialized = serialize_a_positional_value_list(
-        { top_left()->as_border_radius().vertical_radius(), top_right()->as_border_radius().vertical_radius(), bottom_right()->as_border_radius().vertical_radius(), bottom_left()->as_border_radius().vertical_radius() },
+        StyleValueVector { top_left()->as_border_radius().vertical_radius(), top_right()->as_border_radius().vertical_radius(), bottom_right()->as_border_radius().vertical_radius(), bottom_left()->as_border_radius().vertical_radius() },
         mode);
 
     if (horizontal_radii_serialized == vertical_radii_serialized) {

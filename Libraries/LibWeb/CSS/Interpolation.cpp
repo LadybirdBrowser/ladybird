@@ -112,15 +112,17 @@ static RefPtr<StyleValue const> interpolate_scale(StyleValue const& a_from, Styl
 
     auto const& from_transform = from.as_transformation();
     auto const& to_transform = to.as_transformation();
+    auto from_values = from_transform.values();
+    auto to_values = to_transform.values();
 
-    auto interpolated_x = interpolate_raw(number_from_style_value(from_transform.values()[0], 1), number_from_style_value(to_transform.values()[0], 1), delta, infinite_range);
-    auto interpolated_y = interpolate_raw(number_from_style_value(from_transform.values()[1], 1), number_from_style_value(to_transform.values()[1], 1), delta, infinite_range);
+    auto interpolated_x = interpolate_raw(number_from_style_value(from_values[0], 1), number_from_style_value(to_values[0], 1), delta, infinite_range);
+    auto interpolated_y = interpolate_raw(number_from_style_value(from_values[1], 1), number_from_style_value(to_values[1], 1), delta, infinite_range);
     Optional<double> interpolated_z;
 
-    if (from_transform.values().size() == 3 || to_transform.values().size() == 3) {
+    if (from_values.size() == 3 || to_values.size() == 3) {
         static auto const& one_value = NumberStyleValue::create(1).leak_ref();
-        auto from = from_transform.values().size() == 3 ? from_transform.values()[2] : ValueComparingNonnullRefPtr<StyleValue const> { one_value };
-        auto to = to_transform.values().size() == 3 ? to_transform.values()[2] : ValueComparingNonnullRefPtr<StyleValue const> { one_value };
+        auto from = from_values.size() == 3 ? from_values[2] : ValueComparingNonnullRefPtr<StyleValue const> { one_value };
+        auto to = to_values.size() == 3 ? to_values[2] : ValueComparingNonnullRefPtr<StyleValue const> { one_value };
         interpolated_z = interpolate_raw(number_from_style_value(from, 1), number_from_style_value(to, 1), delta, infinite_range);
     }
 
@@ -313,19 +315,21 @@ static RefPtr<StyleValue const> interpolate_translate(DOM::Element& element, Cal
 
     auto const& from_transform = from.as_transformation();
     auto const& to_transform = to.as_transformation();
+    auto from_values = from_transform.values();
+    auto to_values = to_transform.values();
 
-    auto interpolated_x = interpolate_value(element, calculation_context, from_transform.values()[0], to_transform.values()[0], delta, allow_discrete);
+    auto interpolated_x = interpolate_value(element, calculation_context, from_values[0], to_values[0], delta, allow_discrete);
     if (!interpolated_x)
         return {};
-    auto interpolated_y = interpolate_value(element, calculation_context, from_transform.values()[1], to_transform.values()[1], delta, allow_discrete);
+    auto interpolated_y = interpolate_value(element, calculation_context, from_values[1], to_values[1], delta, allow_discrete);
     if (!interpolated_y)
         return {};
 
     RefPtr<StyleValue const> interpolated_z;
 
-    if (from_transform.values().size() == 3 || to_transform.values().size() == 3) {
-        auto from_z = from_transform.values().size() == 3 ? from_transform.values()[2] : zero_px;
-        auto to_z = to_transform.values().size() == 3 ? to_transform.values()[2] : zero_px;
+    if (from_values.size() == 3 || to_values.size() == 3) {
+        auto from_z = from_values.size() == 3 ? from_values[2] : zero_px;
+        auto to_z = to_values.size() == 3 ? to_values[2] : zero_px;
         interpolated_z = interpolate_value(element, calculation_context, from_z, to_z, delta, allow_discrete);
         if (!interpolated_z)
             return {};
@@ -379,31 +383,33 @@ static RefPtr<StyleValue const> interpolate_rotate(DOM::Element& element, Calcul
 
     auto from_transform_type = from_transform.transform_function();
     auto to_transform_type = to_transform.transform_function();
+    auto from_values = from_transform.values();
+    auto to_values = to_transform.values();
 
-    if (from_transform_type == to_transform_type && from_transform.values().size() == 1) {
-        auto interpolated_angle = interpolate_value(element, calculation_context, from_transform.values()[0], to_transform.values()[0], delta, allow_discrete);
+    if (from_transform_type == to_transform_type && from_values.size() == 1) {
+        auto interpolated_angle = interpolate_value(element, calculation_context, from_values[0], to_values[0], delta, allow_discrete);
         if (!interpolated_angle)
             return {};
         return TransformationStyleValue::create(PropertyID::Rotate, from_transform_type, { *interpolated_angle.release_nonnull() });
     }
 
     FloatVector3 from_axis { 0, 0, 1 };
-    auto from_angle_value = from_transform.values()[0];
-    if (from_transform.values().size() == 4) {
-        from_axis.set_x(from_transform.values()[0]->as_number().number());
-        from_axis.set_y(from_transform.values()[1]->as_number().number());
-        from_axis.set_z(from_transform.values()[2]->as_number().number());
-        from_angle_value = from_transform.values()[3];
+    auto from_angle_value = from_values[0];
+    if (from_values.size() == 4) {
+        from_axis.set_x(from_values[0]->as_number().number());
+        from_axis.set_y(from_values[1]->as_number().number());
+        from_axis.set_z(from_values[2]->as_number().number());
+        from_angle_value = from_values[3];
     }
     float from_angle = Angle::from_style_value(from_angle_value, {}).to_radians();
 
     FloatVector3 to_axis { 0, 0, 1 };
-    auto to_angle_value = to_transform.values()[0];
-    if (to_transform.values().size() == 4) {
-        to_axis.set_x(to_transform.values()[0]->as_number().number());
-        to_axis.set_y(to_transform.values()[1]->as_number().number());
-        to_axis.set_z(to_transform.values()[2]->as_number().number());
-        to_angle_value = to_transform.values()[3];
+    auto to_angle_value = to_values[0];
+    if (to_values.size() == 4) {
+        to_axis.set_x(to_values[0]->as_number().number());
+        to_axis.set_y(to_values[1]->as_number().number());
+        to_axis.set_z(to_values[2]->as_number().number());
+        to_angle_value = to_values[3];
     }
     float to_angle = Angle::from_style_value(to_angle_value, {}).to_radians();
 
@@ -1091,42 +1097,43 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
         -> NonnullRefPtr<TransformationStyleValue const> {
         TransformFunction generic_function;
         StyleValueVector parameters;
+        auto values = transform->values();
         switch (transform->transform_function()) {
         case TransformFunction::Scale:
             generic_function = TransformFunction::Scale;
-            parameters.append(transform->values()[0]);
-            parameters.append(transform->values().size() > 1 ? transform->values()[1] : transform->values()[0]);
+            parameters.append(values[0]);
+            parameters.append(values.size() > 1 ? values[1] : values[0]);
             break;
         case TransformFunction::ScaleX:
             generic_function = TransformFunction::Scale;
-            parameters.append(transform->values()[0]);
+            parameters.append(values[0]);
             parameters.append(NumberStyleValue::create(1.));
             break;
         case TransformFunction::ScaleY:
             generic_function = TransformFunction::Scale;
             parameters.append(NumberStyleValue::create(1.));
-            parameters.append(transform->values()[0]);
+            parameters.append(values[0]);
             break;
         case TransformFunction::Rotate:
             generic_function = TransformFunction::Rotate;
-            parameters.append(transform->values()[0]);
+            parameters.append(values[0]);
             break;
         case TransformFunction::Translate:
             generic_function = TransformFunction::Translate;
-            parameters.append(transform->values()[0]);
-            parameters.append(transform->values().size() > 1
-                    ? transform->values()[1]
+            parameters.append(values[0]);
+            parameters.append(values.size() > 1
+                    ? values[1]
                     : LengthStyleValue::create(Length::make_px(0.)));
             break;
         case TransformFunction::TranslateX:
             generic_function = TransformFunction::Translate;
-            parameters.append(transform->values()[0]);
+            parameters.append(values[0]);
             parameters.append(LengthStyleValue::create(Length::make_px(0.)));
             break;
         case TransformFunction::TranslateY:
             generic_function = TransformFunction::Translate;
             parameters.append(LengthStyleValue::create(Length::make_px(0.)));
-            parameters.append(transform->values()[0]);
+            parameters.append(values[0]);
             break;
         default:
             VERIFY_NOT_REACHED();
@@ -1142,6 +1149,7 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
 
         TransformFunction generic_function;
         StyleValueVector parameters;
+        auto values = transform->values();
         switch (transform->transform_function()) {
         case TransformFunction::Rotate:
         case TransformFunction::RotateZ:
@@ -1149,39 +1157,39 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
             parameters.append(NumberStyleValue::create(0.));
             parameters.append(NumberStyleValue::create(0.));
             parameters.append(NumberStyleValue::create(1.));
-            parameters.append(transform->values()[0]);
+            parameters.append(values[0]);
             break;
         case TransformFunction::RotateX:
             generic_function = TransformFunction::Rotate3d;
             parameters.append(NumberStyleValue::create(1.));
             parameters.append(NumberStyleValue::create(0.));
             parameters.append(NumberStyleValue::create(0.));
-            parameters.append(transform->values()[0]);
+            parameters.append(values[0]);
             break;
         case TransformFunction::RotateY:
             generic_function = TransformFunction::Rotate3d;
             parameters.append(NumberStyleValue::create(0.));
             parameters.append(NumberStyleValue::create(1.));
             parameters.append(NumberStyleValue::create(0.));
-            parameters.append(transform->values()[0]);
+            parameters.append(values[0]);
             break;
         case TransformFunction::Scale:
             generic_function = TransformFunction::Scale3d;
-            parameters.append(transform->values()[0]);
-            parameters.append(transform->values().size() > 1 ? transform->values()[1] : transform->values()[0]);
+            parameters.append(values[0]);
+            parameters.append(values.size() > 1 ? values[1] : values[0]);
             parameters.append(NumberStyleValue::create(1.));
             break;
         case TransformFunction::ScaleZ:
             generic_function = TransformFunction::Scale3d;
             parameters.append(NumberStyleValue::create(1.));
             parameters.append(NumberStyleValue::create(1.));
-            parameters.append(transform->values()[0]);
+            parameters.append(values[0]);
             break;
         case TransformFunction::Translate:
             generic_function = TransformFunction::Translate3d;
-            parameters.append(transform->values()[0]);
-            parameters.append(transform->values().size() > 1
-                    ? transform->values()[1]
+            parameters.append(values[0]);
+            parameters.append(values.size() > 1
+                    ? values[1]
                     : LengthStyleValue::create(Length::make_px(0.)));
             parameters.append(LengthStyleValue::create(Length::make_px(0.)));
             break;
@@ -1189,7 +1197,7 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
             generic_function = TransformFunction::Translate3d;
             parameters.append(LengthStyleValue::create(Length::make_px(0.)));
             parameters.append(LengthStyleValue::create(Length::make_px(0.)));
-            parameters.append(transform->values()[0]);
+            parameters.append(values[0]);
             break;
         default:
             generic_function = TransformFunction::Matrix3d;
@@ -1254,8 +1262,8 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
         // NB: We converted both functions to their primitives. But if they're different primitives or if they have a
         //     different number of values, we can't interpolate numerically between them. Break here so the next loop
         //     can take care of the remaining functions.
-        auto const& from_values = from_transformation->values();
-        auto const& to_values = to_transformation->values();
+        auto from_values = from_transformation->values();
+        auto to_values = to_transformation->values();
         if (from_function != to_function || from_values.size() != to_values.size())
             break;
 

@@ -863,8 +863,8 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
 
     if (value.is_shorthand()) {
         auto& shorthand_value = value.as_shorthand();
-        auto& properties = shorthand_value.sub_properties();
-        auto& values = shorthand_value.values();
+        auto properties = shorthand_value.sub_properties();
+        auto values = shorthand_value.values();
         for (size_t i = 0; i < properties.size(); ++i)
             for_each_property_expanding_shorthands(properties[i], values[i], set_longhand_property);
         return;

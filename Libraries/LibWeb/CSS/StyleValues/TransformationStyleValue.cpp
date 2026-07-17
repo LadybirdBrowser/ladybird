@@ -101,10 +101,11 @@ ValueComparingNonnullRefPtr<TransformationStyleValue const> TransformationStyleV
 
 bool TransformationStyleValue::can_be_converted_to_matrix_without_reference_box() const
 {
-    auto function_metadata = transform_function_metadata(m_properties.transform_function);
+    auto function_metadata = transform_function_metadata(transform_function());
+    auto values = this->values();
 
-    for (size_t i = 0; i < m_properties.values.size(); i++) {
-        auto const& value = m_properties.values[i];
+    for (size_t i = 0; i < values.size(); i++) {
+        auto const& value = values[i];
 
         if (value->is_length() && !value->as_length().length().is_absolute())
             return false;
@@ -136,11 +137,12 @@ bool TransformationStyleValue::can_be_converted_to_matrix_without_reference_box(
 
 FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::Paintable const&> paintable_box) const
 {
-    auto count = m_properties.values.size();
-    auto function_metadata = transform_function_metadata(m_properties.transform_function);
+    auto values = this->values();
+    auto count = values.size();
+    auto function_metadata = transform_function_metadata(transform_function());
 
     auto get_value = [&](size_t argument_index, Optional<CSSPixels> reference_length = {}) -> float {
-        auto const& transformation_value = *m_properties.values[argument_index];
+        auto const& transformation_value = *values[argument_index];
 
         switch (function_metadata.parameters[argument_index].type) {
         case TransformFunctionParameterType::Angle:
@@ -165,11 +167,11 @@ FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::Paintable 
         height = reference_box.height();
     }
 
-    switch (m_properties.transform_function) {
+    switch (transform_function()) {
     case TransformFunction::Perspective:
         // https://drafts.csswg.org/css-transforms-2/#perspective
         if (count == 1) {
-            if (m_properties.values.first()->to_keyword() == Keyword::None)
+            if (values.first()->to_keyword() == Keyword::None)
                 return FloatMatrix4x4::identity();
 
             // FIXME: Add support for the 'perspective-origin' CSS property.
@@ -288,14 +290,16 @@ FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::Paintable 
                 0, 0, 0, 1);
         break;
     }
-    dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Unhandled transformation function {} with {} arguments", CSS::to_string(m_properties.transform_function), m_properties.values.size());
+    dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Unhandled transformation function {} with {} arguments", CSS::to_string(transform_function()), values.size());
     return FloatMatrix4x4::identity();
 }
 
 void TransformationStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
+    auto values = this->values();
+
     // https://drafts.csswg.org/css-transforms-2/#individual-transform-serialization
-    if (m_properties.property == PropertyID::Rotate) {
+    if (property() == PropertyID::Rotate) {
         auto resolve_to_number = [](ValueComparingNonnullRefPtr<StyleValue const> const& value) -> Optional<double> {
             if (value->is_number())
                 return value->as_number().number();
@@ -306,31 +310,31 @@ void TransformationStyleValue::serialize(StringBuilder& builder, SerializationMo
         };
 
         // NOTE: Serialize simple rotations directly.
-        switch (m_properties.transform_function) {
+        switch (transform_function()) {
             // If the axis is parallel with the x or y axes, it must serialize as the appropriate keyword.
         case TransformFunction::RotateX:
             builder.append("x "sv);
-            m_properties.values[0]->serialize(builder, mode);
+            values[0]->serialize(builder, mode);
             return;
         case TransformFunction::RotateY:
             builder.append("y "sv);
-            m_properties.values[0]->serialize(builder, mode);
+            values[0]->serialize(builder, mode);
             return;
 
             // If a rotation about the z axis (that is, in 2D) is specified, the property must serialize as just an <angle>.
         case TransformFunction::Rotate:
         case TransformFunction::RotateZ:
-            m_properties.values[0]->serialize(builder, mode);
+            values[0]->serialize(builder, mode);
             return;
 
         default:
             break;
         }
 
-        auto& rotation_x = m_properties.values[0];
-        auto& rotation_y = m_properties.values[1];
-        auto& rotation_z = m_properties.values[2];
-        auto& angle = m_properties.values[3];
+        auto const& rotation_x = values[0];
+        auto const& rotation_y = values[1];
+        auto const& rotation_z = values[2];
+        auto const& angle = values[3];
 
         auto x_value = resolve_to_number(rotation_x).value_or(0);
         auto y_value = resolve_to_number(rotation_y).value_or(0);
@@ -368,7 +372,7 @@ void TransformationStyleValue::serialize(StringBuilder& builder, SerializationMo
         angle->serialize(builder, mode);
         return;
     }
-    if (m_properties.property == PropertyID::Scale) {
+    if (property() == PropertyID::Scale) {
         auto resolve_to_string = [mode](StyleValue const& value) -> String {
             Optional<double> raw_value;
 
@@ -393,11 +397,11 @@ void TransformationStyleValue::serialize(StringBuilder& builder, SerializationMo
             return serialize_a_number(*raw_value);
         };
 
-        auto x_value = resolve_to_string(m_properties.values[0]);
-        auto y_value = resolve_to_string(m_properties.values[1]);
+        auto x_value = resolve_to_string(values[0]);
+        auto y_value = resolve_to_string(values[1]);
         Optional<String> z_value;
-        if (m_properties.values.size() == 3 && (!m_properties.values[2]->is_number() || m_properties.values[2]->as_number().number() != 1))
-            z_value = resolve_to_string(m_properties.values[2]);
+        if (values.size() == 3 && (!values[2]->is_number() || values[2]->as_number().number() != 1))
+            z_value = resolve_to_string(values[2]);
 
         builder.append(x_value);
         if (x_value != y_value || (z_value.has_value() && *z_value != "1"sv)) {
@@ -410,7 +414,7 @@ void TransformationStyleValue::serialize(StringBuilder& builder, SerializationMo
         }
         return;
     }
-    if (m_properties.property == PropertyID::Translate) {
+    if (property() == PropertyID::Translate) {
         auto resolve_to_string = [mode](StyleValue const& value) -> Optional<String> {
             auto string_value = value.to_string(mode);
 
@@ -420,11 +424,11 @@ void TransformationStyleValue::serialize(StringBuilder& builder, SerializationMo
             return string_value;
         };
 
-        auto x_value = resolve_to_string(m_properties.values[0]);
-        auto y_value = resolve_to_string(m_properties.values[1]);
+        auto x_value = resolve_to_string(values[0]);
+        auto y_value = resolve_to_string(values[1]);
         Optional<String> z_value;
-        if (m_properties.values.size() == 3 && (!m_properties.values[2]->is_length() || m_properties.values[2]->as_length().length() != Length::make_px(0)))
-            z_value = resolve_to_string(m_properties.values[2]);
+        if (values.size() == 3 && (!values[2]->is_length() || values[2]->as_length().length() != Length::make_px(0)))
+            z_value = resolve_to_string(values[2]);
 
         builder.append(x_value.value_or("0px"_string));
         if (y_value.has_value() || z_value.has_value()) {
@@ -438,26 +442,26 @@ void TransformationStyleValue::serialize(StringBuilder& builder, SerializationMo
         return;
     }
 
-    builder.append(CSS::to_string(m_properties.transform_function));
+    builder.append(CSS::to_string(transform_function()));
     builder.append('(');
-    for (size_t i = 0; i < m_properties.values.size(); ++i) {
-        auto const& value = m_properties.values[i];
+    for (size_t i = 0; i < values.size(); ++i) {
+        auto const& value = values[i];
 
         // https://www.w3.org/TR/css-transforms-2/#individual-transforms
         // A <percentage> is equivalent to a <number>, for example scale: 100% is equivalent to scale: 1.
         // Numbers are used during serialization of specified and computed values.
-        if ((m_properties.transform_function == CSS::TransformFunction::Scale
-                || m_properties.transform_function == CSS::TransformFunction::Scale3d
-                || m_properties.transform_function == CSS::TransformFunction::ScaleX
-                || m_properties.transform_function == CSS::TransformFunction::ScaleY
-                || m_properties.transform_function == CSS::TransformFunction::ScaleZ)
+        if ((transform_function() == CSS::TransformFunction::Scale
+                || transform_function() == CSS::TransformFunction::Scale3d
+                || transform_function() == CSS::TransformFunction::ScaleX
+                || transform_function() == CSS::TransformFunction::ScaleY
+                || transform_function() == CSS::TransformFunction::ScaleZ)
             && value->is_percentage()) {
             builder.append(String::number(value->as_percentage().percentage().as_fraction()));
         } else {
             value->serialize(builder, mode);
         }
 
-        if (i != m_properties.values.size() - 1)
+        if (i != values.size() - 1)
             builder.append(", "sv);
     }
     builder.append(')');
@@ -466,8 +470,10 @@ void TransformationStyleValue::serialize(StringBuilder& builder, SerializationMo
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-transform-function
 GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_function(JS::Realm& realm) const
 {
+    auto values = this->values();
+
     auto reify_numeric_argument = [&](size_t index) {
-        return GC::Ref { as<CSSNumericValue>(*m_properties.values[index]->reify(realm, {})) };
+        return GC::Ref { as<CSSNumericValue>(*values[index]->reify(realm, {})) };
     };
     auto reify_0 = [&] { return CSSUnitValue::create(realm, 0, "number"_utf16_fly_string); };
     auto reify_1 = [&] { return CSSUnitValue::create(realm, 1, "number"_utf16_fly_string); };
@@ -475,7 +481,7 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     auto reify_0deg = [&] { return CSSUnitValue::create(realm, 0, "deg"_utf16_fly_string); };
 
     // To reify a <transform-function> func, perform the appropriate set of steps below, based on func:
-    switch (m_properties.transform_function) {
+    switch (transform_function()) {
     // -> matrix()
     // -> matrix3d()
     //    1. Return a new CSSMatrixComponent object, whose matrix internal slot is set to a 4x4 matrix representing the
@@ -504,7 +510,7 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
         matrix->set_m43(transform_as_matrix[2, 3]);
         matrix->set_m44(transform_as_matrix[3, 3]);
 
-        auto is_2d = m_properties.transform_function == TransformFunction::Matrix ? CSSTransformComponent::Is2D::Yes : CSSTransformComponent::Is2D::No;
+        auto is_2d = transform_function() == TransformFunction::Matrix ? CSSTransformComponent::Is2D::Yes : CSSTransformComponent::Is2D::No;
         return CSSMatrixComponent::create(realm, is_2d, matrix);
     }
 
@@ -518,7 +524,7 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     //       is true if func is translate(), translateX(), or translateY(), and false otherwise.
     case TransformFunction::Translate: {
         // NB: Default y to 0px if it's not specified.
-        auto y = m_properties.values.size() > 1 ? reify_numeric_argument(1) : reify_0px();
+        auto y = values.size() > 1 ? reify_numeric_argument(1) : reify_0px();
         return CSSTranslate::create(realm, CSSTransformComponent::Is2D::Yes, reify_numeric_argument(0), y, reify_0px());
     }
     case TransformFunction::TranslateX:
@@ -540,7 +546,7 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     //       scaleY(), and false otherwise.
     case TransformFunction::Scale: {
         // NB: Default y to a copy of x if it's not specified.
-        auto y = m_properties.values.size() > 1 ? reify_numeric_argument(1) : reify_numeric_argument(0);
+        auto y = values.size() > 1 ? reify_numeric_argument(1) : reify_numeric_argument(0);
         return CSSScale::create(realm, CSSTransformComponent::Is2D::Yes, reify_numeric_argument(0), y, reify_1());
     }
     case TransformFunction::ScaleX:
@@ -577,7 +583,7 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     //       and y angles, or the reification of 0deg if not specified in func, and whose is2D internal slot is true.
     case TransformFunction::Skew: {
         // NB: Default y to 0deg if it's not specified.
-        auto y = m_properties.values.size() > 1 ? reify_numeric_argument(1) : reify_0deg();
+        auto y = values.size() > 1 ? reify_numeric_argument(1) : reify_0deg();
         return CSSSkew::create(realm, reify_numeric_argument(0), y);
     }
 
@@ -599,7 +605,7 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     //       and whose is2D internal slot is false.
     case TransformFunction::Perspective: {
         CSSPerspectiveValueInternal length = [&]() -> CSSPerspectiveValueInternal {
-            auto reified = m_properties.values[0]->reify(realm, {});
+            auto reified = values[0]->reify(realm, {});
             if (auto* keyword = as_if<CSSKeywordValue>(*reified))
                 return GC::Ref { *keyword };
             if (auto* numeric = as_if<CSSNumericValue>(*reified))
@@ -614,11 +620,12 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
 
 ValueComparingNonnullRefPtr<StyleValue const> TransformationStyleValue::absolutized(ComputationContext const& computation_context) const
 {
+    auto values = this->values();
     StyleValueVector absolutized_values;
 
     bool absolutized_values_different = false;
 
-    for (auto const& value : m_properties.values) {
+    for (auto const& value : values) {
         auto const& absolutized_value = value->absolutized(computation_context);
 
         if (absolutized_value != value)
@@ -630,14 +637,7 @@ ValueComparingNonnullRefPtr<StyleValue const> TransformationStyleValue::absoluti
     if (!absolutized_values_different)
         return *this;
 
-    return TransformationStyleValue::create(m_properties.property, m_properties.transform_function, move(absolutized_values));
-}
-
-bool TransformationStyleValue::Properties::operator==(Properties const& other) const
-{
-    return property == other.property
-        && transform_function == other.transform_function
-        && values.span() == other.values.span();
+    return TransformationStyleValue::create(property(), transform_function(), move(absolutized_values));
 }
 
 }
