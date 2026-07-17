@@ -79,6 +79,8 @@ private:
         struct Entry {
             Utf16String value;
             UnixDateTime last_access_time;
+            // Bytes this entry contributes toward its storage key's quota: Its bottle key plus its value.
+            u64 quota_size { 0 };
         };
 
         HashMap<StorageLocation, Entry> m_storage_items;

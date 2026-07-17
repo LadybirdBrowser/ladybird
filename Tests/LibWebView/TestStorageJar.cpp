@@ -83,3 +83,44 @@ TEST_CASE(migration_to_add_last_access_time_is_idempotent)
 
     EXPECT_EQ(TRY_OR_FAIL(database->schema_version("WebStorage"sv)), Optional<u32> { 2u });
 }
+
+TEST_CASE(storage_usage_tracks_item_sizes)
+{
+    auto jar = WebView::StorageJar::create();
+
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "key"_utf16, "value"_utf16);
+    EXPECT_EQ(jar->usage("https://example.com"_string), 8u);
+
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "key"_utf16, "v"_utf16);
+    EXPECT_EQ(jar->usage("https://example.com"_string), 4u);
+
+    jar->remove_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "key"_utf16);
+    EXPECT_EQ(jar->usage("https://example.com"_string), 0u);
+}
+
+TEST_CASE(storage_usage_counts_utf8_bytes_not_code_units)
+{
+    auto jar = WebView::StorageJar::create();
+
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "k"_utf16, "\u00e9"_utf16);
+    EXPECT_EQ(jar->usage("https://example.com"_string), 3u);
+
+    jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "k"_utf16, "\U0001f600"_utf16);
+    EXPECT_EQ(jar->usage("https://example.com"_string), 5u);
+}
+
+TEST_CASE(storage_quota_is_enforced_per_storage_key)
+{
+    auto jar = WebView::StorageJar::create();
+
+    auto large_value = Utf16String::repeated('x', Web::StorageAPI::StorageEndpoint::LOCAL_STORAGE_QUOTA / 2 - 16);
+
+    EXPECT(jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "a"_utf16, large_value).has<Optional<Utf16String>>());
+    EXPECT(jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "b"_utf16, large_value).has<Optional<Utf16String>>());
+
+    // A third value exceeds the quota for this storage key.
+    EXPECT(jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "c"_utf16, large_value).has<WebView::StorageOperationError>());
+
+    // A different storage key has its own quota.
+    EXPECT(jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://other.example"_string, "a"_utf16, large_value).has<Optional<Utf16String>>());
+}

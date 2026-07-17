@@ -171,17 +171,15 @@ StorageSetResult StorageJar::TransientStorage::set_item(StorageLocation const& k
     u64 current_size = 0;
 
     for (auto const& [existing_key, existing_entry] : m_storage_items) {
-        if (existing_key.storage_endpoint == key.storage_endpoint && existing_key.storage_key == key.storage_key && existing_key.bottle_key != key.bottle_key) {
-            current_size += storage_quota_size(existing_key.bottle_key);
-            current_size += storage_quota_size(existing_entry.value);
-        }
+        if (existing_key.storage_endpoint == key.storage_endpoint && existing_key.storage_key == key.storage_key && existing_key.bottle_key != key.bottle_key)
+            current_size += existing_entry.quota_size;
     }
 
     auto new_size = storage_quota_size(key.bottle_key) + storage_quota_size(value);
     if (current_size + new_size > LOCAL_STORAGE_QUOTA)
         return StorageOperationError::QuotaExceededError;
 
-    m_storage_items.set(key, { value, UnixDateTime::now() });
+    m_storage_items.set(key, { value, UnixDateTime::now(), new_size });
     return old_value;
 }
 
@@ -226,7 +224,7 @@ Requests::CacheSizes StorageJar::TransientStorage::estimate_storage_size_accesse
     Requests::CacheSizes sizes;
 
     for (auto const& [key, entry] : m_storage_items) {
-        auto size = key.storage_key.byte_count() + storage_quota_size(key.bottle_key) + storage_quota_size(entry.value);
+        auto size = key.storage_key.byte_count() + entry.quota_size;
         sizes.total += size;
 
         if (entry.last_access_time >= since)
@@ -369,10 +367,8 @@ u64 StorageJar::TransientStorage::usage(String const& storage_key)
 {
     u64 current_size_in_bytes = 0;
     for (auto const& [key, entry] : m_storage_items) {
-        if (key.storage_key == storage_key) {
-            current_size_in_bytes += storage_quota_size(key.bottle_key);
-            current_size_in_bytes += storage_quota_size(entry.value);
-        }
+        if (key.storage_key == storage_key)
+            current_size_in_bytes += entry.quota_size;
     }
     return current_size_in_bytes;
 }
