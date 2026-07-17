@@ -13,17 +13,17 @@ namespace Web::CSS {
 
 void IntegerStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    builder.appendff("{}", m_value);
+    builder.appendff("{}", integer());
 }
 
 void IntegerStyleValue::serialize(Utf16StringBuilder& builder, SerializationMode) const
 {
-    builder.appendff("{}", m_value);
+    builder.appendff("{}", integer());
 }
 
 Vector<Parser::ComponentValue> IntegerStyleValue::tokenize() const
 {
-    return { Parser::Token::create_number(Number { Number::Type::Integer, static_cast<double>(m_value) }) };
+    return { Parser::Token::create_number(Number { Number::Type::Integer, static_cast<double>(integer()) }) };
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-numeric-value
@@ -32,7 +32,7 @@ GC::Ref<CSSStyleValue> IntegerStyleValue::reify(JS::Realm& realm, Utf16FlyString
     // NB: Step 1 doesn't apply here.
     // 2. If num is the unitless value 0 and num is a <dimension>, return a new CSSUnitValue with its value internal
     //    slot set to 0, and its unit internal slot set to "px".
-    if (m_value == 0 && associated_property.is_ascii()) {
+    if (integer() == 0 && associated_property.is_ascii()) {
         // NB: Determine whether the associated property expects 0 to be a <length>.
         // FIXME: Do this for registered custom properties.
         auto associated_property_string = associated_property.to_utf16_string();
@@ -48,7 +48,7 @@ GC::Ref<CSSStyleValue> IntegerStyleValue::reify(JS::Realm& realm, Utf16FlyString
     //    <dimension>.
     //    If the value being reified is a computed value, the unit used must be the appropriate canonical unit for the
     //    value’s type, with the numeric value scaled accordingly.
-    return CSSUnitValue::create(realm, m_value, "number"_utf16_fly_string);
+    return CSSUnitValue::create(realm, integer(), "number"_utf16_fly_string);
 }
 
 }

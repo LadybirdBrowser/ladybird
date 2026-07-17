@@ -24,11 +24,25 @@ use crate::abort_on_panic;
 pub enum StyleValueData {
     /// A CSS keyword. The value is the generated C++ `enum class Keyword : u16`, opaque to Rust.
     Keyword { keyword: u16 },
+    /// A CSS `<number>`.
+    Number { value: f64 },
+    /// A CSS `<integer>`.
+    Integer { value: i32 },
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_keyword(keyword: u16) -> *mut StyleValueData {
     abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Keyword { keyword })))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_number(value: f64) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Number { value })))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_integer(value: i32) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Integer { value })))
 }
 
 #[unsafe(no_mangle)]

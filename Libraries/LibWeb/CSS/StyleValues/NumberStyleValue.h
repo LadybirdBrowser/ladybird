@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -20,7 +21,7 @@ public:
         return adopt_ref(*new (nothrow) NumberStyleValue(value));
     }
 
-    double number() const { return m_value; }
+    double number() const { return m_value->number.value; }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual Vector<Parser::ComponentValue> tokenize() const override;
@@ -31,7 +32,7 @@ public:
         if (type() != other.type())
             return false;
         auto const& other_number = other.as_number();
-        return m_value == other_number.m_value;
+        return number() == other_number.number();
     }
 
     virtual bool is_computationally_independent() const override { return true; }
@@ -39,11 +40,11 @@ public:
 private:
     explicit NumberStyleValue(double value)
         : StyleValue(Type::Number)
-        , m_value(value)
+        , m_value(StyleValueFFI::rust_style_value_create_number(value))
     {
     }
 
-    double m_value { 0 };
+    RustStyleValueHandle m_value;
 };
 
 }

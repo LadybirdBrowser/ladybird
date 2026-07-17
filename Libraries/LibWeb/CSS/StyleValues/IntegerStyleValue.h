@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -17,7 +18,7 @@ public:
         return adopt_ref(*new (nothrow) IntegerStyleValue(value));
     }
 
-    i32 integer() const { return m_value; }
+    i32 integer() const { return m_value->integer.value; }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual void serialize(Utf16StringBuilder&, SerializationMode) const override;
@@ -29,7 +30,7 @@ public:
         if (type() != other.type())
             return false;
         auto const& other_integer = other.as_integer();
-        return m_value == other_integer.m_value;
+        return integer() == other_integer.integer();
     }
 
     virtual bool is_computationally_independent() const override { return true; }
@@ -37,11 +38,11 @@ public:
 private:
     explicit IntegerStyleValue(i32 value)
         : StyleValue(Type::Integer)
-        , m_value(value)
+        , m_value(StyleValueFFI::rust_style_value_create_integer(value))
     {
     }
 
-    i32 m_value { 0 };
+    RustStyleValueHandle m_value;
 };
 
 }
