@@ -369,15 +369,16 @@ macro bitwise_op(op_insn, slow_path_func)
 end
 
 macro prefix_inc_dec(op32_overflow, fp_op, slow_path_func)
-    temp value, tag, int_value, dst
+    temp operand_index, value, tag, int_value, dst
     ftemp result_dbl, one_dbl
-    load_operand value, m_dst
+    load32 operand_index, [pb, pc, m_dst]
+    load64 value, [values, operand_index, 8]
     extract_tag tag, value
     branch_ne tag, INT32_TAG, .slow
     unbox_int32 int_value, value
     op32_overflow int_value, 1, .overflow
     box_int32_clean dst, int_value
-    store_operand m_dst, dst
+    store64 [values, operand_index, 8], dst
     dispatch_next
 .overflow: @cold
     unbox_int32 int_value, value
@@ -386,23 +387,24 @@ macro prefix_inc_dec(op32_overflow, fp_op, slow_path_func)
     fp_mov one_dbl, dst
     fp_op result_dbl, one_dbl
     fp_mov dst, result_dbl
-    store_operand m_dst, dst
+    store64 [values, operand_index, 8], dst
     dispatch_next
 .slow: @cold
     call_slow_path slow_path_func
 end
 
 macro postfix_inc_dec(op32_overflow, fp_op, slow_path_func)
-    temp value, tag, int_value, dst
+    temp operand_index, value, tag, int_value, dst
     ftemp result_dbl, one_dbl
-    load_operand value, m_src
+    load32 operand_index, [pb, pc, m_src]
+    load64 value, [values, operand_index, 8]
     extract_tag tag, value
     branch_ne tag, INT32_TAG, .slow
     store_operand m_dst, value
     unbox_int32 int_value, value
     op32_overflow int_value, 1, .overflow_after_store
     box_int32_clean dst, int_value
-    store_operand m_src, dst
+    store64 [values, operand_index, 8], dst
     dispatch_next
 .overflow_after_store: @cold
     unbox_int32 int_value, value
@@ -411,7 +413,7 @@ macro postfix_inc_dec(op32_overflow, fp_op, slow_path_func)
     fp_mov one_dbl, dst
     fp_op result_dbl, one_dbl
     fp_mov dst, result_dbl
-    store_operand m_src, dst
+    store64 [values, operand_index, 8], dst
     dispatch_next
 .slow: @cold
     call_slow_path slow_path_func
