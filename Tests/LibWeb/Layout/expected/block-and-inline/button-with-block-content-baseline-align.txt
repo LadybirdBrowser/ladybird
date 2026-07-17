@@ -1,7 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 60 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 44 0+0+8] children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 61.1875x44] baseline: 34
+      frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 61.1875x44] baseline: 33.796875
       BlockContainer <div.ib> at [8,8] inline-block [0+0+0 61.1875 0+0+0] [0+0+0 44 0+0+0] [BFC] children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [9,26 17.828125x20] baseline: 17
         frag 1 from TextNode start: 0, length: 1, rect: [27.828125,29 8x16] baseline: 12.796875

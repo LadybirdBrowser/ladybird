@@ -600,6 +600,8 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
         };
         let mut earliest = strut_start;
         let mut latest = strut_end;
+        let mut first_unshifted_text_baseline: Option<CssPixels> = None;
+        let current_block_offset = self.current_block_offset;
 
         for fragment_index in 0..fragment_count {
             let mut snapshot = {
@@ -631,6 +633,11 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
             }
             let new_inline_offset = inline_offset + snapshot.inline_offset;
             let mut new_block_offset = self.block_offset_for_alignment(style, metrics, line_box_baseline);
+            let baseline_aligned_block_offset = self.block_offset_for_alignment(
+                style.with_vertical_align_keyword(vertical_align::BASELINE),
+                metrics,
+                line_box_baseline,
+            );
             let own_alignment_is_line_relative = style.vertical_align_is_keyword()
                 && matches!(
                     style.vertical_align_keyword(),
@@ -712,9 +719,19 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
                 fragment_mut.baseline = font_baseline;
                 fragment_mut.block_length = font_box_size;
             }
+
+            let fragment_is_unshifted =
+                snapshot.style_source == containing_block || new_block_offset == baseline_aligned_block_offset;
+            let is_text_node = self.context().facts(snapshot.layout_node).is_text_node();
+            if first_unshifted_text_baseline.is_none() && fragment_is_unshifted && is_text_node {
+                let fragment = &self.line(line_index).fragments[fragment_index];
+                if !fragment.is_fully_truncated {
+                    first_unshifted_text_baseline =
+                        Some(fragment.block_offset + fragment.baseline - current_block_offset);
+                }
+            }
         }
 
-        let current_block_offset = self.current_block_offset;
         {
             let mut line = self.line_mut(line_index);
             for marker in &mut line.static_position_markers {
@@ -723,7 +740,7 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
             }
             line.block_length = latest - earliest;
             line.block_end = current_block_offset + line.block_length;
-            line.baseline = line_box_baseline;
+            line.baseline = first_unshifted_text_baseline.unwrap_or(line_box_baseline);
         }
         self.should_advance_to_last_line_box_block_end = should_align_strut;
     }
