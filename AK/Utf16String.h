@@ -70,6 +70,26 @@ public:
 
     static Utf16String from_utf16(Utf16View const& utf16_string);
 
+    // NB: These round-trip the one-word raw representation through FFI bridges (e.g. the LibWeb
+    //     Rust style value data); the bridge releases its reference through
+    //     Utf16FlyString::unref_raw(), which handles any Utf16StringBase-backed string.
+    [[nodiscard]] FlatPtr to_raw_leaked() const
+    {
+        if (has_long_storage())
+            data_without_union_member_assertion()->ref();
+        return raw();
+    }
+
+    [[nodiscard]] static Utf16String from_raw(FlatPtr raw)
+    {
+        Utf16String string;
+        auto const** data = __builtin_launder(&string.m_value.data);
+        *data = bit_cast<Detail::Utf16StringData const*>(raw);
+        if (string.has_long_storage())
+            string.data_without_union_member_assertion()->ref();
+        return string;
+    }
+
     template<typename T>
     requires(IsOneOf<RemoveCVReference<T>, Utf16String, Utf16FlyString>)
     static Utf16String from_utf16(T&&) = delete;

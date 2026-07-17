@@ -10,6 +10,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -49,9 +50,30 @@ private:
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
-    Option const* select_option(double device_pixels_per_css_pixel) const;
+    Optional<Option> select_option(double device_pixels_per_css_pixel) const;
 
-    Vector<Option> m_options;
+    Vector<Option> options() const
+    {
+        auto const& list = m_value->image_set.options;
+        Vector<Option> options;
+        options.ensure_capacity(list.length);
+        for (size_t i = 0; i < list.length; ++i) {
+            auto const& option = list.pointer[i];
+            Optional<Utf16String> type;
+            if (option.has_type)
+                type = Utf16String::from_raw(option.type_string.raw);
+            options.unchecked_append(Option {
+                .image = *static_cast<AbstractImageStyleValue const*>(option.image.pointer),
+                .resolution = *static_cast<StyleValue const*>(option.resolution.pointer),
+                .type = move(type),
+            });
+        }
+        return options;
+    }
+
+    static StyleValueFFI::StyleValueData* make_image_set_data(Vector<Option> const&);
+
+    RustStyleValueHandle m_value;
     mutable AbstractImageStyleValue const* m_selected_image { nullptr };
     mutable double m_selected_resolution { 1 };
 };

@@ -265,6 +265,47 @@ impl Drop for RetainedCounterDefinitionList {
     }
 }
 
+/// A retained image-set() option: the image, its resolution and an optional type string (a
+/// retained AK::Utf16String raw, 0 when absent, released through the same bridge as fly
+/// strings).
+#[repr(C)]
+pub struct RetainedImageSetOption {
+    image: RetainedStyleValue,
+    resolution: RetainedStyleValue,
+    has_type: bool,
+    type_string: RetainedUtf16FlyString,
+}
+
+/// A Rust-owned array of retained image-set() options.
+#[repr(C)]
+pub struct RetainedImageSetOptionList {
+    pointer: *mut RetainedImageSetOption,
+    length: usize,
+}
+
+impl RetainedImageSetOptionList {
+    /// Takes ownership of the options' retained values and strings.
+    ///
+    /// # Safety
+    /// `options` must point to `length` valid options whose retained values and strings this
+    /// list may assume ownership of.
+    unsafe fn from_raw(options: *const RetainedImageSetOption, length: usize) -> Self {
+        let slice: Box<[RetainedImageSetOption]> =
+            (0..length).map(|i| unsafe { std::ptr::read(options.add(i)) }).collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedImageSetOption;
+        Self { pointer, length }
+    }
+}
+
+impl Drop for RetainedImageSetOptionList {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+        }
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -473,6 +514,8 @@ pub enum StyleValueData {
         color_type: u8,
         color_syntax: u8,
     },
+    /// image-set() with its retained options.
+    ImageSet { options: RetainedImageSetOptionList },
     /// A cursor with its retained image value and optional retained hotspot coordinates (both
     /// null or both non-null).
     Cursor {
@@ -1470,6 +1513,19 @@ pub unsafe extern "C" fn rust_style_value_create_color_mix(
             second_percentage: RetainedStyleValue {
                 pointer: second_percentage,
             },
+        }))
+    })
+}
+
+/// Takes ownership of the options' retained values and strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_image_set(
+    options: *const RetainedImageSetOption,
+    length: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::ImageSet {
+            options: unsafe { RetainedImageSetOptionList::from_raw(options, length) },
         }))
     })
 }
