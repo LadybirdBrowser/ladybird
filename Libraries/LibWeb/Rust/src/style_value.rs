@@ -225,6 +225,46 @@ impl Drop for RetainedUtf16FlyStringList {
     }
 }
 
+/// A retained counter definition: the counter name, the reversed flag and an optional retained
+/// value (null when absent).
+#[repr(C)]
+pub struct RetainedCounterDefinition {
+    name: RetainedUtf16FlyString,
+    is_reversed: bool,
+    value: RetainedStyleValue,
+}
+
+/// A Rust-owned array of retained counter definitions.
+#[repr(C)]
+pub struct RetainedCounterDefinitionList {
+    pointer: *mut RetainedCounterDefinition,
+    length: usize,
+}
+
+impl RetainedCounterDefinitionList {
+    /// Takes ownership of the definitions' retained strings and values.
+    ///
+    /// # Safety
+    /// `definitions` must point to `length` valid definitions whose retained strings and values
+    /// this list may assume ownership of.
+    unsafe fn from_raw(definitions: *const RetainedCounterDefinition, length: usize) -> Self {
+        let slice: Box<[RetainedCounterDefinition]> = (0..length)
+            .map(|i| unsafe { std::ptr::read(definitions.add(i)) })
+            .collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedCounterDefinition;
+        Self { pointer, length }
+    }
+}
+
+impl Drop for RetainedCounterDefinitionList {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+        }
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -386,6 +426,18 @@ pub enum StyleValueData {
     Content {
         content: RetainedStyleValue,
         alt_text: RetainedStyleValue,
+    },
+    /// counter-increment, counter-reset or counter-set with its retained counter definitions.
+    CounterDefinitions {
+        counter_definitions: RetainedCounterDefinitionList,
+    },
+    /// A grid-row/grid-column placement: auto (0), a span (1) or an area/line (2), with an
+    /// optional retained line value and an optional retained name.
+    GridTrackPlacement {
+        kind: u8,
+        value: RetainedStyleValue,
+        has_name: bool,
+        name: RetainedUtf16FlyString,
     },
     /// counter() or counters(). The function is the C++ CounterFunction enum, opaque to Rust;
     /// the join string is empty for counter().
@@ -1212,6 +1264,38 @@ pub unsafe extern "C" fn rust_style_value_create_unresolved(
             presence_inherit,
             presence_var,
             contains_attr_tainted_values,
+        }))
+    })
+}
+
+/// Takes ownership of the definitions' retained strings and values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_counter_definitions(
+    definitions: *const RetainedCounterDefinition,
+    length: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::CounterDefinitions {
+            counter_definitions: unsafe { RetainedCounterDefinitionList::from_raw(definitions, length) },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the value and one leaked reference to the name
+/// when they are present.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_grid_track_placement(
+    kind: u8,
+    value: *const c_void,
+    has_name: bool,
+    name: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::GridTrackPlacement {
+            kind,
+            value: RetainedStyleValue { pointer: value },
+            has_name,
+            name: RetainedUtf16FlyString { raw: name },
         }))
     })
 }

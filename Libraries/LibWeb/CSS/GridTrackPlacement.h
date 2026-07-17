@@ -54,6 +54,7 @@ public:
 
     NonnullRefPtr<StyleValue const> line_number() const { return *m_value.get<AreaOrLine>().line_number; }
     NonnullRefPtr<StyleValue const> span() const { return *m_value.get<Span>().value; }
+    Optional<Utf16FlyString> const& span_name() const { return m_value.get<Span>().name; }
 
     void serialize(StringBuilder&, SerializationMode) const;
     String to_string(SerializationMode mode) const;

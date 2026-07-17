@@ -12,7 +12,7 @@ namespace Web::CSS {
 void CounterDefinitionsStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     bool first = true;
-    for (auto const& counter_definition : m_counter_definitions) {
+    for (auto const& counter_definition : counter_definitions()) {
         if (first)
             first = false;
         else
@@ -34,7 +34,7 @@ ValueComparingNonnullRefPtr<StyleValue const> CounterDefinitionsStyleValue::abso
 {
     Vector<CounterDefinition> computed_definitions;
 
-    for (auto specified_definition : m_counter_definitions) {
+    for (auto specified_definition : counter_definitions()) {
         CounterDefinition computed_definition {
             .name = specified_definition.name,
             .is_reversed = specified_definition.is_reversed,
@@ -52,12 +52,14 @@ ValueComparingNonnullRefPtr<StyleValue const> CounterDefinitionsStyleValue::abso
 
 bool CounterDefinitionsStyleValue::properties_equal(CounterDefinitionsStyleValue const& other) const
 {
-    if (m_counter_definitions.size() != other.counter_definitions().size())
+    auto our_definitions = counter_definitions();
+    auto their_definitions = other.counter_definitions();
+    if (our_definitions.size() != their_definitions.size())
         return false;
 
-    for (auto i = 0u; i < m_counter_definitions.size(); i++) {
-        auto const& ours = m_counter_definitions[i];
-        auto const& theirs = other.counter_definitions()[i];
+    for (auto i = 0u; i < our_definitions.size(); i++) {
+        auto const& ours = our_definitions[i];
+        auto const& theirs = their_definitions[i];
         if (ours.name != theirs.name || ours.is_reversed != theirs.is_reversed || ours.value != theirs.value)
             return false;
     }

@@ -4165,7 +4165,7 @@ Vector<CounterData> ComputedProperties::counter_data(PropertyID property_id) con
     auto const& value = property(property_id);
 
     if (value.is_counter_definitions()) {
-        auto& counter_definitions = value.as_counter_definitions().counter_definitions();
+        auto counter_definitions = value.as_counter_definitions().counter_definitions();
         Vector<CounterData> result;
         for (auto& counter : counter_definitions) {
             CounterData data {
