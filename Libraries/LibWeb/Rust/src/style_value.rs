@@ -224,6 +224,30 @@ pub enum StyleValueData {
         counter_style: RetainedStyleValue,
         join_string: RetainedUtf16FlyString,
     },
+    /// light-dark() with its two retained color style values.
+    LightDark {
+        light: RetainedStyleValue,
+        dark: RetainedStyleValue,
+    },
+    /// random-value-sharing: an optional retained fixed value (null when absent), the auto flag,
+    /// an optional name and the element-shared flag.
+    RandomValueSharing {
+        fixed_value: RetainedStyleValue,
+        is_auto: bool,
+        has_name: bool,
+        name: RetainedUtf16FlyString,
+        element_shared: bool,
+    },
+    /// scrollbar-gutter. The value is the C++ `enum class ScrollbarGutter : u8`, opaque to Rust.
+    ScrollbarGutter { value: u8 },
+    /// A color interpolation method: either a rectangular color space, or a polar color space
+    /// with a hue interpolation method. All fields are C++ `enum class ... : u8` values, opaque
+    /// to Rust.
+    ColorInterpolationMethod {
+        is_polar: bool,
+        color_space: u8,
+        hue_interpolation_method: u8,
+    },
     /// A CSS `<custom-ident>`.
     CustomIdent { custom_ident: RetainedUtf16FlyString },
     /// A border-radius rect of four retained corner radius style values.
@@ -703,6 +727,61 @@ pub unsafe extern "C" fn rust_style_value_create_counter(
             counter_name: RetainedUtf16FlyString { raw: counter_name },
             counter_style: RetainedStyleValue { pointer: counter_style },
             join_string: RetainedUtf16FlyString { raw: join_string },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each color.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_light_dark(
+    light: *const c_void,
+    dark: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::LightDark {
+            light: RetainedStyleValue { pointer: light },
+            dark: RetainedStyleValue { pointer: dark },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the fixed value and one leaked reference to the
+/// name when they are present.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_random_value_sharing(
+    fixed_value: *const c_void,
+    is_auto: bool,
+    has_name: bool,
+    name: usize,
+    element_shared: bool,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::RandomValueSharing {
+            fixed_value: RetainedStyleValue { pointer: fixed_value },
+            is_auto,
+            has_name,
+            name: RetainedUtf16FlyString { raw: name },
+            element_shared,
+        }))
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_scrollbar_gutter(value: u8) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::ScrollbarGutter { value })))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_color_interpolation_method(
+    is_polar: bool,
+    color_space: u8,
+    hue_interpolation_method: u8,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::ColorInterpolationMethod {
+            is_polar,
+            color_space,
+            hue_interpolation_method,
         }))
     })
 }

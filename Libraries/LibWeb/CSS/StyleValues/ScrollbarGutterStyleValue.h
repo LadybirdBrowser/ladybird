@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -18,11 +19,11 @@ public:
     }
     virtual ~ScrollbarGutterStyleValue() override = default;
 
-    ScrollbarGutter value() const { return m_value; }
+    ScrollbarGutter value() const { return static_cast<ScrollbarGutter>(m_value->scrollbar_gutter.value); }
 
     virtual void serialize(StringBuilder& builder, SerializationMode) const override
     {
-        switch (m_value) {
+        switch (value()) {
         case ScrollbarGutter::Auto:
             builder.append("auto"sv);
             break;
@@ -37,18 +38,18 @@ public:
         }
     }
 
-    bool properties_equal(ScrollbarGutterStyleValue const& other) const { return m_value == other.m_value; }
+    bool properties_equal(ScrollbarGutterStyleValue const& other) const { return value() == other.value(); }
 
     virtual bool is_computationally_independent() const override { return true; }
 
 private:
     ScrollbarGutterStyleValue(ScrollbarGutter value)
         : StyleValueWithDefaultOperators(Type::ScrollbarGutter)
-        , m_value(value)
+        , m_value(StyleValueFFI::rust_style_value_create_scrollbar_gutter(to_underlying(value)))
     {
     }
 
-    ScrollbarGutter m_value;
+    RustStyleValueHandle m_value;
 };
 
 }

@@ -12,9 +12,9 @@ namespace Web::CSS {
 Optional<Color> LightDarkStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     if (color_resolution_context.color_scheme == PreferredColorScheme::Dark)
-        return m_properties.dark->to_color(color_resolution_context);
+        return dark()->to_color(color_resolution_context);
 
-    return m_properties.light->to_color(color_resolution_context);
+    return light()->to_color(color_resolution_context);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> LightDarkStyleValue::absolutized(ComputationContext const& context) const
@@ -23,9 +23,9 @@ ValueComparingNonnullRefPtr<StyleValue const> LightDarkStyleValue::absolutized(C
         return *this;
 
     if (context.color_scheme == PreferredColorScheme::Dark)
-        return m_properties.dark->absolutized(context);
+        return dark()->absolutized(context);
 
-    return m_properties.light->absolutized(context);
+    return light()->absolutized(context);
 }
 
 bool LightDarkStyleValue::equals(StyleValue const& other) const
@@ -33,16 +33,16 @@ bool LightDarkStyleValue::equals(StyleValue const& other) const
     auto const* other_light_dark = as_if<LightDarkStyleValue>(other);
     if (!other_light_dark)
         return false;
-    return m_properties == other_light_dark->m_properties;
+    return light() == other_light_dark->light() && dark() == other_light_dark->dark();
 }
 
 void LightDarkStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     // FIXME: We don't have enough information to determine the computed value here.
     builder.append("light-dark("sv);
-    m_properties.light->serialize(builder, mode);
+    light()->serialize(builder, mode);
     builder.append(", "sv);
-    m_properties.dark->serialize(builder, mode);
+    dark()->serialize(builder, mode);
     builder.append(')');
 }
 

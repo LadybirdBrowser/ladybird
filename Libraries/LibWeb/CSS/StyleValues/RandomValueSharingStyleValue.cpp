@@ -17,10 +17,10 @@ ValueComparingNonnullRefPtr<StyleValue const> RandomValueSharingStyleValue::abso
     // https://drafts.csswg.org/css-values-5/#random-caching
     // Each instance of a random function in styles has an associated random base value.
     // If the random function’s <random-value-sharing> is fixed <number>, the random base value is that number.
-    if (m_fixed_value) {
-        auto const& absolutized_fixed_value = m_fixed_value->absolutized(computation_context);
+    if (fixed_value()) {
+        auto const& absolutized_fixed_value = fixed_value()->absolutized(computation_context);
 
-        if (m_fixed_value == absolutized_fixed_value)
+        if (fixed_value() == absolutized_fixed_value)
             return *this;
 
         return RandomValueSharingStyleValue::create_fixed(absolutized_fixed_value);
@@ -35,12 +35,12 @@ ValueComparingNonnullRefPtr<StyleValue const> RandomValueSharingStyleValue::abso
         //    of the form "PROPERTY N", where PROPERTY is the name of the property the random function is used in
         //    (before shorthand expansion, if relevant), and N is the index of the random function among other random
         //    functions in the same property value.
-        .name = m_name.value(),
+        .name = name().value(),
 
         // 2. An element ID identifying the element the style is being applied to, or null if element-shared is
         //    specified in <random-value-sharing>.
         // FIXME: Use the pseudo element's unique_id() when that's accessible
-        .element_id = m_element_shared ? Optional<UniqueNodeID> { OptionalNone {} } : Optional<UniqueNodeID> { computation_context.abstract_element->element().unique_id() },
+        .element_id = element_shared() ? Optional<UniqueNodeID> { OptionalNone {} } : Optional<UniqueNodeID> { computation_context.abstract_element->element().unique_id() },
 
         // 3. A document ID identifying the Document the styles are from.
         // NB: This is implicit since the cache is stored on the document or the element (which is a child of the document).
@@ -53,24 +53,24 @@ ValueComparingNonnullRefPtr<StyleValue const> RandomValueSharingStyleValue::abso
 
 double RandomValueSharingStyleValue::random_base_value() const
 {
-    return number_from_style_value(*m_fixed_value, {});
+    return number_from_style_value(*fixed_value(), {});
 }
 
 void RandomValueSharingStyleValue::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
 {
-    if (m_fixed_value) {
+    if (fixed_value()) {
         builder.append("fixed "sv);
-        m_fixed_value->serialize(builder, serialization_mode);
+        fixed_value()->serialize(builder, serialization_mode);
         return;
     }
 
     bool first = true;
-    if (!m_is_auto) {
-        builder.append(serialize_an_identifier(m_name.value()));
+    if (!is_auto()) {
+        builder.append(serialize_an_identifier(name().value()));
         first = false;
     }
 
-    if (m_element_shared) {
+    if (element_shared()) {
         if (!first)
             builder.append(' ');
         builder.append("element-shared"sv);

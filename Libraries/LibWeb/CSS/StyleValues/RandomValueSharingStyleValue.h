@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -43,28 +44,39 @@ public:
 
     bool properties_equal(RandomValueSharingStyleValue const& other) const
     {
-        return m_fixed_value == other.m_fixed_value
-            && m_is_auto == other.m_is_auto
-            && m_name == other.m_name
-            && m_element_shared == other.m_element_shared;
+        return fixed_value() == other.fixed_value()
+            && is_auto() == other.is_auto()
+            && name() == other.name()
+            && element_shared() == other.element_shared();
     }
 
-    virtual bool is_computationally_independent() const override { return !m_fixed_value || m_fixed_value->is_computationally_independent(); }
+    virtual bool is_computationally_independent() const override { return !fixed_value() || fixed_value()->is_computationally_independent(); }
 
 private:
     explicit RandomValueSharingStyleValue(RefPtr<StyleValue const> fixed_value, bool is_auto, Optional<Utf16FlyString> name, bool element_shared)
         : StyleValueWithDefaultOperators(Type::RandomValueSharing)
-        , m_fixed_value(move(fixed_value))
-        , m_is_auto(is_auto)
-        , m_name(move(name))
-        , m_element_shared(element_shared)
+        , m_value(make_random_value_sharing_data(fixed_value, is_auto, name, element_shared))
     {
     }
 
-    ValueComparingRefPtr<StyleValue const> m_fixed_value;
-    bool m_is_auto;
-    Optional<Utf16FlyString> m_name;
-    bool m_element_shared;
+    static StyleValueFFI::StyleValueData* make_random_value_sharing_data(RefPtr<StyleValue const> const& fixed_value, bool is_auto, Optional<Utf16FlyString> const& name, bool element_shared)
+    {
+        // The Rust allocation takes ownership of one strong reference to the fixed value.
+        if (fixed_value)
+            fixed_value->ref();
+        return StyleValueFFI::rust_style_value_create_random_value_sharing(fixed_value.ptr(), is_auto, name.has_value(), name.has_value() ? name->to_raw_leaked() : 0, element_shared);
+    }
+
+    ValueComparingRefPtr<StyleValue const> fixed_value() const { return static_cast<StyleValue const*>(m_value->random_value_sharing.fixed_value.pointer); }
+    bool is_auto() const { return m_value->random_value_sharing.is_auto; }
+    Optional<Utf16FlyString> name() const
+    {
+        if (!m_value->random_value_sharing.has_name)
+            return {};
+        return Utf16FlyString::from_raw(m_value->random_value_sharing.name.raw);
+    }
+    bool element_shared() const { return m_value->random_value_sharing.element_shared; }
+    RustStyleValueHandle m_value;
 };
 
 }

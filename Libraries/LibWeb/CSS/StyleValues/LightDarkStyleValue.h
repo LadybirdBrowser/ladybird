@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -29,17 +30,14 @@ public:
 private:
     LightDarkStyleValue(ValueComparingNonnullRefPtr<StyleValue const> light, ValueComparingNonnullRefPtr<StyleValue const> dark)
         : ColorStyleValue({}, ColorSyntax::Modern)
-        , m_properties { .light = move(light), .dark = move(dark) }
+        , m_value(StyleValueFFI::rust_style_value_create_light_dark(&light.leak_ref(), &dark.leak_ref()))
     {
     }
 
-    struct Properties {
-        ValueComparingNonnullRefPtr<StyleValue const> light;
-        ValueComparingNonnullRefPtr<StyleValue const> dark;
-        bool operator==(Properties const&) const = default;
-    };
+    ValueComparingNonnullRefPtr<StyleValue const> light() const { return *static_cast<StyleValue const*>(m_value->light_dark.light.pointer); }
+    ValueComparingNonnullRefPtr<StyleValue const> dark() const { return *static_cast<StyleValue const*>(m_value->light_dark.dark.pointer); }
 
-    Properties m_properties;
+    RustStyleValueHandle m_value;
 };
 
 } // Web::CSS

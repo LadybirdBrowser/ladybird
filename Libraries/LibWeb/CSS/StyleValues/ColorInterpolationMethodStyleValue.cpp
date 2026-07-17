@@ -21,7 +21,7 @@ ColorInterpolationMethodStyleValue::ColorInterpolationMethod ColorInterpolationM
 void ColorInterpolationMethodStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
     builder.append("in "sv);
-    m_color_interpolation_method.visit(
+    color_interpolation_method().visit(
         [&](RectangularColorSpace color_space) {
             builder.append(CSS::to_string(color_space));
         },
