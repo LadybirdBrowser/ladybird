@@ -84,10 +84,7 @@ private:
     static StyleValueFFI::StyleValueData* make_tuple_data(StyleValueTuple&& values)
     {
         // The Rust allocation takes ownership of one strong reference to each non-null value.
-        Vector<void const*> pointers;
-        pointers.ensure_capacity(values.size());
-        for (auto& value : values)
-            pointers.unchecked_append(value.leak_ref());
+        auto pointers = leak_style_value_pointers_for_rust(values);
         return StyleValueFFI::rust_style_value_create_tuple(pointers.data(), pointers.size());
     }
     RustStyleValueHandle m_value;

@@ -92,10 +92,7 @@ private:
     static StyleValueFFI::StyleValueData* make_value_list_data(StyleValueVector&& values, Separator separator, Collapsible collapsible)
     {
         // The Rust allocation takes ownership of one strong reference to each value.
-        Vector<void const*> pointers;
-        pointers.ensure_capacity(values.size());
-        for (auto& value : values)
-            pointers.unchecked_append(&value.leak_ref());
+        auto pointers = leak_style_value_pointers_for_rust(values);
         return StyleValueFFI::rust_style_value_create_value_list(pointers.data(), pointers.size(), to_underlying(separator), collapsible == Collapsible::Yes);
     }
 

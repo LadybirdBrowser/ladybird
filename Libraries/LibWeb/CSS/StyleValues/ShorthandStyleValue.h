@@ -72,10 +72,7 @@ private:
     static StyleValueFFI::StyleValueData* make_shorthand_data(PropertyID shorthand, Vector<PropertyID> const& sub_properties, Vector<ValueComparingNonnullRefPtr<StyleValue const>>&& values)
     {
         // The Rust allocation takes ownership of one strong reference to each value.
-        Vector<void const*> pointers;
-        pointers.ensure_capacity(values.size());
-        for (auto& value : values)
-            pointers.unchecked_append(&value.leak_ref());
+        auto pointers = leak_style_value_pointers_for_rust(values);
         Vector<u16> property_ids;
         property_ids.ensure_capacity(sub_properties.size());
         for (auto property : sub_properties)
