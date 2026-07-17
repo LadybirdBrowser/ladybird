@@ -445,6 +445,18 @@ pub enum StyleValueData {
         symbols_type: u8,
         symbols: RetainedUtf16FlyStringList,
     },
+    /// A color function such as rgb() or oklch(): three retained channel values, an optional
+    /// retained alpha, an optional name and an optional retained origin color for relative
+    /// color syntax.
+    ColorFunction {
+        channel_0: RetainedStyleValue,
+        channel_1: RetainedStyleValue,
+        channel_2: RetainedStyleValue,
+        alpha: RetainedStyleValue,
+        has_name: bool,
+        name: RetainedUtf16FlyString,
+        origin_color: RetainedStyleValue,
+    },
     /// The shared data of every color style value: an optional color type and the color syntax
     /// (both C++ enums on ColorStyleValue, opaque to Rust).
     Color {
@@ -1398,6 +1410,31 @@ pub extern "C" fn rust_style_value_create_color(
             has_color_type,
             color_type,
             color_syntax,
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each non-null value and one leaked reference to
+/// the name when present.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_color_function(
+    channel_0: *const c_void,
+    channel_1: *const c_void,
+    channel_2: *const c_void,
+    alpha: *const c_void,
+    has_name: bool,
+    name: usize,
+    origin_color: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::ColorFunction {
+            channel_0: RetainedStyleValue { pointer: channel_0 },
+            channel_1: RetainedStyleValue { pointer: channel_1 },
+            channel_2: RetainedStyleValue { pointer: channel_2 },
+            alpha: RetainedStyleValue { pointer: alpha },
+            has_name,
+            name: RetainedUtf16FlyString { raw: name },
+            origin_color: RetainedStyleValue { pointer: origin_color },
         }))
     })
 }

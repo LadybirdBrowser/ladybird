@@ -30,10 +30,36 @@ public:
 
     virtual ~ColorFunctionStyleValue() override = default;
 
-    StyleValue const& channel(size_t index) const { return *m_channels[index]; }
-    ValueComparingRefPtr<StyleValue const> alpha() const { return m_alpha; }
-    Optional<Utf16FlyString> const& name() const { return m_name; }
-    ValueComparingRefPtr<StyleValue const> origin_color() const { return m_origin_color; }
+    StyleValue const& channel(size_t index) const
+    {
+        auto const& data = m_value->color_function;
+        switch (index) {
+        case 0:
+            return *static_cast<StyleValue const*>(data.channel_0.pointer);
+        case 1:
+            return *static_cast<StyleValue const*>(data.channel_1.pointer);
+        case 2:
+            return *static_cast<StyleValue const*>(data.channel_2.pointer);
+        }
+        VERIFY_NOT_REACHED();
+    }
+    Array<ValueComparingNonnullRefPtr<StyleValue const>, 3> channels() const
+    {
+        auto const& data = m_value->color_function;
+        return {
+            ValueComparingNonnullRefPtr<StyleValue const> { *static_cast<StyleValue const*>(data.channel_0.pointer) },
+            ValueComparingNonnullRefPtr<StyleValue const> { *static_cast<StyleValue const*>(data.channel_1.pointer) },
+            ValueComparingNonnullRefPtr<StyleValue const> { *static_cast<StyleValue const*>(data.channel_2.pointer) },
+        };
+    }
+    ValueComparingRefPtr<StyleValue const> alpha() const { return static_cast<StyleValue const*>(m_value->color_function.alpha.pointer); }
+    Optional<Utf16FlyString> name() const
+    {
+        if (!m_value->color_function.has_name)
+            return {};
+        return Utf16FlyString::from_raw(m_value->color_function.name.raw);
+    }
+    ValueComparingRefPtr<StyleValue const> origin_color() const { return static_cast<StyleValue const*>(m_value->color_function.origin_color.pointer); }
 
     ColorFunctionDescriptor const& descriptor() const { return color_function_descriptor_for(*color_type()); }
 
@@ -48,16 +74,16 @@ public:
 
     virtual bool depends_on_current_color() const override
     {
-        return m_origin_color && m_origin_color->depends_on_current_color();
+        return origin_color() && origin_color()->depends_on_current_color();
     }
 
     virtual bool is_computationally_independent() const override
     {
-        return m_channels[0]->is_computationally_independent()
-            && m_channels[1]->is_computationally_independent()
-            && m_channels[2]->is_computationally_independent()
-            && (!m_alpha || m_alpha->is_computationally_independent())
-            && (!m_origin_color || m_origin_color->is_computationally_independent());
+        return channels()[0]->is_computationally_independent()
+            && channels()[1]->is_computationally_independent()
+            && channels()[2]->is_computationally_independent()
+            && (!alpha() || alpha()->is_computationally_independent())
+            && (!origin_color() || origin_color()->is_computationally_independent());
     }
 
     virtual bool is_color_function() const override { return true; }
@@ -78,17 +104,25 @@ private:
         Optional<Utf16FlyString> name,
         ValueComparingRefPtr<StyleValue const> origin_color)
         : ColorStyleValue(color_type, color_syntax)
-        , m_channels { move(c1), move(c2), move(c3) }
-        , m_alpha(move(alpha))
-        , m_name(move(name))
-        , m_origin_color(move(origin_color))
+        , m_value(make_color_function_data(c1, c2, c3, alpha, name, origin_color))
     {
     }
 
-    Array<ValueComparingNonnullRefPtr<StyleValue const>, 3> m_channels;
-    ValueComparingRefPtr<StyleValue const> m_alpha;
-    Optional<Utf16FlyString> m_name;
-    ValueComparingRefPtr<StyleValue const> m_origin_color;
+    static StyleValueFFI::StyleValueData* make_color_function_data(NonnullRefPtr<StyleValue const> const& c1, NonnullRefPtr<StyleValue const> const& c2, NonnullRefPtr<StyleValue const> const& c3, RefPtr<StyleValue const> const& alpha, Optional<Utf16FlyString> const& name, RefPtr<StyleValue const> const& origin_color)
+    {
+        // The Rust allocation takes ownership of one strong reference to each non-null value
+        // and one leaked reference to the name when present.
+        c1->ref();
+        c2->ref();
+        c3->ref();
+        if (alpha)
+            alpha->ref();
+        if (origin_color)
+            origin_color->ref();
+        return StyleValueFFI::rust_style_value_create_color_function(c1.ptr(), c2.ptr(), c3.ptr(), alpha.ptr(), name.has_value(), name.has_value() ? name->to_raw_leaked() : 0, origin_color.ptr());
+    }
+
+    RustStyleValueHandle m_value;
 };
 
 }
