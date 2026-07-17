@@ -111,8 +111,14 @@ private:
     {
     }
 
+    struct Entry {
+        Utf16String value;
+        // Bytes this entry contributes toward the bottle's quota: Its key plus its value.
+        size_t quota_size { 0 };
+    };
+
     // A storage bottle has a map, which is initially an empty map
-    OrderedHashMap<Utf16String, Utf16String> m_map;
+    OrderedHashMap<Utf16String, Entry> m_map;
 };
 
 using BottleMap = Array<GC::Ptr<StorageBottle>, to_underlying(StorageEndpointType::Count)>;

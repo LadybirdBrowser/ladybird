@@ -153,8 +153,8 @@ Vector<Utf16String> SessionStorageBottle::keys() const
 
 Optional<Utf16String> SessionStorageBottle::get(Utf16View key) const
 {
-    if (auto value = m_map.get(key); value.has_value())
-        return value.value();
+    if (auto entry = m_map.get(key); entry.has_value())
+        return entry->value;
     return OptionalNone {};
 }
 
@@ -162,20 +162,19 @@ StorageSetResult SessionStorageBottle::set(Utf16View key, Utf16View value)
 {
     auto old_value = get(key);
 
+    auto new_size = storage_quota_size(key) + storage_quota_size(value);
+
     if (m_quota.has_value()) {
         size_t current_size = 0;
-        for (auto const& [existing_key, existing_value] : m_map) {
-            if (existing_key.utf16_view() != key) {
-                current_size += storage_quota_size(existing_key.utf16_view());
-                current_size += storage_quota_size(existing_value.utf16_view());
-            }
+        for (auto const& [existing_key, existing_entry] : m_map) {
+            if (existing_key.utf16_view() != key)
+                current_size += existing_entry.quota_size;
         }
-        size_t new_size = storage_quota_size(key) + storage_quota_size(value);
         if (current_size + new_size > m_quota.value())
             return WebView::StorageOperationError::QuotaExceededError;
     }
 
-    m_map.set(Utf16String::from_utf16(key), Utf16String::from_utf16(value));
+    m_map.set(Utf16String::from_utf16(key), { Utf16String::from_utf16(value), new_size });
     return old_value;
 }
 
