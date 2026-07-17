@@ -306,6 +306,46 @@ impl Drop for RetainedImageSetOptionList {
     }
 }
 
+/// A retained gradient color stop: an optional transition hint, then an optional color,
+/// position and second position (each null when absent). The layout matches the C++
+/// ColorStopListElement, which is four reference pointers, so C++ views these in place.
+#[repr(C)]
+pub struct RetainedColorStop {
+    transition_hint: RetainedStyleValue,
+    color: RetainedStyleValue,
+    position: RetainedStyleValue,
+    second_position: RetainedStyleValue,
+}
+
+/// A Rust-owned array of retained gradient color stops.
+#[repr(C)]
+pub struct RetainedColorStopList {
+    pointer: *mut RetainedColorStop,
+    length: usize,
+}
+
+impl RetainedColorStopList {
+    /// Takes ownership of the stops' retained values.
+    ///
+    /// # Safety
+    /// `stops` must point to `length` valid stops whose retained values this list may assume
+    /// ownership of.
+    unsafe fn from_raw(stops: *const RetainedColorStop, length: usize) -> Self {
+        let slice: Box<[RetainedColorStop]> = (0..length).map(|i| unsafe { std::ptr::read(stops.add(i)) }).collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedColorStop;
+        Self { pointer, length }
+    }
+}
+
+impl Drop for RetainedColorStopList {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+        }
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -512,6 +552,19 @@ pub enum StyleValueData {
     Color {
         has_color_type: bool,
         color_type: u8,
+        color_syntax: u8,
+    },
+    /// linear-gradient(): a direction (either a retained angle value or a side-or-corner
+    /// keyword), the retained color stops, the gradient type, the repeating flag, an optional
+    /// retained interpolation method and the color syntax. Enums are C++ types, opaque to Rust.
+    LinearGradient {
+        has_direction_value: bool,
+        direction_value: RetainedStyleValue,
+        side_or_corner: u8,
+        color_stop_list: RetainedColorStopList,
+        gradient_type: u8,
+        repeating: bool,
+        color_interpolation_method: RetainedStyleValue,
         color_syntax: u8,
     },
     /// image-set() with its retained options.
@@ -1526,6 +1579,38 @@ pub unsafe extern "C" fn rust_style_value_create_image_set(
     abort_on_panic(|| {
         Box::into_raw(Box::new(StyleValueData::ImageSet {
             options: unsafe { RetainedImageSetOptionList::from_raw(options, length) },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each non-null value and of the stops' retained
+/// values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_linear_gradient(
+    has_direction_value: bool,
+    direction_value: *const c_void,
+    side_or_corner: u8,
+    stops: *const RetainedColorStop,
+    stop_count: usize,
+    gradient_type: u8,
+    repeating: bool,
+    color_interpolation_method: *const c_void,
+    color_syntax: u8,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::LinearGradient {
+            has_direction_value,
+            direction_value: RetainedStyleValue {
+                pointer: direction_value,
+            },
+            side_or_corner,
+            color_stop_list: unsafe { RetainedColorStopList::from_raw(stops, stop_count) },
+            gradient_type,
+            repeating,
+            color_interpolation_method: RetainedStyleValue {
+                pointer: color_interpolation_method,
+            },
+            color_syntax,
         }))
     })
 }

@@ -210,7 +210,7 @@ static ColorStopList expand_color_stops_for_painting(ColorStopList const& color_
     return replace_transition_hints_with_normal_color_stops(expanded);
 }
 
-static ResolvedColorStopData resolve_color_stop_positions(Layout::NodeWithStyle const& node, Vector<CSS::ColorStopListElement> const& color_stop_list, auto resolve_position_to_float, bool repeating)
+static ResolvedColorStopData resolve_color_stop_positions(Layout::NodeWithStyle const& node, ReadonlySpan<CSS::ColorStopListElement> color_stop_list, auto resolve_position_to_float, bool repeating)
 {
     VERIFY(!color_stop_list.is_empty());
     ColorStopList resolved_color_stops;

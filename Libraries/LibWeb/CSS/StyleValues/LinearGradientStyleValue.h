@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/Painting/GradientPainting.h>
 
 namespace Web::CSS {
@@ -52,18 +53,27 @@ public:
 
     virtual bool is_computationally_independent() const override
     {
-        auto is_direction_computationally_independent = m_properties.direction.visit(
+        auto is_direction_computationally_independent = direction().visit(
             [](NonnullRefPtr<StyleValue const> const& value) { return value->is_computationally_independent(); },
             [](SideOrCorner) { return true; });
 
         return is_direction_computationally_independent
-            && all_of(m_properties.color_stop_list, [&](auto const& stop) { return stop.color_stop.color->is_computationally_independent(); })
-            && (!m_properties.color_interpolation_method || m_properties.color_interpolation_method->is_computationally_independent());
+            && all_of(color_stop_list(), [&](auto const& stop) { return stop.is_computationally_independent(); })
+            && (!color_interpolation_method_value() || color_interpolation_method_value()->is_computationally_independent());
     }
 
-    Vector<ColorStopListElement> const& color_stop_list() const
+    Vector<ColorStopListElement> color_stop_list() const
     {
-        return m_properties.color_stop_list;
+        auto const& list = m_value->linear_gradient.color_stop_list;
+        return color_stops_from_rust_data(list.pointer, list.length);
+    }
+
+    GradientDirection direction() const
+    {
+        auto const& data = m_value->linear_gradient;
+        if (data.has_direction_value)
+            return NonnullRefPtr { *static_cast<StyleValue const*>(data.direction_value.pointer) };
+        return static_cast<SideOrCorner>(data.side_or_corner);
     }
 
     // FIXME: This (and the any_non_legacy code in the constructor) is duplicated in the separate gradient classes,
@@ -71,13 +81,13 @@ public:
     // It could also contain the "gradient related things" currently in AbstractImageStyleValue.h
     ColorInterpolationMethodStyleValue::ColorInterpolationMethod interpolation_method() const
     {
-        if (m_properties.color_interpolation_method)
-            return m_properties.color_interpolation_method->as_color_interpolation_method().color_interpolation_method();
+        if (auto interpolation_method_value = color_interpolation_method_value())
+            return interpolation_method_value->as_color_interpolation_method().color_interpolation_method();
 
-        return ColorInterpolationMethodStyleValue::default_color_interpolation_method(m_properties.color_syntax);
+        return ColorInterpolationMethodStyleValue::default_color_interpolation_method(gradient_color_syntax());
     }
 
-    bool is_repeating() const { return m_properties.repeating == GradientRepeating::Yes; }
+    bool is_repeating() const { return m_value->linear_gradient.repeating; }
 
     float angle_degrees(CSSPixelSize gradient_size) const;
 
@@ -89,19 +99,17 @@ public:
 private:
     LinearGradientStyleValue(GradientDirection direction, Vector<ColorStopListElement> color_stop_list, GradientType type, GradientRepeating repeating, ValueComparingRefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::LinearGradient)
-        , m_properties { .direction = move(direction), .color_stop_list = move(color_stop_list), .gradient_type = type, .repeating = repeating, .color_interpolation_method = move(color_interpolation_method), .color_syntax = color_syntax }
+        , m_value(make_linear_gradient_data(direction, color_stop_list, type, repeating, color_interpolation_method, color_syntax))
     {
     }
 
-    struct Properties {
-        GradientDirection direction;
-        Vector<ColorStopListElement> color_stop_list;
-        GradientType gradient_type;
-        GradientRepeating repeating;
-        ValueComparingRefPtr<StyleValue const> color_interpolation_method;
-        ColorSyntax color_syntax;
-        bool operator==(Properties const&) const = default;
-    } m_properties;
+    static StyleValueFFI::StyleValueData* make_linear_gradient_data(GradientDirection const&, Vector<ColorStopListElement> const&, GradientType, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
+
+    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return static_cast<StyleValue const*>(m_value->linear_gradient.color_interpolation_method.pointer); }
+    GradientType gradient_type() const { return static_cast<GradientType>(m_value->linear_gradient.gradient_type); }
+    ColorSyntax gradient_color_syntax() const { return static_cast<ColorSyntax>(m_value->linear_gradient.color_syntax); }
+
+    RustStyleValueHandle m_value;
 
     mutable Optional<CSSPixelSize> m_resolved_size;
     mutable Optional<Painting::LinearGradientData> m_resolved;

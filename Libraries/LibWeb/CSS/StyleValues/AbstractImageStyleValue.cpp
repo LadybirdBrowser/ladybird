@@ -6,9 +6,46 @@
 
 #include "AbstractImageStyleValue.h"
 #include <LibWeb/CSS/CSSImageValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/Layout/Node.h>
 
 namespace Web::CSS {
+
+StyleValueFFI::RetainedColorStop retain_color_stop_for_rust(ColorStopListElement const& stop)
+{
+    return { { retain_style_value_for_rust(stop.transition_hint.ptr()) }, { retain_style_value_for_rust(stop.color_stop.color.ptr()) },
+        { retain_style_value_for_rust(stop.color_stop.position.ptr()) }, { retain_style_value_for_rust(stop.color_stop.second_position.ptr()) } };
+}
+
+Vector<StyleValueFFI::RetainedColorStop> retain_color_stops_for_rust(ReadonlySpan<ColorStopListElement> color_stop_list)
+{
+    Vector<StyleValueFFI::RetainedColorStop> stops;
+    stops.ensure_capacity(color_stop_list.size());
+    for (auto const& stop : color_stop_list)
+        stops.unchecked_append(retain_color_stop_for_rust(stop));
+    return stops;
+}
+
+ColorStopListElement color_stop_from_rust_data(StyleValueFFI::RetainedColorStop const& stop)
+{
+    return {
+        .transition_hint = static_cast<StyleValue const*>(stop.transition_hint.pointer),
+        .color_stop = {
+            .color = static_cast<StyleValue const*>(stop.color.pointer),
+            .position = static_cast<StyleValue const*>(stop.position.pointer),
+            .second_position = static_cast<StyleValue const*>(stop.second_position.pointer),
+        },
+    };
+}
+
+Vector<ColorStopListElement> color_stops_from_rust_data(StyleValueFFI::RetainedColorStop const* color_stop_list, size_t size)
+{
+    Vector<ColorStopListElement> stops;
+    stops.ensure_capacity(size);
+    for (size_t i = 0; i < size; ++i)
+        stops.unchecked_append(color_stop_from_rust_data(color_stop_list[i]));
+    return stops;
+}
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-stylevalue
 GC::Ref<CSSStyleValue> AbstractImageStyleValue::reify(JS::Realm& realm, Utf16FlyString const&) const
@@ -40,7 +77,7 @@ ColorStopListElement ColorStopListElement::absolutized(ComputationContext const&
     };
 }
 
-void serialize_color_stop_list(StringBuilder& builder, Vector<ColorStopListElement> const& color_stop_list, SerializationMode mode)
+void serialize_color_stop_list(StringBuilder& builder, ReadonlySpan<ColorStopListElement> color_stop_list, SerializationMode mode)
 {
     bool first = true;
     for (auto const& element : color_stop_list) {

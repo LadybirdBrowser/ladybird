@@ -69,6 +69,19 @@ struct ColorStopListElement {
             && (!color_stop.second_position || color_stop.second_position->is_computationally_independent());
     }
 };
-void serialize_color_stop_list(StringBuilder&, Vector<ColorStopListElement> const&, SerializationMode);
+void serialize_color_stop_list(StringBuilder&, ReadonlySpan<ColorStopListElement>, SerializationMode);
+
+namespace StyleValueFFI {
+
+struct RetainedColorStop;
+
+}
+
+// Marshals a color stop for a Rust-owned gradient allocation, retaining one strong reference
+// to each non-null sub-value.
+StyleValueFFI::RetainedColorStop retain_color_stop_for_rust(ColorStopListElement const&);
+Vector<StyleValueFFI::RetainedColorStop> retain_color_stops_for_rust(ReadonlySpan<ColorStopListElement>);
+ColorStopListElement color_stop_from_rust_data(StyleValueFFI::RetainedColorStop const&);
+Vector<ColorStopListElement> color_stops_from_rust_data(StyleValueFFI::RetainedColorStop const*, size_t);
 
 }
