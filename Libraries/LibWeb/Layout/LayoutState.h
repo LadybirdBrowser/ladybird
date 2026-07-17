@@ -140,6 +140,7 @@ struct LayoutState {
         AvailableSpace available_inner_space_or_constraints_from(AvailableSpace const& outer_space) const;
 
         void materialize_from_paintable(Painting::Paintable const&);
+        bool is_materialized_from_paintable() const { return m_materialized_from_paintable; }
 
         CSSPixelPoint content_offset() const { return m_content_offset.value_or({}); }
 
@@ -350,6 +351,7 @@ struct LayoutState {
 
         bool m_has_definite_width { false };
         bool m_has_definite_height { false };
+        bool m_materialized_from_paintable { false };
 
         Optional<CSSPixelPoint> m_content_offset;
 

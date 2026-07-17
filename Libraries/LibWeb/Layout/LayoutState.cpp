@@ -444,6 +444,11 @@ void LayoutState::commit_used_values_and_build_paint_tree(Box& root, RefPtr<Pain
         if (!node.is_box() || node.is_fragmented_inline())
             return;
 
+        // Used values materialized from a previous layout's paintable keep that paintable's
+        // offset, which already includes any relative position inset.
+        if (used_values.is_materialized_from_paintable())
+            return;
+
         auto paintable_ref = node.paintable();
         auto& paintable = *paintable_ref;
         CSSPixelPoint offset;
@@ -527,6 +532,7 @@ LayoutState::UsedValues& LayoutState::UsedValues::operator=(UsedValues const& ot
     m_content_height = other.m_content_height;
     m_has_definite_width = other.m_has_definite_width;
     m_has_definite_height = other.m_has_definite_height;
+    m_materialized_from_paintable = other.m_materialized_from_paintable;
     if (other.m_rare)
         m_rare = make<RareData>(*other.m_rare);
     else
@@ -663,6 +669,8 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPi
 
 void LayoutState::UsedValues::materialize_from_paintable(Painting::Paintable const& paintable)
 {
+    m_materialized_from_paintable = true;
+
     auto const& box_model = paintable.box_model();
 
     set_content_width(paintable.content_width());

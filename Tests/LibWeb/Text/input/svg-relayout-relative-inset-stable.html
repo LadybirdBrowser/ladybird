@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #target {
+        display: block;
+        position: relative;
+        top: 20px;
+        left: 30px;
+    }
+</style>
+<svg id="target" width="120" height="100" viewBox="0 0 120 100">
+    <rect id="r" width="60" height="40" fill="rgb(200, 0, 0)"/>
+</svg>
+<script>
+    // An in-flow SVG root is a partial relayout boundary whose size and position are frozen
+    // at the previous layout's values. When the boundary is position:relative, the frozen
+    // offset already includes the relative inset, so the commit must not apply the inset
+    // again or the box drifts further on every subtree relayout.
+    test(() => {
+        document.body.offsetHeight;
+        const before = document.getElementById("target").getBoundingClientRect();
+
+        document.getElementById("r").setAttribute("width", "80");
+        document.body.offsetHeight;
+        const afterFirstRelayout = document.getElementById("target").getBoundingClientRect();
+
+        document.getElementById("r").setAttribute("width", "100");
+        document.body.offsetHeight;
+        const afterSecondRelayout = document.getElementById("target").getBoundingClientRect();
+
+        println(`before: ${before.x},${before.y}`);
+        println(`after first relayout: ${afterFirstRelayout.x},${afterFirstRelayout.y}`);
+        println(`after second relayout: ${afterSecondRelayout.x},${afterSecondRelayout.y}`);
+    });
+</script>

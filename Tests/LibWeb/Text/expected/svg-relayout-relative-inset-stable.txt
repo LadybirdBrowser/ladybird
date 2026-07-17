@@ -1,0 +1,3 @@
+before: 30,20
+after first relayout: 30,20
+after second relayout: 30,20
