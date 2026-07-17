@@ -546,12 +546,24 @@ static bool should_serialize_any_namespace_prefix(GC::Ptr<CSSStyleSheet const> s
     return style_sheet && style_sheet->default_namespace().has_value();
 }
 
+static bool named_namespace_maps_to_default_namespace(Selector::SimpleSelector::QualifiedName const& qualified_name, GC::Ptr<CSSStyleSheet const> style_sheet)
+{
+    if (!style_sheet || qualified_name.namespace_type != Selector::SimpleSelector::QualifiedName::NamespaceType::Named)
+        return false;
+
+    auto namespace_uri = style_sheet->namespace_uri(qualified_name.namespace_);
+    auto default_namespace = style_sheet->default_namespace();
+    return namespace_uri.has_value() && default_namespace.has_value() && *namespace_uri == *default_namespace;
+}
+
 static bool should_skip_universal_selector(Selector::SimpleSelector::QualifiedName const& qualified_name, GC::Ptr<CSSStyleSheet const> style_sheet)
 {
     if (qualified_name.namespace_type == Selector::SimpleSelector::QualifiedName::NamespaceType::Default)
         return true;
     if (qualified_name.namespace_type == Selector::SimpleSelector::QualifiedName::NamespaceType::Any)
         return !should_serialize_any_namespace_prefix(style_sheet);
+    if (named_namespace_maps_to_default_namespace(qualified_name, style_sheet))
+        return true;
     return false;
 }
 
@@ -564,7 +576,7 @@ void Selector::SimpleSelector::serialize_to(Utf16StringBuilder& s, GC::Ptr<CSSSt
         // 1. If the namespace prefix maps to a namespace that is not the default namespace and is not the null
         //    namespace (not in a namespace) append the serialization of the namespace prefix as an identifier,
         //    followed by a "|" (U+007C) to s.
-        if (qualified_name.namespace_type == QualifiedName::NamespaceType::Named) {
+        if (qualified_name.namespace_type == QualifiedName::NamespaceType::Named && !named_namespace_maps_to_default_namespace(qualified_name, style_sheet)) {
             serialize_an_identifier(s, qualified_name.namespace_);
             s.append_ascii('|');
         } else if (qualified_name.namespace_type == QualifiedName::NamespaceType::Any && should_serialize_any_namespace_prefix(style_sheet)) {
