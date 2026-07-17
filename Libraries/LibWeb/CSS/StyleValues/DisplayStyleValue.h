@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/CSS/Display.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 
@@ -17,11 +18,11 @@ public:
     static ValueComparingNonnullRefPtr<DisplayStyleValue const> create(Display const&);
     virtual ~DisplayStyleValue() override = default;
 
-    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(m_display.to_string()); }
+    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(display().to_string()); }
 
-    Display display() const { return m_display; }
+    Display display() const { return bit_cast<Display>(m_value->display.raw); }
 
-    bool properties_equal(DisplayStyleValue const& other) const { return m_display == other.m_display; }
+    bool properties_equal(DisplayStyleValue const& other) const { return display() == other.display(); }
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const override;
 
     virtual bool is_computationally_independent() const override { return true; }
@@ -29,11 +30,12 @@ public:
 private:
     explicit DisplayStyleValue(Display const& display)
         : StyleValueWithDefaultOperators(Type::Display)
-        , m_display(display)
+        , m_value(StyleValueFFI::rust_style_value_create_display(bit_cast<u32>(display)))
     {
+        static_assert(sizeof(Display) == sizeof(u32));
     }
 
-    Display m_display;
+    RustStyleValueHandle m_value;
 };
 
 }

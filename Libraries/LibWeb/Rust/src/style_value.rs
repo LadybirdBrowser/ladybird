@@ -315,6 +315,9 @@ pub enum StyleValueData {
     },
     /// A tuple of optional style values (null entries represent absent optionals).
     Tuple { values: RetainedStyleValueList },
+    /// A display value: the raw bytes of the C++ Display value type (a tag plus a union of
+    /// packed u8 enums), opaque to Rust.
+    Display { raw: u32 },
     /// A transform function with its argument values. The property (PropertyID : u16) and
     /// function are C++ enums, opaque to Rust.
     Transformation {
@@ -930,6 +933,11 @@ pub unsafe extern "C" fn rust_style_value_create_shorthand(
             values: unsafe { RetainedStyleValueList::from_raw(values, value_count) },
         }))
     })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_display(raw: u32) -> *mut StyleValueData {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Display { raw })))
 }
 
 #[unsafe(no_mangle)]
