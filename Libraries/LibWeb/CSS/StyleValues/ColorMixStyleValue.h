@@ -8,6 +8,7 @@
 
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -30,22 +31,36 @@ public:
 
     virtual bool is_computationally_independent() const override
     {
-        return (!m_properties.color_interpolation_method || m_properties.color_interpolation_method->is_computationally_independent())
-            && m_properties.first_component.color->is_computationally_independent()
-            && m_properties.second_component.color->is_computationally_independent()
-            && (!m_properties.first_component.percentage || m_properties.first_component.percentage->is_computationally_independent())
-            && (!m_properties.second_component.percentage || m_properties.second_component.percentage->is_computationally_independent());
+        return (!color_interpolation_method_value() || color_interpolation_method_value()->is_computationally_independent())
+            && first_component().color->is_computationally_independent()
+            && second_component().color->is_computationally_independent()
+            && (!first_component().percentage || first_component().percentage->is_computationally_independent())
+            && (!second_component().percentage || second_component().percentage->is_computationally_independent());
     }
 
 private:
-    struct Properties {
-        ValueComparingRefPtr<StyleValue const> color_interpolation_method;
-        ColorMixComponent first_component;
-        ColorMixComponent second_component;
-        bool operator==(Properties const&) const = default;
-    };
-
     ColorMixStyleValue(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component);
+
+    static StyleValueFFI::StyleValueData* make_color_mix_data(RefPtr<StyleValue const> const& color_interpolation_method, ColorMixComponent const& first_component, ColorMixComponent const& second_component)
+    {
+        // The Rust allocation takes ownership of one strong reference to each non-null value.
+        return StyleValueFFI::rust_style_value_create_color_mix(
+            retain_style_value_for_rust(color_interpolation_method.ptr()),
+            retain_style_value_for_rust(first_component.color.ptr()), retain_style_value_for_rust(first_component.percentage.ptr()),
+            retain_style_value_for_rust(second_component.color.ptr()), retain_style_value_for_rust(second_component.percentage.ptr()));
+    }
+
+    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return static_cast<StyleValue const*>(m_value->color_mix.color_interpolation_method.pointer); }
+    ColorMixComponent first_component() const
+    {
+        return { *static_cast<StyleValue const*>(m_value->color_mix.first_color.pointer),
+            static_cast<StyleValue const*>(m_value->color_mix.first_percentage.pointer) };
+    }
+    ColorMixComponent second_component() const
+    {
+        return { *static_cast<StyleValue const*>(m_value->color_mix.second_color.pointer),
+            static_cast<StyleValue const*>(m_value->color_mix.second_percentage.pointer) };
+    }
 
     struct NormalizedPercentages {
         Percentage first_percentage;
@@ -61,7 +76,7 @@ private:
     };
     PercentageNormalizationResult normalize_percentages(ComputationContext const&) const;
 
-    Properties m_properties;
+    RustStyleValueHandle m_value;
 };
 
 }

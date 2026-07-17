@@ -218,6 +218,15 @@ struct StyleValueWithDefaultOperators : public StyleValue {
     }
 };
 
+// Retains one strong reference to the value (if non-null) and returns its pointer, for
+// transferring ownership into a Rust-owned style value allocation.
+inline void const* retain_style_value_for_rust(StyleValue const* value)
+{
+    if (value)
+        value->ref();
+    return value;
+}
+
 i32 int_from_style_value(NonnullRefPtr<StyleValue const> const& style_value);
 double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<double> percentage_basis);
 Utf16FlyString string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value);

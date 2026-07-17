@@ -457,6 +457,15 @@ pub enum StyleValueData {
         name: RetainedUtf16FlyString,
         origin_color: RetainedStyleValue,
     },
+    /// color-mix() with its optional retained interpolation method value and two components,
+    /// each a retained color with an optional retained percentage.
+    ColorMix {
+        color_interpolation_method: RetainedStyleValue,
+        first_color: RetainedStyleValue,
+        first_percentage: RetainedStyleValue,
+        second_color: RetainedStyleValue,
+        second_percentage: RetainedStyleValue,
+    },
     /// The shared data of every color style value: an optional color type and the color syntax
     /// (both C++ enums on ColorStyleValue, opaque to Rust).
     Color {
@@ -1435,6 +1444,32 @@ pub unsafe extern "C" fn rust_style_value_create_color_function(
             has_name,
             name: RetainedUtf16FlyString { raw: name },
             origin_color: RetainedStyleValue { pointer: origin_color },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to each non-null value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_color_mix(
+    color_interpolation_method: *const c_void,
+    first_color: *const c_void,
+    first_percentage: *const c_void,
+    second_color: *const c_void,
+    second_percentage: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::ColorMix {
+            color_interpolation_method: RetainedStyleValue {
+                pointer: color_interpolation_method,
+            },
+            first_color: RetainedStyleValue { pointer: first_color },
+            first_percentage: RetainedStyleValue {
+                pointer: first_percentage,
+            },
+            second_color: RetainedStyleValue { pointer: second_color },
+            second_percentage: RetainedStyleValue {
+                pointer: second_percentage,
+            },
         }))
     })
 }
