@@ -603,11 +603,9 @@ end
 macro load_property_lookup_cache(cache, fail_label)
     temp exe, caches
     load32 cache, [pb, pc, m_cache]
-    mul cache, cache, PROPERTY_LOOKUP_CACHE_SIZE
     load64 exe, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
     load64 caches, [exe, EXECUTABLE_PROPERTY_LOOKUP_CACHES_DATA]
-    add cache, caches
-    load64 cache, [cache, PROPERTY_LOOKUP_CACHE_DATA]
+    load64 cache, [caches, cache, PROPERTY_LOOKUP_CACHE_SIZE]
     branch_zero cache, fail_label
     branch_bits_clear cache, PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG, .data_loaded
     sub cache, PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG
