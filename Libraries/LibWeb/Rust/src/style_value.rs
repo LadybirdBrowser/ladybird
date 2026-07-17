@@ -18,6 +18,7 @@ use crate::abort_on_panic;
 
 unsafe extern "C" {
     fn ladybird_style_value_unref(style_value: *const c_void);
+    fn ladybird_utf16_fly_string_unref(raw: usize);
 }
 
 /// A strong reference to a C++ StyleValue held from Rust-owned value data.
@@ -36,6 +37,20 @@ impl Drop for RetainedStyleValue {
         if !self.pointer.is_null() {
             unsafe { ladybird_style_value_unref(self.pointer) };
         }
+    }
+}
+
+/// A retained AK::Utf16FlyString, stored as its one-word raw representation. Owns one reference
+/// to the underlying string data unless it is a short string, which needs none; the C++ bridge
+/// handles both cases.
+#[repr(C)]
+pub struct RetainedUtf16FlyString {
+    raw: usize,
+}
+
+impl Drop for RetainedUtf16FlyString {
+    fn drop(&mut self) {
+        unsafe { ladybird_utf16_fly_string_unref(self.raw) };
     }
 }
 
@@ -111,6 +126,10 @@ pub enum StyleValueData {
         bottom: RetainedStyleValue,
         left: RetainedStyleValue,
     },
+    /// A CSS `<string>`.
+    String { string: RetainedUtf16FlyString },
+    /// A CSS `<custom-ident>`.
+    CustomIdent { custom_ident: RetainedUtf16FlyString },
     /// A border-radius rect of four retained corner radius style values.
     BorderRadiusRect {
         top_left: RetainedStyleValue,
@@ -323,6 +342,26 @@ pub unsafe extern "C" fn rust_style_value_create_border_radius_rect(
             top_right: RetainedStyleValue { pointer: top_right },
             bottom_right: RetainedStyleValue { pointer: bottom_right },
             bottom_left: RetainedStyleValue { pointer: bottom_left },
+        }))
+    })
+}
+
+/// Takes ownership of one leaked reference to the string.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_string(string: usize) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::String {
+            string: RetainedUtf16FlyString { raw: string },
+        }))
+    })
+}
+
+/// Takes ownership of one leaked reference to the string.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_custom_ident(custom_ident: usize) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::CustomIdent {
+            custom_ident: RetainedUtf16FlyString { raw: custom_ident },
         }))
     })
 }

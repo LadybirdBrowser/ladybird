@@ -254,7 +254,7 @@ double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_valu
     VERIFY_NOT_REACHED();
 }
 
-Utf16FlyString const& string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
+Utf16FlyString string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
 {
     if (style_value->is_string())
         return style_value->as_string().string_value();
@@ -278,4 +278,10 @@ Keyword StyleValue::to_keyword() const
 extern "C" void ladybird_style_value_unref(void const* style_value)
 {
     static_cast<Web::CSS::StyleValue const*>(style_value)->unref();
+}
+
+// Called when Rust-owned style value data drops a retained Utf16FlyString.
+extern "C" void ladybird_utf16_fly_string_unref(size_t raw)
+{
+    Utf16FlyString::unref_raw(raw);
 }

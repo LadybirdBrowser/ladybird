@@ -341,6 +341,17 @@ public:
 
     [[nodiscard]] constexpr FlatPtr raw(Badge<Utf16FlyString>) const { return raw(); }
 
+    // NB: Adopts a raw value previously produced by raw(), together with ownership of one
+    //     reference to its data if it has long storage. For FFI bridges that retain the raw
+    //     representation of a string.
+    [[nodiscard]] ALWAYS_INLINE static Utf16StringBase adopt_raw(Badge<Utf16FlyString>, FlatPtr raw)
+    {
+        Utf16StringBase string;
+        auto const** data = __builtin_launder(&string.m_value.data);
+        *data = bit_cast<Utf16StringData const*>(raw);
+        return string;
+    }
+
 protected:
     [[nodiscard]] constexpr FlatPtr raw() const { return bit_cast<FlatPtr>(m_value); }
 

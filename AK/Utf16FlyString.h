@@ -30,6 +30,34 @@ public:
 
     static Utf16FlyString from_utf16(Utf16View const&);
 
+    // NB: These round-trip the one-word raw representation through FFI bridges (e.g. the LibWeb
+    //     Rust style value data), which retain the raw value and manage its reference manually.
+    //     to_raw_leaked() leaks one reference to the bridge, from_raw() reconstructs a fly string
+    //     without consuming the bridge's reference, and unref_raw() releases it.
+    [[nodiscard]] FlatPtr to_raw_leaked() const
+    {
+        if (m_data.has_long_storage())
+            m_data.data({})->ref();
+        return m_data.raw({});
+    }
+
+    [[nodiscard]] static Utf16FlyString from_raw(FlatPtr raw)
+    {
+        auto base = Detail::Utf16StringBase::adopt_raw({}, raw);
+        if (base.has_long_storage())
+            base.data({})->ref();
+
+        Utf16FlyString string;
+        string.m_data = move(base);
+        return string;
+    }
+
+    static void unref_raw(FlatPtr raw)
+    {
+        // Adopt the bridge's reference and let it drop.
+        auto base = Detail::Utf16StringBase::adopt_raw({}, raw);
+    }
+
     template<typename T>
     requires(IsOneOf<RemoveCVReference<T>, Utf16String, Utf16FlyString>)
     static Utf16FlyString from_utf16(T&&) = delete;

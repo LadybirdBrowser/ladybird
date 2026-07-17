@@ -8,6 +8,7 @@
 
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -21,24 +22,24 @@ public:
     }
     virtual ~CustomIdentStyleValue() override = default;
 
-    Utf16FlyString const& custom_ident() const { return m_custom_ident; }
+    Utf16FlyString custom_ident() const { return Utf16FlyString::from_raw(m_value->custom_ident.custom_ident.raw); }
 
-    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(serialize_an_identifier(m_custom_ident)); }
+    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(serialize_an_identifier(custom_ident())); }
     virtual Vector<Parser::ComponentValue> tokenize() const override;
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm& realm, Utf16FlyString const&) const override;
 
-    bool properties_equal(CustomIdentStyleValue const& other) const { return m_custom_ident == other.m_custom_ident; }
+    bool properties_equal(CustomIdentStyleValue const& other) const { return custom_ident() == other.custom_ident(); }
 
     virtual bool is_computationally_independent() const override { return true; }
 
 private:
     explicit CustomIdentStyleValue(Utf16FlyString custom_ident)
         : StyleValueWithDefaultOperators(Type::CustomIdent)
-        , m_custom_ident(move(custom_ident))
+        , m_value(StyleValueFFI::rust_style_value_create_custom_ident(custom_ident.to_raw_leaked()))
     {
     }
 
-    Utf16FlyString m_custom_ident;
+    RustStyleValueHandle m_value;
 };
 
 }

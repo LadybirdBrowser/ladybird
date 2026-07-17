@@ -9,6 +9,7 @@
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -21,25 +22,25 @@ public:
     }
     virtual ~StringStyleValue() override = default;
 
-    Utf16FlyString const& string_value() const { return m_string; }
-    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(serialize_a_string(m_string)); }
+    Utf16FlyString string_value() const { return Utf16FlyString::from_raw(m_value->string.string.raw); }
+    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(serialize_a_string(string_value())); }
     virtual Vector<Parser::ComponentValue> tokenize() const override
     {
-        return { Parser::Token::create_string(m_string) };
+        return { Parser::Token::create_string(string_value()) };
     }
 
-    bool properties_equal(StringStyleValue const& other) const { return m_string == other.m_string; }
+    bool properties_equal(StringStyleValue const& other) const { return string_value() == other.string_value(); }
 
     virtual bool is_computationally_independent() const override { return true; }
 
 private:
     explicit StringStyleValue(Utf16FlyString string)
         : StyleValueWithDefaultOperators(Type::String)
-        , m_string(move(string))
+        , m_value(StyleValueFFI::rust_style_value_create_string(string.to_raw_leaked()))
     {
     }
 
-    Utf16FlyString m_string;
+    RustStyleValueHandle m_value;
 };
 
 }
