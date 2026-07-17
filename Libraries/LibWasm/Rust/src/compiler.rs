@@ -209,7 +209,6 @@ impl CraneliftCompiler {
             call_wr_sig:       i32 fn(ptr, ptr, i32);
             set_trap_sig:      void fn(ptr, ptr, i32);
             write_global_sig:  void fn(ptr, i32, i64);
-            stack_cleanup_sig: void fn(ptr, i64, i32);
             callrec_write_sig: void fn(ptr, i32, i64);
         }
 
@@ -251,7 +250,6 @@ impl CraneliftCompiler {
         let h_mem_grow = decl_helper!(mem_grow_sig, HelperId::memory_grow);
         let h_read_global = decl_helper!(read_global_sig, HelperId::read_global);
         let h_write_global = decl_helper!(write_global_sig, HelperId::write_global);
-        let h_stack_cleanup = decl_helper!(stack_cleanup_sig, HelperId::stack_cleanup);
         let h_callrec_read = decl_helper!(callrec_read_sig, HelperId::callrec_read);
         let h_callrec_write = decl_helper!(callrec_write_sig, HelperId::callrec_write);
         let h_call_wr = decl_helper!(call_wr_sig, HelperId::call_with_record);
@@ -492,6 +490,39 @@ impl CraneliftCompiler {
                     .load(ptr_type, MemFlags::trusted(), cfg, value_stack_base_offset);
                 let bytes = $builder.ins().isub(top, base);
                 $builder.ins().ushr_imm(bytes, 4)
+            }};
+        }
+        // Trim the real stack to `target_size + arity` values, keeping the top `arity` values
+        // verbatim (helper-pushed call results carry real tags). Validation guarantees at least
+        // that many values are present -- the vstack branch move relies on the same invariant.
+        macro_rules! emit_stack_cleanup {
+            ($builder:expr, $target_size:expr, $arity:expr) => {{
+                debug_assert!(($arity as usize) <= 1);
+                let cfg = $builder.use_var(config_var);
+                let base = $builder
+                    .ins()
+                    .load(ptr_type, MemFlags::trusted(), cfg, value_stack_base_offset);
+                let target_bytes = $builder.ins().ishl_imm($target_size, 4);
+                let trimmed_top = $builder.ins().iadd(base, target_bytes);
+                let new_top = if $arity as usize > 0 {
+                    let top = $builder
+                        .ins()
+                        .load(ptr_type, MemFlags::trusted(), cfg, value_stack_top_offset);
+                    let bits = $builder
+                        .ins()
+                        .load(types::I64, MemFlags::trusted(), top, -value_size);
+                    let tag = $builder
+                        .ins()
+                        .load(types::I64, MemFlags::trusted(), top, -value_size + 8);
+                    $builder.ins().store(MemFlags::trusted(), bits, trimmed_top, 0);
+                    $builder.ins().store(MemFlags::trusted(), tag, trimmed_top, 8);
+                    $builder.ins().iadd_imm(trimmed_top, i64::from(value_size))
+                } else {
+                    trimmed_top
+                };
+                $builder
+                    .ins()
+                    .store(MemFlags::trusted(), new_top, cfg, value_stack_top_offset);
             }};
         }
 
@@ -1376,12 +1407,7 @@ impl CraneliftCompiler {
                                 .entry_real_depth_var
                                 .expect("entry_real_depth_var must be set when vstack is disabled");
                             let target_size = builder.use_var(entry_depth_var);
-                            let arity_val = builder.ins().iconst(types::I32, arity as i64);
-                            let cfg = builder.use_var(config_var);
-                            let cleanup_fp = builder.ins().func_addr(ptr_type, h_stack_cleanup);
-                            builder
-                                .ins()
-                                .call_indirect(stack_cleanup_sig, cleanup_fp, &[cfg, target_size, arity_val]);
+                            emit_stack_cleanup!(builder, target_size, arity);
                         }
                         builder.ins().jump(target, &[]);
                     } else {
@@ -1414,7 +1440,7 @@ impl CraneliftCompiler {
                         let extras = (sp as i32 - entry as i32 - arity as i32).max(0);
                         if max_stack_depth == 0 {
                             // not vstack: real value stack may have extras between the target label's entry depth and the result on top.
-                            // On the taken path, call stack_cleanup using the saved entry-depth variable.
+                            // On the taken path, trim using the saved entry-depth variable.
                             let entry_depth_var = frame
                                 .entry_real_depth_var
                                 .expect("entry_real_depth_var must be set when vstack is disabled");
@@ -1424,12 +1450,7 @@ impl CraneliftCompiler {
                             builder.switch_to_block(taken_block);
                             builder.seal_block(taken_block);
                             let target_size = builder.use_var(entry_depth_var);
-                            let arity_val = builder.ins().iconst(types::I32, arity as i64);
-                            let cfg = builder.use_var(config_var);
-                            let cleanup_fp = builder.ins().func_addr(ptr_type, h_stack_cleanup);
-                            builder
-                                .ins()
-                                .call_indirect(stack_cleanup_sig, cleanup_fp, &[cfg, target_size, arity_val]);
+                            emit_stack_cleanup!(builder, target_size, arity);
                             builder.ins().jump(target, &[]);
                             builder.switch_to_block(fallthrough);
                             builder.seal_block(fallthrough);
@@ -1618,14 +1639,7 @@ impl CraneliftCompiler {
                                     .entry_real_depth_var
                                     .expect("entry_real_depth_var must be set when vstack is disabled");
                                 let target_size = builder.use_var(entry_depth_var);
-                                let arity_val = builder.ins().iconst(types::I32, arity as i64);
-                                let cfg = builder.use_var(config_var);
-                                let cleanup_fp = builder.ins().func_addr(ptr_type, h_stack_cleanup);
-                                builder.ins().call_indirect(
-                                    stack_cleanup_sig,
-                                    cleanup_fp,
-                                    &[cfg, target_size, arity_val],
-                                );
+                                emit_stack_cleanup!(builder, target_size, arity);
                             }
                             builder.ins().jump(target, &[]);
                         } else {
@@ -2498,13 +2512,8 @@ impl CraneliftCompiler {
         builder.seal_block(epilogue_block);
         // Clean up excess values on the real stack (e.g. from BR out of nested blocks); nothing to touch if we have vstack info.
         if has_raw_call {
-            let cleanup_fp = builder.ins().func_addr(ptr_type, h_stack_cleanup);
-            let cfg = builder.use_var(config_var);
             let init_size = builder.use_var(initial_stack_size_var);
-            let arity = builder.ins().iconst(types::I32, result_arity as i64);
-            builder
-                .ins()
-                .call_indirect(stack_cleanup_sig, cleanup_fp, &[cfg, init_size, arity]);
+            emit_stack_cleanup!(builder, init_size, result_arity);
         }
         Self::sync_regs_to_config(
             &mut builder,
