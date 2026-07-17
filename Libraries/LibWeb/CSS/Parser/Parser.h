@@ -322,6 +322,8 @@ private:
     bool is_valid_in_the_current_context(AtRule const&) const;
     bool is_valid_in_the_current_context(QualifiedRule const&) const;
 
+    Vector<Percentage> parse_keyframe_selectors(TokenStream<ComponentValue>&);
+
     template<typename NestedDeclarationsRule>
     GC::Ptr<CSSRule> convert_to_rule(Rule const&, Nested);
     GC::Ptr<CSSStyleRule> convert_to_style_rule(QualifiedRule const&, Nested);
@@ -331,6 +333,7 @@ private:
     GC::Ptr<CSSFontFaceRule> convert_to_font_face_rule(AtRule const&);
     GC::Ptr<CSSFontFeatureValuesRule> convert_to_font_feature_values_rule(AtRule const&);
     GC::Ptr<CSSFunctionRule> convert_to_function_rule(AtRule const&);
+    GC::Ptr<CSSKeyframeRule> convert_to_keyframe_rule(QualifiedRule const&);
     GC::Ptr<CSSKeyframesRule> convert_to_keyframes_rule(AtRule const&);
     GC::Ptr<CSSImportRule> convert_to_import_rule(AtRule const&);
 
