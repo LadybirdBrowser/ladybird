@@ -145,6 +145,14 @@ LayoutState::UsedValues const* LayoutState::try_get(Node const& node) const
     return try_get(*node_with_style);
 }
 
+LayoutState::UsedValues* LayoutState::try_get_mutable(Node const& node)
+{
+    auto* node_with_style = as_if<NodeWithStyle>(node);
+    if (!node_with_style)
+        return nullptr;
+    return try_get_mutable(*node_with_style);
+}
+
 CSSPixelPoint LayoutState::cumulative_offset(UsedValues const& used_values) const
 {
     if (used_values.m_cumulative_offset.has_value())
@@ -181,12 +189,13 @@ static InlineAncestorChainRelativeOffset accumulated_relative_insets_from_inline
     return result;
 }
 
-void LayoutState::resolve_relative_positions()
+void LayoutState::resolve_relative_positions_and_assign_inline_box_geometry()
 {
     // This function resolves relative position offsets contributed by inline-flow ancestor chains, which
     // apply to fragments, to inline box pieces, and to block-level boxes interrupting an inline
     // (block-in-inline). It runs *after* the paint tree has been constructed, so it modifies
-    // paintable node, fragment & piece offsets directly.
+    // paintable node, fragment & piece offsets directly. The chains read insets from inline
+    // ancestors committed anywhere in the subtree, so this cannot fold into the commit walk.
     m_used_values_store.for_each([&](UsedValues& used_values) {
         auto& node = const_cast<NodeWithStyle&>(used_values.node());
 
@@ -225,43 +234,12 @@ void LayoutState::resolve_relative_positions()
             if (!offset.is_zero())
                 piece.border_box_rect.translate_by(offset);
         }
-    });
-}
 
-static void build_paint_tree(Node& node, Painting::Paintable* parent_paintable = nullptr, Painting::Paintable* insert_before_paintable = nullptr)
-{
-    Painting::Paintable* paintable_for_children = nullptr;
-    if (auto paintable = node.paintable()) {
-        if (parent_paintable && !paintable->forms_unconnected_subtree()) {
-            VERIFY(!paintable->parent());
-            parent_paintable->insert_before(*paintable, insert_before_paintable);
-        }
-        paintable->set_dom_node(node.dom_node());
-        if (node.dom_node())
-            node.dom_node()->set_paintable(paintable);
-        paintable_for_children = paintable.ptr();
-    } else if (node.is_fragmented_inline()) {
-        // An inline box without a paintable (it was never laid out) must not orphan its
-        // descendants' paintables; pass the nearest ancestor paintable through. Other
-        // paintable-less nodes (e.g. non-rendered SVG subtrees) keep their descendants
-        // disconnected on purpose.
-        paintable_for_children = parent_paintable;
-    }
-
-    for (auto child = node.first_child(); child; child = child->next_sibling())
-        build_paint_tree(*child, paintable_for_children);
-}
-
-void LayoutState::resolve_paintable_containing_blocks(Node& root)
-{
-    root.for_each_in_inclusive_subtree([](Node& node) {
-        auto* paintable = node.paintable_ptr();
-        if (!paintable)
-            return TraversalDecision::Continue;
-
-        auto* containing_block = node.containing_block();
-        paintable->set_containing_block(containing_block ? containing_block->paintable_ptr() : nullptr);
-        return TraversalDecision::Continue;
+        // Piece rects are final only now that this block's relative positions are resolved;
+        // cross-block writes in this pass only touch box offsets, which piece geometry
+        // assignment never reads.
+        if (!paintable_with_lines->inline_box_pieces().is_empty())
+            paintable_with_lines->assign_inline_box_geometry();
     });
 }
 
@@ -291,209 +269,186 @@ void LayoutState::commit(Box& root, Painting::Paintable& paintable_to_replace)
     commit_used_values_and_build_paint_tree(root, move(parent_paintable), move(insert_before_paintable));
 }
 
-void LayoutState::commit_used_values_and_build_paint_tree(Box& root, RefPtr<Painting::Paintable> parent_paintable, RefPtr<Painting::Paintable> insert_before_paintable)
+static void transfer_box_model_metrics(Painting::BoxModelMetrics& box_model, LayoutState::UsedValues const& used_values)
 {
-    // Cache existing paintables before clearing.
-    HashMap<Node const*, NonnullRefPtr<Painting::Paintable>> paintable_cache;
-    root.for_each_in_inclusive_subtree([&](Node& node) {
-        if (auto paintable = node.paintable())
-            paintable_cache.set(&node, *paintable);
-        return TraversalDecision::Continue;
-    });
+    box_model.inset = { used_values.inset_top, used_values.inset_right, used_values.inset_bottom, used_values.inset_left };
+    box_model.padding = { used_values.padding_top, used_values.padding_right, used_values.padding_bottom, used_values.padding_left };
+    box_model.border = { used_values.border_top, used_values.border_right, used_values.border_bottom, used_values.border_left };
+    box_model.margin = { used_values.margin_top, used_values.margin_right, used_values.margin_bottom, used_values.margin_left };
+}
 
-    // Go through the layout tree and detach all paintables. The layout tree should only point to the new paintable tree
-    // which we're about to build.
-    root.for_each_in_inclusive_subtree([](Node& node) {
-        node.clear_paintable();
-        return TraversalDecision::Continue;
-    });
+static RefPtr<Painting::Paintable> reset_and_reuse_or_create_paintable(Node& node)
+{
+    RefPtr<Painting::Paintable> paintable = node.paintable();
+    if (paintable)
+        paintable->reset_for_relayout();
+    else
+        paintable = node.create_paintable();
+    node.set_paintable(paintable);
+    return paintable;
+}
 
-    // After this point, we should have a clean slate to build the new paint tree.
+RefPtr<Painting::Paintable> LayoutState::commit_used_values_to_paintable(UsedValues& used_values)
+{
+    auto& node = used_values.node();
 
-    Vector<Node*> fragmented_inline_nodes;
-    root.for_each_in_inclusive_subtree([&](Node& node) {
-        if (auto* dom_node = node.dom_node())
-            dom_node->clear_paintable();
-        if (node.is_fragmented_inline() && node.dom_node())
-            fragmented_inline_nodes.append(&node);
-        return TraversalDecision::Continue;
-    });
-
-    auto transfer_box_model_metrics = [](Painting::BoxModelMetrics& box_model, UsedValues const& used_values) {
-        box_model.inset = { used_values.inset_top, used_values.inset_right, used_values.inset_bottom, used_values.inset_left };
-        box_model.padding = { used_values.padding_top, used_values.padding_right, used_values.padding_bottom, used_values.padding_left };
-        box_model.border = { used_values.border_top, used_values.border_right, used_values.border_bottom, used_values.border_left };
-        box_model.margin = { used_values.margin_top, used_values.margin_right, used_values.margin_bottom, used_values.margin_left };
-    };
-
-    Vector<NonnullRefPtr<Painting::PaintableWithLines>> blocks_with_inline_box_pieces;
-
-    m_used_values_store.for_each([&](UsedValues& used_values) {
-        auto& node = used_values.node();
-
-        if (m_subtree_root && !m_subtree_root->is_inclusive_ancestor_of(node))
-            return;
-
-        // Clearing on absence keeps saved inputs from a previous pass from surviving a pass
-        // that no longer laid the box out as absolutely positioned.
-        if (auto* layout_box = as_if<Box>(const_cast<NodeWithStyle&>(node))) {
-            if (auto const* abspos_layout_inputs = used_values.abspos_layout_inputs())
-                layout_box->set_saved_abspos_layout_inputs(*abspos_layout_inputs);
-            else
-                layout_box->clear_saved_abspos_layout_inputs();
-        }
-
-        RefPtr<Painting::Paintable> paintable;
-
-        // Try to reuse cached paintable for Box nodes
-        if (auto cached = paintable_cache.get(&node); cached.has_value()) {
-            auto cached_paintable = cached.value();
-            cached_paintable->reset_for_relayout();
-            paintable = cached_paintable;
-        }
-
-        // Fall back to creating new if no reusable paintable
-        if (!paintable)
-            paintable = node.create_paintable();
-
-        node.set_paintable(paintable);
-
-        // For boxes, transfer all the state needed for painting.
-        if (auto* paintable_box = paintable.ptr()) {
-            transfer_box_model_metrics(paintable_box->box_model(), used_values);
-
-            paintable_box->set_offset(used_values.content_offset());
-            paintable_box->set_content_size(used_values.content_width(), used_values.content_height());
-            if (used_values.override_borders_data().has_value())
-                paintable_box->set_override_borders_data(used_values.override_borders_data().value());
-            if (used_values.table_cell_coordinates().has_value())
-                paintable_box->set_table_cell_coordinates(used_values.table_cell_coordinates().value());
-
-            if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(*paintable_box)) {
-                auto& line_boxes = used_values.line_boxes;
-                Vector<Painting::LineRecord> lines;
-                lines.ensure_capacity(line_boxes.size());
-                for (size_t line_index = 0; line_index < line_boxes.size(); ++line_index) {
-                    auto const& line_box = line_boxes[line_index];
-
-                    auto first_fragment_index = paintable_with_lines->fragments().size();
-                    for (auto const& fragment : line_box.fragments()) {
-                        if (fragment.is_fully_truncated())
-                            continue;
-                        paintable_with_lines->add_fragment(fragment, static_cast<u32>(line_index));
-                    }
-
-                    lines.append({
-                        .rect = rect_for_line_box(line_box, used_values.content_width()),
-                        .fragment_count = static_cast<u32>(paintable_with_lines->fragments().size() - first_fragment_index),
-                    });
-                }
-                paintable_with_lines->set_lines(move(lines));
-                paintable_with_lines->set_inline_box_pieces(move(used_values.inline_box_pieces));
-                if (!paintable_with_lines->inline_box_pieces().is_empty())
-                    blocks_with_inline_box_pieces.append(*paintable_with_lines);
-
-                // Piece fragment ranges were counted against the same skip-fully-truncated
-                // fragment stream during inline layout; a divergence would let piece
-                // consumers read out of bounds.
-                for (auto const& piece : paintable_with_lines->inline_box_pieces())
-                    VERIFY(piece.first_fragment_index + piece.fragment_count <= paintable_with_lines->fragments().size());
-            }
-
-            if (auto* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(paintable.ptr());
-                svg_graphics_paintable && used_values.computed_svg_transforms().has_value()) {
-                svg_graphics_paintable->set_computed_transforms(*used_values.computed_svg_transforms());
-            }
-            if (auto* svg_foreign_object_paintable = as_if<Painting::SVGForeignObjectPaintable>(paintable.ptr());
-                svg_foreign_object_paintable && used_values.computed_svg_transforms().has_value()) {
-                svg_foreign_object_paintable->set_computed_transforms(*used_values.computed_svg_transforms());
-            }
-            if (auto* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(paintable.ptr());
-                svg_svg_paintable && used_values.computed_svg_transforms().has_value()) {
-                svg_svg_paintable->set_computed_transforms(*used_values.computed_svg_transforms());
-            }
-
-            if (auto* svg_path_paintable = as_if<Painting::SVGPathPaintable>(paintable.ptr())) {
-                if (auto* path = used_values.computed_svg_path())
-                    svg_path_paintable->set_computed_path(move(*path));
-            }
-
-            if (node.display().is_grid_inside()) {
-                paintable_box->set_used_values_for_grid_template_columns(used_values.grid_template_columns());
-                paintable_box->set_used_values_for_grid_template_rows(used_values.grid_template_rows());
-                paintable_box->set_grid_layout_data(used_values.take_grid_layout_data());
-            }
-
-            if (node.display().is_flex_inside()) {
-                paintable_box->set_flex_layout_data(used_values.take_flex_layout_data());
-            }
-        }
-    });
-
-    // Inline boxes that never went through inline layout (so they have no used values) still
-    // need a paintable so DOM geometry queries have something to answer from.
-    for (auto* fragmented_inline_node : fragmented_inline_nodes) {
-        if (!fragmented_inline_node->paintable())
-            fragmented_inline_node->set_paintable(fragmented_inline_node->create_paintable());
+    // Clearing on absence keeps saved inputs from a previous pass from surviving a pass
+    // that no longer laid the box out as absolutely positioned.
+    if (auto* layout_box = as_if<Box>(node)) {
+        if (auto const* abspos_layout_inputs = used_values.abspos_layout_inputs())
+            layout_box->set_saved_abspos_layout_inputs(*abspos_layout_inputs);
+        else
+            layout_box->clear_saved_abspos_layout_inputs();
     }
 
-    // Resolve relative positions for regular boxes (not line box fragments):
-    m_used_values_store.for_each([&](UsedValues& used_values) {
-        auto& node = const_cast<NodeWithStyle&>(used_values.node());
+    auto paintable = reset_and_reuse_or_create_paintable(node);
+    if (!paintable)
+        return nullptr;
 
-        if (!node.is_box() || node.is_fragmented_inline())
-            return;
+    transfer_box_model_metrics(paintable->box_model(), used_values);
 
-        // Used values materialized from a previous layout's paintable keep that paintable's
-        // offset, which already includes any relative position inset.
-        if (used_values.is_materialized_from_paintable())
-            return;
+    paintable->set_content_size(used_values.content_width(), used_values.content_height());
+    if (used_values.override_borders_data().has_value())
+        paintable->set_override_borders_data(used_values.override_borders_data().value());
+    if (used_values.table_cell_coordinates().has_value())
+        paintable->set_table_cell_coordinates(used_values.table_cell_coordinates().value());
 
-        auto paintable_ref = node.paintable();
-        auto& paintable = *paintable_ref;
-        CSSPixelPoint offset;
+    if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(*paintable)) {
+        auto& line_boxes = used_values.line_boxes;
+        Vector<Painting::LineRecord> lines;
+        lines.ensure_capacity(line_boxes.size());
+        for (size_t line_index = 0; line_index < line_boxes.size(); ++line_index) {
+            auto const& line_box = line_boxes[line_index];
 
+            auto first_fragment_index = paintable_with_lines->fragments().size();
+            for (auto const& fragment : line_box.fragments()) {
+                if (fragment.is_fully_truncated())
+                    continue;
+                paintable_with_lines->add_fragment(fragment, static_cast<u32>(line_index));
+            }
+
+            lines.append({
+                .rect = rect_for_line_box(line_box, used_values.content_width()),
+                .fragment_count = static_cast<u32>(paintable_with_lines->fragments().size() - first_fragment_index),
+            });
+        }
+        paintable_with_lines->set_lines(move(lines));
+        paintable_with_lines->set_inline_box_pieces(move(used_values.inline_box_pieces));
+
+        // Piece fragment ranges were counted against the same skip-fully-truncated
+        // fragment stream during inline layout; a divergence would let piece
+        // consumers read out of bounds.
+        for (auto const& piece : paintable_with_lines->inline_box_pieces())
+            VERIFY(piece.first_fragment_index + piece.fragment_count <= paintable_with_lines->fragments().size());
+    }
+
+    if (auto* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(paintable.ptr());
+        svg_graphics_paintable && used_values.computed_svg_transforms().has_value()) {
+        svg_graphics_paintable->set_computed_transforms(*used_values.computed_svg_transforms());
+    }
+    if (auto* svg_foreign_object_paintable = as_if<Painting::SVGForeignObjectPaintable>(paintable.ptr());
+        svg_foreign_object_paintable && used_values.computed_svg_transforms().has_value()) {
+        svg_foreign_object_paintable->set_computed_transforms(*used_values.computed_svg_transforms());
+    }
+    if (auto* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(paintable.ptr());
+        svg_svg_paintable && used_values.computed_svg_transforms().has_value()) {
+        svg_svg_paintable->set_computed_transforms(*used_values.computed_svg_transforms());
+    }
+
+    if (auto* svg_path_paintable = as_if<Painting::SVGPathPaintable>(paintable.ptr())) {
+        if (auto* path = used_values.computed_svg_path())
+            svg_path_paintable->set_computed_path(move(*path));
+    }
+
+    if (node.display().is_grid_inside()) {
+        paintable->set_used_values_for_grid_template_columns(used_values.grid_template_columns());
+        paintable->set_used_values_for_grid_template_rows(used_values.grid_template_rows());
+        paintable->set_grid_layout_data(used_values.take_grid_layout_data());
+    }
+
+    if (node.display().is_flex_inside())
+        paintable->set_flex_layout_data(used_values.take_flex_layout_data());
+
+    CSSPixelPoint offset = used_values.content_offset();
+    // Used values materialized from a previous layout's paintable keep that paintable's
+    // offset, which already includes any relative position inset. Offsets of fragmented
+    // inlines are not meaningful; their geometry is assigned from pieces once relative
+    // positions are resolved.
+    if (node.is_box() && !node.is_fragmented_inline() && !used_values.is_materialized_from_paintable()) {
         if (used_values.containing_line_box_fragment.has_value()) {
-            // Atomic inline case:
-            // We know that `node` is an atomic inline because `containing_line_box_fragments` refers to the
-            // line box fragment in the parent block container that contains it.
+            // We know that `node` is an atomic inline because `containing_line_box_fragment` refers to the
+            // line box fragment in the parent block container that contains it. The fragment has the final
+            // offset for the atomic inline, but line box post-processing may remove fragments after the
+            // coordinate was recorded, in which case the content offset stands.
             auto const& containing_line_box_fragment = used_values.containing_line_box_fragment.value();
-            auto const& containing_block = *node.containing_block();
-            auto const& containing_block_used_values = get(containing_block);
-
-            // The fragment has the final offset for the atomic inline, so we just need to copy it from there.
-            // However, line box post-processing may remove fragments after we record this coordinate.
+            auto const& containing_block_used_values = get(*node.containing_block());
             if (containing_line_box_fragment.line_box_index < containing_block_used_values.line_boxes.size()) {
                 auto const& line_box = containing_block_used_values.line_boxes[containing_line_box_fragment.line_box_index];
-                paintable.set_containing_line_box_index(containing_line_box_fragment.line_box_index);
+                paintable->set_containing_line_box_index(containing_line_box_fragment.line_box_index);
                 if (containing_line_box_fragment.fragment_index < line_box.fragments().size())
                     offset = line_box.fragments()[containing_line_box_fragment.fragment_index].offset();
-                else
-                    offset = used_values.content_offset();
-            } else {
-                offset = used_values.content_offset();
             }
-        } else {
-            // Not an atomic inline, much simpler case.
-            offset = used_values.content_offset();
         }
 
-        // Apply relative position inset if appropriate.
-        if (node.computed_values().position() == CSS::Positioning::Relative && is<NodeWithStyleAndBoxModelMetrics>(node)) {
-            auto const& inset = paintable.box_model().inset;
-            offset.translate_by(inset.left, inset.top);
+        if (node.computed_values().position() == CSS::Positioning::Relative && is<NodeWithStyleAndBoxModelMetrics>(node))
+            offset.translate_by(used_values.inset_left, used_values.inset_top);
+    }
+    paintable->set_offset(offset);
+
+    return paintable;
+}
+
+void LayoutState::commit_subtree_and_build_paint_tree(Node& node, Painting::Paintable* parent_paintable, Painting::Paintable* insert_before_paintable)
+{
+    RefPtr<Painting::Paintable> paintable;
+    if (auto* used_values = try_get_mutable(node)) {
+        paintable = commit_used_values_to_paintable(*used_values);
+    } else if (node.is_fragmented_inline() && node.dom_node()) {
+        // Inline boxes that never went through inline layout (so they have no used values) still
+        // need a paintable so DOM geometry queries have something to answer from.
+        paintable = reset_and_reuse_or_create_paintable(node);
+    } else if (node.paintable_ptr()) {
+        // A paintable surviving from a previous layout on a node this pass did not lay out is
+        // stale; drop it so the layout tree only points into the paint tree built by this commit.
+        node.clear_paintable();
+    }
+
+    auto* dom_node = node.dom_node();
+    Painting::Paintable* paintable_for_children = nullptr;
+    if (paintable) {
+        if (parent_paintable && !paintable->forms_unconnected_subtree()) {
+            VERIFY(!paintable->parent());
+            parent_paintable->insert_before(*paintable, insert_before_paintable);
         }
-        paintable.set_offset(offset);
-    });
+        paintable->set_dom_node(dom_node);
+        if (dom_node)
+            dom_node->set_paintable(paintable);
+        auto* containing_block = node.containing_block();
+        paintable->set_containing_block(containing_block ? containing_block->paintable_ptr() : nullptr);
+        paintable_for_children = paintable.ptr();
+    } else {
+        if (dom_node)
+            dom_node->clear_paintable();
+        // An inline box without a paintable must not orphan its descendants' paintables; pass the
+        // nearest ancestor paintable through. Other paintable-less nodes (e.g. non-rendered SVG
+        // subtrees) keep their descendants disconnected on purpose.
+        if (node.is_fragmented_inline())
+            paintable_for_children = parent_paintable;
+    }
 
-    build_paint_tree(root, parent_paintable.ptr(), insert_before_paintable.ptr());
-    resolve_paintable_containing_blocks(root);
+    for (auto child = node.first_child(); child; child = child->next_sibling())
+        commit_subtree_and_build_paint_tree(*child, paintable_for_children, nullptr);
+}
 
-    resolve_relative_positions();
+void LayoutState::commit_used_values_and_build_paint_tree(Box& root, RefPtr<Painting::Paintable> parent_paintable, RefPtr<Painting::Paintable> insert_before_paintable)
+{
+    // The subtree's paint tree is rebuilt below, so the stacking context tree derived from the
+    // root paintable always goes stale, including for commits that never detach a paintable.
+    root.document().invalidate_stacking_context_tree();
 
-    // Piece rects are final only now that relative positions are resolved.
-    for (auto const& paintable_with_lines : blocks_with_inline_box_pieces)
-        paintable_with_lines->assign_inline_box_geometry();
+    commit_subtree_and_build_paint_tree(root, parent_paintable.ptr(), insert_before_paintable.ptr());
+
+    resolve_relative_positions_and_assign_inline_box_geometry();
 }
 
 LayoutState::UsedValues& LayoutState::UsedValues::operator=(UsedValues const& other)

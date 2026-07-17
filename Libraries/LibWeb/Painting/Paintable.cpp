@@ -1061,6 +1061,10 @@ void Paintable::reset_for_relayout()
     while (first_child())
         first_child()->remove();
 
+    // A reused paintable must shed its chrome widgets: whether the box still warrants them
+    // (e.g. scrollbars on a scroll container) is only known after the new layout is painted.
+    detach_chrome_widgets();
+
     m_containing_block = nullptr;
 
     m_offset = {};

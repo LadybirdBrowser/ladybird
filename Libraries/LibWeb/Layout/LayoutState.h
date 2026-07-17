@@ -390,6 +390,7 @@ struct LayoutState {
     UsedValues const* try_get(NodeWithStyle const&) const;
     UsedValues* try_get_mutable(NodeWithStyle const&);
     UsedValues const* try_get(Node const&) const;
+    UsedValues* try_get_mutable(Node const&);
 
     // Offset from ICB (viewport) content edge to this box's content edge.
     // For pre-populated nodes (partial relayout), returns the cached value from paintable absolute position.
@@ -405,12 +406,13 @@ struct LayoutState {
     [[nodiscard]] Optional<ContainedAbsposChild> take_next_contained_abspos_child(Box const& target);
 
 private:
-    void resolve_paintable_containing_blocks(Node& root);
-    void resolve_relative_positions();
+    void commit_used_values_and_build_paint_tree(Box& root, RefPtr<Painting::Paintable> parent_paintable, RefPtr<Painting::Paintable> insert_before_paintable);
+    void commit_subtree_and_build_paint_tree(Node&, Painting::Paintable* parent_paintable, Painting::Paintable* insert_before_paintable);
+    RefPtr<Painting::Paintable> commit_used_values_to_paintable(UsedValues&);
+    void resolve_relative_positions_and_assign_inline_box_geometry();
 
     PagedStore<UsedValues> m_used_values_store;
     Layout::NodeWithStyle const* m_subtree_root { nullptr };
-    void commit_used_values_and_build_paint_tree(Box& root, RefPtr<Painting::Paintable> parent_paintable, RefPtr<Painting::Paintable> insert_before_paintable);
 
     Purpose m_purpose { Purpose::Commit };
     bool m_should_collect_devtools_layout_data { false };
