@@ -854,6 +854,29 @@ TEST_CASE(find_code_unit_offset)
     EXPECT(!view.find_code_unit_offset(u"baz"sv).has_value());
 }
 
+TEST_CASE(find_code_unit_offset_nul_at_any_alignment)
+{
+    // The AVX-512 implementation of simdutf versions before 9.0.0 reported false positives
+    // for a NUL needle when the searched range straddled a 64-byte boundary.
+    alignas(64) Array<char, 96> ascii_buffer;
+    ascii_buffer.fill('A');
+
+    for (size_t start_offset = 0; start_offset < 64; ++start_offset) {
+        Utf16View view { StringView { ascii_buffer.data() + start_offset, 6 } };
+        EXPECT(!view.find_code_unit_offset(u'\0').has_value());
+        EXPECT(!view.contains(u'\0'));
+    }
+
+    alignas(64) Array<char16_t, 96> utf16_buffer;
+    utf16_buffer.fill(u'A');
+
+    for (size_t start_offset = 0; start_offset < 32; ++start_offset) {
+        Utf16View view { utf16_buffer.data() + start_offset, 6 };
+        EXPECT(!view.find_code_unit_offset(u'\0').has_value());
+        EXPECT(!view.contains(u'\0'));
+    }
+}
+
 TEST_CASE(find_code_unit_offset_ignoring_case)
 {
     auto conversion_result = Utf16String::from_utf8("😀Foo😀Bar"sv);

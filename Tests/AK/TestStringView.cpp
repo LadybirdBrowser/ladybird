@@ -6,6 +6,7 @@
 
 #include <LibTest/TestCase.h>
 
+#include <AK/Array.h>
 #include <AK/ByteString.h>
 #include <AK/Vector.h>
 
@@ -157,6 +158,24 @@ TEST_CASE(find)
     EXPECT_EQ(test_string_view.find('b'), 2U);
     EXPECT_EQ(test_string_view.find('_'), 6U);
     EXPECT_EQ(test_string_view.find('n').has_value(), false);
+}
+
+TEST_CASE(find_nul_at_any_alignment)
+{
+    // The AVX-512 implementation of simdutf versions before 9.0.0 reported false positives
+    // for a NUL needle when the searched range straddled a 64-byte boundary.
+    alignas(64) Array<char, 192> buffer;
+    buffer.fill('A');
+
+    for (size_t start_offset = 0; start_offset < 64; ++start_offset) {
+        StringView view { buffer.data() + start_offset, 6 };
+        EXPECT(!view.find('\0').has_value());
+        EXPECT(!view.contains('\0'));
+    }
+
+    buffer[65] = '\0';
+    StringView view { buffer.data() + 62, 6 };
+    EXPECT_EQ(view.find('\0'), 3U);
 }
 
 TEST_CASE(find_last)
