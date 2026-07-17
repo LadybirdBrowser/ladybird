@@ -771,23 +771,23 @@ handler Mul
     call_slow_path asm_slow_path_mul
 end
 
-handler Exp
+handler Exp @cold
     call_slow_path asm_slow_path_exp
 end
 
-handler ConcatString
+handler ConcatString @cold
     call_slow_path asm_slow_path_concat_string
 end
 
-handler CopyObjectExcludingProperties
+handler CopyObjectExcludingProperties @cold
     call_slow_path asm_slow_path_copy_object_excluding_properties
 end
 
-handler ImportCall
+handler ImportCall @cold
     call_slow_path asm_slow_path_import_call
 end
 
-handler NewClass
+handler NewClass @cold
     call_slow_path asm_slow_path_new_class
 end
 
@@ -1098,15 +1098,15 @@ handler GetLexicalEnvironment
     dispatch_next
 end
 
-handler GetImportMeta
+handler GetImportMeta @cold
     call_slow_path asm_slow_path_get_import_meta
 end
 
-handler GetNewTarget
+handler GetNewTarget @cold
     call_slow_path asm_slow_path_get_new_target
 end
 
-handler GetSuperConstructor
+handler GetSuperConstructor @cold
     call_slow_path asm_slow_path_get_super_constructor
 end
 
@@ -1324,47 +1324,47 @@ handler DynamicSetVariableBinding
     call_slow_path asm_slow_path_dynamic_set_variable_binding
 end
 
-handler ResolveBinding
+handler ResolveBinding @cold
     call_slow_path asm_slow_path_resolve_binding
 end
 
-handler ResolveSuperBase
+handler ResolveSuperBase @cold
     call_slow_path asm_slow_path_resolve_super_base
 end
 
-handler SetResolvedBinding
+handler SetResolvedBinding @cold
     call_slow_path asm_slow_path_set_resolved_binding
 end
 
-handler TypeofBinding
+handler TypeofBinding @cold
     call_slow_path asm_slow_path_typeof_binding
 end
 
-handler DynamicTypeofBinding
+handler DynamicTypeofBinding @cold
     call_slow_path asm_slow_path_dynamic_typeof_binding
 end
 
-handler HasPrivateId
+handler HasPrivateId @cold
     call_slow_path asm_slow_path_has_private_id
 end
 
-handler SetFunctionName
+handler SetFunctionName @cold
     call_slow_path asm_slow_path_set_function_name
 end
 
-handler NewArrayWithLength
+handler NewArrayWithLength @cold
     call_slow_path asm_slow_path_new_array_with_length
 end
 
-handler ArrayAppend
+handler ArrayAppend @cold
     call_slow_path asm_slow_path_array_append
 end
 
-handler CreateVariable
+handler CreateVariable @cold
     call_slow_path asm_slow_path_create_variable
 end
 
-handler EnterObjectEnvironment
+handler EnterObjectEnvironment @cold
     call_slow_path asm_slow_path_enter_object_environment
 end
 
@@ -1518,39 +1518,39 @@ handler ThrowIfNullish
     call_slow_path asm_slow_path_throw_if_nullish
 end
 
-handler ThrowConstAssignment
+handler ThrowConstAssignment @cold
     call_slow_path asm_slow_path_throw_const_assignment
 end
 
-handler Throw
+handler Throw @cold
     call_slow_path asm_slow_path_throw
 end
 
-handler Await
+handler Await @cold
     call_slow_path asm_slow_path_await
 end
 
-handler Yield
+handler Yield @cold
     call_slow_path asm_slow_path_yield
 end
 
-handler YieldIteratorResult
+handler YieldIteratorResult @cold
     call_slow_path asm_slow_path_yield_iterator_result
 end
 
-handler ToString
+handler ToString @cold
     call_slow_path asm_slow_path_to_string
 end
 
-handler ToPrimitiveWithStringHint
+handler ToPrimitiveWithStringHint @cold
     call_slow_path asm_slow_path_to_primitive_with_string_hint
 end
 
-handler ToObject
+handler ToObject @cold
     call_slow_path asm_slow_path_to_object
 end
 
-handler ToLength
+handler ToLength @cold
     call_slow_path asm_slow_path_to_length
 end
 
@@ -1974,7 +1974,7 @@ handler GetById
     call_slow_path asm_slow_path_get_by_id
 end
 
-handler GetByIdWithThis
+handler GetByIdWithThis @cold
     call_slow_path asm_slow_path_get_by_id_with_this
 end
 
@@ -2014,7 +2014,7 @@ handler PutById
     call_slow_path asm_slow_path_put_by_id
 end
 
-handler PutByIdWithThis
+handler PutByIdWithThis @cold
     call_slow_path asm_slow_path_put_by_id_with_this
 end
 
@@ -2155,15 +2155,15 @@ handler GetByValue
     call_slow_path asm_slow_path_get_by_value
 end
 
-handler GetByValueWithThis
+handler GetByValueWithThis @cold
     call_slow_path asm_slow_path_get_by_value_with_this
 end
 
-handler PutByValueWithThis
+handler PutByValueWithThis @cold
     call_slow_path asm_slow_path_put_by_value_with_this
 end
 
-handler PutBySpread
+handler PutBySpread @cold
     call_slow_path asm_slow_path_put_by_spread
 end
 
@@ -2216,15 +2216,15 @@ handler GetLength
     call_slow_path asm_slow_path_get_length
 end
 
-handler GetLengthWithThis
+handler GetLengthWithThis @cold
     call_slow_path asm_slow_path_get_length_with_this
 end
 
-handler GetMethod
+handler GetMethod @cold
     call_slow_path asm_slow_path_get_method
 end
 
-handler GetIterator
+handler GetIterator @cold
     call_slow_path asm_slow_path_get_iterator
 end
 
@@ -2872,67 +2872,67 @@ handler CallBuiltinMathExp
     call_slow_path asm_slow_path_call_builtin_math_exp
 end
 
-handler CallBuiltinMathLog
+handler CallBuiltinMathLog @cold
     call_slow_path asm_slow_path_call_builtin_math_log
 end
 
-handler CallBuiltinMathPow
+handler CallBuiltinMathPow @cold
     call_slow_path asm_slow_path_call_builtin_math_pow
 end
 
-handler CallBuiltinMathImul
+handler CallBuiltinMathImul @cold
     call_slow_path asm_slow_path_call_builtin_math_imul
 end
 
-handler CallBuiltinMathRandom
+handler CallBuiltinMathRandom @cold
     call_slow_path asm_slow_path_call_builtin_math_random
 end
 
-handler CallBuiltinMathRound
+handler CallBuiltinMathRound @cold
     call_slow_path asm_slow_path_call_builtin_math_round
 end
 
-handler CallBuiltinMathSin
+handler CallBuiltinMathSin @cold
     call_slow_path asm_slow_path_call_builtin_math_sin
 end
 
-handler CallBuiltinMathCos
+handler CallBuiltinMathCos @cold
     call_slow_path asm_slow_path_call_builtin_math_cos
 end
 
-handler CallBuiltinMathTan
+handler CallBuiltinMathTan @cold
     call_slow_path asm_slow_path_call_builtin_math_tan
 end
 
-handler CallBuiltinRegExpPrototypeExec
+handler CallBuiltinRegExpPrototypeExec @cold
     call_slow_path asm_slow_path_call_builtin_regexp_prototype_exec
 end
 
-handler CallBuiltinRegExpPrototypeReplace
+handler CallBuiltinRegExpPrototypeReplace @cold
     call_slow_path asm_slow_path_call_builtin_regexp_prototype_replace
 end
 
-handler CallBuiltinRegExpPrototypeSplit
+handler CallBuiltinRegExpPrototypeSplit @cold
     call_slow_path asm_slow_path_call_builtin_regexp_prototype_split
 end
 
-handler CallBuiltinOrdinaryHasInstance
+handler CallBuiltinOrdinaryHasInstance @cold
     call_slow_path asm_slow_path_call_builtin_ordinary_has_instance
 end
 
-handler CallBuiltinArrayIteratorPrototypeNext
+handler CallBuiltinArrayIteratorPrototypeNext @cold
     call_slow_path asm_slow_path_call_builtin_array_iterator_prototype_next
 end
 
-handler CallBuiltinMapIteratorPrototypeNext
+handler CallBuiltinMapIteratorPrototypeNext @cold
     call_slow_path asm_slow_path_call_builtin_map_iterator_prototype_next
 end
 
-handler CallBuiltinSetIteratorPrototypeNext
+handler CallBuiltinSetIteratorPrototypeNext @cold
     call_slow_path asm_slow_path_call_builtin_set_iterator_prototype_next
 end
 
-handler CallBuiltinStringIteratorPrototypeNext
+handler CallBuiltinStringIteratorPrototypeNext @cold
     call_slow_path asm_slow_path_call_builtin_string_iterator_prototype_next
 end
 
@@ -3035,7 +3035,7 @@ end
 # because the operation is inherently complex (object allocation, prototype
 # chain walks, etc).
 
-handler GetObjectPropertyIterator
+handler GetObjectPropertyIterator @cold
     call_slow_path asm_slow_path_get_object_property_iterator
 end
 
@@ -3136,87 +3136,87 @@ handler ObjectPropertyIteratorNext
     call_slow_path asm_slow_path_object_property_iterator_next
 end
 
-handler IteratorClose
+handler IteratorClose @cold
     call_slow_path asm_slow_path_iterator_close
 end
 
-handler IteratorNext
+handler IteratorNext @cold
     call_slow_path asm_slow_path_iterator_next
 end
 
-handler IteratorNextUnpack
+handler IteratorNextUnpack @cold
     call_slow_path asm_slow_path_iterator_next_unpack
 end
 
-handler IteratorToArray
+handler IteratorToArray @cold
     call_slow_path asm_slow_path_iterator_to_array
 end
 
-handler CallConstruct
+handler CallConstruct @cold
     call_slow_path asm_slow_path_call_construct
 end
 
-handler CallDirectEval
+handler CallDirectEval @cold
     call_slow_path asm_slow_path_call_direct_eval
 end
 
-handler CallWithArgumentArray
+handler CallWithArgumentArray @cold
     call_slow_path asm_slow_path_call_with_argument_array
 end
 
-handler CallDirectEvalWithArgumentArray
+handler CallDirectEvalWithArgumentArray @cold
     call_slow_path asm_slow_path_call_direct_eval_with_argument_array
 end
 
-handler CallConstructWithArgumentArray
+handler CallConstructWithArgumentArray @cold
     call_slow_path asm_slow_path_call_construct_with_argument_array
 end
 
-handler SuperCallWithArgumentArray
+handler SuperCallWithArgumentArray @cold
     call_slow_path asm_slow_path_super_call_with_argument_array
 end
 
-handler NewObject
+handler NewObject @cold
     call_slow_path asm_slow_path_new_object
 end
 
-handler NewObjectWithNoPrototype
+handler NewObjectWithNoPrototype @cold
     call_slow_path asm_slow_path_new_object_with_no_prototype
 end
 
-handler CacheObjectShape
+handler CacheObjectShape @cold
     call_slow_path asm_slow_path_cache_object_shape
 end
 
-handler InitObjectLiteralProperty
+handler InitObjectLiteralProperty @cold
     call_slow_path asm_slow_path_init_object_literal_property
 end
 
-handler NewArray
+handler NewArray @cold
     call_slow_path asm_slow_path_new_array
 end
 
-handler NewPrimitiveArray
+handler NewPrimitiveArray @cold
     call_slow_path asm_slow_path_new_primitive_array
 end
 
-handler NewRegExp
+handler NewRegExp @cold
     call_slow_path asm_slow_path_new_regexp
 end
 
-handler NewReferenceError
+handler NewReferenceError @cold
     call_slow_path asm_slow_path_new_reference_error
 end
 
-handler NewTypeError
+handler NewTypeError @cold
     call_slow_path asm_slow_path_new_type_error
 end
 
-handler InstanceOf
+handler InstanceOf @cold
     call_slow_path asm_slow_path_instance_of
 end
 
-handler In
+handler In @cold
     call_slow_path asm_slow_path_in
 end
 
@@ -3237,79 +3237,79 @@ handler IsCallable
     dispatch_next
 end
 
-handler IsConstructor
+handler IsConstructor @cold
     call_slow_path asm_slow_path_is_constructor
 end
 
-handler AddPrivateName
+handler AddPrivateName @cold
     call_slow_path asm_slow_path_add_private_name
 end
 
-handler CreateAsyncFromSyncIterator
+handler CreateAsyncFromSyncIterator @cold
     call_slow_path asm_slow_path_create_async_from_sync_iterator
 end
 
-handler CreateDataPropertyOrThrow
+handler CreateDataPropertyOrThrow @cold
     call_slow_path asm_slow_path_create_data_property_or_throw
 end
 
-handler CreateImmutableBinding
+handler CreateImmutableBinding @cold
     call_slow_path asm_slow_path_create_immutable_binding
 end
 
-handler CreateMutableBinding
+handler CreateMutableBinding @cold
     call_slow_path asm_slow_path_create_mutable_binding
 end
 
-handler CreateRestParams
+handler CreateRestParams @cold
     call_slow_path asm_slow_path_create_rest_params
 end
 
-handler CreateArguments
+handler CreateArguments @cold
     call_slow_path asm_slow_path_create_arguments
 end
 
-handler CreateLexicalEnvironment
+handler CreateLexicalEnvironment @cold
     call_slow_path asm_slow_path_create_lexical_environment
 end
 
-handler CreatePrivateEnvironment
+handler CreatePrivateEnvironment @cold
     call_slow_path asm_slow_path_create_private_environment
 end
 
-handler CreateVariableEnvironment
+handler CreateVariableEnvironment @cold
     call_slow_path asm_slow_path_create_variable_environment
 end
 
-handler DeleteById
+handler DeleteById @cold
     call_slow_path asm_slow_path_delete_by_id
 end
 
-handler DeleteByValue
+handler DeleteByValue @cold
     call_slow_path asm_slow_path_delete_by_value
 end
 
-handler DeleteVariable
+handler DeleteVariable @cold
     call_slow_path asm_slow_path_delete_variable
 end
 
-handler GetCompletionFields
+handler GetCompletionFields @cold
     call_slow_path asm_slow_path_get_completion_fields
 end
 
-handler SetCompletionType
+handler SetCompletionType @cold
     call_slow_path asm_slow_path_set_completion_type
 end
 
-handler GetTemplateObject
+handler GetTemplateObject @cold
     call_slow_path asm_slow_path_get_template_object
 end
 
-handler NewFunction
+handler NewFunction @cold
     call_slow_path asm_slow_path_new_function
 end
 
-handler Typeof
+handler Typeof @cold
     call_slow_path asm_slow_path_typeof
 end
 
@@ -3333,10 +3333,10 @@ handler ResolveThisBinding
     call_slow_path asm_slow_path_resolve_this_binding
 end
 
-handler GetPrivateById
+handler GetPrivateById @cold
     call_slow_path asm_slow_path_get_private_by_id
 end
 
-handler PutPrivateById
+handler PutPrivateById @cold
     call_slow_path asm_slow_path_put_private_by_id
 end

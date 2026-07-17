@@ -499,11 +499,6 @@ fn generate_handler(
     program: &Program,
     pinned: &PinnedConstants,
 ) -> String {
-    emit_handler_alignment(out, program.object_format);
-    w!(out, "asm_handler_{}:", handler.name);
-    // x21 = pb + pc is set by the dispatch sequence that branches here.
-    // It is callee-saved, so it survives C++ calls within the handler.
-
     let mut state = HandlerState::new();
 
     let mut counter = state.unique_counter;
@@ -515,6 +510,26 @@ fn generate_handler(
             )
         });
     state.unique_counter = counter;
+
+    if handler.is_cold {
+        assert!(
+            matches!(instructions.as_slice(), [instruction] if instruction.mnemonic == "call_slow_path"),
+            "cold handler '{}' must consist solely of call_slow_path",
+            handler.name
+        );
+        let mut cold = String::new();
+        emit_handler_alignment(&mut cold, program.object_format);
+        w!(cold, "asm_handler_{}:", handler.name);
+        emit_instruction(&mut cold, &instructions[0], handler, program, &mut state, pinned);
+        cold.push_str(&state.cold_blocks);
+        w!(cold);
+        return cold;
+    }
+
+    emit_handler_alignment(out, program.object_format);
+    w!(out, "asm_handler_{}:", handler.name);
+    // x21 = pb + pc is set by the dispatch sequence that branches here.
+    // It is callee-saved, so it survives C++ calls within the handler.
 
     let (hot_instructions, cold_instructions) = outline_cold_blocks(&instructions)
         .unwrap_or_else(|error| panic!("invalid cold block in handler '{}': {error}", handler.name));
@@ -2978,6 +2993,7 @@ mod tests {
             handlers: vec![Handler {
                 name: "Call".into(),
                 size: Some(1),
+                is_cold: false,
                 instructions,
             }],
             op_layouts: HashMap::from([(
@@ -3026,5 +3042,18 @@ mod tests {
         assert!(output.contains("    blr x9"));
         assert!(output.contains("    ldr x1, [sp, #120]"));
         assert!(output.contains("    ldr x0, [sp, #112]"));
+    }
+
+    #[test]
+    fn emits_cold_handler_after_hot_region() {
+        let mut program = coff_program(vec![AsmInstruction {
+            mnemonic: "call_slow_path".into(),
+            operands: vec![Operand::Register("slow_path".into())],
+        }]);
+        program.handlers[0].is_cold = true;
+
+        let output = generate(&program);
+
+        assert!(output.find("asm_cold_handler_paths:").unwrap() < output.find("asm_handler_Call:").unwrap());
     }
 }

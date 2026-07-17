@@ -457,6 +457,7 @@ mod tests {
         Handler {
             name: "Call".into(),
             size: None,
+            is_cold: false,
             instructions: Vec::new(),
         }
     }

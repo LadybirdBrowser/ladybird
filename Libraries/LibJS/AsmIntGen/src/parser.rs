@@ -38,6 +38,7 @@ pub struct AsmInstruction {
 pub struct Handler {
     pub name: String,
     pub size: Option<u32>,
+    pub is_cold: bool,
     pub instructions: Vec<AsmInstruction>,
 }
 
@@ -116,8 +117,8 @@ pub fn parse(input: &str) -> Program {
             macros.insert(name, Macro { params, body });
             i += 1;
         } else if let Some(rest) = line.strip_prefix("handler ") {
-            // handler Name, size=N
-            let (name, size) = parse_handler_header(rest);
+            // handler Name [@cold], size=N
+            let (name, size, is_cold) = parse_handler_header(rest);
             i += 1;
             let mut instructions = Vec::new();
             while i < lines.len() {
@@ -133,6 +134,7 @@ pub fn parse(input: &str) -> Program {
             handlers.push(Handler {
                 name,
                 size,
+                is_cold,
                 instructions,
             });
             i += 1;
@@ -185,9 +187,12 @@ fn parse_macro_signature(s: &str) -> (String, Vec<String>) {
     }
 }
 
-fn parse_handler_header(s: &str) -> (String, Option<u32>) {
+fn parse_handler_header(s: &str) -> (String, Option<u32>, bool) {
     let parts: Vec<&str> = s.split(',').collect();
-    let name = parts[0].trim().to_string();
+    let header = parts[0].trim();
+    let (name, is_cold) = header
+        .strip_suffix(" @cold")
+        .map_or((header, false), |name| (name, true));
     let mut size = None;
     for part in &parts[1..] {
         let part = part.trim();
@@ -195,7 +200,7 @@ fn parse_handler_header(s: &str) -> (String, Option<u32>) {
             size = Some(val.trim().parse().unwrap());
         }
     }
-    (name, size)
+    (name.to_string(), size, is_cold)
 }
 
 fn parse_asm_instructions(line: &str) -> Vec<AsmInstruction> {
@@ -376,5 +381,14 @@ mod tests {
         assert!(matches!(instructions[0].operands.as_slice(), [Operand::Label(label)] if label == ".slow"));
         assert_eq!(instructions[1].mnemonic, "label");
         assert!(matches!(instructions[1].operands.as_slice(), [Operand::Label(label)] if label == ".slow"));
+    }
+
+    #[test]
+    fn parses_cold_handler_annotation() {
+        let program = parse("handler Throw @cold\n    call_slow_path slow\nend\n");
+        let handler = &program.handlers[0];
+
+        assert_eq!(handler.name, "Throw");
+        assert!(handler.is_cold);
     }
 }

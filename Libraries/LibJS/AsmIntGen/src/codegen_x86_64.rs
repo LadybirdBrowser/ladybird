@@ -435,9 +435,6 @@ fn handler_size(handler: &Handler, program: &Program) -> u32 {
 }
 
 fn generate_handler(out: &mut String, handler: &Handler, program: &Program, abi: X86_64Abi) -> String {
-    w!(out, ".p2align 4");
-    w!(out, "asm_handler_{}:", handler.name);
-
     let mut state = HandlerState::new();
 
     let mut counter = state.unique_counter;
@@ -449,6 +446,24 @@ fn generate_handler(out: &mut String, handler: &Handler, program: &Program, abi:
             )
         });
     state.unique_counter = counter;
+
+    if handler.is_cold {
+        assert!(
+            matches!(instructions.as_slice(), [instruction] if instruction.mnemonic == "call_slow_path"),
+            "cold handler '{}' must consist solely of call_slow_path",
+            handler.name
+        );
+        let mut cold = String::new();
+        w!(cold, ".p2align 4");
+        w!(cold, "asm_handler_{}:", handler.name);
+        emit_instruction(&mut cold, &instructions[0], handler, program, &mut state, abi);
+        cold.push_str(&state.cold_blocks);
+        w!(cold);
+        return cold;
+    }
+
+    w!(out, ".p2align 4");
+    w!(out, "asm_handler_{}:", handler.name);
 
     let (hot_instructions, cold_instructions) = outline_cold_blocks(&instructions)
         .unwrap_or_else(|error| panic!("invalid cold block in handler '{}': {error}", handler.name));
@@ -1831,6 +1846,7 @@ mod tests {
         Handler {
             name: "Call".into(),
             size: None,
+            is_cold: false,
             instructions: Vec::new(),
         }
     }
