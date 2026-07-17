@@ -63,7 +63,6 @@ bool DeclarativeEnvironment::RareData::is_empty() const
         && !m_dispose_capability.disposable_resource_stack
         && !m_environment_shape_cache
         && m_expected_binding_count == 0
-        && m_environment_serial_number == 0
         && !m_is_catch_environment;
 }
 
@@ -86,7 +85,7 @@ void DeclarativeEnvironment::increment_environment_serial_number()
         return;
     if (m_rare_data && m_rare_data->m_environment_shape_cache)
         return;
-    ++ensure_rare_data().m_environment_serial_number;
+    ++m_environment_serial_number;
 }
 
 bool DeclarativeEnvironment::is_catch_environment() const
@@ -145,9 +144,7 @@ DisposeCapability* DeclarativeEnvironment::dispose_capability_if_exists()
 
 u64 DeclarativeEnvironment::environment_serial_number() const
 {
-    if (!m_rare_data)
-        return 0;
-    return m_rare_data->m_environment_serial_number;
+    return m_environment_serial_number;
 }
 
 void DeclarativeEnvironment::append_binding(Binding binding)

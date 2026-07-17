@@ -112,7 +112,6 @@ private:
         DisposeCapability m_dispose_capability;
         GC::Ptr<EnvironmentShape>* m_environment_shape_cache { nullptr };
         size_t m_expected_binding_count { 0 };
-        u64 m_environment_serial_number { 0 };
         bool m_is_catch_environment { false };
     };
 
@@ -219,6 +218,7 @@ private:
     GC::Ptr<EnvironmentShape> m_shape;
     Vector<Value> m_binding_values;
     OwnPtr<RareData> m_rare_data;
+    u64 m_environment_serial_number { 0 };
 };
 
 inline ThrowCompletionOr<Value> DeclarativeEnvironment::get_binding_value_direct(VM& vm, size_t index) const

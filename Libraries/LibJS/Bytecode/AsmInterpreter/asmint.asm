@@ -1169,14 +1169,7 @@ macro load_binding_flags(env, idx, flags, flag)
 end
 
 macro load_environment_serial(env, serial)
-    temp rare_data
-    load64 rare_data, [env, DECLARATIVE_ENVIRONMENT_RARE_DATA]
-    branch_zero rare_data, .zero
-    load64 serial, [rare_data, DECLARATIVE_ENVIRONMENT_RARE_DATA_SERIAL]
-    jmp .done
-.zero:
-    mov serial, 0
-.done:
+    load64 serial, [env, DECLARATIVE_ENVIRONMENT_SERIAL]
 end
 
 # Inline environment chain walk + binding value load with TDZ check.

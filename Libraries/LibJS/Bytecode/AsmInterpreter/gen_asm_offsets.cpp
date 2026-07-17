@@ -233,7 +233,7 @@ int main()
     // DeclarativeEnvironment layout
     outln("\n# DeclarativeEnvironment layout");
     EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_RARE_DATA, DeclarativeEnvironment, m_rare_data);
-    EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_RARE_DATA_SERIAL, DeclarativeEnvironment::RareData, m_environment_serial_number);
+    EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_SERIAL, DeclarativeEnvironment, m_environment_serial_number);
 
     // GlobalVariableCache layout
     outln("\n# GlobalVariableCache layout");
