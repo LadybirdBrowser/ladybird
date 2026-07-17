@@ -6,6 +6,8 @@
 
 use std::ffi::c_void;
 use std::marker::PhantomData;
+use std::ops::Deref;
+use std::ops::DerefMut;
 use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -380,6 +382,38 @@ pub trait SelectorDom {
     fn has_cache_get(&mut self, selector_id: u64, anchor: Self::Element) -> Option<bool>;
     fn has_cache_set(&mut self, selector_id: u64, anchor: Self::Element, result: bool);
     fn should_reject_has_argument(&mut self, selector: &CompiledSelector, anchor: Self::Element) -> bool;
+}
+
+struct HasArgumentMatchingGuard<'a, Dom: SelectorDom> {
+    dom: &'a mut Dom,
+    previous_value: bool,
+}
+
+impl<'a, Dom: SelectorDom> HasArgumentMatchingGuard<'a, Dom> {
+    fn new(dom: &'a mut Dom) -> Self {
+        let previous_value = dom.enter_has_argument_matching();
+        Self { dom, previous_value }
+    }
+}
+
+impl<Dom: SelectorDom> Deref for HasArgumentMatchingGuard<'_, Dom> {
+    type Target = Dom;
+
+    fn deref(&self) -> &Self::Target {
+        self.dom
+    }
+}
+
+impl<Dom: SelectorDom> DerefMut for HasArgumentMatchingGuard<'_, Dom> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.dom
+    }
+}
+
+impl<Dom: SelectorDom> Drop for HasArgumentMatchingGuard<'_, Dom> {
+    fn drop(&mut self) {
+        self.dom.leave_has_argument_matching(self.previous_value);
+    }
 }
 
 #[cfg(test)]
@@ -950,21 +984,27 @@ fn matches_has_pseudo_class<Dom: SelectorDom>(
     if let Some(result) = dom.has_cache_get(selector.id(), anchor) {
         return result;
     }
-    let previous_inside_has = dom.enter_has_argument_matching();
+    let mut matching_guard = HasArgumentMatchingGuard::new(dom);
     // OPTIMIZATION: Selector-involvement metadata must observe the same traversal as the general
     //               matcher, so specialized traversal is only safe when metadata is not collected.
-    let result = if dom.should_reject_has_argument(selector, anchor) {
+    let result = if matching_guard.should_reject_has_argument(selector, anchor) {
         false
-    } else if dom.collects_selector_involvement_metadata() {
-        matches_relative_selector(selector, 0, anchor, shadow_host, scope, anchor, dom)
+    } else if matching_guard.collects_selector_involvement_metadata() {
+        matches_relative_selector(selector, 0, anchor, shadow_host, scope, anchor, &mut *matching_guard)
     } else if let Some(simple_selector) = simple_has_child_tag_selector(selector) {
-        matches_has_child_tag_fast_path(simple_selector, anchor, shadow_host, dom)
+        matches_has_child_tag_fast_path(simple_selector, anchor, shadow_host, &mut *matching_guard)
     } else if let Some(compound_selector) = simple_has_descendant_tag_and_class_compound(selector) {
-        matches_has_descendant_tag_and_class_fast_path(selector, compound_selector, anchor, shadow_host, dom)
+        matches_has_descendant_tag_and_class_fast_path(
+            selector,
+            compound_selector,
+            anchor,
+            shadow_host,
+            &mut *matching_guard,
+        )
     } else {
-        matches_relative_selector(selector, 0, anchor, shadow_host, scope, anchor, dom)
+        matches_relative_selector(selector, 0, anchor, shadow_host, scope, anchor, &mut *matching_guard)
     };
-    dom.leave_has_argument_matching(previous_inside_has);
+    drop(matching_guard);
     dom.has_cache_set(selector.id(), anchor, result);
     result
 }
@@ -2400,6 +2440,8 @@ fn sibling_invalidation_distance(compound_selectors: &[CompoundSelector]) -> usi
 mod tests {
     use super::*;
     use std::collections::HashMap;
+    use std::panic::AssertUnwindSafe;
+    use std::panic::catch_unwind;
 
     #[derive(Default)]
     struct TestNode {
@@ -2801,6 +2843,17 @@ mod tests {
             None,
             &mut dom,
         ));
+        assert!(!dom.inside_has);
+    }
+
+    #[test]
+    fn restores_has_argument_state_when_matching_unwinds() {
+        let mut dom = TestDom::default();
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            let _matching_guard = HasArgumentMatchingGuard::new(&mut dom);
+            panic!("stop matching");
+        }));
+        assert!(result.is_err());
         assert!(!dom.inside_has);
     }
 
