@@ -78,7 +78,7 @@ public:
     }
     // Lightweight set_frame for direct Cranelift-to-Cranelift calls.
     void set_frame_lightweight(ModuleInstance const& module, Value* locals_ptr,
-        Expression const& expression, size_t arity)
+        Expression const& expression, size_t arity, size_t max_call_rec_size)
     {
         VERIFY(bit_cast<FlatPtr>(&module) != 0);
 
@@ -96,6 +96,10 @@ public:
         // frame's whole stack usage fits the reservation.
         if (auto hint = expression.stack_usage_hint(); hint.has_value())
             m_value_stack.ensure_capacity(m_value_stack.size() + *hint);
+        // Compiled code writes call-record entries without null checks, so allocate eagerly
+        // (heavy set_frame does the same).
+        if (max_call_rec_size > 0)
+            m_call_record_base = m_call_record_stack.allocate(max_call_rec_size);
         // Skip the label push (Cranelift uses its own structured control flow).
     }
 
@@ -125,6 +129,7 @@ public:
     static constexpr size_t compiled_call_result_scratch_offset() { return __builtin_offsetof(Configuration, m_compiled_call_result_scratch); }
     static constexpr size_t value_stack_base_offset() { return __builtin_offsetof(Configuration, m_value_stack) + ValueStack::base_offset(); }
     static constexpr size_t value_stack_top_offset() { return __builtin_offsetof(Configuration, m_value_stack) + ValueStack::top_offset(); }
+    static constexpr size_t call_record_base_offset() { return __builtin_offsetof(Configuration, m_call_record_base); }
 
     ALWAYS_INLINE Value& call_record_entry(size_t index) { return m_call_record_base[index]; }
     ALWAYS_INLINE Value const& call_record_entry(size_t index) const { return m_call_record_base[index]; }

@@ -177,6 +177,7 @@ static u64 compute_layout_hash(RuntimeHelpers const& h)
     hash = fnv1a(hash, h.compiled_call_result_scratch_offset);
     hash = fnv1a(hash, h.value_stack_base_offset);
     hash = fnv1a(hash, h.value_stack_top_offset);
+    hash = fnv1a(hash, h.call_record_base_offset);
     return hash;
 }
 
@@ -286,7 +287,7 @@ extern "C" {
 static ALWAYS_INLINE i32 wasm_cl_run_compiled(BytecodeInterpreter& interpreter, Configuration& config, CompiledFunctionEntry const& entry, Value* callee_locals)
 {
     BytecodeInterpreter::CallFrameHandle handle { interpreter, config };
-    config.set_frame_lightweight(*entry.module, callee_locals, *entry.expression, entry.arity);
+    config.set_frame_lightweight(*entry.module, callee_locals, *entry.expression, entry.arity, entry.max_call_rec_size);
     config.ip() = 0;
 
     interpreter.clear_trap();
@@ -907,14 +908,8 @@ i32 wasm_cl_push_frame(void* interp_ptr, void* config_ptr, Value* locals_ptr, u3
     if (interpreter.trap_if_insufficient_native_stack_space())
         return 1;
 
-    config.set_frame_lightweight(module, locals_ptr, expression, arity);
+    config.set_frame_lightweight(module, locals_ptr, expression, arity, max_call_rec_size);
     config.depth()++;
-
-    // Set up call record for the callee if needed.
-    if (max_call_rec_size > 0) {
-        config.set_call_record_base(nullptr);
-        config.setup_call_record(max_call_rec_size);
-    }
     return 0;
 }
 
@@ -977,6 +972,7 @@ static RuntimeHelpers make_runtime_helpers()
         .compiled_call_result_scratch_offset = static_cast<u32>(Configuration::compiled_call_result_scratch_offset()),
         .value_stack_base_offset = static_cast<u32>(Configuration::value_stack_base_offset()),
         .value_stack_top_offset = static_cast<u32>(Configuration::value_stack_top_offset()),
+        .call_record_base_offset = static_cast<u32>(Configuration::call_record_base_offset()),
     };
 }
 
