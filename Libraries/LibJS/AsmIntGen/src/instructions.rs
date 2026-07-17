@@ -852,6 +852,9 @@ pub const INSTRUCTIONS: &[InstructionInfo] = &[
     // constant, so no scratch.
     plain("canonicalize_nan", &[GprOut, FprIn]),
 
+    // Layout directive consumed after allocation and before code emission.
+    plain("cold", &[Label]),
+
     // ------------------------------------------------------------------
     // Branching
     // ------------------------------------------------------------------
@@ -1025,6 +1028,7 @@ mod tests {
     /// When you add a new DSL instruction, add it to `INSTRUCTIONS` and
     /// to this list.
     const CODEGEN_MNEMONICS: &[&str] = &[
+        "cold",
         "label",
         "jmp",
         "exit",

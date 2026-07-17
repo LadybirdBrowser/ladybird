@@ -6,7 +6,7 @@
 
 use crate::parser::{AsmInstruction, Handler, Operand, Program};
 use crate::registers::{Arch, resolve_register};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Like `writeln!`, but without the `.unwrap()` -- writing to a `String` is infallible.
 macro_rules! w {
@@ -88,7 +88,7 @@ pub fn uniquify_macro_labels(body: &[AsmInstruction], suffix: u32) -> Vec<AsmIns
                     definitions.insert(name.clone());
                 }
             }
-        } else {
+        } else if insn.mnemonic != "cold" {
             for op in &insn.operands {
                 if let Operand::Label(name) = op {
                     if name.starts_with('.') {
@@ -156,6 +156,67 @@ pub fn get_immediate_value(op: &Operand, program: &Program) -> Option<i64> {
         Operand::Constant(name) => program.constants.get(name).copied(),
         _ => None,
     }
+}
+
+/// Outline explicitly cold basic blocks while preserving source order within
+/// the hot and cold partitions. Annotated blocks must neither receive nor
+/// produce fallthrough control flow, so moving them cannot alter semantics.
+pub fn outline_cold_blocks(instructions: &[AsmInstruction]) -> Result<(Vec<AsmInstruction>, Vec<AsmInstruction>), String> {
+    let cold_labels: HashSet<&str> = instructions
+        .iter()
+        .filter(|instruction| instruction.mnemonic == "cold")
+        .map(|instruction| match instruction.operands.as_slice() {
+            [Operand::Label(label)] => Ok(label.as_str()),
+            _ => Err("cold annotation requires exactly one label".to_string()),
+        })
+        .collect::<Result<_, _>>()?;
+    if cold_labels.is_empty() {
+        return Ok((instructions.to_vec(), Vec::new()));
+    }
+
+    let instructions: Vec<_> = instructions
+        .iter()
+        .filter(|instruction| instruction.mnemonic != "cold")
+        .cloned()
+        .collect();
+    let mut is_cold = vec![false; instructions.len()];
+
+    for label in cold_labels {
+        let start = instructions
+            .iter()
+            .position(|instruction| {
+                instruction.mnemonic == "label"
+                    && matches!(instruction.operands.as_slice(), [Operand::Label(candidate)] if candidate == label)
+            })
+            .ok_or_else(|| format!("cold annotation references missing label '{label}'"))?;
+        if start == 0 {
+            return Err(format!("handler entry block '{label}' cannot be cold"));
+        }
+        if start > 0 && !crate::instructions::lookup(&instructions[start - 1].mnemonic).is_some_and(|info| info.terminal) {
+            return Err(format!("cold block '{label}' receives fallthrough control flow"));
+        }
+        let end = instructions[start + 1..]
+            .iter()
+            .position(|instruction| instruction.mnemonic == "label")
+            .map(|offset| start + 1 + offset)
+            .unwrap_or(instructions.len());
+        let Some(last) = instructions[start..end].last() else {
+            return Err(format!("cold block '{label}' is empty"));
+        };
+        if !crate::instructions::lookup(&last.mnemonic).is_some_and(|info| info.terminal) {
+            return Err(format!("cold block '{label}' produces fallthrough control flow"));
+        }
+        is_cold[start..end].fill(true);
+    }
+
+    let (cold, hot): (Vec<_>, Vec<_>) = instructions
+        .into_iter()
+        .zip(is_cold)
+        .partition(|(_, is_cold)| *is_cold);
+    Ok((
+        hot.into_iter().map(|(instruction, _)| instruction).collect(),
+        cold.into_iter().map(|(instruction, _)| instruction).collect(),
+    ))
 }
 
 /// Mutable state accumulated during handler code generation.
@@ -313,6 +374,55 @@ pub fn resolve_adjacent_memory_pair(
 mod tests {
     use super::*;
     use crate::parser::{Handler, ObjectFormat, Program};
+
+    #[test]
+    fn outlines_explicit_cold_block() {
+        let instructions = vec![
+            AsmInstruction { mnemonic: "dispatch_next".into(), operands: vec![] },
+            AsmInstruction { mnemonic: "cold".into(), operands: vec![Operand::Label(".slow".into())] },
+            AsmInstruction { mnemonic: "label".into(), operands: vec![Operand::Label(".slow".into())] },
+            AsmInstruction { mnemonic: "call_slow_path".into(), operands: vec![] },
+        ];
+
+        let (hot, cold) = outline_cold_blocks(&instructions).unwrap();
+
+        assert_eq!(hot.len(), 1);
+        assert_eq!(hot[0].mnemonic, "dispatch_next");
+        assert_eq!(cold.len(), 2);
+        assert_eq!(cold[0].mnemonic, "label");
+        assert_eq!(cold[1].mnemonic, "call_slow_path");
+    }
+
+    #[test]
+    fn rejects_cold_block_with_fallthrough() {
+        let instructions = vec![
+            AsmInstruction { mnemonic: "mov".into(), operands: vec![] },
+            AsmInstruction { mnemonic: "cold".into(), operands: vec![Operand::Label(".slow".into())] },
+            AsmInstruction { mnemonic: "label".into(), operands: vec![Operand::Label(".slow".into())] },
+            AsmInstruction { mnemonic: "call_slow_path".into(), operands: vec![] },
+        ];
+
+        let error = outline_cold_blocks(&instructions).unwrap_err();
+
+        assert!(error.contains("receives fallthrough"));
+    }
+
+    #[test]
+    fn uniquify_macro_labels_ignores_cold_annotations() {
+        let instructions = vec![
+            AsmInstruction { mnemonic: "cold".into(), operands: vec![Operand::Label(".slow".into())] },
+            AsmInstruction { mnemonic: "label".into(), operands: vec![Operand::Label(".slow".into())] },
+            AsmInstruction { mnemonic: "call_slow_path".into(), operands: vec![] },
+        ];
+
+        let uniquified = uniquify_macro_labels(&instructions, 1);
+
+        assert_eq!(uniquified[0].mnemonic, "cold");
+        assert!(matches!(&uniquified[0].operands[0], Operand::Label(label) if label == ".slow"));
+        assert_eq!(uniquified[1].mnemonic, "label");
+        assert!(matches!(&uniquified[1].operands[0], Operand::Label(label) if label == ".slow"));
+    }
+
     use bytecode_def::OpLayout;
 
     fn test_program() -> Program {

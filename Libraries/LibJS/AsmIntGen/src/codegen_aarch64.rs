@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::allocator::{flatten_and_allocate, handler_uses_named_temps};
+use crate::allocator::flatten_and_allocate;
 use crate::parser::{AsmInstruction, Handler, ObjectFormat, Operand, Program};
 use crate::registers::{Arch, resolve_register};
 use crate::shared::{
     AdjacentMemoryPair, HandlerState, get_immediate_value, resolve_adjacent_memory_pair,
-    resolve_field_ref, resolve_label, substitute_macro, uniquify_macro_labels, w,
+    outline_cold_blocks, resolve_field_ref, resolve_label, substitute_macro, uniquify_macro_labels, w,
 };
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -149,9 +149,16 @@ pub fn generate(program: &Program) -> String {
     // Generate fallback handler
     generate_fallback_handler(&mut out, program, &pinned);
 
-    // Generate each handler
+    // Generate the hot blocks of each handler first, keeping the interpreter's
+    // working set dense. Explicitly cold blocks are emitted afterwards.
+    let mut cold_handlers = String::new();
     for handler in &program.handlers {
-        generate_handler(&mut out, handler, program, &pinned);
+        cold_handlers.push_str(&generate_handler(&mut out, handler, program, &pinned));
+    }
+    if !cold_handlers.is_empty() {
+        w!(out, "// Cold handler paths");
+        w!(out, "asm_cold_handler_paths:");
+        out.push_str(&cold_handlers);
     }
 
     generate_exit_point(&mut out, program.object_format);
@@ -491,7 +498,7 @@ fn generate_handler(
     handler: &Handler,
     program: &Program,
     pinned: &PinnedConstants,
-) {
+) -> String {
     emit_handler_alignment(out, program.object_format);
     w!(out, "asm_handler_{}:", handler.name);
     // x21 = pb + pc is set by the dispatch sequence that branches here.
@@ -499,35 +506,34 @@ fn generate_handler(
 
     let mut state = HandlerState::new();
 
-    if handler_uses_named_temps(handler, program) {
-        // The allocator pre-expands macros and rewrites named temps to
-        // physical registers. The shared unique_counter continues from
-        // the value the allocator left it at, so canonicalize_nan fixup
-        // labels emitted later don't collide with macro-id labels.
-        let mut counter = state.unique_counter;
-        let flat = flatten_and_allocate(handler, program, Arch::Aarch64, &mut counter)
-            .unwrap_or_else(|err| {
-                panic!(
-                    "register allocation failed for handler '{}': {}",
-                    err.handler, err.message
-                )
-            });
-        state.unique_counter = counter;
-        for insn in &flat {
-            emit_instruction(out, insn, handler, program, &mut state, pinned);
-        }
-    } else {
-        for insn in &handler.instructions {
-            emit_instruction(out, insn, handler, program, &mut state, pinned);
-        }
-    }
+    let mut counter = state.unique_counter;
+    let instructions = flatten_and_allocate(handler, program, Arch::Aarch64, &mut counter)
+        .unwrap_or_else(|err| {
+            panic!(
+                "register allocation failed for handler '{}': {}",
+                err.handler, err.message
+            )
+        });
+    state.unique_counter = counter;
 
-    // Emit cold fixup blocks after the main handler body
-    if !state.cold_blocks.is_empty() {
-        out.push_str(&state.cold_blocks);
-    }
+    let (hot_instructions, cold_instructions) = outline_cold_blocks(&instructions)
+        .unwrap_or_else(|error| panic!("invalid cold block in handler '{}': {error}", handler.name));
 
+    for instruction in &hot_instructions {
+        emit_instruction(out, instruction, handler, program, &mut state, pinned);
+    }
     w!(out);
+
+    let mut cold = String::new();
+    if !cold_instructions.is_empty() {
+        w!(cold, "// Cold paths for {}", handler.name);
+        for instruction in &cold_instructions {
+            emit_instruction(&mut cold, instruction, handler, program, &mut state, pinned);
+        }
+    }
+    cold.push_str(&state.cold_blocks);
+
+    cold
 }
 
 fn resolve_op(op: &Operand, handler: &Handler, program: &Program) -> String {
@@ -2964,6 +2970,7 @@ mod tests {
                 ("BOOLEAN_TAG".into(), 0xfffbu64 as i64),
                 ("NAN_BASE_TAG".into(), 0xfff8u64 as i64),
                 ("EXECUTION_CONTEXT_EXECUTABLE".into(), 16),
+                ("EXECUTION_CONTEXT_PROGRAM_COUNTER".into(), 20),
                 ("EXECUTABLE_BYTECODE_DATA".into(), 24),
                 ("SIZEOF_EXECUTION_CONTEXT".into(), 32),
             ]),

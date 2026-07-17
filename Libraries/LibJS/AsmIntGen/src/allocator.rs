@@ -188,6 +188,10 @@ fn uniquify_macro_locals(body: &[AsmInstruction], suffix: u32) -> Vec<AsmInstruc
                     temps_declared.insert(name.clone());
                 }
             }
+        } else if insn.mnemonic == "cold" {
+            // Temperature metadata does not make a label macro-local. The
+            // annotated block may be referenced by the invoking handler or
+            // another macro expanded beside this one.
         } else {
             for op in &insn.operands {
                 if let Operand::Label(name) = op {

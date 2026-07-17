@@ -109,7 +109,7 @@ pub fn parse(input: &str) -> Program {
                     break;
                 }
                 if !l.is_empty() && !l.starts_with('#') {
-                    body.push(parse_asm_instruction(l));
+                    body.extend(parse_asm_instructions(l));
                 }
                 i += 1;
             }
@@ -126,7 +126,7 @@ pub fn parse(input: &str) -> Program {
                     break;
                 }
                 if !l.is_empty() && !l.starts_with('#') {
-                    instructions.push(parse_asm_instruction(l));
+                    instructions.extend(parse_asm_instructions(l));
                 }
                 i += 1;
             }
@@ -198,9 +198,29 @@ fn parse_handler_header(s: &str) -> (String, Option<u32>) {
     (name, size)
 }
 
-fn parse_asm_instruction(line: &str) -> AsmInstruction {
+fn parse_asm_instructions(line: &str) -> Vec<AsmInstruction> {
     let line = line.trim();
 
+    // A temperature suffix annotates the basic block without becoming part
+    // of the assembler-visible label name.
+    if let Some(label) = line.strip_suffix(" @cold").and_then(|line| line.strip_suffix(':')) {
+        let label = label.to_string();
+        return vec![
+            AsmInstruction {
+                mnemonic: "cold".to_string(),
+                operands: vec![Operand::Label(label.clone())],
+            },
+            AsmInstruction {
+                mnemonic: "label".to_string(),
+                operands: vec![Operand::Label(label)],
+            },
+        ];
+    }
+
+    vec![parse_asm_instruction(line)]
+}
+
+fn parse_asm_instruction(line: &str) -> AsmInstruction {
     // Label definition (e.g. ".slow:")
     if let Some(label) = line.strip_suffix(':') {
         return AsmInstruction {
@@ -344,5 +364,17 @@ mod tests {
             Operand::Register(name) => assert_eq!(name, "baz"),
             other => panic!("expected Register, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn parses_cold_label_annotation() {
+        let program = parse("handler Mov\n.slow: @cold\n    dispatch_next\nend\n");
+        let instructions = &program.handlers[0].instructions;
+
+        assert_eq!(instructions.len(), 3);
+        assert_eq!(instructions[0].mnemonic, "cold");
+        assert!(matches!(instructions[0].operands.as_slice(), [Operand::Label(label)] if label == ".slow"));
+        assert_eq!(instructions[1].mnemonic, "label");
+        assert!(matches!(instructions[1].operands.as_slice(), [Operand::Label(label)] if label == ".slow"));
     }
 }
