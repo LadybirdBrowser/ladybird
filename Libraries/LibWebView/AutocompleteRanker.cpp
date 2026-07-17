@@ -236,11 +236,15 @@ Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector
         if (entry.title.has_value())
             folded_title = MUST(entry.title->to_casefold());
 
+        Optional<StringView> folded_title_for_matching;
+        if (query_length >= 3 && folded_title.has_value())
+            folded_title_for_matching = folded_title->bytes_as_string_view();
+
         auto match_class = classify_match(
             folded_query,
             folded_url,
-            folded_title.map([](auto const& title) { return title.bytes_as_string_view(); }));
-        if (folded_title == folded_query && match_relevance(AutocompleteMatchClass::ExactTitle) > match_relevance(match_class))
+            folded_title_for_matching);
+        if (query_length >= 3 && folded_title == folded_query && match_relevance(AutocompleteMatchClass::ExactTitle) > match_relevance(match_class))
             match_class = AutocompleteMatchClass::ExactTitle;
         if (match_class == AutocompleteMatchClass::None)
             continue;

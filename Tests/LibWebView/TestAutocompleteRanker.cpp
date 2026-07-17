@@ -84,6 +84,19 @@ TEST_CASE(title_match_never_becomes_default_or_completion)
     EXPECT(!suggestions[0].can_be_inline_completed);
 }
 
+TEST_CASE(history_title_matches_require_three_characters)
+{
+    auto one_character_suggestions = rank("w"sv, {
+                                                     entry("https://example.com/"sv, "Wikimedia Commons"sv, 2),
+                                                 });
+    auto two_character_suggestions = rank("GH"sv, {
+                                                      entry("https://example.com/"sv, "GH"sv, 2),
+                                                  });
+
+    EXPECT(one_character_suggestions.is_empty());
+    EXPECT(two_character_suggestions.is_empty());
+}
+
 TEST_CASE(exact_history_title_outranks_title_suffix)
 {
     auto suggestions = rank("Wikimedia Commons"sv, {
