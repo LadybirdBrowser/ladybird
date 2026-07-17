@@ -904,7 +904,12 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_container_type(computed_style.container_type());
     computed_values.set_will_change(computed_style.will_change());
 
-    computed_values.set_caret_color(computed_style.caret_color(color_resolution_context));
+    auto const& caret_color_value = computed_style.property(CSS::PropertyID::CaretColor);
+    CSS::ColorOrAuto caret_color;
+    caret_color.used_value = computed_style.caret_color(color_resolution_context);
+    if (caret_color_value.to_keyword() != CSS::Keyword::Auto)
+        caret_color.computed_value = caret_color.used_value;
+    computed_values.set_caret_color(move(caret_color));
     computed_values.set_color_interpolation(computed_style.color_interpolation());
     computed_values.set_color_interpolation_filters(computed_style.color_interpolation_filters());
     computed_values.set_resize(computed_style.resize());

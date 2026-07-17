@@ -441,7 +441,7 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             return m_noninherited.border_top_color_style_value;
         return color_style_value(border_top().color);
     case PropertyID::CaretColor:
-        return color_style_value(caret_color());
+        return color_or_auto_style_value(caret_color_value());
     case PropertyID::CaptionSide:
         return KeywordStyleValue::create(to_keyword(caption_side()));
     case PropertyID::ClipRule:

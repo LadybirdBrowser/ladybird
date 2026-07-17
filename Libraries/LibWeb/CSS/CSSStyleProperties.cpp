@@ -585,6 +585,8 @@ static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_
         abstract_element.element().set_computed_style(*pseudo_element, nullptr);
 }
 
+static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const&, Color, Layout::NodeWithStyle const* = nullptr);
+
 Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndID const& property_name_and_id) const
 {
     auto const property_id = property_name_and_id.id();
@@ -703,6 +705,8 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                         return style_value.release_nonnull();
                 }
                 auto computed_value = computed_values->computed_style_value(computed_property_id).release_nonnull();
+                if (computed_property_id == PropertyID::CaretColor)
+                    return resolve_color_style_value(*computed_value, computed_values->caret_color()).release_nonnull();
                 return computed_value;
             };
 
@@ -743,7 +747,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
     return {};
 }
 
-static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color, Layout::NodeWithStyle const* layout_node = nullptr)
+static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color, Layout::NodeWithStyle const* layout_node)
 {
     if (layout_node && style_value.is_color_function()) {
         auto const& color_function = as<ColorFunctionStyleValue>(style_value);

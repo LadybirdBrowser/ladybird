@@ -884,7 +884,8 @@ public:
     CSSPixels border_spacing_horizontal() const { return m_inherited.border_spacing_horizontal; }
     CSSPixels border_spacing_vertical() const { return m_inherited.border_spacing_vertical; }
     CaptionSide caption_side() const { return m_inherited.caption_side; }
-    Color caret_color() const { return m_inherited.caret_color; }
+    ColorOrAuto const& caret_color_value() const { return m_inherited.caret_color; }
+    Color caret_color() const { return m_inherited.caret_color.used_value; }
     Clear clear() const { return m_noninherited.clear; }
     Clip clip() const { return m_noninherited.clip; }
     ColorInterpolation color_interpolation() const { return m_inherited.color_interpolation; }
@@ -1202,7 +1203,7 @@ private:
     void inherit_from(ComputedValues const& other) { m_inherited = other.m_inherited; }
 
     struct InheritedValues {
-        Color caret_color { InitialValues::caret_color() };
+        ColorOrAuto caret_color;
         CSSPixels font_size { InitialValues::font_size() };
         RefPtr<Gfx::FontCascadeList const> font_list {};
         Vector<ComputedFontFamily> font_families { GenericFontFamily::Serif };
@@ -1532,7 +1533,7 @@ public:
     void set_animation_timelines(Vector<AnimationTimelineData> value) { m_values.m_noninherited.animation_timelines = move(value); }
     void set_animation_timing_functions(Vector<EasingFunction> value) { m_values.m_noninherited.animation_timing_functions = move(value); }
     void set_animation_timing_function_style_values(StyleValueVector value) { m_values.m_noninherited.animation_timing_function_style_values = move(value); }
-    void set_caret_color(Color caret_color) { m_values.m_inherited.caret_color = caret_color; }
+    void set_caret_color(ColorOrAuto caret_color) { m_values.m_inherited.caret_color = move(caret_color); }
     void set_font_list(NonnullRefPtr<Gfx::FontCascadeList const> font_list) { m_values.m_inherited.font_list = move(font_list); }
     void set_font_families(Vector<ComputedFontFamily> value) { m_values.m_inherited.font_families = move(value); }
     void set_font_size(CSSPixels font_size) { m_values.m_inherited.font_size = font_size; }
