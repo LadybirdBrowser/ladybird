@@ -214,7 +214,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     color_resolution_context.current_color = color;
 
     auto const& accent_color_value = computed_style.property(CSS::PropertyID::AccentColor);
-    CSS::AccentColor accent_color;
+    CSS::ColorOrAuto accent_color;
     accent_color.used_value = computed_style.accent_color(color_resolution_context);
     if (accent_color_value.to_keyword() != CSS::Keyword::Auto)
         accent_color.computed_value = accent_color.used_value;

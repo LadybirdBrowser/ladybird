@@ -770,7 +770,7 @@ struct TextDecorationThickness {
     Variant<Auto, FromFont, LengthPercentage> value;
 };
 
-struct AccentColor {
+struct ColorOrAuto {
     struct Auto { };
 
     Variant<Auto, Color> computed_value { Auto {} };
@@ -957,10 +957,10 @@ public:
     double flex_grow() const { return m_noninherited.flex_grow; }
     double flex_shrink() const { return m_noninherited.flex_shrink; }
     i32 order() const { return m_noninherited.order; }
-    AccentColor const& accent_color_value() const { return m_inherited.accent_color; }
+    ColorOrAuto const& accent_color_value() const { return m_inherited.accent_color; }
     Optional<Color> accent_color() const
     {
-        if (m_inherited.accent_color.computed_value.has<AccentColor::Auto>())
+        if (m_inherited.accent_color.computed_value.has<ColorOrAuto::Auto>())
             return {};
         return m_inherited.accent_color.used_value;
     }
@@ -1228,7 +1228,7 @@ private:
         PreferredColorScheme color_scheme { InitialValues::color_scheme() };
         Vector<Utf16FlyString> color_schemes;
         bool color_scheme_only { false };
-        AccentColor accent_color;
+        ColorOrAuto accent_color;
         Color webkit_text_fill_color { InitialValues::color() };
         bool webkit_text_fill_color_is_current_color { true };
         Vector<CursorData> cursor { InitialValues::cursor() };
@@ -1714,7 +1714,7 @@ public:
     void set_flex_grow(double value) { m_values.m_noninherited.flex_grow = value; }
     void set_flex_shrink(double value) { m_values.m_noninherited.flex_shrink = value; }
     void set_order(i32 value) { m_values.m_noninherited.order = value; }
-    void set_accent_color(AccentColor value) { m_values.m_inherited.accent_color = move(value); }
+    void set_accent_color(ColorOrAuto value) { m_values.m_inherited.accent_color = move(value); }
     void set_align_content(AlignContent value) { m_values.m_noninherited.align_content = value; }
     void set_align_items(AlignItems value) { m_values.m_noninherited.align_items = value; }
     void set_align_self(AlignSelf value) { m_values.m_noninherited.align_self = value; }
