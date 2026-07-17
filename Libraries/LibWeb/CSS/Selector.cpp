@@ -10,6 +10,7 @@
 #include <AK/NeverDestroyed.h>
 #include <LibWeb/CSS/AncestorFilter.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/SelectorRustBridge.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -116,7 +117,7 @@ static void append_integer(Utf16StringBuilder& builder, i64 value)
         builder.append_ascii(digits[--digit_count]);
 }
 
-static void serialize_a_group_of_selectors_to_builder(Utf16StringBuilder&, SelectorList const&);
+static void serialize_a_group_of_selectors_to_builder(Utf16StringBuilder&, SelectorList const&, GC::Ptr<CSSStyleSheet const>);
 
 void Selector::collect_ancestor_hashes()
 {
@@ -494,7 +495,7 @@ Utf16String Selector::PseudoElementSelector::serialize() const
     return builder.to_string();
 }
 
-void Selector::PseudoElementSelector::serialize_to(Utf16StringBuilder& builder) const
+void Selector::PseudoElementSelector::serialize_to(Utf16StringBuilder& builder, GC::Ptr<CSSStyleSheet const> style_sheet) const
 {
     builder.append_ascii("::"sv);
 
@@ -505,9 +506,9 @@ void Selector::PseudoElementSelector::serialize_to(Utf16StringBuilder& builder) 
     }
 
     m_value.visit(
-        [&builder](NonnullRefPtr<Selector> const& compound_selector) {
+        [&builder, style_sheet](NonnullRefPtr<Selector> const& compound_selector) {
             builder.append_ascii('(');
-            compound_selector->serialize_to(builder);
+            compound_selector->serialize_to(builder, style_sheet);
             builder.append_ascii(')');
         },
         [&builder](PTNameSelector const& pt_name_selector) {
@@ -540,7 +541,21 @@ Utf16String Selector::SimpleSelector::serialize() const
     return builder.to_string();
 }
 
-void Selector::SimpleSelector::serialize_to(Utf16StringBuilder& s) const
+static bool should_serialize_any_namespace_prefix(GC::Ptr<CSSStyleSheet const> style_sheet)
+{
+    return style_sheet && style_sheet->default_namespace().has_value();
+}
+
+static bool should_skip_universal_selector(Selector::SimpleSelector::QualifiedName const& qualified_name, GC::Ptr<CSSStyleSheet const> style_sheet)
+{
+    if (qualified_name.namespace_type == Selector::SimpleSelector::QualifiedName::NamespaceType::Default)
+        return true;
+    if (qualified_name.namespace_type == Selector::SimpleSelector::QualifiedName::NamespaceType::Any)
+        return !should_serialize_any_namespace_prefix(style_sheet);
+    return false;
+}
+
+void Selector::SimpleSelector::serialize_to(Utf16StringBuilder& s, GC::Ptr<CSSStyleSheet const> style_sheet) const
 {
     switch (type) {
     case Selector::SimpleSelector::Type::TagName:
@@ -552,6 +567,8 @@ void Selector::SimpleSelector::serialize_to(Utf16StringBuilder& s) const
         if (qualified_name.namespace_type == QualifiedName::NamespaceType::Named) {
             serialize_an_identifier(s, qualified_name.namespace_);
             s.append_ascii('|');
+        } else if (qualified_name.namespace_type == QualifiedName::NamespaceType::Any && should_serialize_any_namespace_prefix(style_sheet)) {
+            s.append_ascii("*|"sv);
         }
 
         // 2. If the namespace prefix maps to a namespace that is the null namespace (not in a namespace)
@@ -694,7 +711,7 @@ void Selector::SimpleSelector::serialize_to(Utf16StringBuilder& s) const
             case PseudoClassMetadata::ParameterType::RelativeSelectorList:
             case PseudoClassMetadata::ParameterType::SelectorList:
                 // The result of serializing the value using the rules for serializing a group of selectors.
-                serialize_a_group_of_selectors_to_builder(s, pseudo_class.argument_selector_list);
+                serialize_a_group_of_selectors_to_builder(s, pseudo_class.argument_selector_list, style_sheet);
                 break;
             case PseudoClassMetadata::ParameterType::Ident:
                 serialize_an_identifier(s, pseudo_class.ident->string_value);
@@ -722,7 +739,7 @@ void Selector::SimpleSelector::serialize_to(Utf16StringBuilder& s) const
     }
     case Selector::SimpleSelector::Type::PseudoElement:
         // AD-HOC: Spec issue: https://github.com/w3c/csswg-drafts/issues/11997
-        this->pseudo_element().serialize_to(s);
+        this->pseudo_element().serialize_to(s, style_sheet);
         break;
     case Type::Nesting:
         // AD-HOC: Not in spec yet.
@@ -745,7 +762,7 @@ Utf16String Selector::serialize() const
     return builder.to_string();
 }
 
-void Selector::serialize_to(Utf16StringBuilder& s) const
+void Selector::serialize_to(Utf16StringBuilder& s, GC::Ptr<CSSStyleSheet const> style_sheet) const
 {
     // AD-HOC: If this is a relative selector, we need to serialize the starting combinator.
     if (!compound_selectors().is_empty()) {
@@ -783,13 +800,12 @@ void Selector::serialize_to(Utf16StringBuilder& s) const
                 && i != compound_selectors().size() - 1
                 && compound_selectors()[i + 1].combinator == Combinator::PseudoElement) {
                 auto qualified_name = compound_selector.simple_selectors.first().qualified_name();
-                if (qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Default
-                    || qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Any) {
+                if (should_skip_universal_selector(qualified_name, style_sheet)) {
                     should_serialize_universal = false;
                 }
             }
             if (should_serialize_universal)
-                compound_selector.simple_selectors.first().serialize_to(s);
+                compound_selector.simple_selectors.first().serialize_to(s, style_sheet);
         }
         // 2. Otherwise, for each simple selector in the compound selectors that is not a universal selector
         //    of which the namespace prefix maps to a namespace that is not the default namespace
@@ -800,18 +816,10 @@ void Selector::serialize_to(Utf16StringBuilder& s) const
                     if (compound_selector.is_implicit_universal_anchor)
                         continue;
                     auto qualified_name = simple_selector.qualified_name();
-                    if (qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Default
-                        || qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Any)
+                    if (should_skip_universal_selector(qualified_name, style_sheet))
                         continue;
-                    // FIXME: I *think* if we have a namespace prefix that happens to equal the same as the default namespace,
-                    //        we also should skip it. But we don't have access to that here. eg:
-                    // <style>
-                    //   @namespace "http://example";
-                    //   @namespace foo "http://example";
-                    //   foo|*.bar { } /* This would skip the `foo|*` when serializing. */
-                    // </style>
                 }
-                simple_selector.serialize_to(s);
+                simple_selector.serialize_to(s, style_sheet);
             }
         }
 
@@ -867,7 +875,7 @@ bool is_legacy_single_colon_pseudo_element(PseudoElement pseudo_element)
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-group-of-selectors
-static void serialize_a_group_of_selectors_to_builder(Utf16StringBuilder& builder, SelectorList const& selectors)
+static void serialize_a_group_of_selectors_to_builder(Utf16StringBuilder& builder, SelectorList const& selectors, GC::Ptr<CSSStyleSheet const> style_sheet)
 {
     // To serialize a group of selectors serialize each selector in the group of selectors and then serialize a comma-separated list of these serializations.
     bool first = true;
@@ -875,14 +883,14 @@ static void serialize_a_group_of_selectors_to_builder(Utf16StringBuilder& builde
         if (!first)
             builder.append_ascii(", "sv);
         first = false;
-        selector->serialize_to(builder);
+        selector->serialize_to(builder, style_sheet);
     }
 }
 
-Utf16String serialize_a_group_of_selectors(SelectorList const& selectors)
+Utf16String serialize_a_group_of_selectors(SelectorList const& selectors, GC::Ptr<CSSStyleSheet const> style_sheet)
 {
     Utf16StringBuilder builder;
-    serialize_a_group_of_selectors_to_builder(builder, selectors);
+    serialize_a_group_of_selectors_to_builder(builder, selectors, style_sheet);
     return builder.to_string();
 }
 

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style id="teststyles">
+@namespace url(default_ns);
+::slotted(*|e) { color: red; }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const rule = document.getElementById("teststyles").sheet.cssRules[1];
+        println(rule.selectorText);
+    });
+</script>

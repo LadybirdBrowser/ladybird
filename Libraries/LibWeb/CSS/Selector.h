@@ -20,6 +20,7 @@
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/PseudoClassBitmap.h>
 #include <LibWeb/CSS/PseudoElement.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
@@ -66,7 +67,7 @@ public:
         }
 
         Utf16String serialize() const;
-        void serialize_to(Utf16StringBuilder&) const;
+        void serialize_to(Utf16StringBuilder&, GC::Ptr<CSSStyleSheet const> = nullptr) const;
 
         PseudoElement type() const { return m_type; }
 
@@ -218,7 +219,7 @@ public:
         QualifiedName& qualified_name() { return value.get<QualifiedName>(); }
 
         Utf16String serialize() const;
-        void serialize_to(Utf16StringBuilder&) const;
+        void serialize_to(Utf16StringBuilder&, GC::Ptr<CSSStyleSheet const> = nullptr) const;
 
         Optional<SimpleSelector> absolutized(SimpleSelector const& selector_for_nesting) const;
     };
@@ -259,7 +260,7 @@ public:
     RefPtr<Selector> absolutized(SimpleSelector const& selector_for_nesting) const;
     u32 specificity() const;
     Utf16String serialize() const;
-    void serialize_to(Utf16StringBuilder&) const;
+    void serialize_to(Utf16StringBuilder&, GC::Ptr<CSSStyleSheet const> = nullptr) const;
 
     auto const& ancestor_hashes() const { return m_ancestor_hashes; }
 
@@ -295,7 +296,7 @@ private:
 
 bool is_legacy_single_colon_pseudo_element(PseudoElement);
 
-Utf16String serialize_a_group_of_selectors(SelectorList const& selectors);
+Utf16String serialize_a_group_of_selectors(SelectorList const& selectors, GC::Ptr<CSSStyleSheet const> = nullptr);
 
 enum class StyleNestingParent : u8 {
     None,

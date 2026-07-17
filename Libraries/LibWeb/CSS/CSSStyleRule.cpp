@@ -128,7 +128,7 @@ Utf16String CSSStyleRule::serialized() const
 Utf16String CSSStyleRule::selector_text() const
 {
     // The selectorText attribute, on getting, must return the result of serializing the associated group of selectors.
-    return serialize_a_group_of_selectors(selectors());
+    return serialize_a_group_of_selectors(selectors(), parent_style_sheet());
 }
 
 // https://drafts.csswg.org/cssom-1/#dom-cssstylerule-selectortext
