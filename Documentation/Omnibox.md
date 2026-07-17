@@ -86,7 +86,7 @@ Match classes, from strongest to weakest, include:
 
 - Exact URL.
 - URL prefix.
-- Exact bookmark title.
+- Exact history or bookmark title.
 - Title word prefix.
 - URL substring.
 - Title substring.
@@ -94,6 +94,10 @@ Match classes, from strongest to weakest, include:
 
 Title matching uses Unicode case folding. URL completion uses ASCII case-insensitive comparison
 because serialized non-ASCII URL components are already encoded.
+
+History titles participate after three input code points. Exact history titles outrank title-prefix
+matches, allowing a page named `Wikimedia Commons` to rank ahead of pages whose titles merely end
+in `Wikimedia Commons`. They remain ineligible for automatic selection and inline completion.
 
 Bookmark titles and folders normally participate after three input code points. An exact bookmark
 title participates at any non-empty length, so a bookmark named `GH` is retrieved by `GH`, `gh`, or
@@ -140,7 +144,10 @@ explicit use before they can become automatic:
 
 - A one-character deep destination requires three explicit uses.
 - A two-character deep destination requires two explicit uses.
-- Search-like adaptive URL inputs require two explicit uses.
+
+An exact input-to-URL association of at least two characters becomes automatic after one explicit
+choice, including search-like input containing whitespace. This allows the omnibox to learn a
+deliberate navigation without allowing passive title matches to replace the search action.
 
 Adaptive scores decay with time. Prefix evidence is scaled by the square root of the typed-prefix
 length divided by the learned-input length, so very short prefixes receive less credit.

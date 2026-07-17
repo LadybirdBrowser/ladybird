@@ -84,6 +84,21 @@ TEST_CASE(title_match_never_becomes_default_or_completion)
     EXPECT(!suggestions[0].can_be_inline_completed);
 }
 
+TEST_CASE(exact_history_title_outranks_title_suffix)
+{
+    auto suggestions = rank("Wikimedia Commons"sv, {
+                                                       entry("https://commons.wikimedia.org/wiki/Category:Electricity"sv, "Category:Electricity - Wikimedia Commons"sv, 100),
+                                                       entry("https://commons.wikimedia.org/wiki/Main_Page"sv, "Wikimedia Commons"sv, 1),
+                                                   });
+
+    EXPECT_EQ(suggestions.size(), 2u);
+    EXPECT_EQ(suggestions[0].text, "https://commons.wikimedia.org/wiki/Main_Page"sv);
+    EXPECT_EQ(suggestions[0].match_class, WebView::AutocompleteMatchClass::ExactTitle);
+    EXPECT(!suggestions[0].can_be_automatically_selected);
+    EXPECT(!suggestions[0].can_be_inline_completed);
+    EXPECT_EQ(suggestions[1].match_class, WebView::AutocompleteMatchClass::TitlePrefix);
+}
+
 TEST_CASE(passive_visit_frequency_does_not_become_navigation_intent)
 {
     auto suggestions = rank("example"sv, {
@@ -346,22 +361,16 @@ TEST_CASE(short_adaptive_prefixes_require_explicit_evidence)
     EXPECT(strong_suggestions[0].can_be_inline_completed);
 }
 
-TEST_CASE(search_like_adaptive_url_requires_two_explicit_uses)
+TEST_CASE(exact_search_like_adaptive_url_requires_one_explicit_use)
 {
-    auto weak = WebView::rank_engagement_suggestions("lady docs"sv, {
-                                                                        engagement("lady docs"sv, WebView::OmniboxDestinationKind::URL, "https://ladybird.org/docs/"sv, 1),
-                                                                    },
-        8, UnixDateTime::from_seconds_since_epoch(now_seconds));
-    auto strong = WebView::rank_engagement_suggestions("lady docs"sv, {
-                                                                          engagement("lady docs"sv, WebView::OmniboxDestinationKind::URL, "https://ladybird.org/docs/"sv, 2),
-                                                                      },
+    auto suggestions = WebView::rank_engagement_suggestions("lady docs"sv, {
+                                                                               engagement("lady docs"sv, WebView::OmniboxDestinationKind::URL, "https://ladybird.org/docs/"sv, 1),
+                                                                           },
         8, UnixDateTime::from_seconds_since_epoch(now_seconds));
 
-    EXPECT_EQ(weak.size(), 1u);
-    EXPECT(!weak[0].can_be_automatically_selected);
-    EXPECT_EQ(strong.size(), 1u);
-    EXPECT(strong[0].can_be_automatically_selected);
-    EXPECT(!strong[0].can_be_inline_completed);
+    EXPECT_EQ(suggestions.size(), 1u);
+    EXPECT(suggestions[0].can_be_automatically_selected);
+    EXPECT(!suggestions[0].can_be_inline_completed);
 }
 
 TEST_CASE(previous_searches_never_become_automatic_completions)

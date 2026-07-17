@@ -240,6 +240,8 @@ Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector
             folded_query,
             folded_url,
             folded_title.map([](auto const& title) { return title.bytes_as_string_view(); }));
+        if (folded_title == folded_query && match_relevance(AutocompleteMatchClass::ExactTitle) > match_relevance(match_class))
+            match_class = AutocompleteMatchClass::ExactTitle;
         if (match_class == AutocompleteMatchClass::None)
             continue;
 
@@ -402,11 +404,6 @@ Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vecto
     return suggestions;
 }
 
-static bool query_contains_whitespace(StringView query)
-{
-    return any_of(query, [](auto code_unit) { return is_ascii_space(code_unit); });
-}
-
 Vector<AutocompleteSuggestion> rank_engagement_suggestions(StringView query, Vector<StoredOmniboxEngagement> engagements, size_t limit, UnixDateTime now)
 {
     if (query.is_empty())
@@ -466,8 +463,7 @@ Vector<AutocompleteSuggestion> rank_engagement_suggestions(StringView query, Vec
                 && !exact_association && !short_deep_prefix_has_evidence)
                 adjusted_match_relevance -= 200;
             auto syntactic_url_prefix = autocomplete_url_can_complete(query, engagement.destination);
-            auto explicit_threshold = query_length == 1 ? 3u : query_contains_whitespace(query) ? 2u
-                                                                                                : 1u;
+            auto explicit_threshold = query_length == 1 ? 3u : 1u;
             if (exact_association) {
                 can_be_automatically_selected = engagement.explicit_use_count >= explicit_threshold
                     || (query_length >= 2 && weighted_uses >= 3.0);
