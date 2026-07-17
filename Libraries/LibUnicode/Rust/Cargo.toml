@@ -6,6 +6,7 @@ edition = "2024"
 [features]
 default = []
 allocator = []
+idna = []
 
 [lib]
 crate-type = ["staticlib", "rlib"]

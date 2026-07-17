@@ -9,7 +9,7 @@ crate-type = ["staticlib"]
 [dependencies]
 encoding_rs = "0.8.35"
 libregex_rust = { path = "../../LibRegex/Rust" }
-libunicode_rust = { path = "../../LibUnicode/Rust" }
+libunicode_rust = { path = "../../LibUnicode/Rust", features = ["idna"] }
 
 [features]
 default = []
