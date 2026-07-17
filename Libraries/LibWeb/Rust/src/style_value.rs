@@ -445,6 +445,13 @@ pub enum StyleValueData {
         symbols_type: u8,
         symbols: RetainedUtf16FlyStringList,
     },
+    /// The shared data of every color style value: an optional color type and the color syntax
+    /// (both C++ enums on ColorStyleValue, opaque to Rust).
+    Color {
+        has_color_type: bool,
+        color_type: u8,
+        color_syntax: u8,
+    },
     /// A cursor with its retained image value and optional retained hotspot coordinates (both
     /// null or both non-null).
     Cursor {
@@ -1376,6 +1383,21 @@ pub unsafe extern "C" fn rust_style_value_create_cursor(
             image: RetainedStyleValue { pointer: image },
             x: RetainedStyleValue { pointer: x },
             y: RetainedStyleValue { pointer: y },
+        }))
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_create_color(
+    has_color_type: bool,
+    color_type: u8,
+    color_syntax: u8,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Color {
+            has_color_type,
+            color_type,
+            color_syntax,
         }))
     })
 }
