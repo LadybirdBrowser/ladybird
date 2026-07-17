@@ -103,7 +103,7 @@ struct BatchInput {
 // any rebuild that changes those will simply miss the cache rather than try to
 // execute incompatible bytes.
 constexpr u64 cache_blob_magic = 0x4354494A4D534157ULL; // "WASMJITC" little-endian
-constexpr u32 cache_blob_format_version = 9;
+constexpr u32 cache_blob_format_version = 10;
 
 struct CacheBlobHeader {
     u64 magic;

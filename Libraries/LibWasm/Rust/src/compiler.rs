@@ -205,7 +205,6 @@ impl CraneliftCompiler {
             mem_size_sig:      i64 fn(ptr, i32);
             mem_grow_sig:      i32 fn(ptr, i32, i32);
             read_global_sig:   i64 fn(ptr, i32);
-            callrec_read_sig:  i64 fn(ptr, i32);
             call_wr_sig:       i32 fn(ptr, ptr, i32);
             set_trap_sig:      void fn(ptr, ptr, i32);
             write_global_sig:  void fn(ptr, i32, i64);
@@ -249,7 +248,6 @@ impl CraneliftCompiler {
         let h_mem_grow = decl_helper!(mem_grow_sig, HelperId::memory_grow);
         let h_read_global = decl_helper!(read_global_sig, HelperId::read_global);
         let h_write_global = decl_helper!(write_global_sig, HelperId::write_global);
-        let h_callrec_read = decl_helper!(callrec_read_sig, HelperId::callrec_read);
         let h_call_wr = decl_helper!(call_wr_sig, HelperId::call_with_record);
         let h_call_indirect = decl_helper!(call_indirect_sig, HelperId::call_indirect);
         let h_memory_copy = decl_helper!(memory_copy_sig, HelperId::memory_copy);
@@ -548,11 +546,13 @@ impl CraneliftCompiler {
                         emit_stack_pop!($builder)
                     }
                 } else {
-                    let fp = $builder.ins().func_addr(ptr_type, h_callrec_read);
+                    // Frame entry allocated the record eagerly, so the read is a plain load.
                     let cfg = $builder.use_var(config_var);
-                    let idx = $builder.ins().iconst(types::I32, i64::from(src - CALLREC_BASE));
-                    let call = $builder.ins().call_indirect(callrec_read_sig, fp, &[cfg, idx]);
-                    $builder.inst_results(call)[0]
+                    let base = $builder
+                        .ins()
+                        .load(ptr_type, MemFlags::trusted(), cfg, call_record_base_offset);
+                    let off = i32::from(src - CALLREC_BASE) * value_size;
+                    $builder.ins().load(types::I64, MemFlags::trusted(), base, off)
                 }
             }};
         }
@@ -662,12 +662,12 @@ impl CraneliftCompiler {
                         $builder.ins().bitcast(types::F64, MemFlags::new(), raw)
                     }
                 } else {
-                    let fp = $builder.ins().func_addr(ptr_type, h_callrec_read);
                     let cfg = $builder.use_var(config_var);
-                    let idx = $builder.ins().iconst(types::I32, i64::from(src - CALLREC_BASE));
-                    let call = $builder.ins().call_indirect(callrec_read_sig, fp, &[cfg, idx]);
-                    let raw = $builder.inst_results(call)[0];
-                    $builder.ins().bitcast(types::F64, MemFlags::new(), raw)
+                    let base = $builder
+                        .ins()
+                        .load(ptr_type, MemFlags::trusted(), cfg, call_record_base_offset);
+                    let off = i32::from(src - CALLREC_BASE) * value_size;
+                    $builder.ins().load(types::F64, MemFlags::trusted(), base, off)
                 }
             }};
         }
@@ -731,13 +731,12 @@ impl CraneliftCompiler {
                         $builder.ins().bitcast(types::F32, MemFlags::new(), raw32)
                     }
                 } else {
-                    let fp = $builder.ins().func_addr(ptr_type, h_callrec_read);
                     let cfg = $builder.use_var(config_var);
-                    let idx = $builder.ins().iconst(types::I32, i64::from(src - CALLREC_BASE));
-                    let call = $builder.ins().call_indirect(callrec_read_sig, fp, &[cfg, idx]);
-                    let raw = $builder.inst_results(call)[0];
-                    let raw32 = $builder.ins().ireduce(types::I32, raw);
-                    $builder.ins().bitcast(types::F32, MemFlags::new(), raw32)
+                    let base = $builder
+                        .ins()
+                        .load(ptr_type, MemFlags::trusted(), cfg, call_record_base_offset);
+                    let off = i32::from(src - CALLREC_BASE) * value_size;
+                    $builder.ins().load(types::F32, MemFlags::trusted(), base, off)
                 }
             }};
         }
