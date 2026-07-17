@@ -125,6 +125,7 @@ public:
     Vector<CSS::ExplicitGridTrack> track_list() const;
     auto const& list() const { return m_list; }
     bool is_subgrid() const { return m_is_subgrid; }
+    bool preserves_line_name_sets() const { return m_preserve_line_name_sets; }
 
     void serialize(StringBuilder&, SerializationMode) const;
     String to_string(SerializationMode) const;
@@ -170,6 +171,7 @@ public:
         return int_from_style_value(*m_repeat_count);
     }
     GridTrackSizeList const& grid_track_size_list() const& { return m_grid_track_size_list; }
+    RefPtr<StyleValue const> repeat_count_style_value() const { return m_repeat_count; }
     GridRepeatType type() const& { return m_type; }
 
     void serialize(StringBuilder&, SerializationMode) const;

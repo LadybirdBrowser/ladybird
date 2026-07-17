@@ -5090,7 +5090,7 @@ RefPtr<StyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Componen
             return nullptr;
 
         auto grid_auto_rows = parse_grid_auto_track_sizes(tokens);
-        if (grid_auto_rows->as_grid_track_size_list().grid_track_size_list().is_empty())
+        if (grid_auto_rows->as_grid_track_size_list().is_empty())
             grid_auto_rows = property_initial_value(PropertyID::GridAutoRows);
 
         tokens.discard_whitespace();
@@ -5129,7 +5129,7 @@ RefPtr<StyleValue const> Parser::parse_grid_shorthand_value(TokenStream<Componen
             return nullptr;
 
         auto grid_auto_columns = parse_grid_auto_track_sizes(tokens);
-        if (grid_auto_columns->as_grid_track_size_list().grid_track_size_list().is_empty())
+        if (grid_auto_columns->as_grid_track_size_list().is_empty())
             grid_auto_columns = property_initial_value(PropertyID::GridAutoColumns);
 
         transaction.commit();

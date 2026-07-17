@@ -422,6 +422,115 @@ impl Drop for RetainedLinearEasingStopList {
     }
 }
 
+/// Borrowed input description of one grid track list entry, used when creating a grid track
+/// size list. Kinds: 0 = line names, 1 = a single size, 2 = minmax, 3 = repeat with a nested
+/// entry list.
+#[repr(C)]
+pub struct GridTrackEntryInput {
+    kind: u8,
+    names: *const usize,
+    name_count: usize,
+    size_value: *const c_void,
+    min_value: *const c_void,
+    max_value: *const c_void,
+    repeat_type: u8,
+    repeat_count: *const c_void,
+    repeat_is_subgrid: bool,
+    repeat_preserve_line_name_sets: bool,
+    repeat_entries: *const GridTrackEntryInput,
+    repeat_entry_count: usize,
+}
+
+/// A Rust-owned array of retained grid track list entries.
+#[repr(C)]
+pub struct RetainedGridTrackEntryList {
+    pointer: *mut RetainedGridTrackEntry,
+    length: usize,
+}
+
+/// A retained, Rust-owned grid track list entry (see [`GridTrackEntryInput`] for the kinds).
+#[repr(C)]
+pub struct RetainedGridTrackEntry {
+    kind: u8,
+    names: RetainedUtf16FlyStringList,
+    size_value: RetainedStyleValue,
+    min_value: RetainedStyleValue,
+    max_value: RetainedStyleValue,
+    repeat_type: u8,
+    repeat_count: RetainedStyleValue,
+    repeat_is_subgrid: bool,
+    repeat_preserve_line_name_sets: bool,
+    repeat_entries_pointer: *mut RetainedGridTrackEntry,
+    repeat_entries_length: usize,
+}
+
+impl Drop for RetainedGridTrackEntry {
+    fn drop(&mut self) {
+        if !self.repeat_entries_pointer.is_null() {
+            drop(unsafe {
+                Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                    self.repeat_entries_pointer,
+                    self.repeat_entries_length,
+                ))
+            });
+        }
+    }
+}
+
+impl RetainedGridTrackEntryList {
+    /// Takes ownership of the entries' retained values and names, recursively for nested
+    /// repeat lists.
+    ///
+    /// # Safety
+    /// `entries` must point to `length` valid entry descriptions.
+    unsafe fn from_raw(entries: *const GridTrackEntryInput, length: usize) -> Self {
+        let slice: Box<[RetainedGridTrackEntry]> = (0..length)
+            .map(|i| {
+                let input = unsafe { &*entries.add(i) };
+                RetainedGridTrackEntry {
+                    kind: input.kind,
+                    names: unsafe { RetainedUtf16FlyStringList::from_raw(input.names, input.name_count) },
+                    size_value: RetainedStyleValue {
+                        pointer: input.size_value,
+                    },
+                    min_value: RetainedStyleValue {
+                        pointer: input.min_value,
+                    },
+                    max_value: RetainedStyleValue {
+                        pointer: input.max_value,
+                    },
+                    repeat_type: input.repeat_type,
+                    repeat_count: RetainedStyleValue {
+                        pointer: input.repeat_count,
+                    },
+                    repeat_is_subgrid: input.repeat_is_subgrid,
+                    repeat_preserve_line_name_sets: input.repeat_preserve_line_name_sets,
+                    repeat_entries_pointer: {
+                        let nested = unsafe {
+                            RetainedGridTrackEntryList::from_raw(input.repeat_entries, input.repeat_entry_count)
+                        };
+                        let pointer = nested.pointer;
+                        std::mem::forget(nested);
+                        pointer
+                    },
+                    repeat_entries_length: input.repeat_entry_count,
+                }
+            })
+            .collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedGridTrackEntry;
+        Self { pointer, length }
+    }
+}
+
+impl Drop for RetainedGridTrackEntryList {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+        }
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -687,6 +796,13 @@ pub enum StyleValueData {
         image: RetainedStyleValue,
         x: RetainedStyleValue,
         y: RetainedStyleValue,
+    },
+    /// A grid track size list: the subgrid and preserve-line-name-sets flags and the retained
+    /// track entries.
+    GridTrackSizeList {
+        is_subgrid: bool,
+        preserve_line_name_sets: bool,
+        entries: RetainedGridTrackEntryList,
     },
     /// grid-template-areas with its retained named areas and the row and column counts.
     GridTemplateArea {
@@ -1830,6 +1946,23 @@ pub unsafe extern "C" fn rust_style_value_create_easing(
                 pointer: number_of_intervals,
             },
             step_position,
+        }))
+    })
+}
+
+/// Takes ownership of the entries' retained values and names, recursively.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_grid_track_size_list(
+    is_subgrid: bool,
+    preserve_line_name_sets: bool,
+    entries: *const GridTrackEntryInput,
+    entry_count: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::GridTrackSizeList {
+            is_subgrid,
+            preserve_line_name_sets,
+            entries: unsafe { RetainedGridTrackEntryList::from_raw(entries, entry_count) },
         }))
     })
 }

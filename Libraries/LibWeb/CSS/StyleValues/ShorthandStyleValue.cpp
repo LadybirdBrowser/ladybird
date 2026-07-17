@@ -753,7 +753,11 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         auto& rows = rows_value->as_grid_track_size_list();
         auto& columns = columns_value->as_grid_track_size_list();
 
-        if (areas.row_count() == 0 && rows.grid_track_size_list().is_empty() && columns.grid_track_size_list().is_empty()) {
+        // NB: Materialize the track lists once; each accessor call rebuilds the whole recursive list.
+        auto rows_track_list = rows.grid_track_size_list();
+        auto columns_track_list = columns.grid_track_size_list();
+
+        if (areas.row_count() == 0 && rows_track_list.is_empty() && columns_track_list.is_empty()) {
             builder.append("none"sv);
             return;
         }
@@ -762,8 +766,8 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
             StringBuilder inner_builder;
             auto grid_areas = areas.grid_areas();
             size_t area_index = 0;
-            for (size_t i = 0; i < rows.grid_track_size_list().list().size(); ++i) {
-                auto track_size_or_line_names = rows.grid_track_size_list().list()[i];
+            for (size_t i = 0; i < rows_track_list.list().size(); ++i) {
+                auto track_size_or_line_names = rows_track_list.list()[i];
                 if (auto* line_names = track_size_or_line_names.get_pointer<GridLineNames>()) {
                     if (i != 0)
                         inner_builder.append(' ');
@@ -797,9 +801,9 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         };
 
         if (areas.row_count() == 0) {
-            rows.grid_track_size_list().serialize(builder, mode);
+            rows_track_list.serialize(builder, mode);
             builder.append(" / "sv);
-            columns.grid_track_size_list().serialize(builder, mode);
+            columns_track_list.serialize(builder, mode);
             return;
         }
 
@@ -807,13 +811,13 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         if (rows_serialization.is_empty())
             return;
 
-        if (columns.grid_track_size_list().is_empty()) {
+        if (columns_track_list.is_empty()) {
             builder.append(rows_serialization);
             return;
         }
         builder.append(rows_serialization);
         builder.append(" / "sv);
-        columns.grid_track_size_list().serialize(builder, mode);
+        columns_track_list.serialize(builder, mode);
         return;
     }
     case PropertyID::GridColumn: {
