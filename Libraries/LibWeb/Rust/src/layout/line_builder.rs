@@ -687,6 +687,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let mut earliest = strut_start;
         let mut latest = strut_end;
         let mut aligned_subtrees: Vec<LineRelativeAlignedSubtree> = Vec::new();
+        let mut first_unshifted_text_baseline: Option<CssPixels> = None;
+        let current_block_offset = self.current_block_offset;
 
         for fragment_index in 0..fragment_count {
             let mut snapshot = {
@@ -716,6 +718,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 metrics.effective_box_block_start_offset = used.margin_top.get() + used.border_box_top(false);
                 metrics.effective_box_block_end_offset = used.margin_bottom.get() + used.border_box_bottom(false);
             }
+            let containing_block = self.context().containing_block;
             let new_inline_offset = inline_offset + snapshot.inline_offset;
             let own_alignment_is_line_relative = line_relative_alignment(style).is_some();
             let aligned_subtree = self.line_relative_aligned_subtree_root(snapshot.style_source);
@@ -727,7 +730,21 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             let parent_style = self.parent_style(snapshot.style_source);
             let mut new_block_offset =
                 self.block_offset_for_alignment(alignment_style, parent_style, metrics, line_box_baseline);
-            let containing_block = self.context().containing_block;
+            // Fragments of the containing block count as unshifted, and a fragment whose effective
+            // alignment already is baseline sits at its baseline-aligned offset.
+            let baseline_aligned_block_offset = if snapshot.style_source == containing_block
+                || (alignment_style.vertical_align_is_keyword()
+                    && alignment_style.vertical_align_keyword() == vertical_align::BASELINE)
+            {
+                new_block_offset
+            } else {
+                self.block_offset_for_alignment(
+                    style.with_vertical_align_keyword(vertical_align::BASELINE),
+                    parent_style,
+                    metrics,
+                    line_box_baseline,
+                )
+            };
             let mut ancestor = if snapshot.style_source == containing_block {
                 NodeSlotId::INVALID
             } else {
@@ -821,6 +838,19 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 fragment_mut.baseline = font_baseline;
                 fragment_mut.block_length = font_box_size;
             }
+
+            // Aligned-subtree fragments are placed at their baseline position here and moved by the
+            // subtree shift below, so they never count as unshifted.
+            let fragment_is_unshifted = aligned_subtree.is_none()
+                && (snapshot.style_source == containing_block || new_block_offset == baseline_aligned_block_offset);
+            let is_text_node = self.context().facts(snapshot.layout_node).is_text_node();
+            if first_unshifted_text_baseline.is_none() && fragment_is_unshifted && is_text_node {
+                let fragment = &self.line(line_index).fragments[fragment_index];
+                if !fragment.is_fully_truncated {
+                    first_unshifted_text_baseline =
+                        Some(fragment.block_offset + fragment.baseline - current_block_offset);
+                }
+            }
         }
 
         // Top- and bottom-aligned subtrees do not participate in choosing the line box baseline. Once all other boxes
@@ -860,7 +890,6 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             }
         }
 
-        let current_block_offset = self.current_block_offset;
         let marker_count = self.line(line_index).static_position_markers.len();
         for marker_index in 0..marker_count {
             // Static position markers are resolved against the inline box that contains them, so they move with that
@@ -880,7 +909,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             let mut line = self.line_mut(line_index);
             line.block_length = latest - earliest;
             line.block_end = current_block_offset + line.block_length;
-            line.baseline = line_box_baseline + normal_subtree_shift;
+            // Fragment block offsets include the reversed-writing-mode shim, so the alignment
+            // baseline fallback must include it as well to share their coordinate space.
+            line.baseline =
+                first_unshifted_text_baseline.unwrap_or(line_box_baseline + block_offset) + normal_subtree_shift;
         }
         self.should_advance_to_last_line_box_block_end = should_align_strut_to_line_box_baseline;
     }
