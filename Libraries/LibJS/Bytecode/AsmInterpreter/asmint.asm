@@ -379,7 +379,7 @@ macro prefix_inc_dec(op32_overflow, fp_op, slow_path_func)
     box_int32_clean dst, int_value
     store_operand m_dst, dst
     dispatch_next
-.overflow:
+.overflow: @cold
     unbox_int32 int_value, value
     int_to_double result_dbl, int_value
     mov dst, DOUBLE_ONE
@@ -404,7 +404,7 @@ macro postfix_inc_dec(op32_overflow, fp_op, slow_path_func)
     box_int32_clean dst, int_value
     store_operand m_src, dst
     dispatch_next
-.overflow_after_store:
+.overflow_after_store: @cold
     unbox_int32 int_value, value
     int_to_double result_dbl, int_value
     mov dst, DOUBLE_ONE
@@ -688,7 +688,7 @@ handler Add
     box_int32_clean dst, lhs_int
     store_operand m_dst, dst
     dispatch_next
-.overflow:
+.overflow: @cold
     # Int32 overflow: convert both to double and redo the operation
     unbox_int32 lhs_int, lhs
     unbox_int32 rhs_int, rhs
@@ -718,7 +718,7 @@ handler Sub
     box_int32_clean dst, lhs_int
     store_operand m_dst, dst
     dispatch_next
-.overflow:
+.overflow: @cold
     unbox_int32 lhs_int, lhs
     unbox_int32 rhs_int, rhs
     int_to_double lhs_dbl, lhs_int
@@ -754,11 +754,11 @@ handler Mul
     box_int32_clean dst, lhs_int
     store_operand m_dst, dst
     dispatch_next
-.negative_zero:
+.negative_zero: @cold
     mov dst, NEGATIVE_ZERO
     store_operand m_dst, dst
     dispatch_next
-.overflow:
+.overflow: @cold
     unbox_int32 lhs_int, lhs
     unbox_int32 rhs_int, rhs
     int_to_double lhs_dbl, lhs_int
@@ -1722,11 +1722,11 @@ handler UnaryMinus
     box_int32_clean dst, int_value
     store_operand m_dst, dst
     dispatch_next
-.negative_zero:
+.negative_zero: @cold
     mov dst, NEGATIVE_ZERO
     store_operand m_dst, dst
     dispatch_next
-.overflow:
+.overflow: @cold
     # INT32_MIN: -(-2147483648) = 2147483648.0
     int_to_double dst_dbl, int_value
     fp_mov dst, dst_dbl
