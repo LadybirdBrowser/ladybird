@@ -36,6 +36,15 @@ public:
     Vector<InlineBoxPiece>& inline_box_pieces() { return m_inline_box_pieces; }
     void set_inline_box_pieces(Vector<InlineBoxPiece> pieces) { m_inline_box_pieces = move(pieces); }
 
+    struct ResolvedTextDecoration {
+        Layout::NodeWithStyle const* node { nullptr };
+        CSSPixels thickness;
+    };
+    // The decorating boxes at or above this block whose decorations propagate to its line boxes,
+    // ordered innermost first. Valid for the display list build that resolved them.
+    Vector<ResolvedTextDecoration> const& propagated_text_decorations() const { return m_propagated_text_decorations; }
+    CSSPixels ensure_resolved_text_decoration_thickness(Layout::NodeWithStyle const& decorating_box) const;
+
     void add_fragment(PaintableFragment::Fields fields)
     {
         m_fragments.empend(*this, move(fields));
@@ -111,6 +120,8 @@ private:
     Optional<PaintableFragment const&> fragment_at_position(DOM::Position const&) const;
     Optional<CSSPixelRect> empty_line_caret_rect(DOM::Position const&) const;
 
+    void resolve_propagated_text_decorations() const;
+
     // A caret target for a line box with no fragments (e.g. a blank line in a textarea).
     struct EmptyLineCaretTarget {
         size_t offset { 0 };
@@ -131,6 +142,8 @@ private:
     };
 
     mutable Optional<u64> m_text_fragment_properties_paint_generation_id;
+    mutable Vector<ResolvedTextDecoration> m_propagated_text_decorations;
+    mutable Vector<ResolvedTextDecoration> m_resolved_inline_text_decoration_thicknesses;
 };
 
 }

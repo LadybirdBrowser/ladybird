@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="help" href="http://www.w3.org/TR/css-text-decor-3/#line-decoration">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1414859">
+<link rel="match" href="../../../../expected/wpt-import/css/css-text-decor/reference/text-decoration-propagation-03-ref.html">
+<style>
+span { text-decoration: underline; }
+</style>
+<span>
+  <div style="display: inline-grid;">
+    This text must not be underlined.
+  </div>
+</span>

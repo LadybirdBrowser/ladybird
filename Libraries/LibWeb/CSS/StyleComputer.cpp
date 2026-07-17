@@ -4211,9 +4211,6 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
         // and starting one is not something the values carry.
         sharing->is_candidate = inheritance_parent_values && !element.is_document_element()
             && !inheritance_parent_values->animated_properties()
-            // text-decoration-line is temporarily implemented as inherited despite living in a non-inherited
-            // style group. The sharing key cannot distinguish decorated parents until that workaround is removed.
-            && inheritance_parent_values->text_decoration_line().is_empty()
             && !element.has_relevant_animations()
             && !element.has_css_defined_animations()
             && element.property_ids_with_existing_transitions(abstract_element.pseudo_element()).is_empty()

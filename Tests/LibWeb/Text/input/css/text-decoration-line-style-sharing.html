@@ -5,14 +5,21 @@
     .overline { text-decoration-line: overline; }
     .line-through { text-decoration-line: line-through; }
 </style>
-<div class="underline"><span></span></div>
-<div class="overline"><span></span></div>
-<div class="line-through"><span></span></div>
 <script>
     test(() => {
-        const children = document.querySelectorAll("span");
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        for (const decoration of ["underline", "overline", "line-through"]) {
+            const parent = document.createElement("div");
+            parent.className = decoration;
+            parent.append(document.createElement("span"));
+            document.body.append(parent);
+        }
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
 
-        for (const child of children)
+        for (const child of document.querySelectorAll("span"))
             println(getComputedStyle(child).textDecorationLine);
+        println(`shared computations: ${after.elementStyleSharedComputations - before.elementStyleSharedComputations}`);
     });
 </script>

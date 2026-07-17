@@ -30,7 +30,7 @@
 
 namespace Web::Painting {
 
-static void paint_text_decoration(DisplayListRecordingContext&, Layout::TextNode const&, PaintableFragment::FragmentSpan const&);
+static void paint_text_decoration(DisplayListRecordingContext&, Layout::TextNode const&, PaintableFragment::FragmentSpan const&, CSSPixelRect const& decoration_box);
 static Gfx::Path build_triangle_wave_path(Gfx::IntPoint from, Gfx::IntPoint to, float amplitude);
 static void compute_render_spans(PaintableFragment const&, Vector<PaintableFragment::FragmentSpan, 4>&);
 static void paint_text_fragment(DisplayListRecordingContext&, PaintableFragment::FragmentSpan const&);
@@ -329,17 +329,6 @@ void PaintableWithLines::record_empty_line_caret_items(HitTestDisplayList& hit_t
     }
 }
 
-static Layout::NodeWithStyle const& text_decoration_source(Layout::TextNode const& text_node)
-{
-    auto const* source = text_node.parent();
-    while (source->text_decoration_line().is_empty()) {
-        if (source->is_atomic_inline() || source->is_out_of_flow() || !source->parent())
-            break;
-        source = source->parent();
-    }
-    return *source;
-}
-
 static CSSPixels resolve_text_decoration_thickness(CSS::TextDecorationThickness const& thickness, CSSPixels glyph_height, Layout::NodeWithStyle const& decorating_node)
 {
     return thickness.value.visit(
@@ -368,12 +357,6 @@ static void resolve_text_fragment_properties(PaintableWithLines const& paintable
         auto const* text_node = as_if<Layout::TextNode>(fragment.layout_node());
         if (!text_node)
             continue;
-
-        auto const& font = text_node->first_available_font();
-        auto const glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
-        auto const line_thickness = resolve_text_decoration_thickness(
-            text_decoration_source(*text_node).text_decoration_thickness(), glyph_height, *text_node->parent());
-        fragment.set_text_decoration_thickness(line_thickness);
 
         auto const& text_shadow = text_node->parent()->text_shadow();
         Vector<ShadowData> resolved_shadow_data;
@@ -408,6 +391,7 @@ void PaintableWithLines::paint_fragments_foreground(DisplayListRecordingContext&
     // so resolving once per display list build is enough.
     if (m_text_fragment_properties_paint_generation_id != context.paint_generation_id()) {
         resolve_text_fragment_properties(*this);
+        resolve_propagated_text_decorations();
         m_text_fragment_properties_paint_generation_id = context.paint_generation_id();
     }
 
@@ -552,6 +536,7 @@ void paint_text_fragment(DisplayListRecordingContext& context, PaintableFragment
 
     // Paint text, clipped to span range if not full fragment.
     bool is_full_fragment = span.start_code_unit == 0 && span.end_code_unit == fragment.length_in_code_units();
+    auto decoration_box = fragment_absolute_rect;
     if (is_full_fragment) {
         painter.draw_glyph_run(baseline_start, *glyph_run, span.text_color, fragment_device_rect, scale, fragment.orientation());
     } else {
@@ -563,9 +548,11 @@ void paint_text_fragment(DisplayListRecordingContext& context, PaintableFragment
         painter.add_clip_rect(span_rect);
         painter.draw_glyph_run(baseline_start, *glyph_run, span.text_color, fragment_device_rect, scale, fragment.orientation());
         painter.restore();
+        decoration_box.set_x(range_rect.x());
+        decoration_box.set_width(range_rect.width());
     }
 
-    paint_text_decoration(context, text_node, span);
+    paint_text_decoration(context, text_node, span, decoration_box);
 }
 
 Optional<PaintableFragment const&> PaintableWithLines::fragment_at_position(DOM::Position const& position) const
@@ -768,19 +755,24 @@ static Vector<DecorationSegment> compute_skip_ink_segments(
     return segments;
 }
 
-static void paint_decoration_lines(DisplayListRecordingContext& context, Layout::TextNode const& text_node,
-    PaintableFragment const& fragment, CSSPixelRect const& fragment_box,
+static void paint_decoration_lines(DisplayListRecordingContext& context, PaintableFragment const& fragment,
+    Layout::NodeWithStyle const& decorating_node, CSSPixelRect const& fragment_box,
+    CSSPixels baseline, bool anchored_at_fragment_baseline,
     Vector<CSS::TextDecorationLine> const& text_decoration_lines, CSS::TextDecorationStyle line_style,
     Color line_color, CSSPixels decoration_thickness)
 {
     auto& recorder = context.display_list_recorder();
-    auto& font = fragment.layout_node().first_available_font();
-    CSSPixels glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
-    auto baseline = fragment.baseline();
+    auto const& text_node = as<Layout::TextNode>(fragment.layout_node());
 
-    auto const& decoration_source = text_decoration_source(text_node);
-    auto text_underline_offset = decoration_source.text_underline_offset();
-    auto text_underline_position = decoration_source.text_underline_position();
+    // https://drafts.csswg.org/css-text-decor-4/#text-line-constancy
+    // However, for underlines and overlines the UA must use a single thickness and position on each line for the
+    // decorations deriving from a single decorating box.
+    auto const& decorating_box_font = decorating_node.first_available_font();
+    auto const& text_font = &decorating_node == text_node.parent() ? decorating_box_font : text_node.first_available_font();
+    CSSPixels glyph_height = CSSPixels::nearest_value_for(decorating_box_font.pixel_size());
+
+    auto text_underline_offset = decorating_node.text_underline_offset();
+    auto text_underline_position = decorating_node.text_underline_position();
     for (auto line : text_decoration_lines) {
         auto line_thickness = decoration_thickness;
 
@@ -835,15 +827,15 @@ static void paint_decoration_lines(DisplayListRecordingContext& context, Layout:
                     //            glyphs from Asian scripts such as Han or Tibetan for which an alphabetic underline is
                     //            too high: in such cases, shifting the underline lower or aligning to the em box edge
                     //            as described for under may be more appropriate.
-                    return fragment.baseline() + text_underline_offset;
+                    return baseline + text_underline_offset;
                 case CSS::TextUnderlinePositionHorizontal::FromFont:
                     // FIXME: If the first available font has metrics indicating a preferred underline offset, use that
                     //        offset, otherwise behaves as auto.
-                    return fragment.baseline() + text_underline_offset;
+                    return baseline + text_underline_offset;
                 case CSS::TextUnderlinePositionHorizontal::Under:
                     // The underline is positioned under the element’s text content. In this case the underline usually
                     // does not cross the descenders. (This is sometimes called “accounting” underline.)
-                    return fragment.baseline() + CSSPixels { font.pixel_metrics().descent } + text_underline_offset;
+                    return baseline + CSSPixels { decorating_box_font.pixel_metrics().descent } + text_underline_offset;
                 }
                 VERIFY_NOT_REACHED();
             }();
@@ -854,7 +846,7 @@ static void paint_decoration_lines(DisplayListRecordingContext& context, Layout:
             line_center_y = baseline - glyph_height - line_thickness / 2;
             break;
         case CSS::TextDecorationLine::LineThrough: {
-            auto x_height = font.x_height();
+            auto x_height = decorating_box_font.x_height();
             line_center_y = baseline - x_height * CSSPixels(0.5f);
             break;
         }
@@ -873,8 +865,12 @@ static void paint_decoration_lines(DisplayListRecordingContext& context, Layout:
         // https://drafts.csswg.org/css-text-decor-4/#text-decoration-skip-ink-property
         // FIXME: For text-decoration-skip-ink: auto, skip CJK ideographs and symbols from the intercept
         //        computation, since their complex strokes would create too many gaps in the decoration line.
-        auto skip_ink = decoration_source.text_decoration_skip_ink();
+        // NB: Ink is only skipped for decorations anchored at this fragment's own baseline. A fragment that is
+        //     vertically shifted relative to a propagated decoration must not carve gaps into the decorating
+        //     box's line.
+        auto skip_ink = text_node.parent()->text_decoration_skip_ink();
         bool should_skip_ink = skip_ink != CSS::TextDecorationSkipInk::None
+            && anchored_at_fragment_baseline
             && first_is_one_of(line, CSS::TextDecorationLine::Underline, CSS::TextDecorationLine::Overline);
 
         auto draw_line_for_segment = [&](DecorationSegment segment, int y, Gfx::LineStyle style = Gfx::LineStyle::Solid) {
@@ -885,7 +881,7 @@ static void paint_decoration_lines(DisplayListRecordingContext& context, Layout:
             if (!should_skip_ink)
                 return { { line_start_point.x().value(), line_end_point.x().value() } };
             return compute_skip_ink_segments(fragment, context, line_start_point.x().value(), line_end_point.x().value(),
-                line_start_point.y().value(), device_line_thickness.value(), font.pixel_size());
+                line_start_point.y().value(), device_line_thickness.value(), text_font.pixel_size());
         }();
 
         auto line_y = line_start_point.y().value();
@@ -965,31 +961,114 @@ static void paint_decoration_lines(DisplayListRecordingContext& context, Layout:
     }
 }
 
-void paint_text_decoration(DisplayListRecordingContext& context, Layout::TextNode const& text_node, PaintableFragment::FragmentSpan const& span)
+struct DecorationAnchor {
+    CSSPixels baseline;
+    bool anchored_at_fragment_baseline { false };
+};
+
+// https://drafts.csswg.org/css-text-decor-4/#text-line-constancy
+static DecorationAnchor anchor_for_decorating_box(PaintableFragment const& fragment, Layout::NodeWithStyle const& decorating_node)
+{
+    // Text always sits at its parent's baseline, so the parent's decorations are anchored exactly there.
+    if (&decorating_node == fragment.layout_node().parent())
+        return { .baseline = fragment.baseline(), .anchored_at_fragment_baseline = true };
+
+    if (auto const* inline_paintable = as_if<InlinePaintable>(decorating_node.paintable().ptr())) {
+        if (auto const* piece = inline_paintable->piece_for_line(fragment.line_index())) {
+            return {
+                .baseline = piece->baseline - fragment.offset().y(),
+                .anchored_at_fragment_baseline = fragment.accumulated_vertical_shift() == piece->accumulated_vertical_shift,
+            };
+        }
+    }
+
+    auto const& paintable_with_lines = fragment.paintable_with_lines();
+    return {
+        .baseline = paintable_with_lines.lines()[fragment.line_index()].baseline - fragment.offset().y(),
+        .anchored_at_fragment_baseline = fragment.accumulated_vertical_shift() == 0,
+    };
+}
+
+void paint_text_decoration(DisplayListRecordingContext& context, Layout::TextNode const& text_node, PaintableFragment::FragmentSpan const& span, CSSPixelRect const& decoration_box)
 {
     auto const& fragment = span.fragment;
-
-    // Compute the decoration box for this span.
-    auto fragment_box = fragment.absolute_rect();
-    if (span.start_code_unit != 0 || span.end_code_unit != fragment.length_in_code_units()) {
-        auto span_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd,
-            fragment.dom_start_offset_in_node() + span.start_code_unit,
-            fragment.dom_start_offset_in_node() + span.end_code_unit);
-        fragment_box.set_x(span_rect.x());
-        fragment_box.set_width(span_rect.width());
-    }
+    auto const& paintable_with_lines = fragment.paintable_with_lines();
 
     // A span with an explicit text decoration (from ::selection) replaces the decorations this text would
     // otherwise be painted with.
     if (span.text_decoration.has_value()) {
-        paint_decoration_lines(context, text_node, fragment, fragment_box, span.text_decoration->line,
-            span.text_decoration->style, span.text_decoration->color, fragment.text_decoration_thickness());
+        paint_decoration_lines(context, fragment, *text_node.parent(), decoration_box, fragment.baseline(), true,
+            span.text_decoration->line, span.text_decoration->style, span.text_decoration->color,
+            paintable_with_lines.ensure_resolved_text_decoration_thickness(*text_node.parent()));
         return;
     }
 
-    auto const& decoration_source = text_decoration_source(text_node);
-    paint_decoration_lines(context, text_node, fragment, fragment_box, decoration_source.text_decoration_line(),
-        decoration_source.text_decoration_style(), decoration_source.text_decoration_color(), fragment.text_decoration_thickness());
+    auto const& block = paintable_with_lines.layout_node();
+
+    // https://drafts.csswg.org/css-text-decor-4/#decorating-box
+    // When specified on or propagated to an inline box, that box becomes a decorating box for that decoration,
+    // applying the decoration to all its box fragments.
+    for (auto const* ancestor = text_node.parent(); ancestor && ancestor != &block; ancestor = ancestor->parent()) {
+        if (!ancestor->text_decoration_line().is_empty()) {
+            auto anchor = anchor_for_decorating_box(fragment, *ancestor);
+            paint_decoration_lines(context, fragment, *ancestor, decoration_box, anchor.baseline,
+                anchor.anchored_at_fragment_baseline, ancestor->text_decoration_line(),
+                ancestor->text_decoration_style(), ancestor->text_decoration_color(),
+                paintable_with_lines.ensure_resolved_text_decoration_thickness(*ancestor));
+        }
+        if (ancestor->is_text_decoration_propagation_boundary())
+            return;
+    }
+
+    // https://drafts.csswg.org/css-text-decor-4/#line-decoration
+    // When specified on or propagated to a block container that establishes an inline formatting context,
+    // the decorations are propagated to an anonymous inline box that wraps all the in-flow inline-level
+    // children of the block container.
+    // NB: The anonymous inline box inherits from the containing block, so these decorations derive their
+    //     geometry from it.
+    auto const& propagated_text_decorations = paintable_with_lines.propagated_text_decorations();
+    if (propagated_text_decorations.is_empty())
+        return;
+    auto anchor = anchor_for_decorating_box(fragment, block);
+    for (auto const& decoration : propagated_text_decorations) {
+        paint_decoration_lines(context, fragment, block, decoration_box, anchor.baseline,
+            anchor.anchored_at_fragment_baseline, decoration.node->text_decoration_line(),
+            decoration.node->text_decoration_style(), decoration.node->text_decoration_color(),
+            decoration.thickness);
+    }
+}
+
+void PaintableWithLines::resolve_propagated_text_decorations() const
+{
+    m_propagated_text_decorations.clear();
+    m_resolved_inline_text_decoration_thicknesses.clear();
+
+    auto const& block = layout_node();
+    Optional<CSSPixels> block_glyph_height;
+    for (Layout::NodeWithStyle const* ancestor = &block; ancestor; ancestor = ancestor->parent()) {
+        if (!ancestor->text_decoration_line().is_empty()) {
+            if (!block_glyph_height.has_value())
+                block_glyph_height = CSSPixels::nearest_value_for(block.first_available_font().pixel_size());
+            m_propagated_text_decorations.append({
+                .node = ancestor,
+                .thickness = resolve_text_decoration_thickness(ancestor->text_decoration_thickness(), *block_glyph_height, block),
+            });
+        }
+        if (ancestor->is_text_decoration_propagation_boundary())
+            break;
+    }
+}
+
+CSSPixels PaintableWithLines::ensure_resolved_text_decoration_thickness(Layout::NodeWithStyle const& decorating_box) const
+{
+    for (auto const& entry : m_resolved_inline_text_decoration_thicknesses) {
+        if (entry.node == &decorating_box)
+            return entry.thickness;
+    }
+    auto thickness = resolve_text_decoration_thickness(decorating_box.text_decoration_thickness(),
+        CSSPixels::nearest_value_for(decorating_box.first_available_font().pixel_size()), decorating_box);
+    m_resolved_inline_text_decoration_thicknesses.append({ .node = &decorating_box, .thickness = thickness });
+    return thickness;
 }
 
 Gfx::Path build_triangle_wave_path(Gfx::IntPoint from, Gfx::IntPoint to, float amplitude)

@@ -210,6 +210,12 @@ Node* Node::topmost_layout_node_of_top_layer_placement()
     return direct_viewport_child_candidate;
 }
 
+bool Node::is_pseudo_element_principal_box() const
+{
+    auto pseudo_element = generated_for_pseudo_element();
+    return pseudo_element.has_value() && pseudo_element_generator()->pseudo_element_unsafe_layout_node(*pseudo_element) == this;
+}
+
 bool Node::is_out_of_flow() const
 {
     auto const* node_with_style = as_if<NodeWithStyle>(*this);
@@ -691,6 +697,21 @@ bool NodeWithStyle::is_sticky_position() const
     return position == CSS::Positioning::Sticky;
 }
 
+bool NodeWithStyle::is_text_decoration_propagation_boundary() const
+{
+    // NB: Anonymous wrappers must stay transparent to propagation so an element's own decorations still reach
+    //     its text. The principal box of a pseudo-element is not a wrapper and must be checked like any other
+    //     element, and a table wrapper carries the float and position of the table it wraps, so it is the only
+    //     box where an out-of-flow table is observable.
+    if (is_anonymous() && !is_pseudo_element_principal_box() && !is<TableWrapper>(*this))
+        return false;
+
+    // https://drafts.csswg.org/css-text-decor-4/#decorating-box
+    // NOTE: Note that text decorations are not propagated to any out-of-flow descendants, nor to the contents
+    //       of atomic inline-level descendants such as inline blocks and inline tables.
+    return is_out_of_flow() || is_atomic_inline();
+}
+
 NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle style)
     : Node(document, node)
 {
@@ -868,15 +889,6 @@ CSS::StyleScope const& NodeWithStyle::style_scope() const
     return document().style_scope();
 }
 
-void NodeWithStyle::propagate_non_inherit_values(CSS::ComputedValues::Builder& builder) const
-{
-    // NOTE: These properties are not inherited, but we still have to propagate them to anonymous wrappers.
-    builder->set_text_decoration_line(text_decoration_line());
-    builder->set_text_decoration_thickness(text_decoration_thickness());
-    builder->set_text_decoration_color(text_decoration_color());
-    builder->set_text_decoration_style(text_decoration_style());
-}
-
 void NodeWithStyle::propagate_style_to_anonymous_wrappers()
 {
     // Update the style of any anonymous wrappers that inherit from this node.
@@ -896,17 +908,14 @@ void NodeWithStyle::propagate_style_to_anonymous_wrappers()
     // Propagate style to all anonymous children (except table wrappers!)
     for_each_child_of_type<NodeWithStyle>([&](NodeWithStyle& child) {
         if (child.is_anonymous() && !is<TableWrapper>(child)) {
-            // NB: The principal box of a pseudo-element (::before, ::after, ::marker, etc) is anonymous in the
-            //     sense that it has no DOM node, but it's not an anonymous wrapper: it has its own computed style,
-            //     which is applied to it separately. Don't clobber that style with inherited values from this node.
-            if (auto pseudo_element = child.generated_for_pseudo_element(); pseudo_element.has_value()
-                && child.pseudo_element_generator()->pseudo_element_unsafe_layout_node(*pseudo_element) == &child) {
+            // NB: The principal box of a pseudo-element (::before, ::after, ::marker, etc) has its own computed
+            //     style, which is applied to it separately. Don't clobber that style with inherited values from
+            //     this node.
+            if (child.is_pseudo_element_principal_box())
                 return IterationDecision::Continue;
-            }
             CSS::ComputedValues::Builder builder(child.owned_computed_values());
             auto values = copy_computed_values();
             builder->inherit_from(*values);
-            propagate_non_inherit_values(builder);
             child.set_computed_values(move(builder).build());
             child.propagate_style_to_anonymous_wrappers();
         }
@@ -1090,7 +1099,6 @@ NonnullRefPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
     auto values = copy_computed_values();
     auto builder = CSS::ComputedValues::Builder::create_inheriting_from(*values);
     builder->set_display(CSS::Display(CSS::DisplayOutside::Block, CSS::DisplayInside::Flow));
-    propagate_non_inherit_values(builder);
     // CSS 2.2 9.2.1.1 creates anonymous block boxes, but 9.4.1 states inline-block creates a BFC.
     // Set wrapper to inline-block to participate correctly in the IFC within the parent inline-block.
     if (display().is_inline_block() && !has_children())

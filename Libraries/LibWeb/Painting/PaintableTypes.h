@@ -32,19 +32,20 @@ enum class SelectionState : u8 {
 };
 
 // One record per line box of a block container with inline children, including lines without
-// fragments (e.g. blank lines between consecutive forced breaks in a textarea). The rect is
-// relative to the containing block's content-box origin, and fragment_count only counts
-// committed fragments (fully truncated ones are never committed).
+// fragments (e.g. blank lines between consecutive forced breaks in a textarea). The rect and
+// baseline are relative to the containing block's content-box origin, and fragment_count only
+// counts committed fragments (fully truncated ones are never committed).
 struct LineRecord {
     CSSPixelRect rect;
+    CSSPixels baseline;
     u32 fragment_count { 0 };
 };
 
 // One line's slice of an inline box (InlineNode or inline-flow ListItemBox) fragmented across
 // lines; box edges cut at a line boundary are absent, per box-decoration-break: slice. Fragment
-// indexes point into the containing block paintable's fragment list, and border_box_rect is
-// relative to that block's content-box origin. The committed piece list is ordered by (line,
-// nesting depth), so outer boxes' pieces precede nested ones on the same line.
+// indexes point into the containing block paintable's fragment list, and border_box_rect and
+// baseline are relative to that block's content-box origin. The committed piece list is ordered
+// by (line_index, nesting depth), so outer boxes' pieces precede nested ones on the same line.
 struct InlineBoxPiece {
     enum class Edge : u8 {
         Top = 1 << 0,
@@ -56,7 +57,10 @@ struct InlineBoxPiece {
     WeakPtr<Layout::Node const> node;
     u32 first_fragment_index { 0 };
     u32 fragment_count { 0 };
+    u32 line_index { 0 };
     CSSPixelRect border_box_rect;
+    CSSPixels baseline { 0 };
+    CSSPixels accumulated_vertical_shift { 0 };
     u8 present_edges { 0 };
     bool is_geometry_only_placeholder { false };
 

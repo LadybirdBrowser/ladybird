@@ -4596,8 +4596,7 @@
     "style-group": "TextResetValues",
     "affects-layout": false,
     "animation-type": "discrete",
-    "__comment": "FIXME: This property is not supposed to be inherited, but we currently rely on inheritance to propagate decorations into line boxes.",
-    "inherited": true,
+    "inherited": false,
     "initial": "none",
     "requires-computation": "never",
     "valid-types": [

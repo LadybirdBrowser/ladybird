@@ -20,6 +20,12 @@ struct VerticalAlignMetrics {
 }
 
 #[derive(Clone, Copy)]
+struct InlineBoxAlignment {
+    box_: Node,
+    vertical_shift: CssPixels,
+}
+
+#[derive(Clone, Copy)]
 struct FragmentAlignmentSnapshot {
     style_source: Node,
     layout_node: Node,
@@ -398,6 +404,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             line.fragments.push(fragment);
             line.inline_length = line_inline_length;
             line.block_length = CssPixels::default();
+            line.block_start = current_block_offset;
             line.block_end = block_end;
             line.baseline = CssPixels::default();
             line.has_block_level_box = true;
@@ -566,6 +573,17 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         None
     }
 
+    fn subtree_shift_for_box(
+        &self,
+        box_: Node,
+        aligned_subtrees: &[LineRelativeAlignedSubtree],
+        normal_subtree_shift: CssPixels,
+    ) -> CssPixels {
+        self.line_relative_aligned_subtree_root(box_)
+            .and_then(|(root, _)| aligned_subtree_shift(aligned_subtrees, root))
+            .unwrap_or(normal_subtree_shift)
+    }
+
     fn inline_box_alignment_metrics(&self, node: Node) -> VerticalAlignMetrics {
         let style = self.context().style(node);
         let used = self.context().used(node);
@@ -689,8 +707,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let mut aligned_subtrees: Vec<LineRelativeAlignedSubtree> = Vec::new();
         let mut first_unshifted_text_baseline: Option<CssPixels> = None;
         let current_block_offset = self.current_block_offset;
+        let mut inline_box_alignments: Vec<InlineBoxAlignment> = Vec::new();
 
         for fragment_index in 0..fragment_count {
+            inline_box_alignments.clear();
             let mut snapshot = {
                 let fragment = &self.line(line_index).fragments[fragment_index];
                 FragmentAlignmentSnapshot {
@@ -745,6 +765,14 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     line_box_baseline,
                 )
             };
+            if snapshot.style_source != containing_block
+                && self.context().facts(snapshot.style_source).is_fragmented_inline()
+            {
+                inline_box_alignments.push(InlineBoxAlignment {
+                    box_: snapshot.style_source,
+                    vertical_shift: new_block_offset - baseline_aligned_block_offset,
+                });
+            }
             let mut ancestor = if snapshot.style_source == containing_block {
                 NodeSlotId::INVALID
             } else {
@@ -762,13 +790,17 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 if ancestor_style.vertical_align_is_keyword()
                     && ancestor_style.vertical_align_keyword() == vertical_align::BASELINE
                 {
+                    inline_box_alignments.push(InlineBoxAlignment {
+                        box_: ancestor,
+                        vertical_shift: CssPixels::default(),
+                    });
                     ancestor = self.context().parent_node(ancestor);
                     continue;
                 }
                 let ancestor_metrics = self.inline_box_alignment_metrics(ancestor);
                 let ancestor_parent_style = self.parent_style(ancestor);
                 let baseline_style = ancestor_style.with_vertical_align_keyword(vertical_align::BASELINE);
-                new_block_offset +=
+                let ancestor_vertical_shift =
                     self.block_offset_for_alignment(ancestor_style, ancestor_parent_style, ancestor_metrics, line_box_baseline)
                         - self.block_offset_for_alignment(
                             baseline_style,
@@ -776,12 +808,19 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                             ancestor_metrics,
                             line_box_baseline,
                         );
+                new_block_offset += ancestor_vertical_shift;
+                inline_box_alignments.push(InlineBoxAlignment {
+                    box_: ancestor,
+                    vertical_shift: ancestor_vertical_shift,
+                });
                 ancestor = self.context().parent_node(ancestor);
             }
+            let accumulated_vertical_shift = new_block_offset - baseline_aligned_block_offset;
             {
                 let fragment = &mut self.line_mut(line_index).fragments[fragment_index];
                 fragment.inline_offset = new_inline_offset;
                 fragment.block_offset = new_block_offset.floor() + block_offset;
+                fragment.accumulated_vertical_shift = accumulated_vertical_shift;
                 snapshot.block_offset = fragment.block_offset;
             }
 
@@ -828,9 +867,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 latest = latest.max(inline_box_end);
             }
 
-            if self.context().facts(snapshot.layout_node).is_text_node()
-                && self.writing_mode == writing_mode::HORIZONTAL_TB
-            {
+            let is_text_node = self.context().facts(snapshot.layout_node).is_text_node();
+            if is_text_node && self.writing_mode == writing_mode::HORIZONTAL_TB {
                 let font_box_size = normal_line_height(style);
                 let font_baseline = Self::baseline_for_style(style, font_box_size);
                 let fragment_mut = &mut self.line_mut(line_index).fragments[fragment_index];
@@ -839,16 +877,39 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 fragment_mut.block_length = font_box_size;
             }
 
-            // Aligned-subtree fragments are placed at their baseline position here and moved by the
-            // subtree shift below, so they never count as unshifted.
-            let fragment_is_unshifted = aligned_subtree.is_none()
-                && (snapshot.style_source == containing_block || new_block_offset == baseline_aligned_block_offset);
-            let is_text_node = self.context().facts(snapshot.layout_node).is_text_node();
-            if first_unshifted_text_baseline.is_none() && fragment_is_unshifted && is_text_node {
+            let text_fragment_baseline = {
                 let fragment = &self.line(line_index).fragments[fragment_index];
-                if !fragment.is_fully_truncated {
-                    first_unshifted_text_baseline =
-                        Some(fragment.block_offset + fragment.baseline - current_block_offset);
+                (is_text_node && !fragment.is_fully_truncated).then(|| fragment.block_offset + fragment.baseline)
+            };
+            if let Some(fragment_baseline) = text_fragment_baseline {
+                // Aligned-subtree fragments are placed at their baseline position here and moved by the
+                // subtree shift below, so they never count as unshifted.
+                let fragment_is_unshifted =
+                    aligned_subtree.is_none() && accumulated_vertical_shift == CssPixels::default();
+                if first_unshifted_text_baseline.is_none() && fragment_is_unshifted {
+                    first_unshifted_text_baseline = Some(fragment_baseline - current_block_offset);
+                }
+
+                // https://drafts.csswg.org/css-text-decor-4/#text-line-constancy
+                // UAs must adjust line positions to match the shifted metrics of decorating boxes shifted with
+                // vertical-align values other than baseline [CSS2] or subscripted/superscripted via
+                // font-variant-position [CSS-FONTS-3], but must not adjust the line position or thickness in
+                // response to descendants of a decorating box that are so styled.
+                let mut inline_box_baseline = fragment_baseline;
+                let mut remaining_vertical_shift = accumulated_vertical_shift;
+                for alignment in &inline_box_alignments {
+                    let inserted = self.line_mut(line_index).set_inline_box_baseline(
+                        alignment.box_,
+                        inline_box_baseline,
+                        remaining_vertical_shift,
+                    );
+                    // An already recorded box implies its ancestors are recorded as well, since the
+                    // walk that recorded it continued through them.
+                    if !inserted {
+                        break;
+                    }
+                    inline_box_baseline -= alignment.vertical_shift;
+                    remaining_vertical_shift -= alignment.vertical_shift;
                 }
             }
         }
@@ -882,11 +943,24 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         if has_line_relative_aligned_subtree {
             for fragment_index in 0..fragment_count {
                 let style_source = self.line(line_index).fragments[fragment_index].style_source;
-                let shift = self
-                    .line_relative_aligned_subtree_root(style_source)
-                    .and_then(|(root, _)| aligned_subtree_shift(&aligned_subtrees, root))
-                    .unwrap_or(normal_subtree_shift);
-                self.line_mut(line_index).fragments[fragment_index].block_offset += shift;
+                let shift = self.subtree_shift_for_box(style_source, &aligned_subtrees, normal_subtree_shift);
+                let mut line = self.line_mut(line_index);
+                let fragment = &mut line.fragments[fragment_index];
+                fragment.block_offset += shift;
+                // The line baseline moves by the normal subtree shift, so only displacement beyond
+                // it keeps a fragment away from its baseline-aligned position.
+                fragment.accumulated_vertical_shift += shift - normal_subtree_shift;
+            }
+            // Inline box baselines were recorded before the subtree shifts, so move them into the
+            // shifted frame.
+            let baseline_count = self.line(line_index).inline_box_baselines.len();
+            for baseline_index in 0..baseline_count {
+                let box_ = self.line(line_index).inline_box_baselines[baseline_index].box_;
+                let shift = self.subtree_shift_for_box(box_, &aligned_subtrees, normal_subtree_shift);
+                let mut line = self.line_mut(line_index);
+                let entry = &mut line.inline_box_baselines[baseline_index];
+                entry.baseline += shift;
+                entry.accumulated_vertical_shift += shift - normal_subtree_shift;
             }
         }
 
@@ -895,10 +969,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             // Static position markers are resolved against the inline box that contains them, so they move with that
             // box's aligned subtree.
             let box_ = self.line(line_index).static_position_markers[marker_index].box_;
-            let shift = self
-                .line_relative_aligned_subtree_root(self.context().parent_node(box_))
-                .and_then(|(root, _)| aligned_subtree_shift(&aligned_subtrees, root))
-                .unwrap_or(normal_subtree_shift);
+            let shift =
+                self.subtree_shift_for_box(self.context().parent_node(box_), &aligned_subtrees, normal_subtree_shift);
             let mut line = self.line_mut(line_index);
             let marker = &mut line.static_position_markers[marker_index];
             marker.inline_offset += inline_offset;
@@ -908,6 +980,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         {
             let mut line = self.line_mut(line_index);
             line.block_length = latest - earliest;
+            line.block_start = current_block_offset;
             line.block_end = current_block_offset + line.block_length;
             // Fragment block offsets include the reversed-writing-mode shim, so the alignment
             // baseline fallback must include it as well to share their coordinate space.
