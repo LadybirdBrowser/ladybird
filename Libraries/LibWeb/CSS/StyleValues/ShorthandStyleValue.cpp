@@ -760,6 +760,7 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
 
         auto construct_rows_string = [&]() {
             StringBuilder inner_builder;
+            auto grid_areas = areas.grid_areas();
             size_t area_index = 0;
             for (size_t i = 0; i < rows.grid_track_size_list().list().size(); ++i) {
                 auto track_size_or_line_names = rows.grid_track_size_list().list()[i];
@@ -777,7 +778,7 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
                         for (size_t y = 0; y < areas.column_count(); ++y) {
                             if (y != 0)
                                 area_row_builder.append_ascii(' ');
-                            area_row_builder.append(areas.cell_name_at(area_index, y).view());
+                            area_row_builder.append(GridTemplateAreaStyleValue::cell_name_in(grid_areas, area_index, y).view());
                         }
                         auto area_row = area_row_builder.to_string();
                         inner_builder.append(MUST(area_row.utf16_view().to_utf8()));

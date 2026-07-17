@@ -346,6 +346,45 @@ impl Drop for RetainedColorStopList {
     }
 }
 
+/// A retained named grid area: the retained area name and its grid line indices.
+#[repr(C)]
+pub struct RetainedGridArea {
+    name: RetainedUtf16FlyString,
+    row_start: usize,
+    row_end: usize,
+    column_start: usize,
+    column_end: usize,
+}
+
+/// A Rust-owned array of retained named grid areas.
+#[repr(C)]
+pub struct RetainedGridAreaList {
+    pointer: *mut RetainedGridArea,
+    length: usize,
+}
+
+impl RetainedGridAreaList {
+    /// Takes ownership of the areas' retained names.
+    ///
+    /// # Safety
+    /// `areas` must point to `length` valid areas whose retained names this list may assume
+    /// ownership of.
+    unsafe fn from_raw(areas: *const RetainedGridArea, length: usize) -> Self {
+        let slice: Box<[RetainedGridArea]> = (0..length).map(|i| unsafe { std::ptr::read(areas.add(i)) }).collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedGridArea;
+        Self { pointer, length }
+    }
+}
+
+impl Drop for RetainedGridAreaList {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+        }
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -598,6 +637,12 @@ pub enum StyleValueData {
         image: RetainedStyleValue,
         x: RetainedStyleValue,
         y: RetainedStyleValue,
+    },
+    /// grid-template-areas with its retained named areas and the row and column counts.
+    GridTemplateArea {
+        grid_areas: RetainedGridAreaList,
+        row_count: usize,
+        column_count: usize,
     },
     /// counter-increment, counter-reset or counter-set with its retained counter definitions.
     CounterDefinitions {
@@ -1688,6 +1733,23 @@ pub unsafe extern "C" fn rust_style_value_create_radial_gradient(
                 pointer: color_interpolation_method,
             },
             color_syntax,
+        }))
+    })
+}
+
+/// Takes ownership of the areas' retained names.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_grid_template_area(
+    areas: *const RetainedGridArea,
+    area_count: usize,
+    row_count: usize,
+    column_count: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::GridTemplateArea {
+            grid_areas: unsafe { RetainedGridAreaList::from_raw(areas, area_count) },
+            row_count,
+            column_count,
         }))
     })
 }
