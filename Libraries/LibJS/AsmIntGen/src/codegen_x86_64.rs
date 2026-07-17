@@ -891,18 +891,14 @@ fn emit_instruction(
                 let dst = resolve_op(&insn.operands[0], handler, program);
                 let src = resolve_op(&insn.operands[1], handler, program);
                 let fail = resolve_label(&insn.operands[2], handler);
-                // Truncate to i64 first, check for cvttsd2si overflow sentinel
-                w!(out, "    cvttsd2si {dst}, {src}");
-                w!(out, "    mov rcx, 0x8000000000000000");
-                w!(out, "    cmp {dst}, rcx");
-                w!(out, "    je {fail}");
-                // Check it fits in i32
+                // Convert through i32 and require an exact round trip. The
+                // parity check rejects NaN, which x86 otherwise reports as
+                // equal after an unordered floating-point comparison.
+                w!(out, "    cvttsd2si {}, {src}", to_32bit_reg(&dst));
                 w!(out, "    movsxd rcx, {}", to_32bit_reg(&dst));
-                w!(out, "    cmp {dst}, rcx");
-                w!(out, "    jne {fail}");
-                // Round-trip: convert back and compare
-                w!(out, "    cvtsi2sd xmm3, {dst}");
+                w!(out, "    cvtsi2sd xmm3, rcx");
                 w!(out, "    ucomisd {src}, xmm3");
+                w!(out, "    jp {fail}");
                 w!(out, "    jne {fail}");
             }
         }
@@ -1996,6 +1992,36 @@ mod tests {
 
             assert!(out.is_empty());
         }
+    }
+
+    #[test]
+    fn double_to_int32_uses_exact_i32_round_trip() {
+        let program = test_program();
+        let handler = call_handler();
+        let instruction = AsmInstruction {
+            mnemonic: "double_to_int32".into(),
+            operands: vec![
+                Operand::Register("rdx".into()),
+                Operand::Register("xmm0".into()),
+                Operand::Label(".fail".into()),
+            ],
+        };
+        let mut out = String::new();
+        let mut state = HandlerState::new();
+
+        emit_instruction(
+            &mut out,
+            &instruction,
+            &handler,
+            &program,
+            &mut state,
+            X86_64Abi::SysV,
+        );
+
+        assert!(out.contains("cvttsd2si edx, xmm0"));
+        assert!(out.contains("movsxd rcx, edx"));
+        assert!(out.contains("jp .Lasm_Call.fail"));
+        assert!(!out.contains("0x8000000000000000"));
     }
 
     #[test]
