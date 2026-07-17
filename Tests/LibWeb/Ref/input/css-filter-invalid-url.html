@@ -1,0 +1,25 @@
+<!doctype html>
+<link rel="match" href="../expected/css-filter-invalid-url-ref.html" />
+<style>
+    #not-a-filter {
+        display: none;
+    }
+    .box {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        margin: 20px;
+        background: black;
+    }
+    #empty-url { filter: url("") blur(5px); }
+    #external-url { filter: url("filter.svg#filter") blur(5px); }
+    #empty-fragment { filter: url("#") blur(5px); }
+    #missing-element { filter: url("#missing") blur(5px); }
+    #wrong-element { filter: url("#not-a-filter") blur(5px); }
+</style>
+<div id="not-a-filter"></div>
+<div class="box" id="empty-url"></div>
+<div class="box" id="external-url"></div>
+<div class="box" id="empty-fragment"></div>
+<div class="box" id="missing-element"></div>
+<div class="box" id="wrong-element"></div>

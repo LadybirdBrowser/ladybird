@@ -780,13 +780,13 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
             auto url = filter_operation->as_url().url();
             auto const& url_string = url.url();
             if (url_string.is_empty() || !url_string.starts_with('#'))
-                continue;
+                return {};
             auto fragment_or_error = url_string.substring_from_byte_offset(1);
             if (fragment_or_error.is_error())
-                continue;
+                return {};
             auto maybe_filter = paintable_box.document().get_element_by_id(Utf16String::from_utf8(fragment_or_error.value()));
             if (!maybe_filter)
-                continue;
+                return {};
             if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
                 // Filter primitive lengths are specified in the filtered element's user coordinate system, but the
                 // resulting filter operates in device pixels. Compute the user-unit-to-device-pixel scale so the
@@ -805,6 +805,8 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
                 }
                 if (!bounds.is_empty())
                     result.svg_filter_bounds = bounds;
+            } else {
+                return {};
             }
             continue;
         }
