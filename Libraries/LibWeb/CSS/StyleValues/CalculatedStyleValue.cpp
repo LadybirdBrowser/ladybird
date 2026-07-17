@@ -38,6 +38,48 @@
 
 namespace Web::CSS {
 
+StyleValueFFI::StyleValueData* CalculatedStyleValue::make_calculated_data(NonnullRefPtr<CalculationNode const> const& calculation, NumericType const& resolved_type, CalculationContext const& context)
+{
+    // The Rust allocation takes ownership of one strong reference to the calculation node.
+    calculation->ref();
+    static_assert(IsTriviallyCopyable<NumericType>);
+    auto resolved_type_bytes = bit_cast<Array<u8, sizeof(NumericType)>>(resolved_type);
+    Vector<StyleValueFFI::RetainedNumericRangeByType> ranges;
+    ranges.ensure_capacity(context.accepted_ranges_by_type.size());
+    for (auto const& [value_type, range] : context.accepted_ranges_by_type)
+        ranges.unchecked_append({ to_underlying(value_type), range.min, range.max });
+    return StyleValueFFI::rust_style_value_create_calculated(
+        calculation.ptr(),
+        resolved_type_bytes.data(), resolved_type_bytes.size(),
+        context.percentages_resolve_as.has_value(),
+        context.percentages_resolve_as.has_value() ? to_underlying(*context.percentages_resolve_as) : 0,
+        context.resolve_numbers_as_integers,
+        ranges.data(), ranges.size());
+}
+
+NumericType CalculatedStyleValue::resolved_type() const
+{
+    auto const& blob = m_value->calculated.resolved_type;
+    Array<u8, sizeof(NumericType)> bytes;
+    VERIFY(blob.length == bytes.size());
+    __builtin_memcpy(bytes.data(), blob.pointer, bytes.size());
+    return bit_cast<NumericType>(bytes);
+}
+
+CalculationContext CalculatedStyleValue::calculation_context() const
+{
+    auto const& data = m_value->calculated;
+    CalculationContext context;
+    if (data.has_percentages_resolve_as)
+        context.percentages_resolve_as = static_cast<ValueType>(data.percentages_resolve_as);
+    context.resolve_numbers_as_integers = data.resolve_numbers_as_integers;
+    for (size_t i = 0; i < data.accepted_ranges.length; ++i) {
+        auto const& range = data.accepted_ranges.pointer[i];
+        context.accepted_ranges_by_type.set(static_cast<ValueType>(range.value_type), NumericRange { range.min, range.max });
+    }
+    return context;
+}
+
 CalculationContext CalculationContext::for_property(PropertyNameAndID const& property)
 {
     // FIXME: Handle registered custom properties, which may limit which types they accept.
@@ -3129,12 +3171,15 @@ void CalculatedStyleValue::CalculationResult::invert()
 
 void CalculatedStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    serialize_a_math_function(builder, *m_calculation, m_context, mode);
+    serialize_a_math_function(builder, *calculation(), calculation_context(), mode);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    auto simplified_calculation_tree = simplify_a_calculation_tree(m_calculation, m_context, CalculationResolutionContext::from_computation_context(computation_context));
+    // NB: Materialize the context once; rebuilding it per use is a HashMap construction each time.
+    auto calculation_context = this->calculation_context();
+
+    auto simplified_calculation_tree = simplify_a_calculation_tree(calculation(), calculation_context, CalculationResolutionContext::from_computation_context(computation_context));
 
     auto const simplified_percentage_dimension_mix = [&]() -> Optional<ValueComparingNonnullRefPtr<StyleValue const>> {
         // NOTE: A percentage dimension mix is a SumCalculationNode with two NumericCalculationNode children which have
@@ -3159,7 +3204,7 @@ ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(
         if (!first_node.numeric_type()->percent_hint().has_value() || second_node.numeric_type()->percent_hint().has_value())
             return {};
 
-        auto dimension_component = try_get_value_with_canonical_unit(second_node, m_context, {});
+        auto dimension_component = try_get_value_with_canonical_unit(second_node, calculation_context, {});
 
         // https://drafts.csswg.org/css-values-4/#combine-mixed
         // The computed value of a percentage-dimension mix is defined as
@@ -3173,7 +3218,7 @@ ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(
     if (simplified_percentage_dimension_mix.has_value())
         return simplified_percentage_dimension_mix.value();
 
-    return CalculatedStyleValue::create(simplified_calculation_tree, m_resolved_type, m_context);
+    return CalculatedStyleValue::create(simplified_calculation_tree, resolved_type(), calculation_context);
 }
 
 bool CalculatedStyleValue::equals(StyleValue const& other) const
@@ -3181,25 +3226,30 @@ bool CalculatedStyleValue::equals(StyleValue const& other) const
     if (type() != other.type())
         return false;
 
-    return m_calculation->equals(*other.as_calculated().m_calculation);
+    return calculation()->equals(*other.as_calculated().calculation());
 }
 
 bool CalculatedStyleValue::is_computationally_independent() const
 {
-    return m_calculation->is_computationally_independent();
+    return calculation()->is_computationally_independent();
 }
 
 // https://drafts.csswg.org/css-values-4/#calc-computed-value
 Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationResolutionContext const& resolution_context, bool apply_censoring_and_clamping) const
 {
+    return resolve_value(calculation_context(), resolution_context, apply_censoring_and_clamping);
+}
+
+Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationContext const& calculation_context, CalculationResolutionContext const& resolution_context, bool apply_censoring_and_clamping) const
+{
     // The calculation tree is again simplified at used value time; with used value time information.
     // NOTE: Any nodes which rely on dynamic state should have been simplified away in absolutized so we can pass a nullptr here
-    auto simplified_tree = simplify_a_calculation_tree(m_calculation, m_context, resolution_context);
+    auto simplified_tree = simplify_a_calculation_tree(calculation(), calculation_context, resolution_context);
 
-    if (!is<NumericCalculationNode>(*simplified_tree) || (simplified_tree->contains_percentage() && m_context.percentages_resolve_as.has_value()))
+    if (!is<NumericCalculationNode>(*simplified_tree) || (simplified_tree->contains_percentage() && calculation_context.percentages_resolve_as.has_value()))
         return {};
 
-    auto value = try_get_value_with_canonical_unit(simplified_tree, m_context, resolution_context);
+    auto value = try_get_value_with_canonical_unit(simplified_tree, calculation_context, resolution_context);
 
     VERIFY(value.has_value());
 
@@ -3217,22 +3267,22 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
         // unable to sufficiently simplify the expression to allow range-checking.
         Optional<NumericRange> accepted_range;
 
-        if (value->type()->matches_number(m_context.percentages_resolve_as))
-            accepted_range = m_context.resolve_numbers_as_integers ? m_context.accepted_ranges_by_type.get(ValueType::Integer) : m_context.accepted_ranges_by_type.get(ValueType::Number);
-        else if (value->type()->matches_angle(m_context.percentages_resolve_as))
-            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Angle);
-        else if (value->type()->matches_flex(m_context.percentages_resolve_as))
-            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Flex);
-        else if (value->type()->matches_frequency(m_context.percentages_resolve_as))
-            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Frequency);
-        else if (value->type()->matches_length(m_context.percentages_resolve_as))
-            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Length);
+        if (value->type()->matches_number(calculation_context.percentages_resolve_as))
+            accepted_range = calculation_context.resolve_numbers_as_integers ? calculation_context.accepted_ranges_by_type.get(ValueType::Integer) : calculation_context.accepted_ranges_by_type.get(ValueType::Number);
+        else if (value->type()->matches_angle(calculation_context.percentages_resolve_as))
+            accepted_range = calculation_context.accepted_ranges_by_type.get(ValueType::Angle);
+        else if (value->type()->matches_flex(calculation_context.percentages_resolve_as))
+            accepted_range = calculation_context.accepted_ranges_by_type.get(ValueType::Flex);
+        else if (value->type()->matches_frequency(calculation_context.percentages_resolve_as))
+            accepted_range = calculation_context.accepted_ranges_by_type.get(ValueType::Frequency);
+        else if (value->type()->matches_length(calculation_context.percentages_resolve_as))
+            accepted_range = calculation_context.accepted_ranges_by_type.get(ValueType::Length);
         else if (value->type()->matches_percentage())
-            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Percentage);
-        else if (value->type()->matches_resolution(m_context.percentages_resolve_as))
-            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Resolution);
-        else if (value->type()->matches_time(m_context.percentages_resolve_as))
-            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Time);
+            accepted_range = calculation_context.accepted_ranges_by_type.get(ValueType::Percentage);
+        else if (value->type()->matches_resolution(calculation_context.percentages_resolve_as))
+            accepted_range = calculation_context.accepted_ranges_by_type.get(ValueType::Resolution);
+        else if (value->type()->matches_time(calculation_context.percentages_resolve_as))
+            accepted_range = calculation_context.accepted_ranges_by_type.get(ValueType::Time);
 
         if (!accepted_range.has_value()) {
             dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Calculation context missing accepted range {}", value->type());
@@ -3248,9 +3298,10 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
 
 Optional<Angle> CalculatedStyleValue::resolve_angle(CalculationResolutionContext const& context) const
 {
-    auto result = resolve_value(context);
+    auto calculation_context = this->calculation_context();
+    auto result = resolve_value(calculation_context, context);
 
-    if (result.has_value() && result->type.has_value() && result->type->matches_angle(m_context.percentages_resolve_as))
+    if (result.has_value() && result->type.has_value() && result->type->matches_angle(calculation_context.percentages_resolve_as))
         return Angle::make_degrees(result->value);
 
     return {};
@@ -3258,9 +3309,10 @@ Optional<Angle> CalculatedStyleValue::resolve_angle(CalculationResolutionContext
 
 Optional<Flex> CalculatedStyleValue::resolve_flex(CalculationResolutionContext const& context) const
 {
-    auto result = resolve_value(context);
+    auto calculation_context = this->calculation_context();
+    auto result = resolve_value(calculation_context, context);
 
-    if (result.has_value() && result->type.has_value() && result->type->matches_flex(m_context.percentages_resolve_as))
+    if (result.has_value() && result->type.has_value() && result->type->matches_flex(calculation_context.percentages_resolve_as))
         return Flex::make_fr(result->value);
 
     return {};
@@ -3268,9 +3320,10 @@ Optional<Flex> CalculatedStyleValue::resolve_flex(CalculationResolutionContext c
 
 Optional<Frequency> CalculatedStyleValue::resolve_frequency(CalculationResolutionContext const& context) const
 {
-    auto result = resolve_value(context);
+    auto calculation_context = this->calculation_context();
+    auto result = resolve_value(calculation_context, context);
 
-    if (result.has_value() && result->type.has_value() && result->type->matches_frequency(m_context.percentages_resolve_as))
+    if (result.has_value() && result->type.has_value() && result->type->matches_frequency(calculation_context.percentages_resolve_as))
         return Frequency::make_hertz(result->value);
 
     return {};
@@ -3278,9 +3331,10 @@ Optional<Frequency> CalculatedStyleValue::resolve_frequency(CalculationResolutio
 
 Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionContext const& context) const
 {
-    auto result = resolve_value(context);
+    auto calculation_context = this->calculation_context();
+    auto result = resolve_value(calculation_context, context);
 
-    if (result.has_value() && result->type.has_value() && result->type->matches_length(m_context.percentages_resolve_as))
+    if (result.has_value() && result->type.has_value() && result->type->matches_length(calculation_context.percentages_resolve_as))
         return Length::make_px(result->value);
 
     return {};
@@ -3288,9 +3342,10 @@ Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionConte
 
 Optional<double> CalculatedStyleValue::resolve_raw_length(CalculationResolutionContext const& context) const
 {
-    auto result = resolve_value(context, false);
+    auto calculation_context = this->calculation_context();
+    auto result = resolve_value(calculation_context, context, false);
 
-    if (result.has_value() && result->type.has_value() && result->type->matches_length(m_context.percentages_resolve_as))
+    if (result.has_value() && result->type.has_value() && result->type->matches_length(calculation_context.percentages_resolve_as))
         return result->value;
 
     return {};
@@ -3308,9 +3363,10 @@ Optional<Percentage> CalculatedStyleValue::resolve_percentage(CalculationResolut
 
 Optional<Resolution> CalculatedStyleValue::resolve_resolution(CalculationResolutionContext const& context) const
 {
-    auto result = resolve_value(context);
+    auto calculation_context = this->calculation_context();
+    auto result = resolve_value(calculation_context, context);
 
-    if (result.has_value() && result->type.has_value() && result->type->matches_resolution(m_context.percentages_resolve_as))
+    if (result.has_value() && result->type.has_value() && result->type->matches_resolution(calculation_context.percentages_resolve_as))
         return Resolution::make_dots_per_pixel(result->value);
 
     return {};
@@ -3318,9 +3374,10 @@ Optional<Resolution> CalculatedStyleValue::resolve_resolution(CalculationResolut
 
 Optional<Time> CalculatedStyleValue::resolve_time(CalculationResolutionContext const& context) const
 {
-    auto result = resolve_value(context);
+    auto calculation_context = this->calculation_context();
+    auto result = resolve_value(calculation_context, context);
 
-    if (result.has_value() && result->type.has_value() && result->type->matches_time(m_context.percentages_resolve_as))
+    if (result.has_value() && result->type.has_value() && result->type->matches_time(calculation_context.percentages_resolve_as))
         return Time::make_seconds(result->value);
 
     return {};
@@ -3328,9 +3385,10 @@ Optional<Time> CalculatedStyleValue::resolve_time(CalculationResolutionContext c
 
 Optional<double> CalculatedStyleValue::resolve_number(CalculationResolutionContext const& context) const
 {
-    auto result = resolve_value(context);
+    auto calculation_context = this->calculation_context();
+    auto result = resolve_value(calculation_context, context);
 
-    if (result.has_value() && result->type.has_value() && result->type->matches_number(m_context.percentages_resolve_as))
+    if (result.has_value() && result->type.has_value() && result->type->matches_number(calculation_context.percentages_resolve_as))
         return result->value;
 
     return {};
@@ -3338,9 +3396,10 @@ Optional<double> CalculatedStyleValue::resolve_number(CalculationResolutionConte
 
 Optional<i32> CalculatedStyleValue::resolve_integer(CalculationResolutionContext const& context) const
 {
-    auto result = resolve_value(context);
+    auto calculation_context = this->calculation_context();
+    auto result = resolve_value(calculation_context, context);
 
-    if (result.has_value() && result->type.has_value() && result->type->matches_number(m_context.percentages_resolve_as))
+    if (result.has_value() && result->type.has_value() && result->type->matches_number(calculation_context.percentages_resolve_as))
         return round_to_nearest_integer(result->value);
 
     return {};
@@ -3348,28 +3407,29 @@ Optional<i32> CalculatedStyleValue::resolve_integer(CalculationResolutionContext
 
 RefPtr<StyleValue const> CalculatedStyleValue::resolve_as_style_value(CalculationResolutionContext const& context) const
 {
-    auto result = resolve_value(context);
+    auto calculation_context = this->calculation_context();
+    auto result = resolve_value(calculation_context, context);
     if (!result.has_value() || !result->type.has_value())
         return {};
 
-    if (result->type->matches_number(m_context.percentages_resolve_as)) {
-        if (m_context.resolve_numbers_as_integers)
+    if (result->type->matches_number(calculation_context.percentages_resolve_as)) {
+        if (calculation_context.resolve_numbers_as_integers)
             return IntegerStyleValue::create(round_to_nearest_integer(result->value));
         return NumberStyleValue::create(result->value);
     }
-    if (result->type->matches_angle(m_context.percentages_resolve_as))
+    if (result->type->matches_angle(calculation_context.percentages_resolve_as))
         return AngleStyleValue::create(Angle::make_degrees(result->value));
-    if (result->type->matches_flex(m_context.percentages_resolve_as))
+    if (result->type->matches_flex(calculation_context.percentages_resolve_as))
         return FlexStyleValue::create(Flex::make_fr(result->value));
-    if (result->type->matches_frequency(m_context.percentages_resolve_as))
+    if (result->type->matches_frequency(calculation_context.percentages_resolve_as))
         return FrequencyStyleValue::create(Frequency::make_hertz(result->value));
-    if (result->type->matches_length(m_context.percentages_resolve_as))
+    if (result->type->matches_length(calculation_context.percentages_resolve_as))
         return LengthStyleValue::create(Length::make_px(result->value));
     if (result->type->matches_percentage())
         return PercentageStyleValue::create(Percentage { result->value });
-    if (result->type->matches_resolution(m_context.percentages_resolve_as))
+    if (result->type->matches_resolution(calculation_context.percentages_resolve_as))
         return ResolutionStyleValue::create(Resolution::make_dots_per_pixel(result->value));
-    if (result->type->matches_time(m_context.percentages_resolve_as))
+    if (result->type->matches_time(calculation_context.percentages_resolve_as))
         return TimeStyleValue::create(Time::make_seconds(result->value));
 
     return {};
@@ -3377,7 +3437,7 @@ RefPtr<StyleValue const> CalculatedStyleValue::resolve_as_style_value(Calculatio
 
 bool CalculatedStyleValue::contains_percentage() const
 {
-    return m_calculation->contains_percentage();
+    return calculation()->contains_percentage();
 }
 
 bool CalculatedStyleValue::is_fully_simplified() const
@@ -3388,7 +3448,7 @@ bool CalculatedStyleValue::is_fully_simplified() const
 String CalculatedStyleValue::dump() const
 {
     StringBuilder builder;
-    m_calculation->dump(builder, 0);
+    calculation()->dump(builder, 0);
     return builder.to_string_without_validation();
 }
 
@@ -3397,7 +3457,7 @@ GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, Utf16FlyStr
 {
     // NB: This spec algorithm isn't really implementable here - it's incomplete, and assumes we don't already have a
     //     calculation tree. So we have a per-node method instead.
-    if (auto reified = m_calculation->reify(realm))
+    if (auto reified = calculation()->reify(realm))
         return *reified;
     // Some math functions are not reifiable yet. If we contain one, we have to fall back to CSSStyleValue.
     // https://github.com/w3c/css-houdini-drafts/issues/1090

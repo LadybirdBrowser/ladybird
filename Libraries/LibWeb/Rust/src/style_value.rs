@@ -20,6 +20,7 @@ unsafe extern "C" {
     fn ladybird_style_value_unref(style_value: *const c_void);
     fn ladybird_utf16_fly_string_unref(raw: usize);
     fn ladybird_string_unref(raw: usize);
+    fn ladybird_calculation_node_unref(node: *const c_void);
 }
 
 /// A strong reference to a C++ StyleValue held from Rust-owned value data.
@@ -567,6 +568,57 @@ impl Drop for RetainedShapePointList {
     }
 }
 
+/// A strong reference to a C++ CalculationNode held from Rust-owned value data. The node tree
+/// is still C++-structured during the migration, like retained style values.
+#[repr(C)]
+pub struct RetainedCalculationNode {
+    pointer: *const c_void,
+}
+
+impl Drop for RetainedCalculationNode {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            unsafe { ladybird_calculation_node_unref(self.pointer) };
+        }
+    }
+}
+
+/// An accepted numeric range for one value type (the C++ `enum class ValueType : u8`, opaque
+/// to Rust).
+#[repr(C)]
+pub struct RetainedNumericRangeByType {
+    value_type: u8,
+    min: f64,
+    max: f64,
+}
+
+/// A Rust-owned array of accepted numeric ranges.
+#[repr(C)]
+pub struct RetainedNumericRangeList {
+    pointer: *mut RetainedNumericRangeByType,
+    length: usize,
+}
+
+impl RetainedNumericRangeList {
+    /// # Safety
+    /// `ranges` must point to `length` valid ranges.
+    unsafe fn from_raw(ranges: *const RetainedNumericRangeByType, length: usize) -> Self {
+        let slice: Box<[RetainedNumericRangeByType]> =
+            (0..length).map(|i| unsafe { std::ptr::read(ranges.add(i)) }).collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedNumericRangeByType;
+        Self { pointer, length }
+    }
+}
+
+impl Drop for RetainedNumericRangeList {
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
+        }
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -608,6 +660,17 @@ pub enum StyleValueData {
         fill_rule: u8,
         points: RetainedShapePointList,
         path_string: RetainedUtf16FlyString,
+    },
+    /// A calc() or other math function: the retained calculation node tree root, the resolved
+    /// numeric type as its raw bytes (a trivially copyable C++ NumericType, opaque to Rust)
+    /// and the parse-time calculation context.
+    Calculated {
+        calculation: RetainedCalculationNode,
+        resolved_type: RetainedByteList,
+        has_percentages_resolve_as: bool,
+        percentages_resolve_as: u8,
+        resolve_numbers_as_integers: bool,
+        accepted_ranges: RetainedNumericRangeList,
     },
     /// A CSS `<ratio>`, e.g. `16 / 9`. The numerator and denominator are style values.
     Ratio {
@@ -2043,6 +2106,31 @@ pub unsafe extern "C" fn rust_style_value_create_basic_shape(
             fill_rule,
             points: unsafe { RetainedShapePointList::from_raw(points, point_count) },
             path_string: RetainedUtf16FlyString { raw: path_string },
+        }))
+    })
+}
+
+/// Takes ownership of one strong reference to the calculation node; the byte blob and ranges
+/// are copied.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_calculated(
+    calculation: *const c_void,
+    resolved_type: *const u8,
+    resolved_type_length: usize,
+    has_percentages_resolve_as: bool,
+    percentages_resolve_as: u8,
+    resolve_numbers_as_integers: bool,
+    accepted_ranges: *const RetainedNumericRangeByType,
+    accepted_range_count: usize,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::Calculated {
+            calculation: RetainedCalculationNode { pointer: calculation },
+            resolved_type: unsafe { RetainedByteList::from_raw(resolved_type, resolved_type_length) },
+            has_percentages_resolve_as,
+            percentages_resolve_as,
+            resolve_numbers_as_integers,
+            accepted_ranges: unsafe { RetainedNumericRangeList::from_raw(accepted_ranges, accepted_range_count) },
         }))
     })
 }

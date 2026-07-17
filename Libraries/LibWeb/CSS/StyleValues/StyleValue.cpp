@@ -291,3 +291,9 @@ extern "C" void ladybird_string_unref(size_t raw)
 {
     String::unref_raw(raw);
 }
+
+// Called when Rust-owned style value data drops a retained CalculationNode.
+extern "C" void ladybird_calculation_node_unref(void const* node)
+{
+    static_cast<Web::CSS::CalculationNode const*>(node)->unref();
+}
