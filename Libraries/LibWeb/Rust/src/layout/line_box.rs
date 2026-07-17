@@ -23,10 +23,17 @@ impl StaticPositionMarker {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct InlineBoxBaseline {
+    pub(crate) box_: Node,
+    pub(crate) baseline: CssPixels,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct LineBoxData {
     pub(crate) fragments: Vec<LineBoxFragmentData>,
     pub(crate) static_position_markers: Vec<StaticPositionMarker>,
+    pub(crate) inline_box_baselines: Vec<InlineBoxBaseline>,
     pub(crate) inline_length: CssPixels,
     pub(crate) block_length: CssPixels,
     pub(crate) block_end: CssPixels,
@@ -45,6 +52,7 @@ impl LineBoxData {
         Self {
             fragments: Vec::new(),
             static_position_markers: Vec::new(),
+            inline_box_baselines: Vec::new(),
             inline_length: CssPixels::default(),
             block_length: CssPixels::default(),
             block_end: CssPixels::default(),
@@ -135,6 +143,20 @@ impl LineBoxData {
             writing_mode: self.writing_mode,
             preceded_by_in_flow_content: !self.fragments.is_empty() || preceded_by_inline_box_start_edges,
         });
+    }
+
+    pub(crate) fn set_inline_box_baseline(&mut self, box_: Node, baseline: CssPixels) {
+        if self.inline_box_baselines.iter().any(|entry| entry.box_ == box_) {
+            return;
+        }
+        self.inline_box_baselines.push(InlineBoxBaseline { box_, baseline });
+    }
+
+    pub(crate) fn inline_box_baseline(&self, box_: Node) -> Option<CssPixels> {
+        self.inline_box_baselines
+            .iter()
+            .find(|entry| entry.box_ == box_)
+            .map(|entry| entry.baseline)
     }
 
     pub(crate) fn clamp_static_position_markers_to_inline_length(&mut self) {

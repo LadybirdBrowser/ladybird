@@ -1,0 +1,9 @@
+<!doctype html>
+<link rel="match" href="../expected/text-decoration-propagation-decorating-box-shift-ref.html" />
+<style>
+    .raised { text-decoration: underline; vertical-align: 12px; }
+    .superscript { text-decoration: underline; vertical-align: super; }
+</style>
+before <span class="raised">direct <span>nested</span> direct</span> after
+<br>
+before <span class="superscript">direct <span>nested</span> direct</span> after

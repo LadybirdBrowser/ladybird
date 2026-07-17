@@ -20,6 +20,12 @@ struct VerticalAlignMetrics {
 }
 
 #[derive(Clone, Copy)]
+struct InlineBoxAlignment {
+    box_: Node,
+    vertical_shift: CssPixels,
+}
+
+#[derive(Clone, Copy)]
 struct FragmentAlignmentSnapshot {
     style_source: Node,
     layout_node: Node,
@@ -602,8 +608,10 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
         let mut latest = strut_end;
         let mut first_unshifted_text_baseline: Option<CssPixels> = None;
         let current_block_offset = self.current_block_offset;
+        let mut inline_box_alignments: Vec<InlineBoxAlignment> = Vec::new();
 
         for fragment_index in 0..fragment_count {
+            inline_box_alignments.clear();
             let mut snapshot = {
                 let fragment = &self.line(line_index).fragments[fragment_index];
                 FragmentAlignmentSnapshot {
@@ -644,6 +652,14 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
                     vertical_align::TOP | vertical_align::BOTTOM
                 );
             let containing_block = self.context().containing_block;
+            if snapshot.style_source != containing_block
+                && self.context().facts(snapshot.style_source).is_fragmented_inline()
+            {
+                inline_box_alignments.push(InlineBoxAlignment {
+                    box_: snapshot.style_source,
+                    vertical_shift: new_block_offset - baseline_aligned_block_offset,
+                });
+            }
             let mut ancestor = if snapshot.style_source == containing_block {
                 NodeSlotId::INVALID
             } else {
@@ -657,6 +673,10 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
                 let ancestor_style = self.context().style(ancestor);
                 if ancestor_style.vertical_align_is_keyword() {
                     if ancestor_style.vertical_align_keyword() == vertical_align::BASELINE {
+                        inline_box_alignments.push(InlineBoxAlignment {
+                            box_: ancestor,
+                            vertical_shift: CssPixels::default(),
+                        });
                         ancestor = self.context().parent_node(ancestor);
                         continue;
                     }
@@ -669,9 +689,14 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
                 }
                 let ancestor_metrics = self.inline_box_alignment_metrics(ancestor);
                 let baseline_style = ancestor_style.with_vertical_align_keyword(vertical_align::BASELINE);
-                new_block_offset +=
+                let ancestor_vertical_shift =
                     self.block_offset_for_alignment(ancestor_style, ancestor_metrics, line_box_baseline)
                         - self.block_offset_for_alignment(baseline_style, ancestor_metrics, line_box_baseline);
+                new_block_offset += ancestor_vertical_shift;
+                inline_box_alignments.push(InlineBoxAlignment {
+                    box_: ancestor,
+                    vertical_shift: ancestor_vertical_shift,
+                });
                 ancestor = self.context().parent_node(ancestor);
             }
             {
@@ -720,14 +745,28 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
                 fragment_mut.block_length = font_box_size;
             }
 
-            let fragment_is_unshifted =
-                snapshot.style_source == containing_block || new_block_offset == baseline_aligned_block_offset;
             let is_text_node = self.context().facts(snapshot.layout_node).is_text_node();
-            if first_unshifted_text_baseline.is_none() && fragment_is_unshifted && is_text_node {
+            let text_fragment_baseline = {
                 let fragment = &self.line(line_index).fragments[fragment_index];
-                if !fragment.is_fully_truncated {
-                    first_unshifted_text_baseline =
-                        Some(fragment.block_offset + fragment.baseline - current_block_offset);
+                (is_text_node && !fragment.is_fully_truncated).then(|| fragment.block_offset + fragment.baseline)
+            };
+            if let Some(fragment_baseline) = text_fragment_baseline {
+                let fragment_is_unshifted =
+                    snapshot.style_source == containing_block || new_block_offset == baseline_aligned_block_offset;
+                if first_unshifted_text_baseline.is_none() && fragment_is_unshifted {
+                    first_unshifted_text_baseline = Some(fragment_baseline - current_block_offset);
+                }
+
+                // https://drafts.csswg.org/css-text-decor-4/#text-line-constancy
+                // UAs must adjust line positions to match the shifted metrics of decorating boxes shifted with
+                // vertical-align values other than baseline [CSS2] or subscripted/superscripted via
+                // font-variant-position [CSS-FONTS-3], but must not adjust the line position or thickness in
+                // response to descendants of a decorating box that are so styled.
+                let mut inline_box_baseline = fragment_baseline;
+                for alignment in &inline_box_alignments {
+                    self.line_mut(line_index)
+                        .set_inline_box_baseline(alignment.box_, inline_box_baseline);
+                    inline_box_baseline -= alignment.vertical_shift;
                 }
             }
         }

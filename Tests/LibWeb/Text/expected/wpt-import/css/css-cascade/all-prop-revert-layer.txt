@@ -64,7 +64,6 @@ Pass	stroke-width
 Pass	tab-size
 Pass	text-align
 Pass	text-anchor
-Pass	text-decoration-line
 Pass	text-decoration-skip-ink
 Pass	text-indent
 Pass	text-justify
@@ -283,6 +282,7 @@ Pass	stop-color
 Pass	stop-opacity
 Pass	table-layout
 Pass	text-decoration-color
+Pass	text-decoration-line
 Pass	text-decoration-style
 Pass	text-decoration-thickness
 Pass	text-overflow

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Decoration: line decorations and display: contents (block boxes)</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor/#line-decoration">
+<link rel="match" href="../../../../expected/wpt-import/css/css-text-decor/text-decoration-propagation-display-contents-002-ref.html">
+<!--
+Line decorations are propagated through the box tree, not through inheritance. A
+display: contents element generates no box, therefore:
+ - a line decoration specified on an ancestor box must still reach a descendant
+   box through the (boxless) display: contents element, but
+ - a line decoration specified on the display: contents element itself must not
+   reach its descendants.
+-->
+<body>
+<!-- The ancestor box's underline must propagate through the boxless wrapper to the inner block. -->
+<div style="text-decoration: underline; text-decoration-color: #44cc44;">
+ <div style="display: contents;">
+  <div>Should have underline.</div>
+ </div>
+</div>
+
+<!-- The display: contents element's own underline must not reach the inner block. -->
+<div style="display: contents; text-decoration: underline; text-decoration-color: red;">
+ <div>Should have no decoration.</div>
+</div>
+</body>

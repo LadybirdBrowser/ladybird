@@ -787,6 +787,7 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                     CSSPixels::from_raw(record.rect.width),
                     CSSPixels::from_raw(record.rect.height),
                 },
+                .baseline = CSSPixels::from_raw(record.baseline),
                 .fragment_count = record.committed_fragment_count,
             }); },
         .emit_fragment = [](void* context, RustFFI::FfiCommittedFragment fragment) {
@@ -831,12 +832,14 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 .node = *static_cast<Node const*>(piece.node),
                 .first_fragment_index = piece.first_fragment_index,
                 .fragment_count = piece.fragment_count,
+                .line_index = piece.line_index,
                 .border_box_rect = {
                     CSSPixels::from_raw(piece.border_box_rect.x),
                     CSSPixels::from_raw(piece.border_box_rect.y),
                     CSSPixels::from_raw(piece.border_box_rect.width),
                     CSSPixels::from_raw(piece.border_box_rect.height),
                 },
+                .baseline = CSSPixels::from_raw(piece.baseline),
                 .present_edges = piece.present_edges,
                 .is_geometry_only_placeholder = piece.is_geometry_only_placeholder,
             }); },

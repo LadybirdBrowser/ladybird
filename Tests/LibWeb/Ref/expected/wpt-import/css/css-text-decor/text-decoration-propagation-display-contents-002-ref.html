@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Decoration: line decorations and display: contents (block boxes)</title>
+<body>
+<!-- The underline propagates from the ancestor box; it is painted in the ancestor's color. -->
+<div style="text-decoration: underline; text-decoration-color: #44cc44;">
+ <div>Should have underline.</div>
+</div>
+
+<!-- No box contributes a decoration here. -->
+<div>
+ <div>Should have no decoration.</div>
+</div>
+</body>
