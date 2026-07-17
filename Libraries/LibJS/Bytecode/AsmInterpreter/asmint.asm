@@ -534,10 +534,9 @@ end
 macro walk_cached_env_chain(m_environment_field, target_env, bind_index, fail_label)
     temp exe, caches, coord_addr, hops, sentinel, flag
     load32 coord_addr, [pb, pc, m_cache]
-    mul coord_addr, coord_addr, ENVIRONMENT_COORDINATE_SIZE
     load64 exe, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
     load64 caches, [exe, EXECUTABLE_ENVIRONMENT_COORDINATE_CACHES_DATA]
-    add coord_addr, caches
+    lea coord_addr, [caches, coord_addr, ENVIRONMENT_COORDINATE_SIZE]
     load_pair32 hops, bind_index, [coord_addr, ENVIRONMENT_COORDINATE_HOPS], [coord_addr, ENVIRONMENT_COORDINATE_INDEX]
     mov sentinel, ENVIRONMENT_COORDINATE_INVALID
     branch_eq hops, sentinel, fail_label
@@ -619,10 +618,8 @@ macro load_global_variable_cache(cache)
     add cache, caches
 end
 
-macro caged_primitive_storage_address(dst, cage_base, cached_offset, index, shift)
-    mov dst, index
-    shl dst, shift
-    add dst, cached_offset
+macro caged_primitive_storage_address(dst, cage_base, cached_offset, index, scale)
+    lea dst, [cached_offset, index, scale]
     and dst, PRIMITIVE_STORAGE_CAGE_OFFSET_MASK
     add dst, cage_base
 end
@@ -1850,12 +1847,12 @@ handler PutByValue
     branch_eq kind_byte, TYPED_ARRAY_KIND_FLOAT32, .ta_store_float32
     branch_ne kind_byte, TYPED_ARRAY_KIND_FLOAT64, .try_typed_array_slow
     # Compute store address before check_is_double mangles its argument.
-    caged_primitive_storage_address addr, elements, cached_offset, index, 3
+    caged_primitive_storage_address addr, elements, cached_offset, index, 8
     check_is_double src, .try_typed_array_slow
     store64 [addr, 0], src
     dispatch_next
 .ta_store_float32:
-    caged_primitive_storage_address addr, elements, cached_offset, index, 2
+    caged_primitive_storage_address addr, elements, cached_offset, index, 4
     check_is_double src, .try_typed_array_slow
     fp_mov src_dbl, src
     double_to_float src_dbl, src_dbl
@@ -1870,17 +1867,17 @@ handler PutByValue
     branch_any_eq kind_byte, TYPED_ARRAY_KIND_UINT16, TYPED_ARRAY_KIND_INT16, .ta_put_uint16
     jmp .try_typed_array_slow
 .ta_put_int32:
-    caged_primitive_storage_address addr, elements, cached_offset, index, 2
+    caged_primitive_storage_address addr, elements, cached_offset, index, 4
     store32 [addr, 0], src_int32
     dispatch_next
 .ta_put_float32:
     int_to_double src_dbl, src_int32
     double_to_float src_dbl, src_dbl
-    caged_primitive_storage_address addr, elements, cached_offset, index, 2
+    caged_primitive_storage_address addr, elements, cached_offset, index, 4
     storef32 [addr, 0], src_dbl
     dispatch_next
 .ta_put_uint8_clamped:
-    caged_primitive_storage_address addr, elements, cached_offset, index, 0
+    caged_primitive_storage_address addr, elements, cached_offset, index, 1
     branch_negative src_int32, .ta_put_uint8_clamped_zero
     mov max, 255
     branch_ge_unsigned src_int32, max, .ta_put_uint8_clamped_max
@@ -1895,11 +1892,11 @@ handler PutByValue
     store8 [addr, 0], src_int32
     dispatch_next
 .ta_put_uint8:
-    caged_primitive_storage_address addr, elements, cached_offset, index, 0
+    caged_primitive_storage_address addr, elements, cached_offset, index, 1
     store8 [addr, 0], src_int32
     dispatch_next
 .ta_put_uint16:
-    caged_primitive_storage_address addr, elements, cached_offset, index, 1
+    caged_primitive_storage_address addr, elements, cached_offset, index, 2
     store16 [addr, 0], src_int32
     dispatch_next
 .try_typed_array_slow: @cold
@@ -2065,7 +2062,7 @@ handler GetByValue
     load8 kind_byte, [obj, TYPED_ARRAY_KIND]
     branch_eq kind_byte, TYPED_ARRAY_KIND_INT32, .ta_int32
     branch_ge_unsigned kind_byte, TYPED_ARRAY_KIND_UINT16, .other_typed_array_kinds
-    caged_primitive_storage_address addr, elements, cached_offset, index, 0
+    caged_primitive_storage_address addr, elements, cached_offset, index, 1
     load8 raw, [addr, 0]
     jmp .ta_box_int32
 .other_typed_array_kinds:
@@ -2077,23 +2074,23 @@ handler GetByValue
     branch_eq kind_byte, TYPED_ARRAY_KIND_FLOAT64, .ta_float64
     jmp .try_typed_array_slow
 .ta_int32:
-    caged_primitive_storage_address addr, elements, cached_offset, index, 2
+    caged_primitive_storage_address addr, elements, cached_offset, index, 4
     load32 raw, [addr, 0]
     jmp .ta_box_int32
 .ta_uint16:
-    caged_primitive_storage_address addr, elements, cached_offset, index, 1
+    caged_primitive_storage_address addr, elements, cached_offset, index, 2
     load16 raw, [addr, 0]
     jmp .ta_box_int32
 .ta_int8:
-    caged_primitive_storage_address addr, elements, cached_offset, index, 0
+    caged_primitive_storage_address addr, elements, cached_offset, index, 1
     load8s raw, [addr, 0]
     jmp .ta_box_int32
 .ta_int16:
-    caged_primitive_storage_address addr, elements, cached_offset, index, 1
+    caged_primitive_storage_address addr, elements, cached_offset, index, 2
     load16s raw, [addr, 0]
     jmp .ta_box_int32
 .ta_float32:
-    caged_primitive_storage_address addr, elements, cached_offset, index, 2
+    caged_primitive_storage_address addr, elements, cached_offset, index, 4
     loadf32 slot_dbl, [addr, 0]
     float_to_double slot_dbl, slot_dbl
     fp_mov slot, slot_dbl
@@ -2103,7 +2100,7 @@ handler GetByValue
     branch_nonzero raw, .ta_f64_as_int
     jmp .ta_f64_as_int
 .ta_float64:
-    caged_primitive_storage_address addr, elements, cached_offset, index, 3
+    caged_primitive_storage_address addr, elements, cached_offset, index, 8
     load64 slot, [addr, 0]
     fp_mov slot_dbl, slot
     # Exclude negative zero early (slot gets clobbered by double_to_int32).
@@ -2121,7 +2118,7 @@ handler GetByValue
     store_operand m_dst, dst
     dispatch_next
 .ta_uint32:
-    caged_primitive_storage_address addr, elements, cached_offset, index, 2
+    caged_primitive_storage_address addr, elements, cached_offset, index, 4
     load32 raw, [addr, 0]
     branch_bit_set raw, 31, .ta_uint32_to_double
     jmp .ta_box_int32
