@@ -70,8 +70,8 @@ protected:
     void serialize_color_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component, float one_hundred_percent_value, Optional<double> clamp_min = {}, Optional<double> clamp_max = {}) const;
     void serialize_alpha_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const;
     void serialize_hue_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const;
-    // NB: Color subclasses that are already converted hold their own value data handle as
-    //     well; the two merge once every subclass stores all of its data in Rust.
+    // NB: Color subclasses hold their own value data handle as well; the two merge when the
+    //     C++ shells are collapsed into a single handle type.
     RustStyleValueHandle m_color_base_value;
 };
 

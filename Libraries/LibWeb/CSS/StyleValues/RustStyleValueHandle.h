@@ -13,10 +13,10 @@
 
 namespace Web::CSS {
 
-// Uniquely-owned handle to a Rust-allocated, immutable StyleValueData. StyleValue subclasses are
-// being converted one type at a time to keep their data in a Rust-owned allocation, with this
-// handle as the single owner on the C++ side. The StyleValueData layout is exposed through
-// cbindgen, so reading through the handle is an inline field access with no FFI call.
+// Uniquely-owned handle to a Rust-allocated, immutable StyleValueData. Every StyleValue subclass
+// keeps its data in a Rust-owned allocation, with this handle as the single owner on the C++
+// side. The StyleValueData layout is exposed through cbindgen, so reading through the handle is
+// an inline field access with no FFI call.
 class RustStyleValueHandle {
     AK_MAKE_NONCOPYABLE(RustStyleValueHandle);
 

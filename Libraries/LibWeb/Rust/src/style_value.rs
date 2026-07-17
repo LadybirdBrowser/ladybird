@@ -6,11 +6,10 @@
 
 //! Rust-owned CSS style value data.
 //!
-//! The C++ StyleValue subclasses are being converted, one type at a time, to keep their data in
-//! a Rust-owned [`StyleValueData`] allocation instead of C++ member variables. Each converted
-//! subclass owns its allocation uniquely and destroys it with [`rust_style_value_destroy`]. The
-//! layout of [`StyleValueData`] is exposed to C++ through cbindgen so that hot accessors compile
-//! to inline field reads with no FFI call.
+//! The C++ StyleValue subclasses keep their data in a Rust-owned [`StyleValueData`] allocation
+//! instead of C++ member variables. Each subclass owns its allocation uniquely and destroys it
+//! with [`rust_style_value_destroy`]. The layout of [`StyleValueData`] is exposed to C++
+//! through cbindgen so that hot accessors compile to inline field reads with no FFI call.
 
 use std::ffi::c_void;
 
@@ -25,9 +24,9 @@ unsafe extern "C" {
 
 /// A strong reference to a C++ StyleValue held from Rust-owned value data.
 ///
-/// While the StyleValue subclasses are converted one type at a time, nested values still point
-/// at C++ objects; dropping the Rust allocation releases the reference. Once every type is
-/// converted these become references between Rust allocations instead.
+/// Nested values still point at the C++ shell objects; dropping the Rust allocation releases
+/// the reference. Once the shells are collapsed into a single handle type these become
+/// references between Rust allocations instead.
 #[repr(C)]
 pub struct RetainedStyleValue {
     pointer: *const c_void,
