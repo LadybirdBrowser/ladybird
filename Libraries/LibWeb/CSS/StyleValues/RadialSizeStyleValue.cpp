@@ -15,7 +15,7 @@ ValueComparingNonnullRefPtr<StyleValue const> RadialSizeStyleValue::absolutized(
     bool any_component_required_absolutization = false;
     Vector<Component> absolutized_components;
 
-    for (auto const& component : m_components) {
+    for (auto const& component : components()) {
         if (component.has<RadialExtent>()) {
             absolutized_components.append(component);
         } else {
@@ -37,7 +37,7 @@ ValueComparingNonnullRefPtr<StyleValue const> RadialSizeStyleValue::absolutized(
 void RadialSizeStyleValue::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
 {
     bool first = true;
-    for (auto const& component : m_components) {
+    for (auto const& component : components()) {
         if (!first)
             builder.append(' ');
         first = false;
@@ -105,9 +105,10 @@ static CSSPixels farthest_corner_distance(CSSPixelPoint const& center, CSSPixelR
 
 CSSPixels RadialSizeStyleValue::resolve_circle_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box) const
 {
-    VERIFY(m_components.size() == 1);
+    auto components = this->components();
+    VERIFY(components.size() == 1);
 
-    auto resolved_size = m_components[0].visit(
+    auto resolved_size = components[0].visit(
         [&](RadialExtent const& radial_extent) {
             switch (radial_extent) {
             case RadialExtent::ClosestSide: {
@@ -176,7 +177,8 @@ static CSSPixelSize ellipse_corner_shape(CSSPixelPoint const& center, CSSPixelRe
 
 CSSPixelSize RadialSizeStyleValue::resolve_ellipse_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box) const
 {
-    VERIFY(m_components.size() == 1 || m_components.size() == 2);
+    auto components = this->components();
+    VERIFY(components.size() == 1 || components.size() == 2);
 
     auto const resolve_component = [&](Component const& component, CSSPixels const& reference_size) -> CSSPixelSize {
         return component.visit(
@@ -202,8 +204,8 @@ CSSPixelSize RadialSizeStyleValue::resolve_ellipse_size(CSSPixelPoint const& cen
     };
 
     CSSPixelSize resolved_size = CSSPixelSize {
-        resolve_component(m_components[0], reference_box.width()).width(),
-        resolve_component(m_components.size() == 1 ? m_components[0] : m_components[1], reference_box.height()).height()
+        resolve_component(components[0], reference_box.width()).width(),
+        resolve_component(components.size() == 1 ? components[0] : components[1], reference_box.height()).height()
     };
 
     // Handle degenerate cases

@@ -318,6 +318,17 @@ pub enum StyleValueData {
     /// A display value: the raw bytes of the C++ Display value type (a tag plus a union of
     /// packed u8 enums), opaque to Rust.
     Display { raw: u32 },
+    /// A radial gradient size: one or two components, each either a RadialExtent keyword (the
+    /// C++ `enum class RadialExtent : u8`, opaque to Rust) or a retained style value.
+    RadialSize {
+        component_count: u8,
+        is_extent_0: bool,
+        extent_0: u8,
+        value_0: RetainedStyleValue,
+        is_extent_1: bool,
+        extent_1: u8,
+        value_1: RetainedStyleValue,
+    },
     /// A transform function with its argument values. The property (PropertyID : u16) and
     /// function are C++ enums, opaque to Rust.
     Transformation {
@@ -938,6 +949,30 @@ pub unsafe extern "C" fn rust_style_value_create_shorthand(
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_display(raw: u32) -> *mut StyleValueData {
     abort_on_panic(|| Box::into_raw(Box::new(StyleValueData::Display { raw })))
+}
+
+/// Takes ownership of one strong reference to each non-null component value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_create_radial_size(
+    component_count: u8,
+    is_extent_0: bool,
+    extent_0: u8,
+    value_0: *const c_void,
+    is_extent_1: bool,
+    extent_1: u8,
+    value_1: *const c_void,
+) -> *mut StyleValueData {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(StyleValueData::RadialSize {
+            component_count,
+            is_extent_0,
+            extent_0,
+            value_0: RetainedStyleValue { pointer: value_0 },
+            is_extent_1,
+            extent_1,
+            value_1: RetainedStyleValue { pointer: value_1 },
+        }))
+    })
 }
 
 #[unsafe(no_mangle)]
