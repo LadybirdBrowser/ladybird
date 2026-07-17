@@ -175,6 +175,10 @@ void Session::close_all()
 // https://w3c.github.io/webdriver/#dfn-close-the-session
 void Session::close()
 {
+    // NB: Step 2 removes this session from the active-sessions map — usually dropping the last reference to it. So hold
+    //     a strong reference across close() — so removal can't destroy the session while the steps below still use it.
+    auto protector = NonnullRefPtr { *this };
+
     // 1. If session's HTTP flag is set, remove session from active HTTP sessions.
     if (has_flag(session_flags(), Web::WebDriver::SessionFlags::Http))
         s_http_sessions.remove(m_session_id);
