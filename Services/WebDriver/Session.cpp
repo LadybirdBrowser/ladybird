@@ -288,7 +288,7 @@ ErrorOr<void> Session::accept_web_content_transport(NonnullOwnPtr<IPC::Transport
 
         if (auto window = m_windows.find(window_handle); window != m_windows.end()) {
             window->value.web_content_connection = move(pending_connection);
-            window->value.is_awaiting_replacement = false;
+            window->value.awaiting_replacement = Window::AwaitingReplacement::No;
         } else {
             m_windows.set(window_handle, Session::Window { window_handle, move(pending_connection) });
         }
@@ -308,7 +308,13 @@ void Session::web_content_connection_closed(WebContentConnection const& connecti
         if (window.value.web_content_connection.ptr() != &connection)
             continue;
 
-        if (window.value.is_awaiting_replacement) {
+        if (window.value.is_awaiting_replacement()) {
+            window.value.web_content_connection = nullptr;
+            return;
+        }
+
+        if (&connection == m_connection_awaiting_possible_replacement) {
+            window.value.awaiting_replacement = Window::AwaitingReplacement::InferredFromClosedConnection;
             window.value.web_content_connection = nullptr;
             return;
         }
@@ -340,11 +346,11 @@ void Session::did_update_window_handle(String window_handle, WebContentConnectio
 
     auto window = maybe_window.release_value();
     window.handle = window_handle;
-    window.is_awaiting_replacement = false;
+    window.awaiting_replacement = Window::AwaitingReplacement::No;
 
     if (auto existing_window = m_windows.find(window_handle); existing_window != m_windows.end()) {
         existing_window->value.web_content_connection = move(window.web_content_connection);
-        existing_window->value.is_awaiting_replacement = false;
+        existing_window->value.awaiting_replacement = Window::AwaitingReplacement::No;
     } else {
         m_windows.set(window_handle, move(window));
     }
@@ -359,7 +365,7 @@ void Session::did_start_window_replacement(String const& window_handle, WebConte
     if (window == m_windows.end() || window->value.web_content_connection.ptr() != &connection)
         return;
 
-    window->value.is_awaiting_replacement = true;
+    window->value.awaiting_replacement = Window::AwaitingReplacement::Announced;
     window->value.web_content_connection = nullptr;
 }
 
@@ -369,7 +375,7 @@ void Session::mark_current_window_as_awaiting_replacement(WebContentConnection c
     if (window == m_windows.end() || window->value.web_content_connection.ptr() != &connection)
         return;
 
-    window->value.is_awaiting_replacement = true;
+    window->value.awaiting_replacement = Window::AwaitingReplacement::Announced;
     window->value.web_content_connection = nullptr;
 }
 
@@ -560,6 +566,9 @@ ErrorOr<bool, Web::WebDriver::Error> Session::wait_for_current_window_to_have_we
     if (current_window->web_content_connection)
         return false;
 
+    static constexpr u64 INFERRED_REPLACEMENT_TIMEOUT_MS = 5000;
+    auto replacement_was_inferred = current_window->awaiting_replacement == Window::AwaitingReplacement::InferredFromClosedConnection;
+
     Optional<u64> page_load_timeout = Web::WebDriver::TimeoutsConfiguration {}.page_load_timeout;
     if (m_timeouts_configuration.has_value() && m_timeouts_configuration->is_object()) {
         if (auto value = m_timeouts_configuration->as_object().get("pageLoad"sv); value.has_value()) {
@@ -569,6 +578,8 @@ ErrorOr<bool, Web::WebDriver::Error> Session::wait_for_current_window_to_have_we
                 page_load_timeout = value->get_integer<u64>().value_or(*page_load_timeout);
         }
     }
+    if (replacement_was_inferred)
+        page_load_timeout = min(page_load_timeout.value_or(INFERRED_REPLACEMENT_TIMEOUT_MS), INFERRED_REPLACEMENT_TIMEOUT_MS);
 
     bool timed_out = false;
     RefPtr<Core::Timer> timer;
@@ -588,8 +599,12 @@ ErrorOr<bool, Web::WebDriver::Error> Session::wait_for_current_window_to_have_we
     if (timer)
         timer->stop();
 
-    if (timed_out)
+    if (timed_out) {
+        if (replacement_was_inferred)
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout,
+                MUST(String::formatted("WebContent process was not replaced within {} ms", *page_load_timeout)));
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout, "Timed out waiting for replacement WebContent process"sv);
+    }
 
     TRY(ensure_current_window_handle_is_valid());
     return true;
