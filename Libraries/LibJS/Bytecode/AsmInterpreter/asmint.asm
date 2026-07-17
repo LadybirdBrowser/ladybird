@@ -2139,7 +2139,7 @@ end
 # Fast path for Array.length (magical length property).
 # Also includes IC fast path for non-array objects (same as GetById).
 handler GetLength
-    temp base, tag, obj, flags, shape, plc, cache_shape, cache_proto, prop_offset, dict_gen, cur_dict_gen, props, value, length, sign_check, dst
+    temp base, tag, obj, flags, shape, plc, cache_shape, cache_proto, prop_offset, dict_gen, cur_dict_gen, props, value, length, dst
     ftemp length_dbl
     load_operand base, m_base
     extract_tag tag, base
@@ -2170,9 +2170,7 @@ handler GetLength
     # clear; otherwise widen to a double so the value isn't reinterpreted
     # as a negative int32.
     load32 length, [obj, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
-    mov sign_check, length
-    shr sign_check, 31
-    branch_nonzero sign_check, .length_double
+    branch_bit_set length, 31, .length_double
     box_int32 dst, length
     store_operand m_dst, dst
     dispatch_next
