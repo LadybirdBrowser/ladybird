@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // When insertLineBreak pads a collapsed line break with an extra br, the caret belongs
+    // between the two line breaks, like Chromium, not after the padding br.
+    test(() => {
+        const sel = getSelection();
+        const describe = (host, n) => n === host ? "host" : n.nodeName;
+
+        for (const [label, html, place] of [
+            ["at end of text", "hello", host => sel.collapse(host.firstChild, 5)],
+            ["in empty host", "", host => sel.collapse(host, 0)],
+        ]) {
+            const host = document.createElement("div");
+            host.contentEditable = "true";
+            host.innerHTML = html;
+            document.body.appendChild(host);
+            host.focus();
+            place(host);
+            internals.sendKey(host, "Return", internals.MOD_SHIFT);
+            println(`${label}: ${JSON.stringify(host.innerHTML)} sel=${describe(host, sel.focusNode)}@${sel.focusOffset}`);
+            document.execCommand("undo");
+            println(`${label} after undo: ${JSON.stringify(host.innerHTML)}`);
+            host.remove();
+        }
+    });
+</script>

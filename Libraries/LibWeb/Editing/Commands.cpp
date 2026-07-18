@@ -1463,6 +1463,10 @@ bool command_insert_linebreak_action(DOM::Document& document, Utf16View)
     if (is_collapsed_line_break(br)) {
         auto extra_br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
         MUST(insert_node_into_range(range, extra_br));
+
+        // INTEROP: The range insertion leaves the range spanning extra br; Chromium keeps the caret collapsed
+        //          between the two line breaks.
+        MUST(selection.collapse(extra_br->parent(), extra_br->index()));
     }
 
     // 11. Return true.

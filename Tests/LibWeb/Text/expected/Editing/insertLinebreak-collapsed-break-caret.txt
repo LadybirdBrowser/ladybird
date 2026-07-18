@@ -1,0 +1,4 @@
+at end of text: "hello<br><br>" sel=#text@5
+at end of text after undo: "hello"
+in empty host: "<br><br>" sel=host@0
+in empty host after undo: ""
