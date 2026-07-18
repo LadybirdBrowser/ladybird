@@ -36,15 +36,14 @@ public:
     {
     }
 
-    CSSPixels width() const;
-    CSSPixels height() const;
-    CSSPixels bottom() const;
-
     CSSPixels inline_length() const { return m_inline_length; }
     CSSPixels block_length() const { return m_block_length; }
+    CSSPixels physical_horizontal_extent() const;
+    CSSPixels physical_vertical_extent() const;
+    CSSPixels physical_vertical_end() const;
     CSSPixels baseline() const { return m_baseline; }
 
-    void add_fragment(Node const& layout_node, size_t start, size_t length, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_inline_size, CSSPixels content_block_size, CSSPixels border_box_top, CSSPixels border_box_bottom, RefPtr<Gfx::GlyphRun> glyph_run = {});
+    void add_fragment(Node const& layout_node, size_t start, size_t length, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_inline_size, CSSPixels content_block_size, CSSPixels border_box_block_start, CSSPixels border_box_block_end, RefPtr<Gfx::GlyphRun> glyph_run = {});
     void add_static_position_marker(Box const&, bool preceded_by_inline_box_start_edges);
 
     Vector<LineBoxFragment> const& fragments() const { return m_fragments; }
@@ -60,7 +59,7 @@ public:
     bool is_empty() const { return m_fragments.is_empty() && !m_has_break; }
     bool has_forced_break() const { return m_has_forced_break; }
     bool has_block_level_box() const { return m_has_block_level_box; }
-    CSSPixels block_level_box_bottom_margin() const { return m_block_level_box_bottom_margin; }
+    CSSPixels block_level_box_block_end_margin() const { return m_block_level_box_block_end_margin; }
 
     AvailableSize original_available_inline_size() const { return m_original_available_inline_size; }
 
@@ -80,11 +79,11 @@ private:
     Vector<StaticPositionMarker> m_static_position_markers;
     CSSPixels m_inline_length { 0 };
     CSSPixels m_block_length { 0 };
-    CSSPixels m_bottom { 0 };
+    CSSPixels m_block_end { 0 };
     CSSPixels m_baseline { 0 };
     // For a line box holding an interrupting block-level box: the block's pending (collapsed) bottom margin,
-    // which is not included in m_bottom. Needed to size BFC roots whose last line is such a line.
-    CSSPixels m_block_level_box_bottom_margin { 0 };
+    // which is not included in m_block_end. Needed to size BFC roots whose last line is such a line.
+    CSSPixels m_block_level_box_block_end_margin { 0 };
     CSS::Direction m_direction { CSS::Direction::Ltr };
     CSS::WritingMode m_writing_mode { CSS::WritingMode::HorizontalTb };
 

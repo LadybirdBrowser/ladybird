@@ -20,7 +20,7 @@ class LineBoxFragment {
     friend class LineBox;
 
 public:
-    LineBoxFragment(Node const& layout_node, size_t start, size_t length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::Direction, CSS::WritingMode, RefPtr<Gfx::GlyphRun>);
+    LineBoxFragment(Node const& layout_node, size_t start, size_t length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_block_start, CSS::Direction, CSS::WritingMode, RefPtr<Gfx::GlyphRun>);
 
     Node const& layout_node() const
     {
@@ -37,19 +37,19 @@ public:
     void set_inline_offset(CSSPixels inline_offset) { m_inline_offset = inline_offset; }
     void set_block_offset(CSSPixels block_offset) { m_block_offset = block_offset; }
 
-    // The baseline of a fragment is the number of pixels from the top to the text baseline.
-    void set_baseline(CSSPixels y) { m_baseline = y; }
+    // The baseline of a fragment is the distance from its block-start edge to the text baseline.
+    void set_baseline(CSSPixels block_offset) { m_baseline = block_offset; }
     CSSPixels baseline() const { return m_baseline; }
 
     CSSPixelSize size() const;
-    CSSPixels width() const { return size().width(); }
-    CSSPixels height() const { return size().height(); }
+    CSSPixels physical_horizontal_extent() const { return m_writing_mode != CSS::WritingMode::HorizontalTb ? m_block_length : m_inline_length; }
+    CSSPixels physical_vertical_extent() const { return m_writing_mode != CSS::WritingMode::HorizontalTb ? m_inline_length : m_block_length; }
     CSSPixels inline_length() const { return m_inline_length; }
     CSSPixels block_length() const { return m_block_length; }
     void set_inline_length(CSSPixels inline_length) { m_inline_length = inline_length; }
     void set_block_length(CSSPixels block_length) { m_block_length = block_length; }
 
-    CSSPixels border_box_top() const { return m_border_box_top; }
+    CSSPixels border_box_block_start() const { return m_border_box_block_start; }
 
     bool ends_in_whitespace() const;
     bool is_justifiable_whitespace() const;
@@ -59,7 +59,7 @@ public:
 
     RefPtr<Gfx::GlyphRun> glyph_run() const { return m_glyph_run; }
     CSS::WritingMode writing_mode() const { return m_writing_mode; }
-    void append_glyph_run(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_width);
+    void append_glyph_run(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_inline_size);
 
     bool has_trailing_whitespace() const { return m_has_trailing_whitespace; }
     void set_has_trailing_whitespace(bool value) { m_has_trailing_whitespace = value; }
@@ -69,8 +69,8 @@ public:
 
 private:
     CSS::Direction resolve_glyph_run_direction(Gfx::GlyphRun::TextType) const;
-    void append_glyph_run_ltr(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_width);
-    void append_glyph_run_rtl(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_width);
+    void append_glyph_run_ltr(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_inline_size);
+    void append_glyph_run_rtl(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_inline_size);
 
     WeakPtr<Node const> m_layout_node;
     size_t m_start { 0 };
@@ -79,7 +79,7 @@ private:
     CSSPixels m_block_offset;
     CSSPixels m_inline_length;
     CSSPixels m_block_length;
-    CSSPixels m_border_box_top { 0 };
+    CSSPixels m_border_box_block_start { 0 };
     CSSPixels m_baseline { 0 };
     CSS::Direction m_direction { CSS::Direction::Ltr };
     CSS::WritingMode m_writing_mode { CSS::WritingMode::HorizontalTb };

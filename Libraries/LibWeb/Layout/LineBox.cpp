@@ -16,30 +16,30 @@
 
 namespace Web::Layout {
 
-CSSPixels LineBox::width() const
+CSSPixels LineBox::physical_horizontal_extent() const
 {
     if (m_writing_mode != CSS::WritingMode::HorizontalTb)
         return m_block_length;
     return m_inline_length;
 }
 
-CSSPixels LineBox::height() const
+CSSPixels LineBox::physical_vertical_extent() const
 {
     if (m_writing_mode != CSS::WritingMode::HorizontalTb)
         return m_inline_length;
     return m_block_length;
 }
 
-CSSPixels LineBox::bottom() const
+CSSPixels LineBox::physical_vertical_end() const
 {
     if (m_writing_mode != CSS::WritingMode::HorizontalTb)
         return m_inline_length;
-    return m_bottom;
+    return m_block_end;
 }
 
 void LineBox::add_fragment(Node const& layout_node, size_t start, size_t length, CSSPixels leading_size,
     CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_inline_size,
-    CSSPixels content_block_size, CSSPixels border_box_top, CSSPixels border_box_bottom, RefPtr<Gfx::GlyphRun> glyph_run)
+    CSSPixels content_block_size, CSSPixels border_box_block_start, CSSPixels border_box_block_end, RefPtr<Gfx::GlyphRun> glyph_run)
 {
     auto const* layout_node_with_style = as_if<NodeWithStyle>(layout_node);
     auto const& style_source = layout_node_with_style ? *layout_node_with_style : *layout_node.parent();
@@ -56,16 +56,16 @@ void LineBox::add_fragment(Node const& layout_node, size_t start, size_t length,
         CSSPixels inline_offset = leading_margin + leading_size + m_inline_length;
         CSSPixels block_offset = 0;
         m_fragments.append(LineBoxFragment { layout_node, start, length, inline_offset, block_offset, content_inline_size,
-            content_block_size, border_box_top, m_direction, m_writing_mode, move(glyph_run) });
+            content_block_size, border_box_block_start, m_direction, m_writing_mode, move(glyph_run) });
     }
     m_inline_length += leading_margin + leading_size + content_inline_size + trailing_size + trailing_margin;
-    m_block_length = max(m_block_length, content_block_size + border_box_top + border_box_bottom);
+    m_block_length = max(m_block_length, content_block_size + border_box_block_start + border_box_block_end);
 }
 
 void LineBox::add_static_position_marker(Box const& box, bool preceded_by_inline_box_start_edges)
 {
     // Inline box start edges count like content here: a line box holding an inline element with
-    // non-zero margin, border or padding is not a zero-height line box (CSS 2 § 9.4.2), so a
+    // non-zero margin, border or padding is not a zero-block-size line box (CSS 2 § 9.4.2), so a
     // block-level abspos after such an edge belongs below this line, not at its top.
     m_static_position_markers.append(StaticPositionMarker {
         .box = &box,

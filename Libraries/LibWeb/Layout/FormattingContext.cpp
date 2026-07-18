@@ -597,7 +597,7 @@ CSSPixels FormattingContext::greatest_child_inline_size(Box const& box) const
     CSSPixels max_inline_size = 0;
     if (box.children_are_inline()) {
         for (auto& line_box : m_state.get(box).line_boxes)
-            max_inline_size = max(max_inline_size, line_box_physical_width(box, line_box));
+            max_inline_size = max(max_inline_size, line_box_physical_horizontal_extent(box, line_box));
     } else {
         box.for_each_child_of_type<Box>([&](Box const& child) {
             if (!child.is_absolutely_positioned())
@@ -608,20 +608,20 @@ CSSPixels FormattingContext::greatest_child_inline_size(Box const& box) const
     return max_inline_size;
 }
 
-CSSPixels FormattingContext::line_box_physical_width(Box const& box, LineBox const& line_box)
+CSSPixels FormattingContext::line_box_physical_horizontal_extent(Box const& box, LineBox const& line_box)
 {
     if (line_box.has_block_level_box())
         return line_box.inline_length();
 
     if (box.computed_values().writing_mode() == CSS::WritingMode::HorizontalTb)
-        return line_box.width();
+        return line_box.inline_length();
 
     CSSPixels leftmost_fragment_x = 0;
     CSSPixels rightmost_fragment_x = 0;
     bool saw_fragment = false;
     for (auto const& fragment : line_box.fragments()) {
         auto fragment_left = fragment.offset().x();
-        auto fragment_right = fragment_left + fragment.width();
+        auto fragment_right = fragment_left + fragment.physical_horizontal_extent();
         leftmost_fragment_x = saw_fragment ? min(leftmost_fragment_x, fragment_left) : fragment_left;
         rightmost_fragment_x = saw_fragment ? max(rightmost_fragment_x, fragment_right) : fragment_right;
         saw_fragment = true;
@@ -714,11 +714,11 @@ CSSPixels FormattingContext::compute_automatic_block_size_for_block_formatting_c
         auto const& line_boxes = m_state.get(root).line_boxes;
         top = 0;
         if (!line_boxes.is_empty()) {
-            bottom = line_boxes.last().bottom();
+            bottom = line_boxes.last().physical_vertical_end();
             // A trailing interrupting block's bottom margin cannot collapse out of a BFC root,
             // so it contributes to the root's automatic block size. The line box bottom excludes it.
             if (line_boxes.last().has_block_level_box())
-                bottom = max(CSSPixels(0), bottom.value() + line_boxes.last().block_level_box_bottom_margin());
+                bottom = max(CSSPixels(0), bottom.value() + line_boxes.last().block_level_box_block_end_margin());
         }
     } else {
         // If it has block-level children, the block size is the distance between
@@ -3362,8 +3362,8 @@ void FormattingContext::compute_and_store_baselines(LayoutState::UsedValues& use
     if (!used_values.line_boxes.is_empty()) {
         auto baseline_for_line_box = [&](LineBox const& line_box, BaselineSet baseline_set) -> CSSPixels {
             if (!line_box.has_block_level_box()) {
-                auto line_box_top = line_box.bottom() - line_box.block_length();
-                return line_box_top + line_box.baseline();
+                auto line_box_block_start = line_box.physical_vertical_end() - line_box.block_length();
+                return line_box_block_start + line_box.baseline();
             }
 
             VERIFY(line_box.fragments().size() == 1);

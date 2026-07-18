@@ -220,7 +220,7 @@ protected:
     CSSPixels tentative_inline_size_for_replaced_element(Box const&, CSS::Size const& computed_inline_size, AvailableSpace const&, ContainingBlockConstraints const&) const;
     CSSPixels tentative_block_size_for_replaced_element(Box const&, CSS::Size const& computed_block_size, AvailableSpace const&, ContainingBlockConstraints const&) const;
     CSSPixels compute_automatic_block_size_for_block_formatting_context_root(Box const&) const;
-    static CSSPixels line_box_physical_width(Box const&, LineBox const&);
+    static CSSPixels line_box_physical_horizontal_extent(Box const&, LineBox const&);
 
     CSSPixels measure_automatic_content_block_size(Box const&, AvailableSpace const& inner_available_space, ContainingBlockConstraints const&);
     void make_button_content_box_definite(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, Optional<CSSPixels> measured_content_block_size = {});

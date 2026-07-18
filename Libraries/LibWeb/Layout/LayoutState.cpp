@@ -49,17 +49,17 @@ static CSSPixelRect united_fragment_rect_for_line_box(LineBox const& line_box)
 
     auto writing_mode = line_box.fragments().first().writing_mode();
     if (writing_mode == CSS::WritingMode::HorizontalTb) {
-        rect.set_y(line_box.bottom() - line_box.height());
-        rect.set_height(line_box.height());
+        rect.set_y(line_box.physical_vertical_end() - line_box.physical_vertical_extent());
+        rect.set_height(line_box.physical_vertical_extent());
     }
 
     return rect;
 }
 
-static CSSPixelRect rect_for_line_box(LineBox const& line_box, CSSPixels containing_block_content_width)
+static CSSPixelRect rect_for_line_box(LineBox const& line_box, CSSPixels containing_block_content_inline_size)
 {
     if (line_box.fragments().is_empty())
-        return { 0, line_box.bottom() - line_box.height(), containing_block_content_width, line_box.height() };
+        return { 0, line_box.physical_vertical_end() - line_box.physical_vertical_extent(), containing_block_content_inline_size, line_box.physical_vertical_extent() };
     return united_fragment_rect_for_line_box(line_box);
 }
 

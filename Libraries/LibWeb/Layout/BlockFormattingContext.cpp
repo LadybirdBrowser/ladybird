@@ -967,7 +967,7 @@ CSSPixels BlockFormattingContext::compute_automatic_block_size_for_block_level_e
 
     // 1. the bottom edge of the last line box, if the box establishes a inline formatting context with one or more lines
     if (box.children_are_inline() && !box_state.line_boxes.is_empty()) {
-        auto block_size = box_state.line_boxes.last().bottom();
+        auto block_size = box_state.line_boxes.last().physical_vertical_end();
         if (box_state.line_boxes.last().has_block_level_box()) {
             auto margin_bottom = m_margin_state.current_collapsed_margin();
             if (box_state.padding_bottom == 0 && box_state.border_bottom == 0) {
@@ -1678,9 +1678,9 @@ CSSPixels BlockFormattingContext::greatest_child_inline_size_in_rect(Box const& 
 
     if (box.children_are_inline()) {
         for (auto const& line_box : m_state.get(as<BlockContainer>(box)).line_boxes) {
-            auto inline_size_here = line_box_physical_width(box, line_box);
-            auto line_top = line_box.bottom() - line_box.height();
-            auto line_bottom = line_box.bottom();
+            auto inline_size_here = line_box_physical_horizontal_extent(box, line_box);
+            auto line_block_start = line_box.physical_vertical_end() - line_box.physical_vertical_extent();
+            auto line_block_end = line_box.physical_vertical_end();
             CSSPixels extra_inline_size_from_left_floats = 0;
             for (auto& left_float : m_floats) {
                 if (left_float->side != FloatSide::Left)
@@ -1688,7 +1688,7 @@ CSSPixels BlockFormattingContext::greatest_child_inline_size_in_rect(Box const& 
                 // NOTE: Floats directly affect the automatic size of their containing block, but only indirectly anything above in the tree.
                 if (left_float->box.containing_block() != &box)
                     continue;
-                if (line_top < left_float->bottom_margin_edge && line_bottom > left_float->top_margin_edge) {
+                if (line_block_start < left_float->bottom_margin_edge && line_block_end > left_float->top_margin_edge) {
                     extra_inline_size_from_left_floats = max(extra_inline_size_from_left_floats, left_float->offset_from_edge + left_float->used_values.content_inline_size() + left_float->used_values.margin_box_right());
                 }
             }
@@ -1699,7 +1699,7 @@ CSSPixels BlockFormattingContext::greatest_child_inline_size_in_rect(Box const& 
                 // NOTE: Floats directly affect the automatic size of their containing block, but only indirectly anything above in the tree.
                 if (right_float->box.containing_block() != &box)
                     continue;
-                if (line_top < right_float->bottom_margin_edge && line_bottom > right_float->top_margin_edge) {
+                if (line_block_start < right_float->bottom_margin_edge && line_block_end > right_float->top_margin_edge) {
                     extra_inline_size_from_right_floats = max(extra_inline_size_from_right_floats, right_float->offset_from_edge + right_float->used_values.margin_box_left());
                 }
             }

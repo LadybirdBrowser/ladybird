@@ -86,10 +86,10 @@ void InlineFormattingContext::run(LayoutInput const& layout_input)
     auto const& line_boxes = m_containing_block_used_values.line_boxes;
     CSSPixels content_block_size = 0;
     if (any_of(line_boxes, [](auto& line_box) { return line_box.has_block_level_box(); })) {
-        content_block_size = line_boxes.last().bottom();
+        content_block_size = line_boxes.last().physical_vertical_end();
     } else {
         for (auto& line_box : line_boxes)
-            content_block_size += line_box.height();
+            content_block_size += line_box.physical_vertical_extent();
     }
 
     // NOTE: We ask the parent BFC to calculate the automatic content inline size of this IFC.
@@ -897,7 +897,7 @@ void InlineFormattingContext::generate_line_boxes()
                         continue;
 
                     if (box->display_before_box_type_transformation().is_block_outside()) {
-                        auto block_position = marker.preceded_by_in_flow_content ? line_box.bottom() : marker.offset().y();
+                        auto block_position = marker.preceded_by_in_flow_content ? line_box.physical_vertical_end() : marker.offset().y();
                         auto containing_block_inline_size = m_layout_input->containing_block_constraints.percentage_basis_inline_size.value_or(0);
                         static_position_rect.rect = { { 0, block_position }, { containing_block_inline_size, 0 } };
                     } else {

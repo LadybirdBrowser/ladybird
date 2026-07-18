@@ -29,7 +29,7 @@ public:
     void prepare_to_append_inline_content();
     void commit_pending_margin_before_float();
     void finish_current_line_before_block_level_box();
-    void append_block_level_box(Box const&, CSSPixels block_bottom, CSSPixels block_bottom_margin);
+    void append_block_level_box(Box const&, CSSPixels block_end, CSSPixels block_end_margin);
 
     // Returns whether a line break occurred.
     bool break_if_needed(CSSPixels next_item_inline_size)
@@ -76,7 +76,7 @@ private:
     CSS::WritingMode m_writing_mode { CSS::WritingMode::HorizontalTb };
 
     bool m_last_line_needs_update { false };
-    bool m_should_advance_to_last_line_box_bottom { false };
+    bool m_should_advance_to_last_line_box_block_end { false };
     bool m_current_line_committed_pending_margin { false };
     bool m_pending_margin_follows_block_level_box { false };
 };
