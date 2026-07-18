@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/StaticNodeList.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
@@ -118,6 +119,10 @@ void Attr::change_attribute(Utf16String value)
 // https://dom.spec.whatwg.org/#handle-attribute-changes
 void Attr::handle_attribute_changes(Element& element, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value)
 {
+    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
+    if (auto history = element.document().editing_history_if_exists())
+        history->notify_dom_mutation();
+
     // 1. Queue a mutation record of "attributes" for element with attribute’s local name, attribute’s namespace, oldValue, « », « », null, and null.
     element.queue_mutation_record(MutationType::attributes, local_name(), namespace_uri(), old_value, {}, {}, nullptr, nullptr);
 

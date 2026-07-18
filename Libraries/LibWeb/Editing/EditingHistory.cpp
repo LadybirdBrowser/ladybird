@@ -274,6 +274,26 @@ void EditingHistory::end_recording()
     notify_state_if_changed(step->editing_host()->document());
 }
 
+EditingHistory::ProxyMutationScope::ProxyMutationScope(DOM::Node& node)
+    : m_history(node.document().editing_history_if_exists())
+{
+    if (m_history)
+        m_history->m_proxy_mutation_depth++;
+}
+
+EditingHistory::ProxyMutationScope::~ProxyMutationScope()
+{
+    if (m_history)
+        m_history->m_proxy_mutation_depth--;
+}
+
+void EditingHistory::notify_dom_mutation()
+{
+    if (!m_undo_step_being_recorded || m_proxy_mutation_depth > 0 || m_applying_history_step)
+        return;
+    dbgln("Editing: DOM mutated during a recorded editing command without going through the Editing proxy; this mutation will not be undoable!");
+}
+
 void EditingHistory::selection_changed()
 {
     // Selection changes performed by the recorded command itself or by history application do

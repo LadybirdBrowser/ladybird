@@ -46,6 +46,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/StaticNodeList.h>
 #include <LibWeb/DOM/XMLDocument.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
@@ -707,6 +708,10 @@ WebIDL::ExceptionOr<void> Node::ensure_pre_insert_validity(JS::Realm& realm, GC:
 // https://dom.spec.whatwg.org/#concept-node-insert
 void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_observers)
 {
+    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
+    if (auto history = document().editing_history_if_exists())
+        history->notify_dom_mutation();
+
     // 1. Let nodes be node’s children, if node is a DocumentFragment node; otherwise « node ».
     Vector<GC::Root<Node>> nodes;
     if (is<DocumentFragment>(*node))
@@ -985,6 +990,10 @@ void Node::live_range_pre_remove()
 // https://dom.spec.whatwg.org/#concept-node-remove
 void Node::remove(bool suppress_observers)
 {
+    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
+    if (auto history = document().editing_history_if_exists())
+        history->notify_dom_mutation();
+
     // 1. Let parent be node’s parent
     auto* parent = this->parent();
 

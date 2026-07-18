@@ -1107,7 +1107,10 @@ void FormAssociatedTextControlElement::handle_insert(Utf16FlyString const& input
     auto clamped_end = min(selection_end, old_value.length_in_code_units());
     auto removed_data = Utf16String::from_utf16(old_value.substring_view(clamped_start, clamped_end - clamped_start));
 
-    MUST(set_range_text(data_for_insertion, selection_start, selection_end, Bindings::SelectionMode::End));
+    {
+        Editing::EditingHistory::ProxyMutationScope proxy_scope { html_element };
+        MUST(set_range_text(data_for_insertion, selection_start, selection_end, Bindings::SelectionMode::End));
+    }
 
     if (auto step = history->undo_step_being_recorded(); step) {
         if (removed_data.utf16_view() != data_for_insertion) {
@@ -1166,7 +1169,10 @@ void FormAssociatedTextControlElement::handle_delete(Utf16FlyString const& input
     auto clamped_end = min(selection_end, old_value.length_in_code_units());
     auto removed_data = Utf16String::from_utf16(old_value.substring_view(clamped_start, clamped_end - clamped_start));
 
-    MUST(set_range_text({}, selection_start, selection_end, Bindings::SelectionMode::End));
+    {
+        Editing::EditingHistory::ProxyMutationScope proxy_scope { html_element };
+        MUST(set_range_text({}, selection_start, selection_end, Bindings::SelectionMode::End));
+    }
 
     if (auto step = history->undo_step_being_recorded(); step && !removed_data.is_empty()) {
         step->add_command(html_element.heap().allocate<Editing::ReplaceDataCommand>(

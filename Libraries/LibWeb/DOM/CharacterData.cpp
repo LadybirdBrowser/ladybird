@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Selection/Selection.h>
@@ -74,6 +75,10 @@ WebIDL::ExceptionOr<Utf16String> CharacterData::substring_data(size_t offset, si
 // https://dom.spec.whatwg.org/#concept-cd-replace
 WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t count, Utf16View const& data)
 {
+    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
+    if (auto history = document().editing_history_if_exists())
+        history->notify_dom_mutation();
+
     // 1. Let length be node’s length.
     auto length = m_data.length_in_code_units();
 

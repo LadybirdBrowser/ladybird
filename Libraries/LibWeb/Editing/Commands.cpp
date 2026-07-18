@@ -1796,6 +1796,8 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
             MUST(split_text(*text, start_offset));
         } else {
             auto clone = MUST(start_node->clone_node(nullptr, false));
+            // NB: The clone is not in the tree yet, so this deliberately bypasses the editing
+            //     proxy; the recorded insertion below carries the clone's final state.
             if (auto* clone_element = as_if<DOM::Element>(*clone))
                 clone_element->remove_attribute(HTML::AttributeNames::id);
             insert_node_before(clone, parent, start_node->next_sibling());

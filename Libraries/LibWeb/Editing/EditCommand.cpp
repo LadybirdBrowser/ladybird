@@ -283,6 +283,7 @@ void insert_node_before(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> parent, GC::
     }
 
     auto step = undo_step_being_recorded(parent);
+    EditingHistory::ProxyMutationScope proxy_scope { parent };
 
     // NB: Moving a node records its removal first, so that undo can put it back where it came from.
     if (node->parent()) {
@@ -308,6 +309,7 @@ WebIDL::ExceptionOr<void> append_node(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node
 void remove_node(GC::Ref<DOM::Node> node)
 {
     auto step = undo_step_being_recorded(node);
+    EditingHistory::ProxyMutationScope proxy_scope { node };
     auto command = node->heap().allocate<RemoveNodeCommand>(node);
     command->apply();
     if (step)
@@ -327,6 +329,7 @@ WebIDL::ExceptionOr<void> replace_data(GC::Ref<DOM::CharacterData> node, size_t 
     auto removed_data = Utf16String::from_utf16(node->data().substring_view(offset, count));
     bool is_no_op = removed_data.utf16_view() == data;
 
+    EditingHistory::ProxyMutationScope proxy_scope { node };
     auto command = node->heap().allocate<ReplaceDataCommand>(node, offset, move(removed_data), Utf16String::from_utf16(data));
     TRY(command->apply());
     if (auto step = undo_step_being_recorded(node); step && !is_no_op)
@@ -347,6 +350,7 @@ WebIDL::ExceptionOr<void> delete_data(GC::Ref<DOM::CharacterData> node, size_t o
 WebIDL::ExceptionOr<GC::Ref<DOM::Text>> split_text(GC::Ref<DOM::Text> node, size_t offset)
 {
     auto step = undo_step_being_recorded(node);
+    EditingHistory::ProxyMutationScope proxy_scope { node };
     auto command = node->heap().allocate<SplitTextCommand>(node, offset);
     auto new_node = TRY(command->apply());
     if (step)
@@ -357,6 +361,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::Text>> split_text(GC::Ref<DOM::Text> node, size
 void set_attribute_value(GC::Ref<DOM::Element> element, Utf16FlyString const& local_name, Utf16View value)
 {
     auto step = undo_step_being_recorded(element);
+    EditingHistory::ProxyMutationScope proxy_scope { element };
     auto command = element->heap().allocate<SetAttributeCommand>(element, local_name, Optional<Utf16FlyString> {}, element->get_attribute(local_name), Utf16String::from_utf16(value));
     command->apply();
     if (step)
@@ -369,6 +374,7 @@ void remove_attribute(GC::Ref<DOM::Element> element, Utf16FlyString const& name)
     if (!old_value.has_value())
         return;
     auto step = undo_step_being_recorded(element);
+    EditingHistory::ProxyMutationScope proxy_scope { element };
     auto command = element->heap().allocate<SetAttributeCommand>(element, name, Optional<Utf16FlyString> {}, move(old_value), Optional<Utf16String> {});
     command->apply();
     if (step)
@@ -381,6 +387,7 @@ void remove_attribute_ns(GC::Ref<DOM::Element> element, Optional<Utf16FlyString>
     if (!old_value.has_value())
         return;
     auto step = undo_step_being_recorded(element);
+    EditingHistory::ProxyMutationScope proxy_scope { element };
     auto command = element->heap().allocate<SetAttributeCommand>(element, name, namespace_, move(old_value), Optional<Utf16String> {});
     command->apply();
     if (step)

@@ -109,6 +109,20 @@ public:
     void begin_recording(DOM::Node& editing_host, UndoStep::Category);
     void end_recording();
 
+    // Editing code must perform DOM mutations through the Editing proxy functions while a
+    // command is being recorded, or the mutation silently escapes undo. The proxy brackets its
+    // mutations with this scope, and the DOM primitives report mutations so bypasses are
+    // diagnosed during development instead of surfacing as broken undo.
+    class ProxyMutationScope {
+    public:
+        explicit ProxyMutationScope(DOM::Node&);
+        ~ProxyMutationScope();
+
+    private:
+        GC::Ptr<EditingHistory> m_history;
+    };
+    void notify_dom_mutation();
+
     bool can_undo();
     bool can_redo();
     bool undo(DOM::Document&);
@@ -137,6 +151,7 @@ private:
     bool m_applying_history_step { false };
     bool m_last_notified_can_undo { false };
     bool m_last_notified_can_redo { false };
+    u32 m_proxy_mutation_depth { 0 };
 };
 
 enum class HistoryAction : u8 {
