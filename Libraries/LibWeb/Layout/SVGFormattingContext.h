@@ -21,8 +21,8 @@ public:
     ~SVGFormattingContext();
 
     virtual void run(LayoutInput const&) override;
-    virtual CSSPixels automatic_content_width() const override;
-    virtual CSSPixels automatic_content_height() const override;
+    virtual CSSPixels automatic_content_inline_size() const override;
+    virtual CSSPixels automatic_content_block_size() const override;
 
 private:
     void layout_svg_element(Box const&, LayoutInput const&, Gfx::AffineTransform const& parent_svg_transform);

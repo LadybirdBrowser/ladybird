@@ -167,8 +167,8 @@ public:
     virtual bool inhibits_floating() const override { return true; }
 
     virtual void run(LayoutInput const&) override;
-    virtual CSSPixels automatic_content_width() const override;
-    virtual CSSPixels automatic_content_height() const override;
+    virtual CSSPixels automatic_content_inline_size() const override;
+    virtual CSSPixels automatic_content_block_size() const override;
 
     Box const& grid_container() const { return context_box(); }
 
@@ -177,7 +177,7 @@ private:
 
     void resolve_items_box_metrics(GridDimension dimension);
 
-    CSSPixels m_automatic_content_height { 0 };
+    CSSPixels m_automatic_content_block_size { 0 };
     CSSPixels m_row_track_alignment_grid_container_height { 0 };
     bool m_use_row_track_alignment_grid_container_height { false };
 

@@ -30,8 +30,8 @@ public:
     void run_until_width_calculation(LayoutInput const&, RowMeasurement = RowMeasurement::Include);
 
     virtual void run(LayoutInput const&) override;
-    virtual CSSPixels automatic_content_width() const override;
-    virtual CSSPixels automatic_content_height() const override;
+    virtual CSSPixels automatic_content_inline_size() const override;
+    virtual CSSPixels automatic_content_block_size() const override;
 
     Box const& table_box() const { return context_box(); }
 
@@ -93,7 +93,7 @@ private:
     ContainingBlockConstraints m_participant_constraints;
 
     CSSPixels m_table_height { 0 };
-    CSSPixels m_automatic_content_height { 0 };
+    CSSPixels m_automatic_content_block_size { 0 };
     CSSPixelPoint m_pending_table_box_content_offset_in_wrapper {};
     Optional<CSSPixels> m_min_border_box_height_from_flex_item;
 

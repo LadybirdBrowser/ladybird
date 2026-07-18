@@ -60,12 +60,12 @@ ContainingBlockConstraints FlexFormattingContext::item_containing_block_constrai
     return constraints;
 }
 
-CSSPixels FlexFormattingContext::automatic_content_width() const
+CSSPixels FlexFormattingContext::automatic_content_inline_size() const
 {
     return m_flex_container_state.content_inline_size();
 }
 
-CSSPixels FlexFormattingContext::automatic_content_height() const
+CSSPixels FlexFormattingContext::automatic_content_block_size() const
 {
     return m_flex_container_state.content_block_size();
 }

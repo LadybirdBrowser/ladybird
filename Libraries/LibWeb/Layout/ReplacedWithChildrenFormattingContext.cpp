@@ -51,24 +51,24 @@ void ReplacedWithChildrenFormattingContext::run(LayoutInput const& layout_input)
     auto bfc = make<BlockFormattingContext>(m_state, m_layout_mode, *wrapper, this);
     bfc->run(LayoutInput { child_available_space, wrapper_constraints });
 
-    m_automatic_content_width = content_inline_size;
-    m_automatic_content_height = bfc->automatic_content_height();
+    m_automatic_content_inline_size = content_inline_size;
+    m_automatic_content_block_size = bfc->automatic_content_block_size();
 
-    wrapper_state.set_content_block_size(m_automatic_content_height);
+    wrapper_state.set_content_block_size(m_automatic_content_block_size);
 
     place_child(*wrapper, { 0, 0 });
 
     bfc->parent_context_did_dimension_child_root_box();
 }
 
-CSSPixels ReplacedWithChildrenFormattingContext::automatic_content_width() const
+CSSPixels ReplacedWithChildrenFormattingContext::automatic_content_inline_size() const
 {
-    return m_automatic_content_width;
+    return m_automatic_content_inline_size;
 }
 
-CSSPixels ReplacedWithChildrenFormattingContext::automatic_content_height() const
+CSSPixels ReplacedWithChildrenFormattingContext::automatic_content_block_size() const
 {
-    return m_automatic_content_height;
+    return m_automatic_content_block_size;
 }
 
 void ReplacedWithChildrenFormattingContext::parent_context_did_dimension_child_root_box()

@@ -2136,14 +2136,14 @@ void GridFormattingContext::determine_grid_container_height()
     CSSPixels total_y = 0;
     for (auto& grid_row : m_grid_rows_and_gaps)
         total_y += grid_row.base_size;
-    m_automatic_content_height = total_y;
+    m_automatic_content_block_size = total_y;
     m_row_track_alignment_grid_container_height = total_y;
     m_use_row_track_alignment_grid_container_height = false;
 }
 
 CSSPixels GridFormattingContext::resolve_used_grid_container_height_for_second_row_layout() const
 {
-    auto height = m_automatic_content_height;
+    auto height = m_automatic_content_block_size;
     auto const& computed_values = grid_container().computed_values();
 
     if (!should_treat_max_height_as_none(grid_container(), m_available_space->block_size, m_layout_input->containing_block_constraints) && !computed_values.max_height().is_auto()) {
@@ -2889,13 +2889,13 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
 
     determine_grid_container_height();
 
-    auto intrinsic_grid_container_height = m_automatic_content_height;
+    auto intrinsic_grid_container_height = m_automatic_content_block_size;
     if (m_layout_mode == LayoutMode::Normal && m_available_space->block_size.is_indefinite()) {
         auto resolved_grid_container_height = resolve_used_grid_container_height_for_second_row_layout();
         rerun_row_track_sizing_using_grid_container_height(resolved_grid_container_height);
         m_row_track_alignment_grid_container_height = resolved_grid_container_height;
         m_use_row_track_alignment_grid_container_height = true;
-        m_automatic_content_height = intrinsic_grid_container_height;
+        m_automatic_content_block_size = intrinsic_grid_container_height;
     } else if (m_layout_mode == LayoutMode::Normal && m_available_space->block_size.is_definite() && should_treat_height_as_auto(grid_container(), available_space, m_layout_input->containing_block_constraints)) {
         m_row_track_alignment_grid_container_height = m_available_space->block_size.to_px_or_zero();
         m_use_row_track_alignment_grid_container_height = true;
@@ -3155,14 +3155,14 @@ void GridFormattingContext::determine_intrinsic_size_of_grid_container(Available
     }
 }
 
-CSSPixels GridFormattingContext::automatic_content_width() const
+CSSPixels GridFormattingContext::automatic_content_inline_size() const
 {
     return m_grid_container_used_values.content_inline_size();
 }
 
-CSSPixels GridFormattingContext::automatic_content_height() const
+CSSPixels GridFormattingContext::automatic_content_block_size() const
 {
-    return m_automatic_content_height;
+    return m_automatic_content_block_size;
 }
 
 bool GridFormattingContext::is_auto_positioned_track(CSS::GridTrackPlacement const& grid_track_start, CSS::GridTrackPlacement const& grid_track_end) const

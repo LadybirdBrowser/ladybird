@@ -63,14 +63,14 @@ AvailableSize InlineFormattingContext::available_space_for_line(CSSPixels block_
     return AvailableSize::make_definite(m_available_space->inline_size.to_px_or_zero() - intrusions.left - intrusions.right);
 }
 
-CSSPixels InlineFormattingContext::automatic_content_width() const
+CSSPixels InlineFormattingContext::automatic_content_inline_size() const
 {
-    return m_automatic_content_width;
+    return m_automatic_content_inline_size;
 }
 
-CSSPixels InlineFormattingContext::automatic_content_height() const
+CSSPixels InlineFormattingContext::automatic_content_block_size() const
 {
-    return m_automatic_content_height;
+    return m_automatic_content_block_size;
 }
 
 void InlineFormattingContext::run(LayoutInput const& layout_input)
@@ -92,13 +92,13 @@ void InlineFormattingContext::run(LayoutInput const& layout_input)
             content_block_size += line_box.height();
     }
 
-    // NOTE: We ask the parent BFC to calculate the automatic content width of this IFC.
+    // NOTE: We ask the parent BFC to calculate the automatic content inline size of this IFC.
     //       This ensures that any floated boxes are taken into account.
     auto provisional_containing_block_position_in_root = m_layout_input->content_box_position_in_bfc_root->translated(
         0, parent().y_adjustment_from_pending_ancestor_top_margins(containing_block()));
-    m_automatic_content_width = parent().greatest_child_width_in_rect(
+    m_automatic_content_inline_size = parent().greatest_child_width_in_rect(
         containing_block(), { provisional_containing_block_position_in_root, m_containing_block_used_values.content_size() });
-    m_automatic_content_height = content_block_size;
+    m_automatic_content_block_size = content_block_size;
 
     compute_and_store_baselines(m_containing_block_used_values);
 }

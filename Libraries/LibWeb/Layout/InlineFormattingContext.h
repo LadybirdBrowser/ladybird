@@ -25,8 +25,8 @@ public:
     BlockContainer const& containing_block() const { return static_cast<BlockContainer const&>(context_box()); }
 
     virtual void run(LayoutInput const&) override;
-    virtual CSSPixels automatic_content_height() const override;
-    virtual CSSPixels automatic_content_width() const override;
+    virtual CSSPixels automatic_content_block_size() const override;
+    virtual CSSPixels automatic_content_inline_size() const override;
 
     void dimension_box_on_line(Box const&, LayoutMode);
 
@@ -54,8 +54,8 @@ private:
 
     Vector<NodeWithStyleAndBoxModelMetrics const*> m_fragmented_inlines_in_pre_order;
 
-    CSSPixels m_automatic_content_width { 0 };
-    CSSPixels m_automatic_content_height { 0 };
+    CSSPixels m_automatic_content_inline_size { 0 };
+    CSSPixels m_automatic_content_block_size { 0 };
 
     CSSPixels m_vertical_float_clearance { 0 };
 };

@@ -20,8 +20,8 @@ public:
     virtual bool inhibits_floating() const override { return true; }
 
     virtual void run(LayoutInput const&) override;
-    virtual CSSPixels automatic_content_width() const override;
-    virtual CSSPixels automatic_content_height() const override;
+    virtual CSSPixels automatic_content_inline_size() const override;
+    virtual CSSPixels automatic_content_block_size() const override;
 
     Box const& flex_container() const { return context_box(); }
 

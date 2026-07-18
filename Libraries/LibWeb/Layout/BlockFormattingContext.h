@@ -23,8 +23,8 @@ public:
     ~BlockFormattingContext();
 
     virtual void run(LayoutInput const&) override;
-    virtual CSSPixels automatic_content_width() const override;
-    virtual CSSPixels automatic_content_height() const override;
+    virtual CSSPixels automatic_content_inline_size() const override;
+    virtual CSSPixels automatic_content_block_size() const override;
 
     bool box_should_avoid_floats_because_it_establishes_fc(Box const&) const;
     void compute_width(Box const&, AvailableSpace const&, ContainingBlockConstraints const& containing_block_constraints, CSSPixelPoint content_position_in_root);

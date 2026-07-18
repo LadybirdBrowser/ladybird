@@ -49,7 +49,7 @@ BlockFormattingContext::~BlockFormattingContext()
     }
 }
 
-CSSPixels BlockFormattingContext::automatic_content_width() const
+CSSPixels BlockFormattingContext::automatic_content_inline_size() const
 {
     if (root().children_are_inline())
         return m_state.get(root()).content_inline_size();
@@ -67,7 +67,7 @@ CSSPixels BlockFormattingContext::automatic_content_width() const
     return greatest_child_width(root());
 }
 
-CSSPixels BlockFormattingContext::automatic_content_height() const
+CSSPixels BlockFormattingContext::automatic_content_block_size() const
 {
     return compute_auto_height_for_block_formatting_context_root(root());
 }
@@ -808,7 +808,7 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
         height = compute_height_for_replaced_element(box, available_space, containing_block_constraints);
     } else {
         if (box_formatting_context) {
-            height = box_formatting_context->automatic_content_height();
+            height = box_formatting_context->automatic_content_block_size();
         } else {
             height = compute_auto_height_for_block_level_element(box, m_state.get(box).available_inner_space_or_constraints_from(available_space), containing_block_constraints);
         }
@@ -893,7 +893,7 @@ void BlockFormattingContext::layout_inline_children(BlockContainer const& block_
     if (!block_container_state.has_definite_inline_size()) {
         // NOTE: min-width or max-width for boxes with inline children can only be applied after inside layout
         //       is done and width of box content is known
-        auto used_width_px = context.automatic_content_width();
+        auto used_width_px = context.automatic_content_inline_size();
         // NOTE: Min and max constraints are not applied to a box that is being sized under an intrinsic
         //       sizing constraint: per css-sizing-3, min/max-width affect a box's intrinsic size
         //       *contributions*, and the callers of calculate_{min,max}_content_width() apply them.
@@ -931,7 +931,7 @@ void BlockFormattingContext::layout_inline_children(BlockContainer const& block_
             }
         }
         block_container_state.set_content_inline_size(used_width_px);
-        block_container_state.set_content_block_size(context.automatic_content_height());
+        block_container_state.set_content_block_size(context.automatic_content_block_size());
     }
 }
 
@@ -1225,7 +1225,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         // min-height. If so, we run layout with min-height as the available height.
         Optional<CSSPixels> measured_content_height;
         if (should_treat_height_as_auto(box, available_space, layout_input.containing_block_constraints) && !box.computed_values().min_height().is_auto()) {
-            auto content_block_size = measure_automatic_content_height(box, inner_available_space, layout_input.containing_block_constraints);
+            auto content_block_size = measure_automatic_content_block_size(box, inner_available_space, layout_input.containing_block_constraints);
             measured_content_height = content_block_size;
             auto min_height = calculate_inner_block_size(box, available_space, box.computed_values().min_height(), layout_input.containing_block_constraints);
             if (content_block_size < min_height) {
@@ -1249,7 +1249,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
             box_state.margin_right = max(box_state.margin_right, 0);
         }
         if (is<TableWrapper>(box) && !box.is_grid_item())
-            box_state.set_content_inline_size(independent_formatting_context->automatic_content_width());
+            box_state.set_content_inline_size(independent_formatting_context->automatic_content_inline_size());
     } else {
         // This box participates in the current block container's flow.
         auto space_available_for_children = box.is_anonymous() ? available_space : box_state.available_inner_space_or_constraints_from(available_space);
@@ -1563,7 +1563,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
     // A floating table wrapper shrink-to-fits from cached intrinsic sizes, which may not match
     // the width table layout just produced; the wrapper is exactly as wide as the table grid box.
     if (is<TableWrapper>(box) && independent_formatting_context)
-        box_state.set_content_inline_size(independent_formatting_context->automatic_content_width());
+        box_state.set_content_inline_size(independent_formatting_context->automatic_content_inline_size());
     resolve_used_height_if_treated_as_auto(box, available_space, layout_input.containing_block_constraints, independent_formatting_context);
 
     // Next, float to the left and/or right

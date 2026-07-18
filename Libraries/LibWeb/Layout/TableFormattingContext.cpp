@@ -70,7 +70,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
             if (block_context) {
                 auto& caption_state = m_state.get_mutable(child_box);
                 if (should_treat_height_as_auto(child_box, caption_available_space, m_participant_constraints)) {
-                    auto height = child_box.has_size_containment() ? 0 : caption_context->automatic_content_height();
+                    auto height = child_box.has_size_containment() ? 0 : caption_context->automatic_content_block_size();
                     caption_state.set_content_block_size(height);
                 }
                 place_child(child_box, caption_offset);
@@ -1005,7 +1005,7 @@ Optional<TableFormattingContext::MeasuredCellContent> TableFormattingContext::me
         return {};
     measuring_context->run(LayoutInput { inner_available_space });
 
-    auto content_block_size = measuring_context->automatic_content_height();
+    auto content_block_size = measuring_context->automatic_content_block_size();
     throwaway_cell_used_values.set_content_block_size(content_block_size);
     return MeasuredCellContent {
         .content_block_size = content_block_size,
@@ -1078,7 +1078,7 @@ void TableFormattingContext::compute_table_height()
                 measured_baseline = measured->first_baseline;
             }
         } else if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, LayoutInput { cell_state.available_inner_space_or_constraints_from(*m_available_space) })) {
-            cell_state.set_content_block_size(independent_formatting_context->automatic_content_height());
+            cell_state.set_content_block_size(independent_formatting_context->automatic_content_block_size());
             independent_formatting_context->parent_context_did_dimension_child_root_box();
         }
         if (m_needs_fixed_mode_row_measurement) {
@@ -1867,17 +1867,17 @@ void TableFormattingContext::run(LayoutInput const& layout_input)
     });
     compute_and_store_baselines(m_state.get_mutable(table_box()));
 
-    m_automatic_content_height = m_table_height;
+    m_automatic_content_block_size = m_table_height;
 }
 
-CSSPixels TableFormattingContext::automatic_content_width() const
+CSSPixels TableFormattingContext::automatic_content_inline_size() const
 {
     return m_state.get(table_box()).content_inline_size();
 }
 
-CSSPixels TableFormattingContext::automatic_content_height() const
+CSSPixels TableFormattingContext::automatic_content_block_size() const
 {
-    return m_automatic_content_height;
+    return m_automatic_content_block_size;
 }
 
 template<>

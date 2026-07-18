@@ -494,8 +494,8 @@ struct ReplacedFormattingContext : public FormattingContext {
         : FormattingContext(Type::InternalReplaced, layout_mode, state, box)
     {
     }
-    virtual CSSPixels automatic_content_width() const override { return 0; }
-    virtual CSSPixels automatic_content_height() const override { return 0; }
+    virtual CSSPixels automatic_content_inline_size() const override { return 0; }
+    virtual CSSPixels automatic_content_block_size() const override { return 0; }
     virtual void run(LayoutInput const&) override { }
 };
 
@@ -505,8 +505,8 @@ struct DummyFormattingContext : public FormattingContext {
         : FormattingContext(Type::InternalDummy, layout_mode, state, box)
     {
     }
-    virtual CSSPixels automatic_content_width() const override { return 0; }
-    virtual CSSPixels automatic_content_height() const override { return 0; }
+    virtual CSSPixels automatic_content_inline_size() const override { return 0; }
+    virtual CSSPixels automatic_content_block_size() const override { return 0; }
     virtual void run(LayoutInput const&) override { }
 };
 
@@ -763,13 +763,13 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
     return max(CSSPixels(0.0f), bottom.value_or(0) - top.value_or(0));
 }
 
-CSSPixels FormattingContext::measure_automatic_content_height(Box const& box, AvailableSpace const& inner_available_space, ContainingBlockConstraints const& containing_block_constraints)
+CSSPixels FormattingContext::measure_automatic_content_block_size(Box const& box, AvailableSpace const& inner_available_space, ContainingBlockConstraints const& containing_block_constraints)
 {
     LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
     throwaway_state.create(box, containing_block_constraints.percentage_basis_inline_size, containing_block_constraints.percentage_basis_block_size);
     auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, box, this);
     measuring_context->run(LayoutInput { inner_available_space, containing_block_constraints });
-    return measuring_context->automatic_content_height();
+    return measuring_context->automatic_content_block_size();
 }
 
 void FormattingContext::make_button_content_box_definite(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, Optional<CSSPixels> measured_content_height)
@@ -796,7 +796,7 @@ void FormattingContext::make_button_content_box_definite(Box const& box, Availab
         return;
 
     auto natural_content_height = measured_content_height.value_or_lazy_evaluated([&] {
-        return measure_automatic_content_height(box, box_state.available_inner_space_or_constraints_from(available_space), containing_block_constraints);
+        return measure_automatic_content_block_size(box, box_state.available_inner_space_or_constraints_from(available_space), containing_block_constraints);
     });
 
     auto used_height = should_treat_height_as_auto(box, available_space, containing_block_constraints)
@@ -2405,8 +2405,8 @@ public:
     {
     }
 
-    virtual CSSPixels automatic_content_width() const override { VERIFY_NOT_REACHED(); }
-    virtual CSSPixels automatic_content_height() const override { VERIFY_NOT_REACHED(); }
+    virtual CSSPixels automatic_content_inline_size() const override { VERIFY_NOT_REACHED(); }
+    virtual CSSPixels automatic_content_block_size() const override { VERIFY_NOT_REACHED(); }
     virtual void run(LayoutInput const&) override { VERIFY_NOT_REACHED(); }
 };
 
@@ -2858,7 +2858,7 @@ CSSPixels FormattingContext::calculate_min_content_inline_size(Layout::Box const
     auto available_space = AvailableSpace(available_inline_size, available_block_size);
     context->run(LayoutInput { available_space, containing_block_constraints });
 
-    auto min_content_inline_size = clamp_to_max_dimension_value(context->automatic_content_width());
+    auto min_content_inline_size = clamp_to_max_dimension_value(context->automatic_content_inline_size());
     cache.set(cache_key, min_content_inline_size);
     return min_content_inline_size;
 }
@@ -3033,7 +3033,7 @@ CSSPixels FormattingContext::calculate_max_content_inline_size(Layout::Box const
     auto available_space = AvailableSpace(available_inline_size, available_block_size);
     context->run(LayoutInput { available_space, containing_block_constraints });
 
-    auto max_content_inline_size = clamp_to_max_dimension_value(context->automatic_content_width());
+    auto max_content_inline_size = clamp_to_max_dimension_value(context->automatic_content_inline_size());
     cache.set(cache_key, max_content_inline_size);
     return max_content_inline_size;
 }
@@ -3073,7 +3073,7 @@ CSSPixels FormattingContext::calculate_min_content_block_size(Layout::Box const&
     auto available_space = AvailableSpace(AvailableSize::make_definite(inline_size), AvailableSize::make_min_content());
     context->run(LayoutInput { available_space, containing_block_constraints });
 
-    auto min_content_block_size = clamp_to_max_dimension_value(context->automatic_content_height());
+    auto min_content_block_size = clamp_to_max_dimension_value(context->automatic_content_block_size());
     cache.set(cache_key, min_content_block_size);
     return min_content_block_size;
 }
@@ -3110,7 +3110,7 @@ CSSPixels FormattingContext::calculate_max_content_block_size(Layout::Box const&
     auto available_space = AvailableSpace(AvailableSize::make_definite(inline_size), AvailableSize::make_max_content());
     context->run(LayoutInput { available_space, containing_block_constraints });
 
-    auto max_content_block_size = clamp_to_max_dimension_value(context->automatic_content_height());
+    auto max_content_block_size = clamp_to_max_dimension_value(context->automatic_content_block_size());
     cache.set(cache_key, max_content_block_size);
     return max_content_block_size;
 }

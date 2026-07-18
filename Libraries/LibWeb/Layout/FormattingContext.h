@@ -84,9 +84,9 @@ public:
 
     virtual void run(LayoutInput const&) = 0;
 
-    // These functions return the automatic content dimensions of the context's root box.
-    virtual CSSPixels automatic_content_width() const = 0;
-    virtual CSSPixels automatic_content_height() const = 0;
+    // These functions return the automatic content sizes of the context's root box.
+    virtual CSSPixels automatic_content_inline_size() const = 0;
+    virtual CSSPixels automatic_content_block_size() const = 0;
 
     Box const& context_box() const { return m_context_box; }
 
@@ -221,7 +221,7 @@ protected:
     CSSPixels compute_auto_height_for_block_formatting_context_root(Box const&) const;
     static CSSPixels line_box_physical_width(Box const&, LineBox const&);
 
-    CSSPixels measure_automatic_content_height(Box const&, AvailableSpace const& inner_available_space, ContainingBlockConstraints const&);
+    CSSPixels measure_automatic_content_block_size(Box const&, AvailableSpace const& inner_available_space, ContainingBlockConstraints const&);
     void make_button_content_box_definite(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, Optional<CSSPixels> measured_content_height = {});
 
     [[nodiscard]] CSSPixelSize solve_replaced_size_constraint(CSSPixels input_width, CSSPixels input_height, Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
