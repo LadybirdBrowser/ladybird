@@ -28,6 +28,8 @@ public:
 
     StyleValueVector filters() const;
 
+    bool operator==(Filter const&) const = default;
+
 private:
     RefPtr<StyleValueList const> m_filter_value_list { nullptr };
 };

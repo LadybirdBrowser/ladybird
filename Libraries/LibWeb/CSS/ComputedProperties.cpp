@@ -436,20 +436,20 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             { length_style_value(border_spacing_horizontal()), length_style_value(border_spacing_vertical()) },
             StyleValueList::Separator::Space);
     case PropertyID::BorderBottomColor:
-        if (m_noninherited.border_bottom_color_style_value && !m_noninherited.border_bottom_color_style_value->depends_on_current_color())
-            return m_noninherited.border_bottom_color_style_value;
+        if (m_noninherited.border->border_bottom_color_style_value && !m_noninherited.border->border_bottom_color_style_value->depends_on_current_color())
+            return m_noninherited.border->border_bottom_color_style_value;
         return color_style_value(border_bottom().color);
     case PropertyID::BorderLeftColor:
-        if (m_noninherited.border_left_color_style_value && !m_noninherited.border_left_color_style_value->depends_on_current_color())
-            return m_noninherited.border_left_color_style_value;
+        if (m_noninherited.border->border_left_color_style_value && !m_noninherited.border->border_left_color_style_value->depends_on_current_color())
+            return m_noninherited.border->border_left_color_style_value;
         return color_style_value(border_left().color);
     case PropertyID::BorderRightColor:
-        if (m_noninherited.border_right_color_style_value && !m_noninherited.border_right_color_style_value->depends_on_current_color())
-            return m_noninherited.border_right_color_style_value;
+        if (m_noninherited.border->border_right_color_style_value && !m_noninherited.border->border_right_color_style_value->depends_on_current_color())
+            return m_noninherited.border->border_right_color_style_value;
         return color_style_value(border_right().color);
     case PropertyID::BorderTopColor:
-        if (m_noninherited.border_top_color_style_value && !m_noninherited.border_top_color_style_value->depends_on_current_color())
-            return m_noninherited.border_top_color_style_value;
+        if (m_noninherited.border->border_top_color_style_value && !m_noninherited.border->border_top_color_style_value->depends_on_current_color())
+            return m_noninherited.border->border_top_color_style_value;
         return color_style_value(border_top().color);
     case PropertyID::CaretColor:
         return color_or_auto_style_value(caret_color_value());

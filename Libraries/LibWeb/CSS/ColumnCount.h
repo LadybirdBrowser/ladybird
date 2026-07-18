@@ -28,6 +28,8 @@ public:
     bool is_auto() const { return m_type == Type::Auto; }
     int value() const { return *m_value; }
 
+    bool operator==(ColumnCount const&) const = default;
+
 private:
     ColumnCount(int value)
         : m_type(Type::Integer)

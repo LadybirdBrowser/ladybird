@@ -683,7 +683,11 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_perspective(computed_style.perspective());
     computed_values.set_perspective_origin(computed_style.perspective_origin());
 
-    auto do_border_style = [&](CSS::BorderData& border, CSS::PropertyID width_property, CSS::PropertyID color_property, CSS::PropertyID style_property) {
+    struct NamedBorderAndWidth {
+        CSS::BorderData border;
+        CSSPixels computed_width;
+    };
+    auto do_border_style = [&](CSS::BorderData border, CSS::PropertyID width_property, CSS::PropertyID color_property, CSS::PropertyID style_property) {
         // FIXME: Support <image-1d>
         border.color = computed_style.color(color_property, color_resolution_context);
         border.line_style = computed_style.line_style(style_property);
@@ -697,13 +701,21 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         } else {
             border.width = computed_width;
         }
-        return computed_width;
+        return NamedBorderAndWidth { border, computed_width };
     };
 
-    computed_values.set_border_left_computed_width(do_border_style(computed_values.border_left(), CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor, CSS::PropertyID::BorderLeftStyle));
-    computed_values.set_border_top_computed_width(do_border_style(computed_values.border_top(), CSS::PropertyID::BorderTopWidth, CSS::PropertyID::BorderTopColor, CSS::PropertyID::BorderTopStyle));
-    computed_values.set_border_right_computed_width(do_border_style(computed_values.border_right(), CSS::PropertyID::BorderRightWidth, CSS::PropertyID::BorderRightColor, CSS::PropertyID::BorderRightStyle));
-    computed_values.set_border_bottom_computed_width(do_border_style(computed_values.border_bottom(), CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor, CSS::PropertyID::BorderBottomStyle));
+    auto left_border = do_border_style({}, CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor, CSS::PropertyID::BorderLeftStyle);
+    computed_values.set_border_left(left_border.border);
+    computed_values.set_border_left_computed_width(left_border.computed_width);
+    auto top_border = do_border_style({}, CSS::PropertyID::BorderTopWidth, CSS::PropertyID::BorderTopColor, CSS::PropertyID::BorderTopStyle);
+    computed_values.set_border_top(top_border.border);
+    computed_values.set_border_top_computed_width(top_border.computed_width);
+    auto right_border = do_border_style({}, CSS::PropertyID::BorderRightWidth, CSS::PropertyID::BorderRightColor, CSS::PropertyID::BorderRightStyle);
+    computed_values.set_border_right(right_border.border);
+    computed_values.set_border_right_computed_width(right_border.computed_width);
+    auto bottom_border = do_border_style({}, CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor, CSS::PropertyID::BorderBottomStyle);
+    computed_values.set_border_bottom(bottom_border.border);
+    computed_values.set_border_bottom_computed_width(bottom_border.computed_width);
     computed_values.set_border_left_color_style_value(computed_style.property(CSS::PropertyID::BorderLeftColor));
     computed_values.set_border_top_color_style_value(computed_style.property(CSS::PropertyID::BorderTopColor));
     computed_values.set_border_right_color_style_value(computed_style.property(CSS::PropertyID::BorderRightColor));

@@ -27,6 +27,8 @@ public:
 
     EdgeRect to_rect() const { return m_edge_rect; }
 
+    bool operator==(Clip const&) const = default;
+
 private:
     Type m_type;
     EdgeRect m_edge_rect;
