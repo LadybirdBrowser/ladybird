@@ -84,12 +84,12 @@ void InlineFormattingContext::run(LayoutInput const& layout_input)
     compute_inline_box_pieces();
 
     auto const& line_boxes = m_containing_block_used_values.line_boxes;
-    CSSPixels content_height = 0;
+    CSSPixels content_block_size = 0;
     if (any_of(line_boxes, [](auto& line_box) { return line_box.has_block_level_box(); })) {
-        content_height = line_boxes.last().bottom();
+        content_block_size = line_boxes.last().bottom();
     } else {
         for (auto& line_box : line_boxes)
-            content_height += line_box.height();
+            content_block_size += line_box.height();
     }
 
     // NOTE: We ask the parent BFC to calculate the automatic content width of this IFC.
@@ -98,7 +98,7 @@ void InlineFormattingContext::run(LayoutInput const& layout_input)
         0, parent().y_adjustment_from_pending_ancestor_top_margins(containing_block()));
     m_automatic_content_width = parent().greatest_child_width_in_rect(
         containing_block(), { provisional_containing_block_position_in_root, m_containing_block_used_values.content_size() });
-    m_automatic_content_height = content_height;
+    m_automatic_content_height = content_block_size;
 
     compute_and_store_baselines(m_containing_block_used_values);
 }
@@ -451,17 +451,17 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
 
     auto const& box_constraints = m_layout_input->containing_block_constraints;
     if (box_is_sized_as_replaced_element(box, *m_available_space, box_constraints)) {
-        box_state.set_content_width(compute_width_for_replaced_element(box, *m_available_space, box_constraints));
-        box_state.set_content_height(compute_height_for_replaced_element(box, *m_available_space, box_constraints));
+        box_state.set_content_inline_size(compute_width_for_replaced_element(box, *m_available_space, box_constraints));
+        box_state.set_content_block_size(compute_height_for_replaced_element(box, *m_available_space, box_constraints));
 
         // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
         // The axis in which the preferred size calculation depends on this aspect ratio is called the ratio-dependent
         // axis, and the resulting size is definite if its input sizes are also definite
         auto const height_is_automatic = computed_values.height().is_auto() || should_treat_height_as_auto(box, *m_available_space, box_constraints);
-        auto const height_resolved_from_aspect_ratio = box_state.has_definite_width() && box.has_preferred_aspect_ratio() && height_is_automatic;
+        auto const height_resolved_from_aspect_ratio = box_state.has_definite_inline_size() && box.has_preferred_aspect_ratio() && height_is_automatic;
 
         if (height_resolved_from_aspect_ratio)
-            box_state.set_has_definite_height(true);
+            box_state.set_has_definite_block_size(true);
 
         auto child_layout_input = m_layout_input->for_child_formatting_context(box_state.available_inner_space_or_constraints_from(*m_available_space));
         auto independent_formatting_context = layout_inside(box, layout_mode, child_layout_input);
@@ -522,7 +522,7 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
         width = max(width, min_width);
     }
 
-    box_state.set_content_width(width);
+    box_state.set_content_inline_size(width);
 
     parent().resolve_used_height_if_not_treated_as_auto(box, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_indefinite()), box_constraints);
 

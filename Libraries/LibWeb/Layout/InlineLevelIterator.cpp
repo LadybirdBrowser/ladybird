@@ -450,7 +450,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
         .node = &box,
         .offset_in_node = 0,
         .length_in_node = 0,
-        .width = box_state.content_width(),
+        .width = box_state.content_inline_size(),
         .padding_start = box_state.padding_left,
         .padding_end = box_state.padding_right,
         .border_start = box_state.border_left,

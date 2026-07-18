@@ -118,21 +118,21 @@ struct LayoutState {
         NodeWithStyle& node() { return const_cast<NodeWithStyle&>(*m_node); }
         void set_node(NodeWithStyle const&, Optional<CSSPixels> percentage_basis_inline_size = {}, Optional<CSSPixels> percentage_basis_block_size = {});
 
-        CSSPixels content_width() const { return m_content_width; }
-        CSSPixels content_height() const { return m_content_height; }
-        void set_content_width(CSSPixels);
-        void set_content_height(CSSPixels);
+        CSSPixels content_inline_size() const { return m_content_inline_size; }
+        CSSPixels content_block_size() const { return m_content_block_size; }
+        void set_content_inline_size(CSSPixels);
+        void set_content_block_size(CSSPixels);
 
-        CSSPixelSize content_size() const { return { content_width(), content_height() }; }
+        CSSPixelSize content_size() const { return { content_inline_size(), content_block_size() }; }
 
-        void set_indefinite_content_width();
-        void set_indefinite_content_height();
+        void set_indefinite_content_inline_size();
+        void set_indefinite_content_block_size();
 
-        void set_has_definite_width(bool has_definite_width) { m_has_definite_width = has_definite_width; }
-        void set_has_definite_height(bool has_definite_height) { m_has_definite_height = has_definite_height; }
+        void set_has_definite_inline_size(bool has_definite_inline_size) { m_has_definite_inline_size = has_definite_inline_size; }
+        void set_has_definite_block_size(bool has_definite_block_size) { m_has_definite_block_size = has_definite_block_size; }
 
-        bool has_definite_width() const { return m_has_definite_width && width_constraint == SizeConstraint::None; }
-        bool has_definite_height() const { return m_has_definite_height && height_constraint == SizeConstraint::None; }
+        bool has_definite_inline_size() const { return m_has_definite_inline_size && inline_size_constraint == SizeConstraint::None; }
+        bool has_definite_block_size() const { return m_has_definite_block_size && block_size_constraint == SizeConstraint::None; }
 
         // Returns the available space for content inside this layout box.
         // If the space in an axis is indefinite, and the outer space is an intrinsic sizing constraint,
@@ -146,8 +146,8 @@ struct LayoutState {
 
         bool is_placed() const { return m_content_offset.has_value(); }
 
-        SizeConstraint width_constraint { SizeConstraint::None };
-        SizeConstraint height_constraint { SizeConstraint::None };
+        SizeConstraint inline_size_constraint { SizeConstraint::None };
+        SizeConstraint block_size_constraint { SizeConstraint::None };
 
         CSSPixels margin_left { 0 };
         CSSPixels margin_right { 0 };
@@ -185,19 +185,19 @@ struct LayoutState {
         CSSPixels margin_box_top() const { return margin_top + border_top_collapsed() + padding_top; }
         CSSPixels margin_box_bottom() const { return margin_bottom + border_bottom_collapsed() + padding_bottom; }
 
-        CSSPixels margin_box_width() const { return margin_box_left() + content_width() + margin_box_right(); }
-        CSSPixels margin_box_height() const { return margin_box_top() + content_height() + margin_box_bottom(); }
+        CSSPixels margin_box_width() const { return margin_box_left() + content_inline_size() + margin_box_right(); }
+        CSSPixels margin_box_height() const { return margin_box_top() + content_block_size() + margin_box_bottom(); }
 
         CSSPixels border_box_left() const { return border_left_collapsed() + padding_left; }
         CSSPixels border_box_right() const { return border_right_collapsed() + padding_right; }
         CSSPixels border_box_top() const { return border_top_collapsed() + padding_top; }
         CSSPixels border_box_bottom() const { return border_bottom_collapsed() + padding_bottom; }
 
-        CSSPixels border_box_width() const { return border_box_left() + content_width() + border_box_right(); }
-        CSSPixels border_box_height() const { return border_box_top() + content_height() + border_box_bottom(); }
+        CSSPixels border_box_width() const { return border_box_left() + content_inline_size() + border_box_right(); }
+        CSSPixels border_box_height() const { return border_box_top() + content_block_size() + border_box_bottom(); }
 
-        CSSPixels padding_box_width() const { return padding_left + content_width() + padding_right; }
-        CSSPixels padding_box_height() const { return padding_top + content_height() + padding_bottom; }
+        CSSPixels padding_box_width() const { return padding_left + content_inline_size() + padding_right; }
+        CSSPixels padding_box_height() const { return padding_top + content_block_size() + padding_bottom; }
 
         Optional<LineBoxFragmentCoordinate> containing_line_box_fragment;
 
@@ -294,8 +294,8 @@ struct LayoutState {
             m_content_offset = content_offset;
         }
 
-        AvailableSize available_width_inside() const;
-        AvailableSize available_height_inside() const;
+        AvailableSize available_inline_size_inside() const;
+        AvailableSize available_block_size_inside() const;
 
         bool use_collapsing_borders_model() const { return m_rare && m_rare->override_borders_data.has_value(); }
         // Implement the collapsing border model https://www.w3.org/TR/CSS22/tables.html#collapsing-borders.
@@ -346,11 +346,11 @@ struct LayoutState {
         Layout::NodeWithStyle const* m_node { nullptr };
         Optional<CSSPixelPoint> m_cumulative_offset;
 
-        CSSPixels m_content_width { 0 };
-        CSSPixels m_content_height { 0 };
+        CSSPixels m_content_inline_size { 0 };
+        CSSPixels m_content_block_size { 0 };
 
-        bool m_has_definite_width { false };
-        bool m_has_definite_height { false };
+        bool m_has_definite_inline_size { false };
+        bool m_has_definite_block_size { false };
         bool m_materialized_from_paintable { false };
 
         Optional<CSSPixelPoint> m_content_offset;

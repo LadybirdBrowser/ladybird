@@ -44,7 +44,7 @@ public:
     CSSPixels block_length() const { return m_block_length; }
     CSSPixels baseline() const { return m_baseline; }
 
-    void add_fragment(Node const& layout_node, size_t start, size_t length, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_width, CSSPixels content_height, CSSPixels border_box_top, CSSPixels border_box_bottom, RefPtr<Gfx::GlyphRun> glyph_run = {});
+    void add_fragment(Node const& layout_node, size_t start, size_t length, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_inline_size, CSSPixels content_block_size, CSSPixels border_box_top, CSSPixels border_box_bottom, RefPtr<Gfx::GlyphRun> glyph_run = {});
     void add_static_position_marker(Box const&, bool preceded_by_inline_box_start_edges);
 
     Vector<LineBoxFragment> const& fragments() const { return m_fragments; }

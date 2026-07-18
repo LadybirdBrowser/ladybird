@@ -106,8 +106,8 @@ LayoutState::UsedValues& LayoutState::create(NodeWithStyle const& node, Optional
         if (!m_used_values_store.get(marker.layout_index())) {
             auto& marker_used_values = m_used_values_store.allocate(marker.layout_index());
             marker_used_values.set_node(marker,
-                used_values.has_definite_width() ? Optional<CSSPixels> { used_values.content_width() } : Optional<CSSPixels> {},
-                used_values.has_definite_height() ? Optional<CSSPixels> { used_values.content_height() } : Optional<CSSPixels> {});
+                used_values.has_definite_inline_size() ? Optional<CSSPixels> { used_values.content_inline_size() } : Optional<CSSPixels> {},
+                used_values.has_definite_block_size() ? Optional<CSSPixels> { used_values.content_block_size() } : Optional<CSSPixels> {});
         }
     }
 
@@ -307,7 +307,7 @@ RefPtr<Painting::Paintable> LayoutState::commit_used_values_to_paintable(UsedVal
 
     transfer_box_model_metrics(paintable->box_model(), used_values);
 
-    paintable->set_content_size(used_values.content_width(), used_values.content_height());
+    paintable->set_content_size(used_values.content_inline_size(), used_values.content_block_size());
     if (used_values.override_borders_data().has_value())
         paintable->set_override_borders_data(used_values.override_borders_data().value());
     if (used_values.table_cell_coordinates().has_value())
@@ -328,7 +328,7 @@ RefPtr<Painting::Paintable> LayoutState::commit_used_values_to_paintable(UsedVal
             }
 
             lines.append({
-                .rect = rect_for_line_box(line_box, used_values.content_width()),
+                .rect = rect_for_line_box(line_box, used_values.content_inline_size()),
                 .fragment_count = static_cast<u32>(paintable_with_lines->fragments().size() - first_fragment_index),
             });
         }
@@ -457,8 +457,8 @@ LayoutState::UsedValues& LayoutState::UsedValues::operator=(UsedValues const& ot
         return *this;
 
     m_content_offset = other.m_content_offset;
-    width_constraint = other.width_constraint;
-    height_constraint = other.height_constraint;
+    inline_size_constraint = other.inline_size_constraint;
+    block_size_constraint = other.block_size_constraint;
     margin_left = other.margin_left;
     margin_right = other.margin_right;
     margin_top = other.margin_top;
@@ -483,10 +483,10 @@ LayoutState::UsedValues& LayoutState::UsedValues::operator=(UsedValues const& ot
 
     m_node = other.m_node;
     m_cumulative_offset = other.m_cumulative_offset;
-    m_content_width = other.m_content_width;
-    m_content_height = other.m_content_height;
-    m_has_definite_width = other.m_has_definite_width;
-    m_has_definite_height = other.m_has_definite_height;
+    m_content_inline_size = other.m_content_inline_size;
+    m_content_block_size = other.m_content_block_size;
+    m_has_definite_inline_size = other.m_has_definite_inline_size;
+    m_has_definite_block_size = other.m_has_definite_block_size;
     m_materialized_from_paintable = other.m_materialized_from_paintable;
     if (other.m_rare)
         m_rare = make<RareData>(*other.m_rare);
@@ -507,7 +507,7 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPi
     //
     //       There are additional cases where CSS considers values to be definite. We model all of
     //       those by having our engine consider sizes to be definite *once they are assigned to
-    //       the UsedValues by calling set_content_width() or set_content_height().
+    //       the UsedValues by calling set_content_inline_size() or set_content_block_size().
 
     auto const& computed_values = node.computed_values();
 
@@ -604,21 +604,21 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPi
     CSSPixels max_height = 0;
     bool has_definite_max_height = is_definite_size(computed_values.max_height(), max_height, false);
 
-    m_has_definite_width = is_definite_size(computed_values.width(), m_content_width, true);
-    m_has_definite_height = is_definite_size(computed_values.height(), m_content_height, false);
+    m_has_definite_inline_size = is_definite_size(computed_values.width(), m_content_inline_size, true);
+    m_has_definite_block_size = is_definite_size(computed_values.height(), m_content_block_size, false);
 
-    if (m_has_definite_width) {
+    if (m_has_definite_inline_size) {
         if (has_definite_min_width)
-            m_content_width = clamp_to_max_dimension_value(max(min_width, m_content_width));
+            m_content_inline_size = clamp_to_max_dimension_value(max(min_width, m_content_inline_size));
         if (has_definite_max_width)
-            m_content_width = clamp_to_max_dimension_value(min(max_width, m_content_width));
+            m_content_inline_size = clamp_to_max_dimension_value(min(max_width, m_content_inline_size));
     }
 
-    if (m_has_definite_height) {
+    if (m_has_definite_block_size) {
         if (has_definite_min_height)
-            m_content_height = clamp_to_max_dimension_value(max(min_height, m_content_height));
+            m_content_block_size = clamp_to_max_dimension_value(max(min_height, m_content_block_size));
         if (has_definite_max_height)
-            m_content_height = clamp_to_max_dimension_value(min(max_height, m_content_height));
+            m_content_block_size = clamp_to_max_dimension_value(min(max_height, m_content_block_size));
     }
 }
 
@@ -628,10 +628,10 @@ void LayoutState::UsedValues::materialize_from_paintable(Painting::Paintable con
 
     auto const& box_model = paintable.box_model();
 
-    set_content_width(paintable.content_width());
-    set_content_height(paintable.content_height());
-    m_has_definite_width = true;
-    m_has_definite_height = true;
+    set_content_inline_size(paintable.content_width());
+    set_content_block_size(paintable.content_height());
+    m_has_definite_inline_size = true;
+    m_has_definite_block_size = true;
 
     m_content_offset = paintable.offset();
     m_cumulative_offset = paintable.absolute_rect().location();
@@ -664,7 +664,7 @@ void LayoutState::UsedValues::materialize_from_paintable(Painting::Paintable con
         set_computed_svg_transforms(svg_svg_paintable->computed_transforms());
 }
 
-void LayoutState::UsedValues::set_content_width(CSSPixels width)
+void LayoutState::UsedValues::set_content_inline_size(CSSPixels width)
 {
     VERIFY(!is_placed());
     if (width < 0) {
@@ -672,13 +672,13 @@ void LayoutState::UsedValues::set_content_width(CSSPixels width)
         dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Layout calculated a negative width for {}: {}", m_node->debug_description(), width);
         width = 0;
     }
-    m_content_width = clamp_to_max_dimension_value(width);
+    m_content_inline_size = clamp_to_max_dimension_value(width);
     // FIXME: We should not do this! Definiteness of widths should be determined early,
     //        and not changed later (except for some special cases in flex layout..)
-    m_has_definite_width = true;
+    m_has_definite_inline_size = true;
 }
 
-void LayoutState::UsedValues::set_content_height(CSSPixels height)
+void LayoutState::UsedValues::set_content_block_size(CSSPixels height)
 {
     VERIFY(!is_placed());
     if (height < 0) {
@@ -686,35 +686,35 @@ void LayoutState::UsedValues::set_content_height(CSSPixels height)
         dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Layout calculated a negative height for {}: {}", m_node->debug_description(), height);
         height = 0;
     }
-    m_content_height = clamp_to_max_dimension_value(height);
+    m_content_block_size = clamp_to_max_dimension_value(height);
 }
 
-AvailableSize LayoutState::UsedValues::available_width_inside() const
+AvailableSize LayoutState::UsedValues::available_inline_size_inside() const
 {
-    if (width_constraint == SizeConstraint::MinContent)
+    if (inline_size_constraint == SizeConstraint::MinContent)
         return AvailableSize::make_min_content();
-    if (width_constraint == SizeConstraint::MaxContent)
+    if (inline_size_constraint == SizeConstraint::MaxContent)
         return AvailableSize::make_max_content();
-    if (has_definite_width())
-        return AvailableSize::make_definite(m_content_width);
+    if (has_definite_inline_size())
+        return AvailableSize::make_definite(m_content_inline_size);
     return AvailableSize::make_indefinite();
 }
 
-AvailableSize LayoutState::UsedValues::available_height_inside() const
+AvailableSize LayoutState::UsedValues::available_block_size_inside() const
 {
-    if (height_constraint == SizeConstraint::MinContent)
+    if (block_size_constraint == SizeConstraint::MinContent)
         return AvailableSize::make_min_content();
-    if (height_constraint == SizeConstraint::MaxContent)
+    if (block_size_constraint == SizeConstraint::MaxContent)
         return AvailableSize::make_max_content();
-    if (has_definite_height())
-        return AvailableSize::make_definite(m_content_height);
+    if (has_definite_block_size())
+        return AvailableSize::make_definite(m_content_block_size);
     return AvailableSize::make_indefinite();
 }
 
 AvailableSpace LayoutState::UsedValues::available_inner_space_or_constraints_from(AvailableSpace const& outer_space) const
 {
-    auto inner_width = available_width_inside();
-    auto inner_height = available_height_inside();
+    auto inner_width = available_inline_size_inside();
+    auto inner_height = available_block_size_inside();
 
     if (inner_width.is_indefinite() && outer_space.inline_size.is_intrinsic_sizing_constraint())
         inner_width = outer_space.inline_size;
@@ -723,14 +723,14 @@ AvailableSpace LayoutState::UsedValues::available_inner_space_or_constraints_fro
     return AvailableSpace(inner_width, inner_height);
 }
 
-void LayoutState::UsedValues::set_indefinite_content_width()
+void LayoutState::UsedValues::set_indefinite_content_inline_size()
 {
-    m_has_definite_width = false;
+    m_has_definite_inline_size = false;
 }
 
-void LayoutState::UsedValues::set_indefinite_content_height()
+void LayoutState::UsedValues::set_indefinite_content_block_size()
 {
-    m_has_definite_height = false;
+    m_has_definite_block_size = false;
 }
 
 void LayoutState::register_contained_abspos_child(Box const& target, Box const& child, StaticPositionRect const& static_position_rect)

@@ -44,7 +44,7 @@ public:
 
 private:
     struct MeasuredCellContent {
-        CSSPixels content_height;
+        CSSPixels content_block_size;
         CSSPixels first_baseline;
     };
     Optional<MeasuredCellContent> measure_cell_content(Box const&, LayoutState::UsedValues const&, AvailableSpace const& inner_available_space);

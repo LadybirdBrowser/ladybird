@@ -71,7 +71,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
                 auto& caption_state = m_state.get_mutable(child_box);
                 if (should_treat_height_as_auto(child_box, caption_available_space, m_participant_constraints)) {
                     auto height = child_box.has_size_containment() ? 0 : caption_context->automatic_content_height();
-                    caption_state.set_content_height(height);
+                    caption_state.set_content_block_size(height);
                 }
                 place_child(child_box, caption_offset);
                 caption_was_placed = true;
@@ -80,7 +80,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
 
         auto const& caption_state = m_state.get(child_box);
         if (phase == CSS::CaptionSide::Top) {
-            m_pending_table_box_content_offset_in_wrapper.set_y(caption_state.content_height() + caption_state.margin_box_bottom());
+            m_pending_table_box_content_offset_in_wrapper.set_y(caption_state.content_block_size() + caption_state.margin_box_bottom());
         } else if (!caption_was_placed) {
             place_child(child_box, { caption_state.border_box_left(), m_state.get(table_box()).margin_box_height() + caption_state.margin_box_top() });
         }
@@ -569,20 +569,20 @@ void TableFormattingContext::compute_table_width()
     }
     grid_max += undistributable_space;
 
-    auto resolve_width_constraint_to_content_box = [&](auto const& width_constraint) {
-        if (width_constraint.is_min_content())
+    auto resolve_width_constraint_to_content_box = [&](auto const& inline_size_constraint) {
+        if (inline_size_constraint.is_min_content())
             return grid_min;
-        if (width_constraint.is_max_content())
+        if (inline_size_constraint.is_max_content())
             return grid_max;
-        if (width_constraint.is_fit_content()) {
+        if (inline_size_constraint.is_fit_content()) {
             auto fit_content_limit = width_of_table_wrapper_containing_block;
-            if (auto const& fit_content_available_space = width_constraint.fit_content_available_space(); fit_content_available_space.has_value())
+            if (auto const& fit_content_available_space = inline_size_constraint.fit_content_available_space(); fit_content_available_space.has_value())
                 fit_content_limit = fit_content_available_space->to_px(width_of_table_wrapper_containing_block);
             return min(grid_max, max(grid_min, fit_content_limit));
         }
         // CSS Sizing says box-sizing:border-box applies length/percentage width/min-width/max-width constraints to
         // the border box. The table width algorithm compares content widths, so convert them before comparing.
-        auto resolved_width = width_constraint.to_px(width_of_table_wrapper_containing_block);
+        auto resolved_width = inline_size_constraint.to_px(width_of_table_wrapper_containing_block);
         if (computed_values.box_sizing() == CSS::BoxSizing::BorderBox)
             resolved_width -= table_box_state.border_box_left() + table_box_state.border_box_right();
         return max(CSSPixels(0), resolved_width);
@@ -645,7 +645,7 @@ void TableFormattingContext::compute_table_width()
         used_width = min(used_width, resolve_width_constraint_to_content_box(computed_values.max_width()));
     used_width = max(used_width, used_min_width);
 
-    table_box_state.set_content_width(used_width);
+    table_box_state.set_content_inline_size(used_width);
 }
 
 CSSPixels TableFormattingContext::compute_columns_total_used_width() const
@@ -764,7 +764,7 @@ void TableFormattingContext::distribute_width_to_columns()
 
     // The assignable table width is the used width of the table minus the total horizontal border spacing (if any).
     // This is the width that we will be able to allocate to the columns.
-    CSSPixels const available_width = m_state.get(table_box()).content_width() - total_horizontal_border_spacing;
+    CSSPixels const available_width = m_state.get(table_box()).content_inline_size() - total_horizontal_border_spacing;
 
     Vector<CSSPixels> candidate_widths;
     candidate_widths.resize(m_columns.size());
@@ -987,10 +987,10 @@ Optional<TableFormattingContext::MeasuredCellContent> TableFormattingContext::me
 {
     if (m_layout_mode == LayoutMode::IntrinsicSizing
         && !cell_box.is_inline()
-        && cell_used_values.width_constraint == SizeConstraint::None
-        && cell_used_values.height_constraint == SizeConstraint::None
-        && cell_used_values.has_definite_width()
-        && cell_used_values.has_definite_height()) {
+        && cell_used_values.inline_size_constraint == SizeConstraint::None
+        && cell_used_values.block_size_constraint == SizeConstraint::None
+        && cell_used_values.has_definite_inline_size()
+        && cell_used_values.has_definite_block_size()) {
         return {};
     }
     if (!cell_box.can_have_children())
@@ -1005,10 +1005,10 @@ Optional<TableFormattingContext::MeasuredCellContent> TableFormattingContext::me
         return {};
     measuring_context->run(LayoutInput { inner_available_space });
 
-    auto content_height = measuring_context->automatic_content_height();
-    throwaway_cell_used_values.set_content_height(content_height);
+    auto content_block_size = measuring_context->automatic_content_height();
+    throwaway_cell_used_values.set_content_block_size(content_block_size);
     return MeasuredCellContent {
-        .content_height = content_height,
+        .content_block_size = content_block_size,
         .first_baseline = measuring_context->box_baseline(cell_box, BaselineSet::First),
     };
 }
@@ -1057,7 +1057,7 @@ void TableFormattingContext::compute_table_height()
             auto cell_computed_height = cell.box.computed_values().height();
             if (cell_computed_height.is_length()) {
                 auto cell_used_height = cell_computed_height.to_px(height_of_containing_block);
-                cell_state.set_content_height(cell_used_height - cell_state.border_box_top() - cell_state.border_box_bottom());
+                cell_state.set_content_block_size(cell_used_height - cell_state.border_box_top() - cell_state.border_box_bottom());
 
                 row.base_height = max(row.base_height, cell_used_height);
             }
@@ -1068,17 +1068,17 @@ void TableFormattingContext::compute_table_height()
         // - the widths/heights of all spanned visible columns/rows
         // - the horizontal/vertical border-spacing times the amount of spanned visible columns/rows minus one
         // FIXME: Account for visibility.
-        cell_state.set_content_width(span_width - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
+        cell_state.set_content_inline_size(span_width - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
         Optional<CSSPixels> measured_baseline;
         if (cell_height_depends_on_table_height(cell.box)) {
             // This cell's final inside layout happens in the second pass below; measure its
             // content in a throwaway state instead of laying out the committing state twice.
             if (auto measured = measure_cell_content(cell.box, cell_state, cell_state.available_inner_space_or_constraints_from(*m_available_space)); measured.has_value()) {
-                cell_state.set_content_height(measured->content_height);
+                cell_state.set_content_block_size(measured->content_block_size);
                 measured_baseline = measured->first_baseline;
             }
         } else if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, LayoutInput { cell_state.available_inner_space_or_constraints_from(*m_available_space) })) {
-            cell_state.set_content_height(independent_formatting_context->automatic_content_height());
+            cell_state.set_content_block_size(independent_formatting_context->automatic_content_height());
             independent_formatting_context->parent_context_did_dimension_child_root_box();
         }
         if (m_needs_fixed_mode_row_measurement) {
@@ -1189,12 +1189,12 @@ void TableFormattingContext::compute_table_height()
             continue;
 
         auto cell_used_height = cell.box.computed_values().height().to_px(m_table_height);
-        cell_state.set_content_height(cell_used_height - cell_state.border_box_top() - cell_state.border_box_bottom());
+        cell_state.set_content_block_size(cell_used_height - cell_state.border_box_top() - cell_state.border_box_bottom());
 
         if (!row.is_collapsed)
             row.reference_height = max(row.reference_height, cell_used_height);
 
-        cell_state.set_content_width(span_width - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
+        cell_state.set_content_inline_size(span_width - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
         // The first pass only measured this cell in a throwaway state; this is its one and
         // only inside layout in the committing state.
         if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, LayoutInput { cell_state.available_inner_space_or_constraints_from(*m_available_space) })) {
@@ -1291,11 +1291,11 @@ void TableFormattingContext::position_row_boxes()
         if (m_columns.size() >= 2)
             row_width += (m_columns.size() - 1) * border_spacing_horizontal();
 
-        row_state.set_content_height(row.final_height);
-        row_state.set_content_width(row_width);
+        row_state.set_content_block_size(row.final_height);
+        row_state.set_content_inline_size(row_width);
         place_child(row.box, { row_left_offset, row_top_offset });
         if (!row.is_collapsed)
-            row_top_offset += row_state.content_height() + border_spacing_vertical();
+            row_top_offset += row_state.content_block_size() + border_spacing_vertical();
     }
 
     CSSPixels row_group_top_offset = m_pending_table_box_content_offset_in_wrapper.y() + border_spacing_vertical();
@@ -1316,8 +1316,8 @@ void TableFormattingContext::position_row_boxes()
         if (num_rows >= 2)
             row_group_height += (num_rows - 1) * border_spacing_vertical();
 
-        row_group_box_state.set_content_height(row_group_height);
-        row_group_box_state.set_content_width(row_group_width);
+        row_group_box_state.set_content_block_size(row_group_height);
+        row_group_box_state.set_content_inline_size(row_group_width);
         place_child(row_group_box, { row_group_left_offset, row_group_top_offset });
 
         row_group_top_offset += row_group_height + (num_rows > 0 ? border_spacing_vertical() : 0);
@@ -1672,7 +1672,7 @@ CSSPixels TableFormattingContext::compute_row_content_height(Cell const& cell) c
 {
     auto& row_state = m_state.get(m_rows[cell.row_index].box);
     if (cell.row_span == 1) {
-        return row_state.content_height();
+        return row_state.content_block_size();
     }
     // The height of a cell is the sum of all spanned rows, as described in
     // https://www.w3.org/TR/css-tables-3/#bounding-box-assignment
@@ -1685,9 +1685,9 @@ CSSPixels TableFormattingContext::compute_row_content_height(Cell const& cell) c
     for (size_t i = 0; i < cell.row_span; ++i) {
         auto const& row_state = m_state.get(m_rows[cell.row_index + i].box);
         if (i == 0) {
-            span_height += row_state.content_height() + row_state.border_box_bottom();
+            span_height += row_state.content_block_size() + row_state.border_box_bottom();
         } else if (i == cell.row_span - 1) {
-            span_height += row_state.border_box_top() + row_state.content_height();
+            span_height += row_state.border_box_top() + row_state.content_block_size();
         } else {
             span_height += row_state.border_box_height();
         }
@@ -1845,7 +1845,7 @@ void TableFormattingContext::run(LayoutInput const& layout_input)
     for (auto& cell : m_cells)
         layout_absolutely_positioned_children(cell.box);
 
-    m_state.get_mutable(table_box()).set_content_height(m_table_height);
+    m_state.get_mutable(table_box()).set_content_block_size(m_table_height);
 
     total_captions_height += run_caption_layout(CSS::CaptionSide::Bottom, caption_available_space);
 
@@ -1872,7 +1872,7 @@ void TableFormattingContext::run(LayoutInput const& layout_input)
 
 CSSPixels TableFormattingContext::automatic_content_width() const
 {
-    return m_state.get(table_box()).content_width();
+    return m_state.get(table_box()).content_inline_size();
 }
 
 CSSPixels TableFormattingContext::automatic_content_height() const

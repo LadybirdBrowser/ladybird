@@ -394,8 +394,8 @@ void GridFormattingContext::for_each_subgrid_item_contributing_to_track_sizing(G
     GridFormattingContext subgrid_context(m_state, LayoutMode::IntrinsicSizing, subgrid.box, this);
     subgrid_context.m_available_space = *m_available_space;
     subgrid_context.m_layout_input.emplace(*subgrid_context.m_available_space, track_sizing_constraints_for_items());
-    if (dimension == GridDimension::Row && subgrid.used_values.has_definite_width())
-        subgrid_context.m_available_space->inline_size = AvailableSize::make_definite(subgrid.used_values.content_width());
+    if (dimension == GridDimension::Row && subgrid.used_values.has_definite_inline_size())
+        subgrid_context.m_available_space->inline_size = AvailableSize::make_definite(subgrid.used_values.content_inline_size());
     subgrid_context.init_grid_lines(GridDimension::Column);
     subgrid_context.init_grid_lines(GridDimension::Row);
     subgrid_context.build_grid_areas();
@@ -2389,7 +2389,7 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
                 CSSPixels fit_content_size;
                 if (dimension == GridDimension::Column) {
                     fit_content_size = calculate_fit_content_width(item.box, available_space, grid_area_constraints);
-                } else if (preferred_size.is_auto() && item.box.has_preferred_aspect_ratio() && *item.box.preferred_aspect_ratio() != 0 && item.used_values.has_definite_width()) {
+                } else if (preferred_size.is_auto() && item.box.has_preferred_aspect_ratio() && *item.box.preferred_aspect_ratio() != 0 && item.used_values.has_definite_inline_size()) {
                     // NB: When the item has a preferred aspect ratio and a definite width, resolve the
                     //     height through the aspect ratio instead of using fit-content sizing, which would
                     //     incorrectly use the available width (grid area width) instead of the item's width.
@@ -2425,11 +2425,11 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
         if (dimension == GridDimension::Column) {
             item.used_values.margin_left = used_alignment.margin_start;
             item.used_values.margin_right = used_alignment.margin_end;
-            item.used_values.set_content_width(used_alignment.size);
+            item.used_values.set_content_inline_size(used_alignment.size);
         } else {
             item.used_values.margin_top = used_alignment.margin_start;
             item.used_values.margin_bottom = used_alignment.margin_end;
-            item.used_values.set_content_height(used_alignment.size);
+            item.used_values.set_content_block_size(used_alignment.size);
         }
     }
 }
@@ -2636,14 +2636,14 @@ void GridFormattingContext::save_grid_layout_data()
 CSSPixels GridFormattingContext::grid_container_size_for_track_alignment(GridDimension dimension) const
 {
     if (dimension == GridDimension::Column)
-        return m_grid_container_used_values.content_width();
+        return m_grid_container_used_values.content_inline_size();
     if (m_use_row_track_alignment_grid_container_height) {
         if (!grid_container().computed_values().min_height().is_auto())
-            return max(m_row_track_alignment_grid_container_height, m_grid_container_used_values.content_height());
+            return max(m_row_track_alignment_grid_container_height, m_grid_container_used_values.content_block_size());
         return m_row_track_alignment_grid_container_height;
     }
-    if (m_grid_container_used_values.has_definite_height())
-        return m_grid_container_used_values.content_height();
+    if (m_grid_container_used_values.has_definite_block_size())
+        return m_grid_container_used_values.content_block_size();
     return m_row_track_alignment_grid_container_height;
 }
 
@@ -2921,9 +2921,9 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
             grid_area_size.set_width(non_cyclic_containing_block_width_for_table_wrapper(grid_item, grid_area_size.width()));
             table_wrapper_grid_area_size = grid_area_size;
         }
-        auto available_space_for_children = AvailableSpace(AvailableSize::make_definite(grid_item.used_values.content_width()), AvailableSize::make_definite(grid_item.used_values.content_height()));
-        grid_item.used_values.set_has_definite_width(true);
-        grid_item.used_values.set_has_definite_height(true);
+        auto available_space_for_children = AvailableSpace(AvailableSize::make_definite(grid_item.used_values.content_inline_size()), AvailableSize::make_definite(grid_item.used_values.content_block_size()));
+        grid_item.used_values.set_has_definite_inline_size(true);
+        grid_item.used_values.set_has_definite_block_size(true);
         auto child_constraints = [&] {
             auto constraints = grid_area_constraints_for_item(grid_item);
             // Table wrappers pass their constraints through to the table box, so hand them the
@@ -3143,7 +3143,7 @@ void GridFormattingContext::determine_intrinsic_size_of_grid_container(Available
         for (auto& track : m_grid_rows_and_gaps) {
             grid_container_height += track.base_size;
         }
-        m_grid_container_used_values.set_content_height(grid_container_height);
+        m_grid_container_used_values.set_content_block_size(grid_container_height);
     }
 
     if (available_space.inline_size.is_intrinsic_sizing_constraint()) {
@@ -3151,13 +3151,13 @@ void GridFormattingContext::determine_intrinsic_size_of_grid_container(Available
         for (auto& track : m_grid_columns_and_gaps) {
             grid_container_width += track.base_size;
         }
-        m_grid_container_used_values.set_content_width(grid_container_width);
+        m_grid_container_used_values.set_content_inline_size(grid_container_width);
     }
 }
 
 CSSPixels GridFormattingContext::automatic_content_width() const
 {
-    return m_grid_container_used_values.content_width();
+    return m_grid_container_used_values.content_inline_size();
 }
 
 CSSPixels GridFormattingContext::automatic_content_height() const
@@ -3640,7 +3640,7 @@ void GridFormattingContext::resolve_table_wrapper_grid_item_width(GridItem& item
 
     item.used_values.margin_left = margin_start;
     item.used_values.margin_right = margin_end;
-    item.used_values.set_content_width(table_wrapper_width);
+    item.used_values.set_content_inline_size(table_wrapper_width);
 }
 
 CSSPixels GridFormattingContext::non_cyclic_containing_block_width_for_table_wrapper(GridItem const& item, CSSPixels containing_block_width) const
@@ -3657,10 +3657,10 @@ CSSPixels GridFormattingContext::non_cyclic_containing_block_width_for_table_wra
         return containing_block_width;
     }
 
-    if (!m_grid_container_used_values.has_definite_width())
+    if (!m_grid_container_used_values.has_definite_inline_size())
         return containing_block_width;
 
-    auto const available_width = AvailableSize::make_definite(clamp_to_max_dimension_value(m_grid_container_used_values.content_width()));
+    auto const available_width = AvailableSize::make_definite(clamp_to_max_dimension_value(m_grid_container_used_values.content_inline_size()));
     bool spans_intrinsic_column_track = false;
     for_each_spanned_track_by_item(item, GridDimension::Column, [&](GridTrack const& track) {
         if (track.is_gap)
@@ -3678,11 +3678,11 @@ CSSPixels GridFormattingContext::non_cyclic_containing_block_width_for_table_wra
     for (auto const& track : m_grid_columns_and_gaps)
         total_column_width += track.base_size;
 
-    if (total_column_width <= m_grid_container_used_values.content_width())
+    if (total_column_width <= m_grid_container_used_values.content_inline_size())
         return containing_block_width;
 
     auto non_spanned_column_width = max(CSSPixels(0), total_column_width - containing_block_width);
-    auto non_cyclic_containing_block_width = max(CSSPixels(0), m_grid_container_used_values.content_width() - non_spanned_column_width);
+    auto non_cyclic_containing_block_width = max(CSSPixels(0), m_grid_container_used_values.content_inline_size() - non_spanned_column_width);
     return min(containing_block_width, non_cyclic_containing_block_width);
 }
 
@@ -3856,7 +3856,7 @@ Optional<CSSPixels> GridFormattingContext::specified_size_suggestion(GridItem co
     if (!item.box.is_replaced_box() && item.preferred_size(dimension).contains_percentage())
         return {};
 
-    auto has_definite_preferred_size = dimension == GridDimension::Column ? item.used_values.has_definite_width() : item.used_values.has_definite_height();
+    auto has_definite_preferred_size = dimension == GridDimension::Column ? item.used_values.has_definite_inline_size() : item.used_values.has_definite_block_size();
     if (has_definite_preferred_size) {
         // FIXME: consider margins, padding and borders because it is outer size.
         auto containing_block_size = containing_block_size_for_item(item, dimension);

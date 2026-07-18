@@ -113,8 +113,8 @@ struct GridItem {
 
     AvailableSpace available_space() const
     {
-        auto available_width = used_values.has_definite_width() ? AvailableSize::make_definite(used_values.content_width()) : AvailableSize::make_indefinite();
-        auto available_height = used_values.has_definite_height() ? AvailableSize::make_definite(used_values.content_height()) : AvailableSize::make_indefinite();
+        auto available_width = used_values.has_definite_inline_size() ? AvailableSize::make_definite(used_values.content_inline_size()) : AvailableSize::make_indefinite();
+        auto available_height = used_values.has_definite_block_size() ? AvailableSize::make_definite(used_values.content_block_size()) : AvailableSize::make_indefinite();
         return { available_width, available_height };
     }
 };

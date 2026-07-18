@@ -1734,8 +1734,8 @@ static void compute_subtree_layout(Layout::Box& subtree_root, Layout::LayoutStat
 
     auto const& root_state = layout_state.get(subtree_root);
     auto available_space = Layout::AvailableSpace(
-        Layout::AvailableSize::make_definite(root_state.content_width()),
-        Layout::AvailableSize::make_definite(root_state.content_height()));
+        Layout::AvailableSize::make_definite(root_state.content_inline_size()),
+        Layout::AvailableSize::make_definite(root_state.content_block_size()));
 
     auto context = Layout::FormattingContext::create_independent_formatting_context_if_needed(
         layout_state, Layout::LayoutMode::Normal, subtree_root, nullptr);
@@ -2167,8 +2167,8 @@ void Document::update_layout(UpdateLayoutReason reason)
                 viewport,
                 Optional<CSSPixels> { viewport_rect.width() },
                 Optional<CSSPixels> { viewport_rect.height() });
-            viewport_state.set_content_width(viewport_rect.width());
-            viewport_state.set_content_height(viewport_rect.height());
+            viewport_state.set_content_inline_size(viewport_rect.width());
+            viewport_state.set_content_block_size(viewport_rect.height());
 
             // NB: Called during layout update.
             if (document_element && document_element->unsafe_layout_node()) {
@@ -2177,7 +2177,7 @@ void Document::update_layout(UpdateLayoutReason reason)
                     as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node()),
                     percentage_basis.percentage_basis_inline_size,
                     percentage_basis.percentage_basis_block_size);
-                icb_state.set_content_width(viewport_rect.width());
+                icb_state.set_content_inline_size(viewport_rect.width());
             }
 
             auto available_space = Layout::AvailableSpace(
@@ -2189,8 +2189,8 @@ void Document::update_layout(UpdateLayoutReason reason)
                 //       The root <svg> container gets the same size as the viewport,
                 //       and we call directly into the SVG layout code from here.
                 auto const& svg_root = as<Layout::SVGSVGBox>(*m_layout_root->first_child());
-                auto content_height = layout_state.get(*svg_root.containing_block()).content_height();
-                layout_state.get_mutable(svg_root).set_content_height(content_height);
+                auto content_block_size = layout_state.get(*svg_root.containing_block()).content_block_size();
+                layout_state.get_mutable(svg_root).set_content_block_size(content_block_size);
                 Layout::SVGFormattingContext svg_formatting_context(layout_state, Layout::LayoutMode::Normal, svg_root, nullptr);
                 svg_formatting_context.run(Layout::LayoutInput { available_space });
             } else {

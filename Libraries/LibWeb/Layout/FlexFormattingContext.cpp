@@ -62,12 +62,12 @@ ContainingBlockConstraints FlexFormattingContext::item_containing_block_constrai
 
 CSSPixels FlexFormattingContext::automatic_content_width() const
 {
-    return m_flex_container_state.content_width();
+    return m_flex_container_state.content_inline_size();
 }
 
 CSSPixels FlexFormattingContext::automatic_content_height() const
 {
-    return m_flex_container_state.content_height();
+    return m_flex_container_state.content_block_size();
 }
 
 void FlexFormattingContext::run(LayoutInput const& layout_input)
@@ -451,17 +451,17 @@ void FlexFormattingContext::generate_anonymous_flex_items()
 
 bool FlexFormattingContext::has_definite_main_size(LayoutState::UsedValues const& used_values) const
 {
-    return main_axis_is_horizontal() ? used_values.has_definite_width() : used_values.has_definite_height();
+    return main_axis_is_horizontal() ? used_values.has_definite_inline_size() : used_values.has_definite_block_size();
 }
 
 CSSPixels FlexFormattingContext::inner_main_size(LayoutState::UsedValues const& used_values) const
 {
-    return main_axis_is_horizontal() ? used_values.content_width() : used_values.content_height();
+    return main_axis_is_horizontal() ? used_values.content_inline_size() : used_values.content_block_size();
 }
 
 CSSPixels FlexFormattingContext::inner_cross_size(LayoutState::UsedValues const& used_values) const
 {
-    return cross_axis_is_horizontal() ? used_values.content_width() : used_values.content_height();
+    return cross_axis_is_horizontal() ? used_values.content_inline_size() : used_values.content_block_size();
 }
 
 bool FlexFormattingContext::has_main_min_size(Box const& box) const
@@ -478,7 +478,7 @@ bool FlexFormattingContext::has_cross_min_size(Box const& box) const
 
 bool FlexFormattingContext::has_definite_cross_size(LayoutState::UsedValues const& used_values) const
 {
-    return cross_axis_is_horizontal() ? used_values.has_definite_width() : used_values.has_definite_height();
+    return cross_axis_is_horizontal() ? used_values.has_definite_inline_size() : used_values.has_definite_block_size();
 }
 
 CSSPixels FlexFormattingContext::specified_main_min_size(FlexItem const& item) const
@@ -553,49 +553,49 @@ CSSPixels FlexFormattingContext::specified_main_max_size_for_intrinsic_contribut
 void FlexFormattingContext::set_has_definite_main_size(FlexItem& item)
 {
     if (main_axis_is_horizontal())
-        item.used_values.set_has_definite_width(true);
+        item.used_values.set_has_definite_inline_size(true);
     else
-        item.used_values.set_has_definite_height(true);
+        item.used_values.set_has_definite_block_size(true);
 }
 
 void FlexFormattingContext::set_has_definite_cross_size(FlexItem& item)
 {
     if (cross_axis_is_horizontal())
-        item.used_values.set_has_definite_width(true);
+        item.used_values.set_has_definite_inline_size(true);
     else
-        item.used_values.set_has_definite_height(true);
+        item.used_values.set_has_definite_block_size(true);
 }
 
 void FlexFormattingContext::set_main_size(Box const& box, CSSPixels size)
 {
     if (main_axis_is_horizontal())
-        m_state.get_mutable(box).set_content_width(size);
+        m_state.get_mutable(box).set_content_inline_size(size);
     else
-        m_state.get_mutable(box).set_content_height(size);
+        m_state.get_mutable(box).set_content_block_size(size);
 }
 
 void FlexFormattingContext::set_cross_size(Box const& box, CSSPixels size)
 {
     if (cross_axis_is_horizontal())
-        m_state.get_mutable(box).set_content_width(size);
+        m_state.get_mutable(box).set_content_inline_size(size);
     else
-        m_state.get_mutable(box).set_content_height(size);
+        m_state.get_mutable(box).set_content_block_size(size);
 }
 
 void FlexFormattingContext::set_main_size(FlexItem& item, CSSPixels size)
 {
     if (main_axis_is_horizontal())
-        item.used_values.set_content_width(size);
+        item.used_values.set_content_inline_size(size);
     else
-        item.used_values.set_content_height(size);
+        item.used_values.set_content_block_size(size);
 }
 
 void FlexFormattingContext::set_cross_size(FlexItem& item, CSSPixels size)
 {
     if (cross_axis_is_horizontal())
-        item.used_values.set_content_width(size);
+        item.used_values.set_content_inline_size(size);
     else
-        item.used_values.set_content_height(size);
+        item.used_values.set_content_block_size(size);
 }
 
 void FlexFormattingContext::set_main_axis_first_margin(FlexItem& item, CSSPixels margin)
@@ -700,12 +700,12 @@ Optional<CSSPixels> FlexFormattingContext::cross_size_transferred_from_definite_
 CSSPixels FlexFormattingContext::adjust_main_size_through_aspect_ratio_for_cross_size_min_max_constraints(Box const& box, CSSPixels main_size, CSS::Size const& min_cross_size, CSS::Size const& max_cross_size) const
 {
     if (!should_treat_cross_max_size_as_none(box)) {
-        auto max_cross_size_px = max_cross_size.to_px(cross_axis_is_horizontal() ? m_flex_container_state.content_width() : m_flex_container_state.content_height());
+        auto max_cross_size_px = max_cross_size.to_px(cross_axis_is_horizontal() ? m_flex_container_state.content_inline_size() : m_flex_container_state.content_block_size());
         main_size = min(main_size, calculate_main_size_from_cross_size_and_aspect_ratio(max_cross_size_px, box.preferred_aspect_ratio().value()));
     }
 
     if (!min_cross_size.is_auto()) {
-        auto min_cross_size_px = min_cross_size.to_px(cross_axis_is_horizontal() ? m_flex_container_state.content_width() : m_flex_container_state.content_height());
+        auto min_cross_size_px = min_cross_size.to_px(cross_axis_is_horizontal() ? m_flex_container_state.content_inline_size() : m_flex_container_state.content_block_size());
         main_size = max(main_size, calculate_main_size_from_cross_size_and_aspect_ratio(min_cross_size_px, box.preferred_aspect_ratio().value()));
     }
 
@@ -715,12 +715,12 @@ CSSPixels FlexFormattingContext::adjust_main_size_through_aspect_ratio_for_cross
 CSSPixels FlexFormattingContext::adjust_cross_size_through_aspect_ratio_for_main_size_min_max_constraints(Box const& box, CSSPixels cross_size, CSS::Size const& min_main_size, CSS::Size const& max_main_size) const
 {
     if (!should_treat_main_max_size_as_none(box)) {
-        auto max_main_size_px = max_main_size.to_px(main_axis_is_horizontal() ? m_flex_container_state.content_width() : m_flex_container_state.content_height());
+        auto max_main_size_px = max_main_size.to_px(main_axis_is_horizontal() ? m_flex_container_state.content_inline_size() : m_flex_container_state.content_block_size());
         cross_size = min(cross_size, calculate_cross_size_from_main_size_and_aspect_ratio(max_main_size_px, box.preferred_aspect_ratio().value()));
     }
 
     if (!min_main_size.is_auto()) {
-        auto min_main_size_px = min_main_size.to_px(main_axis_is_horizontal() ? m_flex_container_state.content_width() : m_flex_container_state.content_height());
+        auto min_main_size_px = min_main_size.to_px(main_axis_is_horizontal() ? m_flex_container_state.content_inline_size() : m_flex_container_state.content_block_size());
         cross_size = max(cross_size, calculate_cross_size_from_main_size_and_aspect_ratio(min_main_size_px, box.preferred_aspect_ratio().value()));
     }
 
@@ -745,8 +745,8 @@ void FlexFormattingContext::determine_flex_base_size(FlexItem& item)
                 return true;
 
             bool can_resolve_percentages = main_axis_is_horizontal()
-                ? m_flex_container_state.has_definite_width()
-                : m_flex_container_state.has_definite_height();
+                ? m_flex_container_state.has_definite_inline_size()
+                : m_flex_container_state.has_definite_block_size();
 
             if (size.is_calculated()) {
                 auto const& calc_value = size.calculated();
@@ -1687,7 +1687,7 @@ void FlexFormattingContext::distribute_any_remaining_free_space()
 
 void FlexFormattingContext::dump_items() const
 {
-    dbgln("\033[34;1mflex-container\033[0m {}, direction: {}, current-size: {}x{}", flex_container().debug_description(), is_row_layout() ? "row" : "column", m_flex_container_state.content_width(), m_flex_container_state.content_height());
+    dbgln("\033[34;1mflex-container\033[0m {}, direction: {}, current-size: {}x{}", flex_container().debug_description(), is_row_layout() ? "row" : "column", m_flex_container_state.content_inline_size(), m_flex_container_state.content_block_size());
     for (size_t i = 0; i < m_flex_lines.size(); ++i) {
         dbgln("{} flex-line #{}:", flex_container().debug_description(), i);
         for (size_t j = 0; j < m_flex_lines[i].items.size(); ++j) {
@@ -1971,10 +1971,10 @@ void FlexFormattingContext::copy_dimensions_from_flex_items_to_boxes()
     for (auto& item : m_flex_items) {
         auto const& box = item.box;
 
-        item.used_values.margin_left = box.computed_values().margin().left().to_px_or_zero(m_flex_container_state.content_width());
-        item.used_values.margin_right = box.computed_values().margin().right().to_px_or_zero(m_flex_container_state.content_width());
-        item.used_values.margin_top = box.computed_values().margin().top().to_px_or_zero(m_flex_container_state.content_width());
-        item.used_values.margin_bottom = box.computed_values().margin().bottom().to_px_or_zero(m_flex_container_state.content_width());
+        item.used_values.margin_left = box.computed_values().margin().left().to_px_or_zero(m_flex_container_state.content_inline_size());
+        item.used_values.margin_right = box.computed_values().margin().right().to_px_or_zero(m_flex_container_state.content_inline_size());
+        item.used_values.margin_top = box.computed_values().margin().top().to_px_or_zero(m_flex_container_state.content_inline_size());
+        item.used_values.margin_bottom = box.computed_values().margin().bottom().to_px_or_zero(m_flex_container_state.content_inline_size());
 
         item.used_values.border_left = box.computed_values().border_left().width;
         item.used_values.border_right = box.computed_values().border_right().width;

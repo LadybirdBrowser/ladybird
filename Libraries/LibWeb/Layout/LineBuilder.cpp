@@ -100,7 +100,7 @@ void LineBuilder::append_box(Box const& box, CSSPixels leading_size, CSSPixels t
     auto& box_state = m_layout_state.get_mutable(box);
     auto& line_box = ensure_last_line_box();
     line_box.add_fragment(box, 0, 0, leading_size, trailing_size, leading_margin, trailing_margin,
-        box_state.content_width(), box_state.content_height(), box_state.border_box_top(), box_state.border_box_bottom());
+        box_state.content_inline_size(), box_state.content_block_size(), box_state.border_box_top(), box_state.border_box_bottom());
     m_max_height_on_current_line = max(m_max_height_on_current_line, box_state.margin_box_height());
 
     box_state.containing_line_box_fragment = {};
@@ -116,13 +116,13 @@ void LineBuilder::append_box(Box const& box, CSSPixels leading_size, CSSPixels t
     }
 }
 
-void LineBuilder::append_text_chunk(TextNode const& text_node, size_t offset_in_node, size_t length_in_node, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_width, CSSPixels content_height, RefPtr<Gfx::GlyphRun> glyph_run)
+void LineBuilder::append_text_chunk(TextNode const& text_node, size_t offset_in_node, size_t length_in_node, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_inline_size, CSSPixels content_block_size, RefPtr<Gfx::GlyphRun> glyph_run)
 {
     prepare_to_append_inline_content();
 
     auto& line_box = ensure_last_line_box();
     line_box.add_fragment(text_node, offset_in_node, length_in_node, leading_size, trailing_size, leading_margin,
-        trailing_margin, content_width, content_height, 0, 0, move(glyph_run));
+        trailing_margin, content_inline_size, content_block_size, 0, 0, move(glyph_run));
 
     m_max_height_on_current_line = max(m_max_height_on_current_line, line_box.block_length());
 }
@@ -188,8 +188,8 @@ void LineBuilder::append_block_level_box(Box const& box, CSSPixels block_bottom,
     auto is_horizontal = m_writing_mode == CSS::WritingMode::HorizontalTb;
     auto inline_offset = is_horizontal ? box_state.content_offset().x() : box_state.content_offset().y();
     auto block_offset = is_horizontal ? box_state.content_offset().y() : box_state.content_offset().x();
-    auto inline_length = is_horizontal ? box_state.content_width() : box_state.content_height();
-    auto block_length = is_horizontal ? box_state.content_height() : box_state.content_width();
+    auto inline_length = is_horizontal ? box_state.content_inline_size() : box_state.content_block_size();
+    auto block_length = is_horizontal ? box_state.content_block_size() : box_state.content_inline_size();
 
     line_box.m_fragments.append(LineBoxFragment { box, 0, 0, inline_offset, block_offset,
         inline_length, block_length, box_state.border_box_top(), m_direction, m_writing_mode, {} });
@@ -508,7 +508,7 @@ void LineBuilder::update_last_line()
             if (fragment.is_atomic_inline()) {
                 auto const& fragment_box_state = m_layout_state.get(static_cast<Box const&>(fragment.layout_node()));
                 top_of_inline_box = (fragment.block_offset() - fragment_box_state.margin_box_top());
-                bottom_of_inline_box = (fragment.block_offset() + fragment_box_state.content_height() + fragment_box_state.margin_box_bottom());
+                bottom_of_inline_box = (fragment.block_offset() + fragment_box_state.content_block_size() + fragment_box_state.margin_box_bottom());
             } else {
                 auto font_metrics = fragment.layout_node().first_available_font().pixel_metrics();
                 auto typographic_height = CSSPixels::nearest_value_for(font_metrics.ascent + font_metrics.descent);
