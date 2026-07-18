@@ -22,7 +22,7 @@ public:
 
     virtual ~RadialSizeStyleValue() override = default;
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     void serialize(StringBuilder&, SerializationMode) const;
 

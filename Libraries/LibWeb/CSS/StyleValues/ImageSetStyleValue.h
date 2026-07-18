@@ -49,7 +49,7 @@ private:
     // NB: StyleValue dispatches operations by type tag, so it may call private impls.
     friend class StyleValue;
     void set_style_sheet(GC::Ptr<CSSStyleSheet>);
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     Optional<Option> select_option(double device_pixels_per_css_pixel) const;
 

@@ -115,7 +115,7 @@ private:
     friend class StyleValue;
     void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     URL url_value() const;
 

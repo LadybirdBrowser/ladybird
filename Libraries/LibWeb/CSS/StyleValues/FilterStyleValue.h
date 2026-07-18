@@ -30,6 +30,7 @@ public:
     bool is_computationally_independent() const;
     void serialize(StringBuilder&, SerializationMode) const;
     bool equals(StyleValue const& other) const;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     virtual bool contains_url() const { return false; }
     static ValueComparingNonnullRefPtr<FilterStyleValue const> initial_value_for(FilterStyleValue const&, bool use_transparent_drop_shadow_color);
 
@@ -58,7 +59,7 @@ public:
     float resolved_radius() const;
 
     void serialize(StringBuilder&, SerializationMode) const;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool is_computationally_independent() const { return radius()->is_computationally_independent(); }
     bool equals(StyleValue const&) const;
 
@@ -101,7 +102,7 @@ public:
     ValueComparingRefPtr<StyleValue const> color() const { return shadow().color_or_null(); }
 
     void serialize(StringBuilder&, SerializationMode) const;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool is_computationally_independent() const
     {
         return shadow().is_computationally_independent();
@@ -127,7 +128,7 @@ public:
     float angle_degrees() const;
 
     void serialize(StringBuilder&, SerializationMode) const;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool is_computationally_independent() const { return angle()->is_computationally_independent(); }
     bool equals(StyleValue const&) const;
 
@@ -152,7 +153,7 @@ public:
     float resolved_amount() const;
 
     void serialize(StringBuilder&, SerializationMode) const;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool is_computationally_independent() const { return amount()->is_computationally_independent(); }
     bool equals(StyleValue const&) const;
 

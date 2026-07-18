@@ -171,7 +171,7 @@ public:
     bool has_auto() const;
     virtual bool has_color() const { return false; }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     virtual Optional<Color> to_color(ColorResolutionContext) const { return {}; }
     Keyword to_keyword() const;

@@ -32,6 +32,22 @@ static_assert(offsetof(StyleValueFFI::StyleValueData::LightDark_Body, color_base
 static_assert(offsetof(StyleValueFFI::StyleValueData::ContrastColor_Body, color_base) == 0);
 
 // The C++ Type is Color for every color variant, so color operations dispatch on the Rust tag.
+ValueComparingNonnullRefPtr<StyleValue const> ColorStyleValue::absolutized(ComputationContext const& context) const
+{
+    switch (m_value->tag) {
+    case StyleValueFFI::StyleValueData::Tag::ColorFunction:
+        return static_cast<ColorFunctionStyleValue const&>(*this).absolutized(context);
+    case StyleValueFFI::StyleValueData::Tag::ColorMix:
+        return static_cast<ColorMixStyleValue const&>(*this).absolutized(context);
+    case StyleValueFFI::StyleValueData::Tag::ContrastColor:
+        return static_cast<ContrastColorStyleValue const&>(*this).absolutized(context);
+    case StyleValueFFI::StyleValueData::Tag::LightDark:
+        return static_cast<LightDarkStyleValue const&>(*this).absolutized(context);
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
 bool ColorStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())

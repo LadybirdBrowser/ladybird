@@ -22,7 +22,7 @@ public:
 
     void serialize(StringBuilder&, SerializationMode) const;
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     double resolved() const { return value()->as_number().number(); }
 

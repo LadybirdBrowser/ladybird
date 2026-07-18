@@ -21,7 +21,7 @@ public:
     Utf16FlyString name() const { return Utf16FlyString::from_raw(m_value->function.name.raw); }
     ValueComparingNonnullRefPtr<StyleValue const> value() const { return *static_cast<StyleValue const*>(m_value->function.value.pointer); }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     void serialize(StringBuilder&, SerializationMode) const;
 
     bool properties_equal(FunctionStyleValue const& other) const { return name() == other.name() && value() == other.value(); }

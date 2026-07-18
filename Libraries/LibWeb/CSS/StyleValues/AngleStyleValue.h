@@ -26,7 +26,7 @@ public:
     virtual double raw_value() const override { return m_value->angle.value; }
     virtual Utf16FlyString unit_name() const override { return angle().unit_name(); }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     void serialize(StringBuilder&, SerializationMode) const;
 

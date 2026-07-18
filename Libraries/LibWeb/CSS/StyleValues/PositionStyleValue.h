@@ -28,7 +28,7 @@ public:
     bool is_center(SerializationMode) const;
     CSSPixelPoint resolved(CSSPixelRect const&) const;
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const;
     void serialize(StringBuilder&, SerializationMode) const;
 
     bool properties_equal(PositionStyleValue const& other) const { return edge_x() == other.edge_x() && edge_y() == other.edge_y(); }

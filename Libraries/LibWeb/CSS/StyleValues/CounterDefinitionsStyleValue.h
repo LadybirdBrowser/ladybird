@@ -46,7 +46,7 @@ public:
         return definitions;
     }
     void serialize(StringBuilder&, SerializationMode) const;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     bool properties_equal(CounterDefinitionsStyleValue const& other) const;
 

@@ -126,7 +126,7 @@ public:
     void serialize(StringBuilder& builder, SerializationMode mode) const { function().serialize(builder, mode); }
     void serialize(Utf16StringBuilder& builder, SerializationMode mode) const { function().serialize(builder, mode); }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     bool properties_equal(EasingStyleValue const& other) const { return function() == other.function(); }
 

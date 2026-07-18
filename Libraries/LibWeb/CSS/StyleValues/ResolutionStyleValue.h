@@ -23,7 +23,7 @@ public:
     virtual double raw_value() const override { return m_value->resolution.value; }
     virtual Utf16FlyString unit_name() const override { return resolution().unit_name(); }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     void serialize(StringBuilder& builder, SerializationMode mode) const { resolution().serialize(builder, mode); }
     void serialize(Utf16StringBuilder& builder, SerializationMode mode) const { resolution().serialize(builder, mode); }

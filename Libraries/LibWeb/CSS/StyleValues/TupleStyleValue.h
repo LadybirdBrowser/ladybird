@@ -29,7 +29,7 @@ public:
     }
 
     void serialize(StringBuilder&, SerializationMode) const;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     // FIXME: Support tokenization and reification
 

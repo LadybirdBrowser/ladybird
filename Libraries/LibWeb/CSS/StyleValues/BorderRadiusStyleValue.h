@@ -57,7 +57,9 @@ private:
             retain_style_value_for_rust(horizontal_radius.ptr()), retain_style_value_for_rust(vertical_radius.ptr()));
     }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    // NB: StyleValue dispatches operations by type tag, so it may call private impls.
+    friend class StyleValue;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 };
 
 }

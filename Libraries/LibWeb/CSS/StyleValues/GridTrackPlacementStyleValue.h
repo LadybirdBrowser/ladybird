@@ -36,7 +36,7 @@ public:
     }
     void serialize(StringBuilder&, SerializationMode) const;
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     bool properties_equal(GridTrackPlacementStyleValue const& other) const { return grid_track_placement() == other.grid_track_placement(); }
 

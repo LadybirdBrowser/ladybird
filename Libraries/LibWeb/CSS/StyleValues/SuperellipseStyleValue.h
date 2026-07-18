@@ -28,7 +28,7 @@ public:
 
     void serialize(StringBuilder&, SerializationMode) const;
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     bool properties_equal(SuperellipseStyleValue const& other) const { return parameter_style_value() == other.parameter_style_value(); }
 

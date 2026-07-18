@@ -29,7 +29,7 @@ public:
     bool each_line() const { return m_value->text_indent.each_line; }
 
     void serialize(StringBuilder&, SerializationMode) const;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool properties_equal(TextIndentStyleValue const&) const;
 
     bool is_computationally_independent() const { return length_percentage().is_computationally_independent(); }

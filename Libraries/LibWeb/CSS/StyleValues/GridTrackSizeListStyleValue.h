@@ -29,7 +29,7 @@ public:
 
     void serialize(StringBuilder&, SerializationMode) const;
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     bool properties_equal(GridTrackSizeListStyleValue const& other) const { return grid_track_size_list() == other.grid_track_size_list(); }
 

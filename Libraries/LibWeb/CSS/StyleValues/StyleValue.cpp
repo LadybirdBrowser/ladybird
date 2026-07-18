@@ -251,9 +251,98 @@ DimensionStyleValue const& StyleValue::as_dimension() const
 ENUMERATE_CSS_STYLE_VALUE_TYPES
 #undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
 
-ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(ComputationContext const&) const
+ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(ComputationContext const& context) const
 {
-    return *this;
+    switch (type()) {
+    case Type::Angle:
+        return as_angle().absolutized(context);
+    case Type::BackgroundSize:
+        return as_background_size().absolutized(context);
+    case Type::BasicShape:
+        return as_basic_shape().absolutized(context);
+    case Type::BorderRadiusRect:
+        return as_border_radius_rect().absolutized(context);
+    case Type::BorderRadius:
+        return as_border_radius().absolutized(context);
+    case Type::Calculated:
+        return as_calculated().absolutized(context);
+    case Type::Color:
+        return as_color().absolutized(context);
+    case Type::ConicGradient:
+        return as_conic_gradient().absolutized(context);
+    case Type::CounterDefinitions:
+        return as_counter_definitions().absolutized(context);
+    case Type::CounterStyleSystem:
+        return as_counter_style_system().absolutized(context);
+    case Type::Edge:
+        return as_edge().absolutized(context);
+    case Type::FontStyle:
+        return as_font_style().absolutized(context);
+    case Type::Position:
+        return as_position().absolutized(context);
+    case Type::Cursor:
+        return as_cursor().absolutized(context);
+    case Type::Easing:
+        return as_easing().absolutized(context);
+    case Type::Filter:
+        return as_filter().absolutized(context);
+    case Type::Frequency:
+        return as_frequency().absolutized(context);
+    case Type::Function:
+        return as_function().absolutized(context);
+    case Type::GridTrackPlacement:
+        return as_grid_track_placement().absolutized(context);
+    case Type::GridTrackSizeList:
+        return as_grid_track_size_list().absolutized(context);
+    case Type::ImageSet:
+        return as_image_set().absolutized(context);
+    case Type::Image:
+        return as_image().absolutized(context);
+    case Type::Keyword:
+        return as_keyword().absolutized(context);
+    case Type::Length:
+        return as_length().absolutized(context);
+    case Type::LinearGradient:
+        return as_linear_gradient().absolutized(context);
+    case Type::OpacityValue:
+        return as_opacity_value().absolutized(context);
+    case Type::OpenTypeTagged:
+        return as_open_type_tagged().absolutized(context);
+    case Type::OverflowClipMargin:
+        return as_overflow_clip_margin().absolutized(context);
+    case Type::RadialGradient:
+        return as_radial_gradient().absolutized(context);
+    case Type::RadialSize:
+        return as_radial_size().absolutized(context);
+    case Type::RandomValueSharing:
+        return as_random_value_sharing().absolutized(context);
+    case Type::Ratio:
+        return as_ratio().absolutized(context);
+    case Type::Rect:
+        return as_rect().absolutized(context);
+    case Type::Resolution:
+        return as_resolution().absolutized(context);
+    case Type::ScrollbarColor:
+        return as_scrollbar_color().absolutized(context);
+    case Type::Shadow:
+        return as_shadow().absolutized(context);
+    case Type::Superellipse:
+        return as_superellipse().absolutized(context);
+    case Type::TextIndent:
+        return as_text_indent().absolutized(context);
+    case Type::Time:
+        return as_time().absolutized(context);
+    case Type::Transformation:
+        return as_transformation().absolutized(context);
+    case Type::TreeCountingFunction:
+        return as_tree_counting_function().absolutized(context);
+    case Type::Tuple:
+        return as_tuple().absolutized(context);
+    case Type::ValueList:
+        return as_value_list().absolutized(context);
+    default:
+        return *this;
+    }
 }
 
 bool StyleValue::has_auto() const

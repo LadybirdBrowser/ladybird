@@ -50,7 +50,7 @@ public:
     GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
     virtual StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const override;
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     bool properties_equal(StyleValueList const& other) const
     {

@@ -27,7 +27,7 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
 
     ValueComparingNonnullRefPtr<EdgeStyleValue const> with_resolved_keywords() const;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const;
     bool properties_equal(EdgeStyleValue const& other) const { return edge() == other.edge() && offset_style_value() == other.offset_style_value(); }
 
     bool is_computationally_independent() const { return !offset_style_value() || offset_style_value()->is_computationally_independent(); }

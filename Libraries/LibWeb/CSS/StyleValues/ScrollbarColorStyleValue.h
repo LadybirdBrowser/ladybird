@@ -26,7 +26,9 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> track_color() const { return *static_cast<StyleValue const*>(m_value->scrollbar_color.track_color.pointer); }
 
 private:
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    // NB: StyleValue dispatches operations by type tag, so it may call private impls.
+    friend class StyleValue;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     explicit ScrollbarColorStyleValue(NonnullRefPtr<StyleValue const> thumb_color, NonnullRefPtr<StyleValue const> track_color)
         : StyleValueWithDefaultOperators(Type::ScrollbarColor, StyleValueFFI::rust_style_value_create_scrollbar_color(&thumb_color.leak_ref(), &track_color.leak_ref()))
     {

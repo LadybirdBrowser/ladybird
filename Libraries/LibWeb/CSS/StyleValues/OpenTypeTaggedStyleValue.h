@@ -30,7 +30,7 @@ public:
     Utf16FlyString tag() const { return Utf16FlyString::from_raw(m_value->open_type_tagged.tag.raw); }
     ValueComparingNonnullRefPtr<StyleValue const> value() const { return *static_cast<StyleValue const*>(m_value->open_type_tagged.value.pointer); }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     void serialize(StringBuilder&, SerializationMode) const;
 

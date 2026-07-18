@@ -51,7 +51,7 @@ public:
     static bool is_color(Keyword);
     virtual bool has_color() const override;
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     void serialize(StringBuilder&, SerializationMode) const;
     void serialize(Utf16StringBuilder&, SerializationMode) const;
     Vector<Parser::ComponentValue> tokenize() const;

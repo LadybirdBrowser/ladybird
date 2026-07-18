@@ -26,7 +26,7 @@ public:
     StyleValue const& offset() const { return *static_cast<StyleValue const*>(m_value->overflow_clip_margin.offset.pointer); }
 
     void serialize(StringBuilder&, SerializationMode) const;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool properties_equal(OverflowClipMarginStyleValue const&) const;
 
     bool is_computationally_independent() const { return offset().is_computationally_independent(); }

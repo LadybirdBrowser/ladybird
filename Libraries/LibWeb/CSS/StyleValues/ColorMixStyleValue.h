@@ -25,7 +25,7 @@ public:
 
     bool equals(StyleValue const&) const;
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     void serialize(StringBuilder&, SerializationMode) const;
 
     bool is_computationally_independent() const

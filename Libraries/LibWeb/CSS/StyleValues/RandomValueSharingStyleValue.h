@@ -35,7 +35,7 @@ public:
 
     virtual ~RandomValueSharingStyleValue() override = default;
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     double random_base_value() const;
 

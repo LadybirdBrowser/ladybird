@@ -26,7 +26,7 @@ public:
     virtual double raw_value() const override { return m_value->time.value; }
     virtual Utf16FlyString unit_name() const override { return time().unit_name(); }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     void serialize(StringBuilder& builder, SerializationMode mode) const { time().serialize(builder, mode); }
 

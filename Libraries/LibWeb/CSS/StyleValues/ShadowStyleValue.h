@@ -93,7 +93,9 @@ private:
         return StyleValueFFI::rust_style_value_create_shadow(to_underlying(shadow_type), color.ptr(), offset_x.ptr(), offset_y.ptr(), blur_radius.ptr(), spread_distance.ptr(), to_underlying(placement));
     }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    // NB: StyleValue dispatches operations by type tag, so it may call private impls.
+    friend class StyleValue;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 };
 
 }

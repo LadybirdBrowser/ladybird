@@ -55,6 +55,21 @@ ValueComparingNonnullRefPtr<FilterStyleValue const> FilterStyleValue::initial_va
 }
 
 // The C++ Type is Filter for every filter kind, so filter operations dispatch on the kind.
+ValueComparingNonnullRefPtr<StyleValue const> FilterStyleValue::absolutized(ComputationContext const& context) const
+{
+    switch (kind()) {
+    case Kind::Blur:
+        return static_cast<BlurFilterStyleValue const&>(*this).absolutized(context);
+    case Kind::DropShadow:
+        return static_cast<DropShadowFilterStyleValue const&>(*this).absolutized(context);
+    case Kind::HueRotate:
+        return static_cast<HueRotateFilterStyleValue const&>(*this).absolutized(context);
+    case Kind::Color:
+        return static_cast<ColorFilterStyleValue const&>(*this).absolutized(context);
+    }
+    VERIFY_NOT_REACHED();
+}
+
 bool FilterStyleValue::equals(StyleValue const& other) const
 {
     switch (kind()) {

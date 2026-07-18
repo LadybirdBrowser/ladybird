@@ -42,7 +42,7 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
     GC::Ptr<CSSTransformComponent> reify_a_transform_function(JS::Realm&) const;
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     bool properties_equal(TransformationStyleValue const& other) const
     {
