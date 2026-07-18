@@ -62,9 +62,9 @@ private:
     template<class RowOrColumn>
     void compute_intrinsic_percentage(size_t max_cell_span);
     void compute_table_width();
-    void distribute_width_to_columns();
-    void distribute_excess_width_to_columns(CSSPixels available_width);
-    void distribute_excess_width_to_columns_fixed_mode(CSSPixels excess_width);
+    void distribute_inline_size_to_columns();
+    void distribute_excess_inline_size_to_columns(CSSPixels available_inline_size);
+    void distribute_excess_inline_size_to_columns_fixed_mode(CSSPixels excess_inline_size);
     bool can_skip_row_intrinsic_measurement() const;
     void compute_table_block_size();
     void distribute_block_size_to_rows();
@@ -76,16 +76,16 @@ private:
     void finish_grid_initialization(TableGrid const&);
     void seed_table_participant_used_values(ContainingBlockConstraints const&);
 
-    CSSPixels compute_columns_total_used_width() const;
-    void commit_candidate_column_widths(Vector<CSSPixels> const& candidate_widths);
-    void assign_columns_width_linear_combination(Vector<CSSPixels> const& candidate_widths, CSSPixels available_width);
+    CSSPixels compute_columns_total_used_inline_size() const;
+    void commit_candidate_column_inline_sizes(Vector<CSSPixels> const& candidate_inline_sizes);
+    void assign_columns_inline_size_linear_combination(Vector<CSSPixels> const& candidate_inline_sizes, CSSPixels available_inline_size);
 
-    template<class ColumnFilter, class BaseWidthGetter>
-    bool distribute_excess_width_proportionally_to_base_width(CSSPixels excess_width, ColumnFilter column_filter, BaseWidthGetter base_width_getter);
+    template<class ColumnFilter, class BaseInlineSizeGetter>
+    bool distribute_excess_inline_size_proportionally_to_base_inline_size(CSSPixels excess_inline_size, ColumnFilter column_filter, BaseInlineSizeGetter base_inline_size_getter);
     template<class ColumnFilter>
-    bool distribute_excess_width_equally(CSSPixels excess_width, ColumnFilter column_filter);
+    bool distribute_excess_inline_size_equally(CSSPixels excess_inline_size, ColumnFilter column_filter);
     template<class ColumnFilter>
-    bool distribute_excess_width_by_intrinsic_percentage(CSSPixels excess_width, ColumnFilter column_filter);
+    bool distribute_excess_inline_size_by_intrinsic_percentage(CSSPixels excess_inline_size, ColumnFilter column_filter);
 
     bool use_fixed_mode_layout() const;
 
@@ -101,10 +101,10 @@ private:
     bool m_needs_fixed_mode_row_measurement { false };
 
     struct Column {
-        CSSPixels left_offset { 0 };
+        CSSPixels inline_offset { 0 };
         CSSPixels min_size { 0 };
         CSSPixels max_size { 0 };
-        CSSPixels used_width { 0 };
+        CSSPixels used_inline_size { 0 };
         bool has_intrinsic_percentage { false };
         double intrinsic_percentage { 0 };
         // Store whether the column is constrained: https://www.w3.org/TR/css-tables-3/#constrainedness
