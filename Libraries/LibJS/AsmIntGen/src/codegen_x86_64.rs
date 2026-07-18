@@ -1605,6 +1605,28 @@ fn emit_instruction(
             }
         }
 
+        "branch32_memory_eq" | "branch32_memory_ne" => {
+            if insn.operands.len() == 3 {
+                let memory = resolve_op(&insn.operands[0], handler, program);
+                let value = to_32bit_reg(&resolve_op(&insn.operands[1], handler, program));
+                let label = resolve_label(&insn.operands[2], handler);
+                let condition = if m == "branch32_memory_eq" { "je" } else { "jne" };
+                w!(out, "    cmp DWORD PTR {memory}, {value}");
+                w!(out, "    {condition} {label}");
+            }
+        }
+
+        "branch64_memory_eq" | "branch64_memory_ne" => {
+            if insn.operands.len() == 3 {
+                let memory = resolve_op(&insn.operands[0], handler, program);
+                let value = resolve_op(&insn.operands[1], handler, program);
+                let label = resolve_label(&insn.operands[2], handler);
+                let condition = if m == "branch64_memory_eq" { "je" } else { "jne" };
+                w!(out, "    cmp QWORD PTR {memory}, {value}");
+                w!(out, "    {condition} {label}");
+            }
+        }
+
         "branch8_eq" | "branch8_ne" | "branch8_bits_set" | "branch8_bits_clear" => {
             if insn.operands.len() == 3 {
                 let memory = resolve_op(&insn.operands[0], handler, program);

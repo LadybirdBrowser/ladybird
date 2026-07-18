@@ -103,6 +103,7 @@ pub fn flatten_and_allocate(
     macro_counter: &mut u32,
 ) -> Result<Vec<AsmInstruction>, AllocationError> {
     let mut flat = flatten(handler, program, macro_counter);
+    fold_single_use_load_branches(&mut flat);
     fold_byte_load_branches(&mut flat, program);
     let needs = flat
         .iter()
@@ -112,6 +113,98 @@ pub fn flatten_and_allocate(
     }
     let assignments = allocate(handler, &flat, program, arch)?;
     Ok(rewrite(flat, &assignments))
+}
+
+/// Fold a load used only by an adjacent equality branch into a branch that
+/// reads the memory operand directly.
+fn fold_single_use_load_branches(instructions: &mut Vec<AsmInstruction>) {
+    let register_uses = count_register_uses(instructions);
+    let mut index = 0;
+    while index + 1 < instructions.len() {
+        if !matches!(instructions[index].mnemonic.as_str(), "load32" | "load64")
+            || !matches!(instructions[index + 1].mnemonic.as_str(), "branch_eq" | "branch_ne")
+        {
+            index += 1;
+            continue;
+        }
+
+        let Some(Operand::Register(load_register)) = instructions[index].operands.first() else {
+            index += 1;
+            continue;
+        };
+        let branch_register_index = instructions[index + 1]
+            .operands
+            .iter()
+            .take(2)
+            .position(|operand| matches!(operand, Operand::Register(branch_register) if branch_register == load_register));
+        let Some(branch_register_index) = branch_register_index else {
+            index += 1;
+            continue;
+        };
+        if register_uses.get(load_register).copied() != Some(2) {
+            index += 1;
+            continue;
+        }
+        let comparison_register_index = 1 - branch_register_index;
+        let Some(Operand::Register(comparison_register)) = instructions[index + 1].operands.get(comparison_register_index) else {
+            index += 1;
+            continue;
+        };
+        if instructions[index].mnemonic == "load32"
+            && !register_contains_zero_extended_u32(instructions, index, comparison_register)
+        {
+            index += 1;
+            continue;
+        }
+        let Some(memory) = instructions[index].operands.get(1).cloned() else {
+            index += 1;
+            continue;
+        };
+        let Some(label) = instructions[index + 1].operands.get(2).cloned() else {
+            index += 1;
+            continue;
+        };
+        let width = if instructions[index].mnemonic == "load32" { "32" } else { "64" };
+        let comparison = if instructions[index + 1].mnemonic == "branch_eq" { "eq" } else { "ne" };
+        let branch_mnemonic = match (width, comparison) {
+            ("32", "eq") => "branch32_memory_eq",
+            ("32", "ne") => "branch32_memory_ne",
+            ("64", "eq") => "branch64_memory_eq",
+            ("64", "ne") => "branch64_memory_ne",
+            _ => unreachable!(),
+        };
+
+        instructions[index + 1] = AsmInstruction {
+            mnemonic: branch_mnemonic.to_string(),
+            operands: vec![memory, Operand::Register(comparison_register.clone()), label],
+        };
+        instructions.remove(index);
+    }
+}
+
+fn register_contains_zero_extended_u32(
+    instructions: &[AsmInstruction],
+    before_index: usize,
+    register: &str,
+) -> bool {
+    for instruction in instructions[..before_index].iter().rev() {
+        if instruction_may_change_control_flow(instruction) {
+            return false;
+        }
+        let Some(info) = lookup(&instruction.mnemonic) else {
+            continue;
+        };
+        for (operand_index, operand) in instruction.operands.iter().enumerate() {
+            if !matches!(operand, Operand::Register(output) if output == register) {
+                continue;
+            }
+            if !matches!(operand_kind_at(info, operand_index), OperandKind::GprOut | OperandKind::GprInOut) {
+                continue;
+            }
+            return matches!(instruction.mnemonic.as_str(), "load32" | "load_pair32");
+        }
+    }
+    false
 }
 
 /// Fold a byte load whose result is used only by the immediately following
@@ -1498,6 +1591,106 @@ end
 
         assert_eq!(out.iter().filter(|insn| insn.mnemonic == "load8").count(), 2);
         assert!(!out.iter().any(|insn| insn.mnemonic == "branch8_eq"));
+    }
+
+    #[test]
+    fn folds_single_use_load64_into_memory_branch() {
+        let src = "
+handler Test
+    temp object, actual, expected
+    mov object, 1
+    mov expected, 2
+    load64 actual, [object, 8]
+    branch_ne actual, expected, .slow
+.slow:
+    exit
+end
+";
+        let out = build(src, Arch::X86_64).expect("allocation should succeed");
+
+        assert!(!out.iter().any(|insn| insn.mnemonic == "load64"));
+        assert!(out.iter().any(|insn| insn.mnemonic == "branch64_memory_ne"));
+    }
+
+    #[test]
+    fn folds_single_use_load32_into_memory_branch() {
+        let src = "
+handler Test
+    temp object, actual, expected, unused
+    mov object, 1
+    load_pair32 expected, unused, [object, 0], [object, 4]
+    load32 actual, [object, 8]
+    branch_ne expected, actual, .slow
+.slow:
+    exit
+end
+";
+        let out = build(src, Arch::X86_64).expect("allocation should succeed");
+
+        assert_eq!(out.iter().filter(|insn| insn.mnemonic == "load32").count(), 0);
+        assert!(out.iter().any(|insn| insn.mnemonic == "branch32_memory_ne"));
+    }
+
+    #[test]
+    fn preserves_load32_when_comparison_definition_may_not_dominate() {
+        let src = "
+handler Test
+    temp object, actual, expected, condition
+    mov object, 1
+    mov expected, 0x100000000
+    mov condition, 1
+    branch_zero condition, .join
+    load32 expected, [object, 4]
+.join:
+    load32 actual, [object, 8]
+    branch_eq actual, expected, .slow
+.slow:
+    exit
+end
+";
+        let out = build(src, Arch::X86_64).expect("allocation should succeed");
+
+        assert!(out.iter().any(|insn| insn.mnemonic == "load32"));
+        assert!(!out.iter().any(|insn| insn.mnemonic == "branch32_memory_eq"));
+    }
+
+    #[test]
+    fn preserves_load32_when_comparison_may_exceed_u32() {
+        let src = "
+handler Test
+    temp object, actual, expected
+    mov object, 1
+    mov expected, 2
+    load32 actual, [object, 8]
+    branch_ne actual, expected, .slow
+.slow:
+    exit
+end
+";
+        let out = build(src, Arch::X86_64).expect("allocation should succeed");
+
+        assert!(out.iter().any(|insn| insn.mnemonic == "load32"));
+        assert!(!out.iter().any(|insn| insn.mnemonic == "branch32_memory_ne"));
+    }
+
+    #[test]
+    fn preserves_load64_when_result_is_reused() {
+        let src = "
+handler Test
+    temp object, actual, expected
+    mov object, 1
+    mov expected, 2
+    load64 actual, [object, 8]
+    branch_ne actual, expected, .slow
+    add actual, 1
+.slow:
+    exit
+end
+";
+        let out = build(src, Arch::X86_64).expect("allocation should succeed");
+
+        assert!(out.iter().any(|insn| insn.mnemonic == "load64"));
+        assert!(!out.iter().any(|insn| insn.mnemonic == "branch64_memory_ne"));
     }
 
     #[test]

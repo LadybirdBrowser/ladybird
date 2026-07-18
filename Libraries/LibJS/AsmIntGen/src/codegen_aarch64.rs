@@ -2459,6 +2459,32 @@ fn emit_instruction(
             }
         }
 
+        "branch32_memory_eq" | "branch32_memory_ne" => {
+            if insn.operands.len() == 3 {
+                let memory = resolve_op(&insn.operands[0], handler, program);
+                let memory = parse_mem(&memory).expect("invalid branch32 memory operand");
+                let value = to_w_reg(&resolve_op(&insn.operands[1], handler, program));
+                let label = resolve_label(&insn.operands[2], handler);
+                emit_mem_load(out, "w9", &memory, 4, false);
+                w!(out, "    cmp w9, {value}");
+                let condition = if m == "branch32_memory_eq" { "b.eq" } else { "b.ne" };
+                w!(out, "    {condition} {label}");
+            }
+        }
+
+        "branch64_memory_eq" | "branch64_memory_ne" => {
+            if insn.operands.len() == 3 {
+                let memory = resolve_op(&insn.operands[0], handler, program);
+                let memory = parse_mem(&memory).expect("invalid branch64 memory operand");
+                let value = resolve_op(&insn.operands[1], handler, program);
+                let label = resolve_label(&insn.operands[2], handler);
+                emit_mem_load(out, "x9", &memory, 8, false);
+                w!(out, "    cmp x9, {value}");
+                let condition = if m == "branch64_memory_eq" { "b.eq" } else { "b.ne" };
+                w!(out, "    {condition} {label}");
+            }
+        }
+
         "branch8_eq" | "branch8_ne" | "branch8_bits_set" | "branch8_bits_clear" => {
             if insn.operands.len() == 3 {
                 let memory = resolve_op(&insn.operands[0], handler, program);

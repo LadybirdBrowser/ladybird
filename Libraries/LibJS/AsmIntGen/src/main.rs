@@ -247,6 +247,11 @@
 //!
 //! - `branch_eq a, b, label` -- Branch if `a == b`.
 //! - `branch_ne a, b, label` -- Branch if `a != b`.
+//! - `branch32_memory_eq [memory], value, label` -- Branch if a 32-bit memory
+//!   value equals the low 32 bits of a register. The `ne` variant branches
+//!   when they differ.
+//! - `branch64_memory_eq [memory], value, label` -- Branch if a 64-bit memory
+//!   value equals a register. The `ne` variant branches when they differ.
 //! - `branch8_eq [memory], immediate, label` -- Branch if the byte in memory
 //!   equals the immediate. The `ne`, `bits_set`, and `bits_clear` variants
 //!   perform the corresponding byte comparison or test.

@@ -1916,7 +1916,7 @@ end
 
 # Inline cache fast path for property access (own + prototype chain).
 handler GetById
-    temp base, tag, obj, shape, plc, cache_shape, cache_proto, prop_offset, dict_gen, cur_dict_gen, props, value, result
+    temp base, tag, obj, shape, plc, cache_shape, cache_proto, prop_offset, dict_gen, cur_dict_gen, proto_cur_dict_gen, props, value, result
     load_operand base, m_base
     extract_tag tag, base
     branch_ne tag, OBJECT_TAG, .try_cache
@@ -1948,8 +1948,8 @@ handler GetById
     load8 tag, [prop_offset, PROTOTYPE_CHAIN_VALIDITY_VALID]
     branch_zero tag, .try_cache
     load_pair32 prop_offset, dict_gen, [plc, PROPERTY_LOOKUP_CACHE_ENTRY_PROPERTY_OFFSET], [plc, PROPERTY_LOOKUP_CACHE_ENTRY_DICTIONARY_GENERATION]
-    load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
-    branch_ne dict_gen, cur_dict_gen, .try_cache
+    load32 proto_cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
+    branch_ne dict_gen, proto_cur_dict_gen, .try_cache
     load64 props, [cache_proto, OBJECT_NAMED_PROPERTIES]
     assert_nonzero props
     load64 value, [props, prop_offset, 8]
@@ -2229,8 +2229,8 @@ handler GetGlobal
     assert_nonzero env
     load_global_variable_cache gvc
     assert_nonzero gvc
-    load64 cache_serial, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
     load_environment_serial env, env_serial
+    load64 cache_serial, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
     branch_ne cache_serial, env_serial, .slow
     # Shape-based fast path: check entries[0].shape matches global_object.shape
     # (falls through to env binding path on shape mismatch)
@@ -2238,9 +2238,9 @@ handler GetGlobal
     assert_nonzero shape
     load64 cache_shape, [gvc, GLOBAL_VARIABLE_CACHE_ENTRY_SHAPE]
     branch_ne cache_shape, shape, .try_env_binding
-    load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
     load_pair32 prop_offset, dict_gen, [gvc, GLOBAL_VARIABLE_CACHE_ENTRY_PROPERTY_OFFSET], [gvc, GLOBAL_VARIABLE_CACHE_ENTRY_DICTIONARY_GENERATION]
-    branch_ne dict_gen, cur_dict_gen, .try_env_binding
+    load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
+    branch_ne cur_dict_gen, dict_gen, .try_env_binding
     # IC hit! Load property value via get_direct
     load64 props, [global_object, OBJECT_NAMED_PROPERTIES]
     assert_nonzero props
@@ -2277,16 +2277,16 @@ handler SetGlobal
     assert_nonzero env
     load_global_variable_cache gvc
     assert_nonzero gvc
-    load64 cache_serial, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
     load_environment_serial env, env_serial
+    load64 cache_serial, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
     branch_ne cache_serial, env_serial, .slow
     load64 shape, [global_object, OBJECT_SHAPE]
     assert_nonzero shape
     load64 cache_shape, [gvc, GLOBAL_VARIABLE_CACHE_ENTRY_SHAPE]
     branch_ne cache_shape, shape, .try_env_binding
-    load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
     load_pair32 prop_offset, dict_gen, [gvc, GLOBAL_VARIABLE_CACHE_ENTRY_PROPERTY_OFFSET], [gvc, GLOBAL_VARIABLE_CACHE_ENTRY_DICTIONARY_GENERATION]
-    branch_ne dict_gen, cur_dict_gen, .try_env_binding
+    load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
+    branch_ne cur_dict_gen, dict_gen, .try_env_binding
     # IC hit! Load current value to check it's not an accessor.
     load64 props, [global_object, OBJECT_NAMED_PROPERTIES]
     assert_nonzero props
