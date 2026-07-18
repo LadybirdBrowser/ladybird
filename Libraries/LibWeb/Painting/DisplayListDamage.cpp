@@ -156,8 +156,8 @@ static bool visual_context_data_is_equal(VisualContextData const& a, VisualConte
             return other
                 && data.scroll_frame_index == other->scroll_frame_index
                 && data.negate == other->negate
-                && data.compensate_x == other->compensate_x
-                && data.compensate_y == other->compensate_y;
+                && data.compensate_horizontal_scroll == other->compensate_horizontal_scroll
+                && data.compensate_vertical_scroll == other->compensate_vertical_scroll;
         });
 }
 

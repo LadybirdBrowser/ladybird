@@ -33,8 +33,8 @@ ContainedBoxesMap collect_scrollable_overflow_contained_boxes(Node const& root, 
 }
 
 struct PhysicalOverflowDirections {
-    bool x_positive { true };
-    bool y_positive { true };
+    bool horizontal_axis_is_positive { true };
+    bool vertical_axis_is_positive { true };
 };
 
 struct AxisDirection {
@@ -92,8 +92,8 @@ static PhysicalOverflowDirections physical_overflow_directions(Box const& box)
     auto horizontal_axis = axes.get<0>();
     auto vertical_axis = axes.get<1>();
     return {
-        .x_positive = !horizontal_axis.is_reverse,
-        .y_positive = !vertical_axis.is_reverse,
+        .horizontal_axis_is_positive = !horizontal_axis.is_reverse,
+        .vertical_axis_is_positive = !vertical_axis.is_reverse,
     };
 }
 
@@ -125,19 +125,19 @@ static CSSPixelRect padding_inflated_scrollable_overflow(Box const& box, CSSPixe
     auto right = in_flow_and_floated_content_bounds.right();
     auto bottom = in_flow_and_floated_content_bounds.bottom();
 
-    auto in_flow_bounds_overflow_content_box_in_x_axis = left < content_box.left() || right > content_box.right();
-    if (in_flow_bounds_overflow_content_box_in_x_axis) {
-        if (overflow_directions.x_positive && right > content_box.right())
+    auto in_flow_bounds_overflow_content_box_in_horizontal_axis = left < content_box.left() || right > content_box.right();
+    if (in_flow_bounds_overflow_content_box_in_horizontal_axis) {
+        if (overflow_directions.horizontal_axis_is_positive && right > content_box.right())
             right += padding.right;
-        else if (!overflow_directions.x_positive)
+        else if (!overflow_directions.horizontal_axis_is_positive)
             left = min(left, padding_box.left()) - padding.left;
     }
 
-    auto in_flow_bounds_overflow_content_box_in_y_axis = top < content_box.top() || bottom > content_box.bottom();
-    if (in_flow_bounds_overflow_content_box_in_y_axis) {
-        if (overflow_directions.y_positive && bottom > content_box.bottom())
+    auto in_flow_bounds_overflow_content_box_in_vertical_axis = top < content_box.top() || bottom > content_box.bottom();
+    if (in_flow_bounds_overflow_content_box_in_vertical_axis) {
+        if (overflow_directions.vertical_axis_is_positive && bottom > content_box.bottom())
             bottom += padding.bottom;
-        else if (!overflow_directions.y_positive)
+        else if (!overflow_directions.vertical_axis_is_positive)
             top = min(top, padding_box.top()) - padding.top;
     }
 
@@ -218,13 +218,13 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
             auto child_border_box = apply_css_transform_to_overflow_rect(child, untransformed_child_border_box);
 
             // NOTE: Only boxes that are not wholly in the unreachable scrollable overflow region contribute.
-            auto wholly_in_unreachable_x = overflow_directions.x_positive
+            auto wholly_in_unreachable_horizontal_axis = overflow_directions.horizontal_axis_is_positive
                 ? child_border_box.right() < paintable_absolute_padding_box.x()
                 : child_border_box.x() > paintable_absolute_padding_box.right();
-            auto wholly_in_unreachable_y = overflow_directions.y_positive
+            auto wholly_in_unreachable_vertical_axis = overflow_directions.vertical_axis_is_positive
                 ? child_border_box.bottom() < paintable_absolute_padding_box.y()
                 : child_border_box.y() > paintable_absolute_padding_box.bottom();
-            if (wholly_in_unreachable_x || wholly_in_unreachable_y)
+            if (wholly_in_unreachable_horizontal_axis || wholly_in_unreachable_vertical_axis)
                 continue;
 
             // Border boxes with zero area do not affect the scrollable overflow area.
@@ -281,10 +281,10 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
     // Unless otherwise adjusted (e.g. by content alignment [css-align-3]), the area beyond the scroll origin in either
     // axis is considered the unreachable scrollable overflow region: content rendered here is not accessible to the
     // reader, see § 2.2 Scrollable Overflow.
-    auto left = overflow_directions.x_positive ? max(scrollable_overflow_rect.x(), paintable_absolute_padding_box.x()) : scrollable_overflow_rect.x();
-    auto top = overflow_directions.y_positive ? max(scrollable_overflow_rect.y(), paintable_absolute_padding_box.y()) : scrollable_overflow_rect.y();
-    auto right = overflow_directions.x_positive ? scrollable_overflow_rect.right() : min(scrollable_overflow_rect.right(), paintable_absolute_padding_box.right());
-    auto bottom = overflow_directions.y_positive ? scrollable_overflow_rect.bottom() : min(scrollable_overflow_rect.bottom(), paintable_absolute_padding_box.bottom());
+    auto left = overflow_directions.horizontal_axis_is_positive ? max(scrollable_overflow_rect.x(), paintable_absolute_padding_box.x()) : scrollable_overflow_rect.x();
+    auto top = overflow_directions.vertical_axis_is_positive ? max(scrollable_overflow_rect.y(), paintable_absolute_padding_box.y()) : scrollable_overflow_rect.y();
+    auto right = overflow_directions.horizontal_axis_is_positive ? scrollable_overflow_rect.right() : min(scrollable_overflow_rect.right(), paintable_absolute_padding_box.right());
+    auto bottom = overflow_directions.vertical_axis_is_positive ? scrollable_overflow_rect.bottom() : min(scrollable_overflow_rect.bottom(), paintable_absolute_padding_box.bottom());
     if (left != scrollable_overflow_rect.x() || top != scrollable_overflow_rect.y() || right != scrollable_overflow_rect.right() || bottom != scrollable_overflow_rect.bottom()) {
         scrollable_overflow_rect = {
             left,

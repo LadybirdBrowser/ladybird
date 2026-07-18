@@ -2264,8 +2264,8 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
     };
 
     auto* default_anchor_box = default_anchor_name.has_value() ? target_anchor_box(default_anchor_name.value()) : nullptr;
-    bool compensates_for_scroll_in_x = false;
-    bool compensates_for_scroll_in_y = false;
+    bool compensates_for_horizontal_scroll = false;
+    bool compensates_for_vertical_scroll = false;
 
     // https://drafts.csswg.org/css-anchor-position-1/#compensate-for-scroll
     // An absolutely positioned box abspos compensates for scroll in the horizontal or vertical axis if both of the
@@ -2295,9 +2295,9 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
             return;
 
         if (is_horizontal_axis)
-            compensates_for_scroll_in_x = true;
+            compensates_for_horizontal_scroll = true;
         else
-            compensates_for_scroll_in_y = true;
+            compensates_for_vertical_scroll = true;
     };
 
     auto resolve_inset = [&](bool contains_anchor, CSS::StyleValue const& value, CSS::LengthPercentageOrAuto const& existing_value, CSS::PropertyID property_id, bool is_from_end, bool is_horizontal_axis) -> CSS::LengthPercentageOrAuto {
@@ -2343,8 +2343,8 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
         });
     });
 
-    if (compensates_for_scroll_in_x || compensates_for_scroll_in_y)
-        box.set_default_scroll_shift(default_anchor_box->make_weak_ptr(), compensates_for_scroll_in_x, compensates_for_scroll_in_y);
+    if (compensates_for_horizontal_scroll || compensates_for_vertical_scroll)
+        box.set_default_scroll_shift(default_anchor_box->make_weak_ptr(), compensates_for_horizontal_scroll, compensates_for_vertical_scroll);
 }
 
 void FormattingContext::layout_absolutely_positioned_children()

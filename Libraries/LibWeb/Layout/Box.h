@@ -90,15 +90,15 @@ public:
     bool abspos_descendant_escapes() const { return m_abspos_descendant_escapes; }
     void set_abspos_descendant_escapes(bool value) { m_abspos_descendant_escapes = value; }
 
-    void set_default_scroll_shift(WeakPtr<Node> anchor, bool compensates_for_scroll_in_x, bool compensates_for_scroll_in_y)
+    void set_default_scroll_shift(WeakPtr<Node> anchor, bool compensates_for_horizontal_scroll, bool compensates_for_vertical_scroll)
     {
         m_default_scroll_shift_anchor = move(anchor);
-        m_compensates_for_scroll_in_x = compensates_for_scroll_in_x;
-        m_compensates_for_scroll_in_y = compensates_for_scroll_in_y;
+        m_compensates_for_horizontal_scroll = compensates_for_horizontal_scroll;
+        m_compensates_for_vertical_scroll = compensates_for_vertical_scroll;
     }
     Node* default_scroll_shift_anchor() const { return m_default_scroll_shift_anchor.ptr(); }
-    bool compensates_for_scroll_in_x() const { return m_compensates_for_scroll_in_x; }
-    bool compensates_for_scroll_in_y() const { return m_compensates_for_scroll_in_y; }
+    bool compensates_for_horizontal_scroll() const { return m_compensates_for_horizontal_scroll; }
+    bool compensates_for_vertical_scroll() const { return m_compensates_for_vertical_scroll; }
 
     IntrinsicSizes& cached_intrinsic_sizes() const
     {
@@ -119,8 +119,8 @@ private:
     OwnPtr<AbsposLayoutInputs> m_saved_abspos_layout_inputs;
 
     WeakPtr<Node> m_default_scroll_shift_anchor;
-    bool m_compensates_for_scroll_in_x { false };
-    bool m_compensates_for_scroll_in_y { false };
+    bool m_compensates_for_horizontal_scroll { false };
+    bool m_compensates_for_vertical_scroll { false };
     bool m_abspos_descendant_escapes { false };
 
     OwnPtr<IntrinsicSizes> mutable m_cached_intrinsic_sizes;

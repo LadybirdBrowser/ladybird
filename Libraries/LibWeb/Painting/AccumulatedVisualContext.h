@@ -94,8 +94,8 @@ struct ScrollCompensation {
 struct AnchorScrollShift {
     ScrollFrameIndex scroll_frame_index;
     bool negate { false };
-    bool compensate_x { true };
-    bool compensate_y { true };
+    bool compensate_horizontal_scroll { true };
+    bool compensate_vertical_scroll { true };
 
     Gfx::FloatPoint masked_offset(ScrollStateSnapshot const&) const;
 };
