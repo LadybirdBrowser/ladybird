@@ -5240,7 +5240,8 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         refresh(webdriver_port, session_id)
         expect_reload_pending_history_log = True
         wait_for_event(page_server.blocked_reload_requested, "blocked reload")
-        expect_current_ui_entry_reload_pending(webdriver_port, session_id, "during blocked reload", True, log)
+        # Applying the history step clears reload pending before attempting to populate the entry's document.
+        expect_current_ui_entry_reload_pending(webdriver_port, session_id, "during blocked reload", False, log)
         page_server.release_blocked_reload.set()
         wait_for_event(page_server.reload_blocked_document_ran, "blocked reload document")
         expect_url(webdriver_port, session_id, "after blocked reload completes", url_reload_blocked, log)
@@ -5256,7 +5257,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         refresh(webdriver_port, session_id)
         wait_for_event(page_server.blocked_reload_requested, "blocked reload before crash")
         expect_current_ui_entry_reload_pending(
-            webdriver_port, session_id, "during blocked reload before crash", True, log
+            webdriver_port, session_id, "during blocked reload before crash", False, log
         )
         crash_current_page_allowing_navigation_timeout(webdriver_port, session_id)
         wait_for_event(page_server.reload_recovery_requested, "reload recovery request")

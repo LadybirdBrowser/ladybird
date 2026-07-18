@@ -252,6 +252,9 @@ private:
     virtual void page_did_update_session_history(Vector<Web::HTML::SessionHistoryEntryDescriptor> const&, Vector<i32> const& used_steps, size_t current_used_step_index) override;
     virtual void page_did_update_session_history_entry_navigation_api_state(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Web::HTML::StorageSerializationRecord const& navigation_api_state) override;
     virtual void page_did_update_session_history_entry_scroll_restoration_mode(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode) override;
+    virtual void page_did_update_session_history_entry_scroll_position_data(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Web::HTML::SessionHistoryEntryScrollPositionData const& scroll_position_data) override;
+    virtual void page_did_update_session_history_entry_document_state_navigable_target_name(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Utf16String const& navigable_target_name) override;
+    virtual void page_did_set_session_history_entry_document_state_reload_pending(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, bool reload_pending) override;
     virtual String page_did_request_ui_process_session_history_for_testing() override;
     virtual String page_did_update_session_history_and_request_ui_process_session_history_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor> const&, Vector<i32> const& used_steps, size_t current_used_step_index) override;
     virtual void page_did_request_traverse_the_history_by_delta(int delta, Web::HistoryTraversalPrecheck) override;

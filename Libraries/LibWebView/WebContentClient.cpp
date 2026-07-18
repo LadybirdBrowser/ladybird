@@ -1916,6 +1916,30 @@ void WebContentClient::did_update_session_history_entry_scroll_restoration_mode(
     navigable->top_level_traversable().update_session_history_entry_scroll_restoration_mode(*navigable, navigation_api_key, scroll_restoration_mode);
 }
 
+void WebContentClient::did_update_session_history_entry_scroll_position_data(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Web::HTML::SessionHistoryEntryScrollPositionData scroll_position_data)
+{
+    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    if (!navigable.has_value())
+        return;
+    navigable->top_level_traversable().update_session_history_entry_scroll_position_data(*navigable, navigation_api_key, move(scroll_position_data));
+}
+
+void WebContentClient::did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Utf16String navigable_target_name)
+{
+    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    if (!navigable.has_value())
+        return;
+    navigable->top_level_traversable().update_session_history_entry_document_state_navigable_target_name(*navigable, navigation_api_key, move(navigable_target_name));
+}
+
+void WebContentClient::did_set_session_history_entry_document_state_reload_pending(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, bool reload_pending)
+{
+    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    if (!navigable.has_value())
+        return;
+    navigable->top_level_traversable().set_session_history_entry_document_state_reload_pending(*navigable, navigation_api_key, reload_pending);
+}
+
 Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse WebContentClient::did_request_ui_process_session_history_for_testing(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())

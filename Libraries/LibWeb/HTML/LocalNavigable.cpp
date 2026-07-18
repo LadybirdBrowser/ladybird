@@ -1002,6 +1002,11 @@ void LocalNavigable::save_persisted_state_to_active_session_history_entry()
     scroll_position_data.viewport_scroll_position = viewport_scroll_offset();
     entry->set_scroll_position_data(move(scroll_position_data));
 
+    if (auto traversable = traversable_navigable()) {
+        traversable->page().client().page_did_update_session_history_entry_scroll_position_data(
+            id(), entry->navigation_api_key(), entry->scroll_position_data());
+    }
+
     // FIXME: 2. Optionally, update entry's persisted user state.
 }
 
@@ -3367,10 +3372,8 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
     // 3. Let traversable be navigable's traversable navigable.
     auto traversable = traversable_navigable();
 
-    // AD-HOC: Report the reload-pending document state to the UI process before the reload history step finishes,
-    //         so the UI-owned session history mirror remains synchronized during an in-flight reload.
-    auto session_history_snapshot = traversable->create_session_history_snapshot();
-    traversable->page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
+    traversable->page().client().page_did_set_session_history_entry_document_state_reload_pending(
+        id(), active_session_history_entry()->navigation_api_key(), true);
 
     // 4. Append the following session history traversal steps to traversable:
     traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {

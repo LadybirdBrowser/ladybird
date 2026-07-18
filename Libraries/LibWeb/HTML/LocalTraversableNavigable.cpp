@@ -1183,6 +1183,8 @@ void ApplyHistoryStepState::start()
 
                 // 5. Set targetEntry's document state's reload pending to false.
                 target_entry->document_state()->set_reload_pending(false);
+                m_traversable->page().client().page_did_set_session_history_entry_document_state_reload_pending(
+                    navigable->id(), target_entry->navigation_api_key(), false);
 
                 // 6. Let allowPOST be targetEntry's document state's reload pending.
                 auto allow_POST = target_entry->document_state()->reload_pending();
@@ -2321,9 +2323,8 @@ void LocalTraversableNavigable::apply_the_reload_history_step(UserNavigationInvo
                 //     session history entry as an in-flight reload.
                 if (auto current_entry = current_session_history_entry(); current_entry && current_entry->document_state()->reload_pending()) {
                     current_entry->document_state()->set_reload_pending(false);
-
-                    auto session_history_snapshot = create_session_history_snapshot();
-                    page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
+                    page().client().page_did_set_session_history_entry_document_state_reload_pending(
+                        id(), current_entry->navigation_api_key(), false);
                 }
             }
             on_complete->function()(result);

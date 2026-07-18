@@ -1205,6 +1205,21 @@ void PageClient::page_did_update_session_history_entry_scroll_restoration_mode(W
     client().async_did_update_session_history_entry_scroll_restoration_mode(m_id, navigable_id, navigation_api_key, scroll_restoration_mode);
 }
 
+void PageClient::page_did_update_session_history_entry_scroll_position_data(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Web::HTML::SessionHistoryEntryScrollPositionData const& scroll_position_data)
+{
+    client().async_did_update_session_history_entry_scroll_position_data(m_id, navigable_id, navigation_api_key, scroll_position_data);
+}
+
+void PageClient::page_did_update_session_history_entry_document_state_navigable_target_name(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Utf16String const& navigable_target_name)
+{
+    client().async_did_update_session_history_entry_document_state_navigable_target_name(m_id, navigable_id, navigation_api_key, navigable_target_name);
+}
+
+void PageClient::page_did_set_session_history_entry_document_state_reload_pending(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, bool reload_pending)
+{
+    client().async_did_set_session_history_entry_document_state_reload_pending(m_id, navigable_id, navigation_api_key, reload_pending);
+}
+
 String PageClient::page_did_request_ui_process_session_history_for_testing()
 {
     return client().did_request_ui_process_session_history_for_testing(m_id);
