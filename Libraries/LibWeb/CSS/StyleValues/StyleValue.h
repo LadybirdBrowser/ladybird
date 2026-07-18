@@ -188,7 +188,7 @@ public:
 
     void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 
-    virtual bool equals(StyleValue const& other) const = 0;
+    bool equals(StyleValue const& other) const;
 
     bool operator==(StyleValue const& other) const
     {
@@ -215,7 +215,7 @@ struct StyleValueWithDefaultOperators : public StyleValue {
     using StyleValue::StyleValue;
     using Base = StyleValue;
 
-    virtual bool equals(StyleValue const& other) const override
+    bool equals(StyleValue const& other) const
     {
         if (type() != other.type())
             return false;

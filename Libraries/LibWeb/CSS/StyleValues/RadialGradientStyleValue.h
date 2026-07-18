@@ -36,7 +36,7 @@ public:
     void paint(DisplayListRecordingContext&, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
-    virtual bool equals(StyleValue const& other) const override;
+    bool equals(StyleValue const& other) const;
 
     bool is_computationally_independent() const;
 

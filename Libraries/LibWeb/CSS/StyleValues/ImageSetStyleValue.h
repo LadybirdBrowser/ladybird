@@ -27,7 +27,7 @@ public:
     virtual ~ImageSetStyleValue() override = default;
 
     void serialize(StringBuilder&, SerializationMode) const;
-    virtual bool equals(StyleValue const& other) const override;
+    bool equals(StyleValue const& other) const;
     bool is_computationally_independent() const;
 
     virtual void load_any_resources(DOM::Document&) override;

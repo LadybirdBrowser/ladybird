@@ -181,6 +181,18 @@ void StyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
     VERIFY_NOT_REACHED();
 }
 
+bool StyleValue::equals(StyleValue const& other) const
+{
+    switch (type()) {
+#define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
+    case Type::title_case:                                                               \
+        return static_cast<style_value_class_name const&>(*this).equals(other);
+        ENUMERATE_CSS_STYLE_VALUE_TYPES
+#undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
+    }
+    VERIFY_NOT_REACHED();
+}
+
 String StyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;

@@ -30,7 +30,7 @@ public:
 
     bool is_computationally_independent() const { return true; }
 
-    bool equals(StyleValue const& other) const override;
+    bool equals(StyleValue const& other) const;
 
 private:
     explicit ResolutionStyleValue(Resolution resolution)

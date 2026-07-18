@@ -30,7 +30,7 @@ public:
 
     void serialize(StringBuilder& builder, SerializationMode mode) const { frequency().serialize(builder, mode); }
 
-    bool equals(StyleValue const& other) const override;
+    bool equals(StyleValue const& other) const;
 
     bool is_computationally_independent() const { return true; }
 

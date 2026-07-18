@@ -43,7 +43,7 @@ public:
     bool includes_if_function() const { return m_value->unresolved.presence_if; }
     bool includes_var_function() const { return m_value->unresolved.presence_var; }
 
-    virtual bool equals(StyleValue const& other) const override;
+    bool equals(StyleValue const& other) const;
 
     GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
 

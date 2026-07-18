@@ -60,6 +60,7 @@ public:
 
     bool is_computationally_independent() const;
     void serialize(StringBuilder&, SerializationMode) const;
+    bool equals(StyleValue const& other) const;
 
     static Optional<double> resolve_hue(StyleValue const&, CalculationResolutionContext const&);
     static Optional<double> resolve_with_reference_value(StyleValue const&, float one_hundred_percent_value, CalculationResolutionContext const&);

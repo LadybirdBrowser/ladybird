@@ -29,6 +29,7 @@ public:
     Kind kind() const { return static_cast<Kind>(m_value->filter.kind); }
     bool is_computationally_independent() const;
     void serialize(StringBuilder&, SerializationMode) const;
+    bool equals(StyleValue const& other) const;
     virtual bool contains_url() const { return false; }
     static ValueComparingNonnullRefPtr<FilterStyleValue const> initial_value_for(FilterStyleValue const&, bool use_transparent_drop_shadow_color);
 
@@ -59,7 +60,7 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     bool is_computationally_independent() const { return radius()->is_computationally_independent(); }
-    virtual bool equals(StyleValue const&) const override;
+    bool equals(StyleValue const&) const;
 
 private:
     explicit BlurFilterStyleValue(ValueComparingNonnullRefPtr<StyleValue const> radius)
@@ -105,7 +106,7 @@ public:
     {
         return shadow().is_computationally_independent();
     }
-    virtual bool equals(StyleValue const&) const override;
+    bool equals(StyleValue const&) const;
 
 private:
     explicit DropShadowFilterStyleValue(ValueComparingNonnullRefPtr<ShadowStyleValue const> shadow)
@@ -128,7 +129,7 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     bool is_computationally_independent() const { return angle()->is_computationally_independent(); }
-    virtual bool equals(StyleValue const&) const override;
+    bool equals(StyleValue const&) const;
 
 private:
     explicit HueRotateFilterStyleValue(ValueComparingNonnullRefPtr<StyleValue const> angle)
@@ -153,7 +154,7 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     bool is_computationally_independent() const { return amount()->is_computationally_independent(); }
-    virtual bool equals(StyleValue const&) const override;
+    bool equals(StyleValue const&) const;
 
 private:
     ColorFilterStyleValue(Gfx::ColorFilterType operation, ValueComparingNonnullRefPtr<StyleValue const> amount)

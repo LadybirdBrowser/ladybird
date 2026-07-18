@@ -74,7 +74,7 @@ public:
 
     void serialize(StringBuilder&, SerializationMode) const;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
-    virtual bool equals(StyleValue const& other) const override;
+    bool equals(StyleValue const& other) const;
     bool is_computationally_independent() const;
 
     NonnullRefPtr<CalculationNode const> calculation() const { return *static_cast<CalculationNode const*>(m_value->calculated.calculation.pointer); }

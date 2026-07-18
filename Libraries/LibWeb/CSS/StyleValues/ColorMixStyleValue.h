@@ -23,7 +23,7 @@ public:
 
     static ValueComparingNonnullRefPtr<ColorMixStyleValue const> create(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component);
 
-    virtual bool equals(StyleValue const&) const override;
+    bool equals(StyleValue const&) const;
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     void serialize(StringBuilder&, SerializationMode) const;

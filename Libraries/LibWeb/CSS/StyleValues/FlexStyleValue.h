@@ -25,7 +25,7 @@ public:
 
     void serialize(StringBuilder& builder, SerializationMode mode) const { flex().serialize(builder, mode); }
 
-    bool equals(StyleValue const& other) const override
+    bool equals(StyleValue const& other) const
     {
         if (type() != other.type())
             return false;

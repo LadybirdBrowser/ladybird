@@ -48,7 +48,7 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
     virtual ~LinearGradientStyleValue() override = default;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
-    virtual bool equals(StyleValue const& other) const override;
+    bool equals(StyleValue const& other) const;
 
     bool is_computationally_independent() const
     {

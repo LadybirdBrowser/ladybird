@@ -30,7 +30,7 @@ public:
 
     bool is_computationally_independent() const { return length().is_computationally_independent(); }
 
-    bool equals(StyleValue const& other) const override;
+    bool equals(StyleValue const& other) const;
 
 private:
     explicit LengthStyleValue(Length const& length)

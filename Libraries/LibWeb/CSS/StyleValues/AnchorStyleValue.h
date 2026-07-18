@@ -23,7 +23,7 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
     virtual RefPtr<CalculationNode const> resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const&) const override;
 
-    virtual bool equals(StyleValue const& other) const override;
+    bool equals(StyleValue const& other) const;
 
     bool is_computationally_independent() const { return true; }
 

@@ -20,7 +20,7 @@ public:
         return adopt_ref(*new (nothrow) ContrastColorStyleValue(move(color)));
     }
 
-    virtual bool equals(StyleValue const&) const override;
+    bool equals(StyleValue const&) const;
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     void serialize(StringBuilder&, SerializationMode) const;

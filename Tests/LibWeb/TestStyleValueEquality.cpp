@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LightDarkStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
@@ -90,6 +91,35 @@ TEST_CASE(conic_gradient_equality_considers_color_syntax)
 
     EXPECT(legacy->equals(*make_conic_gradient(ColorSyntax::Legacy)));
     EXPECT(!legacy->equals(*modern));
+}
+
+TEST_CASE(color_equality_rejects_different_color_variants)
+{
+    auto color_function = ColorFunctionStyleValue::create(
+        ColorStyleValue::ColorType::RGB,
+        NumberStyleValue::create(255),
+        NumberStyleValue::create(255),
+        NumberStyleValue::create(255),
+        NumberStyleValue::create(1),
+        ColorSyntax::Legacy);
+    auto light_dark = LightDarkStyleValue::create(
+        ColorFunctionStyleValue::create(
+            ColorStyleValue::ColorType::RGB,
+            NumberStyleValue::create(255),
+            NumberStyleValue::create(255),
+            NumberStyleValue::create(255),
+            NumberStyleValue::create(1),
+            ColorSyntax::Legacy),
+        ColorFunctionStyleValue::create(
+            ColorStyleValue::ColorType::RGB,
+            NumberStyleValue::create(0),
+            NumberStyleValue::create(0),
+            NumberStyleValue::create(0),
+            NumberStyleValue::create(1),
+            ColorSyntax::Legacy));
+
+    EXPECT(!static_cast<StyleValue const&>(*color_function).equals(*light_dark));
+    EXPECT(!static_cast<StyleValue const&>(*light_dark).equals(*color_function));
 }
 
 TEST_CASE(radial_size_equality_is_deep)
