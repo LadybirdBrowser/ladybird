@@ -247,7 +247,7 @@ CSSPixels LineBuilder::ceiling_for_float_to_be_inserted_here(Box const& box)
     if (current_line_inline_size > 0 && (inline_size_needed_beside_float + inline_size) > m_available_inline_size_for_current_line)
         candidate_block_offset += current_line.physical_vertical_extent();
 
-    return max(candidate_block_offset, m_context.vertical_float_clearance());
+    return max(candidate_block_offset, m_context.block_axis_float_clearance());
 }
 
 bool LineBuilder::should_break(CSSPixels next_item_inline_size)

@@ -44,7 +44,7 @@ BlockFormattingContext const& InlineFormattingContext::parent() const
 
 FormattingContext::SpaceUsedByFloats InlineFormattingContext::intrusion_by_floats_into_containing_block(CSSPixels block_start, CSSPixels block_end) const
 {
-    auto containing_block_position_in_root_now = m_layout_input->content_box_position_in_bfc_root->translated(0, parent().y_adjustment_from_pending_ancestor_top_margins(containing_block()));
+    auto containing_block_position_in_root_now = m_layout_input->content_box_position_in_bfc_root->translated(0, parent().block_offset_adjustment_from_pending_ancestor_block_start_margins(containing_block()));
     return parent().intrusion_by_floats_into_rect({ containing_block_position_in_root_now, m_containing_block_used_values.content_size() }, block_start, block_end);
 }
 
@@ -95,7 +95,7 @@ void InlineFormattingContext::run(LayoutInput const& layout_input)
     // NOTE: We ask the parent BFC to calculate the automatic content inline size of this IFC.
     //       This ensures that any floated boxes are taken into account.
     auto provisional_containing_block_position_in_root = m_layout_input->content_box_position_in_bfc_root->translated(
-        0, parent().y_adjustment_from_pending_ancestor_top_margins(containing_block()));
+        0, parent().block_offset_adjustment_from_pending_ancestor_block_start_margins(containing_block()));
     m_automatic_content_inline_size = parent().greatest_child_inline_size_in_rect(
         containing_block(), { provisional_containing_block_position_in_root, m_containing_block_used_values.content_size() });
     m_automatic_content_block_size = content_block_size;
@@ -750,7 +750,7 @@ void InlineFormattingContext::generate_line_boxes()
             if (item.node) {
                 auto introduce_clearance = parent().clear_floating_boxes(as<NodeWithStyle>(*item.node), *this, m_layout_input->content_box_position_in_bfc_root.value());
                 if (introduce_clearance == BlockFormattingContext::DidIntroduceClearance::Yes) {
-                    line_builder.did_introduce_clearance(vertical_float_clearance());
+                    line_builder.did_introduce_clearance(block_axis_float_clearance());
                     parent().reset_margin_state();
                 }
             }
@@ -936,21 +936,21 @@ bool InlineFormattingContext::can_fit_new_line_at_block_offset(CSSPixels block_o
 
 Optional<CSSPixels> InlineFormattingContext::next_float_band_block_start_after(CSSPixels block_offset) const
 {
-    auto containing_block_y_in_root_now = m_layout_input->content_box_position_in_bfc_root->y() + parent().y_adjustment_from_pending_ancestor_top_margins(containing_block());
-    auto next_band_start = parent().next_float_band_block_start_after(containing_block_y_in_root_now + block_offset);
+    auto containing_block_block_offset_in_root_now = m_layout_input->content_box_position_in_bfc_root->y() + parent().block_offset_adjustment_from_pending_ancestor_block_start_margins(containing_block());
+    auto next_band_start = parent().next_float_band_block_start_after(containing_block_block_offset_in_root_now + block_offset);
     if (!next_band_start.has_value())
         return {};
-    return next_band_start.value() - containing_block_y_in_root_now;
+    return next_band_start.value() - containing_block_block_offset_in_root_now;
 }
 
-CSSPixels InlineFormattingContext::vertical_float_clearance() const
+CSSPixels InlineFormattingContext::block_axis_float_clearance() const
 {
-    return m_vertical_float_clearance;
+    return m_block_axis_float_clearance;
 }
 
-void InlineFormattingContext::set_vertical_float_clearance(CSSPixels vertical_float_clearance)
+void InlineFormattingContext::set_block_axis_float_clearance(CSSPixels block_axis_float_clearance)
 {
-    m_vertical_float_clearance = vertical_float_clearance;
+    m_block_axis_float_clearance = block_axis_float_clearance;
 }
 
 }

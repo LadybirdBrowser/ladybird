@@ -36,8 +36,8 @@ public:
     bool can_fit_new_line_at_block_offset(CSSPixels block_offset, CSSPixels line_block_size) const;
     Optional<CSSPixels> next_float_band_block_start_after(CSSPixels block_offset) const;
 
-    CSSPixels vertical_float_clearance() const;
-    void set_vertical_float_clearance(CSSPixels);
+    CSSPixels block_axis_float_clearance() const;
+    void set_block_axis_float_clearance(CSSPixels);
 
 private:
     void generate_line_boxes();
@@ -57,7 +57,7 @@ private:
     CSSPixels m_automatic_content_inline_size { 0 };
     CSSPixels m_automatic_content_block_size { 0 };
 
-    CSSPixels m_vertical_float_clearance { 0 };
+    CSSPixels m_block_axis_float_clearance { 0 };
 };
 
 }

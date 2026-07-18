@@ -28,7 +28,7 @@ public:
 
     bool box_should_avoid_floats_because_it_establishes_fc(Box const&) const;
     void compute_inline_size(Box const&, AvailableSpace const&, ContainingBlockConstraints const& containing_block_constraints, CSSPixelPoint content_position_in_root);
-    [[nodiscard]] CSSPixels avoid_float_intrusions(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, CSSPixels content_y, CSSPixelRect const& containing_block_rect_in_root);
+    [[nodiscard]] CSSPixels avoid_float_intrusions(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, CSSPixels content_block_offset, CSSPixelRect const& containing_block_rect_in_root);
 
     // https://www.w3.org/TR/css-display/#block-formatting-context-root
     BlockContainer const& root() const { return static_cast<BlockContainer const&>(context_box()); }
@@ -49,9 +49,9 @@ public:
 
     [[nodiscard]] SpaceUsedByFloats available_inline_space(CSSPixels block_start_in_root, CSSPixels block_end_in_root) const;
     [[nodiscard]] SpaceUsedByFloats intrusion_by_floats_into_rect(CSSPixelRect const& box_in_root_rect, CSSPixels block_start_in_box, CSSPixels block_end_in_box) const;
-    [[nodiscard]] Optional<CSSPixels> next_float_band_block_start_after(CSSPixels y_in_root) const;
+    [[nodiscard]] Optional<CSSPixels> next_float_band_block_start_after(CSSPixels block_offset_in_root) const;
 
-    [[nodiscard]] CSSPixels y_adjustment_from_pending_ancestor_top_margins(Node const& box) const
+    [[nodiscard]] CSSPixels block_offset_adjustment_from_pending_ancestor_block_start_margins(Node const& box) const
     {
         CSSPixels adjustment = 0;
         for (auto const& group : m_margin_state.pending_top_margin_groups()) {
@@ -66,7 +66,7 @@ public:
     virtual CSSPixels greatest_child_inline_size(Box const&) const override;
     [[nodiscard]] CSSPixels greatest_child_inline_size_in_rect(Box const&, CSSPixelRect const& box_in_root_rect) const;
 
-    void layout_floating_box(Box const& child, BlockContainer const& containing_block, LayoutInput const&, CSSPixels y, LineBuilder* = nullptr);
+    void layout_floating_box(Box const& child, BlockContainer const& containing_block, LayoutInput const&, CSSPixels block_offset, LineBuilder* = nullptr);
 
     void layout_interrupting_block_inside_inline_context(Box const&, BlockContainer const& containing_block, LayoutInput const&, LineBuilder&);
     CSSPixels commit_pending_margin_before_inline_content();
@@ -122,7 +122,7 @@ private:
     void layout_inline_children(BlockContainer const&, LayoutInput const&, AvailableSpace const& available_space_for_children);
     void layout_fieldset_with_rendered_legend(FieldSetBox const&, LayoutInput const&);
 
-    [[nodiscard]] CSSPixels compute_normal_flow_x(Box const& child_box, AvailableSpace const&, CSSPixelPoint content_position_in_root) const;
+    [[nodiscard]] CSSPixels compute_normal_flow_inline_offset(Box const& child_box, AvailableSpace const&, CSSPixelPoint content_position_in_root) const;
     void translate_floats_in_subtree(Box const& ancestor, CSSPixelPoint delta);
     void update_lowest_floating_descendant_bottom_margin_edge();
 
@@ -152,8 +152,8 @@ private:
         CSSPixels offset_from_edge { 0 };
     };
 
-    [[nodiscard]] size_t band_index_at(CSSPixels y) const;
-    [[nodiscard]] FloatBand const& band_at(CSSPixels y) const;
+    [[nodiscard]] size_t band_index_at(CSSPixels block_offset) const;
+    [[nodiscard]] FloatBand const& band_at(CSSPixels block_offset) const;
     [[nodiscard]] SpaceUsedByFloats intrusions_for_band_into_rect(FloatBand const&, CSSPixelRect const& rect_in_root) const;
     [[nodiscard]] FloatPlacement place_float(FloatSide, LayoutState::UsedValues const&, AvailableSpace const&, CSSPixelRect const& containing_block_rect_in_root, CSSPixels ceiling_in_root) const;
     void ensure_band_boundary(CSSPixels);
@@ -234,9 +234,9 @@ private:
         bool m_box_last_in_flow_child_margin_bottom_collapsed { false };
     };
 
-    Optional<CSSPixels> m_y_offset_of_current_block_container;
+    Optional<CSSPixels> m_block_offset_of_current_block_container;
 
-    Optional<CSSPixelPoint> m_pending_legend_flow_position;
+    Optional<LogicalOffset> m_pending_legend_flow_position;
 
     BlockMarginState m_margin_state;
 
