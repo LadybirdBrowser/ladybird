@@ -15,6 +15,8 @@ namespace Web::UIEvents::InputTypes {
     __ENUMERATE_INPUT_TYPE(deleteByCut)           \
     __ENUMERATE_INPUT_TYPE(deleteContentBackward) \
     __ENUMERATE_INPUT_TYPE(deleteContentForward)  \
+    __ENUMERATE_INPUT_TYPE(historyRedo)           \
+    __ENUMERATE_INPUT_TYPE(historyUndo)           \
     __ENUMERATE_INPUT_TYPE(insertFromPaste)       \
     __ENUMERATE_INPUT_TYPE(insertLineBreak)       \
     __ENUMERATE_INPUT_TYPE(insertParagraph)       \

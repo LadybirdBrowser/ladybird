@@ -2,82 +2,82 @@
 PASS: fresh host canUndo=false canRedo=false
 PASS: after insertText DOM
 PASS: after insertText selection
-FAIL: after insertText canUndo=true canRedo=false (got canUndo=false canRedo=false)
-FAIL: execCommand undo returns true
-FAIL: after undo DOM (expected "" got "x")
-FAIL: after undo selection (expected host:DIV@0->host:DIV@0 got host/0:#text@1->host/0:#text@1)
-FAIL: after undo canUndo=false canRedo=true (got canUndo=false canRedo=false)
-FAIL: after undo events (expected [input:historyUndo:data=null:cancelable=false] got [])
-FAIL: execCommand redo returns true
+PASS: after insertText canUndo=true canRedo=false
+PASS: execCommand undo returns true
+PASS: after undo DOM
+PASS: after undo selection
+PASS: after undo canUndo=false canRedo=true
+PASS: after undo events
+PASS: execCommand redo returns true
 PASS: after redo DOM
 PASS: after redo selection
-FAIL: after redo canUndo=true canRedo=false (got canUndo=false canRedo=false)
-FAIL: after redo events (expected [input:historyRedo:data=null:cancelable=false] got [])
+PASS: after redo canUndo=true canRedo=false
+PASS: after redo events
 == empty history: execCommand returns false, no events ==
 PASS: undo on empty history returns false
 PASS: redo on empty history returns false
 PASS: empty history events
 == a new edit after undo discards the redo stack ==
-FAIL: after new edit canUndo=true canRedo=false (got canUndo=false canRedo=false)
+PASS: after new edit canUndo=true canRedo=false
 PASS: redo after new edit returns false
-FAIL: redo did nothing DOM (expected "b" got "ab")
+PASS: redo did nothing DOM
 == repeated undo at the beginning and redo at the end ==
 PASS: second undo returns false
-FAIL: exhausted undo DOM (expected "" got "a")
+PASS: exhausted undo DOM
 PASS: second redo returns false
 PASS: exhausted redo DOM
 == replacing a selection with typed text restores it on undo ==
 PASS: after replace DOM
 PASS: after replace selection
-FAIL: undo restores forward selection DOM (expected "hello world" got "hello x")
-FAIL: undo restores forward selection selection (expected host/0:#text@6->host/0:#text@11 got host/0:#text@7->host/0:#text@7)
+PASS: undo restores forward selection DOM
+PASS: undo restores forward selection selection
 PASS: redo restores caret DOM
 PASS: redo restores caret selection
 == backward selection direction is restored on undo ==
 PASS: after replace DOM
 PASS: after replace selection
-FAIL: undo restores backward selection DOM (expected "hello" got "hxo")
-FAIL: undo restores backward selection selection (expected host/0:#text@4->host/0:#text@1 got host/0:#text@2->host/0:#text@2)
+PASS: undo restores backward selection DOM
+PASS: undo restores backward selection selection
 == deleting a paragraph boundary and undoing it ==
 PASS: after merge DOM
-FAIL: undo restores paragraphs DOM (expected "<div>foo</div><div>bar</div>" got "<div>foobar</div>")
+PASS: undo restores paragraphs DOM
 PASS: redo merges again DOM
 == insertParagraph and insertLineBreak undo/redo ==
 PASS: after line break DOM
-FAIL: undo removes line break DOM (expected "hello" got "hel<br>lo")
-FAIL: undo removes line break selection (expected host/0:#text@3->host/0:#text@3 got host/:DIV@2->host/:DIV@2)
+PASS: undo removes line break DOM
+PASS: undo removes line break selection
 PASS: redo re-inserts line break DOM
 PASS: after paragraph split DOM
-FAIL: undo merges paragraph back DOM (expected "<div>hello</div>" got "<div>hel</div><div>lo</div>")
-FAIL: undo merges paragraph back selection (expected host/0/0:#text@3->host/0/0:#text@3 got host/1:DIV@0->host/1:DIV@0)
+PASS: undo merges paragraph back DOM
+PASS: undo merges paragraph back selection
 PASS: redo splits paragraph again DOM
 == edits spanning adjacent styled text nodes ==
 PASS: after styled-boundary delete DOM
-FAIL: undo restores styled runs DOM (expected "<b>bold</b>plain" got "<b>bo</b>ain")
-FAIL: undo restores styled runs selection (expected host/0/0:#text@2->host/1:#text@2 got host/0/0:#text@2->host/0/0:#text@2)
+PASS: undo restores styled runs DOM
+PASS: undo restores styled runs selection
 PASS: redo deletes styled runs again DOM
 == undo of a node-removing edit re-inserts the original node ==
 PASS: delete removed the image
-FAIL: undo re-inserted the same image node object
+PASS: undo re-inserted the same image node object
 PASS: redo removed the image again
-FAIL: second undo still re-inserts the same node object
+PASS: second undo still re-inserts the same node object
 == formatting commands participate in history ==
 PASS: after bold DOM
-FAIL: undo removes bold DOM (expected "hello world" got "<b>hello</b> world")
-FAIL: undo removes bold selection (expected host/0:#text@0->host/0:#text@5 got host/0/0:#text@0->host/0/0:#text@5)
+PASS: undo removes bold DOM
+PASS: undo removes bold selection
 PASS: redo restores bold DOM
 == script-driven DOM mutations do not enter the history ==
-FAIL: undo removed only the edit DOM (expected "Z" got "aZ")
-FAIL: script mutation recorded nothing canUndo=false canRedo=true (got canUndo=false canRedo=false)
+PASS: undo removed only the edit DOM
+PASS: script mutation recorded nothing canUndo=false canRedo=true
 == undo after script removed the edited node is a safe no-op ==
 PASS: undo on mangled DOM changed nothing DOM
-FAIL: entry was still consumed canUndo=false canRedo=true (got canUndo=false canRedo=false)
-redo on mangled DOM produced: ""
+PASS: entry was still consumed canUndo=false canRedo=true
+redo on mangled DOM produced: "a"
 == multiple editing hosts share one history stack ==
-FAIL: first undo reverts the most recent host (got A="a" B="b")
-FAIL: second undo reverts the older host (got A="a" B="b")
-FAIL: first redo replays the older host (got A="a" B="b")
+PASS: first undo reverts the most recent host
+PASS: second undo reverts the older host
+PASS: first redo replays the older host
 PASS: second redo replays the newer host
 == removing an editing host retires its history entries ==
-FAIL: before host removal canUndo=true canRedo=false (got canUndo=false canRedo=false)
+PASS: before host removal canUndo=true canRedo=false
 PASS: after host removal canUndo=false canRedo=false

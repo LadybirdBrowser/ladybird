@@ -1204,6 +1204,7 @@ public:
     // The history of user editing actions in this document, created lazily by the first
     // recorded editing command.
     GC::Ptr<Editing::EditingHistory> editing_history_if_exists() const { return m_editing_history; }
+    GC::Ref<Editing::EditingHistory> editing_history();
 
     // https://w3c.github.io/editing/docs/execCommand/#default-single-line-container-name
     Utf16FlyString const& default_single_line_container_name() const { return m_default_single_line_container_name; }

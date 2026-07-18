@@ -38,7 +38,8 @@
                 segs.unshift(Array.prototype.indexOf.call(p.childNodes, n));
                 n = p;
             }
-            return (n === host ? "host/" : "(outside)/") + segs.join("/") + ":" + node.nodeName;
+            const prefix = n === host ? "host" : "(outside)";
+            return prefix + (segs.length ? "/" + segs.join("/") : "") + ":" + node.nodeName;
         }
         function selectionString() {
             if (!sel.anchorNode)

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <AK/TemporaryChange.h>
 #include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/DOM/Document.h>
@@ -11,11 +12,19 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Editing/CommandNames.h>
 #include <LibWeb/Editing/Commands.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputEvent.h>
 
 namespace Web::DOM {
+
+GC::Ref<Editing::EditingHistory> Document::editing_history()
+{
+    if (!m_editing_history)
+        m_editing_history = Editing::EditingHistory::create(realm());
+    return *m_editing_history;
+}
 
 // https://w3c.github.io/editing/docs/execCommand/#execcommand()
 WebIDL::ExceptionOr<bool> Document::exec_command(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, Utf16View value)
@@ -106,6 +115,15 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     auto old_dom_tree_version = dom_tree_version();
     auto old_character_data_version = character_data_version();
 
+    // AD-HOC: Record the mutations performed by the command action on the editing history, so the user can undo them.
+    //         end_recording() is a no-op if the guard below already ended the recording.
+    if (affected_editing_host)
+        editing_history()->begin_recording(*affected_editing_host);
+    ScopeGuard end_recording_guard = [&] {
+        if (auto history = editing_history_if_exists())
+            history->end_recording();
+    };
+
     // 5. Take the action for command, passing value to the instructions as an argument.
     auto command_result = command_definition.action(*this, value);
 
@@ -114,6 +132,11 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     // list.
     if (!overrides.is_empty() && m_selection && m_selection->is_collapsed())
         Editing::restore_states_and_values(*this, overrides);
+
+    // NB: End the recording before dispatching the input event below, so that the undo step's ending selection is the
+    //     selection produced by the command itself, not whatever an input event handler changed it to.
+    if (auto history = editing_history_if_exists())
+        history->end_recording();
 
     // 6. If the previous step returned false, return false.
     if (!command_result)
@@ -165,11 +188,21 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(Utf16FlyString const& 
     // NOTE: cut and paste are actually in the Clipboard commands section
     if (command.is_one_of_ignoring_ascii_case(
             Editing::CommandNames::defaultParagraphSeparator,
-            Editing::CommandNames::redo,
             Editing::CommandNames::styleWithCSS,
-            Editing::CommandNames::undo,
             Editing::CommandNames::useCSS))
         return true;
+
+    // INTEROP: The spec lists undo and redo among the always-enabled miscellaneous commands, but in Chromium
+    //          queryCommandEnabled("undo") is true only when there is a step to undo, and execCommand("undo") on an
+    //          empty history returns false. Redo behaves symmetrically.
+    if (command.equals_ignoring_ascii_case(Editing::CommandNames::undo)) {
+        auto history = editing_history_if_exists();
+        return history && history->can_undo();
+    }
+    if (command.equals_ignoring_ascii_case(Editing::CommandNames::redo)) {
+        auto history = editing_history_if_exists();
+        return history && history->can_redo();
+    }
 
     // AD-HOC: selectAll requires a selection object to exist.
     if (command.equals_ignoring_ascii_case(Editing::CommandNames::selectAll))

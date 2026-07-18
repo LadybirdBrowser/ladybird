@@ -16,6 +16,7 @@
 #include <LibWeb/Editing/CommandNames.h>
 #include <LibWeb/Editing/Commands.h>
 #include <LibWeb/Editing/EditCommand.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
@@ -2278,6 +2279,18 @@ bool command_outdent_action(DOM::Document& document, Utf16View)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-redo-command
+bool command_redo_action(DOM::Document& document, Utf16View)
+{
+    // Action: As defined by the UndoManager specification.
+    //
+    // INTEROP: The UndoManager specification is defunct and never defined this, so we match Chromium: replay the most
+    //          recently undone step, restore its ending selection, and fire a non-cancelable input event with inputType
+    //          "historyRedo" at the step's editing host.
+    auto history = document.editing_history_if_exists();
+    return history && history->redo(document);
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-removeformat-command
 bool command_remove_format_action(DOM::Document& document, Utf16View)
 {
@@ -2519,6 +2532,18 @@ bool command_superscript_indeterminate(DOM::Document const& document)
     // or if there is some formattable node effectively contained in the active range with effective command value
     // "mixed". Otherwise false.
     return has_mixed_value;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-undo-command
+bool command_undo_action(DOM::Document& document, Utf16View)
+{
+    // Action: As defined by the UndoManager specification.
+    //
+    // INTEROP: The UndoManager specification is defunct and never defined this, so we match Chromium: unapply the most
+    //          recent undo step, restore its starting selection, and fire a non-cancelable input event with inputType
+    //          "historyUndo" at the step's editing host.
+    auto history = document.editing_history_if_exists();
+    return history && history->undo(document);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#the-underline-command
@@ -2798,6 +2823,12 @@ static auto const& command_definitions()
             .command = CommandNames::preserveWhitespace,
             .relevant_css_property = CSS::PropertyID::WhiteSpace,
         },
+        // https://w3c.github.io/editing/docs/execCommand/#the-redo-command
+        CommandDefinition {
+            .command = CommandNames::redo,
+            .action = command_redo_action,
+            .mapped_value = "historyRedo"_utf16_fly_string,
+        },
         // https://w3c.github.io/editing/docs/execCommand/#the-removeformat-command
         CommandDefinition {
             .command = CommandNames::removeFormat,
@@ -2841,6 +2872,12 @@ static auto const& command_definitions()
             .command = CommandNames::underline,
             .action = command_underline_action,
             .inline_activated_values = { "underline"sv },
+        },
+        // https://w3c.github.io/editing/docs/execCommand/#the-undo-command
+        CommandDefinition {
+            .command = CommandNames::undo,
+            .action = command_undo_action,
+            .mapped_value = "historyUndo"_utf16_fly_string,
         },
         // https://w3c.github.io/editing/docs/execCommand/#the-unlink-command
         CommandDefinition {
