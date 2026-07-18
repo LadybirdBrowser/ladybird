@@ -46,6 +46,11 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
     m_input = input;
     input->set_wake_handler([this] {
         auto status = m_input->peek().status;
+        if (status == PipelineStatus::Suspended) {
+            m_next_frame = nullptr;
+            dispatch_state_if_changed(status);
+            return;
+        }
         if (!resolves_seek(status))
             return;
         if (m_current_frame != nullptr && m_seek_status == SeekStatus::None)
@@ -180,6 +185,13 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
             current_frame_end = m_current_frame->conservative_end();
         if (current_time <= current_frame_end)
             last_status = PipelineStatus::HaveData;
+    }
+
+    if (last_status == PipelineStatus::Suspended) {
+        m_next_frame = nullptr;
+        m_seek_status = SeekStatus::InProgress;
+        m_input->seek(current_time);
+        last_status = PipelineStatus::Pending;
     }
 
     // Dispatch the new state with a deferred invoke to avoid reentrancy. This prevents a seek from resolving while

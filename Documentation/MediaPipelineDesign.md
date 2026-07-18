@@ -37,13 +37,15 @@ being forced to accept data it may have no room for.
 - `Pending`: Data is not available yet, but may become available later.
 - `HaveData`: A peek exposes data.
 - `Blocked`: Data is not available yet, i.e. we have run out of buffered data from over the network.
+- `Suspended`: The upstream node has released its decoding resources and will not produce data until
+  it receives a seek.
 - `EndOfStream`: We have reached the end of the input data.
 - `Error`: The upstream node encountered an error and cannot continue without a seek.
 
 `HaveData` carries data. All other statuses require handling by downstream code.
 
-`Pending`, `Blocked`, `EndOfStream` and `Error` are waiting statuses. A downstream node that
-normally polls for upstream input seeing these should sleep until its wake handler fires.
+`Pending`, `Blocked`, `Suspended`, `EndOfStream` and `Error` are waiting statuses. A downstream node
+that normally polls for upstream input seeing these should sleep until its wake handler fires.
 
 `EndOfStream` and `Error` are terminal statuses. They resolve seeks even though they are still
 "waiting" statuses for helper APIs, because no more data is required to decide the seek has
@@ -83,13 +85,12 @@ in processing for each individual coded frame.
 
 When a downstream `consume()` removes an item from the queue, the producer wakes its decoder thread
 so it can refill the queue. When the queue is full and no downstream activity occurs for the idle
-timeout, the producer may auto-suspend: it drops decoder state, remembers where decoding should
-resume, and waits for new demand.
+timeout, the producer auto-suspends: it drops its decoder, its queue, and any frame pool buffers it
+can free, then wakes the consumer with a `Suspended` status.
 
-Both `peek()` and `consume()` count as downstream activity for a suspended producer. This matters
-because downstream nodes often sleep after observing `Pending`; if only `consume()` woke a suspended
-producer, the pipeline could become stuck with downstream waiting for a wake while upstream waits to
-be consumed.
+`peek()` and `consume()` defer the idle timeout, but they never resume a suspended producer. When a
+downstream node needs new data, it must explicitly `seek()` the suspended node to resume it, so that
+the pipeline may insert pre-roll data at any stage where it is needed (i.e. for audio stretching).
 
 ## Playback Manager
 

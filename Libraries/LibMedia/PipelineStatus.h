@@ -16,6 +16,7 @@ enum class PipelineStatus : u8 {
     Pending,
     HaveData,
     Blocked,
+    Suspended,
     EndOfStream,
     Error,
 };
@@ -81,6 +82,8 @@ constexpr StringView pipeline_status_to_string(PipelineStatus status)
         return "HaveData"sv;
     case PipelineStatus::Blocked:
         return "Blocked"sv;
+    case PipelineStatus::Suspended:
+        return "Suspended"sv;
     case PipelineStatus::EndOfStream:
         return "EndOfStream"sv;
     case PipelineStatus::Error:

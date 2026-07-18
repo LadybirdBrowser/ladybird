@@ -18,15 +18,13 @@
 
 namespace Media {
 
-static constexpr int AUTO_SUSPEND_IDLE_TIMEOUT_MS = 10000;
-
-DecoderErrorOr<NonnullRefPtr<DecodedAudioProducer>> DecodedAudioProducer::try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track)
+DecoderErrorOr<NonnullRefPtr<DecodedAudioProducer>> DecodedAudioProducer::try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration auto_suspend_idle_timeout)
 {
     auto converter = DECODER_TRY_ALLOC(FFmpeg::FFmpegAudioConverter::try_create());
 
     TRY(demuxer->create_context_for_track(track));
     auto duration = TRY(demuxer->duration_of_track(track));
-    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedAudioProducer::ThreadData>(main_thread_event_loop, demuxer, track, duration, move(converter)));
+    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedAudioProducer::ThreadData>(main_thread_event_loop, demuxer, track, duration, auto_suspend_idle_timeout, move(converter)));
     TRY(thread_data->create_decoder());
     auto producer = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedAudioProducer>(thread_data));
 
@@ -108,12 +106,13 @@ TimeRanges DecodedAudioProducer::buffered_time_ranges() const
     return m_thread_data->buffered_time_ranges();
 }
 
-DecodedAudioProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration duration, NonnullOwnPtr<Audio::AudioConverter>&& converter)
+DecodedAudioProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration duration, AK::Duration auto_suspend_idle_timeout, NonnullOwnPtr<Audio::AudioConverter>&& converter)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
     , m_track(track)
     , m_duration(duration)
     , m_converter(move(converter))
+    , m_auto_suspend_idle_timeout(auto_suspend_idle_timeout)
 {
     m_demuxer->set_read_blocked_change_handler_for_track(m_track, [this](ReadBlocked blocked) {
         dispatch_read_blocked_change(blocked);
@@ -187,10 +186,7 @@ void DecodedAudioProducer::ThreadData::start()
 void DecodedAudioProducer::ThreadData::note_consumer_activity_while_locked() const
 {
     m_last_consumer_activity = MonotonicTime::now();
-    if (m_auto_suspend_requested)
-        m_auto_suspend_requested = false;
-    if (m_auto_suspended)
-        wake();
+    m_auto_suspend_requested = false;
 }
 
 void DecodedAudioProducer::ThreadData::wait_for_queue_space_or_auto_suspend_while_locked()
@@ -202,7 +198,7 @@ void DecodedAudioProducer::ThreadData::wait_for_queue_space_or_auto_suspend_whil
     if (m_queue.size() < m_queue_max_size)
         return;
 
-    auto idle_at = m_last_consumer_activity + AK::Duration::from_milliseconds(AUTO_SUSPEND_IDLE_TIMEOUT_MS);
+    auto idle_at = m_last_consumer_activity + m_auto_suspend_idle_timeout;
     auto now = MonotonicTime::now();
     if (now < idle_at) {
         if (m_wait_condition.wait_for(idle_at - now))
@@ -334,28 +330,25 @@ bool DecodedAudioProducer::ThreadData::handle_auto_suspension()
     m_decoder_needs_keyframe_next_seek = true;
     m_auto_suspended = true;
     m_auto_suspend_requested = false;
-    m_auto_suspend_entered_at = MonotonicTime::now();
+    m_current_halting_status = PipelineStatus::Suspended;
+    // The consumer's last peek predates the suspension, so wake it regardless of what it saw.
+    m_downstream_needs_wake = true;
+    dispatch_wake_if_needed_while_locked();
 
     while (true) {
         if (m_requested_state == RequestedState::Exit)
             return true;
         if (m_last_processed_seek_id != m_seek_id.load())
             break;
-        if (m_last_consumer_activity > m_auto_suspend_entered_at)
-            break;
         m_wait_condition.wait();
     }
     m_auto_suspended = false;
+    m_current_halting_status = PipelineStatus::Pending;
 
     auto result = create_decoder();
     if (result.is_error()) {
         enter_halting_state(PipelineStatus::Error, result.release_error());
         return true;
-    }
-
-    if (m_last_processed_seek_id == m_seek_id.load()) {
-        m_seek_id++;
-        m_seek_timestamp = m_latest_available_timestamp;
     }
 
     return true;

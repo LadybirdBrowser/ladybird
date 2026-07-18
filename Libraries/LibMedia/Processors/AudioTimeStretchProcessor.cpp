@@ -65,20 +65,8 @@ void AudioTimeStretchProcessor::seek(AK::Duration timestamp)
     {
         Sync::MutexLocker locker { m_mutex };
         VERIFY(m_sample_specification.is_valid());
-        auto sample_rate = m_sample_specification.sample_rate();
-        auto target_frame = timestamp.to_time_units(1, sample_rate);
-        auto output_frame = target_frame;
-
-        ensure_stretcher_while_locked();
-        auto prerolled_target_frame = max(target_frame - m_stretcher->preroll_frame_count(), 0);
-        auto actual_preroll_delta = target_frame - prerolled_target_frame;
-        target_frame = prerolled_target_frame;
-        output_frame = output_frame - AK::round_to<i64>(static_cast<float>(actual_preroll_delta) / m_playback_rate);
-
-        m_next_emit_media_time = AK::Duration::from_time_units(target_frame, 1, sample_rate);
-        m_next_output_frame = output_frame;
-
-        m_stretcher->flush(m_next_emit_media_time, m_next_output_frame);
+        auto target_frame = timestamp.to_time_units(1, m_sample_specification.sample_rate());
+        prime_stretcher_for_input_seek_while_locked(target_frame, target_frame);
 
         m_pending_block.clear();
         m_downstream_needs_wake = true;
@@ -151,6 +139,16 @@ void AudioTimeStretchProcessor::set_playback_rate(float rate)
         dispatch_wake();
 }
 
+void AudioTimeStretchProcessor::prime_stretcher_for_input_seek_while_locked(i64 target_frame, i64 output_frame) const
+{
+    ensure_stretcher_while_locked();
+    auto prerolled_target_frame = max(target_frame - m_stretcher->preroll_frame_count(), 0);
+    auto actual_preroll_delta = target_frame - prerolled_target_frame;
+    m_next_emit_media_time = AK::Duration::from_time_units(prerolled_target_frame, 1, m_sample_specification.sample_rate());
+    m_next_output_frame = output_frame - AK::round_to<i64>(static_cast<float>(actual_preroll_delta) / m_playback_rate);
+    m_stretcher->flush(m_next_emit_media_time, m_next_output_frame);
+}
+
 void AudioTimeStretchProcessor::ensure_stretcher_while_locked() const
 {
     if (m_stretcher) {
@@ -205,6 +203,12 @@ PipelineStatus AudioTimeStretchProcessor::produce_block_while_locked(AudioBlock&
             m_stretcher->signal_end_of_stream();
             m_stretcher_reached_eos = false;
             continue;
+        }
+        if (output.status == PipelineStatus::Suspended) {
+            auto emit_target_frame = m_next_emit_media_time.to_time_units(1, m_sample_specification.sample_rate());
+            prime_stretcher_for_input_seek_while_locked(emit_target_frame, m_next_output_frame);
+            m_input->seek(m_next_emit_media_time);
+            return PipelineStatus::Pending;
         }
         if (output.status != PipelineStatus::HaveData)
             return output.status;
