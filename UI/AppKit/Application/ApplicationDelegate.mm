@@ -134,6 +134,7 @@
     }
 
     WebView::Application::the().update_bookmark_action_for_current_web_view();
+    WebView::Application::the().update_editing_history_actions();
 }
 
 - (Tab*)activeTab

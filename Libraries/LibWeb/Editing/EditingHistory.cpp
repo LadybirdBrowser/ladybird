@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/InputEvent.h>
@@ -269,6 +270,8 @@ void EditingHistory::end_recording()
 
     if (closes_coalescing)
         m_open_step = nullptr;
+
+    notify_state_if_changed(step->editing_host()->document());
 }
 
 void EditingHistory::selection_changed()
@@ -325,6 +328,7 @@ bool EditingHistory::undo(DOM::Document& document)
     if (performed_any_mutation)
         m_redo_stack.append(step);
 
+    notify_state_if_changed(document);
     dispatch_history_input_event(document, step->editing_host(), UIEvents::InputTypes::historyUndo);
     return true;
 }
@@ -350,8 +354,21 @@ bool EditingHistory::redo(DOM::Document& document)
     if (performed_any_mutation)
         m_undo_stack.append(step);
 
+    notify_state_if_changed(document);
     dispatch_history_input_event(document, step->editing_host(), UIEvents::InputTypes::historyRedo);
     return true;
+}
+
+// Tells the UI whether undo and redo are available, e.g. for enabling menu items.
+void EditingHistory::notify_state_if_changed(DOM::Document& document)
+{
+    bool new_can_undo = can_undo();
+    bool new_can_redo = can_redo();
+    if (new_can_undo == m_last_notified_can_undo && new_can_redo == m_last_notified_can_redo)
+        return;
+    m_last_notified_can_undo = new_can_undo;
+    m_last_notified_can_redo = new_can_redo;
+    document.page().client().page_did_update_editing_history_state(new_can_undo, new_can_redo);
 }
 
 void EditingHistory::prune_steps_for_disconnected_hosts()

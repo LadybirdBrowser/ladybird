@@ -69,6 +69,7 @@ endpoint WebContentClient
     did_request_refresh(u64 page_id) =|
     did_request_cursor_change(u64 page_id, Gfx::Cursor cursor) =|
     did_change_title(u64 page_id, Utf16String title) =|
+    did_update_editing_history_state(u64 page_id, bool can_undo, bool can_redo) =|
     did_change_url(u64 page_id, URL::URL url) =|
     did_request_tooltip_override(u64 page_id, Gfx::IntPoint position, ByteString title) =|
     did_stop_tooltip_override(u64 page_id) =|

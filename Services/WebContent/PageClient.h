@@ -172,6 +172,7 @@ private:
     virtual void request_frame() override;
     virtual void page_did_request_cursor_change(Gfx::Cursor const&) override;
     virtual void page_did_change_title(Utf16String const&) override;
+    virtual void page_did_update_editing_history_state(bool can_undo, bool can_redo) override;
     virtual void page_did_change_url(URL::URL const&) override;
     virtual void page_did_request_refresh() override;
     virtual void page_did_request_resize_window(Gfx::IntSize) override;

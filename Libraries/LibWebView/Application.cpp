@@ -1747,6 +1747,7 @@ void Application::initialize_actions()
         if (auto view = active_web_view(); view.has_value())
             view->redo();
     });
+    update_editing_history_actions();
     m_copy_selection_action = Action::create("Copy"sv, ActionID::CopySelection, [this]() {
         if (auto view = active_web_view(); view.has_value()) {
             if (auto text = view->selected_text(); !text.is_empty())
@@ -2425,6 +2426,13 @@ void Application::inspect_indexed_database_objects(DevTools::TabDescription cons
     }
 
     view->inspect_indexed_database_objects(host, move(names), move(options), move(on_complete));
+}
+
+void Application::update_editing_history_actions()
+{
+    auto view = active_web_view();
+    m_undo_action->set_enabled(view.has_value() && view->can_undo());
+    m_redo_action->set_enabled(view.has_value() && view->can_redo());
 }
 
 void Application::delete_indexed_database(DevTools::TabDescription const& description, String const& host, String const& name, OnIndexedDBInspectionComplete on_complete) const

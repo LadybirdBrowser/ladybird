@@ -767,6 +767,7 @@ void BrowserWindow::set_current_tab(Tab* tab)
         m_current_tab->view().set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 
     WebView::Application::the().update_bookmark_action_for_current_web_view();
+    WebView::Application::the().update_editing_history_actions();
 }
 
 void BrowserWindow::activate_tab(int index)

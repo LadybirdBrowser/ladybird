@@ -168,6 +168,9 @@ public:
     void select_all();
     void undo();
     void redo();
+    void set_editing_history_state(Badge<WebContentClient>, bool can_undo, bool can_redo);
+    bool can_undo() const { return m_can_undo; }
+    bool can_redo() const { return m_can_redo; }
     void find_in_page(Utf16String const& query, CaseSensitivity = CaseSensitivity::CaseInsensitive);
     void find_in_page_next_match();
     void find_in_page_previous_match();
@@ -590,6 +593,9 @@ protected:
     bool m_should_suppress_history_for_next_load { false };
     HistoryVisitTransition m_history_visit_transition_for_current_load { HistoryVisitTransition::Link };
     HistoryVisitTransition m_history_visit_transition_for_next_load { HistoryVisitTransition::Link };
+
+    bool m_can_undo { false };
+    bool m_can_redo { false };
     bool m_is_loading { false };
     bool m_is_waiting_for_navigation_start { false };
     Optional<Utf16String> m_loading_navigation_id;

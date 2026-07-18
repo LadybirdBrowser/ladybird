@@ -491,6 +491,7 @@ public:
     virtual HTML::CrossProcessId allocate_navigable_id() { return allocate_cross_process_id(); }
     virtual void request_frame() = 0;
     virtual void page_did_change_title(Utf16String const&) { }
+    virtual void page_did_update_editing_history_state(bool, bool) { }
     virtual void page_did_change_url(URL::URL const&) { }
     virtual void page_did_request_refresh() { }
     virtual void page_did_request_resize_window(Gfx::IntSize) { }

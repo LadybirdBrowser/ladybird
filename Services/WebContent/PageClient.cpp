@@ -464,6 +464,11 @@ void PageClient::page_did_change_title(Utf16String const& title)
     client().async_did_change_title(m_id, title);
 }
 
+void PageClient::page_did_update_editing_history_state(bool can_undo, bool can_redo)
+{
+    client().async_did_update_editing_history_state(m_id, can_undo, can_redo);
+}
+
 void PageClient::page_did_change_url(URL::URL const& url)
 {
     client().async_did_change_url(m_id, url);

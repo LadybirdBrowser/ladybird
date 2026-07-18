@@ -136,6 +136,7 @@ private:
     virtual void did_request_refresh(u64 page_id) override;
     virtual void did_request_cursor_change(u64 page_id, Gfx::Cursor) override;
     virtual void did_change_title(u64 page_id, Utf16String) override;
+    virtual void did_update_editing_history_state(u64 page_id, bool can_undo, bool can_redo) override;
     virtual void did_change_url(u64 page_id, URL::URL) override;
     virtual void did_request_tooltip_override(u64 page_id, Gfx::IntPoint, ByteString) override;
     virtual void did_stop_tooltip_override(u64 page_id) override;

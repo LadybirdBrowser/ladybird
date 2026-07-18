@@ -772,6 +772,13 @@ void ViewImplementation::undo()
     client().async_undo(page_id());
 }
 
+void ViewImplementation::set_editing_history_state(Badge<WebContentClient>, bool can_undo, bool can_redo)
+{
+    m_can_undo = can_undo;
+    m_can_redo = can_redo;
+    Application::the().update_editing_history_actions();
+}
+
 void ViewImplementation::redo()
 {
     client().async_redo(page_id());

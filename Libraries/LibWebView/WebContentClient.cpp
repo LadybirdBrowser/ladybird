@@ -627,6 +627,7 @@ void WebContentClient::did_start_loading(u64 page_id, Optional<Utf16String> navi
         view->set_url({}, url);
         view->set_title({}, Utf16String::from_utf8(url.serialize()));
         view->set_favicon({}, {});
+        view->set_editing_history_state({}, false, false);
 
         if (view->on_load_start)
             view->on_load_start();
@@ -827,6 +828,12 @@ void WebContentClient::did_request_cursor_change(u64 page_id, Gfx::Cursor cursor
         if (view->on_cursor_change)
             view->on_cursor_change(cursor);
     }
+}
+
+void WebContentClient::did_update_editing_history_state(u64 page_id, bool can_undo, bool can_redo)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->set_editing_history_state({}, can_undo, can_redo);
 }
 
 void WebContentClient::did_change_title(u64 page_id, Utf16String title)

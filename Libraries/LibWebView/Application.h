@@ -226,6 +226,10 @@ public:
     Action& copy_selection_action() { return *m_copy_selection_action; }
     Action& undo_action() { return *m_undo_action; }
     Action& redo_action() { return *m_redo_action; }
+
+    // Reflects the active view's undo/redo availability in the shared actions; call when the
+    // active view changes.
+    void update_editing_history_actions();
     Action& cut_selection_action() { return *m_cut_selection_action; }
     Action& paste_action() { return *m_paste_action; }
     Action& select_all_action() { return *m_select_all_action; }

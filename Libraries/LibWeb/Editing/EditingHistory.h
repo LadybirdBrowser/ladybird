@@ -128,12 +128,15 @@ private:
 
     void prune_steps_for_disconnected_hosts();
     void restore_selection(DOM::Document&, SelectionSnapshot const&);
+    void notify_state_if_changed(DOM::Document&);
 
     GC::Ptr<UndoStep> m_undo_step_being_recorded;
     GC::Ptr<UndoStep> m_open_step;
     Vector<GC::Ref<UndoStep>> m_undo_stack;
     Vector<GC::Ref<UndoStep>> m_redo_stack;
     bool m_applying_history_step { false };
+    bool m_last_notified_can_undo { false };
+    bool m_last_notified_can_redo { false };
 };
 
 enum class HistoryAction : u8 {
