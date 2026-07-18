@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host" contenteditable="true">line1<br>line2</div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        host.focus();
+        getSelection().collapse(host, 0);
+        internals.sendKey(host, "Left");
+        internals.sendKey(host, "Return");
+        println(`after enter: ${JSON.stringify(host.innerHTML)}`);
+        document.execCommand("undo");
+        println(`after undo: ${JSON.stringify(host.innerHTML)}`);
+    });
+</script>

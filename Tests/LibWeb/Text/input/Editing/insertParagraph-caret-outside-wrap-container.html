@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Pressing Enter with an element-level caret next to atomic inline content used to crash:
+    // insertParagraph's step 11 wraps only the first node of the line into the new container,
+    // which can leave the caret outside of it, handing the boundary-splitting logic a container
+    // that is not an ancestor of the selection start.
+    test(() => {
+        const sel = getSelection();
+        for (const [label, html, place] of [
+            ["caret after img", 'a<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">b', host => sel.collapse(host, 2)],
+            ["caret before img", 'a<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">b', host => sel.collapse(host, 1)],
+            ["caret at host end", "x<br>y", host => sel.collapse(host, 3)],
+        ]) {
+            const host = document.createElement("div");
+            host.contentEditable = "true";
+            host.innerHTML = html;
+            document.body.appendChild(host);
+            host.focus();
+            place(host);
+            internals.sendKey(host, "Return");
+            println(`${label}: ${JSON.stringify(host.innerHTML)}`);
+            document.execCommand("undo");
+            println(`${label} after undo: ${JSON.stringify(host.innerHTML)}`);
+            host.remove();
+        }
+    });
+</script>

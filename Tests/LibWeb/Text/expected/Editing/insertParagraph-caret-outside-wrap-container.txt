@@ -1,0 +1,6 @@
+caret after img: "<div>a<img src=\"data:image/gif;base64,R0lGODlhAQABAAAAACw=\"></div><div>b</div>"
+caret after img after undo: "a<img src=\"data:image/gif;base64,R0lGODlhAQABAAAAACw=\">b"
+caret before img: "<div>a</div><div><img src=\"data:image/gif;base64,R0lGODlhAQABAAAAACw=\">b</div>"
+caret before img after undo: "a<img src=\"data:image/gif;base64,R0lGODlhAQABAAAAACw=\">b"
+caret at host end: "x<div>y</div><div><br></div>"
+caret at host end after undo: "x<br>y"
