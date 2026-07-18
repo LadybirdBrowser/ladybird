@@ -101,9 +101,7 @@
         document.execCommand("undo");
         expectState("one undo restores both characters", "abcdef", "host/0:#text@0->host/0:#text@1");
         document.execCommand("redo");
-        // NB: Chromium leaves the caret in the text node ("#text@0"); our forwardDelete places it
-        //     at the equivalent host position. Redo restores our own post-command selection.
-        expectState("one redo deletes them again", "cdef", "host:DIV@0->host:DIV@0");
+        expectState("one redo deletes them again", "cdef", "host/0:#text@0->host/0:#text@0");
 
         println("== backspace starts a new unit after typing, but typing joins a delete unit ==");
         newHost("");

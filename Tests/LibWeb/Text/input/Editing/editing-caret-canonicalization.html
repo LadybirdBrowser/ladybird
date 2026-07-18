@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Editing commands canonicalize an element-level caret into the adjacent editable content
+    // before acting and after editing, like Chromium: typing at (host, 0) inserts into the first
+    // block or inline element instead of at the host level, while inline formatting commands on
+    // a collapsed selection leave the caret alone. Expected values derived from Chromium 146.
+    test(() => {
+        const sel = getSelection();
+        let host = null;
+
+        function newHost(html) {
+            if (host)
+                host.remove();
+            host = document.createElement("div");
+            host.contentEditable = "true";
+            host.innerHTML = html;
+            document.body.appendChild(host);
+            host.focus();
+            return host;
+        }
+        function selectionString() {
+            if (!sel.anchorNode)
+                return "(none)";
+            const describe = n => n === host ? "host" : n.nodeName;
+            return `${describe(sel.anchorNode)}@${sel.anchorOffset}->${describe(sel.focusNode)}@${sel.focusOffset}`;
+        }
+
+        newHost("<div>alpha</div><div>beta</div>");
+        sel.collapse(host, 0);
+        internals.sendText(host, "x");
+        println(`typing at host start before a block: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        newHost("<b>bold</b>rest");
+        sel.collapse(host, 0);
+        internals.sendText(host, "x");
+        println(`typing at host start before an inline element: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        newHost("a<i>mid</i>b");
+        sel.collapse(host, 2);
+        internals.sendText(host, "x");
+        println(`typing between inline element and text: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        newHost("<ul><li>one</li><li>two</li></ul>");
+        sel.collapse(host, 0);
+        internals.sendText(host, "x");
+        println(`typing at host start before a list: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        newHost("<div>alpha</div>");
+        sel.collapse(host, 0);
+        document.execCommand("formatBlock", false, "<h2>");
+        println(`formatBlock at host start: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        // Inline formatting with a collapsed selection only sets overrides; the caret must not move.
+        newHost("<b>bold</b>rest");
+        sel.collapse(host, 0);
+        document.execCommand("bold");
+        println(`bold toggle at host start: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        // Undo after a canonicalized edit restores the canonicalized starting selection.
+        newHost("<div>alpha</div>");
+        sel.collapse(host, 0);
+        internals.sendText(host, "x");
+        document.execCommand("undo");
+        println(`undo restores canonical caret: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+    });
+</script>

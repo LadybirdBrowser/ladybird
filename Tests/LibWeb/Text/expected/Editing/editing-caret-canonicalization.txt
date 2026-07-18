@@ -1,0 +1,7 @@
+typing at host start before a block: "<div>xalpha</div><div>beta</div>" sel=#text@1->#text@1
+typing at host start before an inline element: "<b>xbold</b>rest" sel=#text@1->#text@1
+typing between inline element and text: "a<i>midx</i>b" sel=#text@4->#text@4
+typing at host start before a list: "<ul><li>xone</li><li>two</li></ul>" sel=#text@1->#text@1
+formatBlock at host start: "<h2>alpha</h2>" sel=#text@0->#text@0
+bold toggle at host start: "<b>bold</b>rest" sel=host@0->host@0
+undo restores canonical caret: "<div>alpha</div>" sel=#text@0->#text@0
