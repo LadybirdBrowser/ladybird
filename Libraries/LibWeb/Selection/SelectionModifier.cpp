@@ -60,14 +60,43 @@ static bool is_empty_line_host(DOM::Node& node)
     if (!paintable || paintable->layout_node().display().is_inline_outside())
         return false;
 
-    bool has_rendered_text = false;
-    element->for_each_in_subtree_of_type<DOM::Text>([&](auto& text) {
-        if (!text_node_has_rendered_text(text))
-            return TraversalDecision::Continue;
-        has_rendered_text = true;
-        return TraversalDecision::Break;
+    bool has_rendered_content = false;
+    element->for_each_in_subtree([&](DOM::Node& descendant) {
+        if (auto* text = as_if<DOM::Text>(descendant); text && text_node_has_rendered_text(*text)) {
+            has_rendered_content = true;
+            return TraversalDecision::Break;
+        }
+        auto const* layout_node = descendant.layout_node();
+        if (descendant.is_editable() && layout_node && layout_node->is_atomic_inline()) {
+            has_rendered_content = true;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
     });
-    return !has_rendered_text;
+    return !has_rendered_content;
+}
+
+// Atomic inline content, such as an image, has no caret positions inside it. Its two caret positions are represented
+// as DOM boundaries in the parent, immediately before and after the atomic node.
+static bool is_atomic_inline_caret_host(DOM::Node& node)
+{
+    if (is<HTML::HTMLBRElement>(node))
+        return false;
+    auto const* layout_node = node.layout_node();
+    return node.is_editable() && node.parent() && layout_node && layout_node->is_atomic_inline();
+}
+
+static bool boundary_visual_lines_share_line(DOM::Text const& before, DOM::Text const& after)
+{
+    auto before_lines = collect_visual_lines(before);
+    auto after_lines = collect_visual_lines(after);
+    if (before_lines.is_empty() || before_lines.last().fragments.is_empty() || after_lines.is_empty() || after_lines.first().fragments.is_empty())
+        return false;
+
+    auto const& before_fragment = *before_lines.last().fragments.last();
+    auto const& after_fragment = *after_lines.first().fragments.first();
+    return &before_fragment.paintable_with_lines() == &after_fragment.paintable_with_lines()
+        && before_fragment.line_index() == after_fragment.line_index();
 }
 
 // Turns a movement request into a CaretLocation without mutating Selection. This allows DOM traversal and rendered
@@ -80,12 +109,13 @@ public:
     }
 
     Optional<CaretLocation> move(CaretLocation const&, SelectionDirection, SelectionGranularity, Optional<CSSPixels> preferred_inline_coordinate = {});
+    Optional<CaretLocation> canonical_location_for_extension(CaretLocation const&, SelectionDirection);
 
 private:
     Optional<CaretLocation> move_to_adjacent_caret_host(CaretLocation const&, SelectionDirection, CaretEntryMode, Optional<CSSPixels>);
     Optional<CaretLocation> move_to_editing_host_boundary(CaretLocation const&, SelectionDirection);
     GC::Ptr<DOM::Node> adjacent_caret_host(DOM::Node&, DOM::Node& editing_host, SelectionDirection);
-    static DOM::Node& navigation_origin(CaretLocation const&);
+    static DOM::Node& navigation_origin(CaretLocation const&, SelectionDirection);
 
     GC::Ref<DOM::Document> m_document;
 };
@@ -104,16 +134,22 @@ GC::Ptr<DOM::Node> CaretNavigator::adjacent_caret_host(DOM::Node& from, DOM::Nod
             continue;
         if (auto* text = as_if<DOM::Text>(*node); text && text->is_editable() && text_node_has_rendered_text(*text))
             return node;
-        if (is_empty_line_host(*node) || is_empty_line_break(*node))
+        if (is_atomic_inline_caret_host(*node) || is_empty_line_host(*node) || is_empty_line_break(*node))
             return node;
     }
     return nullptr;
 }
 
-DOM::Node& CaretNavigator::navigation_origin(CaretLocation const& location)
+DOM::Node& CaretNavigator::navigation_origin(CaretLocation const& location, SelectionDirection direction)
 {
-    if (auto* child = location.node->child_at_index(location.offset))
-        return *child;
+    if (direction == SelectionDirection::Forward && location.offset > 0) {
+        if (auto* child_before = location.node->child_at_index(location.offset - 1))
+            return *child_before;
+    }
+    if (direction == SelectionDirection::Backward) {
+        if (auto* child_after = location.node->child_at_index(location.offset))
+            return *child_after;
+    }
     return location.node;
 }
 
@@ -125,14 +161,54 @@ Optional<CaretLocation> CaretNavigator::move_to_adjacent_caret_host(CaretLocatio
 
     m_document->update_layout_if_needed_for_node(*editing_host, DOM::UpdateLayoutReason::CursorLineNavigation);
 
-    auto target = adjacent_caret_host(navigation_origin(location), *editing_host, direction);
+    auto& origin = navigation_origin(location, direction);
+    auto* adjacent_child = direction == SelectionDirection::Forward
+        ? location.node->child_at_index(location.offset)
+        : (location.offset > 0 ? location.node->child_at_index(location.offset - 1) : nullptr);
+    GC::Ptr<DOM::Node> target;
+    bool target_is_adjacent_child = false;
+    // INTEROP: An empty-line <br> contributes a single caret position at its parent boundary. Once the caret is already
+    // at that boundary, forward movement must start after the <br> instead of rediscovering the same position.
+    if (direction == SelectionDirection::Forward && adjacent_child && is_empty_line_break(*adjacent_child)) {
+        target = adjacent_caret_host(*adjacent_child, *editing_host, direction);
+    } else if (adjacent_child) {
+        auto* text = as_if<DOM::Text>(*adjacent_child);
+        if ((text && text->is_editable() && text_node_has_rendered_text(*text))
+            || is_atomic_inline_caret_host(*adjacent_child) || is_empty_line_host(*adjacent_child) || is_empty_line_break(*adjacent_child)) {
+            target = adjacent_child;
+            target_is_adjacent_child = true;
+        }
+    }
+    if (!target)
+        target = adjacent_caret_host(origin, *editing_host, direction);
+    if (entry_mode == CaretEntryMode::ClosestToInlineCoordinate) {
+        while (target && is_atomic_inline_caret_host(*target)) {
+            target = adjacent_caret_host(*target, *editing_host, direction);
+            target_is_adjacent_child = false;
+        }
+    }
     if (!target)
         return {};
 
     size_t offset = 0;
     auto affinity = TextAffinity::Downstream;
 
-    if (is<HTML::HTMLBRElement>(*target) && target->parent()) {
+    if (is_atomic_inline_caret_host(*target) && target->parent()) {
+        auto target_is_in_origin_parent = target->parent() == origin.parent();
+        if (direction == SelectionDirection::Backward && target_is_in_origin_parent) {
+            if (auto previous_target = adjacent_caret_host(*target, *editing_host, direction); previous_target && is<DOM::Text>(*previous_target))
+                target = previous_target;
+        }
+        if (is_atomic_inline_caret_host(*target) && target->parent()) {
+            // INTEROP: Enter an atomic-only line at its near edge, but cross an atomic child adjacent to the current
+            // parent boundary. Chromium exposes both edges in the former case and one visual step in the latter.
+            auto use_boundary_after_target = target_is_adjacent_child
+                ? direction == SelectionDirection::Forward
+                : (direction == SelectionDirection::Forward) == target_is_in_origin_parent;
+            offset = target->index() + (use_boundary_after_target ? 1 : 0);
+            target = target->parent();
+        }
+    } else if (is<HTML::HTMLBRElement>(*target) && target->parent()) {
         offset = target->index();
         target = target->parent();
     }
@@ -155,6 +231,38 @@ Optional<CaretLocation> CaretNavigator::move_to_adjacent_caret_host(CaretLocatio
     }
 
     return CaretLocation { *target, offset, affinity };
+}
+
+Optional<CaretLocation> CaretNavigator::canonical_location_for_extension(CaretLocation const& location, SelectionDirection direction)
+{
+    // INTEROP: A rendered caret boundary can have several equivalent DOM representations, especially between styled
+    // text nodes and beside atomic inline content. Chromium canonicalizes the anchor when selection first extends so
+    // subsequent movement includes the same rendered content regardless of which equivalent boundary held the caret.
+    auto* text = as_if<DOM::Text>(*location.node);
+    if (!text)
+        return {};
+    if ((direction == SelectionDirection::Forward && location.offset != text->length())
+        || (direction == SelectionDirection::Backward && location.offset != 0))
+        return {};
+
+    auto editing_host = text->editing_host();
+    if (!editing_host)
+        return {};
+    m_document->update_layout_if_needed_for_node(*editing_host, DOM::UpdateLayoutReason::CursorLineNavigation);
+    auto target = adjacent_caret_host(*text, *editing_host, direction);
+    if (!target)
+        return {};
+    if (is_atomic_inline_caret_host(*target) && target->parent())
+        return CaretLocation { *target->parent(), target->index() + (direction == SelectionDirection::Backward ? 1 : 0), TextAffinity::Downstream };
+    auto* target_text = as_if<DOM::Text>(*target);
+    if (!target_text)
+        return {};
+    auto shares_line = direction == SelectionDirection::Forward
+        ? boundary_visual_lines_share_line(*text, *target_text)
+        : boundary_visual_lines_share_line(*target_text, *text);
+    if (!shares_line)
+        return {};
+    return CaretLocation { *target_text, direction == SelectionDirection::Forward ? 0u : target_text->length(), TextAffinity::Downstream };
 }
 
 Optional<CaretLocation> CaretNavigator::move_to_editing_host_boundary(CaretLocation const& location, SelectionDirection direction)
@@ -204,7 +312,23 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
             if (position.has_value())
                 return CaretLocation { *text, position->offset, position->affinity };
         }
-        return move_to_adjacent_caret_host(location, direction, CaretEntryMode::LineEdge, {});
+        auto adjacent = move_to_adjacent_caret_host(location, direction, CaretEntryMode::LineEdge, {});
+        if (!adjacent.has_value())
+            return {};
+        auto* adjacent_text = as_if<DOM::Text>(*adjacent->node);
+        if (text && adjacent_text) {
+            auto shares_line = direction == SelectionDirection::Forward
+                ? boundary_visual_lines_share_line(*text, *adjacent_text)
+                : boundary_visual_lines_share_line(*adjacent_text, *text);
+            if (shares_line) {
+                auto position = direction == SelectionDirection::Forward
+                    ? compute_cursor_position_on_next_character(*adjacent_text, adjacent->offset, adjacent->affinity)
+                    : compute_cursor_position_on_previous_character(*adjacent_text, adjacent->offset, adjacent->affinity);
+                if (position.has_value())
+                    return CaretLocation { *adjacent_text, position->offset, position->affinity };
+            }
+        }
+        return adjacent;
     }
 
     if (granularity == SelectionGranularity::Word) {
@@ -279,12 +403,16 @@ void SelectionModifier::modify(SelectionAlteration alteration, SelectionDirectio
     }
 
     Optional<CaretLocation> destination;
+    Optional<CaretLocation> canonical_anchor;
     if (alteration == SelectionAlteration::Move && granularity == SelectionGranularity::Character && !m_selection->is_collapsed()) {
         auto boundary = direction == SelectionDirection::Forward ? range->end() : range->start();
         destination = CaretLocation { boundary.node, boundary.offset, TextAffinity::Downstream };
     } else if (auto focus = m_selection->focus_node()) {
         CaretNavigator navigator(*m_selection->document());
-        destination = navigator.move({ *focus, m_selection->focus_offset(), m_selection->focus_affinity() }, direction, granularity, preferred_inline_coordinate);
+        CaretLocation origin { *focus, m_selection->focus_offset(), m_selection->focus_affinity() };
+        if (alteration == SelectionAlteration::Extend && m_selection->is_collapsed())
+            canonical_anchor = navigator.canonical_location_for_extension(origin, direction);
+        destination = navigator.move(origin, direction, granularity, preferred_inline_coordinate);
     }
 
     if (!destination.has_value())
@@ -296,10 +424,11 @@ void SelectionModifier::modify(SelectionAlteration alteration, SelectionDirectio
         MUST(m_selection->collapse(destination->node, destination->offset));
         m_selection->document()->reset_cursor_blink_cycle();
     } else {
-        auto anchor = m_selection->anchor_node();
+        GC::Ptr<DOM::Node> anchor = canonical_anchor.has_value() ? canonical_anchor->node : m_selection->anchor_node();
         if (!anchor)
             return;
-        MUST(m_selection->set_base_and_extent(*anchor, m_selection->anchor_offset(), destination->node, destination->offset));
+        auto anchor_offset = canonical_anchor.has_value() ? canonical_anchor->offset : m_selection->anchor_offset();
+        MUST(m_selection->set_base_and_extent(*anchor, anchor_offset, destination->node, destination->offset));
     }
     m_selection->set_focus_affinity(destination->affinity);
     if (granularity == SelectionGranularity::Line)

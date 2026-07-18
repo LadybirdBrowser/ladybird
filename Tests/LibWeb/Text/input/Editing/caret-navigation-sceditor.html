@@ -192,6 +192,48 @@
             send("Down");
             assertPoint(point(), [textBeforeFinalImage, textBeforeFinalImage.length], "Down back to before the final image");
 
+            // Image-only blocks expose their atomic boundary during character navigation, and backward movement stops
+            // at the nearest atomic boundary instead of skipping across adjacent images or a preceding line break.
+            const atomicFixture = document.createElement("section");
+            const lineBeforeImage = document.createElement("div");
+            lineBeforeImage.append("above");
+            const imageOnlyLine = document.createElement("div");
+            imageOnlyLine.append(firstLine.querySelector("img").cloneNode());
+            const lineAfterImage = document.createElement("div");
+            lineAfterImage.append("below");
+            atomicFixture.append(lineBeforeImage, imageOnlyLine, lineAfterImage);
+            editor.append(atomicFixture);
+
+            collapse(lineBeforeImage.firstChild, lineBeforeImage.firstChild.length);
+            send("Right");
+            assertPoint(point(), [imageOnlyLine, 0], "Right enters an image-only line");
+            send("Right");
+            assertPoint(point(), [imageOnlyLine, 1], "Right crosses an image-only line");
+            send("Right");
+            assertPoint(point(), [lineAfterImage.firstChild, 0], "Right leaves an image-only line");
+            collapse(lineAfterImage.firstChild, 0);
+            send("Left");
+            assertPoint(point(), [imageOnlyLine, 1], "Left enters an image-only line");
+            send("Left");
+            assertPoint(point(), [imageOnlyLine, 0], "Left crosses an image-only line");
+            send("Left");
+            assertPoint(point(), [lineBeforeImage.firstChild, lineBeforeImage.firstChild.length], "Left leaves an image-only line");
+
+            const adjacentImages = document.createElement("div");
+            adjacentImages.append(firstLine.querySelector("img").cloneNode(), firstLine.querySelector("img").cloneNode(), "text");
+            atomicFixture.append(adjacentImages);
+            collapse(adjacentImages.lastChild, 0);
+            send("Left");
+            assertPoint(point(), [adjacentImages, 1], "Left stops before the nearest adjacent image");
+
+            const breakBeforeImage = document.createElement("div");
+            breakBeforeImage.append(document.createElement("br"), firstLine.querySelector("img").cloneNode(), "text");
+            atomicFixture.append(breakBeforeImage);
+            collapse(breakBeforeImage.lastChild, 0);
+            send("Left");
+            assertPoint(point(), [breakBeforeImage, 1], "Left preserves the line-break boundary before an image");
+            atomicFixture.remove();
+
             if (failures.length > 0)
                 internals.signalTestIsDone(`FAIL: ${failures.length} SCEditor caret assertions failed\n${failures.join("\n")}\n`);
             else
