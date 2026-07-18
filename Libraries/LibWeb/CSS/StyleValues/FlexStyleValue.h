@@ -33,7 +33,7 @@ public:
         return flex() == other_flex.flex();
     }
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
 private:
     FlexStyleValue(Flex&& flex)

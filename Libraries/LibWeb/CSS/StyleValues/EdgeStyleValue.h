@@ -30,7 +30,7 @@ public:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const override;
     bool properties_equal(EdgeStyleValue const& other) const { return edge() == other.edge() && offset_style_value() == other.offset_style_value(); }
 
-    virtual bool is_computationally_independent() const override { return !offset_style_value() || offset_style_value()->is_computationally_independent(); }
+    bool is_computationally_independent() const { return !offset_style_value() || offset_style_value()->is_computationally_independent(); }
 
 private:
     EdgeStyleValue(Optional<PositionEdge> edge, RefPtr<StyleValue const> const& offset)

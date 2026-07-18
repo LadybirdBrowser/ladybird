@@ -29,7 +29,7 @@ public:
 
     bool properties_equal(CustomIdentStyleValue const& other) const { return custom_ident() == other.custom_ident(); }
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
 private:
     explicit CustomIdentStyleValue(Utf16FlyString custom_ident)

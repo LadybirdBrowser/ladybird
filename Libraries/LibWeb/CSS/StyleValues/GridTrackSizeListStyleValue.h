@@ -33,7 +33,7 @@ public:
 
     bool properties_equal(GridTrackSizeListStyleValue const& other) const { return grid_track_size_list() == other.grid_track_size_list(); }
 
-    virtual bool is_computationally_independent() const override { return grid_track_size_list().is_computationally_independent(); }
+    bool is_computationally_independent() const { return grid_track_size_list().is_computationally_independent(); }
 
 private:
     explicit GridTrackSizeListStyleValue(CSS::GridTrackSizeList grid_track_size_list)

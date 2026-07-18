@@ -78,7 +78,7 @@ public:
         return origin_color() && origin_color()->depends_on_current_color();
     }
 
-    virtual bool is_computationally_independent() const override
+    bool is_computationally_independent() const
     {
         return channels()[0]->is_computationally_independent()
             && channels()[1]->is_computationally_independent()

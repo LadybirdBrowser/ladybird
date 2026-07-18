@@ -50,7 +50,7 @@ public:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual bool equals(StyleValue const& other) const override;
 
-    virtual bool is_computationally_independent() const override
+    bool is_computationally_independent() const
     {
         auto is_direction_computationally_independent = direction().visit(
             [](NonnullRefPtr<StyleValue const> const& value) { return value->is_computationally_independent(); },

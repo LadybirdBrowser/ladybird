@@ -36,7 +36,7 @@ public:
         return percentage() == other_percentage.percentage();
     }
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
 private:
     PercentageStyleValue(Percentage&& percentage)

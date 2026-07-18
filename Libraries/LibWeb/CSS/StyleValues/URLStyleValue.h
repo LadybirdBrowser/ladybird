@@ -68,7 +68,7 @@ public:
 
     bool properties_equal(URLStyleValue const& other) const { return url() == other.url(); }
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
     virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(url().to_string()); }
 

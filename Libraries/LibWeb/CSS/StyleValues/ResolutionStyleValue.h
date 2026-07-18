@@ -28,7 +28,7 @@ public:
     virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { resolution().serialize(builder, mode); }
     void serialize(Utf16StringBuilder& builder, SerializationMode mode) const { resolution().serialize(builder, mode); }
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
     bool equals(StyleValue const& other) const override;
 

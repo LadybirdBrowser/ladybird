@@ -29,7 +29,7 @@ public:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     bool properties_equal(OverflowClipMarginStyleValue const&) const;
 
-    virtual bool is_computationally_independent() const override { return offset().is_computationally_independent(); }
+    bool is_computationally_independent() const { return offset().is_computationally_independent(); }
 
 private:
     OverflowClipMarginStyleValue(Optional<BackgroundBox> visual_box, NonnullRefPtr<StyleValue const> offset);

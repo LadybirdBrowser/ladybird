@@ -59,7 +59,7 @@ public:
 
     bool properties_equal(KeywordStyleValue const& other) const { return keyword() == other.keyword(); }
 
-    virtual bool is_computationally_independent() const override
+    bool is_computationally_independent() const
     {
         if (is_css_wide_keyword())
             return false;

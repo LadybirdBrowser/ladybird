@@ -33,7 +33,7 @@ public:
         return integer() == other_integer.integer();
     }
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
 private:
     explicit IntegerStyleValue(i32 value)

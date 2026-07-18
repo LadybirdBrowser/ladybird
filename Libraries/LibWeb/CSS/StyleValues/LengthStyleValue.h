@@ -28,7 +28,7 @@ public:
     void serialize(Utf16StringBuilder& builder, SerializationMode mode) const { length().serialize(builder, mode); }
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
-    virtual bool is_computationally_independent() const override { return length().is_computationally_independent(); }
+    bool is_computationally_independent() const { return length().is_computationally_independent(); }
 
     bool equals(StyleValue const& other) const override;
 

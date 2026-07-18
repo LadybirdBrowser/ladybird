@@ -27,6 +27,7 @@ public:
     virtual ~FilterStyleValue() override = default;
 
     Kind kind() const { return static_cast<Kind>(m_value->filter.kind); }
+    bool is_computationally_independent() const;
     virtual bool contains_url() const { return false; }
     static ValueComparingNonnullRefPtr<FilterStyleValue const> initial_value_for(FilterStyleValue const&, bool use_transparent_drop_shadow_color);
 
@@ -56,7 +57,7 @@ public:
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
-    virtual bool is_computationally_independent() const override { return radius()->is_computationally_independent(); }
+    bool is_computationally_independent() const { return radius()->is_computationally_independent(); }
     virtual bool equals(StyleValue const&) const override;
 
 private:
@@ -99,7 +100,7 @@ public:
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
-    virtual bool is_computationally_independent() const override
+    bool is_computationally_independent() const
     {
         return shadow().is_computationally_independent();
     }
@@ -125,7 +126,7 @@ public:
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
-    virtual bool is_computationally_independent() const override { return angle()->is_computationally_independent(); }
+    bool is_computationally_independent() const { return angle()->is_computationally_independent(); }
     virtual bool equals(StyleValue const&) const override;
 
 private:
@@ -150,7 +151,7 @@ public:
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
-    virtual bool is_computationally_independent() const override { return amount()->is_computationally_independent(); }
+    bool is_computationally_independent() const { return amount()->is_computationally_independent(); }
     virtual bool equals(StyleValue const&) const override;
 
 private:

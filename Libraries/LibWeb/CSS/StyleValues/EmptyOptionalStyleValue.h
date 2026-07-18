@@ -27,7 +27,7 @@ public:
 
     bool properties_equal(EmptyOptionalStyleValue const&) const { return true; }
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
 private:
     EmptyOptionalStyleValue()

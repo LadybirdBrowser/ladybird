@@ -37,7 +37,7 @@ public:
 
     virtual bool equals(StyleValue const& other) const override;
 
-    virtual bool is_computationally_independent() const override { return false; }
+    bool is_computationally_independent() const { return false; }
 
 private:
     TreeCountingFunction function() const { return static_cast<TreeCountingFunction>(m_value->tree_counting_function.function); }

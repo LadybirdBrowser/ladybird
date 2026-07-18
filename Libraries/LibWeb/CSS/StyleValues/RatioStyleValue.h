@@ -32,7 +32,7 @@ public:
             && denominator() == other.denominator();
     }
 
-    virtual bool is_computationally_independent() const override { return numerator()->is_computationally_independent() && denominator()->is_computationally_independent(); }
+    bool is_computationally_independent() const { return numerator()->is_computationally_independent() && denominator()->is_computationally_independent(); }
 
 private:
     RatioStyleValue(ValueComparingNonnullRefPtr<StyleValue const> numerator, ValueComparingNonnullRefPtr<StyleValue const> denominator)

@@ -49,7 +49,7 @@ public:
             && element_shared() == other.element_shared();
     }
 
-    virtual bool is_computationally_independent() const override { return !fixed_value() || fixed_value()->is_computationally_independent(); }
+    bool is_computationally_independent() const { return !fixed_value() || fixed_value()->is_computationally_independent(); }
 
 private:
     explicit RandomValueSharingStyleValue(RefPtr<StyleValue const> fixed_value, bool is_auto, Optional<Utf16FlyString> name, bool element_shared)

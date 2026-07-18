@@ -30,7 +30,7 @@ public:
 
     bool properties_equal(OpacityValueStyleValue const& other) const { return value() == other.value(); }
 
-    virtual bool is_computationally_independent() const override { return value()->is_computationally_independent(); }
+    bool is_computationally_independent() const { return value()->is_computationally_independent(); }
 
 private:
     OpacityValueStyleValue(NonnullRefPtr<StyleValue const>&& value)

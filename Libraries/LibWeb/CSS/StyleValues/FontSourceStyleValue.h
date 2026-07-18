@@ -46,7 +46,7 @@ public:
 
     bool properties_equal(FontSourceStyleValue const&) const;
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
 private:
     FontSourceStyleValue(Source source, Optional<Utf16FlyString> format, Vector<FontTech> tech);

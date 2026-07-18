@@ -130,7 +130,7 @@ public:
 
     bool properties_equal(EasingStyleValue const& other) const { return function() == other.function(); }
 
-    virtual bool is_computationally_independent() const override
+    bool is_computationally_independent() const
     {
         return function().visit([](auto const& function) { return function.is_computationally_independent(); });
     }

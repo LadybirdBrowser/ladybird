@@ -36,7 +36,7 @@ public:
 
     bool properties_equal(OpenTypeTaggedStyleValue const&) const;
 
-    virtual bool is_computationally_independent() const override { return value()->is_computationally_independent(); }
+    bool is_computationally_independent() const { return value()->is_computationally_independent(); }
 
 private:
     explicit OpenTypeTaggedStyleValue(Mode mode, Utf16FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)

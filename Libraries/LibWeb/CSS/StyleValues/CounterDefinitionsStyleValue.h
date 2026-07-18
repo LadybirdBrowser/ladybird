@@ -50,7 +50,7 @@ public:
 
     bool properties_equal(CounterDefinitionsStyleValue const& other) const;
 
-    virtual bool is_computationally_independent() const override
+    bool is_computationally_independent() const
     {
         return all_of(counter_definitions(), [](auto const& definition) { return !definition.value || definition.value->is_computationally_independent(); });
     }

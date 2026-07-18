@@ -198,7 +198,7 @@ public:
     // https://drafts.css-houdini.org/css-properties-values-api/#computationally-independent
     // A property value is computationally independent if it can be converted into a computed value using only the value
     // of the property on the element, and "global" information that cannot be changed by CSS.
-    virtual bool is_computationally_independent() const = 0;
+    bool is_computationally_independent() const;
 
 protected:
     StyleValue(Type, StyleValueFFI::StyleValueData*);

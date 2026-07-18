@@ -157,6 +157,18 @@ void StyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
     }
 }
 
+bool StyleValue::is_computationally_independent() const
+{
+    switch (type()) {
+#define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
+    case Type::title_case:                                                               \
+        return static_cast<style_value_class_name const&>(*this).is_computationally_independent();
+        ENUMERATE_CSS_STYLE_VALUE_TYPES
+#undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
+    }
+    VERIFY_NOT_REACHED();
+}
+
 String StyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;

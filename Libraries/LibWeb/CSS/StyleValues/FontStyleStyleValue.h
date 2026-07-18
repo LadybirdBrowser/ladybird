@@ -37,7 +37,7 @@ public:
 
     bool properties_equal(FontStyleStyleValue const& other) const { return font_style() == other.font_style() && angle() == other.angle(); }
 
-    virtual bool is_computationally_independent() const override { return !angle() || angle()->is_computationally_independent(); }
+    bool is_computationally_independent() const { return !angle() || angle()->is_computationally_independent(); }
 
 private:
     FontStyleStyleValue(FontStyleKeyword, ValueComparingRefPtr<StyleValue const> angle_value);

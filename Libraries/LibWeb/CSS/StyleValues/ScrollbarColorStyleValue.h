@@ -20,7 +20,7 @@ public:
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     bool properties_equal(ScrollbarColorStyleValue const& other) const { return thumb_color() == other.thumb_color() && track_color() == other.track_color(); }
 
-    virtual bool is_computationally_independent() const override { return thumb_color()->is_computationally_independent() && track_color()->is_computationally_independent(); }
+    bool is_computationally_independent() const { return thumb_color()->is_computationally_independent() && track_color()->is_computationally_independent(); }
 
     ValueComparingNonnullRefPtr<StyleValue const> thumb_color() const { return *static_cast<StyleValue const*>(m_value->scrollbar_color.thumb_color.pointer); }
     ValueComparingNonnullRefPtr<StyleValue const> track_color() const { return *static_cast<StyleValue const*>(m_value->scrollbar_color.track_color.pointer); }

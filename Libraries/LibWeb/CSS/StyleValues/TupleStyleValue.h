@@ -35,7 +35,7 @@ public:
 
     bool properties_equal(TupleStyleValue const& other) const { return tuple() == other.tuple(); }
 
-    virtual bool is_computationally_independent() const override
+    bool is_computationally_independent() const
     {
         return all_of(tuple(), [](auto& value) { return !value || value->is_computationally_independent(); });
     }

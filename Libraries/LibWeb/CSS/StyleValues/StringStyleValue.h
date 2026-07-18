@@ -30,7 +30,7 @@ public:
 
     bool properties_equal(StringStyleValue const& other) const { return string_value() == other.string_value(); }
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
 private:
     explicit StringStyleValue(Utf16FlyString string)

@@ -63,7 +63,7 @@ public:
     bool properties_equal(CounterStyleSystemStyleValue const& other) const { return value() == other.value(); }
 
     // NB: We only use this style value within the @counter-style at-rule so will never call this
-    virtual bool is_computationally_independent() const override { VERIFY_NOT_REACHED(); }
+    bool is_computationally_independent() const { VERIFY_NOT_REACHED(); }
 
 private:
     explicit CounterStyleSystemStyleValue(Variant<CounterStyleSystem, Fixed, Extends> value)

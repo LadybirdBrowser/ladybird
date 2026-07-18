@@ -36,7 +36,7 @@ public:
 
     bool properties_equal(ColorSchemeStyleValue const& other) const { return schemes() == other.schemes() && only() == other.only(); }
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
 private:
     ColorSchemeStyleValue(Vector<Utf16FlyString> schemes, bool only)

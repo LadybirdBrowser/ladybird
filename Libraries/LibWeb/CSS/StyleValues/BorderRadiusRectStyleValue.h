@@ -42,7 +42,7 @@ public:
             && bottom_left() == other.bottom_left();
     }
 
-    virtual bool is_computationally_independent() const override
+    bool is_computationally_independent() const
     {
         return top_left()->is_computationally_independent()
             && top_right()->is_computationally_independent()

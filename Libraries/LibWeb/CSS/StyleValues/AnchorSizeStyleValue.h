@@ -24,7 +24,7 @@ public:
 
     bool properties_equal(AnchorSizeStyleValue const& other) const { return anchor_name() == other.anchor_name() && anchor_size() == other.anchor_size() && fallback_value() == other.fallback_value(); }
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
     Optional<Utf16FlyString> anchor_name() const
     {

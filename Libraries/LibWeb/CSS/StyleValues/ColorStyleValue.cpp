@@ -14,7 +14,10 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorMixStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ContrastColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LightDarkStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
@@ -27,6 +30,23 @@ static_assert(offsetof(StyleValueFFI::StyleValueData::ColorFunction_Body, color_
 static_assert(offsetof(StyleValueFFI::StyleValueData::ColorMix_Body, color_base) == 0);
 static_assert(offsetof(StyleValueFFI::StyleValueData::LightDark_Body, color_base) == 0);
 static_assert(offsetof(StyleValueFFI::StyleValueData::ContrastColor_Body, color_base) == 0);
+
+// The C++ Type is Color for every color variant, so color operations dispatch on the Rust tag.
+bool ColorStyleValue::is_computationally_independent() const
+{
+    switch (m_value->tag) {
+    case StyleValueFFI::StyleValueData::Tag::ColorFunction:
+        return static_cast<ColorFunctionStyleValue const&>(*this).is_computationally_independent();
+    case StyleValueFFI::StyleValueData::Tag::ColorMix:
+        return static_cast<ColorMixStyleValue const&>(*this).is_computationally_independent();
+    case StyleValueFFI::StyleValueData::Tag::ContrastColor:
+        return static_cast<ContrastColorStyleValue const&>(*this).is_computationally_independent();
+    case StyleValueFFI::StyleValueData::Tag::LightDark:
+        return static_cast<LightDarkStyleValue const&>(*this).is_computationally_independent();
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
 
 ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<Utf16FlyString> name)
 {

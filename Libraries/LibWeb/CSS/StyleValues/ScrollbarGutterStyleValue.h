@@ -39,7 +39,7 @@ public:
 
     bool properties_equal(ScrollbarGutterStyleValue const& other) const { return value() == other.value(); }
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
 private:
     ScrollbarGutterStyleValue(ScrollbarGutter value)

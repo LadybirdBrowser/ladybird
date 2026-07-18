@@ -30,7 +30,7 @@ public:
 
     bool properties_equal(BorderImageSliceStyleValue const& other) const { return top() == other.top() && right() == other.right() && bottom() == other.bottom() && left() == other.left() && fill() == other.fill(); }
 
-    virtual bool is_computationally_independent() const override
+    bool is_computationally_independent() const
     {
         return top()->is_computationally_independent()
             && right()->is_computationally_independent()

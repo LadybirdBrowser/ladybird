@@ -166,7 +166,7 @@ public:
 
     bool properties_equal(BasicShapeStyleValue const& other) const { return basic_shape() == other.basic_shape(); }
 
-    virtual bool is_computationally_independent() const override
+    bool is_computationally_independent() const
     {
         return basic_shape().visit([](auto const& shape) { return shape.is_computationally_independent(); });
     }

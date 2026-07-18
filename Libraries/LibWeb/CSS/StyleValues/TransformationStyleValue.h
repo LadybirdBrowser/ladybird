@@ -55,7 +55,7 @@ public:
         return true;
     }
 
-    virtual bool is_computationally_independent() const override
+    bool is_computationally_independent() const
     {
         for (size_t i = 0; i < size(); ++i) {
             if (!value_at(i)->is_computationally_independent())

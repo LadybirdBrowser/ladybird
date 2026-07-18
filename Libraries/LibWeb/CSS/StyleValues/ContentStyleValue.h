@@ -28,7 +28,7 @@ public:
 
     bool properties_equal(ContentStyleValue const& other) const;
 
-    virtual bool is_computationally_independent() const override;
+    bool is_computationally_independent() const;
 
     void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 

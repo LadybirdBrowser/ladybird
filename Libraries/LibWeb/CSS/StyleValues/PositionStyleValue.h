@@ -33,7 +33,7 @@ public:
 
     bool properties_equal(PositionStyleValue const& other) const { return edge_x() == other.edge_x() && edge_y() == other.edge_y(); }
 
-    virtual bool is_computationally_independent() const override { return edge_x()->is_computationally_independent() && edge_y()->is_computationally_independent(); }
+    bool is_computationally_independent() const { return edge_x()->is_computationally_independent() && edge_y()->is_computationally_independent(); }
 
 private:
     PositionStyleValue(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y)

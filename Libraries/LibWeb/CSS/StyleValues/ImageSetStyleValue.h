@@ -28,7 +28,7 @@ public:
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual bool equals(StyleValue const& other) const override;
-    virtual bool is_computationally_independent() const override;
+    bool is_computationally_independent() const;
 
     virtual void load_any_resources(DOM::Document&) override;
 

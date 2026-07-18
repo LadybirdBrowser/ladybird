@@ -26,7 +26,7 @@ public:
 
     bool properties_equal(FunctionStyleValue const& other) const { return name() == other.name() && value() == other.value(); }
 
-    virtual bool is_computationally_independent() const override { return value()->is_computationally_independent(); }
+    bool is_computationally_independent() const { return value()->is_computationally_independent(); }
 
 private:
     FunctionStyleValue(Utf16FlyString name, NonnullRefPtr<StyleValue const> value)

@@ -49,7 +49,7 @@ public:
 
     bool properties_equal(RadialSizeStyleValue const& other) const;
 
-    virtual bool is_computationally_independent() const override
+    bool is_computationally_independent() const
     {
         return all_of(components(), [](auto const& component) {
             return component.visit(

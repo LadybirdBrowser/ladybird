@@ -35,7 +35,7 @@ public:
         return number() == other_number.number();
     }
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
 private:
     explicit NumberStyleValue(double value)

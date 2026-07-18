@@ -45,7 +45,7 @@ public:
             && grid_areas() == other.grid_areas();
     }
 
-    virtual bool is_computationally_independent() const override { return true; }
+    bool is_computationally_independent() const { return true; }
 
 private:
     explicit GridTemplateAreaStyleValue(HashMap<Utf16FlyString, GridArea> grid_areas, size_t row_count, size_t column_count)
