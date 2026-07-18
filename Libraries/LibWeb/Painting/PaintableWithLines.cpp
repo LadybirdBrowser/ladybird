@@ -587,6 +587,27 @@ CSSPixelRect PaintableWithLines::caret_rect_for_child_offset(size_t offset) cons
     auto dom_node = layout_node().dom_node();
     if (!dom_node)
         return rect;
+
+    // A boundary immediately after an atomic inline element paints after that element. Atomic inline elements have
+    // no text offset for fragment_at_position() to resolve, so use their inline edge directly.
+    if (offset > 0) {
+        auto* previous_child = dom_node->child_at_index(offset - 1);
+        if (previous_child) {
+            for (auto const& fragment : m_fragments) {
+                auto* fragment_dom_node = fragment.layout_node().dom_node();
+                if (fragment_dom_node != previous_child || !fragment.layout_node().is_atomic_inline())
+                    continue;
+
+                auto fragment_rect = fragment.absolute_rect();
+                if (computed_values().writing_mode() == CSS::WritingMode::HorizontalTb)
+                    rect.set_x(computed_values().inline_axis_is_reverse() ? fragment_rect.left() : fragment_rect.right());
+                else
+                    rect.set_y(computed_values().inline_axis_is_reverse() ? fragment_rect.top() : fragment_rect.bottom());
+                return rect;
+            }
+        }
+    }
+
     auto* child = dom_node->child_at_index(offset);
     if (!child || !is<HTML::HTMLBRElement>(*child))
         return rect;

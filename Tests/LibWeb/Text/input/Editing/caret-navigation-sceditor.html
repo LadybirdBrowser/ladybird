@@ -79,6 +79,10 @@
             collapse(editor, 0);
             send("End");
             assertPoint(point(), [firstLine, 2], "End from the editing host start");
+            const caretRectAfterFirstImage = internals.currentCaretRect();
+            const firstImageRect = firstLine.querySelector("img").getBoundingClientRect();
+            if (caretRectAfterFirstImage.x !== firstImageRect.right)
+                failures.push(`End caret painted at ${caretRectAfterFirstImage.x}, expected ${firstImageRect.right}`);
             internals.sendText(editor, "f");
             ++interactionCount;
             const insertedText = selection.focusNode;
