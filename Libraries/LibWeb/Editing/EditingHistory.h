@@ -35,7 +35,17 @@ class UndoStep final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(UndoStep);
 
 public:
+    // The kind of user action that created (or was merged into) a step, used to decide which
+    // subsequent actions may coalesce into it.
+    enum class Category : u8 {
+        Insertion,
+        BackwardDeletion,
+        ForwardDeletion,
+        Other,
+    };
+
     GC::Ref<DOM::Node> editing_host() const { return m_editing_host; }
+    Category category() const { return m_category; }
 
     void add_command(GC::Ref<EditCommand> command) { m_commands.append(command); }
     bool has_commands() const { return !m_commands.is_empty(); }
@@ -48,12 +58,19 @@ public:
     void unapply();
     void reapply();
 
+    bool accepts_merge_of(Category);
+    void merge(UndoStep&);
+    void finalize_starting_selection();
+    bool performed_lasting_node_removal() const;
+
 private:
-    explicit UndoStep(GC::Ref<DOM::Node> editing_host);
+    UndoStep(GC::Ref<DOM::Node> editing_host, Category);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<DOM::Node> m_editing_host;
+    Category m_category { Category::Other };
+    Category m_last_merged_category { Category::Other };
     Vector<GC::Ref<EditCommand>> m_commands;
     SelectionSnapshot m_starting_selection;
     SelectionSnapshot m_ending_selection;
@@ -74,13 +91,17 @@ public:
     // through the Editing proxy functions are recorded onto this step.
     GC::Ptr<UndoStep> undo_step_being_recorded() { return m_undo_step_being_recorded; }
 
-    void begin_recording(DOM::Node& editing_host);
+    void begin_recording(DOM::Node& editing_host, UndoStep::Category);
     void end_recording();
 
     bool can_undo();
     bool can_redo();
     bool undo(DOM::Document&);
     bool redo(DOM::Document&);
+
+    // Called whenever the document selection changes; ends typing coalescence unless the change
+    // came from an editing command or from history application itself.
+    void selection_changed();
 
 private:
     EditingHistory() = default;
@@ -91,6 +112,7 @@ private:
     void restore_selection(DOM::Document&, SelectionSnapshot const&);
 
     GC::Ptr<UndoStep> m_undo_step_being_recorded;
+    GC::Ptr<UndoStep> m_open_step;
     Vector<GC::Ref<UndoStep>> m_undo_stack;
     Vector<GC::Ref<UndoStep>> m_redo_stack;
     bool m_applying_history_step { false };

@@ -29,6 +29,11 @@ public:
 
     virtual void unapply() = 0;
     virtual void reapply() = 0;
+
+    // Whether this command removed a node from the document that the rest of its editing action
+    // did not put back. Used to end typing coalescence, since Blink closes an open typing unit
+    // when a node near the selection is removed.
+    virtual bool is_lasting_node_removal() const { return false; }
 };
 
 class InsertNodeCommand final : public EditCommand {
@@ -61,6 +66,8 @@ public:
     virtual void unapply() override;
     virtual void reapply() override;
 
+    virtual bool is_lasting_node_removal() const override;
+
 private:
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -79,6 +86,10 @@ public:
     WebIDL::ExceptionOr<void> apply();
     virtual void unapply() override;
     virtual void reapply() override;
+
+    GC::Ref<DOM::CharacterData> node() const { return m_node; }
+    size_t offset() const { return m_offset; }
+    Utf16String const& removed_data() const { return m_removed_data; }
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;

@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -585,6 +586,13 @@ void Selection::set_range(GC::Ptr<DOM::Range> range)
     if (((old_range == nullptr) != (range == nullptr)) || (old_range && *old_range != *range)) {
         m_document->reset_command_state_overrides();
         m_document->reset_command_value_overrides();
+    }
+
+    // NB: Removing the selection ends typing coalescence in the editing history; changes to an associated range are
+    //     handled in Range::update_associated_selection().
+    if (!range) {
+        if (auto history = m_document->editing_history_if_exists())
+            history->selection_changed();
     }
 
     // https://developer.mozilla.org/en-US/docs/Web/API/Selection#behavior_of_selection_api_in_terms_of_editing_host_focus_changes

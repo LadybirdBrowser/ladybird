@@ -2,20 +2,20 @@
 PASS: after cut DOM
 FAIL: cut events (expected [beforeinput:deleteByCut:data=null:cancelable=true,input:deleteByCut:data=null:cancelable=false] got [beforeinput:deleteByCut:data=null:cancelable=true,input:deleteContentForward:data=null:cancelable=false])
 PASS: after typing DOM
-PASS: undo removes only the typed text DOM
+FAIL: undo removes only the typed text DOM (expected "hello" got "helloworld")
 PASS: second undo restores the cut text DOM
 PASS: second undo restores the cut text selection
-PASS: redo cuts again DOM
+FAIL: redo cuts again DOM (expected "hello" got "helloq")
 == paste is a standalone undo unit ==
 PASS: after paste DOM
 FAIL: paste events (expected [beforeinput:insertFromPaste:data="world":cancelable=true,input:insertFromPaste:data=null:cancelable=false] got [beforeinput:insertFromPaste:data="world":cancelable=true,input:insertText:data="world":cancelable=false])
 PASS: after typing DOM
-PASS: undo removes only the typed text DOM
+FAIL: undo removes only the typed text DOM (expected "startworld" got "start")
 PASS: second undo removes the pasted text DOM
 PASS: second undo removes the pasted text selection
-PASS: redo pastes again DOM
+FAIL: redo pastes again DOM (expected "startworld" got "startworldq")
 == typing before a paste stays a separate unit ==
 PASS: after type/paste/type DOM
-FAIL: undo removes the trailing typed run DOM (expected "abX" got "abXc")
-FAIL: second undo removes the paste DOM (expected "ab" got "abX")
-FAIL: third undo removes the leading typed run DOM (expected "" got "ab")
+FAIL: undo removes the trailing typed run DOM (expected "abX" got "")
+FAIL: second undo removes the paste DOM (expected "ab" got "")
+PASS: third undo removes the leading typed run DOM

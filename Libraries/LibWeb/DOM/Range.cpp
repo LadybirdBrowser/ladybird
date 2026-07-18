@@ -23,6 +23,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/SelectionchangeEventDispatching.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
@@ -134,6 +135,11 @@ void Range::update_associated_selection()
     // point is mutated either by the user or the content script, the user agent must schedule a selectionchange event
     // on document.
     schedule_a_selectionchange_event(document, document);
+
+    // NB: A selection change ends typing coalescence in the editing history, like Blink closing its open typing
+    //     command whenever the frame selection is set.
+    if (auto history = document.editing_history_if_exists())
+        history->selection_changed();
 }
 
 // https://dom.spec.whatwg.org/#concept-range-root

@@ -85,6 +85,11 @@ void RemoveNodeCommand::unapply()
     m_parent->insert_before(m_node, reference_child);
 }
 
+bool RemoveNodeCommand::is_lasting_node_removal() const
+{
+    return !m_node->parent();
+}
+
 void RemoveNodeCommand::reapply()
 {
     if (!m_node->parent() || !m_node->parent()->is_editable_or_editing_host())

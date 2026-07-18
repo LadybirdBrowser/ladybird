@@ -117,8 +117,16 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
 
     // AD-HOC: Record the mutations performed by the command action on the editing history, so the user can undo them.
     //         end_recording() is a no-op if the guard below already ended the recording.
-    if (affected_editing_host)
-        editing_history()->begin_recording(*affected_editing_host);
+    if (affected_editing_host) {
+        auto category = Editing::UndoStep::Category::Other;
+        if (command_definition.command.is_one_of(Editing::CommandNames::insertText, Editing::CommandNames::insertLineBreak, Editing::CommandNames::insertParagraph))
+            category = Editing::UndoStep::Category::Insertion;
+        else if (command_definition.command == Editing::CommandNames::delete_)
+            category = Editing::UndoStep::Category::BackwardDeletion;
+        else if (command_definition.command == Editing::CommandNames::forwardDelete)
+            category = Editing::UndoStep::Category::ForwardDeletion;
+        editing_history()->begin_recording(*affected_editing_host, category);
+    }
     ScopeGuard end_recording_guard = [&] {
         if (auto history = editing_history_if_exists())
             history->end_recording();

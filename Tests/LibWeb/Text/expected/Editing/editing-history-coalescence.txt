@@ -1,51 +1,51 @@
 == a typed run coalesces into one undo unit ==
 PASS: after typing DOM
-FAIL: one undo removes the whole run DOM (expected "" got "ab")
-FAIL: one undo removes the whole run selection (expected host:DIV@0->host:DIV@0 got host/0:#text@2->host/0:#text@2)
+PASS: one undo removes the whole run DOM
+PASS: one undo removes the whole run selection
 PASS: one redo restores the whole run DOM
 PASS: one redo restores the whole run selection
 == caret movement breaks typing coalescence ==
 PASS: undo removes only the second run DOM
 PASS: undo removes only the second run selection
-FAIL: second undo removes the first run DOM (expected "" got "a")
+PASS: second undo removes the first run DOM
 == programmatic selection change breaks coalescence even at the same position ==
 PASS: undo removes only the post-collapse run DOM
-FAIL: second undo removes the first run DOM (expected "" got "a")
+PASS: second undo removes the first run DOM
 == a backspace run coalesces and undo selects the restored text ==
 PASS: after backspaces DOM
-FAIL: one undo restores all deleted text DOM (expected "abcdef" got "abcd")
-FAIL: one undo restores all deleted text selection (expected host/0:#text@6->host/0:#text@3 got host/0:#text@4->host/0:#text@4)
+PASS: one undo restores all deleted text DOM
+PASS: one undo restores all deleted text selection
 PASS: one redo deletes it again DOM
 PASS: one redo deletes it again selection
 == a forward-delete run coalesces separately ==
 PASS: after forward deletes DOM
-FAIL: one undo restores both characters DOM (expected "abcdef" got "bcdef")
-FAIL: one undo restores both characters selection (expected host/0:#text@0->host/0:#text@1 got host:DIV@0->host:DIV@0)
+PASS: one undo restores both characters DOM
+PASS: one undo restores both characters selection
 PASS: one redo deletes them again DOM
-FAIL: one redo deletes them again selection (expected host/0:#text@0->host/0:#text@0 got host:DIV@0->host:DIV@0)
+PASS: one redo deletes them again selection
 == backspace starts a new unit after typing, but typing joins a delete unit ==
 PASS: after type/backspace/type DOM
-FAIL: undo reverts backspace and following text as one unit DOM (expected "abc" got "ab")
-FAIL: undo reverts backspace and following text as one unit selection (expected host/0:#text@3->host/0:#text@2 got host/0:#text@2->host/0:#text@2)
-FAIL: second undo reverts the typed run DOM (expected "" got "abc")
-FAIL: no third unit exists
+PASS: undo reverts backspace and following text as one unit DOM
+PASS: undo reverts backspace and following text as one unit selection
+PASS: second undo reverts the typed run DOM
+PASS: no third unit exists
 == paragraph insertion joins a typing run ==
 PASS: after enter and typing DOM
-FAIL: one undo reverts the split and the typing DOM (expected "<div>hello</div>" got "<div>hel</div><div>lo</div>")
-FAIL: one undo reverts the split and the typing selection (expected host/0/0:#text@3->host/0/0:#text@3 got host/1:DIV@0->host/1:DIV@0)
-FAIL: enter and typing were one unit
+PASS: one undo reverts the split and the typing DOM
+PASS: one undo reverts the split and the typing selection
+PASS: enter and typing were one unit
 == typing that removes a placeholder closes the open unit ==
 PASS: after typing into the new paragraph DOM
 PASS: undo removes only the character typed after the placeholder was removed DOM
-FAIL: second undo reverts the rest DOM (expected "" got "<div>ab</div><div><br></div>")
+PASS: second undo reverts the rest DOM
 == replacing a selection then typing extends the same unit ==
 PASS: after replacing and typing DOM
-FAIL: one undo restores the replaced selection DOM (expected "hello world" got "hello xy")
-FAIL: one undo restores the replaced selection selection (expected host/0:#text@6->host/0:#text@11 got host/0:#text@8->host/0:#text@8)
+PASS: one undo restores the replaced selection DOM
+PASS: one undo restores the replaced selection selection
 PASS: one redo replays the whole unit DOM
 PASS: one redo replays the whole unit selection
 == script execCommand insertText coalesces like typing ==
-FAIL: one undo removes both insertions DOM (expected "" got "x")
+PASS: one undo removes both insertions DOM
 == formatting breaks a typing run ==
 PASS: after bold and typing DOM
 PASS: undo removes only the typed character DOM
@@ -54,5 +54,5 @@ PASS: second undo removes the formatting DOM
 PASS: second undo removes the formatting selection
 == script DOM mutation elsewhere does not break coalescence ==
 PASS: after typing around the script mutation DOM
-FAIL: one undo reverts both characters and keeps the script node DOM (expected "Z" got "aZ")
-FAIL: the script mutation was not recorded
+PASS: one undo reverts both characters and keeps the script node DOM
+PASS: the script mutation was not recorded
