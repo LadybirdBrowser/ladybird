@@ -10,6 +10,7 @@
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/TextAffinity.h>
 
@@ -25,6 +26,12 @@ struct SelectionSnapshot {
     GC::Ptr<DOM::Node> focus_node;
     size_t focus_offset { 0 };
     TextAffinity focus_affinity { TextAffinity::Downstream };
+
+    // Text controls have their own selection instead of a document selection.
+    GC::Ptr<HTML::HTMLElement> text_control;
+    size_t text_control_start { 0 };
+    size_t text_control_end { 0 };
+    HTML::SelectionDirection text_control_direction { HTML::SelectionDirection::None };
 };
 
 // One user-level editing action: the ordered list of reversible edit commands it performed, and
@@ -56,13 +63,19 @@ public:
     SelectionSnapshot const& ending_selection() const { return m_ending_selection; }
     void set_ending_selection(SelectionSnapshot const& snapshot) { m_ending_selection = snapshot; }
 
-    void unapply();
-    void reapply();
+    bool unapply();
+    bool reapply();
 
     bool accepts_merge_of(Category);
     void merge(UndoStep&);
     void finalize_starting_selection();
     bool performed_lasting_node_removal() const;
+
+    // INTEROP: Chromium's text controls end a typing unit one character into a new line (their
+    //          internal editor removes a placeholder br there); the recording site sets this
+    //          after a line break so the next merged action closes the unit.
+    bool closes_after_next_merge() const { return m_closes_after_next_merge; }
+    void set_closes_after_next_merge() { m_closes_after_next_merge = true; }
 
 private:
     UndoStep(GC::Ref<DOM::Node> editing_host, Category);
@@ -72,6 +85,7 @@ private:
     GC::Ref<DOM::Node> m_editing_host;
     Category m_category { Category::Other };
     Category m_last_merged_category { Category::Other };
+    bool m_closes_after_next_merge { false };
     Vector<GC::Ref<EditCommand>> m_commands;
     SelectionSnapshot m_starting_selection;
     SelectionSnapshot m_ending_selection;

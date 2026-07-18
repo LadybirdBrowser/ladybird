@@ -735,6 +735,7 @@ class EventLoop;
 class EventSource;
 class External;
 class FormAssociatedElement;
+class FormAssociatedTextControlElement;
 class FormDataEvent;
 class History;
 class HTMLAllCollection;
@@ -891,6 +892,7 @@ class XMLSerializer;
 
 enum class AllowMultipleFiles;
 enum class RequireWellFormed;
+enum class SelectionDirection : u8;
 enum class SandboxingFlagSet : u32;
 
 struct Agent;

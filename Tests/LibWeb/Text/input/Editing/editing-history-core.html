@@ -210,9 +210,22 @@
         host.firstChild.remove();
         document.execCommand("undo");
         expectState("undo on mangled DOM changed nothing", "");
-        expectEnabled("entry was still consumed", false, true);
-        document.execCommand("redo");
-        println(`redo on mangled DOM produced: ${JSON.stringify(host.innerHTML)}`);
+        // NB: A step whose replay cannot perform anything was invalidated by the script mutation
+        //     and is dropped rather than left as a bogus redo.
+        expectEnabled("the invalidated entry was dropped", false, false);
+        expect(document.execCommand("redo") === false, "redo has nothing to replay");
+        expectState("redo on mangled DOM changed nothing", "");
+
+        println("== undo after script rewrote the edited text is a safe no-op ==");
+        newHost("");
+        sel.collapse(host, 0);
+        document.execCommand("insertText", false, "abc");
+        host.firstChild.data = "abx";
+        document.execCommand("undo");
+        expectState("undo on rewritten text changed nothing", "abx");
+        // NB: Chromium splices at the recorded offsets here and garbles the rewritten text;
+        //     dropping the invalidated entry instead is deliberate.
+        expectEnabled("the invalidated entry was dropped", false, false);
 
         println("== multiple editing hosts share one history stack ==");
         newHost("");

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Undo/redo for edits in text controls (<input> and <textarea>), which share the document's
+    // editing history with contenteditable hosts. Expected values derived from driving
+    // Chromium 146 through WebDriver with an equivalent fixture, except where noted.
+    test(() => {
+        const modCtrl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const modCtrlShift = modCtrl | internals.MOD_SHIFT;
+        const events = [];
+        let field = null;
+        let area = null;
+        let host = null;
+
+        function fresh() {
+            for (const el of [field, area, host])
+                el?.remove();
+            field = document.createElement("input");
+            field.id = "field";
+            area = document.createElement("textarea");
+            area.id = "area";
+            host = document.createElement("div");
+            host.id = "host";
+            host.contentEditable = "true";
+            document.body.append(field, area, host);
+            for (const el of [field, area, host]) {
+                for (const type of ["beforeinput", "input"]) {
+                    el.addEventListener(type, e => {
+                        events.push(`${type}:${e.inputType}@${e.currentTarget.id}`);
+                    });
+                }
+            }
+            events.length = 0;
+        }
+        function expect(condition, label, detail) {
+            println(`${condition ? "PASS" : "FAIL"}: ${label}${condition || detail === undefined ? "" : ` (${detail})`}`);
+        }
+        function expectField(label, value, start, end, direction) {
+            const got = `${JSON.stringify(field.value)}[${field.selectionStart},${field.selectionEnd},${field.selectionDirection}]`;
+            const expected = `${JSON.stringify(value)}[${start},${end},${direction}]`;
+            expect(got === expected, label, `expected ${expected} got ${got}`);
+        }
+        function expectEvents(label, expected) {
+            const got = events.splice(0);
+            expect(got.join(" ") === expected.join(" "), `${label} events`, `expected [${expected}] got [${got}]`);
+        }
+        function expectEnabled(label, undo, redo) {
+            const gotUndo = document.queryCommandEnabled("undo");
+            const gotRedo = document.queryCommandEnabled("redo");
+            expect(gotUndo === undo && gotRedo === redo, `${label} canUndo=${undo} canRedo=${redo}`, `got canUndo=${gotUndo} canRedo=${gotRedo}`);
+        }
+
+        println("== a typed run in an input undoes and redoes as one unit ==");
+        fresh();
+        internals.sendText(field, "abc");
+        expectEnabled("after typing", true, false);
+        events.length = 0;
+        internals.sendKey(field, "Z", modCtrl);
+        expectField("after undo", "", 0, 0, "none");
+        expectEnabled("after undo", false, true);
+        expectEvents("undo", ["beforeinput:historyUndo@field", "input:historyUndo@field"]);
+        internals.sendKey(field, "Z", modCtrlShift);
+        expectField("after redo", "abc", 3, 3, "none");
+        expectEvents("redo", ["beforeinput:historyRedo@field", "input:historyRedo@field"]);
+
+        println("== caret movement breaks typing coalescence in an input ==");
+        fresh();
+        internals.sendText(field, "ab");
+        internals.sendKey(field, "Left");
+        internals.sendKey(field, "Right");
+        internals.sendText(field, "c");
+        internals.sendKey(field, "Z", modCtrl);
+        expectField("first undo removes only the second run", "ab", 2, 2, "none");
+        internals.sendKey(field, "Z", modCtrl);
+        expectField("second undo removes the first run", "", 0, 0, "none");
+
+        println("== a backspace run in an input restores as a selected range ==");
+        fresh();
+        field.value = "abcdef";
+        field.focus();
+        field.setSelectionRange(6, 6);
+        internals.sendKey(field, "Backspace");
+        internals.sendKey(field, "Backspace");
+        expectField("after backspaces", "abcd", 4, 4, "none");
+        internals.sendKey(field, "Z", modCtrl);
+        expectField("undo restores and selects the deleted text", "abcdef", 4, 6, "none");
+        internals.sendKey(field, "Z", modCtrlShift);
+        expectField("redo deletes it again", "abcd", 4, 4, "none");
+
+        println("== typing over a backward selection restores it on undo ==");
+        fresh();
+        field.value = "hello world";
+        field.focus();
+        field.setSelectionRange(6, 11, "backward");
+        internals.sendText(field, "x");
+        internals.sendText(field, "yz");
+        expectField("after typing over", "hello xyz", 9, 9, "none");
+        internals.sendKey(field, "Z", modCtrl);
+        expectField("undo restores the backward selection", "hello world", 6, 11, "backward");
+        internals.sendKey(field, "Z", modCtrlShift);
+        expectField("redo replays the whole unit", "hello xyz", 9, 9, "none");
+
+        println("== cut is a standalone unit in an input ==");
+        fresh();
+        field.value = "helloworld";
+        field.focus();
+        field.setSelectionRange(5, 10);
+        internals.sendKey(field, "X", modCtrl);
+        expectField("after cut", "hello", 5, 5, "none");
+        internals.sendText(field, "q");
+        internals.sendKey(field, "Z", modCtrl);
+        expectField("undo removes only the typed text", "hello", 5, 5, "none");
+        internals.sendKey(field, "Z", modCtrl);
+        expectField("second undo restores the cut text", "helloworld", 5, 10, "none");
+
+        println("== paste is a standalone unit in an input ==");
+        fresh();
+        field.value = "start";
+        field.focus();
+        field.setSelectionRange(5, 5);
+        internals.paste(field, "world");
+        internals.sendText(field, "q");
+        internals.sendKey(field, "Z", modCtrl);
+        expectField("undo removes only the typed text", "startworld", 10, 10, "none");
+        internals.sendKey(field, "Z", modCtrl);
+        expectField("second undo removes the pasted text", "start", 5, 5, "none");
+
+        println("== inputs and contenteditable hosts share one history ==");
+        fresh();
+        internals.sendText(field, "a");
+        host.focus();
+        getSelection().collapse(host, 0);
+        internals.sendText(host, "b");
+        field.focus();
+        field.setSelectionRange(1, 1);
+        internals.sendText(field, "c");
+        events.length = 0;
+        internals.sendKey(field, "Z", modCtrl);
+        expect(field.value === "a" && host.innerHTML === "b", "first undo reverts the input", `field=${JSON.stringify(field.value)} host=${JSON.stringify(host.innerHTML)}`);
+        internals.sendKey(field, "Z", modCtrl);
+        expect(field.value === "a" && host.innerHTML === "", "second undo reverts the host", `field=${JSON.stringify(field.value)} host=${JSON.stringify(host.innerHTML)}`);
+        internals.sendKey(field, "Z", modCtrl);
+        expect(field.value === "" && host.innerHTML === "", "third undo reverts the input again", `field=${JSON.stringify(field.value)} host=${JSON.stringify(host.innerHTML)}`);
+        expectEvents("interleaved undos target their own elements", [
+            "beforeinput:historyUndo@field", "input:historyUndo@field",
+            "beforeinput:historyUndo@host", "input:historyUndo@host",
+            "beforeinput:historyUndo@field", "input:historyUndo@field",
+        ]);
+        internals.sendKey(field, "Z", modCtrlShift);
+        internals.sendKey(field, "Z", modCtrlShift);
+        internals.sendKey(field, "Z", modCtrlShift);
+        expect(field.value === "ac" && host.innerHTML === "b", "redos replay in order", `field=${JSON.stringify(field.value)} host=${JSON.stringify(host.innerHTML)}`);
+
+        println("== a new edit after undo discards redo in an input ==");
+        fresh();
+        internals.sendText(field, "a");
+        internals.sendKey(field, "Z", modCtrl);
+        internals.sendText(field, "b");
+        expectEnabled("after new edit", true, false);
+        internals.sendKey(field, "Z", modCtrlShift);
+        expectField("redo does nothing", "b", 1, 1, "none");
+
+        println("== script value writes make stale steps a safe no-op ==");
+        // NB: Chromium replays stale text-field steps against the rewritten value and produces
+        //     garbled text; we skip a step whose recorded text no longer matches and drop it,
+        //     since replaying it in either direction is meaningless.
+        fresh();
+        internals.sendText(field, "abc");
+        field.value = "SCRIPT";
+        internals.sendKey(field, "Z", modCtrl);
+        expect(field.value === "SCRIPT", "undo left the scripted value alone", JSON.stringify(field.value));
+        expectEnabled("the invalidated entry was dropped", false, false);
+        internals.sendKey(field, "Z", modCtrlShift);
+        expect(field.value === "SCRIPT", "redo left the scripted value alone", JSON.stringify(field.value));
+
+        println("== a line break ends the typing unit one character into the new line ==");
+        fresh();
+        area.focus();
+        internals.sendText(area, "ab");
+        internals.sendKey(area, "Return");
+        internals.sendText(area, "cd");
+        expect(area.value === "ab\ncd", "textarea content after typing", JSON.stringify(area.value));
+        internals.sendKey(area, "Z", modCtrl);
+        expect(area.value === "ab\nc", "undo removes only the trailing character", JSON.stringify(area.value));
+        internals.sendKey(area, "Z", modCtrl);
+        expect(area.value === "", "second undo removes the rest", JSON.stringify(area.value));
+        internals.sendKey(area, "Z", modCtrlShift);
+        expect(area.value === "ab\nc", "redo replays the first unit", JSON.stringify(area.value));
+
+        println("== typing truncated by maxlength undoes as one unit ==");
+        fresh();
+        field.maxLength = 4;
+        internals.sendText(field, "abcdef");
+        expectField("after truncated typing", "abcd", 4, 4, "none");
+        internals.sendKey(field, "Z", modCtrl);
+        expectField("undo removes the whole unit", "", 0, 0, "none");
+        internals.sendKey(field, "Z", modCtrlShift);
+        expectField("redo restores the truncated text", "abcd", 4, 4, "none");
+
+        println("== undoing an unfocused control's edit does not require focus ==");
+        fresh();
+        internals.sendText(field, "a");
+        field.blur();
+        events.length = 0;
+        internals.sendKey(document.body, "Z", modCtrl);
+        expect(field.value === "", "undo reverted the unfocused input", JSON.stringify(field.value));
+        expectEvents("unfocused undo", ["beforeinput:historyUndo@field", "input:historyUndo@field"]);
+    });
+</script>

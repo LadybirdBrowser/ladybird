@@ -27,8 +27,10 @@ class EditCommand : public JS::Cell {
 public:
     virtual ~EditCommand() override = default;
 
-    virtual void unapply() = 0;
-    virtual void reapply() = 0;
+    // Both return whether the mutation was actually performed; a command declines when scripts
+    // have since rearranged the DOM in a way that makes its replay meaningless.
+    virtual bool unapply() = 0;
+    virtual bool reapply() = 0;
 
     // Whether this command removed a node from the document that the rest of its editing action
     // did not put back. Used to end typing coalescence, since Blink closes an open typing unit
@@ -44,8 +46,8 @@ public:
     InsertNodeCommand(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> parent, GC::Ptr<DOM::Node> reference_child);
 
     void apply();
-    virtual void unapply() override;
-    virtual void reapply() override;
+    virtual bool unapply() override;
+    virtual bool reapply() override;
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
@@ -63,8 +65,8 @@ public:
     explicit RemoveNodeCommand(GC::Ref<DOM::Node> node);
 
     void apply();
-    virtual void unapply() override;
-    virtual void reapply() override;
+    virtual bool unapply() override;
+    virtual bool reapply() override;
 
     virtual bool is_lasting_node_removal() const override;
 
@@ -84,8 +86,8 @@ public:
     ReplaceDataCommand(GC::Ref<DOM::CharacterData> node, size_t offset, Utf16String removed_data, Utf16String inserted_data);
 
     WebIDL::ExceptionOr<void> apply();
-    virtual void unapply() override;
-    virtual void reapply() override;
+    virtual bool unapply() override;
+    virtual bool reapply() override;
 
     GC::Ref<DOM::CharacterData> node() const { return m_node; }
     size_t offset() const { return m_offset; }
@@ -93,6 +95,8 @@ public:
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
+
+    bool replay(Utf16String const& from, Utf16String const& to);
 
     GC::Ref<DOM::CharacterData> m_node;
     size_t m_offset { 0 };
@@ -108,8 +112,8 @@ public:
     SplitTextCommand(GC::Ref<DOM::Text> node, size_t offset);
 
     WebIDL::ExceptionOr<GC::Ref<DOM::Text>> apply();
-    virtual void unapply() override;
-    virtual void reapply() override;
+    virtual bool unapply() override;
+    virtual bool reapply() override;
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
@@ -127,8 +131,8 @@ public:
     SetAttributeCommand(GC::Ref<DOM::Element> element, Utf16FlyString local_name, Optional<Utf16FlyString> namespace_, Optional<Utf16String> old_value, Optional<Utf16String> new_value);
 
     void apply();
-    virtual void unapply() override;
-    virtual void reapply() override;
+    virtual bool unapply() override;
+    virtual bool reapply() override;
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;

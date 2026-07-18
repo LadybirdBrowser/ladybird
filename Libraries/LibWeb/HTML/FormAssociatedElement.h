@@ -24,7 +24,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#selection-direction
-enum class SelectionDirection {
+enum class SelectionDirection : u8 {
     Forward,
     Backward,
     None,

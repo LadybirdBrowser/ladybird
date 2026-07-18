@@ -11,9 +11,12 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/EditCommand.h>
 #include <LibWeb/Editing/EditingHistory.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
+#include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::Editing {
@@ -36,22 +39,24 @@ void InsertNodeCommand::apply()
     m_parent->insert_before(m_node, m_reference_child);
 }
 
-void InsertNodeCommand::unapply()
+bool InsertNodeCommand::unapply()
 {
     if (!m_node->parent() || !m_node->parent()->is_editable_or_editing_host())
-        return;
+        return false;
     m_node->remove();
+    return true;
 }
 
-void InsertNodeCommand::reapply()
+bool InsertNodeCommand::reapply()
 {
     if (!m_parent->is_editable_or_editing_host())
-        return;
+        return false;
     if (m_reference_child && m_reference_child->parent() != m_parent.ptr())
-        return;
+        return false;
     if (m_parent->ensure_pre_insert_validity(m_parent->realm(), m_node, m_reference_child, DOM::Node::ChildrenToExclude::None).is_error())
-        return;
+        return false;
     m_parent->insert_before(m_node, m_reference_child);
+    return true;
 }
 
 void InsertNodeCommand::visit_edges(Cell::Visitor& visitor)
@@ -75,14 +80,15 @@ void RemoveNodeCommand::apply()
         m_node->remove();
 }
 
-void RemoveNodeCommand::unapply()
+bool RemoveNodeCommand::unapply()
 {
     if (!m_parent || !m_parent->is_editable_or_editing_host())
-        return;
+        return false;
     auto reference_child = m_old_next_sibling && m_old_next_sibling->parent() == m_parent ? m_old_next_sibling : nullptr;
     if (m_parent->ensure_pre_insert_validity(m_parent->realm(), m_node, reference_child, DOM::Node::ChildrenToExclude::None).is_error())
-        return;
+        return false;
     m_parent->insert_before(m_node, reference_child);
+    return true;
 }
 
 bool RemoveNodeCommand::is_lasting_node_removal() const
@@ -90,11 +96,12 @@ bool RemoveNodeCommand::is_lasting_node_removal() const
     return !m_node->parent();
 }
 
-void RemoveNodeCommand::reapply()
+bool RemoveNodeCommand::reapply()
 {
     if (!m_node->parent() || !m_node->parent()->is_editable_or_editing_host())
-        return;
+        return false;
     m_node->remove();
+    return true;
 }
 
 void RemoveNodeCommand::visit_edges(Cell::Visitor& visitor)
@@ -113,23 +120,54 @@ ReplaceDataCommand::ReplaceDataCommand(GC::Ref<DOM::CharacterData> node, size_t 
 {
 }
 
+// A text node backing a text control mirrors the control's value; its text must be replaced
+// through the control so the value, its sanitization, and the control's bookkeeping stay
+// coherent. Other engines do not need this distinction since their text controls edit inner
+// text nodes directly.
+static HTML::FormAssociatedTextControlElement* text_control_owner_of(DOM::CharacterData& node)
+{
+    auto* shadow_root = as_if<DOM::ShadowRoot>(node.root());
+    if (!shadow_root)
+        return nullptr;
+    return dynamic_cast<HTML::FormAssociatedTextControlElement*>(shadow_root->host());
+}
+
 WebIDL::ExceptionOr<void> ReplaceDataCommand::apply()
 {
     return m_node->replace_data(m_offset, m_removed_data.length_in_code_units(), m_inserted_data);
 }
 
-void ReplaceDataCommand::unapply()
+bool ReplaceDataCommand::replay(Utf16String const& from, Utf16String const& to)
 {
-    if (!m_node->is_editable_or_editing_host())
-        return;
-    (void)m_node->replace_data(m_offset, m_inserted_data.length_in_code_units(), m_removed_data);
+    auto* control = text_control_owner_of(m_node);
+    if (!control && !m_node->is_editable_or_editing_host())
+        return false;
+
+    // NB: Scripts may have rewritten the text since this command ran; leave it alone unless the
+    //     recorded text is still where this command left it, since splicing at the recorded
+    //     offsets would garble the rewritten content.
+    auto current_data = control ? control->relevant_value() : m_node->data();
+    auto length = from.length_in_code_units();
+    if (m_offset + length > current_data.length_in_code_units())
+        return false;
+    if (current_data.substring_view(m_offset, length) != from)
+        return false;
+
+    if (control) {
+        MUST(control->set_range_text(to, m_offset, m_offset + length, Bindings::SelectionMode::Preserve));
+        return true;
+    }
+    return !m_node->replace_data(m_offset, length, to).is_error();
 }
 
-void ReplaceDataCommand::reapply()
+bool ReplaceDataCommand::unapply()
 {
-    if (!m_node->is_editable_or_editing_host())
-        return;
-    (void)m_node->replace_data(m_offset, m_removed_data.length_in_code_units(), m_inserted_data);
+    return replay(m_inserted_data, m_removed_data);
+}
+
+bool ReplaceDataCommand::reapply()
+{
+    return replay(m_removed_data, m_inserted_data);
 }
 
 void ReplaceDataCommand::visit_edges(Cell::Visitor& visitor)
@@ -150,24 +188,26 @@ WebIDL::ExceptionOr<GC::Ref<DOM::Text>> SplitTextCommand::apply()
     return GC::Ref { *m_new_node };
 }
 
-void SplitTextCommand::unapply()
+bool SplitTextCommand::unapply()
 {
     if (!m_new_node || !m_node->is_editable_or_editing_host())
-        return;
+        return false;
     (void)m_node->replace_data(m_node->data().length_in_code_units(), 0, m_new_node->data());
     if (m_new_node->parent())
         m_new_node->remove();
+    return true;
 }
 
-void SplitTextCommand::reapply()
+bool SplitTextCommand::reapply()
 {
     if (!m_new_node || !m_node->is_editable_or_editing_host() || !m_node->parent())
-        return;
+        return false;
     auto length = m_node->data().length_in_code_units();
     if (m_offset > length)
-        return;
+        return false;
     (void)m_node->replace_data(m_offset, length - m_offset, {});
     m_node->parent()->insert_before(*m_new_node, m_node->next_sibling());
+    return true;
 }
 
 void SplitTextCommand::visit_edges(Cell::Visitor& visitor)
@@ -202,14 +242,16 @@ void SetAttributeCommand::apply()
     set_or_remove(m_new_value);
 }
 
-void SetAttributeCommand::unapply()
+bool SetAttributeCommand::unapply()
 {
     set_or_remove(m_old_value);
+    return true;
 }
 
-void SetAttributeCommand::reapply()
+bool SetAttributeCommand::reapply()
 {
     set_or_remove(m_new_value);
+    return true;
 }
 
 void SetAttributeCommand::visit_edges(Cell::Visitor& visitor)

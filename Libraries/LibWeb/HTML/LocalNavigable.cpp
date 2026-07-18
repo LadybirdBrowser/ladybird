@@ -4083,7 +4083,7 @@ void LocalNavigable::undo()
     if (!document)
         return;
 
-    (void)m_event_handler.perform_history_action(*document, Editing::HistoryAction::Undo);
+    (void)Editing::perform_history_action(*document, Editing::HistoryAction::Undo);
 }
 
 void LocalNavigable::redo()
@@ -4092,7 +4092,7 @@ void LocalNavigable::redo()
     if (!document)
         return;
 
-    (void)m_event_handler.perform_history_action(*document, Editing::HistoryAction::Redo);
+    (void)Editing::perform_history_action(*document, Editing::HistoryAction::Redo);
 }
 
 void LocalNavigable::set_marked_text_from_input_method(Utf16View text)

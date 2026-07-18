@@ -13,6 +13,8 @@
 #include <LibWeb/Editing/EditCommand.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
+#include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/InputEvent.h>
@@ -35,6 +37,8 @@ UndoStep::UndoStep(GC::Ref<DOM::Node> editing_host, Category category)
 
 static bool is_collapsed(SelectionSnapshot const& snapshot)
 {
+    if (snapshot.text_control)
+        return snapshot.text_control_start == snapshot.text_control_end;
     return snapshot.anchor_node == snapshot.focus_node && snapshot.anchor_offset == snapshot.focus_offset;
 }
 
@@ -63,13 +67,18 @@ void UndoStep::merge(UndoStep& other)
     m_commands.extend(other.m_commands);
     m_ending_selection = other.m_ending_selection;
     m_last_merged_category = other.m_category;
+    m_closes_after_next_merge = other.m_closes_after_next_merge;
 
     // INTEROP: Chromium makes undoing a run of backspaces select everything that was deleted:
     //          the starting selection keeps its anchor at the caret before the first backspace
     //          and moves its focus to the caret after the most recent one.
     if (other.m_category == Category::BackwardDeletion && is_collapsed(other.m_ending_selection)) {
-        m_starting_selection.focus_node = m_ending_selection.focus_node;
-        m_starting_selection.focus_offset = m_ending_selection.focus_offset;
+        if (m_starting_selection.text_control) {
+            m_starting_selection.text_control_start = m_ending_selection.text_control_start;
+        } else {
+            m_starting_selection.focus_node = m_ending_selection.focus_node;
+            m_starting_selection.focus_offset = m_ending_selection.focus_offset;
+        }
     }
 }
 
@@ -84,21 +93,30 @@ void UndoStep::finalize_starting_selection()
     //          the original caret with the focus at the caret after deleting, and a forward
     //          deletion selects the first removed run of text.
     if (m_category == Category::BackwardDeletion) {
-        if (is_collapsed(m_ending_selection) && m_ending_selection.focus_node) {
+        if (!is_collapsed(m_ending_selection))
+            return;
+        if (m_starting_selection.text_control) {
+            m_starting_selection.text_control_start = m_ending_selection.text_control_start;
+        } else if (m_ending_selection.focus_node) {
             m_starting_selection.focus_node = m_ending_selection.focus_node;
             m_starting_selection.focus_offset = m_ending_selection.focus_offset;
         }
         return;
     }
     if (m_category == Category::ForwardDeletion && !m_commands.is_empty()) {
-        if (auto* replace_data_command = as_if<ReplaceDataCommand>(*m_commands.first()); replace_data_command
-            && !replace_data_command->removed_data().is_empty()) {
-            GC::Ptr<DOM::Node> node = replace_data_command->node();
-            m_starting_selection.anchor_node = node;
-            m_starting_selection.anchor_offset = replace_data_command->offset();
-            m_starting_selection.focus_node = node;
-            m_starting_selection.focus_offset = replace_data_command->offset() + replace_data_command->removed_data().length_in_code_units();
+        auto* replace_data_command = as_if<ReplaceDataCommand>(*m_commands.first());
+        if (!replace_data_command || replace_data_command->removed_data().is_empty())
+            return;
+        if (m_starting_selection.text_control) {
+            m_starting_selection.text_control_start = replace_data_command->offset();
+            m_starting_selection.text_control_end = replace_data_command->offset() + replace_data_command->removed_data().length_in_code_units();
+            return;
         }
+        GC::Ptr<DOM::Node> node = replace_data_command->node();
+        m_starting_selection.anchor_node = node;
+        m_starting_selection.anchor_offset = replace_data_command->offset();
+        m_starting_selection.focus_node = node;
+        m_starting_selection.focus_offset = replace_data_command->offset() + replace_data_command->removed_data().length_in_code_units();
     }
 }
 
@@ -115,16 +133,33 @@ bool UndoStep::performed_lasting_node_removal() const
     return false;
 }
 
-void UndoStep::unapply()
+// A step replays all of its commands or none of them. Script mutations since the step was recorded
+// can invalidate individual commands, and replaying only the surviving subset would garble whatever
+// content the script produced. When a command refuses to replay, the commands already replayed are
+// rolled back (they are reversible, and their preconditions were just reestablished), and the step
+// reports that it performed nothing so the caller drops it.
+bool UndoStep::unapply()
 {
-    for (auto command : m_commands.in_reverse())
-        command->unapply();
+    for (size_t i = m_commands.size(); i > 0; --i) {
+        if (m_commands[i - 1]->unapply())
+            continue;
+        for (size_t j = i; j < m_commands.size(); ++j)
+            (void)m_commands[j]->reapply();
+        return false;
+    }
+    return !m_commands.is_empty();
 }
 
-void UndoStep::reapply()
+bool UndoStep::reapply()
 {
-    for (auto command : m_commands)
-        command->reapply();
+    for (size_t i = 0; i < m_commands.size(); ++i) {
+        if (m_commands[i]->reapply())
+            continue;
+        for (size_t j = i; j > 0; --j)
+            (void)m_commands[j - 1]->unapply();
+        return false;
+    }
+    return !m_commands.is_empty();
 }
 
 void UndoStep::visit_edges(Cell::Visitor& visitor)
@@ -134,8 +169,10 @@ void UndoStep::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_commands);
     visitor.visit(m_starting_selection.anchor_node);
     visitor.visit(m_starting_selection.focus_node);
+    visitor.visit(m_starting_selection.text_control);
     visitor.visit(m_ending_selection.anchor_node);
     visitor.visit(m_ending_selection.focus_node);
+    visitor.visit(m_ending_selection.text_control);
 }
 
 GC::Ref<EditingHistory> EditingHistory::create(JS::Realm& realm)
@@ -143,10 +180,20 @@ GC::Ref<EditingHistory> EditingHistory::create(JS::Realm& realm)
     return realm.heap().allocate<EditingHistory>();
 }
 
-static SelectionSnapshot capture_selection(DOM::Document& document)
+static SelectionSnapshot capture_selection(DOM::Node& editing_host)
 {
     SelectionSnapshot snapshot;
-    auto selection = document.get_selection();
+
+    // Text controls have their own selection instead of a document selection.
+    if (auto* control = dynamic_cast<HTML::FormAssociatedTextControlElement*>(&editing_host)) {
+        snapshot.text_control = &as<HTML::HTMLElement>(editing_host);
+        snapshot.text_control_start = control->selection_start();
+        snapshot.text_control_end = control->selection_end();
+        snapshot.text_control_direction = control->selection_direction_state();
+        return snapshot;
+    }
+
+    auto selection = editing_host.document().get_selection();
     if (!selection || !selection->range())
         return snapshot;
     snapshot.anchor_node = selection->anchor_node();
@@ -180,7 +227,7 @@ void EditingHistory::begin_recording(DOM::Node& editing_host, UndoStep::Category
     VERIFY(!m_applying_history_step);
 
     m_undo_step_being_recorded = editing_host.heap().allocate<UndoStep>(editing_host, category);
-    m_undo_step_being_recorded->set_starting_selection(capture_selection(editing_host.document()));
+    m_undo_step_being_recorded->set_starting_selection(capture_selection(editing_host));
 }
 
 void EditingHistory::end_recording()
@@ -194,7 +241,7 @@ void EditingHistory::end_recording()
     if (!step->has_commands())
         return;
 
-    step->set_ending_selection(capture_selection(step->editing_host()->document()));
+    step->set_ending_selection(capture_selection(step->editing_host()));
 
     // NB: Decide this before merging, since merging moves the commands into the open step.
     bool closes_coalescing = step->performed_lasting_node_removal();
@@ -204,7 +251,10 @@ void EditingHistory::end_recording()
         && m_open_step->accepts_merge_of(step->category())) {
         // NB: The redo stack is necessarily empty here: it only fills up through undo, which
         //     ends coalescing, so a merge can never bypass the redo invalidation below.
+        bool deferred_close = m_open_step->closes_after_next_merge();
         m_open_step->merge(*step);
+        if (deferred_close)
+            m_open_step = nullptr;
     } else {
         step->finalize_starting_selection();
 
@@ -263,12 +313,17 @@ bool EditingHistory::undo(DOM::Document& document)
 
     m_open_step = nullptr;
     auto step = m_undo_stack.take_last();
+    bool performed_any_mutation;
     {
         TemporaryChange applying { m_applying_history_step, true };
-        step->unapply();
+        performed_any_mutation = step->unapply();
     }
     restore_selection(document, step->starting_selection());
-    m_redo_stack.append(step);
+
+    // NB: A step that could not perform anything was invalidated by script mutation after it was
+    //     recorded; replaying it in the other direction would garble content, so drop it.
+    if (performed_any_mutation)
+        m_redo_stack.append(step);
 
     dispatch_history_input_event(document, step->editing_host(), UIEvents::InputTypes::historyUndo);
     return true;
@@ -283,12 +338,17 @@ bool EditingHistory::redo(DOM::Document& document)
 
     m_open_step = nullptr;
     auto step = m_redo_stack.take_last();
+    bool performed_any_mutation;
     {
         TemporaryChange applying { m_applying_history_step, true };
-        step->reapply();
+        performed_any_mutation = step->reapply();
     }
     restore_selection(document, step->ending_selection());
-    m_undo_stack.append(step);
+
+    // NB: A step that could not perform anything was invalidated by script mutation after it was
+    //     recorded; replaying it in the other direction would garble content, so drop it.
+    if (performed_any_mutation)
+        m_undo_stack.append(step);
 
     dispatch_history_input_event(document, step->editing_host(), UIEvents::InputTypes::historyRedo);
     return true;
@@ -307,6 +367,15 @@ void EditingHistory::prune_steps_for_disconnected_hosts()
 
 void EditingHistory::restore_selection(DOM::Document& document, SelectionSnapshot const& snapshot)
 {
+    // Text controls have their own selection instead of a document selection.
+    if (snapshot.text_control) {
+        if (!snapshot.text_control->is_connected() || &snapshot.text_control->document() != &document)
+            return;
+        if (auto* control = dynamic_cast<HTML::FormAssociatedTextControlElement*>(snapshot.text_control.ptr()))
+            control->set_the_selection_range(snapshot.text_control_start, snapshot.text_control_end, snapshot.text_control_direction);
+        return;
+    }
+
     auto selection = document.get_selection();
     if (!selection)
         return;

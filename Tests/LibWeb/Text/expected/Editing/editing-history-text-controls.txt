@@ -1,0 +1,50 @@
+== a typed run in an input undoes and redoes as one unit ==
+PASS: after typing canUndo=true canRedo=false
+PASS: after undo
+PASS: after undo canUndo=false canRedo=true
+PASS: undo events
+PASS: after redo
+PASS: redo events
+== caret movement breaks typing coalescence in an input ==
+PASS: first undo removes only the second run
+PASS: second undo removes the first run
+== a backspace run in an input restores as a selected range ==
+PASS: after backspaces
+PASS: undo restores and selects the deleted text
+PASS: redo deletes it again
+== typing over a backward selection restores it on undo ==
+PASS: after typing over
+PASS: undo restores the backward selection
+PASS: redo replays the whole unit
+== cut is a standalone unit in an input ==
+PASS: after cut
+PASS: undo removes only the typed text
+PASS: second undo restores the cut text
+== paste is a standalone unit in an input ==
+PASS: undo removes only the typed text
+PASS: second undo removes the pasted text
+== inputs and contenteditable hosts share one history ==
+PASS: first undo reverts the input
+PASS: second undo reverts the host
+PASS: third undo reverts the input again
+PASS: interleaved undos target their own elements events
+PASS: redos replay in order
+== a new edit after undo discards redo in an input ==
+PASS: after new edit canUndo=true canRedo=false
+PASS: redo does nothing
+== script value writes make stale steps a safe no-op ==
+PASS: undo left the scripted value alone
+PASS: the invalidated entry was dropped canUndo=false canRedo=false
+PASS: redo left the scripted value alone
+== a line break ends the typing unit one character into the new line ==
+PASS: textarea content after typing
+PASS: undo removes only the trailing character
+PASS: second undo removes the rest
+PASS: redo replays the first unit
+== typing truncated by maxlength undoes as one unit ==
+PASS: after truncated typing
+PASS: undo removes the whole unit
+PASS: redo restores the truncated text
+== undoing an unfocused control's edit does not require focus ==
+PASS: undo reverted the unfocused input
+PASS: unfocused undo events

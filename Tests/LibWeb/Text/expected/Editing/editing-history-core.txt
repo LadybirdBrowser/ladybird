@@ -71,8 +71,12 @@ PASS: undo removed only the edit DOM
 PASS: script mutation recorded nothing canUndo=false canRedo=true
 == undo after script removed the edited node is a safe no-op ==
 PASS: undo on mangled DOM changed nothing DOM
-PASS: entry was still consumed canUndo=false canRedo=true
-redo on mangled DOM produced: "a"
+PASS: the invalidated entry was dropped canUndo=false canRedo=false
+PASS: redo has nothing to replay
+PASS: redo on mangled DOM changed nothing DOM
+== undo after script rewrote the edited text is a safe no-op ==
+PASS: undo on rewritten text changed nothing DOM
+PASS: the invalidated entry was dropped canUndo=false canRedo=false
 == multiple editing hosts share one history stack ==
 PASS: first undo reverts the most recent host
 PASS: second undo reverts the older host

@@ -15,6 +15,8 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/SelectionchangeEventDispatching.h>
+#include <LibWeb/Editing/EditCommand.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
@@ -1063,6 +1065,11 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
             });
         }
 
+        // NB: A selection change ends typing coalescence in the editing history, unless it was
+        //     made by the recorded edit itself or by history application.
+        if (auto history = html_element.document().editing_history_if_exists())
+            history->selection_changed();
+
         selection_was_changed(source);
     }
 }
@@ -1086,7 +1093,31 @@ void FormAssociatedTextControlElement::handle_insert(Utf16FlyString const& input
 
     auto selection_start = this->selection_start();
     auto selection_end = this->selection_end();
+
+    // Record the edit on the document's editing history so the user can undo it. Pastes never
+    // coalesce with typing, like in the editing host path.
+    auto& html_element = text_control_to_html_element();
+    auto category = input_type == UIEvents::InputTypes::insertFromPaste
+        ? Editing::UndoStep::Category::Other
+        : Editing::UndoStep::Category::Insertion;
+    auto history = html_element.document().editing_history();
+    history->begin_recording(html_element, category);
+    auto old_value = relevant_value();
+    auto clamped_start = min(selection_start, old_value.length_in_code_units());
+    auto clamped_end = min(selection_end, old_value.length_in_code_units());
+    auto removed_data = Utf16String::from_utf16(old_value.substring_view(clamped_start, clamped_end - clamped_start));
+
     MUST(set_range_text(data_for_insertion, selection_start, selection_end, Bindings::SelectionMode::End));
+
+    if (auto step = history->undo_step_being_recorded(); step) {
+        if (removed_data.utf16_view() != data_for_insertion) {
+            step->add_command(html_element.heap().allocate<Editing::ReplaceDataCommand>(
+                *text_node, clamped_start, removed_data, Utf16String::from_utf16(data_for_insertion)));
+        }
+        if (input_type == UIEvents::InputTypes::insertLineBreak || input_type == UIEvents::InputTypes::insertParagraph)
+            step->set_closes_after_next_merge();
+    }
+    history->end_recording();
 
     text_node->invalidate_style(DOM::StyleInvalidationReason::EditingInsertion);
 
@@ -1119,7 +1150,29 @@ void FormAssociatedTextControlElement::handle_delete(Utf16FlyString const& input
         }
     }
 
+    // Record the edit on the document's editing history so the user can undo it. Backward and
+    // forward deletion runs coalesce separately, and cuts never coalesce, like in the editing
+    // host path.
+    auto& html_element = text_control_to_html_element();
+    auto category = Editing::UndoStep::Category::Other;
+    if (input_type == UIEvents::InputTypes::deleteContentBackward)
+        category = Editing::UndoStep::Category::BackwardDeletion;
+    else if (input_type == UIEvents::InputTypes::deleteContentForward)
+        category = Editing::UndoStep::Category::ForwardDeletion;
+    auto history = html_element.document().editing_history();
+    history->begin_recording(html_element, category);
+    auto old_value = relevant_value();
+    auto clamped_start = min(selection_start, old_value.length_in_code_units());
+    auto clamped_end = min(selection_end, old_value.length_in_code_units());
+    auto removed_data = Utf16String::from_utf16(old_value.substring_view(clamped_start, clamped_end - clamped_start));
+
     MUST(set_range_text({}, selection_start, selection_end, Bindings::SelectionMode::End));
+
+    if (auto step = history->undo_step_being_recorded(); step && !removed_data.is_empty()) {
+        step->add_command(html_element.heap().allocate<Editing::ReplaceDataCommand>(
+            *text_node, clamped_start, removed_data, Utf16String {}));
+    }
+    history->end_recording();
 
     text_node->invalidate_style(DOM::StyleInvalidationReason::EditingDeletion);
     did_edit_text_node(input_type, {});
@@ -1149,6 +1202,10 @@ void FormAssociatedTextControlElement::move_selection_end_to(size_t offset, Text
         m_selection_start = offset;
     m_selection_end = offset;
     m_selection_end_affinity = affinity;
+
+    // NB: Caret movement ends typing coalescence in the editing history.
+    if (auto history = text_control_to_html_element().document().editing_history_if_exists())
+        history->selection_changed();
 }
 
 void FormAssociatedTextControlElement::scroll_cursor_into_view()
