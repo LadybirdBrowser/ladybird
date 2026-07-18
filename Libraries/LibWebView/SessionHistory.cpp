@@ -716,6 +716,99 @@ bool TraversableSessionHistory::remove_nested_history(CanonicalNavigable const& 
     return true;
 }
 
+template<typename UpdateEntries>
+static bool update_nested_session_history_entries_for_navigable(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::CrossProcessId navigable_id, UpdateEntries const& update_entries)
+{
+    auto did_update = false;
+    for (auto& entry : entries) {
+        for (auto& nested_history : entry.document_state.nested_histories) {
+            if (nested_history.id == navigable_id)
+                did_update |= update_entries(nested_history.entries);
+            did_update |= update_nested_session_history_entries_for_navigable(nested_history.entries, navigable_id, update_entries);
+        }
+    }
+    return did_update;
+}
+
+template<typename UpdateEntries>
+static bool update_session_history_entries_for_navigable(Vector<TraversableSessionHistory::Entry>& entries, Optional<Web::HTML::CrossProcessId> nested_history_id, UpdateEntries const& update_entries)
+{
+    if (!nested_history_id.has_value())
+        return update_entries(entries);
+    return update_nested_session_history_entries_for_navigable(entries, *nested_history_id, update_entries);
+}
+
+static Web::HTML::SessionHistoryDocumentStateDescriptor const* find_session_history_document_state(Vector<TraversableSessionHistory::Entry> const& entries, Web::HTML::CrossProcessId document_state_id)
+{
+    for (auto const& entry : entries) {
+        if (entry.document_state.id == document_state_id)
+            return &entry.document_state;
+        for (auto const& nested_history : entry.document_state.nested_histories) {
+            if (auto const* document_state = find_session_history_document_state(nested_history.entries, document_state_id))
+                return document_state;
+        }
+    }
+    return nullptr;
+}
+
+static bool append_or_replace_session_history_entry(Vector<TraversableSessionHistory::Entry>& entries, TraversableSessionHistory::Entry const& entry, Optional<Utf16String> const& entry_to_replace_navigation_api_key)
+{
+    if (!entry_to_replace_navigation_api_key.has_value()) {
+        entries.append(entry);
+        return true;
+    }
+
+    auto entry_to_replace = entries.find_if([&](auto const& existing_entry) {
+        return existing_entry.navigation_api_key == *entry_to_replace_navigation_api_key;
+    });
+    if (entry_to_replace == entries.end())
+        return false;
+
+    auto replacement_entry = entry;
+    replacement_entry.step = entry_to_replace->step;
+    *entry_to_replace = move(replacement_entry);
+    return true;
+}
+
+bool TraversableSessionHistory::finalize_same_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Entry target_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)
+{
+    if (!m_current_used_step_index.has_value())
+        return false;
+
+    auto current_step = m_used_steps[*m_current_used_step_index];
+    auto const* document_state = find_session_history_document_state(m_entries, target_entry.document_state.id);
+    if (!document_state)
+        return false;
+
+    auto canonical_target_entry = target_entry;
+    canonical_target_entry.document_state = *document_state;
+
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation
+    if (!entry_to_replace_navigation_api_key.has_value()) {
+        clear_forward_session_history_entries(m_entries, current_step);
+        clear_forward_session_history_entries(m_web_content_known_entries, m_web_content_current_step.value_or(current_step));
+        canonical_target_entry.step = current_step + 1;
+    }
+
+    auto did_update = update_session_history_entries_for_navigable(m_entries, nested_history_id, [&](auto& entries) {
+        return append_or_replace_session_history_entry(entries, canonical_target_entry, entry_to_replace_navigation_api_key);
+    });
+    if (!did_update)
+        return false;
+
+    if (!m_web_content_known_entries.is_empty()) {
+        update_session_history_entries_for_navigable(m_web_content_known_entries, nested_history_id, [&](auto& entries) {
+            return append_or_replace_session_history_entry(entries, canonical_target_entry, entry_to_replace_navigation_api_key);
+        });
+    }
+
+    m_used_steps = get_all_used_history_steps(m_entries);
+    m_current_used_step_index = m_used_steps.find_first_index(current_step);
+    VERIFY(m_current_used_step_index.has_value());
+    m_web_content_known_used_steps = get_all_used_history_steps(m_web_content_known_entries);
+    return true;
+}
+
 Optional<size_t> TraversableSessionHistory::current_top_level_entry_index() const
 {
     if (!m_current_used_step_index.has_value())
