@@ -30,6 +30,12 @@ public:
         m_outputs.append({ move(frame), status });
     }
 
+    void wake()
+    {
+        if (m_wake_handler)
+            m_wake_handler();
+    }
+
     virtual void start() override { }
     virtual Media::VideoProducerOutput peek() override
     {
@@ -90,4 +96,38 @@ TEST_CASE(seek_resolving_frame_is_presented_even_when_stale)
     auto current_frame = sink->current_frame();
     EXPECT(current_frame != nullptr);
     EXPECT_EQ(current_frame->timestamp(), AK::Duration::from_milliseconds(900));
+}
+
+TEST_CASE(suspension_wake_releases_the_prefetched_frame)
+{
+    never_destroyed_event_loop();
+
+    size_t freed_slots = 0;
+    auto pool = MUST(Media::VideoFramePool::create([&freed_slots] { freed_slots++; }));
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    // Present the frame covering the current time, leaving the following frame prefetched.
+    producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
+    producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1033), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
+    auto result = sink->update(MonotonicTime::now());
+    EXPECT_EQ(result, Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable);
+    EXPECT_EQ(freed_slots, 0u);
+
+    // The suspension wake must release the prefetched frame's slot while keeping the displayed frame.
+    producer->append_output(nullptr, Media::PipelineStatus::Suspended);
+    producer->wake();
+    EXPECT_EQ(freed_slots, 1u);
+
+    // Ticking past the prefetched frame's timestamp must not present it after the suspension.
+    clock->seek(AK::Duration::from_milliseconds(1040));
+    result = sink->update(MonotonicTime::now());
+    EXPECT_EQ(result, Media::DisplayingVideoSinkUpdateResult::NoChange);
+    auto current_frame = sink->current_frame();
+    EXPECT(current_frame != nullptr);
+    EXPECT_EQ(current_frame->timestamp(), AK::Duration::from_milliseconds(1000));
 }

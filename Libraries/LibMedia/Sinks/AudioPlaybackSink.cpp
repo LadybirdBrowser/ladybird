@@ -147,6 +147,17 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                     output_block.clear();
                 }
 
+                if (status == PipelineStatus::Suspended) {
+                    auto resume_target = AK::Duration::zero();
+                    {
+                        Sync::MutexLocker locker { output_thread_data->m_output_mutex };
+                        if (auto latest_timing = output_thread_data->block_timings().latest_timing(); latest_timing.has_value())
+                            resume_target = latest_timing->media_time_at_frame_index(latest_timing->end_frame_index());
+                    }
+                    input->seek(resume_target);
+                    status = PipelineStatus::Pending;
+                }
+
                 {
                     Sync::MutexLocker locker { output_thread_data->m_output_mutex };
                     if (output_thread_data->m_seek_id != seek_id_at_pull)

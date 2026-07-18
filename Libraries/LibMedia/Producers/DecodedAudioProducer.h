@@ -42,7 +42,9 @@ public:
     using ErrorHandler = Function<void(DecoderError&&)>;
     using BlockEndTimeHandler = Function<void(AK::Duration)>;
 
-    static DecoderErrorOr<NonnullRefPtr<DecodedAudioProducer>> try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track);
+    static constexpr AK::Duration DEFAULT_AUTO_SUSPEND_IDLE_TIMEOUT = AK::Duration::from_milliseconds(5'000);
+
+    static DecoderErrorOr<NonnullRefPtr<DecodedAudioProducer>> try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration auto_suspend_idle_timeout = DEFAULT_AUTO_SUSPEND_IDLE_TIMEOUT);
     DecodedAudioProducer(NonnullRefPtr<ThreadData> const&);
     ~DecodedAudioProducer();
 
@@ -64,7 +66,7 @@ public:
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
-        ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, AK::Duration, NonnullOwnPtr<Audio::AudioConverter>&&);
+        ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, AK::Duration duration, AK::Duration auto_suspend_idle_timeout, NonnullOwnPtr<Audio::AudioConverter>&&);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
@@ -155,8 +157,8 @@ private:
         PipelineWakeHandler m_wake_handler;
         mutable bool m_downstream_needs_wake { true };
 
+        AK::Duration const m_auto_suspend_idle_timeout;
         mutable MonotonicTime m_last_consumer_activity { MonotonicTime::now() };
-        MonotonicTime m_auto_suspend_entered_at { MonotonicTime::now() };
         bool m_auto_suspended { false };
         mutable bool m_auto_suspend_requested { false };
     };

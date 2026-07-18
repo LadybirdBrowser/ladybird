@@ -19,8 +19,6 @@
 
 namespace Media {
 
-static constexpr int AUTO_SUSPEND_IDLE_TIMEOUT_MS = 10000;
-
 namespace {
 
 DecoderErrorOr<FramePlaneLayout> plane_layout_for_frame(VideoFrameMetadata const& metadata)
@@ -33,11 +31,11 @@ DecoderErrorOr<FramePlaneLayout> plane_layout_for_frame(VideoFrameMetadata const
 
 }
 
-DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> DecodedVideoProducer::try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track)
+DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> DecodedVideoProducer::try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration auto_suspend_idle_timeout)
 {
     TRY(demuxer->create_context_for_track(track));
     auto duration = TRY(demuxer->duration_of_track(track));
-    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedVideoProducer::ThreadData>(main_thread_event_loop, demuxer, track, duration));
+    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedVideoProducer::ThreadData>(main_thread_event_loop, demuxer, track, duration, auto_suspend_idle_timeout));
     TRY(thread_data->create_decoder());
     auto producer = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedVideoProducer>(thread_data));
 
@@ -183,11 +181,12 @@ void DecodedVideoProducer::seek(AK::Duration timestamp)
     m_thread_data->seek(timestamp);
 }
 
-DecodedVideoProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration duration)
+DecodedVideoProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration duration, AK::Duration auto_suspend_idle_timeout)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
     , m_track(track)
     , m_duration(duration)
+    , m_auto_suspend_idle_timeout(auto_suspend_idle_timeout)
 {
     m_demuxer->set_read_blocked_change_handler_for_track(m_track, [this](ReadBlocked blocked) {
         dispatch_read_blocked_change(blocked);
@@ -262,10 +261,7 @@ void DecodedVideoProducer::ThreadData::exit()
 void DecodedVideoProducer::ThreadData::note_consumer_activity_while_locked() const
 {
     m_last_consumer_activity = MonotonicTime::now();
-    if (m_auto_suspend_requested)
-        m_auto_suspend_requested = false;
-    if (m_auto_suspended)
-        wake();
+    m_auto_suspend_requested = false;
 }
 
 void DecodedVideoProducer::ThreadData::wait_to_decode_or_auto_suspend_while_locked()
@@ -275,7 +271,7 @@ void DecodedVideoProducer::ThreadData::wait_to_decode_or_auto_suspend_while_lock
     if (m_auto_suspended || m_auto_suspend_requested)
         return;
 
-    auto idle_at = m_last_consumer_activity + AK::Duration::from_milliseconds(AUTO_SUSPEND_IDLE_TIMEOUT_MS);
+    auto idle_at = m_last_consumer_activity + m_auto_suspend_idle_timeout;
     auto now = MonotonicTime::now();
     if (now < idle_at) {
         if (m_wait_state->condition.wait_for(idle_at - now))
@@ -365,30 +361,29 @@ bool DecodedVideoProducer::ThreadData::handle_auto_suspension()
     m_latest_available_timestamp = m_earliest_available_timestamp;
     m_decoder.clear();
     m_decoder_needs_keyframe_next_seek = true;
+    if (m_frame_pool != nullptr)
+        m_frame_pool->shed_buffers();
     m_auto_suspended = true;
     m_auto_suspend_requested = false;
-    m_auto_suspend_entered_at = MonotonicTime::now();
+    m_current_halting_status = PipelineStatus::Suspended;
+    // The consumer's last peek predates the suspension, so wake it regardless of what it saw.
+    m_downstream_needs_wake = true;
+    dispatch_wake_if_needed_while_locked();
 
     while (true) {
         if (m_requested_state == RequestedState::Exit)
             return true;
         if (m_last_processed_seek_id != m_seek_id)
             break;
-        if (m_last_consumer_activity > m_auto_suspend_entered_at)
-            break;
         m_wait_state->condition.wait();
     }
     m_auto_suspended = false;
+    m_current_halting_status = PipelineStatus::Pending;
 
     auto result = create_decoder();
     if (result.is_error()) {
         enter_halting_state(PipelineStatus::Error, result.release_error());
         return true;
-    }
-
-    if (m_last_processed_seek_id == m_seek_id.load()) {
-        m_seek_id++;
-        m_seek_timestamp = m_latest_available_timestamp;
     }
 
     return true;

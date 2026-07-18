@@ -40,6 +40,7 @@ public:
 
 private:
     void ensure_stretcher_while_locked() const;
+    void prime_stretcher_for_input_seek_while_locked(i64 target_frame, i64 output_frame) const;
     void maybe_recover_from_stale_upstream_eos_while_locked() const;
     PipelineStatus produce_block_while_locked(AudioBlock&) const;
     void dispatch_wake();

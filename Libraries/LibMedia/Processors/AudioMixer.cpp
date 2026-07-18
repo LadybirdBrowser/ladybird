@@ -240,6 +240,12 @@ PipelineStatus AudioMixer::mix_into_output_block_while_locked()
             current_block.clear();
             auto output = input.peek();
             input_data.last_status = output.status;
+            // A suspended input only resumes on demand; seek it to the position this mix needs.
+            if (output.status == PipelineStatus::Suspended) {
+                input.seek(AK::Duration::from_time_units(input_data.next_frame, 1, m_sample_specification.sample_rate()));
+                input_data.last_status = PipelineStatus::Pending;
+                break;
+            }
             if (output.status == PipelineStatus::EndOfStream) {
                 input_data.next_frame = frames_end_cap;
                 continue;
