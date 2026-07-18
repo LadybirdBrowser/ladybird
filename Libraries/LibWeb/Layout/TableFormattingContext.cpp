@@ -53,10 +53,10 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
             auto* block_context = as_if<BlockFormattingContext>(caption_context.ptr());
             CSSPixelPoint caption_offset;
             if (block_context) {
-                auto available_width = caption_available_space.inline_size.to_px_or_zero();
-                block_context->resolve_vertical_box_model_metrics(child_box, available_width);
+                auto available_inline_size = caption_available_space.inline_size.to_px_or_zero();
+                block_context->resolve_vertical_box_model_metrics(child_box, available_inline_size);
                 CSSPixelPoint caption_position_in_block_context {};
-                block_context->compute_width(child_box, caption_available_space, caption_constraints, caption_position_in_block_context);
+                block_context->compute_inline_size(child_box, caption_available_space, caption_constraints, caption_position_in_block_context);
                 inner_available_space = m_state.get(child_box).available_inner_space_or_constraints_from(caption_available_space);
 
                 auto const& caption_state = m_state.get(child_box);

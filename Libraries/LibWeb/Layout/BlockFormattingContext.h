@@ -27,7 +27,7 @@ public:
     virtual CSSPixels automatic_content_block_size() const override;
 
     bool box_should_avoid_floats_because_it_establishes_fc(Box const&) const;
-    void compute_width(Box const&, AvailableSpace const&, ContainingBlockConstraints const& containing_block_constraints, CSSPixelPoint content_position_in_root);
+    void compute_inline_size(Box const&, AvailableSpace const&, ContainingBlockConstraints const& containing_block_constraints, CSSPixelPoint content_position_in_root);
     [[nodiscard]] CSSPixels avoid_float_intrusions(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, CSSPixels content_y, CSSPixelRect const& containing_block_rect_in_root);
 
     // https://www.w3.org/TR/css-display/#block-formatting-context-root
@@ -73,8 +73,8 @@ public:
 
     void layout_block_level_box(Box const&, BlockContainer const&, CSSPixels& bottom_of_lowest_margin_box, LayoutInput const&);
 
-    void resolve_vertical_box_model_metrics(Box const&, CSSPixels width_of_containing_block);
-    void resolve_horizontal_box_model_metrics(Box const&, CSSPixels width_of_containing_block);
+    void resolve_vertical_box_model_metrics(Box const&, CSSPixels containing_block_inline_size);
+    void resolve_horizontal_box_model_metrics(Box const&, CSSPixels containing_block_inline_size);
 
     enum class DidIntroduceClearance {
         Yes,
@@ -114,9 +114,9 @@ public:
 private:
     CSSPixels compute_auto_height_for_block_level_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&);
 
-    void compute_width_for_floating_box(Box const&, AvailableSpace const&, ContainingBlockConstraints const&);
+    void compute_inline_size_for_floating_box(Box const&, AvailableSpace const&, ContainingBlockConstraints const&);
 
-    void compute_width_for_block_level_replaced_element_in_normal_flow(Box const&, AvailableSpace const&, ContainingBlockConstraints const&);
+    void compute_inline_size_for_block_level_replaced_element_in_normal_flow(Box const&, AvailableSpace const&, ContainingBlockConstraints const&);
 
     void layout_block_level_children(BlockContainer const&, LayoutInput const&, AvailableSpace const& available_space_for_children);
     void layout_inline_children(BlockContainer const&, LayoutInput const&, AvailableSpace const& available_space_for_children);
