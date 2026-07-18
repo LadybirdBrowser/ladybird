@@ -819,25 +819,25 @@ void FormattingContext::make_button_content_box_definite(Box const& box, Availab
 
 // 17.5.2 Table width algorithms: the 'table-layout' property
 // https://www.w3.org/TR/CSS22/tables.html#width-layout
-CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(
+CSSPixels FormattingContext::compute_table_box_inline_size_inside_table_wrapper(
     Box const& box,
     AvailableSpace const& available_space,
     ContainingBlockConstraints const& table_wrapper_constraints,
-    Optional<CSSPixels> table_wrapper_containing_block_width,
-    TableWrapperWidthMode table_wrapper_width_mode)
+    Optional<CSSPixels> table_wrapper_containing_block_inline_size,
+    TableWrapperInlineSizeMode table_wrapper_inline_size_mode)
 {
-    // CSS 2 says the table wrapper width is the border-edge width of the table grid box inside it.
+    // CSS 2 says the table wrapper inline size is the border-edge inline size of the table grid box inside it.
 
     auto const& computed_values = box.computed_values();
 
-    auto width_of_containing_block = table_wrapper_containing_block_width.value_or(available_space.inline_size.to_px_or_zero());
+    auto containing_block_inline_size = table_wrapper_containing_block_inline_size.value_or(available_space.inline_size.to_px_or_zero());
 
     // If 'margin-left', or 'margin-right' are computed as 'auto', their used value is '0'.
-    auto margin_left = computed_values.margin().left().to_px_or_zero(width_of_containing_block);
-    auto margin_right = computed_values.margin().right().to_px_or_zero(width_of_containing_block);
+    auto margin_left = computed_values.margin().left().to_px_or_zero(containing_block_inline_size);
+    auto margin_right = computed_values.margin().right().to_px_or_zero(containing_block_inline_size);
 
     // table-wrapper can't have borders or paddings but it might have margin taken from table-root.
-    auto available_width = width_of_containing_block - margin_left - margin_right;
+    auto available_inline_size = containing_block_inline_size - margin_left - margin_right;
 
     Optional<Box const&> table_box;
     box.for_each_in_subtree_of_type<Box>([&](Box const& child_box) {
@@ -853,46 +853,46 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(
 
     // The table wrapper is invisible to percentage resolution, so the table box gets the
     // wrapper's constraints unchanged. Callers measuring a table wrapper for grid alignment
-    // pass the grid-area width as the wrapper's percentage basis.
+    // pass the grid-area inline size as the wrapper's percentage basis.
     throwaway_state.create(box, table_wrapper_constraints.percentage_basis_inline_size, table_wrapper_constraints.percentage_basis_block_size);
     auto const& table_constraints = table_wrapper_constraints;
     auto& table_box_state = throwaway_state.create(*table_box, table_constraints.percentage_basis_inline_size, table_constraints.percentage_basis_block_size);
     auto const& table_box_computed_values = table_box->computed_values();
     table_box_state.border_left = table_box_computed_values.border_left().width;
     table_box_state.border_right = table_box_computed_values.border_right().width;
-    table_box_state.padding_left = table_box_computed_values.padding().left().to_px_or_zero(width_of_containing_block);
-    table_box_state.padding_right = table_box_computed_values.padding().right().to_px_or_zero(width_of_containing_block);
+    table_box_state.padding_left = table_box_computed_values.padding().left().to_px_or_zero(containing_block_inline_size);
+    table_box_state.padding_right = table_box_computed_values.padding().right().to_px_or_zero(containing_block_inline_size);
 
     auto context = make<TableFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, *table_box, this);
     context->run_until_width_calculation(
         LayoutInput { table_box_state.available_inner_space_or_constraints_from(available_space), table_constraints },
         TableFormattingContext::RowMeasurement::Skip);
 
-    auto table_used_width = throwaway_state.get(*table_box).border_box_width();
-    if (table_wrapper_width_mode == TableWrapperWidthMode::UseTableUsedWidthIfNotAuto
+    auto table_used_inline_size = throwaway_state.get(*table_box).border_box_width();
+    if (table_wrapper_inline_size_mode == TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
         && !table_box->computed_values().width().is_auto()) {
-        return table_used_width;
+        return table_used_inline_size;
     }
-    return available_space.inline_size.is_definite() ? min(table_used_width, available_width) : table_used_width;
+    return available_space.inline_size.is_definite() ? min(table_used_inline_size, available_inline_size) : table_used_inline_size;
 }
 
 // 17.5.3 Table height algorithms
 // https://www.w3.org/TR/CSS22/tables.html#height-layout
-CSSPixels FormattingContext::compute_table_box_height_inside_table_wrapper(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& table_wrapper_constraints)
+CSSPixels FormattingContext::compute_table_box_block_size_inside_table_wrapper(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& table_wrapper_constraints)
 {
-    // Table wrapper height should be equal to height of table box it contains
+    // The table wrapper block size should equal the block size of the table box it contains.
 
     auto const& computed_values = box.computed_values();
 
-    auto width_of_containing_block = available_space.inline_size.to_px_or_zero();
-    auto height_of_containing_block = available_space.block_size.to_px_or_zero();
+    auto containing_block_inline_size = available_space.inline_size.to_px_or_zero();
+    auto containing_block_block_size = available_space.block_size.to_px_or_zero();
 
     // If 'margin-top', or 'margin-bottom' are computed as 'auto', their used value is '0'.
-    auto margin_top = computed_values.margin().top().resolved_or_auto(width_of_containing_block).to_px_or_zero();
-    auto margin_bottom = computed_values.margin().bottom().resolved_or_auto(width_of_containing_block).to_px_or_zero();
+    auto margin_top = computed_values.margin().top().resolved_or_auto(containing_block_inline_size).to_px_or_zero();
+    auto margin_bottom = computed_values.margin().bottom().resolved_or_auto(containing_block_inline_size).to_px_or_zero();
 
     // table-wrapper can't have borders or paddings but it might have margin taken from table-root.
-    auto available_height = height_of_containing_block - margin_top - margin_bottom;
+    auto available_block_size = containing_block_block_size - margin_top - margin_bottom;
 
     LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
     throwaway_state.create(box, table_wrapper_constraints.percentage_basis_inline_size, table_wrapper_constraints.percentage_basis_block_size);
@@ -911,8 +911,8 @@ CSSPixels FormattingContext::compute_table_box_height_inside_table_wrapper(Box c
     });
     VERIFY(table_box.has_value());
 
-    auto table_used_height = throwaway_state.get(*table_box).border_box_height();
-    return available_space.block_size.is_definite() ? min(table_used_height, available_height) : table_used_height;
+    auto table_used_block_size = throwaway_state.get(*table_box).border_box_height();
+    return available_space.block_size.is_definite() ? min(table_used_block_size, available_block_size) : table_used_block_size;
 }
 
 ContainingBlockConstraints FormattingContext::constraints_for_child_context(
@@ -1332,7 +1332,7 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
     // 1. The tentative used width is calculated (without 'min-width' and 'max-width')
     auto used_width = try_compute_width([&] -> CSS::LengthOrAuto {
         if (is<TableWrapper>(box))
-            return CSS::Length::make_px(compute_table_box_width_inside_table_wrapper(box, available_space, containing_block_constraints));
+            return CSS::Length::make_px(compute_table_box_inline_size_inside_table_wrapper(box, available_space, containing_block_constraints));
         if (computed_values.width().is_auto())
             return CSS::LengthOrAuto::make_auto();
         return CSS::Length::make_px(calculate_inner_inline_size(box, available_space.inline_size, computed_values.width(), containing_block_constraints));
@@ -1670,7 +1670,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
     // https://www.w3.org/TR/css-sizing-3/#box-sizing
     auto used_height = try_compute_height([&] -> CSS::LengthOrAuto {
         if (is<TableWrapper>(box))
-            return CSS::Length::make_px(compute_table_box_height_inside_table_wrapper(box, available_space, containing_block_constraints));
+            return CSS::Length::make_px(compute_table_box_block_size_inside_table_wrapper(box, available_space, containing_block_constraints));
         if (should_treat_height_as_auto(box, available_space, containing_block_constraints))
             return CSS::LengthOrAuto::make_auto();
         return CSS::Length::make_px(calculate_inner_block_size(box, available_space_for_intrinsic_height, box.computed_values().height(), containing_block_constraints));

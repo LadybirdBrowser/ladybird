@@ -353,7 +353,7 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
             return CSS::Length::make_px(box_state.content_inline_size());
         }
         if (is<TableWrapper>(box))
-            return CSS::Length::make_px(compute_table_box_width_inside_table_wrapper(box, remaining_available_space, containing_block_constraints));
+            return CSS::Length::make_px(compute_table_box_inline_size_inside_table_wrapper(box, remaining_available_space, containing_block_constraints));
 
         // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
         // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
@@ -1237,8 +1237,8 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
         auto inside_layout_input = [&] {
             auto input = layout_input.for_child_formatting_context(inner_available_space);
-            if (table_formatting_context && layout_input.table_grid_min_border_box_height.has_value())
-                return input.with_table_grid_min_border_box_height(*layout_input.table_grid_min_border_box_height);
+            if (table_formatting_context && layout_input.table_grid_min_border_box_block_size.has_value())
+                return input.with_table_grid_min_border_box_block_size(*layout_input.table_grid_min_border_box_block_size);
             return input;
         }();
         independent_formatting_context->run(inside_layout_input);
@@ -1326,7 +1326,7 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
     // through to the table box unchanged.
     auto child_layout_input = [&]() -> LayoutInput {
         if (is<TableWrapper>(block_container))
-            return LayoutInput { available_space_for_children, layout_input.containing_block_constraints, layout_input.content_box_position_in_bfc_root, layout_input.table_grid_min_border_box_height };
+            return LayoutInput { available_space_for_children, layout_input.containing_block_constraints, layout_input.content_box_position_in_bfc_root, layout_input.table_grid_min_border_box_block_size };
         else
             return layout_input_for_child_context(m_state.get(block_container), layout_input, available_space_for_children);
     }();

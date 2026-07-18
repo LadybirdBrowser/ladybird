@@ -492,7 +492,7 @@ CSSPixels TableFormattingContext::compute_capmin()
     // The caption width minimum (CAPMIN) is the largest of the table captions min-content contribution:
     // https://drafts.csswg.org/css-tables-3/#computing-the-table-width
     CSSPixels capmin = 0;
-    auto width_of_table_wrapper_containing_block = m_table_constraints.percentage_basis_inline_size.value_or(0);
+    auto table_wrapper_containing_block_inline_size = m_table_constraints.percentage_basis_inline_size.value_or(0);
     for (auto child = table_box().first_child(); child; child = child->next_sibling()) {
         auto const* child_box = as_if<Box>(*child);
         if (!child_box || !child_box->display().is_table_caption()) {
@@ -500,10 +500,10 @@ CSSPixels TableFormattingContext::compute_capmin()
         }
         auto const& computed_values = child_box->computed_values();
 
-        auto margin_left = computed_values.margin().left().resolved_or_auto(width_of_table_wrapper_containing_block).to_px_or_zero();
-        auto margin_right = computed_values.margin().right().resolved_or_auto(width_of_table_wrapper_containing_block).to_px_or_zero();
-        auto padding_left = computed_values.padding().left().to_px_or_zero(width_of_table_wrapper_containing_block);
-        auto padding_right = computed_values.padding().right().to_px_or_zero(width_of_table_wrapper_containing_block);
+        auto margin_left = computed_values.margin().left().resolved_or_auto(table_wrapper_containing_block_inline_size).to_px_or_zero();
+        auto margin_right = computed_values.margin().right().resolved_or_auto(table_wrapper_containing_block_inline_size).to_px_or_zero();
+        auto padding_left = computed_values.padding().left().to_px_or_zero(table_wrapper_containing_block_inline_size);
+        auto padding_right = computed_values.padding().right().to_px_or_zero(table_wrapper_containing_block_inline_size);
         auto outer_size_for_inner_size = [&](CSSPixels inner_size) {
             return inner_size
                 + margin_left
@@ -516,8 +516,8 @@ CSSPixels TableFormattingContext::compute_capmin()
 
         auto caption_min_content_contribution = outer_size_for_inner_size(calculate_min_content_inline_size(*child_box, m_participant_constraints));
         if (!computed_values.width().is_auto() && !computed_values.width().contains_percentage()) {
-            auto preferred_inner_width = calculate_inner_inline_size(*child_box, AvailableSize::make_definite(width_of_table_wrapper_containing_block), computed_values.width(), m_participant_constraints);
-            caption_min_content_contribution = max(caption_min_content_contribution, outer_size_for_inner_size(preferred_inner_width));
+            auto preferred_inner_inline_size = calculate_inner_inline_size(*child_box, AvailableSize::make_definite(table_wrapper_containing_block_inline_size), computed_values.width(), m_participant_constraints);
+            caption_min_content_contribution = max(caption_min_content_contribution, outer_size_for_inner_size(preferred_inner_inline_size));
         }
 
         capmin = max(caption_min_content_contribution, capmin);
@@ -548,7 +548,7 @@ void TableFormattingContext::compute_table_width()
 
     // Percentages on 'width' and 'height' on the table are relative to the table wrapper box's containing block,
     // not the table wrapper box itself.
-    CSSPixels width_of_table_wrapper_containing_block = m_table_constraints.percentage_basis_inline_size.value_or(0);
+    CSSPixels table_wrapper_containing_block_inline_size = m_table_constraints.percentage_basis_inline_size.value_or(0);
 
     // Compute undistributable space due to border spacing: https://www.w3.org/TR/css-tables-3/#computing-undistributable-space.
     auto undistributable_space = (m_columns.size() + 1) * border_spacing_horizontal();
@@ -575,14 +575,14 @@ void TableFormattingContext::compute_table_width()
         if (inline_size_constraint.is_max_content())
             return grid_max;
         if (inline_size_constraint.is_fit_content()) {
-            auto fit_content_limit = width_of_table_wrapper_containing_block;
+            auto fit_content_limit = table_wrapper_containing_block_inline_size;
             if (auto const& fit_content_available_space = inline_size_constraint.fit_content_available_space(); fit_content_available_space.has_value())
-                fit_content_limit = fit_content_available_space->to_px(width_of_table_wrapper_containing_block);
+                fit_content_limit = fit_content_available_space->to_px(table_wrapper_containing_block_inline_size);
             return min(grid_max, max(grid_min, fit_content_limit));
         }
         // CSS Sizing says box-sizing:border-box applies length/percentage width/min-width/max-width constraints to
         // the border box. The table width algorithm compares content widths, so convert them before comparing.
-        auto resolved_width = inline_size_constraint.to_px(width_of_table_wrapper_containing_block);
+        auto resolved_width = inline_size_constraint.to_px(table_wrapper_containing_block_inline_size);
         if (computed_values.box_sizing() == CSS::BoxSizing::BorderBox)
             resolved_width -= table_box_state.border_box_left() + table_box_state.border_box_right();
         return max(CSSPixels(0), resolved_width);
@@ -1128,10 +1128,10 @@ void TableFormattingContext::compute_table_height()
 
     m_table_height = sum_rows_height;
 
-    if (m_min_border_box_height_from_flex_item.has_value()) {
+    if (m_min_border_box_block_size_from_flex_item.has_value()) {
         auto const& table_state = m_state.get(table_box());
-        auto min_content_height = *m_min_border_box_height_from_flex_item - table_state.border_box_top() - table_state.border_box_bottom();
-        m_table_height = max(m_table_height, min_content_height);
+        auto min_content_block_size = *m_min_border_box_block_size_from_flex_item - table_state.border_box_top() - table_state.border_box_bottom();
+        m_table_height = max(m_table_height, min_content_block_size);
     }
 
     if (!table_box().computed_values().height().is_auto()) {
@@ -1817,7 +1817,7 @@ void TableFormattingContext::run(LayoutInput const& layout_input)
     auto const& available_space = layout_input.available_space;
     FORMATTING_CONTEXT_TRACE();
     m_available_space = available_space;
-    m_min_border_box_height_from_flex_item = layout_input.table_grid_min_border_box_height;
+    m_min_border_box_block_size_from_flex_item = layout_input.table_grid_min_border_box_block_size;
 
     run_until_width_calculation(layout_input);
 

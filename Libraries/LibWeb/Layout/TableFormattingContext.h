@@ -95,7 +95,7 @@ private:
     CSSPixels m_table_height { 0 };
     CSSPixels m_automatic_content_block_size { 0 };
     CSSPixelPoint m_pending_table_box_content_offset_in_wrapper {};
-    Optional<CSSPixels> m_min_border_box_height_from_flex_item;
+    Optional<CSSPixels> m_min_border_box_block_size_from_flex_item;
 
     Optional<AvailableSpace> m_available_space;
     bool m_needs_fixed_mode_row_measurement { false };

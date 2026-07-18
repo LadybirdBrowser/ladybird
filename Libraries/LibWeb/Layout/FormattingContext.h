@@ -23,9 +23,9 @@ template<typename T>
     return ::max(min, ::min(value, max));
 }
 
-enum class TableWrapperWidthMode {
-    ClampToAvailableWidth,
-    UseTableUsedWidthIfNotAuto,
+enum class TableWrapperInlineSizeMode {
+    ClampToAvailableInlineSize,
+    UseTableUsedInlineSizeIfNotAuto,
 };
 
 class FormattingContext {
@@ -105,11 +105,11 @@ public:
 
     static bool creates_block_formatting_context(Box const&);
 
-    CSSPixels compute_table_box_width_inside_table_wrapper(Box const&, AvailableSpace const&,
+    CSSPixels compute_table_box_inline_size_inside_table_wrapper(Box const&, AvailableSpace const&,
         ContainingBlockConstraints const& table_wrapper_constraints,
-        Optional<CSSPixels> table_wrapper_containing_block_width = {},
-        TableWrapperWidthMode = TableWrapperWidthMode::ClampToAvailableWidth);
-    CSSPixels compute_table_box_height_inside_table_wrapper(Box const&, AvailableSpace const&, ContainingBlockConstraints const& table_wrapper_constraints);
+        Optional<CSSPixels> table_wrapper_containing_block_inline_size = {},
+        TableWrapperInlineSizeMode = TableWrapperInlineSizeMode::ClampToAvailableInlineSize);
+    CSSPixels compute_table_box_block_size_inside_table_wrapper(Box const&, AvailableSpace const&, ContainingBlockConstraints const& table_wrapper_constraints);
 
     CSSPixels compute_width_for_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
     CSSPixels compute_height_for_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;

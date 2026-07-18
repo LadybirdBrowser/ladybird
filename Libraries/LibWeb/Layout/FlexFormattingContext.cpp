@@ -270,9 +270,9 @@ void FlexFormattingContext::run(LayoutInput const& layout_input)
                 // and the table box were the flex item.
                 auto intrinsic_available_space = input.available_space;
                 intrinsic_available_space.block_size = AvailableSize::make_indefinite();
-                auto intrinsic_table_grid_height = compute_table_box_height_inside_table_wrapper(item.box, intrinsic_available_space, input.containing_block_constraints);
-                auto extra_height = max(CSSPixels(0), item.cross_size.value() - item.hypothetical_cross_size);
-                return input.with_table_grid_min_border_box_height(intrinsic_table_grid_height + extra_height);
+                auto intrinsic_table_grid_block_size = compute_table_box_block_size_inside_table_wrapper(item.box, intrinsic_available_space, input.containing_block_constraints);
+                auto extra_block_size = max(CSSPixels(0), item.cross_size.value() - item.hypothetical_cross_size);
+                return input.with_table_grid_min_border_box_block_size(intrinsic_table_grid_block_size + extra_block_size);
             }();
             if (auto independent_formatting_context = layout_inside(item.box, LayoutMode::Normal, item_layout_input))
                 independent_formatting_context->parent_context_did_dimension_child_root_box();

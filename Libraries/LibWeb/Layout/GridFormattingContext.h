@@ -399,8 +399,8 @@ private:
 
     CSSPixels containing_block_size_for_item(GridItem const&, GridDimension) const;
     Box const& table_box_inside_table_wrapper(GridItem const&) const;
-    void resolve_table_wrapper_grid_item_width(GridItem&, CSSPixels containing_block_width);
-    CSSPixels non_cyclic_containing_block_width_for_table_wrapper(GridItem const&, CSSPixels containing_block_width) const;
+    void resolve_table_wrapper_grid_item_inline_size(GridItem&, CSSPixels containing_block_inline_size);
+    CSSPixels non_cyclic_containing_block_inline_size_for_table_wrapper(GridItem const&, CSSPixels containing_block_inline_size) const;
 
     CSSPixelRect get_grid_area_rect(GridItem const&) const;
 
