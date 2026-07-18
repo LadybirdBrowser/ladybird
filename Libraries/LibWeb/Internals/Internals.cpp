@@ -946,6 +946,24 @@ void Internals::reset_style_invalidation_counters()
     window().associated_document().reset_style_invalidation_counters();
 }
 
+JS::Object* Internals::style_group_sharing_info(DOM::Element& element)
+{
+    auto object = JS::Object::create(realm(), nullptr);
+    auto computed_values = element.computed_values();
+    if (!computed_values)
+        return object;
+    RefPtr<CSS::ComputedValues const> parent_values;
+    if (auto parent = element.parent_element())
+        parent_values = parent->computed_values();
+    computed_values->for_each_style_group_sharing_state(parent_values.ptr(), [&](StringView name, bool shared_with_parent, bool is_default) {
+        auto group = JS::Object::create(realm(), nullptr);
+        group->define_direct_property("sharedWithParent"_utf16_fly_string, JS::Value(shared_with_parent), JS::default_attributes);
+        group->define_direct_property("isDefault"_utf16_fly_string, JS::Value(is_default), JS::default_attributes);
+        object->define_direct_property(Utf16FlyString::from_utf8(name), group, JS::default_attributes);
+    });
+    return object;
+}
+
 JS::Object* Internals::computed_values_stats()
 {
     auto const& statistics = CSS::ComputedValues::statistics();

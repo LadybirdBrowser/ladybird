@@ -928,6 +928,38 @@ public:
     };
     static Statistics const& statistics() { return s_statistics; }
 
+    // Calls back with (name, shared_with_parent, is_default) for every style value group,
+    // for introspecting how well group sharing is working (see internals.styleGroupSharingInfo()).
+    template<typename Callback>
+    void for_each_style_group_sharing_state(ComputedValues const* parent, Callback callback) const
+    {
+#define LIBWEB_VISIT_STYLE_GROUP(name, path) callback(name##sv, parent ? path.ptr_equals(parent->path) : false, path.is_default());
+        LIBWEB_VISIT_STYLE_GROUP("inheritedTable", m_inherited.table)
+        LIBWEB_VISIT_STYLE_GROUP("inheritedList", m_inherited.list)
+        LIBWEB_VISIT_STYLE_GROUP("inheritedUI", m_inherited.ui)
+        LIBWEB_VISIT_STYLE_GROUP("inheritedSVG", m_inherited.svg)
+        LIBWEB_VISIT_STYLE_GROUP("inheritedText", m_inherited.text)
+        LIBWEB_VISIT_STYLE_GROUP("inheritedBox", m_inherited.box)
+        LIBWEB_VISIT_STYLE_GROUP("font", m_inherited.font)
+        LIBWEB_VISIT_STYLE_GROUP("animation", m_noninherited.animation)
+        LIBWEB_VISIT_STYLE_GROUP("box", m_noninherited.box)
+        LIBWEB_VISIT_STYLE_GROUP("surround", m_noninherited.surround)
+        LIBWEB_VISIT_STYLE_GROUP("sizing", m_noninherited.sizing)
+        LIBWEB_VISIT_STYLE_GROUP("miscReset", m_noninherited.misc)
+        LIBWEB_VISIT_STYLE_GROUP("alignment", m_noninherited.alignment)
+        LIBWEB_VISIT_STYLE_GROUP("border", m_noninherited.border)
+        LIBWEB_VISIT_STYLE_GROUP("background", m_noninherited.background)
+        LIBWEB_VISIT_STYLE_GROUP("transform", m_noninherited.transform)
+        LIBWEB_VISIT_STYLE_GROUP("effects", m_noninherited.effects)
+        LIBWEB_VISIT_STYLE_GROUP("mask", m_noninherited.mask_data)
+        LIBWEB_VISIT_STYLE_GROUP("textReset", m_noninherited.text_reset)
+        LIBWEB_VISIT_STYLE_GROUP("content", m_noninherited.content_data)
+        LIBWEB_VISIT_STYLE_GROUP("anchor", m_noninherited.anchor)
+        LIBWEB_VISIT_STYLE_GROUP("grid", m_noninherited.grid)
+        LIBWEB_VISIT_STYLE_GROUP("svgReset", m_noninherited.svg_reset)
+#undef LIBWEB_VISIT_STYLE_GROUP
+    }
+
     bool is_property_important(PropertyID property_id) const { return m_property_important.get(property_bitmap_index(property_id)); }
     bool is_property_inherited(PropertyID property_id) const { return m_property_inherited.get(property_bitmap_index(property_id)); }
     bool depends_on_viewport_metrics() const { return m_depends_on_viewport_metrics; }

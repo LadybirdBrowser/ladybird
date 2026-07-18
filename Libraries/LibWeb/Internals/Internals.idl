@@ -142,6 +142,9 @@ interface Internals {
     // Returns process-wide ComputedValues instance statistics.
     // Keys: liveComputedValues, totalComputedValuesCreated.
     object computedValuesStats();
+    // Returns, for each ComputedValues style value group of the given element, whether the
+    // group payload is shared with the parent element and whether it is the default payload.
+    object styleGroupSharingInfo(Element element);
     // Flushes pending style work without forcing layout.
     undefined updateStyle();
     undefined setPreferredColorScheme(Utf16DOMString colorScheme);

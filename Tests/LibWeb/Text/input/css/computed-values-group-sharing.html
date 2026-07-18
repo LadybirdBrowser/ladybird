@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="parent"><div id="child">hello</div></div>
+<script>
+    test(() => {
+        const child = document.getElementById("child");
+        internals.updateStyle();
+
+        let info = internals.styleGroupSharingInfo(child);
+        for (const group of ["animation", "grid", "svgReset", "mask", "anchor", "content", "transform", "effects", "inheritedTable", "inheritedList", "inheritedSVG"])
+            println(`unstyled child ${group} at default: ${info[group].isDefault}`);
+
+        child.style.color = "red";
+        internals.updateStyle();
+        info = internals.styleGroupSharingInfo(child);
+        println(`color-styled child inheritedText at default: ${info.inheritedText.isDefault}`);
+        println(`color-styled child inheritedText shared with parent: ${info.inheritedText.sharedWithParent}`);
+        println(`color-styled child grid still at default: ${info.grid.isDefault}`);
+
+        child.style.gridTemplateColumns = "1fr 2fr";
+        internals.updateStyle();
+        info = internals.styleGroupSharingInfo(child);
+        println(`grid-styled child grid at default: ${info.grid.isDefault}`);
+    });
+</script>

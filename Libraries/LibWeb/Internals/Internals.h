@@ -147,6 +147,7 @@ public:
     JS::Object* get_style_invalidation_counters();
     void reset_style_invalidation_counters();
     JS::Object* computed_values_stats();
+    JS::Object* style_group_sharing_info(DOM::Element&);
     void update_style();
     void set_preferred_color_scheme(Utf16String const& color_scheme);
     void set_page_focus(bool has_focus);
