@@ -29,6 +29,8 @@ enum class SelectionGranularity : u8 {
     Word,
     Line,
     LineBoundary,
+    // The boundary of the active editing host, which is the effective document for contenteditable navigation.
+    DocumentBoundary,
 };
 
 // INTEROP: The web editing specifications do not define caret navigation in enough detail to implement it directly.

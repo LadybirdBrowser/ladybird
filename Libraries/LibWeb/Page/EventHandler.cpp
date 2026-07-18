@@ -1147,6 +1147,16 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
                 key = UIEvents::KeyCode::Key_End;
                 modifiers &= ~UIEvents::Mod_Super;
             }
+            if (key == UIEvents::KeyCode::Key_Up || key == UIEvents::KeyCode::Key_Down) {
+                // On macOS, Command+Up/Down is the editing-host equivalent of document Home/End. Preserve Shift so
+                // the same command extends the selection instead of collapsing it.
+                auto collapse = modifiers & UIEvents::Mod_Shift ? InputEventsTarget::CollapseSelection::No : InputEventsTarget::CollapseSelection::Yes;
+                if (key == UIEvents::KeyCode::Key_Up)
+                    target->move_cursor_to_start_of_document(collapse);
+                else
+                    target->move_cursor_to_end_of_document(collapse);
+                return EventResult::Handled;
+            }
         }
 #endif
 
@@ -1175,6 +1185,14 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             } else {
                 target->increment_cursor_position_to_next_line(collapse);
             }
+            return EventResult::Handled;
+        }
+
+        if ((key == UIEvents::KeyCode::Key_PageUp || key == UIEvents::KeyCode::Key_PageDown) && (modifiers & UIEvents::Mod_Shift)) {
+            if (key == UIEvents::KeyCode::Key_PageUp)
+                target->move_cursor_to_start_of_document(InputEventsTarget::CollapseSelection::No);
+            else
+                target->move_cursor_to_end_of_document(InputEventsTarget::CollapseSelection::No);
             return EventResult::Handled;
         }
 

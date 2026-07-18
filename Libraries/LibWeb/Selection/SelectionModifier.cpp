@@ -83,6 +83,7 @@ public:
 
 private:
     Optional<CaretLocation> move_to_adjacent_caret_host(CaretLocation const&, SelectionDirection, CaretEntryMode, Optional<CSSPixels>);
+    Optional<CaretLocation> move_to_editing_host_boundary(CaretLocation const&, SelectionDirection);
     GC::Ptr<DOM::Node> adjacent_caret_host(DOM::Node&, DOM::Node& editing_host, SelectionDirection);
     static DOM::Node& navigation_origin(CaretLocation const&);
 
@@ -156,9 +157,44 @@ Optional<CaretLocation> CaretNavigator::move_to_adjacent_caret_host(CaretLocatio
     return CaretLocation { *target, offset, affinity };
 }
 
+Optional<CaretLocation> CaretNavigator::move_to_editing_host_boundary(CaretLocation const& location, SelectionDirection direction)
+{
+    // INTEROP: Chromium and WebKit constrain "start/end of document" commands to the active editing host. Letting the
+    // traversal escape the host can create a caret before the first editable position or in unrelated page content.
+    auto editing_host = location.node->editing_host();
+    if (!editing_host)
+        return {};
+
+    m_document->update_layout_if_needed_for_node(*editing_host, DOM::UpdateLayoutReason::CursorLineNavigation);
+
+    auto target = adjacent_caret_host(*editing_host, *editing_host, SelectionDirection::Forward);
+    if (!target)
+        return {};
+    if (direction == SelectionDirection::Forward) {
+        while (auto next_target = adjacent_caret_host(*target, *editing_host, SelectionDirection::Forward))
+            target = next_target;
+    }
+
+    if (auto* text = as_if<DOM::Text>(*target)) {
+        auto position = direction == SelectionDirection::Forward
+            ? cursor_position_at_visual_end(*text)
+            : cursor_position_at_visual_start(*text);
+        if (!position.has_value())
+            return {};
+        return CaretLocation { *text, position->offset, position->affinity };
+    }
+
+    if (is<HTML::HTMLBRElement>(*target) && target->parent())
+        return CaretLocation { *target->parent(), target->index(), TextAffinity::Downstream };
+    return CaretLocation { *target, 0, TextAffinity::Downstream };
+}
+
 Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, SelectionDirection direction, SelectionGranularity granularity, Optional<CSSPixels> preferred_inline_coordinate)
 {
     auto* text = as_if<DOM::Text>(*location.node);
+
+    if (granularity == SelectionGranularity::DocumentBoundary)
+        return move_to_editing_host_boundary(location, direction);
 
     if (granularity == SelectionGranularity::Character) {
         if (text) {

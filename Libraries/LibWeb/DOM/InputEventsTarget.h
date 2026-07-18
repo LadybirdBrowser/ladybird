@@ -41,6 +41,8 @@ public:
     };
     virtual void move_cursor_to_start(CollapseSelection) = 0;
     virtual void move_cursor_to_end(CollapseSelection) = 0;
+    virtual void move_cursor_to_start_of_document(CollapseSelection collapse) { move_cursor_to_start(collapse); }
+    virtual void move_cursor_to_end_of_document(CollapseSelection collapse) { move_cursor_to_end(collapse); }
     virtual void increment_cursor_position_offset(CollapseSelection) = 0;
     virtual void decrement_cursor_position_offset(CollapseSelection) = 0;
     virtual void increment_cursor_position_to_next_word(CollapseSelection) = 0;

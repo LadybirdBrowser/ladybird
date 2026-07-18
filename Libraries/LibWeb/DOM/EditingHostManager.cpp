@@ -115,6 +115,22 @@ void EditingHostManager::move_cursor_to_end(CollapseSelection collapse)
     Selection::SelectionModifier(*selection).modify(collapse == CollapseSelection::Yes ? Selection::SelectionAlteration::Move : Selection::SelectionAlteration::Extend, Selection::SelectionDirection::Forward, Selection::SelectionGranularity::LineBoundary);
 }
 
+void EditingHostManager::move_cursor_to_start_of_document(CollapseSelection collapse)
+{
+    auto selection = get_selection_for_navigation(collapse);
+    if (!selection)
+        return;
+    Selection::SelectionModifier(*selection).modify(collapse == CollapseSelection::Yes ? Selection::SelectionAlteration::Move : Selection::SelectionAlteration::Extend, Selection::SelectionDirection::Backward, Selection::SelectionGranularity::DocumentBoundary);
+}
+
+void EditingHostManager::move_cursor_to_end_of_document(CollapseSelection collapse)
+{
+    auto selection = get_selection_for_navigation(collapse);
+    if (!selection)
+        return;
+    Selection::SelectionModifier(*selection).modify(collapse == CollapseSelection::Yes ? Selection::SelectionAlteration::Move : Selection::SelectionAlteration::Extend, Selection::SelectionDirection::Forward, Selection::SelectionGranularity::DocumentBoundary);
+}
+
 void EditingHostManager::increment_cursor_position_offset(CollapseSelection collapse)
 {
     auto selection = get_selection_for_navigation(collapse);
