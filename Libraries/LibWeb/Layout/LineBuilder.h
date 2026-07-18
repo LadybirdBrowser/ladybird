@@ -15,14 +15,14 @@ class LineBuilder {
     AK_MAKE_NONMOVABLE(LineBuilder);
 
 public:
-    LineBuilder(InlineFormattingContext&, LayoutState&, LayoutState::UsedValues& containing_block_used_values, CSSPixels containing_block_width, CSS::Direction, CSS::WritingMode);
+    LineBuilder(InlineFormattingContext&, LayoutState&, LayoutState::UsedValues& containing_block_used_values, CSSPixels containing_block_inline_size, CSS::Direction, CSS::WritingMode);
 
     enum class ForcedBreak {
         No,
         Yes,
     };
 
-    void break_line(ForcedBreak, Optional<CSSPixels> next_item_width = {});
+    void break_line(ForcedBreak, Optional<CSSPixels> next_item_inline_size = {});
     void append_box(Box const&, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin);
     void append_text_chunk(TextNode const&, size_t offset_in_node, size_t length_in_node, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_inline_size, CSSPixels content_block_size, RefPtr<Gfx::GlyphRun>);
     void append_static_position_marker(Box const&, bool preceded_by_inline_box_start_edges);
@@ -32,10 +32,10 @@ public:
     void append_block_level_box(Box const&, CSSPixels block_bottom, CSSPixels block_bottom_margin);
 
     // Returns whether a line break occurred.
-    bool break_if_needed(CSSPixels next_item_width)
+    bool break_if_needed(CSSPixels next_item_inline_size)
     {
-        if (should_break(next_item_width)) {
-            break_line(LineBuilder::ForcedBreak::No, next_item_width);
+        if (should_break(next_item_inline_size)) {
+            break_line(LineBuilder::ForcedBreak::No, next_item_inline_size);
             return true;
         }
         return false;
@@ -51,24 +51,24 @@ public:
 
     void recalculate_available_space();
     CSSPixels ceiling_for_float_to_be_inserted_here(Box const&);
-    void set_unbreakable_run_width_interrupted_by_float(CSSPixels width) { m_unbreakable_run_width_interrupted_by_float = width; }
+    void set_unbreakable_run_inline_size_interrupted_by_float(CSSPixels inline_size) { m_unbreakable_run_inline_size_interrupted_by_float = inline_size; }
 
     void did_introduce_clearance(CSSPixels);
 
 private:
-    void begin_new_line(bool increment_y, bool is_first_break_in_sequence = true, ForcedBreak = ForcedBreak::No);
+    void begin_new_line(bool advance_block_offset, bool is_first_break_in_sequence = true, ForcedBreak = ForcedBreak::No);
 
-    bool should_break(CSSPixels next_item_width);
+    bool should_break(CSSPixels next_item_inline_size);
 
     LineBox& ensure_last_line_box();
 
     InlineFormattingContext& m_context;
     LayoutState& m_layout_state;
     LayoutState::UsedValues& m_containing_block_used_values;
-    AvailableSize m_available_width_for_current_line { AvailableSize::make_indefinite() };
+    AvailableSize m_available_inline_size_for_current_line { AvailableSize::make_indefinite() };
     CSSPixels m_current_block_offset { 0 };
-    CSSPixels m_max_height_on_current_line { 0 };
-    CSSPixels m_unbreakable_run_width_interrupted_by_float { 0 };
+    CSSPixels m_max_block_size_on_current_line { 0 };
+    CSSPixels m_unbreakable_run_inline_size_interrupted_by_float { 0 };
     CSSPixels m_text_indent { 0 };
     bool m_text_indent_hanging : 1 { false };
     bool m_text_indent_each_line : 1 { false };

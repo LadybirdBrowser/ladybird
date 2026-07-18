@@ -52,7 +52,7 @@ public:
     Vector<StaticPositionMarker> const& static_position_markers() const { return m_static_position_markers; }
     Vector<StaticPositionMarker>& static_position_markers() { return m_static_position_markers; }
 
-    CSSPixels get_trailing_whitespace_width() const;
+    CSSPixels trailing_whitespace_inline_size() const;
     void trim_trailing_whitespace();
     void clamp_static_position_markers_to_inline_length();
 
@@ -62,7 +62,7 @@ public:
     bool has_block_level_box() const { return m_has_block_level_box; }
     CSSPixels block_level_box_bottom_margin() const { return m_block_level_box_bottom_margin; }
 
-    AvailableSize original_available_width() const { return m_original_available_width; }
+    AvailableSize original_available_inline_size() const { return m_original_available_inline_size; }
 
 private:
     friend class BlockContainer;
@@ -88,8 +88,9 @@ private:
     CSS::Direction m_direction { CSS::Direction::Ltr };
     CSS::WritingMode m_writing_mode { CSS::WritingMode::HorizontalTb };
 
-    // The amount of available width that was originally available when creating this line box. Used for text justification.
-    AvailableSize m_original_available_width { AvailableSize::make_indefinite() };
+    // The amount of available inline size that was originally available when creating this line box.
+    // Used for text justification.
+    AvailableSize m_original_available_inline_size { AvailableSize::make_indefinite() };
 
     bool m_has_break { false };
     bool m_has_forced_break { false };

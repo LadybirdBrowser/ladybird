@@ -15,7 +15,7 @@
 namespace Web::Layout {
 
 // This class iterates over all the inline-level objects within an inline formatting context.
-// By repeatedly calling next() with the remaining available width on the current line,
+// By repeatedly calling next() with the remaining available inline size on the current line,
 // it returns an "Item" representing the next piece of inline-level content to be placed on the line.
 class InlineLevelIterator {
     AK_MAKE_NONCOPYABLE(InlineLevelIterator);
@@ -36,7 +36,7 @@ public:
         RefPtr<Gfx::GlyphRun> glyph_run {};
         size_t offset_in_node { 0 };
         size_t length_in_node { 0 };
-        CSSPixels width { 0.0f };
+        CSSPixels inline_size { 0.0f };
         CSSPixels padding_start { 0.0f };
         CSSPixels padding_end { 0.0f };
         CSSPixels border_start { 0.0f };
@@ -49,9 +49,9 @@ public:
         // hasn't attached to any fragment yet. Only set for AbsolutelyPositionedElement items.
         bool preceded_by_unattached_inline_start_edges { false };
 
-        CSSPixels border_box_width() const
+        CSSPixels border_box_inline_size() const
         {
-            return border_start + padding_start + width + padding_end + border_end;
+            return border_start + padding_start + inline_size + padding_end + border_end;
         }
 
         NodeWithStyle const& style_source() const
@@ -66,7 +66,7 @@ public:
     InlineLevelIterator(Layout::InlineFormattingContext&, LayoutState&, Layout::BlockContainer const& containing_block, LayoutState::UsedValues const& containing_block_used_values, LayoutInput const&, LayoutMode);
 
     Optional<Item&> next();
-    CSSPixels next_non_whitespace_sequence_width();
+    CSSPixels next_non_whitespace_sequence_inline_size();
 
     Vector<NodeWithStyleAndBoxModelMetrics const*> take_visited_fragmented_inlines() { return move(m_visited_fragmented_inlines); }
 
@@ -122,8 +122,8 @@ private:
     Vector<Item> m_items;
     size_t m_next_item_index { 0 };
 
-    // Accumulated width tracking for tab calculations during pre-generation.
-    CSSPixels m_accumulated_width_for_tabs { 0 };
+    // Accumulated inline-size tracking for tab calculations during pre-generation.
+    CSSPixels m_accumulated_inline_size_for_tabs { 0 };
 
     bool m_previous_chunk_can_break_after { false };
 };

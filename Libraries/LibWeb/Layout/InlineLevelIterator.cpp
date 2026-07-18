@@ -42,12 +42,12 @@ void InlineLevelIterator::generate_all_items()
         if (!item.has_value())
             break;
 
-        // Track accumulated width for tab calculations.
+        // Track accumulated inline size for tab calculations.
         // Reset on forced breaks since tabs measure from line start.
         if (item->type == Item::Type::ForcedBreak || item->type == Item::Type::BlockLevelBox) {
-            m_accumulated_width_for_tabs = 0;
+            m_accumulated_inline_size_for_tabs = 0;
         } else {
-            m_accumulated_width_for_tabs += item->border_box_width();
+            m_accumulated_inline_size_for_tabs += item->border_box_inline_size();
         }
 
         m_items.append(item.release_value());
@@ -70,23 +70,23 @@ void InlineLevelIterator::enter_node_with_box_model_metrics(Layout::NodeWithStyl
 
     auto const& computed_values = node.computed_values();
 
-    auto containing_block_width = m_layout_input.containing_block_constraints.percentage_basis_inline_size.value_or(0);
+    auto containing_block_inline_size = m_layout_input.containing_block_constraints.percentage_basis_inline_size.value_or(0);
 
-    used_values.margin_top = computed_values.margin().top().to_px_or_zero(containing_block_width);
-    used_values.margin_bottom = computed_values.margin().bottom().to_px_or_zero(containing_block_width);
+    used_values.margin_top = computed_values.margin().top().to_px_or_zero(containing_block_inline_size);
+    used_values.margin_bottom = computed_values.margin().bottom().to_px_or_zero(containing_block_inline_size);
 
-    used_values.margin_left = computed_values.margin().left().to_px_or_zero(containing_block_width);
+    used_values.margin_left = computed_values.margin().left().to_px_or_zero(containing_block_inline_size);
     used_values.border_left = computed_values.border_left().width;
-    used_values.padding_left = computed_values.padding().left().to_px_or_zero(containing_block_width);
+    used_values.padding_left = computed_values.padding().left().to_px_or_zero(containing_block_inline_size);
 
-    used_values.margin_right = computed_values.margin().right().to_px_or_zero(containing_block_width);
+    used_values.margin_right = computed_values.margin().right().to_px_or_zero(containing_block_inline_size);
     used_values.border_right = computed_values.border_right().width;
-    used_values.padding_right = computed_values.padding().right().to_px_or_zero(containing_block_width);
+    used_values.padding_right = computed_values.padding().right().to_px_or_zero(containing_block_inline_size);
 
     used_values.border_top = computed_values.border_top().width;
     used_values.border_bottom = computed_values.border_bottom().width;
-    used_values.padding_bottom = computed_values.padding().bottom().to_px_or_zero(containing_block_width);
-    used_values.padding_top = computed_values.padding().top().to_px_or_zero(containing_block_width);
+    used_values.padding_bottom = computed_values.padding().bottom().to_px_or_zero(containing_block_inline_size);
+    used_values.padding_top = computed_values.padding().top().to_px_or_zero(containing_block_inline_size);
 
     m_extra_leading_metrics->margin += used_values.margin_left;
     m_extra_leading_metrics->border += used_values.border_left;
@@ -185,9 +185,9 @@ Optional<InlineLevelIterator::Item&> InlineLevelIterator::next()
     return m_items[m_next_item_index++];
 }
 
-CSSPixels InlineLevelIterator::next_non_whitespace_sequence_width()
+CSSPixels InlineLevelIterator::next_non_whitespace_sequence_inline_size()
 {
-    CSSPixels next_width = 0;
+    CSSPixels next_inline_size = 0;
     for (size_t i = m_next_item_index; i < m_items.size(); ++i) {
         auto const& next_item = m_items[i];
         if (next_item.type == InlineLevelIterator::Item::Type::ForcedBreak || next_item.type == InlineLevelIterator::Item::Type::BlockLevelBox)
@@ -202,9 +202,9 @@ CSSPixels InlineLevelIterator::next_non_whitespace_sequence_width()
             if (next_view.is_ascii_whitespace())
                 break;
         }
-        next_width += next_item.border_box_width();
+        next_inline_size += next_item.border_box_inline_size();
     }
-    return next_width;
+    return next_inline_size;
 }
 
 Gfx::GlyphRun::TextType InlineLevelIterator::resolve_text_direction_from_context()
@@ -316,14 +316,14 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
         // FIXME: We should apply word spacing to all word-separator characters not just breaking tabs
         auto word_spacing = text_node->parent()->computed_values().word_spacing();
 
-        auto x = 0.0f;
+        auto inline_offset = 0.0f;
         if (chunk.has_breaking_tab) {
-            // Use the accumulated width we've been tracking during pre-generation.
+            // Use the accumulated inline size we've been tracking during pre-generation.
             // This accounts for items that would appear before this tab on the same line.
-            CSSPixels accumulated_width = m_accumulated_width_for_tabs;
+            CSSPixels accumulated_inline_size = m_accumulated_inline_size_for_tabs;
 
             // https://drafts.csswg.org/css-text/#tab-size-property
-            auto tab_width = text_node->parent()->computed_values().tab_size().visit(
+            auto tab_inline_size = text_node->parent()->computed_values().tab_size().visit(
                 [&](CSSPixels const& css_pixels) -> CSSPixels {
                     return css_pixels;
                 },
@@ -332,13 +332,14 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
                 });
 
             // https://drafts.csswg.org/css-text/#white-space-phase-2
-            // if fragments have added to the width, calculate the net distance to the next tab stop, otherwise the shift will just be the tab width
-            auto tab_stop_dist = accumulated_width > 0 ? (ceil((accumulated_width / tab_width)) * tab_width) - accumulated_width : tab_width;
-            auto ch_width = chunk.font->glyph_width('0');
+            // If fragments have added to the inline size, calculate the net distance to the next tab stop;
+            // otherwise, the shift will just be the tab inline size.
+            auto tab_stop_dist = accumulated_inline_size > 0 ? (ceil((accumulated_inline_size / tab_inline_size)) * tab_inline_size) - accumulated_inline_size : tab_inline_size;
+            auto character_inline_size = chunk.font->glyph_width('0');
 
             // If this distance is less than 0.5ch, then the subsequent tab stop is used instead
-            if (tab_stop_dist < ch_width * 0.5)
-                tab_stop_dist += tab_width;
+            if (tab_stop_dist < character_inline_size * 0.5)
+                tab_stop_dist += tab_inline_size;
 
             // account for consecutive tabs
             auto num_of_tabs = 0;
@@ -351,12 +352,12 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
 
             // remove tabs, we don't want to render them when we shape the text
             chunk.view = chunk.view.substring_view(num_of_tabs);
-            x = tab_stop_dist.to_float();
+            inline_offset = tab_stop_dist.to_float();
         }
 
-        auto glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type);
+        auto glyph_run = Gfx::shape_text({ inline_offset, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type);
 
-        CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width() + x);
+        CSSPixels chunk_inline_size = CSSPixels::nearest_value_for(glyph_run->width() + inline_offset);
 
         // NOTE: We never consider `content: ""` to be collapsible whitespace.
         bool is_generated_empty_string = is_empty_editable || (text_node->is_generated_for_pseudo_element() && chunk.length == 0);
@@ -368,7 +369,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
             .glyph_run = move(glyph_run),
             .offset_in_node = chunk.start,
             .length_in_node = chunk.length,
-            .width = chunk_width,
+            .inline_size = chunk_inline_size,
             .is_collapsible_whitespace = collapse_whitespace && chunk.is_all_whitespace && !is_generated_empty_string,
             .can_break_before = m_previous_chunk_can_break_after,
         };
@@ -450,7 +451,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
         .node = &box,
         .offset_in_node = 0,
         .length_in_node = 0,
-        .width = box_state.content_inline_size(),
+        .inline_size = box_state.content_inline_size(),
         .padding_start = box_state.padding_left,
         .padding_end = box_state.padding_right,
         .border_start = box_state.border_left,
