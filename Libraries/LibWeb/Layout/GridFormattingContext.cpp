@@ -3100,10 +3100,7 @@ AbsposContainingBlockInfo GridFormattingContext::resolve_abspos_containing_block
         return rect;
     }();
 
-    containing_block_info.rect = CSSPixelRect {
-        { grid_area.offset.inline_offset, grid_area.offset.block_offset },
-        { grid_area.size.inline_size, grid_area.size.block_size }
-    };
+    containing_block_info.rect = grid_area;
     containing_block_info.inline_alignment = alignment_for_item(box, GridDimension::Column);
     containing_block_info.block_alignment = alignment_for_item(box, GridDimension::Row);
     containing_block_info.derives_from_own_computed_values = true;

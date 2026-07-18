@@ -37,7 +37,7 @@ enum class AbsposAxisMode {
 
 struct AbsposContainingBlockInfo {
     // Containing block rect in CB Box's content-edge coordinates.
-    CSSPixelRect rect;
+    LogicalRect rect;
     AbsposAxisMode inline_axis_mode;
     AbsposAxisMode block_axis_mode;
     // Grid alignment for axes with auto CSS insets.
@@ -58,7 +58,7 @@ struct StaticPositionRect {
         End,
     };
 
-    CSSPixelRect rect;
+    LogicalRect rect;
     Alignment inline_alignment { Alignment::Start };
     Alignment block_alignment { Alignment::Start };
     // Whether the alignments were derived from the box's own computed values (self-alignment
@@ -68,16 +68,16 @@ struct StaticPositionRect {
 
     LogicalOffset aligned_offset_for_box_with_size(LogicalSize const& size) const
     {
-        LogicalOffset offset { rect.x(), rect.y() };
+        auto offset = rect.offset;
         if (inline_alignment == Alignment::Center)
-            offset.inline_offset += (rect.width() - size.inline_size) / 2;
+            offset.inline_offset += (rect.size.inline_size - size.inline_size) / 2;
         else if (inline_alignment == Alignment::End)
-            offset.inline_offset += rect.width() - size.inline_size;
+            offset.inline_offset += rect.size.inline_size - size.inline_size;
 
         if (block_alignment == Alignment::Center)
-            offset.block_offset += (rect.height() - size.block_size) / 2;
+            offset.block_offset += (rect.size.block_size - size.block_size) / 2;
         else if (block_alignment == Alignment::End)
-            offset.block_offset += rect.height() - size.block_size;
+            offset.block_offset += rect.size.block_size - size.block_size;
 
         return offset;
     }

@@ -901,7 +901,11 @@ void InlineFormattingContext::generate_line_boxes()
                         auto containing_block_inline_size = m_layout_input->containing_block_constraints.percentage_basis_inline_size.value_or(0);
                         static_position_rect.rect = { { 0, block_position }, { containing_block_inline_size, 0 } };
                     } else {
-                        static_position_rect.rect = { marker.offset(), { 0, 0 } };
+                        auto physical_marker_offset = marker.offset();
+                        static_position_rect.rect = {
+                            { physical_marker_offset.x(), physical_marker_offset.y() },
+                            { 0, 0 },
+                        };
                     }
                     if (direction == CSS::Direction::Rtl)
                         static_position_rect.inline_alignment = StaticPositionRect::Alignment::End;

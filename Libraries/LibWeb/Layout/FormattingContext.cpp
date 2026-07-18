@@ -1902,18 +1902,29 @@ AbsposContainingBlockInfo FormattingContext::resolve_abspos_containing_block_inf
     auto inline_containing_block = box.inline_containing_block_if_applicable();
     if (inline_containing_block && box.containing_block()) {
         auto rect = compute_inline_containing_block_rect(*inline_containing_block, *box.containing_block(), m_state);
-        if (rect.has_value())
-            return { *rect, inline_axis_mode, block_axis_mode, {}, {} };
+        if (rect.has_value()) {
+            return {
+                {
+                    { rect->x(), rect->y() },
+                    { rect->width(), rect->height() },
+                },
+                inline_axis_mode,
+                block_axis_mode,
+                {},
+                {},
+            };
+        }
     }
 
     // Normal case: padding box of the actual containing block.
     VERIFY(box.containing_block());
     auto& containing_block_state = m_state.get(*box.containing_block());
-    CSSPixelRect rect {
-        -containing_block_state.padding_left,
-        -containing_block_state.padding_top,
-        containing_block_state.content_inline_size() + containing_block_state.padding_left + containing_block_state.padding_right,
-        containing_block_state.content_block_size() + containing_block_state.padding_top + containing_block_state.padding_bottom
+    LogicalRect rect {
+        { -containing_block_state.padding_left, -containing_block_state.padding_top },
+        {
+            containing_block_state.content_inline_size() + containing_block_state.padding_left + containing_block_state.padding_right,
+            containing_block_state.content_block_size() + containing_block_state.padding_top + containing_block_state.padding_bottom,
+        },
     };
     return { rect, inline_axis_mode, block_axis_mode, {}, {} };
 }
@@ -2389,7 +2400,9 @@ StaticPositionRect FormattingContext::resolve_static_position_relative_to_contai
             offset += m_state.get(*node).content_offset();
         return offset;
     };
-    static_position_rect.rect.translate_by(offset_relative_to_merge_point(*static_position_cb) - offset_relative_to_merge_point(*actual_containing_block));
+    auto physical_offset = offset_relative_to_merge_point(*static_position_cb) - offset_relative_to_merge_point(*actual_containing_block);
+    static_position_rect.rect.offset.inline_offset += physical_offset.x();
+    static_position_rect.rect.offset.block_offset += physical_offset.y();
     return static_position_rect;
 }
 
@@ -2465,8 +2478,8 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
     auto& box_state = m_state.get_mutable(box);
 
     LogicalSize const containing_block_size {
-        clamp_to_max_dimension_value(containing_block_info.rect.width()),
-        clamp_to_max_dimension_value(containing_block_info.rect.height())
+        clamp_to_max_dimension_value(containing_block_info.rect.size.inline_size),
+        clamp_to_max_dimension_value(containing_block_info.rect.size.block_size),
     };
     auto const available_space = AvailableSpace(AvailableSize::make_definite(containing_block_size.inline_size), AvailableSize::make_definite(containing_block_size.block_size));
 
@@ -2583,13 +2596,13 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
     if (containing_block_info.inline_axis_mode == AbsposAxisMode::StaticPosition)
         used_offset.inline_offset = static_offset.inline_offset;
     else
-        used_offset.inline_offset = containing_block_info.rect.x() + box_state.inset_left;
+        used_offset.inline_offset = containing_block_info.rect.offset.inline_offset + box_state.inset_left;
 
     // Block axis
     if (containing_block_info.block_axis_mode == AbsposAxisMode::StaticPosition)
         used_offset.block_offset = static_offset.block_offset;
     else
-        used_offset.block_offset = containing_block_info.rect.y() + box_state.inset_top;
+        used_offset.block_offset = containing_block_info.rect.offset.block_offset + box_state.inset_top;
 
     used_offset.inline_offset += box_state.margin_box_left();
     used_offset.block_offset += box_state.margin_box_top();
