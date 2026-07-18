@@ -766,7 +766,7 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
 CSSPixels FormattingContext::measure_automatic_content_height(Box const& box, AvailableSpace const& inner_available_space, ContainingBlockConstraints const& containing_block_constraints)
 {
     LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
-    throwaway_state.create(box, containing_block_constraints.percentage_basis_width, containing_block_constraints.percentage_basis_height);
+    throwaway_state.create(box, containing_block_constraints.percentage_basis_inline_size, containing_block_constraints.percentage_basis_block_size);
     auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, box, this);
     measuring_context->run(LayoutInput { inner_available_space, containing_block_constraints });
     return measuring_context->automatic_content_height();
@@ -854,9 +854,9 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(
     // The table wrapper is invisible to percentage resolution, so the table box gets the
     // wrapper's constraints unchanged. Callers measuring a table wrapper for grid alignment
     // pass the grid-area width as the wrapper's percentage basis.
-    throwaway_state.create(box, table_wrapper_constraints.percentage_basis_width, table_wrapper_constraints.percentage_basis_height);
+    throwaway_state.create(box, table_wrapper_constraints.percentage_basis_inline_size, table_wrapper_constraints.percentage_basis_block_size);
     auto const& table_constraints = table_wrapper_constraints;
-    auto& table_box_state = throwaway_state.create(*table_box, table_constraints.percentage_basis_width, table_constraints.percentage_basis_height);
+    auto& table_box_state = throwaway_state.create(*table_box, table_constraints.percentage_basis_inline_size, table_constraints.percentage_basis_block_size);
     auto const& table_box_computed_values = table_box->computed_values();
     table_box_state.border_left = table_box_computed_values.border_left().width;
     table_box_state.border_right = table_box_computed_values.border_right().width;
@@ -895,7 +895,7 @@ CSSPixels FormattingContext::compute_table_box_height_inside_table_wrapper(Box c
     auto available_height = height_of_containing_block - margin_top - margin_bottom;
 
     LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
-    throwaway_state.create(box, table_wrapper_constraints.percentage_basis_width, table_wrapper_constraints.percentage_basis_height);
+    throwaway_state.create(box, table_wrapper_constraints.percentage_basis_inline_size, table_wrapper_constraints.percentage_basis_block_size);
 
     auto context = create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box, this);
     VERIFY(context);
@@ -932,17 +932,17 @@ ContainingBlockConstraints FormattingContext::constraints_for_child_context(
         && containing_block_used_values.width_constraint == SizeConstraint::None
         && containing_block_used_values.height_constraint == SizeConstraint::None;
 
-    auto percentage_basis_width = containing_block_used_values.has_definite_width()
+    auto percentage_basis_inline_size = containing_block_used_values.has_definite_width()
         ? Optional<CSSPixels> { containing_block_used_values.content_width() }
-        : should_forward_indefinite_basis ? containing_block_constraints.percentage_basis_width
+        : should_forward_indefinite_basis ? containing_block_constraints.percentage_basis_inline_size
                                           : Optional<CSSPixels> {};
-    auto percentage_basis_height = containing_block_used_values.has_definite_height()
+    auto percentage_basis_block_size = containing_block_used_values.has_definite_height()
         ? Optional<CSSPixels> { containing_block_used_values.content_height() }
-        : should_forward_indefinite_basis ? containing_block_constraints.percentage_basis_height
+        : should_forward_indefinite_basis ? containing_block_constraints.percentage_basis_block_size
                                           : Optional<CSSPixels> {};
 
     // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
-    auto quirks_mode_percentage_basis_height = [&]() -> Optional<CSSPixels> {
+    auto quirks_mode_percentage_basis_block_size = [&]() -> Optional<CSSPixels> {
         // 1. Let element be the nearest ancestor containing block of element, if there is one.
         //    Otherwise, return the initial containing block.
         if (containing_block.is_viewport())
@@ -967,10 +967,10 @@ ContainingBlockConstraints FormattingContext::constraints_for_child_context(
         // 5. Jump to the first step.
         // NOTE: Evaluated incrementally: in-flow auto-height block containers pass the basis they
         //       inherited from their own containing block through to their children.
-        return containing_block_constraints.quirks_mode_percentage_basis_height;
+        return containing_block_constraints.quirks_mode_percentage_basis_block_size;
     }();
 
-    return { percentage_basis_width, percentage_basis_height, quirks_mode_percentage_basis_height };
+    return { percentage_basis_inline_size, percentage_basis_block_size, quirks_mode_percentage_basis_block_size };
 }
 
 LayoutInput FormattingContext::layout_input_for_child_context(
@@ -989,7 +989,7 @@ LayoutInput FormattingContext::layout_input_for_child_context(
 CSSPixels FormattingContext::tentative_width_for_replaced_element(Box const& box, CSS::Size const& computed_width, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints) const
 {
     // Treat percentages of indefinite containing block widths as 0 (the initial width).
-    if (computed_width.is_percentage() && !containing_block_constraints.percentage_basis_width.has_value())
+    if (computed_width.is_percentage() && !containing_block_constraints.percentage_basis_inline_size.has_value())
         return 0;
 
     auto computed_height = should_treat_height_as_auto(box, available_space, containing_block_constraints) ? CSS::Size::make_auto() : box.computed_values().height();
@@ -2796,9 +2796,9 @@ static IntrinsicSizeCacheKey intrinsic_size_cache_key(ContainingBlockConstraints
 {
     return {
         .measured_at_width = {},
-        .percentage_basis_width = containing_block_constraints.percentage_basis_width,
-        .percentage_basis_height = containing_block_constraints.percentage_basis_height,
-        .quirks_mode_percentage_basis_height = containing_block_constraints.quirks_mode_percentage_basis_height,
+        .percentage_basis_inline_size = containing_block_constraints.percentage_basis_inline_size,
+        .percentage_basis_block_size = containing_block_constraints.percentage_basis_block_size,
+        .quirks_mode_percentage_basis_block_size = containing_block_constraints.quirks_mode_percentage_basis_block_size,
     };
 }
 
@@ -2819,7 +2819,7 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box,
                 return 0;
 
             auto zero_percentage_basis_constraints = containing_block_constraints;
-            zero_percentage_basis_constraints.percentage_basis_width = 0;
+            zero_percentage_basis_constraints.percentage_basis_inline_size = 0;
             return calculate_inner_width(box, AvailableSize::make_min_content(), min_width, zero_percentage_basis_constraints);
         }
     }
@@ -2844,7 +2844,7 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box,
 
     LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
 
-    auto& box_state = throwaway_state.create(box, containing_block_constraints.percentage_basis_width, containing_block_constraints.percentage_basis_height);
+    auto& box_state = throwaway_state.create(box, containing_block_constraints.percentage_basis_inline_size, containing_block_constraints.percentage_basis_block_size);
     box_state.width_constraint = SizeConstraint::MinContent;
     box_state.set_indefinite_content_width();
 
@@ -2931,11 +2931,11 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box,
             return {};
         case CyclicPercentageIntrinsicContribution::ResolveAsZero: {
             auto zero_percentage_basis_constraints = containing_block_constraints;
-            zero_percentage_basis_constraints.percentage_basis_width = 0;
+            zero_percentage_basis_constraints.percentage_basis_inline_size = 0;
             return calculate_inner_width(box, max_content_available_width, size, zero_percentage_basis_constraints);
         }
         case CyclicPercentageIntrinsicContribution::NotCyclic:
-            if (size.contains_percentage() && !containing_block_constraints.percentage_basis_width.has_value())
+            if (size.contains_percentage() && !containing_block_constraints.percentage_basis_inline_size.has_value())
                 return {};
             return calculate_inner_width(box, max_content_available_width, size, containing_block_constraints);
         }
@@ -2945,7 +2945,7 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box,
     auto resolve_size_in_origin_axis = [&](CSS::Size const& size, CyclicPercentageSizeProperty size_property) -> Optional<CSSPixels> {
         if (!size.is_length_percentage())
             return {};
-        if (!size.contains_percentage() || containing_block_constraints.percentage_basis_height.has_value())
+        if (!size.contains_percentage() || containing_block_constraints.percentage_basis_block_size.has_value())
             return calculate_inner_height(box, intrinsic_available_space, size, containing_block_constraints);
 
         switch (cyclic_percentage_intrinsic_contribution(box, size, max_content_available_width, size_property)) {
@@ -2953,7 +2953,7 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box,
             return {};
         case CyclicPercentageIntrinsicContribution::ResolveAsZero: {
             auto zero_percentage_basis_constraints = containing_block_constraints;
-            zero_percentage_basis_constraints.percentage_basis_height = 0;
+            zero_percentage_basis_constraints.percentage_basis_block_size = 0;
             return calculate_inner_height(box, intrinsic_available_space, size, zero_percentage_basis_constraints);
         }
         case CyclicPercentageIntrinsicContribution::NotCyclic:
@@ -3019,7 +3019,7 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box,
 
     LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
 
-    auto& box_state = throwaway_state.create(box, containing_block_constraints.percentage_basis_width, containing_block_constraints.percentage_basis_height);
+    auto& box_state = throwaway_state.create(box, containing_block_constraints.percentage_basis_inline_size, containing_block_constraints.percentage_basis_block_size);
     box_state.width_constraint = SizeConstraint::MaxContent;
     box_state.set_indefinite_content_width();
 
@@ -3063,7 +3063,7 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
 
     LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
 
-    auto& box_state = throwaway_state.create(box, containing_block_constraints.percentage_basis_width, containing_block_constraints.percentage_basis_height);
+    auto& box_state = throwaway_state.create(box, containing_block_constraints.percentage_basis_inline_size, containing_block_constraints.percentage_basis_block_size);
     box_state.height_constraint = SizeConstraint::MinContent;
     box_state.set_indefinite_content_height();
     box_state.set_content_width(width);
@@ -3100,7 +3100,7 @@ CSSPixels FormattingContext::calculate_max_content_height(Layout::Box const& box
 
     LayoutState throwaway_state(box, LayoutState::Purpose::Measurement);
 
-    auto& box_state = throwaway_state.create(box, containing_block_constraints.percentage_basis_width, containing_block_constraints.percentage_basis_height);
+    auto& box_state = throwaway_state.create(box, containing_block_constraints.percentage_basis_inline_size, containing_block_constraints.percentage_basis_block_size);
     box_state.height_constraint = SizeConstraint::MaxContent;
     box_state.set_indefinite_content_height();
     box_state.set_content_width(width);
@@ -3121,7 +3121,7 @@ CSSPixels FormattingContext::calculate_inner_width(Layout::Box const& box, Avail
 
     auto const& box_state = m_state.get(box);
     auto width_of_containing_block = width.contains_percentage()
-        ? containing_block_constraints.percentage_basis_width.value_or(available_width.to_px_or_zero())
+        ? containing_block_constraints.percentage_basis_inline_size.value_or(available_width.to_px_or_zero())
         : available_width.to_px_or_zero();
     if (width.is_fit_content()) {
         return calculate_fit_content_width(box, AvailableSpace { available_width, AvailableSize::make_indefinite() }, containing_block_constraints);
@@ -3180,9 +3180,9 @@ CSSPixels FormattingContext::calculate_inner_height(Box const& box, AvailableSpa
         auto shadow_root = box.dom_node() ? box.dom_node()->containing_shadow_root() : nullptr;
         bool is_in_ua_shadow_tree = shadow_root && shadow_root->is_user_agent_internal();
         if (box.document().in_quirks_mode() && !box.is_anonymous() && !is_flex_or_grid_item && !is_in_ua_shadow_tree) {
-            height_of_containing_block = containing_block_constraints.quirks_mode_percentage_basis_height.value_or(0);
-        } else if (containing_block_constraints.percentage_basis_height.has_value()) {
-            height_of_containing_block = containing_block_constraints.percentage_basis_height.value();
+            height_of_containing_block = containing_block_constraints.quirks_mode_percentage_basis_block_size.value_or(0);
+        } else if (containing_block_constraints.percentage_basis_block_size.has_value()) {
+            height_of_containing_block = containing_block_constraints.percentage_basis_block_size.value();
         }
     }
     auto& computed_values = box.computed_values();
@@ -3313,7 +3313,7 @@ bool FormattingContext::should_treat_height_as_auto(Box const& box, AvailableSpa
                 return true;
             }();
             if (!percentage_height_quirk_applies) {
-                if (!containing_block_constraints.percentage_basis_height.has_value())
+                if (!containing_block_constraints.percentage_basis_block_size.has_value())
                     return true;
             }
         }
@@ -3594,7 +3594,7 @@ bool FormattingContext::should_treat_max_width_as_none(Box const& box, Available
         case CyclicPercentageIntrinsicContribution::NotCyclic:
             break;
         }
-        if (!containing_block_constraints.percentage_basis_width.has_value())
+        if (!containing_block_constraints.percentage_basis_inline_size.has_value())
             return true;
     }
     if (max_width.is_fit_content() && available_width.is_intrinsic_sizing_constraint())
@@ -3618,7 +3618,7 @@ bool FormattingContext::should_treat_max_height_as_none(Box const& box, Availabl
     if (max_height.contains_percentage()) {
         if (available_height.is_min_content())
             return false;
-        if (!containing_block_constraints.percentage_basis_height.has_value())
+        if (!containing_block_constraints.percentage_basis_block_size.has_value())
             return true;
     }
     if (max_height.is_fit_content() && available_height.is_intrinsic_sizing_constraint())

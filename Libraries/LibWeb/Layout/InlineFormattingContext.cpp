@@ -704,7 +704,7 @@ void InlineFormattingContext::generate_line_boxes()
 
     InlineLevelIterator iterator(*this, m_state, containing_block(), m_containing_block_used_values, *m_layout_input, m_layout_mode);
     m_fragmented_inlines_in_pre_order = iterator.take_visited_fragmented_inlines();
-    auto containing_block_width = m_layout_input->containing_block_constraints.percentage_basis_width.value_or(0);
+    auto containing_block_width = m_layout_input->containing_block_constraints.percentage_basis_inline_size.value_or(0);
     LineBuilder line_builder(*this, m_state, m_containing_block_used_values, containing_block_width, direction, writing_mode);
 
     // NOTE: When we ignore collapsible whitespace chunks at the start of a line,
@@ -799,7 +799,7 @@ void InlineFormattingContext::generate_line_boxes()
             if (auto* box = as_if<Box>(*item.node)) {
                 line_builder.commit_pending_margin_before_float();
                 if (!is<ListItemMarkerBox>(*box))
-                    m_state.create(*box, m_layout_input->containing_block_constraints.percentage_basis_width, m_layout_input->containing_block_constraints.percentage_basis_height);
+                    m_state.create(*box, m_layout_input->containing_block_constraints.percentage_basis_inline_size, m_layout_input->containing_block_constraints.percentage_basis_block_size);
                 (void)parent().clear_floating_boxes(as<NodeWithStyle>(*item.node), *this, m_layout_input->content_box_position_in_bfc_root.value());
                 // Even if this introduces clearance, we do NOT reset the margin state, because that is clearance
                 // between floats and does not contribute to the height of the Inline Formatting Context.
@@ -898,7 +898,7 @@ void InlineFormattingContext::generate_line_boxes()
 
                     if (box->display_before_box_type_transformation().is_block_outside()) {
                         auto block_position = marker.preceded_by_in_flow_content ? line_box.bottom() : marker.offset().y();
-                        auto containing_block_width = m_layout_input->containing_block_constraints.percentage_basis_width.value_or(0);
+                        auto containing_block_width = m_layout_input->containing_block_constraints.percentage_basis_inline_size.value_or(0);
                         static_position_rect.rect = { { 0, block_position }, { containing_block_width, 0 } };
                     } else {
                         static_position_rect.rect = { marker.offset(), { 0, 0 } };

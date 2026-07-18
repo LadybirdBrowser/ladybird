@@ -179,7 +179,7 @@ void BlockFormattingContext::parent_context_did_dimension_child_root_box()
                 case SizeConstraint::MaxContent:
                     return CSSPixels::max();
                 case SizeConstraint::None:
-                    return floating_box->percentage_basis_width.value_or(0);
+                    return floating_box->percentage_basis_inline_size.value_or(0);
                 }
                 VERIFY_NOT_REACHED();
             }();
@@ -838,7 +838,7 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
         auto margins = box_state.margin_top + box_state.margin_bottom;
 
         // 2. Let size be the size of the initial containing block in the block flow direction minus margins.
-        auto size = containing_block_constraints.percentage_basis_height.value_or(0) - margins;
+        auto size = containing_block_constraints.percentage_basis_block_size.value_or(0) - margins;
 
         // 3. Return the bigger value of size and the normal border box size the element would have
         //    according to the CSS specification.
@@ -869,7 +869,7 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
             auto margins = box_state.margin_top + box_state.margin_bottom;
 
             // 2. Let size be the size of element's parent element's content box in the block flow direction minus margins.
-            auto size = containing_block_constraints.percentage_basis_height.value_or(0) - margins;
+            auto size = containing_block_constraints.percentage_basis_block_size.value_or(0) - margins;
 
             // 3. Return the bigger value of size and the normal border box size the element would have
             //    according to the CSS specification.
@@ -903,7 +903,7 @@ void BlockFormattingContext::layout_inline_children(BlockContainer const& block_
         if (block_container_state.width_constraint == SizeConstraint::None) {
             // https://www.w3.org/TR/css-sizing-3/#sizing-values
             // Percentages are resolved against the width/height, as appropriate, of the box’s containing block.
-            auto containing_block_width = layout_input.containing_block_constraints.percentage_basis_width.value_or(0);
+            auto containing_block_width = layout_input.containing_block_constraints.percentage_basis_inline_size.value_or(0);
             auto available_width = AvailableSize::make_definite(containing_block_width);
             if (!should_treat_max_width_as_none(block_container, available_space.inline_size, layout_input.containing_block_constraints)) {
                 auto max_width_px = calculate_inner_width(block_container, available_width, block_container.computed_values().max_width(), layout_input.containing_block_constraints);
@@ -1083,7 +1083,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
             if (auto* existing_state = m_state.try_get_mutable(box))
                 return *existing_state;
         }
-        return m_state.create(box, layout_input.containing_block_constraints.percentage_basis_width, layout_input.containing_block_constraints.percentage_basis_height);
+        return m_state.create(box, layout_input.containing_block_constraints.percentage_basis_inline_size, layout_input.containing_block_constraints.percentage_basis_block_size);
     }();
 
     resolve_vertical_box_model_metrics(box, block_container_state.content_width());
@@ -1192,7 +1192,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     auto shadow_root = box.dom_node() ? box.dom_node()->containing_shadow_root() : nullptr;
     bool is_in_ua_internal_shadow_tree = shadow_root && shadow_root->is_user_agent_internal();
     if (box.document().in_quirks_mode() && box.computed_values().height().is_percentage() && !is_table_box && !is_in_ua_internal_shadow_tree) {
-        available_space_for_height_resolution.block_size = AvailableSize::make_definite(layout_input.containing_block_constraints.quirks_mode_percentage_basis_height.value_or(0));
+        available_space_for_height_resolution.block_size = AvailableSize::make_definite(layout_input.containing_block_constraints.quirks_mode_percentage_basis_block_size.value_or(0));
     }
 
     resolve_used_height_if_not_treated_as_auto(box, available_space_for_height_resolution, layout_input.containing_block_constraints);
@@ -1604,7 +1604,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
         .bottom_margin_edge = content_y + box_state.content_height() + box_state.margin_box_bottom(),
         .margin_box_rect_in_root_coordinate_space = margin_box_rect_in_root,
         .containing_block_rect_in_root_coordinate_space = containing_block_rect_in_root,
-        .percentage_basis_width = layout_input.containing_block_constraints.percentage_basis_width,
+        .percentage_basis_inline_size = layout_input.containing_block_constraints.percentage_basis_inline_size,
     }));
     auto& floating_box = *m_floats.last();
     floating_box.margin_box_rect_in_root_coordinate_space.set_x(margin_box_left_of_float_in_root(floating_box, containing_block_rect_in_root));

@@ -297,7 +297,7 @@ void SVGFormattingContext::run(LayoutInput const& layout_input)
     }();
 
     m_available_space = available_space;
-    m_quirks_mode_percentage_basis_height = layout_input.containing_block_constraints.quirks_mode_percentage_basis_height;
+    m_quirks_mode_percentage_basis_block_size = layout_input.containing_block_constraints.quirks_mode_percentage_basis_block_size;
     m_viewport_size = { viewport_width, viewport_height };
 
     auto svg_transform_for_children = m_parent_svg_transform.value_or(Gfx::AffineTransform {});
@@ -338,7 +338,7 @@ void SVGFormattingContext::layout_svg_element(Box const& child, LayoutInput cons
         child_state.set_content_height(transformed_rect.height());
 
         auto child_available_space = AvailableSpace(AvailableSize::make_definite(child_state.content_width()), AvailableSize::make_definite(child_state.content_height()));
-        bfc.run(LayoutInput { child_available_space, { {}, {}, m_quirks_mode_percentage_basis_height } });
+        bfc.run(LayoutInput { child_available_space, { {}, {}, m_quirks_mode_percentage_basis_block_size } });
 
         // Masks and clips may use this offset for objectBoundingBox units.
         place_child(child, transformed_rect.location());
@@ -409,7 +409,7 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport, Gfx::Affi
     if (has_own_view_box)
         place_child(viewport, content_offset);
     SVGFormattingContext nested_context(m_state, m_layout_mode, viewport, this, parent_viewbox_transform, parent_svg_transform);
-    nested_context.run(LayoutInput { *m_available_space, { {}, {}, m_quirks_mode_percentage_basis_height } });
+    nested_context.run(LayoutInput { *m_available_space, { {}, {}, m_quirks_mode_percentage_basis_block_size } });
     if (!has_own_view_box) {
         Gfx::FloatRect nested_viewport_rect_in_parent_user_space {
             { nested_viewport_x.to_float(), nested_viewport_y.to_float() },
@@ -645,7 +645,7 @@ void SVGFormattingContext::layout_mask_or_clip(SVGBox const& mask_or_clip)
     SVGFormattingContext nested_context(m_state, m_layout_mode, mask_or_clip, this, parent_viewbox_transform, Gfx::AffineTransform {});
     layout_state.set_has_definite_width(true);
     layout_state.set_has_definite_height(true);
-    nested_context.run(LayoutInput { *m_available_space, { {}, {}, m_quirks_mode_percentage_basis_height } });
+    nested_context.run(LayoutInput { *m_available_space, { {}, {}, m_quirks_mode_percentage_basis_block_size } });
 
     Gfx::FloatRect box_rect_in_parent_user_space { {}, { float(layout_state.content_width()), float(layout_state.content_height()) } };
     auto mapped_box_rect = parent_viewbox_transform.map(box_rect_in_parent_user_space);

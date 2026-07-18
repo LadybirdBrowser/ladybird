@@ -55,8 +55,8 @@ FlexFormattingContext::~FlexFormattingContext() = default;
 ContainingBlockConstraints FlexFormattingContext::item_containing_block_constraints() const
 {
     auto constraints = constraints_for_child_context(m_flex_container_state, m_layout_input->containing_block_constraints);
-    constraints.percentage_basis_width = m_item_percentage_bases.percentage_basis_width;
-    constraints.percentage_basis_height = m_item_percentage_bases.percentage_basis_height;
+    constraints.percentage_basis_inline_size = m_item_percentage_bases.percentage_basis_inline_size;
+    constraints.percentage_basis_block_size = m_item_percentage_bases.percentage_basis_block_size;
     return constraints;
 }
 
@@ -351,7 +351,7 @@ bool FlexFormattingContext::is_direction_reverse() const
 void FlexFormattingContext::populate_specified_margins(FlexItem& item, CSS::FlexDirection) const
 {
     // Percentages on flex item box-model metrics resolve against the flex container's inline size.
-    auto width_of_containing_block = m_item_percentage_bases.percentage_basis_width.value_or(0);
+    auto width_of_containing_block = m_item_percentage_bases.percentage_basis_inline_size.value_or(0);
 
     item.used_values.padding_left = item.box.computed_values().padding().left().to_px_or_zero(width_of_containing_block);
     item.used_values.padding_right = item.box.computed_values().padding().right().to_px_or_zero(width_of_containing_block);
@@ -421,7 +421,7 @@ void FlexFormattingContext::generate_anonymous_flex_items()
             return IterationDecision::Continue;
 
         child_box.set_flex_item(true);
-        FlexItem item = { child_box, m_state.create(child_box, m_item_percentage_bases.percentage_basis_width, m_item_percentage_bases.percentage_basis_height) };
+        FlexItem item = { child_box, m_state.create(child_box, m_item_percentage_bases.percentage_basis_inline_size, m_item_percentage_bases.percentage_basis_block_size) };
         populate_specified_margins(item, m_flex_direction);
 
         auto& order_bucket = order_item_bucket.ensure(child_box.computed_values().order());

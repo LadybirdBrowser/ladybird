@@ -116,7 +116,7 @@ struct LayoutState {
 
         NodeWithStyle const& node() const { return *m_node; }
         NodeWithStyle& node() { return const_cast<NodeWithStyle&>(*m_node); }
-        void set_node(NodeWithStyle const&, Optional<CSSPixels> percentage_basis_width = {}, Optional<CSSPixels> percentage_basis_height = {});
+        void set_node(NodeWithStyle const&, Optional<CSSPixels> percentage_basis_inline_size = {}, Optional<CSSPixels> percentage_basis_block_size = {});
 
         CSSPixels content_width() const { return m_content_width; }
         CSSPixels content_height() const { return m_content_height; }
@@ -383,7 +383,7 @@ struct LayoutState {
     UsedValues& get_mutable(NodeWithStyle const&);
     UsedValues const& get(NodeWithStyle const&) const;
 
-    UsedValues& create(NodeWithStyle const&, Optional<CSSPixels> percentage_basis_width, Optional<CSSPixels> percentage_basis_height);
+    UsedValues& create(NodeWithStyle const&, Optional<CSSPixels> percentage_basis_inline_size, Optional<CSSPixels> percentage_basis_block_size);
 
     UsedValues& populate_from_paintable(NodeWithStyle const&, Painting::Paintable const&);
 

@@ -66,11 +66,11 @@ void InlineLevelIterator::enter_node_with_box_model_metrics(Layout::NodeWithStyl
 
     auto& used_values = is<ListItemMarkerBox>(node)
         ? m_layout_state.get_mutable(node)
-        : m_layout_state.create(node, m_layout_input.containing_block_constraints.percentage_basis_width, m_layout_input.containing_block_constraints.percentage_basis_height);
+        : m_layout_state.create(node, m_layout_input.containing_block_constraints.percentage_basis_inline_size, m_layout_input.containing_block_constraints.percentage_basis_block_size);
 
     auto const& computed_values = node.computed_values();
 
-    auto containing_block_width = m_layout_input.containing_block_constraints.percentage_basis_width.value_or(0);
+    auto containing_block_width = m_layout_input.containing_block_constraints.percentage_basis_inline_size.value_or(0);
 
     used_values.margin_top = computed_values.margin().top().to_px_or_zero(containing_block_width);
     used_values.margin_bottom = computed_values.margin().bottom().to_px_or_zero(containing_block_width);
@@ -441,7 +441,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
         if (is<ListItemMarkerBox>(box)
             || (!m_box_model_node_stack.is_empty() && m_box_model_node_stack.last() == &box))
             return m_layout_state.get_mutable(box);
-        return m_layout_state.create(box, m_layout_input.containing_block_constraints.percentage_basis_width, m_layout_input.containing_block_constraints.percentage_basis_height);
+        return m_layout_state.create(box, m_layout_input.containing_block_constraints.percentage_basis_inline_size, m_layout_input.containing_block_constraints.percentage_basis_block_size);
     }();
     m_inline_formatting_context.dimension_box_on_line(box, m_layout_mode);
 

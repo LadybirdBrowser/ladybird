@@ -248,13 +248,13 @@ GridFormattingContext::~GridFormattingContext() = default;
 
 ContainingBlockConstraints GridFormattingContext::grid_area_constraints_for_item(GridItem const& item) const
 {
-    return { containing_block_size_for_item(item, GridDimension::Column), {}, item_quirks_mode_percentage_basis_height() };
+    return { containing_block_size_for_item(item, GridDimension::Column), {}, item_quirks_mode_percentage_basis_block_size() };
 }
 
 // During track sizing the grid area is not known yet, so items have no percentage basis.
 ContainingBlockConstraints GridFormattingContext::track_sizing_constraints_for_items() const
 {
-    return { {}, {}, item_quirks_mode_percentage_basis_height() };
+    return { {}, {}, item_quirks_mode_percentage_basis_block_size() };
 }
 
 // Intrinsic contributions during track sizing measure items against the grid container's own content box, since the
@@ -264,9 +264,9 @@ ContainingBlockConstraints GridFormattingContext::container_derived_constraints(
     return constraints_for_child_context(m_grid_container_used_values, m_layout_input->containing_block_constraints);
 }
 
-Optional<CSSPixels> GridFormattingContext::item_quirks_mode_percentage_basis_height() const
+Optional<CSSPixels> GridFormattingContext::item_quirks_mode_percentage_basis_block_size() const
 {
-    return constraints_for_child_context(m_grid_container_used_values, m_layout_input->containing_block_constraints).quirks_mode_percentage_basis_height;
+    return constraints_for_child_context(m_grid_container_used_values, m_layout_input->containing_block_constraints).quirks_mode_percentage_basis_block_size;
 }
 
 static size_t count_subgrid_line_name_lists_from_index(CSS::GridTrackSizeList const& list, size_t start_index)
@@ -2248,7 +2248,7 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
         // A grid item is sized within the containing block defined by its grid area.
         auto grid_area_constraints = grid_area_constraints_for_item(item);
         if (dimension == GridDimension::Row)
-            grid_area_constraints.percentage_basis_height = containing_block_size;
+            grid_area_constraints.percentage_basis_block_size = containing_block_size;
 
         auto const& preferred_size = item.preferred_size(dimension);
 
@@ -2379,7 +2379,7 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
                 // table's border-box width, so resolve the wrapper width with the same grid-area basis used later.
                 auto table_wrapper_containing_block_width = non_cyclic_containing_block_width_for_table_wrapper(item, containing_block_size);
                 auto table_wrapper_constraints = container_derived_constraints();
-                table_wrapper_constraints.percentage_basis_width = table_wrapper_containing_block_width;
+                table_wrapper_constraints.percentage_basis_inline_size = table_wrapper_containing_block_width;
                 auto table_wrapper_width = compute_table_box_width_inside_table_wrapper(
                     item.box, available_space, table_wrapper_constraints, table_wrapper_containing_block_width, TableWrapperWidthMode::UseTableUsedWidthIfNotAuto);
                 if (table_box_inside_table_wrapper(item).computed_values().width().is_auto())
@@ -2929,8 +2929,8 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
             // Table wrappers pass their constraints through to the table box, so hand them the
             // grid area in both axes for the table's percentage resolution.
             if (table_wrapper_grid_area_size.has_value()) {
-                constraints.percentage_basis_width = table_wrapper_grid_area_size->width();
-                constraints.percentage_basis_height = table_wrapper_grid_area_size->height();
+                constraints.percentage_basis_inline_size = table_wrapper_grid_area_size->width();
+                constraints.percentage_basis_block_size = table_wrapper_grid_area_size->height();
             }
             return constraints;
         }();
@@ -3556,7 +3556,7 @@ void GridFormattingContext::resolve_table_wrapper_grid_item_width(GridItem& item
         AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_size_for_item(item, GridDimension::Row)))
     };
     auto table_wrapper_constraints = container_derived_constraints();
-    table_wrapper_constraints.percentage_basis_width = table_wrapper_containing_block_width;
+    table_wrapper_constraints.percentage_basis_inline_size = table_wrapper_containing_block_width;
     auto table_wrapper_width = compute_table_box_width_inside_table_wrapper(
         item.box, available_space, table_wrapper_constraints, table_wrapper_containing_block_width, TableWrapperWidthMode::UseTableUsedWidthIfNotAuto);
     auto const& table_box = table_box_inside_table_wrapper(item);

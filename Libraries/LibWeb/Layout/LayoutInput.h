@@ -13,9 +13,9 @@
 namespace Web::Layout {
 
 struct ContainingBlockConstraints {
-    Optional<CSSPixels> percentage_basis_width;
-    Optional<CSSPixels> percentage_basis_height;
-    Optional<CSSPixels> quirks_mode_percentage_basis_height;
+    Optional<CSSPixels> percentage_basis_inline_size;
+    Optional<CSSPixels> percentage_basis_block_size;
+    Optional<CSSPixels> quirks_mode_percentage_basis_block_size;
 };
 
 struct LayoutInput {

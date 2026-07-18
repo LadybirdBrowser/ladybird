@@ -88,7 +88,7 @@ LayoutState::UsedValues const& LayoutState::get(NodeWithStyle const& node) const
     return *used_values;
 }
 
-LayoutState::UsedValues& LayoutState::create(NodeWithStyle const& node, Optional<CSSPixels> percentage_basis_width, Optional<CSSPixels> percentage_basis_height)
+LayoutState::UsedValues& LayoutState::create(NodeWithStyle const& node, Optional<CSSPixels> percentage_basis_inline_size, Optional<CSSPixels> percentage_basis_block_size)
 {
     auto index = node.layout_index();
     if (m_used_values_store.get(index)) {
@@ -99,7 +99,7 @@ LayoutState::UsedValues& LayoutState::create(NodeWithStyle const& node, Optional
     VERIFY(!m_subtree_root || m_subtree_root == &node || m_subtree_root->is_inclusive_ancestor_of(node));
 
     auto& used_values = m_used_values_store.allocate(index);
-    used_values.set_node(node, percentage_basis_width, percentage_basis_height);
+    used_values.set_node(node, percentage_basis_inline_size, percentage_basis_block_size);
 
     if (auto const* list_item_box = as_if<ListItemBox>(node); list_item_box && list_item_box->marker()) {
         auto const& marker = *list_item_box->marker();
@@ -496,7 +496,7 @@ LayoutState::UsedValues& LayoutState::UsedValues::operator=(UsedValues const& ot
     return *this;
 }
 
-void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPixels> percentage_basis_width, Optional<CSSPixels> percentage_basis_height)
+void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPixels> percentage_basis_inline_size, Optional<CSSPixels> percentage_basis_block_size)
 {
     m_node = &node;
 
@@ -512,7 +512,7 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPi
     auto const& computed_values = node.computed_values();
 
     auto containing_block_size_for_axis = [&](bool width) {
-        return width ? percentage_basis_width.value_or(0) : percentage_basis_height.value_or(0);
+        return width ? percentage_basis_inline_size.value_or(0) : percentage_basis_block_size.value_or(0);
     };
 
     auto adjust_for_box_sizing = [&](CSSPixels unadjusted_pixels, CSS::Size const& computed_size, bool width) -> CSSPixels {
@@ -525,14 +525,14 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPi
 
         if (width) {
             border_and_padding = computed_values.border_left().width
-                + computed_values.padding().left().to_px_or_zero(percentage_basis_width.value_or(0))
+                + computed_values.padding().left().to_px_or_zero(percentage_basis_inline_size.value_or(0))
                 + computed_values.border_right().width
-                + computed_values.padding().right().to_px_or_zero(percentage_basis_width.value_or(0));
+                + computed_values.padding().right().to_px_or_zero(percentage_basis_inline_size.value_or(0));
         } else {
             border_and_padding = computed_values.border_top().width
-                + computed_values.padding().top().to_px_or_zero(percentage_basis_width.value_or(0))
+                + computed_values.padding().top().to_px_or_zero(percentage_basis_inline_size.value_or(0))
                 + computed_values.border_bottom().width
-                + computed_values.padding().bottom().to_px_or_zero(percentage_basis_width.value_or(0));
+                + computed_values.padding().bottom().to_px_or_zero(percentage_basis_inline_size.value_or(0));
         }
 
         return unadjusted_pixels - border_and_padding;
@@ -545,7 +545,7 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPi
         // a size of the initial containing block,
         // or a <percentage> or other formula (such as the “stretch-fit” sizing of non-replaced blocks [CSS2]) that is resolved solely against definite sizes.
 
-        auto containing_block_has_definite_size = width ? percentage_basis_width.has_value() : percentage_basis_height.has_value();
+        auto containing_block_has_definite_size = width ? percentage_basis_inline_size.has_value() : percentage_basis_block_size.has_value();
 
         if (size.is_auto()) {
             // NOTE: The width of a non-flex-item block is considered definite if it's auto and the containing block has definite width.

@@ -108,7 +108,7 @@ public:
 
         CSSPixelRect margin_box_rect_in_root_coordinate_space;
         CSSPixelRect containing_block_rect_in_root_coordinate_space;
-        Optional<CSSPixels> percentage_basis_width;
+        Optional<CSSPixels> percentage_basis_inline_size;
     };
 
 private:

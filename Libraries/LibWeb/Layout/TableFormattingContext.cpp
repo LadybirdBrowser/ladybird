@@ -129,8 +129,8 @@ void TableFormattingContext::compute_constrainedness()
 void TableFormattingContext::compute_cell_measures(RowMeasurement row_measurement)
 {
     // Implements https://www.w3.org/TR/css-tables-3/#computing-cell-measures.
-    auto containing_block_width = m_table_constraints.percentage_basis_width.value_or(0);
-    auto containing_block_height = m_table_constraints.percentage_basis_height.value_or(0);
+    auto containing_block_width = m_table_constraints.percentage_basis_inline_size.value_or(0);
+    auto containing_block_height = m_table_constraints.percentage_basis_block_size.value_or(0);
 
     compute_constrainedness();
 
@@ -226,7 +226,7 @@ void TableFormattingContext::compute_cell_measures(RowMeasurement row_measuremen
 
 void TableFormattingContext::compute_outer_content_sizes()
 {
-    auto containing_block_width = m_table_constraints.percentage_basis_width.value_or(0);
+    auto containing_block_width = m_table_constraints.percentage_basis_inline_size.value_or(0);
 
     size_t column_index = 0;
     TableGrid::for_each_child_box_matching(table_box(), is_table_column_group, [&](auto& column_group_box) {
@@ -250,7 +250,7 @@ void TableFormattingContext::compute_outer_content_sizes()
 
 void TableFormattingContext::initialize_row_content_sizes()
 {
-    auto containing_block_height = m_table_constraints.percentage_basis_height.value_or(0);
+    auto containing_block_height = m_table_constraints.percentage_basis_block_size.value_or(0);
 
     for (auto& row : m_rows) {
         auto const& computed_values = row.box.computed_values();
@@ -267,7 +267,7 @@ void TableFormattingContext::initialize_row_content_sizes()
 template<>
 void TableFormattingContext::initialize_table_measures<TableFormattingContext::Row>()
 {
-    auto containing_block_height = m_table_constraints.percentage_basis_height.value_or(0);
+    auto containing_block_height = m_table_constraints.percentage_basis_block_size.value_or(0);
 
     for (auto& cell : m_cells) {
         auto const& computed_values = cell.box.computed_values();
@@ -492,7 +492,7 @@ CSSPixels TableFormattingContext::compute_capmin()
     // The caption width minimum (CAPMIN) is the largest of the table captions min-content contribution:
     // https://drafts.csswg.org/css-tables-3/#computing-the-table-width
     CSSPixels capmin = 0;
-    auto width_of_table_wrapper_containing_block = m_table_constraints.percentage_basis_width.value_or(0);
+    auto width_of_table_wrapper_containing_block = m_table_constraints.percentage_basis_inline_size.value_or(0);
     for (auto child = table_box().first_child(); child; child = child->next_sibling()) {
         auto const* child_box = as_if<Box>(*child);
         if (!child_box || !child_box->display().is_table_caption()) {
@@ -548,7 +548,7 @@ void TableFormattingContext::compute_table_width()
 
     // Percentages on 'width' and 'height' on the table are relative to the table wrapper box's containing block,
     // not the table wrapper box itself.
-    CSSPixels width_of_table_wrapper_containing_block = m_table_constraints.percentage_basis_width.value_or(0);
+    CSSPixels width_of_table_wrapper_containing_block = m_table_constraints.percentage_basis_inline_size.value_or(0);
 
     // Compute undistributable space due to border spacing: https://www.w3.org/TR/css-tables-3/#computing-undistributable-space.
     auto undistributable_space = (m_columns.size() + 1) * border_spacing_horizontal();
@@ -595,7 +595,7 @@ void TableFormattingContext::compute_table_width()
     }
 
     CSSPixels used_width;
-    if (width_is_auto_or_indefinite_percentage(computed_values.width(), m_table_constraints.percentage_basis_width.has_value())) {
+    if (width_is_auto_or_indefinite_percentage(computed_values.width(), m_table_constraints.percentage_basis_inline_size.has_value())) {
         // If the table-root has 'width: auto', the used width is the greater of
         // min(GRIDMAX, the table’s containing block width), the used min-width of the table.
         // NOTE: In normal layout the available width already is the wrapper's used width, which the
@@ -1038,8 +1038,8 @@ void TableFormattingContext::compute_table_height()
         for (size_t i = 0; i < cell.column_span; ++i)
             span_width += m_columns[cell.column_index + i].used_width;
 
-        auto width_of_containing_block = m_participant_constraints.percentage_basis_width.value_or(0);
-        auto height_of_containing_block = m_participant_constraints.percentage_basis_height.value_or(0);
+        auto width_of_containing_block = m_participant_constraints.percentage_basis_inline_size.value_or(0);
+        auto height_of_containing_block = m_participant_constraints.percentage_basis_block_size.value_or(0);
 
         cell_state.padding_top = cell.box.computed_values().padding().top().to_px_or_zero(width_of_containing_block);
         cell_state.padding_bottom = cell.box.computed_values().padding().bottom().to_px_or_zero(width_of_containing_block);
@@ -1138,7 +1138,7 @@ void TableFormattingContext::compute_table_height()
         // If the table has a height property with a value other than auto, it is treated as a minimum height for the
         // table grid, and will eventually be distributed to the height of the rows if their collective minimum height
         // ends up smaller than this number.
-        CSSPixels height_of_table_containing_block = m_table_constraints.percentage_basis_height.value_or(0);
+        CSSPixels height_of_table_containing_block = m_table_constraints.percentage_basis_block_size.value_or(0);
         auto specified_table_height = table_box().computed_values().height().to_px(height_of_table_containing_block);
         if (table_box().computed_values().box_sizing() == CSS::BoxSizing::BorderBox) {
             auto const& table_state = m_state.get(table_box());
@@ -1714,12 +1714,12 @@ void TableFormattingContext::seed_table_participant_used_values(ContainingBlockC
     auto const& participant_percentage_basis = participant_constraints;
 
     TableGrid::for_each_child_box_matching(table_box(), TableGrid::is_table_row_group, [&](auto& row_group_box) {
-        m_state.create(row_group_box, participant_percentage_basis.percentage_basis_width, participant_percentage_basis.percentage_basis_height);
+        m_state.create(row_group_box, participant_percentage_basis.percentage_basis_inline_size, participant_percentage_basis.percentage_basis_block_size);
     });
     for (auto& row : m_rows)
-        m_state.create(row.box, participant_percentage_basis.percentage_basis_width, participant_percentage_basis.percentage_basis_height);
+        m_state.create(row.box, participant_percentage_basis.percentage_basis_inline_size, participant_percentage_basis.percentage_basis_block_size);
     for (auto& cell : m_cells)
-        m_state.create(cell.box, participant_percentage_basis.percentage_basis_width, participant_percentage_basis.percentage_basis_height);
+        m_state.create(cell.box, participant_percentage_basis.percentage_basis_inline_size, participant_percentage_basis.percentage_basis_block_size);
 
     for (auto child = table_box().first_child(); child; child = child->next_sibling()) {
         auto* child_box = as_if<Box>(*child);
@@ -1727,7 +1727,7 @@ void TableFormattingContext::seed_table_participant_used_values(ContainingBlockC
             continue;
 
         if (child_box->display().is_table_caption())
-            m_state.create(*child_box, participant_percentage_basis.percentage_basis_width, participant_percentage_basis.percentage_basis_height);
+            m_state.create(*child_box, participant_percentage_basis.percentage_basis_inline_size, participant_percentage_basis.percentage_basis_block_size);
     }
 }
 
@@ -1745,9 +1745,9 @@ void TableFormattingContext::run_until_width_calculation(LayoutInput const& layo
     // itself has a non-auto height.
     m_table_constraints = layout_input.containing_block_constraints;
     m_participant_constraints = ContainingBlockConstraints {
-        m_table_constraints.percentage_basis_width,
-        table_box().computed_values().height().is_auto() ? Optional<CSSPixels> {} : m_table_constraints.percentage_basis_height,
-        m_table_constraints.quirks_mode_percentage_basis_height,
+        m_table_constraints.percentage_basis_inline_size,
+        table_box().computed_values().height().is_auto() ? Optional<CSSPixels> {} : m_table_constraints.percentage_basis_block_size,
+        m_table_constraints.quirks_mode_percentage_basis_block_size,
     };
     seed_table_participant_used_values(m_participant_constraints);
 

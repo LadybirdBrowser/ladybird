@@ -308,7 +308,7 @@ private:
     ContainingBlockConstraints grid_area_constraints_for_item(GridItem const&) const;
     ContainingBlockConstraints track_sizing_constraints_for_items() const;
     ContainingBlockConstraints container_derived_constraints() const;
-    Optional<CSSPixels> item_quirks_mode_percentage_basis_height() const;
+    Optional<CSSPixels> item_quirks_mode_percentage_basis_block_size() const;
 
     LayoutState::UsedValues& m_grid_container_used_values;
 

@@ -29,9 +29,9 @@ struct LineBoxFragmentCoordinate {
 
 struct IntrinsicSizeCacheKey {
     Optional<CSSPixels> measured_at_width;
-    Optional<CSSPixels> percentage_basis_width;
-    Optional<CSSPixels> percentage_basis_height;
-    Optional<CSSPixels> quirks_mode_percentage_basis_height;
+    Optional<CSSPixels> percentage_basis_inline_size;
+    Optional<CSSPixels> percentage_basis_block_size;
+    Optional<CSSPixels> quirks_mode_percentage_basis_block_size;
 
     bool operator==(IntrinsicSizeCacheKey const&) const = default;
 };
@@ -141,9 +141,9 @@ struct Traits<Web::Layout::IntrinsicSizeCacheKey> : public DefaultTraits<Web::La
             return value.has_value() ? pair_int_hash(1u, Traits<Web::CSSPixels>::hash(*value)) : 0u;
         };
         auto hash = optional_hash(key.measured_at_width);
-        hash = pair_int_hash(hash, optional_hash(key.percentage_basis_width));
-        hash = pair_int_hash(hash, optional_hash(key.percentage_basis_height));
-        hash = pair_int_hash(hash, optional_hash(key.quirks_mode_percentage_basis_height));
+        hash = pair_int_hash(hash, optional_hash(key.percentage_basis_inline_size));
+        hash = pair_int_hash(hash, optional_hash(key.percentage_basis_block_size));
+        hash = pair_int_hash(hash, optional_hash(key.quirks_mode_percentage_basis_block_size));
         return hash;
     }
 };

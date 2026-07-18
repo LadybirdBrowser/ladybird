@@ -2175,8 +2175,8 @@ void Document::update_layout(UpdateLayoutReason reason)
                 auto percentage_basis = Layout::FormattingContext::constraints_for_child_context(viewport_state, {});
                 auto& icb_state = layout_state.create(
                     as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node()),
-                    percentage_basis.percentage_basis_width,
-                    percentage_basis.percentage_basis_height);
+                    percentage_basis.percentage_basis_inline_size,
+                    percentage_basis.percentage_basis_block_size);
                 icb_state.set_content_width(viewport_rect.width());
             }
 
