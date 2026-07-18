@@ -129,40 +129,40 @@ void TableFormattingContext::compute_constrainedness()
 void TableFormattingContext::compute_cell_measures(RowMeasurement row_measurement)
 {
     // Implements https://www.w3.org/TR/css-tables-3/#computing-cell-measures.
-    auto containing_block_width = m_table_constraints.percentage_basis_inline_size.value_or(0);
-    auto containing_block_height = m_table_constraints.percentage_basis_block_size.value_or(0);
+    auto containing_block_inline_size = m_table_constraints.percentage_basis_inline_size.value_or(0);
+    auto containing_block_block_size = m_table_constraints.percentage_basis_block_size.value_or(0);
 
     compute_constrainedness();
 
     for (auto& cell : m_cells) {
         auto const& computed_values = cell.box.computed_values();
-        CSSPixels padding_top = computed_values.padding().top().to_px_or_zero(containing_block_height);
-        CSSPixels padding_bottom = computed_values.padding().bottom().to_px_or_zero(containing_block_height);
-        CSSPixels padding_left = computed_values.padding().left().to_px_or_zero(containing_block_width);
-        CSSPixels padding_right = computed_values.padding().right().to_px_or_zero(containing_block_width);
+        CSSPixels padding_block_start = computed_values.padding().top().to_px_or_zero(containing_block_block_size);
+        CSSPixels padding_block_end = computed_values.padding().bottom().to_px_or_zero(containing_block_block_size);
+        CSSPixels padding_inline_start = computed_values.padding().left().to_px_or_zero(containing_block_inline_size);
+        CSSPixels padding_inline_end = computed_values.padding().right().to_px_or_zero(containing_block_inline_size);
 
         auto const& cell_state = m_state.get(cell.box);
         auto use_collapsing_borders_model = cell_state.override_borders_data().has_value();
         // Implement the collapsing border model https://www.w3.org/TR/CSS22/tables.html#collapsing-borders.
-        CSSPixels border_top = use_collapsing_borders_model ? round(cell_state.border_top / 2) : computed_values.border_top().width;
-        CSSPixels border_bottom = use_collapsing_borders_model ? round(cell_state.border_bottom / 2) : computed_values.border_bottom().width;
-        CSSPixels border_left = use_collapsing_borders_model ? round(cell_state.border_left / 2) : computed_values.border_left().width;
-        CSSPixels border_right = use_collapsing_borders_model ? round(cell_state.border_right / 2) : computed_values.border_right().width;
+        CSSPixels border_block_start = use_collapsing_borders_model ? round(cell_state.border_top / 2) : computed_values.border_top().width;
+        CSSPixels border_block_end = use_collapsing_borders_model ? round(cell_state.border_bottom / 2) : computed_values.border_bottom().width;
+        CSSPixels border_inline_start = use_collapsing_borders_model ? round(cell_state.border_left / 2) : computed_values.border_left().width;
+        CSSPixels border_inline_end = use_collapsing_borders_model ? round(cell_state.border_right / 2) : computed_values.border_right().width;
 
-        auto cell_intrinsic_width_offsets = padding_left + padding_right + border_left + border_right;
+        auto cell_intrinsic_inline_size_offsets = padding_inline_start + padding_inline_end + border_inline_start + border_inline_end;
 
-        auto min_width = computed_values.min_width().to_px(containing_block_width);
-        auto width = computed_values.width().is_length() ? computed_values.width().to_px(containing_block_width) : 0;
-        auto max_width = computed_values.max_width().is_length() ? computed_values.max_width().to_px(containing_block_width) : CSSPixels::max();
+        auto min_inline_size = computed_values.min_width().to_px(containing_block_inline_size);
+        auto inline_size = computed_values.width().is_length() ? computed_values.width().to_px(containing_block_inline_size) : 0;
+        auto max_inline_size = computed_values.max_width().is_length() ? computed_values.max_width().to_px(containing_block_inline_size) : CSSPixels::max();
 
         if (computed_values.box_sizing() == CSS::BoxSizing::BorderBox) {
-            min_width -= cell_intrinsic_width_offsets;
-            width -= cell_intrinsic_width_offsets;
-            max_width -= cell_intrinsic_width_offsets;
+            min_inline_size -= cell_intrinsic_inline_size_offsets;
+            inline_size -= cell_intrinsic_inline_size_offsets;
+            max_inline_size -= cell_intrinsic_inline_size_offsets;
         }
 
-        CSSPixels min_content_width;
-        CSSPixels max_content_width;
+        CSSPixels min_content_inline_size;
+        CSSPixels max_content_inline_size;
 
         // https://drafts.csswg.org/css-tables-3/#computing-column-measures
         // For the purpose of measuring a column when laid out in fixed mode [...] the min-content and max-content width
@@ -170,44 +170,44 @@ void TableFormattingContext::compute_cell_measures(RowMeasurement row_measuremen
         // resolved based on the table width (if it is definite, otherwise use 0).
         if (use_fixed_mode_layout()) {
             if (computed_values.width().is_length_percentage()) {
-                min_content_width = width;
-                max_content_width = width;
+                min_content_inline_size = inline_size;
+                max_content_inline_size = inline_size;
             }
         } else {
-            min_content_width = calculate_min_content_inline_size(cell.box, m_participant_constraints);
-            max_content_width = calculate_max_content_inline_size(cell.box, m_participant_constraints);
+            min_content_inline_size = calculate_min_content_inline_size(cell.box, m_participant_constraints);
+            max_content_inline_size = calculate_max_content_inline_size(cell.box, m_participant_constraints);
         }
 
-        // The outer min-content width of a table-cell is max(min-width, min-content width) adjusted by the cell intrinsic offsets.
-        cell.outer_min_width = max(min_width, min_content_width) + cell_intrinsic_width_offsets;
+        // The outer min-content inline size of a table cell is its minimum inline size adjusted by the cell intrinsic offsets.
+        cell.outer_min_inline_size = max(min_inline_size, min_content_inline_size) + cell_intrinsic_inline_size_offsets;
 
         if (row_measurement == RowMeasurement::Include) {
-            auto min_content_height = calculate_min_content_block_size(cell.box, max_content_width, m_participant_constraints);
-            auto max_content_height = calculate_max_content_block_size(cell.box, min_content_width, m_participant_constraints);
+            auto min_content_block_size = calculate_min_content_block_size(cell.box, max_content_inline_size, m_participant_constraints);
+            auto max_content_block_size = calculate_max_content_block_size(cell.box, min_content_inline_size, m_participant_constraints);
 
-            // The outer min-content height of a table-cell is max(min-height, min-content height) adjusted by the cell intrinsic offsets.
-            auto min_height = computed_values.min_height().to_px(containing_block_height);
-            auto cell_intrinsic_height_offsets = padding_top + padding_bottom + border_top + border_bottom;
-            cell.outer_min_height = max(min_height, min_content_height) + cell_intrinsic_height_offsets;
+            // The outer min-content block size of a table cell is its minimum block size adjusted by the cell intrinsic offsets.
+            auto min_block_size = computed_values.min_height().to_px(containing_block_block_size);
+            auto cell_intrinsic_block_size_offsets = padding_block_start + padding_block_end + border_block_start + border_block_end;
+            cell.outer_min_block_size = max(min_block_size, min_content_block_size) + cell_intrinsic_block_size_offsets;
 
             // The tables specification isn't explicit on how to use the height and max-height CSS properties in the outer max-content formulas.
             // However, during this early phase we don't have enough information to resolve percentage sizes yet and the formulas for outer sizes
             // in the specification give enough clues to pick defaults in a way that makes sense.
-            auto height = computed_values.height().is_length() ? computed_values.height().to_px(containing_block_height) : 0;
-            auto max_height = computed_values.max_height().is_length() ? computed_values.max_height().to_px(containing_block_height) : CSSPixels::max();
+            auto block_size = computed_values.height().is_length() ? computed_values.height().to_px(containing_block_block_size) : 0;
+            auto max_block_size = computed_values.max_height().is_length() ? computed_values.max_height().to_px(containing_block_block_size) : CSSPixels::max();
             if (m_rows[cell.row_index].is_constrained) {
                 // The outer max-content height of a table-cell in a constrained row is
                 // max(min-height, height, min-content height, min(max-height, height)) adjusted by the cell intrinsic offsets.
                 // NB: min(max-height, height) doesn't have any effect here, we can simplify the expression to max(min-height, height, min-content height).
-                cell.outer_max_height = max(min_height, max(height, min_content_height)) + cell_intrinsic_height_offsets;
+                cell.outer_max_block_size = max(min_block_size, max(block_size, min_content_block_size)) + cell_intrinsic_block_size_offsets;
             } else {
                 // The outer max-content height of a table-cell in a non-constrained row is
                 // max(min-height, height, min-content height, min(max-height, max-content height)) adjusted by the cell intrinsic offsets.
-                cell.outer_max_height = max(min_height, max(height, max(min_content_height, min(max_height, max_content_height)))) + cell_intrinsic_height_offsets;
+                cell.outer_max_block_size = max(min_block_size, max(block_size, max(min_content_block_size, min(max_block_size, max_content_block_size)))) + cell_intrinsic_block_size_offsets;
             }
         }
 
-        // See the explanation for height and max_height above.
+        // See the explanation for block_size and max_block_size above.
         if (m_columns[cell.column_index].is_constrained) {
             // The outer max-content width of a table-cell in a constrained column is
             // max(min-width, width, min-content width, min(max-width, width)) adjusted by the cell intrinsic offsets.
@@ -215,11 +215,11 @@ void TableFormattingContext::compute_cell_measures(RowMeasurement row_measuremen
             // AD-HOC: The formula defined by the spec doesn't respect max-width. We use a different formula that
             //         matches the behavior that is expected by WPT and is implemented by other browsers.
             // FIXME: Open a spec issue about this.
-            cell.outer_max_width = max(min_width, min(max_width, max(width, min_content_width))) + cell_intrinsic_width_offsets;
+            cell.outer_max_inline_size = max(min_inline_size, min(max_inline_size, max(inline_size, min_content_inline_size))) + cell_intrinsic_inline_size_offsets;
         } else {
             // The outer max-content width of a table-cell in a non-constrained column is
             // max(min-width, width, min-content width, min(max-width, max-content width)) adjusted by the cell intrinsic offsets.
-            cell.outer_max_width = max(min_width, max(width, max(min_content_width, min(max_width, max_content_width)))) + cell_intrinsic_width_offsets;
+            cell.outer_max_inline_size = max(min_inline_size, max(inline_size, max(min_content_inline_size, min(max_inline_size, max_content_inline_size)))) + cell_intrinsic_inline_size_offsets;
         }
     }
 }
@@ -272,13 +272,13 @@ void TableFormattingContext::initialize_table_measures<TableFormattingContext::R
     for (auto& cell : m_cells) {
         auto const& computed_values = cell.box.computed_values();
         if (cell.row_span == 1) {
-            auto specified_height = computed_values.height().to_px(containing_block_height);
+            auto specified_block_size = computed_values.height().to_px(containing_block_height);
             // https://www.w3.org/TR/css-tables-3/#row-layout makes specified cell height part of the initialization formula for row table measures:
             // This is done by running the same algorithm as the column measurement, with the span=1 value being initialized (for min-content) with
             // the largest of the resulting height of the previous row layout, the height specified on the corresponding table-row (if any), and
             // the largest height specified on cells that span this row only (the algorithm starts by considering cells of span 2 on top of that assignment).
-            m_rows[cell.row_index].min_size = max(m_rows[cell.row_index].min_size, max(cell.outer_min_height, specified_height));
-            m_rows[cell.row_index].max_size = max(m_rows[cell.row_index].max_size, cell.outer_max_height);
+            m_rows[cell.row_index].min_size = max(m_rows[cell.row_index].min_size, max(cell.outer_min_block_size, specified_block_size));
+            m_rows[cell.row_index].max_size = max(m_rows[cell.row_index].max_size, cell.outer_max_block_size);
         }
     }
 }
@@ -291,8 +291,8 @@ void TableFormattingContext::initialize_table_measures<TableFormattingContext::C
     // https://www.w3.org/TR/css-tables-3/#max-content-width-of-a-column-based-on-cells-of-span-up-to-1
     for (auto& cell : m_cells) {
         if (cell.column_span == 1 && (cell.row_index == 0 || !use_fixed_mode_layout())) {
-            m_columns[cell.column_index].min_size = max(m_columns[cell.column_index].min_size, cell.outer_min_width);
-            m_columns[cell.column_index].max_size = max(m_columns[cell.column_index].max_size, cell.outer_max_width);
+            m_columns[cell.column_index].min_size = max(m_columns[cell.column_index].min_size, cell.outer_min_inline_size);
+            m_columns[cell.column_index].max_size = max(m_columns[cell.column_index].max_size, cell.outer_max_inline_size);
         }
     }
 }
@@ -620,7 +620,7 @@ void TableFormattingContext::compute_table_width()
                 if (cell_width.is_percentage()) {
                     CSSPixels adjusted_used_width = undistributable_space;
                     if (cell_width.percentage().value() != 0)
-                        adjusted_used_width += CSSPixels::nearest_value_for(ceil(100 / cell_width.percentage().value() * cell.outer_max_width));
+                        adjusted_used_width += CSSPixels::nearest_value_for(ceil(100 / cell_width.percentage().value() * cell.outer_max_inline_size));
 
                     if (width_of_table_containing_block.is_definite())
                         used_width = min(max(used_width, adjusted_used_width), width_of_table_containing_block.to_px_or_zero());
@@ -1083,11 +1083,11 @@ void TableFormattingContext::compute_table_height()
         }
         if (m_needs_fixed_mode_row_measurement) {
             auto const& computed_values = cell.box.computed_values();
-            auto min_height = computed_values.min_height().to_px(height_of_containing_block);
-            auto cell_intrinsic_height_offsets = cell_state.border_box_top() + cell_state.border_box_bottom();
-            auto measured_outer_height = max(cell_state.border_box_block_size(), min_height + cell_intrinsic_height_offsets);
-            cell.outer_min_height = measured_outer_height;
-            cell.outer_max_height = measured_outer_height;
+            auto min_block_size = computed_values.min_height().to_px(height_of_containing_block);
+            auto cell_intrinsic_block_size_offsets = cell_state.border_box_top() + cell_state.border_box_bottom();
+            auto measured_outer_block_size = max(cell_state.border_box_block_size(), min_block_size + cell_intrinsic_block_size_offsets);
+            cell.outer_min_block_size = measured_outer_block_size;
+            cell.outer_max_block_size = measured_outer_block_size;
         }
 
         // https://drafts.csswg.org/css2/#height-layout
@@ -1907,25 +1907,25 @@ size_t TableFormattingContext::cell_index<TableFormattingContext::Column>(TableF
 template<>
 CSSPixels TableFormattingContext::cell_min_size<TableFormattingContext::Row>(TableFormattingContext::Cell const& cell)
 {
-    return cell.outer_min_height;
+    return cell.outer_min_block_size;
 }
 
 template<>
 CSSPixels TableFormattingContext::cell_min_size<TableFormattingContext::Column>(TableFormattingContext::Cell const& cell)
 {
-    return cell.outer_min_width;
+    return cell.outer_min_inline_size;
 }
 
 template<>
 CSSPixels TableFormattingContext::cell_max_size<TableFormattingContext::Row>(TableFormattingContext::Cell const& cell)
 {
-    return cell.outer_max_height;
+    return cell.outer_max_block_size;
 }
 
 template<>
 CSSPixels TableFormattingContext::cell_max_size<TableFormattingContext::Column>(TableFormattingContext::Cell const& cell)
 {
-    return cell.outer_max_width;
+    return cell.outer_max_inline_size;
 }
 
 template<>

@@ -41,10 +41,10 @@ public:
         size_t column_span;
         size_t row_span;
         CSSPixels baseline { 0 };
-        CSSPixels outer_min_width { 0 };
-        CSSPixels outer_max_width { 0 };
-        CSSPixels outer_min_height { 0 };
-        CSSPixels outer_max_height { 0 };
+        CSSPixels outer_min_inline_size { 0 };
+        CSSPixels outer_max_inline_size { 0 };
+        CSSPixels outer_min_block_size { 0 };
+        CSSPixels outer_max_block_size { 0 };
     };
 
     // Calculate and return the grid and also rows and cells as output parameters.
