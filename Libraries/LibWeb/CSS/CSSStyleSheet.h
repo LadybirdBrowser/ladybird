@@ -20,7 +20,6 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/SelectorInsights.h>
 #include <LibWeb/CSS/StyleSheet.h>
-#include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/StyleInvalidationReason.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -121,9 +120,6 @@ public:
     Optional<::URL::URL> base_url() const { return m_base_url; }
     void set_base_url(Optional<::URL::URL> base_url) { m_base_url = move(base_url); }
 
-    void register_pending_image_value(ImageStyleValue& value) { m_pending_image_values.append(value); }
-    void load_pending_image_resources(DOM::Document&);
-
     bool constructed() const { return m_constructed; }
 
     GC::Ptr<DOM::Document const> constructor_document() const { return m_constructor_document; }
@@ -175,8 +171,6 @@ private:
     u64 m_shared_style_cache_generation { 0 };
 
     Vector<Subresource&> m_critical_subresources;
-
-    Vector<WeakPtr<ImageStyleValue>> m_pending_image_values;
 };
 
 }

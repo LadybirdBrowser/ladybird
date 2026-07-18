@@ -145,6 +145,7 @@ enum class InvalidateLayoutTreeReason {
     X(NavigableSelectedText)                 \
     X(NavigableViewportScroll)               \
     X(NodeNameOrDescription)                 \
+    X(ParserLoadEventDelay)                  \
     X(RangeGetClientRects)                   \
     X(ResolvedCSSStyleDeclarationProperty)   \
     X(SVGDecodedImageDataRender)             \
@@ -657,6 +658,7 @@ public:
     [[nodiscard]] GC::Ptr<HTML::Location> location();
 
     bool anything_is_delaying_the_load_event() const;
+    [[nodiscard]] bool ready_to_fire_load_event();
     void increment_number_of_things_delaying_the_load_event(Badge<DocumentLoadEventDelayer>);
     void decrement_number_of_things_delaying_the_load_event(Badge<DocumentLoadEventDelayer>);
 
@@ -1504,6 +1506,7 @@ private:
     GC::Ptr<HTML::History> m_history;
 
     size_t m_number_of_things_delaying_the_load_event { 0 };
+    bool m_did_update_layout_for_load_event_delay { false };
     GC::Ptr<HTML::HTMLParserEndState> m_html_parser_end_state;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#concept-document-salvageable

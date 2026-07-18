@@ -603,7 +603,7 @@ void HTMLParserEndState::check_progress()
 
     case Phase::WaitingForLoadEventDelay:
         // 8. Spin the event loop until there is nothing that delays the load event in the Document.
-        if (m_document->anything_is_delaying_the_load_event())
+        if (!m_document->ready_to_fire_load_event())
             return;
 
         m_phase = Phase::Completed;

@@ -59,6 +59,7 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
@@ -68,6 +69,7 @@
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -3291,6 +3293,22 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
     return CSS::LengthStyleValue::create(CSS::Length::make_px(current_size_in_px));
 }
 
+static void load_computed_content_image_resources_if_needed(CSS::ComputedProperties const& computed_style, DOM::AbstractElement abstract_element)
+{
+    if (computed_style.display().is_none())
+        return;
+
+    auto const& content_value = computed_style.property(PropertyID::Content);
+    if (!content_value.is_content())
+        return;
+
+    for (auto const& item : content_value.as_content().content().values()) {
+        if (!item->is_image())
+            continue;
+        const_cast<ImageStyleValue&>(item->as_image()).load_any_resources(abstract_element.document());
+    }
+}
+
 NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties, u64 matching_pseudo_element_styles) const
 {
     VERIFY(computation_context_cache_is_empty());
@@ -3324,6 +3342,21 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         if (computation_context.depends_on_viewport_metrics())
             depends_on_viewport_metrics = true;
         return computed_value;
+    };
+
+    auto set_style_resource_context_for_value = [](StyleValue const& value, GC::Ptr<CSSStyleDeclaration const> source) {
+        if (!source)
+            return;
+
+        auto parent_rule = source->parent_rule();
+        if (!parent_rule)
+            return;
+
+        auto* parent_style_sheet = parent_rule->parent_style_sheet();
+        if (!parent_style_sheet)
+            return;
+
+        const_cast<StyleValue&>(value).set_style_sheet(parent_style_sheet);
     };
 
     Optional<LogicalAliasMappingContext> logical_alias_mapping_context;
@@ -3368,6 +3401,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             if (cascaded_style_property->important == Important::Yes)
                 builder.set_property_important(property_id, Important::Yes);
             value = cascaded_style_property->value;
+            set_style_resource_context_for_value(*value, cascaded_properties.property_source(cascaded_property_id));
             requires_computation = property_requires_computation_with_cascaded_value(property_id);
 
             // Store the raw winning cascaded font-size. This is needed to implement the time-traveling inheritance for
@@ -3515,6 +3549,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
 
     if (parent_style_in_display_none_subtree || builder.display().is_none())
         builder.set_in_display_none_subtree();
+
+    load_computed_content_image_resources_if_needed(computed_style, abstract_element);
 
     return CSS::ComputedProperties::create(move(builder));
 }
