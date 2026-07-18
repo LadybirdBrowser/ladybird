@@ -150,9 +150,9 @@ static Optional<CSSPixels> max_content_size_for_replaced_element_without_natural
             auto inline_size = constraints.minimum_inline_size.value();
             size_from_min_inline_size = is_inline_axis ? inline_size : content_block_size_from_aspect_ratio(box, box_state, inline_size);
         } else {
-            auto const& min_width = box.computed_values().min_width();
-            if (min_width.is_length_percentage() && !min_width.contains_percentage()) {
-                auto inline_size = min_width.to_px(0);
+            auto const& min_inline_size = box.computed_values().min_width();
+            if (min_inline_size.is_length_percentage() && !min_inline_size.contains_percentage()) {
+                auto inline_size = min_inline_size.to_px(0);
                 size_from_min_inline_size = is_inline_axis ? inline_size : content_block_size_from_aspect_ratio(box, box_state, inline_size);
             }
         }
@@ -162,9 +162,9 @@ static Optional<CSSPixels> max_content_size_for_replaced_element_without_natural
             auto block_size = constraints.minimum_block_size.value();
             size_from_min_block_size = is_inline_axis ? content_inline_size_from_aspect_ratio(box, box_state, block_size) : block_size;
         } else {
-            auto const& min_height = box.computed_values().min_height();
-            if (min_height.is_length_percentage() && !min_height.contains_percentage()) {
-                auto block_size = min_height.to_px(0);
+            auto const& min_block_size = box.computed_values().min_height();
+            if (min_block_size.is_length_percentage() && !min_block_size.contains_percentage()) {
+                auto block_size = min_block_size.to_px(0);
                 size_from_min_block_size = is_inline_axis ? content_inline_size_from_aspect_ratio(box, box_state, block_size) : block_size;
             }
         }
@@ -274,8 +274,8 @@ void FormattingContext::dimension_list_item_marker(ListItemMarkerBox const& mark
     auto const& marker_font = marker.first_available_font();
     if (auto marker_text = marker.text(); marker_text.has_value()) {
         // FIXME: Use per-code-point fonts to measure text.
-        auto text_width = marker_font.width(marker_text.value());
-        marker_state.set_content_inline_size(CSSPixels::nearest_value_for(text_width));
+        auto text_inline_size = marker_font.width(marker_text.value());
+        marker_state.set_content_inline_size(CSSPixels::nearest_value_for(text_inline_size));
     } else {
         marker_state.set_content_inline_size(marker_size);
     }
@@ -616,21 +616,21 @@ CSSPixels FormattingContext::line_box_physical_horizontal_extent(Box const& box,
     if (box.computed_values().writing_mode() == CSS::WritingMode::HorizontalTb)
         return line_box.inline_length();
 
-    CSSPixels leftmost_fragment_x = 0;
-    CSSPixels rightmost_fragment_x = 0;
+    CSSPixels leftmost_physical_horizontal_offset = 0;
+    CSSPixels rightmost_physical_horizontal_offset = 0;
     bool saw_fragment = false;
     for (auto const& fragment : line_box.fragments()) {
-        auto fragment_left = fragment.offset().x();
-        auto fragment_right = fragment_left + fragment.physical_horizontal_extent();
-        leftmost_fragment_x = saw_fragment ? min(leftmost_fragment_x, fragment_left) : fragment_left;
-        rightmost_fragment_x = saw_fragment ? max(rightmost_fragment_x, fragment_right) : fragment_right;
+        auto fragment_physical_left = fragment.offset().x();
+        auto fragment_physical_right = fragment_physical_left + fragment.physical_horizontal_extent();
+        leftmost_physical_horizontal_offset = saw_fragment ? min(leftmost_physical_horizontal_offset, fragment_physical_left) : fragment_physical_left;
+        rightmost_physical_horizontal_offset = saw_fragment ? max(rightmost_physical_horizontal_offset, fragment_physical_right) : fragment_physical_right;
         saw_fragment = true;
     }
 
     if (!saw_fragment)
         return 0;
 
-    return rightmost_fragment_x - leftmost_fragment_x;
+    return rightmost_physical_horizontal_offset - leftmost_physical_horizontal_offset;
 }
 
 FormattingContext::ShrinkToFitInlineSizeResult FormattingContext::calculate_shrink_to_fit_inline_sizes(Box const& box, ContainingBlockConstraints const& containing_block_constraints)
@@ -2816,13 +2816,13 @@ CSSPixels FormattingContext::calculate_min_content_inline_size(Layout::Box const
         //        such percentage against zero—transferred through the preferred aspect ratio.
         // Note: The min-content contribution is, as always, also floored by the minimum size in its own axis.
         if (box.computed_values().width().contains_percentage() || box.computed_values().max_width().contains_percentage()) {
-            auto const& min_width = box.computed_values().min_width();
-            if (!min_width.is_length_percentage())
+            auto const& min_inline_size = box.computed_values().min_width();
+            if (!min_inline_size.is_length_percentage())
                 return 0;
 
             auto zero_percentage_basis_constraints = containing_block_constraints;
             zero_percentage_basis_constraints.percentage_basis_inline_size = 0;
-            return calculate_inner_inline_size(box, AvailableSize::make_min_content(), min_width, zero_percentage_basis_constraints);
+            return calculate_inner_inline_size(box, AvailableSize::make_min_content(), min_inline_size, zero_percentage_basis_constraints);
         }
     }
     if (auto transferred_inline_size = calculate_transferred_inline_size_for_replaced_element(box, containing_block_constraints); transferred_inline_size.has_value())
@@ -2835,7 +2835,7 @@ CSSPixels FormattingContext::calculate_min_content_inline_size(Layout::Box const
             return fallback_inline_size.value();
     }
 
-    // Boxes with no children have zero intrinsic width.
+    // Boxes with no children have zero intrinsic inline size.
     if (!box.has_children())
         return 0;
 
@@ -2915,42 +2915,42 @@ CSSPixels FormattingContext::calculate_max_content_inline_size(Layout::Box const
     if (auto_size.has_width())
         return auto_size.width.value();
 
-    Optional<CSSPixels> definite_height;
+    Optional<CSSPixels> definite_block_size;
     if (box.is_replaced_box() && !auto_size.has_height()) {
         if (auto const& box_state = m_state.get(box); box_state.has_definite_block_size())
-            definite_height = box_state.content_block_size();
+            definite_block_size = box_state.content_block_size();
     }
 
-    auto max_content_available_width = AvailableSize::make_max_content();
-    auto intrinsic_available_space = AvailableSpace(max_content_available_width, AvailableSize::make_indefinite());
+    auto max_content_available_inline_size = AvailableSize::make_max_content();
+    auto intrinsic_available_space = AvailableSpace(max_content_available_inline_size, AvailableSize::make_indefinite());
 
-    auto resolve_destination_width = [&](CSS::Size const& size, CyclicPercentageSizeProperty size_property) -> Optional<CSSPixels> {
+    auto resolve_destination_inline_size = [&](CSS::Size const& size, CyclicPercentageSizeProperty size_property) -> Optional<CSSPixels> {
         if (!size.is_length_percentage())
             return {};
 
-        switch (cyclic_percentage_intrinsic_contribution(box, size, max_content_available_width, size_property)) {
+        switch (cyclic_percentage_intrinsic_contribution(box, size, max_content_available_inline_size, size_property)) {
         case CyclicPercentageIntrinsicContribution::TreatAsInitialValue:
             return {};
         case CyclicPercentageIntrinsicContribution::ResolveAsZero: {
             auto zero_percentage_basis_constraints = containing_block_constraints;
             zero_percentage_basis_constraints.percentage_basis_inline_size = 0;
-            return calculate_inner_inline_size(box, max_content_available_width, size, zero_percentage_basis_constraints);
+            return calculate_inner_inline_size(box, max_content_available_inline_size, size, zero_percentage_basis_constraints);
         }
         case CyclicPercentageIntrinsicContribution::NotCyclic:
             if (size.contains_percentage() && !containing_block_constraints.percentage_basis_inline_size.has_value())
                 return {};
-            return calculate_inner_inline_size(box, max_content_available_width, size, containing_block_constraints);
+            return calculate_inner_inline_size(box, max_content_available_inline_size, size, containing_block_constraints);
         }
         VERIFY_NOT_REACHED();
     };
 
-    auto resolve_size_in_origin_axis = [&](CSS::Size const& size, CyclicPercentageSizeProperty size_property) -> Optional<CSSPixels> {
+    auto resolve_block_size = [&](CSS::Size const& size, CyclicPercentageSizeProperty size_property) -> Optional<CSSPixels> {
         if (!size.is_length_percentage())
             return {};
         if (!size.contains_percentage() || containing_block_constraints.percentage_basis_block_size.has_value())
             return calculate_inner_block_size(box, intrinsic_available_space, size, containing_block_constraints);
 
-        switch (cyclic_percentage_intrinsic_contribution(box, size, max_content_available_width, size_property)) {
+        switch (cyclic_percentage_intrinsic_contribution(box, size, max_content_available_inline_size, size_property)) {
         case CyclicPercentageIntrinsicContribution::TreatAsInitialValue:
             return {};
         case CyclicPercentageIntrinsicContribution::ResolveAsZero: {
@@ -2964,26 +2964,26 @@ CSSPixels FormattingContext::calculate_max_content_inline_size(Layout::Box const
         VERIFY_NOT_REACHED();
     };
 
-    auto definite_minimum_size_in_destination_axis = resolve_destination_width(box.computed_values().min_width(), CyclicPercentageSizeProperty::MinSize);
-    auto definite_minimum_size_in_origin_axis = resolve_size_in_origin_axis(box.computed_values().min_height(), CyclicPercentageSizeProperty::MinSize);
+    auto definite_minimum_inline_size = resolve_destination_inline_size(box.computed_values().min_width(), CyclicPercentageSizeProperty::MinSize);
+    auto definite_minimum_block_size = resolve_block_size(box.computed_values().min_height(), CyclicPercentageSizeProperty::MinSize);
     ReplacedMaxContentSizeConstraints constraints {
-        .definite_size_in_ratio_determining_axis = definite_height,
-        .minimum_inline_size = definite_minimum_size_in_destination_axis,
-        .minimum_block_size = definite_minimum_size_in_origin_axis,
+        .definite_size_in_ratio_determining_axis = definite_block_size,
+        .minimum_inline_size = definite_minimum_inline_size,
+        .minimum_block_size = definite_minimum_block_size,
     };
 
     if (auto max_content_inline_size = max_content_size_for_replaced_element_without_natural_size(box, auto_size, m_state.get(box), SizeDimension::Inline, constraints); max_content_inline_size.has_value()) {
-        if (!definite_height.has_value() && box.has_preferred_aspect_ratio()) {
-            if (auto definite_maximum_size_in_origin_axis = resolve_size_in_origin_axis(box.computed_values().max_height(), CyclicPercentageSizeProperty::PreferredOrMaxSize); definite_maximum_size_in_origin_axis.has_value()) {
+        if (!definite_block_size.has_value() && box.has_preferred_aspect_ratio()) {
+            if (auto definite_maximum_block_size = resolve_block_size(box.computed_values().max_height(), CyclicPercentageSizeProperty::PreferredOrMaxSize); definite_maximum_block_size.has_value()) {
                 // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers
                 // First, any definite minimum size is converted and transferred from the origin to destination axis.
                 // This transferred minimum is capped by any definite preferred or maximum size in the destination axis.
                 Optional<CSSPixels> transferred_minimum;
-                if (definite_minimum_size_in_origin_axis.has_value()) {
-                    transferred_minimum = content_inline_size_from_aspect_ratio(box, m_state.get(box), definite_minimum_size_in_origin_axis.value());
+                if (definite_minimum_block_size.has_value()) {
+                    transferred_minimum = content_inline_size_from_aspect_ratio(box, m_state.get(box), definite_minimum_block_size.value());
 
                     auto cap_transferred_minimum = [&](CSS::Size const& size, CyclicPercentageSizeProperty size_property) {
-                        if (auto resolved_size = resolve_destination_width(size, size_property); resolved_size.has_value())
+                        if (auto resolved_size = resolve_destination_inline_size(size, size_property); resolved_size.has_value())
                             transferred_minimum = min(transferred_minimum.value(), resolved_size.value());
                     };
                     cap_transferred_minimum(box.computed_values().width(), CyclicPercentageSizeProperty::PreferredOrMaxSize);
@@ -2993,10 +2993,10 @@ CSSPixels FormattingContext::calculate_max_content_inline_size(Layout::Box const
                 // Then, any definite maximum size is converted and transferred from the origin to destination.
                 // This transferred maximum is floored by any definite preferred or minimum size in the destination axis
                 // as well as by the transferred minimum, if any.
-                auto transferred_maximum = content_inline_size_from_aspect_ratio(box, m_state.get(box), definite_maximum_size_in_origin_axis.value());
+                auto transferred_maximum = content_inline_size_from_aspect_ratio(box, m_state.get(box), definite_maximum_block_size.value());
 
                 auto floor_transferred_maximum = [&](CSS::Size const& size, CyclicPercentageSizeProperty size_property) {
-                    if (auto resolved_size = resolve_destination_width(size, size_property); resolved_size.has_value())
+                    if (auto resolved_size = resolve_destination_inline_size(size, size_property); resolved_size.has_value())
                         transferred_maximum = max(transferred_maximum, resolved_size.value());
                 };
                 floor_transferred_maximum(box.computed_values().width(), CyclicPercentageSizeProperty::PreferredOrMaxSize);
@@ -3010,7 +3010,7 @@ CSSPixels FormattingContext::calculate_max_content_inline_size(Layout::Box const
         return max_content_inline_size.value();
     }
 
-    // Boxes with no children have zero intrinsic width.
+    // Boxes with no children have zero intrinsic inline size.
     if (!box.has_children())
         return 0;
 
