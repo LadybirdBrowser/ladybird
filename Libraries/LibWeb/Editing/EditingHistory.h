@@ -16,6 +16,38 @@
 
 namespace Web::Editing {
 
+// Undo/redo for user editing, from typing in contenteditable and text controls to execCommand()
+// formatting. The moving parts, bottom up:
+//
+//  * EditCommand (EditCommand.h) is one reversible primitive DOM mutation: insert node, remove
+//    node, replace character data, split text, change attribute. The editing algorithms perform
+//    their mutations through the Editing proxy functions, which create and apply these commands.
+//    This is the moral equivalent of the SimpleEditCommand hierarchies in WebKit and Blink and of
+//    Gecko's transactions; unlike those engines our high-level editing algorithms stay shaped
+//    like the execCommand specification, so the proxy records the primitives for them.
+//
+//  * UndoStep is one user-level action: the flat, ordered list of commands it performed plus the
+//    selection (with direction and caret affinity) before and after it. Undo unapplies the
+//    commands in reverse order and restores the starting selection; redo reapplies them forward
+//    and restores the ending selection. Commands re-validate against the current DOM and decline
+//    when scripts have invalidated them, and a step replays all of its commands or none, so
+//    replay is always memory-safe and never garbles script-produced content.
+//
+//  * EditingHistory owns the undo and redo stacks for a document, shared by every editing host
+//    and text control in it. Document::exec_command() opens a recording around each editing
+//    command's action, and the text control edit handlers do the same around their value
+//    mutations; nothing else records, which is what keeps script-driven DOM mutation out of the
+//    history. When a recording ends, the new step either merges into the still-open previous
+//    step (typing and deletion runs coalesce into one undo unit, using Chromium's rules; see
+//    end_recording() and UndoStep::accepts_merge_of()) or is pushed, which discards the redo
+//    stack.
+//
+// Undo entry points: execCommand("undo"/"redo") fires only the historyUndo/historyRedo input
+// event, while the keyboard shortcuts and the browser UI go through perform_history_action(),
+// which first dispatches a cancelable beforeinput at the step's editing host, all matching
+// Chromium. queryCommandEnabled("undo") reports whether a step is available, and the history
+// pushes that state to the UI so menu items can enable and disable themselves.
+
 // Snapshot of the document selection around an undo step. Raw endpoints are stored instead of a
 // live range so that later DOM mutation cannot drag them around; restoration re-validates the
 // endpoints and is skipped when they are no longer meaningful. Storing anchor and focus
@@ -63,9 +95,16 @@ public:
     SelectionSnapshot const& ending_selection() const { return m_ending_selection; }
     void set_ending_selection(SelectionSnapshot const& snapshot) { m_ending_selection = snapshot; }
 
+    // Both replay all of the commands or none of them, rolling the step back when a command
+    // mid-step refuses, and return whether the mutations were performed; a step that refused
+    // has been invalidated by scripts and gets dropped by the history.
     bool unapply();
     bool reapply();
 
+    // Coalescence, following Chromium: an insertion joins any open unit, a deletion only joins a
+    // unit whose most recent action was the same kind of deletion, and everything else never
+    // merges. Merging extends this step's command list and ending selection, with special
+    // handling so undoing a deletion run restores a selection over everything it deleted.
     bool accepts_merge_of(Category);
     void merge(UndoStep&);
     void finalize_starting_selection();
@@ -106,6 +145,11 @@ public:
     // through the Editing proxy functions are recorded onto this step.
     GC::Ptr<UndoStep> undo_step_being_recorded() { return m_undo_step_being_recorded; }
 
+    // Brackets one user editing action: begin_recording() creates the step and captures the
+    // starting selection, the Editing proxy functions add commands to it while the action runs,
+    // and end_recording() captures the ending selection and merges or pushes the step. A step
+    // that recorded no commands leaves no trace. end_recording() is idempotent, so callers may
+    // invoke it from a scope guard as well as before dispatching their input event.
     void begin_recording(DOM::Node& editing_host, UndoStep::Category);
     void end_recording();
 

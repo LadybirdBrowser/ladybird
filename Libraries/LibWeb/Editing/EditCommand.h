@@ -148,9 +148,14 @@ private:
 
 // Proxy for the DOM mutations performed by editing command implementations. Each function
 // performs the same mutation as the corresponding DOM API, but does so through a reversible
-// EditCommand which is recorded on the document's editing history when a user editing command
-// is being executed. Editing code must mutate the DOM through these functions (and never
-// through the raw DOM APIs) so that every user edit can be undone.
+// EditCommand which is recorded on the document's editing history whenever a user editing
+// command is being executed (Document::exec_command() opens that recording around each command
+// action). Editing code must mutate the DOM through these functions and never through the raw
+// DOM APIs, or the mutation silently escapes undo; EditingHistory::ProxyMutationScope diagnoses
+// such bypasses at runtime. Script-driven DOM mutation never passes through here and therefore
+// never enters the history. Moving an already-parented node records its removal first, so undo
+// restores it to where it came from, and inserting a DocumentFragment records its children
+// individually, like the DOM insertion algorithm.
 void insert_node_before(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> parent, GC::Ptr<DOM::Node> child);
 WebIDL::ExceptionOr<void> append_node(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> parent);
 void remove_node(GC::Ref<DOM::Node>);
