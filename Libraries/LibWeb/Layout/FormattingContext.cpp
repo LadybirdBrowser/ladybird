@@ -1049,12 +1049,12 @@ CSSPixels FormattingContext::tentative_inline_size_for_replaced_element(Box cons
     return used_inline_size;
 }
 
-void FormattingContext::compute_width_for_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, StaticPositionRect const& static_position_rect)
+void FormattingContext::compute_inline_size_for_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, StaticPositionRect const& static_position_rect)
 {
     if (box_is_sized_as_replaced_element(box, available_space, containing_block_constraints))
-        compute_width_for_absolutely_positioned_replaced_element(box, available_space, containing_block_constraints, static_position_rect);
+        compute_inline_size_for_absolutely_positioned_replaced_element(box, available_space, containing_block_constraints, static_position_rect);
     else
-        compute_width_for_absolutely_positioned_non_replaced_element(box, available_space, containing_block_constraints, static_position_rect);
+        compute_inline_size_for_absolutely_positioned_non_replaced_element(box, available_space, containing_block_constraints, static_position_rect);
 }
 
 void FormattingContext::compute_height_for_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, StaticPositionRect const& static_position_rect, BeforeOrAfterInsideLayout before_or_after_inside_layout)
@@ -1180,9 +1180,9 @@ CSSPixels FormattingContext::compute_block_size_for_replaced_element(Box const& 
     return used_block_size;
 }
 
-void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, StaticPositionRect const& static_position_rect)
+void FormattingContext::compute_inline_size_for_absolutely_positioned_non_replaced_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, StaticPositionRect const& static_position_rect)
 {
-    auto width_of_containing_block = available_space.inline_size.to_px_or_zero();
+    auto containing_block_inline_size = available_space.inline_size.to_px_or_zero();
     auto const& computed_values = box.computed_values();
     auto& box_state = m_state.get_mutable(box);
 
@@ -1195,38 +1195,38 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
 
     auto computed_left = computed_values.inset().left();
     auto computed_right = computed_values.inset().right();
-    auto left = computed_values.inset().left().to_px_or_zero(width_of_containing_block);
-    auto right = computed_values.inset().right().to_px_or_zero(width_of_containing_block);
+    auto left = computed_values.inset().left().to_px_or_zero(containing_block_inline_size);
+    auto right = computed_values.inset().right().to_px_or_zero(containing_block_inline_size);
 
-    auto try_compute_width = [&](CSS::LengthOrAuto const& a_width) {
-        margin_left = computed_values.margin().left().resolved_or_auto(width_of_containing_block);
-        margin_right = computed_values.margin().right().resolved_or_auto(width_of_containing_block);
+    auto try_compute_inline_size = [&](CSS::LengthOrAuto const& input_inline_size) {
+        margin_left = computed_values.margin().left().resolved_or_auto(containing_block_inline_size);
+        margin_right = computed_values.margin().right().resolved_or_auto(containing_block_inline_size);
 
-        auto width = a_width;
+        auto inline_size = input_inline_size;
 
         auto solve_for_left = [&] {
-            return width_of_containing_block - margin_left.to_px_or_zero() - border_left - padding_left - width.to_px_or_zero() - padding_right - border_right - margin_right.to_px_or_zero() - right;
+            return containing_block_inline_size - margin_left.to_px_or_zero() - border_left - padding_left - inline_size.to_px_or_zero() - padding_right - border_right - margin_right.to_px_or_zero() - right;
         };
 
-        auto solve_for_width = [&] {
-            return CSS::Length::make_px(max(CSSPixels(0), width_of_containing_block - left - margin_left.to_px_or_zero() - border_left - padding_left - padding_right - border_right - margin_right.to_px_or_zero() - right));
+        auto solve_for_inline_size = [&] {
+            return CSS::Length::make_px(max(CSSPixels(0), containing_block_inline_size - left - margin_left.to_px_or_zero() - border_left - padding_left - padding_right - border_right - margin_right.to_px_or_zero() - right));
         };
 
         auto solve_for_right = [&] {
-            return width_of_containing_block - left - margin_left.to_px_or_zero() - border_left - padding_left - width.to_px_or_zero() - padding_right - border_right - margin_right.to_px_or_zero();
+            return containing_block_inline_size - left - margin_left.to_px_or_zero() - border_left - padding_left - inline_size.to_px_or_zero() - padding_right - border_right - margin_right.to_px_or_zero();
         };
 
-        auto calculate_shrink_to_fit_width = [&] {
-            auto available_width = solve_for_width().to_px(box);
-            auto preferred_width = calculate_max_content_inline_size(box, containing_block_constraints);
-            if (preferred_width <= available_width)
-                return preferred_width;
-            auto preferred_minimum_width = calculate_min_content_inline_size(box, containing_block_constraints);
-            return min(max(preferred_minimum_width, available_width), preferred_width);
+        auto calculate_shrink_to_fit_inline_size = [&] {
+            auto available_inline_size = solve_for_inline_size().to_px(box);
+            auto preferred_inline_size = calculate_max_content_inline_size(box, containing_block_constraints);
+            if (preferred_inline_size <= available_inline_size)
+                return preferred_inline_size;
+            auto preferred_minimum_inline_size = calculate_min_content_inline_size(box, containing_block_constraints);
+            return min(max(preferred_minimum_inline_size, available_inline_size), preferred_inline_size);
         };
 
         // If all three of 'left', 'width', and 'right' are 'auto':
-        if (computed_left.is_auto() && width.is_auto() && computed_right.is_auto()) {
+        if (computed_left.is_auto() && inline_size.is_auto() && computed_right.is_auto()) {
             // First set any 'auto' values for 'margin-left' and 'margin-right' to 0.
             if (margin_left.is_auto())
                 margin_left = CSS::Length::make_px(0);
@@ -1239,8 +1239,8 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
             // NOTE: As with compute_height_for_absolutely_positioned_non_replaced_element, we actually apply these
             //       steps in the opposite order since the static position may depend on the width of the box.
 
-            auto content_inline_size = calculate_shrink_to_fit_width();
-            width = CSS::Length::make_px(content_inline_size);
+            auto content_inline_size = calculate_shrink_to_fit_inline_size();
+            inline_size = CSS::Length::make_px(content_inline_size);
             m_state.get_mutable(box).set_content_inline_size(content_inline_size);
 
             auto static_position = aligned_static_position(static_position_rect, box_state);
@@ -1250,25 +1250,25 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
         }
 
         // If none of the three is auto:
-        if (!computed_left.is_auto() && !width.is_auto() && !computed_right.is_auto()) {
+        if (!computed_left.is_auto() && !inline_size.is_auto() && !computed_right.is_auto()) {
             // If both margin-left and margin-right are auto,
             // solve the equation under the extra constraint that the two margins get equal values
             // FIXME: unless this would make them negative, in which case when direction of the containing block is ltr (rtl), set margin-left (margin-right) to 0 and solve for margin-right (margin-left).
-            auto size_available_for_margins = width_of_containing_block - border_left - padding_left - width.to_px_or_zero() - padding_right - border_right - left - right;
+            auto inline_size_available_for_margins = containing_block_inline_size - border_left - padding_left - inline_size.to_px_or_zero() - padding_right - border_right - left - right;
             if (margin_left.is_auto() && margin_right.is_auto()) {
-                margin_left = CSS::Length::make_px(size_available_for_margins / 2);
-                margin_right = CSS::Length::make_px(size_available_for_margins / 2);
-                return width;
+                margin_left = CSS::Length::make_px(inline_size_available_for_margins / 2);
+                margin_right = CSS::Length::make_px(inline_size_available_for_margins / 2);
+                return inline_size;
             }
 
             // If one of margin-left or margin-right is auto, solve the equation for that value.
             if (margin_left.is_auto()) {
-                margin_left = CSS::Length::make_px(size_available_for_margins);
-                return width;
+                margin_left = CSS::Length::make_px(inline_size_available_for_margins);
+                return inline_size;
             }
             if (margin_right.is_auto()) {
-                margin_right = CSS::Length::make_px(size_available_for_margins);
-                return width;
+                margin_right = CSS::Length::make_px(inline_size_available_for_margins);
+                return inline_size;
             }
             // If the values are over-constrained, ignore the value for left
             // (in case the direction property of the containing block is rtl)
@@ -1277,7 +1277,7 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
             // NOTE: At this point we *are* over-constrained since none of margin-left, left, width, right, or margin-right are auto.
             // FIXME: Check direction.
             right = solve_for_right();
-            return width;
+            return inline_size;
         }
 
         if (margin_left.is_auto())
@@ -1287,8 +1287,8 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
 
         // 1. 'left' and 'width' are 'auto' and 'right' is not 'auto',
         //    then the width is shrink-to-fit. Then solve for 'left'
-        if (computed_left.is_auto() && width.is_auto() && !computed_right.is_auto()) {
-            width = CSS::Length::make_px(calculate_shrink_to_fit_width());
+        if (computed_left.is_auto() && inline_size.is_auto() && !computed_right.is_auto()) {
+            inline_size = CSS::Length::make_px(calculate_shrink_to_fit_inline_size());
             left = solve_for_left();
         }
 
@@ -1297,7 +1297,7 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
         //    the static-position containing block is 'ltr' set 'left'
         //    to the static position, otherwise set 'right' to the static position.
         //    Then solve for 'left' (if 'direction is 'rtl') or 'right' (if 'direction' is 'ltr').
-        else if (computed_left.is_auto() && computed_right.is_auto() && !width.is_auto()) {
+        else if (computed_left.is_auto() && computed_right.is_auto() && !inline_size.is_auto()) {
             // FIXME: Check direction
             auto static_position = aligned_static_position(static_position_rect, box_state);
             left = static_position.x();
@@ -1306,31 +1306,31 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
 
         // 3. 'width' and 'right' are 'auto' and 'left' is not 'auto',
         //    then the width is shrink-to-fit. Then solve for 'right'
-        else if (width.is_auto() && computed_right.is_auto() && !computed_left.is_auto()) {
-            width = CSS::Length::make_px(calculate_shrink_to_fit_width());
+        else if (inline_size.is_auto() && computed_right.is_auto() && !computed_left.is_auto()) {
+            inline_size = CSS::Length::make_px(calculate_shrink_to_fit_inline_size());
             right = solve_for_right();
         }
 
         // 4. 'left' is 'auto', 'width' and 'right' are not 'auto', then solve for 'left'
-        else if (computed_left.is_auto() && !width.is_auto() && !computed_right.is_auto()) {
+        else if (computed_left.is_auto() && !inline_size.is_auto() && !computed_right.is_auto()) {
             left = solve_for_left();
         }
 
         // 5. 'width' is 'auto', 'left' and 'right' are not 'auto', then solve for 'width'
-        else if (width.is_auto() && !computed_left.is_auto() && !computed_right.is_auto()) {
-            width = solve_for_width();
+        else if (inline_size.is_auto() && !computed_left.is_auto() && !computed_right.is_auto()) {
+            inline_size = solve_for_inline_size();
         }
 
         // 6. 'right' is 'auto', 'left' and 'width' are not 'auto', then solve for 'right'
-        else if (computed_right.is_auto() && !computed_left.is_auto() && !width.is_auto()) {
+        else if (computed_right.is_auto() && !computed_left.is_auto() && !inline_size.is_auto()) {
             right = solve_for_right();
         }
 
-        return width;
+        return inline_size;
     };
 
     // 1. The tentative used width is calculated (without 'min-width' and 'max-width')
-    auto used_width = try_compute_width([&] -> CSS::LengthOrAuto {
+    auto used_inline_size = try_compute_inline_size([&] -> CSS::LengthOrAuto {
         if (is<TableWrapper>(box))
             return CSS::Length::make_px(compute_table_box_inline_size_inside_table_wrapper(box, available_space, containing_block_constraints));
         if (computed_values.width().is_auto())
@@ -1341,22 +1341,22 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
     // 2. The tentative used width is greater than 'max-width', the rules above are applied again,
     //    but this time using the computed value of 'max-width' as the computed value for 'width'.
     if (!should_treat_max_inline_size_as_none(box, available_space.inline_size, containing_block_constraints)) {
-        auto max_width = calculate_inner_inline_size(box, available_space.inline_size, computed_values.max_width(), containing_block_constraints);
-        if (used_width.to_px_or_zero() > max_width) {
-            used_width = try_compute_width(CSS::Length::make_px(max_width));
+        auto max_inline_size = calculate_inner_inline_size(box, available_space.inline_size, computed_values.max_width(), containing_block_constraints);
+        if (used_inline_size.to_px_or_zero() > max_inline_size) {
+            used_inline_size = try_compute_inline_size(CSS::Length::make_px(max_inline_size));
         }
     }
 
     // 3. If the resulting width is smaller than 'min-width', the rules above are applied again,
     //    but this time using the value of 'min-width' as the computed value for 'width'.
     if (!computed_values.min_width().is_auto()) {
-        auto min_width = calculate_inner_inline_size(box, available_space.inline_size, computed_values.min_width(), containing_block_constraints);
-        if (used_width.to_px_or_zero() < min_width) {
-            used_width = try_compute_width(CSS::Length::make_px(min_width));
+        auto min_inline_size = calculate_inner_inline_size(box, available_space.inline_size, computed_values.min_width(), containing_block_constraints);
+        if (used_inline_size.to_px_or_zero() < min_inline_size) {
+            used_inline_size = try_compute_inline_size(CSS::Length::make_px(min_inline_size));
         }
     }
 
-    box_state.set_content_inline_size(used_width.to_px_or_zero());
+    box_state.set_content_inline_size(used_inline_size.to_px_or_zero());
     box_state.inset_left = left;
     box_state.inset_right = right;
     box_state.margin_left = margin_left.to_px_or_zero();
@@ -1364,7 +1364,7 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
 }
 
 // https://drafts.csswg.org/css2/#abs-replaced-width
-void FormattingContext::compute_width_for_absolutely_positioned_replaced_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, StaticPositionRect const& static_position_rect)
+void FormattingContext::compute_inline_size_for_absolutely_positioned_replaced_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, StaticPositionRect const& static_position_rect)
 {
     // 10.3.8 Absolutely positioned, replaced elements
     // In this case, section 10.3.7 applies up through and including the constraint equation,
@@ -1481,7 +1481,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
     auto top = box.computed_values().inset().top();
     auto bottom = box.computed_values().inset().bottom();
 
-    auto width_of_containing_block = available_space.inline_size.to_px_or_zero();
+    auto containing_block_inline_size = available_space.inline_size.to_px_or_zero();
     auto height_of_containing_block = available_space.block_size.to_px_or_zero();
 
     enum class ClampToZero {
@@ -1500,13 +1500,13 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
         auto solve_for = [&](CSS::LengthOrAuto const& length_or_auto, ClampToZero clamp_to_zero = ClampToZero::No) {
             auto unclamped_value = height_of_containing_block
                 - top.to_px_or_zero(height_of_containing_block)
-                - margin_top.to_px_or_zero(width_of_containing_block)
+                - margin_top.to_px_or_zero(containing_block_inline_size)
                 - box.computed_values().border_top().width
                 - state.padding_top
                 - height.to_px_or_zero()
                 - state.padding_bottom
                 - box.computed_values().border_bottom().width
-                - margin_bottom.to_px_or_zero(width_of_containing_block)
+                - margin_bottom.to_px_or_zero(containing_block_inline_size)
                 - bottom.to_px_or_zero(height_of_containing_block)
                 + length_or_auto.to_px_or_zero();
             if (clamp_to_zero == ClampToZero::Yes)
@@ -1527,15 +1527,15 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
         };
 
         auto solve_for_margin_top = [&] {
-            margin_top = solve_for(margin_top.resolved_or_auto(width_of_containing_block));
+            margin_top = solve_for(margin_top.resolved_or_auto(containing_block_inline_size));
         };
 
         auto solve_for_margin_bottom = [&] {
-            margin_bottom = solve_for(margin_bottom.resolved_or_auto(width_of_containing_block));
+            margin_bottom = solve_for(margin_bottom.resolved_or_auto(containing_block_inline_size));
         };
 
         auto solve_for_margin_top_and_margin_bottom = [&] {
-            auto remainder = solve_for(CSS::Length::make_px(margin_top.to_px_or_zero(width_of_containing_block) + margin_bottom.to_px_or_zero(width_of_containing_block))).to_px(box);
+            auto remainder = solve_for(CSS::Length::make_px(margin_top.to_px_or_zero(containing_block_inline_size) + margin_bottom.to_px_or_zero(containing_block_inline_size))).to_px(box);
             margin_top = CSS::Length::make_px(remainder / 2);
             margin_bottom = CSS::Length::make_px(remainder / 2);
         };
@@ -1711,8 +1711,8 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
         box_state.set_has_definite_block_size(true);
     box_state.inset_top = top.to_px_or_zero(height_of_containing_block);
     box_state.inset_bottom = bottom.to_px_or_zero(height_of_containing_block);
-    box_state.margin_top = margin_top.to_px_or_zero(width_of_containing_block);
-    box_state.margin_bottom = margin_bottom.to_px_or_zero(width_of_containing_block);
+    box_state.margin_top = margin_top.to_px_or_zero(containing_block_inline_size);
+    box_state.margin_bottom = margin_bottom.to_px_or_zero(containing_block_inline_size);
 }
 
 // FIXME: Containing block handling for absolutely positioned elements needs architectural improvements.
@@ -2489,7 +2489,7 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
     box_state.padding_top = computed_values.padding().top().to_px_or_zero(containing_block_width);
     box_state.padding_bottom = computed_values.padding().bottom().to_px_or_zero(containing_block_width);
 
-    compute_width_for_absolutely_positioned_element(box, available_space, absolutely_positioned_constraints, static_position_rect);
+    compute_inline_size_for_absolutely_positioned_element(box, available_space, absolutely_positioned_constraints, static_position_rect);
 
     // NOTE: We compute height before *and* after doing inside layout.
     //       This is done so that inside layout can resolve percentage heights.

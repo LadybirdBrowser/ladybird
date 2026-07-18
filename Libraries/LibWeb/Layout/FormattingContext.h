@@ -240,9 +240,9 @@ protected:
     void layout_absolutely_positioned_children(Box const&);
     virtual AbsposContainingBlockInfo resolve_abspos_containing_block_info(Box const&);
     void resolve_anchor_insets(Box&) const;
-    void compute_width_for_absolutely_positioned_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, StaticPositionRect const&);
-    void compute_width_for_absolutely_positioned_non_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, StaticPositionRect const&);
-    void compute_width_for_absolutely_positioned_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, StaticPositionRect const&);
+    void compute_inline_size_for_absolutely_positioned_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, StaticPositionRect const&);
+    void compute_inline_size_for_absolutely_positioned_non_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, StaticPositionRect const&);
+    void compute_inline_size_for_absolutely_positioned_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, StaticPositionRect const&);
 
     enum class BeforeOrAfterInsideLayout {
         Before,
