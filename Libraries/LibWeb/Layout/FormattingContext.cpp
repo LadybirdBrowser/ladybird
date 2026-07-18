@@ -864,7 +864,7 @@ CSSPixels FormattingContext::compute_table_box_inline_size_inside_table_wrapper(
     table_box_state.padding_right = table_box_computed_values.padding().right().to_px_or_zero(containing_block_inline_size);
 
     auto context = make<TableFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, *table_box, this);
-    context->run_until_width_calculation(
+    context->run_until_inline_size_calculation(
         LayoutInput { table_box_state.available_inner_space_or_constraints_from(available_space), table_constraints },
         TableFormattingContext::RowMeasurement::Skip);
 

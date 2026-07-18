@@ -27,7 +27,7 @@ public:
     explicit TableFormattingContext(LayoutState&, LayoutMode, Box const&, FormattingContext* parent);
     ~TableFormattingContext();
 
-    void run_until_width_calculation(LayoutInput const&, RowMeasurement = RowMeasurement::Include);
+    void run_until_inline_size_calculation(LayoutInput const&, RowMeasurement = RowMeasurement::Include);
 
     virtual void run(LayoutInput const&) override;
     virtual CSSPixels automatic_content_inline_size() const override;
@@ -61,7 +61,7 @@ private:
     void compute_table_measures();
     template<class RowOrColumn>
     void compute_intrinsic_percentage(size_t max_cell_span);
-    void compute_table_width();
+    void compute_table_inline_size();
     void distribute_inline_size_to_columns();
     void distribute_excess_inline_size_to_columns(CSSPixels available_inline_size);
     void distribute_excess_inline_size_to_columns_fixed_mode(CSSPixels excess_inline_size);

@@ -226,19 +226,19 @@ void TableFormattingContext::compute_cell_measures(RowMeasurement row_measuremen
 
 void TableFormattingContext::compute_outer_content_sizes()
 {
-    auto containing_block_width = m_table_constraints.percentage_basis_inline_size.value_or(0);
+    auto containing_block_inline_size = m_table_constraints.percentage_basis_inline_size.value_or(0);
 
     size_t column_index = 0;
     TableGrid::for_each_child_box_matching(table_box(), is_table_column_group, [&](auto& column_group_box) {
         TableGrid::for_each_child_box_matching(column_group_box, is_table_column, [&](auto& column_box) {
             auto const& computed_values = column_box.computed_values();
-            auto min_width = computed_values.min_width().to_px(containing_block_width);
-            auto max_width = computed_values.max_width().is_length() ? computed_values.max_width().to_px(containing_block_width) : CSSPixels::max();
-            auto width = computed_values.width().to_px(containing_block_width);
-            // The outer min-content width of a table-column or table-column-group is max(min-width, width).
-            m_columns[column_index].min_size = max(min_width, width);
-            // The outer max-content width of a table-column or table-column-group is max(min-width, min(max-width, width)).
-            m_columns[column_index].max_size = max(min_width, min(max_width, width));
+            auto min_inline_size = computed_values.min_width().to_px(containing_block_inline_size);
+            auto max_inline_size = computed_values.max_width().is_length() ? computed_values.max_width().to_px(containing_block_inline_size) : CSSPixels::max();
+            auto inline_size = computed_values.width().to_px(containing_block_inline_size);
+            // The outer min-content inline size of a table-column or table-column-group is max(min-width, width).
+            m_columns[column_index].min_size = max(min_inline_size, inline_size);
+            // The outer max-content inline size of a table-column or table-column-group is max(min-width, min(max-width, width)).
+            m_columns[column_index].max_size = max(min_inline_size, min(max_inline_size, inline_size));
             auto const& col_node = static_cast<HTML::HTMLElement const&>(*column_box.dom_node());
             unsigned span = col_node.get_attribute_value(HTML::AttributeNames::span).to_number<unsigned>().value_or(1);
             column_index += span;
@@ -332,12 +332,12 @@ void TableFormattingContext::compute_intrinsic_percentage(size_t max_cell_span)
             }
             // Compute the sum of the non-spanning max-content sizes of all rows / columns spanned by the cell that have an intrinsic percentage
             // size of the row / column based on cells of span up to N-1 equal to 0%, to be used in step 3 of the cell contribution algorithm.
-            CSSPixels width_sum_of_columns_with_zero_intrinsic_percentage = 0;
-            size_t number_of_columns_with_zero_intrinsic_percentage = 0;
+            CSSPixels size_sum_of_tracks_with_zero_intrinsic_percentage = 0;
+            size_t number_of_tracks_with_zero_intrinsic_percentage = 0;
             for (auto rc_index = cell_start_rc_index; rc_index < cell_end_rc_index; rc_index++) {
                 if (rows_or_columns[rc_index].intrinsic_percentage == 0) {
-                    width_sum_of_columns_with_zero_intrinsic_percentage += rows_or_columns[rc_index].max_size;
-                    ++number_of_columns_with_zero_intrinsic_percentage;
+                    size_sum_of_tracks_with_zero_intrinsic_percentage += rows_or_columns[rc_index].max_size;
+                    ++number_of_tracks_with_zero_intrinsic_percentage;
                 }
             }
             for (size_t rc_index = cell_start_rc_index; rc_index < cell_end_rc_index; rc_index++) {
@@ -354,12 +354,12 @@ void TableFormattingContext::compute_intrinsic_percentage(size_t max_cell_span)
                 // 3. Multiply by the ratio of the column’s non-spanning max-content width to the sum of the non-spanning max-content widths of all
                 //    columns spanned by the cell that have an intrinsic percentage width of the column based on cells of span up to N-1 equal to 0%.
                 CSSPixels adjusted_cell_contribution;
-                if (width_sum_of_columns_with_zero_intrinsic_percentage != 0) {
-                    adjusted_cell_contribution = cell_contribution.scaled(rows_or_columns[rc_index].max_size / static_cast<double>(width_sum_of_columns_with_zero_intrinsic_percentage));
+                if (size_sum_of_tracks_with_zero_intrinsic_percentage != 0) {
+                    adjusted_cell_contribution = cell_contribution.scaled(rows_or_columns[rc_index].max_size / static_cast<double>(size_sum_of_tracks_with_zero_intrinsic_percentage));
                 } else {
                     // However, if this ratio is undefined because the denominator is zero, instead use the 1 divided by the number of columns
                     // spanned by the cell that have an intrinsic percentage width of the column based on cells of span up to N-1 equal to zero.
-                    adjusted_cell_contribution = cell_contribution * 1 / number_of_columns_with_zero_intrinsic_percentage;
+                    adjusted_cell_contribution = cell_contribution * 1 / number_of_tracks_with_zero_intrinsic_percentage;
                 }
                 intrinsic_percentage_contribution_by_index[rc_index] = max(static_cast<double>(adjusted_cell_contribution), intrinsic_percentage_contribution_by_index[rc_index]);
             }
@@ -525,18 +525,18 @@ CSSPixels TableFormattingContext::compute_capmin()
     return capmin;
 }
 
-static bool width_is_auto_or_indefinite_percentage(CSS::Size const& width, bool containing_block_has_definite_width)
+static bool inline_size_is_auto_or_indefinite_percentage(CSS::Size const& inline_size, bool containing_block_has_definite_inline_size)
 {
-    if (width.is_auto())
+    if (inline_size.is_auto())
         return true;
-    if (width.contains_percentage()) {
-        if (!containing_block_has_definite_width)
+    if (inline_size.contains_percentage()) {
+        if (!containing_block_has_definite_inline_size)
             return true;
     }
     return false;
 }
 
-void TableFormattingContext::compute_table_width()
+void TableFormattingContext::compute_table_inline_size()
 {
     // https://drafts.csswg.org/css-tables-3/#computing-the-table-width
 
@@ -544,7 +544,7 @@ void TableFormattingContext::compute_table_width()
 
     auto& computed_values = table_box().computed_values();
 
-    auto width_of_table_containing_block = m_available_space->inline_size;
+    auto table_containing_block_inline_size = m_available_space->inline_size;
 
     // Percentages on 'width' and 'height' on the table are relative to the table wrapper box's containing block,
     // not the table wrapper box itself.
@@ -553,99 +553,98 @@ void TableFormattingContext::compute_table_width()
     // Compute undistributable space due to border spacing: https://www.w3.org/TR/css-tables-3/#computing-undistributable-space.
     auto undistributable_space = (m_columns.size() + 1) * border_spacing_horizontal();
 
-    // The row/column-grid width minimum (GRIDMIN) width is the sum of the min-content width
+    // The row/column-grid inline-size minimum (GRIDMIN) is the sum of the min-content inline size
     // of all the columns plus cell spacing or borders.
-    CSSPixels grid_min = 0;
+    CSSPixels grid_min_inline_size = 0;
     for (auto& column : m_columns) {
-        grid_min += column.min_size;
+        grid_min_inline_size += column.min_size;
     }
-    grid_min += undistributable_space;
+    grid_min_inline_size += undistributable_space;
 
-    // The row/column-grid width maximum (GRIDMAX) width is the sum of the max-content width
+    // The row/column-grid inline-size maximum (GRIDMAX) is the sum of the max-content inline size
     // of all the columns plus cell spacing or borders.
-    CSSPixels grid_max = 0;
+    CSSPixels grid_max_inline_size = 0;
     for (auto& column : m_columns) {
-        grid_max += column.max_size;
+        grid_max_inline_size += column.max_size;
     }
-    grid_max += undistributable_space;
+    grid_max_inline_size += undistributable_space;
 
-    auto resolve_width_constraint_to_content_box = [&](auto const& inline_size_constraint) {
+    auto resolve_inline_size_constraint_to_content_box = [&](auto const& inline_size_constraint) {
         if (inline_size_constraint.is_min_content())
-            return grid_min;
+            return grid_min_inline_size;
         if (inline_size_constraint.is_max_content())
-            return grid_max;
+            return grid_max_inline_size;
         if (inline_size_constraint.is_fit_content()) {
             auto fit_content_limit = table_wrapper_containing_block_inline_size;
             if (auto const& fit_content_available_space = inline_size_constraint.fit_content_available_space(); fit_content_available_space.has_value())
                 fit_content_limit = fit_content_available_space->to_px(table_wrapper_containing_block_inline_size);
-            return min(grid_max, max(grid_min, fit_content_limit));
+            return min(grid_max_inline_size, max(grid_min_inline_size, fit_content_limit));
         }
         // CSS Sizing says box-sizing:border-box applies length/percentage width/min-width/max-width constraints to
-        // the border box. The table width algorithm compares content widths, so convert them before comparing.
-        auto resolved_width = inline_size_constraint.to_px(table_wrapper_containing_block_inline_size);
+        // the border box. The table inline-size algorithm compares content inline sizes, so convert them before comparing.
+        auto resolved_inline_size = inline_size_constraint.to_px(table_wrapper_containing_block_inline_size);
         if (computed_values.box_sizing() == CSS::BoxSizing::BorderBox)
-            resolved_width -= table_box_state.border_box_left() + table_box_state.border_box_right();
-        return max(CSSPixels(0), resolved_width);
+            resolved_inline_size -= table_box_state.border_box_left() + table_box_state.border_box_right();
+        return max(CSSPixels(0), resolved_inline_size);
     };
 
-    // The used min-width of a table is the greater of the resolved min-width, CAPMIN, and GRIDMIN.
-    auto used_min_width = max(grid_min, compute_capmin());
+    // The used minimum inline size of a table is the greater of the resolved min-width, CAPMIN, and GRIDMIN.
+    auto used_min_inline_size = max(grid_min_inline_size, compute_capmin());
     if (!computed_values.min_width().is_auto()) {
-        used_min_width = max(used_min_width, resolve_width_constraint_to_content_box(computed_values.min_width()));
+        used_min_inline_size = max(used_min_inline_size, resolve_inline_size_constraint_to_content_box(computed_values.min_width()));
     }
 
-    CSSPixels used_width;
-    if (width_is_auto_or_indefinite_percentage(computed_values.width(), m_table_constraints.percentage_basis_inline_size.has_value())) {
-        // If the table-root has 'width: auto', the used width is the greater of
-        // min(GRIDMAX, the table’s containing block width), the used min-width of the table.
-        // NOTE: In normal layout the available width already is the wrapper's used width, which the
+    CSSPixels used_inline_size;
+    if (inline_size_is_auto_or_indefinite_percentage(computed_values.width(), m_table_constraints.percentage_basis_inline_size.has_value())) {
+        // If the table-root has 'width: auto', the used inline size is the greater of
+        // min(GRIDMAX, the table’s containing block inline size), the used minimum inline size of the table.
+        // NOTE: In normal layout the available inline size already is the wrapper's used inline size, which the
         //       parent context resolved with shrink-to-fit; filling it keeps the table and its
         //       wrapper consistent without reading the wrapper's state from here.
         if (m_available_space->inline_size.is_min_content())
-            used_width = grid_min;
+            used_inline_size = grid_min_inline_size;
         else if (m_available_space->inline_size.is_max_content())
-            used_width = grid_max;
-        else if (width_of_table_containing_block.is_definite() && m_layout_mode == LayoutMode::Normal)
-            used_width = max(width_of_table_containing_block.to_px_or_zero(), used_min_width);
-        else if (width_of_table_containing_block.is_definite())
-            used_width = max(min(grid_max, width_of_table_containing_block.to_px_or_zero()), used_min_width);
+            used_inline_size = grid_max_inline_size;
+        else if (table_containing_block_inline_size.is_definite() && m_layout_mode == LayoutMode::Normal)
+            used_inline_size = max(table_containing_block_inline_size.to_px_or_zero(), used_min_inline_size);
+        else if (table_containing_block_inline_size.is_definite())
+            used_inline_size = max(min(grid_max_inline_size, table_containing_block_inline_size.to_px_or_zero()), used_min_inline_size);
         else
-            used_width = max(grid_max, used_min_width);
+            used_inline_size = max(grid_max_inline_size, used_min_inline_size);
         // https://www.w3.org/TR/CSS22/tables.html#auto-table-layout
-        // A percentage value for a column width is relative to the table width. If the table has 'width: auto',
-        // a percentage represents a constraint on the column's width, which a UA should try to satisfy.
+        // A percentage value for a column inline size is relative to the table inline size. If the table has
+        // 'width: auto', a percentage represents a constraint on the column's inline size, which a UA should try to satisfy.
         if (!m_available_space->inline_size.is_intrinsic_sizing_constraint()) {
             for (auto& cell : m_cells) {
-                auto const& cell_width = cell.box.computed_values().width();
-                if (cell_width.is_percentage()) {
-                    CSSPixels adjusted_used_width = undistributable_space;
-                    if (cell_width.percentage().value() != 0)
-                        adjusted_used_width += CSSPixels::nearest_value_for(ceil(100 / cell_width.percentage().value() * cell.outer_max_inline_size));
+                auto const& cell_inline_size = cell.box.computed_values().width();
+                if (cell_inline_size.is_percentage()) {
+                    CSSPixels adjusted_used_inline_size = undistributable_space;
+                    if (cell_inline_size.percentage().value() != 0)
+                        adjusted_used_inline_size += CSSPixels::nearest_value_for(ceil(100 / cell_inline_size.percentage().value() * cell.outer_max_inline_size));
 
-                    if (width_of_table_containing_block.is_definite())
-                        used_width = min(max(used_width, adjusted_used_width), width_of_table_containing_block.to_px_or_zero());
+                    if (table_containing_block_inline_size.is_definite())
+                        used_inline_size = min(max(used_inline_size, adjusted_used_inline_size), table_containing_block_inline_size.to_px_or_zero());
                     else
-                        used_width = max(used_width, adjusted_used_width);
+                        used_inline_size = max(used_inline_size, adjusted_used_inline_size);
                 }
             }
         }
     } else if (computed_values.width().is_max_content()) {
-        used_width = grid_max;
+        used_inline_size = grid_max_inline_size;
     } else {
-        // If the table-root’s width property has a computed value (resolving to
-        // resolved-table-width) other than auto, the used width is the greater
-        // of resolved-table-width, and the used min-width of the table.
-        CSSPixels resolved_table_width = resolve_width_constraint_to_content_box(computed_values.width());
-        used_width = max(resolved_table_width, used_min_width);
+        // If the table-root’s width property has a computed value (resolving to the table inline size) other than auto,
+        // the used inline size is the greater of the resolved table inline size and the used minimum inline size.
+        CSSPixels resolved_table_inline_size = resolve_inline_size_constraint_to_content_box(computed_values.width());
+        used_inline_size = max(resolved_table_inline_size, used_min_inline_size);
         if (!should_treat_max_inline_size_as_none(table_box(), m_available_space->inline_size, m_table_constraints))
-            used_width = min(used_width, resolve_width_constraint_to_content_box(computed_values.max_width()));
+            used_inline_size = min(used_inline_size, resolve_inline_size_constraint_to_content_box(computed_values.max_width()));
     }
 
     if (!should_treat_max_inline_size_as_none(table_box(), m_available_space->inline_size, m_table_constraints))
-        used_width = min(used_width, resolve_width_constraint_to_content_box(computed_values.max_width()));
-    used_width = max(used_width, used_min_width);
+        used_inline_size = min(used_inline_size, resolve_inline_size_constraint_to_content_box(computed_values.max_width()));
+    used_inline_size = max(used_inline_size, used_min_inline_size);
 
-    table_box_state.set_content_inline_size(used_width);
+    table_box_state.set_content_inline_size(used_inline_size);
 }
 
 CSSPixels TableFormattingContext::compute_columns_total_used_inline_size() const
@@ -1725,7 +1724,7 @@ void TableFormattingContext::seed_table_participant_used_values(ContainingBlockC
     }
 }
 
-void TableFormattingContext::run_until_width_calculation(LayoutInput const& layout_input, RowMeasurement row_measurement)
+void TableFormattingContext::run_until_inline_size_calculation(LayoutInput const& layout_input, RowMeasurement row_measurement)
 {
     auto const& available_space = layout_input.available_space;
     m_available_space = available_space;
@@ -1780,8 +1779,8 @@ void TableFormattingContext::run_until_width_calculation(LayoutInput const& layo
         compute_table_measures<Row>();
     }
 
-    // Compute the width of the table.
-    compute_table_width();
+    // Compute the inline size of the table.
+    compute_table_inline_size();
 }
 
 void TableFormattingContext::parent_context_did_dimension_child_root_box()
@@ -1813,7 +1812,7 @@ void TableFormattingContext::run(LayoutInput const& layout_input)
     m_available_space = available_space;
     m_min_border_box_block_size_from_flex_item = layout_input.table_grid_min_border_box_block_size;
 
-    run_until_width_calculation(layout_input);
+    run_until_inline_size_calculation(layout_input);
 
     if (available_space.inline_size.is_intrinsic_sizing_constraint() && !available_space.block_size.is_intrinsic_sizing_constraint()) {
         return;
@@ -1826,7 +1825,7 @@ void TableFormattingContext::run(LayoutInput const& layout_input)
 
     auto captions_block_size = run_caption_layout(CSS::CaptionSide::Top, caption_available_space);
 
-    // Distribute the width of the table among columns.
+    // Distribute the inline size of the table among columns.
     distribute_inline_size_to_columns();
 
     compute_table_block_size();
@@ -1937,9 +1936,9 @@ double TableFormattingContext::cell_percentage_contribution<TableFormattingConte
 {
     // Definition of percentage contribution: https://www.w3.org/TR/css-tables-3/#percentage-contribution
     auto const& computed_values = cell.box.computed_values();
-    auto max_width_percentage = computed_values.max_width().is_percentage() ? computed_values.max_width().percentage().value() : static_cast<double>(INFINITY);
-    auto width_percentage = computed_values.width().is_percentage() ? computed_values.width().percentage().value() : 0;
-    return min(width_percentage, max_width_percentage);
+    auto max_inline_size_percentage = computed_values.max_width().is_percentage() ? computed_values.max_width().percentage().value() : static_cast<double>(INFINITY);
+    auto inline_size_percentage = computed_values.width().is_percentage() ? computed_values.width().percentage().value() : 0;
+    return min(inline_size_percentage, max_inline_size_percentage);
 }
 
 template<>
@@ -1975,10 +1974,10 @@ void TableFormattingContext::initialize_intrinsic_percentages_from_rows_or_colum
         TableGrid::for_each_child_box_matching(column_group_box, is_table_column, [&](auto& column_box) {
             auto const& computed_values = column_box.computed_values();
             // Definition of percentage contribution: https://www.w3.org/TR/css-tables-3/#percentage-contribution
-            auto max_width_percentage = computed_values.max_width().is_percentage() ? computed_values.max_width().percentage().value() : static_cast<double>(INFINITY);
-            auto width_percentage = computed_values.width().is_percentage() ? computed_values.width().percentage().value() : 0;
+            auto max_inline_size_percentage = computed_values.max_width().is_percentage() ? computed_values.max_width().percentage().value() : static_cast<double>(INFINITY);
+            auto inline_size_percentage = computed_values.width().is_percentage() ? computed_values.width().percentage().value() : 0;
             m_columns[column_index].has_intrinsic_percentage = computed_values.max_width().is_percentage() || computed_values.width().is_percentage();
-            m_columns[column_index].intrinsic_percentage = min(width_percentage, max_width_percentage);
+            m_columns[column_index].intrinsic_percentage = min(inline_size_percentage, max_inline_size_percentage);
             auto const& col_node = static_cast<HTML::HTMLElement const&>(*column_box.dom_node());
             unsigned span = col_node.get_attribute_value(HTML::AttributeNames::span).to_number<unsigned>().value_or(1);
             column_index += span;
