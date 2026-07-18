@@ -904,7 +904,7 @@ void InlineFormattingContext::generate_line_boxes()
                         static_position_rect.rect = { marker.offset(), { 0, 0 } };
                     }
                     if (direction == CSS::Direction::Rtl)
-                        static_position_rect.horizontal_alignment = StaticPositionRect::Alignment::End;
+                        static_position_rect.inline_alignment = StaticPositionRect::Alignment::End;
                     found_static_position_marker = true;
                     break;
                 }

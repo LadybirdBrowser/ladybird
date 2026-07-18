@@ -3098,8 +3098,8 @@ AbsposContainingBlockInfo GridFormattingContext::resolve_abspos_containing_block
     }();
 
     containing_block_info.rect = grid_area_rect;
-    containing_block_info.horizontal_alignment = alignment_for_item(box, GridDimension::Column);
-    containing_block_info.vertical_alignment = alignment_for_item(box, GridDimension::Row);
+    containing_block_info.inline_alignment = alignment_for_item(box, GridDimension::Column);
+    containing_block_info.block_alignment = alignment_for_item(box, GridDimension::Row);
     containing_block_info.derives_from_own_computed_values = true;
 
     // An absolutely positioned child of a grid container gets its static
@@ -3107,8 +3107,8 @@ AbsposContainingBlockInfo GridFormattingContext::resolve_abspos_containing_block
     // inside grid items still use the generic static-position behavior from
     // their in-flow ancestor.
     if (box.static_position_containing_block() == &grid_container()) {
-        containing_block_info.horizontal_axis_mode = AbsposAxisMode::InsetFromRect;
-        containing_block_info.vertical_axis_mode = AbsposAxisMode::InsetFromRect;
+        containing_block_info.inline_axis_mode = AbsposAxisMode::InsetFromRect;
+        containing_block_info.block_axis_mode = AbsposAxisMode::InsetFromRect;
     }
 
     return containing_block_info;

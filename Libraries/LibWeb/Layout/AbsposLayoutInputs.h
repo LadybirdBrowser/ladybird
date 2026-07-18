@@ -37,12 +37,12 @@ enum class AbsposAxisMode {
 struct AbsposContainingBlockInfo {
     // Containing block rect in CB Box's content-edge coordinates.
     CSSPixelRect rect;
-    AbsposAxisMode horizontal_axis_mode;
-    AbsposAxisMode vertical_axis_mode;
+    AbsposAxisMode inline_axis_mode;
+    AbsposAxisMode block_axis_mode;
     // Grid alignment for axes with auto CSS insets.
     // When set, the base method applies alignment-driven insets after sizing.
-    Optional<Alignment> horizontal_alignment;
-    Optional<Alignment> vertical_alignment;
+    Optional<Alignment> inline_alignment;
+    Optional<Alignment> block_alignment;
     // Whether the rect, alignments or axis modes were derived from the box's own computed
     // values (grid placement does this); a saved copy of such inputs cannot be replayed after
     // a style change on the box itself, and its axis modes must not be recomputed at replay.
@@ -58,8 +58,8 @@ struct StaticPositionRect {
     };
 
     CSSPixelRect rect;
-    Alignment horizontal_alignment { Alignment::Start };
-    Alignment vertical_alignment { Alignment::Start };
+    Alignment inline_alignment { Alignment::Start };
+    Alignment block_alignment { Alignment::Start };
     // Whether the alignments were derived from the box's own computed values (self-alignment
     // under a flex container does this); a saved copy of such a rect cannot be replayed after
     // a style change on the box itself.
@@ -68,14 +68,14 @@ struct StaticPositionRect {
     CSSPixelPoint aligned_position_for_box_with_size(CSSPixelSize const& size) const
     {
         CSSPixelPoint position = rect.location();
-        if (horizontal_alignment == Alignment::Center)
+        if (inline_alignment == Alignment::Center)
             position.set_x(position.x() + (rect.width() - size.width()) / 2);
-        else if (horizontal_alignment == Alignment::End)
+        else if (inline_alignment == Alignment::End)
             position.set_x(position.x() + rect.width() - size.width());
 
-        if (vertical_alignment == Alignment::Center)
+        if (block_alignment == Alignment::Center)
             position.set_y(position.y() + (rect.height() - size.height()) / 2);
-        else if (vertical_alignment == Alignment::End)
+        else if (block_alignment == Alignment::End)
             position.set_y(position.y() + rect.height() - size.height());
 
         return position;

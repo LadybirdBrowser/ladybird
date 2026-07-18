@@ -1879,8 +1879,8 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
 }
 
 struct AbsposAxisModes {
-    AbsposAxisMode horizontal;
-    AbsposAxisMode vertical;
+    AbsposAxisMode inline_axis;
+    AbsposAxisMode block_axis;
 };
 
 // Per-axis mode: auto+auto insets -> static position, otherwise -> inset from rect.
@@ -1888,22 +1888,22 @@ static AbsposAxisModes abspos_axis_modes_from_computed_insets(CSS::ComputedValue
 {
     auto const& inset = computed_values.inset();
     return {
-        .horizontal = inset.left().is_auto() && inset.right().is_auto() ? AbsposAxisMode::StaticPosition : AbsposAxisMode::InsetFromRect,
-        .vertical = inset.top().is_auto() && inset.bottom().is_auto() ? AbsposAxisMode::StaticPosition : AbsposAxisMode::InsetFromRect,
+        .inline_axis = inset.left().is_auto() && inset.right().is_auto() ? AbsposAxisMode::StaticPosition : AbsposAxisMode::InsetFromRect,
+        .block_axis = inset.top().is_auto() && inset.bottom().is_auto() ? AbsposAxisMode::StaticPosition : AbsposAxisMode::InsetFromRect,
     };
 }
 
 AbsposContainingBlockInfo FormattingContext::resolve_abspos_containing_block_info(Box const& box)
 {
     auto const& computed_values = box.computed_values();
-    auto [horizontal_axis_mode, vertical_axis_mode] = abspos_axis_modes_from_computed_insets(computed_values);
+    auto [inline_axis_mode, block_axis_mode] = abspos_axis_modes_from_computed_insets(computed_values);
 
     // Check if there's an inline element that should be the real containing block.
     auto inline_containing_block = box.inline_containing_block_if_applicable();
     if (inline_containing_block && box.containing_block()) {
         auto rect = compute_inline_containing_block_rect(*inline_containing_block, *box.containing_block(), m_state);
         if (rect.has_value())
-            return { *rect, horizontal_axis_mode, vertical_axis_mode, {}, {} };
+            return { *rect, inline_axis_mode, block_axis_mode, {}, {} };
     }
 
     // Normal case: padding box of the actual containing block.
@@ -1915,7 +1915,7 @@ AbsposContainingBlockInfo FormattingContext::resolve_abspos_containing_block_inf
         containing_block_state.content_inline_size() + containing_block_state.padding_left + containing_block_state.padding_right,
         containing_block_state.content_block_size() + containing_block_state.padding_top + containing_block_state.padding_bottom
     };
-    return { rect, horizontal_axis_mode, vertical_axis_mode, {}, {} };
+    return { rect, inline_axis_mode, block_axis_mode, {}, {} };
 }
 
 static bool calculation_tree_contains_anchor(CSS::CalculationNode const& root)
@@ -2418,8 +2418,8 @@ bool FormattingContext::can_replay_saved_abspos_layout_inputs_after_style_change
         return false;
 
     auto axis_modes = abspos_axis_modes_from_computed_insets(box.computed_values());
-    bool uses_static_position = axis_modes.horizontal == AbsposAxisMode::StaticPosition
-        || axis_modes.vertical == AbsposAxisMode::StaticPosition;
+    bool uses_static_position = axis_modes.inline_axis == AbsposAxisMode::StaticPosition
+        || axis_modes.block_axis == AbsposAxisMode::StaticPosition;
     if (uses_static_position && inputs.static_position_rect.alignment_derives_from_own_computed_values)
         return false;
 
@@ -2441,8 +2441,8 @@ void FormattingContext::layout_absolutely_positioned_element_from_saved_inputs(L
     // computed values pin their axis modes structurally and never replay after such a change.
     if (!inputs.containing_block_info.derives_from_own_computed_values) {
         auto axis_modes = abspos_axis_modes_from_computed_insets(box.computed_values());
-        inputs.containing_block_info.horizontal_axis_mode = axis_modes.horizontal;
-        inputs.containing_block_info.vertical_axis_mode = axis_modes.vertical;
+        inputs.containing_block_info.inline_axis_mode = axis_modes.inline_axis;
+        inputs.containing_block_info.block_axis_mode = axis_modes.block_axis;
     }
 
     // Mirror how the ancestor formatting context prepares an absolutely positioned child
@@ -2528,9 +2528,9 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
     }
 
     // Apply grid alignment for auto inset axes
-    if (containing_block_info.horizontal_alignment.has_value() && computed_values.inset().left().is_auto() && computed_values.inset().right().is_auto()) {
+    if (containing_block_info.inline_alignment.has_value() && computed_values.inset().left().is_auto() && computed_values.inset().right().is_auto()) {
         auto available_space_for_alignment = containing_block_info.rect.width() - box_state.margin_box_inline_size();
-        switch (*containing_block_info.horizontal_alignment) {
+        switch (*containing_block_info.inline_alignment) {
         case Alignment::Center:
             box_state.inset_left = available_space_for_alignment / 2;
             box_state.inset_right = available_space_for_alignment / 2;
@@ -2548,9 +2548,9 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
         }
     }
 
-    if (containing_block_info.vertical_alignment.has_value() && computed_values.inset().top().is_auto() && computed_values.inset().bottom().is_auto()) {
+    if (containing_block_info.block_alignment.has_value() && computed_values.inset().top().is_auto() && computed_values.inset().bottom().is_auto()) {
         auto available_space_for_alignment = containing_block_info.rect.height() - box_state.margin_box_block_size();
-        switch (*containing_block_info.vertical_alignment) {
+        switch (*containing_block_info.block_alignment) {
         case Alignment::Center:
             box_state.inset_top = available_space_for_alignment / 2;
             box_state.inset_bottom = available_space_for_alignment / 2;
@@ -2576,13 +2576,13 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
     auto static_position = aligned_static_position(static_position_rect, box_state);
 
     // Horizontal axis
-    if (containing_block_info.horizontal_axis_mode == AbsposAxisMode::StaticPosition)
+    if (containing_block_info.inline_axis_mode == AbsposAxisMode::StaticPosition)
         used_offset.set_x(static_position.x());
     else
         used_offset.set_x(containing_block_info.rect.x() + box_state.inset_left);
 
     // Vertical axis
-    if (containing_block_info.vertical_axis_mode == AbsposAxisMode::StaticPosition)
+    if (containing_block_info.block_axis_mode == AbsposAxisMode::StaticPosition)
         used_offset.set_y(static_position.y());
     else
         used_offset.set_y(containing_block_info.rect.y() + box_state.inset_top);
