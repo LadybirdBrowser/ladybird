@@ -47,7 +47,7 @@ String AvailableSize::to_string() const
 
 String AvailableSpace::to_string() const
 {
-    return MUST(String::formatted("{} x {}", width, height));
+    return MUST(String::formatted("inline: {}, block: {}", inline_size, block_size));
 }
 
 AvailableSize::AvailableSize(Type type, CSSPixels value)

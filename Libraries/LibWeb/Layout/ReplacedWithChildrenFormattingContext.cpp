@@ -32,7 +32,7 @@ void ReplacedWithChildrenFormattingContext::run(LayoutInput const& layout_input)
     // or intrinsic height), otherwise use the available space from the parent formatting context.
     auto child_available_height = root_state.has_definite_height()
         ? AvailableSize::make_definite(root_state.content_height())
-        : available_space.height;
+        : available_space.block_size;
 
     auto child_available_space = AvailableSpace(
         AvailableSize::make_definite(content_width),

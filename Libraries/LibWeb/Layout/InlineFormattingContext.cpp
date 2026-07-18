@@ -56,11 +56,11 @@ CSSPixels InlineFormattingContext::leftmost_inline_offset_at(CSSPixels block_off
 
 AvailableSize InlineFormattingContext::available_space_for_line(CSSPixels block_offset, CSSPixels line_height) const
 {
-    if (!m_available_space->width.is_definite())
-        return m_available_space->width;
+    if (!m_available_space->inline_size.is_definite())
+        return m_available_space->inline_size;
 
     auto intrusions = intrusion_by_floats_into_containing_block(block_offset, block_offset + line_height);
-    return AvailableSize::make_definite(m_available_space->width.to_px_or_zero() - intrusions.left - intrusions.right);
+    return AvailableSize::make_definite(m_available_space->inline_size.to_px_or_zero() - intrusions.left - intrusions.right);
 }
 
 CSSPixels InlineFormattingContext::automatic_content_width() const
@@ -419,7 +419,7 @@ void InlineFormattingContext::compute_inline_box_pieces()
 
 void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode layout_mode)
 {
-    auto width_of_containing_block = m_available_space->width.to_px_or_zero();
+    auto width_of_containing_block = m_available_space->inline_size.to_px_or_zero();
     auto& box_state = m_state.get_mutable(box);
     auto const& computed_values = box.computed_values();
 
@@ -480,8 +480,8 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
     auto const& width_value = box.computed_values().width();
     CSSPixels unconstrained_width = 0;
     if (should_treat_width_as_auto(box, *m_available_space)) {
-        if (m_available_space->width.is_definite()) {
-            auto available_width = m_available_space->width.to_px_or_zero()
+        if (m_available_space->inline_size.is_definite()) {
+            auto available_width = m_available_space->inline_size.to_px_or_zero()
                 - box_state.margin_left
                 - box_state.border_left
                 - box_state.padding_left
@@ -496,29 +496,29 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
                 auto preferred_minimum_width = calculate_min_content_width(box, box_constraints);
                 unconstrained_width = min(max(preferred_minimum_width, available_width), preferred_width);
             }
-        } else if (m_available_space->width.is_min_content()) {
+        } else if (m_available_space->inline_size.is_min_content()) {
             unconstrained_width = calculate_min_content_width(box, box_constraints);
         } else {
             unconstrained_width = calculate_max_content_width(box, box_constraints);
         }
     } else {
-        if (width_value.contains_percentage() && !m_available_space->width.is_definite()) {
+        if (width_value.contains_percentage() && !m_available_space->inline_size.is_definite()) {
             // NOTE: We can't resolve percentages yet. We'll have to wait until after inner layout.
         } else {
-            auto inner_width = calculate_inner_width(box, m_available_space->width, width_value, box_constraints);
+            auto inner_width = calculate_inner_width(box, m_available_space->inline_size, width_value, box_constraints);
             unconstrained_width = inner_width;
         }
     }
 
     CSSPixels width = unconstrained_width;
-    if (!should_treat_max_width_as_none(box, m_available_space->width, box_constraints)) {
-        auto max_width = calculate_inner_width(box, m_available_space->width, box.computed_values().max_width(), box_constraints);
+    if (!should_treat_max_width_as_none(box, m_available_space->inline_size, box_constraints)) {
+        auto max_width = calculate_inner_width(box, m_available_space->inline_size, box.computed_values().max_width(), box_constraints);
         width = min(width, max_width);
     }
 
     auto computed_min_width = box.computed_values().min_width();
     if (!computed_min_width.is_auto()) {
-        auto min_width = calculate_inner_width(box, m_available_space->width, computed_min_width, box_constraints);
+        auto min_width = calculate_inner_width(box, m_available_space->inline_size, computed_min_width, box_constraints);
         width = max(width, min_width);
     }
 
@@ -929,7 +929,7 @@ bool InlineFormattingContext::can_fit_new_line_at_block_offset(CSSPixels block_o
 {
     // FIXME: Respect inline direction.
 
-    if (!m_available_space->width.is_definite())
+    if (!m_available_space->inline_size.is_definite())
         return true;
     return available_space_for_line(block_offset, line_height).to_px_or_zero() > 0;
 }

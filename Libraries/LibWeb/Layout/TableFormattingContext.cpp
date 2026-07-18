@@ -53,7 +53,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
             auto* block_context = as_if<BlockFormattingContext>(caption_context.ptr());
             CSSPixelPoint caption_offset;
             if (block_context) {
-                auto available_width = caption_available_space.width.to_px_or_zero();
+                auto available_width = caption_available_space.inline_size.to_px_or_zero();
                 block_context->resolve_vertical_box_model_metrics(child_box, available_width);
                 CSSPixelPoint caption_position_in_block_context {};
                 block_context->compute_width(child_box, caption_available_space, caption_constraints, caption_position_in_block_context);
@@ -544,7 +544,7 @@ void TableFormattingContext::compute_table_width()
 
     auto& computed_values = table_box().computed_values();
 
-    auto width_of_table_containing_block = m_available_space->width;
+    auto width_of_table_containing_block = m_available_space->inline_size;
 
     // Percentages on 'width' and 'height' on the table are relative to the table wrapper box's containing block,
     // not the table wrapper box itself.
@@ -601,9 +601,9 @@ void TableFormattingContext::compute_table_width()
         // NOTE: In normal layout the available width already is the wrapper's used width, which the
         //       parent context resolved with shrink-to-fit; filling it keeps the table and its
         //       wrapper consistent without reading the wrapper's state from here.
-        if (m_available_space->width.is_min_content())
+        if (m_available_space->inline_size.is_min_content())
             used_width = grid_min;
-        else if (m_available_space->width.is_max_content())
+        else if (m_available_space->inline_size.is_max_content())
             used_width = grid_max;
         else if (width_of_table_containing_block.is_definite() && m_layout_mode == LayoutMode::Normal)
             used_width = max(width_of_table_containing_block.to_px_or_zero(), used_min_width);
@@ -614,7 +614,7 @@ void TableFormattingContext::compute_table_width()
         // https://www.w3.org/TR/CSS22/tables.html#auto-table-layout
         // A percentage value for a column width is relative to the table width. If the table has 'width: auto',
         // a percentage represents a constraint on the column's width, which a UA should try to satisfy.
-        if (!m_available_space->width.is_intrinsic_sizing_constraint()) {
+        if (!m_available_space->inline_size.is_intrinsic_sizing_constraint()) {
             for (auto& cell : m_cells) {
                 auto const& cell_width = cell.box.computed_values().width();
                 if (cell_width.is_percentage()) {
@@ -637,11 +637,11 @@ void TableFormattingContext::compute_table_width()
         // of resolved-table-width, and the used min-width of the table.
         CSSPixels resolved_table_width = resolve_width_constraint_to_content_box(computed_values.width());
         used_width = max(resolved_table_width, used_min_width);
-        if (!should_treat_max_width_as_none(table_box(), m_available_space->width, m_table_constraints))
+        if (!should_treat_max_width_as_none(table_box(), m_available_space->inline_size, m_table_constraints))
             used_width = min(used_width, resolve_width_constraint_to_content_box(computed_values.max_width()));
     }
 
-    if (!should_treat_max_width_as_none(table_box(), m_available_space->width, m_table_constraints))
+    if (!should_treat_max_width_as_none(table_box(), m_available_space->inline_size, m_table_constraints))
         used_width = min(used_width, resolve_width_constraint_to_content_box(computed_values.max_width()));
     used_width = max(used_width, used_min_width);
 
@@ -1821,14 +1821,14 @@ void TableFormattingContext::run(LayoutInput const& layout_input)
 
     run_until_width_calculation(layout_input);
 
-    if (available_space.width.is_intrinsic_sizing_constraint() && !available_space.height.is_intrinsic_sizing_constraint()) {
+    if (available_space.inline_size.is_intrinsic_sizing_constraint() && !available_space.block_size.is_intrinsic_sizing_constraint()) {
         return;
     }
 
     auto const& table_state = m_state.get(table_box());
     auto caption_available_space = AvailableSpace(
         AvailableSize::make_definite(clamp_to_max_dimension_value(table_state.border_box_width())),
-        available_space.height);
+        available_space.block_size);
 
     auto total_captions_height = run_caption_layout(CSS::CaptionSide::Top, caption_available_space);
 

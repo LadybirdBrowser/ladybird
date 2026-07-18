@@ -716,10 +716,10 @@ AvailableSpace LayoutState::UsedValues::available_inner_space_or_constraints_fro
     auto inner_width = available_width_inside();
     auto inner_height = available_height_inside();
 
-    if (inner_width.is_indefinite() && outer_space.width.is_intrinsic_sizing_constraint())
-        inner_width = outer_space.width;
-    if (inner_height.is_indefinite() && outer_space.height.is_intrinsic_sizing_constraint())
-        inner_height = outer_space.height;
+    if (inner_width.is_indefinite() && outer_space.inline_size.is_intrinsic_sizing_constraint())
+        inner_width = outer_space.inline_size;
+    if (inner_height.is_indefinite() && outer_space.block_size.is_intrinsic_sizing_constraint())
+        inner_height = outer_space.block_size;
     return AvailableSpace(inner_width, inner_height);
 }
 

@@ -321,12 +321,12 @@ void SVGFormattingContext::layout_svg_element(Box const& child, LayoutInput cons
         auto& child_state = m_state.create(child, {}, {});
         CSSPixelRect rect {
             {
-                child.computed_values().x().to_px(m_available_space->width.to_px_or_zero()),
-                child.computed_values().y().to_px(m_available_space->height.to_px_or_zero()),
+                child.computed_values().x().to_px(m_available_space->inline_size.to_px_or_zero()),
+                child.computed_values().y().to_px(m_available_space->block_size.to_px_or_zero()),
             },
             {
-                child.computed_values().width().to_px(m_available_space->width.to_px_or_zero()),
-                child.computed_values().height().to_px(m_available_space->height.to_px_or_zero()),
+                child.computed_values().width().to_px(m_available_space->inline_size.to_px_or_zero()),
+                child.computed_values().height().to_px(m_available_space->block_size.to_px_or_zero()),
             }
         };
         auto svg_transform = parent_svg_transform;

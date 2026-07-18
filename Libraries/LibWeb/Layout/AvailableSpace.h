@@ -81,16 +81,16 @@ inline bool operator<(AvailableSize const& left, CSSPixels right)
 
 class AvailableSpace {
 public:
-    AvailableSpace(AvailableSize w, AvailableSize h)
-        : width(move(w))
-        , height(move(h))
+    AvailableSpace(AvailableSize inline_size, AvailableSize block_size)
+        : inline_size(move(inline_size))
+        , block_size(move(block_size))
     {
     }
 
     bool operator==(AvailableSpace const& other) const = default;
 
-    AvailableSize width;
-    AvailableSize height;
+    AvailableSize inline_size;
+    AvailableSize block_size;
 
     String to_string() const;
 };
