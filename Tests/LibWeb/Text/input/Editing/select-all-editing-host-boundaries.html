@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="first" contenteditable="true"><img><span>middle</span><img></div>
+<div id="second" contenteditable="true">other</div>
+<script>
+    test(() => {
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const selection = getSelection();
+        const describeNode = node => node.nodeType === Node.TEXT_NODE
+            ? `#text(${JSON.stringify(node.data)})`
+            : `${node.localName}#${node.id}`;
+        const report = label => {
+            println(`${label}: anchor=${describeNode(selection.anchorNode)}@${selection.anchorOffset} focus=${describeNode(selection.focusNode)}@${selection.focusOffset} text=${JSON.stringify(selection.toString())}`);
+        };
+
+        first.focus();
+        selection.collapse(first.children[1].firstChild, 3);
+        internals.sendKey(first, "A", platformControl);
+        report("Atomic editing-host boundaries");
+
+        // INTEROP: Chromium applies Select All to the selection's editing host, even when focus remains in another
+        // contenteditable element. Script can create this state without dispatching a focus event.
+        second.focus();
+        first.addEventListener("focus", () => selection.collapse(second.firstChild, 2), { once: true });
+        internals.sendKey(first, "A", platformControl);
+        report("Script-moved selection");
+    });
+</script>

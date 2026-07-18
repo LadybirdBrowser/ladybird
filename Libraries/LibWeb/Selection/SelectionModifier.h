@@ -46,6 +46,7 @@ public:
     }
 
     void modify(SelectionAlteration, SelectionDirection, SelectionGranularity);
+    void select_all();
 
 private:
     GC::Ref<Selection> m_selection;

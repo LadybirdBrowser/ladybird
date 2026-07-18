@@ -50,14 +50,10 @@ void EditingHostManager::handle_insert(Utf16FlyString const&, Utf16View value)
 
 void EditingHostManager::select_all()
 {
-    if (!m_active_contenteditable_element) {
+    if (!m_active_contenteditable_element)
         return;
-    }
     auto selection = m_document->get_selection();
-    if (!selection->anchor_node() || !selection->focus_node()) {
-        return;
-    }
-    MUST(selection->set_base_and_extent(*selection->anchor_node(), 0, *selection->focus_node(), selection->focus_node()->length()));
+    Selection::SelectionModifier(*selection).select_all();
 }
 
 void EditingHostManager::set_selection_anchor(GC::Ref<DOM::Node> anchor_node, size_t anchor_offset, TextAffinity affinity)

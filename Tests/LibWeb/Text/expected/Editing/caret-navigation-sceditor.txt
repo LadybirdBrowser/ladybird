@@ -1,3 +1,1 @@
-FAIL: 2 SCEditor caret assertions failed
-Select All anchor: expected #text@0, got #text@4
-Select All focus: expected #text@13, got #text@4
+PASS: 383 SCEditor caret interactions match Chromium

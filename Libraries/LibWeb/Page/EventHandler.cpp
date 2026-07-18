@@ -1123,8 +1123,12 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     }
 
     // https://w3c.github.io/clipboard-apis/#clipboard-actions
-    // AD-HOC: The clipboard action shortcut keys are not specified anywhere, but these combinations are universal.
+    // AD-HOC: These editing action shortcut keys are not specified anywhere, but the combinations are universal.
     if ((modifiers & UIEvents::Mod_PlatformCtrl) != 0 && (modifiers & (UIEvents::Mod_Shift | UIEvents::Mod_Alt)) == 0) {
+        if (key == UIEvents::KeyCode::Key_A) {
+            m_navigable->select_all();
+            return EventResult::Handled;
+        }
         if (key == UIEvents::KeyCode::Key_C)
             return perform_copy_action();
         if (key == UIEvents::KeyCode::Key_X)

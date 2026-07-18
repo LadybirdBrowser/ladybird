@@ -489,6 +489,8 @@ Optional<CaretLocation> CaretNavigator::move_to_editing_host_boundary(CaretLocat
         return CaretLocation { *text, position->offset, position->affinity };
     }
 
+    if (is_atomic_inline_caret_host(*target) && target->parent())
+        return CaretLocation { *target->parent(), target->index() + (direction == SelectionDirection::Forward ? 1 : 0), TextAffinity::Downstream };
     if (is<HTML::HTMLBRElement>(*target) && target->parent())
         return CaretLocation { *target->parent(), target->index(), TextAffinity::Downstream };
     return CaretLocation { *target, 0, TextAffinity::Downstream };
@@ -707,6 +709,29 @@ void SelectionModifier::modify(SelectionAlteration alteration, SelectionDirectio
     m_selection->set_focus_affinity(destination->affinity);
     if (is_vertical_movement)
         m_selection->m_preferred_inline_coordinate = preferred_inline_coordinate;
+    m_selection->document()->set_cursor_position_needs_repaint();
+    m_selection->scroll_focus_into_view();
+}
+
+void SelectionModifier::select_all()
+{
+    // INTEROP: Select All in an editing host uses its first and last rendered caret positions, rather than parent
+    // boundaries around the host's child list. Reuse document-boundary navigation so keyboard movement and selection
+    // expose the same DOM endpoints around styled text, empty blocks, and atomic inline content.
+    auto focus = m_selection->focus_node();
+    if (!focus)
+        return;
+
+    CaretNavigator navigator(*m_selection->document());
+    CaretLocation origin { *focus, m_selection->focus_offset(), m_selection->focus_affinity() };
+    auto start = navigator.move(origin, SelectionAlteration::Move, SelectionDirection::Backward, SelectionGranularity::DocumentBoundary);
+    auto end = navigator.move(origin, SelectionAlteration::Move, SelectionDirection::Forward, SelectionGranularity::DocumentBoundary);
+    if (!start.has_value() || !end.has_value())
+        return;
+
+    MUST(m_selection->set_base_and_extent(start->node, start->offset, end->node, end->offset));
+    m_selection->m_preferred_inline_coordinate.clear();
+    m_selection->document()->reset_cursor_blink_cycle();
     m_selection->document()->set_cursor_position_needs_repaint();
     m_selection->scroll_focus_into_view();
 }

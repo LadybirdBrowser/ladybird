@@ -1,0 +1,2 @@
+Atomic editing-host boundaries: anchor=div#first@0 focus=div#first@3 text="middle"
+Script-moved selection: anchor=#text("other")@0 focus=#text("other")@5 text="other"
