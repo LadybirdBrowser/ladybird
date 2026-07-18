@@ -28,15 +28,15 @@ void ReplacedWithChildrenFormattingContext::run(LayoutInput const& layout_input)
     if (natural_size.has_height())
         root_state.set_has_definite_block_size(true);
 
-    // For height, use the parent-set content height if it's been resolved (e.g. explicit height
-    // or intrinsic height), otherwise use the available space from the parent formatting context.
-    auto child_available_height = root_state.has_definite_block_size()
+    // For the block axis, use the parent-set content block size if it has been resolved (e.g. an
+    // explicit or intrinsic block size); otherwise use the parent formatting context's space.
+    auto child_available_block_size = root_state.has_definite_block_size()
         ? AvailableSize::make_definite(root_state.content_block_size())
         : available_space.block_size;
 
     auto child_available_space = AvailableSpace(
         AvailableSize::make_definite(content_inline_size),
-        child_available_height);
+        child_available_block_size);
 
     // The TreeBuilder wraps shadow DOM children in an anonymous BlockContainer.
     // Delegate layout to a BFC for that wrapper.
