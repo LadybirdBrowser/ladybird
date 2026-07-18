@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        window.reportResult = (iframeDocument, parsedDocument) => {
+            println(`iframe URL: ${iframeDocument.URL}`);
+            println(`iframe base URI inherited: ${iframeDocument.baseURI === document.baseURI}`);
+            println(`parsed URL: ${parsedDocument.URL}`);
+            println(`parsed base URI: ${parsedDocument.baseURI}`);
+            done();
+        };
+
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `<script>
+            const parsedDocument = new DOMParser().parseFromString("<x></x>", "application/xml");
+            parent.reportResult(document, parsedDocument);
+        <\/script>`;
+        document.body.appendChild(iframe);
+    });
+</script>

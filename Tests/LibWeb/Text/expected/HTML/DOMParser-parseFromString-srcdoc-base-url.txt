@@ -1,0 +1,4 @@
+iframe URL: about:srcdoc
+iframe base URI inherited: true
+parsed URL: about:srcdoc
+parsed base URI: about:srcdoc

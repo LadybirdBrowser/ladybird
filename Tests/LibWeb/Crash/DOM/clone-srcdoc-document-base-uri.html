@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<body>
+<script>
+    const iframe = document.createElement("iframe");
+    iframe.srcdoc = "<p></p>";
+    iframe.onload = () => {
+        iframe.contentDocument.cloneNode().baseURI;
+        document.documentElement.classList.remove("test-wait");
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>
+</html>

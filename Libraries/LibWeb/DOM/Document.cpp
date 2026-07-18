@@ -1623,7 +1623,11 @@ URL::URL Document::fallback_base_url() const
     // 1. If document is an iframe srcdoc document, then:
     if (HTML::url_matches_about_srcdoc(m_url)) {
         // 1. Assert: document's about base URL is non-null.
-        VERIFY(m_about_base_url.has_value());
+        // AD-HOC: Documents created by DOMParser or by cloning can have a URL that matches about:srcdoc
+        //         without an about base URL being set. Returning the document's URL in this case matches
+        //         the behavior of other engines.
+        if (!m_about_base_url.has_value())
+            return m_url;
 
         // 2. Return document's about base URL.
         return m_about_base_url.value();
