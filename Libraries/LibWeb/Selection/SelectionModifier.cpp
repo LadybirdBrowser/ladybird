@@ -625,8 +625,14 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
     m_document->update_layout_if_needed_for_node(line_origin.node, DOM::UpdateLayoutReason::CursorLineNavigation);
     auto line_direction = direction == SelectionDirection::Forward ? Painting::CaretLineDirection::Next : Painting::CaretLineDirection::Previous;
     auto position = m_document->caret_position_on_adjacent_line(line_origin.node, line_origin.offset, line_origin.affinity, line_direction, *preferred_inline_coordinate, *editing_host);
-    if (!position.has_value())
-        return {};
+    if (!position.has_value()) {
+        // INTEROP: Chromium and WebKit move to the current line's directional edge when there is no visual line in the
+        // requested direction. This makes Up and Down useful at the first and final lines instead of becoming no-ops.
+        auto edge = direction == SelectionDirection::Forward ? Painting::CaretLineEdge::End : Painting::CaretLineEdge::Start;
+        position = m_document->caret_position_at_line_edge(line_origin.node, line_origin.offset, line_origin.affinity, edge);
+        if (!position.has_value())
+            return {};
+    }
 
     CaretLocation destination { position->boundary.node, position->boundary.offset, position->affinity };
     // Point-to-caret resolution naturally returns the parent boundary before an atomic inline. For a collapsed caret,
