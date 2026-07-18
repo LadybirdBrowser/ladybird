@@ -37,7 +37,7 @@ struct PhysicalOverflowDirections {
     bool y_positive { true };
 };
 
-struct LogicalAxis {
+struct AxisDirection {
     bool is_horizontal { false };
     bool is_reverse { false };
 };
@@ -59,11 +59,11 @@ static bool node_is_in_focused_text_control(DOM::Node const& node)
 static PhysicalOverflowDirections physical_overflow_directions(Box const& box)
 {
     auto const& computed_values = box.computed_values();
-    LogicalAxis inline_axis {
+    AxisDirection inline_axis {
         .is_horizontal = inline_axis_is_horizontal(computed_values.writing_mode()),
         .is_reverse = computed_values.inline_axis_is_reverse(),
     };
-    LogicalAxis block_axis {
+    AxisDirection block_axis {
         .is_horizontal = !inline_axis.is_horizontal,
         .is_reverse = computed_values.block_axis_is_reverse(),
     };
