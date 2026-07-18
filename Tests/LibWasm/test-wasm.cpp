@@ -52,10 +52,22 @@ public:
     explicit WebAssemblyModule(JS::Object& prototype)
         : JS::Object(ConstructWithPrototypeTag::Tag, prototype)
     {
-        m_machine.enable_instruction_count_limit();
+        machine().enable_instruction_count_limit();
     }
 
-    static Wasm::AbstractMachine& machine() { return m_machine; }
+    static Wasm::AbstractMachine& machine()
+    {
+        if (!s_machine)
+            s_machine = make<Wasm::AbstractMachine>();
+        return *s_machine;
+    }
+
+    static void reset_machine()
+    {
+        s_machine = nullptr;
+        s_spec_test_namespace.clear();
+    }
+
     Wasm::Module& module() { return *m_module; }
     Wasm::ModuleInstance& module_instance() { return *m_module_instance; }
 
@@ -86,6 +98,9 @@ private:
 
     static HashMap<Wasm::Linker::Name, Wasm::ExternValue> const& spec_test_namespace()
     {
+        if (!s_spec_test_namespace.is_empty())
+            return s_spec_test_namespace;
+
         Wasm::FunctionType print_type { {}, {} };
         auto address_print = alloc_noop_function(print_type);
         s_spec_test_namespace.set({ "spectest", "print", print_type }, Wasm::ExternValue { *address_print });
@@ -115,31 +130,31 @@ private:
         s_spec_test_namespace.set({ "spectest", "print_f64_f64", print_f64_f64_type }, Wasm::ExternValue { *address_f64_f64 });
 
         Wasm::TableType table_type { Wasm::ValueType(Wasm::ValueType::FunctionReference), Wasm::Limits(Wasm::AddressType::I32, 10, 20) };
-        auto table_address = m_machine.store().allocate(table_type);
+        auto table_address = machine().store().allocate(table_type);
         s_spec_test_namespace.set({ "spectest", "table", table_type }, Wasm::ExternValue { *table_address });
 
         Wasm::TableType table64_type { Wasm::ValueType(Wasm::ValueType::FunctionReference), Wasm::Limits(Wasm::AddressType::I64, 10, 20) };
-        auto table64_address = m_machine.store().allocate(table64_type);
+        auto table64_address = machine().store().allocate(table64_type);
         s_spec_test_namespace.set({ "spectest", "table64", table64_type }, Wasm::ExternValue { *table64_address });
 
         Wasm::MemoryType memory_type { Wasm::Limits(Wasm::AddressType::I32, 1, 2) };
-        auto memory_address = m_machine.store().allocate(memory_type);
+        auto memory_address = machine().store().allocate(memory_type);
         s_spec_test_namespace.set({ "spectest", "memory", memory_type }, Wasm::ExternValue { *memory_address });
 
         Wasm::GlobalType global_i32 { Wasm::ValueType(Wasm::ValueType::I32), false };
-        auto global_i32_address = m_machine.store().allocate(global_i32, Wasm::Value(666));
+        auto global_i32_address = machine().store().allocate(global_i32, Wasm::Value(666));
         s_spec_test_namespace.set({ "spectest", "global_i32", global_i32 }, Wasm::ExternValue { *global_i32_address });
 
         Wasm::GlobalType global_i64 { Wasm::ValueType(Wasm::ValueType::I64), false };
-        auto global_i64_address = m_machine.store().allocate(global_i64, Wasm::Value((i64)666));
+        auto global_i64_address = machine().store().allocate(global_i64, Wasm::Value((i64)666));
         s_spec_test_namespace.set({ "spectest", "global_i64", global_i64 }, Wasm::ExternValue { *global_i64_address });
 
         Wasm::GlobalType global_f32 { Wasm::ValueType(Wasm::ValueType::F32), false };
-        auto global_f32_address = m_machine.store().allocate(global_f32, Wasm::Value(666.6f));
+        auto global_f32_address = machine().store().allocate(global_f32, Wasm::Value(666.6f));
         s_spec_test_namespace.set({ "spectest", "global_f32", global_f32 }, Wasm::ExternValue { *global_f32_address });
 
         Wasm::GlobalType global_f64 { Wasm::ValueType(Wasm::ValueType::F64), false };
-        auto global_f64_address = m_machine.store().allocate(global_f64, Wasm::Value(666.6));
+        auto global_f64_address = machine().store().allocate(global_f64, Wasm::Value(666.6));
         s_spec_test_namespace.set({ "spectest", "global_f64", global_f64 }, Wasm::ExternValue { *global_f64_address });
 
         return s_spec_test_namespace;
@@ -147,7 +162,7 @@ private:
 
     static Optional<Wasm::FunctionAddress> alloc_noop_function(Wasm::FunctionType type)
     {
-        return m_machine.store().allocate(Wasm::HostFunction {
+        return machine().store().allocate(Wasm::HostFunction {
             [](auto&, auto) -> Wasm::Result {
                 // Noop, this just needs to exist.
                 return Wasm::Result { Vector<Wasm::Value> {} };
@@ -157,15 +172,21 @@ private:
     }
 
     static HashMap<Wasm::Linker::Name, Wasm::ExternValue> s_spec_test_namespace;
-    static Wasm::AbstractMachine m_machine;
+    static OwnPtr<Wasm::AbstractMachine> s_machine;
     RefPtr<Wasm::Module> m_module;
     RefPtr<Wasm::ModuleInstance> m_module_instance;
 };
 
 GC_DEFINE_ALLOCATOR(WebAssemblyModule);
 
-Wasm::AbstractMachine WebAssemblyModule::m_machine;
+OwnPtr<Wasm::AbstractMachine> WebAssemblyModule::s_machine;
 HashMap<Wasm::Linker::Name, Wasm::ExternValue> WebAssemblyModule::s_spec_test_namespace;
+
+TESTJS_RUN_FILE_FUNCTION(ByteString const&, JS::Realm&, JS::ExecutionContext&)
+{
+    WebAssemblyModule::reset_machine();
+    return Test::JS::RunFileHookResult::RunAsNormal;
+}
 
 TESTJS_GLOBAL_FUNCTION(parse_webassembly_module, parseWebAssemblyModule)
 {
@@ -376,7 +397,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
             if (auto ptr = value.get_pointer<Wasm::FunctionAddress>())
                 return JS::Value(static_cast<unsigned long>(ptr->value()));
             if (auto v = value.get_pointer<Wasm::GlobalAddress>()) {
-                auto global = m_machine.store().get(*v);
+                auto global = machine().store().get(*v);
                 switch (global->type().type().kind()) {
                 case Wasm::ValueType::I32:
                     return JS::Value(static_cast<double>(global->value().to<i32>()));
