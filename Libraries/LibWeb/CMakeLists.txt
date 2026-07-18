@@ -399,6 +399,8 @@ set(SOURCES
     Dump.cpp
     Editing/CommandNames.cpp
     Editing/Commands.cpp
+    Editing/EditCommand.cpp
+    Editing/EditingHistory.cpp
     Editing/ExecCommand.cpp
     Editing/Internal/Algorithms.cpp
     Encoding/TextDecoder.cpp

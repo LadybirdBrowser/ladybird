@@ -1201,6 +1201,10 @@ public:
 
     GC::Ref<EditingHostManager> editing_host_manager() const { return *m_editing_host_manager; }
 
+    // The history of user editing actions in this document, created lazily by the first
+    // recorded editing command.
+    GC::Ptr<Editing::EditingHistory> editing_history_if_exists() const { return m_editing_history; }
+
     // https://w3c.github.io/editing/docs/execCommand/#default-single-line-container-name
     Utf16FlyString const& default_single_line_container_name() const { return m_default_single_line_container_name; }
     void set_default_single_line_container_name(Utf16FlyString const& name) { m_default_single_line_container_name = name; }
@@ -1776,6 +1780,8 @@ private:
     mutable OwnPtr<Unicode::Segmenter> m_word_segmenter;
 
     GC::Ref<EditingHostManager> m_editing_host_manager;
+
+    GC::Ptr<Editing::EditingHistory> m_editing_history;
 
     bool m_inside_exec_command { false };
     bool m_preserve_selection_offsets_during_identical_character_data_replacement { false };

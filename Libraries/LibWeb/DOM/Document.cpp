@@ -111,6 +111,7 @@
 #include <LibWeb/DOM/Utils.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -817,6 +818,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     if (m_hit_test_display_list)
         m_hit_test_display_list->visit_edges(visitor);
     visitor.visit(m_editing_host_manager);
+    visitor.visit(m_editing_history);
     visitor.visit(m_local_storage_holder);
     visitor.visit(m_session_storage_holder);
     visitor.visit(m_render_blocking_elements);

@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/CommandNames.h>
 #include <LibWeb/Editing/Commands.h>
+#include <LibWeb/Editing/EditCommand.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
@@ -172,7 +173,7 @@ bool command_delete_action(DOM::Document& document, Utf16View)
         //    node's previousSibling from its parent.
         if (auto* previous_sibling = node->previous_sibling()) {
             if (offset == 0 && previous_sibling->is_editable() && is_invisible_node(*previous_sibling)) {
-                previous_sibling->remove();
+                remove_node(*previous_sibling);
                 continue;
             }
         }
@@ -180,7 +181,7 @@ bool command_delete_action(DOM::Document& document, Utf16View)
         // 2. Otherwise, if node has a child with index offset − 1 and that child is an editable
         //    invisible node, remove that child from node, then subtract one from offset.
         if (offset_minus_one_child && offset_minus_one_child->is_editable() && is_invisible_node(*offset_minus_one_child)) {
-            offset_minus_one_child->remove();
+            remove_node(*offset_minus_one_child);
             --offset;
             continue;
         }
@@ -317,7 +318,7 @@ bool command_delete_action(DOM::Document& document, Utf16View)
         //    one, remove it from start node and subtract one from start offset.
         offset_minus_one_child = start_node->child_at_index(start_offset - 1);
         if (offset_minus_one_child && offset_minus_one_child->is_editable() && is_invisible_node(*offset_minus_one_child)) {
-            offset_minus_one_child->remove();
+            remove_node(*offset_minus_one_child);
             --start_offset;
             continue;
         }
@@ -439,14 +440,14 @@ bool command_delete_action(DOM::Document& document, Utf16View)
         GC::Ptr<DOM::Node> previous_item_last_child = previous_item->last_child();
         if (previous_item_last_child && is_inline_node(*previous_item_last_child) && !is<HTML::HTMLBRElement>(*previous_item_last_child)) {
             auto br_element = MUST(DOM::create_element(previous_item->document(), HTML::TagNames::br, Namespace::HTML));
-            MUST(previous_item->append_child(br_element));
+            MUST(append_node(br_element, *previous_item));
         }
 
         // 3. If previous item's lastChild is an inline node, call createElement("br") on the
         //    context object and append the result as the last child of previous item.
         if (previous_item_last_child && is_inline_node(*previous_item_last_child)) {
             auto br_element = MUST(DOM::create_element(previous_item->document(), HTML::TagNames::br, Namespace::HTML));
-            MUST(previous_item->append_child(br_element));
+            MUST(append_node(br_element, *previous_item));
         }
     }
 
@@ -492,7 +493,7 @@ bool command_delete_action(DOM::Document& document, Utf16View)
         //    remove it from start node, then subtract one from start offset.
         offset_minus_one_child = start_node->child_at_index(start_offset - 1);
         if (offset_minus_one_child->is_editable() && is_invisible_node(*offset_minus_one_child)) {
-            offset_minus_one_child->remove();
+            remove_node(*offset_minus_one_child);
             --start_offset;
         }
 
@@ -753,7 +754,7 @@ bool command_format_block_action(DOM::Document& document, Utf16View value)
             //         disappear given that Firefox and Opera did this at the time. We're going to follow their lead and
             //         remove the node if it has no children.
             if (!node_list.first()->has_children()) {
-                node_list.take_first()->remove();
+                remove_node(*node_list.take_first());
                 continue;
             }
 
@@ -944,7 +945,7 @@ bool command_forward_delete_action(DOM::Document& document, Utf16View)
         //    nextSibling from its parent.
         if (offset == node->length() && node->next_sibling() && node->next_sibling()->is_editable()
             && is_invisible_node(*node->next_sibling())) {
-            node->next_sibling()->remove();
+            remove_node(*node->next_sibling());
             continue;
         }
 
@@ -952,7 +953,7 @@ bool command_forward_delete_action(DOM::Document& document, Utf16View)
         //    child from node.
         auto* child_at_offset = node->child_at_index(offset);
         if (child_at_offset && child_at_offset->is_editable() && is_invisible_node(*child_at_offset)) {
-            child_at_offset->remove();
+            remove_node(*child_at_offset);
             continue;
         }
 
@@ -1046,7 +1047,7 @@ bool command_forward_delete_action(DOM::Document& document, Utf16View)
         // 2. Otherwise, if end node has an editable invisible child with index end offset, remove it from end node.
         if (auto child_at_offset = end_node->child_at_index(end_offset); child_at_offset && child_at_offset->is_editable()
             && is_invisible_node(*child_at_offset)) {
-            child_at_offset->remove();
+            remove_node(*child_at_offset);
             continue;
         }
 
@@ -1093,7 +1094,7 @@ bool command_forward_delete_action(DOM::Document& document, Utf16View)
     while (auto child_at_offset = end_node->child_at_index(end_offset)) {
         // 1. If end node's child with index end offset is editable and invisible, remove it from end node.
         if (child_at_offset->is_editable() && is_invisible_node(*child_at_offset)) {
-            child_at_offset->remove();
+            remove_node(*child_at_offset);
         }
 
         // 2. Otherwise, set end node to its child with index end offset and set end offset to zero.
@@ -1247,7 +1248,7 @@ bool command_insert_horizontal_rule_action(DOM::Document& document, Utf16View)
     auto hr = MUST(DOM::create_element(document, HTML::TagNames::hr, Namespace::HTML));
 
     // 11. Run insertNode(hr) on the active range.
-    MUST(active_range(document)->insert_node(hr));
+    MUST(insert_node_into_range(*active_range(document), hr));
 
     // 12. Fix disallowed ancestors of hr.
     fix_disallowed_ancestors_of_node(hr);
@@ -1311,18 +1312,18 @@ bool command_insert_html_action(DOM::Document& document, Utf16View value)
 
         // 2. For each node in collapsed block props, remove node from its parent.
         for (auto node : collapsed_block_props)
-            node->remove();
+            remove_node(*node);
     }
 
     // 9. Call insertNode(frag) on the active range.
-    MUST(range->insert_node(frag));
+    MUST(insert_node_into_range(*range, frag));
 
     // 10. If the active range's start node is a block node with no visible children, call createElement("br") on the
     //     context object and append the result as the last child of the active range's start node.
     range = active_range(document);
     if (is_block_node(range->start_container()) && !has_visible_children(range->start_container())) {
         auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
-        MUST(range->start_container()->append_child(br));
+        MUST(append_node(br, *range->start_container()));
     }
 
     // 11. Call collapse() on the context object's selection, with last child's parent as the first argument and one
@@ -1360,16 +1361,16 @@ bool command_insert_image_action(DOM::Document& document, Utf16View value)
     auto start_node = range->start_container();
     if (is_block_node(start_node) && start_node->child_count() == 1 && is<HTML::HTMLBRElement>(*start_node->first_child())
         && range->start_offset() == 0)
-        start_node->first_child()->remove();
+        remove_node(*start_node->first_child());
 
     // 6. Let img be the result of calling createElement("img") on the context object.
     auto img = MUST(DOM::create_element(document, HTML::TagNames::img, Namespace::HTML));
 
     // 7. Run setAttribute("src", value) on img.
-    img->set_attribute_value(HTML::AttributeNames::src, value);
+    set_attribute_value(*img, HTML::AttributeNames::src, value);
 
     // 8. Run insertNode(img) on range.
-    MUST(range->insert_node(img));
+    MUST(insert_node_into_range(*range, img));
 
     // 9. Let selection be the result of calling getSelection() on the context object.
     // NOTE: Already done so in step 2.
@@ -1427,19 +1428,19 @@ bool command_insert_linebreak_action(DOM::Document& document, Utf16View)
     auto resolved_white_space_collapse = resolved_keyword(*start_node, CSS::PropertyID::WhiteSpaceCollapse);
     if (resolved_white_space_collapse.has_value() && first_is_one_of(resolved_white_space_collapse.value(), CSS::Keyword::Preserve, CSS::Keyword::PreserveBreaks)) {
         if (auto* text_node = as_if<DOM::Text>(*start_node)) {
-            MUST(text_node->insert_data(start_offset, "\n"_utf16));
+            MUST(insert_data(*text_node, start_offset, "\n"_utf16));
             MUST(selection.collapse(start_node, start_offset + 1));
             if (active_range(document)->start_offset() == text_node->length()) {
                 MUST(selection.collapse(start_node->parent(), start_node->index() + 1));
                 auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
-                MUST(active_range(document)->insert_node(br));
+                MUST(insert_node_into_range(*active_range(document), br));
             }
             return true;
         }
         if (auto editing_host = start_node->editing_host(); is<HTML::HTMLElement>(editing_host.ptr())
             && as<HTML::HTMLElement>(*editing_host).content_editable_state() == HTML::ContentEditableState::PlaintextOnly) {
             auto text = document.create_text_node("\n"_utf16);
-            MUST(active_range(document)->insert_node(text));
+            MUST(insert_node_into_range(*active_range(document), text));
             MUST(selection.collapse(text, 1));
             return true;
         }
@@ -1450,7 +1451,7 @@ bool command_insert_linebreak_action(DOM::Document& document, Utf16View)
 
     // 8. Call insertNode(br) on the active range.
     // NB: We use range from step 2 here; see the comment there for why.
-    MUST(range.insert_node(br));
+    MUST(insert_node_into_range(range, br));
 
     // 9. Call collapse() on the context object's selection, with br's parent as the first argument and one plus br's
     //    index as the second argument.
@@ -1460,7 +1461,7 @@ bool command_insert_linebreak_action(DOM::Document& document, Utf16View)
     //     result, then call insertNode(extra br) on the active range.
     if (is_collapsed_line_break(br)) {
         auto extra_br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
-        MUST(range.insert_node(extra_br));
+        MUST(insert_node_into_range(range, extra_br));
     }
 
     // 11. Return true.
@@ -1508,7 +1509,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
 
     // 4. If node is a Text node, and offset is neither 0 nor the length of node, call splitText(offset) on node.
     if (is<DOM::Text>(*node) && offset != 0 && offset != node->length())
-        MUST(static_cast<DOM::Text&>(*node).split_text(offset));
+        MUST(split_text(static_cast<DOM::Text&>(*node), offset));
 
     // 5. If node is a Text node and offset is its length, set offset to one plus the index of node, then set node to
     //    its parent.
@@ -1596,10 +1597,10 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
             container = MUST(DOM::create_element(document, tag, Namespace::HTML));
 
             // 3. Call insertNode(container) on the active range.
-            MUST(active_range->insert_node(*container));
+            MUST(insert_node_into_range(*active_range, *container));
 
             // 4. Call createElement("br") on the context object, and append the result as the last child of container.
-            MUST(container->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
+            MUST(append_node(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML)), *container));
 
             // 5. Call collapse(container, 0) on the context object's selection.
             MUST(selection.collapse(container, 0));
@@ -1637,7 +1638,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
         auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
 
         // 2. Call insertNode(br) on the active range.
-        MUST(active_range->insert_node(br));
+        MUST(insert_node_into_range(*active_range, br));
 
         // 3. Call collapse(node, offset + 1) on the context object's selection.
         MUST(selection.collapse(node, offset + 1));
@@ -1650,7 +1651,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
             last_descendant = last_descendant->last_child();
         if (br == last_descendant) {
             br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
-            MUST(active_range->insert_node(br));
+            MUST(insert_node_into_range(*active_range, br));
         }
 
         // 5. Return true.
@@ -1668,7 +1669,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
         // 2. If container has no children, call createElement("br") on the context object and append the result as the
         //    last child of container.
         if (!container->has_children())
-            MUST(container->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
+            MUST(append_node(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML)), *container));
 
         // 3. If container is a dd or dt, and it is not an allowed child of any of its ancestors in the same editing
         //    host, set the tag name of container to the default single-line container name and let container be the
@@ -1744,35 +1745,68 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
 
     // 23. Copy all attributes of container to new container.
     container_element.for_each_attribute([&new_container](Utf16FlyString const& name, Utf16View value) {
-        new_container->set_attribute_value(name, value);
+        set_attribute_value(*new_container, name, value);
     });
 
     // 24. If new container has an id attribute, unset it.
     if (new_container->has_attribute(HTML::AttributeNames::id))
-        new_container->remove_attribute(HTML::AttributeNames::id);
+        remove_attribute(*new_container, HTML::AttributeNames::id);
 
     // 25. Insert new container into the parent of container immediately after container.
-    container->parent()->insert_before(*new_container, container->next_sibling());
+    insert_node_before(*new_container, *container->parent(), container->next_sibling());
 
     // 26. Let contained nodes be all nodes contained in new line range.
-    Vector<GC::Ref<DOM::Node>> contained_nodes;
-    new_line_range->for_each_contained([&contained_nodes](GC::Ref<DOM::Node> node) {
-        contained_nodes.append(node);
-        return IterationDecision::Continue;
-    });
-
     // 27. Let frag be the result of calling extractContents() on new line range.
-    auto frag = MUST(new_line_range->extract_contents());
-
     // 28. Unset the id attribute (if any) of each Element descendant of frag that is not in contained nodes.
-    frag->for_each_in_subtree_of_type<DOM::Element>([&contained_nodes](GC::Ref<DOM::Element> descendant) {
-        if (!contained_nodes.contains_slow(descendant))
-            descendant->remove_attribute(HTML::AttributeNames::id);
-        return TraversalDecision::Continue;
-    });
-
     // 29. Call appendChild(frag) on new container.
-    MUST(new_container->append_child(frag));
+    //
+    // AD-HOC: extractContents() would clone the partially contained ancestors on the range's start path and mutate the
+    //         tree behind the editing history's back. Instead, split the start boundary in place (which is exactly what
+    //         the cloning in extractContents() amounts to here, since the range's end is the end of container) and then
+    //         move the nodes after the boundary directly into new container, performing every mutation through a
+    //         reversible edit command. The resulting DOM is identical, and this mirrors how WebKit and Blink split
+    //         paragraphs. The elements created by the boundary split take the place of the clones from step 27, so
+    //         step 28's id-stripping applies to them.
+    GC::Ptr<DOM::Node> start_node = new_line_range->start_container();
+    auto start_offset = new_line_range->start_offset();
+
+    // AD-HOC: When step 11 wraps only the first node of the line, range gravity can leave the selection start outside
+    //         of (just before) container, at one of its ancestors; the spec would then call extractContents() on a
+    //         backwards range. INTEROP: Match Chromium for this case instead: the new paragraph becomes an empty block
+    //         before the line, and the caret stays at the start of the existing content.
+    if (start_node != container && !container->is_inclusive_ancestor_of(*start_node)) {
+        insert_node_before(*new_container, *container->parent(), container);
+        MUST(append_node(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML)), *new_container));
+        MUST(selection.collapse(container, 0));
+        return true;
+    }
+
+    while (start_node != container) {
+        auto parent = GC::Ref { *start_node->parent() };
+        auto index = start_node->index();
+        if (auto* text = as_if<DOM::Text>(*start_node)) {
+            // NB: Steps 15 and 16 lifted boundaries at the edges of the start node to its parent, so a remaining Text
+            //     node boundary is strictly inside the node.
+            MUST(split_text(*text, start_offset));
+        } else {
+            auto clone = MUST(start_node->clone_node(nullptr, false));
+            if (auto* clone_element = as_if<DOM::Element>(*clone))
+                clone_element->remove_attribute(HTML::AttributeNames::id);
+            insert_node_before(clone, parent, start_node->next_sibling());
+            Vector<GC::Ref<DOM::Node>> children_to_move;
+            for (auto* child = start_node->child_at_index(start_offset); child; child = child->next_sibling())
+                children_to_move.append(*child);
+            for (auto child_to_move : children_to_move)
+                MUST(append_node(child_to_move, clone));
+        }
+        start_offset = index + 1;
+        start_node = parent;
+    }
+    Vector<GC::Ref<DOM::Node>> nodes_to_move;
+    for (auto* child = container->child_at_index(start_offset); child; child = child->next_sibling())
+        nodes_to_move.append(*child);
+    for (auto node_to_move : nodes_to_move)
+        MUST(append_node(node_to_move, *new_container));
 
     // 30. While container's lastChild is a prohibited paragraph child, set container to its lastChild.
     while (container->last_child() && is_prohibited_paragraph_child(*container->last_child()))
@@ -1787,12 +1821,12 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
     // 32. If container has no visible children, call createElement("br") on the context object, and append the result
     //     as the last child of container.
     if (!has_visible_children(*container))
-        MUST(container->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
+        MUST(append_node(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML)), *container));
 
     // 33. If new container has no visible children, call createElement("br") on the context object, and append the
     //     result as the last child of new container.
     if (!has_visible_children(*new_container))
-        MUST(new_container->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
+        MUST(append_node(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML)), *new_container));
 
     // 34. Call collapse(new container, 0) on the context object's selection.
     MUST(document.get_selection()->collapse(new_container, 0));
@@ -1884,7 +1918,7 @@ bool command_insert_text_action(DOM::Document& document, Utf16View value)
     // 13. If node is a Text node:
     if (is<DOM::Text>(*node)) {
         // 1. Call insertData(offset, value) on node.
-        MUST(static_cast<DOM::Text&>(*node).insert_data(offset, value));
+        MUST(insert_data(static_cast<DOM::Text&>(*node), offset, value));
 
         // 2. Call collapse(node, offset) on the context object's selection.
         MUST(selection.collapse(node, offset));
@@ -1897,13 +1931,13 @@ bool command_insert_text_action(DOM::Document& document, Utf16View value)
     else {
         // 1. If node has only one child, which is a collapsed line break, remove its child from it.
         if (node->child_count() == 1 && is_collapsed_line_break(*node->first_child()))
-            node->first_child()->remove();
+            remove_node(*node->first_child());
 
         // 2. Let text be the result of calling createTextNode(value) on the context object.
         auto text = document.create_text_node(Utf16String::from_utf16(value));
 
         // 3. Call insertNode(text) on the active range.
-        MUST(active_range(document)->insert_node(text));
+        MUST(insert_node_into_range(*active_range(document), text));
 
         // 4. Call collapse(text, 0) on the context object's selection.
         MUST(selection.collapse(text, 0));
@@ -2264,7 +2298,7 @@ bool command_remove_format_action(DOM::Document& document, Utf16View)
             move_node_preserving_ranges(*element->first_child(), *element->parent(), element_index++);
 
         // 2. Remove element from its parent.
-        element->remove();
+        remove_node(*element);
     }
 
     // 3. If the active range's start node is an editable Text node, and its start offset is neither zero nor its start
@@ -2273,7 +2307,7 @@ bool command_remove_format_action(DOM::Document& document, Utf16View)
     auto range = active_range(document);
     auto start = range->start();
     if (start.node->is_editable() && is<DOM::Text>(*start.node) && start.offset != 0 && start.offset != start.node->length()) {
-        auto new_node = MUST(static_cast<DOM::Text&>(*start.node).split_text(start.offset));
+        auto new_node = MUST(split_text(static_cast<DOM::Text&>(*start.node), start.offset));
         MUST(range->set_start(new_node, 0));
     }
 
@@ -2281,7 +2315,7 @@ bool command_remove_format_action(DOM::Document& document, Utf16View)
     //    length, call splitText() on the active range's end node, with argument equal to the active range's end offset.
     auto end = range->end();
     if (end.node->is_editable() && is<DOM::Text>(*end.node) && end.offset != 0 && end.offset != end.node->length())
-        MUST(static_cast<DOM::Text&>(*end.node).split_text(end.offset));
+        MUST(split_text(static_cast<DOM::Text&>(*end.node), end.offset));
 
     // 5. Let node list consist of all editable nodes effectively contained in the active range.
     Vector<GC::Ref<DOM::Node>> node_list;

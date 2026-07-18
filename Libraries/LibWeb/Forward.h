@@ -589,6 +589,14 @@ enum class SetNeedsLayoutReason;
 
 }
 
+namespace Web::Editing {
+
+class EditCommand;
+class EditingHistory;
+class UndoStep;
+
+}
+
 namespace Web::Encoding {
 
 class TextDecoder;

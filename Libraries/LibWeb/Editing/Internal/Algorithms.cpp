@@ -24,6 +24,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/CommandNames.h>
 #include <LibWeb/Editing/Commands.h>
+#include <LibWeb/Editing/EditCommand.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
@@ -453,7 +454,7 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
                 //    code unit of end node's data is a space (0x0020): call deleteData(end offset, 1)
                 //    on end node, then continue this loop from the beginning.
                 if (fix_collapsed_space && collapse_spaces && offset_code_unit == 0x20) {
-                    MUST(static_cast<DOM::CharacterData&>(*end_node).delete_data(end_offset, 1));
+                    MUST(delete_data(static_cast<DOM::CharacterData&>(*end_node), end_offset, 1));
                     continue;
                 }
 
@@ -516,7 +517,7 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
                     --length;
 
                     // 3. Call deleteData(end offset, 1) on end node.
-                    MUST(static_cast<DOM::CharacterData&>(*end_node).delete_data(end_offset, 1));
+                    MUST(delete_data(static_cast<DOM::CharacterData&>(*end_node), end_offset, 1));
 
                     // NOTE: We continue the loop here since we matched every condition from step 8.3
                     continue;
@@ -574,10 +575,10 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
             if (element != start_node_code_unit) {
                 // 1. Call insertData(start offset, element) on start node.
                 auto& start_node_character_data = static_cast<DOM::CharacterData&>(*start_node);
-                MUST(start_node_character_data.insert_data(start_offset, Utf16String::from_code_point(element)));
+                MUST(insert_data(start_node_character_data, start_offset, Utf16String::from_code_point(element)));
 
                 // 2. Call deleteData(start offset + 1, 1) on start node.
-                MUST(start_node_character_data.delete_data(start_offset + 1, 1));
+                MUST(delete_data(start_node_character_data, start_offset + 1, 1));
             }
 
             // 3. Add one to start offset.
@@ -615,7 +616,7 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const& command, GC::Re
             move_node_preserving_ranges(child, *element->parent(), element_index++);
 
         // 3. Remove element from its parent.
-        element->remove();
+        remove_node(*element);
 
         // 4. Return children.
         return children;
@@ -673,20 +674,20 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const& command, GC::Re
     if (is<HTML::HTMLFontElement>(*element)) {
         // 1. If command is "foreColor", unset element's color attribute, if set.
         if (command == CommandNames::foreColor)
-            element->remove_attribute(HTML::AttributeNames::color);
+            remove_attribute(*element, HTML::AttributeNames::color);
 
         // 2. If command is "fontName", unset element's face attribute, if set.
         if (command == CommandNames::fontName)
-            element->remove_attribute(HTML::AttributeNames::face);
+            remove_attribute(*element, HTML::AttributeNames::face);
 
         // 3. If command is "fontSize", unset element's size attribute, if set.
         if (command == CommandNames::fontSize)
-            element->remove_attribute(HTML::AttributeNames::size);
+            remove_attribute(*element, HTML::AttributeNames::size);
     }
 
     // 9. If element is an a element and command is "createLink" or "unlink", unset the href property of element.
     if (is<HTML::HTMLAnchorElement>(*element) && command.is_one_of(CommandNames::createLink, CommandNames::unlink))
-        element->remove_attribute(HTML::AttributeNames::href);
+        remove_attribute(*element, HTML::AttributeNames::href);
 
     // 10. If element's specified command value for command is null, return the empty list.
     if (!specified_command_value(element, command).has_value())
@@ -795,7 +796,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
     // 21. If start node and end node are the same, and start node is an editable Text node:
     if (start.node == end.node && is<DOM::Text>(*start.node) && start.node->is_editable()) {
         // 1. Call deleteData(start offset, end offset − start offset) on start node.
-        MUST(static_cast<DOM::Text&>(*start.node).delete_data(start.offset, end.offset - start.offset));
+        MUST(delete_data(static_cast<DOM::Text&>(*start.node), start.offset, end.offset - start.offset));
 
         // 2. Canonicalize whitespace at (start node, start offset), with fix collapsed space false.
         canonicalize_whitespace(start, false);
@@ -820,7 +821,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
     // 22. If start node is an editable Text node, call deleteData() on it, with start offset as the first argument and
     //     (length of start node − start offset) as the second argument.
     if (is<DOM::Text>(*start.node) && start.node->is_editable())
-        MUST(static_cast<DOM::Text&>(*start.node).delete_data(start.offset, start.node->length() - start.offset));
+        MUST(delete_data(static_cast<DOM::Text&>(*start.node), start.offset, start.node->length() - start.offset));
 
     // 23. Let node list be a list of nodes, initially empty.
     Vector<GC::Ref<DOM::Node>> node_list;
@@ -847,13 +848,13 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         GC::Ptr<DOM::Node> parent = *node->parent();
 
         // 2. Remove node from parent.
-        node->remove();
+        remove_node(*node);
 
         // 3. If the block node of parent has no visible children, and parent is editable or an editing host, call
         //    createElement("br") on the context object and append the result as the last child of parent.
         auto block_node_of_parent = block_node_of_node(*parent);
         if (block_node_of_parent && !has_visible_children(*block_node_of_parent) && parent->is_editable_or_editing_host())
-            MUST(parent->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
+            MUST(append_node(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML)), *parent));
 
         // 4. If strip wrappers is true or parent is not an inclusive ancestor of start node, while parent is an
         //    editable inline node with length 0, let grandparent be the parent of parent, then remove parent from
@@ -861,7 +862,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         if (strip_wrappers || !parent->is_inclusive_ancestor_of(start.node)) {
             while (parent->parent() && parent->is_editable() && is_inline_node(*parent) && parent->length() == 0) {
                 auto grandparent = parent->parent();
-                parent->remove();
+                remove_node(*parent);
                 parent = grandparent;
             }
         }
@@ -869,7 +870,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
 
     // 26. If end node is an editable Text node, call deleteData(0, end offset) on it.
     if (end.node->is_editable() && is<DOM::Text>(*end.node))
-        MUST(static_cast<DOM::Text&>(*end.node).delete_data(0, end.offset));
+        MUST(delete_data(static_cast<DOM::Text&>(*end.node), 0, end.offset));
 
     // 27. Canonicalize whitespace at the active range's start, with fix collapsed space false.
     canonicalize_whitespace(active_range(document)->start(), false);
@@ -899,7 +900,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
 
     // 31. If start block has one child, which is a collapsed block prop, remove its child from it.
     if (start_block->child_count() == 1 && is_collapsed_block_prop(*start_block->first_child()))
-        start_block->first_child()->remove();
+        remove_node(*start_block->first_child());
 
     // 32. If start block is an ancestor of end block:
     Vector<RecordedNodeValue> values;
@@ -923,7 +924,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
                 // AD-HOC: Set end_block's parent instead of end_block itself.
                 //         See: https://github.com/w3c/editing/issues/473
                 auto parent = end_block->parent();
-                end_block->remove();
+                remove_node(*end_block);
                 end_block = parent;
             }
 
@@ -933,12 +934,12 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
             if (end_block->is_editable() && !is_inline_node(*end_block) && end_block->previous_sibling() && end_block->next_sibling()
                 && is_inline_node(*end_block->previous_sibling()) && is_inline_node(*end_block->next_sibling())) {
                 auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
-                end_block->parent()->insert_before(br, end_block->next_sibling());
+                insert_node_before(br, *end_block->parent(), end_block->next_sibling());
             }
 
             // 3. If end block is editable, remove it from its parent.
             if (end_block->is_editable())
-                end_block->remove();
+                remove_node(*end_block);
 
             // 4. Restore states and values from overrides.
             restore_states_and_values(document, overrides);
@@ -978,7 +979,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
 
         // 11. If children's first member's previousSibling is an editable br, remove that br from its parent.
         if (is<HTML::HTMLBRElement>(children.first()->previous_sibling()) && children.first()->previous_sibling()->is_editable())
-            children.first()->previous_sibling()->remove();
+            remove_node(*children.first()->previous_sibling());
     }
 
     // 33. Otherwise, if start block is a descendant of end block:
@@ -998,7 +999,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         //    block's lastChild from it.
         if (reference_node->next_sibling() && is_inline_node(*reference_node->next_sibling())
             && is<HTML::HTMLBRElement>(start_block->last_child()))
-            start_block->last_child()->remove();
+            remove_node(*start_block->last_child());
 
         // 5. Let nodes to move be a list of nodes, initially empty.
         Vector<GC::Ref<DOM::Node>> nodes_to_move;
@@ -1032,7 +1033,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         //    lastChild from it.
         if (end_block->first_child() && is_inline_node(*end_block->first_child())
             && start_block->last_child() && is<HTML::HTMLBRElement>(*start_block->last_child()))
-            start_block->last_child()->remove();
+            remove_node(*start_block->last_child());
 
         // 3. Record the values of end block's children, and let values be the result.
         Vector<GC::Ref<DOM::Node>> end_block_children;
@@ -1052,7 +1053,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         //    then set end block to parent.
         while (end_block->parent() && !end_block->has_children()) {
             GC::Ptr<DOM::Node> parent = end_block->parent();
-            end_block->remove();
+            remove_node(*end_block);
             end_block = parent;
         }
     }
@@ -1097,7 +1098,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
             move_node_preserving_ranges(*ancestor->next_sibling()->first_child(), *ancestor, new_position++);
 
         // 3. Remove ancestor's nextSibling from its parent.
-        ancestor->next_sibling()->remove();
+        remove_node(*ancestor->next_sibling());
     }
 
     // 38. Restore the values from values.
@@ -1106,7 +1107,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
     // 39. If start block has no children, call createElement("br") on the context object and append the result as the
     //     last child of start block.
     if (!start_block->has_children())
-        MUST(start_block->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
+        MUST(append_node(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML)), *start_block));
 
     // 40. Remove extraneous line breaks at the end of start block.
     remove_extraneous_line_breaks_at_the_end_of_node(*start_block);
@@ -1477,7 +1478,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
 
                 // 2. Set the color attribute of new parent to the result of applying the rules for serializing simple color
                 //    values to new value (interpreted as a simple color).
-                new_parent->set_attribute_value(HTML::AttributeNames::color, new_value_color->to_utf16_string_without_alpha());
+                set_attribute_value(*new_parent, HTML::AttributeNames::color, new_value_color->to_utf16_string_without_alpha());
             }
         }
 
@@ -1485,7 +1486,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
         //    ownerDocument of node, then set the face attribute of new parent to new value.
         if (command == CommandNames::fontName) {
             new_parent = MUST(DOM::create_element(document, HTML::TagNames::font, Namespace::HTML));
-            new_parent->set_attribute_value(HTML::AttributeNames::face, new_value.value());
+            set_attribute_value(*new_parent, HTML::AttributeNames::face, new_value.value());
         }
     }
 
@@ -1495,7 +1496,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
         new_parent = MUST(DOM::create_element(document, HTML::TagNames::a, Namespace::HTML));
 
         // 2. Set the href attribute of new parent to new value.
-        new_parent->set_attribute_value(HTML::AttributeNames::href, new_value.value());
+        set_attribute_value(*new_parent, HTML::AttributeNames::href, new_value.value());
 
         // 3. Let ancestor be node's parent.
         GC::Ptr<DOM::Node> ancestor = node->parent();
@@ -1528,7 +1529,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
         // * xx-large: 6
         // * xxx-large: 7
         auto size = font_sizes.first_index_of(new_value.value()).value() + 1;
-        new_parent->set_attribute_value(HTML::AttributeNames::size, Utf16String::number(size));
+        set_attribute_value(*new_parent, HTML::AttributeNames::size, Utf16String::number(size));
     }
 
     // 13. If command is "subscript" or "superscript" and new value is "subscript", let new parent be the result of
@@ -1547,7 +1548,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
         new_parent = MUST(DOM::create_element(document, HTML::TagNames::span, Namespace::HTML));
 
     // 16. Insert new parent in node's parent before node.
-    node->parent()->insert_before(*new_parent, node);
+    insert_node_before(*new_parent, *node->parent(), node);
 
     // 17. If the effective command value of command for new parent is not loosely equivalent to new value, and the
     //     relevant CSS property for command is not null, set that CSS property of new parent to new value (if the new
@@ -1588,7 +1589,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
         move_node_preserving_ranges(node, *new_parent->parent(), new_parent->index());
 
         // 2. Remove new parent from its parent.
-        new_parent->remove();
+        remove_node(*new_parent);
 
         // 3. Let children be all children of node, omitting any that are Elements whose specified command value for
         //    command is neither null nor equivalent to new value.
@@ -2670,7 +2671,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
     for (auto element : element_list) {
         // 1. If element has an attribute in the HTML namespace whose local name is "align", remove that attribute.
         if (element->has_attribute_ns(Namespace::HTML, HTML::AttributeNames::align))
-            element->remove_attribute_ns(Namespace::HTML, HTML::AttributeNames::align);
+            remove_attribute_ns(*element, Namespace::HTML, HTML::AttributeNames::align);
 
         // 2. Unset the CSS property "text-align" on element, if it's set by a style attribute.
         auto inline_style = element->style_for_bindings();
@@ -2838,10 +2839,10 @@ void move_node_preserving_ranges(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> new
     auto* old_parent = node->parent();
     auto old_index = node->index();
     if (old_parent)
-        node->remove();
+        remove_node(*node);
 
     auto* new_next_sibling = new_parent->child_at_index(new_index);
-    new_parent->insert_before(node, new_next_sibling);
+    insert_node_before(node, *new_parent, new_next_sibling);
 
     // AD-HOC: Return early if there was no active range
     if (!range)
@@ -2943,7 +2944,7 @@ void normalize_sublists_in_node(GC::Ref<DOM::Node> item)
             //    immediately after item.
             if (!new_item) {
                 new_item = MUST(DOM::create_element(*item->owner_document(), HTML::TagNames::li, Namespace::HTML));
-                item->parent()->insert_before(*new_item, item->next_sibling());
+                insert_node_before(*new_item, *item->parent(), item->next_sibling());
             }
 
             // 2. Insert child into new item as its first child, preserving ranges.
@@ -2969,7 +2970,7 @@ void outdent(GC::Ref<DOM::Node> node)
     if (is_indentation_element(node)) {
         // 1. Unset the dir attribute of node, if any.
         auto& element = static_cast<DOM::Element&>(*node);
-        element.remove_attribute(HTML::AttributeNames::dir);
+        remove_attribute(element, HTML::AttributeNames::dir);
 
         // 2. Unset the margin, padding, and border CSS properties of node.
         if (auto inline_style = element.inline_style()) {
@@ -3030,9 +3031,9 @@ void outdent(GC::Ref<DOM::Node> node)
         && !(current_ancestor->is_editable() && is_indentation_element(*current_ancestor))) {
         // 1. Unset the reversed, start, and type attributes of node, if any are set.
         auto& node_element = static_cast<DOM::Element&>(*node);
-        node_element.remove_attribute(HTML::AttributeNames::reversed);
-        node_element.remove_attribute(HTML::AttributeNames::start);
-        node_element.remove_attribute(HTML::AttributeNames::type);
+        remove_attribute(node_element, HTML::AttributeNames::reversed);
+        remove_attribute(node_element, HTML::AttributeNames::start);
+        remove_attribute(node_element, HTML::AttributeNames::type);
 
         // 2. Let children be the children of node.
         Vector<GC::Ref<DOM::Node>> children;
@@ -3095,7 +3096,7 @@ void outdent(GC::Ref<DOM::Node> node)
         // 4. If target is an inline node that is not a br, and its nextSibling is a br, remove target's nextSibling
         //    from its parent.
         if (is_inline_node(*target) && !is<HTML::HTMLBRElement>(*target) && is<HTML::HTMLBRElement>(target->next_sibling()))
-            target->next_sibling()->remove();
+            remove_node(*target->next_sibling());
 
         // 5. Let preceding siblings be the precedings siblings of target, and let following siblings be the followings
         //    siblings of target.
@@ -3400,7 +3401,7 @@ void remove_extraneous_line_breaks_at_the_end_of_node(GC::Ref<DOM::Node> node)
             ref = ref->parent();
 
         // 2. Remove ref from its parent.
-        ref->remove();
+        remove_node(*ref);
     }
 }
 
@@ -3428,7 +3429,7 @@ void remove_extraneous_line_breaks_before_node(GC::Ref<DOM::Node> node)
 
     // 5. If ref is an editable extraneous line break, remove it from its parent.
     if (ref->is_editable() && is_extraneous_line_break(*ref))
-        ref->remove();
+        remove_node(*ref);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#remove-extraneous-line-breaks-from
@@ -3454,7 +3455,7 @@ void remove_node_preserving_its_descendants(GC::Ref<DOM::Node> node)
     }
 
     // If it has no children, instead remove it from its parent.
-    node->remove();
+    remove_node(*node);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#reorder-modifiable-descendants
@@ -3488,9 +3489,9 @@ void reorder_modifiable_descendants(GC::Ref<DOM::Node> node, Utf16FlyString cons
 
     // 5. Insert candidate into node's parent immediately after node.
     if (node->next_sibling())
-        node->parent()->insert_before(*candidate, node->next_sibling());
+        insert_node_before(*candidate, *node->parent(), node->next_sibling());
     else
-        MUST(node->parent()->append_child(*candidate));
+        MUST(append_node(*candidate, *node->parent()));
 
     // 6. Append the node as the last child of candidate, preserving ranges.
     move_node_preserving_ranges(node, *candidate, candidate->child_count());
@@ -3776,7 +3777,7 @@ void set_the_selections_value(DOM::Document& document, Utf16FlyString const& com
     auto range = active_range(document);
     auto start = range->start();
     if (start.node->is_editable() && is<DOM::Text>(*start.node) && start.offset != 0 && start.offset != start.node->length()) {
-        auto new_node = MUST(static_cast<DOM::Text&>(*start.node).split_text(start.offset));
+        auto new_node = MUST(split_text(static_cast<DOM::Text&>(*start.node), start.offset));
         MUST(range->set_start(new_node, 0));
     }
 
@@ -3784,7 +3785,7 @@ void set_the_selections_value(DOM::Document& document, Utf16FlyString const& com
     //    length, call splitText() on the active range's end node, with argument equal to the active range's end offset.
     auto end = range->end();
     if (end.node->is_editable() && is<DOM::Text>(*end.node) && end.offset != 0 && end.offset != end.node->length())
-        MUST(static_cast<DOM::Text&>(*end.node).split_text(end.offset));
+        MUST(split_text(static_cast<DOM::Text&>(*end.node), end.offset));
 
     // 5. Let element list be all editable Elements effectively contained in the active range.
     Vector<GC::Ref<DOM::Element>> element_list;
@@ -3832,11 +3833,11 @@ GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, Utf16FlySt
     auto replacement_element = MUST(element->owner_document()->create_element(new_name, Bindings::ElementCreationOptions {}));
 
     // 4. Insert replacement element into element's parent immediately before element.
-    element->parent()->insert_before(replacement_element, element);
+    insert_node_before(replacement_element, *element->parent(), element);
 
     // 5. Copy all attributes of element to replacement element, in order.
     element->for_each_attribute([&replacement_element](Utf16FlyString const& name, Utf16View value) {
-        replacement_element->set_attribute_value(name, value);
+        set_attribute_value(*replacement_element, name, value);
     });
 
     // 6. While element has children, append the first child of element as the last child of replacement element, preserving ranges.
@@ -3844,7 +3845,7 @@ GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, Utf16FlySt
         move_node_preserving_ranges(*element->first_child(), *replacement_element, replacement_element->child_count());
 
     // 7. Remove element from its parent.
-    element->remove();
+    remove_node(*element);
 
     // 8. Return replacement element.
     return replacement_element;
@@ -4007,7 +4008,7 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
         //    list.
         if (precedes_line_break && !precedes_a_line_break(last_node)) {
             auto br_element = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
-            MUST(last_node->parent()->append_child(br_element));
+            MUST(append_node(br_element, *last_node->parent()));
         }
 
         // 3. Remove extraneous line breaks at the end of original parent.
@@ -4025,10 +4026,10 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
         // 2. If original parent has an id attribute, unset it.
         auto& original_parent_element = static_cast<DOM::Element&>(*original_parent);
         if (original_parent_element.has_attribute(HTML::AttributeNames::id))
-            original_parent_element.remove_attribute(HTML::AttributeNames::id);
+            remove_attribute(original_parent_element, HTML::AttributeNames::id);
 
         // 3. Insert cloned parent into the parent of original parent immediately before original parent.
-        original_parent->parent()->insert_before(cloned_parent, original_parent);
+        insert_node_before(cloned_parent, *original_parent->parent(), original_parent);
 
         // 4. While the previousSibling of the first member of node list is not null, append the first child of original
         //    parent as the last child of cloned parent, preserving ranges.
@@ -4046,7 +4047,7 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
     //    list.
     if (follows_line_break && !follows_a_line_break(first_node)) {
         auto br_element = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
-        first_node->parent()->insert_before(br_element, first_node);
+        insert_node_before(br_element, *first_node->parent(), first_node);
     }
 
     // 10. If the last member of node list is an inline node other than a br, and the first child of original parent is
@@ -4054,20 +4055,20 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
     //     parent.
     if (is_inline_node(last_node) && !is<HTML::HTMLBRElement>(*last_node) && is<HTML::HTMLBRElement>(*first_child)
         && !is_inline_node(original_parent)) {
-        first_child->remove();
+        remove_node(*first_child);
     }
 
     // 11. If original parent has no children:
     if (original_parent->child_count() == 0) {
         // 1. Remove original parent from its parent.
-        original_parent->remove();
+        remove_node(*original_parent);
 
         // 2. If precedes line break is true, and the last member of node list does not precede a line break, call
         //    createElement("br") on the context object and insert the result immediately after the last member of node
         //    list.
         if (precedes_line_break && !precedes_a_line_break(last_node)) {
             auto br_element = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
-            last_node->parent()->insert_before(br_element, last_node->next_sibling());
+            insert_node_before(br_element, *last_node->parent(), last_node->next_sibling());
         }
     }
 
@@ -4404,7 +4405,7 @@ void toggle_lists(DOM::Document& document, Utf16FlyString const& tag_name)
                     //    createElement(tag name) on the context object, and append the result as the last child of list.
                     if (!list->last_child()->is_editable() || !is<HTML::HTMLElement>(list->last_child())
                         || static_cast<DOM::Element&>(*list->last_child()).local_name() != tag_name)
-                        MUST(list->append_child(MUST(DOM::create_element(document, tag_name, Namespace::HTML))));
+                        MUST(append_node(MUST(DOM::create_element(document, tag_name, Namespace::HTML)), *list));
 
                     // 5. Return the last child of list.
                     return list->last_child();
@@ -4552,7 +4553,7 @@ GC::Ptr<DOM::Node> wrap(
         // 1. Insert new parent into the parent of the first member of node list immediately before the first member of
         //    node list.
         auto first_member = node_list.first();
-        first_member->parent()->insert_before(*new_parent, first_member);
+        insert_node_before(*new_parent, *first_member->parent(), first_member);
 
         // 2. If any range has a boundary point with node equal to the parent of new parent and offset equal to the
         //    index of new parent, add one to that boundary point's offset.
@@ -4592,7 +4593,7 @@ GC::Ptr<DOM::Node> wrap(
             if (last_visible_child && is_inline_node(*last_visible_child) && first_visible_member && is_inline_node(*first_visible_member)
                 && !is<HTML::HTMLBRElement>(new_parent->last_child())) {
                 auto br_element = MUST(DOM::create_element(*new_parent->owner_document(), HTML::TagNames::br, Namespace::HTML));
-                MUST(new_parent->append_child(br_element));
+                MUST(append_node(br_element, *new_parent));
             }
         }
 
@@ -4627,7 +4628,7 @@ GC::Ptr<DOM::Node> wrap(
             if (is_inline_node(first_visible_child) && is_inline_node(last_visible_member)
                 && !is<HTML::HTMLBRElement>(*node_list.last())) {
                 auto br_element = MUST(DOM::create_element(*new_parent->owner_document(), HTML::TagNames::br, Namespace::HTML));
-                new_parent->insert_before(br_element, new_parent->first_child());
+                insert_node_before(br_element, *new_parent, new_parent->first_child());
             }
         }
 
@@ -4639,7 +4640,7 @@ GC::Ptr<DOM::Node> wrap(
 
     // 14. If original parent is editable and has no children, remove it from its parent.
     if (original_parent->is_editable() && !original_parent->has_children())
-        original_parent->remove();
+        remove_node(*original_parent);
 
     // 15. If new parent's nextSibling is editable and running sibling criteria on it returns true:
     GC::Ptr<DOM::Node> next_sibling = new_parent->next_sibling();
@@ -4650,7 +4651,7 @@ GC::Ptr<DOM::Node> wrap(
         if (!is_inline_node(*new_parent) && is_inline_node(*new_parent->last_child())
             && is_inline_node(*next_sibling->first_child()) && !is<HTML::HTMLBRElement>(new_parent->last_child())) {
             auto br_element = MUST(DOM::create_element(*new_parent->owner_document(), HTML::TagNames::br, Namespace::HTML));
-            MUST(new_parent->append_child(br_element));
+            MUST(append_node(br_element, *new_parent));
         }
 
         // 2. While new parent's nextSibling has children, append its first child as the last child of new parent,
@@ -4660,7 +4661,7 @@ GC::Ptr<DOM::Node> wrap(
             move_node_preserving_ranges(*next_sibling->first_child(), *new_parent, new_position++);
 
         // 3. Remove new parent's nextSibling from its parent.
-        next_sibling->remove();
+        remove_node(*next_sibling);
     }
 
     // 16. Remove extraneous line breaks from new parent.
