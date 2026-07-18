@@ -57,9 +57,9 @@ static CSSPixels content_height_from_aspect_ratio(Box const& box, LayoutState::U
         auto border_box_right = computed_values.border_right().width + box_state.padding_right;
         auto border_box_top = computed_values.border_top().width + box_state.padding_top;
         auto border_box_bottom = computed_values.border_bottom().width + box_state.padding_bottom;
-        auto border_box_width = content_inline_size + border_box_left + border_box_right;
-        auto border_box_height = border_box_width / aspect_ratio;
-        return max(border_box_height - border_box_top - border_box_bottom, 0);
+        auto border_box_inline_size = content_inline_size + border_box_left + border_box_right;
+        auto border_box_block_size = border_box_inline_size / aspect_ratio;
+        return max(border_box_block_size - border_box_top - border_box_bottom, 0);
     }
 
     return content_inline_size / aspect_ratio;
@@ -84,9 +84,9 @@ static CSSPixels content_width_from_aspect_ratio(Box const& box, LayoutState::Us
         auto border_box_right = computed_values.border_right().width + box_state.padding_right;
         auto border_box_top = computed_values.border_top().width + box_state.padding_top;
         auto border_box_bottom = computed_values.border_bottom().width + box_state.padding_bottom;
-        auto border_box_height = content_block_size + border_box_top + border_box_bottom;
-        auto border_box_width = border_box_height * aspect_ratio;
-        return max(border_box_width - border_box_left - border_box_right, 0);
+        auto border_box_block_size = content_block_size + border_box_top + border_box_bottom;
+        auto border_box_inline_size = border_box_block_size * aspect_ratio;
+        return max(border_box_inline_size - border_box_left - border_box_right, 0);
     }
 
     return content_block_size * aspect_ratio;
@@ -485,7 +485,7 @@ void FormattingContext::register_contained_abspos_child(Box const& child, Static
 
 CSSPixelPoint FormattingContext::aligned_static_position(StaticPositionRect const& static_position_rect, LayoutState::UsedValues const& box_state)
 {
-    return static_position_rect.aligned_position_for_box_with_size({ box_state.margin_box_width(), box_state.margin_box_height() });
+    return static_position_rect.aligned_position_for_box_with_size({ box_state.margin_box_inline_size(), box_state.margin_box_block_size() });
 }
 
 // FIXME: This is a hack. Get rid of it.
@@ -601,7 +601,7 @@ CSSPixels FormattingContext::greatest_child_width(Box const& box) const
     } else {
         box.for_each_child_of_type<Box>([&](Box const& child) {
             if (!child.is_absolutely_positioned())
-                max_width = max(max_width, m_state.get(child).margin_box_width());
+                max_width = max(max_width, m_state.get(child).margin_box_inline_size());
             return IterationDecision::Continue;
         });
     }
@@ -868,7 +868,7 @@ CSSPixels FormattingContext::compute_table_box_inline_size_inside_table_wrapper(
         LayoutInput { table_box_state.available_inner_space_or_constraints_from(available_space), table_constraints },
         TableFormattingContext::RowMeasurement::Skip);
 
-    auto table_used_inline_size = throwaway_state.get(*table_box).border_box_width();
+    auto table_used_inline_size = throwaway_state.get(*table_box).border_box_inline_size();
     if (table_wrapper_inline_size_mode == TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
         && !table_box->computed_values().width().is_auto()) {
         return table_used_inline_size;
@@ -911,7 +911,7 @@ CSSPixels FormattingContext::compute_table_box_block_size_inside_table_wrapper(B
     });
     VERIFY(table_box.has_value());
 
-    auto table_used_block_size = throwaway_state.get(*table_box).border_box_height();
+    auto table_used_block_size = throwaway_state.get(*table_box).border_box_block_size();
     return available_space.block_size.is_definite() ? min(table_used_block_size, available_block_size) : table_used_block_size;
 }
 
@@ -1789,8 +1789,8 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
         auto const is_horizontal = writing_mode == CSS::WritingMode::HorizontalTb;
         auto const inline_axis_border_box_start = fragment.inline_offset() - (is_horizontal ? child_used_values->border_box_left() : child_used_values->border_box_top());
         auto const inline_axis_border_box_extent = is_horizontal
-            ? child_used_values->border_box_width()
-            : child_used_values->border_box_height();
+            ? child_used_values->border_box_inline_size()
+            : child_used_values->border_box_block_size();
         auto const block_axis_line_height = inline_node.computed_values().line_height();
         auto const block_axis_start = [&] {
             if (fragment.style_source().computed_values().block_axis_is_reverse())
@@ -1849,7 +1849,7 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
                         child_used_values->border_left + child_used_values->padding_left,
                         child_used_values->border_top + child_used_values->padding_top,
                     };
-                    add_fragment_rect({ border_box_origin, { child_used_values->border_box_width(), child_used_values->border_box_height() } });
+                    add_fragment_rect({ border_box_origin, { child_used_values->border_box_inline_size(), child_used_values->border_box_block_size() } });
                 }
             }
             self(*child, child_offset);
@@ -2156,7 +2156,7 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
             + CSSPixelPoint { containing_block_state.padding_left, containing_block_state.padding_top };
         return CSSPixelRect {
             anchor_border_box_origin,
-            { anchor_state.border_box_width(), anchor_state.border_box_height() },
+            { anchor_state.border_box_inline_size(), anchor_state.border_box_block_size() },
         };
     };
 
@@ -2296,8 +2296,8 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
             return existing_value;
 
         auto containing_block_extent = is_horizontal_axis
-            ? containing_block_state.padding_box_width()
-            : containing_block_state.padding_box_height();
+            ? containing_block_state.padding_box_inline_size()
+            : containing_block_state.padding_box_block_size();
 
         AnchorInsetResolver anchor_resolver { resolve_anchor_side, note_resolved_anchor_function, box.is_absolutely_positioned(), is_from_end, is_horizontal_axis, containing_block_extent };
 
@@ -2532,7 +2532,7 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
 
     // Apply grid alignment for auto inset axes
     if (containing_block_info.horizontal_alignment.has_value() && computed_values.inset().left().is_auto() && computed_values.inset().right().is_auto()) {
-        auto available_space_for_alignment = containing_block_info.rect.width() - box_state.margin_box_width();
+        auto available_space_for_alignment = containing_block_info.rect.width() - box_state.margin_box_inline_size();
         switch (*containing_block_info.horizontal_alignment) {
         case Alignment::Center:
             box_state.inset_left = available_space_for_alignment / 2;
@@ -2552,7 +2552,7 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
     }
 
     if (containing_block_info.vertical_alignment.has_value() && computed_values.inset().top().is_auto() && computed_values.inset().bottom().is_auto()) {
-        auto available_space_for_alignment = containing_block_info.rect.height() - box_state.margin_box_height();
+        auto available_space_for_alignment = containing_block_info.rect.height() - box_state.margin_box_block_size();
         switch (*containing_block_info.vertical_alignment) {
         case Alignment::Center:
             box_state.inset_top = available_space_for_alignment / 2;
@@ -3427,7 +3427,7 @@ CSSPixels FormattingContext::box_baseline(Box const& box, BaselineSet baseline_s
             return box_state.border_box_top();
         case CSS::VerticalAlign::Middle:
             // Middle: Align the vertical midpoint of the box with the baseline of the parent box plus half the x-height of the parent.
-            return box_state.margin_box_height() / 2 + CSSPixels::nearest_value_for(box.containing_block()->first_available_font().pixel_metrics().x_height / 2);
+            return box_state.margin_box_block_size() / 2 + CSSPixels::nearest_value_for(box.containing_block()->first_available_font().pixel_metrics().x_height / 2);
         case CSS::VerticalAlign::Bottom:
             // Bottom: Align the bottom of the aligned subtree with the bottom of the line box.
             return box_state.content_block_size() + box_state.margin_box_top();
@@ -3436,7 +3436,7 @@ CSSPixels FormattingContext::box_baseline(Box const& box, BaselineSet baseline_s
             return box.computed_values().font_size();
         case CSS::VerticalAlign::TextBottom:
             // TextBottom: Align the bottom of the box with the bottom of the parent's content area (see 10.6.1).
-            return box_state.margin_box_height() - CSSPixels::nearest_value_for(box.containing_block()->first_available_font().pixel_metrics().descent);
+            return box_state.margin_box_block_size() - CSSPixels::nearest_value_for(box.containing_block()->first_available_font().pixel_metrics().descent);
         default:
             break;
         }
@@ -3478,7 +3478,7 @@ CSSPixels FormattingContext::box_baseline(Box const& box, BaselineSet baseline_s
         return box_state.margin_box_top() + *content_baseline;
 
     // If the box has no baseline set, the bottom margin edge of the box is used.
-    return box_state.margin_box_height();
+    return box_state.margin_box_block_size();
 }
 
 CSSPixelRect FormattingContext::margin_box_rect(LayoutState::UsedValues const& used_values)

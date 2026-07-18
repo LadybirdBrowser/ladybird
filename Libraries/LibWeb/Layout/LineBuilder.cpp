@@ -101,7 +101,7 @@ void LineBuilder::append_box(Box const& box, CSSPixels leading_size, CSSPixels t
     auto& line_box = ensure_last_line_box();
     line_box.add_fragment(box, 0, 0, leading_size, trailing_size, leading_margin, trailing_margin,
         box_state.content_inline_size(), box_state.content_block_size(), box_state.border_box_top(), box_state.border_box_bottom());
-    m_max_block_size_on_current_line = max(m_max_block_size_on_current_line, box_state.margin_box_height());
+    m_max_block_size_on_current_line = max(m_max_block_size_on_current_line, box_state.margin_box_block_size());
 
     box_state.containing_line_box_fragment = {};
 
@@ -193,7 +193,7 @@ void LineBuilder::append_block_level_box(Box const& box, CSSPixels block_bottom,
 
     line_box.m_fragments.append(LineBoxFragment { box, 0, 0, inline_offset, block_offset,
         inline_length, block_length, box_state.border_box_top(), m_direction, m_writing_mode, {} });
-    line_box.m_inline_length = is_horizontal ? box_state.margin_box_width() : box_state.margin_box_height();
+    line_box.m_inline_length = is_horizontal ? box_state.margin_box_inline_size() : box_state.margin_box_block_size();
     line_box.m_block_length = 0;
     line_box.m_bottom = block_bottom;
     line_box.m_baseline = 0;
@@ -226,7 +226,7 @@ void LineBuilder::append_block_level_box(Box const& box, CSSPixels block_bottom,
 CSSPixels LineBuilder::ceiling_for_float_to_be_inserted_here(Box const& box)
 {
     auto const& box_state = m_layout_state.get(box);
-    CSSPixels const inline_size = box_state.margin_box_width();
+    CSSPixels const inline_size = box_state.margin_box_inline_size();
 
     CSSPixels candidate_block_offset = m_current_block_offset;
 

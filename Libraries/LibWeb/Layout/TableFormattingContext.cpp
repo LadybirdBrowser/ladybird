@@ -62,7 +62,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
                 auto const& caption_state = m_state.get(child_box);
                 caption_offset = { caption_state.border_box_left(), 0 };
                 if (phase == CSS::CaptionSide::Bottom)
-                    caption_offset.set_y(m_state.get(table_box()).margin_box_height() + caption_state.margin_box_top());
+                    caption_offset.set_y(m_state.get(table_box()).margin_box_block_size() + caption_state.margin_box_top());
             }
 
             caption_context->run(LayoutInput { inner_available_space, caption_constraints });
@@ -82,9 +82,9 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
         if (phase == CSS::CaptionSide::Top) {
             m_pending_table_box_content_offset_in_wrapper.set_y(caption_state.content_block_size() + caption_state.margin_box_bottom());
         } else if (!caption_was_placed) {
-            place_child(child_box, { caption_state.border_box_left(), m_state.get(table_box()).margin_box_height() + caption_state.margin_box_top() });
+            place_child(child_box, { caption_state.border_box_left(), m_state.get(table_box()).margin_box_block_size() + caption_state.margin_box_top() });
         }
-        caption_height += caption_state.margin_box_height();
+        caption_height += caption_state.margin_box_block_size();
     }
     return caption_height;
 }
@@ -1085,7 +1085,7 @@ void TableFormattingContext::compute_table_height()
             auto const& computed_values = cell.box.computed_values();
             auto min_height = computed_values.min_height().to_px(height_of_containing_block);
             auto cell_intrinsic_height_offsets = cell_state.border_box_top() + cell_state.border_box_bottom();
-            auto measured_outer_height = max(cell_state.border_box_height(), min_height + cell_intrinsic_height_offsets);
+            auto measured_outer_height = max(cell_state.border_box_block_size(), min_height + cell_intrinsic_height_offsets);
             cell.outer_min_height = measured_outer_height;
             cell.outer_max_height = measured_outer_height;
         }
@@ -1104,7 +1104,7 @@ void TableFormattingContext::compute_table_height()
         // Note that we've already applied the first rule at the top of the method.
         if (!row.is_collapsed) {
             if (cell.row_span == 1) {
-                row.base_height = max(row.base_height, cell_state.border_box_height());
+                row.base_height = max(row.base_height, cell_state.border_box_block_size());
             }
             if (!m_needs_fixed_mode_row_measurement)
                 row.base_height = max(row.base_height, m_rows[cell.row_index].min_size);
@@ -1204,7 +1204,7 @@ void TableFormattingContext::compute_table_height()
         cell.baseline = box_baseline(cell.box, BaselineSet::First);
 
         if (!row.is_collapsed) {
-            row.reference_height = max(row.reference_height, cell_state.border_box_height());
+            row.reference_height = max(row.reference_height, cell_state.border_box_block_size());
             row.baseline = max(row.baseline, cell.baseline);
         }
     }
@@ -1309,8 +1309,8 @@ void TableFormattingContext::position_row_boxes()
         int num_rows = 0;
         TableGrid::for_each_child_box_matching(row_group_box, TableGrid::is_table_row, [&](auto& row) {
             auto const& row_state = m_state.get(row);
-            row_group_height += row_state.border_box_height();
-            row_group_width = max(row_group_width, row_state.border_box_width());
+            row_group_height += row_state.border_box_block_size();
+            row_group_width = max(row_group_width, row_state.border_box_inline_size());
             num_rows += 1;
         });
         if (num_rows >= 2)
@@ -1361,24 +1361,24 @@ void TableFormattingContext::position_cell_boxes()
         // https://drafts.csswg.org/css2/#height-layout
         // In the context of tables, values for vertical-align have the following meanings:
         if (cell_is_anonymous_wrapper_for_flex_or_grid(cell)) {
-            cell_state.padding_bottom += row_content_height - cell_state.border_box_height();
+            cell_state.padding_bottom += row_content_height - cell_state.border_box_block_size();
         } else if (vertical_align.has<CSS::VerticalAlign>()) {
             switch (vertical_align.get<CSS::VerticalAlign>()) {
             // The center of the cell is aligned with the center of the rows it spans.
             case CSS::VerticalAlign::Middle: {
-                auto const height_diff = row_content_height - cell_state.border_box_height();
+                auto const height_diff = row_content_height - cell_state.border_box_block_size();
                 cell_state.padding_top += height_diff / 2;
                 cell_state.padding_bottom += height_diff / 2;
                 break;
             }
             // The top of the cell box is aligned with the top of the first row it spans.
             case CSS::VerticalAlign::Top: {
-                cell_state.padding_bottom += row_content_height - cell_state.border_box_height();
+                cell_state.padding_bottom += row_content_height - cell_state.border_box_block_size();
                 break;
             }
             // The bottom of the cell box is aligned with the bottom of the last row it spans.
             case CSS::VerticalAlign::Bottom: {
-                cell_state.padding_top += row_content_height - cell_state.border_box_height();
+                cell_state.padding_top += row_content_height - cell_state.border_box_block_size();
                 break;
             }
             // These values do not apply to cells; the cell is aligned at the baseline instead.
@@ -1389,7 +1389,7 @@ void TableFormattingContext::position_cell_boxes()
             // The baseline of the cell is put at the same height as the baseline of the first of the rows it spans.
             case CSS::VerticalAlign::Baseline: {
                 cell_state.padding_top += m_rows[cell.row_index].baseline - cell.baseline;
-                cell_state.padding_bottom += row_content_height - cell_state.border_box_height();
+                cell_state.padding_bottom += row_content_height - cell_state.border_box_block_size();
                 break;
             }
             default:
@@ -1689,7 +1689,7 @@ CSSPixels TableFormattingContext::compute_row_content_height(Cell const& cell) c
         } else if (i == cell.row_span - 1) {
             span_height += row_state.border_box_top() + row_state.content_block_size();
         } else {
-            span_height += row_state.border_box_height();
+            span_height += row_state.border_box_block_size();
         }
     }
 
@@ -1827,7 +1827,7 @@ void TableFormattingContext::run(LayoutInput const& layout_input)
 
     auto const& table_state = m_state.get(table_box());
     auto caption_available_space = AvailableSpace(
-        AvailableSize::make_definite(clamp_to_max_dimension_value(table_state.border_box_width())),
+        AvailableSize::make_definite(clamp_to_max_dimension_value(table_state.border_box_inline_size())),
         available_space.block_size);
 
     auto total_captions_height = run_caption_layout(CSS::CaptionSide::Top, caption_available_space);

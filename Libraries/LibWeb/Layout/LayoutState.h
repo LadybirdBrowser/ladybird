@@ -185,19 +185,19 @@ struct LayoutState {
         CSSPixels margin_box_top() const { return margin_top + border_top_collapsed() + padding_top; }
         CSSPixels margin_box_bottom() const { return margin_bottom + border_bottom_collapsed() + padding_bottom; }
 
-        CSSPixels margin_box_width() const { return margin_box_left() + content_inline_size() + margin_box_right(); }
-        CSSPixels margin_box_height() const { return margin_box_top() + content_block_size() + margin_box_bottom(); }
+        CSSPixels margin_box_inline_size() const { return margin_box_left() + content_inline_size() + margin_box_right(); }
+        CSSPixels margin_box_block_size() const { return margin_box_top() + content_block_size() + margin_box_bottom(); }
 
         CSSPixels border_box_left() const { return border_left_collapsed() + padding_left; }
         CSSPixels border_box_right() const { return border_right_collapsed() + padding_right; }
         CSSPixels border_box_top() const { return border_top_collapsed() + padding_top; }
         CSSPixels border_box_bottom() const { return border_bottom_collapsed() + padding_bottom; }
 
-        CSSPixels border_box_width() const { return border_box_left() + content_inline_size() + border_box_right(); }
-        CSSPixels border_box_height() const { return border_box_top() + content_block_size() + border_box_bottom(); }
+        CSSPixels border_box_inline_size() const { return border_box_left() + content_inline_size() + border_box_right(); }
+        CSSPixels border_box_block_size() const { return border_box_top() + content_block_size() + border_box_bottom(); }
 
-        CSSPixels padding_box_width() const { return padding_left + content_inline_size() + padding_right; }
-        CSSPixels padding_box_height() const { return padding_top + content_block_size() + padding_bottom; }
+        CSSPixels padding_box_inline_size() const { return padding_left + content_inline_size() + padding_right; }
+        CSSPixels padding_box_block_size() const { return padding_top + content_block_size() + padding_bottom; }
 
         Optional<LineBoxFragmentCoordinate> containing_line_box_fragment;
 

@@ -62,7 +62,7 @@ CSSPixels BlockFormattingContext::automatic_content_inline_size() const
             }
             return TraversalDecision::Continue;
         });
-        return m_state.get(*table_box).border_box_width();
+        return m_state.get(*table_box).border_box_inline_size();
     }
     return greatest_child_width(root());
 }
@@ -98,7 +98,7 @@ static bool margins_collapse_through(Box const& box, LayoutState& state)
 
     // NB: This should take care of the height and min-height constraints.
     //     ( also see https://github.com/w3c/csswg-drafts/pull/13699#issuecomment-4103045370 for spec ambiguity )
-    if (state.get(box).border_box_height() != 0)
+    if (state.get(box).border_box_block_size() != 0)
         return false;
 
     // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-margin-collapse
@@ -464,7 +464,7 @@ FormattingContext::SpaceUsedByFloats BlockFormattingContext::intrusion_by_floats
 
 BlockFormattingContext::FloatPlacement BlockFormattingContext::place_float(FloatSide side, LayoutState::UsedValues const& box_state, AvailableSpace const& available_space, CSSPixelRect const& containing_block_rect_in_root, CSSPixels ceiling_in_root) const
 {
-    auto const margin_box_width = box_state.margin_box_width();
+    auto const margin_box_inline_size = box_state.margin_box_inline_size();
     auto candidate_block_start = ceiling_in_root;
 
     for (;;) {
@@ -473,7 +473,7 @@ BlockFormattingContext::FloatPlacement BlockFormattingContext::place_float(Float
         auto available_width = available_space.inline_size.to_px_or_zero() - intrusions.left - intrusions.right;
         auto has_floats_present = band.left_intrusion > 0 || band.right_intrusion > 0;
 
-        if (available_space.inline_size.is_max_content() || available_space.inline_size.is_indefinite() || margin_box_width <= available_width || !has_floats_present) {
+        if (available_space.inline_size.is_max_content() || available_space.inline_size.is_indefinite() || margin_box_inline_size <= available_width || !has_floats_present) {
             auto offset_from_edge = side == FloatSide::Left
                 ? intrusions.left + box_state.margin_box_left()
                 : intrusions.right + box_state.content_inline_size() + box_state.margin_box_right();
@@ -627,21 +627,21 @@ CSSPixels BlockFormattingContext::avoid_float_intrusions(Box const& box, Availab
         auto border_box_y_in_root = containing_block_rect_in_root.y() + content_y - box_state.border_box_top();
         auto band_containing_block_rect = containing_block_rect_in_root;
         band_containing_block_rect.set_y(border_box_y_in_root);
-        band_containing_block_rect.set_height(box_state.border_box_height());
+        band_containing_block_rect.set_height(box_state.border_box_block_size());
         auto const& band = band_at(border_box_y_in_root);
         auto space_used_by_floats = intrusions_for_band_into_rect(band, band_containing_block_rect);
         bool const constrained_by_floats = space_used_by_floats.left > 0 || space_used_by_floats.right > 0;
         auto border_box_left_in_containing_block = border_box_left_of_box_avoiding_floats(box, box_state, space_used_by_floats);
 
         bool must_clear_below_current_band = constrained_by_floats
-            && border_box_left_in_containing_block + box_state.border_box_width() > available_space.inline_size.to_px_or_zero() - space_used_by_floats.right;
+            && border_box_left_in_containing_block + box_state.border_box_inline_size() > available_space.inline_size.to_px_or_zero() - space_used_by_floats.right;
 
         if (!must_clear_below_current_band) {
             CSSPixelRect border_box_rect_in_root {
                 band_containing_block_rect.x() + border_box_left_in_containing_block,
                 border_box_y_in_root,
-                box_state.border_box_width(),
-                box_state.border_box_height(),
+                box_state.border_box_inline_size(),
+                box_state.border_box_block_size(),
             };
             must_clear_below_current_band = any_of(m_floats, [&](auto const& floating_box) {
                 auto margin_box_rect_in_root = floating_box->margin_box_rect_in_root_coordinate_space.translated(
@@ -1397,7 +1397,7 @@ void BlockFormattingContext::layout_fieldset_with_rendered_legend(FieldSetBox co
     // The space allocated for the element's border on the block-start side is expected to be the element's
     // 'border-block-start-width' or the rendered legend's margin box size in the fieldset's block-flow direction,
     // whichever is greater.
-    auto effective_border = max(fieldset_state.border_top, legend_state.margin_box_height());
+    auto effective_border = max(fieldset_state.border_top, legend_state.margin_box_block_size());
     auto extra_top = effective_border - fieldset_state.border_top;
 
     // Lay out non-legend children below the legend accommodation.
@@ -1434,7 +1434,7 @@ void BlockFormattingContext::layout_fieldset_with_rendered_legend(FieldSetBox co
     // The element is expected to be positioned in the block-flow direction such that its border box is centered over
     // the border on the block-start side of the fieldset element.
     // FIXME: Take writing modes into consideration.
-    auto legend_border_box_centering_offset = (effective_border - legend_state.border_box_height()) / 2;
+    auto legend_border_box_centering_offset = (effective_border - legend_state.border_box_block_size()) / 2;
     auto fieldset_border_box_top_in_content = -(fieldset_state.border_top + fieldset_state.padding_top);
     auto legend_content_y = fieldset_border_box_top_in_content + legend_border_box_centering_offset + legend_state.border_box_top();
     if (auto legend_flow_position = m_pending_legend_flow_position; legend_flow_position.has_value()) {
@@ -1710,7 +1710,7 @@ CSSPixels BlockFormattingContext::greatest_child_width_in_rect(Box const& box, C
             if (child.is_absolutely_positioned())
                 return IterationDecision::Continue;
             if (auto const* child_state = m_state.try_get(child))
-                max_width = max(max_width, child_state->margin_box_width());
+                max_width = max(max_width, child_state->margin_box_inline_size());
             return IterationDecision::Continue;
         });
     }
