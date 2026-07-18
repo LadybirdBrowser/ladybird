@@ -592,20 +592,20 @@ OwnPtr<FormattingContext> FormattingContext::layout_inside(Box const& child_box,
     return independent_formatting_context;
 }
 
-CSSPixels FormattingContext::greatest_child_width(Box const& box) const
+CSSPixels FormattingContext::greatest_child_inline_size(Box const& box) const
 {
-    CSSPixels max_width = 0;
+    CSSPixels max_inline_size = 0;
     if (box.children_are_inline()) {
         for (auto& line_box : m_state.get(box).line_boxes)
-            max_width = max(max_width, line_box_physical_width(box, line_box));
+            max_inline_size = max(max_inline_size, line_box_physical_width(box, line_box));
     } else {
         box.for_each_child_of_type<Box>([&](Box const& child) {
             if (!child.is_absolutely_positioned())
-                max_width = max(max_width, m_state.get(child).margin_box_inline_size());
+                max_inline_size = max(max_inline_size, m_state.get(child).margin_box_inline_size());
             return IterationDecision::Continue;
         });
     }
-    return max_width;
+    return max_inline_size;
 }
 
 CSSPixels FormattingContext::line_box_physical_width(Box const& box, LineBox const& line_box)
@@ -633,11 +633,11 @@ CSSPixels FormattingContext::line_box_physical_width(Box const& box, LineBox con
     return rightmost_fragment_x - leftmost_fragment_x;
 }
 
-FormattingContext::ShrinkToFitResult FormattingContext::calculate_shrink_to_fit_widths(Box const& box, ContainingBlockConstraints const& containing_block_constraints)
+FormattingContext::ShrinkToFitInlineSizeResult FormattingContext::calculate_shrink_to_fit_inline_sizes(Box const& box, ContainingBlockConstraints const& containing_block_constraints)
 {
     return {
-        .preferred_width = calculate_max_content_inline_size(box, containing_block_constraints),
-        .preferred_minimum_width = calculate_min_content_inline_size(box, containing_block_constraints),
+        .preferred_inline_size = calculate_max_content_inline_size(box, containing_block_constraints),
+        .preferred_minimum_inline_size = calculate_min_content_inline_size(box, containing_block_constraints),
     };
 }
 

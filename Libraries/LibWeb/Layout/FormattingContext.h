@@ -157,7 +157,7 @@ public:
     CSSPixels calculate_inner_inline_size(Layout::Box const&, AvailableSize const&, CSS::Size const& preferred_size, ContainingBlockConstraints const&) const;
     [[nodiscard]] CSSPixels calculate_inner_block_size(Box const&, AvailableSpace const&, CSS::Size const& preferred_size, ContainingBlockConstraints const&) const;
 
-    virtual CSSPixels greatest_child_width(Box const&) const;
+    virtual CSSPixels greatest_child_inline_size(Box const&) const;
 
     [[nodiscard]] static CSSPixelRect margin_box_rect(LayoutState::UsedValues const&);
     [[nodiscard]] CSSPixelRect margin_box_rect_in_ancestor_coordinate_space(Box const&, Box const& ancestor_box) const;
@@ -212,9 +212,9 @@ protected:
         CSSPixels right { 0 };
     };
 
-    struct ShrinkToFitResult {
-        CSSPixels preferred_width { 0 };
-        CSSPixels preferred_minimum_width { 0 };
+    struct ShrinkToFitInlineSizeResult {
+        CSSPixels preferred_inline_size { 0 };
+        CSSPixels preferred_minimum_inline_size { 0 };
     };
 
     CSSPixels tentative_inline_size_for_replaced_element(Box const&, CSS::Size const& computed_inline_size, AvailableSpace const&, ContainingBlockConstraints const&) const;
@@ -227,7 +227,7 @@ protected:
 
     [[nodiscard]] LogicalSize solve_replaced_size_constraint(CSSPixels input_inline_size, CSSPixels input_block_size, Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
 
-    ShrinkToFitResult calculate_shrink_to_fit_widths(Box const&, ContainingBlockConstraints const&);
+    ShrinkToFitInlineSizeResult calculate_shrink_to_fit_inline_sizes(Box const&, ContainingBlockConstraints const&);
 
     void layout_absolutely_positioned_element(Box&, AbsposLayoutInputs const&);
 

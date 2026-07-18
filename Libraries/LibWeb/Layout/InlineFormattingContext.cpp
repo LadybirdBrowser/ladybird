@@ -96,7 +96,7 @@ void InlineFormattingContext::run(LayoutInput const& layout_input)
     //       This ensures that any floated boxes are taken into account.
     auto provisional_containing_block_position_in_root = m_layout_input->content_box_position_in_bfc_root->translated(
         0, parent().y_adjustment_from_pending_ancestor_top_margins(containing_block()));
-    m_automatic_content_inline_size = parent().greatest_child_width_in_rect(
+    m_automatic_content_inline_size = parent().greatest_child_inline_size_in_rect(
         containing_block(), { provisional_containing_block_position_in_root, m_containing_block_used_values.content_size() });
     m_automatic_content_block_size = content_block_size;
 

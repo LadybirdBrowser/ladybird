@@ -63,8 +63,8 @@ public:
         return adjustment;
     }
 
-    virtual CSSPixels greatest_child_width(Box const&) const override;
-    [[nodiscard]] CSSPixels greatest_child_width_in_rect(Box const&, CSSPixelRect const& box_in_root_rect) const;
+    virtual CSSPixels greatest_child_inline_size(Box const&) const override;
+    [[nodiscard]] CSSPixels greatest_child_inline_size_in_rect(Box const&, CSSPixelRect const& box_in_root_rect) const;
 
     void layout_floating_box(Box const& child, BlockContainer const& containing_block, LayoutInput const&, CSSPixels y, LineBuilder* = nullptr);
 

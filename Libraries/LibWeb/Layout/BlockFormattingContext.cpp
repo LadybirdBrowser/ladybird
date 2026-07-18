@@ -64,7 +64,7 @@ CSSPixels BlockFormattingContext::automatic_content_inline_size() const
         });
         return m_state.get(*table_box).border_box_inline_size();
     }
-    return greatest_child_width(root());
+    return greatest_child_inline_size(root());
 }
 
 CSSPixels BlockFormattingContext::automatic_content_block_size() const
@@ -1343,7 +1343,7 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
     if (m_layout_mode == LayoutMode::IntrinsicSizing) {
         auto& block_container_state = m_state.get_mutable(block_container);
         if (!block_container_state.has_definite_inline_size()) {
-            auto inline_size = greatest_child_width_in_rect(block_container, { layout_input.content_box_position_in_bfc_root->translated(0, y_adjustment_from_pending_ancestor_top_margins(block_container)), block_container_state.content_size() });
+            auto inline_size = greatest_child_inline_size_in_rect(block_container, { layout_input.content_box_position_in_bfc_root->translated(0, y_adjustment_from_pending_ancestor_top_margins(block_container)), block_container_state.content_size() });
             auto const& computed_values = block_container.computed_values();
             // NOTE: Min and max constraints are not applied to a box that is being sized as intrinsic because
             //       according to css-sizing-3 spec:
@@ -1416,7 +1416,7 @@ void BlockFormattingContext::layout_fieldset_with_rendered_legend(FieldSetBox co
     }
 
     if (m_layout_mode == LayoutMode::IntrinsicSizing && !fieldset_state.has_definite_inline_size()) {
-        auto inline_size = greatest_child_width(fieldset_box);
+        auto inline_size = greatest_child_inline_size(fieldset_box);
         auto const& computed_values = fieldset_box.computed_values();
         if (fieldset_state.inline_size_constraint == SizeConstraint::None) {
             if (!should_treat_max_inline_size_as_none(fieldset_box, available_space.inline_size, layout_input.containing_block_constraints)) {
@@ -1660,20 +1660,20 @@ void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_ite
         list_item_state.set_content_block_size(marker.computed_values().line_height());
 }
 
-CSSPixels BlockFormattingContext::greatest_child_width(Box const& box) const
+CSSPixels BlockFormattingContext::greatest_child_inline_size(Box const& box) const
 {
     auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(m_state.get(box), root());
-    return greatest_child_width_in_rect(box, box_in_root_rect);
+    return greatest_child_inline_size_in_rect(box, box_in_root_rect);
 }
 
-CSSPixels BlockFormattingContext::greatest_child_width_in_rect(Box const& box, CSSPixelRect const& box_in_root_rect) const
+CSSPixels BlockFormattingContext::greatest_child_inline_size_in_rect(Box const& box, CSSPixelRect const& box_in_root_rect) const
 {
-    // Similar to FormattingContext::greatest_child_width()
+    // Similar to FormattingContext::greatest_child_inline_size()
     // but this one takes floats into account!
-    CSSPixels max_width = 0;
+    CSSPixels max_inline_size = 0;
     for (auto const& band : m_bands) {
         auto intrusions = intrusions_for_band_into_rect(band, box_in_root_rect);
-        max_width = max(max_width, intrusions.left + intrusions.right);
+        max_inline_size = max(max_inline_size, intrusions.left + intrusions.right);
     }
 
     if (box.children_are_inline()) {
@@ -1681,7 +1681,7 @@ CSSPixels BlockFormattingContext::greatest_child_width_in_rect(Box const& box, C
             auto inline_size_here = line_box_physical_width(box, line_box);
             auto line_top = line_box.bottom() - line_box.height();
             auto line_bottom = line_box.bottom();
-            CSSPixels extra_width_from_left_floats = 0;
+            CSSPixels extra_inline_size_from_left_floats = 0;
             for (auto& left_float : m_floats) {
                 if (left_float->side != FloatSide::Left)
                     continue;
@@ -1689,10 +1689,10 @@ CSSPixels BlockFormattingContext::greatest_child_width_in_rect(Box const& box, C
                 if (left_float->box.containing_block() != &box)
                     continue;
                 if (line_top < left_float->bottom_margin_edge && line_bottom > left_float->top_margin_edge) {
-                    extra_width_from_left_floats = max(extra_width_from_left_floats, left_float->offset_from_edge + left_float->used_values.content_inline_size() + left_float->used_values.margin_box_right());
+                    extra_inline_size_from_left_floats = max(extra_inline_size_from_left_floats, left_float->offset_from_edge + left_float->used_values.content_inline_size() + left_float->used_values.margin_box_right());
                 }
             }
-            CSSPixels extra_width_from_right_floats = 0;
+            CSSPixels extra_inline_size_from_right_floats = 0;
             for (auto& right_float : m_floats) {
                 if (right_float->side != FloatSide::Right)
                     continue;
@@ -1700,22 +1700,22 @@ CSSPixels BlockFormattingContext::greatest_child_width_in_rect(Box const& box, C
                 if (right_float->box.containing_block() != &box)
                     continue;
                 if (line_top < right_float->bottom_margin_edge && line_bottom > right_float->top_margin_edge) {
-                    extra_width_from_right_floats = max(extra_width_from_right_floats, right_float->offset_from_edge + right_float->used_values.margin_box_left());
+                    extra_inline_size_from_right_floats = max(extra_inline_size_from_right_floats, right_float->offset_from_edge + right_float->used_values.margin_box_left());
                 }
             }
-            inline_size_here += extra_width_from_left_floats + extra_width_from_right_floats;
-            max_width = max(max_width, inline_size_here);
+            inline_size_here += extra_inline_size_from_left_floats + extra_inline_size_from_right_floats;
+            max_inline_size = max(max_inline_size, inline_size_here);
         }
     } else {
         box.for_each_child_of_type<Box>([&](Box const& child) {
             if (child.is_absolutely_positioned())
                 return IterationDecision::Continue;
             if (auto const* child_state = m_state.try_get(child))
-                max_width = max(max_width, child_state->margin_box_inline_size());
+                max_inline_size = max(max_inline_size, child_state->margin_box_inline_size());
             return IterationDecision::Continue;
         });
     }
-    return max_width;
+    return max_inline_size;
 }
 
 // https://drafts.csswg.org/css-multicol/#pseudo-algorithm
