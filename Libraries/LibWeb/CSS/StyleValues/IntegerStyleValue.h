@@ -15,6 +15,20 @@ class WEB_API IntegerStyleValue final : public StyleValue {
 public:
     static ValueComparingNonnullRefPtr<IntegerStyleValue const> create(i32 value)
     {
+        // Small integers are common enough (z-index, column counts, spans) that they are
+        // interned, making repeated creations allocation-free.
+        static constexpr i32 first_interned_value = -1;
+        static constexpr i32 last_interned_value = 255;
+        if (value >= first_interned_value && value <= last_interned_value) {
+            static auto const& instances = *[] {
+                auto* instances = new (nothrow) Vector<NonnullRefPtr<IntegerStyleValue const>>();
+                instances->ensure_capacity(last_interned_value - first_interned_value + 1);
+                for (i32 interned_value = first_interned_value; interned_value <= last_interned_value; ++interned_value)
+                    instances->unchecked_append(adopt_ref(*new (nothrow) IntegerStyleValue(interned_value)));
+                return instances;
+            }();
+            return instances[value - first_interned_value];
+        }
         return adopt_ref(*new (nothrow) IntegerStyleValue(value));
     }
 

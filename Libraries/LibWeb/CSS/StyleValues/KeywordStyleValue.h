@@ -19,30 +19,17 @@ class WEB_API KeywordStyleValue : public StyleValueWithDefaultOperators<KeywordS
 public:
     static ValueComparingNonnullRefPtr<KeywordStyleValue const> create(Keyword keyword)
     {
-        switch (keyword) {
-        case Keyword::Inherit: {
-            static auto const& inherit_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Inherit)).leak_ref();
-            return inherit_instance;
-        }
-        case Keyword::Initial: {
-            static auto const& initial_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Initial)).leak_ref();
-            return initial_instance;
-        }
-        case Keyword::Revert: {
-            static auto const& revert_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Revert)).leak_ref();
-            return revert_instance;
-        }
-        case Keyword::RevertLayer: {
-            static auto const& revert_layer_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::RevertLayer)).leak_ref();
-            return revert_layer_instance;
-        }
-        case Keyword::Unset: {
-            static auto const& unset_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Unset)).leak_ref();
-            return unset_instance;
-        }
-        default:
-            return adopt_ref(*new (nothrow) KeywordStyleValue(keyword));
-        }
+        // Keyword values are immutable and the keyword set is small, so every keyword is
+        // interned: one instance per keyword for the lifetime of the process. Repeated
+        // creations are then allocation-free, and identical keywords are pointer-identical.
+        static auto const& instances = *[] {
+            auto* instances = new (nothrow) Vector<NonnullRefPtr<KeywordStyleValue const>>();
+            instances->ensure_capacity(number_of_keywords);
+            for (size_t i = 0; i < number_of_keywords; ++i)
+                instances->unchecked_append(adopt_ref(*new (nothrow) KeywordStyleValue(static_cast<Keyword>(i))));
+            return instances;
+        }();
+        return instances[to_underlying(keyword)];
     }
     virtual ~KeywordStyleValue() override = default;
 

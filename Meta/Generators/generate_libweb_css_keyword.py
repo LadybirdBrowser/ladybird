@@ -47,9 +47,14 @@ enum class Keyword : {underlying_type} {{
     {keyword_name(name)},
 """)
 
-    out.write("""
-};
+    out.write(f"""
+}};
 
+// Invalid plus every generated keyword.
+static constexpr size_t number_of_keywords = {len(keyword_data) + 1};
+""")
+
+    out.write("""
 WEB_API Optional<Keyword> keyword_from_string(StringView);
 WEB_API Optional<Keyword> keyword_from_string(Utf16View);
 StringView string_from_keyword(Keyword);

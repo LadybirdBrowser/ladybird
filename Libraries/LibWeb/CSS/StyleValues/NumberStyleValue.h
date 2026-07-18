@@ -18,6 +18,16 @@ class WEB_API NumberStyleValue final : public StyleValue {
 public:
     static ValueComparingNonnullRefPtr<NumberStyleValue const> create(double value)
     {
+        // Zero and one dominate real-world number values (opacity, alpha, flex factors), so
+        // those two are interned.
+        if (value == 0 && !signbit(value)) {
+            static auto const& zero_instance = adopt_ref(*new (nothrow) NumberStyleValue(0)).leak_ref();
+            return zero_instance;
+        }
+        if (value == 1) {
+            static auto const& one_instance = adopt_ref(*new (nothrow) NumberStyleValue(1)).leak_ref();
+            return one_instance;
+        }
         return adopt_ref(*new (nothrow) NumberStyleValue(value));
     }
 
