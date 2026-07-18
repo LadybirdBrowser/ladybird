@@ -687,41 +687,41 @@ LogicalSize FormattingContext::solve_replaced_size_constraint(CSSPixels input_in
 
 Optional<CSSPixels> FormattingContext::compute_auto_height_for_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, BeforeOrAfterInsideLayout before_or_after_inside_layout) const
 {
-    // NOTE: CSS 2.2 tells us to use the "auto height for block formatting context roots" here.
+    // NOTE: CSS 2.2 tells us to use the automatic block size for block formatting context roots here.
     //       That's fine as long as the box is a BFC root.
     if (creates_block_formatting_context(box)) {
         if (before_or_after_inside_layout == BeforeOrAfterInsideLayout::Before)
             return {};
-        return compute_auto_height_for_block_formatting_context_root(box);
+        return compute_automatic_block_size_for_block_formatting_context_root(box);
     }
 
-    // NOTE: For anything else, we use the fit-content height.
+    // NOTE: For anything else, we use the fit-content block size.
     //       This should eventually be replaced by the new absolute positioning model:
     //       https://www.w3.org/TR/css-position-3/#abspos-layout
     return calculate_fit_content_block_size(box, m_state.get(box).available_inner_space_or_constraints_from(available_space), containing_block_constraints);
 }
 
 // https://www.w3.org/TR/CSS22/visudet.html#root-height
-CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_root(Box const& root) const
+CSSPixels FormattingContext::compute_automatic_block_size_for_block_formatting_context_root(Box const& root) const
 {
     // 10.6.7 'Auto' heights for block formatting context roots
     Optional<CSSPixels> top;
     Optional<CSSPixels> bottom;
 
     if (root.children_are_inline()) {
-        // If it only has inline-level children, the height is the distance between
+        // If it only has inline-level children, the block size is the distance between
         // the top content edge and the bottom of the bottommost line box.
         auto const& line_boxes = m_state.get(root).line_boxes;
         top = 0;
         if (!line_boxes.is_empty()) {
             bottom = line_boxes.last().bottom();
             // A trailing interrupting block's bottom margin cannot collapse out of a BFC root,
-            // so it contributes to the root's auto height. The line box bottom excludes it.
+            // so it contributes to the root's automatic block size. The line box bottom excludes it.
             if (line_boxes.last().has_block_level_box())
                 bottom = max(CSSPixels(0), bottom.value() + line_boxes.last().block_level_box_bottom_margin());
         }
     } else {
-        // If it has block-level children, the height is the distance between
+        // If it has block-level children, the block size is the distance between
         // the top margin-edge of the topmost block-level child box
         // and the bottom margin-edge of the bottommost block-level child box.
 
@@ -738,7 +738,7 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
             if (child_box.is_floating())
                 return IterationDecision::Continue;
 
-            // Children that have not been laid out yet contribute nothing to the auto height.
+            // Children that have not been laid out yet contribute nothing to the automatic block size.
             auto const* child_box_state = m_state.try_get(child_box);
             if (!child_box_state)
                 return IterationDecision::Continue;
@@ -754,7 +754,7 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
 
     // In addition, if the element has any floating descendants
     // whose bottom margin edge is below the element's bottom content edge,
-    // then the height is increased to include those edges.
+    // then the block size is increased to include those edges.
     if (auto lowest_float_bottom_margin_edge = m_state.get(root).lowest_floating_descendant_bottom_margin_edge(); lowest_float_bottom_margin_edge.has_value()) {
         if (!bottom.has_value() || *lowest_float_bottom_margin_edge > bottom.value())
             bottom = lowest_float_bottom_margin_edge;
@@ -772,7 +772,7 @@ CSSPixels FormattingContext::measure_automatic_content_block_size(Box const& box
     return measuring_context->automatic_content_block_size();
 }
 
-void FormattingContext::make_button_content_box_definite(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, Optional<CSSPixels> measured_content_height)
+void FormattingContext::make_button_content_box_definite(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, Optional<CSSPixels> measured_content_block_size)
 {
     auto const* html_element = as_if<HTML::HTMLElement>(box.dom_node());
     if (!html_element || !html_element->uses_button_layout())
@@ -795,25 +795,25 @@ void FormattingContext::make_button_content_box_definite(Box const& box, Availab
     if (box_state.has_definite_block_size())
         return;
 
-    auto natural_content_height = measured_content_height.value_or_lazy_evaluated([&] {
+    auto natural_content_block_size = measured_content_block_size.value_or_lazy_evaluated([&] {
         return measure_automatic_content_block_size(box, box_state.available_inner_space_or_constraints_from(available_space), containing_block_constraints);
     });
 
-    auto used_height = should_treat_block_size_as_auto(box, available_space, containing_block_constraints)
-        ? natural_content_height
+    auto used_block_size = should_treat_block_size_as_auto(box, available_space, containing_block_constraints)
+        ? natural_content_block_size
         : calculate_inner_block_size(box, available_space, computed_values.height(), containing_block_constraints);
     if (!should_treat_max_block_size_as_none(box, available_space.block_size, containing_block_constraints) && !computed_values.max_height().is_auto())
-        used_height = min(used_height, calculate_inner_block_size(box, available_space, computed_values.max_height(), containing_block_constraints));
+        used_block_size = min(used_block_size, calculate_inner_block_size(box, available_space, computed_values.max_height(), containing_block_constraints));
     if (!computed_values.min_height().is_auto())
-        used_height = max(used_height, calculate_inner_block_size(box, available_space, computed_values.min_height(), containing_block_constraints));
+        used_block_size = max(used_block_size, calculate_inner_block_size(box, available_space, computed_values.min_height(), containing_block_constraints));
 
-    // Only force a definite content box when the button is taller than its content, so a min-height or a larger height
-    // has room to center within. A content-sized box stays indefinite, so an intrinsic keyword height does not resolve
-    // percentage-height descendants.
-    if (used_height <= natural_content_height)
+    // Only force a definite content box when the button's used block size exceeds its content block size, so a larger
+    // preferred or minimum size has room to center within. A content-sized box stays indefinite, so an intrinsic
+    // keyword does not resolve percentage-sized descendants.
+    if (used_block_size <= natural_content_block_size)
         return;
 
-    box_state.set_content_block_size(used_height);
+    box_state.set_content_block_size(used_block_size);
     box_state.set_has_definite_block_size(true);
 }
 

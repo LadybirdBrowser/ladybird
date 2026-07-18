@@ -35,8 +35,8 @@ public:
 
     virtual void parent_context_did_dimension_child_root_box() override;
 
-    void resolve_used_height_if_not_treated_as_auto(Box const&, AvailableSpace const&, ContainingBlockConstraints const& containing_block_constraints);
-    void resolve_used_height_if_treated_as_auto(Box const&, AvailableSpace const&, ContainingBlockConstraints const& containing_block_constraints, FormattingContext const* box_formatting_context = nullptr);
+    void resolve_used_block_size_if_not_treated_as_auto(Box const&, AvailableSpace const&, ContainingBlockConstraints const& containing_block_constraints);
+    void resolve_used_block_size_if_treated_as_auto(Box const&, AvailableSpace const&, ContainingBlockConstraints const& containing_block_constraints, FormattingContext const* box_formatting_context = nullptr);
 
     template<typename Callback>
     void for_each_floating_box(Callback callback)
@@ -112,7 +112,7 @@ public:
     };
 
 private:
-    CSSPixels compute_auto_height_for_block_level_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&);
+    CSSPixels compute_automatic_block_size_for_block_level_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&);
 
     void compute_inline_size_for_floating_box(Box const&, AvailableSpace const&, ContainingBlockConstraints const&);
 

@@ -524,11 +524,11 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
 
     box_state.set_content_inline_size(width);
 
-    parent().resolve_used_height_if_not_treated_as_auto(box, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_indefinite()), box_constraints);
+    parent().resolve_used_block_size_if_not_treated_as_auto(box, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_indefinite()), box_constraints);
 
     // NOTE: Flex containers with `auto` height are treated as `max-content`, so we can compute their height early.
     if (box.display().is_flex_inside())
-        parent().resolve_used_height_if_treated_as_auto(box, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_indefinite()), box_constraints);
+        parent().resolve_used_block_size_if_treated_as_auto(box, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_indefinite()), box_constraints);
 
     make_button_content_box_definite(box, *m_available_space, box_constraints);
 
@@ -537,9 +537,9 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
 
     if (should_treat_block_size_as_auto(box, *m_available_space, box_constraints)) {
         // FIXME: (10.6.6) If 'height' is 'auto', the height depends on the element's descendants per 10.6.7.
-        parent().resolve_used_height_if_treated_as_auto(box, *m_available_space, box_constraints);
+        parent().resolve_used_block_size_if_treated_as_auto(box, *m_available_space, box_constraints);
     } else {
-        parent().resolve_used_height_if_not_treated_as_auto(box, *m_available_space, box_constraints);
+        parent().resolve_used_block_size_if_not_treated_as_auto(box, *m_available_space, box_constraints);
     }
 
     if (independent_formatting_context)
