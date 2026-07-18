@@ -1243,8 +1243,10 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
             return input;
         }();
         independent_formatting_context->run(inside_layout_input);
-        if (table_formatting_context)
-            pending_position = table_formatting_context->pending_table_box_content_offset_in_wrapper();
+        if (table_formatting_context) {
+            auto pending_logical_offset = table_formatting_context->pending_table_box_content_offset_in_wrapper();
+            pending_position = CSSPixelPoint { pending_logical_offset.inline_offset, pending_logical_offset.block_offset };
+        }
         if (is<TableWrapper>(block_container) && box.display().is_table_inside()) {
             box_state.margin_left = max(box_state.margin_left, 0);
             box_state.margin_right = max(box_state.margin_right, 0);

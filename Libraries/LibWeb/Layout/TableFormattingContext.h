@@ -35,8 +35,8 @@ public:
 
     Box const& table_box() const { return context_box(); }
 
-    void set_pending_table_box_content_offset_in_wrapper(CSSPixelPoint offset) { m_pending_table_box_content_offset_in_wrapper = offset; }
-    CSSPixelPoint pending_table_box_content_offset_in_wrapper() const { return m_pending_table_box_content_offset_in_wrapper; }
+    void set_pending_table_box_content_offset_in_wrapper(LogicalOffset offset) { m_pending_table_box_content_offset_in_wrapper = offset; }
+    LogicalOffset pending_table_box_content_offset_in_wrapper() const { return m_pending_table_box_content_offset_in_wrapper; }
 
     static bool border_is_less_specific(CSS::BorderData const& a, CSS::BorderData const& b);
 
@@ -94,7 +94,7 @@ private:
 
     CSSPixels m_table_block_size { 0 };
     CSSPixels m_automatic_content_block_size { 0 };
-    CSSPixelPoint m_pending_table_box_content_offset_in_wrapper {};
+    LogicalOffset m_pending_table_box_content_offset_in_wrapper {};
     Optional<CSSPixels> m_min_border_box_block_size_from_flex_item;
 
     Optional<AvailableSpace> m_available_space;

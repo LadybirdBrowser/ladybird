@@ -35,7 +35,7 @@ static inline bool is_table_column(Box const& box)
 
 CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, AvailableSpace const& caption_available_space)
 {
-    CSSPixels caption_height = 0;
+    CSSPixels captions_block_size = 0;
     for (auto child = table_box().first_child(); child; child = child->next_sibling()) {
         auto const* child_box_ptr = as_if<Box>(*child);
         if (!child_box_ptr || !child_box_ptr->display().is_table_caption() || child_box_ptr->computed_values().caption_side() != phase) {
@@ -51,7 +51,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
         if (auto caption_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, child_box, this)) {
             auto inner_available_space = caption_available_space;
             auto* block_context = as_if<BlockFormattingContext>(caption_context.ptr());
-            CSSPixelPoint caption_offset;
+            LogicalOffset caption_offset;
             if (block_context) {
                 auto available_inline_size = caption_available_space.inline_size.to_px_or_zero();
                 block_context->resolve_vertical_box_model_metrics(child_box, available_inline_size);
@@ -62,7 +62,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
                 auto const& caption_state = m_state.get(child_box);
                 caption_offset = { caption_state.border_box_left(), 0 };
                 if (phase == CSS::CaptionSide::Bottom)
-                    caption_offset.set_y(m_state.get(table_box()).margin_box_block_size() + caption_state.margin_box_top());
+                    caption_offset.block_offset = m_state.get(table_box()).margin_box_block_size() + caption_state.margin_box_top();
             }
 
             caption_context->run(LayoutInput { inner_available_space, caption_constraints });
@@ -70,23 +70,23 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
             if (block_context) {
                 auto& caption_state = m_state.get_mutable(child_box);
                 if (should_treat_block_size_as_auto(child_box, caption_available_space, m_participant_constraints)) {
-                    auto height = child_box.has_size_containment() ? 0 : caption_context->automatic_content_block_size();
-                    caption_state.set_content_block_size(height);
+                    auto content_block_size = child_box.has_size_containment() ? 0 : caption_context->automatic_content_block_size();
+                    caption_state.set_content_block_size(content_block_size);
                 }
-                place_child(child_box, caption_offset);
+                place_child(child_box, { caption_offset.inline_offset, caption_offset.block_offset });
                 caption_was_placed = true;
             }
         }
 
         auto const& caption_state = m_state.get(child_box);
         if (phase == CSS::CaptionSide::Top) {
-            m_pending_table_box_content_offset_in_wrapper.set_y(caption_state.content_block_size() + caption_state.margin_box_bottom());
+            m_pending_table_box_content_offset_in_wrapper.block_offset = caption_state.content_block_size() + caption_state.margin_box_bottom();
         } else if (!caption_was_placed) {
             place_child(child_box, { caption_state.border_box_left(), m_state.get(table_box()).margin_box_block_size() + caption_state.margin_box_top() });
         }
-        caption_height += caption_state.margin_box_block_size();
+        captions_block_size += caption_state.margin_box_block_size();
     }
-    return caption_height;
+    return captions_block_size;
 }
 
 void TableFormattingContext::compute_constrainedness()
@@ -1272,7 +1272,7 @@ void TableFormattingContext::position_row_boxes()
 {
     auto const& table_state = m_state.get(table_box());
 
-    CSSPixels row_block_offset = m_pending_table_box_content_offset_in_wrapper.y() + border_spacing_vertical();
+    CSSPixels row_block_offset = m_pending_table_box_content_offset_in_wrapper.block_offset + border_spacing_vertical();
     CSSPixels row_inline_offset = table_state.border_left + table_state.padding_left + border_spacing_horizontal();
     for (size_t row_index = 0; row_index < m_rows.size(); row_index++) {
         auto& row = m_rows[row_index];
@@ -1291,7 +1291,7 @@ void TableFormattingContext::position_row_boxes()
             row_block_offset += row_state.content_block_size() + border_spacing_vertical();
     }
 
-    CSSPixels row_group_block_offset = m_pending_table_box_content_offset_in_wrapper.y() + border_spacing_vertical();
+    CSSPixels row_group_block_offset = m_pending_table_box_content_offset_in_wrapper.block_offset + border_spacing_vertical();
     CSSPixels row_group_inline_offset = table_state.border_left + table_state.padding_left + border_spacing_horizontal();
     TableGrid::for_each_child_box_matching(table_box(), TableGrid::is_table_row_group, [&](auto& row_group_box) {
         CSSPixels row_group_block_size = 0;
@@ -1316,7 +1316,7 @@ void TableFormattingContext::position_row_boxes()
         row_group_block_offset += row_group_block_size + (num_rows > 0 ? border_spacing_vertical() : 0);
     });
 
-    auto total_content_block_size = max(row_block_offset, row_group_block_offset) - m_pending_table_box_content_offset_in_wrapper.y() - table_state.padding_top;
+    auto total_content_block_size = max(row_block_offset, row_group_block_offset) - m_pending_table_box_content_offset_in_wrapper.block_offset - table_state.padding_top;
     m_table_block_size = max(total_content_block_size, m_table_block_size);
 }
 
