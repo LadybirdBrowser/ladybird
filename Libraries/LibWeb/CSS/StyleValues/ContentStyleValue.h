@@ -24,7 +24,7 @@ public:
     StyleValueList const& content() const { return *static_cast<StyleValueList const*>(m_value->content.content.pointer); }
     StyleValueList const* alt_text() const { return static_cast<StyleValueList const*>(m_value->content.alt_text.pointer); }
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
 
     bool properties_equal(ContentStyleValue const& other) const;
 

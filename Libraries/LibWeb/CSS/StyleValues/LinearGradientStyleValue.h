@@ -45,7 +45,7 @@ public:
         return adopt_ref(*new (nothrow) LinearGradientStyleValue(move(direction), move(color_stop_list), type, repeating, move(color_interpolation_method), any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
     }
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
     virtual ~LinearGradientStyleValue() override = default;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual bool equals(StyleValue const& other) const override;

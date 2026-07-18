@@ -66,7 +66,7 @@ public:
 
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
     virtual bool equals(StyleValue const&) const override;
 
     ValueComparingRefPtr<StyleValue const> resolve_relative_form(ColorResolutionContext const&) const;

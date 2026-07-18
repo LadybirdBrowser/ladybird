@@ -23,7 +23,7 @@ public:
 
     double number() const { return m_value->number.value; }
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
     Vector<Parser::ComponentValue> tokenize() const;
     GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
 

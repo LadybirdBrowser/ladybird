@@ -30,7 +30,7 @@ public:
         return adopt_ref(*new (nothrow) ConicGradientStyleValue(move(from_angle), move(position), move(color_stop_list), repeating, move(color_interpolation_method), color_syntax));
     }
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
 
     void paint(DisplayListRecordingContext&, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
 

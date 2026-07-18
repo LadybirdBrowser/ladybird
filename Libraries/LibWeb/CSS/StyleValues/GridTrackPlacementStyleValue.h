@@ -34,7 +34,7 @@ public:
             return GridTrackPlacement::make_line(static_cast<StyleValue const*>(data.value.pointer), move(name));
         }
     }
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 

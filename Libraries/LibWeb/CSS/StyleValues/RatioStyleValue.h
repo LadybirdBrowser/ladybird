@@ -22,7 +22,7 @@ public:
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
     void serialize(Utf16StringBuilder&, SerializationMode) const;
     Vector<Parser::ComponentValue> tokenize() const;
 

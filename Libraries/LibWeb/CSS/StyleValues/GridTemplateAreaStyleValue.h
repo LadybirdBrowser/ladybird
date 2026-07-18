@@ -36,7 +36,7 @@ public:
     // NB: Callers materialize grid_areas() once and look up cells through it, because grid_areas()
     //     rebuilds the whole map from the Rust data on every call.
     static Utf16FlyString cell_name_in(HashMap<Utf16FlyString, GridArea> const& grid_areas, size_t row, size_t column);
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
 
     bool properties_equal(GridTemplateAreaStyleValue const& other) const
     {

@@ -17,7 +17,7 @@ public:
     static ValueComparingNonnullRefPtr<DisplayStyleValue const> create(Display const&);
     virtual ~DisplayStyleValue() override = default;
 
-    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(display().to_string()); }
+    void serialize(StringBuilder& builder, SerializationMode) const { builder.append(display().to_string()); }
 
     Display display() const { return bit_cast<Display>(m_value->display.raw); }
 

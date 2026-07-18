@@ -28,7 +28,7 @@ public:
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
-    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { frequency().serialize(builder, mode); }
+    void serialize(StringBuilder& builder, SerializationMode mode) const { frequency().serialize(builder, mode); }
 
     bool equals(StyleValue const& other) const override;
 

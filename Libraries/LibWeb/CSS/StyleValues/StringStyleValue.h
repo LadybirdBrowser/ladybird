@@ -22,7 +22,7 @@ public:
     virtual ~StringStyleValue() override = default;
 
     Utf16FlyString string_value() const { return Utf16FlyString::from_raw(m_value->string.string.raw); }
-    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(serialize_a_string(string_value())); }
+    void serialize(StringBuilder& builder, SerializationMode) const { builder.append(serialize_a_string(string_value())); }
     Vector<Parser::ComponentValue> tokenize() const
     {
         return { Parser::Token::create_string(string_value()) };

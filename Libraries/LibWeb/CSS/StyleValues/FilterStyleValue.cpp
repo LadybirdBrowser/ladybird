@@ -55,6 +55,21 @@ ValueComparingNonnullRefPtr<FilterStyleValue const> FilterStyleValue::initial_va
 }
 
 // The C++ Type is Filter for every filter kind, so filter operations dispatch on the kind.
+void FilterStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
+{
+    switch (kind()) {
+    case Kind::Blur:
+        return static_cast<BlurFilterStyleValue const&>(*this).serialize(builder, mode);
+    case Kind::DropShadow:
+        return static_cast<DropShadowFilterStyleValue const&>(*this).serialize(builder, mode);
+    case Kind::HueRotate:
+        return static_cast<HueRotateFilterStyleValue const&>(*this).serialize(builder, mode);
+    case Kind::Color:
+        return static_cast<ColorFilterStyleValue const&>(*this).serialize(builder, mode);
+    }
+    VERIFY_NOT_REACHED();
+}
+
 bool FilterStyleValue::is_computationally_independent() const
 {
     switch (kind()) {

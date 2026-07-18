@@ -27,7 +27,7 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> size_x() const { return *static_cast<StyleValue const*>(m_value->background_size.size_x.pointer); }
     ValueComparingNonnullRefPtr<StyleValue const> size_y() const { return *static_cast<StyleValue const*>(m_value->background_size.size_y.pointer); }
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     bool properties_equal(BackgroundSizeStyleValue const& other) const { return size_x() == other.size_x() && size_y() == other.size_y(); }

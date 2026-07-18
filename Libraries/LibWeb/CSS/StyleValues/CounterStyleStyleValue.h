@@ -28,7 +28,7 @@ public:
 
     virtual ~CounterStyleStyleValue() override = default;
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
 
     RefPtr<CounterStyle const> resolve_counter_style(StyleScope const&) const;
     Variant<Utf16FlyString, SymbolsFunction> value() const

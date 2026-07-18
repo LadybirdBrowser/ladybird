@@ -42,7 +42,7 @@ public:
         return tech;
     }
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
 
     bool properties_equal(FontSourceStyleValue const&) const;
 

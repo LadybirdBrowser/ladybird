@@ -24,7 +24,7 @@ public:
     Repetition repeat_x() const { return static_cast<Repetition>(m_value->repeat_style.repeat_x); }
     Repetition repeat_y() const { return static_cast<Repetition>(m_value->repeat_style.repeat_y); }
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
 
     bool properties_equal(RepeatStyleStyleValue const& other) const { return repeat_x() == other.repeat_x() && repeat_y() == other.repeat_y(); }
 

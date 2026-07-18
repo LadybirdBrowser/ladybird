@@ -161,7 +161,7 @@ public:
 
     BasicShape const& basic_shape() const;
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     bool properties_equal(BasicShapeStyleValue const& other) const { return basic_shape() == other.basic_shape(); }

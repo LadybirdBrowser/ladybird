@@ -45,7 +45,7 @@ public:
         return value_at(i);
     }
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
     Vector<Parser::ComponentValue> tokenize() const;
     GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
     virtual StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const override;

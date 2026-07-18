@@ -70,7 +70,7 @@ public:
 
     bool is_computationally_independent() const { return true; }
 
-    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(url().to_string()); }
+    void serialize(StringBuilder& builder, SerializationMode) const { builder.append(url().to_string()); }
 
 private:
     URLStyleValue(URL const& url)

@@ -39,7 +39,7 @@ public:
     bool can_be_converted_to_matrix_without_reference_box() const;
     FloatMatrix4x4 to_matrix(Optional<Painting::Paintable const&>) const;
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
     GC::Ptr<CSSTransformComponent> reify_a_transform_function(JS::Realm&) const;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;

@@ -30,7 +30,7 @@ public:
 
     virtual ~CounterStyleSystemStyleValue() override = default;
 
-    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override;
+    void serialize(StringBuilder& builder, SerializationMode mode) const;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& context) const override;
     bool algorithm_differs_from(CounterStyleSystemStyleValue const& other) const;
     bool is_valid_symbol_count(size_t count) const;

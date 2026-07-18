@@ -32,7 +32,7 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> vertical_radius() const { return *static_cast<StyleValue const*>(m_value->border_radius.vertical_radius.pointer); }
     bool is_elliptical() const { return m_value->border_radius.is_elliptical; }
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
 
     bool properties_equal(BorderRadiusStyleValue const& other) const
     {

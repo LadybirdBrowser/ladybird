@@ -28,7 +28,7 @@ public:
     bool hanging() const { return m_value->text_indent.hanging; }
     bool each_line() const { return m_value->text_indent.each_line; }
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     bool properties_equal(TextIndentStyleValue const&) const;
 

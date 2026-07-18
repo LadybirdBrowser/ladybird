@@ -20,7 +20,7 @@ public:
 
     ScrollbarGutter value() const { return static_cast<ScrollbarGutter>(m_value->scrollbar_gutter.value); }
 
-    virtual void serialize(StringBuilder& builder, SerializationMode) const override
+    void serialize(StringBuilder& builder, SerializationMode) const
     {
         switch (value()) {
         case ScrollbarGutter::Auto:

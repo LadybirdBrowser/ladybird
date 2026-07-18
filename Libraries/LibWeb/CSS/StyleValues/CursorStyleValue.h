@@ -29,7 +29,7 @@ public:
 
     Optional<Gfx::ImageCursor> make_image_cursor(Layout::NodeWithStyle const&) const;
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 

@@ -27,7 +27,7 @@ public:
     // NB: Reads the Rust data directly; grid_track_size_list() materializes the whole list.
     bool is_empty() const { return !m_value->grid_track_size_list.is_subgrid && m_value->grid_track_size_list.entries.length == 0; }
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 

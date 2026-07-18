@@ -39,7 +39,7 @@ public:
 
     ValueComparingRefPtr<StyleValue const> longhand(PropertyID) const;
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
 
     bool properties_equal(ShorthandStyleValue const& other) const
     {

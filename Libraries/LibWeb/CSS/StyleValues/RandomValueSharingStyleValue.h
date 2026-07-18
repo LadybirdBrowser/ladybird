@@ -39,7 +39,7 @@ public:
 
     double random_base_value() const;
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
 
     bool properties_equal(RandomValueSharingStyleValue const& other) const
     {

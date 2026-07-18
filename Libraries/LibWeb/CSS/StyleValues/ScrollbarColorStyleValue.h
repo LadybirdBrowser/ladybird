@@ -17,7 +17,7 @@ public:
     static ValueComparingNonnullRefPtr<ScrollbarColorStyleValue const> create(NonnullRefPtr<StyleValue const> thumb_color, NonnullRefPtr<StyleValue const> track_color);
     virtual ~ScrollbarColorStyleValue() override = default;
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
     bool properties_equal(ScrollbarColorStyleValue const& other) const { return thumb_color() == other.thumb_color() && track_color() == other.track_color(); }
 
     bool is_computationally_independent() const { return thumb_color()->is_computationally_independent() && track_color()->is_computationally_independent(); }

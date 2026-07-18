@@ -18,7 +18,7 @@ public:
         return adopt_ref(*new (nothrow) PendingSubstitutionStyleValue(original_shorthand_value));
     }
     virtual ~PendingSubstitutionStyleValue() override = default;
-    virtual void serialize(StringBuilder&, SerializationMode) const override { }
+    void serialize(StringBuilder&, SerializationMode) const { }
     Vector<Parser::ComponentValue> tokenize() const
     {
         // Not sure what to do here, but this isn't valid so returning GIV seems the most correct.

@@ -59,6 +59,7 @@ public:
     ColorSyntax color_syntax() const { return static_cast<ColorSyntax>(m_value->color_function.color_base.color_syntax); }
 
     bool is_computationally_independent() const;
+    void serialize(StringBuilder&, SerializationMode) const;
 
     static Optional<double> resolve_hue(StyleValue const&, CalculationResolutionContext const&);
     static Optional<double> resolve_with_reference_value(StyleValue const&, float one_hundred_percent_value, CalculationResolutionContext const&);

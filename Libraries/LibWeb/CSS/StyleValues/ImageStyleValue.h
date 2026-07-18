@@ -77,7 +77,7 @@ public:
     static ValueComparingNonnullRefPtr<ImageStyleValue const> create(::URL::URL const&);
     virtual ~ImageStyleValue() override;
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
     virtual bool equals(StyleValue const& other) const override;
 
     bool is_computationally_independent() const { return true; }

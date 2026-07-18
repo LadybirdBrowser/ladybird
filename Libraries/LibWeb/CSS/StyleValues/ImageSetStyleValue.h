@@ -26,7 +26,7 @@ public:
     static ValueComparingNonnullRefPtr<ImageSetStyleValue const> create(Vector<Option>);
     virtual ~ImageSetStyleValue() override = default;
 
-    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    void serialize(StringBuilder&, SerializationMode) const;
     virtual bool equals(StyleValue const& other) const override;
     bool is_computationally_independent() const;
 

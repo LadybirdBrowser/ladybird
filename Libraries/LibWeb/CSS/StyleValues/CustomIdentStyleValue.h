@@ -23,7 +23,7 @@ public:
 
     Utf16FlyString custom_ident() const { return Utf16FlyString::from_raw(m_value->custom_ident.custom_ident.raw); }
 
-    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(serialize_an_identifier(custom_ident())); }
+    void serialize(StringBuilder& builder, SerializationMode) const { builder.append(serialize_an_identifier(custom_ident())); }
     Vector<Parser::ComponentValue> tokenize() const;
     GC::Ref<CSSStyleValue> reify(JS::Realm& realm, Utf16FlyString const&) const;
 
