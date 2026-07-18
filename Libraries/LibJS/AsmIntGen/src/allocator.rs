@@ -32,6 +32,7 @@
 use crate::instructions::{InstructionInfo, OperandKind, lookup};
 use crate::parser::{AsmInstruction, Handler, Operand, Program};
 use crate::registers::{Arch, mapping_for, register_cost, resolve_register};
+use crate::shared::get_immediate_value;
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 /// Registers x86-64 calls clobber (caller-saved). System V AMD64.
@@ -101,7 +102,8 @@ pub fn flatten_and_allocate(
     arch: Arch,
     macro_counter: &mut u32,
 ) -> Result<Vec<AsmInstruction>, AllocationError> {
-    let flat = flatten(handler, program, macro_counter);
+    let mut flat = flatten(handler, program, macro_counter);
+    fold_byte_load_branches(&mut flat, program);
     let needs = flat
         .iter()
         .any(|i| i.mnemonic == "temp" || i.mnemonic == "ftemp");
@@ -110,6 +112,184 @@ pub fn flatten_and_allocate(
     }
     let assignments = allocate(handler, &flat, program, arch)?;
     Ok(rewrite(flat, &assignments))
+}
+
+/// Fold a byte load whose result is used only by the immediately following
+/// branch into a branch that reads memory directly. This exposes a single
+/// compare/test-memory operation to backends that support one while avoiding
+/// an otherwise unnecessary named temporary on other architectures.
+fn fold_byte_load_branches(instructions: &mut Vec<AsmInstruction>, program: &Program) {
+    let mut index = 0;
+    while index + 1 < instructions.len() {
+        let branch_mnemonic = match (
+            instructions[index].mnemonic.as_str(),
+            instructions[index + 1].mnemonic.as_str(),
+        ) {
+            ("load8", "branch_eq") => "branch8_eq",
+            ("load8", "branch_ne") => "branch8_ne",
+            ("load8", "branch_bits_set") => "branch8_bits_set",
+            ("load8", "branch_bits_clear") => "branch8_bits_clear",
+            ("load8", "branch_zero") => "branch8_eq",
+            ("load8", "branch_nonzero") => "branch8_ne",
+            _ => {
+                index += 1;
+                continue;
+            }
+        };
+
+        let Some(Operand::Register(load_register)) = instructions[index].operands.first() else {
+            index += 1;
+            continue;
+        };
+        if !matches!(
+            instructions[index + 1].operands.first(),
+            Some(Operand::Register(branch_register)) if branch_register == load_register
+        ) || !loaded_value_is_dead_after_branch(instructions, index, load_register)
+        {
+            index += 1;
+            continue;
+        }
+
+        let Some(memory) = instructions[index].operands.get(1).cloned() else {
+            index += 1;
+            continue;
+        };
+        let (immediate, label_index) = match instructions[index + 1].mnemonic.as_str() {
+            "branch_zero" | "branch_nonzero" => (Operand::Immediate(0), 1),
+            _ => {
+                let Some(immediate) = instructions[index + 1].operands.get(1).cloned() else {
+                    index += 1;
+                    continue;
+                };
+                (immediate, 2)
+            }
+        };
+        if !matches!(get_immediate_value(&immediate, program), Some(0..=255)) {
+            index += 1;
+            continue;
+        }
+        let Some(label) = instructions[index + 1].operands.get(label_index).cloned() else {
+            index += 1;
+            continue;
+        };
+
+        instructions[index + 1] = AsmInstruction {
+            mnemonic: branch_mnemonic.to_string(),
+            operands: vec![memory, immediate, label],
+        };
+        instructions.remove(index);
+    }
+}
+
+fn loaded_value_is_dead_after_branch(
+    instructions: &[AsmInstruction],
+    load_index: usize,
+    register: &str,
+) -> bool {
+    let tail = &instructions[load_index + 2..];
+    if !tail.iter().any(|instruction| instruction_references_register(instruction, register)) {
+        return true;
+    }
+
+    if !tail.first().is_some_and(|instruction| instruction_redefines_register_without_reading(instruction, register)) {
+        return false;
+    }
+
+    let branch_index = load_index + 1;
+    let Some(target_index) = branch_target_index(instructions, branch_index) else {
+        return false;
+    };
+    if target_index <= branch_index {
+        return false;
+    }
+    if target_index == load_index + 2 {
+        return true;
+    }
+    register_is_redefined_before_use_on_linear_path(instructions, target_index, register)
+}
+
+fn instruction_references_register(instruction: &AsmInstruction, register: &str) -> bool {
+    instruction
+        .operands
+        .iter()
+        .any(|operand| operand_references_register(operand, register))
+}
+
+fn operand_references_register(operand: &Operand, register: &str) -> bool {
+    match operand {
+        Operand::Register(name) => name == register,
+        Operand::Memory { base, index, scale } => {
+            base == register
+                || index.as_deref() == Some(register)
+                || scale.as_deref() == Some(register)
+        }
+        _ => false,
+    }
+}
+
+fn instruction_redefines_register_without_reading(
+    instruction: &AsmInstruction,
+    register: &str,
+) -> bool {
+    let Some(info) = lookup(&instruction.mnemonic) else {
+        return false;
+    };
+    instruction.operands.iter().enumerate().any(|(operand_index, operand)| {
+        matches!(operand, Operand::Register(output) if output == register)
+            && matches!(operand_kind_at(info, operand_index), OperandKind::GprOut)
+            && instruction
+                .operands
+                .iter()
+                .filter(|operand| operand_references_register(operand, register))
+                .count()
+                == 1
+    })
+}
+
+fn instruction_may_change_control_flow(instruction: &AsmInstruction) -> bool {
+    instruction.mnemonic == "label"
+        || instruction.mnemonic == "cold"
+        || lookup(&instruction.mnemonic).is_some_and(|info| info.terminal)
+        || instruction
+            .operands
+            .iter()
+            .any(|operand| matches!(operand, Operand::Label(_)))
+}
+
+fn branch_target_index(instructions: &[AsmInstruction], branch_index: usize) -> Option<usize> {
+    let label = instructions[branch_index].operands.iter().find_map(|operand| {
+        if let Operand::Label(label) = operand {
+            Some(label)
+        } else {
+            None
+        }
+    })?;
+    instructions.iter().position(|instruction| {
+        instruction.mnemonic == "label"
+            && matches!(instruction.operands.first(), Some(Operand::Label(candidate)) if candidate == label)
+    })
+}
+
+fn register_is_redefined_before_use_on_linear_path(
+    instructions: &[AsmInstruction],
+    start_index: usize,
+    register: &str,
+) -> bool {
+    for (index, instruction) in instructions.iter().enumerate().skip(start_index) {
+        if instruction_redefines_register_without_reading(instruction, register) {
+            return true;
+        }
+        if instruction_references_register(instruction, register) {
+            return false;
+        }
+        if lookup(&instruction.mnemonic).is_some_and(|info| info.terminal) {
+            return true;
+        }
+        if index != start_index && instruction_may_change_control_flow(instruction) {
+            return false;
+        }
+    }
+    true
 }
 
 // ============================================================================
@@ -1242,6 +1422,82 @@ end
             assert_ne!(insn.mnemonic, "temp");
             assert_ne!(insn.mnemonic, "ftemp");
         }
+    }
+
+    #[test]
+    fn folds_single_use_byte_load_into_branch() {
+        let src = "
+const KIND = 3
+handler Test
+    temp kind
+    load8 kind, [values, 4]
+    branch_eq kind, KIND, .slow
+.slow:
+    exit
+end
+";
+        let out = build(src, Arch::X86_64).expect("allocation should succeed");
+
+        assert!(!out.iter().any(|insn| insn.mnemonic == "load8"));
+        assert!(out.iter().any(|insn| insn.mnemonic == "branch8_eq"));
+    }
+
+    #[test]
+    fn preserves_byte_load_when_result_is_reused() {
+        let src = "
+const KIND = 3
+handler Test
+    temp kind
+    load8 kind, [values, 4]
+    branch_eq kind, KIND, .slow
+    add kind, 1
+.slow:
+    exit
+end
+";
+        let out = build(src, Arch::X86_64).expect("allocation should succeed");
+
+        assert!(out.iter().any(|insn| insn.mnemonic == "load8"));
+        assert!(!out.iter().any(|insn| insn.mnemonic == "branch8_eq"));
+    }
+
+    #[test]
+    fn folds_byte_loads_when_temporary_is_redefined() {
+        let src = "
+handler Test
+    temp flag
+    load8 flag, [values, 4]
+    branch_zero flag, .slow
+    load8 flag, [values, 5]
+    branch_nonzero flag, .slow
+.slow:
+    exit
+end
+";
+        let out = build(src, Arch::X86_64).expect("allocation should succeed");
+
+        assert!(!out.iter().any(|insn| insn.mnemonic == "load8"));
+        assert_eq!(out.iter().filter(|insn| insn.mnemonic == "branch8_eq").count(), 1);
+        assert_eq!(out.iter().filter(|insn| insn.mnemonic == "branch8_ne").count(), 1);
+    }
+
+    #[test]
+    fn preserves_byte_load_when_branch_target_uses_value_before_redefinition() {
+        let src = "
+const KIND = 3
+handler Test
+    temp flag
+    load8 flag, [values, 4]
+    branch_eq flag, KIND, .use
+    load8 flag, [values, 5]
+.use:
+    store_operand m_dst, flag
+end
+";
+        let out = build(src, Arch::X86_64).expect("allocation should succeed");
+
+        assert_eq!(out.iter().filter(|insn| insn.mnemonic == "load8").count(), 2);
+        assert!(!out.iter().any(|insn| insn.mnemonic == "branch8_eq"));
     }
 
     #[test]

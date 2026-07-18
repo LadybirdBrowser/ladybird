@@ -1605,6 +1605,27 @@ fn emit_instruction(
             }
         }
 
+        "branch8_eq" | "branch8_ne" | "branch8_bits_set" | "branch8_bits_clear" => {
+            if insn.operands.len() == 3 {
+                let memory = resolve_op(&insn.operands[0], handler, program);
+                let immediate = get_immediate_value(&insn.operands[1], program)
+                    .expect("branch8 immediate must resolve at code generation time");
+                let label = resolve_label(&insn.operands[2], handler);
+                let operation = if matches!(m.as_str(), "branch8_eq" | "branch8_ne") {
+                    "cmp"
+                } else {
+                    "test"
+                };
+                let condition = if matches!(m.as_str(), "branch8_eq" | "branch8_bits_clear") {
+                    "jz"
+                } else {
+                    "jnz"
+                };
+                w!(out, "    {operation} BYTE PTR {memory}, {immediate}");
+                w!(out, "    {condition} {label}");
+            }
+        }
+
         "branch_zero" | "branch_nonzero" | "branch_negative" | "branch_not_negative" => {
             // branch_zero a, label  =>  test a, a; jz label
             if insn.operands.len() == 2 {
@@ -1925,6 +1946,39 @@ mod tests {
         assert!(out.contains("bt rdx, 32"));
         assert!(out.contains("jnc .Lasm_Call.slow"));
         assert!(!out.contains("test rdx, 4294967296"));
+    }
+
+    #[test]
+    fn lowers_byte_memory_branch_without_a_register_load() {
+        let program = test_program();
+        let handler = call_handler();
+        let instruction = AsmInstruction {
+            mnemonic: "branch8_bits_clear".into(),
+            operands: vec![
+                Operand::Memory {
+                    base: "rcx".into(),
+                    index: Some("4".into()),
+                    scale: None,
+                },
+                Operand::Immediate(2),
+                Operand::Label(".slow".into()),
+            ],
+        };
+        let mut out = String::new();
+        let mut state = HandlerState::new();
+
+        emit_instruction(
+            &mut out,
+            &instruction,
+            &handler,
+            &program,
+            &mut state,
+            X86_64Abi::SysV,
+        );
+
+        assert!(out.contains("test BYTE PTR [rcx + 4], 2"));
+        assert!(out.contains("jz .Lasm_Call.slow"));
+        assert!(!out.contains("movzx"));
     }
 
     #[test]

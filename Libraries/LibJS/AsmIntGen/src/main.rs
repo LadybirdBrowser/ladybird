@@ -247,6 +247,9 @@
 //!
 //! - `branch_eq a, b, label` -- Branch if `a == b`.
 //! - `branch_ne a, b, label` -- Branch if `a != b`.
+//! - `branch8_eq [memory], immediate, label` -- Branch if the byte in memory
+//!   equals the immediate. The `ne`, `bits_set`, and `bits_clear` variants
+//!   perform the corresponding byte comparison or test.
 //! - `branch_ge_unsigned a, b, label` -- Branch if `a >= b` (unsigned).
 //! - `branch_zero a, label` -- Branch if `a == 0`.
 //! - `branch_nonzero a, label` -- Branch if `a != 0`.

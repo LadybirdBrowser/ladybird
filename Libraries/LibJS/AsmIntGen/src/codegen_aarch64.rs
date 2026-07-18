@@ -2459,6 +2459,30 @@ fn emit_instruction(
             }
         }
 
+        "branch8_eq" | "branch8_ne" | "branch8_bits_set" | "branch8_bits_clear" => {
+            if insn.operands.len() == 3 {
+                let memory = resolve_op(&insn.operands[0], handler, program);
+                let immediate = get_immediate_value(&insn.operands[1], program)
+                    .expect("branch8 immediate must resolve at code generation time");
+                let label = resolve_label(&insn.operands[2], handler);
+                let memory = parse_mem(&memory).expect("invalid branch8 memory operand");
+                emit_mem_load(out, "w9", &memory, 1, false);
+                if matches!(m.as_str(), "branch8_eq" | "branch8_ne") && immediate == 0 {
+                    let operation = if m == "branch8_eq" { "cbz" } else { "cbnz" };
+                    w!(out, "    {operation} w9, {label}");
+                } else if matches!(m.as_str(), "branch8_eq" | "branch8_ne") {
+                    emit_cmp_imm(out, "x9", immediate, pinned);
+                    let condition = if m == "branch8_eq" { "b.eq" } else { "b.ne" };
+                    w!(out, "    {condition} {label}");
+                } else {
+                    emit_mov_imm(out, "x10", immediate);
+                    w!(out, "    tst x9, x10");
+                    let condition = if m == "branch8_bits_clear" { "b.eq" } else { "b.ne" };
+                    w!(out, "    {condition} {label}");
+                }
+            }
+        }
+
         "branch_zero" | "branch_nonzero" | "branch_negative" | "branch_not_negative" => {
             if insn.operands.len() == 2 {
                 let a = resolve_op(&insn.operands[0], handler, program);
@@ -3042,6 +3066,31 @@ mod tests {
         assert!(output.contains("    blr x9"));
         assert!(output.contains("    ldr x1, [sp, #120]"));
         assert!(output.contains("    ldr x0, [sp, #112]"));
+    }
+
+    #[test]
+    fn byte_memory_zero_branch_uses_cbz() {
+        let output = generate(&coff_program(vec![
+            AsmInstruction {
+                mnemonic: "branch8_eq".into(),
+                operands: vec![
+                    Operand::Memory {
+                        base: "x0".into(),
+                        index: Some("4".into()),
+                        scale: None,
+                    },
+                    Operand::Immediate(0),
+                    Operand::Label(".zero".into()),
+                ],
+            },
+            AsmInstruction {
+                mnemonic: "label".into(),
+                operands: vec![Operand::Label(".zero".into())],
+            },
+        ]));
+
+        assert!(output.contains("    ldrb w9, [x0, #4]"));
+        assert!(output.contains("    cbz w9, .Lasm_Call.zero"));
     }
 
     #[test]

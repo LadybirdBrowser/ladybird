@@ -445,8 +445,7 @@ macro validate_callee_builtin(expected_builtin, fail)
     branch_ne scratch, OBJECT_TAG, fail
     unbox_object callee, callee
     load8 scratch, [callee, OBJECT_FLAGS]
-    and scratch, OBJECT_FLAG_IS_FUNCTION
-    branch_zero scratch, fail
+    branch_bits_clear scratch, OBJECT_FLAG_IS_FUNCTION, fail
     load8 scratch, [callee, FUNCTION_OBJECT_BUILTIN_HAS_VALUE]
     branch_zero scratch, fail
     load8 scratch, [callee, FUNCTION_OBJECT_BUILTIN_VALUE]
