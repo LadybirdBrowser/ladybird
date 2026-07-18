@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Selection/SelectionModifier.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
@@ -2374,6 +2375,14 @@ bool command_remove_format_action(DOM::Document& document, Utf16View)
 bool command_select_all_action(DOM::Document& document, Utf16View)
 {
     // NOTE: The spec mentions "This is totally broken". So fair warning :^)
+
+    // INTEROP: When the selection is inside an editing host, Chromium selects that host's contents rather than the
+    //          whole document (the spec itself notes that this is what should happen). Reuse the Select All user
+    //          action, which selects the complete active editing host with rendered caret endpoints.
+    if (auto range = active_range(document); range && range->start_container()->is_editable_or_editing_host()) {
+        ::Web::Selection::SelectionModifier(*document.get_selection()).select_all();
+        return true;
+    }
 
     // 1. Let target be the body element of the context object.
     GC::Ptr<DOM::Node> target = document.body();
