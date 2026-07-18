@@ -2329,8 +2329,8 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
 
         auto tentative_size_for_replaced_element = [this, &item, dimension, available_space, grid_area_constraints](CSS::Size const& size) {
             if (dimension == GridDimension::Column)
-                return tentative_width_for_replaced_element(item.box, size, available_space, grid_area_constraints);
-            return tentative_height_for_replaced_element(item.box, size, available_space, grid_area_constraints);
+                return tentative_inline_size_for_replaced_element(item.box, size, available_space, grid_area_constraints);
+            return tentative_block_size_for_replaced_element(item.box, size, available_space, grid_area_constraints);
         };
 
         ItemAlignment used_alignment;

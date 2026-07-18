@@ -451,8 +451,8 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
 
     auto const& box_constraints = m_layout_input->containing_block_constraints;
     if (box_is_sized_as_replaced_element(box, *m_available_space, box_constraints)) {
-        box_state.set_content_inline_size(compute_width_for_replaced_element(box, *m_available_space, box_constraints));
-        box_state.set_content_block_size(compute_height_for_replaced_element(box, *m_available_space, box_constraints));
+        box_state.set_content_inline_size(compute_inline_size_for_replaced_element(box, *m_available_space, box_constraints));
+        box_state.set_content_block_size(compute_block_size_for_replaced_element(box, *m_available_space, box_constraints));
 
         // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
         // The axis in which the preferred size calculation depends on this aspect ratio is called the ratio-dependent

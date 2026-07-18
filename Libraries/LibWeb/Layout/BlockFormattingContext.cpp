@@ -764,8 +764,8 @@ void BlockFormattingContext::compute_width_for_block_level_replaced_element_in_n
     box_state.padding_left = padding_left;
     box_state.padding_right = padding_right;
 
-    auto width = compute_width_for_replaced_element(box, available_space, containing_block_constraints);
-    box_state.set_content_inline_size(width);
+    auto inline_size = compute_inline_size_for_replaced_element(box, available_space, containing_block_constraints);
+    box_state.set_content_inline_size(inline_size);
 }
 
 void BlockFormattingContext::resolve_used_height_if_not_treated_as_auto(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints)
@@ -805,7 +805,7 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
 
     CSSPixels height = 0;
     if (box_is_sized_as_replaced_element(box, available_space, containing_block_constraints)) {
-        height = compute_height_for_replaced_element(box, available_space, containing_block_constraints);
+        height = compute_block_size_for_replaced_element(box, available_space, containing_block_constraints);
     } else {
         if (box_formatting_context) {
             height = box_formatting_context->automatic_content_block_size();

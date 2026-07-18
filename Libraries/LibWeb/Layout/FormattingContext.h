@@ -12,6 +12,7 @@
 #include <LibWeb/Layout/AvailableSpace.h>
 #include <LibWeb/Layout/LayoutInput.h>
 #include <LibWeb/Layout/LayoutState.h>
+#include <LibWeb/Layout/LogicalGeometry.h>
 
 namespace Web::Layout {
 
@@ -111,8 +112,8 @@ public:
         TableWrapperInlineSizeMode = TableWrapperInlineSizeMode::ClampToAvailableInlineSize);
     CSSPixels compute_table_box_block_size_inside_table_wrapper(Box const&, AvailableSpace const&, ContainingBlockConstraints const& table_wrapper_constraints);
 
-    CSSPixels compute_width_for_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
-    CSSPixels compute_height_for_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
+    CSSPixels compute_inline_size_for_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
+    CSSPixels compute_block_size_for_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
 
     static OwnPtr<FormattingContext> create_independent_formatting_context_if_needed(LayoutState&, LayoutMode, Box const& child_box, FormattingContext* parent);
     static NonnullOwnPtr<FormattingContext> create_independent_formatting_context(LayoutState&, LayoutMode, Box const& child_box, FormattingContext* parent);
@@ -181,7 +182,7 @@ protected:
     [[nodiscard]] static CSSPixels distance_between_marker_and_list_item(ListItemMarkerBox const&);
 
     [[nodiscard]] static bool computed_height_establishes_definite_containing_block_height(CSS::Size const&);
-    [[nodiscard]] Optional<CSSPixels> calculate_transferred_width_for_replaced_element(Layout::Box const&, ContainingBlockConstraints const&) const;
+    [[nodiscard]] Optional<CSSPixels> calculate_transferred_inline_size_for_replaced_element(Layout::Box const&, ContainingBlockConstraints const&) const;
 
     [[nodiscard]] bool should_treat_width_as_auto(Box const&, AvailableSpace const&) const;
     [[nodiscard]] bool should_treat_height_as_auto(Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
@@ -216,15 +217,15 @@ protected:
         CSSPixels preferred_minimum_width { 0 };
     };
 
-    CSSPixels tentative_width_for_replaced_element(Box const&, CSS::Size const& computed_width, AvailableSpace const&, ContainingBlockConstraints const&) const;
-    CSSPixels tentative_height_for_replaced_element(Box const&, CSS::Size const& computed_height, AvailableSpace const&, ContainingBlockConstraints const&) const;
+    CSSPixels tentative_inline_size_for_replaced_element(Box const&, CSS::Size const& computed_inline_size, AvailableSpace const&, ContainingBlockConstraints const&) const;
+    CSSPixels tentative_block_size_for_replaced_element(Box const&, CSS::Size const& computed_block_size, AvailableSpace const&, ContainingBlockConstraints const&) const;
     CSSPixels compute_auto_height_for_block_formatting_context_root(Box const&) const;
     static CSSPixels line_box_physical_width(Box const&, LineBox const&);
 
     CSSPixels measure_automatic_content_block_size(Box const&, AvailableSpace const& inner_available_space, ContainingBlockConstraints const&);
     void make_button_content_box_definite(Box const&, AvailableSpace const&, ContainingBlockConstraints const&, Optional<CSSPixels> measured_content_height = {});
 
-    [[nodiscard]] CSSPixelSize solve_replaced_size_constraint(CSSPixels input_width, CSSPixels input_height, Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
+    [[nodiscard]] LogicalSize solve_replaced_size_constraint(CSSPixels input_inline_size, CSSPixels input_block_size, Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
 
     ShrinkToFitResult calculate_shrink_to_fit_widths(Box const&, ContainingBlockConstraints const&);
 
