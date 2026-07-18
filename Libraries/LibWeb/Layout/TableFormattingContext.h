@@ -66,8 +66,8 @@ private:
     void distribute_excess_width_to_columns(CSSPixels available_width);
     void distribute_excess_width_to_columns_fixed_mode(CSSPixels excess_width);
     bool can_skip_row_intrinsic_measurement() const;
-    void compute_table_height();
-    void distribute_height_to_rows();
+    void compute_table_block_size();
+    void distribute_block_size_to_rows();
     void position_row_boxes();
     void position_cell_boxes();
     void border_conflict_resolution();
@@ -92,7 +92,7 @@ private:
     ContainingBlockConstraints m_table_constraints;
     ContainingBlockConstraints m_participant_constraints;
 
-    CSSPixels m_table_height { 0 };
+    CSSPixels m_table_block_size { 0 };
     CSSPixels m_automatic_content_block_size { 0 };
     CSSPixelPoint m_pending_table_box_content_offset_in_wrapper {};
     Optional<CSSPixels> m_min_border_box_block_size_from_flex_item;
@@ -148,7 +148,7 @@ private:
     template<class RowOrColumn>
     Vector<RowOrColumn>& table_rows_or_columns();
 
-    CSSPixels compute_row_content_height(Cell const& cell) const;
+    CSSPixels compute_row_content_block_size(Cell const& cell) const;
 
     Vector<Cell> m_cells;
     Vector<Column> m_columns;

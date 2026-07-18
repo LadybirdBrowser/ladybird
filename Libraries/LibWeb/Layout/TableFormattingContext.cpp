@@ -250,29 +250,29 @@ void TableFormattingContext::compute_outer_content_sizes()
 
 void TableFormattingContext::initialize_row_content_sizes()
 {
-    auto containing_block_height = m_table_constraints.percentage_basis_block_size.value_or(0);
+    auto containing_block_block_size = m_table_constraints.percentage_basis_block_size.value_or(0);
 
     for (auto& row : m_rows) {
         auto const& computed_values = row.box.computed_values();
-        auto min_height = computed_values.min_height().to_px(containing_block_height);
-        auto max_height = computed_values.max_height().is_length() ? computed_values.max_height().to_px(containing_block_height) : CSSPixels::max();
-        auto height = computed_values.height().to_px(containing_block_height);
-        // The outer min-content height of a table-row or table-row-group is max(min-height, height).
-        row.min_size = max(min_height, height);
-        // The outer max-content height of a table-row or table-row-group is max(min-height, min(max-height, height)).
-        row.max_size = max(min_height, min(max_height, height));
+        auto min_block_size = computed_values.min_height().to_px(containing_block_block_size);
+        auto max_block_size = computed_values.max_height().is_length() ? computed_values.max_height().to_px(containing_block_block_size) : CSSPixels::max();
+        auto block_size = computed_values.height().to_px(containing_block_block_size);
+        // The outer min-content block size of a table row or row group is max(min-block-size, block-size).
+        row.min_size = max(min_block_size, block_size);
+        // The outer max-content block size is max(min-block-size, min(max-block-size, block-size)).
+        row.max_size = max(min_block_size, min(max_block_size, block_size));
     }
 }
 
 template<>
 void TableFormattingContext::initialize_table_measures<TableFormattingContext::Row>()
 {
-    auto containing_block_height = m_table_constraints.percentage_basis_block_size.value_or(0);
+    auto containing_block_block_size = m_table_constraints.percentage_basis_block_size.value_or(0);
 
     for (auto& cell : m_cells) {
         auto const& computed_values = cell.box.computed_values();
         if (cell.row_span == 1) {
-            auto specified_block_size = computed_values.height().to_px(containing_block_height);
+            auto specified_block_size = computed_values.height().to_px(containing_block_block_size);
             // https://www.w3.org/TR/css-tables-3/#row-layout makes specified cell height part of the initialization formula for row table measures:
             // This is done by running the same algorithm as the column measurement, with the span=1 value being initialized (for min-content) with
             // the largest of the resulting height of the previous row layout, the height specified on the corresponding table-row (if any), and
@@ -978,7 +978,7 @@ bool TableFormattingContext::can_skip_row_intrinsic_measurement() const
     return true;
 }
 
-static bool cell_height_depends_on_table_height(Box const& cell_box)
+static bool cell_block_size_depends_on_table_block_size(Box const& cell_box)
 {
     return cell_box.computed_values().height().is_percentage();
 }
@@ -1013,19 +1013,19 @@ Optional<TableFormattingContext::MeasuredCellContent> TableFormattingContext::me
     };
 }
 
-void TableFormattingContext::compute_table_height()
+void TableFormattingContext::compute_table_block_size()
 {
-    // First pass of row height calculation:
+    // First pass of row block-size calculation:
     for (auto& row : m_rows) {
         if (row.is_collapsed) {
-            row.base_height = 0;
+            row.base_block_size = 0;
             continue;
         }
-        auto row_computed_height = row.box.computed_values().height();
-        if (row_computed_height.is_length()) {
-            // NOTE: A <length> height resolves without a percentage basis.
-            auto row_used_height = row_computed_height.to_px(0);
-            row.base_height = max(row.base_height, row_used_height);
+        auto row_computed_block_size = row.box.computed_values().height();
+        if (row_computed_block_size.is_length()) {
+            // NOTE: A <length> block size resolves without a percentage basis.
+            auto row_used_block_size = row_computed_block_size.to_px(0);
+            row.base_block_size = max(row.base_block_size, row_used_block_size);
         }
     }
 
@@ -1034,17 +1034,17 @@ void TableFormattingContext::compute_table_height()
         auto& row = m_rows[cell.row_index];
         auto& cell_state = m_state.get_mutable(cell.box);
 
-        CSSPixels span_width = 0;
+        CSSPixels span_inline_size = 0;
         for (size_t i = 0; i < cell.column_span; ++i)
-            span_width += m_columns[cell.column_index + i].used_width;
+            span_inline_size += m_columns[cell.column_index + i].used_width;
 
-        auto width_of_containing_block = m_participant_constraints.percentage_basis_inline_size.value_or(0);
-        auto height_of_containing_block = m_participant_constraints.percentage_basis_block_size.value_or(0);
+        auto containing_block_inline_size = m_participant_constraints.percentage_basis_inline_size.value_or(0);
+        auto containing_block_block_size = m_participant_constraints.percentage_basis_block_size.value_or(0);
 
-        cell_state.padding_top = cell.box.computed_values().padding().top().to_px_or_zero(width_of_containing_block);
-        cell_state.padding_bottom = cell.box.computed_values().padding().bottom().to_px_or_zero(width_of_containing_block);
-        cell_state.padding_left = cell.box.computed_values().padding().left().to_px_or_zero(width_of_containing_block);
-        cell_state.padding_right = cell.box.computed_values().padding().right().to_px_or_zero(width_of_containing_block);
+        cell_state.padding_top = cell.box.computed_values().padding().top().to_px_or_zero(containing_block_inline_size);
+        cell_state.padding_bottom = cell.box.computed_values().padding().bottom().to_px_or_zero(containing_block_inline_size);
+        cell_state.padding_left = cell.box.computed_values().padding().left().to_px_or_zero(containing_block_inline_size);
+        cell_state.padding_right = cell.box.computed_values().padding().right().to_px_or_zero(containing_block_inline_size);
 
         if (table_box().computed_values().border_collapse() == CSS::BorderCollapse::Separate) {
             cell_state.border_top = cell.box.computed_values().border_top().width;
@@ -1054,23 +1054,23 @@ void TableFormattingContext::compute_table_height()
         }
 
         if (!row.is_collapsed) {
-            auto cell_computed_height = cell.box.computed_values().height();
-            if (cell_computed_height.is_length()) {
-                auto cell_used_height = cell_computed_height.to_px(height_of_containing_block);
-                cell_state.set_content_block_size(cell_used_height - cell_state.border_box_top() - cell_state.border_box_bottom());
+            auto cell_computed_block_size = cell.box.computed_values().height();
+            if (cell_computed_block_size.is_length()) {
+                auto cell_used_block_size = cell_computed_block_size.to_px(containing_block_block_size);
+                cell_state.set_content_block_size(cell_used_block_size - cell_state.border_box_top() - cell_state.border_box_bottom());
 
-                row.base_height = max(row.base_height, cell_used_height);
+                row.base_block_size = max(row.base_block_size, cell_used_block_size);
             }
         }
 
-        // Compute cell width as specified by https://www.w3.org/TR/css-tables-3/#bounding-box-assignment:
-        // The position of any table-cell, table-track, or table-track-group box within the table is defined as the rectangle whose width/height is the sum of:
-        // - the widths/heights of all spanned visible columns/rows
+        // Compute cell inline size as specified by https://www.w3.org/TR/css-tables-3/#bounding-box-assignment:
+        // The position of any table cell, track, or track group is defined by the sums of its spanned columns and rows:
+        // - the inline/block sizes of all spanned visible columns/rows
         // - the horizontal/vertical border-spacing times the amount of spanned visible columns/rows minus one
         // FIXME: Account for visibility.
-        cell_state.set_content_inline_size(span_width - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
+        cell_state.set_content_inline_size(span_inline_size - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
         Optional<CSSPixels> measured_baseline;
-        if (cell_height_depends_on_table_height(cell.box)) {
+        if (cell_block_size_depends_on_table_block_size(cell.box)) {
             // This cell's final inside layout happens in the second pass below; measure its
             // content in a throwaway state instead of laying out the committing state twice.
             if (auto measured = measure_cell_content(cell.box, cell_state, cell_state.available_inner_space_or_constraints_from(*m_available_space)); measured.has_value()) {
@@ -1083,7 +1083,7 @@ void TableFormattingContext::compute_table_height()
         }
         if (m_needs_fixed_mode_row_measurement) {
             auto const& computed_values = cell.box.computed_values();
-            auto min_block_size = computed_values.min_height().to_px(height_of_containing_block);
+            auto min_block_size = computed_values.min_height().to_px(containing_block_block_size);
             auto cell_intrinsic_block_size_offsets = cell_state.border_box_top() + cell_state.border_box_bottom();
             auto measured_outer_block_size = max(cell_state.border_box_block_size(), min_block_size + cell_intrinsic_block_size_offsets);
             cell.outer_min_block_size = measured_outer_block_size;
@@ -1097,17 +1097,17 @@ void TableFormattingContext::compute_table_height()
 
         // Implements https://www.w3.org/TR/css-tables-3/#computing-the-table-height
 
-        // The minimum height of a row is the maximum of:
-        // - the computed height (if definite, percentages being considered 0px) of its corresponding table-row (if nay)
-        // - the computed height of each cell spanning the current row exclusively (if definite, percentages being treated as 0px), and
-        // - the minimum height (ROWMIN) required by the cells spanning the row.
+        // The minimum block size of a row is the maximum of:
+        // - the computed block size (if definite, percentages being considered 0px) of its corresponding table row,
+        // - the computed block size of each cell spanning the current row exclusively (if definite, percentages being treated as 0px), and
+        // - the minimum block size (ROWMIN) required by the cells spanning the row.
         // Note that we've already applied the first rule at the top of the method.
         if (!row.is_collapsed) {
             if (cell.row_span == 1) {
-                row.base_height = max(row.base_height, cell_state.border_box_block_size());
+                row.base_block_size = max(row.base_block_size, cell_state.border_box_block_size());
             }
             if (!m_needs_fixed_mode_row_measurement)
-                row.base_height = max(row.base_height, m_rows[cell.row_index].min_size);
+                row.base_block_size = max(row.base_block_size, m_rows[cell.row_index].min_size);
             row.baseline = max(row.baseline, cell.baseline);
         }
     }
@@ -1117,84 +1117,83 @@ void TableFormattingContext::compute_table_height()
         compute_table_measures<Row>();
         for (auto& row : m_rows) {
             if (!row.is_collapsed)
-                row.base_height = max(row.base_height, row.min_size);
+                row.base_block_size = max(row.base_block_size, row.min_size);
         }
     }
 
-    CSSPixels sum_rows_height = 0;
+    CSSPixels sum_base_block_sizes = 0;
     for (auto& row : m_rows) {
-        sum_rows_height += row.base_height;
+        sum_base_block_sizes += row.base_block_size;
     }
 
-    m_table_height = sum_rows_height;
+    m_table_block_size = sum_base_block_sizes;
 
     if (m_min_border_box_block_size_from_flex_item.has_value()) {
         auto const& table_state = m_state.get(table_box());
         auto min_content_block_size = *m_min_border_box_block_size_from_flex_item - table_state.border_box_top() - table_state.border_box_bottom();
-        m_table_height = max(m_table_height, min_content_block_size);
+        m_table_block_size = max(m_table_block_size, min_content_block_size);
     }
 
     if (!table_box().computed_values().height().is_auto()) {
-        // If the table has a height property with a value other than auto, it is treated as a minimum height for the
-        // table grid, and will eventually be distributed to the height of the rows if their collective minimum height
-        // ends up smaller than this number.
-        CSSPixels height_of_table_containing_block = m_table_constraints.percentage_basis_block_size.value_or(0);
-        auto specified_table_height = table_box().computed_values().height().to_px(height_of_table_containing_block);
+        // If the table has a `height` property other than auto, it is treated as a minimum block size for the
+        // table grid, and will eventually be distributed to the rows if their collective minimum block size is smaller.
+        CSSPixels table_containing_block_block_size = m_table_constraints.percentage_basis_block_size.value_or(0);
+        auto specified_table_block_size = table_box().computed_values().height().to_px(table_containing_block_block_size);
         if (table_box().computed_values().box_sizing() == CSS::BoxSizing::BorderBox) {
             auto const& table_state = m_state.get(table_box());
-            specified_table_height -= table_state.border_box_top() + table_state.border_box_bottom();
+            specified_table_block_size -= table_state.border_box_top() + table_state.border_box_bottom();
         }
-        m_table_height = max(m_table_height, specified_table_height);
+        m_table_block_size = max(m_table_block_size, specified_table_block_size);
     }
 
     for (auto& row : m_rows) {
         // Reference size is the largest of
-        // - its initial base height and
-        // - its new base height (the one evaluated during the second layout pass, where percentages used in
-        //   rowgroups/rows/cells' specified heights were resolved according to the table height, instead of
+        // - its initial base block size and
+        // - its new base block size (the one evaluated during the second layout pass, where percentages used in
+        //   row groups, rows, and cells were resolved according to the table block size, instead of
         //   being ignored as 0px).
 
         // Assign reference size to base size. Later, the reference size might change to a larger value during
         // the second pass of rows layout.
-        row.reference_height = row.base_height;
+        row.reference_block_size = row.base_block_size;
     }
 
-    // Second pass of rows height calculation:
-    // At this point, percentage row height can be resolved because the final table height is calculated.
+    // Second pass of row block-size calculation:
+    // At this point, percentage row block sizes can be resolved because the final table block size is calculated.
     for (auto& row : m_rows) {
         if (row.is_collapsed) {
-            row.reference_height = 0;
+            row.reference_block_size = 0;
             continue;
         }
-        auto row_computed_height = row.box.computed_values().height();
-        if (row_computed_height.is_percentage()) {
-            auto row_used_height = row_computed_height.to_px(m_table_height);
-            row.reference_height = max(row.reference_height, row_used_height);
+        auto row_computed_block_size = row.box.computed_values().height();
+        if (row_computed_block_size.is_percentage()) {
+            auto row_used_block_size = row_computed_block_size.to_px(m_table_block_size);
+            row.reference_block_size = max(row.reference_block_size, row_used_block_size);
         } else {
             continue;
         }
     }
 
     // Second pass cells layout:
-    // At this point, percentage cell height can be resolved because the final table height is calculated.
+    // At this point, percentage cell block sizes can be resolved because the final table block size is calculated.
     for (auto& cell : m_cells) {
         auto& row = m_rows[cell.row_index];
         auto& cell_state = m_state.get_mutable(cell.box);
 
-        CSSPixels span_width = 0;
+        CSSPixels span_inline_size = 0;
         for (size_t i = 0; i < cell.column_span; ++i)
-            span_width += m_columns[cell.column_index + i].used_width;
+            span_inline_size += m_columns[cell.column_index + i].used_width;
 
-        if (!cell_height_depends_on_table_height(cell.box))
+        if (!cell_block_size_depends_on_table_block_size(cell.box))
             continue;
 
-        auto cell_used_height = cell.box.computed_values().height().to_px(m_table_height);
-        cell_state.set_content_block_size(cell_used_height - cell_state.border_box_top() - cell_state.border_box_bottom());
+        auto cell_used_block_size = cell.box.computed_values().height().to_px(m_table_block_size);
+        cell_state.set_content_block_size(cell_used_block_size - cell_state.border_box_top() - cell_state.border_box_bottom());
 
         if (!row.is_collapsed)
-            row.reference_height = max(row.reference_height, cell_used_height);
+            row.reference_block_size = max(row.reference_block_size, cell_used_block_size);
 
-        cell_state.set_content_inline_size(span_width - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
+        cell_state.set_content_inline_size(span_inline_size - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
         // The first pass only measured this cell in a throwaway state; this is its one and
         // only inside layout in the committing state.
         if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, LayoutInput { cell_state.available_inner_space_or_constraints_from(*m_available_space) })) {
@@ -1204,127 +1203,124 @@ void TableFormattingContext::compute_table_height()
         cell.baseline = box_baseline(cell.box, BaselineSet::First);
 
         if (!row.is_collapsed) {
-            row.reference_height = max(row.reference_height, cell_state.border_box_block_size());
+            row.reference_block_size = max(row.reference_block_size, cell_state.border_box_block_size());
             row.baseline = max(row.baseline, cell.baseline);
         }
     }
 }
 
-void TableFormattingContext::distribute_height_to_rows()
+void TableFormattingContext::distribute_block_size_to_rows()
 {
-    CSSPixels sum_reference_height = 0;
+    CSSPixels sum_reference_block_sizes = 0;
     size_t number_of_visible_rows = 0;
     for (auto& row : m_rows) {
-        sum_reference_height += row.reference_height;
+        sum_reference_block_sizes += row.reference_block_size;
         if (!row.is_collapsed)
             ++number_of_visible_rows;
     }
 
-    if (sum_reference_height == 0)
+    if (sum_reference_block_sizes == 0)
         return;
 
-    Vector<Row&> rows_with_auto_height;
+    Vector<Row&> rows_with_auto_block_size;
     for (auto& row : m_rows) {
         if (row.box.computed_values().height().is_auto() && !row.is_collapsed) {
-            rows_with_auto_height.append(row);
+            rows_with_auto_block_size.append(row);
         }
     }
 
-    if (m_table_height <= sum_reference_height) {
-        // If the table height is equal or smaller than sum of reference sizes, the final height assigned to each row
-        // will be the weighted mean of the base and the reference size that yields the correct total height.
+    if (m_table_block_size <= sum_reference_block_sizes) {
+        // If the table block size is no larger than the sum of reference sizes, each final row block size is the
+        // weighted mean of the base and reference sizes that yields the correct total block size.
 
         for (auto& row : m_rows) {
             if (row.is_collapsed) {
-                row.final_height = 0;
+                row.final_block_size = 0;
                 continue;
             }
-            auto weight = row.reference_height / static_cast<double>(sum_reference_height);
-            auto final_height = m_table_height * weight;
-            row.final_height = CSSPixels::nearest_value_for(final_height);
+            auto weight = row.reference_block_size / static_cast<double>(sum_reference_block_sizes);
+            auto final_block_size = m_table_block_size * weight;
+            row.final_block_size = CSSPixels::nearest_value_for(final_block_size);
         }
-    } else if (rows_with_auto_height.size() > 0) {
-        // Else, if the table owns any “auto-height” row (a row whose size is only determined by its content size and
-        // none of the specified heights), each non-auto-height row receives its reference height and auto-height rows
-        // receive their reference size plus some increment which is equal to the height missing to amount to the
-        // specified table height divided by the amount of such rows.
+    } else if (rows_with_auto_block_size.size() > 0) {
+        // Else, if the table owns any auto-block-size row, each non-auto row receives its reference block size and
+        // auto rows receive their reference size plus an equal share of the missing table block size.
 
         for (auto& row : m_rows) {
-            row.final_height = row.reference_height;
+            row.final_block_size = row.reference_block_size;
         }
 
-        auto auto_height_rows_increment = (m_table_height - sum_reference_height) / rows_with_auto_height.size();
-        for (auto& row : rows_with_auto_height) {
-            row.final_height += auto_height_rows_increment;
+        auto auto_block_size_rows_increment = (m_table_block_size - sum_reference_block_sizes) / rows_with_auto_block_size.size();
+        for (auto& row : rows_with_auto_block_size) {
+            row.final_block_size += auto_block_size_rows_increment;
         }
     } else {
-        // Else, all rows receive their reference size plus some increment which is equal to the height missing to
-        // amount to the specified table height divided by the amount of rows.
+        // Else, all rows receive their reference size plus an equal share of the missing table block size.
 
-        auto increment = (m_table_height - sum_reference_height) / number_of_visible_rows;
+        auto increment = (m_table_block_size - sum_reference_block_sizes) / number_of_visible_rows;
         for (auto& row : m_rows) {
             if (row.is_collapsed) {
-                row.final_height = 0;
+                row.final_block_size = 0;
                 continue;
             }
-            row.final_height = row.reference_height + increment;
+            row.final_block_size = row.reference_block_size + increment;
         }
     }
 
     // Add undistributable space due to border spacing: https://www.w3.org/TR/css-tables-3/#computing-undistributable-space.
-    m_table_height += (number_of_visible_rows + 1) * border_spacing_vertical();
+    m_table_block_size += (number_of_visible_rows + 1) * border_spacing_vertical();
 }
 
 void TableFormattingContext::position_row_boxes()
 {
     auto const& table_state = m_state.get(table_box());
 
-    CSSPixels row_top_offset = m_pending_table_box_content_offset_in_wrapper.y() + border_spacing_vertical();
-    CSSPixels row_left_offset = table_state.border_left + table_state.padding_left + border_spacing_horizontal();
+    CSSPixels row_block_offset = m_pending_table_box_content_offset_in_wrapper.y() + border_spacing_vertical();
+    CSSPixels row_inline_offset = table_state.border_left + table_state.padding_left + border_spacing_horizontal();
     for (size_t row_index = 0; row_index < m_rows.size(); row_index++) {
         auto& row = m_rows[row_index];
         auto& row_state = m_state.get_mutable(row.box);
-        CSSPixels row_width = 0;
+        CSSPixels row_inline_size = 0;
         for (auto& column : m_columns) {
-            row_width += column.used_width;
+            row_inline_size += column.used_width;
         }
         if (m_columns.size() >= 2)
-            row_width += (m_columns.size() - 1) * border_spacing_horizontal();
+            row_inline_size += (m_columns.size() - 1) * border_spacing_horizontal();
 
-        row_state.set_content_block_size(row.final_height);
-        row_state.set_content_inline_size(row_width);
-        place_child(row.box, { row_left_offset, row_top_offset });
+        row_state.set_content_block_size(row.final_block_size);
+        row_state.set_content_inline_size(row_inline_size);
+        place_child(row.box, { row_inline_offset, row_block_offset });
         if (!row.is_collapsed)
-            row_top_offset += row_state.content_block_size() + border_spacing_vertical();
+            row_block_offset += row_state.content_block_size() + border_spacing_vertical();
     }
 
-    CSSPixels row_group_top_offset = m_pending_table_box_content_offset_in_wrapper.y() + border_spacing_vertical();
-    CSSPixels row_group_left_offset = table_state.border_left + table_state.padding_left + border_spacing_horizontal();
+    CSSPixels row_group_block_offset = m_pending_table_box_content_offset_in_wrapper.y() + border_spacing_vertical();
+    CSSPixels row_group_inline_offset = table_state.border_left + table_state.padding_left + border_spacing_horizontal();
     TableGrid::for_each_child_box_matching(table_box(), TableGrid::is_table_row_group, [&](auto& row_group_box) {
-        CSSPixels row_group_height = 0;
-        CSSPixels row_group_width = 0;
+        CSSPixels row_group_block_size = 0;
+        CSSPixels row_group_inline_size = 0;
 
         auto& row_group_box_state = m_state.get_mutable(row_group_box);
 
         int num_rows = 0;
         TableGrid::for_each_child_box_matching(row_group_box, TableGrid::is_table_row, [&](auto& row) {
             auto const& row_state = m_state.get(row);
-            row_group_height += row_state.border_box_block_size();
-            row_group_width = max(row_group_width, row_state.border_box_inline_size());
+            row_group_block_size += row_state.border_box_block_size();
+            row_group_inline_size = max(row_group_inline_size, row_state.border_box_inline_size());
             num_rows += 1;
         });
         if (num_rows >= 2)
-            row_group_height += (num_rows - 1) * border_spacing_vertical();
+            row_group_block_size += (num_rows - 1) * border_spacing_vertical();
 
-        row_group_box_state.set_content_block_size(row_group_height);
-        row_group_box_state.set_content_inline_size(row_group_width);
-        place_child(row_group_box, { row_group_left_offset, row_group_top_offset });
+        row_group_box_state.set_content_block_size(row_group_block_size);
+        row_group_box_state.set_content_inline_size(row_group_inline_size);
+        place_child(row_group_box, { row_group_inline_offset, row_group_block_offset });
 
-        row_group_top_offset += row_group_height + (num_rows > 0 ? border_spacing_vertical() : 0);
+        row_group_block_offset += row_group_block_size + (num_rows > 0 ? border_spacing_vertical() : 0);
     });
 
-    auto total_content_height = max(row_top_offset, row_group_top_offset) - m_pending_table_box_content_offset_in_wrapper.y() - table_state.padding_top;
-    m_table_height = max(total_content_height, m_table_height);
+    auto total_content_block_size = max(row_block_offset, row_group_block_offset) - m_pending_table_box_content_offset_in_wrapper.y() - table_state.padding_top;
+    m_table_block_size = max(total_content_block_size, m_table_block_size);
 }
 
 void TableFormattingContext::position_cell_boxes()
@@ -1354,31 +1350,31 @@ void TableFormattingContext::position_cell_boxes()
     for (auto& cell : m_cells) {
         auto& cell_state = m_state.get_mutable(cell.box);
         auto& row_state = m_state.get(m_rows[cell.row_index].box);
-        auto const row_content_height = compute_row_content_height(cell);
+        auto const row_content_block_size = compute_row_content_block_size(cell);
         auto const& vertical_align = cell.box.computed_values().vertical_align();
         // The following image shows various alignment lines of a row:
         // https://www.w3.org/TR/css-tables-3/images/cell-align-explainer.png
         // https://drafts.csswg.org/css2/#height-layout
         // In the context of tables, values for vertical-align have the following meanings:
         if (cell_is_anonymous_wrapper_for_flex_or_grid(cell)) {
-            cell_state.padding_bottom += row_content_height - cell_state.border_box_block_size();
+            cell_state.padding_bottom += row_content_block_size - cell_state.border_box_block_size();
         } else if (vertical_align.has<CSS::VerticalAlign>()) {
             switch (vertical_align.get<CSS::VerticalAlign>()) {
             // The center of the cell is aligned with the center of the rows it spans.
             case CSS::VerticalAlign::Middle: {
-                auto const height_diff = row_content_height - cell_state.border_box_block_size();
-                cell_state.padding_top += height_diff / 2;
-                cell_state.padding_bottom += height_diff / 2;
+                auto const block_size_difference = row_content_block_size - cell_state.border_box_block_size();
+                cell_state.padding_top += block_size_difference / 2;
+                cell_state.padding_bottom += block_size_difference / 2;
                 break;
             }
             // The top of the cell box is aligned with the top of the first row it spans.
             case CSS::VerticalAlign::Top: {
-                cell_state.padding_bottom += row_content_height - cell_state.border_box_block_size();
+                cell_state.padding_bottom += row_content_block_size - cell_state.border_box_block_size();
                 break;
             }
             // The bottom of the cell box is aligned with the bottom of the last row it spans.
             case CSS::VerticalAlign::Bottom: {
-                cell_state.padding_top += row_content_height - cell_state.border_box_block_size();
+                cell_state.padding_top += row_content_block_size - cell_state.border_box_block_size();
                 break;
             }
             // These values do not apply to cells; the cell is aligned at the baseline instead.
@@ -1389,7 +1385,7 @@ void TableFormattingContext::position_cell_boxes()
             // The baseline of the cell is put at the same height as the baseline of the first of the rows it spans.
             case CSS::VerticalAlign::Baseline: {
                 cell_state.padding_top += m_rows[cell.row_index].baseline - cell.baseline;
-                cell_state.padding_bottom += row_content_height - cell_state.border_box_block_size();
+                cell_state.padding_bottom += row_content_block_size - cell_state.border_box_block_size();
                 break;
             }
             default:
@@ -1668,38 +1664,38 @@ void TableFormattingContext::border_conflict_resolution()
     }
 }
 
-CSSPixels TableFormattingContext::compute_row_content_height(Cell const& cell) const
+CSSPixels TableFormattingContext::compute_row_content_block_size(Cell const& cell) const
 {
     auto& row_state = m_state.get(m_rows[cell.row_index].box);
     if (cell.row_span == 1) {
         return row_state.content_block_size();
     }
-    // The height of a cell is the sum of all spanned rows, as described in
+    // The block size of a cell is the sum of all spanned rows, as described in
     // https://www.w3.org/TR/css-tables-3/#bounding-box-assignment
 
     // When the row span is greater than 1, the borders of inner rows within the span have to be
-    // included in the content height of the spanning cell. First top and final bottom borders are
+    // included in the content block size of the spanning cell. First top and final bottom borders are
     // excluded to be consistent with the handling of row span 1 case above, which uses the content
-    // height (no top and bottom borders) of the row.
-    CSSPixels span_height = 0;
+    // block size (no top and bottom borders) of the row.
+    CSSPixels span_block_size = 0;
     for (size_t i = 0; i < cell.row_span; ++i) {
         auto const& row_state = m_state.get(m_rows[cell.row_index + i].box);
         if (i == 0) {
-            span_height += row_state.content_block_size() + row_state.border_box_bottom();
+            span_block_size += row_state.content_block_size() + row_state.border_box_bottom();
         } else if (i == cell.row_span - 1) {
-            span_height += row_state.border_box_top() + row_state.content_block_size();
+            span_block_size += row_state.border_box_top() + row_state.content_block_size();
         } else {
-            span_height += row_state.border_box_block_size();
+            span_block_size += row_state.border_box_block_size();
         }
     }
 
-    // Compute cell height as specified by https://www.w3.org/TR/css-tables-3/#bounding-box-assignment:
-    // width/height is the sum of:
-    // - the widths/heights of all spanned visible columns/rows
+    // Compute cell block size as specified by https://www.w3.org/TR/css-tables-3/#bounding-box-assignment:
+    // The logical size is the sum of:
+    // - the inline/block sizes of all spanned visible columns/rows
     // - the horizontal/vertical border-spacing times the amount of spanned visible columns/rows minus one
     // FIXME: Account for visibility.
-    span_height += (cell.row_span - 1) * border_spacing_vertical();
-    return span_height;
+    span_block_size += (cell.row_span - 1) * border_spacing_vertical();
+    return span_block_size;
 }
 
 void TableFormattingContext::finish_grid_initialization(TableGrid const& table_grid)
@@ -1741,8 +1737,8 @@ void TableFormattingContext::run_until_width_calculation(LayoutInput const& layo
 
     // The containing block of every internal table box and caption is the table wrapper;
     // the table's own input carries the wrapper's constraints, and participant percentages
-    // resolve against those. Percentage heights of participants only resolve once the table
-    // itself has a non-auto height.
+    // resolve against those. Percentage block sizes of participants only resolve once the table
+    // itself has a non-auto block size.
     m_table_constraints = layout_input.containing_block_constraints;
     m_participant_constraints = ContainingBlockConstraints {
         m_table_constraints.percentage_basis_inline_size,
@@ -1755,8 +1751,8 @@ void TableFormattingContext::run_until_width_calculation(LayoutInput const& layo
 
     auto effective_row_measurement = row_measurement;
     m_needs_fixed_mode_row_measurement = false;
-    // OPTIMIZATION: Row intrinsic measurements are only needed when row height constraints or rowspans can affect
-    //               the later row height distribution. Simple tables get their actual row heights from cell layout.
+    // OPTIMIZATION: Row intrinsic measurements are only needed when row block-size constraints or row spans can affect
+    //               the later row distribution. Simple tables get their actual row block sizes from cell layout.
     if (effective_row_measurement == RowMeasurement::Include && can_skip_row_intrinsic_measurement())
         effective_row_measurement = RowMeasurement::Skip;
     if (effective_row_measurement == RowMeasurement::Include && use_fixed_mode_layout()) {
@@ -1765,7 +1761,7 @@ void TableFormattingContext::run_until_width_calculation(LayoutInput const& layo
         // of cells is considered zero.
         //
         // https://drafts.csswg.org/css-tables-3/#ROWMIN
-        // ROWMIN is defined as the sum of the minimum height of the rows after a first row layout pass.
+        // ROWMIN is defined as the sum of the minimum block sizes of the rows after a first row layout pass.
         // NB: So defer fixed-mode row measurement until after columns have their used widths.
         effective_row_measurement = RowMeasurement::Skip;
         m_needs_fixed_mode_row_measurement = true;
@@ -1778,11 +1774,11 @@ void TableFormattingContext::run_until_width_calculation(LayoutInput const& layo
 
     if (effective_row_measurement == RowMeasurement::Include) {
         // https://www.w3.org/TR/css-tables-3/#row-layout
-        // Since during row layout the specified heights of cells in the row were ignored and cells that were spanning more than one rows
-        // have not been sized correctly, their height will need to be eventually distributed to the set of rows they spanned. This is done
+        // Since specified cell block sizes were ignored during row layout and cells spanning multiple rows were not
+        // sized correctly, their block size must eventually be distributed to the rows they span. This is done
         // by running the same algorithm as the column measurement, with the span=1 value being initialized (for min-content) with the largest
-        // of the resulting height of the previous row layout, the height specified on the corresponding table-row (if any), and the largest
-        // height specified on cells that span this row only (the algorithm starts by considering cells of span 2 on top of that assignment).
+        // of the resulting block size of the previous row layout, the size specified on the corresponding table row,
+        // and the largest block size specified on cells that span only this row.
         compute_table_measures<Row>();
     }
 
@@ -1830,14 +1826,14 @@ void TableFormattingContext::run(LayoutInput const& layout_input)
         AvailableSize::make_definite(clamp_to_max_dimension_value(table_state.border_box_inline_size())),
         available_space.block_size);
 
-    auto total_captions_height = run_caption_layout(CSS::CaptionSide::Top, caption_available_space);
+    auto captions_block_size = run_caption_layout(CSS::CaptionSide::Top, caption_available_space);
 
     // Distribute the width of the table among columns.
     distribute_width_to_columns();
 
-    compute_table_height();
+    compute_table_block_size();
 
-    distribute_height_to_rows();
+    distribute_block_size_to_rows();
 
     position_row_boxes();
     position_cell_boxes();
@@ -1845,14 +1841,14 @@ void TableFormattingContext::run(LayoutInput const& layout_input)
     for (auto& cell : m_cells)
         layout_absolutely_positioned_children(cell.box);
 
-    m_state.get_mutable(table_box()).set_content_block_size(m_table_height);
+    m_state.get_mutable(table_box()).set_content_block_size(m_table_block_size);
 
-    total_captions_height += run_caption_layout(CSS::CaptionSide::Bottom, caption_available_space);
+    captions_block_size += run_caption_layout(CSS::CaptionSide::Bottom, caption_available_space);
 
     // Table captions are positioned between the table margins and its borders (outside the grid box borders) as described in
     // https://www.w3.org/TR/css-tables-3/#bounding-box-assignment
     // A visual representation of this model can be found at https://www.w3.org/TR/css-tables-3/images/table_container.png
-    m_state.get_mutable(table_box()).margin_bottom += total_captions_height;
+    m_state.get_mutable(table_box()).margin_bottom += captions_block_size;
 
     // Derive baselines for the table internals bottom-up (rows, then row groups, then the table box)
     // now that all offsets are final, so the table exports its baseline to outside consumers
@@ -1867,7 +1863,7 @@ void TableFormattingContext::run(LayoutInput const& layout_input)
     });
     compute_and_store_baselines(m_state.get_mutable(table_box()));
 
-    m_automatic_content_block_size = m_table_height;
+    m_automatic_content_block_size = m_table_block_size;
 }
 
 CSSPixels TableFormattingContext::automatic_content_inline_size() const
@@ -1933,9 +1929,9 @@ double TableFormattingContext::cell_percentage_contribution<TableFormattingConte
 {
     // Definition of percentage contribution: https://www.w3.org/TR/css-tables-3/#percentage-contribution
     auto const& computed_values = cell.box.computed_values();
-    auto max_height_percentage = computed_values.max_height().is_percentage() ? computed_values.max_height().percentage().value() : static_cast<double>(INFINITY);
-    auto height_percentage = computed_values.height().is_percentage() ? computed_values.height().percentage().value() : 0;
-    return min(height_percentage, max_height_percentage);
+    auto max_block_size_percentage = computed_values.max_height().is_percentage() ? computed_values.max_height().percentage().value() : static_cast<double>(INFINITY);
+    auto block_size_percentage = computed_values.height().is_percentage() ? computed_values.height().percentage().value() : 0;
+    return min(block_size_percentage, max_block_size_percentage);
 }
 
 template<>
@@ -1966,10 +1962,10 @@ void TableFormattingContext::initialize_intrinsic_percentages_from_rows_or_colum
     for (auto& row : m_rows) {
         auto const& computed_values = row.box.computed_values();
         // Definition of percentage contribution: https://www.w3.org/TR/css-tables-3/#percentage-contribution
-        auto max_height_percentage = computed_values.max_height().is_percentage() ? computed_values.max_height().percentage().value() : static_cast<double>(INFINITY);
-        auto height_percentage = computed_values.height().is_percentage() ? computed_values.height().percentage().value() : 0;
+        auto max_block_size_percentage = computed_values.max_height().is_percentage() ? computed_values.max_height().percentage().value() : static_cast<double>(INFINITY);
+        auto block_size_percentage = computed_values.height().is_percentage() ? computed_values.height().percentage().value() : 0;
         row.has_intrinsic_percentage = computed_values.max_height().is_percentage() || computed_values.height().is_percentage();
-        row.intrinsic_percentage = min(height_percentage, max_height_percentage);
+        row.intrinsic_percentage = min(block_size_percentage, max_block_size_percentage);
     }
 }
 

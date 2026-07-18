@@ -21,9 +21,9 @@ public:
 
     struct Row {
         Box const& box;
-        CSSPixels base_height { 0 };
-        CSSPixels reference_height { 0 };
-        CSSPixels final_height { 0 };
+        CSSPixels base_block_size { 0 };
+        CSSPixels reference_block_size { 0 };
+        CSSPixels final_block_size { 0 };
         CSSPixels baseline { 0 };
         CSSPixels min_size { 0 };
         CSSPixels max_size { 0 };
