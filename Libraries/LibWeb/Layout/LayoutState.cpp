@@ -500,7 +500,7 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPi
 {
     m_node = &node;
 
-    // NOTE: In the code below, we decide if `node` has definite width and/or height.
+    // NOTE: In the code below, we decide if `node` has definite inline and/or block size.
     //       This attempts to cover all the *general* cases where CSS considers sizes to be definite.
     //       If `node` has definite values for min/max-width or min/max-height and a definite
     //       preferred size in the same axis, we clamp the preferred size here as well.
@@ -511,11 +511,11 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPi
 
     auto const& computed_values = node.computed_values();
 
-    auto containing_block_size_for_axis = [&](bool width) {
-        return width ? percentage_basis_inline_size.value_or(0) : percentage_basis_block_size.value_or(0);
+    auto containing_block_size_for_axis = [&](LogicalAxis axis) {
+        return axis == LogicalAxis::Inline ? percentage_basis_inline_size.value_or(0) : percentage_basis_block_size.value_or(0);
     };
 
-    auto adjust_for_box_sizing = [&](CSSPixels unadjusted_pixels, CSS::Size const& computed_size, bool width) -> CSSPixels {
+    auto adjust_for_box_sizing = [&](CSSPixels unadjusted_pixels, CSS::Size const& computed_size, LogicalAxis axis) -> CSSPixels {
         // box-sizing: content-box and/or automatic size don't require any adjustment.
         if (computed_values.box_sizing() == CSS::BoxSizing::ContentBox || computed_size.is_auto())
             return unadjusted_pixels;
@@ -523,7 +523,7 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPi
         // box-sizing: border-box requires us to subtract the relevant border and padding from the size.
         CSSPixels border_and_padding;
 
-        if (width) {
+        if (axis == LogicalAxis::Inline) {
             border_and_padding = computed_values.border_left().width
                 + computed_values.padding().left().to_px_or_zero(percentage_basis_inline_size.value_or(0))
                 + computed_values.border_right().width
@@ -538,21 +538,21 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPi
         return unadjusted_pixels - border_and_padding;
     };
 
-    auto is_definite_size = [&](CSS::Size const& size, CSSPixels& resolved_definite_size, bool width) {
+    auto is_definite_size = [&](CSS::Size const& size, CSSPixels& resolved_definite_size, LogicalAxis axis) {
         // A size that can be determined without performing layout; that is,
         // a <length>,
         // a measure of text (without consideration of line-wrapping),
         // a size of the initial containing block,
         // or a <percentage> or other formula (such as the “stretch-fit” sizing of non-replaced blocks [CSS2]) that is resolved solely against definite sizes.
 
-        auto containing_block_has_definite_size = width ? percentage_basis_inline_size.has_value() : percentage_basis_block_size.has_value();
+        auto containing_block_has_definite_size = axis == LogicalAxis::Inline ? percentage_basis_inline_size.has_value() : percentage_basis_block_size.has_value();
 
         if (size.is_auto()) {
-            // NOTE: The width of a non-flex-item block is considered definite if it's auto and the containing block has definite width.
+            // NOTE: The inline size of a non-flex-item block is considered definite if it is auto and the containing block has a definite inline size.
             //       This models the "stretch-fit" case from the css-sizing-3 definition of definite sizes quoted above.
-            //       It explicitly only covers non-replaced blocks; the automatic width of a replaced box is
+            //       It explicitly only covers non-replaced blocks; the automatic inline size of a replaced box is
             //       content-based and thus not definite before layout.
-            if (width
+            if (axis == LogicalAxis::Inline
                 && !node.is_replaced_box()
                 && !node.is_floating()
                 && !node.is_absolutely_positioned()
@@ -562,9 +562,9 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPi
                 && (node.parent()->display().is_flow_root_inside()
                     || node.parent()->display().is_flow_inside())) {
                 if (containing_block_has_definite_size) {
-                    CSSPixels available_width = containing_block_size_for_axis(true);
+                    CSSPixels available_inline_size = containing_block_size_for_axis(LogicalAxis::Inline);
                     resolved_definite_size = clamp_to_max_dimension_value(
-                        available_width
+                        available_inline_size
                         - margin_left
                         - margin_right
                         - padding_left
@@ -582,43 +582,43 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPi
             if (size.contains_percentage()) {
                 if (!containing_block_has_definite_size)
                     return false;
-                auto containing_block_size_as_length = containing_block_size_for_axis(width);
-                resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.to_px(containing_block_size_as_length), size, width));
+                auto containing_block_size_as_length = containing_block_size_for_axis(axis);
+                resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.to_px(containing_block_size_as_length), size, axis));
                 return true;
             }
 
-            resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.to_px(CSSPixels { 0 }), size, width));
+            resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.to_px(CSSPixels { 0 }), size, axis));
             return true;
         }
 
         return false;
     };
 
-    CSSPixels min_width = 0;
-    bool has_definite_min_width = is_definite_size(computed_values.min_width(), min_width, true);
-    CSSPixels max_width = 0;
-    bool has_definite_max_width = is_definite_size(computed_values.max_width(), max_width, true);
+    CSSPixels min_inline_size = 0;
+    bool has_definite_min_inline_size = is_definite_size(computed_values.min_width(), min_inline_size, LogicalAxis::Inline);
+    CSSPixels max_inline_size = 0;
+    bool has_definite_max_inline_size = is_definite_size(computed_values.max_width(), max_inline_size, LogicalAxis::Inline);
 
-    CSSPixels min_height = 0;
-    bool has_definite_min_height = is_definite_size(computed_values.min_height(), min_height, false);
-    CSSPixels max_height = 0;
-    bool has_definite_max_height = is_definite_size(computed_values.max_height(), max_height, false);
+    CSSPixels min_block_size = 0;
+    bool has_definite_min_block_size = is_definite_size(computed_values.min_height(), min_block_size, LogicalAxis::Block);
+    CSSPixels max_block_size = 0;
+    bool has_definite_max_block_size = is_definite_size(computed_values.max_height(), max_block_size, LogicalAxis::Block);
 
-    m_has_definite_inline_size = is_definite_size(computed_values.width(), m_content_inline_size, true);
-    m_has_definite_block_size = is_definite_size(computed_values.height(), m_content_block_size, false);
+    m_has_definite_inline_size = is_definite_size(computed_values.width(), m_content_inline_size, LogicalAxis::Inline);
+    m_has_definite_block_size = is_definite_size(computed_values.height(), m_content_block_size, LogicalAxis::Block);
 
     if (m_has_definite_inline_size) {
-        if (has_definite_min_width)
-            m_content_inline_size = clamp_to_max_dimension_value(max(min_width, m_content_inline_size));
-        if (has_definite_max_width)
-            m_content_inline_size = clamp_to_max_dimension_value(min(max_width, m_content_inline_size));
+        if (has_definite_min_inline_size)
+            m_content_inline_size = clamp_to_max_dimension_value(max(min_inline_size, m_content_inline_size));
+        if (has_definite_max_inline_size)
+            m_content_inline_size = clamp_to_max_dimension_value(min(max_inline_size, m_content_inline_size));
     }
 
     if (m_has_definite_block_size) {
-        if (has_definite_min_height)
-            m_content_block_size = clamp_to_max_dimension_value(max(min_height, m_content_block_size));
-        if (has_definite_max_height)
-            m_content_block_size = clamp_to_max_dimension_value(min(max_height, m_content_block_size));
+        if (has_definite_min_block_size)
+            m_content_block_size = clamp_to_max_dimension_value(max(min_block_size, m_content_block_size));
+        if (has_definite_max_block_size)
+            m_content_block_size = clamp_to_max_dimension_value(min(max_block_size, m_content_block_size));
     }
 }
 
@@ -664,29 +664,29 @@ void LayoutState::UsedValues::materialize_from_paintable(Painting::Paintable con
         set_computed_svg_transforms(svg_svg_paintable->computed_transforms());
 }
 
-void LayoutState::UsedValues::set_content_inline_size(CSSPixels width)
+void LayoutState::UsedValues::set_content_inline_size(CSSPixels inline_size)
 {
     VERIFY(!is_placed());
-    if (width < 0) {
-        // Negative widths are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
-        dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Layout calculated a negative width for {}: {}", m_node->debug_description(), width);
-        width = 0;
+    if (inline_size < 0) {
+        // Negative inline sizes are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
+        dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Layout calculated a negative inline size for {}: {}", m_node->debug_description(), inline_size);
+        inline_size = 0;
     }
-    m_content_inline_size = clamp_to_max_dimension_value(width);
-    // FIXME: We should not do this! Definiteness of widths should be determined early,
+    m_content_inline_size = clamp_to_max_dimension_value(inline_size);
+    // FIXME: We should not do this! Definiteness of inline sizes should be determined early,
     //        and not changed later (except for some special cases in flex layout..)
     m_has_definite_inline_size = true;
 }
 
-void LayoutState::UsedValues::set_content_block_size(CSSPixels height)
+void LayoutState::UsedValues::set_content_block_size(CSSPixels block_size)
 {
     VERIFY(!is_placed());
-    if (height < 0) {
-        // Negative heights are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
-        dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Layout calculated a negative height for {}: {}", m_node->debug_description(), height);
-        height = 0;
+    if (block_size < 0) {
+        // Negative block sizes are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
+        dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Layout calculated a negative block size for {}: {}", m_node->debug_description(), block_size);
+        block_size = 0;
     }
-    m_content_block_size = clamp_to_max_dimension_value(height);
+    m_content_block_size = clamp_to_max_dimension_value(block_size);
 }
 
 AvailableSize LayoutState::UsedValues::available_inline_size_inside() const
@@ -713,14 +713,14 @@ AvailableSize LayoutState::UsedValues::available_block_size_inside() const
 
 AvailableSpace LayoutState::UsedValues::available_inner_space_or_constraints_from(AvailableSpace const& outer_space) const
 {
-    auto inner_width = available_inline_size_inside();
-    auto inner_height = available_block_size_inside();
+    auto inner_inline_size = available_inline_size_inside();
+    auto inner_block_size = available_block_size_inside();
 
-    if (inner_width.is_indefinite() && outer_space.inline_size.is_intrinsic_sizing_constraint())
-        inner_width = outer_space.inline_size;
-    if (inner_height.is_indefinite() && outer_space.block_size.is_intrinsic_sizing_constraint())
-        inner_height = outer_space.block_size;
-    return AvailableSpace(inner_width, inner_height);
+    if (inner_inline_size.is_indefinite() && outer_space.inline_size.is_intrinsic_sizing_constraint())
+        inner_inline_size = outer_space.inline_size;
+    if (inner_block_size.is_indefinite() && outer_space.block_size.is_intrinsic_sizing_constraint())
+        inner_block_size = outer_space.block_size;
+    return AvailableSpace(inner_inline_size, inner_block_size);
 }
 
 void LayoutState::UsedValues::set_indefinite_content_inline_size()
