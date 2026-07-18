@@ -685,7 +685,7 @@ LogicalSize FormattingContext::solve_replaced_size_constraint(CSSPixels input_in
     return { input_inline_size, input_block_size };
 }
 
-Optional<CSSPixels> FormattingContext::compute_auto_height_for_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, BeforeOrAfterInsideLayout before_or_after_inside_layout) const
+Optional<CSSPixels> FormattingContext::compute_automatic_block_size_for_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, BeforeOrAfterInsideLayout before_or_after_inside_layout) const
 {
     // NOTE: CSS 2.2 tells us to use the automatic block size for block formatting context roots here.
     //       That's fine as long as the box is a BFC root.
@@ -1057,12 +1057,12 @@ void FormattingContext::compute_inline_size_for_absolutely_positioned_element(Bo
         compute_inline_size_for_absolutely_positioned_non_replaced_element(box, available_space, containing_block_constraints, static_position_rect);
 }
 
-void FormattingContext::compute_height_for_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, StaticPositionRect const& static_position_rect, BeforeOrAfterInsideLayout before_or_after_inside_layout)
+void FormattingContext::compute_block_size_for_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, StaticPositionRect const& static_position_rect, BeforeOrAfterInsideLayout before_or_after_inside_layout)
 {
     if (box_is_sized_as_replaced_element(box, available_space, containing_block_constraints))
-        compute_height_for_absolutely_positioned_replaced_element(box, available_space, containing_block_constraints, static_position_rect, before_or_after_inside_layout);
+        compute_block_size_for_absolutely_positioned_replaced_element(box, available_space, containing_block_constraints, static_position_rect, before_or_after_inside_layout);
     else
-        compute_height_for_absolutely_positioned_non_replaced_element(box, available_space, containing_block_constraints, static_position_rect, before_or_after_inside_layout);
+        compute_block_size_for_absolutely_positioned_non_replaced_element(box, available_space, containing_block_constraints, static_position_rect, before_or_after_inside_layout);
 }
 
 CSSPixels FormattingContext::compute_inline_size_for_replaced_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints) const
@@ -1236,7 +1236,7 @@ void FormattingContext::compute_inline_size_for_absolutely_positioned_non_replac
             // is 'ltr' set 'left' to the static position and apply rule number three below;
             // otherwise, set 'right' to the static position and apply rule number one below.
 
-            // NOTE: As with compute_height_for_absolutely_positioned_non_replaced_element, we actually apply these
+            // NOTE: As with compute_block_size_for_absolutely_positioned_non_replaced_element, we actually apply these
             //       steps in the opposite order since the static position may depend on the width of the box.
 
             auto content_inline_size = calculate_shrink_to_fit_inline_size();
@@ -1448,7 +1448,7 @@ void FormattingContext::compute_inline_size_for_absolutely_positioned_replaced_e
 }
 
 // https://drafts.csswg.org/css-position-3/#abs-non-replaced-height
-void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, StaticPositionRect const& static_position_rect, BeforeOrAfterInsideLayout before_or_after_inside_layout)
+void FormattingContext::compute_block_size_for_absolutely_positioned_non_replaced_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, StaticPositionRect const& static_position_rect, BeforeOrAfterInsideLayout before_or_after_inside_layout)
 {
     // 5.3. The Height Of Absolutely Positioned, Non-Replaced Elements
 
@@ -1456,24 +1456,24 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
     // top + margin-top + border-top-width + padding-top + height + padding-bottom + border-bottom-width + margin-bottom + bottom = height of containing block
 
     // NOTE: This function is called twice: both before and after inside layout.
-    //       In the before pass, if it turns out we need the automatic height of the box, we abort these steps.
-    //       This allows the box to retain an indefinite height from the perspective of inside layout.
+    //       In the before pass, if the box needs its automatic block size, abort these steps.
+    //       This lets the box retain an indefinite block size from the perspective of inside layout.
 
-    auto apply_min_max_height_constraints = [this, &box, &available_space, &containing_block_constraints](CSS::LengthOrAuto const& unconstrained_height) -> CSS::LengthOrAuto {
-        auto const& computed_min_height = box.computed_values().min_height();
-        auto const& computed_max_height = box.computed_values().max_height();
-        auto constrained_height = unconstrained_height;
-        if (!computed_max_height.is_none()) {
-            auto inner_max_height = calculate_inner_block_size(box, available_space, computed_max_height, containing_block_constraints);
-            if (inner_max_height < constrained_height.to_px_or_zero())
-                constrained_height = CSS::Length::make_px(inner_max_height);
+    auto apply_min_max_block_size_constraints = [this, &box, &available_space, &containing_block_constraints](CSS::LengthOrAuto const& unconstrained_block_size) -> CSS::LengthOrAuto {
+        auto const& computed_min_block_size = box.computed_values().min_height();
+        auto const& computed_max_block_size = box.computed_values().max_height();
+        auto constrained_block_size = unconstrained_block_size;
+        if (!computed_max_block_size.is_none()) {
+            auto inner_max_block_size = calculate_inner_block_size(box, available_space, computed_max_block_size, containing_block_constraints);
+            if (inner_max_block_size < constrained_block_size.to_px_or_zero())
+                constrained_block_size = CSS::Length::make_px(inner_max_block_size);
         }
-        if (!computed_min_height.is_auto()) {
-            auto inner_min_height = calculate_inner_block_size(box, available_space, computed_min_height, containing_block_constraints);
-            if (inner_min_height > constrained_height.to_px_or_zero())
-                constrained_height = CSS::Length::make_px(inner_min_height);
+        if (!computed_min_block_size.is_auto()) {
+            auto inner_min_block_size = calculate_inner_block_size(box, available_space, computed_min_block_size, containing_block_constraints);
+            if (inner_min_block_size > constrained_block_size.to_px_or_zero())
+                constrained_block_size = CSS::Length::make_px(inner_min_block_size);
         }
-        return constrained_height;
+        return constrained_block_size;
     };
 
     auto margin_top = box.computed_values().margin().top();
@@ -1482,7 +1482,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
     auto bottom = box.computed_values().inset().bottom();
 
     auto containing_block_inline_size = available_space.inline_size.to_px_or_zero();
-    auto height_of_containing_block = available_space.block_size.to_px_or_zero();
+    auto containing_block_block_size = available_space.block_size.to_px_or_zero();
 
     enum class ClampToZero {
         No,
@@ -1490,7 +1490,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
     };
 
     auto& state = m_state.get(box);
-    auto try_compute_height = [&](CSS::LengthOrAuto height) -> CSS::LengthOrAuto {
+    auto try_compute_block_size = [&](CSS::LengthOrAuto block_size) -> CSS::LengthOrAuto {
         // Reset values that may have been modified by a previous call (when re-solving for min/max-height).
         margin_top = box.computed_values().margin().top();
         margin_bottom = box.computed_values().margin().bottom();
@@ -1498,16 +1498,16 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
         bottom = box.computed_values().inset().bottom();
 
         auto solve_for = [&](CSS::LengthOrAuto const& length_or_auto, ClampToZero clamp_to_zero = ClampToZero::No) {
-            auto unclamped_value = height_of_containing_block
-                - top.to_px_or_zero(height_of_containing_block)
+            auto unclamped_value = containing_block_block_size
+                - top.to_px_or_zero(containing_block_block_size)
                 - margin_top.to_px_or_zero(containing_block_inline_size)
                 - box.computed_values().border_top().width
                 - state.padding_top
-                - height.to_px_or_zero()
+                - block_size.to_px_or_zero()
                 - state.padding_bottom
                 - box.computed_values().border_bottom().width
                 - margin_bottom.to_px_or_zero(containing_block_inline_size)
-                - bottom.to_px_or_zero(height_of_containing_block)
+                - bottom.to_px_or_zero(containing_block_block_size)
                 + length_or_auto.to_px_or_zero();
             if (clamp_to_zero == ClampToZero::Yes)
                 return CSS::Length::make_px(max(CSSPixels(0), unclamped_value));
@@ -1515,15 +1515,15 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
         };
 
         auto solve_for_top = [&] {
-            top = solve_for(top.resolved_or_auto(height_of_containing_block));
+            top = solve_for(top.resolved_or_auto(containing_block_block_size));
         };
 
         auto solve_for_bottom = [&] {
-            bottom = solve_for(bottom.resolved_or_auto(height_of_containing_block));
+            bottom = solve_for(bottom.resolved_or_auto(containing_block_block_size));
         };
 
-        auto solve_for_height = [&] {
-            height = solve_for(height, ClampToZero::Yes);
+        auto solve_for_block_size = [&] {
+            block_size = solve_for(block_size, ClampToZero::Yes);
         };
 
         auto solve_for_margin_top = [&] {
@@ -1541,7 +1541,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
         };
 
         // If all three of top, height, and bottom are auto:
-        if (top.is_auto() && height.is_auto() && bottom.is_auto()) {
+        if (top.is_auto() && block_size.is_auto() && bottom.is_auto()) {
             // First set any auto values for margin-top and margin-bottom to 0,
             if (margin_top.is_auto())
                 margin_top = CSS::Length::make_px(0);
@@ -1552,15 +1552,15 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
             // and finally apply rule number three below.
 
             // NOTE: We actually perform these two steps in the opposite order,
-            //       because the static position may depend on the height of the box (due to alignment properties).
+            //       because the static position may depend on the box's block size due to alignment properties.
 
-            auto maybe_height = compute_auto_height_for_absolutely_positioned_element(box, available_space, containing_block_constraints, before_or_after_inside_layout);
-            if (!maybe_height.has_value())
-                return height;
-            height = CSS::Length::make_px(maybe_height.value());
+            auto maybe_block_size = compute_automatic_block_size_for_absolutely_positioned_element(box, available_space, containing_block_constraints, before_or_after_inside_layout);
+            if (!maybe_block_size.has_value())
+                return block_size;
+            block_size = CSS::Length::make_px(maybe_block_size.value());
 
-            auto constrained_height = apply_min_max_height_constraints(height);
-            m_state.get_mutable(box).set_content_block_size(constrained_height.to_px_or_zero());
+            auto constrained_block_size = apply_min_max_block_size_constraints(block_size);
+            m_state.get_mutable(box).set_content_block_size(constrained_block_size.to_px_or_zero());
 
             auto static_position = aligned_static_position(static_position_rect, state);
             top = CSS::Length::make_px(static_position.y());
@@ -1569,7 +1569,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
         }
 
         // If none of the three are auto:
-        else if (!top.is_auto() && !height.is_auto() && !bottom.is_auto()) {
+        else if (!top.is_auto() && !block_size.is_auto() && !bottom.is_auto()) {
             // If both margin-top and margin-bottom are auto,
             if (margin_top.is_auto() && margin_bottom.is_auto()) {
                 // solve the equation under the extra constraint that the two margins get equal values.
@@ -1603,19 +1603,19 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
             // and pick one of the following six rules that apply.
 
             // 1. If top and height are auto and bottom is not auto,
-            if (top.is_auto() && height.is_auto() && !bottom.is_auto()) {
+            if (top.is_auto() && block_size.is_auto() && !bottom.is_auto()) {
                 // then the height is based on the Auto heights for block formatting context roots,
-                auto maybe_height = compute_auto_height_for_absolutely_positioned_element(box, available_space, containing_block_constraints, before_or_after_inside_layout);
-                if (!maybe_height.has_value())
-                    return height;
-                height = CSS::Length::make_px(maybe_height.value());
+                auto maybe_block_size = compute_automatic_block_size_for_absolutely_positioned_element(box, available_space, containing_block_constraints, before_or_after_inside_layout);
+                if (!maybe_block_size.has_value())
+                    return block_size;
+                block_size = CSS::Length::make_px(maybe_block_size.value());
 
                 // and solve for top.
                 solve_for_top();
             }
 
             // 2. If top and bottom are auto and height is not auto,
-            else if (top.is_auto() && bottom.is_auto() && !height.is_auto()) {
+            else if (top.is_auto() && bottom.is_auto() && !block_size.is_auto()) {
                 // then set top to the static position,
                 top = CSS::Length::make_px(aligned_static_position(static_position_rect, state).y());
 
@@ -1624,93 +1624,91 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
             }
 
             // 3. If height and bottom are auto and top is not auto,
-            else if (height.is_auto() && bottom.is_auto() && !top.is_auto()) {
+            else if (block_size.is_auto() && bottom.is_auto() && !top.is_auto()) {
                 // then the height is based on the Auto heights for block formatting context roots,
-                auto maybe_height = compute_auto_height_for_absolutely_positioned_element(box, available_space, containing_block_constraints, before_or_after_inside_layout);
-                if (!maybe_height.has_value())
-                    return height;
-                height = CSS::Length::make_px(maybe_height.value());
+                auto maybe_block_size = compute_automatic_block_size_for_absolutely_positioned_element(box, available_space, containing_block_constraints, before_or_after_inside_layout);
+                if (!maybe_block_size.has_value())
+                    return block_size;
+                block_size = CSS::Length::make_px(maybe_block_size.value());
 
                 // and solve for bottom.
                 solve_for_bottom();
             }
 
             // 4. If top is auto, height and bottom are not auto,
-            else if (top.is_auto() && !height.is_auto() && !bottom.is_auto()) {
+            else if (top.is_auto() && !block_size.is_auto() && !bottom.is_auto()) {
                 // then solve for top.
                 solve_for_top();
             }
 
             // 5. If height is auto, top and bottom are not auto,
-            else if (height.is_auto() && !top.is_auto() && !bottom.is_auto()) {
+            else if (block_size.is_auto() && !top.is_auto() && !bottom.is_auto()) {
                 // then solve for height.
-                solve_for_height();
+                solve_for_block_size();
             }
 
             // 6. If bottom is auto, top and height are not auto,
-            else if (bottom.is_auto() && !top.is_auto() && !height.is_auto()) {
+            else if (bottom.is_auto() && !top.is_auto() && !block_size.is_auto()) {
                 // then solve for bottom.
                 solve_for_bottom();
             }
         }
 
-        return height;
+        return block_size;
     };
 
-    // Intrinsic (fit-content/min-content/max-content) heights depend on the box's own used width,
-    // which was already resolved above, not on the width of the containing block. Absolutely
-    // positioned boxes routinely have a used width narrower than their containing block (e.g. a
-    // fixed-position dialog sized to 400px inside a 1300px viewport), and measuring their content
-    // at the containing block width lets text that should wrap stay on one line, underestimating
-    // the height. Feed the box's own width to the intrinsic-height calculations.
-    auto available_space_for_intrinsic_height = available_space;
-    available_space_for_intrinsic_height.inline_size = AvailableSize::make_definite(state.content_inline_size());
+    // Intrinsic block sizes depend on the box's own used inline size, which was already resolved above, not on the
+    // inline size of the containing block. Absolutely positioned boxes routinely have a narrower used inline size
+    // than their containing block, and measuring their content at the containing block inline size can prevent text
+    // from wrapping and underestimate the block size. Feed the box's own inline size to the intrinsic calculation.
+    auto available_space_for_intrinsic_block_size = available_space;
+    available_space_for_intrinsic_block_size.inline_size = AvailableSize::make_definite(state.content_inline_size());
 
-    // Compute the height based on box type and CSS properties:
+    // Compute the block size based on box type and CSS properties:
     // https://www.w3.org/TR/css-sizing-3/#box-sizing
-    auto used_height = try_compute_height([&] -> CSS::LengthOrAuto {
+    auto used_block_size = try_compute_block_size([&] -> CSS::LengthOrAuto {
         if (is<TableWrapper>(box))
             return CSS::Length::make_px(compute_table_box_block_size_inside_table_wrapper(box, available_space, containing_block_constraints));
         if (should_treat_block_size_as_auto(box, available_space, containing_block_constraints))
             return CSS::LengthOrAuto::make_auto();
-        return CSS::Length::make_px(calculate_inner_block_size(box, available_space_for_intrinsic_height, box.computed_values().height(), containing_block_constraints));
+        return CSS::Length::make_px(calculate_inner_block_size(box, available_space_for_intrinsic_block_size, box.computed_values().height(), containing_block_constraints));
     }());
 
     // If the tentative used height is greater than 'max-height', the rules above are applied again,
     // but this time using the computed value of 'max-height' as the computed value for 'height'.
-    auto const& computed_max_height = box.computed_values().max_height();
-    if (!used_height.is_auto() && !computed_max_height.is_none()) {
-        auto max_height = calculate_inner_block_size(box, available_space_for_intrinsic_height, computed_max_height, containing_block_constraints);
-        if (used_height.to_px_or_zero() > max_height)
-            used_height = try_compute_height(CSS::Length::make_px(max_height));
+    auto const& computed_max_block_size = box.computed_values().max_height();
+    if (!used_block_size.is_auto() && !computed_max_block_size.is_none()) {
+        auto max_block_size = calculate_inner_block_size(box, available_space_for_intrinsic_block_size, computed_max_block_size, containing_block_constraints);
+        if (used_block_size.to_px_or_zero() > max_block_size)
+            used_block_size = try_compute_block_size(CSS::Length::make_px(max_block_size));
     }
 
     // If the resulting height is smaller than 'min-height', the rules above are applied again,
     // but this time using the value of 'min-height' as the computed value for 'height'.
-    auto const& computed_min_height = box.computed_values().min_height();
-    if (!used_height.is_auto() && !computed_min_height.is_auto()) {
-        auto min_height = calculate_inner_block_size(box, available_space_for_intrinsic_height, computed_min_height, containing_block_constraints);
-        if (used_height.to_px_or_zero() < min_height)
-            used_height = try_compute_height(CSS::Length::make_px(min_height));
+    auto const& computed_min_block_size = box.computed_values().min_height();
+    if (!used_block_size.is_auto() && !computed_min_block_size.is_auto()) {
+        auto min_block_size = calculate_inner_block_size(box, available_space_for_intrinsic_block_size, computed_min_block_size, containing_block_constraints);
+        if (used_block_size.to_px_or_zero() < min_block_size)
+            used_block_size = try_compute_block_size(CSS::Length::make_px(min_block_size));
     }
 
-    // For the before-inside-layout pass where height is still auto, apply min-max as a simple clamp.
-    if (used_height.is_auto())
-        used_height = apply_min_max_height_constraints(used_height);
+    // For the before-inside-layout pass where the block size is still auto, apply min-max as a simple clamp.
+    if (used_block_size.is_auto())
+        used_block_size = apply_min_max_block_size_constraints(used_block_size);
 
     // NOTE: The following is not directly part of any spec, but this is where we resolve
     //       the final used values for vertical margin/border/padding.
 
     auto& box_state = m_state.get_mutable(box);
-    box_state.set_content_block_size(used_height.to_px_or_zero());
+    box_state.set_content_block_size(used_block_size.to_px_or_zero());
 
     // do not set calculated insets or margins on the first pass, there will be a second pass
     if (box.computed_values().height().is_auto() && before_or_after_inside_layout == BeforeOrAfterInsideLayout::Before)
         return;
     if (computed_block_size_establishes_definite_containing_block_size(box.computed_values().height()))
         box_state.set_has_definite_block_size(true);
-    box_state.inset_top = top.to_px_or_zero(height_of_containing_block);
-    box_state.inset_bottom = bottom.to_px_or_zero(height_of_containing_block);
+    box_state.inset_top = top.to_px_or_zero(containing_block_block_size);
+    box_state.inset_bottom = bottom.to_px_or_zero(containing_block_block_size);
     box_state.margin_top = margin_top.to_px_or_zero(containing_block_inline_size);
     box_state.margin_bottom = margin_bottom.to_px_or_zero(containing_block_inline_size);
 }
@@ -2491,12 +2489,11 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
 
     compute_inline_size_for_absolutely_positioned_element(box, available_space, absolutely_positioned_constraints, static_position_rect);
 
-    // NOTE: We compute height before *and* after doing inside layout.
-    //       This is done so that inside layout can resolve percentage heights.
-    //       In some situations, e.g with non-auto top & bottom values, the height can be determined early.
-    compute_height_for_absolutely_positioned_element(box, available_space, absolutely_positioned_constraints, static_position_rect, BeforeOrAfterInsideLayout::Before);
+    // NOTE: We compute the block size before and after inside layout so percentages can resolve during child layout.
+    //       In some situations, such as non-auto top and bottom values, the block size can be determined early.
+    compute_block_size_for_absolutely_positioned_element(box, available_space, absolutely_positioned_constraints, static_position_rect, BeforeOrAfterInsideLayout::Before);
 
-    // If the box width and/or height is fixed and/or or resolved from inset properties,
+    // If either box axis is fixed or resolved from inset properties,
     // mark the size as being definite (since layout was not required to resolve it, per CSS-SIZING-3).
     auto is_non_auto = [](auto const& length_percentage) {
         return !length_percentage.is_auto();
@@ -2509,16 +2506,16 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
         box_state.set_has_definite_block_size(true);
     }
 
-    // NOTE: BFC is special, as their abspos auto height depends on performing inside layout.
-    //       For other formatting contexts, the height we've resolved early is good.
-    //       See FormattingContext::compute_auto_height_for_absolutely_positioned_element()
+    // NOTE: BFC is special, as its automatic block size depends on performing inside layout.
+    //       For other formatting contexts, the block size resolved early is sufficient.
+    //       See FormattingContext::compute_automatic_block_size_for_absolutely_positioned_element()
     //       for the special-casing of BFC roots.
     if (!creates_block_formatting_context(box)) {
-        auto height_resolved_from_aspect_ratio = computed_values.height().is_auto()
+        auto block_size_resolved_from_aspect_ratio = computed_values.height().is_auto()
             && box.has_preferred_aspect_ratio()
             && box_state.has_definite_inline_size();
         box_state.set_has_definite_inline_size(true);
-        if ((!computed_values.height().is_auto() && computed_block_size_establishes_definite_containing_block_size(computed_values.height())) || height_resolved_from_aspect_ratio)
+        if ((!computed_values.height().is_auto() && computed_block_size_establishes_definite_containing_block_size(computed_values.height())) || block_size_resolved_from_aspect_ratio)
             box_state.set_has_definite_block_size(true);
     }
 
@@ -2527,7 +2524,7 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
     auto independent_formatting_context = layout_inside(box, LayoutMode::Normal, LayoutInput { box_state.available_inner_space_or_constraints_from(available_space), absolutely_positioned_constraints });
 
     if (computed_values.height().is_auto()) {
-        compute_height_for_absolutely_positioned_element(box, available_space, absolutely_positioned_constraints, static_position_rect, BeforeOrAfterInsideLayout::After);
+        compute_block_size_for_absolutely_positioned_element(box, available_space, absolutely_positioned_constraints, static_position_rect, BeforeOrAfterInsideLayout::After);
     }
 
     // Apply grid alignment for auto inset axes
@@ -2603,7 +2600,7 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
         independent_formatting_context->parent_context_did_dimension_child_root_box();
 }
 
-void FormattingContext::compute_height_for_absolutely_positioned_replaced_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, StaticPositionRect const& static_position_rect, BeforeOrAfterInsideLayout before_or_after_inside_layout)
+void FormattingContext::compute_block_size_for_absolutely_positioned_replaced_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, StaticPositionRect const& static_position_rect, BeforeOrAfterInsideLayout before_or_after_inside_layout)
 {
     // 10.6.5 Absolutely positioned, replaced elements
     // This situation is similar to 10.6.4, except that the element has an intrinsic height.
