@@ -594,6 +594,7 @@ namespace Web::Editing {
 class EditCommand;
 class EditingHistory;
 class UndoStep;
+enum class HistoryAction : u8;
 
 }
 

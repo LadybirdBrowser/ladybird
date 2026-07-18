@@ -91,6 +91,7 @@ private:
     [[nodiscard]] EventResult perform_copy_action();
     [[nodiscard]] EventResult perform_cut_action();
     [[nodiscard]] EventResult perform_paste_action();
+    [[nodiscard]] EventResult perform_history_action(DOM::Document&, Editing::HistoryAction);
 
     EventResult focus_next_element();
     EventResult focus_previous_element();

@@ -10,6 +10,7 @@
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Page/EventResult.h>
 #include <LibWeb/TextAffinity.h>
 
 namespace Web::Editing {
@@ -99,6 +100,9 @@ public:
     bool undo(DOM::Document&);
     bool redo(DOM::Document&);
 
+    GC::Ptr<UndoStep> next_undo_step();
+    GC::Ptr<UndoStep> next_redo_step();
+
     // Called whenever the document selection changes; ends typing coalescence unless the change
     // came from an editing command or from history application itself.
     void selection_changed();
@@ -117,5 +121,15 @@ private:
     Vector<GC::Ref<UndoStep>> m_redo_stack;
     bool m_applying_history_step { false };
 };
+
+enum class HistoryAction : u8 {
+    Undo,
+    Redo,
+};
+
+// The user-initiated (keyboard shortcut) entry point for undo and redo. Unlike execCommand(),
+// this dispatches a cancelable beforeinput event first; canceling it leaves both the DOM and the
+// history untouched.
+EventResult perform_history_action(DOM::Document&, HistoryAction);
 
 }

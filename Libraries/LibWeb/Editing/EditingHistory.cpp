@@ -14,6 +14,7 @@
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/InputEvent.h>
 #include <LibWeb/UIEvents/InputTypes.h>
 
@@ -241,6 +242,18 @@ bool EditingHistory::can_redo()
     return !m_redo_stack.is_empty();
 }
 
+GC::Ptr<UndoStep> EditingHistory::next_undo_step()
+{
+    prune_steps_for_disconnected_hosts();
+    return m_undo_stack.is_empty() ? nullptr : m_undo_stack.last().ptr();
+}
+
+GC::Ptr<UndoStep> EditingHistory::next_redo_step()
+{
+    prune_steps_for_disconnected_hosts();
+    return m_redo_stack.is_empty() ? nullptr : m_redo_stack.last().ptr();
+}
+
 bool EditingHistory::undo(DOM::Document& document)
 {
     if (m_applying_history_step || m_undo_step_being_recorded)
@@ -313,6 +326,39 @@ void EditingHistory::restore_selection(DOM::Document& document, SelectionSnapsho
 
     MUST(selection->set_base_and_extent(*anchor, snapshot.anchor_offset, *focus, snapshot.focus_offset));
     selection->set_focus_affinity(snapshot.focus_affinity);
+}
+
+// INTEROP: Chromium's keyboard undo/redo dispatches a cancelable beforeinput event with
+//          inputType "historyUndo" or "historyRedo" at the step's editing host before touching
+//          anything; a canceled event means no mutation happens and no history entry is
+//          consumed. With nothing to undo or redo, no events fire at all. execCommand("undo")
+//          takes the command path instead, which never fires beforeinput.
+EventResult perform_history_action(DOM::Document& document, HistoryAction action)
+{
+    auto history = document.editing_history_if_exists();
+    if (!history)
+        return EventResult::Handled;
+
+    auto step = action == HistoryAction::Undo ? history->next_undo_step() : history->next_redo_step();
+    if (!step)
+        return EventResult::Handled;
+
+    auto const& input_type = action == HistoryAction::Undo ? UIEvents::InputTypes::historyUndo : UIEvents::InputTypes::historyRedo;
+
+    Bindings::InputEventInit event_init {};
+    event_init.bubbles = true;
+    event_init.cancelable = true;
+    event_init.input_type = input_type;
+    auto event = UIEvents::InputEvent::create_from_platform_event(document.realm(), UIEvents::EventNames::beforeinput, event_init);
+    event->set_is_trusted(true);
+    if (!step->editing_host()->dispatch_event(event))
+        return EventResult::Handled;
+
+    if (action == HistoryAction::Undo)
+        history->undo(document);
+    else
+        history->redo(document);
+    return EventResult::Handled;
 }
 
 void EditingHistory::visit_edges(Cell::Visitor& visitor)

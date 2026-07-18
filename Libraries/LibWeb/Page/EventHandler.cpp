@@ -22,6 +22,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
@@ -1135,6 +1136,17 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             return perform_cut_action();
         if (key == UIEvents::KeyCode::Key_V)
             return perform_paste_action();
+        if (key == UIEvents::KeyCode::Key_Z)
+            return perform_history_action(*document, Editing::HistoryAction::Undo);
+#if !defined(AK_OS_MACOS)
+        // INTEROP: Chromium redoes on Ctrl+Y on Windows and Linux; on macOS Cmd+Y is not a redo shortcut.
+        if (key == UIEvents::KeyCode::Key_Y)
+            return perform_history_action(*document, Editing::HistoryAction::Redo);
+#endif
+    }
+    if ((modifiers & UIEvents::Mod_PlatformCtrl) != 0 && (modifiers & UIEvents::Mod_Shift) != 0 && (modifiers & UIEvents::Mod_Alt) == 0
+        && key == UIEvents::KeyCode::Key_Z) {
+        return perform_history_action(*document, Editing::HistoryAction::Redo);
     }
 
     if (auto* target = document->active_input_events_target()) {
@@ -1616,6 +1628,15 @@ EventResult EventHandler::perform_paste_action()
     }));
 
     return EventResult::Handled;
+}
+
+EventResult EventHandler::perform_history_action(DOM::Document& document, Editing::HistoryAction action)
+{
+    // NB: Edits in text controls are not recorded in the editing history yet, so leave their undo shortcut alone
+    //     rather than undoing an unrelated contenteditable edit elsewhere in the document.
+    if (is<HTML::FormAssociatedTextControlElement>(document.active_input_events_target()))
+        return EventResult::Handled;
+    return Editing::perform_history_action(document, action);
 }
 
 EventResult EventHandler::handle_paste(Utf16View text)
