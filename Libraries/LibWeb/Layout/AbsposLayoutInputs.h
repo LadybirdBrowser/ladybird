@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <LibWeb/Layout/LogicalGeometry.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Layout {
@@ -65,20 +66,20 @@ struct StaticPositionRect {
     // a style change on the box itself.
     bool alignment_derives_from_own_computed_values { false };
 
-    CSSPixelPoint aligned_position_for_box_with_size(CSSPixelSize const& size) const
+    LogicalOffset aligned_offset_for_box_with_size(LogicalSize const& size) const
     {
-        CSSPixelPoint position = rect.location();
+        LogicalOffset offset { rect.x(), rect.y() };
         if (inline_alignment == Alignment::Center)
-            position.set_x(position.x() + (rect.width() - size.width()) / 2);
+            offset.inline_offset += (rect.width() - size.inline_size) / 2;
         else if (inline_alignment == Alignment::End)
-            position.set_x(position.x() + rect.width() - size.width());
+            offset.inline_offset += rect.width() - size.inline_size;
 
         if (block_alignment == Alignment::Center)
-            position.set_y(position.y() + (rect.height() - size.height()) / 2);
+            offset.block_offset += (rect.height() - size.block_size) / 2;
         else if (block_alignment == Alignment::End)
-            position.set_y(position.y() + rect.height() - size.height());
+            offset.block_offset += rect.height() - size.block_size;
 
-        return position;
+        return offset;
     }
 };
 

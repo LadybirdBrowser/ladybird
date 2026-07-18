@@ -483,9 +483,9 @@ void FormattingContext::register_contained_abspos_child(Box const& child, Static
     m_state.register_contained_abspos_child(box_establishing_containing_formatting_context(child), child, static_position_rect);
 }
 
-CSSPixelPoint FormattingContext::aligned_static_position(StaticPositionRect const& static_position_rect, LayoutState::UsedValues const& box_state)
+LogicalOffset FormattingContext::aligned_static_offset(StaticPositionRect const& static_position_rect, LayoutState::UsedValues const& box_state)
 {
-    return static_position_rect.aligned_position_for_box_with_size({ box_state.margin_box_inline_size(), box_state.margin_box_block_size() });
+    return static_position_rect.aligned_offset_for_box_with_size({ box_state.margin_box_inline_size(), box_state.margin_box_block_size() });
 }
 
 // FIXME: This is a hack. Get rid of it.
@@ -1243,9 +1243,9 @@ void FormattingContext::compute_inline_size_for_absolutely_positioned_non_replac
             inline_size = CSS::Length::make_px(content_inline_size);
             m_state.get_mutable(box).set_content_inline_size(content_inline_size);
 
-            auto static_position = aligned_static_position(static_position_rect, box_state);
+            auto static_offset = aligned_static_offset(static_position_rect, box_state);
 
-            left = static_position.x();
+            left = static_offset.inline_offset;
             right = solve_for_right();
         }
 
@@ -1299,8 +1299,8 @@ void FormattingContext::compute_inline_size_for_absolutely_positioned_non_replac
         //    Then solve for 'left' (if 'direction is 'rtl') or 'right' (if 'direction' is 'ltr').
         else if (computed_left.is_auto() && computed_right.is_auto() && !inline_size.is_auto()) {
             // FIXME: Check direction
-            auto static_position = aligned_static_position(static_position_rect, box_state);
-            left = static_position.x();
+            auto static_offset = aligned_static_offset(static_position_rect, box_state);
+            left = static_offset.inline_offset;
             right = solve_for_right();
         }
 
@@ -1385,7 +1385,7 @@ void FormattingContext::compute_inline_size_for_absolutely_positioned_replaced_e
     auto margin_left = computed_values.margin().left();
     auto right = computed_values.inset().right();
     auto margin_right = computed_values.margin().right();
-    auto static_position = aligned_static_position(static_position_rect, box_state);
+    auto static_offset = aligned_static_offset(static_position_rect, box_state);
 
     auto to_px = [&](CSS::LengthPercentageOrAuto const& l) {
         return l.to_px_or_zero(containing_block_inline_size);
@@ -1396,7 +1396,7 @@ void FormattingContext::compute_inline_size_for_absolutely_positioned_replaced_e
     // element establishing the static-position containing block is 'ltr', set 'left' to the static
     // position; else if 'direction' is 'rtl', set 'right' to the static position.
     if (left.is_auto() && right.is_auto()) {
-        left = CSS::Length::make_px(static_position.x());
+        left = CSS::Length::make_px(static_offset.inline_offset);
     }
 
     // 3. If 'left' or 'right' are 'auto', replace any 'auto' on 'margin-left' or 'margin-right' with '0'.
@@ -1562,8 +1562,8 @@ void FormattingContext::compute_block_size_for_absolutely_positioned_non_replace
             auto constrained_block_size = apply_min_max_block_size_constraints(block_size);
             m_state.get_mutable(box).set_content_block_size(constrained_block_size.to_px_or_zero());
 
-            auto static_position = aligned_static_position(static_position_rect, state);
-            top = CSS::Length::make_px(static_position.y());
+            auto static_offset = aligned_static_offset(static_position_rect, state);
+            top = CSS::Length::make_px(static_offset.block_offset);
 
             solve_for_bottom();
         }
@@ -1617,7 +1617,7 @@ void FormattingContext::compute_block_size_for_absolutely_positioned_non_replace
             // 2. If top and bottom are auto and height is not auto,
             else if (top.is_auto() && bottom.is_auto() && !block_size.is_auto()) {
                 // then set top to the static position,
-                top = CSS::Length::make_px(aligned_static_position(static_position_rect, state).y());
+                top = CSS::Length::make_px(aligned_static_offset(static_position_rect, state).block_offset);
 
                 // then solve for bottom.
                 solve_for_bottom();
@@ -2464,28 +2464,32 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
 
     auto& box_state = m_state.get_mutable(box);
 
-    auto const available_space = AvailableSpace(AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_info.rect.width())), AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_info.rect.height())));
+    LogicalSize const containing_block_size {
+        clamp_to_max_dimension_value(containing_block_info.rect.width()),
+        clamp_to_max_dimension_value(containing_block_info.rect.height())
+    };
+    auto const available_space = AvailableSpace(AvailableSize::make_definite(containing_block_size.inline_size), AvailableSize::make_definite(containing_block_size.block_size));
 
     auto const& computed_values = box.computed_values();
 
-    auto const containing_block_width = available_space.inline_size.to_px_or_zero();
-    auto const containing_block_height = available_space.block_size.to_px_or_zero();
+    auto const containing_block_inline_size = available_space.inline_size.to_px_or_zero();
+    auto const containing_block_block_size = available_space.block_size.to_px_or_zero();
     // The percentage basis of an absolutely positioned box is the padding box of its absolute
     // positioning containing block, which need not match the basis its used values were created
     // with (grid places absolutely positioned children into their grid area).
-    ContainingBlockConstraints const absolutely_positioned_constraints { containing_block_width, containing_block_height, {} };
+    ContainingBlockConstraints const absolutely_positioned_constraints { containing_block_inline_size, containing_block_block_size, {} };
 
-    // The border computed values are not changed by the compute_height & width calculations below.
+    // The border computed values are not changed by the size calculations below.
     // The spec only adjusts and computes sizes, insets and margins.
     box_state.border_left = computed_values.border_left().width;
     box_state.border_right = computed_values.border_right().width;
     box_state.border_top = computed_values.border_top().width;
     box_state.border_bottom = computed_values.border_bottom().width;
 
-    box_state.padding_left = computed_values.padding().left().to_px_or_zero(containing_block_width);
-    box_state.padding_right = computed_values.padding().right().to_px_or_zero(containing_block_width);
-    box_state.padding_top = computed_values.padding().top().to_px_or_zero(containing_block_width);
-    box_state.padding_bottom = computed_values.padding().bottom().to_px_or_zero(containing_block_width);
+    box_state.padding_left = computed_values.padding().left().to_px_or_zero(containing_block_inline_size);
+    box_state.padding_right = computed_values.padding().right().to_px_or_zero(containing_block_inline_size);
+    box_state.padding_top = computed_values.padding().top().to_px_or_zero(containing_block_inline_size);
+    box_state.padding_bottom = computed_values.padding().bottom().to_px_or_zero(containing_block_inline_size);
 
     compute_inline_size_for_absolutely_positioned_element(box, available_space, absolutely_positioned_constraints, static_position_rect);
 
@@ -2529,17 +2533,17 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
 
     // Apply grid alignment for auto inset axes
     if (containing_block_info.inline_alignment.has_value() && computed_values.inset().left().is_auto() && computed_values.inset().right().is_auto()) {
-        auto available_space_for_alignment = containing_block_info.rect.width() - box_state.margin_box_inline_size();
+        auto available_inline_size_for_alignment = containing_block_size.inline_size - box_state.margin_box_inline_size();
         switch (*containing_block_info.inline_alignment) {
         case Alignment::Center:
-            box_state.inset_left = available_space_for_alignment / 2;
-            box_state.inset_right = available_space_for_alignment / 2;
+            box_state.inset_left = available_inline_size_for_alignment / 2;
+            box_state.inset_right = available_inline_size_for_alignment / 2;
             break;
         case Alignment::Start:
-            box_state.inset_right = available_space_for_alignment;
+            box_state.inset_right = available_inline_size_for_alignment;
             break;
         case Alignment::End:
-            box_state.inset_left = available_space_for_alignment;
+            box_state.inset_left = available_inline_size_for_alignment;
             break;
         case Alignment::Normal:
         case Alignment::Stretch:
@@ -2549,19 +2553,19 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
     }
 
     if (containing_block_info.block_alignment.has_value() && computed_values.inset().top().is_auto() && computed_values.inset().bottom().is_auto()) {
-        auto available_space_for_alignment = containing_block_info.rect.height() - box_state.margin_box_block_size();
+        auto available_block_size_for_alignment = containing_block_size.block_size - box_state.margin_box_block_size();
         switch (*containing_block_info.block_alignment) {
         case Alignment::Center:
-            box_state.inset_top = available_space_for_alignment / 2;
-            box_state.inset_bottom = available_space_for_alignment / 2;
+            box_state.inset_top = available_block_size_for_alignment / 2;
+            box_state.inset_bottom = available_block_size_for_alignment / 2;
             break;
         case Alignment::Start:
         case Alignment::SelfStart:
-            box_state.inset_bottom = available_space_for_alignment;
+            box_state.inset_bottom = available_block_size_for_alignment;
             break;
         case Alignment::End:
         case Alignment::SelfEnd:
-            box_state.inset_top = available_space_for_alignment;
+            box_state.inset_top = available_block_size_for_alignment;
             break;
         case Alignment::Normal:
         case Alignment::Stretch:
@@ -2571,25 +2575,26 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box, AbsposLay
         }
     }
 
-    CSSPixelPoint used_offset;
+    LogicalOffset used_offset;
 
-    auto static_position = aligned_static_position(static_position_rect, box_state);
+    auto static_offset = aligned_static_offset(static_position_rect, box_state);
 
-    // Horizontal axis
+    // Inline axis
     if (containing_block_info.inline_axis_mode == AbsposAxisMode::StaticPosition)
-        used_offset.set_x(static_position.x());
+        used_offset.inline_offset = static_offset.inline_offset;
     else
-        used_offset.set_x(containing_block_info.rect.x() + box_state.inset_left);
+        used_offset.inline_offset = containing_block_info.rect.x() + box_state.inset_left;
 
-    // Vertical axis
+    // Block axis
     if (containing_block_info.block_axis_mode == AbsposAxisMode::StaticPosition)
-        used_offset.set_y(static_position.y());
+        used_offset.block_offset = static_offset.block_offset;
     else
-        used_offset.set_y(containing_block_info.rect.y() + box_state.inset_top);
+        used_offset.block_offset = containing_block_info.rect.y() + box_state.inset_top;
 
-    used_offset.translate_by(box_state.margin_box_left(), box_state.margin_box_top());
+    used_offset.inline_offset += box_state.margin_box_left();
+    used_offset.block_offset += box_state.margin_box_top();
 
-    place_child(box, used_offset);
+    place_child(box, { used_offset.inline_offset, used_offset.block_offset });
 
     // The inputs reach the box itself only through LayoutState::commit(), so recording them
     // into a throwaway measurement state would just be discarded work.
@@ -2620,7 +2625,7 @@ void FormattingContext::compute_block_size_for_absolutely_positioned_replaced_el
     auto margin_top = computed_values.margin().top();
     auto bottom = computed_values.inset().bottom();
     auto margin_bottom = computed_values.margin().bottom();
-    auto static_position = aligned_static_position(static_position_rect, box_state);
+    auto static_offset = aligned_static_offset(static_position_rect, box_state);
 
     auto to_px = [&](CSS::LengthPercentageOrAuto const& l) {
         return l.to_px_or_zero(containing_block_block_size);
@@ -2629,7 +2634,7 @@ void FormattingContext::compute_block_size_for_absolutely_positioned_replaced_el
     // If 'margin-top' or 'margin-bottom' is specified as 'auto' its used value is determined by the rules below.
     // 2. If both 'top' and 'bottom' have the value 'auto', replace 'top' with the element's static position.
     if (top.is_auto() && bottom.is_auto()) {
-        top = CSS::Length::make_px(static_position.y());
+        top = CSS::Length::make_px(static_offset.block_offset);
     }
 
     // 3. If 'bottom' is 'auto', replace any 'auto' on 'margin-top' or 'margin-bottom' with '0'.

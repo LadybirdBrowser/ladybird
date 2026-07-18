@@ -235,7 +235,7 @@ protected:
 
     void register_contained_abspos_child(Box const& child, StaticPositionRect const&);
     [[nodiscard]] StaticPositionRect resolve_static_position_relative_to_containing_block(Box const&, StaticPositionRect) const;
-    [[nodiscard]] static CSSPixelPoint aligned_static_position(StaticPositionRect const&, LayoutState::UsedValues const&);
+    [[nodiscard]] static LogicalOffset aligned_static_offset(StaticPositionRect const&, LayoutState::UsedValues const&);
     void layout_absolutely_positioned_children();
     void layout_absolutely_positioned_children(Box const&);
     virtual AbsposContainingBlockInfo resolve_abspos_containing_block_info(Box const&);
