@@ -353,12 +353,20 @@ macro coerce_to_int32s(lhs, rhs, lhs_int, rhs_int, fail)
 .rhs_done:
 end
 
+# Load two adjacent operand indices together so paired-load architectures can
+# read both immutable bytecode fields with one instruction.
+macro load_binary_operands(lhs, rhs)
+    temp lhs_index, rhs_index
+    load_pair32 lhs_index, rhs_index, [pb, pc, m_lhs], [pb, pc, m_rhs]
+    load64 lhs, [values, lhs_index, 8]
+    load64 rhs, [values, rhs_index, 8]
+end
+
 # Fast path for bitwise binary operations on int32/boolean/double operands.
 # op_insn: the bitwise instruction to apply (xor, and, or).
 macro bitwise_op(op_insn, slow_path_func)
     temp lhs, rhs, lhs_int, rhs_int, dst
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     coerce_to_int32s lhs, rhs, lhs_int, rhs_int, .slow
     op_insn lhs_int, rhs_int
     box_int32 dst, lhs_int
@@ -421,8 +429,7 @@ end
 
 macro int32_shift_op(op_insn, slow_path_func)
     temp lhs, rhs, lhs_tag, rhs_tag, lhs_int, count, dst
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     extract_tag lhs_tag, lhs
     branch_ne lhs_tag, INT32_TAG, .slow
     extract_tag rhs_tag, rhs
@@ -630,30 +637,28 @@ end
 # Simple data movement
 # ============================================================================
 
+macro move_operand(dst_field, src_field)
+    temp dst_index, src_index, value
+    load_pair32 dst_index, src_index, [pb, pc, dst_field], [pb, pc, src_field]
+    load64 value, [values, src_index, 8]
+    store64 [values, dst_index, 8], value
+end
+
 handler Mov
-    temp value
-    load_operand value, m_src
-    store_operand m_dst, value
+    move_operand m_dst, m_src
     dispatch_next
 end
 
 handler Mov2
-    temp v1, v2
-    load_operand v1, m_src1
-    store_operand m_dst1, v1
-    load_operand v2, m_src2
-    store_operand m_dst2, v2
+    move_operand m_dst1, m_src1
+    move_operand m_dst2, m_src2
     dispatch_next
 end
 
 handler Mov3
-    temp v1, v2, v3
-    load_operand v1, m_src1
-    store_operand m_dst1, v1
-    load_operand v2, m_src2
-    store_operand m_dst2, v2
-    load_operand v3, m_src3
-    store_operand m_dst3, v3
+    move_operand m_dst1, m_src1
+    move_operand m_dst2, m_src2
+    move_operand m_dst3, m_src3
     dispatch_next
 end
 
@@ -669,8 +674,7 @@ end
 handler Add
     temp lhs, rhs, lhs_int, rhs_int, dst
     ftemp lhs_dbl, rhs_dbl
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     coerce_to_doubles lhs, rhs, lhs_int, rhs_int, lhs_dbl, rhs_dbl, .both_int, .slow
     fp_add lhs_dbl, rhs_dbl
     box_double_or_int32 dst, lhs_dbl
@@ -700,8 +704,7 @@ end
 handler Sub
     temp lhs, rhs, lhs_int, rhs_int, dst
     ftemp lhs_dbl, rhs_dbl
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     coerce_to_doubles lhs, rhs, lhs_int, rhs_int, lhs_dbl, rhs_dbl, .both_int, .slow
     fp_sub lhs_dbl, rhs_dbl
     box_double_or_int32 dst, lhs_dbl
@@ -730,8 +733,7 @@ end
 handler Mul
     temp lhs, rhs, lhs_int, rhs_int, dst, sign_check
     ftemp lhs_dbl, rhs_dbl
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     coerce_to_doubles lhs, rhs, lhs_int, rhs_int, lhs_dbl, rhs_dbl, .both_int, .slow
     fp_mul lhs_dbl, rhs_dbl
     box_double_or_int32 dst, lhs_dbl
@@ -900,64 +902,56 @@ end
 # combined with jump_binary_epilogue (provides .take_true, .take_false, .slow labels).
 handler JumpLessThan
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     numeric_compare_coerce lhs, rhs, branch_lt_signed, branch_fp_less, .take_true, .take_false, .slow
     jump_binary_epilogue asm_slow_path_jump_less_than
 end
 
 handler JumpGreaterThan
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     numeric_compare_coerce lhs, rhs, branch_gt_signed, branch_fp_greater, .take_true, .take_false, .slow
     jump_binary_epilogue asm_slow_path_jump_greater_than
 end
 
 handler JumpLessThanEquals
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     numeric_compare_coerce lhs, rhs, branch_le_signed, branch_fp_less_or_equal, .take_true, .take_false, .slow
     jump_binary_epilogue asm_slow_path_jump_less_than_equals
 end
 
 handler JumpGreaterThanEquals
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     numeric_compare_coerce lhs, rhs, branch_ge_signed, branch_fp_greater_or_equal, .take_true, .take_false, .slow
     jump_binary_epilogue asm_slow_path_jump_greater_than_equals
 end
 
 handler JumpLooselyEquals
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     loose_equality_core lhs, rhs, .take_true, .take_false, .slow
     jump_binary_epilogue asm_slow_path_jump_loosely_equals
 end
 
 handler JumpLooselyInequals
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     loose_equality_core lhs, rhs, .take_false, .take_true, .slow
     jump_binary_epilogue asm_slow_path_jump_loosely_inequals
 end
 
 handler JumpStrictlyEquals
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     strict_equality_core lhs, rhs, .take_true, .take_false, .slow
     jump_binary_epilogue asm_slow_path_jump_strictly_equals
 end
 
 handler JumpStrictlyInequals
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     strict_equality_core lhs, rhs, .take_false, .take_true, .slow
     jump_binary_epilogue asm_slow_path_jump_strictly_inequals
 end
@@ -1367,8 +1361,7 @@ end
 handler Div
     temp lhs, rhs, tag, scratch_int, dst
     ftemp lhs_dbl, rhs_dbl
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     extract_tag tag, lhs
     branch_eq tag, INT32_TAG, .lhs_is_int32
     # tag already has lhs tag
@@ -1416,32 +1409,28 @@ end
 # The boolean_result_epilogue macro provides .store_true, .store_false, .slow labels.
 handler LessThan
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     numeric_compare lhs, rhs, branch_lt_signed, branch_fp_less, .store_true, .store_false, .slow
     boolean_result_epilogue asm_slow_path_less_than
 end
 
 handler LessThanEquals
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     numeric_compare lhs, rhs, branch_le_signed, branch_fp_less_or_equal, .store_true, .store_false, .slow
     boolean_result_epilogue asm_slow_path_less_than_equals
 end
 
 handler GreaterThan
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     numeric_compare lhs, rhs, branch_gt_signed, branch_fp_greater, .store_true, .store_false, .slow
     boolean_result_epilogue asm_slow_path_greater_than
 end
 
 handler GreaterThanEquals
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     numeric_compare lhs, rhs, branch_ge_signed, branch_fp_greater_or_equal, .store_true, .store_false, .slow
     boolean_result_epilogue asm_slow_path_greater_than_equals
 end
@@ -1579,8 +1568,7 @@ end
 handler UnsignedRightShift
     temp lhs, rhs, lhs_tag, rhs_tag, value, count, dst
     ftemp dst_dbl
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     extract_tag lhs_tag, lhs
     branch_ne lhs_tag, INT32_TAG, .slow
     extract_tag rhs_tag, rhs
@@ -1609,8 +1597,7 @@ end
 # Negative dividend falls to slow path to handle -0 and INT_MIN correctly.
 handler Mod
     temp lhs, rhs, lhs_tag, rhs_tag, lhs_int, rhs_int, quot, rem, dst
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     extract_tag lhs_tag, lhs
     branch_ne lhs_tag, INT32_TAG, .slow
     extract_tag rhs_tag, rhs
@@ -1638,16 +1625,14 @@ end
 # double with NaN awareness, string pointer shortcut, bigint -> slow path).
 handler StrictlyEquals
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     strict_equality_core lhs, rhs, .store_true, .store_false, .slow
     boolean_result_epilogue asm_slow_path_strictly_equals
 end
 
 handler StrictlyInequals
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     strict_equality_core lhs, rhs, .store_false, .store_true, .slow
     boolean_result_epilogue asm_slow_path_strictly_inequals
 end
@@ -1681,16 +1666,14 @@ end
 
 handler LooselyEquals
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     loose_equality_core lhs, rhs, .store_true, .store_false, .slow
     boolean_result_epilogue asm_slow_path_loosely_equals
 end
 
 handler LooselyInequals
     temp lhs, rhs
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
+    load_binary_operands lhs, rhs
     loose_equality_core lhs, rhs, .store_false, .store_true, .slow
     boolean_result_epilogue asm_slow_path_loosely_inequals
 end
