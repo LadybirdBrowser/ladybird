@@ -3,7 +3,9 @@ header = """/*
  * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
- */"""
+ */
+
+#include <LibWeb/Export.h>"""
 pragma_once = true
 include_version = true
 line_length  = 120
@@ -20,3 +22,6 @@ all_features = false
 
 [export.mangle]
 rename_types = "PascalCase"
+
+[fn]
+prefix = "WEB_API "
