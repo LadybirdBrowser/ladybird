@@ -560,6 +560,15 @@ bool Internals::set_http_memory_cache_enabled(bool enabled)
     return was_enabled;
 }
 
+void Internals::simulate_request_server_connection_loss()
+{
+    ResourceLoader::the().request_client() = nullptr;
+
+    // Synchronously obtain a replacement connection from the UI process, so that this process is not left unable to
+    // load resources.
+    page().client().page_did_lose_request_server_connection();
+}
+
 WebIDL::ExceptionOr<void> Internals::set_content_blockers(Utf16String const& patterns_source)
 {
     Utf16StringBuilder patterns_builder;

@@ -932,6 +932,20 @@ void PageClient::did_delete_all_cookies(u64 request_id)
     Web::WebIDL::resolve_promise(realm, promise);
 }
 
+void PageClient::page_did_lose_request_server_connection()
+{
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidLoseRequestServerConnection>();
+    if (!response)
+        return;
+
+    auto handle = response->take_handle();
+    if (!handle.has_value())
+        return;
+
+    if (client().on_request_server_connection)
+        client().on_request_server_connection(*handle);
+}
+
 void PageClient::page_did_store_hsts_policy(String const& domain, HTTP::HSTS::ParsedHSTSPolicy const& policy)
 {
     client().async_did_store_hsts_policy(domain, policy);

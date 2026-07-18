@@ -1374,6 +1374,17 @@ Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_
     return Application::hsts_store(m_is_private).is_known_hsts_host(domain);
 }
 
+Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentClient::did_lose_request_server_connection()
+{
+    auto handle = connect_new_request_server_client(m_is_private);
+    if (handle.is_error()) {
+        warnln("Unable to connect a replacement RequestServer client: {}", handle.error());
+        return OptionalNone {};
+    }
+
+    return handle.release_value();
+}
+
 Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key)
 {
     return Application::storage_jar(m_is_private).get_item(storage_endpoint, storage_key, bottle_key);

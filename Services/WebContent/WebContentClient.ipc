@@ -130,6 +130,8 @@ endpoint WebContentClient
     did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy) =|
     did_is_known_hsts_host(String domain) => (bool result)
 
+    did_lose_request_server_connection() => (Optional<IPC::TransportHandle> handle)
+
     did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) => (Optional<Utf16String> value)
     did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value) => (WebView::StorageSetResult result)
     did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) => ()

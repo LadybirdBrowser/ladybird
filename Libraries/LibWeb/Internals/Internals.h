@@ -90,6 +90,7 @@ public:
     GC::Ref<WebIDL::Promise> delete_all_cookies();
 
     bool set_http_memory_cache_enabled(bool enabled);
+    void simulate_request_server_connection_loss();
     WebIDL::ExceptionOr<void> set_content_blockers(Utf16String const& patterns);
     void set_content_blocking_enabled(bool enabled);
     WebIDL::UnsignedLongLong partial_layout_count();

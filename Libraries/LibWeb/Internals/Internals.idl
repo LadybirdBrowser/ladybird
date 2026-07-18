@@ -80,6 +80,7 @@ interface Internals {
     Promise<undefined> deleteAllCookies();
 
     boolean setHttpMemoryCacheEnabled(boolean enabled);
+    undefined simulateRequestServerConnectionLoss();
     undefined setContentBlockers(Utf16DOMString patterns);
     undefined setContentBlockingEnabled(boolean enabled);
     unsigned long long partialLayoutCount();
