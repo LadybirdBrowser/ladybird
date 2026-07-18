@@ -94,8 +94,8 @@ RefPtr<AnimatedProperties const> ComputedValues::animated_properties_snapshot() 
 
 RefPtr<StyleValue const> ComputedValues::color_style_value() const
 {
-    if (m_inherited.color_style_value)
-        return m_inherited.color_style_value;
+    if (m_inherited.text->color_style_value)
+        return m_inherited.text->color_style_value;
     return computed_style_value(PropertyID::Color);
 }
 
@@ -468,8 +468,8 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     case PropertyID::ColumnWidth:
         return size_style_value(column_width());
     case PropertyID::Color:
-        if (m_inherited.color_style_value && !m_inherited.color_style_value->depends_on_current_color())
-            return m_inherited.color_style_value;
+        if (m_inherited.text->color_style_value && !m_inherited.text->color_style_value->depends_on_current_color())
+            return m_inherited.text->color_style_value;
         return color_style_value(color());
     case PropertyID::FloodColor:
         return color_style_value(flood_color());
