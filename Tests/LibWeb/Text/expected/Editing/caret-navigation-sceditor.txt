@@ -1,13 +1,4 @@
-FAIL: 37 SCEditor caret assertions failed
-Down+Up from first list item@1: expected #text@1, got #text@2
-Down+Up from first list item@4: expected #text@4, got #text@3
-Down+Up from first list item@6: expected #text@6, got #text@5
-Down+Up from first list item@9: expected #text@9, got #text@10
-Up+Down from second list item@2: expected #text@2, got #text@1
-Up+Down from second list item@4: expected #text@4, got #text@3
-Up+Down from second list item@6: expected #text@6, got #text@5
-Up+Down from second list item@13: expected #text@13, got #text@12
-Up+Down from second list item@14: expected #text@14, got #text@12
+FAIL: 28 SCEditor caret assertions failed
 End from the editing host start: expected DIV@2, got BODY@13
 Down from inserted text: expected DIV@0, got #text@3
 Up after crossing an empty line: expected #text@1, got #text@0

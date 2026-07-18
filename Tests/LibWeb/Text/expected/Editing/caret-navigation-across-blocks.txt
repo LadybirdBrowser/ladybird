@@ -1,7 +1,7 @@
 ArrowUp from bbb,0: p#p2 @ 0
 ArrowUp again: #text("aaa") @ 0
 ArrowDown from aaa,1: p#p2 @ 0
-ArrowDown again: #text("bbb") @ 0
+ArrowDown again: #text("bbb") @ 1
 ArrowRight from aaa,3: p#p2 @ 0
 ArrowRight again: #text("bbb") @ 0
 ArrowLeft from bbb,0: p#p2 @ 0

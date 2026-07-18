@@ -573,6 +573,7 @@ void Selection::set_range(GC::Ptr<DOM::Range> range)
 
     m_range = range;
     m_focus_affinity = TextAffinity::Downstream;
+    m_preferred_inline_coordinate.clear();
 
     if (range)
         range->set_associated_selection({}, this);

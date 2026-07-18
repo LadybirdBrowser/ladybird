@@ -219,8 +219,8 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
     }
 
     auto position = direction == SelectionDirection::Forward
-        ? compute_cursor_position_on_next_line(*text, location.offset, location.affinity)
-        : compute_cursor_position_on_previous_line(*text, location.offset, location.affinity);
+        ? compute_cursor_position_on_next_line(*text, location.offset, location.affinity, preferred_inline_coordinate)
+        : compute_cursor_position_on_previous_line(*text, location.offset, location.affinity, preferred_inline_coordinate);
     if (!position.has_value())
         return {};
     return CaretLocation { *text, position->offset, position->affinity };
@@ -232,13 +232,23 @@ void SelectionModifier::modify(SelectionAlteration alteration, SelectionDirectio
     if (!range)
         return;
 
+    // INTEROP: Major engines remember a preferred inline-axis position across consecutive Up/Down operations. Without
+    // this state, traversing a short line permanently shifts the caret column for every subsequent line.
+    auto preferred_inline_coordinate = m_selection->m_preferred_inline_coordinate;
+    if (granularity == SelectionGranularity::Line && !preferred_inline_coordinate.has_value()) {
+        if (auto* text = as_if<DOM::Text>(m_selection->focus_node().ptr()))
+            preferred_inline_coordinate = cursor_inline_coordinate(*text, m_selection->focus_offset(), m_selection->focus_affinity());
+    } else if (granularity != SelectionGranularity::Line) {
+        m_selection->m_preferred_inline_coordinate.clear();
+    }
+
     Optional<CaretLocation> destination;
     if (alteration == SelectionAlteration::Move && granularity == SelectionGranularity::Character && !m_selection->is_collapsed()) {
         auto boundary = direction == SelectionDirection::Forward ? range->end() : range->start();
         destination = CaretLocation { boundary.node, boundary.offset, TextAffinity::Downstream };
     } else if (auto focus = m_selection->focus_node()) {
         CaretNavigator navigator(*m_selection->document());
-        destination = navigator.move({ *focus, m_selection->focus_offset(), m_selection->focus_affinity() }, direction, granularity);
+        destination = navigator.move({ *focus, m_selection->focus_offset(), m_selection->focus_affinity() }, direction, granularity, preferred_inline_coordinate);
     }
 
     if (!destination.has_value())
@@ -256,6 +266,8 @@ void SelectionModifier::modify(SelectionAlteration alteration, SelectionDirectio
         MUST(m_selection->set_base_and_extent(*anchor, m_selection->anchor_offset(), destination->node, destination->offset));
     }
     m_selection->set_focus_affinity(destination->affinity);
+    if (granularity == SelectionGranularity::Line)
+        m_selection->m_preferred_inline_coordinate = preferred_inline_coordinate;
     m_selection->document()->set_cursor_position_needs_repaint();
     m_selection->scroll_focus_into_view();
 }

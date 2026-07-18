@@ -9,6 +9,7 @@
 #include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/PixelUnits.h>
 #include <LibWeb/TextAffinity.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -81,6 +82,8 @@ public:
     void move_offset_to_previous_line(bool collapse_selection);
 
 private:
+    friend class SelectionModifier;
+
     Selection(GC::Ref<JS::Realm>, GC::Ref<DOM::Document>);
 
     [[nodiscard]] bool is_empty() const;
@@ -96,6 +99,9 @@ private:
     GC::Ref<DOM::Document> m_document;
     Direction m_direction { Direction::Directionless };
     TextAffinity m_focus_affinity { TextAffinity::Downstream };
+    // Repeated vertical moves preserve the inline-axis coordinate chosen by the first move. A non-vertical move
+    // clears it so the next vertical sequence starts from the caret's new visual position.
+    Optional<CSSPixels> m_preferred_inline_coordinate;
 };
 
 }

@@ -192,7 +192,7 @@ static size_t offset_in_visual_line_closest_to_inline_coordinate(VisualLine cons
     return fragment->index_in_node_for_point(point);
 }
 
-Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity)
+Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity, Optional<CSSPixels> preferred_inline_coordinate)
 {
     // NB: The layout update is best-effort; a detached document may still have no layout node.
     auto lines = visual_lines_with_up_to_date_layout(dom_node);
@@ -205,12 +205,14 @@ Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text cons
     if (!line_index.has_value() || *line_index + 1 >= lines.size())
         return CursorLinePosition { dom_node.data().length_in_code_units(), TextAffinity::Downstream };
 
-    auto inline_coordinate = caret_inline_coordinate(lines[*line_index], current_offset);
+    auto inline_coordinate = preferred_inline_coordinate;
+    if (!inline_coordinate.has_value())
+        inline_coordinate = caret_inline_coordinate(lines[*line_index], current_offset);
     auto new_offset = offset_in_visual_line_closest_to_inline_coordinate(lines[*line_index + 1], inline_coordinate);
     return CursorLinePosition { new_offset, affinity_for_offset_on_line(lines, *line_index + 1, new_offset) };
 }
 
-Optional<CursorLinePosition> compute_cursor_position_on_previous_line(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity)
+Optional<CursorLinePosition> compute_cursor_position_on_previous_line(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity, Optional<CSSPixels> preferred_inline_coordinate)
 {
     // NB: The layout update is best-effort; a detached document may still have no layout node.
     auto lines = visual_lines_with_up_to_date_layout(dom_node);
@@ -223,7 +225,9 @@ Optional<CursorLinePosition> compute_cursor_position_on_previous_line(DOM::Text 
     if (!line_index.has_value() || *line_index == 0)
         return CursorLinePosition { 0, TextAffinity::Downstream };
 
-    auto inline_coordinate = caret_inline_coordinate(lines[*line_index], current_offset);
+    auto inline_coordinate = preferred_inline_coordinate;
+    if (!inline_coordinate.has_value())
+        inline_coordinate = caret_inline_coordinate(lines[*line_index], current_offset);
     auto new_offset = offset_in_visual_line_closest_to_inline_coordinate(lines[*line_index - 1], inline_coordinate);
     return CursorLinePosition { new_offset, affinity_for_offset_on_line(lines, *line_index - 1, new_offset) };
 }
