@@ -36,8 +36,8 @@ struct CursorLinePosition {
     TextAffinity affinity { TextAffinity::Downstream };
 };
 
-Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text const&, size_t current_offset, TextAffinity, Optional<CSSPixels> preferred_inline_coordinate = {});
-Optional<CursorLinePosition> compute_cursor_position_on_previous_line(DOM::Text const&, size_t current_offset, TextAffinity, Optional<CSSPixels> preferred_inline_coordinate = {});
+Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text const&, size_t current_offset, TextAffinity);
+Optional<CursorLinePosition> compute_cursor_position_on_previous_line(DOM::Text const&, size_t current_offset, TextAffinity);
 
 // One cursor step right or left. At a soft wrap boundary, the same offset has two visual positions (the end of the
 // earlier line and the start of the next); stepping visits both before moving to the adjacent grapheme.

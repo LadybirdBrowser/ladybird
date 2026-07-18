@@ -32,11 +32,6 @@ struct CaretLocation {
     TextAffinity affinity { TextAffinity::Downstream };
 };
 
-enum class CaretEntryMode : u8 {
-    LineEdge,
-    ClosestToInlineCoordinate,
-};
-
 // Unicode word boundaries provide candidate stops, while browser editing behavior decides which candidates a command
 // crosses. Separators, punctuation, and word content therefore remain distinct through navigation.
 enum class WordSegmentKind : u8 {
@@ -147,7 +142,7 @@ public:
     Optional<CSSPixels> inline_coordinate(CaretLocation const&);
 
 private:
-    Optional<CaretLocation> move_to_adjacent_caret_host(CaretLocation const&, SelectionDirection, CaretEntryMode, Optional<CSSPixels>);
+    Optional<CaretLocation> move_to_adjacent_caret_host(CaretLocation const&, SelectionDirection);
     Optional<CaretLocation> move_to_editing_host_boundary(CaretLocation const&, SelectionDirection);
     Optional<CaretLocation> move_by_page(CaretLocation const&, SelectionDirection, CSSPixels inline_coordinate);
     Optional<CaretLocation> move_by_word(CaretLocation const&, SelectionAlteration, SelectionDirection);
@@ -233,7 +228,7 @@ Optional<CSSPixels> CaretNavigator::inline_coordinate(CaretLocation const& locat
     });
 }
 
-Optional<CaretLocation> CaretNavigator::move_to_adjacent_caret_host(CaretLocation const& location, SelectionDirection direction, CaretEntryMode entry_mode, Optional<CSSPixels> inline_coordinate)
+Optional<CaretLocation> CaretNavigator::move_to_adjacent_caret_host(CaretLocation const& location, SelectionDirection direction)
 {
     auto editing_host = location.node->editing_host();
     if (!editing_host)
@@ -261,12 +256,6 @@ Optional<CaretLocation> CaretNavigator::move_to_adjacent_caret_host(CaretLocatio
     }
     if (!target)
         target = adjacent_caret_host(origin, *editing_host, direction);
-    if (entry_mode == CaretEntryMode::ClosestToInlineCoordinate) {
-        while (target && is_atomic_inline_caret_host(*target)) {
-            target = adjacent_caret_host(*target, *editing_host, direction);
-            target_is_adjacent_child = false;
-        }
-    }
     if (!target)
         return {};
 
@@ -294,16 +283,9 @@ Optional<CaretLocation> CaretNavigator::move_to_adjacent_caret_host(CaretLocatio
     }
 
     if (auto* text = as_if<DOM::Text>(*target)) {
-        Optional<CursorLinePosition> position;
-        if (entry_mode == CaretEntryMode::LineEdge) {
-            position = direction == SelectionDirection::Forward
-                ? cursor_position_at_visual_start(*text)
-                : cursor_position_at_visual_end(*text);
-        } else {
-            position = direction == SelectionDirection::Forward
-                ? cursor_position_on_first_line_closest_to(*text, inline_coordinate)
-                : cursor_position_on_last_line_closest_to(*text, inline_coordinate);
-        }
+        auto position = direction == SelectionDirection::Forward
+            ? cursor_position_at_visual_start(*text)
+            : cursor_position_at_visual_end(*text);
         if (!position.has_value())
             return {};
         offset = position->offset;
@@ -415,7 +397,7 @@ Optional<CaretLocation> CaretNavigator::move_by_word(CaretLocation const& initia
         }
         text = as_if<DOM::Text>(adjacent_child);
         if (!text)
-            return move_to_adjacent_caret_host(location, direction, CaretEntryMode::LineEdge, {});
+            return move_to_adjacent_caret_host(location, direction);
         location = { *text, direction == SelectionDirection::Forward ? 0u : text->length(), TextAffinity::Downstream };
     }
 
@@ -468,12 +450,12 @@ Optional<CaretLocation> CaretNavigator::move_by_word(CaretLocation const& initia
 
         auto* adjacent_text = as_if<DOM::Text>(*adjacent);
         if (!adjacent_text)
-            return moved ? Optional<CaretLocation> { location } : move_to_adjacent_caret_host(location, direction, CaretEntryMode::LineEdge, {});
+            return moved ? Optional<CaretLocation> { location } : move_to_adjacent_caret_host(location, direction);
         auto shares_inline_context = direction == SelectionDirection::Forward
             ? boundary_visual_lines_share_inline_context(*text, *adjacent_text)
             : boundary_visual_lines_share_inline_context(*adjacent_text, *text);
         if (!shares_inline_context)
-            return moved ? Optional<CaretLocation> { location } : move_to_adjacent_caret_host(location, direction, CaretEntryMode::LineEdge, {});
+            return moved ? Optional<CaretLocation> { location } : move_to_adjacent_caret_host(location, direction);
 
         text = adjacent_text;
         location = { *text, direction == SelectionDirection::Forward ? 0u : text->length(), TextAffinity::Downstream };
@@ -589,7 +571,7 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
             if (position.has_value())
                 return CaretLocation { *text, position->offset, position->affinity };
         }
-        auto adjacent = move_to_adjacent_caret_host(location, direction, CaretEntryMode::LineEdge, {});
+        auto adjacent = move_to_adjacent_caret_host(location, direction);
         if (!adjacent.has_value())
             return {};
         auto* adjacent_text = as_if<DOM::Text>(*adjacent->node);
