@@ -551,7 +551,7 @@ void TableFormattingContext::compute_table_inline_size()
     CSSPixels table_wrapper_containing_block_inline_size = m_table_constraints.percentage_basis_inline_size.value_or(0);
 
     // Compute undistributable space due to border spacing: https://www.w3.org/TR/css-tables-3/#computing-undistributable-space.
-    auto undistributable_space = (m_columns.size() + 1) * border_spacing_horizontal();
+    auto undistributable_space = (m_columns.size() + 1) * border_spacing_inline();
 
     // The row/column-grid inline-size minimum (GRIDMIN) is the sum of the min-content inline size
     // of all the columns plus cell spacing or borders.
@@ -756,10 +756,10 @@ void TableFormattingContext::distribute_inline_size_to_columns()
 {
     // Implements https://www.w3.org/TR/css-tables-3/#width-distribution-algorithm
 
-    // The total horizontal border spacing is defined for each table:
-    // - For tables laid out in separated-borders mode containing at least one column, the horizontal component of the computed value of the border-spacing property times one plus the number of columns in the table
+    // The total inline-axis border spacing is defined for each table:
+    // - For tables laid out in separated-borders mode containing at least one column, the inline-axis component of the computed value of the border-spacing property times one plus the number of columns in the table
     // - Otherwise, 0
-    auto total_inline_border_spacing = m_columns.is_empty() ? 0 : (m_columns.size() + 1) * border_spacing_horizontal();
+    auto total_inline_border_spacing = m_columns.is_empty() ? 0 : (m_columns.size() + 1) * border_spacing_inline();
 
     // The assignable table inline size is its used inline size minus the inline-axis border spacing.
     CSSPixels const available_inline_size = m_state.get(table_box()).content_inline_size() - total_inline_border_spacing;
@@ -1063,9 +1063,9 @@ void TableFormattingContext::compute_table_block_size()
         // Compute cell inline size as specified by https://www.w3.org/TR/css-tables-3/#bounding-box-assignment:
         // The position of any table cell, track, or track group is defined by the sums of its spanned columns and rows:
         // - the inline/block sizes of all spanned visible columns/rows
-        // - the horizontal/vertical border-spacing times the amount of spanned visible columns/rows minus one
+        // - the inline/block border spacing times the amount of spanned visible columns/rows minus one
         // FIXME: Account for visibility.
-        cell_state.set_content_inline_size(span_inline_size - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
+        cell_state.set_content_inline_size(span_inline_size - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_inline());
         Optional<CSSPixels> measured_baseline;
         if (cell_block_size_depends_on_table_block_size(cell.box)) {
             // This cell's final inside layout happens in the second pass below; measure its
@@ -1190,7 +1190,7 @@ void TableFormattingContext::compute_table_block_size()
         if (!row.is_collapsed)
             row.reference_block_size = max(row.reference_block_size, cell_used_block_size);
 
-        cell_state.set_content_inline_size(span_inline_size - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_horizontal());
+        cell_state.set_content_inline_size(span_inline_size - cell_state.border_box_left() - cell_state.border_box_right() + (cell.column_span - 1) * border_spacing_inline());
         // The first pass only measured this cell in a throwaway state; this is its one and
         // only inside layout in the committing state.
         if (auto independent_formatting_context = layout_inside(cell.box, m_layout_mode, LayoutInput { cell_state.available_inner_space_or_constraints_from(*m_available_space) })) {
@@ -1265,15 +1265,15 @@ void TableFormattingContext::distribute_block_size_to_rows()
     }
 
     // Add undistributable space due to border spacing: https://www.w3.org/TR/css-tables-3/#computing-undistributable-space.
-    m_table_block_size += (number_of_visible_rows + 1) * border_spacing_vertical();
+    m_table_block_size += (number_of_visible_rows + 1) * border_spacing_block();
 }
 
 void TableFormattingContext::position_row_boxes()
 {
     auto const& table_state = m_state.get(table_box());
 
-    CSSPixels row_block_offset = m_pending_table_box_content_offset_in_wrapper.block_offset + border_spacing_vertical();
-    CSSPixels row_inline_offset = table_state.border_left + table_state.padding_left + border_spacing_horizontal();
+    CSSPixels row_block_offset = m_pending_table_box_content_offset_in_wrapper.block_offset + border_spacing_block();
+    CSSPixels row_inline_offset = table_state.border_left + table_state.padding_left + border_spacing_inline();
     for (size_t row_index = 0; row_index < m_rows.size(); row_index++) {
         auto& row = m_rows[row_index];
         auto& row_state = m_state.get_mutable(row.box);
@@ -1282,17 +1282,17 @@ void TableFormattingContext::position_row_boxes()
             row_inline_size += column.used_inline_size;
         }
         if (m_columns.size() >= 2)
-            row_inline_size += (m_columns.size() - 1) * border_spacing_horizontal();
+            row_inline_size += (m_columns.size() - 1) * border_spacing_inline();
 
         row_state.set_content_block_size(row.final_block_size);
         row_state.set_content_inline_size(row_inline_size);
         place_child(row.box, { row_inline_offset, row_block_offset });
         if (!row.is_collapsed)
-            row_block_offset += row_state.content_block_size() + border_spacing_vertical();
+            row_block_offset += row_state.content_block_size() + border_spacing_block();
     }
 
-    CSSPixels row_group_block_offset = m_pending_table_box_content_offset_in_wrapper.block_offset + border_spacing_vertical();
-    CSSPixels row_group_inline_offset = table_state.border_left + table_state.padding_left + border_spacing_horizontal();
+    CSSPixels row_group_block_offset = m_pending_table_box_content_offset_in_wrapper.block_offset + border_spacing_block();
+    CSSPixels row_group_inline_offset = table_state.border_left + table_state.padding_left + border_spacing_inline();
     TableGrid::for_each_child_box_matching(table_box(), TableGrid::is_table_row_group, [&](auto& row_group_box) {
         CSSPixels row_group_block_size = 0;
         CSSPixels row_group_inline_size = 0;
@@ -1307,13 +1307,13 @@ void TableFormattingContext::position_row_boxes()
             num_rows += 1;
         });
         if (num_rows >= 2)
-            row_group_block_size += (num_rows - 1) * border_spacing_vertical();
+            row_group_block_size += (num_rows - 1) * border_spacing_block();
 
         row_group_box_state.set_content_block_size(row_group_block_size);
         row_group_box_state.set_content_inline_size(row_group_inline_size);
         place_child(row_group_box, { row_group_inline_offset, row_group_block_offset });
 
-        row_group_block_offset += row_group_block_size + (num_rows > 0 ? border_spacing_vertical() : 0);
+        row_group_block_offset += row_group_block_size + (num_rows > 0 ? border_spacing_block() : 0);
     });
 
     auto total_content_block_size = max(row_block_offset, row_group_block_offset) - m_pending_table_box_content_offset_in_wrapper.block_offset - table_state.padding_top;
@@ -1396,7 +1396,7 @@ void TableFormattingContext::position_cell_boxes()
         // - the padding-left/padding-top and border-left-width/border-top-width of the table
         // FIXME: Account for visibility.
         auto cell_offset = row_state.content_offset().translated(
-            cell_state.border_box_left() + m_columns[cell.column_index].inline_offset + cell.column_index * border_spacing_horizontal(),
+            cell_state.border_box_left() + m_columns[cell.column_index].inline_offset + cell.column_index * border_spacing_inline(),
             cell_state.border_box_top());
         place_child(cell.box, cell_offset);
     }
@@ -1408,8 +1408,8 @@ bool TableFormattingContext::use_fixed_mode_layout() const
     // A table-root is said to be laid out in fixed mode whenever the computed value of the table-layout property is equal to fixed, and the
     // specified width of the table root is either a <length-percentage>, min-content or fit-content. When the specified width is not one of
     // those values, or if the computed value of the table-layout property is auto, then the table-root is said to be laid out in auto mode.
-    auto const& width = table_box().computed_values().width();
-    return table_box().computed_values().table_layout() == CSS::TableLayout::Fixed && (width.is_length() || width.is_percentage() || width.is_min_content() || width.is_fit_content());
+    auto const& inline_size = table_box().computed_values().width();
+    return table_box().computed_values().table_layout() == CSS::TableLayout::Fixed && (inline_size.is_length() || inline_size.is_percentage() || inline_size.is_min_content() || inline_size.is_fit_content());
 }
 
 static unsigned line_style_score(CSS::LineStyle line_style)
@@ -1689,9 +1689,9 @@ CSSPixels TableFormattingContext::compute_row_content_block_size(Cell const& cel
     // Compute cell block size as specified by https://www.w3.org/TR/css-tables-3/#bounding-box-assignment:
     // The logical size is the sum of:
     // - the inline/block sizes of all spanned visible columns/rows
-    // - the horizontal/vertical border-spacing times the amount of spanned visible columns/rows minus one
+    // - the inline/block border spacing times the amount of spanned visible columns/rows minus one
     // FIXME: Account for visibility.
-    span_block_size += (cell.row_span - 1) * border_spacing_vertical();
+    span_block_size += (cell.row_span - 1) * border_spacing_block();
     return span_block_size;
 }
 
@@ -2013,16 +2013,16 @@ void TableFormattingContext::initialize_intrinsic_percentages_from_cells()
 template<>
 CSSPixels TableFormattingContext::border_spacing<TableFormattingContext::Row>()
 {
-    return border_spacing_vertical();
+    return border_spacing_block();
 }
 
 template<>
 CSSPixels TableFormattingContext::border_spacing<TableFormattingContext::Column>()
 {
-    return border_spacing_horizontal();
+    return border_spacing_inline();
 }
 
-CSSPixels TableFormattingContext::border_spacing_horizontal() const
+CSSPixels TableFormattingContext::border_spacing_inline() const
 {
     auto const& computed_values = table_box().computed_values();
     // When a table is laid out in collapsed-borders mode, the border-spacing of the table-root is ignored (as if it was set to 0px):
@@ -2032,7 +2032,7 @@ CSSPixels TableFormattingContext::border_spacing_horizontal() const
     return computed_values.border_spacing_horizontal();
 }
 
-CSSPixels TableFormattingContext::border_spacing_vertical() const
+CSSPixels TableFormattingContext::border_spacing_block() const
 {
     auto const& computed_values = table_box().computed_values();
     // When a table is laid out in collapsed-borders mode, the border-spacing of the table-root is ignored (as if it was set to 0px):

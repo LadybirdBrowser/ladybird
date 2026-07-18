@@ -71,8 +71,8 @@ private:
     void position_row_boxes();
     void position_cell_boxes();
     void border_conflict_resolution();
-    CSSPixels border_spacing_horizontal() const;
-    CSSPixels border_spacing_vertical() const;
+    CSSPixels border_spacing_inline() const;
+    CSSPixels border_spacing_block() const;
     void finish_grid_initialization(TableGrid const&);
     void seed_table_participant_used_values(ContainingBlockConstraints const&);
 
