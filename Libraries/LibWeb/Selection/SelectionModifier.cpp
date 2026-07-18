@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -31,6 +32,23 @@ enum class CaretEntryMode : u8 {
     LineEdge,
     ClosestToInlineCoordinate,
 };
+
+// Unicode word boundaries provide candidate stops, while browser editing behavior decides which candidates a command
+// crosses. Separators, punctuation, and word content therefore remain distinct through navigation.
+enum class WordSegmentKind : u8 {
+    Word,
+    Punctuation,
+    Separator,
+};
+
+static WordSegmentKind word_segment_kind(Utf16View const& segment)
+{
+    if (all_of(segment, [](auto code_point) { return Unicode::code_point_has_separator_general_category(code_point); }))
+        return WordSegmentKind::Separator;
+    if (all_of(segment, [](auto code_point) { return Unicode::code_point_has_punctuation_general_category(code_point); }))
+        return WordSegmentKind::Punctuation;
+    return WordSegmentKind::Word;
+}
 
 static bool text_node_has_rendered_text(DOM::Text const& text)
 {
@@ -99,6 +117,18 @@ static bool boundary_visual_lines_share_line(DOM::Text const& before, DOM::Text 
         && before_fragment.line_index() == after_fragment.line_index();
 }
 
+static bool boundary_visual_lines_share_inline_context(DOM::Text const& before, DOM::Text const& after)
+{
+    auto before_lines = collect_visual_lines(before);
+    auto after_lines = collect_visual_lines(after);
+    if (before_lines.is_empty() || before_lines.last().fragments.is_empty() || after_lines.is_empty() || after_lines.first().fragments.is_empty())
+        return false;
+
+    auto const& before_fragment = *before_lines.last().fragments.last();
+    auto const& after_fragment = *after_lines.first().fragments.first();
+    return &before_fragment.paintable_with_lines() == &after_fragment.paintable_with_lines();
+}
+
 // Turns a movement request into a CaretLocation without mutating Selection. This allows DOM traversal and rendered
 // geometry queries to cooperate without exposing intermediate selection states to script or painting.
 class CaretNavigator {
@@ -108,13 +138,17 @@ public:
     {
     }
 
-    Optional<CaretLocation> move(CaretLocation const&, SelectionDirection, SelectionGranularity, Optional<CSSPixels> preferred_inline_coordinate = {});
+    Optional<CaretLocation> move(CaretLocation const&, SelectionAlteration, SelectionDirection, SelectionGranularity, Optional<CSSPixels> preferred_inline_coordinate = {});
     Optional<CaretLocation> canonical_location_for_extension(CaretLocation const&, SelectionDirection);
 
 private:
     Optional<CaretLocation> move_to_adjacent_caret_host(CaretLocation const&, SelectionDirection, CaretEntryMode, Optional<CSSPixels>);
     Optional<CaretLocation> move_to_editing_host_boundary(CaretLocation const&, SelectionDirection);
+    Optional<CaretLocation> move_by_word(CaretLocation const&, SelectionAlteration, SelectionDirection);
     GC::Ptr<DOM::Node> adjacent_caret_host(DOM::Node&, DOM::Node& editing_host, SelectionDirection);
+    Optional<CaretLocation> location_before_atomic_inline(DOM::Node&, SelectionAlteration);
+    Optional<CaretLocation> location_after_atomic_inline(DOM::Node&);
+    Optional<CaretLocation> canonicalize_backward_word_location(CaretLocation const&, SelectionAlteration);
     static DOM::Node& navigation_origin(CaretLocation const&, SelectionDirection);
 
     GC::Ref<DOM::Document> m_document;
@@ -265,6 +299,141 @@ Optional<CaretLocation> CaretNavigator::canonical_location_for_extension(CaretLo
     return CaretLocation { *target_text, direction == SelectionDirection::Forward ? 0u : target_text->length(), TextAffinity::Downstream };
 }
 
+Optional<CaretLocation> CaretNavigator::location_after_atomic_inline(DOM::Node& atomic_inline)
+{
+    if (!atomic_inline.parent())
+        return {};
+    return CaretLocation { *atomic_inline.parent(), atomic_inline.index() + 1, TextAffinity::Downstream };
+}
+
+Optional<CaretLocation> CaretNavigator::location_before_atomic_inline(DOM::Node& atomic_inline, SelectionAlteration alteration)
+{
+    if (!atomic_inline.parent())
+        return {};
+    // INTEROP: Chromium exposes the parent boundary when extending a range, but canonicalizes a collapsed caret to
+    // the preceding text end when possible. This prevents Right from visiting two visually identical positions before
+    // the atomic inline while retaining the range boundary needed to include it during selection.
+    if (alteration == SelectionAlteration::Extend)
+        return CaretLocation { *atomic_inline.parent(), atomic_inline.index(), TextAffinity::Downstream };
+
+    auto editing_host = atomic_inline.editing_host();
+    if (!editing_host)
+        return {};
+    auto previous = adjacent_caret_host(atomic_inline, *editing_host, SelectionDirection::Backward);
+    if (auto* previous_text = as_if<DOM::Text>(previous.ptr())) {
+        auto position = cursor_position_at_visual_end(*previous_text);
+        if (position.has_value())
+            return CaretLocation { *previous_text, position->offset, position->affinity };
+    }
+    return CaretLocation { *atomic_inline.parent(), atomic_inline.index(), TextAffinity::Downstream };
+}
+
+Optional<CaretLocation> CaretNavigator::canonicalize_backward_word_location(CaretLocation const& location, SelectionAlteration alteration)
+{
+    // A backward word move can land at the start of a styled text node, which is visually identical to the end of the
+    // preceding node in the same inline context. Use that preceding end for a collapsed caret so another Left command
+    // advances instead of revisiting the same painted position.
+    if (alteration == SelectionAlteration::Extend || location.offset != 0)
+        return location;
+    auto* text = as_if<DOM::Text>(*location.node);
+    if (!text)
+        return location;
+    auto editing_host = text->editing_host();
+    if (!editing_host)
+        return location;
+    auto previous = adjacent_caret_host(*text, *editing_host, SelectionDirection::Backward);
+    auto* previous_text = as_if<DOM::Text>(previous.ptr());
+    if (!previous_text || !boundary_visual_lines_share_inline_context(*previous_text, *text))
+        return location;
+    return CaretLocation { *previous_text, previous_text->length(), TextAffinity::Downstream };
+}
+
+Optional<CaretLocation> CaretNavigator::move_by_word(CaretLocation const& initial_location, SelectionAlteration alteration, SelectionDirection direction)
+{
+    // INTEROP: Chromium word movement skips separators and can continue through DOM-split text when the fragments
+    // share a rendered inline context. Punctuation and atomic inline content remain observable stops. This is editing
+    // behavior rather than a direct application of the Unicode segmentation algorithm.
+    auto editing_host = initial_location.node->editing_host();
+    m_document->update_layout_if_needed_for_node(initial_location.node, DOM::UpdateLayoutReason::CursorLineNavigation);
+
+    auto location = initial_location;
+    auto* text = as_if<DOM::Text>(*location.node);
+    if (!text) {
+        auto* adjacent_child = direction == SelectionDirection::Forward
+            ? location.node->child_at_index(location.offset)
+            : (location.offset > 0 ? location.node->child_at_index(location.offset - 1) : nullptr);
+        if (adjacent_child && is_atomic_inline_caret_host(*adjacent_child)) {
+            return direction == SelectionDirection::Forward
+                ? location_after_atomic_inline(*adjacent_child)
+                : location_before_atomic_inline(*adjacent_child, alteration);
+        }
+        text = as_if<DOM::Text>(adjacent_child);
+        if (!text)
+            return move_to_adjacent_caret_host(location, direction, CaretEntryMode::LineEdge, {});
+        location = { *text, direction == SelectionDirection::Forward ? 0u : text->length(), TextAffinity::Downstream };
+    }
+
+    bool moved = false;
+    Optional<CaretLocation> punctuation_end;
+    while (true) {
+        auto next_offset = direction == SelectionDirection::Forward
+            ? text->word_segmenter().next_boundary(location.offset)
+            : text->word_segmenter().previous_boundary(location.offset);
+        if (next_offset.has_value()) {
+            auto segment = direction == SelectionDirection::Forward
+                ? text->data().substring_view(location.offset, *next_offset - location.offset)
+                : text->data().substring_view(*next_offset, location.offset - *next_offset);
+            location.offset = *next_offset;
+            auto kind = word_segment_kind(segment);
+            if (punctuation_end.has_value() && kind != WordSegmentKind::Punctuation)
+                return direction == SelectionDirection::Backward
+                    ? canonicalize_backward_word_location(*punctuation_end, alteration)
+                    : punctuation_end;
+            moved = true;
+            if (kind == WordSegmentKind::Separator)
+                continue;
+            if (kind == WordSegmentKind::Word)
+                return direction == SelectionDirection::Backward
+                    ? canonicalize_backward_word_location(location, alteration)
+                    : Optional<CaretLocation> { location };
+
+            punctuation_end = location;
+            if ((direction == SelectionDirection::Forward && location.offset != text->length())
+                || (direction == SelectionDirection::Backward && location.offset != 0))
+                return direction == SelectionDirection::Backward
+                    ? canonicalize_backward_word_location(location, alteration)
+                    : Optional<CaretLocation> { location };
+        }
+
+        if (!editing_host)
+            return moved ? Optional<CaretLocation> { location } : Optional<CaretLocation> {};
+        auto adjacent = adjacent_caret_host(*text, *editing_host, direction);
+        if (!adjacent)
+            return moved ? Optional<CaretLocation> { location } : Optional<CaretLocation> {};
+        if (is_atomic_inline_caret_host(*adjacent)) {
+            if (punctuation_end.has_value())
+                return direction == SelectionDirection::Backward
+                    ? canonicalize_backward_word_location(*punctuation_end, alteration)
+                    : punctuation_end;
+            return direction == SelectionDirection::Forward
+                ? location_after_atomic_inline(*adjacent)
+                : location_before_atomic_inline(*adjacent, alteration);
+        }
+
+        auto* adjacent_text = as_if<DOM::Text>(*adjacent);
+        if (!adjacent_text)
+            return moved ? Optional<CaretLocation> { location } : move_to_adjacent_caret_host(location, direction, CaretEntryMode::LineEdge, {});
+        auto shares_inline_context = direction == SelectionDirection::Forward
+            ? boundary_visual_lines_share_inline_context(*text, *adjacent_text)
+            : boundary_visual_lines_share_inline_context(*adjacent_text, *text);
+        if (!shares_inline_context)
+            return moved ? Optional<CaretLocation> { location } : move_to_adjacent_caret_host(location, direction, CaretEntryMode::LineEdge, {});
+
+        text = adjacent_text;
+        location = { *text, direction == SelectionDirection::Forward ? 0u : text->length(), TextAffinity::Downstream };
+    }
+}
+
 Optional<CaretLocation> CaretNavigator::move_to_editing_host_boundary(CaretLocation const& location, SelectionDirection direction)
 {
     // INTEROP: Chromium and WebKit constrain "start/end of document" commands to the active editing host. Letting the
@@ -297,7 +466,7 @@ Optional<CaretLocation> CaretNavigator::move_to_editing_host_boundary(CaretLocat
     return CaretLocation { *target, 0, TextAffinity::Downstream };
 }
 
-Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, SelectionDirection direction, SelectionGranularity granularity, Optional<CSSPixels> preferred_inline_coordinate)
+Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, SelectionAlteration alteration, SelectionDirection direction, SelectionGranularity granularity, Optional<CSSPixels> preferred_inline_coordinate)
 {
     auto* text = as_if<DOM::Text>(*location.node);
 
@@ -332,26 +501,7 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
     }
 
     if (granularity == SelectionGranularity::Word) {
-        if (!text)
-            return move_to_adjacent_caret_host(location, direction, CaretEntryMode::LineEdge, {});
-
-        auto offset = location.offset;
-        while (true) {
-            auto next_offset = direction == SelectionDirection::Forward
-                ? text->word_segmenter().next_boundary(offset)
-                : text->word_segmenter().previous_boundary(offset);
-            if (!next_offset.has_value())
-                break;
-            auto word = direction == SelectionDirection::Forward
-                ? text->data().substring_view(offset, *next_offset - offset)
-                : text->data().substring_view(*next_offset, offset - *next_offset);
-            offset = *next_offset;
-            if (!Unicode::Segmenter::should_continue_beyond_word(word))
-                break;
-        }
-        if (offset == location.offset)
-            return {};
-        return CaretLocation { *text, offset, TextAffinity::Downstream };
+        return move_by_word(location, alteration, direction);
     }
 
     if (granularity == SelectionGranularity::LineBoundary) {
@@ -412,7 +562,7 @@ void SelectionModifier::modify(SelectionAlteration alteration, SelectionDirectio
         CaretLocation origin { *focus, m_selection->focus_offset(), m_selection->focus_affinity() };
         if (alteration == SelectionAlteration::Extend && m_selection->is_collapsed())
             canonical_anchor = navigator.canonical_location_for_extension(origin, direction);
-        destination = navigator.move(origin, direction, granularity, preferred_inline_coordinate);
+        destination = navigator.move(origin, alteration, direction, granularity, preferred_inline_coordinate);
     }
 
     if (!destination.has_value())

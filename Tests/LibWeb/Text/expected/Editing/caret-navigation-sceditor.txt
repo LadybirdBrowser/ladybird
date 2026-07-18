@@ -1,19 +1,4 @@
-FAIL: 18 SCEditor caret assertions failed
-Option+Right over first image: expected DIV@2, got #text@15
-Option+Left over first image: expected #text@15, got #text@10
-Option+Right over punctuation: expected #text@14, got #text@15
-Option+Left over punctuation: expected #text@13, got #text@10
-Option+Left over trailing punctuation and space: expected #text@13, got #text@10
-Option+Right across adjacent styled text: expected #text@4, got #text@13
-Option+Left across adjacent styled text: expected #text@13, got #text@0
-Option+Shift+Right canonical anchor: expected #text@0, got #text@13
-Option+Shift+Right across adjacent styled text: expected #text@4, got #text@13
+FAIL: 3 SCEditor caret assertions failed
 Shift+Down into formatted block boundary: expected DIV@0, got #text@0
-Option+Right across split punctuation: expected #text@1, got #text@10
-Option+Left across split punctuation: expected #text@10, got #text@0
-Option+Shift+Left across split punctuation: expected #text@0, got #text@0
-Option+Left over final image: expected #text@32, got #text@0
-Option+Right after final image: expected #text@3, got DIV@4
-Option+Shift+Left over final image: expected DIV@3, got #text@32
 Up from after the final image: expected DIV@0, got #text@0
 Down back to before the final image: expected #text@32, got #text@0
