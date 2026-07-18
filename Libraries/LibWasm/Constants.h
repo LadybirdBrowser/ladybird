@@ -70,7 +70,11 @@ static constexpr u64 wasm32_max_pages = 1ull << 16;
 //        the currently supported address width until 64-bit memory accesses are
 //        implemented there.
 static constexpr u64 wasm64_max_pages = wasm32_max_pages;
-static constexpr auto wasm32_default_memory_reservation_size = 16 * MiB;
+static constexpr auto default_memory_reservation_size = 16 * MiB;
+// Compiled memory32 accesses to the default memory are unchecked: every memory32 memory reserves
+// the whole span such an access can reach - base (u32) plus memarg offset (u32) plus one page
+// for the access width - and anything past the committed size page-faults into a wasm trap.
+static constexpr u64 wasm32_guarded_reservation_size = (2 * (wasm32_max_pages * page_size)) + page_size;
 
 // Implementation-defined limits
 // These are not concretely defined by the spec, so the values are only defined by us.

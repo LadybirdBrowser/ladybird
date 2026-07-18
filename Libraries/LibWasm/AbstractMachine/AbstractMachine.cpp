@@ -202,7 +202,7 @@ void MemoryBuffer::update_storage_offset()
     m_storage_offset = GC::PrimitiveStorage::the().offset(m_handle);
 }
 
-ErrorOr<void> MemoryBuffer::try_reserve(size_t capacity)
+ErrorOr<void> MemoryBuffer::try_reserve(size_t capacity, size_t guard_size)
 {
     if (m_handle.is_valid()) {
         if (capacity <= m_reserved_capacity)
@@ -213,7 +213,7 @@ ErrorOr<void> MemoryBuffer::try_reserve(size_t capacity)
         return {};
     }
 
-    m_handle = TRY(GC::PrimitiveStorage::the().try_reserve(0, capacity, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+    m_handle = TRY(GC::PrimitiveStorage::the().try_reserve(0, capacity, GC::PrimitiveStorage::ZeroFillNewBytes::Yes, guard_size));
     m_reserved_capacity = capacity;
     update_storage_offset();
     return {};
@@ -404,18 +404,20 @@ static ErrorOr<size_t> initial_memory_reservation_size(MemoryType const& type)
     if (initial_size > maximum_size)
         return Error::from_errno(ENOMEM);
 
+    // memory32 storage must never move: compiled code caches its base address for unchecked
+    // accesses, so the backing allocation has to be able to grow to the maximum in place.
+    if (type.limits().address_type() == AddressType::I32)
+        return maximum_size;
+
     if (type.limits().max().has_value())
         return maximum_size;
 
-    if (type.limits().address_type() != AddressType::I32)
-        return initial_size;
-
-    return min(max(initial_size, static_cast<size_t>(Constants::wasm32_default_memory_reservation_size)), maximum_size);
+    return initial_size;
 }
 
 static size_t grown_memory_reservation_size(size_t current_capacity, size_t required_size, size_t maximum_size)
 {
-    auto new_capacity = max(current_capacity, static_cast<size_t>(Constants::wasm32_default_memory_reservation_size));
+    auto new_capacity = max(current_capacity, static_cast<size_t>(Constants::default_memory_reservation_size));
     while (new_capacity < required_size) {
         if (new_capacity > maximum_size / 2) {
             new_capacity = maximum_size;
@@ -431,7 +433,10 @@ ErrorOr<MemoryInstance> MemoryInstance::create(MemoryType const& type)
     MemoryInstance instance { type };
 
     auto reserved_capacity = TRY(initial_memory_reservation_size(type));
-    TRY(instance.m_data.try_reserve(reserved_capacity));
+    size_t guard_size = 0;
+    if (type.limits().address_type() == AddressType::I32)
+        guard_size = Constants::wasm32_guarded_reservation_size - reserved_capacity;
+    TRY(instance.m_data.try_reserve(reserved_capacity, guard_size));
 
     auto initial_size = TRY(size_from_page_count(type.limits().min()));
     if (!instance.grow(initial_size, GrowType::No))

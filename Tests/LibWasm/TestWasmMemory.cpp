@@ -13,44 +13,65 @@ static size_t memory_capacity(Wasm::MemoryInstance const& memory)
     return GC::PrimitiveStorage::the().capacity(memory.data().primitive_storage_handle());
 }
 
-TEST_CASE(wasm32_memory_without_max_uses_default_reservation)
+TEST_CASE(wasm32_memory_reserves_full_guarded_span)
+{
+    auto memory = MUST(Wasm::MemoryInstance::create(Wasm::MemoryType { Wasm::Limits(Wasm::AddressType::I32, 1) }));
+    auto* data = memory.data().data();
+    auto handle = memory.data().primitive_storage_handle();
+
+    EXPECT_EQ(memory.size(), Wasm::Constants::page_size);
+    EXPECT_EQ(memory_capacity(memory), static_cast<size_t>(Wasm::Constants::wasm32_max_pages * Wasm::Constants::page_size));
+
+    // Unchecked compiled accesses can reach base (u32) + offset (u32) past the memory's base;
+    // that whole span must belong to this memory's reservation so an out-of-bounds access
+    // faults instead of landing in a neighboring allocation.
+    EXPECT(GC::PrimitiveStorage::the().contains(handle, data + Wasm::Constants::wasm32_guarded_reservation_size - 1));
+    EXPECT(!GC::PrimitiveStorage::the().contains(handle, data + Wasm::Constants::wasm32_guarded_reservation_size));
+}
+
+TEST_CASE(wasm32_memory_without_max_grows_in_place)
 {
     auto memory = MUST(Wasm::MemoryInstance::create(Wasm::MemoryType { Wasm::Limits(Wasm::AddressType::I32, 1) }));
     auto* data_before_grow = memory.data().data();
+    auto capacity_before_grow = memory_capacity(memory);
 
-    EXPECT_EQ(memory.size(), Wasm::Constants::page_size);
-    EXPECT_EQ(memory_capacity(memory), static_cast<size_t>(Wasm::Constants::wasm32_default_memory_reservation_size));
+    // Compiled code caches the memory base address, so growth may never move the storage; grow
+    // well past the old geometric-reservation boundary and make sure everything stays put.
+    EXPECT(memory.grow(static_cast<size_t>(Wasm::Constants::default_memory_reservation_size)));
 
-    EXPECT(memory.grow(Wasm::Constants::page_size));
-
-    EXPECT_EQ(memory.size(), 2uz * Wasm::Constants::page_size);
-    EXPECT_EQ(memory_capacity(memory), static_cast<size_t>(Wasm::Constants::wasm32_default_memory_reservation_size));
+    EXPECT_EQ(memory.size(), Wasm::Constants::default_memory_reservation_size + Wasm::Constants::page_size);
+    EXPECT_EQ(memory_capacity(memory), capacity_before_grow);
     EXPECT_EQ(memory.data().data(), data_before_grow);
 }
 
-TEST_CASE(wasm32_memory_without_max_grows_reservation_geometrically)
-{
-    constexpr auto default_reservation_size = static_cast<size_t>(Wasm::Constants::wasm32_default_memory_reservation_size);
-    constexpr auto default_reservation_pages = default_reservation_size / Wasm::Constants::page_size;
-    static_assert(default_reservation_pages * Wasm::Constants::page_size == default_reservation_size);
-
-    auto memory = MUST(Wasm::MemoryInstance::create(Wasm::MemoryType { Wasm::Limits(Wasm::AddressType::I32, default_reservation_pages) }));
-
-    EXPECT_EQ(memory.size(), default_reservation_size);
-    EXPECT_EQ(memory_capacity(memory), default_reservation_size);
-
-    EXPECT(memory.grow(Wasm::Constants::page_size));
-
-    EXPECT_EQ(memory.size(), default_reservation_size + Wasm::Constants::page_size);
-    EXPECT_EQ(memory_capacity(memory), 2uz * default_reservation_size);
-}
-
-TEST_CASE(wasm32_memory_with_max_reserves_explicit_max)
+TEST_CASE(wasm32_memory_with_max_still_reserves_full_guarded_span)
 {
     auto memory = MUST(Wasm::MemoryInstance::create(Wasm::MemoryType { Wasm::Limits(Wasm::AddressType::I32, 1, 3) }));
+    auto* data = memory.data().data();
+    auto handle = memory.data().primitive_storage_handle();
 
     EXPECT_EQ(memory.size(), Wasm::Constants::page_size);
     EXPECT_EQ(memory_capacity(memory), 3uz * Wasm::Constants::page_size);
+    EXPECT(GC::PrimitiveStorage::the().contains(handle, data + Wasm::Constants::wasm32_guarded_reservation_size - 1));
+    EXPECT(!GC::PrimitiveStorage::the().contains(handle, data + Wasm::Constants::wasm32_guarded_reservation_size));
+}
+
+TEST_CASE(wasm32_memory_reservations_do_not_overlap)
+{
+    auto first = MUST(Wasm::MemoryInstance::create(Wasm::MemoryType { Wasm::Limits(Wasm::AddressType::I32, 1) }));
+    auto second = MUST(Wasm::MemoryInstance::create(Wasm::MemoryType { Wasm::Limits(Wasm::AddressType::I32, 1) }));
+
+    auto first_handle = first.data().primitive_storage_handle();
+    auto second_handle = second.data().primitive_storage_handle();
+
+    // Neither memory's base can lie anywhere within the other's guarded reservation.
+    EXPECT(!GC::PrimitiveStorage::the().contains(first_handle, second.data().data()));
+    EXPECT(!GC::PrimitiveStorage::the().contains(second_handle, first.data().data()));
+
+    auto first_base = bit_cast<FlatPtr>(first.data().data());
+    auto second_base = bit_cast<FlatPtr>(second.data().data());
+    auto distance = first_base < second_base ? second_base - first_base : first_base - second_base;
+    EXPECT(distance >= Wasm::Constants::wasm32_guarded_reservation_size);
 }
 
 TEST_CASE(memory64_memory_without_max_can_grow)

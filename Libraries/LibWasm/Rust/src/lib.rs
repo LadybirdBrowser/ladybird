@@ -82,14 +82,11 @@ pub struct RuntimeHelpers {
     // Address of the process-global primitive storage cage base.
     pub primitive_storage_cage_base: usize,
 
-    pub primitive_storage_cage_offset_mask: usize,
-
     pub regs_offset: u32,
     pub value_size: u32,
     pub locals_base_offset: u32,
     pub default_memory_offset: u32,
     pub memory_instance_data_offset: u32,
-    pub memory_buffer_size_offset: u32,
     pub memory_buffer_storage_offset_offset: u32,
     pub compiled_call_result_scratch_offset: u32,
     pub value_stack_base_offset: u32,

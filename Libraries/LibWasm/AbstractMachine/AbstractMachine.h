@@ -598,7 +598,7 @@ public:
     MemoryBuffer(MemoryBuffer const&) = delete;
     MemoryBuffer& operator=(MemoryBuffer const&) = delete;
 
-    ErrorOr<void> try_reserve(size_t capacity);
+    ErrorOr<void> try_reserve(size_t capacity, size_t guard_size = 0);
     ErrorOr<void> try_resize(size_t new_size);
     ErrorOr<void> try_resize(size_t new_size, size_t reserved_capacity);
 
@@ -632,7 +632,6 @@ public:
     void move_data(size_t destination_offset, size_t source_offset, size_t count);
     bool contains_virtual_address(void const* address) const;
 
-    static constexpr size_t size_offset() { return __builtin_offsetof(MemoryBuffer, m_size); }
     static constexpr size_t storage_offset_offset() { return __builtin_offsetof(MemoryBuffer, m_storage_offset); }
 
 private:
