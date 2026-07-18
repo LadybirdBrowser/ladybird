@@ -858,7 +858,7 @@ public:
         Yes,
     };
     WebIDL::ExceptionOr<bool> exec_command(Utf16FlyString const& command, bool show_ui, Utf16View value);
-    WebIDL::ExceptionOr<bool> exec_command_internal(Utf16FlyString const& command, bool show_ui, Utf16View value, DispatchInputEvent);
+    WebIDL::ExceptionOr<bool> exec_command_internal(Utf16FlyString const& command, bool show_ui, Utf16View value, DispatchInputEvent, Optional<Utf16FlyString> const& user_input_type = {});
     WebIDL::ExceptionOr<bool> query_command_enabled(Utf16FlyString const& command);
     WebIDL::ExceptionOr<bool> query_command_indeterm(Utf16FlyString const& command);
     WebIDL::ExceptionOr<bool> query_command_state(Utf16FlyString const& command);

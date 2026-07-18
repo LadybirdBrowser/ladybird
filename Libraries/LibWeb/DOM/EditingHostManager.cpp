@@ -35,7 +35,7 @@ void EditingHostManager::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_active_contenteditable_element);
 }
 
-void EditingHostManager::handle_insert(Utf16FlyString const&, Utf16View value)
+void EditingHostManager::handle_insert(Utf16FlyString const& input_type, Utf16View value)
 {
     // https://w3c.github.io/editing/docs/execCommand/#additional-requirements
     // When the user instructs the user agent to insert text inside an editing host, such as by typing on the keyboard
@@ -43,7 +43,10 @@ void EditingHostManager::handle_insert(Utf16FlyString const&, Utf16View value)
     // relevant document, with value equal to the text the user provided. If the user inserts multiple characters at
     // once or in quick succession, this specification does not define whether it is treated as one insertion or several
     // consecutive insertions.
-    auto editing_result = m_document->exec_command(Editing::CommandNames::insertText, false, value);
+    //
+    // NB: The user's input type is passed along so pastes fire an input event with inputType "insertFromPaste" and
+    //     form their own undo unit, even though they run the insertText command.
+    auto editing_result = m_document->exec_command_internal(Editing::CommandNames::insertText, false, value, Document::DispatchInputEvent::Yes, input_type);
     if (editing_result.is_exception())
         dbgln("handle_insert(): editing resulted in exception: {}", editing_result.exception());
 }
@@ -196,8 +199,11 @@ void EditingHostManager::handle_delete(Utf16FlyString const& input_type, [[maybe
     // When the user instructs the user agent to delete the next character inside an editing host, such as by pressing
     // the Delete key while the cursor is in an editable node, the user agent must call execCommand("forwarddelete") on
     // the relevant document.
-    auto command = input_type == UIEvents::InputTypes::deleteContentBackward ? Editing::CommandNames::delete_ : Editing::CommandNames::forwardDelete;
-    auto editing_result = m_document->exec_command(command, false, {});
+    //
+    // NB: A cut deletes the selection like Backspace does, and passes its input type along so the input event fires
+    //     with inputType "deleteByCut" and the cut forms its own undo unit.
+    auto command = input_type == UIEvents::InputTypes::deleteContentForward ? Editing::CommandNames::forwardDelete : Editing::CommandNames::delete_;
+    auto editing_result = m_document->exec_command_internal(command, false, {}, Document::DispatchInputEvent::Yes, input_type);
     if (editing_result.is_exception())
         dbgln("handle_delete(): editing resulted in exception: {}", editing_result.exception());
 }

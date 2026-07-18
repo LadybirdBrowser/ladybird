@@ -16,6 +16,7 @@
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputEvent.h>
+#include <LibWeb/UIEvents/InputTypes.h>
 
 namespace Web::DOM {
 
@@ -32,7 +33,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command(Utf16FlyString const& command, 
     return exec_command_internal(command, show_ui, value, DispatchInputEvent::Yes);
 }
 
-WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, Utf16View value, DispatchInputEvent dispatch_input_event)
+WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, Utf16View value, DispatchInputEvent dispatch_input_event, Optional<Utf16FlyString> const& user_input_type)
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
@@ -119,12 +120,17 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     //         end_recording() is a no-op if the guard below already ended the recording.
     if (affected_editing_host) {
         auto category = Editing::UndoStep::Category::Other;
-        if (command_definition.command.is_one_of(Editing::CommandNames::insertText, Editing::CommandNames::insertLineBreak, Editing::CommandNames::insertParagraph))
-            category = Editing::UndoStep::Category::Insertion;
-        else if (command_definition.command == Editing::CommandNames::delete_)
-            category = Editing::UndoStep::Category::BackwardDeletion;
-        else if (command_definition.command == Editing::CommandNames::forwardDelete)
-            category = Editing::UndoStep::Category::ForwardDeletion;
+        // INTEROP: Cut and paste are standalone undo units in Chromium: they never coalesce with typing or deletion
+        //          runs, so they categorize as Other even though they run the delete and insertText commands.
+        bool is_cut_or_paste = user_input_type == UIEvents::InputTypes::deleteByCut || user_input_type == UIEvents::InputTypes::insertFromPaste;
+        if (!is_cut_or_paste) {
+            if (command_definition.command.is_one_of(Editing::CommandNames::insertText, Editing::CommandNames::insertLineBreak, Editing::CommandNames::insertParagraph))
+                category = Editing::UndoStep::Category::Insertion;
+            else if (command_definition.command == Editing::CommandNames::delete_)
+                category = Editing::UndoStep::Category::BackwardDeletion;
+            else if (command_definition.command == Editing::CommandNames::forwardDelete)
+                category = Editing::UndoStep::Category::ForwardDeletion;
+        }
         editing_history()->begin_recording(*affected_editing_host, category);
     }
     ScopeGuard end_recording_guard = [&] {
@@ -158,10 +164,13 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     if (tree_was_modified && affected_editing_host && dispatch_input_event == DispatchInputEvent::Yes) {
         Bindings::InputEventInit event_init {};
         event_init.bubbles = true;
-        event_init.input_type = command_definition.mapped_value;
+        // INTEROP: When the command runs on behalf of a user cut or paste, the input event carries the user's input
+        //          type (deleteByCut or insertFromPaste) rather than the command's mapped value, like other browsers.
+        event_init.input_type = user_input_type.value_or(command_definition.mapped_value);
 
-        // AD-HOC: For insertText, we do what other browsers do and set data to value.
-        if (command == Editing::CommandNames::insertText)
+        // AD-HOC: For insertText, we do what other browsers do and set data to value. A paste carries null data even
+        //         though it runs the insertText command.
+        if (event_init.input_type == UIEvents::InputTypes::insertText)
             event_init.data = Utf16String::from_utf16(value);
 
         auto event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, event_init);
