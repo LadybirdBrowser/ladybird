@@ -1212,7 +1212,7 @@ void ApplyHistoryStepState::start()
                 Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [input_url = move(input_url), input_document_resource = move(input_document_resource), input_request_referrer = move(input_request_referrer), input_request_referrer_policy, input_initiator_origin = move(input_initiator_origin), input_origin = move(input_origin), input_history_policy_container = move(input_history_policy_container), input_about_base_url = move(input_about_base_url), input_navigable_target_name = move(input_navigable_target_name), input_ever_populated, potentially_target_specific_source_snapshot_params, target_snapshot_params, this, allow_POST, navigable, after_document_populated, user_involvement = m_user_involvement] {
                     navigable->populate_session_history_entry_document(
                         move(input_url), move(input_document_resource), move(input_request_referrer),
-                        input_request_referrer_policy, move(input_initiator_origin), move(input_origin),
+                        input_request_referrer_policy, move(input_initiator_origin), {}, move(input_origin),
                         input_history_policy_container, move(input_about_base_url), move(input_navigable_target_name),
                         false, input_ever_populated,
                         *potentially_target_specific_source_snapshot_params, target_snapshot_params,

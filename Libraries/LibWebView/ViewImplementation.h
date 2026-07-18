@@ -91,7 +91,7 @@ public:
 
     String const& handle() const { return m_client_state.client_handle; }
 
-    void create_new_process_for_cross_site_navigation(URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior);
+    void create_new_process_for_cross_site_navigation(URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior, Optional<Web::HTML::NavigationSourceSnapshot> = {});
 
     void server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect);
 

@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigationObserver.h>
 #include <LibWeb/HTML/NavigationParams.h>
+#include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
@@ -175,6 +176,7 @@ public:
         Fetch::Infrastructure::Request::ReferrerType request_referrer,
         ReferrerPolicy::ReferrerPolicy request_referrer_policy,
         Optional<URL::Origin> initiator_origin,
+        Optional<URL::Origin> cross_process_initiator_origin,
         Optional<URL::Origin> origin,
         Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
         Optional<URL::URL> about_base_url,
@@ -204,6 +206,10 @@ public:
         UserNavigationInvolvement user_involvement = UserNavigationInvolvement::None;
         GC::Ptr<DOM::Element> source_element = nullptr;
         InitialInsertion initial_insertion = InitialInsertion::No;
+        // AD-HOC: Set when this navigation was started in another WebContent process and handed off to this one. The
+        //         source document only exists in the process where the navigation started, so this carries the state
+        //         the navigate algorithm would otherwise snapshot from it.
+        Optional<NavigationSourceSnapshot> cross_process_source_snapshot = {};
 
         void visit_edges(Cell::Visitor& visitor);
     };

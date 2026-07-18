@@ -88,7 +88,8 @@ private:
     virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect>, u32) override;
     virtual void load_url(u64 page_id, URL::URL, Web::Bindings::NavigationHistoryBehavior) override;
     virtual void load_url_with_document_resource(u64 page_id, URL::URL,
-        Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior) override;
+        Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior,
+        Optional<Web::HTML::NavigationSourceSnapshot>) override;
     virtual void load_html(u64 page_id, ByteString) override;
     virtual void load_html_with_url(u64 page_id, ByteString, URL::URL) override;
     virtual void reload(u64 page_id) override;

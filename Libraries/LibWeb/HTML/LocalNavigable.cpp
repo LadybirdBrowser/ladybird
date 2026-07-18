@@ -1737,6 +1737,7 @@ static void create_navigation_params_by_fetching(
     Fetch::Infrastructure::Request::ReferrerType request_referrer,
     ReferrerPolicy::ReferrerPolicy request_referrer_policy,
     Optional<URL::Origin> initiator_origin,
+    Optional<URL::Origin> cross_process_initiator_origin,
     Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
     Optional<URL::URL> about_base_url,
     Optional<URL::Origin> origin,
@@ -1790,6 +1791,13 @@ static void create_navigation_params_by_fetching(
     //    document state's initiator origin.
     if (navigable->is_top_level_traversable())
         request->set_top_level_navigation_initiator_origin(initiator_origin);
+
+    // AD-HOC: The request's origin would normally be resolved from its client (sourceSnapshotParams's fetch client),
+    //         which is the source document's environment settings object. For a navigation handed off from another
+    //         WebContent process, that client is this process's initial about:blank document, whose origin is opaque.
+    //         Use the origin snapshotted from the real source document instead, so the Origin header is correct.
+    if (cross_process_initiator_origin.has_value())
+        request->set_origin(*cross_process_initiator_origin);
 
     // 5. If request's client is null:
     if (request->client() == nullptr) {
@@ -2022,6 +2030,7 @@ void LocalNavigable::populate_session_history_entry_document(
     Fetch::Infrastructure::Request::ReferrerType request_referrer,
     ReferrerPolicy::ReferrerPolicy request_referrer_policy,
     Optional<URL::Origin> initiator_origin,
+    Optional<URL::Origin> cross_process_initiator_origin,
     Optional<URL::Origin> origin,
     Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
     Optional<URL::URL> about_base_url,
@@ -2249,6 +2258,7 @@ void LocalNavigable::populate_session_history_entry_document(
                 request_referrer,
                 request_referrer_policy,
                 initiator_origin,
+                cross_process_initiator_origin,
                 history_policy_container,
                 about_base_url,
                 origin,
@@ -2437,6 +2447,24 @@ void LocalNavigable::begin_navigation(NavigateParams params)
 
         // 4. Set initiatorBaseURLSnapshot to sourceDocument's document base URL.
         initiator_base_url_snapshot = source_document->base_url();
+    }
+
+    // AD-HOC: If this navigation was handed off from another WebContent process, sourceDocument is merely this
+    //         process's initial about:blank document. Substitute the state that the navigate algorithm snapshotted
+    //         from the real source document in the process where the navigation started. The fetch client cannot
+    //         cross the process boundary, so the local document's environment continues to stand in for it as the
+    //         request client.
+    if (params.cross_process_source_snapshot.has_value()) {
+        auto const& snapshot = *params.cross_process_source_snapshot;
+        source_snapshot_params = heap().allocate<SourceSnapshotParams>(
+            snapshot.has_transient_activation,
+            snapshot.sandboxing_flags,
+            snapshot.allows_downloading,
+            source_snapshot_params->fetch_client,
+            create_a_policy_container_from_serialized_policy_container(heap(), snapshot.source_policy_container));
+        initiator_origin_snapshot = snapshot.initiator_origin_snapshot;
+        initiator_base_url_snapshot = snapshot.initiator_base_url_snapshot;
+        referrer_policy = snapshot.referrer_policy;
     }
 
     // 5. If sourceDocument's node navigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then:
@@ -2648,21 +2676,39 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                     return;
                 }
 
-                // AD-HOC: If we are not able to continue in this process, request a new process from the UI.
+                // AD-HOC: If we are not able to continue in this process, request a new process from the UI. The new
+                //         process cannot snapshot the source document (it only exists in this process), so hand over
+                //         the state that the navigate algorithm snapshotted from it. Browser-UI navigations hand over
+                //         nothing: per spec their sourceDocument is null and their source snapshot params and
+                //         initiator origin have fixed values, which the new process provides on its own.
                 auto& page_client = active_browsing_context()->page().client();
                 auto is_top_level_navigation = is_top_level_traversable();
                 auto target = is_top_level_navigation ? NavigationTarget::TopLevel : NavigationTarget::IFrame;
                 auto frame_id = is_top_level_navigation ? Optional<CrossProcessId> {} : Optional<CrossProcessId> { id() };
                 auto process_decision = page_client.decide_navigation_process(this->active_document()->url(), url, target, move(frame_id));
-                if (process_decision == NavigationProcessDecision::Remote && is_top_level_navigation) {
-                    page_client.request_new_process_for_navigation(url, document_resource, history_handling);
-                    set_delaying_load_events(false);
-                    return;
-                }
                 if (process_decision == NavigationProcessDecision::Remote) {
-                    if (has_compositor_context())
-                        compositor_context().set_parent_context({});
-                    page_client.request_new_process_for_child_frame_navigation(id(), url, document_resource, history_handling);
+                    Optional<NavigationSourceSnapshot> source_snapshot;
+                    if (user_involvement != UserNavigationInvolvement::BrowserUI) {
+                        source_snapshot = NavigationSourceSnapshot {
+                            .has_transient_activation = source_snapshot_params->has_transient_activation,
+                            .sandboxing_flags = source_snapshot_params->sandboxing_flags,
+                            .allows_downloading = source_snapshot_params->allows_downloading,
+                            .source_policy_container = source_snapshot_params->source_policy_container->serialize(),
+                            .initiator_origin_snapshot = initiator_origin_snapshot,
+                            .initiator_base_url_snapshot = initiator_base_url_snapshot,
+                            .referrer = params.cross_process_source_snapshot.has_value()
+                                ? params.cross_process_source_snapshot->referrer
+                                : params.source_document->url(),
+                            .referrer_policy = referrer_policy,
+                        };
+                    }
+                    if (is_top_level_navigation) {
+                        page_client.request_new_process_for_navigation(url, document_resource, history_handling, source_snapshot);
+                    } else {
+                        if (has_compositor_context())
+                            compositor_context().set_parent_context({});
+                        page_client.request_new_process_for_child_frame_navigation(id(), url, document_resource, history_handling, source_snapshot);
+                    }
                     set_delaying_load_events(false);
                     return;
                 }
@@ -2700,6 +2746,12 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                 document_state->set_initiator_origin(initiator_origin_snapshot);
                 document_state->set_resource(document_resource);
                 document_state->set_navigable_target_name(target_name());
+
+                // AD-HOC: The request referrer normally stays "client" and is resolved from the fetch client, but for
+                //         a navigation handed off from another process, that client belongs to the source document in
+                //         the process where the navigation started. Use the referrer snapshotted there instead.
+                if (params.cross_process_source_snapshot.has_value())
+                    document_state->set_request_referrer(params.cross_process_source_snapshot->referrer);
 
                 // 5. If url matches about:blank or is about:srcdoc, then:
                 // FIXME: Is calling url_matches_about_srcdoc() correct? https://github.com/whatwg/html/issues/10900
@@ -2812,6 +2864,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                     history_entry->document_state()->request_referrer(),
                     history_entry->document_state()->request_referrer_policy(),
                     history_entry->document_state()->initiator_origin(),
+                    params.cross_process_source_snapshot.has_value() ? Optional<URL::Origin> { params.cross_process_source_snapshot->initiator_origin_snapshot } : Optional<URL::Origin> {},
                     history_entry->document_state()->origin(),
                     history_entry->document_state()->history_policy_container(),
                     history_entry->document_state()->about_base_url(),

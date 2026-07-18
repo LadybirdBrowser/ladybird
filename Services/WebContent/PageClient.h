@@ -155,8 +155,8 @@ private:
     // ^PageClient
     virtual bool is_connection_open() const override;
     virtual Web::NavigationProcessDecision decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget, Optional<Web::HTML::CrossProcessId> frame_id) const override;
-    virtual void request_new_process_for_navigation(URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior) override;
-    virtual void request_new_process_for_child_frame_navigation(Web::HTML::CrossProcessId frame_id, URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior) override;
+    virtual void request_new_process_for_navigation(URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior, Optional<Web::HTML::NavigationSourceSnapshot> const&) override;
+    virtual void request_new_process_for_child_frame_navigation(Web::HTML::CrossProcessId frame_id, URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior, Optional<Web::HTML::NavigationSourceSnapshot> const&) override;
     virtual void page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const&) override;
     virtual void page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::CSSPixelRect) override;
     virtual void page_did_commit_child_frame_navigation(Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const&) override;

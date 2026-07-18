@@ -173,7 +173,7 @@ void ViewImplementation::set_favicon(Badge<WebContentClient>, Optional<Gfx::Bitm
         on_favicon_change(favicon);
 }
 
-void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
+void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot)
 {
     dump_session_history("before-process-swap"sv);
     m_webdriver_pending_navigation_url = url;
@@ -215,7 +215,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
         seed_web_content_session_history_from_ui_process();
     auto web_content_history_handling = preparation.should_seed_web_content_before_load ? Web::Bindings::NavigationHistoryBehavior::Replace : history_handling;
     dump_session_history("process-swap-load"sv);
-    client().async_load_url_with_document_resource(page_id(), url, document_resource, web_content_history_handling);
+    client().async_load_url_with_document_resource(page_id(), url, document_resource, web_content_history_handling, move(source_snapshot));
     dump_session_history("after-process-swap-load"sv);
 }
 
@@ -1820,7 +1820,7 @@ void ViewImplementation::load_current_session_history_entry_from_ui_process()
     if (load.document_resource.has<Empty>())
         client().async_load_url(page_id(), load.url, load.history_handling);
     else
-        client().async_load_url_with_document_resource(page_id(), load.url, load.document_resource, load.history_handling);
+        client().async_load_url_with_document_resource(page_id(), load.url, load.document_resource, load.history_handling, {});
 }
 
 void ViewImplementation::load_session_history_traversal_target_from_ui_process(TraversableSessionHistory::TraversalTarget const& target, StringView dump_reason)

@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/VisibilityState.h>
@@ -59,7 +60,8 @@ endpoint WebContentServer
     load_url(u64 page_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling) =|
     load_url_with_document_resource(u64 page_id, URL::URL url,
         Variant<Empty, Utf16String, Web::HTML::POSTResource> document_resource,
-        Web::Bindings::NavigationHistoryBehavior history_handling) =|
+        Web::Bindings::NavigationHistoryBehavior history_handling,
+        Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot) =|
     load_html(u64 page_id, ByteString html) =|
     load_html_with_url(u64 page_id, ByteString html, URL::URL url) =|
     reload(u64 page_id) =|

@@ -48,6 +48,7 @@
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
@@ -114,7 +115,8 @@ public:
 
     void load(URL::URL const&, Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto);
     void load(URL::URL const&, HTML::DocumentResource,
-        Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto);
+        Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto,
+        Optional<HTML::NavigationSourceSnapshot> = {});
 
     void load_html(StringView);
     void load_html(StringView, URL::URL const&);
@@ -458,8 +460,8 @@ public:
     {
         return NavigationProcessDecision::Local;
     }
-    virtual void request_new_process_for_navigation(URL::URL const&, HTML::DocumentResource, Bindings::NavigationHistoryBehavior) { }
-    virtual void request_new_process_for_child_frame_navigation(HTML::CrossProcessId, URL::URL const&, HTML::DocumentResource, Bindings::NavigationHistoryBehavior) { }
+    virtual void request_new_process_for_navigation(URL::URL const&, HTML::DocumentResource, Bindings::NavigationHistoryBehavior, Optional<HTML::NavigationSourceSnapshot> const&) { }
+    virtual void request_new_process_for_child_frame_navigation(HTML::CrossProcessId, URL::URL const&, HTML::DocumentResource, Bindings::NavigationHistoryBehavior, Optional<HTML::NavigationSourceSnapshot> const&) { }
     virtual void page_did_create_child_frame(HTML::CrossProcessId, HTML::CrossProcessId, HTML::ReplicatedNavigableState const&) { }
     virtual void page_did_update_child_frame_viewport(HTML::CrossProcessId, CSSPixelRect) { }
     virtual void page_did_commit_child_frame_navigation(HTML::CrossProcessId, HTML::ReplicatedNavigableState const&) { }
