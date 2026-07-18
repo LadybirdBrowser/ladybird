@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Regression test: a form POST that navigates a top-level traversable to a cross-site URL moves to a new
+    // WebContent process when site isolation is enabled. The navigation state carried over to the new process
+    // must include the initiator origin and referrer, so the request is sent with the correct Origin and
+    // Referer headers instead of "Origin: null" and no Referer.
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        const formPageOrigin = new URL(httpServer.baseURL).origin;
+
+        // NB: Unique per-run echo paths, so parallel runs (e.g. under --repeat) don't collide on the echo server.
+        const runId = crypto.randomUUID();
+
+        const targetUrl = new URL(
+            await httpServer.createEcho("POST", `/process-swap-post-target-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>target loaded",
+            })
+        );
+        targetUrl.hostname = uniqueLocalhostHostname("process-swap-post");
+
+        const formPageUrl = await httpServer.createEcho("GET", `/process-swap-post-form-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>
+                <form method="POST" action="${targetUrl}">
+                    <input type="hidden" name="hello" value="friends">
+                </form>
+                <script>document.forms[0].submit();<\/script>`,
+        });
+
+        const popup = window.open(formPageUrl);
+
+        const headersUrl = `${httpServer.baseURL}/recorded-request-headers/echo/process-swap-post-target-${runId}`;
+        let headers = null;
+        while (headers === null) {
+            // NB: The 404 response served before the POST has been recorded has no CORS headers, so fetch() throws.
+            try {
+                const response = await fetch(headersUrl);
+                if (response.ok) {
+                    headers = await response.json();
+                    continue;
+                }
+            } catch {}
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        const normalize = value =>
+            value === undefined ? "(none)" : value.replaceAll(formPageOrigin, "<form-page-origin>");
+        println(`Origin: ${normalize(headers["Origin"]?.[0])}`);
+        println(`Referer: ${normalize(headers["Referer"]?.[0])}`);
+
+        try {
+            popup.close();
+        } catch {}
+        done();
+    });
+</script>
