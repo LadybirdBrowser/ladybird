@@ -1540,9 +1540,10 @@ fn emit_instruction(
         "shl" | "shr" | "sar" => {
             let dst = resolve_op(&insn.operands[0], handler, program);
             if insn.operands.len() == 2 {
-                if get_immediate_value(&insn.operands[1], program).is_some() {
-                    let count = resolve_op(&insn.operands[1], handler, program);
-                    w!(out, "    {m} {dst}, {count}");
+                if let Some(count) = get_immediate_value(&insn.operands[1], program) {
+                    if count != 0 {
+                        w!(out, "    {m} {dst}, {count}");
+                    }
                 } else {
                     let count = resolve_op(&insn.operands[1], handler, program);
                     if count != "rcx" {
@@ -1968,6 +1969,31 @@ mod tests {
         assert!(out.contains("bt rdx, 32"));
         assert!(out.contains("jnc .Lasm_Call.slow"));
         assert!(!out.contains("test rdx, 4294967296"));
+    }
+
+    #[test]
+    fn omits_immediate_zero_shift() {
+        let program = test_program();
+        let handler = call_handler();
+        for mnemonic in ["shl", "shr", "sar"] {
+            let instruction = AsmInstruction {
+                mnemonic: mnemonic.into(),
+                operands: vec![Operand::Register("rdx".into()), Operand::Immediate(0)],
+            };
+            let mut out = String::new();
+            let mut state = HandlerState::new();
+
+            emit_instruction(
+                &mut out,
+                &instruction,
+                &handler,
+                &program,
+                &mut state,
+                X86_64Abi::SysV,
+            );
+
+            assert!(out.is_empty());
+        }
     }
 
     #[test]

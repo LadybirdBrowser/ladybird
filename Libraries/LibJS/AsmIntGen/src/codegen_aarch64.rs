@@ -2197,7 +2197,9 @@ fn emit_instruction(
             if insn.operands.len() == 2 {
                 let dst = resolve_op(&insn.operands[0], handler, program);
                 if let Some(val) = get_immediate_value(&insn.operands[1], program) {
-                    w!(out, "    lsl {dst}, {dst}, #{val}");
+                    if val != 0 {
+                        w!(out, "    lsl {dst}, {dst}, #{val}");
+                    }
                 } else {
                     let count = resolve_op(&insn.operands[1], handler, program);
                     w!(out, "    lsl {dst}, {dst}, {count}");
@@ -2209,7 +2211,9 @@ fn emit_instruction(
             if insn.operands.len() == 2 {
                 let dst = resolve_op(&insn.operands[0], handler, program);
                 if let Some(val) = get_immediate_value(&insn.operands[1], program) {
-                    w!(out, "    lsr {dst}, {dst}, #{val}");
+                    if val != 0 {
+                        w!(out, "    lsr {dst}, {dst}, #{val}");
+                    }
                 } else {
                     let count = resolve_op(&insn.operands[1], handler, program);
                     w!(out, "    lsr {dst}, {dst}, {count}");
@@ -2221,7 +2225,9 @@ fn emit_instruction(
             if insn.operands.len() == 2 {
                 let dst = resolve_op(&insn.operands[0], handler, program);
                 if let Some(val) = get_immediate_value(&insn.operands[1], program) {
-                    w!(out, "    asr {dst}, {dst}, #{val}");
+                    if val != 0 {
+                        w!(out, "    asr {dst}, {dst}, #{val}");
+                    }
                 } else {
                     let count = resolve_op(&insn.operands[1], handler, program);
                     w!(out, "    asr {dst}, {dst}, {count}");
@@ -3078,6 +3084,33 @@ mod tests {
         assert!(!output.contains(".p2align 4\nasm_handler_fallback:"));
         assert!(!output.contains(".p2align 4\nasm_handler_Call:"));
         assert!(!output.contains(".cfi_"));
+    }
+
+    #[test]
+    fn omits_immediate_zero_shift() {
+        let program = coff_program(Vec::new());
+        let handler = &program.handlers[0];
+        let pinned = PinnedConstants::new(&program);
+
+        for mnemonic in ["shl", "shr", "sar"] {
+            let instruction = AsmInstruction {
+                mnemonic: mnemonic.into(),
+                operands: vec![Operand::Register("x1".into()), Operand::Immediate(0)],
+            };
+            let mut out = String::new();
+            let mut state = HandlerState::new();
+
+            emit_instruction(
+                &mut out,
+                &instruction,
+                handler,
+                &program,
+                &mut state,
+                &pinned,
+            );
+
+            assert!(out.is_empty());
+        }
     }
 
     #[test]

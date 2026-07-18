@@ -2065,7 +2065,11 @@ handler GetByValue
     branch_ge_unsigned index, capacity, .try_typed_array_slow
     load8 kind_byte, [obj, TYPED_ARRAY_KIND]
     branch_eq kind_byte, TYPED_ARRAY_KIND_INT32, .ta_int32
-    branch_any_eq kind_byte, TYPED_ARRAY_KIND_UINT8, TYPED_ARRAY_KIND_UINT8_CLAMPED, .ta_uint8
+    branch_ge_unsigned kind_byte, TYPED_ARRAY_KIND_UINT16, .other_typed_array_kinds
+    caged_primitive_storage_address addr, elements, cached_offset, index, 0
+    load8 raw, [addr, 0]
+    jmp .ta_box_int32
+.other_typed_array_kinds:
     branch_eq kind_byte, TYPED_ARRAY_KIND_UINT16, .ta_uint16
     branch_eq kind_byte, TYPED_ARRAY_KIND_INT8, .ta_int8
     branch_eq kind_byte, TYPED_ARRAY_KIND_INT16, .ta_int16
@@ -2076,10 +2080,6 @@ handler GetByValue
 .ta_int32:
     caged_primitive_storage_address addr, elements, cached_offset, index, 2
     load32 raw, [addr, 0]
-    jmp .ta_box_int32
-.ta_uint8:
-    caged_primitive_storage_address addr, elements, cached_offset, index, 0
-    load8 raw, [addr, 0]
     jmp .ta_box_int32
 .ta_uint16:
     caged_primitive_storage_address addr, elements, cached_offset, index, 1

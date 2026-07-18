@@ -379,6 +379,9 @@ int main()
 
     // TypedArrayBase::Kind enum values
     outln("\n# TypedArrayBase::Kind values");
+    static_assert(static_cast<u8>(TypedArrayBase::Kind::Uint8Array) == 0);
+    static_assert(static_cast<u8>(TypedArrayBase::Kind::Uint8ClampedArray) == 1);
+    static_assert(static_cast<u8>(TypedArrayBase::Kind::Uint16Array) == 2);
     outln("const TYPED_ARRAY_KIND_UINT8 = {}", static_cast<u8>(TypedArrayBase::Kind::Uint8Array));
     outln("const TYPED_ARRAY_KIND_UINT8_CLAMPED = {}", static_cast<u8>(TypedArrayBase::Kind::Uint8ClampedArray));
     outln("const TYPED_ARRAY_KIND_UINT16 = {}", static_cast<u8>(TypedArrayBase::Kind::Uint16Array));
