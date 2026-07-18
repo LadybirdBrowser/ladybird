@@ -138,6 +138,25 @@ StyleValue::StyleValue(Type type, StyleValueFFI::StyleValueData* value)
 {
 }
 
+void StyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
+{
+    // Only the types holding nested values with document-associated state care.
+    switch (type()) {
+    case Type::Content:
+        return as_content().set_style_sheet(style_sheet);
+    case Type::Image:
+        return as_image().set_style_sheet(style_sheet);
+    case Type::ImageSet:
+        return as_image_set().set_style_sheet(style_sheet);
+    case Type::Shorthand:
+        return as_shorthand().set_style_sheet(style_sheet);
+    case Type::ValueList:
+        return as_value_list().set_style_sheet(style_sheet);
+    default:
+        return;
+    }
+}
+
 String StyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
@@ -154,6 +173,22 @@ Utf16String StyleValue::to_utf16_string(SerializationMode mode) const
 
 void StyleValue::serialize(Utf16StringBuilder& builder, SerializationMode mode) const
 {
+    switch (type()) {
+    case Type::Easing:
+        return as_easing().serialize(builder, mode);
+    case Type::Integer:
+        return as_integer().serialize(builder, mode);
+    case Type::Keyword:
+        return as_keyword().serialize(builder, mode);
+    case Type::Length:
+        return as_length().serialize(builder, mode);
+    case Type::Ratio:
+        return as_ratio().serialize(builder, mode);
+    case Type::Resolution:
+        return as_resolution().serialize(builder, mode);
+    default:
+        break;
+    }
     auto serialized = to_string(mode);
     auto serialized_utf16 = Utf16String::from_utf8_without_validation(serialized);
     builder.append(serialized_utf16.utf16_view());
@@ -192,6 +227,40 @@ bool StyleValue::has_auto() const
 
 Vector<Parser::ComponentValue> StyleValue::tokenize() const
 {
+    switch (type()) {
+    case Type::Angle:
+    case Type::Flex:
+    case Type::Frequency:
+    case Type::Length:
+    case Type::Percentage:
+    case Type::Resolution:
+    case Type::Time:
+        return as_dimension().tokenize();
+    case Type::CustomIdent:
+        return as_custom_ident().tokenize();
+    case Type::EmptyOptional:
+        return as_empty_optional().tokenize();
+    case Type::GuaranteedInvalid:
+        return as_guaranteed_invalid().tokenize();
+    case Type::Integer:
+        return as_integer().tokenize();
+    case Type::Keyword:
+        return as_keyword().tokenize();
+    case Type::Number:
+        return as_number().tokenize();
+    case Type::PendingSubstitution:
+        return as_pending_substitution().tokenize();
+    case Type::Ratio:
+        return as_ratio().tokenize();
+    case Type::String:
+        return as_string().tokenize();
+    case Type::Unresolved:
+        return as_unresolved().tokenize();
+    case Type::ValueList:
+        return as_value_list().tokenize();
+    default:
+        break;
+    }
     // This is an inefficient way of producing ComponentValues, but it's guaranteed to work for types that round-trip.
     // FIXME: Implement better versions in the subclasses.
     return Parser::Parser::create(Parser::ParsingParams {}, to_string(SerializationMode::ResolvedValue)).parse_as_list_of_component_values();
@@ -199,6 +268,47 @@ Vector<Parser::ComponentValue> StyleValue::tokenize() const
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-as-a-cssstylevalue
 GC::Ref<CSSStyleValue> StyleValue::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
+{
+    switch (type()) {
+    case Type::ConicGradient:
+    case Type::Image:
+    case Type::ImageSet:
+    case Type::LinearGradient:
+    case Type::RadialGradient:
+        return as_abstract_image().reify(realm, associated_property);
+    case Type::Angle:
+    case Type::Flex:
+    case Type::Frequency:
+    case Type::Length:
+    case Type::Percentage:
+    case Type::Resolution:
+    case Type::Time:
+        return as_dimension().reify(realm, associated_property);
+    case Type::Calculated:
+        return as_calculated().reify(realm, associated_property);
+    case Type::CustomIdent:
+        return as_custom_ident().reify(realm, associated_property);
+    case Type::Display:
+        return as_display().reify(realm, associated_property);
+    case Type::Integer:
+        return as_integer().reify(realm, associated_property);
+    case Type::Keyword:
+        return as_keyword().reify(realm, associated_property);
+    case Type::Number:
+        return as_number().reify(realm, associated_property);
+    case Type::OpacityValue:
+        return as_opacity_value().reify(realm, associated_property);
+    case Type::Unresolved:
+        return as_unresolved().reify(realm, associated_property);
+    case Type::ValueList:
+        return as_value_list().reify(realm, associated_property);
+    default:
+        break;
+    }
+    return default_reify(realm, associated_property);
+}
+
+GC::Ref<CSSStyleValue> StyleValue::default_reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
 {
     // 1. Return a new CSSStyleValue object representing value whose [[associatedProperty]] internal slot is set to property.
     return CSSStyleValue::create(realm, associated_property, *this);

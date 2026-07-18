@@ -46,8 +46,8 @@ public:
     }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
-    virtual Vector<Parser::ComponentValue> tokenize() const override;
-    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const override;
+    Vector<Parser::ComponentValue> tokenize() const;
+    GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
     virtual StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const override;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
@@ -74,7 +74,7 @@ public:
 
     Separator separator() const { return static_cast<Separator>(m_value->value_list.separator); }
 
-    virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
+    void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 
 private:
     StyleValueList(StyleValueVector&& values, Separator separator, Collapsible collapsible = Collapsible::Yes)

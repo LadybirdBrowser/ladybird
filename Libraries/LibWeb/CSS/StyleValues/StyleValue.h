@@ -179,12 +179,14 @@ public:
     String to_string(SerializationMode) const;
     Utf16String to_utf16_string(SerializationMode) const;
     virtual void serialize(StringBuilder&, SerializationMode) const = 0;
-    virtual void serialize(Utf16StringBuilder&, SerializationMode) const;
-    virtual Vector<Parser::ComponentValue> tokenize() const;
-    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
+    void serialize(Utf16StringBuilder&, SerializationMode) const;
+    Vector<Parser::ComponentValue> tokenize() const;
+    GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
+    // The default reification, used by types without a bespoke one and by impls that fall back.
+    GC::Ref<CSSStyleValue> default_reify(JS::Realm&, Utf16FlyString const& associated_property) const;
     virtual StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const;
 
-    virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) { }
+    void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 
     virtual bool equals(StyleValue const& other) const = 0;
 

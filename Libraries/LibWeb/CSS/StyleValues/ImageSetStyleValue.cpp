@@ -200,7 +200,6 @@ Optional<Gfx::Color> ImageSetStyleValue::color_if_single_pixel_bitmap(DOM::Docum
 
 void ImageSetStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
-    Base::set_style_sheet(style_sheet);
 
     // Propagate the style sheet to candidate images whose type() filter does not exclude them. This ensures the
     // candidate images register themselves as pending image resources on the style sheet, so their fetches start when

@@ -53,9 +53,9 @@ public:
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual void serialize(StringBuilder&, SerializationMode) const override;
-    virtual void serialize(Utf16StringBuilder&, SerializationMode) const override;
-    virtual Vector<Parser::ComponentValue> tokenize() const override;
-    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const override;
+    void serialize(Utf16StringBuilder&, SerializationMode) const;
+    Vector<Parser::ComponentValue> tokenize() const;
+    GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
 
     bool properties_equal(KeywordStyleValue const& other) const { return keyword() == other.keyword(); }
 

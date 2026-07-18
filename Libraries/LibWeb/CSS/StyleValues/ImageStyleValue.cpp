@@ -237,7 +237,6 @@ Optional<Gfx::Color> ImageStyleValue::color_if_single_pixel_bitmap(DOM::Document
 
 void ImageStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
-    Base::set_style_sheet(style_sheet);
 
     m_style_resource_base_url.clear();
     m_parent_style_sheet_origin_clean.clear();

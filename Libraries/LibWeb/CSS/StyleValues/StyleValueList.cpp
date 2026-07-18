@@ -77,7 +77,6 @@ void StyleValueList::serialize(StringBuilder& builder, SerializationMode mode) c
 
 void StyleValueList::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
-    Base::set_style_sheet(style_sheet);
     for (auto& value : values())
         const_cast<StyleValue&>(*value).set_style_sheet(style_sheet);
 }
@@ -130,7 +129,7 @@ GC::Ref<CSSStyleValue> StyleValueList::reify(JS::Realm& realm, Utf16FlyString co
     }
 
     // NB: Otherwise, there isn't an equivalent CSSStyleValue for StyleValueList, so just use the default.
-    return Base::reify(realm, associated_property);
+    return default_reify(realm, associated_property);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#subdivide-into-iterations

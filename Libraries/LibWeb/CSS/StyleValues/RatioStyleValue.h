@@ -23,8 +23,8 @@ public:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
-    virtual void serialize(Utf16StringBuilder&, SerializationMode) const override;
-    Vector<Parser::ComponentValue> tokenize() const override;
+    void serialize(Utf16StringBuilder&, SerializationMode) const;
+    Vector<Parser::ComponentValue> tokenize() const;
 
     bool properties_equal(RatioStyleValue const& other) const
     {

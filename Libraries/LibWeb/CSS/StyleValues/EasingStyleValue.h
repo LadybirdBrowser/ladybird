@@ -124,7 +124,7 @@ public:
     Function const& function() const;
 
     virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { function().serialize(builder, mode); }
-    virtual void serialize(Utf16StringBuilder& builder, SerializationMode mode) const override { function().serialize(builder, mode); }
+    void serialize(Utf16StringBuilder& builder, SerializationMode mode) const { function().serialize(builder, mode); }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 

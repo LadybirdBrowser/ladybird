@@ -25,7 +25,7 @@ public:
     virtual Utf16FlyString unit_name() const override { return length().unit_name(); }
 
     virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { length().serialize(builder, mode); }
-    virtual void serialize(Utf16StringBuilder& builder, SerializationMode mode) const override { length().serialize(builder, mode); }
+    void serialize(Utf16StringBuilder& builder, SerializationMode mode) const { length().serialize(builder, mode); }
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     virtual bool is_computationally_independent() const override { return length().is_computationally_independent(); }

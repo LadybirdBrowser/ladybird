@@ -29,7 +29,7 @@ public:
     virtual ~UnresolvedStyleValue() override = default;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
-    virtual Vector<Parser::ComponentValue> tokenize() const override;
+    Vector<Parser::ComponentValue> tokenize() const;
 
     Vector<Parser::ComponentValue> values() const;
     bool contains_arbitrary_substitution_function() const
@@ -45,7 +45,7 @@ public:
 
     virtual bool equals(StyleValue const& other) const override;
 
-    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const override;
+    GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
 
     virtual bool is_computationally_independent() const override { VERIFY_NOT_REACHED(); }
 

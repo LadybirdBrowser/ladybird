@@ -26,7 +26,7 @@ public:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { resolution().serialize(builder, mode); }
-    virtual void serialize(Utf16StringBuilder& builder, SerializationMode mode) const override { resolution().serialize(builder, mode); }
+    void serialize(Utf16StringBuilder& builder, SerializationMode mode) const { resolution().serialize(builder, mode); }
 
     virtual bool is_computationally_independent() const override { return true; }
 

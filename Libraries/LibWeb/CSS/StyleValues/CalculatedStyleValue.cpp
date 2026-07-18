@@ -3461,7 +3461,7 @@ GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, Utf16FlyStr
         return *reified;
     // Some math functions are not reifiable yet. If we contain one, we have to fall back to CSSStyleValue.
     // https://github.com/w3c/css-houdini-drafts/issues/1090
-    return StyleValue::reify(realm, associated_property);
+    return default_reify(realm, associated_property);
 }
 
 struct NumericChildAndIndex {

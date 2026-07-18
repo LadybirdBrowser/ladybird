@@ -30,7 +30,7 @@ public:
 
     virtual bool is_computationally_independent() const override;
 
-    virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
+    void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 
 private:
     ContentStyleValue(ValueComparingNonnullRefPtr<StyleValueList const> content, ValueComparingRefPtr<StyleValueList const> alt_text)

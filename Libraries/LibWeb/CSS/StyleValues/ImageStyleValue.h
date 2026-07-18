@@ -111,7 +111,9 @@ private:
     Optional<::URL::URL> resolved_url(DOM::Document const&) const;
     ::URL::URL style_resource_base_url(DOM::Document const&) const;
 
-    virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
+    // NB: StyleValue dispatches operations by type tag, so it may call private impls.
+    friend class StyleValue;
+    void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 

@@ -1026,7 +1026,6 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
 
 void ShorthandStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
-    Base::set_style_sheet(style_sheet);
     for (auto& value : values())
         const_cast<StyleValue&>(*value).set_style_sheet(style_sheet);
 }

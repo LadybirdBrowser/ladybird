@@ -66,7 +66,9 @@ public:
 private:
     ShorthandStyleValue(PropertyID shorthand, Vector<PropertyID> sub_properties, Vector<ValueComparingNonnullRefPtr<StyleValue const>> values);
 
-    virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
+    // NB: StyleValue dispatches operations by type tag, so it may call private impls.
+    friend class StyleValue;
+    void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 
     static StyleValueFFI::StyleValueData* make_shorthand_data(PropertyID shorthand, Vector<PropertyID> const& sub_properties, Vector<ValueComparingNonnullRefPtr<StyleValue const>>&& values)
     {
