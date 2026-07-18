@@ -76,6 +76,14 @@
             const firstLine = editor.firstElementChild;
             const firstText = firstLine.firstChild;
             const firstEmptyLine = editor.children[1];
+            collapse(firstText, 7);
+            send("Up");
+            assertPoint(point(), [firstText, 0], "Up from the first visual line");
+            collapse(firstText, 7);
+            send("Up", shift);
+            assertPoint(anchorPoint(), [firstText, 7], "Shift+Up from the first visual line anchor");
+            assertPoint(point(), [firstText, 0], "Shift+Up from the first visual line focus");
+
             collapse(editor, 0);
             send("End");
             assertPoint(point(), [firstLine, 2], "End from the editing host start");
@@ -108,6 +116,19 @@
 
             const redText = editor.children[2].firstChild.firstChild;
             const finalText = editor.lastElementChild.lastChild;
+            collapse(finalText, 3);
+            send("Down");
+            assertPoint(point(), [finalText, finalText.length], "Down from the final visual line");
+            collapse(finalText, 3);
+            send("Down", shift);
+            assertPoint(anchorPoint(), [finalText, 3], "Shift+Down from the final visual line anchor");
+            assertPoint(point(), [finalText, finalText.length], "Shift+Down from the final visual line focus");
+
+            collapse(redText, 4);
+            send("A", internals.MOD_CTRL | internals.MOD_SUPER);
+            assertPoint(anchorPoint(), [firstText, 0], "Select All anchor");
+            assertPoint(point(), [finalText, finalText.length], "Select All focus");
+
             collapse(redText, 5);
             send("PageUp", shift);
             assertPoint(point(), [firstText, 0], "Shift+PageUp");

@@ -1,1 +1,7 @@
-PASS: 378 SCEditor caret interactions match Chromium
+FAIL: 6 SCEditor caret assertions failed
+Up from the first visual line: expected #text@0, got #text@7
+Shift+Up from the first visual line focus: expected #text@0, got #text@7
+Down from the final visual line: expected #text@13, got #text@3
+Shift+Down from the final visual line focus: expected #text@13, got #text@3
+Select All anchor: expected #text@0, got #text@4
+Select All focus: expected #text@13, got #text@4
