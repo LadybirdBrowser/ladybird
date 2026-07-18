@@ -897,7 +897,7 @@ void BlockFormattingContext::layout_inline_children(BlockContainer const& block_
         auto used_inline_size_px = context.automatic_content_inline_size();
         // NOTE: Min and max constraints are not applied to a box that is being sized under an intrinsic
         //       sizing constraint: per css-sizing-3, min/max-width affect a box's intrinsic size
-        //       *contributions*, and the callers of calculate_{min,max}_content_width() apply them.
+        //       *contributions*, and the callers of calculate_{min,max}_content_inline_size() apply them.
         //       Applying them here would bake the box's own min/max-width into its measured intrinsic
         //       size, and the border-box adjustment would consume border/padding that measurement
         //       state does not have.

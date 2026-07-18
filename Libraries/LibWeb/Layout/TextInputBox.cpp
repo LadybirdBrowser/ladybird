@@ -32,16 +32,16 @@ CSS::SizeWithAspectRatio TextInputBox::default_preferred_size_for_text_control(H
     // FIXME: Implement the specified "converting a character width to pixels" algorithm. The size attribute should
     //        also only affect the text entry types (text, search, tel, url, email, password). The other types using
     //        this box are domain-specific widgets that should ignore it.
-    auto width = CSS::Length(input_element.size(), CSS::LengthUnit::Ch).to_px(box);
+    auto inline_size = CSS::Length(input_element.size(), CSS::LengthUnit::Ch).to_px(box);
 
     // FIXME: HTML does not yet detail the primitive appearance of text inputs. Use one line for the default preferred
     //        block size, matching the native appearance described by HTML and the behavior of other engines.
-    auto height = box.computed_values().line_height();
+    auto block_size = box.computed_values().line_height();
 
     if (box.computed_values().writing_mode() != CSS::WritingMode::HorizontalTb)
-        swap(width, height);
+        return { block_size, inline_size, {} };
 
-    return { width, height, {} };
+    return { inline_size, block_size, {} };
 }
 
 }

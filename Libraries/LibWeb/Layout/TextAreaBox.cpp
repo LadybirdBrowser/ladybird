@@ -15,13 +15,13 @@ TextAreaBox::TextAreaBox(DOM::Document& document, GC::Ptr<DOM::Element> element,
 
 CSS::SizeWithAspectRatio TextAreaBox::compute_auto_content_box_size() const
 {
-    auto width = CSS::Length(dom_node().cols(), CSS::LengthUnit::Ch).to_px(*this);
-    auto height = CSS::Length(dom_node().rows(), CSS::LengthUnit::Lh).to_px(*this);
+    auto inline_size = CSS::Length(dom_node().cols(), CSS::LengthUnit::Ch).to_px(*this);
+    auto block_size = CSS::Length(dom_node().rows(), CSS::LengthUnit::Lh).to_px(*this);
 
     if (this->computed_values().writing_mode() != CSS::WritingMode::HorizontalTb)
-        swap(width, height);
+        return { block_size, inline_size, {} };
 
-    return { width, height, {} };
+    return { inline_size, block_size, {} };
 }
 
 }
