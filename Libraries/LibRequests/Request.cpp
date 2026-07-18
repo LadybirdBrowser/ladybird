@@ -69,7 +69,10 @@ int Request::request_server_client_id() const
 bool Request::stop()
 {
     RefPtr keep_alive = *this;
-    auto had_active_request = m_client->stop_request({}, *this);
+
+    // The client may already be gone if the RequestServer connection was lost while this request was in flight.
+    auto client = m_client.strong_ref();
+    auto had_active_request = client && client->stop_request({}, *this);
     auto on_stop = move(m_on_stop);
 
     defer_teardown();

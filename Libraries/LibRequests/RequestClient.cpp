@@ -124,7 +124,9 @@ bool RequestClient::stop_request(Badge<Request>, Request& request)
     if (!stopped_request.has_value())
         return false;
 
-    (void)IPCProxy::stop_request(request.id());
+    // This is sent asynchronously so that stopping a request whose RequestServer connection has been lost does not
+    // crash on a synchronous send to a dead connection.
+    async_stop_request(request.id());
     return true;
 }
 

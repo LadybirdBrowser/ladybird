@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<body>
+<script>
+    (async () => {
+        const port = internals.getEchoServerPort();
+        const base = `http://localhost:${port}`;
+        const path = "/echo/stranded-request";
+
+        await fetch(`${base}/echo`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                method: "GET",
+                path,
+                status: 200,
+                headers: { "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*" },
+                body: "",
+                wait_for_unblock: "stranded-request",
+            }),
+        });
+
+        // Start the blocking fetch from within an iframe, so removing the iframe aborts it.
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `<script>fetch(${JSON.stringify(`${base}${path}`)}).catch(() => {});<\/script>`;
+        document.body.appendChild(iframe);
+
+        while (true) {
+            try {
+                const response = await fetch(`${base}/recorded-request-headers${path}`, { cache: "no-store" });
+                if (response.ok)
+                    break;
+            } catch (error) {
+            }
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+
+        // Let transient references on the shared request client drain, so dropping the connection below
+        // actually destroys the client and revokes the in-flight request's reference to it.
+        for (let i = 0; i < 10; ++i)
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+        internals.simulateRequestServerConnectionLoss();
+
+        // Destroying the iframe's document aborts the stranded fetch, which used to dereference the freed client.
+        iframe.remove();
+
+        // Allow the queued document-destruction task, which performs the abort, to run.
+        for (let i = 0; i < 10; ++i)
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+        document.documentElement.classList.remove("test-wait");
+    })();
+</script>
+</body>
+</html>
