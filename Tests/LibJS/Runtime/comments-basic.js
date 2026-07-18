@@ -26,6 +26,14 @@ i;`;
     expect(source).toEvalTo(2);
 });
 
+test("html close comments after trailing whitespace", () => {
+    const wrapped = ["var server;", "<!--", 'server = "server_41" ', " -->", "server;"].join("\n");
+    expect(wrapped).toEvalTo("server_41");
+
+    const after_statement = ["var i = 0;", "i++ ", "--> i++;", "i;"].join("\n");
+    expect(after_statement).toEvalTo(1);
+});
+
 test("html comments directly after block comment", () => {
     expect("0 /* */-->i").not.toEval();
     expect(`0 /* 

@@ -913,11 +913,15 @@ impl<'a> Lexer<'a> {
                         }
                     }
                 } else if self.is_whitespace() {
+                    let start_line_number = self.line_number;
                     loop {
                         self.consume();
                         if !self.is_whitespace() {
                             break;
                         }
+                    }
+                    if start_line_number != self.line_number {
+                        line_has_token_yet = false;
                     }
                 } else if self.is_line_comment_start(line_has_token_yet) {
                     self.consume();
