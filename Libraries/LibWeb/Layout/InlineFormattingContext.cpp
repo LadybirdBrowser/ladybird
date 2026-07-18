@@ -419,25 +419,25 @@ void InlineFormattingContext::compute_inline_box_pieces()
 
 void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode layout_mode)
 {
-    auto width_of_containing_block = m_available_space->inline_size.to_px_or_zero();
+    auto containing_block_inline_size = m_available_space->inline_size.to_px_or_zero();
     auto& box_state = m_state.get_mutable(box);
     auto const& computed_values = box.computed_values();
 
-    box_state.margin_left = computed_values.margin().left().to_px_or_zero(width_of_containing_block);
+    box_state.margin_left = computed_values.margin().left().to_px_or_zero(containing_block_inline_size);
     box_state.border_left = computed_values.border_left().width;
-    box_state.padding_left = computed_values.padding().left().to_px_or_zero(width_of_containing_block);
+    box_state.padding_left = computed_values.padding().left().to_px_or_zero(containing_block_inline_size);
 
-    box_state.margin_right = computed_values.margin().right().to_px_or_zero(width_of_containing_block);
+    box_state.margin_right = computed_values.margin().right().to_px_or_zero(containing_block_inline_size);
     box_state.border_right = computed_values.border_right().width;
-    box_state.padding_right = computed_values.padding().right().to_px_or_zero(width_of_containing_block);
+    box_state.padding_right = computed_values.padding().right().to_px_or_zero(containing_block_inline_size);
 
-    box_state.margin_top = computed_values.margin().top().to_px_or_zero(width_of_containing_block);
+    box_state.margin_top = computed_values.margin().top().to_px_or_zero(containing_block_inline_size);
     box_state.border_top = computed_values.border_top().width;
-    box_state.padding_top = computed_values.padding().top().to_px_or_zero(width_of_containing_block);
+    box_state.padding_top = computed_values.padding().top().to_px_or_zero(containing_block_inline_size);
 
-    box_state.padding_bottom = computed_values.padding().bottom().to_px_or_zero(width_of_containing_block);
+    box_state.padding_bottom = computed_values.padding().bottom().to_px_or_zero(containing_block_inline_size);
     box_state.border_bottom = computed_values.border_bottom().width;
-    box_state.margin_bottom = computed_values.margin().bottom().to_px_or_zero(width_of_containing_block);
+    box_state.margin_bottom = computed_values.margin().bottom().to_px_or_zero(containing_block_inline_size);
 
     if (auto const* marker = as_if<ListItemMarkerBox>(box)) {
         dimension_list_item_marker(*marker);
@@ -457,10 +457,10 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
         // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
         // The axis in which the preferred size calculation depends on this aspect ratio is called the ratio-dependent
         // axis, and the resulting size is definite if its input sizes are also definite
-        auto const height_is_automatic = computed_values.height().is_auto() || should_treat_block_size_as_auto(box, *m_available_space, box_constraints);
-        auto const height_resolved_from_aspect_ratio = box_state.has_definite_inline_size() && box.has_preferred_aspect_ratio() && height_is_automatic;
+        auto const block_size_is_automatic = computed_values.height().is_auto() || should_treat_block_size_as_auto(box, *m_available_space, box_constraints);
+        auto const block_size_resolved_from_aspect_ratio = box_state.has_definite_inline_size() && box.has_preferred_aspect_ratio() && block_size_is_automatic;
 
-        if (height_resolved_from_aspect_ratio)
+        if (block_size_resolved_from_aspect_ratio)
             box_state.set_has_definite_block_size(true);
 
         auto child_layout_input = m_layout_input->for_child_formatting_context(box_state.available_inner_space_or_constraints_from(*m_available_space));
@@ -477,11 +477,11 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
         return;
     }
 
-    auto const& width_value = box.computed_values().width();
-    CSSPixels unconstrained_width = 0;
+    auto const& computed_inline_size = box.computed_values().width();
+    CSSPixels unconstrained_inline_size = 0;
     if (should_treat_inline_size_as_auto(box, *m_available_space)) {
         if (m_available_space->inline_size.is_definite()) {
-            auto available_width = m_available_space->inline_size.to_px_or_zero()
+            auto available_inline_size = m_available_space->inline_size.to_px_or_zero()
                 - box_state.margin_left
                 - box_state.border_left
                 - box_state.padding_left
@@ -489,46 +489,46 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
                 - box_state.border_right
                 - box_state.margin_right;
 
-            auto preferred_width = calculate_max_content_inline_size(box, box_constraints);
-            if (preferred_width <= available_width) {
-                unconstrained_width = preferred_width;
+            auto preferred_inline_size = calculate_max_content_inline_size(box, box_constraints);
+            if (preferred_inline_size <= available_inline_size) {
+                unconstrained_inline_size = preferred_inline_size;
             } else {
-                auto preferred_minimum_width = calculate_min_content_inline_size(box, box_constraints);
-                unconstrained_width = min(max(preferred_minimum_width, available_width), preferred_width);
+                auto preferred_minimum_inline_size = calculate_min_content_inline_size(box, box_constraints);
+                unconstrained_inline_size = min(max(preferred_minimum_inline_size, available_inline_size), preferred_inline_size);
             }
         } else if (m_available_space->inline_size.is_min_content()) {
-            unconstrained_width = calculate_min_content_inline_size(box, box_constraints);
+            unconstrained_inline_size = calculate_min_content_inline_size(box, box_constraints);
         } else {
-            unconstrained_width = calculate_max_content_inline_size(box, box_constraints);
+            unconstrained_inline_size = calculate_max_content_inline_size(box, box_constraints);
         }
     } else {
-        if (width_value.contains_percentage() && !m_available_space->inline_size.is_definite()) {
+        if (computed_inline_size.contains_percentage() && !m_available_space->inline_size.is_definite()) {
             // NOTE: We can't resolve percentages yet. We'll have to wait until after inner layout.
         } else {
-            auto inner_width = calculate_inner_inline_size(box, m_available_space->inline_size, width_value, box_constraints);
-            unconstrained_width = inner_width;
+            auto inner_inline_size = calculate_inner_inline_size(box, m_available_space->inline_size, computed_inline_size, box_constraints);
+            unconstrained_inline_size = inner_inline_size;
         }
     }
 
-    CSSPixels width = unconstrained_width;
+    CSSPixels inline_size = unconstrained_inline_size;
     if (!should_treat_max_inline_size_as_none(box, m_available_space->inline_size, box_constraints)) {
-        auto max_width = calculate_inner_inline_size(box, m_available_space->inline_size, box.computed_values().max_width(), box_constraints);
-        width = min(width, max_width);
+        auto max_inline_size = calculate_inner_inline_size(box, m_available_space->inline_size, box.computed_values().max_width(), box_constraints);
+        inline_size = min(inline_size, max_inline_size);
     }
 
-    auto computed_min_width = box.computed_values().min_width();
-    if (!computed_min_width.is_auto()) {
-        auto min_width = calculate_inner_inline_size(box, m_available_space->inline_size, computed_min_width, box_constraints);
-        width = max(width, min_width);
+    auto computed_min_inline_size = box.computed_values().min_width();
+    if (!computed_min_inline_size.is_auto()) {
+        auto min_inline_size = calculate_inner_inline_size(box, m_available_space->inline_size, computed_min_inline_size, box_constraints);
+        inline_size = max(inline_size, min_inline_size);
     }
 
-    box_state.set_content_inline_size(width);
+    box_state.set_content_inline_size(inline_size);
 
-    parent().resolve_used_block_size_if_not_treated_as_auto(box, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_indefinite()), box_constraints);
+    parent().resolve_used_block_size_if_not_treated_as_auto(box, AvailableSpace(AvailableSize::make_definite(inline_size), AvailableSize::make_indefinite()), box_constraints);
 
-    // NOTE: Flex containers with `auto` height are treated as `max-content`, so we can compute their height early.
+    // NOTE: Flex containers with an automatic block size are treated as max-content, so resolve it early.
     if (box.display().is_flex_inside())
-        parent().resolve_used_block_size_if_treated_as_auto(box, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_indefinite()), box_constraints);
+        parent().resolve_used_block_size_if_treated_as_auto(box, AvailableSpace(AvailableSize::make_definite(inline_size), AvailableSize::make_indefinite()), box_constraints);
 
     make_button_content_box_definite(box, *m_available_space, box_constraints);
 
