@@ -113,9 +113,9 @@ struct GridItem {
 
     AvailableSpace available_space() const
     {
-        auto available_width = used_values.has_definite_inline_size() ? AvailableSize::make_definite(used_values.content_inline_size()) : AvailableSize::make_indefinite();
-        auto available_height = used_values.has_definite_block_size() ? AvailableSize::make_definite(used_values.content_block_size()) : AvailableSize::make_indefinite();
-        return { available_width, available_height };
+        auto available_inline_size = used_values.has_definite_inline_size() ? AvailableSize::make_definite(used_values.content_inline_size()) : AvailableSize::make_indefinite();
+        auto available_block_size = used_values.has_definite_block_size() ? AvailableSize::make_definite(used_values.content_block_size()) : AvailableSize::make_indefinite();
+        return { available_inline_size, available_block_size };
     }
 };
 
@@ -178,8 +178,8 @@ private:
     void resolve_items_box_metrics(GridDimension dimension);
 
     CSSPixels m_automatic_content_block_size { 0 };
-    CSSPixels m_row_track_alignment_grid_container_height { 0 };
-    bool m_use_row_track_alignment_grid_container_height { false };
+    CSSPixels m_row_track_alignment_grid_container_block_size { 0 };
+    bool m_use_row_track_alignment_grid_container_block_size { false };
 
     bool is_auto_positioned_track(CSS::GridTrackPlacement const&, CSS::GridTrackPlacement const&) const;
 
@@ -312,9 +312,9 @@ private:
 
     LayoutState::UsedValues& m_grid_container_used_values;
 
-    void determine_grid_container_height();
-    CSSPixels resolve_used_grid_container_height_for_second_row_layout() const;
-    void rerun_row_track_sizing_using_grid_container_height(CSSPixels);
+    void determine_grid_container_block_size();
+    CSSPixels resolve_used_grid_container_block_size_for_second_row_layout() const;
+    void rerun_row_track_sizing_using_grid_container_block_size(CSSPixels);
     void determine_intrinsic_size_of_grid_container(AvailableSpace const& available_space);
 
     virtual AbsposContainingBlockInfo resolve_abspos_containing_block_info(Box const&) override;
