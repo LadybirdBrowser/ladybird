@@ -846,6 +846,12 @@ public:
     AnimatedProperties const* animated_properties() const { return m_animated_properties.ptr(); }
     RefPtr<AnimatedProperties const> animated_properties_snapshot() const;
 
+    struct Statistics {
+        u64 live_instance_count { 0 };
+        u64 total_instances_created { 0 };
+    };
+    static Statistics const& statistics() { return s_statistics; }
+
     bool is_property_important(PropertyID property_id) const { return m_property_important.get(property_bitmap_index(property_id)); }
     bool is_property_inherited(PropertyID property_id) const { return m_property_inherited.get(property_bitmap_index(property_id)); }
     bool depends_on_viewport_metrics() const { return m_depends_on_viewport_metrics; }
@@ -1193,6 +1199,8 @@ public:
 
 private:
     ComputedValues();
+
+    static Statistics s_statistics;
 
     static size_t property_bitmap_index(PropertyID property_id)
     {

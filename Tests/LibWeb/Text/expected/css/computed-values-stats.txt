@@ -1,0 +1,5 @@
+liveComputedValues is a number: true
+totalComputedValuesCreated is a number: true
+liveComputedValues > 0: true
+totalComputedValuesCreated >= liveComputedValues: true
+restyle creates new ComputedValues: true

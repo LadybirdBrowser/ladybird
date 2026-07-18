@@ -69,8 +69,18 @@
 
 namespace Web::CSS {
 
-ComputedValues::ComputedValues() = default;
-ComputedValues::~ComputedValues() = default;
+ComputedValues::Statistics ComputedValues::s_statistics;
+
+ComputedValues::ComputedValues()
+{
+    ++s_statistics.live_instance_count;
+    ++s_statistics.total_instances_created;
+}
+
+ComputedValues::~ComputedValues()
+{
+    --s_statistics.live_instance_count;
+}
 
 void ComputedValues::Mutator::set_animated_properties(AnimatedProperties const* value)
 {
