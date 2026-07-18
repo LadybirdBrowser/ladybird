@@ -23,7 +23,9 @@
 #include <LibWeb/CSS/StyleValues/BorderRadiusRectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorMixStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
@@ -55,6 +57,7 @@
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LightDarkStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
@@ -191,6 +194,48 @@ bool StyleValue::equals(StyleValue const& other) const
 #undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
     }
     VERIFY_NOT_REACHED();
+}
+
+bool StyleValue::is_color_function() const
+{
+    return type() == Type::Color && m_value->tag == StyleValueFFI::StyleValueData::Tag::ColorFunction;
+}
+
+bool StyleValue::depends_on_current_color() const
+{
+    if (type() != Type::Color)
+        return to_keyword() == Keyword::Currentcolor;
+
+    switch (m_value->tag) {
+    case StyleValueFFI::StyleValueData::Tag::ColorFunction:
+        return static_cast<ColorFunctionStyleValue const&>(*this).depends_on_current_color();
+    case StyleValueFFI::StyleValueData::Tag::ColorMix:
+        return static_cast<ColorMixStyleValue const&>(*this).depends_on_current_color();
+    case StyleValueFFI::StyleValueData::Tag::ContrastColor:
+        return static_cast<ContrastColorStyleValue const&>(*this).depends_on_current_color();
+    case StyleValueFFI::StyleValueData::Tag::LightDark:
+        return static_cast<LightDarkStyleValue const&>(*this).depends_on_current_color();
+    default:
+        return false;
+    }
+}
+
+bool StyleValue::has_color() const
+{
+    if (type() == Type::Color)
+        return true;
+    if (type() == Type::Keyword)
+        return as_keyword().has_color();
+    return false;
+}
+
+Optional<Color> StyleValue::to_color(ColorResolutionContext color_resolution_context) const
+{
+    if (type() == Type::Color)
+        return as_color().to_color(color_resolution_context);
+    if (type() == Type::Keyword)
+        return as_keyword().to_color(color_resolution_context);
+    return {};
 }
 
 String StyleValue::to_string(SerializationMode mode) const
@@ -440,13 +485,15 @@ GC::Ref<CSSStyleValue> StyleValue::default_reify(JS::Realm& realm, Utf16FlyStrin
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#subdivide-into-iterations
-StyleValueVector StyleValue::subdivide_into_iterations(PropertyNameAndID const&) const
+StyleValueVector StyleValue::subdivide_into_iterations(PropertyNameAndID const& property) const
 {
     // To subdivide into iterations a CSS value whole value for a property property, execute the following steps:
     // 1. If property is a single-valued property, return a list containing whole value.
     // 2. Otherwise, divide whole value into individual iterations, as appropriate for property, and return a list
     //    containing the iterations in order.
-    // NB: We do this by type. By default, we assume step 1 applies. For step 2, override this method.
+    // NB: We do this by type. By default, we assume step 1 applies. Step 2 applies to value lists.
+    if (type() == Type::ValueList)
+        return as_value_list().subdivide_into_iterations(property);
     return StyleValueVector { *this };
 }
 

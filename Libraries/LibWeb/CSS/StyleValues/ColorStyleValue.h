@@ -26,8 +26,6 @@ public:
     static ValueComparingNonnullRefPtr<ColorStyleValue const> create_from_color(Color color, ColorSyntax color_syntax, Optional<Utf16FlyString> name = {});
     virtual ~ColorStyleValue() override = default;
 
-    virtual bool has_color() const override { return true; }
-
     enum class ColorType {
         RGB, // This is used by RGBColorStyleValue for rgb(...) and rgba(...).
         A98RGB,
@@ -61,6 +59,7 @@ public:
     bool is_computationally_independent() const;
     void serialize(StringBuilder&, SerializationMode) const;
     bool equals(StyleValue const& other) const;
+    Optional<Color> to_color(ColorResolutionContext) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     static Optional<double> resolve_hue(StyleValue const&, CalculationResolutionContext const&);

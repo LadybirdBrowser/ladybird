@@ -49,8 +49,8 @@ public:
     Keyword keyword() const { return static_cast<Keyword>(m_value->keyword.keyword); }
 
     static bool is_color(Keyword);
-    virtual bool has_color() const override;
-    virtual Optional<Color> to_color(ColorResolutionContext) const override;
+    bool has_color() const;
+    Optional<Color> to_color(ColorResolutionContext) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     void serialize(StringBuilder&, SerializationMode) const;
     void serialize(Utf16StringBuilder&, SerializationMode) const;

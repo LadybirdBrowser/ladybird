@@ -148,9 +148,9 @@ public:
     DimensionStyleValue const& as_dimension() const;
     DimensionStyleValue& as_dimension() { return const_cast<DimensionStyleValue&>(const_cast<StyleValue const&>(*this).as_dimension()); }
 
-    virtual bool is_color_function() const { return false; }
+    bool is_color_function() const;
 
-    virtual bool depends_on_current_color() const { return to_keyword() == Keyword::Currentcolor; }
+    bool depends_on_current_color() const;
 
 #define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
     bool is_##snake_case() const { return type() == Type::title_case; }                  \
@@ -169,11 +169,11 @@ public:
     bool is_unset() const { return to_keyword() == Keyword::Unset; }
 
     bool has_auto() const;
-    virtual bool has_color() const { return false; }
+    bool has_color() const;
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    virtual Optional<Color> to_color(ColorResolutionContext) const { return {}; }
+    Optional<Color> to_color(ColorResolutionContext) const;
     Keyword to_keyword() const;
 
     String to_string(SerializationMode) const;
@@ -184,7 +184,7 @@ public:
     GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
     // The default reification, used by types without a bespoke one and by impls that fall back.
     GC::Ref<CSSStyleValue> default_reify(JS::Realm&, Utf16FlyString const& associated_property) const;
-    virtual StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const;
+    StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const;
 
     void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 

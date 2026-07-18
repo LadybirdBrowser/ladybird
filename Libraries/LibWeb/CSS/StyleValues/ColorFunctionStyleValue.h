@@ -64,7 +64,7 @@ public:
 
     ColorFunctionDescriptor const& descriptor() const { return color_function_descriptor_for(*color_type()); }
 
-    virtual Optional<Color> to_color(ColorResolutionContext) const override;
+    Optional<Color> to_color(ColorResolutionContext) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     void serialize(StringBuilder&, SerializationMode) const;
     bool equals(StyleValue const&) const;
@@ -73,7 +73,7 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> computed_value_form() const;
 
-    virtual bool depends_on_current_color() const override
+    bool depends_on_current_color() const
     {
         return origin_color() && origin_color()->depends_on_current_color();
     }
@@ -86,8 +86,6 @@ public:
             && (!alpha() || alpha()->is_computationally_independent())
             && (!origin_color() || origin_color()->is_computationally_independent());
     }
-
-    virtual bool is_color_function() const override { return true; }
 
     bool serializes_as_color_function() const
     {

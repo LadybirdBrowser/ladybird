@@ -24,7 +24,7 @@ public:
     static ValueComparingNonnullRefPtr<ColorMixStyleValue const> create(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component);
 
     bool equals(StyleValue const&) const;
-    virtual Optional<Color> to_color(ColorResolutionContext) const override;
+    Optional<Color> to_color(ColorResolutionContext) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     void serialize(StringBuilder&, SerializationMode) const;
 
@@ -35,6 +35,12 @@ public:
             && second_component().color->is_computationally_independent()
             && (!first_component().percentage || first_component().percentage->is_computationally_independent())
             && (!second_component().percentage || second_component().percentage->is_computationally_independent());
+    }
+
+    bool depends_on_current_color() const
+    {
+        return first_component().color->depends_on_current_color()
+            || second_component().color->depends_on_current_color();
     }
 
 private:

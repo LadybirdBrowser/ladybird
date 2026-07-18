@@ -21,13 +21,18 @@ public:
     }
 
     bool equals(StyleValue const&) const;
-    virtual Optional<Color> to_color(ColorResolutionContext) const override;
+    Optional<Color> to_color(ColorResolutionContext) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     void serialize(StringBuilder&, SerializationMode) const;
 
     bool is_computationally_independent() const
     {
         return color()->is_computationally_independent();
+    }
+
+    bool depends_on_current_color() const
+    {
+        return color()->depends_on_current_color();
     }
 
 private:
