@@ -2701,9 +2701,9 @@ void GridFormattingContext::collapse_auto_fit_tracks_if_needed(GridDimension dim
     }
 }
 
-CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item) const
+LogicalRect GridFormattingContext::get_grid_area(GridItem const& grid_item) const
 {
-    CSSPixelRect area_rect;
+    LogicalRect area;
 
     auto place_into_track = [&](GridDimension dimension) {
         auto const& tracks_and_gaps = dimension == GridDimension::Column ? m_grid_columns_and_gaps : m_grid_rows_and_gaps;
@@ -2754,11 +2754,11 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
         }
 
         if (dimension == GridDimension::Column) {
-            area_rect.set_x(start_offset);
-            area_rect.set_width(end_offset - start_offset);
+            area.offset.inline_offset = start_offset;
+            area.size.inline_size = end_offset - start_offset;
         } else {
-            area_rect.set_y(start_offset);
-            area_rect.set_height(end_offset - start_offset);
+            area.offset.block_offset = start_offset;
+            area.size.block_size = end_offset - start_offset;
         }
     };
 
@@ -2771,11 +2771,11 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
         }
         CSSPixels size = dimension == GridDimension::Column ? m_grid_container_used_values.padding_right : m_grid_container_used_values.padding_bottom;
         if (dimension == GridDimension::Column) {
-            area_rect.set_x(offset);
-            area_rect.set_width(size);
+            area.offset.inline_offset = offset;
+            area.size.inline_size = size;
         } else {
-            area_rect.set_y(offset);
-            area_rect.set_height(size);
+            area.offset.block_offset = offset;
+            area.size.block_size = size;
         }
     };
 
@@ -2799,8 +2799,8 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
         }
         block_size += m_grid_container_used_values.padding_top + m_grid_container_used_values.padding_bottom;
 
-        area_rect.set_height(block_size);
-        area_rect.set_y(-m_grid_container_used_values.padding_top);
+        area.size.block_size = block_size;
+        area.offset.block_offset = -m_grid_container_used_values.padding_top;
     }
 
     if (grid_item.column.has_value()) {
@@ -2819,11 +2819,11 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
         }
         inline_size += m_grid_container_used_values.padding_left + m_grid_container_used_values.padding_right;
 
-        area_rect.set_width(inline_size);
-        area_rect.set_x(-m_grid_container_used_values.padding_left);
+        area.size.inline_size = inline_size;
+        area.offset.inline_offset = -m_grid_container_used_values.padding_left;
     }
 
-    return area_rect;
+    return area;
 }
 
 void GridFormattingContext::run(LayoutInput const& layout_input)
@@ -2911,14 +2911,14 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
     }
 
     for (auto& grid_item : m_grid_items) {
-        auto const grid_area_rect = get_grid_area_rect(grid_item);
-        Optional<CSSPixelSize> table_wrapper_grid_area_size;
+        auto const grid_area = get_grid_area(grid_item);
+        Optional<LogicalSize> table_wrapper_grid_area_size;
         if (is<TableWrapper>(grid_item.box)) {
             // Track spacing can expand the final grid area after the earlier inline-size pass. Recompute the wrapper
             // against that final area so the real table layout resolves percentages against the grid area.
-            resolve_table_wrapper_grid_item_inline_size(grid_item, grid_area_rect.width());
-            auto grid_area_size = grid_area_rect.size();
-            grid_area_size.set_width(non_cyclic_containing_block_inline_size_for_table_wrapper(grid_item, grid_area_size.width()));
+            resolve_table_wrapper_grid_item_inline_size(grid_item, grid_area.size.inline_size);
+            auto grid_area_size = grid_area.size;
+            grid_area_size.inline_size = non_cyclic_containing_block_inline_size_for_table_wrapper(grid_item, grid_area_size.inline_size);
             table_wrapper_grid_area_size = grid_area_size;
         }
         auto available_space_for_children = AvailableSpace(AvailableSize::make_definite(grid_item.used_values.content_inline_size()), AvailableSize::make_definite(grid_item.used_values.content_block_size()));
@@ -2929,16 +2929,19 @@ void GridFormattingContext::run(LayoutInput const& layout_input)
             // Table wrappers pass their constraints through to the table box, so hand them the
             // grid area in both axes for the table's percentage resolution.
             if (table_wrapper_grid_area_size.has_value()) {
-                constraints.percentage_basis_inline_size = table_wrapper_grid_area_size->width();
-                constraints.percentage_basis_block_size = table_wrapper_grid_area_size->height();
+                constraints.percentage_basis_inline_size = table_wrapper_grid_area_size->inline_size;
+                constraints.percentage_basis_block_size = table_wrapper_grid_area_size->block_size;
             }
             return constraints;
         }();
         auto independent_formatting_context = layout_inside(grid_item.box, LayoutMode::Normal, LayoutInput { available_space_for_children, child_constraints });
 
-        CSSPixelPoint grid_item_content_offset = grid_area_rect.top_left() + CSSPixelPoint { grid_item.used_values.margin_box_left(), grid_item.used_values.margin_box_top() };
+        CSSPixelPoint grid_item_content_offset {
+            grid_area.offset.inline_offset + grid_item.used_values.margin_box_left(),
+            grid_area.offset.block_offset + grid_item.used_values.margin_box_top()
+        };
         place_child(grid_item.box, grid_item_content_offset);
-        compute_inset(grid_item.box, grid_area_rect.size());
+        compute_inset(grid_item.box, { grid_area.size.inline_size, grid_area.size.block_size });
 
         if (independent_formatting_context)
             independent_formatting_context->parent_context_did_dimension_child_root_box();
@@ -3006,7 +3009,7 @@ AbsposContainingBlockInfo GridFormattingContext::resolve_abspos_containing_block
     auto& abspos_box_state = m_state.get_mutable(box);
     auto containing_block_info = FormattingContext::resolve_abspos_containing_block_info(box);
 
-    auto grid_area_rect = [&] -> CSSPixelRect {
+    auto grid_area = [&] -> LogicalRect {
         auto const& computed_values = box.computed_values();
         GridItem item { box, abspos_box_state, {}, {}, {}, {} };
         auto row_placement_position = resolve_grid_position(box, GridDimension::Row);
@@ -3020,7 +3023,7 @@ AbsposContainingBlockInfo GridFormattingContext::resolve_abspos_containing_block
             item.column_span = column_placement_position.span;
         }
 
-        auto rect = get_grid_area_rect(item);
+        auto rect = get_grid_area(item);
 
         auto explicit_line_position = [&](GridDimension dimension, int line_index) {
             auto const& tracks_and_gaps = dimension == GridDimension::Column ? m_grid_columns_and_gaps : m_grid_rows_and_gaps;
@@ -3083,11 +3086,11 @@ AbsposContainingBlockInfo GridFormattingContext::resolve_abspos_containing_block
                 : explicit_line_position(dimension, placement_position.end);
 
             if (dimension == GridDimension::Column) {
-                rect.set_x(start_offset);
-                rect.set_width(end_offset - start_offset);
+                rect.offset.inline_offset = start_offset;
+                rect.size.inline_size = end_offset - start_offset;
             } else {
-                rect.set_y(start_offset);
-                rect.set_height(end_offset - start_offset);
+                rect.offset.block_offset = start_offset;
+                rect.size.block_size = end_offset - start_offset;
             }
         };
 
@@ -3097,7 +3100,10 @@ AbsposContainingBlockInfo GridFormattingContext::resolve_abspos_containing_block
         return rect;
     }();
 
-    containing_block_info.rect = grid_area_rect;
+    containing_block_info.rect = CSSPixelRect {
+        { grid_area.offset.inline_offset, grid_area.offset.block_offset },
+        { grid_area.size.inline_size, grid_area.size.block_size }
+    };
     containing_block_info.inline_alignment = alignment_for_item(box, GridDimension::Column);
     containing_block_info.block_alignment = alignment_for_item(box, GridDimension::Row);
     containing_block_info.derives_from_own_computed_values = true;
