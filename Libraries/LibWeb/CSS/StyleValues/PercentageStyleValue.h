@@ -18,6 +18,19 @@ class PercentageStyleValue final : public DimensionStyleValue {
 public:
     static ValueComparingNonnullRefPtr<PercentageStyleValue const> create(Percentage percentage)
     {
+        // The 0%, 50% and 100% values dominate real-world percentages, so they are interned.
+        if (percentage.value() == 0) {
+            static auto const& zero_instance = adopt_ref(*new (nothrow) PercentageStyleValue(Percentage(0))).leak_ref();
+            return zero_instance;
+        }
+        if (percentage.value() == 50) {
+            static auto const& fifty_instance = adopt_ref(*new (nothrow) PercentageStyleValue(Percentage(50))).leak_ref();
+            return fifty_instance;
+        }
+        if (percentage.value() == 100) {
+            static auto const& hundred_instance = adopt_ref(*new (nothrow) PercentageStyleValue(Percentage(100))).leak_ref();
+            return hundred_instance;
+        }
         return adopt_ref(*new (nothrow) PercentageStyleValue(move(percentage)));
     }
     virtual ~PercentageStyleValue() override = default;
