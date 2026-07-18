@@ -36,7 +36,7 @@ public:
         Yes,
     };
 
-    static constexpr size_t default_cage_size = 64ull * GiB;
+    static constexpr size_t default_cage_size = 4ull * TiB;
     static_assert(is_power_of_two(default_cage_size));
     static constexpr size_t cage_offset_mask = default_cage_size - 1;
     static constexpr size_t invalid_offset = NumericLimits<size_t>::max();
