@@ -174,16 +174,16 @@ void TableFormattingContext::compute_cell_measures(RowMeasurement row_measuremen
                 max_content_width = width;
             }
         } else {
-            min_content_width = calculate_min_content_width(cell.box, m_participant_constraints);
-            max_content_width = calculate_max_content_width(cell.box, m_participant_constraints);
+            min_content_width = calculate_min_content_inline_size(cell.box, m_participant_constraints);
+            max_content_width = calculate_max_content_inline_size(cell.box, m_participant_constraints);
         }
 
         // The outer min-content width of a table-cell is max(min-width, min-content width) adjusted by the cell intrinsic offsets.
         cell.outer_min_width = max(min_width, min_content_width) + cell_intrinsic_width_offsets;
 
         if (row_measurement == RowMeasurement::Include) {
-            auto min_content_height = calculate_min_content_height(cell.box, max_content_width, m_participant_constraints);
-            auto max_content_height = calculate_max_content_height(cell.box, min_content_width, m_participant_constraints);
+            auto min_content_height = calculate_min_content_block_size(cell.box, max_content_width, m_participant_constraints);
+            auto max_content_height = calculate_max_content_block_size(cell.box, min_content_width, m_participant_constraints);
 
             // The outer min-content height of a table-cell is max(min-height, min-content height) adjusted by the cell intrinsic offsets.
             auto min_height = computed_values.min_height().to_px(containing_block_height);
@@ -514,9 +514,9 @@ CSSPixels TableFormattingContext::compute_capmin()
                 + margin_right;
         };
 
-        auto caption_min_content_contribution = outer_size_for_inner_size(calculate_min_content_width(*child_box, m_participant_constraints));
+        auto caption_min_content_contribution = outer_size_for_inner_size(calculate_min_content_inline_size(*child_box, m_participant_constraints));
         if (!computed_values.width().is_auto() && !computed_values.width().contains_percentage()) {
-            auto preferred_inner_width = calculate_inner_width(*child_box, AvailableSize::make_definite(width_of_table_wrapper_containing_block), computed_values.width(), m_participant_constraints);
+            auto preferred_inner_width = calculate_inner_inline_size(*child_box, AvailableSize::make_definite(width_of_table_wrapper_containing_block), computed_values.width(), m_participant_constraints);
             caption_min_content_contribution = max(caption_min_content_contribution, outer_size_for_inner_size(preferred_inner_width));
         }
 

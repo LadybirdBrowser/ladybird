@@ -26,7 +26,7 @@ static String serialize_flex_basis(CSS::FlexBasis const& flex_basis)
 
 CSSPixels FlexFormattingContext::get_pixel_width(FlexItem const& item, CSS::Size const& size) const
 {
-    return calculate_inner_width(item.box, m_available_space->inline_size, size, item_containing_block_constraints());
+    return calculate_inner_inline_size(item.box, m_available_space->inline_size, size, item_containing_block_constraints());
 }
 
 CSSPixels FlexFormattingContext::get_pixel_height(FlexItem const& item, CSS::Size const& size) const
@@ -38,9 +38,9 @@ CSSPixels FlexFormattingContext::get_pixel_height(FlexItem const& item, CSS::Siz
         auto available_width = item.main_size.has_value() ? AvailableSize::make_definite(clamp_to_max_dimension_value(item.main_size.value())) : AvailableSize::make_indefinite();
         auto available_height = AvailableSize::make_indefinite();
         auto available_space = AvailableSpace { available_width, available_height };
-        return calculate_inner_height(item.box, available_space, size, item_containing_block_constraints());
+        return calculate_inner_block_size(item.box, available_space, size, item_containing_block_constraints());
     }
-    return calculate_inner_height(item.box, m_available_space.value(), size, item_containing_block_constraints());
+    return calculate_inner_block_size(item.box, m_available_space.value(), size, item_containing_block_constraints());
 }
 
 FlexFormattingContext::FlexFormattingContext(LayoutState& state, LayoutMode layout_mode, Box const& flex_container, FormattingContext* parent)
@@ -498,15 +498,15 @@ CSSPixels FlexFormattingContext::specified_cross_min_size(FlexItem const& item) 
 CSSPixels FlexFormattingContext::calculate_inner_flex_container_cross_min_size() const
 {
     return cross_axis_is_horizontal()
-        ? calculate_inner_width(flex_container(), m_available_space.value().inline_size, computed_cross_min_size(flex_container()), m_layout_input->containing_block_constraints)
-        : calculate_inner_height(flex_container(), m_available_space.value(), computed_cross_min_size(flex_container()), m_layout_input->containing_block_constraints);
+        ? calculate_inner_inline_size(flex_container(), m_available_space.value().inline_size, computed_cross_min_size(flex_container()), m_layout_input->containing_block_constraints)
+        : calculate_inner_block_size(flex_container(), m_available_space.value(), computed_cross_min_size(flex_container()), m_layout_input->containing_block_constraints);
 }
 
 CSSPixels FlexFormattingContext::calculate_inner_flex_container_cross_max_size() const
 {
     return cross_axis_is_horizontal()
-        ? calculate_inner_width(flex_container(), m_available_space.value().inline_size, computed_cross_max_size(flex_container()), m_layout_input->containing_block_constraints)
-        : calculate_inner_height(flex_container(), m_available_space.value(), computed_cross_max_size(flex_container()), m_layout_input->containing_block_constraints);
+        ? calculate_inner_inline_size(flex_container(), m_available_space.value().inline_size, computed_cross_max_size(flex_container()), m_layout_input->containing_block_constraints)
+        : calculate_inner_block_size(flex_container(), m_available_space.value(), computed_cross_max_size(flex_container()), m_layout_input->containing_block_constraints);
 }
 
 bool FlexFormattingContext::has_main_max_size(Box const& box) const
@@ -1391,9 +1391,9 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
     if (!cross_axis_is_horizontal()) {
         auto available_width = item.main_size.has_value() ? AvailableSize::make_definite(clamp_to_max_dimension_value(item.main_size.value())) : AvailableSize::make_indefinite();
         auto available_height = AvailableSize::make_indefinite();
-        fit_content_cross_size = calculate_fit_content_height(item.box, AvailableSpace(available_width, available_height), item_containing_block_constraints());
+        fit_content_cross_size = calculate_fit_content_block_size(item.box, AvailableSpace(available_width, available_height), item_containing_block_constraints());
     } else {
-        fit_content_cross_size = calculate_fit_content_width(item.box, m_available_space_for_items->space, item_containing_block_constraints());
+        fit_content_cross_size = calculate_fit_content_inline_size(item.box, m_available_space_for_items->space, item_containing_block_constraints());
     }
     item.hypothetical_cross_size = css_clamp(fit_content_cross_size, clamp_min, clamp_max);
 }
@@ -2332,11 +2332,11 @@ CSSPixels FlexFormattingContext::calculate_width_to_use_when_determining_intrins
 
     CSSPixels width;
     if (should_treat_width_as_auto(box, m_available_space_for_items->space) || computed_width.is_fit_content())
-        width = calculate_fit_content_width(box, m_available_space_for_items->space, item_containing_block_constraints());
+        width = calculate_fit_content_inline_size(box, m_available_space_for_items->space, item_containing_block_constraints());
     else if (computed_width.is_min_content())
-        width = calculate_min_content_width(box, item_containing_block_constraints());
+        width = calculate_min_content_inline_size(box, item_containing_block_constraints());
     else if (computed_width.is_max_content())
-        width = calculate_max_content_width(box, item_containing_block_constraints());
+        width = calculate_max_content_inline_size(box, item_containing_block_constraints());
 
     return css_clamp(width, clamp_min, clamp_max);
 }
@@ -2344,39 +2344,39 @@ CSSPixels FlexFormattingContext::calculate_width_to_use_when_determining_intrins
 CSSPixels FlexFormattingContext::calculate_min_content_main_size(FlexItem const& item) const
 {
     if (main_axis_is_horizontal()) {
-        return calculate_min_content_width(item.box, item_containing_block_constraints());
+        return calculate_min_content_inline_size(item.box, item_containing_block_constraints());
     }
     auto available_space = item.used_values.available_inner_space_or_constraints_from(m_available_space_for_items->space);
     if (available_space.inline_size.is_indefinite()) {
         available_space.inline_size = AvailableSize::make_definite(calculate_width_to_use_when_determining_intrinsic_height_of_item(item));
     }
-    return calculate_min_content_height(item.box, available_space.inline_size.to_px_or_zero(), item_containing_block_constraints());
+    return calculate_min_content_block_size(item.box, available_space.inline_size.to_px_or_zero(), item_containing_block_constraints());
 }
 
 CSSPixels FlexFormattingContext::calculate_max_content_main_size(FlexItem const& item) const
 {
     if (main_axis_is_horizontal()) {
-        return calculate_max_content_width(item.box, item_containing_block_constraints());
+        return calculate_max_content_inline_size(item.box, item_containing_block_constraints());
     }
     auto available_space = item.used_values.available_inner_space_or_constraints_from(m_available_space_for_items->space);
     if (available_space.inline_size.is_indefinite()) {
         available_space.inline_size = AvailableSize::make_definite(calculate_width_to_use_when_determining_intrinsic_height_of_item(item));
     }
-    return calculate_max_content_height(item.box, available_space.inline_size.to_px_or_zero(), item_containing_block_constraints());
+    return calculate_max_content_block_size(item.box, available_space.inline_size.to_px_or_zero(), item_containing_block_constraints());
 }
 
 CSSPixels FlexFormattingContext::calculate_fit_content_main_size(FlexItem const& item) const
 {
     if (main_axis_is_horizontal())
-        return calculate_fit_content_width(item.box, m_available_space_for_items->space, item_containing_block_constraints());
-    return calculate_fit_content_height(item.box, m_available_space_for_items->space, item_containing_block_constraints());
+        return calculate_fit_content_inline_size(item.box, m_available_space_for_items->space, item_containing_block_constraints());
+    return calculate_fit_content_block_size(item.box, m_available_space_for_items->space, item_containing_block_constraints());
 }
 
 CSSPixels FlexFormattingContext::calculate_fit_content_cross_size(FlexItem const& item) const
 {
     if (cross_axis_is_horizontal())
-        return calculate_fit_content_width(item.box, m_available_space_for_items->space, item_containing_block_constraints());
-    return calculate_fit_content_height(item.box, m_available_space_for_items->space, item_containing_block_constraints());
+        return calculate_fit_content_inline_size(item.box, m_available_space_for_items->space, item_containing_block_constraints());
+    return calculate_fit_content_block_size(item.box, m_available_space_for_items->space, item_containing_block_constraints());
 }
 
 CSSPixels FlexFormattingContext::calculate_min_content_cross_size(FlexItem const& item) const
@@ -2386,9 +2386,9 @@ CSSPixels FlexFormattingContext::calculate_min_content_cross_size(FlexItem const
         if (available_space.inline_size.is_indefinite()) {
             available_space.inline_size = AvailableSize::make_definite(calculate_width_to_use_when_determining_intrinsic_height_of_item(item));
         }
-        return calculate_min_content_height(item.box, available_space.inline_size.to_px_or_zero(), item_containing_block_constraints());
+        return calculate_min_content_block_size(item.box, available_space.inline_size.to_px_or_zero(), item_containing_block_constraints());
     }
-    return calculate_min_content_width(item.box, item_containing_block_constraints());
+    return calculate_min_content_inline_size(item.box, item_containing_block_constraints());
 }
 
 CSSPixels FlexFormattingContext::calculate_max_content_cross_size(FlexItem const& item) const
@@ -2398,9 +2398,9 @@ CSSPixels FlexFormattingContext::calculate_max_content_cross_size(FlexItem const
         if (available_space.inline_size.is_indefinite()) {
             available_space.inline_size = AvailableSize::make_definite(calculate_width_to_use_when_determining_intrinsic_height_of_item(item));
         }
-        return calculate_max_content_height(item.box, available_space.inline_size.to_px_or_zero(), item_containing_block_constraints());
+        return calculate_max_content_block_size(item.box, available_space.inline_size.to_px_or_zero(), item_containing_block_constraints());
     }
-    return calculate_max_content_width(item.box, item_containing_block_constraints());
+    return calculate_max_content_inline_size(item.box, item_containing_block_constraints());
 }
 
 // https://drafts.csswg.org/css-flexbox-1/#stretched

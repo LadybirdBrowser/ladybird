@@ -145,16 +145,16 @@ public:
 
     void place_child(Box const& child, CSSPixelPoint content_offset);
 
-    CSSPixels calculate_min_content_width(Layout::Box const&, ContainingBlockConstraints const&) const;
-    CSSPixels calculate_max_content_width(Layout::Box const&, ContainingBlockConstraints const&) const;
-    CSSPixels calculate_min_content_height(Layout::Box const&, CSSPixels width, ContainingBlockConstraints const&) const;
-    CSSPixels calculate_max_content_height(Layout::Box const&, CSSPixels width, ContainingBlockConstraints const&) const;
+    CSSPixels calculate_min_content_inline_size(Layout::Box const&, ContainingBlockConstraints const&) const;
+    CSSPixels calculate_max_content_inline_size(Layout::Box const&, ContainingBlockConstraints const&) const;
+    CSSPixels calculate_min_content_block_size(Layout::Box const&, CSSPixels inline_size, ContainingBlockConstraints const&) const;
+    CSSPixels calculate_max_content_block_size(Layout::Box const&, CSSPixels inline_size, ContainingBlockConstraints const&) const;
 
-    CSSPixels calculate_fit_content_height(Layout::Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
-    CSSPixels calculate_fit_content_width(Layout::Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
+    CSSPixels calculate_fit_content_block_size(Layout::Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
+    CSSPixels calculate_fit_content_inline_size(Layout::Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
 
-    CSSPixels calculate_inner_width(Layout::Box const&, AvailableSize const&, CSS::Size const& width, ContainingBlockConstraints const&) const;
-    [[nodiscard]] CSSPixels calculate_inner_height(Box const&, AvailableSpace const&, CSS::Size const& height, ContainingBlockConstraints const&) const;
+    CSSPixels calculate_inner_inline_size(Layout::Box const&, AvailableSize const&, CSS::Size const& preferred_size, ContainingBlockConstraints const&) const;
+    [[nodiscard]] CSSPixels calculate_inner_block_size(Box const&, AvailableSpace const&, CSS::Size const& preferred_size, ContainingBlockConstraints const&) const;
 
     virtual CSSPixels greatest_child_width(Box const&) const;
 
@@ -167,8 +167,8 @@ public:
     [[nodiscard]] CSSPixels box_baseline(Box const&, BaselineSet) const;
     void compute_and_store_baselines(LayoutState::UsedValues&) const;
 
-    [[nodiscard]] CSSPixels calculate_stretch_fit_width(Box const&, AvailableSize const&) const;
-    [[nodiscard]] CSSPixels calculate_stretch_fit_height(Box const&, AvailableSize const&) const;
+    [[nodiscard]] CSSPixels calculate_stretch_fit_inline_size(Box const&, AvailableSize const&) const;
+    [[nodiscard]] CSSPixels calculate_stretch_fit_block_size(Box const&, AvailableSize const&) const;
 
     bool can_skip_is_anonymous_text_run(Box&);
 

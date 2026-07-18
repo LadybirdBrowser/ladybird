@@ -489,36 +489,36 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
                 - box_state.border_right
                 - box_state.margin_right;
 
-            auto preferred_width = calculate_max_content_width(box, box_constraints);
+            auto preferred_width = calculate_max_content_inline_size(box, box_constraints);
             if (preferred_width <= available_width) {
                 unconstrained_width = preferred_width;
             } else {
-                auto preferred_minimum_width = calculate_min_content_width(box, box_constraints);
+                auto preferred_minimum_width = calculate_min_content_inline_size(box, box_constraints);
                 unconstrained_width = min(max(preferred_minimum_width, available_width), preferred_width);
             }
         } else if (m_available_space->inline_size.is_min_content()) {
-            unconstrained_width = calculate_min_content_width(box, box_constraints);
+            unconstrained_width = calculate_min_content_inline_size(box, box_constraints);
         } else {
-            unconstrained_width = calculate_max_content_width(box, box_constraints);
+            unconstrained_width = calculate_max_content_inline_size(box, box_constraints);
         }
     } else {
         if (width_value.contains_percentage() && !m_available_space->inline_size.is_definite()) {
             // NOTE: We can't resolve percentages yet. We'll have to wait until after inner layout.
         } else {
-            auto inner_width = calculate_inner_width(box, m_available_space->inline_size, width_value, box_constraints);
+            auto inner_width = calculate_inner_inline_size(box, m_available_space->inline_size, width_value, box_constraints);
             unconstrained_width = inner_width;
         }
     }
 
     CSSPixels width = unconstrained_width;
     if (!should_treat_max_width_as_none(box, m_available_space->inline_size, box_constraints)) {
-        auto max_width = calculate_inner_width(box, m_available_space->inline_size, box.computed_values().max_width(), box_constraints);
+        auto max_width = calculate_inner_inline_size(box, m_available_space->inline_size, box.computed_values().max_width(), box_constraints);
         width = min(width, max_width);
     }
 
     auto computed_min_width = box.computed_values().min_width();
     if (!computed_min_width.is_auto()) {
-        auto min_width = calculate_inner_width(box, m_available_space->inline_size, computed_min_width, box_constraints);
+        auto min_width = calculate_inner_inline_size(box, m_available_space->inline_size, computed_min_width, box_constraints);
         width = max(width, min_width);
     }
 

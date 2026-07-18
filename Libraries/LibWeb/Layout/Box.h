@@ -28,7 +28,7 @@ struct LineBoxFragmentCoordinate {
 };
 
 struct IntrinsicSizeCacheKey {
-    Optional<CSSPixels> measured_at_width;
+    Optional<CSSPixels> measured_at_inline_size;
     Optional<CSSPixels> percentage_basis_inline_size;
     Optional<CSSPixels> percentage_basis_block_size;
     Optional<CSSPixels> quirks_mode_percentage_basis_block_size;
@@ -37,10 +37,10 @@ struct IntrinsicSizeCacheKey {
 };
 
 struct IntrinsicSizes {
-    HashMap<IntrinsicSizeCacheKey, CSSPixels> min_content_width;
-    HashMap<IntrinsicSizeCacheKey, CSSPixels> max_content_width;
-    HashMap<IntrinsicSizeCacheKey, CSSPixels> min_content_height;
-    HashMap<IntrinsicSizeCacheKey, CSSPixels> max_content_height;
+    HashMap<IntrinsicSizeCacheKey, CSSPixels> min_content_inline_size;
+    HashMap<IntrinsicSizeCacheKey, CSSPixels> max_content_inline_size;
+    HashMap<IntrinsicSizeCacheKey, CSSPixels> min_content_block_size;
+    HashMap<IntrinsicSizeCacheKey, CSSPixels> max_content_block_size;
 };
 
 class WEB_API Box : public NodeWithStyleAndBoxModelMetrics {
@@ -140,7 +140,7 @@ struct Traits<Web::Layout::IntrinsicSizeCacheKey> : public DefaultTraits<Web::La
         auto optional_hash = [](Optional<Web::CSSPixels> const& value) -> unsigned {
             return value.has_value() ? pair_int_hash(1u, Traits<Web::CSSPixels>::hash(*value)) : 0u;
         };
-        auto hash = optional_hash(key.measured_at_width);
+        auto hash = optional_hash(key.measured_at_inline_size);
         hash = pair_int_hash(hash, optional_hash(key.percentage_basis_inline_size));
         hash = pair_int_hash(hash, optional_hash(key.percentage_basis_block_size));
         hash = pair_int_hash(hash, optional_hash(key.quirks_mode_percentage_basis_block_size));
