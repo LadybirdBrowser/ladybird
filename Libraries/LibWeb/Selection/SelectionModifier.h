@@ -28,6 +28,7 @@ enum class SelectionGranularity : u8 {
     Character,
     Word,
     Line,
+    Page,
     LineBoundary,
     // The boundary of the active editing host, which is the effective document for contenteditable navigation.
     DocumentBoundary,

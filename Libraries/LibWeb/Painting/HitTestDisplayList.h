@@ -10,6 +10,8 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
+#include <LibGC/Cell.h>
+#include <LibGC/Ptr.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/WindingRule.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
@@ -23,6 +25,7 @@ struct ChromeMetrics;
 namespace Painting {
 
 class PaintableFragment;
+class PaintableWithLines;
 class ViewportPaintable;
 
 enum class CaretPositionMode : u8 {
@@ -37,6 +40,11 @@ enum class CaretLineEdge : u8 {
     End,
 };
 
+enum class CaretLineDirection : u8 {
+    Previous,
+    Next,
+};
+
 class WEB_API HitTestDisplayList : public RefCounted<HitTestDisplayList> {
 public:
     static NonnullRefPtr<HitTestDisplayList> create(u64 visual_context_tree_version);
@@ -45,8 +53,10 @@ public:
     void append_svg_path(Paintable& target, Gfx::Path, Gfx::WindingRule, CSSPixelRect bounding_box, VisualContextIndex);
     void append_text_fragment(PaintableFragment const&, VisualContextIndex);
     void append_empty_line(PaintableFragment const& sibling_fragment, size_t caret_offset, size_t line_box_index, CSSPixelRect line_rect, VisualContextIndex);
+    void append_empty_line(PaintableWithLines const&, DOM::Node const&, size_t caret_offset, CSSPixelRect line_rect, VisualContextIndex);
     void append_empty_editable(Paintable const&, CSSPixelRect, VisualContextIndex);
     void append_chrome_widget(Paintable const&, ChromeWidget&, VisualContextIndex);
+    void visit_edges(GC::Cell::Visitor&);
 
     u64 visual_context_tree_version() const { return m_visual_context_tree_version; }
     [[nodiscard]] Optional<HitTestResult> hit_test(CSSPixelPoint, HitTestType, ViewportPaintable const&, double device_pixels_per_css_pixel, ChromeMetrics const&) const;
@@ -56,6 +66,10 @@ public:
     // Resolve Home/End against the painted line containing the caret. A visual line can span several DOM nodes and
     // atomic inline boxes, so a text-node or block-element boundary is not necessarily a rendered line boundary.
     [[nodiscard]] Optional<CaretPosition> caret_position_at_line_edge(DOM::Node const&, size_t offset, TextAffinity, CaretLineEdge) const;
+    // Find the visually adjacent caret line within scope, preserving the requested inline-axis coordinate. This is a
+    // rendered-content query: DOM adjacency alone cannot describe wrapping, writing modes, floats, or empty lines.
+    [[nodiscard]] Optional<CaretPosition> caret_position_on_adjacent_line(DOM::Node const&, size_t offset, TextAffinity, CaretLineDirection, CSSPixels inline_coordinate, DOM::Node const& scope) const;
+    [[nodiscard]] Optional<CSSPixels> caret_line_block_coordinate(DOM::Node const&, size_t offset, TextAffinity) const;
     TraversalDecision hit_test_all(CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel, ChromeMetrics const&, Function<TraversalDecision(HitTestResult)> const&) const;
 
 private:
@@ -76,7 +90,8 @@ private:
         NonnullRefPtr<Paintable> paintable;
         RefPtr<ChromeWidget> chrome_widget;
         PaintableFragment const* text_fragment { nullptr };
-        // For EmptyLine items: the caret offset in the text node of the sibling text_fragment.
+        GC::Ptr<DOM::Node const> caret_node { nullptr };
+        // For EmptyLine items: the caret offset in caret_node.
         size_t caret_offset { 0 };
         CSSPixelRect rect;
         CSSPixelRect caret_rect;
@@ -94,6 +109,9 @@ private:
         Vector<size_t> unbucketed_items;
     };
 
+    // A visual line assembled from consecutive caret-capable display-list items. Caret lines preserve painted
+    // topology independently of the spatial hit-test index so keyboard navigation can reason about lines that contain
+    // empty or zero-area caret targets.
     struct CaretLine {
         CSSPixelRect rect;
         Optional<CSSPixelRect> block_container_margin_rect;
@@ -126,6 +144,7 @@ private:
     [[nodiscard]] Optional<CaretPosition> caret_position_for_line(CaretLine const&, CSSPixelPoint local_point, CaretPositionMode) const;
     [[nodiscard]] Item const& item_at_line_edge(CaretLine const&, CaretPositionType) const;
     [[nodiscard]] bool item_contains_caret_position(Item const&, DOM::Node const&, size_t offset, TextAffinity) const;
+    [[nodiscard]] Optional<size_t> caret_line_index_for_position(DOM::Node const&, size_t offset, TextAffinity) const;
     [[nodiscard]] bool line_contains_descendant_of(CaretLine const&, DOM::Node const&) const;
     [[nodiscard]] bool item_is_inline_adjacent_to_line(Item const&, CaretLine const&) const;
     void find_topmost_item_in_list(Vector<size_t> const&, CSSPixelPoint local_point, ChromeMetrics const&, Optional<size_t>& topmost_item_index) const;

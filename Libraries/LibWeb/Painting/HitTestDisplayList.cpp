@@ -166,6 +166,12 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create(u64 visual_context_
     return adopt_ref(*new HitTestDisplayList(visual_context_tree_version));
 }
 
+void HitTestDisplayList::visit_edges(GC::Cell::Visitor& visitor)
+{
+    for (auto const& item : m_items)
+        visitor.visit(item.caret_node);
+}
+
 HitTestDisplayList::HitTestDisplayList(u64 visual_context_tree_version)
     : m_visual_context_tree_version(visual_context_tree_version)
 {
@@ -293,6 +299,7 @@ void HitTestDisplayList::append_empty_line(PaintableFragment const& sibling_frag
         .paintable = fragment_paintable,
         .chrome_widget = {},
         .text_fragment = &sibling_fragment,
+        .caret_node = sibling_fragment.layout_node().dom_node(),
         .caret_offset = caret_offset,
         // NB: Empty lines are only reachable through caret lines, never through regular hit testing, so they are
         //     recorded with an empty rect and stay out of the spatial index.
@@ -301,6 +308,27 @@ void HitTestDisplayList::append_empty_line(PaintableFragment const& sibling_frag
         .caret_line_index = line_box_index,
         .caret_line_rect = line_rect,
         .block_container_margin_rect = absolute_margin_box_rect_for_containing_block(sibling_fragment),
+        .visual_context_index = visual_context_index,
+        .border_radii = {},
+    });
+    add_item_to_caret_items(item_index);
+}
+
+void HitTestDisplayList::append_empty_line(PaintableWithLines const& paintable, DOM::Node const& caret_node, size_t caret_offset, CSSPixelRect line_rect, VisualContextIndex visual_context_index)
+{
+    auto item_index = m_items.size();
+    m_items.append({
+        .kind = ItemKind::EmptyLine,
+        .paintable = const_cast<PaintableWithLines&>(paintable),
+        .chrome_widget = {},
+        .text_fragment = nullptr,
+        .caret_node = &caret_node,
+        .caret_offset = caret_offset,
+        .rect = {},
+        .caret_rect = line_rect,
+        .caret_line_index = {},
+        .caret_line_rect = line_rect,
+        .block_container_margin_rect = absolute_margin_box_rect_for_containing_block(paintable),
         .visual_context_index = visual_context_index,
         .border_radii = {},
     });
@@ -394,8 +422,9 @@ bool HitTestDisplayList::item_can_produce_caret_position(Item const& item) const
 {
     switch (item.kind) {
     case ItemKind::TextFragment:
-    case ItemKind::EmptyLine:
         return item.text_fragment && item.text_fragment->layout_node().dom_node();
+    case ItemKind::EmptyLine:
+        return item.caret_node;
     case ItemKind::EmptyEditable:
         return item.paintable->dom_node();
     case ItemKind::Box: {
@@ -507,8 +536,9 @@ DOM::Node const* HitTestDisplayList::item_dom_node(Item const& item) const
     case ItemKind::ChromeWidget:
         return item.paintable->dom_node();
     case ItemKind::TextFragment:
-    case ItemKind::EmptyLine:
         return item.text_fragment ? item.text_fragment->layout_node().dom_node() : nullptr;
+    case ItemKind::EmptyLine:
+        return item.caret_node;
     }
     VERIFY_NOT_REACHED();
 }
@@ -748,10 +778,21 @@ bool HitTestDisplayList::item_contains_caret_position(Item const& item, DOM::Nod
 
 Optional<CaretPosition> HitTestDisplayList::caret_position_at_line_edge(DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineEdge edge) const
 {
+    auto line_index = caret_line_index_for_position(node, offset, affinity);
+    if (!line_index.has_value())
+        return {};
+    auto const& line = m_caret_lines[*line_index];
+    auto type = edge == CaretLineEdge::Start ? CaretPositionType::Before : CaretPositionType::After;
+    return caret_position_for_item(item_at_line_edge(line, type), {}, type);
+}
+
+Optional<size_t> HitTestDisplayList::caret_line_index_for_position(DOM::Node const& node, size_t offset, TextAffinity affinity) const
+{
     // At a soft wrap, prefer the fragment whose line directly owns the position. Only use the preceding fragment's
     // fallback match when no direct match exists.
     for (bool allow_soft_wrap_fallback : { false, true }) {
-        for (auto const& line : m_caret_lines) {
+        for (size_t line_index = 0; line_index < m_caret_lines.size(); ++line_index) {
+            auto const& line = m_caret_lines[line_index];
             for (auto caret_item_index = line.first_caret_item_index; caret_item_index <= line.last_caret_item_index; ++caret_item_index) {
                 auto const& item = m_items[m_caret_item_indices[caret_item_index]];
                 if (!item_contains_caret_position(item, node, offset, affinity))
@@ -760,12 +801,95 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_at_line_edge(DOM::Nod
                     && item.text_fragment->layout_node().dom_node() == &node
                     && item.text_fragment->caret_match(offset, affinity) == PaintableFragment::CaretMatch::SoftWrapFallback)
                     continue;
-                auto type = edge == CaretLineEdge::Start ? CaretPositionType::Before : CaretPositionType::After;
-                return caret_position_for_item(item_at_line_edge(line, type), {}, type);
+                return line_index;
             }
         }
     }
     return {};
+}
+
+Optional<CaretPosition> HitTestDisplayList::caret_position_on_adjacent_line(DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineDirection direction, CSSPixels inline_coordinate, DOM::Node const& scope) const
+{
+    auto current_line_index = caret_line_index_for_position(node, offset, affinity);
+    if (!current_line_index.has_value())
+        return {};
+
+    auto const& current_line = m_caret_lines[*current_line_index];
+    auto const& current_first_item = m_items[m_caret_item_indices[current_line.first_caret_item_index]];
+    auto writing_mode = current_first_item.paintable->computed_values().writing_mode();
+    auto block_axis_is_reverse = current_first_item.paintable->computed_values().block_axis_is_reverse();
+    auto physically_after = (direction == CaretLineDirection::Next) != block_axis_is_reverse;
+    auto line_context_for_item = [](Item const& item) -> Paintable const* {
+        if (item.text_fragment)
+            return &item.text_fragment->paintable_with_lines();
+        return item.paintable.ptr();
+    };
+    auto* current_line_context = line_context_for_item(current_first_item);
+    // INTEROP: Vertical caret movement in Chromium, WebKit, and Gecko follows rendered line geometry rather than DOM
+    // tree order. Rank candidates in the requested logical block direction, prefer the current line-producing context,
+    // then minimize block distance and finally distance from the remembered inline coordinate.
+    //
+    // Keep these coordinates fractional. Rounding line geometry before comparison can reorder candidates when layout
+    // positions or device scaling produce subpixel line centers.
+    auto current_block_coordinate = block_axis_start(current_line.rect, writing_mode)
+        + (block_axis_end(current_line.rect, writing_mode) - block_axis_start(current_line.rect, writing_mode)).scaled(0.5);
+
+    Optional<size_t> closest_line_index;
+    bool closest_line_shares_context = false;
+    auto closest_block_distance = CSSPixels::max();
+    auto closest_inline_distance = CSSPixels::max();
+    for (size_t line_index = 0; line_index < m_caret_lines.size(); ++line_index) {
+        auto const& line = m_caret_lines[line_index];
+        if (line_index == *current_line_index || line.visual_context_index != current_line.visual_context_index
+            || !line_contains_descendant_of(line, scope))
+            continue;
+
+        auto candidate_block_coordinate = block_axis_start(line.rect, writing_mode)
+            + (block_axis_end(line.rect, writing_mode) - block_axis_start(line.rect, writing_mode)).scaled(0.5);
+        if ((physically_after && candidate_block_coordinate <= current_block_coordinate)
+            || (!physically_after && candidate_block_coordinate >= current_block_coordinate))
+            continue;
+        auto block_distance = absolute_difference(candidate_block_coordinate, current_block_coordinate);
+        auto inline_distance = distance_to_range(inline_coordinate, inline_axis_start(line.rect, writing_mode), inline_axis_end(line.rect, writing_mode));
+        auto const& candidate_first_item = m_items[m_caret_item_indices[line.first_caret_item_index]];
+        // Prefer lines produced by the same line paintable. Independently painted content, such as a floated first
+        // letter, may occupy the same block-axis neighborhood without being the next line of the current content.
+        auto shares_line_context = line_context_for_item(candidate_first_item) == current_line_context;
+        if (!closest_line_index.has_value() || (shares_line_context && !closest_line_shares_context)
+            || (shares_line_context == closest_line_shares_context
+                && (block_distance < closest_block_distance
+                    || (block_distance == closest_block_distance && inline_distance < closest_inline_distance)))) {
+            closest_line_index = line_index;
+            closest_line_shares_context = shares_line_context;
+            closest_block_distance = block_distance;
+            closest_inline_distance = inline_distance;
+        }
+    }
+    if (!closest_line_index.has_value())
+        return {};
+
+    auto const& closest_line = m_caret_lines[*closest_line_index];
+    auto block_coordinate = block_axis_start(closest_line.rect, writing_mode)
+        + (block_axis_end(closest_line.rect, writing_mode) - block_axis_start(closest_line.rect, writing_mode)).scaled(0.5);
+    auto point = writing_mode_is_horizontal(writing_mode)
+        ? CSSPixelPoint { inline_coordinate, block_coordinate }
+        : CSSPixelPoint { block_coordinate, inline_coordinate };
+    // Reuse point-to-caret resolution after choosing the line so text, atomic boxes, and empty lines share one rule for
+    // selecting the position closest to the preferred inline coordinate.
+    return caret_position_for_line(closest_line, point, CaretPositionMode::Normal);
+}
+
+Optional<CSSPixels> HitTestDisplayList::caret_line_block_coordinate(DOM::Node const& node, size_t offset, TextAffinity affinity) const
+{
+    auto line_index = caret_line_index_for_position(node, offset, affinity);
+    if (!line_index.has_value())
+        return {};
+
+    auto const& line = m_caret_lines[*line_index];
+    auto const& first_item = m_items[m_caret_item_indices[line.first_caret_item_index]];
+    auto writing_mode = first_item.paintable->computed_values().writing_mode();
+    return block_axis_start(line.rect, writing_mode)
+        + (block_axis_end(line.rect, writing_mode) - block_axis_start(line.rect, writing_mode)).scaled(0.5);
 }
 
 Optional<CaretPosition> HitTestDisplayList::caret_position_for_line(CaretLine const& line, CSSPixelPoint local_point, CaretPositionMode mode) const

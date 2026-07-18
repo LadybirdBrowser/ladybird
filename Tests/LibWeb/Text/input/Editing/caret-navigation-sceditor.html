@@ -192,6 +192,26 @@
             send("Down");
             assertPoint(point(), [textBeforeFinalImage, textBeforeFinalImage.length], "Down back to before the final image");
 
+            // Chromium moves by a computed page step, then chooses the furthest visual line that does not exceed it.
+            // With a 600px test viewport and 100px line spacing, both its macOS and other-platform page steps land
+            // exactly five lines away. Keeping twenty lines here makes document-boundary movement observably wrong.
+            const pageFixture = document.createElement("section");
+            const pageLines = Array.from({ length: 20 }, (_, index) => {
+                const line = document.createElement("div");
+                line.style.height = "100px";
+                line.append(`page ${index}`);
+                return line;
+            });
+            pageFixture.append(...pageLines);
+            editor.append(pageFixture);
+            collapse(pageLines[8].firstChild, 3);
+            send("PageDown", shift);
+            assertPoint(point(), [pageLines[13].firstChild, 3], "Shift+PageDown moves one viewport page");
+            collapse(pageLines[8].firstChild, 3);
+            send("PageUp", shift);
+            assertPoint(point(), [pageLines[3].firstChild, 3], "Shift+PageUp moves one viewport page");
+            pageFixture.remove();
+
             // Image-only blocks expose their atomic boundary during character navigation, and backward movement stops
             // at the nearest atomic boundary instead of skipping across adjacent images or a preceding line break.
             const atomicFixture = document.createElement("section");

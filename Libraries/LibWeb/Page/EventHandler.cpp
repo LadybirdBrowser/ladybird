@@ -1190,9 +1190,9 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
         if ((key == UIEvents::KeyCode::Key_PageUp || key == UIEvents::KeyCode::Key_PageDown) && (modifiers & UIEvents::Mod_Shift)) {
             if (key == UIEvents::KeyCode::Key_PageUp)
-                target->move_cursor_to_start_of_document(InputEventsTarget::CollapseSelection::No);
+                target->move_cursor_to_previous_page(InputEventsTarget::CollapseSelection::No);
             else
-                target->move_cursor_to_end_of_document(InputEventsTarget::CollapseSelection::No);
+                target->move_cursor_to_next_page(InputEventsTarget::CollapseSelection::No);
             return EventResult::Handled;
         }
 

@@ -316,6 +316,18 @@ void PaintableWithLines::record_empty_line_caret_items(HitTestDisplayList& hit_t
 {
     for (auto const& target : empty_line_caret_targets())
         hit_test_display_list.append_empty_line(m_fragments.first(), target.offset, target.line_index, target.rect, visual_context_index);
+
+    auto* dom_node = layout_node().dom_node();
+    if (!dom_node || m_fragments.is_empty())
+        return;
+    // A <br> between fragment-backed lines does not produce a fragment of its own, so record its parent boundary as
+    // a caret target. This covers leading and consecutive editable line breaks.
+    for (auto* child = dom_node->first_child(); child; child = child->next_sibling()) {
+        auto* br = as_if<HTML::HTMLBRElement>(*child);
+        if (!br || !br->represents_empty_line())
+            continue;
+        hit_test_display_list.append_empty_line(*this, *dom_node, br->index(), caret_rect_for_child_offset(br->index()), visual_context_index);
+    }
 }
 
 static void resolve_text_fragment_properties(PaintableWithLines const& paintable_with_lines)

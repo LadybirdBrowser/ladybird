@@ -814,6 +814,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_console_client);
     visitor.visit(m_cursor_blink_timer);
     visitor.visit(m_previously_repainted_cursor_position);
+    if (m_hit_test_display_list)
+        m_hit_test_display_list->visit_edges(visitor);
     visitor.visit(m_editing_host_manager);
     visitor.visit(m_local_storage_holder);
     visitor.visit(m_session_storage_holder);
@@ -8982,6 +8984,26 @@ Optional<Painting::CaretPosition> Document::caret_position_at_line_edge(Node con
         return {};
     viewport_paintable->refresh_scroll_state();
     return hit_test_display_list->caret_position_at_line_edge(node, offset, affinity, edge);
+}
+
+Optional<Painting::CaretPosition> Document::caret_position_on_adjacent_line(Node const& node, size_t offset, TextAffinity affinity, Painting::CaretLineDirection direction, CSSPixels inline_coordinate, Node const& scope)
+{
+    auto hit_test_display_list = ensure_hit_test_display_list();
+    auto viewport_paintable = paintable();
+    if (!hit_test_display_list || !viewport_paintable)
+        return {};
+    viewport_paintable->refresh_scroll_state();
+    return hit_test_display_list->caret_position_on_adjacent_line(node, offset, affinity, direction, inline_coordinate, scope);
+}
+
+Optional<CSSPixels> Document::caret_line_block_coordinate(Node const& node, size_t offset, TextAffinity affinity)
+{
+    auto hit_test_display_list = ensure_hit_test_display_list();
+    auto viewport_paintable = paintable();
+    if (!hit_test_display_list || !viewport_paintable)
+        return {};
+    viewport_paintable->refresh_scroll_state();
+    return hit_test_display_list->caret_line_block_coordinate(node, offset, affinity);
 }
 
 TraversalDecision Document::hit_test_all(CSSPixelPoint position, Function<TraversalDecision(Painting::HitTestResult)> const& callback)

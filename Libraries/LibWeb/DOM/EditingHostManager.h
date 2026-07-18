@@ -33,6 +33,8 @@ public:
     virtual void move_cursor_to_end(CollapseSelection) override;
     virtual void move_cursor_to_start_of_document(CollapseSelection) override;
     virtual void move_cursor_to_end_of_document(CollapseSelection) override;
+    virtual void move_cursor_to_previous_page(CollapseSelection) override;
+    virtual void move_cursor_to_next_page(CollapseSelection) override;
     virtual void increment_cursor_position_offset(CollapseSelection) override;
     virtual void decrement_cursor_position_offset(CollapseSelection) override;
     virtual void increment_cursor_position_to_next_word(CollapseSelection) override;

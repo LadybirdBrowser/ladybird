@@ -1,4 +1,1 @@
-FAIL: 3 SCEditor caret assertions failed
-Shift+Down into formatted block boundary: expected DIV@0, got #text@0
-Up from after the final image: expected DIV@0, got #text@0
-Down back to before the final image: expected #text@32, got #text@0
+PASS: 378 SCEditor caret interactions match Chromium

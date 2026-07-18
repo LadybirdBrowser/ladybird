@@ -11,6 +11,7 @@
 namespace Web::Painting {
 
 class HitTestDisplayList;
+enum class CaretLineDirection : u8;
 enum class CaretLineEdge : u8;
 enum class CaretPositionMode : u8;
 enum class HitTestType : u8;
