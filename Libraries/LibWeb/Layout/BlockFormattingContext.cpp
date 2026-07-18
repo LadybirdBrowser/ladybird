@@ -362,7 +362,7 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
             return CSS::Length::make_px(calculate_fit_content_inline_size(box, available_space, containing_block_constraints));
         }
 
-        if (should_treat_width_as_auto(box, available_space))
+        if (should_treat_inline_size_as_auto(box, available_space))
             return CSS::LengthOrAuto::make_auto();
         return CSS::Length::make_px(calculate_inner_inline_size(box, available_space.inline_size, computed_values.width(), containing_block_constraints));
     }();
@@ -372,7 +372,7 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
 
     // 2. The tentative used width is greater than 'max-width', the rules above are applied again,
     //    but this time using the computed value of 'max-width' as the computed value for 'width'.
-    if (!should_treat_max_width_as_none(box, available_space.inline_size, containing_block_constraints)) {
+    if (!should_treat_max_inline_size_as_none(box, available_space.inline_size, containing_block_constraints)) {
         auto max_width = calculate_inner_inline_size(box, available_space.inline_size, computed_values.max_width(), containing_block_constraints);
         if (used_width.to_px_or_zero() > max_width)
             used_width = try_compute_width(CSS::Length::make_px(max_width));
@@ -713,7 +713,7 @@ void BlockFormattingContext::compute_width_for_floating_box(Box const& box, Avai
     };
 
     auto input_width = [&] -> CSS::LengthOrAuto {
-        if (should_treat_width_as_auto(box, available_space))
+        if (should_treat_inline_size_as_auto(box, available_space))
             return CSS::LengthOrAuto::make_auto();
         return CSS::Length::make_px(calculate_inner_inline_size(box, available_space.inline_size, computed_values.width(), containing_block_constraints));
     }();
@@ -723,7 +723,7 @@ void BlockFormattingContext::compute_width_for_floating_box(Box const& box, Avai
 
     // 2. The tentative used width is greater than 'max-width', the rules above are applied again,
     //    but this time using the computed value of 'max-width' as the computed value for 'width'.
-    if (!should_treat_max_width_as_none(box, available_space.inline_size, containing_block_constraints)) {
+    if (!should_treat_max_inline_size_as_none(box, available_space.inline_size, containing_block_constraints)) {
         auto max_width = calculate_inner_inline_size(box, available_space.inline_size, computed_values.max_width(), containing_block_constraints);
         if (width.to_px_or_zero() > max_width)
             width = compute_width(CSS::Length::make_px(max_width));
@@ -770,7 +770,7 @@ void BlockFormattingContext::compute_width_for_block_level_replaced_element_in_n
 
 void BlockFormattingContext::resolve_used_height_if_not_treated_as_auto(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints)
 {
-    if (should_treat_height_as_auto(box, available_space, containing_block_constraints)) {
+    if (should_treat_block_size_as_auto(box, available_space, containing_block_constraints)) {
         return;
     }
 
@@ -779,7 +779,7 @@ void BlockFormattingContext::resolve_used_height_if_not_treated_as_auto(Box cons
 
     auto height = calculate_inner_block_size(box, available_space, box.computed_values().height(), containing_block_constraints);
 
-    if (!should_treat_max_height_as_none(box, available_space.block_size, containing_block_constraints)) {
+    if (!should_treat_max_block_size_as_none(box, available_space.block_size, containing_block_constraints)) {
         if (!computed_values.max_height().is_auto()) {
             auto max_height = calculate_inner_block_size(box, available_space, computed_values.max_height(), containing_block_constraints);
             height = min(height, max_height);
@@ -790,13 +790,13 @@ void BlockFormattingContext::resolve_used_height_if_not_treated_as_auto(Box cons
     }
 
     box_state.set_content_block_size(height);
-    if (computed_height_establishes_definite_containing_block_height(computed_values.height()))
+    if (computed_block_size_establishes_definite_containing_block_size(computed_values.height()))
         box_state.set_has_definite_block_size(true);
 }
 
 void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints, FormattingContext const* box_formatting_context)
 {
-    if (!should_treat_height_as_auto(box, available_space, containing_block_constraints)) {
+    if (!should_treat_block_size_as_auto(box, available_space, containing_block_constraints)) {
         return;
     }
 
@@ -814,7 +814,7 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
         }
     }
 
-    if (!should_treat_max_height_as_none(box, available_space.block_size, containing_block_constraints)) {
+    if (!should_treat_max_block_size_as_none(box, available_space.block_size, containing_block_constraints)) {
         if (!computed_values.max_height().is_auto()) {
             auto max_height = calculate_inner_block_size(box, available_space, computed_values.max_height(), containing_block_constraints);
             height = min(height, max_height);
@@ -905,7 +905,7 @@ void BlockFormattingContext::layout_inline_children(BlockContainer const& block_
             // Percentages are resolved against the width/height, as appropriate, of the box’s containing block.
             auto containing_block_width = layout_input.containing_block_constraints.percentage_basis_inline_size.value_or(0);
             auto available_width = AvailableSize::make_definite(containing_block_width);
-            if (!should_treat_max_width_as_none(block_container, available_space.inline_size, layout_input.containing_block_constraints)) {
+            if (!should_treat_max_inline_size_as_none(block_container, available_space.inline_size, layout_input.containing_block_constraints)) {
                 auto max_width_px = calculate_inner_inline_size(block_container, available_width, block_container.computed_values().max_width(), layout_input.containing_block_constraints);
                 if (used_width_px > max_width_px)
                     used_width_px = max_width_px;
@@ -1224,7 +1224,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         // For boxes with auto height but non-auto min-height, we need to determine if the content height is less than
         // min-height. If so, we run layout with min-height as the available height.
         Optional<CSSPixels> measured_content_height;
-        if (should_treat_height_as_auto(box, available_space, layout_input.containing_block_constraints) && !box.computed_values().min_height().is_auto()) {
+        if (should_treat_block_size_as_auto(box, available_space, layout_input.containing_block_constraints) && !box.computed_values().min_height().is_auto()) {
             auto content_block_size = measure_automatic_content_block_size(box, inner_available_space, layout_input.containing_block_constraints);
             measured_content_height = content_block_size;
             auto min_height = calculate_inner_block_size(box, available_space, box.computed_values().min_height(), layout_input.containing_block_constraints);
@@ -1350,7 +1350,7 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
             //       auto size in that axis (and no minimum or maximum size in that axis) and if its containing block
             //       was zero-sized in that axis.
             if (block_container_state.inline_size_constraint == SizeConstraint::None) {
-                if (!should_treat_max_width_as_none(block_container, available_space.inline_size, layout_input.containing_block_constraints)) {
+                if (!should_treat_max_inline_size_as_none(block_container, available_space.inline_size, layout_input.containing_block_constraints)) {
                     auto max_width = calculate_inner_inline_size(block_container, available_space.inline_size,
                         computed_values.max_width(), layout_input.containing_block_constraints);
                     width = min(width, max_width);
@@ -1418,7 +1418,7 @@ void BlockFormattingContext::layout_fieldset_with_rendered_legend(FieldSetBox co
         auto width = greatest_child_width(fieldset_box);
         auto const& computed_values = fieldset_box.computed_values();
         if (fieldset_state.inline_size_constraint == SizeConstraint::None) {
-            if (!should_treat_max_width_as_none(fieldset_box, available_space.inline_size, layout_input.containing_block_constraints)) {
+            if (!should_treat_max_inline_size_as_none(fieldset_box, available_space.inline_size, layout_input.containing_block_constraints)) {
                 auto max_width = calculate_inner_inline_size(fieldset_box, available_space.inline_size, computed_values.max_width(), layout_input.containing_block_constraints);
                 width = min(width, max_width);
             }

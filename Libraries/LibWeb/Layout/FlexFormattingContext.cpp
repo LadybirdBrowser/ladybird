@@ -2240,29 +2240,29 @@ CSSPixels FlexFormattingContext::calculate_main_max_content_contribution(FlexIte
 bool FlexFormattingContext::should_treat_main_size_as_auto(Box const& box) const
 {
     if (main_axis_is_horizontal())
-        return should_treat_width_as_auto(box, m_available_space_for_items->space);
-    return should_treat_height_as_auto(box, m_available_space_for_items->space, item_containing_block_constraints());
+        return should_treat_inline_size_as_auto(box, m_available_space_for_items->space);
+    return should_treat_block_size_as_auto(box, m_available_space_for_items->space, item_containing_block_constraints());
 }
 
 bool FlexFormattingContext::should_treat_cross_size_as_auto(Box const& box) const
 {
     if (cross_axis_is_horizontal())
-        return should_treat_width_as_auto(box, m_available_space_for_items->space);
-    return should_treat_height_as_auto(box, m_available_space_for_items->space, item_containing_block_constraints());
+        return should_treat_inline_size_as_auto(box, m_available_space_for_items->space);
+    return should_treat_block_size_as_auto(box, m_available_space_for_items->space, item_containing_block_constraints());
 }
 
 bool FlexFormattingContext::should_treat_main_max_size_as_none(Box const& box) const
 {
     if (main_axis_is_horizontal())
-        return should_treat_max_width_as_none(box, m_available_space_for_items->space.inline_size, item_containing_block_constraints());
-    return should_treat_max_height_as_none(box, m_available_space_for_items->space.block_size, item_containing_block_constraints());
+        return should_treat_max_inline_size_as_none(box, m_available_space_for_items->space.inline_size, item_containing_block_constraints());
+    return should_treat_max_block_size_as_none(box, m_available_space_for_items->space.block_size, item_containing_block_constraints());
 }
 
 bool FlexFormattingContext::should_treat_cross_max_size_as_none(Box const& box) const
 {
     if (cross_axis_is_horizontal())
-        return should_treat_max_width_as_none(box, m_available_space_for_items->space.inline_size, item_containing_block_constraints());
-    return should_treat_max_height_as_none(box, m_available_space_for_items->space.block_size, item_containing_block_constraints());
+        return should_treat_max_inline_size_as_none(box, m_available_space_for_items->space.inline_size, item_containing_block_constraints());
+    return should_treat_max_block_size_as_none(box, m_available_space_for_items->space.block_size, item_containing_block_constraints());
 }
 
 CSSPixels FlexFormattingContext::calculate_cross_min_content_contribution(FlexItem const& item, bool resolve_percentage_min_max_sizes) const
@@ -2328,10 +2328,10 @@ CSSPixels FlexFormattingContext::calculate_width_to_use_when_determining_intrins
     bool can_resolve_percentages = m_available_space_for_items->space.inline_size.is_definite();
 
     auto clamp_min = (!computed_min_width.is_auto() && (!computed_min_width.contains_percentage() || can_resolve_percentages)) ? get_pixel_width(item, computed_min_width) : 0;
-    auto clamp_max = (!should_treat_max_width_as_none(box, m_available_space_for_items->space.inline_size, item_containing_block_constraints()) && (!computed_max_width.contains_percentage() || can_resolve_percentages)) ? get_pixel_width(item, computed_max_width) : CSSPixels::max();
+    auto clamp_max = (!should_treat_max_inline_size_as_none(box, m_available_space_for_items->space.inline_size, item_containing_block_constraints()) && (!computed_max_width.contains_percentage() || can_resolve_percentages)) ? get_pixel_width(item, computed_max_width) : CSSPixels::max();
 
     CSSPixels width;
-    if (should_treat_width_as_auto(box, m_available_space_for_items->space) || computed_width.is_fit_content())
+    if (should_treat_inline_size_as_auto(box, m_available_space_for_items->space) || computed_width.is_fit_content())
         width = calculate_fit_content_inline_size(box, m_available_space_for_items->space, item_containing_block_constraints());
     else if (computed_width.is_min_content())
         width = calculate_min_content_inline_size(box, item_containing_block_constraints());

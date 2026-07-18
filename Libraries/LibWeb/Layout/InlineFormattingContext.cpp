@@ -457,7 +457,7 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
         // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
         // The axis in which the preferred size calculation depends on this aspect ratio is called the ratio-dependent
         // axis, and the resulting size is definite if its input sizes are also definite
-        auto const height_is_automatic = computed_values.height().is_auto() || should_treat_height_as_auto(box, *m_available_space, box_constraints);
+        auto const height_is_automatic = computed_values.height().is_auto() || should_treat_block_size_as_auto(box, *m_available_space, box_constraints);
         auto const height_resolved_from_aspect_ratio = box_state.has_definite_inline_size() && box.has_preferred_aspect_ratio() && height_is_automatic;
 
         if (height_resolved_from_aspect_ratio)
@@ -479,7 +479,7 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
 
     auto const& width_value = box.computed_values().width();
     CSSPixels unconstrained_width = 0;
-    if (should_treat_width_as_auto(box, *m_available_space)) {
+    if (should_treat_inline_size_as_auto(box, *m_available_space)) {
         if (m_available_space->inline_size.is_definite()) {
             auto available_width = m_available_space->inline_size.to_px_or_zero()
                 - box_state.margin_left
@@ -511,7 +511,7 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
     }
 
     CSSPixels width = unconstrained_width;
-    if (!should_treat_max_width_as_none(box, m_available_space->inline_size, box_constraints)) {
+    if (!should_treat_max_inline_size_as_none(box, m_available_space->inline_size, box_constraints)) {
         auto max_width = calculate_inner_inline_size(box, m_available_space->inline_size, box.computed_values().max_width(), box_constraints);
         width = min(width, max_width);
     }
@@ -535,7 +535,7 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
     auto child_layout_input = m_layout_input->for_child_formatting_context(box_state.available_inner_space_or_constraints_from(*m_available_space));
     auto independent_formatting_context = layout_inside(box, layout_mode, child_layout_input);
 
-    if (should_treat_height_as_auto(box, *m_available_space, box_constraints)) {
+    if (should_treat_block_size_as_auto(box, *m_available_space, box_constraints)) {
         // FIXME: (10.6.6) If 'height' is 'auto', the height depends on the element's descendants per 10.6.7.
         parent().resolve_used_height_if_treated_as_auto(box, *m_available_space, box_constraints);
     } else {

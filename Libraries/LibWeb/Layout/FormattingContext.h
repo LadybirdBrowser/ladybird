@@ -181,14 +181,14 @@ protected:
     void dimension_list_item_marker(ListItemMarkerBox const&);
     [[nodiscard]] static CSSPixels distance_between_marker_and_list_item(ListItemMarkerBox const&);
 
-    [[nodiscard]] static bool computed_height_establishes_definite_containing_block_height(CSS::Size const&);
+    [[nodiscard]] static bool computed_block_size_establishes_definite_containing_block_size(CSS::Size const&);
     [[nodiscard]] Optional<CSSPixels> calculate_transferred_inline_size_for_replaced_element(Layout::Box const&, ContainingBlockConstraints const&) const;
 
-    [[nodiscard]] bool should_treat_width_as_auto(Box const&, AvailableSpace const&) const;
-    [[nodiscard]] bool should_treat_height_as_auto(Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
+    [[nodiscard]] bool should_treat_inline_size_as_auto(Box const&, AvailableSpace const&) const;
+    [[nodiscard]] bool should_treat_block_size_as_auto(Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
 
-    [[nodiscard]] bool should_treat_max_width_as_none(Box const&, AvailableSize const&, ContainingBlockConstraints const&) const;
-    [[nodiscard]] bool should_treat_max_height_as_none(Box const&, AvailableSize const&, ContainingBlockConstraints const&) const;
+    [[nodiscard]] bool should_treat_max_inline_size_as_none(Box const&, AvailableSize const&, ContainingBlockConstraints const&) const;
+    [[nodiscard]] bool should_treat_max_block_size_as_none(Box const&, AvailableSize const&, ContainingBlockConstraints const&) const;
 
     [[nodiscard]] bool box_is_sized_as_replaced_element(Box const&, AvailableSpace const&, ContainingBlockConstraints const&) const;
 

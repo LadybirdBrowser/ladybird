@@ -69,7 +69,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
 
             if (block_context) {
                 auto& caption_state = m_state.get_mutable(child_box);
-                if (should_treat_height_as_auto(child_box, caption_available_space, m_participant_constraints)) {
+                if (should_treat_block_size_as_auto(child_box, caption_available_space, m_participant_constraints)) {
                     auto height = child_box.has_size_containment() ? 0 : caption_context->automatic_content_block_size();
                     caption_state.set_content_block_size(height);
                 }
@@ -637,11 +637,11 @@ void TableFormattingContext::compute_table_width()
         // of resolved-table-width, and the used min-width of the table.
         CSSPixels resolved_table_width = resolve_width_constraint_to_content_box(computed_values.width());
         used_width = max(resolved_table_width, used_min_width);
-        if (!should_treat_max_width_as_none(table_box(), m_available_space->inline_size, m_table_constraints))
+        if (!should_treat_max_inline_size_as_none(table_box(), m_available_space->inline_size, m_table_constraints))
             used_width = min(used_width, resolve_width_constraint_to_content_box(computed_values.max_width()));
     }
 
-    if (!should_treat_max_width_as_none(table_box(), m_available_space->inline_size, m_table_constraints))
+    if (!should_treat_max_inline_size_as_none(table_box(), m_available_space->inline_size, m_table_constraints))
         used_width = min(used_width, resolve_width_constraint_to_content_box(computed_values.max_width()));
     used_width = max(used_width, used_min_width);
 
