@@ -14,8 +14,8 @@ namespace Web::Layout {
 class TableGrid {
 public:
     struct GridPosition {
-        size_t x;
-        size_t y;
+        size_t column_index;
+        size_t row_index;
         inline bool operator==(GridPosition const&) const = default;
     };
 
@@ -109,7 +109,7 @@ template<>
 struct Traits<Web::Layout::TableGrid::GridPosition> : public DefaultTraits<Web::Layout::TableGrid::GridPosition> {
     static unsigned hash(Web::Layout::TableGrid::GridPosition const& key)
     {
-        return pair_int_hash(key.x, key.y);
+        return pair_int_hash(key.column_index, key.row_index);
     }
 };
 

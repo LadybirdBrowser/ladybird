@@ -1281,8 +1281,8 @@ void TableFormattingContext::position_row_boxes()
 
     CSSPixels row_top_offset = m_pending_table_box_content_offset_in_wrapper.y() + border_spacing_vertical();
     CSSPixels row_left_offset = table_state.border_left + table_state.padding_left + border_spacing_horizontal();
-    for (size_t y = 0; y < m_rows.size(); y++) {
-        auto& row = m_rows[y];
+    for (size_t row_index = 0; row_index < m_rows.size(); row_index++) {
+        auto& row = m_rows[row_index];
         auto& row_state = m_state.get_mutable(row.box);
         CSSPixels row_width = 0;
         for (auto& column : m_columns) {

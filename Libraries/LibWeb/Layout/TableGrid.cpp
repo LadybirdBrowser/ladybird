@@ -15,20 +15,20 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
     // Implements https://html.spec.whatwg.org/multipage/tables.html#forming-a-table
     TableGrid table_grid;
 
-    size_t x_width = 0;
-    size_t y_height = 0;
-    size_t y_current = 0;
-    size_t max_cell_x = 0;
-    size_t max_cell_y = 0;
+    size_t column_count = 0;
+    size_t row_count = 0;
+    size_t current_row = 0;
+    size_t maximum_cell_column_index = 0;
+    size_t maximum_cell_row_index = 0;
 
     // Implements https://html.spec.whatwg.org/multipage/tables.html#algorithm-for-processing-rows
-    auto process_row = [&table_grid, &cells, &rows, &x_width, &y_height, &y_current, &max_cell_x, &max_cell_y](Box const& row, Optional<Box&> row_group = {}) {
-        // 1. If yheight is equal to ycurrent, then increase yheight by 1. (ycurrent is never greater than yheight.)
-        if (y_height == y_current)
-            y_height++;
+    auto process_row = [&table_grid, &cells, &rows, &column_count, &row_count, &current_row, &maximum_cell_column_index, &maximum_cell_row_index](Box const& row, Optional<Box&> row_group = {}) {
+        // 1. If the row count equals the current row, increase the row count by 1.
+        if (row_count == current_row)
+            row_count++;
 
-        // 2. Let xcurrent be 0.
-        size_t x_current = 0;
+        // 2. Let the current column be 0.
+        size_t current_column = 0;
 
         // FIXME: 3. Run the algorithm for growing downward-growing cells.
 
@@ -45,14 +45,14 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
 
             auto& current_cell = const_cast<Box&>(*child_box);
 
-            // 6. Cells: While x_current is less than x_width and the slot with coordinate (x_current, y_current)
-            //    already has a cell assigned to it, increase x_current by 1.
-            while (x_current < x_width && table_grid.m_occupancy_grid.contains(GridPosition { x_current, y_current }))
-                x_current++;
+            // 6. Cells: While the current column is within the grid and its slot in the current row
+            //    already has a cell assigned to it, increase the current column by 1.
+            while (current_column < column_count && table_grid.m_occupancy_grid.contains(GridPosition { current_column, current_row }))
+                current_column++;
 
-            // 7. If xcurrent is equal to xwidth, increase xwidth by 1. (xcurrent is never greater than xwidth.)
-            if (x_current == x_width)
-                x_width++;
+            // 7. If the current column equals the column count, increase the column count by 1.
+            if (current_column == column_count)
+                column_count++;
 
             // NB: Steps 8 and 9 are implemented in HTMLTableCellElement.col_span() and HTMLTableCellElement.row_spam() respectively.
             size_t colspan = 1;
@@ -71,16 +71,16 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
                 rowspan = 1;
             }
 
-            // 12. If xwidth < xcurrent+colspan, then let xwidth be xcurrent+colspan.
-            if (x_width < x_current + colspan)
-                x_width = x_current + colspan;
+            // 12. Extend the column count to include the cell's column span.
+            if (column_count < current_column + colspan)
+                column_count = current_column + colspan;
 
-            // 13. If yheight < ycurrent+rowspan, then let yheight be ycurrent+rowspan.
-            if (y_height < y_current + rowspan)
-                y_height = y_current + rowspan;
+            // 13. Extend the row count to include the cell's row span.
+            if (row_count < current_row + rowspan)
+                row_count = current_row + rowspan;
 
-            // 14. Let the slots with coordinates (x, y) such that xcurrent ≤ x < xcurrent+colspan and
-            //     ycurrent ≤ y < ycurrent+rowspan be covered by a new cell c, anchored at (xcurrent, ycurrent),
+            // 14. Let the slots within the cell's column and row spans be covered by a new cell,
+            //     anchored at the current column and row,
             //     which has width colspan and height rowspan, corresponding to the current cell element.
             //     If the current cell element is a th element, let this new cell c be a header cell;
             //     otherwise, let it be a data cell.
@@ -89,20 +89,20 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
             //     If any of the slots involved already had a cell covering them, then this is a table model error.
             //     Those slots now have two cells overlapping.
             // NB: We don't distinguish between header and data cells here.
-            for (size_t y = y_current; y < y_current + rowspan; y++)
-                for (size_t x = x_current; x < x_current + colspan; x++)
-                    table_grid.m_occupancy_grid.set(GridPosition { x, y }, true);
-            cells.append(Cell { current_cell, x_current, y_current, colspan, rowspan });
-            max_cell_x = max(x_current, max_cell_x);
-            max_cell_y = max(y_current, max_cell_y);
+            for (size_t row_index = current_row; row_index < current_row + rowspan; row_index++)
+                for (size_t column_index = current_column; column_index < current_column + colspan; column_index++)
+                    table_grid.m_occupancy_grid.set(GridPosition { column_index, row_index }, true);
+            cells.append(Cell { current_cell, current_column, current_row, colspan, rowspan });
+            maximum_cell_column_index = max(current_column, maximum_cell_column_index);
+            maximum_cell_row_index = max(current_row, maximum_cell_row_index);
 
-            // 15. If cell grows downward is true, then add the tuple {c, xcurrent, colspan} to the list of downward-growing cells.
+            // 15. If cell grows downward is true, add the cell, current column, and column span to the list of downward-growing cells.
             if (cell_grows_downward) {
                 // FIXME: Add the tuple.
             }
 
-            // 16. Increase xcurrent by colspan.
-            x_current += colspan;
+            // 16. Increase the current column by the column span.
+            current_column += colspan;
 
             // NB: Step 17 is handled below, outside of this loop.
 
@@ -112,13 +112,13 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
         }
 
         // 17. If current cell is the last td or th element child in the tr element being processed, then increase
-        //    ycurrent by 1, abort this set of steps, and return to the algorithm above.
+        //    the current row by 1, abort this set of steps, and return to the algorithm above.
         rows.append(Row {
             .box = row,
             .is_collapsed = row.computed_values().visibility() == CSS::Visibility::Collapse
                 || (row_group.has_value() && row_group->computed_values().visibility() == CSS::Visibility::Collapse),
         });
-        y_current++;
+        current_row++;
     };
 
     auto process_col_group = [&](auto& col_group) {
@@ -127,7 +127,7 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
                 u32 span = 1;
                 if (auto const* col_element = as_if<HTML::HTMLTableColElement>(descendant_box.dom_node()))
                     span = col_element->span();
-                x_width += span;
+                column_count += span;
             }
             return TraversalDecision::Continue;
         });
@@ -152,7 +152,7 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
         return IterationDecision::Continue;
     });
 
-    table_grid.m_column_count = x_width;
+    table_grid.m_column_count = column_count;
 
     for (auto& cell : cells) {
         // Clip spans to the end of the table.
