@@ -143,6 +143,11 @@ struct LayoutState {
         bool is_materialized_from_paintable() const { return m_materialized_from_paintable; }
 
         CSSPixelPoint content_offset() const { return m_content_offset.value_or({}); }
+        LogicalOffset content_logical_offset() const
+        {
+            auto offset = content_offset();
+            return { offset.x(), offset.y() };
+        }
 
         bool is_placed() const { return m_content_offset.has_value(); }
 

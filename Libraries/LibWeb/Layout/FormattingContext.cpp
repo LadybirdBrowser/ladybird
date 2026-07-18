@@ -743,7 +743,7 @@ CSSPixels FormattingContext::compute_automatic_block_size_for_block_formatting_c
             if (!child_box_state)
                 return IterationDecision::Continue;
 
-            CSSPixels child_box_bottom = child_box_state->content_offset().y() + child_box_state->content_block_size() + child_box_state->margin_box_bottom();
+            CSSPixels child_box_bottom = child_box_state->content_logical_offset().block_offset + child_box_state->content_block_size() + child_box_state->margin_box_bottom();
 
             if (!bottom.has_value() || child_box_bottom > bottom.value())
                 bottom = child_box_bottom;
@@ -3382,7 +3382,7 @@ void FormattingContext::compute_and_store_baselines(LayoutState::UsedValues& use
             VERIFY(line_box.fragments().size() == 1);
             auto const& block_child = as<Box>(line_box.fragments().first().layout_node());
             auto const& block_child_state = m_state.get(block_child);
-            auto child_offset_from_margin_edge = block_child_state.content_offset().y() - block_child_state.margin_box_top();
+            auto child_offset_from_margin_edge = block_child_state.content_logical_offset().block_offset - block_child_state.margin_box_top();
             return child_offset_from_margin_edge + box_baseline(block_child, baseline_set);
         };
 
@@ -3420,7 +3420,7 @@ void FormattingContext::compute_and_store_baselines(LayoutState::UsedValues& use
             auto const& child_baseline = deriving_first_baseline ? child_state->first_baseline : child_state->last_baseline;
             if (!child_baseline.has_value())
                 continue;
-            auto child_offset_from_margin_edge = child_state->content_offset().y() - child_state->margin_box_top();
+            auto child_offset_from_margin_edge = child_state->content_logical_offset().block_offset - child_state->margin_box_top();
             return child_offset_from_margin_edge + box_baseline(*child_box, baseline_set);
         }
         return {};

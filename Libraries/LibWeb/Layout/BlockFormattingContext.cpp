@@ -1006,7 +1006,7 @@ CSSPixels BlockFormattingContext::compute_automatic_block_size_for_block_level_e
                 margin_bottom = 0;
             }
 
-            return max(CSSPixels(0), child_box_state.content_offset().y() + child_box_state.content_block_size() + child_box_state.border_box_bottom() + margin_bottom);
+            return max(CSSPixels(0), child_box_state.content_logical_offset().block_offset + child_box_state.content_block_size() + child_box_state.border_box_bottom() + margin_bottom);
         }
 
         // If no in-flow children were found but there's a marker, use the marker's line-height.
@@ -1304,7 +1304,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         if (!m_margin_state.box_last_in_flow_child_margin_bottom_collapsed()) {
             m_margin_state.reset();
         }
-        m_block_offset_of_current_block_container = box_state.content_offset().y() + box_state.content_block_size() + box_state.border_box_bottom();
+        m_block_offset_of_current_block_container = box_state.content_logical_offset().block_offset + box_state.content_block_size() + box_state.border_box_bottom();
     }
     m_margin_state.set_box_last_in_flow_child_margin_bottom_collapsed(false);
 
@@ -1313,7 +1313,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
     compute_inset(box, content_box_rect(block_container_state).size());
 
-    bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, box_state.content_offset().y() + box_state.content_block_size() + box_state.margin_box_bottom());
+    bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, box_state.content_logical_offset().block_offset + box_state.content_block_size() + box_state.margin_box_bottom());
 
     if (independent_formatting_context)
         independent_formatting_context->parent_context_did_dimension_child_root_box();
