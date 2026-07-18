@@ -29,6 +29,7 @@
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -4074,6 +4075,24 @@ void LocalNavigable::paste(Utf16View text)
         return;
 
     m_event_handler.handle_paste(text);
+}
+
+void LocalNavigable::undo()
+{
+    auto document = active_document();
+    if (!document)
+        return;
+
+    (void)m_event_handler.perform_history_action(*document, Editing::HistoryAction::Undo);
+}
+
+void LocalNavigable::redo()
+{
+    auto document = active_document();
+    if (!document)
+        return;
+
+    (void)m_event_handler.perform_history_action(*document, Editing::HistoryAction::Redo);
 }
 
 void LocalNavigable::set_marked_text_from_input_method(Utf16View text)

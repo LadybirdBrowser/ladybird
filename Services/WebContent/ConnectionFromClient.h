@@ -208,6 +208,8 @@ private:
     virtual Messages::WebContentServer::SelectWordForDictionaryLookupResponse select_word_for_dictionary_lookup(u64 page_id, Web::DevicePixelPoint position) override;
     virtual Messages::WebContentServer::CutSelectedTextResponse cut_selected_text(u64 page_id) override;
     virtual void select_all(u64 page_id) override;
+    virtual void undo(u64 page_id) override;
+    virtual void redo(u64 page_id) override;
 
     virtual void find_in_page(u64 page_id, Utf16String query, CaseSensitivity) override;
     virtual void find_in_page_next_match(u64 page_id) override;

@@ -166,6 +166,8 @@ public:
     Optional<DictionaryLookup> selected_text_for_dictionary_lookup();
     bool look_up_selected_text_at(Gfx::IntPoint widget_position);
     void select_all();
+    void undo();
+    void redo();
     void find_in_page(Utf16String const& query, CaseSensitivity = CaseSensitivity::CaseInsensitive);
     void find_in_page_next_match();
     void find_in_page_previous_match();

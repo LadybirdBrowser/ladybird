@@ -2168,6 +2168,20 @@ void ConnectionFromClient::select_all(u64 page_id)
         page->page().focused_navigable().select_all();
 }
 
+void ConnectionFromClient::undo(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().focused_navigable().undo();
+    update_input_method_state(page_id);
+}
+
+void ConnectionFromClient::redo(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().focused_navigable().redo();
+    update_input_method_state(page_id);
+}
+
 void ConnectionFromClient::find_in_page(u64 page_id, Utf16String query, CaseSensitivity case_sensitivity)
 {
     auto page = this->page(page_id);

@@ -767,6 +767,16 @@ void ViewImplementation::select_all()
     client().async_select_all(page_id());
 }
 
+void ViewImplementation::undo()
+{
+    client().async_undo(page_id());
+}
+
+void ViewImplementation::redo()
+{
+    client().async_redo(page_id());
+}
+
 void ViewImplementation::find_in_page(Utf16String const& query, CaseSensitivity case_sensitivity)
 {
     client().async_find_in_page(page_id(), query, case_sensitivity);

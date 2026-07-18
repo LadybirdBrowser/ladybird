@@ -224,6 +224,8 @@ public:
 
     Action& reload_action() { return *m_reload_action; }
     Action& copy_selection_action() { return *m_copy_selection_action; }
+    Action& undo_action() { return *m_undo_action; }
+    Action& redo_action() { return *m_redo_action; }
     Action& cut_selection_action() { return *m_cut_selection_action; }
     Action& paste_action() { return *m_paste_action; }
     Action& select_all_action() { return *m_select_all_action; }
@@ -437,6 +439,8 @@ private:
 
     RefPtr<Action> m_reload_action;
     RefPtr<Action> m_copy_selection_action;
+    RefPtr<Action> m_undo_action;
+    RefPtr<Action> m_redo_action;
     RefPtr<Action> m_cut_selection_action;
     RefPtr<Action> m_paste_action;
     RefPtr<Action> m_select_all_action;

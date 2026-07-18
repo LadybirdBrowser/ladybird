@@ -316,6 +316,10 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     auto* edit_menu = m_hamburger_menu->addMenu("&Edit");
     menuBar()->addMenu(edit_menu);
 
+    edit_menu->addAction(create_application_action(*this, application.undo_action(), IncludeActionIcon::No));
+    edit_menu->addAction(create_application_action(*this, application.redo_action(), IncludeActionIcon::No));
+    edit_menu->addSeparator();
+
     edit_menu->addAction(create_application_action(*this, application.cut_selection_action(), IncludeActionIcon::No));
     edit_menu->addAction(create_application_action(*this, application.copy_selection_action(), IncludeActionIcon::No));
     edit_menu->addAction(create_application_action(*this, application.paste_action(), IncludeActionIcon::No));

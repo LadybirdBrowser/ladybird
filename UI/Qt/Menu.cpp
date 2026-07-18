@@ -182,6 +182,12 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_J));
         break;
 
+    case WebView::ActionID::Undo:
+        qaction.setShortcut(QKeySequence::StandardKey::Undo);
+        break;
+    case WebView::ActionID::Redo:
+        qaction.setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Redo));
+        break;
     case WebView::ActionID::CopySelection:
         qaction.setShortcut(QKeySequence::StandardKey::Copy);
         break;

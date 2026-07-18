@@ -245,6 +245,8 @@ public:
     Utf16String cut_selected_text() const;
     void select_all();
     void paste(Utf16View);
+    void undo();
+    void redo();
     void set_marked_text_from_input_method(Utf16View text);
     void commit_text_from_input_method(Utf16View text, i32 replacement_start = 0, i32 replacement_length = 0);
     void unmark_text_from_input_method();

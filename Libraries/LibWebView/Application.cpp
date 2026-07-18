@@ -1739,6 +1739,14 @@ void Application::initialize_actions()
             view->reload();
     });
 
+    m_undo_action = Action::create("Undo"sv, ActionID::Undo, [this]() {
+        if (auto view = active_web_view(); view.has_value())
+            view->undo();
+    });
+    m_redo_action = Action::create("Redo"sv, ActionID::Redo, [this]() {
+        if (auto view = active_web_view(); view.has_value())
+            view->redo();
+    });
     m_copy_selection_action = Action::create("Copy"sv, ActionID::CopySelection, [this]() {
         if (auto view = active_web_view(); view.has_value()) {
             if (auto text = view->selected_text(); !text.is_empty())

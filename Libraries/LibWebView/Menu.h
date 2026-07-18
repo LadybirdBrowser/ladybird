@@ -31,6 +31,8 @@ enum class ActionID {
     ViewHistory,
     ClearBrowsingData,
 
+    Undo,
+    Redo,
     CopySelection,
     CutSelection,
     Paste,

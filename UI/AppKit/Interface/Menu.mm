@@ -40,6 +40,12 @@
 
     if (![[[NSApp keyWindow] firstResponder] isKindOfClass:[LadybirdWebView class]]) {
         switch (action->id()) {
+        case WebView::ActionID::Undo:
+            [NSApp sendAction:@selector(undo:) to:nil from:sender];
+            return;
+        case WebView::ActionID::Redo:
+            [NSApp sendAction:@selector(redo:) to:nil from:sender];
+            return;
         case WebView::ActionID::CopySelection:
             [NSApp sendAction:@selector(copy:) to:nil from:sender];
             return;
@@ -239,6 +245,15 @@ static void initialize_native_icon(WebView::Action& action, id control)
         [control setKeyEquivalentModifierMask:NSEventModifierFlagCommand | NSEventModifierFlagShift];
         break;
 
+    case WebView::ActionID::Undo:
+        set_control_image(control, @"arrow.uturn.backward");
+        [control setKeyEquivalent:@"z"];
+        break;
+    case WebView::ActionID::Redo:
+        set_control_image(control, @"arrow.uturn.forward");
+        [control setKeyEquivalent:@"z"];
+        [control setKeyEquivalentModifierMask:NSEventModifierFlagCommand | NSEventModifierFlagShift];
+        break;
     case WebView::ActionID::CopySelection:
         set_control_image(control, @"document.on.document");
         [control setKeyEquivalent:@"c"];
