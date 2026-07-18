@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Core undo/redo semantics for user editing in contenteditable, driven through execCommand().
+    // The expected values in the assertions below were derived by driving Chromium 146 through
+    // WebDriver with an equivalent fixture and recording the DOM, selection endpoints, selection
+    // direction, input events, and queryCommandEnabled() state after every interaction.
+    test(() => {
+        const sel = getSelection();
+        const events = [];
+        let host = null;
+
+        function newHost(html) {
+            if (host)
+                host.remove();
+            host = document.createElement("div");
+            host.contentEditable = "true";
+            host.innerHTML = html;
+            document.body.appendChild(host);
+            for (const type of ["beforeinput", "input"]) {
+                host.addEventListener(type, e => {
+                    events.push(`${type}:${e.inputType}:data=${JSON.stringify(e.data ?? null)}:cancelable=${e.cancelable}`);
+                });
+            }
+            host.focus();
+            return host;
+        }
+        function path(node) {
+            if (!node)
+                return "null";
+            const segs = [];
+            let n = node;
+            while (n && n !== host) {
+                const p = n.parentNode;
+                if (!p)
+                    return "(detached)" + node.nodeName;
+                segs.unshift(Array.prototype.indexOf.call(p.childNodes, n));
+                n = p;
+            }
+            return (n === host ? "host/" : "(outside)/") + segs.join("/") + ":" + node.nodeName;
+        }
+        function selectionString() {
+            if (!sel.anchorNode)
+                return "(none)";
+            return `${path(sel.anchorNode)}@${sel.anchorOffset}->${path(sel.focusNode)}@${sel.focusOffset}`;
+        }
+        function expect(condition, label, detail) {
+            println(`${condition ? "PASS" : "FAIL"}: ${label}${condition || detail === undefined ? "" : ` (${detail})`}`);
+        }
+        function expectState(label, html, selection) {
+            expect(host.innerHTML === html, `${label} DOM`, `expected ${JSON.stringify(html)} got ${JSON.stringify(host.innerHTML)}`);
+            if (selection !== undefined)
+                expect(selectionString() === selection, `${label} selection`, `expected ${selection} got ${selectionString()}`);
+        }
+        function expectEnabled(label, undo, redo) {
+            const gotUndo = document.queryCommandEnabled("undo");
+            const gotRedo = document.queryCommandEnabled("redo");
+            expect(gotUndo === undo && gotRedo === redo, `${label} canUndo=${undo} canRedo=${redo}`, `got canUndo=${gotUndo} canRedo=${gotRedo}`);
+        }
+        function expectEvents(label, expected) {
+            const got = events.splice(0);
+            expect(got.join(" ") === expected.join(" "), `${label} events`, `expected [${expected}] got [${got}]`);
+        }
+        function drainEvents() {
+            events.length = 0;
+        }
+
+        println("== insertText undo/redo round trip ==");
+        newHost("");
+        sel.collapse(host, 0);
+        expectEnabled("fresh host", false, false);
+        document.execCommand("insertText", false, "x");
+        expectState("after insertText", "x", "host/0:#text@1->host/0:#text@1");
+        expectEnabled("after insertText", true, false);
+        drainEvents();
+        expect(document.execCommand("undo") === true, "execCommand undo returns true");
+        expectState("after undo", "", "host:DIV@0->host:DIV@0");
+        expectEnabled("after undo", false, true);
+        // INTEROP: Chromium fires only an input event (no beforeinput) for execCommand("undo").
+        expectEvents("after undo", ["input:historyUndo:data=null:cancelable=false"]);
+        expect(document.execCommand("redo") === true, "execCommand redo returns true");
+        expectState("after redo", "x", "host/0:#text@1->host/0:#text@1");
+        expectEnabled("after redo", true, false);
+        expectEvents("after redo", ["input:historyRedo:data=null:cancelable=false"]);
+
+        println("== empty history: execCommand returns false, no events ==");
+        newHost("");
+        sel.collapse(host, 0);
+        drainEvents();
+        expect(document.execCommand("undo") === false, "undo on empty history returns false");
+        expect(document.execCommand("redo") === false, "redo on empty history returns false");
+        expectEvents("empty history", []);
+
+        println("== a new edit after undo discards the redo stack ==");
+        newHost("");
+        sel.collapse(host, 0);
+        document.execCommand("insertText", false, "a");
+        document.execCommand("undo");
+        document.execCommand("insertText", false, "b");
+        expectEnabled("after new edit", true, false);
+        expect(document.execCommand("redo") === false, "redo after new edit returns false");
+        expectState("redo did nothing", "b");
+
+        println("== repeated undo at the beginning and redo at the end ==");
+        newHost("");
+        sel.collapse(host, 0);
+        document.execCommand("insertText", false, "a");
+        document.execCommand("undo");
+        expect(document.execCommand("undo") === false, "second undo returns false");
+        expectState("exhausted undo", "");
+        document.execCommand("redo");
+        expect(document.execCommand("redo") === false, "second redo returns false");
+        expectState("exhausted redo", "a");
+
+        println("== replacing a selection with typed text restores it on undo ==");
+        newHost("hello world");
+        sel.setBaseAndExtent(host.firstChild, 6, host.firstChild, 11);
+        document.execCommand("insertText", false, "x");
+        expectState("after replace", "hello x", "host/0:#text@7->host/0:#text@7");
+        document.execCommand("undo");
+        expectState("undo restores forward selection", "hello world", "host/0:#text@6->host/0:#text@11");
+        document.execCommand("redo");
+        expectState("redo restores caret", "hello x", "host/0:#text@7->host/0:#text@7");
+
+        println("== backward selection direction is restored on undo ==");
+        newHost("hello");
+        sel.setBaseAndExtent(host.firstChild, 4, host.firstChild, 1);
+        document.execCommand("insertText", false, "x");
+        expectState("after replace", "hxo", "host/0:#text@2->host/0:#text@2");
+        document.execCommand("undo");
+        expectState("undo restores backward selection", "hello", "host/0:#text@4->host/0:#text@1");
+
+        println("== deleting a paragraph boundary and undoing it ==");
+        newHost("<div>foo</div><div>bar</div>");
+        sel.collapse(host.lastChild.firstChild, 0);
+        document.execCommand("delete");
+        expectState("after merge", "<div>foobar</div>");
+        document.execCommand("undo");
+        expectState("undo restores paragraphs", "<div>foo</div><div>bar</div>");
+        document.execCommand("redo");
+        expectState("redo merges again", "<div>foobar</div>");
+
+        println("== insertParagraph and insertLineBreak undo/redo ==");
+        newHost("hello");
+        sel.collapse(host.firstChild, 3);
+        document.execCommand("insertLineBreak");
+        expectState("after line break", "hel<br>lo");
+        document.execCommand("undo");
+        expectState("undo removes line break", "hello", "host/0:#text@3->host/0:#text@3");
+        document.execCommand("redo");
+        expectState("redo re-inserts line break", "hel<br>lo");
+
+        newHost("<div>hello</div>");
+        sel.collapse(host.firstChild.firstChild, 3);
+        document.execCommand("insertParagraph");
+        expectState("after paragraph split", "<div>hel</div><div>lo</div>");
+        document.execCommand("undo");
+        expectState("undo merges paragraph back", "<div>hello</div>", "host/0/0:#text@3->host/0/0:#text@3");
+        document.execCommand("redo");
+        expectState("redo splits paragraph again", "<div>hel</div><div>lo</div>");
+
+        println("== edits spanning adjacent styled text nodes ==");
+        newHost("<b>bold</b>plain");
+        sel.setBaseAndExtent(host.firstChild.firstChild, 2, host.lastChild, 2);
+        document.execCommand("delete");
+        expectState("after styled-boundary delete", "<b>bo</b>ain");
+        document.execCommand("undo");
+        expectState("undo restores styled runs", "<b>bold</b>plain", "host/0/0:#text@2->host/1:#text@2");
+        document.execCommand("redo");
+        expectState("redo deletes styled runs again", "<b>bo</b>ain");
+
+        println("== undo of a node-removing edit re-inserts the original node ==");
+        newHost('a<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">b');
+        const img = host.querySelector("img");
+        sel.collapse(host, 2);
+        document.execCommand("delete");
+        expect(host.querySelector("img") === null, "delete removed the image");
+        document.execCommand("undo");
+        expect(host.querySelector("img") === img, "undo re-inserted the same image node object");
+        document.execCommand("redo");
+        expect(host.querySelector("img") === null, "redo removed the image again");
+        document.execCommand("undo");
+        expect(host.querySelector("img") === img, "second undo still re-inserts the same node object");
+
+        println("== formatting commands participate in history ==");
+        newHost("hello world");
+        sel.setBaseAndExtent(host.firstChild, 0, host.firstChild, 5);
+        document.execCommand("bold");
+        expectState("after bold", "<b>hello</b> world");
+        document.execCommand("undo");
+        expectState("undo removes bold", "hello world", "host/0:#text@0->host/0:#text@5");
+        document.execCommand("redo");
+        expectState("redo restores bold", "<b>hello</b> world");
+        document.execCommand("undo");
+
+        println("== script-driven DOM mutations do not enter the history ==");
+        newHost("");
+        sel.collapse(host, 0);
+        document.execCommand("insertText", false, "a");
+        host.appendChild(document.createTextNode("Z"));
+        document.execCommand("undo");
+        expectState("undo removed only the edit", "Z");
+        expectEnabled("script mutation recorded nothing", false, true);
+
+        println("== undo after script removed the edited node is a safe no-op ==");
+        newHost("");
+        sel.collapse(host, 0);
+        document.execCommand("insertText", false, "a");
+        host.firstChild.remove();
+        document.execCommand("undo");
+        expectState("undo on mangled DOM changed nothing", "");
+        expectEnabled("entry was still consumed", false, true);
+        document.execCommand("redo");
+        println(`redo on mangled DOM produced: ${JSON.stringify(host.innerHTML)}`);
+
+        println("== multiple editing hosts share one history stack ==");
+        newHost("");
+        const hostA = host;
+        const hostB = document.createElement("div");
+        hostB.contentEditable = "true";
+        document.body.appendChild(hostB);
+        hostA.focus();
+        sel.collapse(hostA, 0);
+        document.execCommand("insertText", false, "a");
+        hostB.focus();
+        sel.collapse(hostB, 0);
+        document.execCommand("insertText", false, "b");
+        document.execCommand("undo");
+        expect(hostA.innerHTML === "a" && hostB.innerHTML === "", "first undo reverts the most recent host", `got A=${JSON.stringify(hostA.innerHTML)} B=${JSON.stringify(hostB.innerHTML)}`);
+        document.execCommand("undo");
+        expect(hostA.innerHTML === "" && hostB.innerHTML === "", "second undo reverts the older host", `got A=${JSON.stringify(hostA.innerHTML)} B=${JSON.stringify(hostB.innerHTML)}`);
+        document.execCommand("redo");
+        expect(hostA.innerHTML === "a" && hostB.innerHTML === "", "first redo replays the older host", `got A=${JSON.stringify(hostA.innerHTML)} B=${JSON.stringify(hostB.innerHTML)}`);
+        document.execCommand("redo");
+        expect(hostA.innerHTML === "a" && hostB.innerHTML === "b", "second redo replays the newer host", `got A=${JSON.stringify(hostA.innerHTML)} B=${JSON.stringify(hostB.innerHTML)}`);
+        hostB.remove();
+
+        println("== removing an editing host retires its history entries ==");
+        newHost("");
+        sel.collapse(host, 0);
+        document.execCommand("insertText", false, "a");
+        expectEnabled("before host removal", true, false);
+        newHost(""); // newHost() removes the previous host element.
+        sel.collapse(host, 0);
+        expectEnabled("after host removal", false, false);
+    });
+</script>

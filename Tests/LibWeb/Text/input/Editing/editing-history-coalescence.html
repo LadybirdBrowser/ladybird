@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Typing and deletion coalescence for the editing history, matching Chromium's undo grouping.
+    // Expected values derived from driving Chromium 146 with WebDriver over the same interactions.
+    // Undo is driven through execCommand() so this file does not depend on keyboard shortcuts.
+    test(() => {
+        const sel = getSelection();
+        let host = null;
+
+        function newHost(html) {
+            if (host)
+                host.remove();
+            host = document.createElement("div");
+            host.contentEditable = "true";
+            host.innerHTML = html;
+            document.body.appendChild(host);
+            host.focus();
+            return host;
+        }
+        function path(node) {
+            if (!node)
+                return "null";
+            const segs = [];
+            let n = node;
+            while (n && n !== host) {
+                const p = n.parentNode;
+                if (!p)
+                    return "(detached)" + node.nodeName;
+                segs.unshift(Array.prototype.indexOf.call(p.childNodes, n));
+                n = p;
+            }
+            return (n === host ? "host/" : "(outside)/") + segs.join("/") + ":" + node.nodeName;
+        }
+        function selectionString() {
+            if (!sel.anchorNode)
+                return "(none)";
+            return `${path(sel.anchorNode)}@${sel.anchorOffset}->${path(sel.focusNode)}@${sel.focusOffset}`;
+        }
+        function expect(condition, label, detail) {
+            println(`${condition ? "PASS" : "FAIL"}: ${label}${condition || detail === undefined ? "" : ` (${detail})`}`);
+        }
+        function expectState(label, html, selection) {
+            expect(host.innerHTML === html, `${label} DOM`, `expected ${JSON.stringify(html)} got ${JSON.stringify(host.innerHTML)}`);
+            if (selection !== undefined)
+                expect(selectionString() === selection, `${label} selection`, `expected ${selection} got ${selectionString()}`);
+        }
+
+        println("== a typed run coalesces into one undo unit ==");
+        newHost("");
+        sel.collapse(host, 0);
+        internals.sendText(host, "abc");
+        expectState("after typing", "abc");
+        document.execCommand("undo");
+        expectState("one undo removes the whole run", "", "host:DIV@0->host:DIV@0");
+        document.execCommand("redo");
+        expectState("one redo restores the whole run", "abc", "host/0:#text@3->host/0:#text@3");
+
+        println("== caret movement breaks typing coalescence ==");
+        newHost("");
+        sel.collapse(host, 0);
+        internals.sendText(host, "ab");
+        internals.sendKey(host, "Left");
+        internals.sendKey(host, "Right");
+        internals.sendText(host, "c");
+        document.execCommand("undo");
+        expectState("undo removes only the second run", "ab", "host/0:#text@2->host/0:#text@2");
+        document.execCommand("undo");
+        expectState("second undo removes the first run", "");
+
+        println("== programmatic selection change breaks coalescence even at the same position ==");
+        newHost("");
+        sel.collapse(host, 0);
+        internals.sendText(host, "ab");
+        sel.collapse(host.firstChild, 2);
+        internals.sendText(host, "c");
+        document.execCommand("undo");
+        expectState("undo removes only the post-collapse run", "ab");
+        document.execCommand("undo");
+        expectState("second undo removes the first run", "");
+
+        println("== a backspace run coalesces and undo selects the restored text ==");
+        newHost("abcdef");
+        sel.collapse(host.firstChild, 6);
+        internals.sendKey(host, "Backspace");
+        internals.sendKey(host, "Backspace");
+        internals.sendKey(host, "Backspace");
+        expectState("after backspaces", "abc");
+        document.execCommand("undo");
+        expectState("one undo restores all deleted text", "abcdef", "host/0:#text@6->host/0:#text@3");
+        document.execCommand("redo");
+        expectState("one redo deletes it again", "abc", "host/0:#text@3->host/0:#text@3");
+
+        println("== a forward-delete run coalesces separately ==");
+        newHost("abcdef");
+        sel.collapse(host.firstChild, 0);
+        internals.sendKey(host, "Delete");
+        internals.sendKey(host, "Delete");
+        expectState("after forward deletes", "cdef");
+        document.execCommand("undo");
+        expectState("one undo restores both characters", "abcdef", "host/0:#text@0->host/0:#text@1");
+        document.execCommand("redo");
+        expectState("one redo deletes them again", "cdef", "host/0:#text@0->host/0:#text@0");
+
+        println("== backspace starts a new unit after typing, but typing joins a delete unit ==");
+        newHost("");
+        sel.collapse(host, 0);
+        internals.sendText(host, "abc");
+        internals.sendKey(host, "Backspace");
+        internals.sendText(host, "d");
+        expectState("after type/backspace/type", "abd");
+        document.execCommand("undo");
+        expectState("undo reverts backspace and following text as one unit", "abc", "host/0:#text@3->host/0:#text@2");
+        document.execCommand("undo");
+        expectState("second undo reverts the typed run", "");
+        expect(document.execCommand("undo") === false, "no third unit exists");
+
+        println("== paragraph insertion joins a typing run ==");
+        newHost("<div>hello</div>");
+        sel.collapse(host.firstChild.firstChild, 3);
+        internals.sendKey(host, "Return");
+        internals.sendText(host, "x");
+        expectState("after enter and typing", "<div>hel</div><div>xlo</div>");
+        document.execCommand("undo");
+        expectState("one undo reverts the split and the typing", "<div>hello</div>", "host/0/0:#text@3->host/0/0:#text@3");
+        expect(document.execCommand("undo") === false, "enter and typing were one unit");
+
+        println("== typing that removes a placeholder closes the open unit ==");
+        // INTEROP: Chromium closes an open typing unit when a node near the selection is removed,
+        //          so typing into a fresh '<div><br></div>' paragraph (which removes the placeholder
+        //          br) ends the unit; the next character starts a new one.
+        newHost("");
+        sel.collapse(host, 0);
+        internals.sendText(host, "ab");
+        internals.sendKey(host, "Return");
+        internals.sendText(host, "cd");
+        expectState("after typing into the new paragraph", "ab<div>cd</div>");
+        document.execCommand("undo");
+        expectState("undo removes only the character typed after the placeholder was removed", "ab<div>c</div>");
+        document.execCommand("undo");
+        expectState("second undo reverts the rest", "");
+
+        println("== replacing a selection then typing extends the same unit ==");
+        newHost("hello world");
+        sel.setBaseAndExtent(host.firstChild, 6, host.firstChild, 11);
+        internals.sendText(host, "x");
+        internals.sendText(host, "yz");
+        expectState("after replacing and typing", "hello xyz");
+        document.execCommand("undo");
+        expectState("one undo restores the replaced selection", "hello world", "host/0:#text@6->host/0:#text@11");
+        document.execCommand("redo");
+        expectState("one redo replays the whole unit", "hello xyz", "host/0:#text@9->host/0:#text@9");
+
+        println("== script execCommand insertText coalesces like typing ==");
+        newHost("");
+        sel.collapse(host, 0);
+        document.execCommand("insertText", false, "x");
+        document.execCommand("insertText", false, "y");
+        document.execCommand("undo");
+        expectState("one undo removes both insertions", "");
+
+        println("== formatting breaks a typing run ==");
+        newHost("hello world");
+        sel.setBaseAndExtent(host.firstChild, 0, host.firstChild, 5);
+        document.execCommand("bold");
+        sel.collapse(host.firstChild.firstChild, 5);
+        internals.sendText(host, "x");
+        expectState("after bold and typing", "<b>hellox</b> world");
+        document.execCommand("undo");
+        expectState("undo removes only the typed character", "<b>hello</b> world", "host/0/0:#text@5->host/0/0:#text@5");
+        document.execCommand("undo");
+        expectState("second undo removes the formatting", "hello world", "host/0:#text@0->host/0:#text@5");
+
+        println("== script DOM mutation elsewhere does not break coalescence ==");
+        newHost("");
+        sel.collapse(host, 0);
+        internals.sendText(host, "a");
+        host.appendChild(document.createTextNode("Z"));
+        internals.sendText(host, "b");
+        expectState("after typing around the script mutation", "abZ");
+        document.execCommand("undo");
+        expectState("one undo reverts both characters and keeps the script node", "Z");
+        expect(document.execCommand("undo") === false, "the script mutation was not recorded");
+    });
+</script>

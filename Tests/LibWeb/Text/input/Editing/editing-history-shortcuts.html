@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Keyboard undo/redo shortcuts and the historyUndo/historyRedo input events.
+    // Expected values derived from driving Chromium 146 with WebDriver over the same interactions.
+    // Ctrl and Super are both set so the platform primary modifier matches everywhere.
+    test(() => {
+        const modCtrl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const modCtrlShift = modCtrl | internals.MOD_SHIFT;
+        const sel = getSelection();
+        const events = [];
+        let host = null;
+
+        function newHost(html) {
+            if (host)
+                host.remove();
+            host = document.createElement("div");
+            host.contentEditable = "true";
+            host.innerHTML = html;
+            document.body.appendChild(host);
+            for (const type of ["beforeinput", "input"]) {
+                host.addEventListener(type, e => {
+                    events.push(`${type}:${e.inputType}:data=${JSON.stringify(e.data ?? null)}:cancelable=${e.cancelable}`);
+                });
+            }
+            host.focus();
+            return host;
+        }
+        function expect(condition, label, detail) {
+            println(`${condition ? "PASS" : "FAIL"}: ${label}${condition || detail === undefined ? "" : ` (${detail})`}`);
+        }
+        function expectEvents(label, expected) {
+            const got = events.splice(0);
+            expect(got.join(" ") === expected.join(" "), `${label} events`, `expected [${expected}] got [${got}]`);
+        }
+
+        println("== the undo shortcut reverts a typed run and fires history events ==");
+        newHost("");
+        sel.collapse(host, 0);
+        internals.sendText(host, "abc");
+        events.length = 0;
+        internals.sendKey(host, "Z", modCtrl);
+        expect(host.innerHTML === "", "undo shortcut reverted the run", JSON.stringify(host.innerHTML));
+        expectEvents("undo shortcut", [
+            "beforeinput:historyUndo:data=null:cancelable=true",
+            "input:historyUndo:data=null:cancelable=false",
+        ]);
+        internals.sendKey(host, "Z", modCtrlShift);
+        expect(host.innerHTML === "abc", "redo shortcut restored the run", JSON.stringify(host.innerHTML));
+        expectEvents("redo shortcut", [
+            "beforeinput:historyRedo:data=null:cancelable=true",
+            "input:historyRedo:data=null:cancelable=false",
+        ]);
+
+        println("== exhausted shortcuts fire no events ==");
+        newHost("");
+        sel.collapse(host, 0);
+        events.length = 0;
+        internals.sendKey(host, "Z", modCtrl);
+        expectEvents("undo shortcut with empty history", []);
+        internals.sendText(host, "a");
+        internals.sendKey(host, "Z", modCtrl);
+        events.length = 0;
+        internals.sendKey(host, "Z", modCtrl);
+        expectEvents("second undo with exhausted history", []);
+        internals.sendKey(host, "Z", modCtrlShift);
+        events.length = 0;
+        internals.sendKey(host, "Z", modCtrlShift);
+        expectEvents("second redo with exhausted history", []);
+        expect(host.innerHTML === "a", "DOM unchanged by exhausted shortcuts", JSON.stringify(host.innerHTML));
+
+        println("== canceled beforeinput historyUndo neither mutates nor consumes an entry ==");
+        newHost("");
+        sel.collapse(host, 0);
+        internals.sendText(host, "a");
+        let cancelNext = true;
+        host.addEventListener("beforeinput", e => {
+            if (cancelNext && e.inputType === "historyUndo") {
+                e.preventDefault();
+                cancelNext = false;
+            }
+        });
+        events.length = 0;
+        internals.sendKey(host, "Z", modCtrl);
+        expect(host.innerHTML === "a", "canceled undo did not mutate the DOM", JSON.stringify(host.innerHTML));
+        expectEvents("canceled undo", ["beforeinput:historyUndo:data=null:cancelable=true"]);
+        expect(document.queryCommandEnabled("undo") === true, "the history entry was not consumed");
+        internals.sendKey(host, "Z", modCtrl);
+        expect(host.innerHTML === "", "the next undo still works", JSON.stringify(host.innerHTML));
+        expectEvents("uncanceled undo", [
+            "beforeinput:historyUndo:data=null:cancelable=true",
+            "input:historyUndo:data=null:cancelable=false",
+        ]);
+
+        println("== canceled beforeinput insertText records nothing ==");
+        newHost("");
+        sel.collapse(host, 0);
+        host.addEventListener("beforeinput", e => {
+            if (e.inputType === "insertText" && e.data === "x")
+                e.preventDefault();
+        }, { once: true });
+        internals.sendText(host, "x");
+        expect(host.innerHTML === "", "canceled insertText did not mutate", JSON.stringify(host.innerHTML));
+        expect(document.queryCommandEnabled("undo") === false, "canceled insertText recorded nothing");
+        internals.sendText(host, "y");
+        internals.sendKey(host, "Z", modCtrl);
+        expect(host.innerHTML === "", "undo removed only the uncanceled insertion", JSON.stringify(host.innerHTML));
+        expect(document.queryCommandEnabled("undo") === false, "one entry existed");
+
+        println("== the undo shortcut works without a selection in the host ==");
+        newHost("");
+        sel.collapse(host, 0);
+        internals.sendText(host, "a");
+        host.blur();
+        sel.removeAllRanges();
+        events.length = 0;
+        internals.sendKey(document.body, "Z", modCtrl);
+        expect(host.innerHTML === "", "undo without focus reverted the edit", JSON.stringify(host.innerHTML));
+        expectEvents("unfocused undo", [
+            "beforeinput:historyUndo:data=null:cancelable=true",
+            "input:historyUndo:data=null:cancelable=false",
+        ]);
+    });
+</script>

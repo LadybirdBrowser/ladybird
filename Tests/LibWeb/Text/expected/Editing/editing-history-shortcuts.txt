@@ -1,0 +1,24 @@
+== the undo shortcut reverts a typed run and fires history events ==
+FAIL: undo shortcut reverted the run ("abc")
+FAIL: undo shortcut events (expected [beforeinput:historyUndo:data=null:cancelable=true,input:historyUndo:data=null:cancelable=false] got [])
+PASS: redo shortcut restored the run
+FAIL: redo shortcut events (expected [beforeinput:historyRedo:data=null:cancelable=true,input:historyRedo:data=null:cancelable=false] got [])
+== exhausted shortcuts fire no events ==
+PASS: undo shortcut with empty history events
+PASS: second undo with exhausted history events
+PASS: second redo with exhausted history events
+PASS: DOM unchanged by exhausted shortcuts
+== canceled beforeinput historyUndo neither mutates nor consumes an entry ==
+PASS: canceled undo did not mutate the DOM
+FAIL: canceled undo events (expected [beforeinput:historyUndo:data=null:cancelable=true] got [])
+FAIL: the history entry was not consumed
+FAIL: the next undo still works ("a")
+FAIL: uncanceled undo events (expected [beforeinput:historyUndo:data=null:cancelable=true,input:historyUndo:data=null:cancelable=false] got [])
+== canceled beforeinput insertText records nothing ==
+PASS: canceled insertText did not mutate
+PASS: canceled insertText recorded nothing
+FAIL: undo removed only the uncanceled insertion ("y")
+PASS: one entry existed
+== the undo shortcut works without a selection in the host ==
+FAIL: undo without focus reverted the edit ("a")
+FAIL: unfocused undo events (expected [beforeinput:historyUndo:data=null:cancelable=true,input:historyUndo:data=null:cancelable=false] got [])

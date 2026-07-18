@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Cut and paste as editing-history units.
+    // Expected values derived from driving Chromium 146 with WebDriver over the same interactions:
+    // cut and paste are standalone undo units that never coalesce with typing, cut fires
+    // input.inputType "deleteByCut", and paste fires input.inputType "insertFromPaste" with null data.
+    test(() => {
+        const modCtrl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const sel = getSelection();
+        const events = [];
+        let host = null;
+
+        function newHost(html) {
+            if (host)
+                host.remove();
+            host = document.createElement("div");
+            host.contentEditable = "true";
+            host.innerHTML = html;
+            document.body.appendChild(host);
+            for (const type of ["beforeinput", "input"]) {
+                host.addEventListener(type, e => {
+                    events.push(`${type}:${e.inputType}:data=${JSON.stringify(e.data ?? null)}:cancelable=${e.cancelable}`);
+                });
+            }
+            host.focus();
+            return host;
+        }
+        function path(node) {
+            if (!node)
+                return "null";
+            const segs = [];
+            let n = node;
+            while (n && n !== host) {
+                const p = n.parentNode;
+                if (!p)
+                    return "(detached)" + node.nodeName;
+                segs.unshift(Array.prototype.indexOf.call(p.childNodes, n));
+                n = p;
+            }
+            return (n === host ? "host/" : "(outside)/") + segs.join("/") + ":" + node.nodeName;
+        }
+        function selectionString() {
+            if (!sel.anchorNode)
+                return "(none)";
+            return `${path(sel.anchorNode)}@${sel.anchorOffset}->${path(sel.focusNode)}@${sel.focusOffset}`;
+        }
+        function expect(condition, label, detail) {
+            println(`${condition ? "PASS" : "FAIL"}: ${label}${condition || detail === undefined ? "" : ` (${detail})`}`);
+        }
+        function expectState(label, html, selection) {
+            expect(host.innerHTML === html, `${label} DOM`, `expected ${JSON.stringify(html)} got ${JSON.stringify(host.innerHTML)}`);
+            if (selection !== undefined)
+                expect(selectionString() === selection, `${label} selection`, `expected ${selection} got ${selectionString()}`);
+        }
+        function expectEvents(label, expected) {
+            const got = events.splice(0);
+            expect(got.join(" ") === expected.join(" "), `${label} events`, `expected [${expected}] got [${got}]`);
+        }
+
+        println("== cut is a standalone undo unit ==");
+        newHost("helloworld");
+        sel.setBaseAndExtent(host.firstChild, 5, host.firstChild, 10);
+        events.length = 0;
+        internals.sendKey(host, "X", modCtrl);
+        expectState("after cut", "hello");
+        expectEvents("cut", [
+            "beforeinput:deleteByCut:data=null:cancelable=true",
+            "input:deleteByCut:data=null:cancelable=false",
+        ]);
+        internals.sendText(host, "q");
+        expectState("after typing", "helloq");
+        document.execCommand("undo");
+        expectState("undo removes only the typed text", "hello");
+        document.execCommand("undo");
+        expectState("second undo restores the cut text", "helloworld", "host/0:#text@5->host/0:#text@10");
+        document.execCommand("redo");
+        expectState("redo cuts again", "hello");
+
+        println("== paste is a standalone undo unit ==");
+        newHost("start");
+        sel.collapse(host.firstChild, 5);
+        events.length = 0;
+        internals.paste(host, "world");
+        expectState("after paste", "startworld");
+        expectEvents("paste", [
+            "beforeinput:insertFromPaste:data=\"world\":cancelable=true",
+            "input:insertFromPaste:data=null:cancelable=false",
+        ]);
+        internals.sendText(host, "q");
+        expectState("after typing", "startworldq");
+        document.execCommand("undo");
+        expectState("undo removes only the typed text", "startworld");
+        document.execCommand("undo");
+        expectState("second undo removes the pasted text", "start", "host/0:#text@5->host/0:#text@5");
+        document.execCommand("redo");
+        expectState("redo pastes again", "startworld");
+
+        println("== typing before a paste stays a separate unit ==");
+        newHost("");
+        sel.collapse(host, 0);
+        internals.sendText(host, "ab");
+        internals.paste(host, "X");
+        internals.sendText(host, "cd");
+        expectState("after type/paste/type", "abXcd");
+        document.execCommand("undo");
+        expectState("undo removes the trailing typed run", "abX");
+        document.execCommand("undo");
+        expectState("second undo removes the paste", "ab");
+        document.execCommand("undo");
+        expectState("third undo removes the leading typed run", "");
+    });
+</script>
