@@ -176,14 +176,16 @@ public:
 private:
     BasicShapeStyleValue(BasicShape basic_shape)
         : StyleValueWithDefaultOperators(Type::BasicShape, make_basic_shape_data(basic_shape))
+        , m_shape(move(basic_shape))
     {
     }
 
     static StyleValueFFI::StyleValueData* make_basic_shape_data(BasicShape const&);
 
-    // NB: The materialized shape is a cache of the Rust-owned value data (rebuilding a path
-    //     shape re-parses its serialized path data); the Rust allocation stays authoritative.
-    mutable Optional<BasicShape> m_materialized_shape;
+    // NB: Eagerly materialized copy of the Rust-owned data (rebuilding a path shape would
+    //     re-parse its serialized path data); the Rust allocation stays authoritative, and the
+    //     copy is immutable after construction, so sharing across style workers is safe.
+    BasicShape m_shape;
 };
 
 }

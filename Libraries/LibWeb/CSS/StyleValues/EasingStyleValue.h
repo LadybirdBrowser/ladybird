@@ -138,6 +138,7 @@ public:
 private:
     EasingStyleValue(Function const& function)
         : StyleValueWithDefaultOperators(Type::Easing, make_easing_data(function))
+        , m_function(function)
     {
     }
 
@@ -145,7 +146,11 @@ private:
 
     // NB: The materialized function is a cache of the Rust-owned value data; it also carries the
     //     cubic-bezier sample cache. The Rust allocation stays authoritative.
-    mutable Optional<Function> m_materialized_function;
+    // NB: Eagerly materialized copy of the Rust-owned data, stored so function() can return a
+    //     stable reference; immutable after construction, so sharing across style workers is
+    //     safe (the cubic-bezier sample cache inside is only touched by main-thread animation
+    //     evaluation).
+    Function m_function;
 };
 
 }

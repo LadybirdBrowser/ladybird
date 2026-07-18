@@ -52,43 +52,7 @@ StyleValueFFI::StyleValueData* BasicShapeStyleValue::make_basic_shape_data(Basic
 
 BasicShape const& BasicShapeStyleValue::basic_shape() const
 {
-    if (!m_materialized_shape.has_value()) {
-        auto const& data = m_value->basic_shape;
-        auto value_at = [&](StyleValueFFI::RetainedStyleValue const& slot) -> StyleValue const* {
-            return static_cast<StyleValue const*>(slot.pointer);
-        };
-        switch (data.kind) {
-        case 0:
-            m_materialized_shape = Inset { *value_at(data.v0), *value_at(data.v1), *value_at(data.v2), *value_at(data.v3), *value_at(data.v4) };
-            break;
-        case 1:
-            m_materialized_shape = Xywh { *value_at(data.v0), *value_at(data.v1), *value_at(data.v2), *value_at(data.v3), *value_at(data.v4) };
-            break;
-        case 2:
-            m_materialized_shape = Rect { *value_at(data.v0), *value_at(data.v1), *value_at(data.v2), *value_at(data.v3), *value_at(data.v4) };
-            break;
-        case 3:
-            m_materialized_shape = Circle { *value_at(data.v0), value_at(data.v1) };
-            break;
-        case 4:
-            m_materialized_shape = Ellipse { *value_at(data.v0), value_at(data.v1) };
-            break;
-        case 5: {
-            Vector<Polygon::Point> points;
-            points.ensure_capacity(data.points.length);
-            for (size_t i = 0; i < data.points.length; ++i) {
-                auto const& point = data.points.pointer[i];
-                points.unchecked_append(Polygon::Point { *static_cast<StyleValue const*>(point.x.pointer), *static_cast<StyleValue const*>(point.y.pointer) });
-            }
-            m_materialized_shape = Polygon { static_cast<Gfx::WindingRule>(data.fill_rule), move(points) };
-            break;
-        }
-        default:
-            m_materialized_shape = Path { static_cast<Gfx::WindingRule>(data.fill_rule), SVG::AttributeParser::parse_path_data(Utf16String::from_raw(data.path_string.raw)) };
-            break;
-        }
-    }
-    return *m_materialized_shape;
+    return m_shape;
 }
 
 static Gfx::Path path_from_resolved_rect(float top, float right, float bottom, float left)
