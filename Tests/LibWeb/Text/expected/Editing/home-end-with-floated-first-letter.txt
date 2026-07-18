@@ -1,5 +1,5 @@
-End: 22
-Home: 0
-Down: 1
-Home: 0
+End: 12
+Home: 1
+Down: 12
+Home: 12
 End: 22

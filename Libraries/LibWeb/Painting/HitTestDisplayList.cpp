@@ -659,65 +659,148 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_hit_container(Ite
     };
 }
 
+HitTestDisplayList::Item const& HitTestDisplayList::item_at_line_edge(CaretLine const& line, CaretPositionType type) const
+{
+    // INTEROP: Home and End operate on visual lines in other engines. Choose the furthest caret-capable painted item
+    // along the logical inline axis instead of assuming that display-list order or DOM order describes that edge.
+    auto const& first_item = m_items[m_caret_item_indices[line.first_caret_item_index]];
+    auto writing_mode = first_item.paintable->computed_values().writing_mode();
+    auto inline_axis_is_reverse = first_item.paintable->computed_values().inline_axis_is_reverse();
+    auto coordinate_for_item = [&](Item const& item) {
+        if (type == CaretPositionType::Before)
+            return inline_axis_is_reverse ? inline_axis_end(item.caret_rect, writing_mode) : inline_axis_start(item.caret_rect, writing_mode);
+        return inline_axis_is_reverse ? inline_axis_start(item.caret_rect, writing_mode) : inline_axis_end(item.caret_rect, writing_mode);
+    };
+    auto coordinate_is_closer_to_line_edge = [&](CSSPixels coordinate, CSSPixels best_coordinate) {
+        if (type == CaretPositionType::Before)
+            return inline_axis_is_reverse ? coordinate > best_coordinate : coordinate < best_coordinate;
+        return inline_axis_is_reverse ? coordinate < best_coordinate : coordinate > best_coordinate;
+    };
+
+    auto best_item_index = m_caret_item_indices[line.first_caret_item_index];
+    auto best_coordinate = coordinate_for_item(m_items[best_item_index]);
+
+    auto containing_block_for_item = [](Item const& item) -> Layout::Box const* {
+        if ((item.kind == ItemKind::TextFragment || item.kind == ItemKind::EmptyLine) && item.text_fragment)
+            return item.text_fragment->layout_node().containing_block();
+        return item.paintable->layout_node().containing_block();
+    };
+    auto item_is_on_line = [&](Item const& item) {
+        if (line.visual_context_index != item.visual_context_index
+            || containing_block_for_item(first_item) != containing_block_for_item(item))
+            return false;
+        if (first_item.caret_line_index.has_value() && item.caret_line_index.has_value())
+            return *first_item.caret_line_index == *item.caret_line_index;
+        if (!first_item.caret_line_index.has_value() && !item.caret_line_index.has_value())
+            return rects_overlap_in_block_axis(line.rect, item.caret_rect, writing_mode);
+        return false;
+    };
+
+    // Atomic inline boxes are recorded during the background paint phase, while text fragments are recorded during
+    // the foreground phase. Other boxes can therefore separate two items from the same line in the caret item list.
+    for (auto item_index : m_caret_item_indices) {
+        auto const& item = m_items[item_index];
+        if (!item_is_on_line(item))
+            continue;
+        auto coordinate = coordinate_for_item(item);
+        if (coordinate_is_closer_to_line_edge(coordinate, best_coordinate)) {
+            best_item_index = item_index;
+            best_coordinate = coordinate;
+        }
+    }
+    return m_items[best_item_index];
+}
+
+bool HitTestDisplayList::item_contains_caret_position(Item const& item, DOM::Node const& node, size_t offset, TextAffinity affinity) const
+{
+    switch (item.kind) {
+    case ItemKind::TextFragment: {
+        VERIFY(item.text_fragment);
+        auto const* fragment_dom_node = item.text_fragment->layout_node().dom_node();
+        if (!fragment_dom_node)
+            return false;
+        if (fragment_dom_node == &node)
+            return item.text_fragment->caret_match(offset, affinity) != PaintableFragment::CaretMatch::None;
+
+        auto* node_after_boundary = node.child_at_index(offset);
+        while (node_after_boundary && node_after_boundary != fragment_dom_node)
+            node_after_boundary = node_after_boundary->first_child();
+        if (node_after_boundary == fragment_dom_node && item.text_fragment->dom_start_offset_in_node() == 0)
+            return true;
+        return offset > 0
+            && node.child_at_index(offset - 1) == fragment_dom_node
+            && item.text_fragment->dom_end_offset_with_trailing_whitespace() == fragment_dom_node->length();
+    }
+    case ItemKind::EmptyLine:
+        return item_dom_node(item) == &node && item.caret_offset == offset;
+    case ItemKind::EmptyEditable:
+        return item.paintable->dom_node() == &node && offset == 0;
+    case ItemKind::Box: {
+        auto dom_node = item.paintable->dom_node();
+        return dom_node && dom_node->parent() == &node && (offset == dom_node->index() || offset == dom_node->index() + 1);
+    }
+    case ItemKind::SvgPath:
+    case ItemKind::ChromeWidget:
+        return false;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Optional<CaretPosition> HitTestDisplayList::caret_position_at_line_edge(DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineEdge edge) const
+{
+    // At a soft wrap, prefer the fragment whose line directly owns the position. Only use the preceding fragment's
+    // fallback match when no direct match exists.
+    for (bool allow_soft_wrap_fallback : { false, true }) {
+        for (auto const& line : m_caret_lines) {
+            for (auto caret_item_index = line.first_caret_item_index; caret_item_index <= line.last_caret_item_index; ++caret_item_index) {
+                auto const& item = m_items[m_caret_item_indices[caret_item_index]];
+                if (!item_contains_caret_position(item, node, offset, affinity))
+                    continue;
+                if (!allow_soft_wrap_fallback && item.kind == ItemKind::TextFragment && item.text_fragment
+                    && item.text_fragment->layout_node().dom_node() == &node
+                    && item.text_fragment->caret_match(offset, affinity) == PaintableFragment::CaretMatch::SoftWrapFallback)
+                    continue;
+                auto type = edge == CaretLineEdge::Start ? CaretPositionType::Before : CaretPositionType::After;
+                return caret_position_for_item(item_at_line_edge(line, type), {}, type);
+            }
+        }
+    }
+    return {};
+}
+
 Optional<CaretPosition> HitTestDisplayList::caret_position_for_line(CaretLine const& line, CSSPixelPoint local_point, CaretPositionMode mode) const
 {
     auto const& first_item = m_items[m_caret_item_indices[line.first_caret_item_index]];
     auto writing_mode = first_item.paintable->computed_values().writing_mode();
     auto inline_axis_is_reverse = first_item.paintable->computed_values().inline_axis_is_reverse();
-    auto item_at_line_edge = [&](CaretPositionType type) -> Item const& {
-        auto coordinate_for_item = [&](Item const& item) {
-            if (type == CaretPositionType::Before)
-                return inline_axis_is_reverse ? inline_axis_end(item.caret_rect, writing_mode) : inline_axis_start(item.caret_rect, writing_mode);
-            return inline_axis_is_reverse ? inline_axis_start(item.caret_rect, writing_mode) : inline_axis_end(item.caret_rect, writing_mode);
-        };
-        auto coordinate_is_closer_to_line_edge = [&](CSSPixels coordinate, CSSPixels best_coordinate) {
-            if (type == CaretPositionType::Before)
-                return inline_axis_is_reverse ? coordinate > best_coordinate : coordinate < best_coordinate;
-            return inline_axis_is_reverse ? coordinate < best_coordinate : coordinate > best_coordinate;
-        };
-
-        auto best_item_index = m_caret_item_indices[line.first_caret_item_index];
-        auto best_coordinate = coordinate_for_item(m_items[best_item_index]);
-
-        for (auto caret_item_index = line.first_caret_item_index + 1; caret_item_index <= line.last_caret_item_index; ++caret_item_index) {
-            auto item_index = m_caret_item_indices[caret_item_index];
-            auto const& item = m_items[item_index];
-            auto coordinate = coordinate_for_item(item);
-            if (coordinate_is_closer_to_line_edge(coordinate, best_coordinate)) {
-                best_item_index = item_index;
-                best_coordinate = coordinate;
-            }
-        }
-        return m_items[best_item_index];
-    };
 
     auto block_coordinate = block_axis_coordinate(local_point, writing_mode);
     // Once a line has been selected, points before or after its block-axis range resolve to the logical line edges.
     // Points inside the line range resolve to the closest caret-capable item on that line.
     if (block_coordinate < block_axis_start(line.rect, writing_mode))
-        return caret_position_for_item(item_at_line_edge(CaretPositionType::Before), local_point, CaretPositionType::Before);
+        return caret_position_for_item(item_at_line_edge(line, CaretPositionType::Before), local_point, CaretPositionType::Before);
 
     auto inline_coordinate = inline_axis_coordinate(local_point, writing_mode);
     if (mode == CaretPositionMode::Selection && block_coordinate >= block_axis_end(line.rect, writing_mode))
-        return caret_position_for_item(item_at_line_edge(CaretPositionType::After), local_point, CaretPositionType::After);
+        return caret_position_for_item(item_at_line_edge(line, CaretPositionType::After), local_point, CaretPositionType::After);
 
     if (block_coordinate >= block_axis_end(line.rect, writing_mode) + caret_line_block_axis_compare_slop)
-        return caret_position_for_item(item_at_line_edge(CaretPositionType::After), local_point, CaretPositionType::After);
+        return caret_position_for_item(item_at_line_edge(line, CaretPositionType::After), local_point, CaretPositionType::After);
 
     if (block_coordinate >= block_axis_end(line.rect, writing_mode)
         && (inline_coordinate < inline_axis_start(line.rect, writing_mode) || inline_coordinate >= inline_axis_end(line.rect, writing_mode)))
-        return caret_position_for_item(item_at_line_edge(CaretPositionType::After), local_point, CaretPositionType::After);
+        return caret_position_for_item(item_at_line_edge(line, CaretPositionType::After), local_point, CaretPositionType::After);
 
     // Points past either inline edge resolve to the corresponding logical line edge. This also accounts for a
     // reversed inline axis, where the logical start is the physically trailing edge.
     if (inline_coordinate < inline_axis_start(line.rect, writing_mode)) {
         auto type = inline_axis_is_reverse ? CaretPositionType::After : CaretPositionType::Before;
-        return caret_position_for_item(item_at_line_edge(type), local_point, type);
+        return caret_position_for_item(item_at_line_edge(line, type), local_point, type);
     }
 
     if (inline_coordinate >= inline_axis_end(line.rect, writing_mode)) {
         auto type = inline_axis_is_reverse ? CaretPositionType::Before : CaretPositionType::After;
-        return caret_position_for_item(item_at_line_edge(type), local_point, type);
+        return caret_position_for_item(item_at_line_edge(line, type), local_point, type);
     }
 
     Optional<size_t> closest_item_index;

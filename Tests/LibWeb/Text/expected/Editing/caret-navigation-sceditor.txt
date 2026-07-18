@@ -1,8 +1,4 @@
-FAIL: 28 SCEditor caret assertions failed
-End from the editing host start: expected DIV@2, got BODY@13
-Down from inserted text: expected DIV@0, got #text@3
-Up after crossing an empty line: expected #text@1, got #text@0
-Shift+End: expected DIV@2, got #text@15
+FAIL: 24 SCEditor caret assertions failed
 Shift+PageUp: expected #text@0, got #text@5
 Shift+PageDown: expected #text@13, got #text@5
 Right over first image: expected DIV@2, got DIV@0

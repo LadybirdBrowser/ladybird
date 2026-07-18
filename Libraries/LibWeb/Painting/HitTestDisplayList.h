@@ -32,6 +32,11 @@ enum class CaretPositionMode : u8 {
     Selection,
 };
 
+enum class CaretLineEdge : u8 {
+    Start,
+    End,
+};
+
 class WEB_API HitTestDisplayList : public RefCounted<HitTestDisplayList> {
 public:
     static NonnullRefPtr<HitTestDisplayList> create(u64 visual_context_tree_version);
@@ -48,6 +53,9 @@ public:
     // When constraint_scope is given, the caret position is constrained to lines inside that node, and points
     // outside it resolve to the closest position within it.
     [[nodiscard]] Optional<CaretPosition> caret_position_from_point(CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel, ChromeMetrics const&, CaretPositionMode = CaretPositionMode::Normal, DOM::Node const* constraint_scope = nullptr) const;
+    // Resolve Home/End against the painted line containing the caret. A visual line can span several DOM nodes and
+    // atomic inline boxes, so a text-node or block-element boundary is not necessarily a rendered line boundary.
+    [[nodiscard]] Optional<CaretPosition> caret_position_at_line_edge(DOM::Node const&, size_t offset, TextAffinity, CaretLineEdge) const;
     TraversalDecision hit_test_all(CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel, ChromeMetrics const&, Function<TraversalDecision(HitTestResult)> const&) const;
 
 private:
@@ -116,6 +124,8 @@ private:
     [[nodiscard]] Optional<CaretPosition> caret_position_for_item(Item const&, CSSPixelPoint local_point, CaretPositionType = CaretPositionType::Closest) const;
     [[nodiscard]] Optional<CaretPosition> caret_position_for_hit_container(Item const&) const;
     [[nodiscard]] Optional<CaretPosition> caret_position_for_line(CaretLine const&, CSSPixelPoint local_point, CaretPositionMode) const;
+    [[nodiscard]] Item const& item_at_line_edge(CaretLine const&, CaretPositionType) const;
+    [[nodiscard]] bool item_contains_caret_position(Item const&, DOM::Node const&, size_t offset, TextAffinity) const;
     [[nodiscard]] bool line_contains_descendant_of(CaretLine const&, DOM::Node const&) const;
     [[nodiscard]] bool item_is_inline_adjacent_to_line(Item const&, CaretLine const&) const;
     void find_topmost_item_in_list(Vector<size_t> const&, CSSPixelPoint local_point, ChromeMetrics const&, Optional<size_t>& topmost_item_index) const;

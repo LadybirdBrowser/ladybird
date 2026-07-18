@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
+#include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/Selection/SelectionModifier.h>
@@ -194,13 +195,12 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
     }
 
     if (granularity == SelectionGranularity::LineBoundary) {
-        if (!text)
+        m_document->update_layout_if_needed_for_node(location.node, DOM::UpdateLayoutReason::CursorLineNavigation);
+        auto edge = direction == SelectionDirection::Forward ? Painting::CaretLineEdge::End : Painting::CaretLineEdge::Start;
+        auto position = m_document->caret_position_at_line_edge(location.node, location.offset, location.affinity, edge);
+        if (!position.has_value())
             return {};
-        if (direction == SelectionDirection::Forward) {
-            auto position = find_visual_line_end(*text, location.offset, location.affinity);
-            return CaretLocation { *text, position.offset, position.affinity };
-        }
-        return CaretLocation { *text, find_visual_line_start(*text, location.offset, location.affinity), TextAffinity::Downstream };
+        return CaretLocation { position->boundary.node, position->boundary.offset, position->affinity };
     }
 
     VERIFY(granularity == SelectionGranularity::Line);

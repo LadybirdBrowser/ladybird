@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/CommandNames.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/Selection/SelectionModifier.h>
 #include <LibWeb/UIEvents/InputTypes.h>
 
 namespace Web::DOM {
@@ -103,15 +104,7 @@ void EditingHostManager::move_cursor_to_start(CollapseSelection collapse)
     auto selection = get_selection_for_navigation(collapse);
     if (!selection)
         return;
-    auto node = selection->focus_node();
-
-    if (collapse == CollapseSelection::Yes) {
-        MUST(selection->collapse(node, 0));
-        m_document->reset_cursor_blink_cycle();
-    } else {
-        MUST(selection->set_base_and_extent(*selection->anchor_node(), selection->anchor_offset(), *node, 0));
-    }
-    selection->scroll_focus_into_view();
+    Selection::SelectionModifier(*selection).modify(collapse == CollapseSelection::Yes ? Selection::SelectionAlteration::Move : Selection::SelectionAlteration::Extend, Selection::SelectionDirection::Backward, Selection::SelectionGranularity::LineBoundary);
 }
 
 void EditingHostManager::move_cursor_to_end(CollapseSelection collapse)
@@ -119,15 +112,7 @@ void EditingHostManager::move_cursor_to_end(CollapseSelection collapse)
     auto selection = get_selection_for_navigation(collapse);
     if (!selection)
         return;
-    auto node = selection->focus_node();
-
-    if (collapse == CollapseSelection::Yes) {
-        m_document->reset_cursor_blink_cycle();
-        MUST(selection->collapse(node, node->length()));
-    } else {
-        MUST(selection->set_base_and_extent(*selection->anchor_node(), selection->anchor_offset(), *node, node->length()));
-    }
-    selection->scroll_focus_into_view();
+    Selection::SelectionModifier(*selection).modify(collapse == CollapseSelection::Yes ? Selection::SelectionAlteration::Move : Selection::SelectionAlteration::Extend, Selection::SelectionDirection::Forward, Selection::SelectionGranularity::LineBoundary);
 }
 
 void EditingHostManager::increment_cursor_position_offset(CollapseSelection collapse)

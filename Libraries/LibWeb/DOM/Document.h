@@ -1148,6 +1148,7 @@ public:
     Optional<Painting::CaretPosition> caret_position_from_point(CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point_for_selection_start(CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point_for_selection(CSSPixelPoint, Node const* constraint_scope = nullptr);
+    Optional<Painting::CaretPosition> caret_position_at_line_edge(Node const&, size_t offset, TextAffinity, Painting::CaretLineEdge);
     GC::Ptr<CaretPosition> caret_position_from_point(double x, double y, Bindings::CaretPositionFromPointOptions const&);
     TraversalDecision hit_test_all(CSSPixelPoint, Function<TraversalDecision(Painting::HitTestResult)> const&);
 
