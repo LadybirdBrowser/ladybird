@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    body { font: 14px/17.5px Verdana, Arial, Helvetica, sans-serif; }
+    img { width: 20px; height: 20px; }
+</style>
+<script>
+    // This is a deterministic local copy of the contenteditable structure from the SCEditor front-page demo, reduced
+    // to the styled runs, images, blank blocks, line breaks, and list items that affect caret navigation. The same DOM
+    // and key sequences were driven through Chromium with WebDriver; the asserted DOM boundary points below are the
+    // positions Chromium produced. Keeping those results explicit makes otherwise unspecified editing behavior an
+    // interoperability contract without making the test depend on SCEditor or network resources.
+    addEventListener("load", () => {
+        const editor = document.body;
+        const selection = getSelection();
+        const shift = internals.MOD_SHIFT;
+        const wordModifier = internals.MOD_ALT | internals.MOD_CTRL;
+        let interactionCount = 0;
+        const failures = [];
+
+        const send = (key, modifiers = 0) => {
+            ++interactionCount;
+            internals.sendKey(editor, key, modifiers);
+        };
+        const collapse = (node, offset) => {
+            editor.focus();
+            selection.collapse(node, offset);
+        };
+        const point = () => [selection.focusNode, selection.focusOffset];
+        const anchorPoint = () => [selection.anchorNode, selection.anchorOffset];
+        const assertPoint = (actual, expected, label) => {
+            if (actual[0] !== expected[0] || actual[1] !== expected[1])
+                failures.push(`${label}: expected ${expected[0].nodeName}@${expected[1]}, got ${actual[0].nodeName}@${actual[1]}`);
+        };
+
+        try {
+            const textNodes = Array.from(editor.querySelectorAll("div, li"))
+                .flatMap(element => Array.from(element.childNodes))
+                .flatMap(node => node.nodeType === Node.TEXT_NODE ? [node] : Array.from(node.childNodes).filter(child => child.nodeType === Node.TEXT_NODE))
+                .filter(node => node.length > 0);
+
+            // Every offset on a rendered text run must agree about its visual Home and End destinations.
+            for (const text of textNodes) {
+                collapse(text, 0);
+                send("Home");
+                const home = point();
+                collapse(text, 0);
+                send("End");
+                const end = point();
+                for (let offset = 0; offset <= text.length; ++offset) {
+                    collapse(text, offset);
+                    send("Home");
+                    assertPoint(point(), home, `Home from ${JSON.stringify(text.data)}@${offset}`);
+                    collapse(text, offset);
+                    send("End");
+                    assertPoint(point(), end, `End from ${JSON.stringify(text.data)}@${offset}`);
+                }
+            }
+
+            // Chromium preserves the original horizontal column across consecutive line moves.
+            const listItems = Array.from(editor.querySelectorAll("li"), item => item.firstChild);
+            for (let offset = 0; offset <= listItems[0].length; ++offset) {
+                collapse(listItems[0], offset);
+                send("Down");
+                send("Up");
+                assertPoint(point(), [listItems[0], offset], `Down+Up from first list item@${offset}`);
+            }
+            for (let offset = 0; offset <= listItems[1].length; ++offset) {
+                collapse(listItems[1], offset);
+                send("Up");
+                send("Down");
+                assertPoint(point(), [listItems[1], offset], `Up+Down from second list item@${offset}`);
+            }
+
+            const firstLine = editor.firstElementChild;
+            const firstText = firstLine.firstChild;
+            const firstEmptyLine = editor.children[1];
+            collapse(editor, 0);
+            send("End");
+            assertPoint(point(), [firstLine, 2], "End from the editing host start");
+            internals.sendText(editor, "f");
+            ++interactionCount;
+            const insertedText = selection.focusNode;
+            send("Down");
+            assertPoint(point(), [firstEmptyLine, 0], "Down from inserted text");
+            send("Up");
+            assertPoint(point(), [insertedText, 1], "Up after crossing an empty line");
+            insertedText.remove();
+
+            // Exercise selection extension, page movement, word movement, and both sides of inline images.
+            collapse(firstText, 7);
+            send("Right", shift);
+            assertPoint(point(), [firstText, 8], "Shift+Right");
+            collapse(firstText, 7);
+            send("Left", shift);
+            assertPoint(point(), [firstText, 6], "Shift+Left");
+            collapse(firstText, 7);
+            send("Home", shift);
+            assertPoint(point(), [firstText, 0], "Shift+Home");
+            collapse(firstText, 7);
+            send("End", shift);
+            assertPoint(point(), [firstLine, 2], "Shift+End");
+
+            const redText = editor.children[2].firstChild.firstChild;
+            const finalText = editor.lastElementChild.lastChild;
+            collapse(redText, 5);
+            send("PageUp", shift);
+            assertPoint(point(), [firstText, 0], "Shift+PageUp");
+            collapse(redText, 5);
+            send("PageDown", shift);
+            assertPoint(point(), [finalText, finalText.length], "Shift+PageDown");
+
+            collapse(firstText, firstText.length);
+            send("Right");
+            assertPoint(point(), [firstLine, 2], "Right over first image");
+            send("Left");
+            assertPoint(point(), [firstText, firstText.length], "Left over first image");
+            collapse(firstText, firstText.length);
+            send("Right", wordModifier);
+            assertPoint(point(), [firstLine, 2], "Option+Right over first image");
+            send("Left", wordModifier);
+            assertPoint(point(), [firstText, firstText.length], "Option+Left over first image");
+
+            // Word movement stops at punctuation, crosses inline style boundaries, and preserves canonical
+            // selection endpoints at those boundaries.
+            collapse(firstText, 13);
+            send("Right", wordModifier);
+            assertPoint(point(), [firstText, 14], "Option+Right over punctuation");
+            send("Left", wordModifier);
+            assertPoint(point(), [firstText, 13], "Option+Left over punctuation");
+            collapse(firstText, firstText.length);
+            send("Left", wordModifier);
+            assertPoint(point(), [firstText, 13], "Option+Left over trailing punctuation and space");
+
+            const blueText = editor.children[2].children[1].firstChild;
+            collapse(redText, redText.length);
+            send("Right", wordModifier);
+            assertPoint(point(), [blueText, 4], "Option+Right across adjacent styled text");
+            collapse(blueText, 1);
+            send("Left", wordModifier);
+            assertPoint(point(), [redText, redText.length], "Option+Left across adjacent styled text");
+            collapse(redText, redText.length);
+            send("Right", wordModifier | shift);
+            assertPoint(anchorPoint(), [blueText, 0], "Option+Shift+Right canonical anchor");
+            assertPoint(point(), [blueText, 4], "Option+Shift+Right across adjacent styled text");
+            collapse(redText, redText.length);
+            send("Right", shift);
+            assertPoint(anchorPoint(), [blueText, 0], "Shift+Right canonical inline anchor");
+            assertPoint(point(), [blueText, 1], "Shift+Right across adjacent styled text");
+            collapse(blueText, 1);
+            send("Left", shift);
+            assertPoint(point(), [blueText, 0], "Shift+Left within adjacent styled text");
+
+            collapse(firstText, firstText.length);
+            send("Down", shift);
+            assertPoint(anchorPoint(), [firstLine, 1], "Shift+Down canonical image anchor");
+            assertPoint(point(), [firstEmptyLine, 0], "Shift+Down across an image and block boundary");
+            collapse(firstEmptyLine, 0);
+            send("Down", shift);
+            assertPoint(point(), [editor.children[2], 0], "Shift+Down into formatted block boundary");
+
+            const finalLine = editor.lastElementChild;
+            const textBeforeStrong = finalLine.firstChild;
+            const strongText = finalLine.children[0].firstChild;
+            const textAfterStrong = finalLine.childNodes[2];
+            const textBeforeFinalImage = finalLine.childNodes[2];
+            const textAfterFinalImage = finalLine.childNodes[4];
+            collapse(textBeforeStrong, textBeforeStrong.length);
+            send("Right", wordModifier);
+            assertPoint(point(), [textAfterStrong, 1], "Option+Right across split punctuation");
+            collapse(textAfterStrong, 1);
+            send("Left", wordModifier);
+            assertPoint(point(), [textBeforeStrong, textBeforeStrong.length], "Option+Left across split punctuation");
+            collapse(textAfterStrong, 1);
+            send("Left", wordModifier | shift);
+            assertPoint(point(), [strongText, 0], "Option+Shift+Left across split punctuation");
+
+            collapse(textAfterFinalImage, 1);
+            send("Left", wordModifier);
+            assertPoint(point(), [textBeforeFinalImage, textBeforeFinalImage.length], "Option+Left over final image");
+            collapse(finalLine, 4);
+            send("Right", wordModifier);
+            assertPoint(point(), [textAfterFinalImage, 3], "Option+Right after final image");
+            collapse(finalLine, 4);
+            send("Left", wordModifier | shift);
+            assertPoint(point(), [finalLine, 3], "Option+Shift+Left over final image");
+
+            collapse(finalLine, 4);
+            send("Up");
+            assertPoint(point(), [finalLine.previousElementSibling, 0], "Up from after the final image");
+            send("Down");
+            assertPoint(point(), [textBeforeFinalImage, textBeforeFinalImage.length], "Down back to before the final image");
+
+            if (failures.length > 0)
+                internals.signalTestIsDone(`FAIL: ${failures.length} SCEditor caret assertions failed\n${failures.join("\n")}\n`);
+            else
+                internals.signalTestIsDone(`PASS: ${interactionCount} SCEditor caret interactions match Chromium\n`);
+        } catch (error) {
+            internals.signalTestIsDone(`FAIL: ${error.message}\n`);
+        }
+    });
+</script>
+</head>
+<body contenteditable="true" dir="ltr"><div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div></body>
+</html>
