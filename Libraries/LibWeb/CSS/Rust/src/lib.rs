@@ -8,6 +8,7 @@
 #[path = "../../../../RustAllocator.rs"]
 mod rust_allocator;
 
+pub mod calc;
 pub mod cascaded_properties;
 pub mod computed_values;
 pub mod css_pixels;

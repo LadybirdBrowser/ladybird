@@ -520,7 +520,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     generate_ffi_header(
         style_value_config,
-        &[manifest_dir.join("src/style_value.rs")],
+        &[
+            manifest_dir.join("src/style_value.rs"),
+            manifest_dir.join("src/calc.rs"),
+        ],
         &out_dir,
         &ffi_out_dir,
         Path::new("StyleValueRustFFI.h"),

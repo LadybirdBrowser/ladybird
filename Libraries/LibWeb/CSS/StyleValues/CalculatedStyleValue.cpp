@@ -38,6 +38,122 @@
 
 namespace Web::CSS {
 
+// Builds the Rust mirror of a calculation tree, transferring ownership of the
+// returned handle to the caller. The child orders follow each node's members.
+static StyleValueFFI::CalcNode const* to_rust_calc_node(CalculationNode const& node)
+{
+    auto children_of = [](CalculationNode const& node) {
+        Vector<StyleValueFFI::CalcNode const*> handles;
+        auto children = node.children();
+        handles.ensure_capacity(children.size());
+        for (auto const& child : children)
+            handles.unchecked_append(to_rust_calc_node(*child));
+        return handles;
+    };
+    auto variadic = [&](u8 kind) {
+        auto children = children_of(node);
+        return StyleValueFFI::rust_calc_node_create_variadic(kind, children.data(), children.size());
+    };
+    auto unary = [&](u8 kind) {
+        auto children = children_of(node);
+        VERIFY(children.size() == 1);
+        return StyleValueFFI::rust_calc_node_create_unary(kind, children[0]);
+    };
+    auto binary = [&](u8 kind) {
+        auto children = children_of(node);
+        VERIFY(children.size() == 2);
+        return StyleValueFFI::rust_calc_node_create_binary(kind, children[0], children[1]);
+    };
+
+    switch (node.type()) {
+    case CalculationNode::Type::Numeric:
+        return static_cast<NumericCalculationNode const&>(node).value().visit(
+            [](Number const& number) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(0, number.value(), 0); },
+            [](Angle const& angle) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(1, angle.raw_value(), to_underlying(angle.unit())); },
+            [](Flex const& flex) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(2, flex.raw_value(), to_underlying(flex.unit())); },
+            [](Frequency const& frequency) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(3, frequency.raw_value(), to_underlying(frequency.unit())); },
+            [](Length const& length) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(4, length.raw_value(), to_underlying(length.unit())); },
+            [](Percentage const& percentage) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(5, percentage.value(), 0); },
+            [](Resolution const& resolution) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(6, resolution.raw_value(), to_underlying(resolution.unit())); },
+            [](Time const& time) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(7, time.raw_value(), to_underlying(time.unit())); });
+    case CalculationNode::Type::ChannelKeyword:
+        return StyleValueFFI::rust_calc_node_create_channel_keyword(to_underlying(static_cast<ChannelKeywordCalculationNode const&>(node).channel()));
+    case CalculationNode::Type::Sum:
+        return variadic(0);
+    case CalculationNode::Type::Product:
+        return variadic(1);
+    case CalculationNode::Type::Min:
+        return variadic(2);
+    case CalculationNode::Type::Max:
+        return variadic(3);
+    case CalculationNode::Type::Hypot:
+        return variadic(4);
+    case CalculationNode::Type::Negate:
+        return unary(0);
+    case CalculationNode::Type::Invert:
+        return unary(1);
+    case CalculationNode::Type::Abs:
+        return unary(2);
+    case CalculationNode::Type::Sign:
+        return unary(3);
+    case CalculationNode::Type::Sin:
+        return unary(4);
+    case CalculationNode::Type::Cos:
+        return unary(5);
+    case CalculationNode::Type::Tan:
+        return unary(6);
+    case CalculationNode::Type::Asin:
+        return unary(7);
+    case CalculationNode::Type::Acos:
+        return unary(8);
+    case CalculationNode::Type::Atan:
+        return unary(9);
+    case CalculationNode::Type::Sqrt:
+        return unary(10);
+    case CalculationNode::Type::Exp:
+        return unary(11);
+    // NB: Atan2's children are ordered y then x, matching its members.
+    case CalculationNode::Type::Atan2:
+        return binary(0);
+    case CalculationNode::Type::Pow:
+        return binary(1);
+    case CalculationNode::Type::Log:
+        return binary(2);
+    case CalculationNode::Type::Mod:
+        return binary(3);
+    case CalculationNode::Type::Rem:
+        return binary(4);
+    case CalculationNode::Type::Clamp: {
+        auto children = children_of(node);
+        VERIFY(children.size() == 3);
+        return StyleValueFFI::rust_calc_node_create_clamp(children[0], children[1], children[2]);
+    }
+    case CalculationNode::Type::Progress: {
+        auto children = children_of(node);
+        VERIFY(children.size() == 3);
+        return StyleValueFFI::rust_calc_node_create_progress(children[0], children[1], children[2]);
+    }
+    case CalculationNode::Type::Round: {
+        auto const& round = static_cast<RoundCalculationNode const&>(node);
+        auto children = children_of(node);
+        VERIFY(children.size() == 2);
+        return StyleValueFFI::rust_calc_node_create_round(to_underlying(round.rounding_strategy()), children[0], children[1]);
+    }
+    case CalculationNode::Type::Random: {
+        auto const& random = static_cast<RandomCalculationNode const&>(node);
+        return StyleValueFFI::rust_calc_node_create_random(
+            to_rust_calc_node(random.minimum()),
+            to_rust_calc_node(random.maximum()),
+            random.step() ? to_rust_calc_node(*random.step()) : nullptr,
+            retain_style_value_for_rust(&random.random_value_sharing()));
+    }
+    case CalculationNode::Type::NonMathFunction:
+        return StyleValueFFI::rust_calc_node_create_non_math_function(
+            retain_style_value_for_rust(static_cast<NonMathFunctionCalculationNode const&>(node).function().ptr()));
+    }
+    VERIFY_NOT_REACHED();
+}
+
 StyleValueFFI::StyleValueData* CalculatedStyleValue::make_calculated_data(NonnullRefPtr<CalculationNode const> const& calculation, NumericType const& resolved_type, CalculationContext const& context)
 {
     // The Rust allocation takes ownership of one strong reference to the calculation node.
@@ -49,6 +165,7 @@ StyleValueFFI::StyleValueData* CalculatedStyleValue::make_calculated_data(Nonnul
     for (auto const& [value_type, range] : context.accepted_ranges_by_type)
         ranges.unchecked_append({ to_underlying(value_type), range.min, range.max });
     return StyleValueFFI::rust_style_value_create_calculated(
+        to_rust_calc_node(*calculation),
         calculation.ptr(),
         resolved_type_bytes.data(), resolved_type_bytes.size(),
         context.percentages_resolve_as.has_value(),

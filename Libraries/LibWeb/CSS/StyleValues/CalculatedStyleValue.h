@@ -842,6 +842,11 @@ public:
     virtual bool equals(CalculationNode const&) const override;
     virtual bool is_computationally_independent() const override;
 
+    RandomValueSharingStyleValue const& random_value_sharing() const { return m_random_value_sharing; }
+    CalculationNode const& minimum() const { return m_minimum; }
+    CalculationNode const& maximum() const { return m_maximum; }
+    RefPtr<CalculationNode const> step() const { return m_step; }
+
 private:
     RandomCalculationNode(NonnullRefPtr<RandomValueSharingStyleValue const>, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, RefPtr<CalculationNode const>, Optional<NumericType>);
     ValueComparingNonnullRefPtr<RandomValueSharingStyleValue const> m_random_value_sharing;

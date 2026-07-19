@@ -625,6 +625,7 @@ pub enum StyleValueData {
     /// and the parse-time calculation context.
     Calculated {
         calculation: RetainedCalculationNode,
+        rust_calculation: crate::calc::CalcNodeHandle,
         resolved_type: RetainedByteList,
         has_percentages_resolve_as: bool,
         percentages_resolve_as: u8,
@@ -2153,6 +2154,7 @@ pub unsafe extern "C" fn rust_style_value_create_basic_shape(
 /// are copied.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_calculated(
+    rust_calculation: *const crate::calc::CalcNode,
     calculation: *const c_void,
     resolved_type: *const u8,
     resolved_type_length: usize,
@@ -2164,6 +2166,7 @@ pub unsafe extern "C" fn rust_style_value_create_calculated(
 ) -> *mut StyleValueData {
     abort_on_panic(|| {
         Box::into_raw(Box::new(StyleValueData::Calculated {
+            rust_calculation: unsafe { crate::calc::CalcNodeHandle::from_raw(rust_calculation) },
             calculation: RetainedCalculationNode { pointer: calculation },
             resolved_type: unsafe { RetainedByteList::from_raw(resolved_type, resolved_type_length) },
             has_percentages_resolve_as,
