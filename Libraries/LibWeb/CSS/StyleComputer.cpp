@@ -3043,11 +3043,7 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
 
         // Some pseudo-elements are generated regardless of CSS rules, so we need to compute their styles even when no
         // rules matched.
-        auto has_implicit_style = first_is_one_of(*abstract_element.pseudo_element(),
-            PseudoElement::DetailsContent,
-            PseudoElement::FileSelectorButton,
-            PseudoElement::Marker,
-            PseudoElement::Placeholder);
+        auto has_implicit_style = ComputedValuesFFI::rust_pseudo_element_has_implicit_style(to_underlying(*abstract_element.pseudo_element()));
 
         // Bail if no pseudo-element rules matched. Clear any stale custom property data so
         // getComputedStyle() doesn't return values from a previous match.
@@ -3118,23 +3114,9 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
         // Bail if no pseudo-element would be generated due to...
         // - content: none
         // - content: normal (for ::before and ::after)
-        bool content_is_normal = false;
-        if (auto content_value = cascaded_properties->property(CSS::PropertyID::Content)) {
-            if (content_value->is_keyword()) {
-                auto content = content_value->as_keyword().keyword();
-                if (content == CSS::Keyword::None)
-                    return {};
-                content_is_normal = content == CSS::Keyword::Normal;
-            } else {
-                content_is_normal = false;
-            }
-        } else {
-            // NOTE: `normal` is the initial value, so the absence of a value is treated as `normal`.
-            content_is_normal = true;
-        }
-        if (content_is_normal && first_is_one_of(*abstract_element.pseudo_element(), CSS::PseudoElement::Before, CSS::PseudoElement::After)) {
+        auto content_value = cascaded_properties->property(CSS::PropertyID::Content);
+        if (ComputedValuesFFI::rust_pseudo_element_content_bails(content_value ? content_value->rust_style_value_data() : nullptr, to_underlying(*abstract_element.pseudo_element())))
             return {};
-        }
     }
 
     auto computed_properties = compute_properties(abstract_element, cascaded_properties, matching_rule_set.matching_pseudo_element_styles);

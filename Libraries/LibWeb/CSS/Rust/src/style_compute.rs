@@ -653,6 +653,56 @@ pub unsafe extern "C" fn rust_recascade_font_size_step(
     })
 }
 
+/// Some pseudo-elements are generated regardless of CSS rules, so their
+/// styles must be computed even when no rules matched.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_pseudo_element_has_implicit_style(pseudo_element: u8) -> bool {
+    use crate::selector_engine::PseudoElementType;
+    abort_on_panic(|| {
+        matches!(
+            crate::selector_engine::pseudo_element_type_from_code(pseudo_element),
+            PseudoElementType::DetailsContent
+                | PseudoElementType::FileSelectorButton
+                | PseudoElementType::Marker
+                | PseudoElementType::Placeholder
+        )
+    })
+}
+
+/// Whether style computation for a pseudo-element bails because no
+/// pseudo-element box would be generated for the winning cascaded content
+/// value: content: none generates nothing, and content: normal (also the
+/// initial value, so an absent value counts) generates nothing for ::before
+/// and ::after.
+///
+/// # Safety
+/// `content_value` must be null or point at a valid StyleValueData.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_pseudo_element_content_bails(content_value: *const c_void, pseudo_element: u8) -> bool {
+    use crate::selector_engine::PseudoElementType;
+    abort_on_panic(|| {
+        let content_is_normal = if content_value.is_null() {
+            // NOTE: `normal` is the initial value, so the absence of a value is treated as `normal`.
+            true
+        } else {
+            match unsafe { &*(content_value as *const StyleValueData) } {
+                StyleValueData::Keyword { keyword } => {
+                    if *keyword == keyword::NONE {
+                        return true;
+                    }
+                    *keyword == keyword::NORMAL
+                }
+                _ => false,
+            }
+        };
+        content_is_normal
+            && matches!(
+                crate::selector_engine::pseudo_element_type_from_code(pseudo_element),
+                PseudoElementType::Before | PseudoElementType::After
+            )
+    })
+}
+
 // The computed value of the math-depth value is determined as follows:
 fn compute_math_depth(
     value: &StyleValueData,

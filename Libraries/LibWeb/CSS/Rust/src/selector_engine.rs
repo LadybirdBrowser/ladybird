@@ -135,6 +135,12 @@ pub enum Direction {
 
 include!(concat!(env!("OUT_DIR"), "/selector_pseudo_generated.rs"));
 
+/// Crate-visible access to the generated pseudo-element code mapping, for the
+/// style computation core's pseudo-element decisions.
+pub(crate) fn pseudo_element_type_from_code(value: u8) -> PseudoElementType {
+    pseudo_element_from_ffi(value)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PseudoClassSelector {
     pub pseudo_class: PseudoClassType,
