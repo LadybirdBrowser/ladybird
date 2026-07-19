@@ -157,7 +157,7 @@ void AbstractMachine::RootsProvider::for_each_conservative_range(AK::Function<vo
     for (auto& element : m_store.elements())
         report_references(element.references().span());
     for (auto& global : m_store.globals())
-        report_values(&global.value(), 1);
+        report_values(&global->value(), 1);
     for (auto& exception : m_store.exceptions())
         report_values(exception.params().data(), exception.params().size());
 }
@@ -493,6 +493,18 @@ MemoryInstanceTable ModuleInstance::resolved_memories(Store& store) const
     return m_resolved_memories.data();
 }
 
+GlobalInstanceTable ModuleInstance::resolved_globals(Store& store) const
+{
+    if (m_resolved_globals_built)
+        return m_resolved_globals.data();
+
+    m_resolved_globals.ensure_capacity(m_globals.size());
+    for (auto address : m_globals)
+        m_resolved_globals.unchecked_append(store.unsafe_get(address));
+    m_resolved_globals_built = true;
+    return m_resolved_globals.data();
+}
+
 Vector<CompiledFunctionEntry> const& ModuleInstance::compiled_fn_table(Store& store) const
 {
     if (m_compiled_fn_table_built)
@@ -590,7 +602,7 @@ Optional<MemoryAddress> Store::allocate(MemoryType const& type)
 Optional<GlobalAddress> Store::allocate(GlobalType const& type, Value value)
 {
     GlobalAddress address { m_globals.size() };
-    m_globals.append(GlobalInstance { value, type.is_mutable(), type.type() });
+    m_globals.append(make<GlobalInstance>(value, type.is_mutable(), type.type()));
     return address;
 }
 
@@ -672,7 +684,7 @@ GlobalInstance* Store::get(GlobalAddress address)
     auto value = address.value();
     if (m_globals.size() <= value)
         return nullptr;
-    return &m_globals[value];
+    return m_globals[value].ptr();
 }
 
 ElementInstance* Store::get(ElementAddress address)

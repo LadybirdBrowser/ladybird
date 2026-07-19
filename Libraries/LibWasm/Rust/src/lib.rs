@@ -11,6 +11,7 @@ use compiler::CraneliftCompiler;
 /// Immediates:
 ///   constants:    imm1 = value (i32 sign-extended, i64, or f32/f64 bits)
 ///   local ops:    imm1 = local index
+///   global ops:   imm1 = global index
 ///   branch:       imm1 = label index (from control stack)
 ///   block/loop:   imm1 = end_ip, imm2 = else_ip (-1 if none), imm3 = arity | (param_count << 16)
 ///   call:         imm1 = function index
@@ -38,10 +39,6 @@ pub struct RuntimeHelpers {
     pub memory_size: usize,
     // i32 fn(config, mem_idx, pages); returns old size or -1
     pub memory_grow: usize,
-    // i64 fn(config, index)
-    pub read_global: usize,
-    // void fn(config, index, value)
-    pub write_global: usize,
     // i32 fn(interp, config, func_index); call using call record args
     pub call_with_record: usize,
     // i32 fn(interp, config, func_index, ...args); direct call via compiled function table
@@ -62,6 +59,8 @@ pub struct RuntimeHelpers {
     pub value_size: u32,
     pub locals_base_offset: u32,
     pub memory_instances_offset: u32,
+    pub global_instances_offset: u32,
+    pub global_instance_value_offset: u32,
     pub memory_instance_data_offset: u32,
     pub memory_buffer_storage_offset_offset: u32,
     pub compiled_call_result_scratch_offset: u32,
@@ -81,20 +80,18 @@ pub enum HelperId {
     set_trap = 1,
     memory_size = 2,
     memory_grow = 3,
-    read_global = 4,
-    write_global = 5,
-    call_with_record = 6,
-    direct_call_0 = 7,
-    direct_call_1 = 8,
-    direct_call_2 = 9,
-    direct_call_3 = 10,
-    call_indirect = 11,
-    memory_copy = 12,
-    memory_fill = 13,
-    primitive_storage_cage_base = 14,
+    call_with_record = 4,
+    direct_call_0 = 5,
+    direct_call_1 = 6,
+    direct_call_2 = 7,
+    direct_call_3 = 8,
+    call_indirect = 9,
+    memory_copy = 10,
+    memory_fill = 11,
+    primitive_storage_cage_base = 12,
 }
 
-pub const HELPER_COUNT: u32 = 15;
+pub const HELPER_COUNT: u32 = 13;
 
 /// One relocation slot in the generated machine code. `code_offset` is the byte offset
 /// from the start of the function where 8 contiguous bytes hold the absolute helper

@@ -103,7 +103,7 @@ struct BatchInput {
 // any rebuild that changes those will simply miss the cache rather than try to
 // execute incompatible bytes.
 constexpr u64 cache_blob_magic = 0x4354494A4D534157ULL; // "WASMJITC" little-endian
-constexpr u32 cache_blob_format_version = 12;
+constexpr u32 cache_blob_format_version = 13;
 
 struct CacheBlobHeader {
     u64 magic;
@@ -172,6 +172,8 @@ static u64 compute_layout_hash(RuntimeHelpers const& h)
     hash = fnv1a(hash, h.value_size);
     hash = fnv1a(hash, h.locals_base_offset);
     hash = fnv1a(hash, h.memory_instances_offset);
+    hash = fnv1a(hash, h.global_instances_offset);
+    hash = fnv1a(hash, h.global_instance_value_offset);
     hash = fnv1a(hash, h.memory_instance_data_offset);
     hash = fnv1a(hash, h.memory_buffer_storage_offset_offset);
     hash = fnv1a(hash, h.compiled_call_result_scratch_offset);
@@ -184,9 +186,9 @@ static u64 compute_layout_hash(RuntimeHelpers const& h)
 // `HelperId` values are assigned in lockstep with the field order of `RuntimeHelpers`,
 // so the helper address for id N is simply the N-th `size_t` field of the struct.
 static_assert(offsetof(RuntimeHelpers, call_function) == 0);
-static_assert(offsetof(RuntimeHelpers, memory_fill) == sizeof(size_t) * 13);
-static_assert(offsetof(RuntimeHelpers, primitive_storage_cage_base) == sizeof(size_t) * 14);
-static_assert(HELPER_COUNT == 15);
+static_assert(offsetof(RuntimeHelpers, memory_fill) == sizeof(size_t) * 11);
+static_assert(offsetof(RuntimeHelpers, primitive_storage_cage_base) == sizeof(size_t) * 12);
+static_assert(HELPER_COUNT == 13);
 
 static bool apply_helper_relocs(u8* code_bytes, size_t code_size, HelperReloc const* relocs, size_t reloc_count, RuntimeHelpers const& helpers)
 {
@@ -463,26 +465,6 @@ i32 wasm_cl_memory_grow(void* config_ptr, u32 mem_idx, i32 pages)
     return static_cast<i32>(old_pages);
 }
 
-i64 wasm_cl_read_global(void* config_ptr, i32 index);
-i64 wasm_cl_read_global(void* config_ptr, i32 index)
-{
-    auto& config = *static_cast<Configuration*>(config_ptr);
-    auto const& module = config.frame().module();
-    auto global_address = module.globals().data()[index];
-    auto* global = config.store().get(global_address);
-    return global->value().to<i64>();
-}
-
-void wasm_cl_write_global(void* config_ptr, i32 index, i64 value);
-void wasm_cl_write_global(void* config_ptr, i32 index, i64 value)
-{
-    auto& config = *static_cast<Configuration*>(config_ptr);
-    auto const& module = config.frame().module();
-    auto global_address = module.globals().data()[index];
-    auto* global = config.store().get(global_address);
-    global->set_value(Value(value));
-}
-
 i32 wasm_cl_call_indirect(void* interp_ptr, void* config_ptr, i32 table_idx, i32 type_idx, i32 element_index);
 i32 wasm_cl_call_indirect(void* interp_ptr, void* config_ptr, i32 table_idx, i32 type_idx, i32 element_index)
 {
@@ -684,8 +666,6 @@ static RuntimeHelpers make_runtime_helpers()
         .set_trap = bit_cast<uintptr_t>(&wasm_cl_set_trap),
         .memory_size = bit_cast<uintptr_t>(&wasm_cl_memory_size),
         .memory_grow = bit_cast<uintptr_t>(&wasm_cl_memory_grow),
-        .read_global = bit_cast<uintptr_t>(&wasm_cl_read_global),
-        .write_global = bit_cast<uintptr_t>(&wasm_cl_write_global),
         .call_with_record = bit_cast<uintptr_t>(&wasm_cl_call_with_record),
         .direct_call_0 = bit_cast<uintptr_t>(&wasm_cl_direct_call_0),
         .direct_call_1 = bit_cast<uintptr_t>(&wasm_cl_direct_call_1),
@@ -699,6 +679,8 @@ static RuntimeHelpers make_runtime_helpers()
         .value_size = static_cast<u32>(sizeof(Value)),
         .locals_base_offset = static_cast<u32>(Configuration::locals_base_offset()),
         .memory_instances_offset = static_cast<u32>(Configuration::memory_instances_offset()),
+        .global_instances_offset = static_cast<u32>(Configuration::global_instances_offset()),
+        .global_instance_value_offset = static_cast<u32>(GlobalInstance::value_offset()),
         .memory_instance_data_offset = static_cast<u32>(MemoryInstance::data_offset()),
         .memory_buffer_storage_offset_offset = static_cast<u32>(MemoryBuffer::storage_offset_offset()),
         .compiled_call_result_scratch_offset = static_cast<u32>(Configuration::compiled_call_result_scratch_offset()),
