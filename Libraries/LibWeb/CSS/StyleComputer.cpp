@@ -2775,25 +2775,66 @@ static void compute_text_align(ComputedProperties::Builder& builder, DOM::Abstra
     }
 }
 
-enum class BoxTypeTransformation {
-    None,
-    Blockify,
-    Inlinify,
-};
-
-static BoxTypeTransformation required_box_type_transformation(ComputedProperties const& style, DOM::AbstractElement abstract_element)
+static ComputedValuesFFI::FfiDisplay to_ffi_display(Display const& display)
 {
-    // NOTE: We never blockify <br> elements. They are always inline.
-    //       There is currently no way to express in CSS how a <br> element really behaves.
-    //       Spec issue: https://github.com/whatwg/html/issues/2291
-    if (!abstract_element.pseudo_element().has_value() && is<HTML::HTMLBRElement>(abstract_element.element()))
-        return BoxTypeTransformation::None;
+    // The Rust mirror uses the same tag discriminants as Display::Type.
+    static_assert(to_underlying(Display::Type::OutsideAndInside) == 0);
+    static_assert(to_underlying(Display::Type::Internal) == 1);
+    static_assert(to_underlying(Display::Type::Box) == 2);
 
-    // Absolute positioning or floating an element blockifies the box’s display type. [CSS2]
-    if (style.position() == Positioning::Absolute || style.position() == Positioning::Fixed || style.float_() != Float::None)
-        return BoxTypeTransformation::Blockify;
+    ComputedValuesFFI::FfiDisplay result {};
+    result.tag = to_underlying(display.type());
+    switch (display.type()) {
+    case Display::Type::OutsideAndInside:
+        result.outside = to_underlying(display.outside());
+        result.inside = to_underlying(display.inside());
+        result.list_item = display.is_list_item();
+        break;
+    case Display::Type::Internal:
+        result.internal = to_underlying(display.internal());
+        break;
+    case Display::Type::Box:
+        result.box_value = display.is_none() ? to_underlying(DisplayBox::None) : to_underlying(DisplayBox::Contents);
+        break;
+    }
+    return result;
+}
 
-    // FIXME: Containment in a ruby container inlinifies the box’s display type, as described in [CSS-RUBY-1].
+static Display from_ffi_display(ComputedValuesFFI::FfiDisplay const& display)
+{
+    switch (static_cast<Display::Type>(display.tag)) {
+    case Display::Type::OutsideAndInside:
+        return Display { static_cast<DisplayOutside>(display.outside), static_cast<DisplayInside>(display.inside), display.list_item ? Display::ListItem::Yes : Display::ListItem::No };
+    case Display::Type::Internal:
+        return Display { static_cast<DisplayInternal>(display.internal) };
+    case Display::Type::Box:
+    default:
+        // The transformation never produces a box-type display.
+        VERIFY_NOT_REACHED();
+    }
+}
+
+// https://drafts.csswg.org/css-display/#transformations
+void StyleComputer::transform_box_type_if_needed(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element) const
+{
+    auto& style = builder.style();
+    auto display = style.display();
+
+    builder.set_display_before_box_type_transformation(display);
+
+    // The css-display-3 transformation rules live in the Rust style computation core; this
+    // wrapper marshals the element facts they depend on and applies the result.
+    auto& element = abstract_element.element();
+    bool is_mathml_element = false;
+    bool is_mathml_mtable = false;
+    bool is_mathml_mtr = false;
+    bool is_mathml_mtd = false;
+    if (display.is_math_inside()) {
+        is_mathml_element = element.namespace_uri() == Namespace::MathML;
+        is_mathml_mtable = element.tag_name().equals_ignoring_ascii_case("mtable"sv);
+        is_mathml_mtr = element.tag_name().equals_ignoring_ascii_case("mtr"sv);
+        is_mathml_mtd = element.tag_name().equals_ignoring_ascii_case("mtd"sv);
+    }
 
     // NOTE: If we're computing style for a pseudo-element, the effective parent will be the originating element itself, not its parent.
     auto parent = abstract_element.element_to_inherit_style_from();
@@ -2802,112 +2843,27 @@ static BoxTypeTransformation required_box_type_transformation(ComputedProperties
     while (parent.has_value() && parent->computed_values() && parent->computed_values()->display().is_contents())
         parent = parent->element_to_inherit_style_from();
 
-    // A parent with a grid or flex display value blockifies the box’s display type. [CSS-GRID-1] [CSS-FLEXBOX-1]
-    if (parent.has_value() && parent->computed_values()) {
-        auto const& parent_display = parent->computed_values()->display();
-        if (parent_display.is_grid_inside() || parent_display.is_flex_inside())
-            return BoxTypeTransformation::Blockify;
-    }
+    bool has_parent_display = parent.has_value() && parent->computed_values();
 
-    return BoxTypeTransformation::None;
-}
+    ComputedValuesFFI::FfiBoxTypeTransformationInput const input {
+        .display = to_ffi_display(display),
+        .position = to_underlying(style.property(PropertyID::Position).to_keyword()),
+        .float_value = to_underlying(style.property(PropertyID::Float).to_keyword()),
+        .is_br_element = !abstract_element.pseudo_element().has_value() && is<HTML::HTMLBRElement>(element),
+        .is_document_element = element.is_document_element(),
+        .is_mathml_element = is_mathml_element,
+        .is_mathml_mtable = is_mathml_mtable,
+        .is_mathml_mtr = is_mathml_mtr,
+        .is_mathml_mtd = is_mathml_mtd,
+        .has_parent_display = has_parent_display,
+        .parent_display = has_parent_display ? to_ffi_display(parent->computed_values()->display()) : ComputedValuesFFI::FfiDisplay {},
+    };
 
-// https://drafts.csswg.org/css-display/#transformations
-void StyleComputer::transform_box_type_if_needed(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element) const
-{
-    auto& style = builder.style();
-    // 2.7. Automatic Box Type Transformations
-
-    // Some layout effects require blockification or inlinification of the box type,
-    // which sets the box’s computed outer display type to block or inline (respectively).
-    // (This has no effect on display types that generate no box at all, such as none or contents.)
-
-    auto display = style.display();
-
-    builder.set_display_before_box_type_transformation(display);
-
-    if (display.is_none() || (display.is_contents() && !abstract_element.element().is_document_element()))
-        return;
-
-    // https://drafts.csswg.org/css-display/#root
-    // The root element’s display type is always blockified, and its principal box always establishes an independent formatting context.
-    if (abstract_element.element().is_document_element() && !display.is_block_outside()) {
-        builder.set_property(PropertyID::Display, DisplayStyleValue::create(Display::from_short(Display::Short::Block)));
-        return;
-    }
-
-    auto new_display = display;
-
-    if (display.is_math_inside()) {
-        // https://w3c.github.io/mathml-core/#new-display-math-value
-        // For elements that are not MathML elements, if the specified value of display is inline math or block math
-        // then the computed value is block flow and inline flow respectively.
-        if (abstract_element.element().namespace_uri() != Namespace::MathML)
-            new_display = Display { display.outside(), DisplayInside::Flow };
-        // For the mtable element the computed value is block table and inline table respectively.
-        else if (abstract_element.element().tag_name().equals_ignoring_ascii_case("mtable"sv))
-            new_display = Display { display.outside(), DisplayInside::Table };
-        // For the mtr element, the computed value is table-row.
-        else if (abstract_element.element().tag_name().equals_ignoring_ascii_case("mtr"sv))
-            new_display = Display { DisplayInternal::TableRow };
-        // For the mtd element, the computed value is table-cell.
-        else if (abstract_element.element().tag_name().equals_ignoring_ascii_case("mtd"sv))
-            new_display = Display { DisplayInternal::TableCell };
-    }
-
-    // https://www.w3.org/TR/CSS2/visuren.html#dis-pos-flo
-    // If 'position' has the value 'absolute' or 'fixed', [...] 'float' is set to 'none'
-    if (style.position() == Positioning::Absolute || style.position() == Positioning::Fixed)
+    auto transformation = ComputedValuesFFI::rust_transform_box_type(&input);
+    if (transformation.set_float_none)
         builder.set_property(PropertyID::Float, KeywordStyleValue::create(Keyword::None));
-
-    switch (required_box_type_transformation(style, abstract_element)) {
-    case BoxTypeTransformation::None:
-        break;
-    case BoxTypeTransformation::Blockify:
-        if (display.is_block_outside())
-            return;
-        // If a layout-internal box is blockified, its inner display type converts to flow so that it becomes a block container.
-        if (display.is_internal()) {
-            new_display = Display::from_short(Display::Short::Block);
-        } else {
-            VERIFY(display.is_outside_and_inside());
-
-            // For legacy reasons, if an inline block box (inline flow-root) is blockified, it becomes a block box (losing its flow-root nature).
-            // For consistency, a run-in flow-root box also blockifies to a block box.
-            if (display.is_inline_block()) {
-                new_display = Display { DisplayOutside::Block, DisplayInside::Flow, display.list_item() };
-            } else {
-                new_display = Display { DisplayOutside::Block, display.inside(), display.list_item() };
-            }
-        }
-        break;
-    case BoxTypeTransformation::Inlinify:
-        if (display.is_inline_outside()) {
-            // FIXME: If an inline box (inline flow) is inlinified, it recursively inlinifies all of its in-flow children,
-            //        so that no block-level descendants break up the inline formatting context in which it participates.
-            if (display.is_flow_inside()) {
-                dbgln("FIXME: Inlinify inline box children recursively");
-            }
-            break;
-        }
-        if (display.is_internal()) {
-            // Inlinification has no effect on layout-internal boxes. (However, placement in such an inline context will typically cause them
-            // to be wrapped in an appropriately-typed anonymous inline-level box.)
-        } else {
-            VERIFY(display.is_outside_and_inside());
-
-            // If a block box (block flow) is inlinified, its inner display type is set to flow-root so that it remains a block container.
-            if (display.is_block_outside() && display.is_flow_inside()) {
-                new_display = Display { DisplayOutside::Inline, DisplayInside::FlowRoot, display.list_item() };
-            }
-
-            new_display = Display { DisplayOutside::Inline, display.inside(), display.list_item() };
-        }
-        break;
-    }
-
-    if (new_display != display)
-        builder.set_property(PropertyID::Display, DisplayStyleValue::create(new_display));
+    if (transformation.changed_display)
+        builder.set_property(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(transformation.display)));
 }
 
 NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const

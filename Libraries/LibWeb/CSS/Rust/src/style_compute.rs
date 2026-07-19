@@ -27,6 +27,7 @@ use crate::style_value::StyleValueData;
 
 include!(concat!(env!("OUT_DIR"), "/length_units_generated.rs"));
 include!(concat!(env!("OUT_DIR"), "/keywords_generated.rs"));
+include!(concat!(env!("OUT_DIR"), "/css_enums_generated.rs"));
 
 /// FFI accessor for the keyword-code parity test on the C++ side.
 #[unsafe(no_mangle)]
@@ -1221,6 +1222,250 @@ pub unsafe extern "C" fn rust_for_each_property_expanding_shorthands(
     data: *const c_void,
 ) {
     abort_on_panic(|| expand_shorthands(unsafe { &*callbacks }, property_id, shell, data));
+}
+
+/// Mirror of the CSS Display value; the C++ tagged union crosses as explicit
+/// fields, with the unused fields zeroed so equality is field-wise. `tag` uses
+/// the same discriminants as Display::Type.
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct FfiDisplay {
+    /// 0 = outside-and-inside, 1 = internal, 2 = box.
+    pub tag: u8,
+    pub outside: u8,
+    pub inside: u8,
+    pub list_item: bool,
+    pub internal: u8,
+    pub box_value: u8,
+}
+
+const DISPLAY_TAG_OUTSIDE_AND_INSIDE: u8 = 0;
+const DISPLAY_TAG_INTERNAL: u8 = 1;
+const DISPLAY_TAG_BOX: u8 = 2;
+
+impl FfiDisplay {
+    fn outside_and_inside(outside: u8, inside: u8, list_item: bool) -> Self {
+        Self {
+            tag: DISPLAY_TAG_OUTSIDE_AND_INSIDE,
+            outside,
+            inside,
+            list_item,
+            internal: 0,
+            box_value: 0,
+        }
+    }
+
+    fn internal(internal: u8) -> Self {
+        Self {
+            tag: DISPLAY_TAG_INTERNAL,
+            outside: 0,
+            inside: 0,
+            list_item: false,
+            internal,
+            box_value: 0,
+        }
+    }
+
+    fn block() -> Self {
+        Self::outside_and_inside(display_outside::BLOCK, display_inside::FLOW, false)
+    }
+
+    fn is_outside_and_inside(&self) -> bool {
+        self.tag == DISPLAY_TAG_OUTSIDE_AND_INSIDE
+    }
+
+    fn is_internal(&self) -> bool {
+        self.tag == DISPLAY_TAG_INTERNAL
+    }
+
+    fn is_none(&self) -> bool {
+        self.tag == DISPLAY_TAG_BOX && self.box_value == display_box::NONE
+    }
+
+    fn is_contents(&self) -> bool {
+        self.tag == DISPLAY_TAG_BOX && self.box_value == display_box::CONTENTS
+    }
+
+    fn is_block_outside(&self) -> bool {
+        self.is_outside_and_inside() && self.outside == display_outside::BLOCK
+    }
+
+    fn is_inline_outside(&self) -> bool {
+        self.is_outside_and_inside() && self.outside == display_outside::INLINE
+    }
+
+    fn is_math_inside(&self) -> bool {
+        self.is_outside_and_inside() && self.inside == display_inside::MATH
+    }
+
+    fn is_inline_block(&self) -> bool {
+        self.is_inline_outside() && self.inside == display_inside::FLOW_ROOT
+    }
+
+    fn is_grid_inside(&self) -> bool {
+        self.is_outside_and_inside() && self.inside == display_inside::GRID
+    }
+
+    fn is_flex_inside(&self) -> bool {
+        self.is_outside_and_inside() && self.inside == display_inside::FLEX
+    }
+}
+
+/// The element facts the box type transformation needs, marshalled by the C++
+/// side. The parent display is the first non-`display: contents` ancestor's.
+#[repr(C)]
+pub struct FfiBoxTypeTransformationInput {
+    pub display: FfiDisplay,
+    /// Computed position and float keywords.
+    pub position: u16,
+    pub float_value: u16,
+    pub is_br_element: bool,
+    pub is_document_element: bool,
+    pub is_mathml_element: bool,
+    pub is_mathml_mtable: bool,
+    pub is_mathml_mtr: bool,
+    pub is_mathml_mtd: bool,
+    pub has_parent_display: bool,
+    pub parent_display: FfiDisplay,
+}
+
+/// Result of the box type transformation: whether float must be reset to none,
+/// and the possibly replaced display.
+#[repr(C)]
+pub struct FfiBoxTypeTransformation {
+    pub set_float_none: bool,
+    pub changed_display: bool,
+    pub display: FfiDisplay,
+}
+
+// NB: css-display-3 also defines inlinification, but nothing triggers it yet (the only
+//     candidate is the ruby containment FIXME below), so only blockification is modelled.
+enum BoxTypeTransformation {
+    None,
+    Blockify,
+}
+
+fn required_box_type_transformation(input: &FfiBoxTypeTransformationInput) -> BoxTypeTransformation {
+    // NOTE: We never blockify <br> elements. They are always inline.
+    //       There is currently no way to express in CSS how a <br> element really behaves.
+    //       Spec issue: https://github.com/whatwg/html/issues/2291
+    if input.is_br_element {
+        return BoxTypeTransformation::None;
+    }
+
+    // Absolute positioning or floating an element blockifies the box's display type. [CSS2]
+    if input.position == keyword::ABSOLUTE || input.position == keyword::FIXED || input.float_value != keyword::NONE {
+        return BoxTypeTransformation::Blockify;
+    }
+
+    // FIXME: Containment in a ruby container inlinifies the box's display type, as described in [CSS-RUBY-1].
+
+    // A parent with a grid or flex display value blockifies the box's display type. [CSS-GRID-1] [CSS-FLEXBOX-1]
+    // NB: The C++ side supplies the first ancestor that is not `display: contents`; for a
+    //     pseudo-element that climb starts at the originating element itself.
+    if input.has_parent_display && (input.parent_display.is_grid_inside() || input.parent_display.is_flex_inside()) {
+        return BoxTypeTransformation::Blockify;
+    }
+
+    BoxTypeTransformation::None
+}
+
+/// https://drafts.csswg.org/css-display/#transformations
+/// 2.7. Automatic Box Type Transformations
+///
+/// # Safety
+/// `input` must be a valid pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_transform_box_type(
+    input: *const FfiBoxTypeTransformationInput,
+) -> FfiBoxTypeTransformation {
+    abort_on_panic(|| {
+        let input = unsafe { &*input };
+        let display = input.display;
+        let unchanged = |set_float_none: bool| FfiBoxTypeTransformation {
+            set_float_none,
+            changed_display: false,
+            display,
+        };
+
+        // Some layout effects require blockification or inlinification of the box type,
+        // which sets the box's computed outer display type to block or inline (respectively).
+        // (This has no effect on display types that generate no box at all, such as none or contents.)
+        if display.is_none() || (display.is_contents() && !input.is_document_element) {
+            return unchanged(false);
+        }
+
+        // https://drafts.csswg.org/css-display/#root
+        // The root element's display type is always blockified, and its principal box always establishes an independent formatting context.
+        if input.is_document_element && !display.is_block_outside() {
+            return FfiBoxTypeTransformation {
+                set_float_none: false,
+                changed_display: true,
+                display: FfiDisplay::block(),
+            };
+        }
+
+        let mut new_display = display;
+
+        if display.is_math_inside() {
+            // https://w3c.github.io/mathml-core/#new-display-math-value
+            // For elements that are not MathML elements, if the specified value of display is inline math or block math
+            // then the computed value is block flow and inline flow respectively.
+            if !input.is_mathml_element {
+                new_display = FfiDisplay::outside_and_inside(display.outside, display_inside::FLOW, display.list_item);
+            }
+            // For the mtable element the computed value is block table and inline table respectively.
+            else if input.is_mathml_mtable {
+                new_display = FfiDisplay::outside_and_inside(display.outside, display_inside::TABLE, display.list_item);
+            }
+            // For the mtr element, the computed value is table-row.
+            else if input.is_mathml_mtr {
+                new_display = FfiDisplay::internal(display_internal::TABLE_ROW);
+            }
+            // For the mtd element, the computed value is table-cell.
+            else if input.is_mathml_mtd {
+                new_display = FfiDisplay::internal(display_internal::TABLE_CELL);
+            }
+        }
+
+        // https://www.w3.org/TR/CSS2/visuren.html#dis-pos-flo
+        // If 'position' has the value 'absolute' or 'fixed', [...] 'float' is set to 'none'
+        let set_float_none = input.position == keyword::ABSOLUTE || input.position == keyword::FIXED;
+
+        match required_box_type_transformation(input) {
+            BoxTypeTransformation::None => {}
+            BoxTypeTransformation::Blockify => {
+                if display.is_block_outside() {
+                    return unchanged(set_float_none);
+                }
+                // If a layout-internal box is blockified, its inner display type converts to flow so that it becomes a block container.
+                if display.is_internal() {
+                    new_display = FfiDisplay::block();
+                } else {
+                    assert!(display.is_outside_and_inside());
+
+                    // For legacy reasons, if an inline block box (inline flow-root) is blockified, it becomes a block box (losing its flow-root nature).
+                    // For consistency, a run-in flow-root box also blockifies to a block box.
+                    if display.is_inline_block() {
+                        new_display = FfiDisplay::outside_and_inside(
+                            display_outside::BLOCK,
+                            display_inside::FLOW,
+                            display.list_item,
+                        );
+                    } else {
+                        new_display =
+                            FfiDisplay::outside_and_inside(display_outside::BLOCK, display.inside, display.list_item);
+                    }
+                }
+            }
+        }
+
+        FfiBoxTypeTransformation {
+            set_float_none,
+            changed_display: new_display != display,
+            display: new_display,
+        }
+    })
 }
 
 /// Result of resolving the effective overflow pair: each axis' possibly
