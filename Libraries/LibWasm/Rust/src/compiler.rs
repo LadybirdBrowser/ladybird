@@ -202,10 +202,8 @@ impl CraneliftCompiler {
             cage_base_sig:     i64 fn();
             mem_size_sig:      i64 fn(ptr, i32);
             mem_grow_sig:      i32 fn(ptr, i32, i32);
-            read_global_sig:   i64 fn(ptr, i32);
             call_wr_sig:       i32 fn(ptr, ptr, i32);
             set_trap_sig:      void fn(ptr, ptr, i32);
-            write_global_sig:  void fn(ptr, i32, i64);
         }
 
         // Declare each runtime helper as an imported external function. At every use site
@@ -233,8 +231,6 @@ impl CraneliftCompiler {
         let h_set_trap = decl_helper!(set_trap_sig, HelperId::set_trap);
         let h_mem_size = decl_helper!(mem_size_sig, HelperId::memory_size);
         let h_mem_grow = decl_helper!(mem_grow_sig, HelperId::memory_grow);
-        let h_read_global = decl_helper!(read_global_sig, HelperId::read_global);
-        let h_write_global = decl_helper!(write_global_sig, HelperId::write_global);
         let h_call_wr = decl_helper!(call_wr_sig, HelperId::call_with_record);
         let h_call_indirect = decl_helper!(call_indirect_sig, HelperId::call_indirect);
         let h_memory_copy = decl_helper!(memory_copy_sig, HelperId::memory_copy);
@@ -242,6 +238,8 @@ impl CraneliftCompiler {
         let h_primitive_storage_cage_base = decl_helper!(cage_base_sig, HelperId::primitive_storage_cage_base);
         let locals_base_offset = helpers.locals_base_offset as i32;
         let memory_instances_offset = helpers.memory_instances_offset as i32;
+        let global_instances_offset = helpers.global_instances_offset as i32;
+        let global_instance_value_offset = helpers.global_instance_value_offset as i32;
         let memory_instance_data_offset = helpers.memory_instance_data_offset as i32;
         let memory_buffer_storage_offset_offset = helpers.memory_buffer_storage_offset_offset as i32;
         let compiled_call_result_scratch_offset = helpers.compiled_call_result_scratch_offset as i32;
@@ -335,6 +333,34 @@ impl CraneliftCompiler {
                 };
                 let memory_base = builder.ins().iadd(cage_base, storage_offset);
                 memory_bases.push((memory_index, memory_base));
+            }
+        }
+
+        let mut used_global_indices: Vec<u32> = insns
+            .iter()
+            .filter(|insn| matches!(insn.opcode, op::GLOBAL_GET | op::GLOBAL_SET))
+            .map(|insn| insn.imm1 as u32)
+            .collect();
+        used_global_indices.sort_unstable();
+        used_global_indices.dedup();
+
+        let mut global_instances = Vec::with_capacity(used_global_indices.len());
+        if !used_global_indices.is_empty() {
+            let globals = builder.ins().load(
+                ptr_type,
+                MemFlags::trusted(),
+                configuration_val,
+                global_instances_offset,
+            );
+            for global_index in used_global_indices {
+                let global_pointer_offset = builder
+                    .ins()
+                    .iconst(ptr_type, i64::from(global_index) * i64::from(ptr_type.bytes()));
+                let global_pointer_address = builder.ins().iadd(globals, global_pointer_offset);
+                let global = builder
+                    .ins()
+                    .load(ptr_type, MemFlags::trusted(), global_pointer_address, 0);
+                global_instances.push((global_index, global));
             }
         }
 
@@ -1114,6 +1140,14 @@ impl CraneliftCompiler {
                 $builder.ins().iadd(memory_base, addr_offset)
             }};
         }
+        macro_rules! inline_global_instance {
+            ($global_index:expr) => {{
+                global_instances
+                    .iter()
+                    .find_map(|(index, global)| (*index == $global_index).then_some(*global))
+                    .expect("global access must have a resolved instance")
+            }};
+        }
 
         // On a fresh call only the parameters are initialized by the caller.
         macro_rules! init_locals_fresh {
@@ -1562,23 +1596,23 @@ impl CraneliftCompiler {
                 }
 
                 op::GLOBAL_GET => {
-                    let idx = builder.ins().iconst(types::I32, insn.imm1);
-                    let _uv_config_var = builder.use_var(config_var);
-                    let _ic_0 = builder.ins().func_addr(ptr_type, h_read_global);
-                    let call = builder
-                        .ins()
-                        .call_indirect(read_global_sig, _ic_0, &[_uv_config_var, idx]);
-                    let result = builder.inst_results(call)[0];
+                    let global = inline_global_instance!(insn.imm1 as u32);
+                    let result =
+                        builder
+                            .ins()
+                            .load(types::I64, MemFlags::trusted(), global, global_instance_value_offset);
                     write_dst!(builder, insn.destination, result);
                 }
                 op::GLOBAL_SET => {
                     let val = read_src!(builder, insn.sources[0]);
-                    let idx = builder.ins().iconst(types::I32, insn.imm1);
-                    let _uv_config_var = builder.use_var(config_var);
-                    let _ic_0 = builder.ins().func_addr(ptr_type, h_write_global);
+                    let global = inline_global_instance!(insn.imm1 as u32);
                     builder
                         .ins()
-                        .call_indirect(write_global_sig, _ic_0, &[_uv_config_var, idx, val]);
+                        .store(MemFlags::trusted(), val, global, global_instance_value_offset);
+                    let zero = builder.ins().iconst(types::I64, 0);
+                    builder
+                        .ins()
+                        .store(MemFlags::trusted(), zero, global, global_instance_value_offset + 8);
                 }
 
                 op::DROP => {

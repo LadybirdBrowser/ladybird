@@ -50,6 +50,7 @@ public:
         auto& frame = m_frame_stack.last();
         m_locals_base = locals_ptr;
         m_memory_instances = frame.module().resolved_memories(m_store);
+        m_global_instances = frame.module().resolved_globals(m_store);
         frame.set_compiled_fn_table(&frame.module().compiled_fn_table(m_store));
 
         auto continuation = frame.expression().instructions().size() - 1;
@@ -89,6 +90,7 @@ public:
         m_locals_base = locals_ptr;
         if (!same_module) {
             m_memory_instances = module.resolved_memories(m_store);
+            m_global_instances = module.resolved_globals(m_store);
         }
         // Compiled code pushes to the value stack without bounds checks, so verify here that the
         // frame's whole stack usage fits the reservation.
@@ -124,6 +126,7 @@ public:
 
     static constexpr size_t locals_base_offset() { return __builtin_offsetof(Configuration, m_locals_base); }
     static constexpr size_t memory_instances_offset() { return __builtin_offsetof(Configuration, m_memory_instances); }
+    static constexpr size_t global_instances_offset() { return __builtin_offsetof(Configuration, m_global_instances); }
     static constexpr size_t compiled_call_result_scratch_offset() { return __builtin_offsetof(Configuration, m_compiled_call_result_scratch); }
     static constexpr size_t value_stack_base_offset() { return __builtin_offsetof(Configuration, m_value_stack) + ValueStack::base_offset(); }
     static constexpr size_t value_stack_top_offset() { return __builtin_offsetof(Configuration, m_value_stack) + ValueStack::top_offset(); }
@@ -314,6 +317,7 @@ public:
     Value* m_locals_base { nullptr };
     Value* m_call_record_base { nullptr };
     MemoryInstanceTable m_memory_instances { nullptr };
+    GlobalInstanceTable m_global_instances { nullptr };
     Value m_compiled_call_result_scratch;
 };
 

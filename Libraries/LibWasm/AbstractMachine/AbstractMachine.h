@@ -385,8 +385,10 @@ using ExternValue = Variant<FunctionAddress, TableAddress, MemoryAddress, Global
 class Store;
 class ModuleInstance;
 class MemoryInstance;
+class GlobalInstance;
 
 using MemoryInstanceTable = MemoryInstance**;
+using GlobalInstanceTable = GlobalInstance**;
 
 struct CompiledFunctionEntry {
     FlatPtr handler_ptr { 0 };    // 0 = not compiled, use slow path
@@ -463,6 +465,7 @@ public:
     size_t cached_minimum_call_record_allocation_size { 0 };
 
     MemoryInstanceTable resolved_memories(Store&) const;
+    GlobalInstanceTable resolved_globals(Store&) const;
     Vector<CompiledFunctionEntry> const& compiled_fn_table(Store&) const;
 
 private:
@@ -480,6 +483,8 @@ private:
 
     mutable Vector<MemoryInstance*> m_resolved_memories;
     mutable bool m_resolved_memories_built { false };
+    mutable Vector<GlobalInstance*> m_resolved_globals;
+    mutable bool m_resolved_globals_built { false };
     mutable Vector<CompiledFunctionEntry> m_compiled_fn_table;
     mutable bool m_compiled_fn_table_built { false };
 };
@@ -701,6 +706,8 @@ public:
         m_value = move(value);
     }
 
+    static constexpr size_t value_offset() { return __builtin_offsetof(GlobalInstance, m_value); }
+
 private:
     bool m_mutable { false };
     Value m_value;
@@ -848,6 +855,7 @@ public:
 
     ALWAYS_INLINE FunctionInstance* unsafe_get(FunctionAddress address) { return &m_functions.data()[address.value()]; }
     ALWAYS_INLINE MemoryInstance* unsafe_get(MemoryAddress address) { return m_memories.data()[address.value()].ptr(); }
+    ALWAYS_INLINE GlobalInstance* unsafe_get(GlobalAddress address) { return m_globals.data()[address.value()].ptr(); }
 
     GC::Heap& heap() { return *m_heap; }
     void set_heap(GC::Heap& heap) { m_heap = &heap; }
@@ -865,7 +873,7 @@ private:
     Vector<FunctionInstance> m_functions;
     Vector<TableInstance> m_tables;
     Vector<NonnullOwnPtr<MemoryInstance>> m_memories;
-    Vector<GlobalInstance> m_globals;
+    Vector<NonnullOwnPtr<GlobalInstance>> m_globals;
     Vector<ElementInstance> m_elements;
     Vector<DataInstance> m_datas;
     Vector<TagInstance> m_tags;
