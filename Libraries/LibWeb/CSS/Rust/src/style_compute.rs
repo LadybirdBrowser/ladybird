@@ -806,6 +806,28 @@ fn value_is_computationally_independent(
         | StyleValueData::FontSource { .. }
         | StyleValueData::ScrollbarGutter { .. } => Some(true),
         StyleValueData::LightDark { .. } | StyleValueData::TreeCountingFunction { .. } => Some(false),
+        // The calculation tree decides natively; its style value leaves resolve through the
+        // same decision, falling back for the types the core cannot decide.
+        StyleValueData::Calculated { rust_calculation, .. } => {
+            Some(rust_calculation.node().is_computationally_independent(
+                &|unit| !length_unit_is_font_or_container_relative(unit),
+                &|retained| {
+                    let shell = retained.shell_pointer();
+                    if shell.is_null() {
+                        return true;
+                    }
+                    let data = unsafe { data_of(shell) };
+                    match value_is_computationally_independent(
+                        unsafe { &*(data as *const StyleValueData) },
+                        data_of,
+                        decide_fallback,
+                    ) {
+                        Some(independent) => independent,
+                        None => unsafe { decide_fallback(shell) },
+                    }
+                },
+            ))
+        }
         StyleValueData::Ratio {
             numerator, denominator, ..
         } => all_of(&[numerator, denominator]),

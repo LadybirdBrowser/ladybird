@@ -194,6 +194,34 @@ impl CalcNode {
         }
     }
 
+    /// https://drafts.css-houdini.org/css-properties-values-api/#computationally-independent
+    /// Whether the calculation is computationally independent: every node is a
+    /// conjunction over its children, with length leaves depending on their
+    /// unit's relativity and the style values carried by random() and
+    /// non-math-function nodes resolved through the given leaf resolver.
+    pub(crate) fn is_computationally_independent(
+        &self,
+        length_is_independent: &impl Fn(u8) -> bool,
+        style_value_is_independent: &impl Fn(&RetainedStyleValue) -> bool,
+    ) -> bool {
+        let leaf_independent = match self {
+            CalcNode::Numeric(CalcNumericValue::Length { unit, .. }) => length_is_independent(*unit),
+            CalcNode::Numeric(..) | CalcNode::ChannelKeyword(..) => true,
+            CalcNode::Random { sharing, .. } => style_value_is_independent(sharing),
+            CalcNode::NonMathFunction(value) => style_value_is_independent(value),
+            _ => true,
+        };
+        if !leaf_independent {
+            return false;
+        }
+        let mut independent = true;
+        self.for_each_child(&mut |child| {
+            independent =
+                independent && child.is_computationally_independent(length_is_independent, style_value_is_independent);
+        });
+        independent
+    }
+
     /// https://www.w3.org/TR/css-values-4/#calculation-tree
     /// Whether any leaf of the subtree is a percentage.
     pub(crate) fn contains_percentage(&self) -> bool {
@@ -489,4 +517,13 @@ pub unsafe extern "C" fn rust_calc_node_create_non_math_function(value: *const s
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
     crate::abort_on_panic(|| drop(unsafe { Arc::from_raw(node) }));
+}
+
+/// Whether any leaf of the calculation is a percentage.
+///
+/// # Safety
+/// `node` must be a valid calculation node pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_node_contains_percentage(node: *const CalcNode) -> bool {
+    crate::abort_on_panic(|| unsafe { &*node }.contains_percentage())
 }

@@ -186,8 +186,6 @@ bool StyleValue::decide_computational_independence_fallback() const
     switch (type()) {
     case Type::GridTrackSizeList:
         return static_cast<GridTrackSizeListStyleValue const&>(*this).is_computationally_independent();
-    case Type::Calculated:
-        return static_cast<CalculatedStyleValue const&>(*this).is_computationally_independent();
     default:
         VERIFY_NOT_REACHED();
     }
