@@ -260,6 +260,7 @@ public:
     static StringView pending_session_history_traversal_stage_to_string(PendingSessionHistoryTraversal::Stage);
 
 private:
+    Optional<Web::HTML::CrossProcessId> nested_history_id_for(CanonicalNavigable const&) const;
     HistoryTraversalDecision traverse_the_history(TraversableSessionHistory::TraversalTarget const&, CheckForCancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete);
     void abandon_pending_web_content_session_history_seed();
     void remove_from_index(CanonicalNavigable&);
