@@ -110,6 +110,158 @@ fn generate_selector_pseudo_types(manifest_dir: &Path, out_dir: &Path) -> Result
     Ok(())
 }
 
+// Generates the property metadata tables for the Rust style computation core from
+// Properties.json, replicating the C++ generator's identifier assignment exactly:
+// Custom is 0, then shorthands, inherited longhands and non-inherited longhands in
+// JSON order, skipping legacy aliases. A C++ unit test compares the tables against
+// the C++-generated equivalents so the two generators cannot drift.
+fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn Error>> {
+    let properties_path = manifest_dir.parent().unwrap().join("Properties.json");
+    println!("cargo:rerun-if-changed={}", properties_path.display());
+
+    let value: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&properties_path)?)?;
+    let serde_json::Value::Object(properties) = value else {
+        return Err("Properties.json does not contain a JSON object".into());
+    };
+
+    // Logical alias properties take their metadata from the first physical property of
+    // their logical group, with local overrides, mirroring the C++ generator.
+    let groups_path = manifest_dir.parent().unwrap().join("LogicalPropertyGroups.json");
+    println!("cargo:rerun-if-changed={}", groups_path.display());
+    let groups_value: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&groups_path)?)?;
+    let serde_json::Value::Object(groups) = groups_value else {
+        return Err("LogicalPropertyGroups.json does not contain a JSON object".into());
+    };
+    let first_physical_in_group =
+        |group_name: &str| -> Option<&str> { groups[group_name]["physical"].as_object()?.values().next()?.as_str() };
+    let property_field = |name: &str, field: &str| -> Option<serde_json::Value> {
+        let object = properties[name].as_object().unwrap();
+        if let Some(value) = object.get(field) {
+            return Some(value.clone());
+        }
+        let group = object.get("logical-alias-for")?.as_object()?.get("group")?.as_str()?;
+        let physical = first_physical_in_group(group)?;
+        properties[physical].as_object().unwrap().get(field).cloned()
+    };
+
+    let mut shorthands = Vec::new();
+    let mut inherited_longhands = Vec::new();
+    let mut noninherited_longhands = Vec::new();
+    for (name, value) in &properties {
+        let object = value.as_object().unwrap();
+        if object.contains_key("legacy-alias-for") {
+            continue;
+        }
+        // NB: The C++ generator populates the "all" shorthand's longhand list
+        //     programmatically, so it has no explicit "longhands" key.
+        if object.contains_key("longhands") || name == "all" {
+            shorthands.push(name.clone());
+        } else if property_field(name, "inherited").unwrap().as_bool().unwrap() {
+            inherited_longhands.push(name.clone());
+        } else {
+            noninherited_longhands.push(name.clone());
+        }
+    }
+
+    // Identifier assignment: Custom = 0, then the three runs in order.
+    let mut ids = std::collections::HashMap::new();
+    for (index, name) in shorthands
+        .iter()
+        .chain(&inherited_longhands)
+        .chain(&noninherited_longhands)
+        .enumerate()
+    {
+        ids.insert(name.clone(), (index + 1) as u16);
+    }
+    let first_longhand = ids[&inherited_longhands[0]];
+    let last_longhand = ids[noninherited_longhands.last().unwrap()];
+    let first_inherited = ids[&inherited_longhands[0]];
+    let last_inherited = ids[inherited_longhands.last().unwrap()];
+
+    // NB: Must match manually_specified_computation_order in
+    //     Meta/Generators/generate_libweb_css_property_id.py; the parity test enforces it.
+    let manual_order = [
+        "math-depth",
+        "font-family",
+        "font-feature-settings",
+        "font-kerning",
+        "font-optical-sizing",
+        "font-size",
+        "font-style",
+        "font-variant-alternates",
+        "font-variant-caps",
+        "font-variant-east-asian",
+        "font-variant-emoji",
+        "font-variant-ligatures",
+        "font-variant-numeric",
+        "font-variant-position",
+        "font-variation-settings",
+        "font-weight",
+        "font-width",
+        "text-rendering",
+        "line-height",
+        "color-scheme",
+        "background-image",
+        "direction",
+        "writing-mode",
+    ];
+    let mut order = Vec::new();
+    for name in manual_order {
+        order.push(ids[name]);
+    }
+    // NB: The remainder follows Properties.json iteration order across all longhands,
+    //     matching the C++ generator, not grouped by inheritance.
+    for (name, value) in &properties {
+        let object = value.as_object().unwrap();
+        if object.contains_key("legacy-alias-for") || object.contains_key("longhands") || name == "all" {
+            continue;
+        }
+        if !manual_order.contains(&name.as_str()) {
+            order.push(ids[name]);
+        }
+    }
+
+    let mut levels = vec![0u8; (last_longhand - first_longhand + 1) as usize];
+    for name in inherited_longhands.iter().chain(&noninherited_longhands) {
+        let requires_computation = property_field(name, "requires-computation").unwrap();
+        let level = match requires_computation.as_str().unwrap() {
+            "never" => 0u8,
+            "cascaded-value" => 1,
+            "non-inherited-value" => 2,
+            "always" => 3,
+            other => return Err(format!("unknown requires-computation '{other}' for {name}").into()),
+        };
+        levels[(ids[name] - first_longhand) as usize] = level;
+    }
+
+    let mut output = String::new();
+    output.push_str("// Generated by build.rs from Properties.json. Do not edit.\n\n");
+    output.push_str(&format!(
+        "pub const FIRST_LONGHAND_PROPERTY_ID: u16 = {first_longhand};\n"
+    ));
+    output.push_str(&format!(
+        "pub const LAST_LONGHAND_PROPERTY_ID: u16 = {last_longhand};\n"
+    ));
+    output.push_str(&format!(
+        "pub const FIRST_INHERITED_PROPERTY_ID: u16 = {first_inherited};\n"
+    ));
+    output.push_str(&format!(
+        "pub const LAST_INHERITED_PROPERTY_ID: u16 = {last_inherited};\n\n"
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_COMPUTATION_ORDER: [u16; {}] = {:?};\n\n",
+        order.len(),
+        order
+    ));
+    output.push_str(&format!(
+        "pub(crate) static REQUIRES_COMPUTATION_LEVELS: [u8; {}] = {:?};\n",
+        levels.len(),
+        levels
+    ));
+    std::fs::write(out_dir.join("property_metadata_generated.rs"), output)?;
+    Ok(())
+}
+
 fn generate_ffi_header(
     config: cbindgen::Config,
     sources: &[PathBuf],
@@ -150,6 +302,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-changed=src");
 
     generate_selector_pseudo_types(&manifest_dir, &out_dir)?;
+    generate_property_metadata(&manifest_dir, &out_dir)?;
 
     let ffi_out_dir = env::var("FFI_OUTPUT_DIR")
         .map(PathBuf::from)
@@ -239,7 +392,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     generate_ffi_header(
         computed_values_config,
-        &[manifest_dir.join("src/computed_values.rs")],
+        &[
+            manifest_dir.join("src/computed_values.rs"),
+            manifest_dir.join("src/property_metadata.rs"),
+        ],
         &out_dir,
         &ffi_out_dir,
         Path::new("ComputedValuesRustFFI.h"),

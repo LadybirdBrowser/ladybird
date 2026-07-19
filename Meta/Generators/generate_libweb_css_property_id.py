@@ -283,12 +283,12 @@ Vector<PropertyID> const& longhands_for_shorthand(PropertyID);
 Vector<PropertyID> const& expanded_longhands_for_shorthand(PropertyID);
 bool property_maps_to_shorthand(PropertyID);
 Vector<PropertyID> const& shorthands_for_longhand(PropertyID);
-Vector<PropertyID> const& property_computation_order();
+WEB_API Vector<PropertyID> const& property_computation_order();
 bool property_is_positional_value_list_shorthand(PropertyID);
 
-bool property_requires_computation_with_inherited_value(PropertyID);
-bool property_requires_computation_with_initial_value(PropertyID);
-bool property_requires_computation_with_cascaded_value(PropertyID);
+WEB_API bool property_requires_computation_with_inherited_value(PropertyID);
+WEB_API bool property_requires_computation_with_initial_value(PropertyID);
+WEB_API bool property_requires_computation_with_cascaded_value(PropertyID);
 
 size_t property_maximum_value_count(PropertyID);
 

@@ -27,6 +27,7 @@ set(TEST_SOURCES
     TestStructuredSerializeFormat.cpp
     TestStructuredSerializeHardening.cpp
     TestStrings.cpp
+    TestStylePropertyMetadataParity.cpp
     TestStyleStructRef.cpp
     TestWebIDLBuffers.cpp
     TestWebGLSpanWithStorage.cpp

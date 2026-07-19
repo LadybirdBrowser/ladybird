@@ -10,6 +10,7 @@ mod rust_allocator;
 
 pub mod computed_values;
 mod css_tokenizer;
+pub mod property_metadata;
 mod selector_engine;
 mod style_value;
 
