@@ -59,6 +59,13 @@ static consteval ComputedValuesFFI::StyleGroupVTable make_style_group_vtable()
     };
 }
 
+// Groups whose layout is defined in Rust must not change size or alignment when the C++
+// side layers initial values and accessors on top of the mirrored layout.
+static_assert(sizeof(ComputedValues::InheritedBoxValues) == sizeof(ComputedValuesFFI::InheritedBoxValues));
+static_assert(alignof(ComputedValues::InheritedBoxValues) == alignof(ComputedValuesFFI::InheritedBoxValues));
+static_assert(sizeof(ComputedValues::InheritedTableValues) == sizeof(ComputedValuesFFI::InheritedTableValues));
+static_assert(alignof(ComputedValues::InheritedTableValues) == alignof(ComputedValuesFFI::InheritedTableValues));
+
 void const* style_group_default_payload(size_t group_index)
 {
     static auto const default_payloads = [] {

@@ -8,7 +8,7 @@
 #[path = "../../../../RustAllocator.rs"]
 mod rust_allocator;
 
-mod computed_values;
+pub mod computed_values;
 mod css_tokenizer;
 mod selector_engine;
 mod style_value;

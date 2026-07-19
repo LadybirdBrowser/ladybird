@@ -1050,9 +1050,9 @@ public:
     }
 
     Float float_() const { return m_noninherited.box->float_; }
-    CSSPixels border_spacing_horizontal() const { return m_inherited.table->border_spacing_horizontal; }
-    CSSPixels border_spacing_vertical() const { return m_inherited.table->border_spacing_vertical; }
-    CaptionSide caption_side() const { return m_inherited.table->caption_side; }
+    CSSPixels border_spacing_horizontal() const { return CSSPixels::from_raw(m_inherited.table->border_spacing_horizontal); }
+    CSSPixels border_spacing_vertical() const { return CSSPixels::from_raw(m_inherited.table->border_spacing_vertical); }
+    CaptionSide caption_side() const { return static_cast<CaptionSide>(m_inherited.table->caption_side); }
     ColorOrAuto const& caret_color_value() const { return m_inherited.ui->caret_color; }
     Color caret_color() const { return m_inherited.ui->caret_color.used_value; }
     Clear clear() const { return m_noninherited.box->clear; }
@@ -1062,7 +1062,7 @@ public:
     PreferredColorScheme color_scheme() const { return m_inherited.ui->color_scheme; }
     Vector<Utf16FlyString> const& color_schemes() const { return m_inherited.ui->color_schemes; }
     bool color_scheme_only() const { return m_inherited.ui->color_scheme_only; }
-    ContentVisibility content_visibility() const { return m_inherited.box->content_visibility; }
+    ContentVisibility content_visibility() const { return static_cast<ContentVisibility>(m_inherited.box->content_visibility); }
     Vector<CursorData> const& cursor() const { return m_inherited.ui->cursor; }
     Optional<ContentData> const& content() const { return m_noninherited.content_data->content; }
     ComputedContentData const& computed_content() const { return m_noninherited.content_data->computed_content; }
@@ -1140,8 +1140,8 @@ public:
     Appearance appearance() const { return m_noninherited.misc->appearance; }
     Appearance computed_appearance() const { return m_noninherited.misc->computed_appearance; }
     float opacity() const { return m_noninherited.effects->opacity; }
-    Visibility visibility() const { return m_inherited.box->visibility; }
-    ImageRendering image_rendering() const { return m_inherited.box->image_rendering; }
+    Visibility visibility() const { return static_cast<Visibility>(m_inherited.box->visibility); }
+    ImageRendering image_rendering() const { return static_cast<ImageRendering>(m_inherited.box->image_rendering); }
     JustifyContent justify_content() const { return m_noninherited.alignment->justify_content; }
     JustifySelf justify_self() const { return m_noninherited.alignment->justify_self; }
     JustifyItems justify_items() const { return m_noninherited.alignment->justify_items; }
@@ -1171,15 +1171,15 @@ public:
     Size const& column_width() const { return m_noninherited.misc->column_width; }
     Size const& column_height() const { return m_noninherited.misc->column_height; }
     Variant<LengthPercentage, NormalGap> const& row_gap() const { return m_noninherited.alignment->row_gap; }
-    BorderCollapse border_collapse() const { return m_inherited.table->border_collapse; }
-    EmptyCells empty_cells() const { return m_inherited.table->empty_cells; }
+    BorderCollapse border_collapse() const { return static_cast<BorderCollapse>(m_inherited.table->border_collapse); }
+    EmptyCells empty_cells() const { return static_cast<EmptyCells>(m_inherited.table->empty_cells); }
     GridTemplateAreas const& grid_template_areas() const { return m_noninherited.grid->grid_template_areas; }
     ObjectFit object_fit() const { return m_noninherited.misc->object_fit; }
     Position object_position() const { return m_noninherited.misc->object_position; }
-    Direction direction() const { return m_inherited.box->direction; }
+    Direction direction() const { return static_cast<Direction>(m_inherited.box->direction); }
     Optional<BaselineMetric> dominant_baseline() const { return m_inherited.svg->dominant_baseline; }
     UnicodeBidi unicode_bidi() const { return m_noninherited.text_reset->unicode_bidi; }
-    WritingMode writing_mode() const { return m_inherited.box->writing_mode; }
+    WritingMode writing_mode() const { return static_cast<WritingMode>(m_inherited.box->writing_mode); }
 
     bool inline_axis_is_reverse() const
     {
@@ -1374,15 +1374,27 @@ private:
     void inherit_from(ComputedValues const& other) { m_inherited = other.m_inherited; }
 
 public:
-    struct InheritedTableValues {
+    // The layout of this group is defined in Rust (computed_values.rs); see InheritedBoxValues.
+    struct InheritedTableValues : ComputedValuesFFI::InheritedTableValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedTableValues);
-        BorderCollapse border_collapse { InitialValues::border_collapse() };
-        CaptionSide caption_side { InitialValues::caption_side() };
-        EmptyCells empty_cells { InitialValues::empty_cells() };
-        CSSPixels border_spacing_horizontal { InitialValues::border_spacing() };
-        CSSPixels border_spacing_vertical { InitialValues::border_spacing() };
 
-        bool operator==(InheritedTableValues const&) const = default;
+        InheritedTableValues()
+        {
+            border_collapse = to_underlying(InitialValues::border_collapse());
+            caption_side = to_underlying(InitialValues::caption_side());
+            empty_cells = to_underlying(InitialValues::empty_cells());
+            border_spacing_horizontal = InitialValues::border_spacing().raw_value();
+            border_spacing_vertical = InitialValues::border_spacing().raw_value();
+        }
+
+        bool operator==(InheritedTableValues const& other) const
+        {
+            return border_collapse == other.border_collapse
+                && caption_side == other.caption_side
+                && empty_cells == other.empty_cells
+                && border_spacing_horizontal == other.border_spacing_horizontal
+                && border_spacing_vertical == other.border_spacing_vertical;
+        }
     };
 
     struct InheritedListValues {
@@ -1466,15 +1478,29 @@ public:
         bool operator==(InheritedTextValues const&) const = default;
     };
 
-    struct InheritedBoxValues {
+    // The layout of this group is defined in Rust (computed_values.rs); this type only adds
+    // the initial values on top of the mirrored layout. The fields hold the underlying values
+    // of the corresponding C++ enums, and the lens getters and setters convert.
+    struct InheritedBoxValues : ComputedValuesFFI::InheritedBoxValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedBoxValues);
-        Visibility visibility { InitialValues::visibility() };
-        Direction direction { InitialValues::direction() };
-        WritingMode writing_mode { InitialValues::writing_mode() };
-        ContentVisibility content_visibility { InitialValues::content_visibility() };
-        ImageRendering image_rendering { InitialValues::image_rendering() };
 
-        bool operator==(InheritedBoxValues const&) const = default;
+        InheritedBoxValues()
+        {
+            visibility = to_underlying(InitialValues::visibility());
+            direction = to_underlying(InitialValues::direction());
+            writing_mode = to_underlying(InitialValues::writing_mode());
+            content_visibility = to_underlying(InitialValues::content_visibility());
+            image_rendering = to_underlying(InitialValues::image_rendering());
+        }
+
+        bool operator==(InheritedBoxValues const& other) const
+        {
+            return visibility == other.visibility
+                && direction == other.direction
+                && writing_mode == other.writing_mode
+                && content_visibility == other.content_visibility
+                && image_rendering == other.image_rendering;
+        }
     };
 
     // NB: FontValues has no defaulted equality operator because HashMap does not
@@ -2037,21 +2063,21 @@ public:
     }
     void set_border_spacing_horizontal(CSSPixels border_spacing_horizontal)
     {
-        if (m_values.m_inherited.table->border_spacing_horizontal == border_spacing_horizontal)
+        if (m_values.m_inherited.table->border_spacing_horizontal == border_spacing_horizontal.raw_value())
             return;
-        m_values.m_inherited.table.access().border_spacing_horizontal = border_spacing_horizontal;
+        m_values.m_inherited.table.access().border_spacing_horizontal = border_spacing_horizontal.raw_value();
     }
     void set_border_spacing_vertical(CSSPixels border_spacing_vertical)
     {
-        if (m_values.m_inherited.table->border_spacing_vertical == border_spacing_vertical)
+        if (m_values.m_inherited.table->border_spacing_vertical == border_spacing_vertical.raw_value())
             return;
-        m_values.m_inherited.table.access().border_spacing_vertical = border_spacing_vertical;
+        m_values.m_inherited.table.access().border_spacing_vertical = border_spacing_vertical.raw_value();
     }
     void set_caption_side(CaptionSide caption_side)
     {
-        if (m_values.m_inherited.table->caption_side == caption_side)
+        if (m_values.m_inherited.table->caption_side == to_underlying(caption_side))
             return;
-        m_values.m_inherited.table.access().caption_side = caption_side;
+        m_values.m_inherited.table.access().caption_side = to_underlying(caption_side);
     }
     void set_color(Color color)
     {
@@ -2111,9 +2137,9 @@ public:
     }
     void set_content_visibility(ContentVisibility content_visibility)
     {
-        if (m_values.m_inherited.box->content_visibility == content_visibility)
+        if (m_values.m_inherited.box->content_visibility == to_underlying(content_visibility))
             return;
-        m_values.m_inherited.box.access().content_visibility = content_visibility;
+        m_values.m_inherited.box.access().content_visibility = to_underlying(content_visibility);
     }
     void set_cursor(Vector<CursorData> cursor)
     {
@@ -2123,9 +2149,9 @@ public:
     }
     void set_image_rendering(ImageRendering value)
     {
-        if (m_values.m_inherited.box->image_rendering == value)
+        if (m_values.m_inherited.box->image_rendering == to_underlying(value))
             return;
-        m_values.m_inherited.box.access().image_rendering = value;
+        m_values.m_inherited.box.access().image_rendering = to_underlying(value);
     }
     void set_pointer_events(PointerEvents value)
     {
@@ -2927,9 +2953,9 @@ public:
     }
     void set_visibility(Visibility value)
     {
-        if (m_values.m_inherited.box->visibility == value)
+        if (m_values.m_inherited.box->visibility == to_underlying(value))
             return;
-        m_values.m_inherited.box.access().visibility = value;
+        m_values.m_inherited.box.access().visibility = to_underlying(value);
     }
     void set_grid_auto_columns(GridTrackSizeList value)
     {
@@ -3017,15 +3043,15 @@ public:
     }
     void set_border_collapse(BorderCollapse const border_collapse)
     {
-        if (m_values.m_inherited.table->border_collapse == border_collapse)
+        if (m_values.m_inherited.table->border_collapse == to_underlying(border_collapse))
             return;
-        m_values.m_inherited.table.access().border_collapse = border_collapse;
+        m_values.m_inherited.table.access().border_collapse = to_underlying(border_collapse);
     }
     void set_empty_cells(EmptyCells const empty_cells)
     {
-        if (m_values.m_inherited.table->empty_cells == empty_cells)
+        if (m_values.m_inherited.table->empty_cells == to_underlying(empty_cells))
             return;
-        m_values.m_inherited.table.access().empty_cells = empty_cells;
+        m_values.m_inherited.table.access().empty_cells = to_underlying(empty_cells);
     }
     void set_grid_template_areas(GridTemplateAreas grid_template_areas)
     {
@@ -3065,9 +3091,9 @@ public:
     }
     void set_direction(Direction value)
     {
-        if (m_values.m_inherited.box->direction == value)
+        if (m_values.m_inherited.box->direction == to_underlying(value))
             return;
-        m_values.m_inherited.box.access().direction = value;
+        m_values.m_inherited.box.access().direction = to_underlying(value);
     }
     void set_dominant_baseline(Optional<BaselineMetric> value)
     {
@@ -3083,9 +3109,9 @@ public:
     }
     void set_writing_mode(WritingMode value)
     {
-        if (m_values.m_inherited.box->writing_mode == value)
+        if (m_values.m_inherited.box->writing_mode == to_underlying(value))
             return;
-        m_values.m_inherited.box.access().writing_mode = value;
+        m_values.m_inherited.box.access().writing_mode = to_underlying(value);
     }
     void set_user_select(UserSelect value)
     {

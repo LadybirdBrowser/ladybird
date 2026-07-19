@@ -35,6 +35,23 @@ use crate::abort_on_panic;
 /// Reference count value marking an intentionally leaked payload.
 pub const STYLE_GROUP_STATIC_REFCOUNT: usize = usize::MAX;
 
+/// Layout of the inherited box style value group.
+///
+/// This is the source of truth for the group's payload layout: C++ derives its
+/// group struct from the cbindgen mirror of this type, adding the initial
+/// values and typed accessors on top. The fields hold C++ `enum class : u8`
+/// values that Rust stores as opaque bytes, keeping the enum definitions
+/// single-sourced in C++.
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct InheritedBoxValues {
+    pub visibility: u8,
+    pub direction: u8,
+    pub writing_mode: u8,
+    pub content_visibility: u8,
+    pub image_rendering: u8,
+}
+
 /// Size, alignment and lifecycle callbacks for one style value group type.
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -143,6 +160,42 @@ pub unsafe extern "C" fn rust_style_group_free(group_index: usize, payload: *mut
         let allocation = (payload as *mut u8).sub(header_size(table.align));
         dealloc(allocation, allocation_layout(table));
     });
+}
+
+/// Layout of the inherited table style value group.
+///
+/// The enum fields follow the opaque-byte convention; the border spacings are
+/// raw CSSPixels fixed-point values.
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct InheritedTableValues {
+    pub border_collapse: u8,
+    pub caption_side: u8,
+    pub empty_cells: u8,
+    pub border_spacing_horizontal: i32,
+    pub border_spacing_vertical: i32,
+}
+
+/// Returns the typed view of an inherited table group payload.
+///
+/// # Safety
+/// `payload` must be an inherited table group payload.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_group_as_inherited_table(payload: *const c_void) -> *const InheritedTableValues {
+    payload as *const InheritedTableValues
+}
+
+/// Returns the typed view of an inherited box group payload.
+///
+/// This anchors the Rust-defined layout in the exported ABI so the cbindgen
+/// mirror stays in the generated header; Rust-side style computation reads and
+/// writes group payloads through these typed views.
+///
+/// # Safety
+/// `payload` must be an inherited box group payload.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_group_as_inherited_box(payload: *const c_void) -> *const InheritedBoxValues {
+    payload as *const InheritedBoxValues
 }
 
 #[cfg(test)]

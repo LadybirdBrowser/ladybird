@@ -23,7 +23,7 @@ TEST_CASE(default_constructed_refs_share_the_default_payload)
     EXPECT(a.is_default());
     EXPECT(b.is_default());
     EXPECT(a.ptr_equals(b));
-    EXPECT_EQ(a->border_collapse, InitialValues::border_collapse());
+    EXPECT_EQ(a->border_collapse, to_underlying(InitialValues::border_collapse()));
 }
 
 TEST_CASE(access_clones_when_shared)
@@ -31,15 +31,15 @@ TEST_CASE(access_clones_when_shared)
     StyleStructRef<TableGroup> a;
     StyleStructRef<TableGroup> untouched;
 
-    a.access().caption_side = CaptionSide::Bottom;
+    a.access().caption_side = to_underlying(CaptionSide::Bottom);
     EXPECT(!a.is_default());
     EXPECT(!a.ptr_equals(untouched));
-    EXPECT_EQ(a->caption_side, CaptionSide::Bottom);
+    EXPECT_EQ(a->caption_side, to_underlying(CaptionSide::Bottom));
 
     // The default payload must be unaffected by the mutation.
     EXPECT(untouched.is_default());
-    EXPECT_EQ(untouched->caption_side, InitialValues::caption_side());
-    EXPECT_EQ(StyleStructRef<TableGroup>::default_value().caption_side, InitialValues::caption_side());
+    EXPECT_EQ(untouched->caption_side, to_underlying(InitialValues::caption_side()));
+    EXPECT_EQ(StyleStructRef<TableGroup>::default_value().caption_side, to_underlying(InitialValues::caption_side()));
 }
 
 TEST_CASE(access_does_not_clone_when_unique)
@@ -69,15 +69,15 @@ TEST_CASE(copies_share_until_mutated)
 TEST_CASE(assignment_shares_and_releases_old_payload)
 {
     StyleStructRef<TableGroup> a;
-    a.access().caption_side = CaptionSide::Bottom;
+    a.access().caption_side = to_underlying(CaptionSide::Bottom);
 
     StyleStructRef<TableGroup> b;
-    b.access().empty_cells = EmptyCells::Hide;
+    b.access().empty_cells = to_underlying(EmptyCells::Hide);
 
     b = a;
     EXPECT(a.ptr_equals(b));
-    EXPECT_EQ(b->caption_side, CaptionSide::Bottom);
-    EXPECT_EQ(b->empty_cells, InitialValues::empty_cells());
+    EXPECT_EQ(b->caption_side, to_underlying(CaptionSide::Bottom));
+    EXPECT_EQ(b->empty_cells, to_underlying(InitialValues::empty_cells()));
 
     auto& self_reference = b;
     b = self_reference;
