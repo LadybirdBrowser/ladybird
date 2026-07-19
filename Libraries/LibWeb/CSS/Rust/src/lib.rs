@@ -12,6 +12,7 @@ pub mod computed_values;
 mod css_tokenizer;
 pub mod property_metadata;
 mod selector_engine;
+pub mod style_compute;
 mod style_value;
 
 use std::panic::AssertUnwindSafe;

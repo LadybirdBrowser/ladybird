@@ -31,6 +31,7 @@ def write_header_file(out: TextIO, dimensions_data: dict) -> None:
     out.write("""
 #pragma once
 
+#include <LibWeb/Export.h>
 #include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16View.h>
@@ -65,14 +66,14 @@ constexpr {name_titlecase}Unit canonical_{name_snakecase}_unit() {{ return {name
 Optional<{name_titlecase}Unit> string_to_{name_snakecase}_unit(Utf16View);
 Utf16FlyString to_string({name_titlecase}Unit);
 bool units_are_compatible({name_titlecase}Unit, {name_titlecase}Unit);
-double ratio_between_units({name_titlecase}Unit, {name_titlecase}Unit);
+WEB_API double ratio_between_units({name_titlecase}Unit, {name_titlecase}Unit);
 """)
 
     out.write("""
-bool is_absolute(LengthUnit);
-bool is_font_relative(LengthUnit);
-bool is_container_relative(LengthUnit);
-bool is_viewport_relative(LengthUnit);
+WEB_API bool is_absolute(LengthUnit);
+WEB_API bool is_font_relative(LengthUnit);
+WEB_API bool is_container_relative(LengthUnit);
+WEB_API bool is_viewport_relative(LengthUnit);
 inline bool is_relative(LengthUnit unit) { return !is_absolute(unit); }
 
 }

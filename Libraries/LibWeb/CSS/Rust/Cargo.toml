@@ -10,7 +10,7 @@ crate-type = ["staticlib"]
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [build-dependencies]
 cbindgen = "0.29"
-serde_json = { version = "1", features = ["preserve_order"] }
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
 
 [features]
 default = []

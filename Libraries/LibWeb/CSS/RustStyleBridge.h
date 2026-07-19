@@ -20,4 +20,6 @@ WEB_API bool rust_property_metadata_is_inherited(u16 property_id);
 WEB_API u16 const* rust_property_metadata_computation_order(size_t* length);
 WEB_API u8 rust_property_metadata_requires_computation_level(u16 property_id);
 
+WEB_API ComputedValuesFFI::FfiAbsolutizedLength rust_absolutize_length(double value, u8 unit, ComputedValuesFFI::FfiLengthResolutionContext const* context);
+
 }
