@@ -2732,23 +2732,14 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
 void StyleComputer::resolve_effective_overflow_values(ComputedProperties::Builder& builder) const
 {
     auto& style = builder.style();
-    // https://www.w3.org/TR/css-overflow-3/#overflow-control
-    // The visible/clip values of overflow compute to auto/hidden (respectively) if one of overflow-x or
-    // overflow-y is neither visible nor clip.
-    auto overflow_x = keyword_to_overflow(style.property(PropertyID::OverflowX).to_keyword());
-    auto overflow_y = keyword_to_overflow(style.property(PropertyID::OverflowY).to_keyword());
-    auto overflow_x_is_visible_or_clip = overflow_x == Overflow::Visible || overflow_x == Overflow::Clip;
-    auto overflow_y_is_visible_or_clip = overflow_y == Overflow::Visible || overflow_y == Overflow::Clip;
-    if (!overflow_x_is_visible_or_clip || !overflow_y_is_visible_or_clip) {
-        if (overflow_x == CSS::Overflow::Visible)
-            builder.set_property(CSS::PropertyID::OverflowX, KeywordStyleValue::create(Keyword::Auto));
-        if (overflow_x == CSS::Overflow::Clip)
-            builder.set_property(CSS::PropertyID::OverflowX, KeywordStyleValue::create(Keyword::Hidden));
-        if (overflow_y == CSS::Overflow::Visible)
-            builder.set_property(CSS::PropertyID::OverflowY, KeywordStyleValue::create(Keyword::Auto));
-        if (overflow_y == CSS::Overflow::Clip)
-            builder.set_property(CSS::PropertyID::OverflowY, KeywordStyleValue::create(Keyword::Hidden));
-    }
+    // The css-overflow-3 rule pairing the two axes lives in the Rust style computation core.
+    auto effective_overflow = ComputedValuesFFI::rust_resolve_effective_overflow_keywords(
+        to_underlying(style.property(PropertyID::OverflowX).to_keyword()),
+        to_underlying(style.property(PropertyID::OverflowY).to_keyword()));
+    if (effective_overflow.changed_x)
+        builder.set_property(PropertyID::OverflowX, KeywordStyleValue::create(static_cast<Keyword>(effective_overflow.x_keyword)));
+    if (effective_overflow.changed_y)
+        builder.set_property(PropertyID::OverflowY, KeywordStyleValue::create(static_cast<Keyword>(effective_overflow.y_keyword)));
 }
 
 static void compute_text_align(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element)

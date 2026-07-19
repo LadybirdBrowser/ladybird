@@ -1223,6 +1223,51 @@ pub unsafe extern "C" fn rust_for_each_property_expanding_shorthands(
     abort_on_panic(|| expand_shorthands(unsafe { &*callbacks }, property_id, shell, data));
 }
 
+/// Result of resolving the effective overflow pair: each axis' possibly
+/// replaced computed keyword.
+#[repr(C)]
+pub struct FfiEffectiveOverflow {
+    pub changed_x: bool,
+    pub x_keyword: u16,
+    pub changed_y: bool,
+    pub y_keyword: u16,
+}
+
+/// https://www.w3.org/TR/css-overflow-3/#overflow-control
+/// The visible/clip values of overflow compute to auto/hidden (respectively) if one of overflow-x or
+/// overflow-y is neither visible nor clip.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_resolve_effective_overflow_keywords(overflow_x: u16, overflow_y: u16) -> FfiEffectiveOverflow {
+    abort_on_panic(|| {
+        let is_visible_or_clip = |keyword: u16| keyword == keyword::VISIBLE || keyword == keyword::CLIP;
+        let mut result = FfiEffectiveOverflow {
+            changed_x: false,
+            x_keyword: overflow_x,
+            changed_y: false,
+            y_keyword: overflow_y,
+        };
+        if !is_visible_or_clip(overflow_x) || !is_visible_or_clip(overflow_y) {
+            if overflow_x == keyword::VISIBLE {
+                result.changed_x = true;
+                result.x_keyword = keyword::AUTO;
+            }
+            if overflow_x == keyword::CLIP {
+                result.changed_x = true;
+                result.x_keyword = keyword::HIDDEN;
+            }
+            if overflow_y == keyword::VISIBLE {
+                result.changed_y = true;
+                result.y_keyword = keyword::AUTO;
+            }
+            if overflow_y == keyword::CLIP {
+                result.changed_y = true;
+                result.y_keyword = keyword::HIDDEN;
+            }
+        }
+        result
+    })
+}
+
 /// Computes the font-weight property from its absolutized value.
 ///
 /// # Safety
