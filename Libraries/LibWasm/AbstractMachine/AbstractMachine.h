@@ -384,6 +384,9 @@ using ExternValue = Variant<FunctionAddress, TableAddress, MemoryAddress, Global
 
 class Store;
 class ModuleInstance;
+class MemoryInstance;
+
+using MemoryInstanceTable = MemoryInstance**;
 
 struct CompiledFunctionEntry {
     FlatPtr handler_ptr { 0 };    // 0 = not compiled, use slow path
@@ -459,6 +462,7 @@ public:
 
     size_t cached_minimum_call_record_allocation_size { 0 };
 
+    MemoryInstanceTable resolved_memories(Store&) const;
     Vector<CompiledFunctionEntry> const& compiled_fn_table(Store&) const;
 
 private:
@@ -474,6 +478,8 @@ private:
     Vector<TagAddress> m_tags;
     Vector<ExportInstance> m_exports;
 
+    mutable Vector<MemoryInstance*> m_resolved_memories;
+    mutable bool m_resolved_memories_built { false };
     mutable Vector<CompiledFunctionEntry> m_compiled_fn_table;
     mutable bool m_compiled_fn_table_built { false };
 };
