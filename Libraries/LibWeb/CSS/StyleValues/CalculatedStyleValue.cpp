@@ -38,6 +38,24 @@
 
 namespace Web::CSS {
 
+// Marshals a numeric type into its FFI mirror.
+static StyleValueFFI::FfiNumericType to_ffi_numeric_type(Optional<NumericType> const& type)
+{
+    StyleValueFFI::FfiNumericType result {};
+    result.valid = type.has_value();
+    if (type.has_value()) {
+        type->for_each_type_and_exponent([&](auto base_type, i32 exponent) {
+            result.has_exponent[to_underlying(base_type)] = true;
+            result.exponents[to_underlying(base_type)] = exponent;
+        });
+        if (auto hint = type->percent_hint(); hint.has_value()) {
+            result.has_percent_hint = true;
+            result.percent_hint = to_underlying(hint.value());
+        }
+    }
+    return result;
+}
+
 // Builds the Rust mirror of a calculation tree, transferring ownership of the
 // returned handle to the caller. The child orders follow each node's members.
 static StyleValueFFI::CalcNode const* to_rust_calc_node(CalculationNode const& node)
@@ -147,9 +165,12 @@ static StyleValueFFI::CalcNode const* to_rust_calc_node(CalculationNode const& n
             random.step() ? to_rust_calc_node(*random.step()) : nullptr,
             retain_style_value_for_rust(&random.random_value_sharing()));
     }
-    case CalculationNode::Type::NonMathFunction:
+    case CalculationNode::Type::NonMathFunction: {
+        auto const& non_math_function = static_cast<NonMathFunctionCalculationNode const&>(node);
+        auto ffi_numeric_type = to_ffi_numeric_type(non_math_function.numeric_type());
         return StyleValueFFI::rust_calc_node_create_non_math_function(
-            retain_style_value_for_rust(static_cast<NonMathFunctionCalculationNode const&>(node).function().ptr()));
+            retain_style_value_for_rust(non_math_function.function().ptr()), &ffi_numeric_type);
+    }
     }
     VERIFY_NOT_REACHED();
 }

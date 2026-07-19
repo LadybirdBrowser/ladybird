@@ -17,6 +17,8 @@ use std::sync::Arc;
 
 use crate::style_value::RetainedStyleValue;
 
+include!(concat!(env!("OUT_DIR"), "/dimension_units_generated.rs"));
+
 /// The numeric leaf of a calculation: a raw value in one of the numeric
 /// dimensions, mirroring CalculationResult::Value. Units cross as the same
 /// opaque codes the style value data uses.
@@ -41,7 +43,7 @@ pub(crate) const BASE_TYPE_PERCENT: usize = 6;
 /// percent hint, mirroring the C++ NumericType. Absent and zero exponents are
 /// distinct, exactly as in the typed-om algebra.
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
-pub(crate) struct CalcNumericType {
+pub struct CalcNumericType {
     /// Exponents indexed by base type: length, angle, time, frequency,
     /// resolution, flex, percent, in the C++ BaseType order.
     pub exponents: [Option<i32>; BASE_TYPE_COUNT],
@@ -262,6 +264,92 @@ impl CalcNumericType {
     }
 }
 
+/// The result of evaluating a calculation: the numeric value in canonical
+/// units and the numeric type it carries, mirroring the C++ CalculationResult.
+#[derive(Clone, Copy, PartialEq, Debug)]
+#[allow(dead_code)]
+pub(crate) struct CalcResult {
+    pub value: f64,
+    pub numeric_type: Option<CalcNumericType>,
+}
+
+#[allow(dead_code)]
+impl CalcResult {
+    pub(crate) fn add(&mut self, other: &CalcResult) {
+        self.value += other.value;
+        self.numeric_type = match (&self.numeric_type, &other.numeric_type) {
+            (Some(first), Some(second)) => first.added_to(second),
+            _ => None,
+        };
+    }
+
+    pub(crate) fn subtract(&mut self, other: &CalcResult) {
+        self.value -= other.value;
+        self.numeric_type = match (&self.numeric_type, &other.numeric_type) {
+            (Some(first), Some(second)) => first.added_to(second),
+            _ => None,
+        };
+    }
+
+    pub(crate) fn multiply_by(&mut self, other: &CalcResult) {
+        self.value *= other.value;
+        self.numeric_type = match (&self.numeric_type, &other.numeric_type) {
+            (Some(first), Some(second)) => first.multiplied_by(second),
+            _ => None,
+        };
+    }
+
+    pub(crate) fn divide_by(&mut self, other: &CalcResult) {
+        // FIXME: Correctly handle division by zero.
+        self.value *= 1.0 / other.value;
+        self.numeric_type = match (&self.numeric_type, &other.numeric_type) {
+            (Some(first), Some(second)) => first.multiplied_by(&second.inverted()),
+            _ => None,
+        };
+    }
+
+    pub(crate) fn negate(&mut self) {
+        self.value = 0.0 - self.value;
+    }
+
+    pub(crate) fn invert(&mut self) {
+        // FIXME: Correctly handle division by zero.
+        self.value = 1.0 / self.value;
+        if let Some(numeric_type) = &self.numeric_type {
+            self.numeric_type = Some(numeric_type.inverted());
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl CalcNumericValue {
+    /// The value in its dimension's canonical unit: degrees, fr, hertz,
+    /// unrounded pixels, dots per pixel, or seconds. Lengths resolve through
+    /// the length resolution context; a relative length without one is NaN,
+    /// as in the C++ CalculationResult::from_value.
+    pub(crate) fn to_canonical_number(
+        self,
+        length_resolution_context: Option<&crate::style_compute::FfiLengthResolutionContext>,
+    ) -> f64 {
+        match self {
+            CalcNumericValue::Number(value) => value,
+            CalcNumericValue::Percentage(value) => value,
+            CalcNumericValue::Angle { value, unit } => value * ANGLE_UNIT_CANONICAL_RATIOS[unit as usize],
+            CalcNumericValue::Flex { value, unit } => value * FLEX_UNIT_CANONICAL_RATIOS[unit as usize],
+            CalcNumericValue::Frequency { value, unit } => value * FREQUENCY_UNIT_CANONICAL_RATIOS[unit as usize],
+            CalcNumericValue::Resolution { value, unit } => value * RESOLUTION_UNIT_CANONICAL_RATIOS[unit as usize],
+            CalcNumericValue::Time { value, unit } => value * TIME_UNIT_CANONICAL_RATIOS[unit as usize],
+            CalcNumericValue::Length { value, unit } => {
+                let Some(context) = length_resolution_context else {
+                    return f64::NAN;
+                };
+                let result = crate::style_compute::absolutize_length_for_calc(value, unit as usize, context);
+                if result.handled { result.px } else { f64::NAN }
+            }
+        }
+    }
+}
+
 /// The FFI mirror of a numeric type, for the parity test on the C++ side.
 /// NB: The array dimension is the base type count, spelled literally so the
 ///     generated header does not depend on the crate-private constant.
@@ -413,8 +501,12 @@ pub enum CalcNode {
         sharing: RetainedStyleValue,
     },
     /// A non-math function whose value participates in a calculation, kept as
-    /// its retained style value.
-    NonMathFunction(RetainedStyleValue),
+    /// its retained style value together with the numeric type its context
+    /// determined at creation.
+    NonMathFunction {
+        value: RetainedStyleValue,
+        numeric_type: CalcNumericType,
+    },
 }
 
 #[allow(dead_code)]
@@ -423,7 +515,7 @@ impl CalcNode {
     /// node kind.
     pub(crate) fn for_each_child(&self, f: &mut impl FnMut(&Arc<CalcNode>)) {
         match self {
-            CalcNode::Numeric(..) | CalcNode::ChannelKeyword(..) | CalcNode::NonMathFunction(..) => {}
+            CalcNode::Numeric(..) | CalcNode::ChannelKeyword(..) | CalcNode::NonMathFunction { .. } => {}
             CalcNode::Sum(children)
             | CalcNode::Product(children)
             | CalcNode::Min(children)
@@ -485,6 +577,88 @@ impl CalcNode {
         }
     }
 
+    /// https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
+    /// The type of the calculation, mirroring the types the C++ nodes compute
+    /// at creation. `percentage_leaf_type` is the type a percentage leaf takes
+    /// in the surrounding context.
+    #[allow(dead_code)]
+    pub(crate) fn numeric_type(&self, percentage_leaf_type: &CalcNumericType) -> Option<CalcNumericType> {
+        let single = |base: usize| {
+            let mut result = CalcNumericType::default();
+            result.exponents[base] = Some(1);
+            Some(result)
+        };
+        let add_children = |children: &[&Arc<CalcNode>]| {
+            let mut left: Option<CalcNumericType> = None;
+            for child in children {
+                let right = child.numeric_type(percentage_leaf_type)?;
+                left = Some(match left {
+                    Some(left) => left.added_to(&right)?,
+                    None => right,
+                });
+            }
+            left
+        };
+        match self {
+            // Anything else is a terminal value, whose type is determined based on its CSS type.
+            CalcNode::Numeric(value) => match value {
+                // -> <number> / <integer>: the type is «[ ]» (empty map)
+                CalcNumericValue::Number(..) => Some(CalcNumericType::default()),
+                // -> each dimension: «[ dimension -> 1 ]», in the base type order.
+                CalcNumericValue::Length { .. } => single(0),
+                CalcNumericValue::Angle { .. } => single(1),
+                CalcNumericValue::Time { .. } => single(2),
+                CalcNumericValue::Frequency { .. } => single(3),
+                CalcNumericValue::Resolution { .. } => single(4),
+                CalcNumericValue::Flex { .. } => single(5),
+                // -> <percentage>: the context-determined type.
+                CalcNumericValue::Percentage(..) => Some(*percentage_leaf_type),
+            },
+            CalcNode::ChannelKeyword(..) => Some(CalcNumericType::default()),
+            CalcNode::Sum(children) | CalcNode::Min(children) | CalcNode::Max(children) | CalcNode::Hypot(children) => {
+                add_children(&children.iter().collect::<Vec<_>>())
+            }
+            CalcNode::Product(children) => {
+                let mut left: Option<CalcNumericType> = None;
+                for child in children {
+                    let right = child.numeric_type(percentage_leaf_type)?;
+                    left = Some(match left {
+                        Some(left) => left.multiplied_by(&right)?,
+                        None => right,
+                    });
+                }
+                left
+            }
+            // NOTE: `- foo` doesn't change the type, and neither does abs().
+            CalcNode::Negate(child) | CalcNode::Abs(child) => child.numeric_type(percentage_leaf_type),
+            CalcNode::Invert(child) => Some(child.numeric_type(percentage_leaf_type)?.inverted()),
+            CalcNode::Clamp { min, center, max } => add_children(&[min, center, max]),
+            CalcNode::Progress { progress, from, to } => {
+                let sum = add_children(&[progress, from, to])?;
+                CalcNumericType::default().made_consistent_with(&sum)
+            }
+            CalcNode::Round { value, interval, .. } => add_children(&[value, interval]),
+            CalcNode::Mod { value, modulus } => add_children(&[value, modulus]),
+            CalcNode::Rem { value, divisor } => add_children(&[value, divisor]),
+            CalcNode::Random { min, max, step, .. } => match step {
+                Some(step) => add_children(&[min, max, step]),
+                None => add_children(&[min, max]),
+            },
+            // «[ ]» (empty map).
+            CalcNode::Sign(..)
+            | CalcNode::Sin(..)
+            | CalcNode::Cos(..)
+            | CalcNode::Tan(..)
+            | CalcNode::Pow { .. }
+            | CalcNode::Sqrt(..)
+            | CalcNode::Log { .. }
+            | CalcNode::Exp(..) => Some(CalcNumericType::default()),
+            // «[ "angle" -> 1 ]».
+            CalcNode::Asin(..) | CalcNode::Acos(..) | CalcNode::Atan(..) | CalcNode::Atan2 { .. } => single(1),
+            CalcNode::NonMathFunction { numeric_type, .. } => Some(*numeric_type),
+        }
+    }
+
     /// https://drafts.css-houdini.org/css-properties-values-api/#computationally-independent
     /// Whether the calculation is computationally independent: every node is a
     /// conjunction over its children, with length leaves depending on their
@@ -499,7 +673,7 @@ impl CalcNode {
             CalcNode::Numeric(CalcNumericValue::Length { unit, .. }) => length_is_independent(*unit),
             CalcNode::Numeric(..) | CalcNode::ChannelKeyword(..) => true,
             CalcNode::Random { sharing, .. } => style_value_is_independent(sharing),
-            CalcNode::NonMathFunction(value) => style_value_is_independent(value),
+            CalcNode::NonMathFunction { value, .. } => style_value_is_independent(value),
             _ => true,
         };
         if !leaf_independent {
@@ -820,11 +994,15 @@ pub unsafe extern "C" fn rust_calc_node_create_random(
 /// # Safety
 /// `value` must be a leaked strong StyleValue reference.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_create_non_math_function(value: *const std::ffi::c_void) -> *const CalcNode {
+pub unsafe extern "C" fn rust_calc_node_create_non_math_function(
+    value: *const std::ffi::c_void,
+    numeric_type: *const FfiNumericType,
+) -> *const CalcNode {
     crate::abort_on_panic(|| {
-        handle(CalcNode::NonMathFunction(unsafe {
-            RetainedStyleValue::from_shell_pointer(value)
-        }))
+        handle(CalcNode::NonMathFunction {
+            value: unsafe { RetainedStyleValue::from_shell_pointer(value) },
+            numeric_type: unsafe { &*numeric_type }.to_calc(),
+        })
     })
 }
 

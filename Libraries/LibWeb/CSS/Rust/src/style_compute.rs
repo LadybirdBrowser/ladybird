@@ -190,6 +190,16 @@ fn select_font_metric(metrics: &FfiFontMetrics, metric: FontMetricSelector) -> f
     }
 }
 
+/// Crate-visible length absolutization for the calc evaluation, which needs
+/// the unrounded pixel result.
+pub(crate) fn absolutize_length_for_calc(
+    value: f64,
+    unit: usize,
+    context: &FfiLengthResolutionContext,
+) -> FfiAbsolutizedLength {
+    absolutize_length(value, unit, context)
+}
+
 fn absolutize_length(value: f64, unit: usize, context: &FfiLengthResolutionContext) -> FfiAbsolutizedLength {
     let kinds = length_unit_kinds();
     let unhandled = FfiAbsolutizedLength {
