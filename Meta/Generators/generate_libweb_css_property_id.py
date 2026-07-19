@@ -320,9 +320,9 @@ struct LogicalAliasMappingContext {{
     Direction direction;
     // TODO: text-orientation
 }};
-bool property_is_logical_alias(PropertyID);
-PropertyID map_logical_alias_to_physical_property(PropertyID logical_property_id, LogicalAliasMappingContext const&);
-PropertyID map_physical_property_to_logical_alias(PropertyID physical_property_id, LogicalAliasMappingContext const&);
+WEB_API bool property_is_logical_alias(PropertyID);
+WEB_API PropertyID map_logical_alias_to_physical_property(PropertyID logical_property_id, LogicalAliasMappingContext const&);
+WEB_API PropertyID map_physical_property_to_logical_alias(PropertyID physical_property_id, LogicalAliasMappingContext const&);
 
 enum class LogicalPropertyGroup : {logical_property_group_underlying_type} {{
 """)

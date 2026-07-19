@@ -5,8 +5,10 @@
  */
 
 #include <LibTest/TestCase.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/RustStyleBridge.h>
+#include <LibWeb/CSS/StyleComputer.h>
 
 // The Rust style computation core generates its property metadata tables from
 // Properties.json independently of the C++ generator. These tests compare
@@ -41,6 +43,38 @@ TEST_CASE(computation_order_matches)
     EXPECT_EQ(length, cpp_order.size());
     for (size_t i = 0; i < min(length, cpp_order.size()); ++i)
         EXPECT_EQ(order[i], to_underlying(cpp_order[i]));
+}
+
+TEST_CASE(logical_alias_mapping_matches)
+{
+    StyleComputer::ensure_style_metadata_tables_installed();
+    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+        auto property_id = static_cast<PropertyID>(i);
+        for (u8 writing_mode = 0; writing_mode < 5; ++writing_mode) {
+            for (u8 direction = 0; direction < 2; ++direction) {
+                auto expected = property_is_logical_alias(property_id)
+                    ? map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { static_cast<WritingMode>(writing_mode), static_cast<Direction>(direction) })
+                    : property_id;
+                EXPECT_EQ(rust_map_logical_alias_to_physical(i, writing_mode, direction), to_underlying(expected));
+            }
+        }
+    }
+}
+
+TEST_CASE(physical_to_logical_mapping_matches)
+{
+    StyleComputer::ensure_style_metadata_tables_installed();
+    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+        auto property_id = static_cast<PropertyID>(i);
+        for (u8 writing_mode = 0; writing_mode < 5; ++writing_mode) {
+            for (u8 direction = 0; direction < 2; ++direction) {
+                auto expected = property_is_logical_alias(property_id)
+                    ? property_id
+                    : map_physical_property_to_logical_alias(property_id, LogicalAliasMappingContext { static_cast<WritingMode>(writing_mode), static_cast<Direction>(direction) });
+                EXPECT_EQ(rust_map_physical_to_logical_alias(i, writing_mode, direction), to_underlying(expected));
+            }
+        }
+    }
 }
 
 TEST_CASE(requires_computation_levels_match)

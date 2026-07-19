@@ -808,6 +808,92 @@ pub unsafe extern "C" fn rust_compute_longhand_decision(
     })
 }
 
+/// The logical-alias-to-physical-property mapping, marshalled once from the
+/// C++ generated mapping function so the two sides cannot drift: for each
+/// longhand, one physical property id per (writing-mode, direction) pair, with
+/// zero marking properties that are not logical aliases.
+pub const WRITING_MODE_COUNT: usize = 5;
+pub const DIRECTION_COUNT: usize = 2;
+
+static LOGICAL_ALIAS_TABLE: std::sync::OnceLock<Vec<u16>> = std::sync::OnceLock::new();
+
+/// Installs the logical alias mapping table. `table` holds one entry per
+/// (longhand, writing-mode, direction) triple in row-major order.
+///
+/// # Safety
+/// `table` must point at `longhand_count * WRITING_MODE_COUNT * DIRECTION_COUNT` entries.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_metadata_set_logical_alias_table(table: *const u16, length: usize) {
+    abort_on_panic(|| {
+        let entries = unsafe { std::slice::from_raw_parts(table, length) }.to_vec();
+        assert!(
+            LOGICAL_ALIAS_TABLE.set(entries).is_ok(),
+            "logical alias table installed twice"
+        );
+    });
+}
+
+/// Maps a logical alias longhand to its physical property for the given
+/// writing mode and direction, or returns the property itself when it is not
+/// a logical alias.
+pub fn map_logical_alias_to_physical(property_id: u16, writing_mode: u8, direction: u8) -> u16 {
+    use crate::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
+    let Some(table) = LOGICAL_ALIAS_TABLE.get() else {
+        return property_id;
+    };
+    let longhand_index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
+    let index = (longhand_index * WRITING_MODE_COUNT + writing_mode as usize) * DIRECTION_COUNT + direction as usize;
+    match table.get(index) {
+        Some(&physical) if physical != 0 => physical,
+        _ => property_id,
+    }
+}
+
+/// FFI accessor for the parity test on the C++ side.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_map_logical_alias_to_physical(property_id: u16, writing_mode: u8, direction: u8) -> u16 {
+    map_logical_alias_to_physical(property_id, writing_mode, direction)
+}
+
+static PHYSICAL_TO_LOGICAL_TABLE: std::sync::OnceLock<Vec<u16>> = std::sync::OnceLock::new();
+
+/// Installs the physical-to-logical-alias mapping table, in the same layout as
+/// the logical alias table.
+///
+/// # Safety
+/// `table` must point at `longhand_count * WRITING_MODE_COUNT * DIRECTION_COUNT` entries.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_metadata_set_physical_to_logical_table(table: *const u16, length: usize) {
+    abort_on_panic(|| {
+        let entries = unsafe { std::slice::from_raw_parts(table, length) }.to_vec();
+        assert!(
+            PHYSICAL_TO_LOGICAL_TABLE.set(entries).is_ok(),
+            "physical to logical table installed twice"
+        );
+    });
+}
+
+/// Maps a physical longhand to its logical alias for the given writing mode
+/// and direction, or returns the property itself when it has no logical alias.
+pub fn map_physical_to_logical_alias(property_id: u16, writing_mode: u8, direction: u8) -> u16 {
+    use crate::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
+    let Some(table) = PHYSICAL_TO_LOGICAL_TABLE.get() else {
+        return property_id;
+    };
+    let longhand_index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
+    let index = (longhand_index * WRITING_MODE_COUNT + writing_mode as usize) * DIRECTION_COUNT + direction as usize;
+    match table.get(index) {
+        Some(&logical) if logical != 0 => logical,
+        _ => property_id,
+    }
+}
+
+/// FFI accessor for the parity test on the C++ side.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_map_physical_to_logical_alias(property_id: u16, writing_mode: u8, direction: u8) -> u16 {
+    map_physical_to_logical_alias(property_id, writing_mode, direction)
+}
+
 /// Drives the property computation loop: iterates every longhand in
 /// computation order and calls back into C++ for the per-property work that
 /// has not moved into the core yet.

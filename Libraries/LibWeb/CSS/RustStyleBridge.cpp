@@ -34,6 +34,16 @@ u16 const* rust_property_metadata_computation_order(size_t* length)
     return ComputedValuesFFI::rust_property_metadata_computation_order(length);
 }
 
+u16 rust_map_logical_alias_to_physical(u16 property_id, u8 writing_mode, u8 direction)
+{
+    return ComputedValuesFFI::rust_map_logical_alias_to_physical(property_id, writing_mode, direction);
+}
+
+u16 rust_map_physical_to_logical_alias(u16 property_id, u8 writing_mode, u8 direction)
+{
+    return ComputedValuesFFI::rust_map_physical_to_logical_alias(property_id, writing_mode, direction);
+}
+
 u8 rust_property_metadata_requires_computation_level(u16 property_id)
 {
     return ComputedValuesFFI::rust_property_metadata_requires_computation_level(property_id);

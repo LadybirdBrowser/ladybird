@@ -3329,8 +3329,55 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
     return CSS::LengthStyleValue::create(CSS::Length::make_px(current_size_in_px));
 }
 
+void StyleComputer::ensure_style_metadata_tables_installed()
+{
+    // Marshal the generated logical-alias-to-physical mapping into the Rust style
+    // computation core as a flat table, so the core uses exactly the C++ mapping.
+    static bool const installed = [] {
+        constexpr size_t writing_mode_count = 5;
+        constexpr size_t direction_count = 2;
+        Vector<u16> table;
+        table.resize(number_of_longhand_properties * writing_mode_count * direction_count);
+        size_t index = 0;
+        for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+            auto property_id = static_cast<PropertyID>(i);
+            for (size_t writing_mode = 0; writing_mode < writing_mode_count; ++writing_mode) {
+                for (size_t direction = 0; direction < direction_count; ++direction) {
+                    u16 physical = 0;
+                    if (property_is_logical_alias(property_id))
+                        physical = to_underlying(map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { static_cast<WritingMode>(writing_mode), static_cast<Direction>(direction) }));
+                    table[index++] = physical;
+                }
+            }
+        }
+        ComputedValuesFFI::rust_style_metadata_set_logical_alias_table(table.data(), table.size());
+
+        Vector<u16> reverse_table;
+        reverse_table.resize(number_of_longhand_properties * writing_mode_count * direction_count);
+        index = 0;
+        for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+            auto property_id = static_cast<PropertyID>(i);
+            for (size_t writing_mode = 0; writing_mode < writing_mode_count; ++writing_mode) {
+                for (size_t direction = 0; direction < direction_count; ++direction) {
+                    u16 logical = 0;
+                    if (!property_is_logical_alias(property_id)) {
+                        auto mapped = map_physical_property_to_logical_alias(property_id, LogicalAliasMappingContext { static_cast<WritingMode>(writing_mode), static_cast<Direction>(direction) });
+                        if (mapped != property_id)
+                            logical = to_underlying(mapped);
+                    }
+                    reverse_table[index++] = logical;
+                }
+            }
+        }
+        ComputedValuesFFI::rust_style_metadata_set_physical_to_logical_table(reverse_table.data(), reverse_table.size());
+        return true;
+    }();
+    (void)installed;
+}
+
 NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties, u64 matching_pseudo_element_styles) const
 {
+    ensure_style_metadata_tables_installed();
     VERIFY(computation_context_cache_is_empty());
 
     auto builder = CSS::ComputedProperties::create_builder();
@@ -3383,14 +3430,15 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             PropertyID counterpart_property_id;
 
             if (property_is_logical_alias(property_id)) {
-                counterpart_property_id = map_logical_alias_to_physical_property(property_id, get_logical_alias_mapping_context());
+                // The mapping table lives in the Rust style computation core.
+                counterpart_property_id = static_cast<PropertyID>(ComputedValuesFFI::rust_map_logical_alias_to_physical(to_underlying(property_id), to_underlying(get_logical_alias_mapping_context().writing_mode), to_underlying(get_logical_alias_mapping_context().direction)));
 
                 // AD-HOC: While the spec says that inheritance of logical aliases should be direct, other browsers
                 //         instead inherit from the physical counterpart - the CSSWG has resolved to update the spec to
                 //         reflect this - see https://github.com/w3c/csswg-drafts/issues/3029
                 inherited_property_id = counterpart_property_id;
             } else {
-                counterpart_property_id = map_physical_property_to_logical_alias(property_id, get_logical_alias_mapping_context());
+                counterpart_property_id = static_cast<PropertyID>(ComputedValuesFFI::rust_map_physical_to_logical_alias(to_underlying(property_id), to_underlying(get_logical_alias_mapping_context().writing_mode), to_underlying(get_logical_alias_mapping_context().direction)));
             }
 
             // https://drafts.csswg.org/css-logical/#box
