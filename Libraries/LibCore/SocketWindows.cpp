@@ -43,6 +43,8 @@ ErrorOr<Bytes> PosixSocketHelper::read(Bytes buffer, int flags)
     if (WSARecv(m_fd, &buf, 1, &nread, &fl, NULL, NULL) == SOCKET_ERROR) {
         if (GetLastError() == WSAECONNRESET)
             return Error::from_errno(ECONNRESET);
+        if (GetLastError() == WSAEWOULDBLOCK)
+            return Error::from_errno(EWOULDBLOCK);
         return Error::from_windows_error();
     }
 
@@ -73,8 +75,11 @@ ErrorOr<size_t> PosixSocketHelper::write(ReadonlyBytes buffer, int flags)
     WSABUF buf = make_wsa_buf(buffer);
     DWORD nwritten = 0;
 
-    if (WSASend(m_fd, &buf, 1, &nwritten, 0, NULL, NULL) == SOCKET_ERROR)
+    if (WSASend(m_fd, &buf, 1, &nwritten, 0, NULL, NULL) == SOCKET_ERROR) {
+        if (GetLastError() == WSAEWOULDBLOCK)
+            return Error::from_errno(EWOULDBLOCK);
         return Error::from_windows_error();
+    }
 
     return nwritten;
 }
