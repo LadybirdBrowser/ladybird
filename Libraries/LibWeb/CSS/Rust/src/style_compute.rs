@@ -894,20 +894,151 @@ pub extern "C" fn rust_map_physical_to_logical_alias(property_id: u16, writing_m
     map_physical_to_logical_alias(property_id, writing_mode, direction)
 }
 
+/// The per-longhand leaf callbacks the C++ side provides to the property
+/// computation driver. Every value pointer returned by a callback is pinned by
+/// the C++ flow state until the next callback for the same longhand.
+#[repr(C)]
+pub struct FfiLonghandCallbacks {
+    pub context: *mut c_void,
+    /// Fetches the winning cascaded value for the paired property into the
+    /// flow state; returns its data or null, and reports through `out_done`
+    /// when the longhand is already fully handled (the font-size early-out).
+    pub get_cascaded_value: unsafe extern "C" fn(
+        context: *mut c_void,
+        property_id: u16,
+        cascaded_property_id: u16,
+        inherited_property_id: u16,
+        out_done: *mut bool,
+    ) -> *const c_void,
+    /// Fetches the inherited value, applying its side effects; returns the
+    /// fetched data or null.
+    pub fetch_inherited_value: unsafe extern "C" fn(
+        context: *mut c_void,
+        property_id: u16,
+        explicitly_inherits_non_inherited_property: bool,
+    ) -> *const c_void,
+    pub use_initial_value: unsafe extern "C" fn(context: *mut c_void, property_id: u16),
+    pub compute_and_store: unsafe extern "C" fn(context: *mut c_void, property_id: u16),
+    /// Returns which of the two paired longhands won the cascade.
+    pub cascaded_winner: unsafe extern "C" fn(context: *mut c_void, a: u16, b: u16) -> u16,
+    /// Returns the element's computed writing mode and direction, packed as
+    /// writing_mode | direction << 8.
+    pub writing_mode_and_direction: unsafe extern "C" fn(context: *mut c_void) -> u16,
+}
+
+fn table_row_maps(table: &std::sync::OnceLock<Vec<u16>>, property_id: u16) -> bool {
+    use crate::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
+    let Some(table) = table.get() else {
+        return false;
+    };
+    let start = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize * WRITING_MODE_COUNT * DIRECTION_COUNT;
+    table[start..start + WRITING_MODE_COUNT * DIRECTION_COUNT]
+        .iter()
+        .any(|&entry| entry != 0)
+}
+
+fn value_is_initial_or_unset(value: *const c_void) -> bool {
+    if value.is_null() {
+        return false;
+    }
+    match unsafe { &*(value as *const StyleValueData) } {
+        StyleValueData::Keyword { keyword } => *keyword == keyword::INITIAL || *keyword == keyword::UNSET,
+        _ => false,
+    }
+}
+
 /// Drives the property computation loop: iterates every longhand in
-/// computation order and calls back into C++ for the per-property work that
-/// has not moved into the core yet.
+/// computation order, resolves logical pairing, decides between the cascaded,
+/// inherited and initial values, and calls back into C++ for the flow stages
+/// that have not moved into the core yet.
 ///
 /// # Safety
-/// `process_longhand` must be callable with `context`.
+/// `callbacks` must point at a valid callback table.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_drive_property_computation(
-    context: *mut c_void,
-    process_longhand: unsafe extern "C" fn(context: *mut c_void, property_id: u16),
+    callbacks: *const FfiLonghandCallbacks,
+    has_inheritance_parent: bool,
 ) {
     abort_on_panic(|| {
+        let callbacks = unsafe { &*callbacks };
+        let context = callbacks.context;
+        let mut cached_writing_mode_and_direction: Option<(u8, u8)> = None;
+
         for &property_id in crate::property_metadata::property_computation_order() {
-            unsafe { process_longhand(context, property_id) };
+            let mut cascaded_property_id = property_id;
+            let mut inherited_property_id = property_id;
+
+            // https://drafts.csswg.org/css-logical/#box
+            // Within each logical property group, corresponding flow-relative and physical
+            // properties are paired using the element's own computed writing mode; the computed
+            // value of both properties in the pair is derived from the specified value of the
+            // property declared with higher priority in the CSS cascade. A longhand is in a
+            // logical property group exactly when either mapping table maps it.
+            let is_logical_alias = table_row_maps(&LOGICAL_ALIAS_TABLE, property_id);
+            if is_logical_alias || table_row_maps(&PHYSICAL_TO_LOGICAL_TABLE, property_id) {
+                let (writing_mode, direction) = *cached_writing_mode_and_direction.get_or_insert_with(|| {
+                    let packed = unsafe { (callbacks.writing_mode_and_direction)(context) };
+                    ((packed & 0xff) as u8, (packed >> 8) as u8)
+                });
+                let counterpart_property_id = if is_logical_alias {
+                    let physical = map_logical_alias_to_physical(property_id, writing_mode, direction);
+                    // AD-HOC: While the spec says that inheritance of logical aliases should be
+                    // direct, other browsers instead inherit from the physical counterpart - the
+                    // CSSWG has resolved to update the spec to reflect this -
+                    // see https://github.com/w3c/csswg-drafts/issues/3029
+                    inherited_property_id = physical;
+                    physical
+                } else {
+                    map_physical_to_logical_alias(property_id, writing_mode, direction)
+                };
+                cascaded_property_id =
+                    unsafe { (callbacks.cascaded_winner)(context, property_id, counterpart_property_id) };
+            }
+
+            let mut done = false;
+            let mut value = unsafe {
+                (callbacks.get_cascaded_value)(
+                    context,
+                    property_id,
+                    cascaded_property_id,
+                    inherited_property_id,
+                    &raw mut done,
+                )
+            };
+            if done {
+                continue;
+            }
+
+            let decision = longhand_decision(
+                if value.is_null() {
+                    None
+                } else {
+                    Some(unsafe { &*(value as *const StyleValueData) })
+                },
+                property_id,
+            );
+
+            let inherit_fetch_attempted = decision.should_inherit && has_inheritance_parent;
+            if inherit_fetch_attempted {
+                value = unsafe {
+                    (callbacks.fetch_inherited_value)(
+                        context,
+                        property_id,
+                        decision.explicitly_inherits_non_inherited_property,
+                    )
+                };
+            }
+
+            let use_initial = if inherit_fetch_attempted {
+                value.is_null() || value_is_initial_or_unset(value)
+            } else {
+                decision.use_initial_without_inherit
+            };
+            if use_initial {
+                unsafe { (callbacks.use_initial_value)(context, property_id) };
+            }
+
+            unsafe { (callbacks.compute_and_store)(context, property_id) };
         }
     });
 }
