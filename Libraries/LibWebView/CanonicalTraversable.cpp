@@ -264,22 +264,29 @@ WebContentSessionHistoryUpdateDecision CanonicalTraversable::did_receive_web_con
     };
 }
 
+Optional<Web::HTML::CrossProcessId> CanonicalTraversable::nested_history_id_for(CanonicalNavigable const& navigable) const
+{
+    if (&navigable == this)
+        return {};
+    return navigable.id();
+}
+
 bool CanonicalTraversable::update_session_history_entry_navigation_api_state(CanonicalNavigable const& navigable, Utf16String const& navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state)
 {
     VERIFY(&navigable.top_level_traversable() == this);
 
-    if (&navigable == this)
-        return m_session_history.update_top_level_navigation_api_state(navigation_api_key, move(navigation_api_state));
-    return m_session_history.update_nested_navigation_api_state(navigable.id(), navigation_api_key, move(navigation_api_state));
+    return m_session_history.update_entry(nested_history_id_for(navigable), navigation_api_key, [&](auto& entry) {
+        entry.navigation_api_state = navigation_api_state;
+    });
 }
 
 bool CanonicalTraversable::update_session_history_entry_scroll_restoration_mode(CanonicalNavigable const& navigable, Utf16String const& navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode)
 {
     VERIFY(&navigable.top_level_traversable() == this);
 
-    if (&navigable == this)
-        return m_session_history.update_top_level_scroll_restoration_mode(navigation_api_key, scroll_restoration_mode);
-    return m_session_history.update_nested_scroll_restoration_mode(navigable.id(), navigation_api_key, scroll_restoration_mode);
+    return m_session_history.update_entry(nested_history_id_for(navigable), navigation_api_key, [&](auto& entry) {
+        entry.scroll_restoration_mode = scroll_restoration_mode;
+    });
 }
 
 Optional<i32> CanonicalTraversable::navigation_api_traversal_target(CanonicalNavigable const& navigable, Utf16String const& navigation_api_key) const

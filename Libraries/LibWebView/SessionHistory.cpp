@@ -536,32 +536,11 @@ static bool update_nested_session_history_entries_by_navigation_api_key(Vector<T
     return true;
 }
 
-bool TraversableSessionHistory::update_top_level_navigation_api_state(Utf16String const& navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state)
+bool TraversableSessionHistory::update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Entry&)> const& update_entry)
 {
-    return update_top_level_session_history_entries_by_navigation_api_key(m_entries, m_web_content_known_entries, navigation_api_key, [&](Entry& entry) {
-        entry.navigation_api_state = navigation_api_state;
-    });
-}
-
-bool TraversableSessionHistory::update_nested_navigation_api_state(Web::HTML::CrossProcessId nested_history_id, Utf16String const& navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state)
-{
-    return update_nested_session_history_entries_by_navigation_api_key(m_entries, m_web_content_known_entries, nested_history_id, navigation_api_key, [&](Entry& entry) {
-        entry.navigation_api_state = navigation_api_state;
-    });
-}
-
-bool TraversableSessionHistory::update_top_level_scroll_restoration_mode(Utf16String const& navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode)
-{
-    return update_top_level_session_history_entries_by_navigation_api_key(m_entries, m_web_content_known_entries, navigation_api_key, [&](Entry& entry) {
-        entry.scroll_restoration_mode = scroll_restoration_mode;
-    });
-}
-
-bool TraversableSessionHistory::update_nested_scroll_restoration_mode(Web::HTML::CrossProcessId nested_history_id, Utf16String const& navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode)
-{
-    return update_nested_session_history_entries_by_navigation_api_key(m_entries, m_web_content_known_entries, nested_history_id, navigation_api_key, [&](Entry& entry) {
-        entry.scroll_restoration_mode = scroll_restoration_mode;
-    });
+    if (!nested_history_id.has_value())
+        return update_top_level_session_history_entries_by_navigation_api_key(m_entries, m_web_content_known_entries, navigation_api_key, update_entry);
+    return update_nested_session_history_entries_by_navigation_api_key(m_entries, m_web_content_known_entries, *nested_history_id, navigation_api_key, update_entry);
 }
 
 Optional<size_t> TraversableSessionHistory::current_top_level_entry_index() const
