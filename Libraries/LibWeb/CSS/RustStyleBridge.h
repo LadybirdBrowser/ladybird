@@ -21,5 +21,9 @@ WEB_API u16 const* rust_property_metadata_computation_order(size_t* length);
 WEB_API u8 rust_property_metadata_requires_computation_level(u16 property_id);
 
 WEB_API ComputedValuesFFI::FfiAbsolutizedLength rust_absolutize_length(double value, u8 unit, ComputedValuesFFI::FfiLengthResolutionContext const* context);
+WEB_API i32 rust_css_pixels_multiply(i32 left, i32 right);
+WEB_API i32 rust_css_pixels_divide_as_fraction(i32 numerator, i32 denominator);
+WEB_API i32 rust_css_pixels_nearest_value_for(double value);
+WEB_API i32 rust_css_pixels_scaled(i32 value, double factor);
 
 }

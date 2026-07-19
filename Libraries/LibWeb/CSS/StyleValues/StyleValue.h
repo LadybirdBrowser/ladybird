@@ -176,6 +176,9 @@ public:
     Optional<Color> to_color(ColorResolutionContext) const;
     Keyword to_keyword() const;
 
+    // The Rust-owned data of this value, for handing to the Rust style computation core.
+    StyleValueFFI::StyleValueData const* rust_style_value_data() const { return m_value.operator->(); }
+
     String to_string(SerializationMode) const;
     Utf16String to_utf16_string(SerializationMode) const;
     void serialize(StringBuilder&, SerializationMode) const;

@@ -19,8 +19,17 @@ use std::ffi::c_void;
 use std::sync::OnceLock;
 
 use crate::abort_on_panic;
+use crate::css_pixels::CssPixels;
+use crate::style_value::StyleValueData;
 
 include!(concat!(env!("OUT_DIR"), "/length_units_generated.rs"));
+include!(concat!(env!("OUT_DIR"), "/keywords_generated.rs"));
+
+/// FFI accessor for the keyword-code parity test on the C++ side.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_compute_keyword_code_bold() -> u16 {
+    keyword::BOLD
+}
 
 /// The font metrics needed for font-relative length resolution, as unrounded
 /// CSS pixel values.
@@ -240,10 +249,397 @@ pub unsafe extern "C" fn rust_absolutize_length(
     abort_on_panic(|| absolutize_length(value, unit as usize, unsafe { &*context }))
 }
 
+/// Result of computing a property that resolves to a number.
+#[repr(C)]
+pub struct FfiComputedNumber {
+    /// False when the value needs C++ handling (calc).
+    pub handled: bool,
+    /// True when the absolutized value is already the computed value.
+    pub unchanged: bool,
+    pub value: f64,
+}
+
+const NUMBER_UNHANDLED: FfiComputedNumber = FfiComputedNumber {
+    handled: false,
+    unchanged: false,
+    value: 0.0,
+};
+
+// https://drafts.csswg.org/css-fonts-4/#font-weight-prop
+// a number, see below
+fn compute_font_weight(value: &StyleValueData, inherited_font_weight: f64) -> FfiComputedNumber {
+    let computed = |value| FfiComputedNumber {
+        handled: true,
+        unchanged: false,
+        value,
+    };
+    match value {
+        // <number [1,1000]>
+        StyleValueData::Number { .. } => FfiComputedNumber {
+            handled: true,
+            unchanged: true,
+            value: 0.0,
+        },
+        StyleValueData::Keyword { keyword } => match *keyword {
+            // normal
+            // Same as 400.
+            keyword::NORMAL => computed(400.0),
+            // bold
+            // Same as 700.
+            keyword::BOLD => computed(700.0),
+            // Specified values of bolder and lighter indicate weights relative to the weight of the
+            // parent element. The computed weight is calculated based on the inherited font-weight
+            // value using the chart below.
+            //
+            // Inherited value (w)  bolder     lighter
+            // w < 100              400        No change
+            // 100 <= w < 350       400        100
+            // 350 <= w < 550       700        100
+            // 550 <= w < 750       900        400
+            // 750 <= w < 900       900        700
+            // 900 <= w             No change  700
+            //
+            // bolder
+            // Specifies a bolder weight than the inherited value. See 2.2.1 Relative Weights.
+            keyword::BOLDER => {
+                if inherited_font_weight < 350.0 {
+                    computed(400.0)
+                } else if inherited_font_weight < 550.0 {
+                    computed(700.0)
+                } else if inherited_font_weight < 900.0 {
+                    computed(900.0)
+                } else {
+                    computed(inherited_font_weight)
+                }
+            }
+            // lighter
+            // Specifies a lighter weight than the inherited value. See 2.2.1 Relative Weights.
+            keyword::LIGHTER => {
+                if inherited_font_weight < 100.0 {
+                    computed(inherited_font_weight)
+                } else if inherited_font_weight < 550.0 {
+                    computed(100.0)
+                } else if inherited_font_weight < 750.0 {
+                    computed(400.0)
+                } else {
+                    computed(700.0)
+                }
+            }
+            _ => NUMBER_UNHANDLED,
+        },
+        // AD-HOC: calc values are resolved by the C++ caller.
+        _ => NUMBER_UNHANDLED,
+    }
+}
+
+// https://drafts.csswg.org/css-fonts-4/#font-width-prop
+// a percentage, see below
+fn compute_font_width(value: &StyleValueData) -> FfiComputedNumber {
+    let computed = |value| FfiComputedNumber {
+        handled: true,
+        unchanged: false,
+        value,
+    };
+    match value {
+        // <percentage [0,inf]>
+        StyleValueData::Percentage { .. } => FfiComputedNumber {
+            handled: true,
+            unchanged: true,
+            value: 0.0,
+        },
+        StyleValueData::Keyword { keyword } => match *keyword {
+            // ultra-condensed 50%
+            keyword::ULTRA_CONDENSED => computed(50.0),
+            // extra-condensed 62.5%
+            keyword::EXTRA_CONDENSED => computed(62.5),
+            // condensed 75%
+            keyword::CONDENSED => computed(75.0),
+            // semi-condensed 87.5%
+            keyword::SEMI_CONDENSED => computed(87.5),
+            // normal 100%
+            keyword::NORMAL => computed(100.0),
+            // semi-expanded 112.5%
+            keyword::SEMI_EXPANDED => computed(112.5),
+            // expanded 125%
+            keyword::EXPANDED => computed(125.0),
+            // extra-expanded 150%
+            keyword::EXTRA_EXPANDED => computed(150.0),
+            // ultra-expanded 200%
+            keyword::ULTRA_EXPANDED => computed(200.0),
+            _ => NUMBER_UNHANDLED,
+        },
+        // AD-HOC: calc percentages are resolved by the C++ caller.
+        _ => NUMBER_UNHANDLED,
+    }
+}
+
+/// Computes the font-width property from its absolutized value.
+///
+/// # Safety
+/// `absolutized_value` must point at a valid StyleValueData.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_font_width(absolutized_value: *const c_void) -> FfiComputedNumber {
+    abort_on_panic(|| {
+        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
+        compute_font_width(value)
+    })
+}
+
+// https://drafts.csswg.org/css-fonts/#font-size-prop
+// an absolute length
+//
+// The keyword mappings use CSSPixels fixed-point arithmetic, exactly as the
+// C++ implementation does.
+fn compute_font_size(
+    value: &StyleValueData,
+    computed_math_depth: i32,
+    inherited_font_size: CssPixels,
+    inherited_math_depth: i32,
+    default_font_size: CssPixels,
+) -> FfiComputedNumber {
+    let computed = |px: f64| FfiComputedNumber {
+        handled: true,
+        unchanged: false,
+        value: px,
+    };
+    // An <absolute-size> keyword refers to an entry in a table of font sizes computed and kept by
+    // the user agent. See 2.5.1 Absolute Size Keyword Mapping Table.
+    let absolute = |numerator: i64, denominator: i64| {
+        computed(
+            (default_font_size * CssPixels::from_integer(numerator))
+                .div_as_fraction(CssPixels::from_integer(denominator))
+                .to_double(),
+        )
+    };
+    // A <relative-size> keyword is interpreted relative to the computed font-size of the parent
+    // element. User agents may use a simple ratio, which should be around 1.2-1.5.
+    let relative = |numerator: i64, denominator: i64| {
+        computed(
+            (inherited_font_size * CssPixels::from_integer(numerator))
+                .div_as_fraction(CssPixels::from_integer(denominator))
+                .to_double(),
+        )
+    };
+    match value {
+        // <length-percentage [0,inf]>
+        // A length value specifies an absolute font size (independent of the user agent's font
+        // table). Negative lengths are invalid.
+        StyleValueData::Length { .. } => FfiComputedNumber {
+            handled: true,
+            unchanged: true,
+            value: 0.0,
+        },
+        // A percentage value specifies an absolute font size relative to the parent element's
+        // computed font-size. Negative percentages are invalid.
+        StyleValueData::Percentage { value } => computed(inherited_font_size.to_double() * (value / 100.0)),
+        StyleValueData::Keyword { keyword } => match *keyword {
+            keyword::XX_SMALL => absolute(3, 5),
+            keyword::X_SMALL => absolute(3, 4),
+            keyword::SMALL => absolute(8, 9),
+            keyword::MEDIUM => computed(default_font_size.to_double()),
+            keyword::LARGE => absolute(6, 5),
+            keyword::X_LARGE => absolute(3, 2),
+            keyword::XX_LARGE => computed((default_font_size * CssPixels::from_integer(2)).to_double()),
+            keyword::XXX_LARGE => computed((default_font_size * CssPixels::from_integer(3)).to_double()),
+            keyword::SMALLER => relative(4, 5),
+            keyword::LARGER => relative(5, 4),
+            // math
+            // Special mathematical scaling rules must be applied when determining the computed
+            // value of the font-size property.
+            keyword::MATH => {
+                // https://w3c.github.io/mathml-core/#the-math-script-level-property
+                // If the specified value font-size is math then the computed value of font-size is
+                // obtained by multiplying the inherited value of font-size by a nonzero scale
+                // factor calculated by the following procedure:
+                // 1. Let A be the inherited math-depth value, B the computed math-depth value,
+                //    C be 0.71 and S be 1.0
+                let mut a = inherited_math_depth;
+                let mut b = computed_math_depth;
+                let size_ratio = 0.71f64;
+                let mut scale = 1.0f64;
+                let math_scaling_factor = if a == b {
+                    // 2. If A = B then return S.
+                    scale
+                } else {
+                    // If B < A, swap A and B and set InvertScaleFactor to true.
+                    // Otherwise B > A and set InvertScaleFactor to false.
+                    let invert_scale_factor = if b < a {
+                        std::mem::swap(&mut a, &mut b);
+                        true
+                    } else {
+                        false
+                    };
+                    // 3. Let E be B - A > 0.
+                    let e = f64::from(b - a > 0);
+                    // FIXME: 4. If the inherited first available font has an OpenType MATH table:
+                    //    - If A <= 0 and B >= 2 then multiply S by scriptScriptPercentScaleDown
+                    //      and decrement E by 2.
+                    //    - Otherwise if A = 1 then multiply S by scriptScriptPercentScaleDown /
+                    //      scriptPercentScaleDown and decrement E by 1.
+                    //    - Otherwise if B = 1 then multiply S by scriptPercentScaleDown and
+                    //      decrement E by 1.
+                    // 5. Multiply S by C^E.
+                    scale *= size_ratio.powf(e);
+                    // 6. Return S if InvertScaleFactor is false and 1/S otherwise.
+                    if !invert_scale_factor { scale } else { 1.0 / scale }
+                };
+                computed(inherited_font_size.scaled(math_scaling_factor).to_double())
+            }
+            _ => NUMBER_UNHANDLED,
+        },
+        // AD-HOC: calc values are resolved by the C++ caller.
+        _ => NUMBER_UNHANDLED,
+    }
+}
+
+/// Computes the font-size property from its absolutized value. The font size
+/// inputs are raw CSSPixels values.
+///
+/// # Safety
+/// `absolutized_value` must point at a valid StyleValueData.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_font_size(
+    absolutized_value: *const c_void,
+    computed_math_depth: i32,
+    inherited_font_size_raw: i32,
+    inherited_math_depth: i32,
+    default_font_size_raw: i32,
+) -> FfiComputedNumber {
+    abort_on_panic(|| {
+        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
+        compute_font_size(
+            value,
+            computed_math_depth,
+            CssPixels::from_raw(inherited_font_size_raw),
+            inherited_math_depth,
+            CssPixels::from_raw(default_font_size_raw),
+        )
+    })
+}
+
+// The computed value of the math-depth value is determined as follows:
+fn compute_math_depth(
+    value: &StyleValueData,
+    inherited_math_depth: i32,
+    inherited_math_style_is_compact: bool,
+) -> FfiComputedNumber {
+    let computed = |depth: i32| FfiComputedNumber {
+        handled: true,
+        unchanged: false,
+        value: depth as f64,
+    };
+    match value {
+        // - If the specified value of math-depth is auto-add and the inherited value of math-style
+        //   is compact then the computed value of math-depth of the element is its inherited value
+        //   plus one.
+        StyleValueData::Keyword { keyword } if *keyword == keyword::AUTO_ADD && inherited_math_style_is_compact => {
+            computed(inherited_math_depth.saturating_add(1))
+        }
+        // - If the specified value of math-depth is of the form <integer> then the computed value
+        //   of math-depth of the element is the specified integer.
+        StyleValueData::Integer { value } => computed(*value),
+        // AD-HOC: add(<integer>) functions and calc values are resolved by the C++ caller.
+        StyleValueData::Function { .. } | StyleValueData::Calculated { .. } => NUMBER_UNHANDLED,
+        // - Otherwise, the computed value of math-depth of the element is the inherited one.
+        _ => computed(inherited_math_depth),
+    }
+}
+
+/// Computes the math-depth property from its absolutized value.
+///
+/// # Safety
+/// `absolutized_value` must point at a valid StyleValueData.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_math_depth(
+    absolutized_value: *const c_void,
+    inherited_math_depth: i32,
+    inherited_math_style_is_compact: bool,
+) -> FfiComputedNumber {
+    abort_on_panic(|| {
+        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
+        compute_math_depth(value, inherited_math_depth, inherited_math_style_is_compact)
+    })
+}
+
+// https://drafts.csswg.org/css-inline-3/#line-height-property
+fn compute_line_height(value: &StyleValueData, computed_font_size: CssPixels) -> FfiComputedNumber {
+    match value {
+        // normal
+        // <length [0,inf]>
+        // <number [0,inf]>
+        StyleValueData::Keyword { keyword } if *keyword == keyword::NORMAL => FfiComputedNumber {
+            handled: true,
+            unchanged: true,
+            value: 0.0,
+        },
+        StyleValueData::Length { .. } | StyleValueData::Number { .. } => FfiComputedNumber {
+            handled: true,
+            unchanged: true,
+            value: 0.0,
+        },
+        // <percentage [0,inf]>
+        StyleValueData::Percentage { value } => FfiComputedNumber {
+            handled: true,
+            unchanged: false,
+            value: computed_font_size.to_double() * (value / 100.0),
+        },
+        // NB: calc lengths and numbers are resolved by the C++ caller, and any other value would
+        //     be unreachable there.
+        _ => NUMBER_UNHANDLED,
+    }
+}
+
+/// Computes the line-height property from its absolutized value. The computed
+/// font size is a raw CSSPixels value.
+///
+/// # Safety
+/// `absolutized_value` must point at a valid StyleValueData.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_line_height(
+    absolutized_value: *const c_void,
+    computed_font_size_raw: i32,
+) -> FfiComputedNumber {
+    abort_on_panic(|| {
+        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
+        compute_line_height(value, CssPixels::from_raw(computed_font_size_raw))
+    })
+}
+
+/// Computes the font-weight property from its absolutized value.
+///
+/// # Safety
+/// `absolutized_value` must point at a valid StyleValueData.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_font_weight(
+    absolutized_value: *const c_void,
+    inherited_font_weight: f64,
+) -> FfiComputedNumber {
+    abort_on_panic(|| {
+        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
+        compute_font_weight(value, inherited_font_weight)
+    })
+}
+
 // The exported computed-values FFI shares one header; keep an anchor so the
 // context types stay in the generated bindings even without other references.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_compute_context_anchor(_context: *const c_void) {}
+
+// The standalone cargo test binary has no C++ side, so the release callbacks
+// that StyleValueData's retained members call on drop are stubbed out here.
+#[cfg(test)]
+mod ffi_test_stubs {
+    use std::ffi::c_void;
+
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_style_value_unref(_style_value: *const c_void) {}
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_string_unref(_raw: usize) {}
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_calculation_node_unref(_node: *const c_void) {}
+}
 
 #[cfg(test)]
 mod tests {
@@ -315,6 +711,138 @@ mod tests {
         let inch = absolutize_length(1.0, unit_code("in"), &context);
         assert!(inch.changed);
         assert_eq!(inch.px, 96.0);
+    }
+
+    #[test]
+    fn font_weight_keywords_compute() {
+        let bolder = StyleValueData::Keyword {
+            keyword: keyword::BOLDER,
+        };
+        assert_eq!(compute_font_weight(&bolder, 300.0).value, 400.0);
+        assert_eq!(compute_font_weight(&bolder, 400.0).value, 700.0);
+        assert_eq!(compute_font_weight(&bolder, 700.0).value, 900.0);
+        assert_eq!(compute_font_weight(&bolder, 900.0).value, 900.0);
+
+        let lighter = StyleValueData::Keyword {
+            keyword: keyword::LIGHTER,
+        };
+        assert_eq!(compute_font_weight(&lighter, 50.0).value, 50.0);
+        assert_eq!(compute_font_weight(&lighter, 400.0).value, 100.0);
+        assert_eq!(compute_font_weight(&lighter, 700.0).value, 400.0);
+        assert_eq!(compute_font_weight(&lighter, 900.0).value, 700.0);
+
+        assert_eq!(
+            compute_font_weight(
+                &StyleValueData::Keyword {
+                    keyword: keyword::NORMAL
+                },
+                700.0
+            )
+            .value,
+            400.0
+        );
+        assert_eq!(
+            compute_font_weight(&StyleValueData::Keyword { keyword: keyword::BOLD }, 100.0).value,
+            700.0
+        );
+        assert!(compute_font_weight(&StyleValueData::Number { value: 512.0 }, 100.0).unchanged);
+    }
+
+    #[test]
+    fn font_width_keywords_compute() {
+        assert_eq!(
+            compute_font_width(&StyleValueData::Keyword {
+                keyword: keyword::ULTRA_CONDENSED
+            })
+            .value,
+            50.0
+        );
+        assert_eq!(
+            compute_font_width(&StyleValueData::Keyword {
+                keyword: keyword::SEMI_EXPANDED
+            })
+            .value,
+            112.5
+        );
+        assert_eq!(
+            compute_font_width(&StyleValueData::Keyword {
+                keyword: keyword::NORMAL
+            })
+            .value,
+            100.0
+        );
+        assert!(compute_font_width(&StyleValueData::Percentage { value: 80.0 }).unchanged);
+    }
+
+    #[test]
+    fn font_size_keywords_compute() {
+        let sixteen = CssPixels::from_integer(16);
+        let medium = compute_font_size(
+            &StyleValueData::Keyword {
+                keyword: keyword::MEDIUM,
+            },
+            0,
+            sixteen,
+            0,
+            sixteen,
+        );
+        assert_eq!(medium.value, 16.0);
+        let large = compute_font_size(
+            &StyleValueData::Keyword {
+                keyword: keyword::LARGE,
+            },
+            0,
+            sixteen,
+            0,
+            sixteen,
+        );
+        assert_eq!(large.value, 19.1875); // 16 * 6 / 5 in 6-bit fixed point
+        let percent = compute_font_size(&StyleValueData::Percentage { value: 150.0 }, 0, sixteen, 0, sixteen);
+        assert_eq!(percent.value, 24.0);
+        let math = compute_font_size(
+            &StyleValueData::Keyword { keyword: keyword::MATH },
+            1,
+            sixteen,
+            0,
+            sixteen,
+        );
+        assert_eq!(math.value, CssPixels::from_integer(16).scaled(0.71).to_double());
+    }
+
+    #[test]
+    fn math_depth_computes() {
+        let auto_add = StyleValueData::Keyword {
+            keyword: keyword::AUTO_ADD,
+        };
+        assert_eq!(compute_math_depth(&auto_add, 2, true).value, 3.0);
+        assert_eq!(compute_math_depth(&auto_add, 2, false).value, 2.0);
+        assert_eq!(
+            compute_math_depth(&StyleValueData::Integer { value: 5 }, 2, true).value,
+            5.0
+        );
+        assert_eq!(
+            compute_math_depth(&StyleValueData::Keyword { keyword: keyword::AUTO }, 4, true).value,
+            4.0
+        );
+    }
+
+    #[test]
+    fn line_height_computes() {
+        let sixteen = CssPixels::from_integer(16);
+        assert!(
+            compute_line_height(
+                &StyleValueData::Keyword {
+                    keyword: keyword::NORMAL
+                },
+                sixteen
+            )
+            .unchanged
+        );
+        assert!(compute_line_height(&StyleValueData::Number { value: 1.5 }, sixteen).unchanged);
+        assert_eq!(
+            compute_line_height(&StyleValueData::Percentage { value: 150.0 }, sixteen).value,
+            24.0
+        );
     }
 
     #[test]

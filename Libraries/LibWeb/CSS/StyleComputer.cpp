@@ -52,6 +52,7 @@
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/SelectorMatching.h>
+#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -4292,9 +4293,6 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_corner_shape(NonnullRefPt
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& absolutized_value, int computed_math_depth, Optional<DOM::AbstractElement> const& inheritance_parent, CSSPixels initial_font_size)
 {
-    // https://drafts.csswg.org/css-fonts/#font-size-prop
-    // an absolute length
-
     auto inherited_font_size = inheritance_parent.has_value()
         ? inheritance_parent->computed_values()->font_size()
         : initial_font_size;
@@ -4303,68 +4301,16 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<S
         ? inheritance_parent->computed_values()->math_depth()
         : InitialValues::math_depth();
 
-    // <absolute-size>
-    if (auto absolute_size = keyword_to_absolute_size(absolutized_value->to_keyword()); absolute_size.has_value())
-        return LengthStyleValue::create(Length::make_px(absolute_size_mapping(absolute_size.value(), default_user_font_size())));
-
-    // <relative-size>
-    if (auto relative_size = keyword_to_relative_size(absolutized_value->to_keyword()); relative_size.has_value())
-        return LengthStyleValue::create(Length::make_px(relative_size_mapping(relative_size.value(), inherited_font_size)));
-
-    // <length-percentage [0,∞]>
-    // A length value specifies an absolute font size (independent of the user agent’s font table). Negative lengths are invalid.
-    if (absolutized_value->is_length())
-        return absolutized_value;
-
-    // A percentage value specifies an absolute font size relative to the parent element’s computed font-size. Negative percentages are invalid.
-    if (absolutized_value->is_percentage())
-        return LengthStyleValue::create(Length::make_px(inherited_font_size * absolutized_value->as_percentage().percentage().as_fraction()));
-
-    if (absolutized_value->is_calculated())
-        return LengthStyleValue::create(absolutized_value->as_calculated().resolve_length({ .percentage_basis = Length::make_px(inherited_font_size) }).value());
-
-    // math
-    // Special mathematical scaling rules must be applied when determining the computed value of the font-size property.
-    if (absolutized_value->to_keyword() == Keyword::Math) {
-        auto math_scaling_factor = [&]() {
-            // https://w3c.github.io/mathml-core/#the-math-script-level-property
-            // If the specified value font-size is math then the computed value of font-size is obtained by multiplying
-            // the inherited value of font-size by a nonzero scale factor calculated by the following procedure:
-            // 1. Let A be the inherited math-depth value, B the computed math-depth value, C be 0.71 and S be 1.0
-            auto size_ratio = 0.71;
-            auto scale = 1.0;
-            // 2. If A = B then return S.
-            bool invert_scale_factor = false;
-            if (inherited_math_depth == computed_math_depth) {
-                return scale;
-            }
-            //    If B < A, swap A and B and set InvertScaleFactor to true.
-            if (computed_math_depth < inherited_math_depth) {
-                AK::swap(inherited_math_depth, computed_math_depth);
-                invert_scale_factor = true;
-            }
-            //    Otherwise B > A and set InvertScaleFactor to false.
-            else {
-                invert_scale_factor = false;
-            }
-            // 3. Let E be B - A > 0.
-            double e = (computed_math_depth - inherited_math_depth) > 0;
-            // FIXME: 4. If the inherited first available font has an OpenType MATH table:
-            //    - If A ≤ 0 and B ≥ 2 then multiply S by scriptScriptPercentScaleDown and decrement E by 2.
-            //    - Otherwise if A = 1 then multiply S by scriptScriptPercentScaleDown / scriptPercentScaleDown and decrement E by 1.
-            //    - Otherwise if B = 1 then multiply S by scriptPercentScaleDown and decrement E by 1.
-            // 5. Multiply S by C^E.
-            scale *= AK::pow(size_ratio, e);
-            // 6. Return S if InvertScaleFactor is false and 1/S otherwise.
-            if (!invert_scale_factor)
-                return scale;
-            return 1.0 / scale;
-        }();
-
-        return LengthStyleValue::create(Length::make_px(inherited_font_size.scaled(math_scaling_factor)));
+    // The size keyword tables and the math scaling rules live in the Rust style computation core.
+    auto result = ComputedValuesFFI::rust_compute_font_size(absolutized_value->rust_style_value_data(), computed_math_depth, inherited_font_size.raw_value(), inherited_math_depth, default_user_font_size().raw_value());
+    if (result.handled) {
+        if (result.unchanged)
+            return absolutized_value;
+        return LengthStyleValue::create(Length::make_px(result.value));
     }
 
-    VERIFY_NOT_REACHED();
+    VERIFY(absolutized_value->is_calculated());
+    return LengthStyleValue::create(absolutized_value->as_calculated().resolve_length({ .percentage_basis = Length::make_px(inherited_font_size) }).value());
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_style(NonnullRefPtr<StyleValue const> const& absolutized_value)
@@ -4381,144 +4327,54 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_style(NonnullRefPtr<
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr<StyleValue const> const& absolutized_value, Optional<DOM::AbstractElement> const& inheritance_parent)
 {
-    // https://drafts.csswg.org/css-fonts-4/#font-weight-prop
-    // a number, see below
-
     auto inherited_font_weight = inheritance_parent.has_value()
         ? inheritance_parent->computed_values()->font_weight()
         : InitialValues::font_weight();
 
-    // <number [1,1000]>
-    if (absolutized_value->is_number())
-        return absolutized_value;
+    // The weight chart lives in the Rust style computation core.
+    auto result = ComputedValuesFFI::rust_compute_font_weight(absolutized_value->rust_style_value_data(), inherited_font_weight);
+    if (result.handled) {
+        if (result.unchanged)
+            return absolutized_value;
+        return NumberStyleValue::create(result.value);
+    }
 
     // AD-HOC: Anywhere we support a numbers we should also support calcs
-    if (absolutized_value->is_calculated())
-        return NumberStyleValue::create(absolutized_value->as_calculated().resolve_number({}).value());
-
-    // normal
-    // Same as 400.
-    if (absolutized_value->to_keyword() == Keyword::Normal)
-        return NumberStyleValue::create(400);
-
-    // bold
-    // Same as 700.
-    if (absolutized_value->to_keyword() == Keyword::Bold)
-        return NumberStyleValue::create(700);
-
-    // Specified values of bolder and lighter indicate weights relative to the weight of the parent element. The
-    // computed weight is calculated based on the inherited font-weight value using the chart below.
-    //
-    // Inherited value (w)  bolder     lighter
-    // w < 100              400        No change
-    // 100 ≤ w < 350        400        100
-    // 350 ≤ w < 550        700        100
-    // 550 ≤ w < 750        900        400
-    // 750 ≤ w < 900        900        700
-    // 900 ≤ w              No change  700
-
-    // bolder
-    // Specifies a bolder weight than the inherited value. See § 2.2.1 Relative Weights.
-    if (absolutized_value->to_keyword() == Keyword::Bolder) {
-        if (inherited_font_weight < 350)
-            return NumberStyleValue::create(400);
-
-        if (inherited_font_weight < 550)
-            return NumberStyleValue::create(700);
-
-        if (inherited_font_weight < 900)
-            return NumberStyleValue::create(900);
-
-        return NumberStyleValue::create(inherited_font_weight);
-    }
-
-    // lighter
-    // Specifies a lighter weight than the inherited value. See § 2.2.1 Relative Weights.
-    if (absolutized_value->to_keyword() == Keyword::Lighter) {
-        if (inherited_font_weight < 100)
-            return NumberStyleValue::create(inherited_font_weight);
-
-        if (inherited_font_weight < 550)
-            return NumberStyleValue::create(100);
-
-        if (inherited_font_weight < 750)
-            return NumberStyleValue::create(400);
-
-        return NumberStyleValue::create(700);
-    }
-
-    VERIFY_NOT_REACHED();
+    VERIFY(absolutized_value->is_calculated());
+    return NumberStyleValue::create(absolutized_value->as_calculated().resolve_number({}).value());
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_width(NonnullRefPtr<StyleValue const> const& absolutized_value)
 {
-    // https://drafts.csswg.org/css-fonts-4/#font-width-prop
-    // a percentage, see below
-
-    // <percentage [0,∞]>
-    if (absolutized_value->is_percentage())
-        return absolutized_value;
+    // The width keyword percentage table lives in the Rust style computation core.
+    auto result = ComputedValuesFFI::rust_compute_font_width(absolutized_value->rust_style_value_data());
+    if (result.handled) {
+        if (result.unchanged)
+            return absolutized_value;
+        return PercentageStyleValue::create(Percentage(result.value));
+    }
 
     // AD-HOC: We support calculated percentages as well
-    if (absolutized_value->is_calculated())
-        return PercentageStyleValue::create(absolutized_value->as_calculated().resolve_percentage({}).value());
-
-    switch (absolutized_value->to_keyword()) {
-    // ultra-condensed 50%
-    case Keyword::UltraCondensed:
-        return PercentageStyleValue::create(Percentage(50));
-    // extra-condensed 62.5%
-    case Keyword::ExtraCondensed:
-        return PercentageStyleValue::create(Percentage(62.5));
-    // condensed 75%
-    case Keyword::Condensed:
-        return PercentageStyleValue::create(Percentage(75));
-    // semi-condensed 87.5%
-    case Keyword::SemiCondensed:
-        return PercentageStyleValue::create(Percentage(87.5));
-    // normal 100%
-    case Keyword::Normal:
-        return PercentageStyleValue::create(Percentage(100));
-    // semi-expanded 112.5%
-    case Keyword::SemiExpanded:
-        return PercentageStyleValue::create(Percentage(112.5));
-    // expanded 125%
-    case Keyword::Expanded:
-        return PercentageStyleValue::create(Percentage(125));
-    // extra-expanded 150%
-    case Keyword::ExtraExpanded:
-        return PercentageStyleValue::create(Percentage(150));
-    // ultra-expanded 200%
-    case Keyword::UltraExpanded:
-        return PercentageStyleValue::create(Percentage(200));
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    VERIFY(absolutized_value->is_calculated());
+    return PercentageStyleValue::create(absolutized_value->as_calculated().resolve_percentage({}).value());
 }
-
 NonnullRefPtr<StyleValue const> StyleComputer::compute_line_height(NonnullRefPtr<StyleValue const> const& absolutized_value, CSSPixels computed_font_size)
 {
-    // https://drafts.csswg.org/css-inline-3/#line-height-property
-
-    // normal
-    // <length [0,∞]>
-    // <number [0,∞]>
-    if (absolutized_value->to_keyword() == Keyword::Normal || absolutized_value->is_length() || absolutized_value->is_number())
-        return absolutized_value;
+    // The line-height rules live in the Rust style computation core.
+    auto result = ComputedValuesFFI::rust_compute_line_height(absolutized_value->rust_style_value_data(), computed_font_size.raw_value());
+    if (result.handled) {
+        if (result.unchanged)
+            return absolutized_value;
+        return LengthStyleValue::create(Length::make_px(result.value));
+    }
 
     // NOTE: We also support calc()'d lengths (percentages resolve to lengths so we don't have to handle them separately)
     if (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_length_percentage())
         return LengthStyleValue::create(absolutized_value->as_calculated().resolve_length({ .percentage_basis = Length::make_px(computed_font_size) }).value());
 
     // NOTE: We also support calc()'d numbers
-    if (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_number())
-        return NumberStyleValue::create(absolutized_value->as_calculated().resolve_number({ .percentage_basis = Length::make_px(computed_font_size) }).value());
-
-    // <percentage [0,∞]>
-    if (absolutized_value->is_percentage())
-        return LengthStyleValue::create(Length::make_px(computed_font_size * absolutized_value->as_percentage().percentage().as_fraction()));
-
-    VERIFY_NOT_REACHED();
+    VERIFY(absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_number());
+    return NumberStyleValue::create(absolutized_value->as_calculated().resolve_number({ .percentage_basis = Length::make_px(computed_font_size) }).value());
 }
 
 // https://drafts.csswg.org/css-anchor-position/#position-area-computed
@@ -4632,24 +4488,18 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_math_depth(NonnullRefPtr<
         ? inheritance_parent->computed_values()->math_style()
         : InitialValues::math_style();
 
-    // The computed value of the math-depth value is determined as follows:
-    // - If the specified value of math-depth is auto-add and the inherited value of math-style is compact
-    //   then the computed value of math-depth of the element is its inherited value plus one.
-    if (absolutized_value->to_keyword() == Keyword::AutoAdd && inherited_math_style == MathStyle::Compact)
-        return IntegerStyleValue::create(AK::saturating_add(inherited_math_depth, 1));
+    // The math-depth rules live in the Rust style computation core.
+    auto result = ComputedValuesFFI::rust_compute_math_depth(absolutized_value->rust_style_value_data(), inherited_math_depth, inherited_math_style == MathStyle::Compact);
+    if (result.handled)
+        return IntegerStyleValue::create(static_cast<i64>(result.value));
 
     // - If the specified value of math-depth is of the form add(<integer>) then the computed value of
     //   math-depth of the element is its inherited value plus the specified integer.
     if (absolutized_value->is_function())
         return IntegerStyleValue::create(AK::saturating_add(inherited_math_depth, int_from_style_value(absolutized_value->as_function().value())));
 
-    // - If the specified value of math-depth is of the form <integer> then the computed value of math-depth
-    //   of the element is the specified integer.
-    if (absolutized_value->is_integer() || absolutized_value->is_calculated())
-        return IntegerStyleValue::create(int_from_style_value(absolutized_value));
-
-    // - Otherwise, the computed value of math-depth of the element is the inherited one.
-    return IntegerStyleValue::create(inherited_math_depth);
+    VERIFY(absolutized_value->is_calculated());
+    return IntegerStyleValue::create(int_from_style_value(absolutized_value));
 }
 
 void StyleComputer::reset_ancestor_filter()

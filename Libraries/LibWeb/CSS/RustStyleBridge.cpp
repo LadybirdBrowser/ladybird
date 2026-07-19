@@ -44,4 +44,24 @@ ComputedValuesFFI::FfiAbsolutizedLength rust_absolutize_length(double value, u8 
     return ComputedValuesFFI::rust_absolutize_length(value, unit, context);
 }
 
+i32 rust_css_pixels_multiply(i32 left, i32 right)
+{
+    return ComputedValuesFFI::rust_css_pixels_multiply(left, right);
+}
+
+i32 rust_css_pixels_divide_as_fraction(i32 numerator, i32 denominator)
+{
+    return ComputedValuesFFI::rust_css_pixels_divide_as_fraction(numerator, denominator);
+}
+
+i32 rust_css_pixels_nearest_value_for(double value)
+{
+    return ComputedValuesFFI::rust_css_pixels_nearest_value_for(value);
+}
+
+i32 rust_css_pixels_scaled(i32 value, double factor)
+{
+    return ComputedValuesFFI::rust_css_pixels_scaled(value, factor);
+}
+
 }

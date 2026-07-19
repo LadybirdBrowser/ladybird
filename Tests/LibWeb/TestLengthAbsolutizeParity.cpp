@@ -62,6 +62,34 @@ TEST_CASE(rust_length_resolution_matches_cpp)
     }
 }
 
+TEST_CASE(css_pixels_arithmetic_matches_cpp)
+{
+    // Deterministic pseudo-random raw values plus rounding edge cases.
+    Vector<i32> raw_values { 0, 1, -1, 31, 32, 33, 63, 64, 65, -32, -64, 1024, -1024, 65535, -65535, 1 << 20 };
+    u32 state = 0x12345678;
+    for (int i = 0; i < 64; ++i) {
+        state = state * 1664525u + 1013904223u;
+        raw_values.append(static_cast<i32>(state) >> 8);
+    }
+
+    for (auto left : raw_values) {
+        for (auto right : raw_values) {
+            auto cpp_product = CSSPixels::from_raw(left) * CSSPixels::from_raw(right);
+            EXPECT_EQ(rust_css_pixels_multiply(left, right), cpp_product.raw_value());
+
+            if (right != 0) {
+                CSSPixels cpp_quotient = CSSPixelFraction(CSSPixels::from_raw(left), CSSPixels::from_raw(right));
+                EXPECT_EQ(rust_css_pixels_divide_as_fraction(left, right), cpp_quotient.raw_value());
+            }
+        }
+        auto value = CSSPixels::from_raw(left).to_double();
+        for (auto factor : { 0.71, 1.0 / 0.71, 1.5, -2.25, 0.015625, 1000000.0 }) {
+            EXPECT_EQ(rust_css_pixels_nearest_value_for(value * factor), CSSPixels::nearest_value_for(value * factor).raw_value());
+            EXPECT_EQ(rust_css_pixels_scaled(left, factor), CSSPixels::from_raw(left).scaled(factor).raw_value());
+        }
+    }
+}
+
 TEST_CASE(container_relative_units_fall_back_to_cpp)
 {
     bool unused = false;
