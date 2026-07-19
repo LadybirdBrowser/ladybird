@@ -205,21 +205,10 @@ bool StyleValue::is_color_function() const
 
 bool StyleValue::depends_on_current_color() const
 {
-    if (type() != Type::Color)
-        return to_keyword() == Keyword::Currentcolor;
-
-    switch (m_value->tag) {
-    case StyleValueFFI::StyleValueData::Tag::ColorFunction:
-        return static_cast<ColorFunctionStyleValue const&>(*this).depends_on_current_color();
-    case StyleValueFFI::StyleValueData::Tag::ColorMix:
-        return static_cast<ColorMixStyleValue const&>(*this).depends_on_current_color();
-    case StyleValueFFI::StyleValueData::Tag::ContrastColor:
-        return static_cast<ContrastColorStyleValue const&>(*this).depends_on_current_color();
-    case StyleValueFFI::StyleValueData::Tag::LightDark:
-        return static_cast<LightDarkStyleValue const&>(*this).depends_on_current_color();
-    default:
-        return false;
-    }
+    // The recursion over nested colors lives in the Rust style value graph.
+    return StyleValueFFI::rust_style_value_depends_on_current_color(
+        m_value.operator->(),
+        [](void const* shell) -> void const* { return static_cast<StyleValue const*>(shell)->rust_style_value_data(); });
 }
 
 bool StyleValue::has_color() const

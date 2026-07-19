@@ -73,11 +73,6 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> computed_value_form() const;
 
-    bool depends_on_current_color() const
-    {
-        return origin_color() && origin_color()->depends_on_current_color();
-    }
-
     bool is_computationally_independent() const
     {
         return channels()[0]->is_computationally_independent()

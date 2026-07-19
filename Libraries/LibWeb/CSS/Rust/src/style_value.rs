@@ -2138,3 +2138,43 @@ pub unsafe extern "C" fn rust_style_value_destroy(value: *mut StyleValueData) {
         drop(unsafe { Box::from_raw(value) });
     });
 }
+
+/// Whether a value's computed color depends on the element's used currentcolor: the
+/// currentcolor keyword itself, or a color function, color-mix(), contrast-color() or
+/// light-dark() whose nested colors do. `data_of` maps a nested value's shell pointer to
+/// its Rust-owned data.
+fn value_depends_on_current_color(
+    value: &StyleValueData,
+    data_of: unsafe extern "C" fn(*const c_void) -> *const c_void,
+) -> bool {
+    let retained_depends = |retained: &RetainedStyleValue| -> bool {
+        let shell = retained.shell_pointer();
+        if shell.is_null() {
+            return false;
+        }
+        let data = unsafe { data_of(shell) };
+        value_depends_on_current_color(unsafe { &*(data as *const StyleValueData) }, data_of)
+    };
+    match value {
+        StyleValueData::Keyword { keyword } => *keyword == crate::style_compute::keyword::CURRENTCOLOR,
+        StyleValueData::ColorFunction { origin_color, .. } => retained_depends(origin_color),
+        StyleValueData::ColorMix {
+            first_color,
+            second_color,
+            ..
+        } => retained_depends(first_color) || retained_depends(second_color),
+        StyleValueData::ContrastColor { color, .. } => retained_depends(color),
+        StyleValueData::LightDark { light, dark, .. } => retained_depends(light) || retained_depends(dark),
+        _ => false,
+    }
+}
+
+/// # Safety
+/// `data` must point at a valid StyleValueData and `data_of` must be a valid callback.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_depends_on_current_color(
+    data: *const c_void,
+    data_of: unsafe extern "C" fn(shell: *const c_void) -> *const c_void,
+) -> bool {
+    crate::abort_on_panic(|| value_depends_on_current_color(unsafe { &*(data as *const StyleValueData) }, data_of))
+}

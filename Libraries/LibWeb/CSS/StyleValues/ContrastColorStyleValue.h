@@ -30,11 +30,6 @@ public:
         return color()->is_computationally_independent();
     }
 
-    bool depends_on_current_color() const
-    {
-        return color()->depends_on_current_color();
-    }
-
 private:
     explicit ContrastColorStyleValue(ValueComparingNonnullRefPtr<StyleValue const> color)
         : ColorStyleValue(StyleValueFFI::rust_style_value_create_contrast_color(false, 0, to_underlying(ColorSyntax::Modern), &color.leak_ref()))

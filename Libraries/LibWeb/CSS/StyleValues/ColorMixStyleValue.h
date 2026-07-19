@@ -37,12 +37,6 @@ public:
             && (!second_component().percentage || second_component().percentage->is_computationally_independent());
     }
 
-    bool depends_on_current_color() const
-    {
-        return first_component().color->depends_on_current_color()
-            || second_component().color->depends_on_current_color();
-    }
-
 private:
     ColorMixStyleValue(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component);
 
