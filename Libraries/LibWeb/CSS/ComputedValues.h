@@ -914,6 +914,39 @@ inline Gfx::InterpolationColorSpace to_interpolation_color_space(ColorInterpolat
     VERIFY_NOT_REACHED();
 }
 
+// The identity of every ComputedValues style value group, in vtable registration order.
+#define LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(G) \
+    G(InheritedTableValues)                             \
+    G(InheritedListValues)                              \
+    G(InheritedUIValues)                                \
+    G(InheritedSVGValues)                               \
+    G(InheritedTextValues)                              \
+    G(InheritedBoxValues)                               \
+    G(FontValues)                                       \
+    G(AnimationValues)                                  \
+    G(SVGResetValues)                                   \
+    G(GridValues)                                       \
+    G(AnchorValues)                                     \
+    G(EffectsValues)                                    \
+    G(MaskValues)                                       \
+    G(TextResetValues)                                  \
+    G(ContentValues)                                    \
+    G(TransformValues)                                  \
+    G(BackgroundValues)                                 \
+    G(BorderValues)                                     \
+    G(AlignmentValues)                                  \
+    G(MiscResetValues)                                  \
+    G(SizingValues)                                     \
+    G(SurroundValues)                                   \
+    G(BoxValues)
+
+enum class StyleGroupIndex : size_t {
+#define LIBWEB_STYLE_GROUP_ENUMERATOR(name) name,
+    LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_STYLE_GROUP_ENUMERATOR)
+#undef LIBWEB_STYLE_GROUP_ENUMERATOR
+        Count,
+};
+
 class WEB_API ComputedValues final : public RefCounted<ComputedValues> {
     AK_MAKE_NONCOPYABLE(ComputedValues);
     AK_MAKE_NONMOVABLE(ComputedValues);
@@ -1340,7 +1373,9 @@ private:
 
     void inherit_from(ComputedValues const& other) { m_inherited = other.m_inherited; }
 
+public:
     struct InheritedTableValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedTableValues);
         BorderCollapse border_collapse { InitialValues::border_collapse() };
         CaptionSide caption_side { InitialValues::caption_side() };
         EmptyCells empty_cells { InitialValues::empty_cells() };
@@ -1351,6 +1386,7 @@ private:
     };
 
     struct InheritedListValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedListValues);
         ListStyleType list_style_type { InitialValues::list_style_type() };
         ListStylePosition list_style_position { InitialValues::list_style_position() };
         RefPtr<AbstractImageStyleValue const> list_style_image;
@@ -1360,6 +1396,7 @@ private:
     };
 
     struct InheritedUIValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedUIValues);
         ColorOrAuto caret_color;
         ColorOrAuto accent_color;
         Vector<CursorData> cursor { InitialValues::cursor() };
@@ -1373,6 +1410,7 @@ private:
     };
 
     struct InheritedSVGValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedSVGValues);
         Optional<SVGPaint> fill;
         Optional<SVGPaint> stroke;
         FillRule fill_rule { InitialValues::fill_rule() };
@@ -1399,6 +1437,7 @@ private:
     };
 
     struct InheritedTextValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedTextValues);
         Color color { InitialValues::color() };
         RefPtr<StyleValue const> color_style_value;
         Color webkit_text_fill_color { InitialValues::color() };
@@ -1428,6 +1467,7 @@ private:
     };
 
     struct InheritedBoxValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedBoxValues);
         Visibility visibility { InitialValues::visibility() };
         Direction direction { InitialValues::direction() };
         WritingMode writing_mode { InitialValues::writing_mode() };
@@ -1440,6 +1480,7 @@ private:
     // NB: FontValues has no defaulted equality operator because HashMap does not
     //     support equality; the setters compare field-by-field instead.
     struct FontValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::FontValues);
         CSSPixels font_size { InitialValues::font_size() };
         RefPtr<Gfx::FontCascadeList const> font_list {};
         Vector<ComputedFontFamily> font_families { GenericFontFamily::Serif };
@@ -1459,6 +1500,7 @@ private:
         bool operator==(FontValues const&) const;
     };
 
+private:
     struct InheritedValues {
         StyleStructRef<InheritedTableValues> table;
         StyleStructRef<InheritedListValues> list;
@@ -1471,7 +1513,9 @@ private:
 
     InheritedValues m_inherited;
 
+public:
     struct AnimationValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::AnimationValues);
         Vector<ComputedAnimationName> animation_names { ComputedAnimationName {} };
         Vector<AnimationComposition> animation_compositions { AnimationComposition::Replace };
         Vector<Time> animation_delays { Time::make_seconds(0) };
@@ -1502,6 +1546,7 @@ private:
     };
 
     struct SVGResetValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::SVGResetValues);
         LengthPercentage cx { InitialValues::cx() };
         LengthPercentage cy { InitialValues::cy() };
         LengthPercentage r { InitialValues::r() };
@@ -1520,6 +1565,7 @@ private:
     };
 
     struct GridValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::GridValues);
         GridTrackSizeList grid_auto_columns;
         GridTrackSizeList grid_auto_rows;
         GridTrackSizeList grid_template_columns;
@@ -1537,6 +1583,7 @@ private:
     };
 
     struct AnchorValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::AnchorValues);
         Vector<Utf16FlyString> anchor_names;
         AnchorScopeData anchor_scope;
         PositionAnchor position_anchor { InitialValues::position_anchor() };
@@ -1549,6 +1596,7 @@ private:
     };
 
     struct EffectsValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::EffectsValues);
         float opacity { InitialValues::opacity() };
         Filter filter { InitialValues::filter() };
         Filter backdrop_filter { InitialValues::backdrop_filter() };
@@ -1561,6 +1609,7 @@ private:
     };
 
     struct MaskValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::MaskValues);
         Optional<MaskReference> mask;
         MaskType mask_type { InitialValues::mask_type() };
         RefPtr<AbstractImageStyleValue const> mask_image;
@@ -1579,6 +1628,7 @@ private:
     };
 
     struct TextResetValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::TextResetValues);
         Vector<TextDecorationLine> text_decoration_line { InitialValues::text_decoration_line() };
         TextDecorationThickness text_decoration_thickness { TextDecorationThickness::Auto {} };
         TextDecorationStyle text_decoration_style { InitialValues::text_decoration_style() };
@@ -1591,6 +1641,7 @@ private:
     };
 
     struct ContentValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::ContentValues);
         Optional<ContentData> content;
         ComputedContentData computed_content;
         Vector<CounterData, 0> counter_increment;
@@ -1601,6 +1652,7 @@ private:
     };
 
     struct TransformValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::TransformValues);
         Vector<NonnullRefPtr<TransformationStyleValue const>> transformations {};
         TransformBox transform_box { InitialValues::transform_box() };
         TransformOrigin transform_origin {};
@@ -1617,6 +1669,7 @@ private:
     };
 
     struct BackgroundValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::BackgroundValues);
         Color background_color { InitialValues::background_color() };
         RefPtr<StyleValue const> background_color_style_value;
         BackgroundBox background_color_clip { InitialValues::background_color_clip() };
@@ -1626,6 +1679,7 @@ private:
     };
 
     struct BorderValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::BorderValues);
         BorderData border_left;
         BorderData border_top;
         BorderData border_right;
@@ -1653,6 +1707,7 @@ private:
     };
 
     struct AlignmentValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::AlignmentValues);
         FlexDirection flex_direction { InitialValues::flex_direction() };
         FlexWrap flex_wrap { InitialValues::flex_wrap() };
         FlexBasis flex_basis { InitialValues::flex_basis() };
@@ -1672,6 +1727,7 @@ private:
     };
 
     struct MiscResetValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::MiscResetValues);
         RefPtr<StyleValue const> outline_offset_style_value;
         LengthBox scroll_margin { InitialValues::scroll_margin() };
         LengthBox scroll_padding { InitialValues::scroll_padding() };
@@ -1703,6 +1759,7 @@ private:
     };
 
     struct SizingValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::SizingValues);
         Size width { InitialValues::width() };
         Size min_width { InitialValues::min_width() };
         Size max_width { InitialValues::max_width() };
@@ -1714,6 +1771,7 @@ private:
     };
 
     struct SurroundValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::SurroundValues);
         LengthBox inset { InitialValues::inset() };
         RefPtr<StyleValue const> top_anchor_inset;
         RefPtr<StyleValue const> right_anchor_inset;
@@ -1726,6 +1784,7 @@ private:
     };
 
     struct BoxValues {
+        static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::BoxValues);
         AspectRatio aspect_ratio { InitialValues::aspect_ratio() };
         Float float_ { InitialValues::float_() };
 
@@ -1748,6 +1807,7 @@ private:
         bool operator==(BoxValues const&) const = default;
     };
 
+private:
     struct NonInheritedValues {
         StyleStructRef<AnimationValues> animation;
         StyleStructRef<BoxValues> box;

@@ -4,48 +4,47 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Vector.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/CSS/StyleStructRef.h>
+#include <LibWeb/CSS/ComputedValues.h>
 
 namespace Web::CSS {
 
-struct TestGroup {
-    int number { 1 };
-    Vector<int> list;
+// The referenced payloads are owned by the Rust side and constructed through
+// the registered group vtables, so these tests also cover the FFI layout and
+// lifecycle contract for real style value group types.
 
-    bool operator==(TestGroup const&) const = default;
-};
+using TableGroup = ComputedValues::InheritedTableValues;
+using TextGroup = ComputedValues::InheritedTextValues;
 
 TEST_CASE(default_constructed_refs_share_the_default_payload)
 {
-    StyleStructRef<TestGroup> a;
-    StyleStructRef<TestGroup> b;
+    StyleStructRef<TableGroup> a;
+    StyleStructRef<TableGroup> b;
     EXPECT(a.is_default());
     EXPECT(b.is_default());
     EXPECT(a.ptr_equals(b));
-    EXPECT_EQ(a->number, 1);
+    EXPECT_EQ(a->border_collapse, InitialValues::border_collapse());
 }
 
 TEST_CASE(access_clones_when_shared)
 {
-    StyleStructRef<TestGroup> a;
-    StyleStructRef<TestGroup> untouched;
+    StyleStructRef<TableGroup> a;
+    StyleStructRef<TableGroup> untouched;
 
-    a.access().number = 42;
+    a.access().caption_side = CaptionSide::Bottom;
     EXPECT(!a.is_default());
     EXPECT(!a.ptr_equals(untouched));
-    EXPECT_EQ(a->number, 42);
+    EXPECT_EQ(a->caption_side, CaptionSide::Bottom);
 
     // The default payload must be unaffected by the mutation.
     EXPECT(untouched.is_default());
-    EXPECT_EQ(untouched->number, 1);
-    EXPECT_EQ(StyleStructRef<TestGroup>::default_value().number, 1);
+    EXPECT_EQ(untouched->caption_side, InitialValues::caption_side());
+    EXPECT_EQ(StyleStructRef<TableGroup>::default_value().caption_side, InitialValues::caption_side());
 }
 
 TEST_CASE(access_does_not_clone_when_unique)
 {
-    StyleStructRef<TestGroup> a;
+    StyleStructRef<TableGroup> a;
     auto* first = &a.access();
     auto* second = &a.access();
     EXPECT_EQ(first, second);
@@ -53,31 +52,32 @@ TEST_CASE(access_does_not_clone_when_unique)
 
 TEST_CASE(copies_share_until_mutated)
 {
-    StyleStructRef<TestGroup> a;
-    a.access().number = 7;
-    a.access().list.append(1);
+    StyleStructRef<TextGroup> a;
+    a.access().word_break = WordBreak::BreakAll;
+    a.access().text_shadow.append(ShadowData { .offset_x = 1, .offset_y = 2 });
 
-    StyleStructRef<TestGroup> b(a);
+    StyleStructRef<TextGroup> b(a);
     EXPECT(a.ptr_equals(b));
 
-    b.access().number = 8;
+    b.access().word_break = WordBreak::KeepAll;
     EXPECT(!a.ptr_equals(b));
-    EXPECT_EQ(a->number, 7);
-    EXPECT_EQ(b->number, 8);
-    EXPECT_EQ(b->list.size(), 1u);
+    EXPECT_EQ(a->word_break, WordBreak::BreakAll);
+    EXPECT_EQ(b->word_break, WordBreak::KeepAll);
+    EXPECT_EQ(b->text_shadow.size(), 1u);
 }
 
 TEST_CASE(assignment_shares_and_releases_old_payload)
 {
-    StyleStructRef<TestGroup> a;
-    a.access().number = 5;
+    StyleStructRef<TableGroup> a;
+    a.access().caption_side = CaptionSide::Bottom;
 
-    StyleStructRef<TestGroup> b;
-    b.access().number = 6;
+    StyleStructRef<TableGroup> b;
+    b.access().empty_cells = EmptyCells::Hide;
 
     b = a;
     EXPECT(a.ptr_equals(b));
-    EXPECT_EQ(b->number, 5);
+    EXPECT_EQ(b->caption_side, CaptionSide::Bottom);
+    EXPECT_EQ(b->empty_cells, InitialValues::empty_cells());
 
     auto& self_reference = b;
     b = self_reference;
@@ -86,14 +86,14 @@ TEST_CASE(assignment_shares_and_releases_old_payload)
 
 TEST_CASE(value_equality_across_distinct_payloads)
 {
-    StyleStructRef<TestGroup> a;
-    StyleStructRef<TestGroup> b;
-    a.access().number = 9;
-    b.access().number = 9;
+    StyleStructRef<TableGroup> a;
+    StyleStructRef<TableGroup> b;
+    a.access().border_spacing_horizontal = 9;
+    b.access().border_spacing_horizontal = 9;
     EXPECT(!a.ptr_equals(b));
     EXPECT_EQ(a, b);
 
-    b.access().number = 10;
+    b.access().border_spacing_horizontal = 10;
     EXPECT(a != b);
 }
 

@@ -43,6 +43,37 @@
 
 namespace Web::CSS {
 
+template<typename T>
+static consteval ComputedValuesFFI::StyleGroupVTable make_style_group_vtable()
+{
+    return {
+        .size = sizeof(T),
+        .align = alignof(T),
+        .default_construct = [](void* payload) {
+            if constexpr (requires { T::make_default_payload_value(); })
+                new (payload) T(T::make_default_payload_value());
+            else
+                new (payload) T(); },
+        .copy_construct = [](void* payload, void const* source) { new (payload) T(*static_cast<T const*>(source)); },
+        .destruct = [](void* payload) { static_cast<T*>(payload)->~T(); },
+    };
+}
+
+void const* style_group_default_payload(size_t group_index)
+{
+    static auto const default_payloads = [] {
+        constexpr auto group_count = to_underlying(StyleGroupIndex::Count);
+        Array<ComputedValuesFFI::StyleGroupVTable, group_count> vtables;
+#define LIBWEB_STYLE_GROUP_VTABLE(name) vtables[to_underlying(StyleGroupIndex::name)] = make_style_group_vtable<ComputedValues::name>();
+        LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_STYLE_GROUP_VTABLE)
+#undef LIBWEB_STYLE_GROUP_VTABLE
+        Array<void const*, group_count> payloads {};
+        ComputedValuesFFI::rust_style_group_registry_register(vtables.data(), vtables.size(), payloads.data());
+        return payloads;
+    }();
+    return default_payloads[group_index];
+}
+
 // The default group payloads must match what create() produces for a completely
 // unstyled element, or every element clones these groups instead of sharing the
 // leaked default payload. Groups whose initial computed values are not simply

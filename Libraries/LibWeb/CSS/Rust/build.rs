@@ -211,7 +211,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Style value header - namespace Web::CSS::StyleValueFFI. The StyleValueData layout is
     // exposed so converted C++ StyleValue subclasses can read variant payloads inline without
     // an FFI call.
-    let mut style_value_config = base_config;
+    let mut style_value_config = base_config.clone();
     style_value_config.namespaces = Some(vec!["Web".to_string(), "CSS".to_string(), "StyleValueFFI".to_string()]);
     style_value_config.export.include = vec!["StyleValueData".to_string()];
 
@@ -221,6 +221,28 @@ fn main() -> Result<(), Box<dyn Error>> {
         &out_dir,
         &ffi_out_dir,
         Path::new("StyleValueRustFFI.h"),
+    );
+
+    // Computed values header - namespace Web::CSS::ComputedValuesFFI. Exposes the style group
+    // vtable and lifecycle functions; the reference count header layout is documented in
+    // computed_values.rs and mirrored by StyleStructRef.
+    let mut computed_values_config = base_config;
+    computed_values_config.namespaces = Some(vec![
+        "Web".to_string(),
+        "CSS".to_string(),
+        "ComputedValuesFFI".to_string(),
+    ]);
+    computed_values_config.export.include = vec![
+        "StyleGroupVTable".to_string(),
+        "STYLE_GROUP_STATIC_REFCOUNT".to_string(),
+    ];
+
+    generate_ffi_header(
+        computed_values_config,
+        &[manifest_dir.join("src/computed_values.rs")],
+        &out_dir,
+        &ffi_out_dir,
+        Path::new("ComputedValuesRustFFI.h"),
     );
 
     Ok(())

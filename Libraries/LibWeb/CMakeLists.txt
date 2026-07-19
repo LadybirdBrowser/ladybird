@@ -94,6 +94,7 @@ set(SOURCES
     CSS/Clip.cpp
     CSS/ComputedProperties.cpp
     CSS/ComputedValues.cpp
+    CSS/RustStyleBridge.cpp
     CSS/ContainerQuery.cpp
     CSS/CountersSet.cpp
     CSS/CounterStyle.cpp
@@ -1344,7 +1345,7 @@ import_rust_crate(
     MANIFEST_PATH CSS/Rust/Cargo.toml
     CRATE_NAME libweb_css_rust
     ${css_rust_features}
-    FFI_HEADERS RustFFI.h SelectorRustFFI.h StyleValueRustFFI.h
+    FFI_HEADERS RustFFI.h SelectorRustFFI.h StyleValueRustFFI.h ComputedValuesRustFFI.h
 )
 
 set(content_blocker_rust_features "")
