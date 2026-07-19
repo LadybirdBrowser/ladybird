@@ -36,6 +36,14 @@ impl RetainedStyleValue {
     pub(crate) fn shell_pointer(&self) -> *const c_void {
         self.pointer
     }
+
+    /// Assumes ownership of one strong reference to the C++ StyleValue shell.
+    ///
+    /// # Safety
+    /// `pointer` must be a leaked strong StyleValue reference (or null for an absent value).
+    pub(crate) unsafe fn from_shell_pointer(pointer: *const c_void) -> Self {
+        Self { pointer }
+    }
 }
 
 impl Drop for RetainedStyleValue {
@@ -53,6 +61,22 @@ impl Drop for RetainedStyleValue {
 #[repr(C)]
 pub struct RetainedUtf16FlyString {
     raw: usize,
+}
+
+impl RetainedUtf16FlyString {
+    /// The raw one-word representation; fly strings are interned, so equal raw
+    /// values mean equal strings.
+    pub(crate) fn raw(&self) -> usize {
+        self.raw
+    }
+
+    /// Assumes ownership of one reference to the underlying string data.
+    ///
+    /// # Safety
+    /// `raw` must be the raw representation of a fly string whose reference this may own.
+    pub(crate) unsafe fn from_raw(raw: usize) -> Self {
+        Self { raw }
+    }
 }
 
 impl Drop for RetainedUtf16FlyString {

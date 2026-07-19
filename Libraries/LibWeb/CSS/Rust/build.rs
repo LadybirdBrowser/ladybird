@@ -506,6 +506,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     computed_values_config.export.include = vec![
         "StyleGroupVTable".to_string(),
         "STYLE_GROUP_STATIC_REFCOUNT".to_string(),
+        "CascadeOrigin".to_string(),
     ];
 
     generate_ffi_header(
@@ -515,6 +516,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/property_metadata.rs"),
             manifest_dir.join("src/style_compute.rs"),
             manifest_dir.join("src/css_pixels.rs"),
+            manifest_dir.join("src/cascaded_properties.rs"),
         ],
         &out_dir,
         &ffi_out_dir,
