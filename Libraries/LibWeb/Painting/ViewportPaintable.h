@@ -27,8 +27,8 @@ public:
     void finalize_async_scrolling_metadata_recording(DisplayListRecordingContext&, HTML::LocalNavigable&, Gfx::IntRect viewport_rect);
     void build_stacking_context_tree_if_needed();
 
-    void assign_scroll_frames();
-    void reassign_scroll_frames();
+    ScrollFrameIndex create_scroll_frame_for(Paintable const&, ScrollFrameIndex parent_index);
+    ScrollFrameIndex create_sticky_frame_for(Paintable const&, ScrollFrameIndex parent_index);
     void refresh_scroll_state();
     void refresh_sticky_constraints();
 

@@ -1,0 +1,5 @@
+top gap before scroll: 0
+left gap before scroll: 0
+anchor bottom moved by: -40
+top gap after scroll: 0
+left gap after scroll: 0

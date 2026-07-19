@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #container { position: relative; width: 300px; height: 300px; }
+    #anchored {
+        position: absolute;
+        position-anchor: --a;
+        top: anchor(bottom);
+        left: anchor(left);
+        width: 40px;
+        height: 20px;
+    }
+    #scroller { width: 200px; height: 200px; overflow: scroll; }
+    #anchor { anchor-name: --a; width: 60px; height: 30px; }
+</style>
+<div id="container">
+    <div id="anchored"></div>
+    <div id="scroller">
+        <div style="height: 60px"></div>
+        <div id="anchor"></div>
+        <div style="height: 600px"></div>
+    </div>
+</div>
+<script>
+    // The anchor is a later sibling subtree than the anchor-positioned box, so building the
+    // positioned box's visual context requires the anchor's scroll frame chain to be known
+    // even though the anchor has not been visited yet in tree order.
+    test(() => {
+        const anchored = document.getElementById("anchored");
+        const anchor = document.getElementById("anchor");
+        const scroller = document.getElementById("scroller");
+        const lines = [];
+
+        let anchoredRect = anchored.getBoundingClientRect();
+        let anchorRect = anchor.getBoundingClientRect();
+        const anchorBottomBeforeScroll = anchorRect.bottom;
+        lines.push(`top gap before scroll: ${anchoredRect.top - anchorRect.bottom}`);
+        lines.push(`left gap before scroll: ${anchoredRect.left - anchorRect.left}`);
+
+        scroller.scrollTop = 40;
+        anchoredRect = anchored.getBoundingClientRect();
+        anchorRect = anchor.getBoundingClientRect();
+        lines.push(`anchor bottom moved by: ${anchorRect.bottom - anchorBottomBeforeScroll}`);
+        lines.push(`top gap after scroll: ${anchoredRect.top - anchorRect.bottom}`);
+        lines.push(`left gap after scroll: ${anchoredRect.left - anchorRect.left}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>
