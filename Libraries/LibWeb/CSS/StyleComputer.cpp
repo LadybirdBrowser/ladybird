@@ -2335,63 +2335,86 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             return cascaded_properties;
     }
 
-    // Normal user agent declarations
-    cascade_declarations(*cascaded_properties, abstract_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {}, false);
-
-    // Normal user declarations
-    cascade_declarations(*cascaded_properties, abstract_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, {}, false);
-
-    // Author presentational hints
-    // The spec calls this a special "Author presentational hint origin":
-    // "For the purpose of cascading this author presentational hint origin is treated as an independent origin;
-    // however for the purpose of the revert keyword (but not for the revert-layer keyword) it is considered
-    // part of the author origin."
-    // https://drafts.csswg.org/css-cascade-5/#author-presentational-hint-origin
-    if (!abstract_element.pseudo_element().has_value()) {
-        auto& element = abstract_element.element();
-        Vector<StyleProperty> presentational_hint_properties;
-        element.apply_presentational_hints(presentational_hint_properties);
-        if (element.supports_dimension_attributes()) {
-            auto const& dimension_source = is<HTML::HTMLImageElement>(element)
-                ? static_cast<HTML::HTMLImageElement const&>(element).dimension_attribute_source()
-                : element;
-            collect_dimension_attribute(presentational_hint_properties, dimension_source, HTML::AttributeNames::width, CSS::PropertyID::Width);
-            collect_dimension_attribute(presentational_hint_properties, dimension_source, HTML::AttributeNames::height, CSS::PropertyID::Height);
-        }
-        if (!presentational_hint_properties.is_empty()) {
-            apply_property_list_to_cascade(*cascaded_properties, abstract_element, presentational_hint_properties,
-                CascadeOrigin::AuthorPresentationalHint, Important::No, {}, nullptr, nullptr, BypassPseudoElementPropertyWhitelist::No);
-        }
-    }
-
     auto element_context_shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root());
-    auto cascade_inline_style = [&](Important important) {
-        if (include_inline_style == IncludeInlineStyle::No)
-            return;
-        cascade_declarations(cascaded_properties, abstract_element, {}, CascadeOrigin::Author, important, {}, true);
+
+    // The cascade origin ordering lives in the Rust style computation core; the stages below
+    // apply one origin's declarations each.
+    struct CascadeStageContext {
+        GC::Ref<StyleComputer const> style_computer;
+        CascadedProperties& cascaded_properties;
+        DOM::AbstractElement& abstract_element;
+        MatchingRuleSet const& matching_rule_set;
+        GC::Ptr<DOM::ShadowRoot const> element_context_shadow_root;
+        IncludeInlineStyle include_inline_style;
+    } stage_context {
+        .style_computer = *this,
+        .cascaded_properties = *cascaded_properties,
+        .abstract_element = abstract_element,
+        .matching_rule_set = matching_rule_set,
+        .element_context_shadow_root = element_context_shadow_root,
+        .include_inline_style = include_inline_style,
     };
 
-    // Normal author declarations, with inner contexts first so outer contexts win.
-    for (auto const& context : matching_rule_set.author_contexts.in_reverse()) {
-        for (auto const& layer : context.author_rules)
-            cascade_declarations(cascaded_properties, abstract_element, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name, false);
-        if (context.shadow_root == element_context_shadow_root)
-            cascade_inline_style(Important::No);
-    }
+    ComputedValuesFFI::FfiCascadeStageCallbacks const callbacks {
+        .context = &stage_context,
+        .cascade_user_agent_rules = [](void* context, bool important) {
+            auto& stage_context = *static_cast<CascadeStageContext*>(context);
+            stage_context.style_computer->cascade_declarations(stage_context.cascaded_properties, stage_context.abstract_element, stage_context.matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, important ? Important::Yes : Important::No, {}, false); },
+        .cascade_user_rules = [](void* context, bool important) {
+            auto& stage_context = *static_cast<CascadeStageContext*>(context);
+            stage_context.style_computer->cascade_declarations(stage_context.cascaded_properties, stage_context.abstract_element, stage_context.matching_rule_set.user_rules, CascadeOrigin::User, important ? Important::Yes : Important::No, {}, false); },
+        .cascade_presentational_hints = [](void* context) {
+            auto& stage_context = *static_cast<CascadeStageContext*>(context);
+            auto& abstract_element = stage_context.abstract_element;
 
-    // Important author declarations, with outer contexts first so inner contexts win.
-    for (auto const& context : matching_rule_set.author_contexts) {
-        for (auto const& layer : context.author_rules.in_reverse())
-            cascade_declarations(cascaded_properties, abstract_element, layer.rules, CascadeOrigin::Author, Important::Yes, {}, false);
-        if (context.shadow_root == element_context_shadow_root)
-            cascade_inline_style(Important::Yes);
-    }
-
-    // Important user declarations
-    cascade_declarations(cascaded_properties, abstract_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, {}, false);
-
-    // Important user agent declarations
-    cascade_declarations(cascaded_properties, abstract_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, {}, false);
+            // Author presentational hints
+            // The spec calls this a special "Author presentational hint origin":
+            // "For the purpose of cascading this author presentational hint origin is treated as an independent origin;
+            // however for the purpose of the revert keyword (but not for the revert-layer keyword) it is considered
+            // part of the author origin."
+            // https://drafts.csswg.org/css-cascade-5/#author-presentational-hint-origin
+            if (abstract_element.pseudo_element().has_value())
+                return;
+            auto& element = abstract_element.element();
+            Vector<StyleProperty> presentational_hint_properties;
+            element.apply_presentational_hints(presentational_hint_properties);
+            if (element.supports_dimension_attributes()) {
+                auto const& dimension_source = is<HTML::HTMLImageElement>(element)
+                    ? static_cast<HTML::HTMLImageElement const&>(element).dimension_attribute_source()
+                    : element;
+                collect_dimension_attribute(presentational_hint_properties, dimension_source, HTML::AttributeNames::width, CSS::PropertyID::Width);
+                collect_dimension_attribute(presentational_hint_properties, dimension_source, HTML::AttributeNames::height, CSS::PropertyID::Height);
+            }
+            if (!presentational_hint_properties.is_empty()) {
+                stage_context.style_computer->apply_property_list_to_cascade(stage_context.cascaded_properties, abstract_element, presentational_hint_properties,
+                    CascadeOrigin::AuthorPresentationalHint, Important::No, {}, nullptr, nullptr, BypassPseudoElementPropertyWhitelist::No);
+            } },
+        .cascade_author_rules = [](void* context, bool important) {
+            auto& stage_context = *static_cast<CascadeStageContext*>(context);
+            auto cascade_inline_style = [&] {
+                if (stage_context.include_inline_style == IncludeInlineStyle::No)
+                    return;
+                stage_context.style_computer->cascade_declarations(stage_context.cascaded_properties, stage_context.abstract_element, {}, CascadeOrigin::Author, important ? Important::Yes : Important::No, {}, true);
+            };
+            if (!important) {
+                // Normal author declarations, with inner contexts first so outer contexts win.
+                for (auto const& author_context : stage_context.matching_rule_set.author_contexts.in_reverse()) {
+                    for (auto const& layer : author_context.author_rules)
+                        stage_context.style_computer->cascade_declarations(stage_context.cascaded_properties, stage_context.abstract_element, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name, false);
+                    if (author_context.shadow_root == stage_context.element_context_shadow_root)
+                        cascade_inline_style();
+                }
+            } else {
+                // Important author declarations, with outer contexts first so inner contexts win.
+                for (auto const& author_context : stage_context.matching_rule_set.author_contexts) {
+                    for (auto const& layer : author_context.author_rules.in_reverse())
+                        stage_context.style_computer->cascade_declarations(stage_context.cascaded_properties, stage_context.abstract_element, layer.rules, CascadeOrigin::Author, Important::Yes, {}, false);
+                    if (author_context.shadow_root == stage_context.element_context_shadow_root)
+                        cascade_inline_style();
+                }
+            } },
+    };
+    ComputedValuesFFI::rust_drive_cascade_origins(&callbacks);
 
     // Transition declarations [css-transitions-1]
     // Note that we have to do these after finishing computing the style,
