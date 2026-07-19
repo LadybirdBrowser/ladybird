@@ -1,15 +1,15 @@
 Before:
 AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
 
 DisplayList:
 SaveLayer@0
-  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x85]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x64]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 100x64]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 69.625x64]
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x85]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x64]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 100x64]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 69.625x64]
   DrawGlyphRun@1 rect=[8,8 70x16] translation=[8,20.796875] color=rgb(0, 0, 255)
   DrawLine@1 from=[8,24] to=[78,24] color=rgb(0, 0, 255) thickness=2
   DrawGlyphRun@1 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(0, 0, 255)
@@ -23,15 +23,15 @@ Restore@0
 After:
 AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
 
 DisplayList:
 SaveLayer@0
-  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x85]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x64]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 100x64]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 69.625x64]
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x85]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x64]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 100x64]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 69.625x64]
   DrawGlyphRun@1 rect=[8,8 70x16] translation=[8,20.796875] color=rgb(255, 0, 0)
   DrawLine@1 from=[8,24] to=[78,24] color=rgb(255, 0, 0) thickness=2
   DrawGlyphRun@1 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(255, 0, 0)

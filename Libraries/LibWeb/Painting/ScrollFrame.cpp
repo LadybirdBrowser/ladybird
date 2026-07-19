@@ -9,10 +9,11 @@
 
 namespace Web::Painting {
 
-ScrollFrame::ScrollFrame(Paintable const& paintable_box, bool sticky, ScrollFrameIndex parent_index)
+ScrollFrame::ScrollFrame(VisualContextIndex node_index, Paintable const& paintable_box, bool sticky, ScrollStateSlot parent_slot)
     : m_paintable_box(paintable_box)
     , m_sticky(sticky)
-    , m_parent_index(parent_index)
+    , m_node_index(node_index)
+    , m_parent_slot(parent_slot)
 {
 }
 

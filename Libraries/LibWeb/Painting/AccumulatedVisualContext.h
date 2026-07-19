@@ -33,13 +33,13 @@ namespace Web::Painting {
 class Paintable;
 class ScrollStateSnapshot;
 
-AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, VisualContextIndex);
-
-static constexpr VisualContextIndex VISUAL_VIEWPORT_NODE_INDEX { 0 };
-
+// The node's own VisualContextIndex keys the scroll offset snapshot; the paintable that owns the
+// node and its sticky constraints live in the ScrollState entry addressed by state_slot, stamped
+// at registration. The slot is process-local bookkeeping: it stays off the wire and takes no part
+// in tree compatibility or damage comparisons.
 struct ScrollData {
-    ScrollFrameIndex scroll_frame_index;
-    bool is_sticky;
+    bool is_sticky { false };
+    ScrollStateSlot state_slot { NO_SCROLL_STATE_SLOT };
 };
 
 struct ClipData {
@@ -83,16 +83,19 @@ struct EffectsData {
     }
 };
 
-// Negates a scroll frame's offset during display list replay. Used to keep fixed backgrounds stationary relative to
-// the viewport regardless of scroll position.
+// Translates by another scroll node's offset during display list replay. Negating keeps fixed backgrounds
+// stationary relative to the viewport regardless of scroll position; the non-negating form is appended when
+// inspector overlays copy a scroll node's context, since a copied ScrollData node would look its offset up
+// under the copy's own index.
 struct ScrollCompensation {
-    ScrollFrameIndex scroll_frame_index;
+    VisualContextIndex scroll_node_index;
+    bool negate { true };
 };
 
-// One scroll frame's contribution to the default scroll shift of an anchor-positioned box, masked to the axes in which
-// the box compensates for scroll. Frames that move the box but not its default anchor contribute negated.
+// One scroll node's contribution to the default scroll shift of an anchor-positioned box, masked to the axes in which
+// the box compensates for scroll. Nodes that move the box but not its default anchor contribute negated.
 struct AnchorScrollShift {
-    ScrollFrameIndex scroll_frame_index;
+    VisualContextIndex scroll_node_index;
     bool negate { false };
     bool compensate_horizontal_scroll { true };
     bool compensate_vertical_scroll { true };
@@ -153,6 +156,13 @@ public:
     void dump(VisualContextIndex, StringBuilder&) const;
 
     bool has_empty_effective_clip(VisualContextIndex i) const { return m_nodes[i.value()].has_empty_effective_clip; }
+
+    ScrollStateSlot scroll_state_slot_for_node(VisualContextIndex index) const
+    {
+        if (!index.value())
+            return NO_SCROLL_STATE_SLOT;
+        return m_nodes[index.value()].data.get<ScrollData>().state_slot;
+    }
 
 private:
     AccumulatedVisualContextTree(u64 version, Vector<AccumulatedVisualContextNode>&& nodes)

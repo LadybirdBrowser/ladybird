@@ -1,19 +1,19 @@
 Before:
 AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
       [2] effects=[opacity=0.5] (InlinePaintable(InlineNode<SPAN>#inner))
 
 DisplayList:
 SaveLayer@0
-  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x111]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x90]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 100x64]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,85 784x13]
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x111]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x90]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 100x64]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,85 784x13]
   DrawGlyphRun@1 rect=[8,85 46x13] translation=[8,95.390625] color=rgb(0, 0, 0)
-  CompositorWheelHitTestTarget@2 target_scroll_frame_index=0 rect=[8,8 81.21875x64]
-  CompositorWheelHitTestTarget@2 target_scroll_frame_index=0 rect=[8,8 81.21875x64]
+  CompositorWheelHitTestTarget@2 target_scroll_node_index=0 rect=[8,8 81.21875x64]
+  CompositorWheelHitTestTarget@2 target_scroll_node_index=0 rect=[8,8 81.21875x64]
   DrawGlyphRun@2 rect=[8,8 82x16] translation=[8,20.796875] color=rgb(0, 0, 255)
   DrawGlyphRun@2 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(0, 0, 255)
   DrawGlyphRun@2 rect=[8,40 60x16] translation=[8,52.796875] color=rgb(0, 0, 255)
@@ -23,39 +23,39 @@ Restore@0
 After:
 AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
       [2] effects=[opacity=0.5] (InlinePaintable(InlineNode<SPAN>#inner))
 
 DisplayList:
 SaveLayer@0
-  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x397]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x376]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 100x64]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,85 784x299]
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x397]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x376]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 100x64]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,85 784x299]
   DrawGlyphRun@1 rect=[8,85 46x13] translation=[8,95.390625] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,98 214x13] translation=[8,108.390625] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,111 546x13] translation=[8,121.390625] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,124 479x13] translation=[8,134.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,124 404x13] translation=[8,134.39062] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,137 473x13] translation=[8,147.39062] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,163 74x13] translation=[8,173.39062] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,176 85x13] translation=[8,186.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,189 558x13] translation=[8,199.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,202 548x13] translation=[8,212.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,215 545x13] translation=[8,225.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,228 543x13] translation=[8,238.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,241 550x13] translation=[8,251.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,189 551x13] translation=[8,199.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,202 541x13] translation=[8,212.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,215 538x13] translation=[8,225.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,228 536x13] translation=[8,238.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,241 542x13] translation=[8,251.39062] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,254 531x13] translation=[8,264.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,267 575x13] translation=[8,277.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,280 575x13] translation=[8,290.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,267 567x13] translation=[8,277.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,280 567x13] translation=[8,290.39062] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,293 540x13] translation=[8,303.39062] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,306 545x13] translation=[8,316.39062] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,319 546x13] translation=[8,329.39062] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,332 546x13] translation=[8,342.39062] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,345 72x13] translation=[8,355.39062] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,371 40x13] translation=[8,381.39062] color=rgb(0, 0, 0)
-  CompositorWheelHitTestTarget@2 target_scroll_frame_index=0 rect=[8,8 81.21875x64]
-  CompositorWheelHitTestTarget@2 target_scroll_frame_index=0 rect=[8,8 81.21875x64]
+  CompositorWheelHitTestTarget@2 target_scroll_node_index=0 rect=[8,8 81.21875x64]
+  CompositorWheelHitTestTarget@2 target_scroll_node_index=0 rect=[8,8 81.21875x64]
   DrawGlyphRun@2 rect=[8,8 82x16] translation=[8,20.796875] color=rgb(255, 0, 0)
   DrawGlyphRun@2 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(255, 0, 0)
   DrawGlyphRun@2 rect=[8,40 60x16] translation=[8,52.796875] color=rgb(255, 0, 0)

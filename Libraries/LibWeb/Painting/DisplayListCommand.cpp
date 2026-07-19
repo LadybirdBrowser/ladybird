@@ -201,8 +201,8 @@ void PaintNestedDisplayList::dump(StringBuilder& builder) const
 
 void CompositorScrollNode::dump(StringBuilder& builder) const
 {
-    builder.appendff(" scroll_frame_index={} parent_scroll_frame_index={} scrollport_rect={} max_scroll_offset={} is_viewport={}",
-        scroll_frame_index, parent_scroll_frame_index, scrollport_rect, max_scroll_offset, is_viewport);
+    builder.appendff(" scroll_node_index={} parent_scroll_node_index={} scrollport_rect={} max_scroll_offset={} is_viewport={}",
+        scroll_node_index, parent_scroll_node_index, scrollport_rect, max_scroll_offset, is_viewport);
 }
 
 static void dump_optional_float(StringBuilder& builder, Optional<float> value)
@@ -215,8 +215,8 @@ static void dump_optional_float(StringBuilder& builder, Optional<float> value)
 
 void CompositorStickyArea::dump(StringBuilder& builder) const
 {
-    builder.appendff(" scroll_frame_index={} parent_scroll_frame_index={} nearest_scrolling_ancestor_index={} position_relative_to_scroll_ancestor={} border_box_size={} scrollport_size={} containing_block_region={} needs_parent_offset_adjustment={} inset_top=",
-        scroll_frame_index, parent_scroll_frame_index, nearest_scrolling_ancestor_index, position_relative_to_scroll_ancestor, border_box_size, scrollport_size, containing_block_region, needs_parent_offset_adjustment);
+    builder.appendff(" scroll_node_index={} parent_scroll_node_index={} nearest_scrolling_ancestor_index={} position_relative_to_scroll_ancestor={} border_box_size={} scrollport_size={} containing_block_region={} needs_parent_offset_adjustment={} inset_top=",
+        scroll_node_index, parent_scroll_node_index, nearest_scrolling_ancestor_index, position_relative_to_scroll_ancestor, border_box_size, scrollport_size, containing_block_region, needs_parent_offset_adjustment);
     dump_optional_float(builder, inset_top);
     builder.append(" inset_right="sv);
     dump_optional_float(builder, inset_right);
@@ -233,12 +233,12 @@ void CompositorBlockingWheelEventRegion::dump(StringBuilder& builder) const
 
 void CompositorWheelHitTestTarget::dump(StringBuilder& builder) const
 {
-    builder.appendff(" target_scroll_frame_index={} rect={}", target_scroll_frame_index, rect);
+    builder.appendff(" target_scroll_node_index={} rect={}", target_scroll_node_index, rect);
 }
 
 void CompositorWheelHitTestTargetWithCornerRadii::dump(StringBuilder& builder) const
 {
-    builder.appendff(" target_scroll_frame_index={} rect={}", target_scroll_frame_index, rect);
+    builder.appendff(" target_scroll_node_index={} rect={}", target_scroll_node_index, rect);
     if (corner_radii.has_any_radius()) {
         builder.appendff(" corner_radii=[{}x{},{}x{},{}x{},{}x{}]",
             corner_radii.top_left.horizontal_radius, corner_radii.top_left.vertical_radius,
@@ -255,8 +255,8 @@ void CompositorMainThreadWheelEventRegion::dump(StringBuilder& builder) const
 
 void CompositorViewportScrollbar::dump(StringBuilder& builder) const
 {
-    builder.appendff(" scroll_frame_index={} gutter_rect={} thumb_rect={} expanded_gutter_rect={} expanded_thumb_rect={} scroll_size={} expanded_scroll_size={} max_scroll_offset={} thumb_color={} track_color={} vertical={}",
-        scroll_frame_index, gutter_rect, thumb_rect, expanded_gutter_rect, expanded_thumb_rect, scroll_size, expanded_scroll_size, max_scroll_offset, thumb_color, track_color, vertical);
+    builder.appendff(" scroll_node_index={} gutter_rect={} thumb_rect={} expanded_gutter_rect={} expanded_thumb_rect={} scroll_size={} expanded_scroll_size={} max_scroll_offset={} thumb_color={} track_color={} vertical={}",
+        scroll_node_index, gutter_rect, thumb_rect, expanded_gutter_rect, expanded_thumb_rect, scroll_size, expanded_scroll_size, max_scroll_offset, thumb_color, track_color, vertical);
 }
 
 void PaintScrollBar::dump(StringBuilder&) const

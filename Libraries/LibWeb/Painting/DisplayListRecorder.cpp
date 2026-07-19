@@ -781,10 +781,10 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_r
             { bottom_left_radius, bottom_left_radius } });
 }
 
-void DisplayListRecorder::paint_scrollbar(ScrollFrameIndex scroll_frame_index, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, double scroll_size, Color thumb_color, Color track_color, bool vertical)
+void DisplayListRecorder::paint_scrollbar(VisualContextIndex scroll_node_index, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, double scroll_size, Color thumb_color, Color track_color, bool vertical)
 {
     append_command(PaintScrollBar {
-        .scroll_frame_index = scroll_frame_index,
+        .scroll_node_index = scroll_node_index,
         .gutter_rect = gutter_rect,
         .thumb_rect = thumb_rect,
         .scroll_size = scroll_size,

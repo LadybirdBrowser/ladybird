@@ -1,13 +1,13 @@
 AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll_frame_id=1 (ImagePaintable(ImageBox<IMG>))
+    [1] scroll (ImagePaintable(ImageBox<IMG>))
 
 DisplayList:
 SaveLayer@0
-  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x70]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,10 800x60]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,10 60x60]
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x70]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,10 800x60]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,10 60x60]
   FillPath@1 path_bounding_rect=[0,10 60x60]
   Save@1
     AddClipRect@1 rect=[5,15 50x50]
@@ -16,3 +16,4 @@ SaveLayer@0
     DrawGlyphRun@1 rect=[5,15 50x50] translation=[5,43] color=rgb(0, 0, 0)
   Restore@1
 Restore@0
+

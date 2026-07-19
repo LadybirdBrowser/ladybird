@@ -413,8 +413,8 @@ int HTMLImageElement::x() const
         return 0;
 
     CSSPixels scroll_offset_x = 0;
-    if (auto idx = paintable_box->enclosing_scroll_frame_index(); idx.value())
-        scroll_offset_x = paintable_box->document().paintable()->scroll_state().cumulative_offset(idx).x();
+    if (auto idx = paintable_box->enclosing_scroll_node_index(); idx.value())
+        scroll_offset_x = paintable_box->document().paintable()->cumulative_scroll_offset_for_node(idx).x();
 
     return (paintable_box->absolute_border_box_rect().x() - scroll_offset_x).to_int();
 }
@@ -435,8 +435,8 @@ int HTMLImageElement::y() const
         return 0;
 
     CSSPixels scroll_offset_y = 0;
-    if (auto idx = paintable_box->enclosing_scroll_frame_index(); idx.value())
-        scroll_offset_y = paintable_box->document().paintable()->scroll_state().cumulative_offset(idx).y();
+    if (auto idx = paintable_box->enclosing_scroll_node_index(); idx.value())
+        scroll_offset_y = paintable_box->document().paintable()->cumulative_scroll_offset_for_node(idx).y();
 
     return (paintable_box->absolute_border_box_rect().y() - scroll_offset_y).to_int();
 }

@@ -19,6 +19,7 @@
 
 namespace Web::Painting {
 
+class AccumulatedVisualContextTree;
 class HitTestDisplayList;
 class ScrollState;
 
@@ -89,11 +90,13 @@ public:
 
     void set_async_scrolling_metadata_context(
         UniqueNodeID document_id,
+        Painting::AccumulatedVisualContextTree const& visual_context_tree,
         Painting::ScrollState const& scroll_state,
         bool has_blocking_wheel_event_listeners,
         bool has_blocking_wheel_event_region_covering_viewport)
     {
         m_async_scrolling_document_id = document_id;
+        m_async_scrolling_visual_context_tree = &visual_context_tree;
         m_async_scrolling_scroll_state = &scroll_state;
         m_has_blocking_wheel_event_listeners = has_blocking_wheel_event_listeners;
         m_has_blocking_wheel_event_region_covering_viewport = has_blocking_wheel_event_region_covering_viewport;
@@ -101,6 +104,7 @@ public:
 
     bool is_recording_async_scrolling_metadata() const { return m_async_scrolling_scroll_state != nullptr; }
     UniqueNodeID async_scrolling_document_id() const { return m_async_scrolling_document_id; }
+    Painting::AccumulatedVisualContextTree const& async_scrolling_visual_context_tree() const { return *m_async_scrolling_visual_context_tree; }
     Painting::ScrollState const& async_scrolling_scroll_state() const { return *m_async_scrolling_scroll_state; }
     bool has_blocking_wheel_event_listeners() const { return m_has_blocking_wheel_event_listeners; }
     void set_has_blocking_wheel_event_listeners(bool value) { m_has_blocking_wheel_event_listeners = value; }
@@ -119,6 +123,7 @@ private:
     Gfx::AffineTransform m_svg_transform;
     u64 m_paint_generation_id { 0 };
     UniqueNodeID m_async_scrolling_document_id {};
+    Painting::AccumulatedVisualContextTree const* m_async_scrolling_visual_context_tree { nullptr };
     Painting::ScrollState const* m_async_scrolling_scroll_state { nullptr };
     bool m_has_blocking_wheel_event_listeners { false };
     bool m_has_blocking_wheel_event_region_covering_viewport { false };

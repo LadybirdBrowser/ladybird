@@ -65,7 +65,7 @@ static Gfx::IntRect translated_thumb_rect(Web::Compositor::ViewportScrollbar con
 {
     auto thumb_rect = expanded ? scrollbar.expanded_thumb_rect : scrollbar.thumb_rect;
     auto scroll_size = scrollbar_scroll_size(scrollbar, expanded);
-    auto device_offset = scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_frame_index);
+    auto device_offset = scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_node_index);
     if (scrollbar.vertical)
         thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * scroll_size));
     else
@@ -222,7 +222,7 @@ bool ViewportScrollbarController::paint(Gfx::PaintingSurface& surface, Web::Pain
         auto const& scrollbar = m_scrollbars[i];
         auto expanded = is_expanded(i);
         Web::Painting::PaintScrollBar paint_scrollbar {
-            .scroll_frame_index = scrollbar.scroll_frame_index,
+            .scroll_node_index = scrollbar.scroll_node_index,
             .gutter_rect = scrollbar_gutter_rect(scrollbar, expanded),
             .thumb_rect = translated_thumb_rect(scrollbar, scroll_state_snapshot, expanded),
             .scroll_size = scrollbar_scroll_size(scrollbar, expanded),

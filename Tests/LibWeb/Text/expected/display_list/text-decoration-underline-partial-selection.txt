@@ -1,14 +1,14 @@
 AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
 
 DisplayList:
 SaveLayer@0
-  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x71]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x50]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x50]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,-17 168.54688x100]
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x71]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x50]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x50]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,-17 168.54688x100]
   FillRect@1 rect=[69,-17 47x100] color=rgba(101, 2, 0, 0.8)
   Save@1
     AddClipRect@1 rect=[8,-17 61x100]

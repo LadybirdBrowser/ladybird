@@ -1,15 +1,15 @@
 AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
 
 DisplayList:
 SaveLayer@0
-  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x37]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x16]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x16]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 27.15625x16]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[43.15625,8 27.640625x16]
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x37]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x16]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x16]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 27.15625x16]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[43.15625,8 27.640625x16]
   DrawGlyphRun@1 rect=[8,8 28x16] translation=[8,20.796875] color=rgb(0, 0, 0)
   DrawLine@1 from=[8,24] to=[35,24] color=rgb(0, 0, 0) thickness=2
   DrawGlyphRun@1 rect=[35,8 8x16] translation=[35.15625,20.796875] color=rgb(0, 0, 0)

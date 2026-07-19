@@ -27,10 +27,11 @@ public:
     void finalize_async_scrolling_metadata_recording(DisplayListRecordingContext&, HTML::LocalNavigable&, Gfx::IntRect viewport_rect);
     void build_stacking_context_tree_if_needed();
 
-    ScrollFrameIndex create_scroll_frame_for(Paintable const&, ScrollFrameIndex parent_index);
-    ScrollFrameIndex create_sticky_frame_for(Paintable const&, ScrollFrameIndex parent_index);
+    void register_scroll_frame(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const&, VisualContextIndex parent_index);
+    void register_sticky_frame(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const&, VisualContextIndex parent_index);
     void refresh_scroll_state();
     void refresh_sticky_constraints();
+    CSSPixelPoint cumulative_scroll_offset_for_node(VisualContextIndex scroll_node_index) const;
 
     void assign_accumulated_visual_contexts();
     bool update_accumulated_visual_context_values(Paintable&);
@@ -71,7 +72,7 @@ private:
     void ensure_visual_context_tree() const;
     void build_stacking_context_tree();
     void clear_scroll_state();
-    void precompute_sticky_constraints(ScrollFrameIndex, Paintable const&);
+    void precompute_sticky_constraints(ScrollStateSlot, Paintable const&);
 
     explicit ViewportPaintable(Layout::Viewport const&);
 

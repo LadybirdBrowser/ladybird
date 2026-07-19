@@ -203,8 +203,15 @@ void Paintable::paint_with_inspector_overlay_context(DisplayListRecordingContext
         // NB: These nodes are transient: they're only referenced by the display list being recorded right now — and the
         //     next recording prunes them again (see ViewportPaintable::prune_inspector_overlay_visual_contexts).
         auto overlay_visual_context_index = VISUAL_VIEWPORT_NODE_INDEX;
-        for (auto const& source_visual_context_index : relevant_indices.in_reverse())
-            overlay_visual_context_index = visual_context_tree.append(visual_context_tree.node_at(source_visual_context_index).data, overlay_visual_context_index);
+        for (auto const& source_visual_context_index : relevant_indices.in_reverse()) {
+            auto const& source_node_data = visual_context_tree.node_at(source_visual_context_index).data;
+            // A copied ScrollData node would look its offset up under the copy's own index, so scroll
+            // nodes are copied as non-negating compensations referencing the original instead.
+            auto data_for_overlay = source_node_data.has<ScrollData>()
+                ? VisualContextData { ScrollCompensation { source_visual_context_index, false } }
+                : source_node_data;
+            overlay_visual_context_index = visual_context_tree.append(move(data_for_overlay), overlay_visual_context_index);
+        }
 
         if (overlay_visual_context_index != VISUAL_VIEWPORT_NODE_INDEX)
             display_list_recorder.set_accumulated_visual_context(overlay_visual_context_index);
@@ -654,9 +661,9 @@ static void record_scroll_node(Paintable const& paintable_box, DisplayListRecord
     if (!scroll_node_kind.has_value())
         return;
 
-    auto parent_scroll_frame_index = ScrollFrameIndex {};
+    auto parent_scroll_node_index = VisualContextIndex {};
     if (auto scrollable_ancestor = paintable_box.nearest_scrollable_ancestor())
-        parent_scroll_frame_index = scrollable_ancestor->own_scroll_frame_index();
+        parent_scroll_node_index = scrollable_ancestor->own_scroll_node_index();
 
     auto scrollport_rect = paintable_box.is_viewport_paintable()
         ? Gfx::IntRect { {}, context.device_viewport_rect().size().to_type<int>() }
@@ -666,8 +673,8 @@ static void record_scroll_node(Paintable const& paintable_box, DisplayListRecord
     recorder.compositor_scroll_node({
         .document_id = paintable_box.document().unique_id(),
         .scrollable_node_id = scrollable_node_id_for(paintable_box),
-        .scroll_frame_index = paintable_box.own_scroll_frame_index(),
-        .parent_scroll_frame_index = parent_scroll_frame_index,
+        .scroll_node_index = paintable_box.own_scroll_node_index(),
+        .parent_scroll_node_index = parent_scroll_node_index,
         .scrollport_rect = scrollport_rect,
         .max_scroll_offset = css_point_to_device_point(maximum_scroll_offset_for(paintable_box), context.device_pixels_per_css_pixel()),
         .scroll_node_kind = *scroll_node_kind,
@@ -689,14 +696,14 @@ static void record_main_thread_wheel_event_region(Paintable const& paintable_box
     });
 }
 
-static Optional<ScrollFrameIndex> wheel_hit_test_target_scroll_frame_index_for(Paintable const& paintable_box)
+static Optional<VisualContextIndex> wheel_hit_test_target_scroll_node_index_for(Paintable const& paintable_box)
 {
-    if (paintable_box.own_scroll_frame_index().value() && paintable_box.could_be_scrolled_by_wheel_event())
-        return paintable_box.own_scroll_frame_index();
+    if (paintable_box.own_scroll_node_index().value() && paintable_box.could_be_scrolled_by_wheel_event())
+        return paintable_box.own_scroll_node_index();
     if (auto scrollable_ancestor = paintable_box.nearest_scrollable_ancestor())
-        return scrollable_ancestor->own_scroll_frame_index();
+        return scrollable_ancestor->own_scroll_node_index();
     if (auto viewport_paintable = paintable_box.document().paintable(); viewport_paintable && viewport_paintable->could_be_scrolled_by_wheel_event())
-        return viewport_paintable->own_scroll_frame_index();
+        return viewport_paintable->own_scroll_node_index();
     return {};
 }
 
@@ -709,12 +716,12 @@ static void record_wheel_hit_test_target(Paintable const& paintable_box, Display
     if (rect.is_empty())
         return;
 
-    auto target_scroll_frame_index = wheel_hit_test_target_scroll_frame_index_for(paintable_box).value_or({});
+    auto target_scroll_node_index = wheel_hit_test_target_scroll_node_index_for(paintable_box).value_or({});
     auto corner_radii = paintable_box.border_radii_data().as_corners(context.device_pixel_converter());
     if (corner_radii.has_any_radius()) {
         context.display_list_recorder().compositor_wheel_hit_test_target_with_corner_radii({
             .document_id = paintable_box.document().unique_id(),
-            .target_scroll_frame_index = target_scroll_frame_index,
+            .target_scroll_node_index = target_scroll_node_index,
             .rect = rect,
             .corner_radii = corner_radii,
         });
@@ -723,7 +730,7 @@ static void record_wheel_hit_test_target(Paintable const& paintable_box, Display
 
     context.display_list_recorder().compositor_wheel_hit_test_target({
         .document_id = paintable_box.document().unique_id(),
-        .target_scroll_frame_index = target_scroll_frame_index,
+        .target_scroll_node_index = target_scroll_node_index,
         .rect = rect,
     });
 }
@@ -815,7 +822,7 @@ static void record_viewport_scrollbar_state(Paintable const& paintable_box, Disp
 
         context.display_list_recorder().compositor_viewport_scrollbar({
             .document_id = paintable_box.document().unique_id(),
-            .scroll_frame_index = paintable_box.own_scroll_frame_index(),
+            .scroll_node_index = paintable_box.own_scroll_node_index(),
             .gutter_rect = gutter_rect,
             .thumb_rect = context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
             .expanded_gutter_rect = context.rounded_device_rect(expanded_scrollbar_data->gutter_rect).to_type<int>(),
@@ -1081,8 +1088,8 @@ void Paintable::reset_for_relayout()
 
     invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
 
-    m_enclosing_scroll_frame_index = {};
-    m_own_scroll_frame_index = {};
+    m_enclosing_scroll_node_index = {};
+    m_own_scroll_node_index = {};
     m_accumulated_visual_context_index = VISUAL_VIEWPORT_NODE_INDEX;
     m_accumulated_visual_context_for_descendants_index = VISUAL_VIEWPORT_NODE_INDEX;
     m_fixed_background_visual_context = {};
@@ -1535,7 +1542,7 @@ Optional<Paintable::ScrollbarData> Paintable::compute_scrollbar_data(ScrollDirec
     if (overflow != CSS::Overflow::Scroll && !could_be_scrolled_by_wheel_event(direction))
         return {};
 
-    if (!m_own_scroll_frame_index.value())
+    if (!m_own_scroll_node_index.value())
         return {};
 
     auto scrollable_overflow_rect = this->scrollable_overflow_rect();
@@ -1587,7 +1594,7 @@ Optional<Paintable::ScrollbarData> Paintable::compute_scrollbar_data(ScrollDirec
         scrollbar_data.thumb_travel_to_scroll_ratio = (usable_scrollbar_length - thumb_length) / (scrollable_overflow_length - scrollport_size);
 
     if (scroll_state_snapshot) {
-        auto own_offset = scroll_state_snapshot->device_offset_for_index(m_own_scroll_frame_index);
+        auto own_offset = scroll_state_snapshot->device_offset_for_index(m_own_scroll_node_index);
         auto device_scroll_offset = is_horizontal ? -own_offset.x() : -own_offset.y();
         auto device_pixels_per_css_pixel = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
         CSSPixels thumb_offset = CSSPixels::nearest_value_for(device_scroll_offset / device_pixels_per_css_pixel) * scrollbar_data.thumb_travel_to_scroll_ratio;
@@ -1611,23 +1618,24 @@ void Paintable::record_async_scrolling_metadata(DisplayListRecordingContext& con
 
     if (is_nested_navigable_container(*this)) {
         record_main_thread_wheel_event_region(*this, context);
-    } else if (own_scroll_frame_index().value() && could_be_scrolled_by_wheel_event()) {
+    } else if (own_scroll_node_index().value() && could_be_scrolled_by_wheel_event()) {
         record_scroll_node(*this, context);
     }
     record_viewport_scrollbar_state(*this, context);
 
     auto const& scroll_state = context.async_scrolling_scroll_state();
-    auto sticky_frame_index = enclosing_scroll_frame_index();
+    auto sticky_frame_index = enclosing_scroll_node_index();
     if (is_sticky_position() && sticky_frame_index.value()) {
-        auto const& frame = scroll_state.frame_at(sticky_frame_index);
+        auto sticky_slot = context.async_scrolling_visual_context_tree().scroll_state_slot_for_node(sticky_frame_index);
+        auto const& frame = scroll_state.frame_at_slot(sticky_slot);
         if (frame.is_sticky() && frame.has_sticky_constraints()) {
             auto const& constraints = frame.sticky_constraints();
             auto const& insets = constraints.insets;
             recorder.compositor_sticky_area({
                 .document_id = context.async_scrolling_document_id(),
-                .scroll_frame_index = sticky_frame_index,
-                .parent_scroll_frame_index = frame.parent_index(),
-                .nearest_scrolling_ancestor_index = scroll_state.nearest_scrolling_ancestor(sticky_frame_index),
+                .scroll_node_index = sticky_frame_index,
+                .parent_scroll_node_index = scroll_state.node_index_for_slot(frame.parent_slot()),
+                .nearest_scrolling_ancestor_index = scroll_state.node_index_for_slot(scroll_state.nearest_scrolling_ancestor_slot(sticky_slot)),
                 .position_relative_to_scroll_ancestor = css_point_to_device_point(constraints.position_relative_to_scroll_ancestor, device_pixels_per_css_pixel),
                 .border_box_size = css_size_to_device_size(constraints.border_box_size, device_pixels_per_css_pixel),
                 .scrollport_size = css_size_to_device_size(constraints.scrollport_size, device_pixels_per_css_pixel),
@@ -1720,7 +1728,7 @@ void Paintable::paint(DisplayListRecordingContext& context, PaintPhase phase) co
                     continue;
                 auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
                 context.display_list_recorder().paint_scrollbar(
-                    m_own_scroll_frame_index,
+                    m_own_scroll_node_index,
                     gutter_rect,
                     context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
                     scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
@@ -2807,14 +2815,14 @@ CSSPixels Paintable::outline_offset() const
     return computed_values().outline_offset();
 }
 
-ScrollFrameIndex Paintable::nearest_scroll_frame_index() const
+VisualContextIndex Paintable::nearest_scroll_node_index() const
 {
     if (is_fixed_position())
         return {};
     auto const* paintable = containing_block_ptr();
     while (paintable) {
-        if (paintable->own_scroll_frame_index().value())
-            return paintable->own_scroll_frame_index();
+        if (paintable->own_scroll_node_index().value())
+            return paintable->own_scroll_node_index();
         // Sticky elements need to find a scroll container even through fixed-position ancestors,
         // because they must reference a scrollport for their sticky offset computation.
         if (paintable->is_fixed_position() && !is_sticky_position())

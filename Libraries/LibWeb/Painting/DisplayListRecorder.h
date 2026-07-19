@@ -153,7 +153,7 @@ public:
     void fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int radius);
     void fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int top_left_radius, int top_right_radius, int bottom_right_radius, int bottom_left_radius);
 
-    void paint_scrollbar(ScrollFrameIndex scroll_frame_index, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, double scroll_size, Color thumb_color, Color track_color, bool vertical);
+    void paint_scrollbar(VisualContextIndex scroll_node_index, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, double scroll_size, Color thumb_color, Color track_color, bool vertical);
 
     void compositor_scroll_node(CompositorScrollNode const&);
     void compositor_sticky_area(CompositorStickyArea const&);

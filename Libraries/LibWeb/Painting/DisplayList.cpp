@@ -182,7 +182,7 @@ void DisplayListPlayer::execute_impl(
     };
 
     auto apply_accumulated_visual_context =
-        [&](VisualContextIndex, AccumulatedVisualContextNode const& node) {
+        [&](VisualContextIndex node_index, AccumulatedVisualContextNode const& node) {
             node.data.visit(
                 [&](EffectsData const& effects) {
                     play_command(ApplyEffects {
@@ -197,17 +197,19 @@ void DisplayListPlayer::execute_impl(
                     play_command(Save {});
                     apply_transform({ 0, 0 }, perspective.matrix);
                 },
-                [&](ScrollData const& scroll) {
+                [&](ScrollData const&) {
                     play_command(Save {});
-                    auto offset = scroll_state.device_offset_for_index(scroll.scroll_frame_index);
+                    auto offset = scroll_state.device_offset_for_index(node_index);
                     if (!offset.is_zero())
                         play_command(Translate { .delta = offset.to_type<int>() });
                 },
                 [&](ScrollCompensation const& compensation) {
                     play_command(Save {});
-                    auto offset = scroll_state.device_offset_for_index(compensation.scroll_frame_index);
+                    auto offset = scroll_state.device_offset_for_index(compensation.scroll_node_index);
+                    if (compensation.negate)
+                        offset = -offset;
                     if (!offset.is_zero())
-                        play_command(Translate { .delta = (-offset).to_type<int>() });
+                        play_command(Translate { .delta = offset.to_type<int>() });
                 },
                 [&](AnchorScrollShift const& shift) {
                     play_command(Save {});
@@ -335,7 +337,7 @@ void DisplayListPlayer::execute_impl(
         auto dispatch_command = [&]<DisplayListCommand Command>(auto&& callback) {
             auto command = read_display_list_command_payload<Command>(payload);
             if constexpr (IsSame<Command, PaintScrollBar>) {
-                auto device_offset = scroll_state.device_offset_for_index(command.scroll_frame_index);
+                auto device_offset = scroll_state.device_offset_for_index(command.scroll_node_index);
                 if (command.vertical)
                     command.thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * command.scroll_size));
                 else

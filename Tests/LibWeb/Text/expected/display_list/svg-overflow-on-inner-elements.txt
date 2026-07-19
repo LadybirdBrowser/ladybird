@@ -1,15 +1,15 @@
 AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
       [2] clip=[0,0 200x200] (SVGPathPaintable(SVGGeometryBox<rect>))
 
 DisplayList:
 SaveLayer@0
-  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x200]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x200]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x200]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 200x200]
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x200]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x200]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x200]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 200x200]
   FillPath@2 path_bounding_rect=[10,10 100x100]
 Restore@0
 

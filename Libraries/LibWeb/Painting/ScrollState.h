@@ -13,21 +13,21 @@
 
 namespace Web::Painting {
 
+// Device-pixel scroll offsets keyed by the scroll node's VisualContextIndex. Stored dense in
+// process so display list replay and hit testing index it directly; indices that are not scroll
+// nodes read as zero offsets. The IPC representation is sparse (index, offset) pairs.
 class ScrollStateSnapshot {
 public:
-    static ScrollStateSnapshot create(Vector<ScrollFrame> const& scroll_frames, double device_pixels_per_css_pixel);
-    static ScrollStateSnapshot create_from_device_offsets(Vector<Gfx::FloatPoint>&&);
-
     ReadonlySpan<Gfx::FloatPoint> device_offsets() const { return m_device_offsets; }
 
-    Gfx::FloatPoint device_offset_for_index(ScrollFrameIndex index) const
+    Gfx::FloatPoint device_offset_for_index(VisualContextIndex index) const
     {
         if (index.value() >= m_device_offsets.size())
             return {};
         return m_device_offsets[index.value()];
     }
 
-    void set_device_offset_for_index(ScrollFrameIndex index, Gfx::FloatPoint offset)
+    void set_device_offset_for_index(VisualContextIndex index, Gfx::FloatPoint offset)
     {
         if (index.value() >= m_device_offsets.size())
             m_device_offsets.resize(index.value() + 1);
@@ -38,98 +38,108 @@ private:
     Vector<Gfx::FloatPoint> m_device_offsets;
 };
 
+// Value store for the scroll and sticky nodes of the accumulated visual context tree: the tree
+// owns structure and identity, entries here carry the offsets, sticky constraints, and the
+// containing-block-derived scroll-parent references. Registration returns the entry's slot, which
+// the tree walk stamps into the node's ScrollData, so resolving a node to its entry is a direct
+// index in both directions. Rebuilt together with the tree; offsets are refreshed in place
+// between rebuilds.
 class ScrollState {
 public:
-    // ScrollFrameIndex is 1-based: value 0 means "no frame".
-    // Index 0 in m_scroll_frames is a sentinel (never accessed by callers).
-    // Value N maps directly to m_scroll_frames[N].
-    ScrollState()
+    ScrollStateSlot register_scroll_frame(VisualContextIndex node_index, Paintable const& paintable_box, ScrollStateSlot parent_slot)
     {
-        m_scroll_frames.empend(); // Sentinel at index 0
+        return append_frame(ScrollFrame { node_index, paintable_box, false, parent_slot });
     }
 
-    ScrollFrameIndex create_scroll_frame_for(Paintable const& paintable_box, ScrollFrameIndex parent)
+    ScrollStateSlot register_sticky_frame(VisualContextIndex node_index, Paintable const& paintable_box, ScrollStateSlot parent_slot)
     {
-        auto index = ScrollFrameIndex { m_scroll_frames.size() };
-        m_scroll_frames.empend(paintable_box, false, parent);
-        return index;
+        return append_frame(ScrollFrame { node_index, paintable_box, true, parent_slot });
     }
 
-    ScrollFrameIndex create_sticky_frame_for(Paintable const& paintable_box, ScrollFrameIndex parent)
+    ScrollFrame const& frame_at_slot(ScrollStateSlot slot) const { return m_frames_by_slot[slot.value()]; }
+    ScrollFrame& frame_at_slot(ScrollStateSlot slot) { return m_frames_by_slot[slot.value()]; }
+
+    VisualContextIndex node_index_for_slot(ScrollStateSlot slot) const
     {
-        auto index = ScrollFrameIndex { m_scroll_frames.size() };
-        m_scroll_frames.empend(paintable_box, true, parent);
-        return index;
+        if (slot == NO_SCROLL_STATE_SLOT)
+            return {};
+        return frame_at_slot(slot).node_index();
     }
 
-    ScrollFrame const& frame_at(ScrollFrameIndex index) const { return m_scroll_frames[index.value()]; }
-    ScrollFrame& frame_at(ScrollFrameIndex index) { return m_scroll_frames[index.value()]; }
-
-    CSSPixelPoint cumulative_offset(ScrollFrameIndex index) const
+    CSSPixelPoint cumulative_offset(ScrollStateSlot slot) const
     {
         CSSPixelPoint offset;
-        while (index.value()) {
-            offset += frame_at(index).own_offset();
-            index = frame_at(index).parent_index();
+        while (slot != NO_SCROLL_STATE_SLOT) {
+            auto const& frame = frame_at_slot(slot);
+            offset += frame.own_offset();
+            slot = frame.parent_slot();
         }
         return offset;
     }
 
-    CSSPixelPoint cumulative_sticky_offset(ScrollFrameIndex index) const
+    CSSPixelPoint cumulative_sticky_offset(ScrollStateSlot slot) const
     {
         CSSPixelPoint offset;
-        while (index.value() && frame_at(index).is_sticky()) {
-            offset += frame_at(index).own_offset();
-            index = frame_at(index).parent_index();
+        while (slot != NO_SCROLL_STATE_SLOT) {
+            auto const& frame = frame_at_slot(slot);
+            if (!frame.is_sticky())
+                break;
+            offset += frame.own_offset();
+            slot = frame.parent_slot();
         }
         return offset;
     }
 
-    ScrollFrameIndex nearest_scrolling_ancestor(ScrollFrameIndex index) const
+    ScrollStateSlot nearest_scrolling_ancestor_slot(ScrollStateSlot slot) const
     {
-        auto ancestor = frame_at(index).parent_index();
-        while (ancestor.value()) {
-            if (!frame_at(ancestor).is_sticky())
-                return ancestor;
-            ancestor = frame_at(ancestor).parent_index();
+        auto ancestor_slot = frame_at_slot(slot).parent_slot();
+        while (ancestor_slot != NO_SCROLL_STATE_SLOT) {
+            auto const& frame = frame_at_slot(ancestor_slot);
+            if (!frame.is_sticky())
+                return ancestor_slot;
+            ancestor_slot = frame.parent_slot();
         }
-        return {};
+        return NO_SCROLL_STATE_SLOT;
     }
 
+    // Iteration follows registration order, which is the tree's append order, so parent frames are
+    // always visited before their descendants.
     template<typename Callback>
     void for_each_scroll_frame(Callback callback)
     {
-        for (size_t i = 1; i < m_scroll_frames.size(); ++i) {
-            if (m_scroll_frames[i].is_sticky())
-                continue;
-            callback(ScrollFrameIndex { i }, m_scroll_frames[i]);
+        for (size_t slot_value = 0; slot_value < m_frames_by_slot.size(); ++slot_value) {
+            if (!m_frames_by_slot[slot_value].is_sticky())
+                callback(ScrollStateSlot { slot_value }, m_frames_by_slot[slot_value]);
         }
     }
 
     template<typename Callback>
     void for_each_sticky_frame(Callback callback)
     {
-        for (size_t i = 1; i < m_scroll_frames.size(); ++i) {
-            if (!m_scroll_frames[i].is_sticky())
-                continue;
-            callback(ScrollFrameIndex { i }, m_scroll_frames[i]);
+        for (size_t slot_value = 0; slot_value < m_frames_by_slot.size(); ++slot_value) {
+            if (m_frames_by_slot[slot_value].is_sticky())
+                callback(ScrollStateSlot { slot_value }, m_frames_by_slot[slot_value]);
         }
     }
 
     void clear()
     {
-        m_scroll_frames.resize_and_keep_capacity(1); // Keep sentinel at index 0
+        m_frames_by_slot.clear_with_capacity();
     }
 
 private:
     friend class ViewportPaintable;
 
-    ScrollStateSnapshot snapshot(double device_pixels_per_css_pixel) const
+    ScrollStateSlot append_frame(ScrollFrame frame)
     {
-        return ScrollStateSnapshot::create(m_scroll_frames, device_pixels_per_css_pixel);
+        auto slot = ScrollStateSlot { m_frames_by_slot.size() };
+        m_frames_by_slot.append(move(frame));
+        return slot;
     }
 
-    Vector<ScrollFrame> m_scroll_frames;
+    ScrollStateSnapshot snapshot(double device_pixels_per_css_pixel) const;
+
+    Vector<ScrollFrame> m_frames_by_slot;
 };
 
 }

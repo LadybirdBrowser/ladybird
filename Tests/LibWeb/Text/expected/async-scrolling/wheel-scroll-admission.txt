@@ -12,21 +12,22 @@ stale blocking window regions: false
 display list after blocking element listener:
 AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
       [2] clip=[0,0 200x200]
-        [3] scroll_frame_id=2 (PaintableWithLines(BlockContainer(anonymous)))
+        [3] scroll (PaintableWithLines(BlockContainer(anonymous)))
 
 DisplayList:
 SaveLayer@0
-  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x213]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x200]
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=2 rect=[0,0 200x200]
-  CompositorScrollNode@1 scroll_frame_index=2 parent_scroll_frame_index=0 scrollport_rect=[0,0 200x200] max_scroll_offset=[800,900] is_viewport=false
-  CompositorWheelHitTestTarget@3 target_scroll_frame_index=2 rect=[0,0 100x100]
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x213]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x200]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=3 rect=[0,0 200x200]
+  CompositorScrollNode@1 scroll_node_index=3 parent_scroll_node_index=0 scrollport_rect=[0,0 200x200] max_scroll_offset=[800,900] is_viewport=false
+  CompositorWheelHitTestTarget@3 target_scroll_node_index=3 rect=[0,0 100x100]
   CompositorBlockingWheelEventRegion@3 rect=[0,0 100x100]
-  CompositorWheelHitTestTarget@3 target_scroll_frame_index=2 rect=[0,100 1000x1000]
+  CompositorWheelHitTestTarget@3 target_scroll_node_index=3 rect=[0,100 1000x1000]
   PaintScrollBar@1
   PaintScrollBar@1
-  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[250,0 100x100]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[250,0 100x100]
 Restore@0
+
