@@ -139,6 +139,65 @@ def discover_candidates(args, repo_root, test_web_binary, base_worktree, scratch
     return sorted(new_tests) + sorted(modified_tests)
 
 
+def normalize_requested_test_path(repo_root, requested_path):
+    path, separator, query = requested_path.partition("?")
+    path = path.replace("\\", "/")
+    while path.startswith("./"):
+        path = path[2:]
+
+    test_root = (repo_root / TEST_ROOT_RELATIVE).resolve()
+    requested = Path(path)
+    if requested.is_absolute():
+        try:
+            path = requested.resolve().relative_to(test_root).as_posix()
+        except ValueError:
+            pass
+    else:
+        prefix = TEST_ROOT_RELATIVE.as_posix() + "/"
+        if path.startswith(prefix):
+            path = path[len(prefix) :]
+        elif path == TEST_ROOT_RELATIVE.as_posix():
+            path = ""
+
+    return path.rstrip("/") + separator + query
+
+
+def discover_requested_candidates(args, repo_root, test_web_binary, scratch_dir):
+    test_root = repo_root / TEST_ROOT_RELATIVE
+    log(f"Discovering tests in working tree ({test_root})...")
+    discovered_tests = dry_run_tests(
+        test_web_binary, test_root, args.python_executable, scratch_dir / "dry-run-requested"
+    )
+    log(f"  {len(discovered_tests)} tests discovered.")
+
+    candidates = set()
+    all_paths_matched = True
+    for requested_path in args.test_paths:
+        normalized_path = normalize_requested_test_path(repo_root, requested_path)
+        base_path, separator, _query = normalized_path.partition("?")
+        if separator:
+            matches = {normalized_path} & discovered_tests
+        else:
+            matches = {
+                test
+                for test in discovered_tests
+                if not base_path
+                or test.partition("?")[0] == base_path
+                or test.partition("?")[0].startswith(base_path + "/")
+            }
+        if matches:
+            candidates.update(matches)
+        else:
+            log(f"Error: no tests matched requested path: {requested_path}")
+            all_paths_matched = False
+
+    if not all_paths_matched:
+        return None
+
+    log(f"  {len(candidates)} requested test(s) found.")
+    return sorted(candidates)
+
+
 def parse_concurrency_levels(spec):
     levels = []
     for level_string in spec.split(","):
@@ -279,6 +338,12 @@ def parse_args(argv):
     parser.add_argument(
         "--python-executable", default="python3", help="Path to python3 for test-web (default: python3)"
     )
+    parser.add_argument(
+        "test_paths",
+        nargs="*",
+        metavar="TEST_PATH",
+        help="Specific test files or directories to check instead of discovering new and modified tests",
+    )
     return parser.parse_args(argv)
 
 
@@ -300,13 +365,21 @@ def main(argv):
     deadline = None if args.deadline_seconds <= 0 else time.monotonic() + args.deadline_seconds
 
     scratch_dir = Path(tempfile.mkdtemp(prefix="flaky-tests-check-")).resolve()
-    base_worktree_path = scratch_dir / "base-worktree"
-    try:
-        log(f"Adding base worktree for {args.base_ref}...")
-        run_git(repo_root, "worktree", "add", "--detach", str(base_worktree_path), args.base_ref)
-        candidates = discover_candidates(args, repo_root, test_web_binary, base_worktree_path, scratch_dir)
-    finally:
-        cleanup_worktree(repo_root, base_worktree_path, scratch_dir)
+    if args.test_paths:
+        try:
+            candidates = discover_requested_candidates(args, repo_root, test_web_binary, scratch_dir)
+        finally:
+            shutil.rmtree(scratch_dir, ignore_errors=True)
+        if candidates is None:
+            return 2
+    else:
+        base_worktree_path = scratch_dir / "base-worktree"
+        try:
+            log(f"Adding base worktree for {args.base_ref}...")
+            run_git(repo_root, "worktree", "add", "--detach", str(base_worktree_path), args.base_ref)
+            candidates = discover_candidates(args, repo_root, test_web_binary, base_worktree_path, scratch_dir)
+        finally:
+            cleanup_worktree(repo_root, base_worktree_path, scratch_dir)
 
     if not candidates:
         log("No new or modified tests: nothing to check.")
