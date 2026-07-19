@@ -67,6 +67,7 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<Styl
         m_store,
         to_underlying(property_id),
         retain_style_value_for_rust(value.ptr()),
+        value->rust_style_value_data(),
         important == Important::Yes,
         to_ffi_cascade_origin(origin),
         layer_name.has_value(),

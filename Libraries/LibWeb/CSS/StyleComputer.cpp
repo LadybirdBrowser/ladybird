@@ -917,7 +917,7 @@ void StyleComputer::apply_property_list_to_cascade(
         .pinned_values = {},
     };
 
-    Vector<ComputedValuesFFI::FfiCascadeDeclaration> declarations;
+    Vector<ComputedValuesFFI::FfiCascadeDeclaration, 32> declarations;
     declarations.ensure_capacity(properties.size());
     for (auto const& property : properties) {
         declarations.unchecked_append({
@@ -3382,53 +3382,53 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     struct LonghandFlowState {
         RefPtr<StyleValue const> value;
         bool requires_computation { false };
-        PropertyID inherited_property_id { PropertyID::Custom };
+        // The longhand the other fields were filled for, guarding against a stage being skipped.
+        PropertyID value_for_property { PropertyID::Custom };
     };
 
-    // Fetches the winning cascaded value for the (logically paired) property into the flow
-    // state. Returns false when the font-size early-out applies and the longhand is done.
-    auto get_cascaded_value = [&](PropertyID property_id, PropertyID cascaded_property_id, LonghandFlowState& state) -> bool {
-        if (auto cascaded_style_property = cascaded_properties.style_property(cascaded_property_id); cascaded_style_property.has_value()) {
-            if (cascaded_style_property->important == Important::Yes)
-                builder.set_property_important(property_id, Important::Yes);
-            state.value = cascaded_style_property->value;
-            state.requires_computation = property_requires_computation_with_cascaded_value(property_id);
+    // Pins the winning cascaded value for the (logically paired) property into the flow state.
+    // The driver only calls this when a winning declaration exists.
+    auto on_cascaded_value = [&](PropertyID property_id, StyleValue const& value, bool important, LonghandFlowState& state) {
+        state = {};
+        state.value_for_property = property_id;
+        if (important)
+            builder.set_property_important(property_id, Important::Yes);
+        state.value = value;
+        state.requires_computation = property_requires_computation_with_cascaded_value(property_id);
 
-            // Store the raw winning cascaded font-size. This is needed to implement the time-traveling inheritance for
-            // font-size when font-family is monospace.
-            // See the recascade_font_size_if_needed() function for further details.
-            if (property_id == PropertyID::FontSize)
-                builder.set_raw_cascaded_font_size(*cascaded_style_property->value);
+        // Store the raw winning cascaded font-size. This is needed to implement the time-traveling inheritance for
+        // font-size when font-family is monospace.
+        // See the recascade_font_size_if_needed() function for further details.
+        if (property_id == PropertyID::FontSize)
+            builder.set_raw_cascaded_font_size(value);
+    };
+
+    auto fetch_inherited_value = [&](PropertyID property_id, PropertyID inherited_property_id, bool explicitly_inherits_non_inherited_property, LonghandFlowState& state) {
+        if (state.value_for_property != property_id) {
+            state = {};
+            state.value_for_property = property_id;
         }
-
-        // NOTE: We've already handled font-size above.
-        if (property_id == PropertyID::FontSize && !state.value && new_font_size)
-            return false;
-        return true;
-    };
-
-    auto fetch_inherited_value = [&](PropertyID property_id, bool explicitly_inherits_non_inherited_property, LonghandFlowState& state) {
         if (explicitly_inherits_non_inherited_property) {
             if (auto* parent = abstract_element.element().parent(); parent && is<DOM::ShadowRoot>(*parent))
                 parent->set_children_may_depend_on_non_inherited_property_inheritance();
         }
         builder.set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
-        state.value = get_non_animated_inherit_value(state.inherited_property_id, abstract_element);
+        state.value = get_non_animated_inherit_value(inherited_property_id, abstract_element);
         state.requires_computation = property_requires_computation_with_inherited_value(property_id);
-        if (property_affects_font_metrics(state.inherited_property_id)) {
+        if (property_affects_font_metrics(inherited_property_id)) {
             if (computed_values_to_inherit_from->font_metrics_depend_on_viewport_metrics())
                 builder.set_font_metrics_depend_on_viewport_metrics();
         }
 
         // FIXME: Do we need to recompute animated inherited values?
-        if (auto const* animated_properties = computed_values_to_inherit_from->animated_properties(); animated_properties && animated_properties->has_property(state.inherited_property_id)) {
-            auto animated_value = animated_properties->values().get(state.inherited_property_id);
+        if (auto const* animated_properties = computed_values_to_inherit_from->animated_properties(); animated_properties && animated_properties->has_property(inherited_property_id)) {
+            auto animated_value = animated_properties->values().get(inherited_property_id);
             VERIFY(animated_value.has_value());
             computed_style.set_animated_property(
                 Badge<StyleComputer> {},
                 property_id,
                 *animated_value.value(),
-                animated_properties->is_property_result_of_transition(state.inherited_property_id)
+                animated_properties->is_property_result_of_transition(inherited_property_id)
                     ? AnimatedPropertyResultOfTransition::Yes
                     : AnimatedPropertyResultOfTransition::No,
                 ComputedProperties::Inherited::Yes);
@@ -3436,11 +3436,16 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     };
 
     auto use_initial_value = [&](PropertyID property_id, LonghandFlowState& state) {
+        if (state.value_for_property != property_id) {
+            state = {};
+            state.value_for_property = property_id;
+        }
         state.value = property_initial_value(property_id);
         state.requires_computation = property_requires_computation_with_initial_value(property_id);
     };
 
-    auto compute_and_store = [&](PropertyID property_id, LonghandFlowState& state) {
+    auto compute_and_store = [&](PropertyID property_id, PropertyID inherited_property_id, LonghandFlowState& state) {
+        VERIFY(state.value_for_property == property_id);
         auto value = state.value.release_nonnull();
 
         // Store the resolved specified value for properties whose computation depends on inherited info, so they can
@@ -3457,11 +3462,11 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         //     alias properties in `compute_value_of_property`
         bool depends_on_viewport_metrics = false;
         auto computed_value = state.requires_computation
-            ? compute_property(state.inherited_property_id, move(value), depends_on_viewport_metrics)
+            ? compute_property(inherited_property_id, move(value), depends_on_viewport_metrics)
             : move(value);
         if (depends_on_viewport_metrics) {
             builder.set_depends_on_viewport_metrics();
-            if (property_affects_font_metrics(state.inherited_property_id))
+            if (property_affects_font_metrics(inherited_property_id))
                 builder.set_font_metrics_depend_on_viewport_metrics();
         }
         builder.set_property_without_modifying_flags(property_id, move(computed_value));
@@ -3473,53 +3478,43 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     // flow stages above are the leaf callbacks; the flow state pins every value the
     // callbacks hand out until the next stage runs.
     struct LonghandLoopContext {
-        decltype(get_cascaded_value)& get_cascaded_value_callback;
+        decltype(on_cascaded_value)& on_cascaded_value_callback;
         decltype(fetch_inherited_value)& fetch_inherited_value_callback;
         decltype(use_initial_value)& use_initial_value_callback;
         decltype(compute_and_store)& compute_and_store_callback;
-        CascadedProperties& cascaded_properties;
         decltype(get_logical_alias_mapping_context)& get_logical_alias_mapping_context_callback;
         LonghandFlowState state {};
     } loop_context {
-        .get_cascaded_value_callback = get_cascaded_value,
+        .on_cascaded_value_callback = on_cascaded_value,
         .fetch_inherited_value_callback = fetch_inherited_value,
         .use_initial_value_callback = use_initial_value,
         .compute_and_store_callback = compute_and_store,
-        .cascaded_properties = cascaded_properties,
         .get_logical_alias_mapping_context_callback = get_logical_alias_mapping_context,
     };
 
     ComputedValuesFFI::FfiLonghandCallbacks const callbacks {
         .context = &loop_context,
-        .get_cascaded_value = [](void* context, u16 property_id, u16 cascaded_property_id, u16 inherited_property_id, bool* out_done) -> void const* {
+        .on_cascaded_value = [](void* context, u16 property_id, void const* value_shell, bool important) {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
-            loop_context.state = {};
-            loop_context.state.inherited_property_id = static_cast<PropertyID>(inherited_property_id);
-            *out_done = !loop_context.get_cascaded_value_callback(static_cast<PropertyID>(property_id), static_cast<PropertyID>(cascaded_property_id), loop_context.state);
-            return loop_context.state.value ? loop_context.state.value->rust_style_value_data() : nullptr;
-        },
-        .fetch_inherited_value = [](void* context, u16 property_id, bool explicitly_inherits_non_inherited_property) -> void const* {
+            loop_context.on_cascaded_value_callback(static_cast<PropertyID>(property_id), *static_cast<StyleValue const*>(value_shell), important, loop_context.state); },
+        .fetch_inherited_value = [](void* context, u16 property_id, u16 inherited_property_id, bool explicitly_inherits_non_inherited_property) -> void const* {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
-            loop_context.fetch_inherited_value_callback(static_cast<PropertyID>(property_id), explicitly_inherits_non_inherited_property, loop_context.state);
+            loop_context.fetch_inherited_value_callback(static_cast<PropertyID>(property_id), static_cast<PropertyID>(inherited_property_id), explicitly_inherits_non_inherited_property, loop_context.state);
             return loop_context.state.value ? loop_context.state.value->rust_style_value_data() : nullptr;
         },
         .use_initial_value = [](void* context, u16 property_id) {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             loop_context.use_initial_value_callback(static_cast<PropertyID>(property_id), loop_context.state); },
-        .compute_and_store = [](void* context, u16 property_id) {
+        .compute_and_store = [](void* context, u16 property_id, u16 inherited_property_id) {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
-            loop_context.compute_and_store_callback(static_cast<PropertyID>(property_id), loop_context.state); },
-        .cascaded_winner = [](void* context, u16 a, u16 b) -> u16 {
-            auto& loop_context = *static_cast<LonghandLoopContext*>(context);
-            return to_underlying(loop_context.cascaded_properties.property_with_higher_priority(static_cast<PropertyID>(a), static_cast<PropertyID>(b)));
-        },
+            loop_context.compute_and_store_callback(static_cast<PropertyID>(property_id), static_cast<PropertyID>(inherited_property_id), loop_context.state); },
         .writing_mode_and_direction = [](void* context) -> u16 {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             auto mapping_context = loop_context.get_logical_alias_mapping_context_callback();
             return static_cast<u16>(to_underlying(mapping_context.writing_mode)) | static_cast<u16>(to_underlying(mapping_context.direction)) << 8;
         },
     };
-    ComputedValuesFFI::rust_drive_property_computation(&callbacks, computed_values_to_inherit_from != nullptr);
+    ComputedValuesFFI::rust_drive_property_computation(&callbacks, cascaded_properties.rust_store(), computed_values_to_inherit_from != nullptr, new_font_size != nullptr);
 
     if (is<HTML::HTMLHtmlElement>(abstract_element.element())) {
         m_root_element_font_metrics = calculate_root_element_font_metrics(computed_style);

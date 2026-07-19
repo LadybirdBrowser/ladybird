@@ -19,6 +19,7 @@ use std::ffi::c_void;
 use std::sync::OnceLock;
 
 use crate::abort_on_panic;
+use crate::cascaded_properties::CascadedPropertyStore;
 use crate::css_pixels::CssPixels;
 use crate::property_metadata::longhands_for_shorthand;
 use crate::property_metadata::property_is_inherited;
@@ -903,27 +904,21 @@ pub extern "C" fn rust_map_physical_to_logical_alias(property_id: u16, writing_m
 #[repr(C)]
 pub struct FfiLonghandCallbacks {
     pub context: *mut c_void,
-    /// Fetches the winning cascaded value for the paired property into the
-    /// flow state; returns its data or null, and reports through `out_done`
-    /// when the longhand is already fully handled (the font-size early-out).
-    pub get_cascaded_value: unsafe extern "C" fn(
-        context: *mut c_void,
-        property_id: u16,
-        cascaded_property_id: u16,
-        inherited_property_id: u16,
-        out_done: *mut bool,
-    ) -> *const c_void,
+    /// Pins the winning cascaded value into the flow state and applies its
+    /// side effects. Only called when a winning declaration exists; the
+    /// driver reads the cascaded property store natively.
+    pub on_cascaded_value:
+        unsafe extern "C" fn(context: *mut c_void, property_id: u16, value_shell: *const c_void, important: bool),
     /// Fetches the inherited value, applying its side effects; returns the
     /// fetched data or null.
     pub fetch_inherited_value: unsafe extern "C" fn(
         context: *mut c_void,
         property_id: u16,
+        inherited_property_id: u16,
         explicitly_inherits_non_inherited_property: bool,
     ) -> *const c_void,
     pub use_initial_value: unsafe extern "C" fn(context: *mut c_void, property_id: u16),
-    pub compute_and_store: unsafe extern "C" fn(context: *mut c_void, property_id: u16),
-    /// Returns which of the two paired longhands won the cascade.
-    pub cascaded_winner: unsafe extern "C" fn(context: *mut c_void, a: u16, b: u16) -> u16,
+    pub compute_and_store: unsafe extern "C" fn(context: *mut c_void, property_id: u16, inherited_property_id: u16),
     /// Returns the element's computed writing mode and direction, packed as
     /// writing_mode | direction << 8.
     pub writing_mode_and_direction: unsafe extern "C" fn(context: *mut c_void) -> u16,
@@ -951,20 +946,26 @@ fn value_is_initial_or_unset(value: *const c_void) -> bool {
 }
 
 /// Drives the property computation loop: iterates every longhand in
-/// computation order, resolves logical pairing, decides between the cascaded,
+/// computation order, resolves logical pairing, reads the winning cascaded
+/// declarations straight from the store, decides between the cascaded,
 /// inherited and initial values, and calls back into C++ for the flow stages
 /// that have not moved into the core yet.
 ///
 /// # Safety
-/// `callbacks` must point at a valid callback table.
+/// `callbacks` must point at a valid callback table and `store` at a valid
+/// cascaded property store; the callbacks must not mutate the store for the
+/// duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_drive_property_computation(
     callbacks: *const FfiLonghandCallbacks,
+    store: *const CascadedPropertyStore,
     has_inheritance_parent: bool,
+    has_new_font_size: bool,
 ) {
     abort_on_panic(|| {
         let callbacks = unsafe { &*callbacks };
         let context = callbacks.context;
+        let store = unsafe { &*store };
         let mut cached_writing_mode_and_direction: Option<(u8, u8)> = None;
 
         for &property_id in crate::property_metadata::property_computation_order() {
@@ -994,21 +995,15 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 } else {
                     map_physical_to_logical_alias(property_id, writing_mode, direction)
                 };
-                cascaded_property_id =
-                    unsafe { (callbacks.cascaded_winner)(context, property_id, counterpart_property_id) };
+                cascaded_property_id = store.property_with_higher_priority(property_id, counterpart_property_id);
             }
 
-            let mut done = false;
-            let mut value = unsafe {
-                (callbacks.get_cascaded_value)(
-                    context,
-                    property_id,
-                    cascaded_property_id,
-                    inherited_property_id,
-                    &raw mut done,
-                )
-            };
-            if done {
+            let mut value: *const c_void = std::ptr::null();
+            if let Some((value_shell, value_data, important)) = store.winning_declaration(cascaded_property_id) {
+                unsafe { (callbacks.on_cascaded_value)(context, property_id, value_shell, important) };
+                value = value_data;
+            } else if property_id == crate::property_metadata::property_id::FONT_SIZE && has_new_font_size {
+                // NOTE: The recascaded font-size has already been stored before the loop.
                 continue;
             }
 
@@ -1027,6 +1022,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     (callbacks.fetch_inherited_value)(
                         context,
                         property_id,
+                        inherited_property_id,
                         decision.explicitly_inherits_non_inherited_property,
                     )
                 };
@@ -1041,7 +1037,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 unsafe { (callbacks.use_initial_value)(context, property_id) };
             }
 
-            unsafe { (callbacks.compute_and_store)(context, property_id) };
+            unsafe { (callbacks.compute_and_store)(context, property_id, inherited_property_id) };
         }
     });
 }

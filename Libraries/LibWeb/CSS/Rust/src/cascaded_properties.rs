@@ -15,6 +15,8 @@
 
 use std::collections::HashMap;
 use std::ffi::c_void;
+use std::hash::BuildHasherDefault;
+use std::hash::Hasher;
 
 use crate::abort_on_panic;
 use crate::property_metadata::LAST_LONGHAND_PROPERTY_ID;
@@ -60,6 +62,9 @@ impl LayerName {
 
 struct Entry {
     value: RetainedStyleValue,
+    /// The Rust-owned data of `value`, recorded so the property computation
+    /// driver can read winning declarations without any shell interaction.
+    value_data: *const c_void,
     important: bool,
     cascade_index: u64,
     origin: CascadeOrigin,
@@ -73,8 +78,27 @@ struct Entry {
 
 const CONTAINED_BITMAP_WORDS: usize = (LAST_LONGHAND_PROPERTY_ID as usize + 1).div_ceil(64);
 
+/// A trivial multiplicative hasher for the store's small integer keys; the
+/// default SipHash is measurable overhead on the per-longhand queries.
+#[derive(Default)]
+struct PropertyIdHasher(u64);
+
+impl Hasher for PropertyIdHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, _bytes: &[u8]) {
+        unreachable!("property identifiers hash through write_u16");
+    }
+
+    fn write_u16(&mut self, value: u16) {
+        self.0 = u64::from(value).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    }
+}
+
 pub struct CascadedPropertyStore {
-    entries: HashMap<u16, Vec<Entry>>,
+    entries: HashMap<u16, Vec<Entry>, BuildHasherDefault<PropertyIdHasher>>,
     next_cascade_index: u64,
     next_source_slot: u32,
     free_source_slots: Vec<u32>,
@@ -86,7 +110,7 @@ pub struct CascadedPropertyStore {
 impl CascadedPropertyStore {
     fn new() -> Self {
         Self {
-            entries: HashMap::new(),
+            entries: HashMap::default(),
             next_cascade_index: 0,
             next_source_slot: 0,
             free_source_slots: Vec::new(),
@@ -126,10 +150,12 @@ impl CascadedPropertyStore {
         slot
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn set_property(
         &mut self,
         property_id: u16,
         value: RetainedStyleValue,
+        value_data: *const c_void,
         important: bool,
         origin: CascadeOrigin,
         layer_name: LayerName,
@@ -150,6 +176,7 @@ impl CascadedPropertyStore {
                     return -1;
                 }
                 entry.value = value;
+                entry.value_data = value_data;
                 entry.important = important;
                 entry.cascade_index = cascade_index;
                 return entry.source_slot as i64;
@@ -159,6 +186,7 @@ impl CascadedPropertyStore {
         let source_slot = self.allocate_source_slot();
         self.entries.get_mut(&property_id).unwrap().push(Entry {
             value,
+            value_data,
             important,
             cascade_index,
             origin,
@@ -167,6 +195,29 @@ impl CascadedPropertyStore {
             source_slot,
         });
         source_slot as i64
+    }
+
+    /// The winning declaration for a property: its shell pointer, Rust-owned
+    /// data, and importance.
+    pub(crate) fn winning_declaration(&self, property_id: u16) -> Option<(*const c_void, *const c_void, bool)> {
+        self.last_entry(property_id)
+            .map(|entry| (entry.value.shell_pointer(), entry.value_data, entry.important))
+    }
+
+    /// Returns whichever of the two properties has the higher-priority winning
+    /// declaration. A property with no cascaded value loses to one with any.
+    pub(crate) fn property_with_higher_priority(&self, first_property_id: u16, second_property_id: u16) -> u16 {
+        let Some(first_entry) = self.last_entry(first_property_id) else {
+            return second_property_id;
+        };
+        let Some(second_entry) = self.last_entry(second_property_id) else {
+            return first_property_id;
+        };
+        if first_entry.cascade_index >= second_entry.cascade_index {
+            first_property_id
+        } else {
+            second_property_id
+        }
     }
 
     fn remove_matching_entries(&mut self, property_id: u16, mut matches: impl FnMut(&Entry) -> bool) {
@@ -244,10 +295,12 @@ pub unsafe extern "C" fn rust_cascaded_properties_destroy(store: *mut CascadedPr
 /// `store` must be a valid store, `value` a leaked strong StyleValue reference, and
 /// `layer_name_raw` a leaked fly string reference when `has_layer_name` is set.
 #[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn rust_cascaded_properties_set_property(
     store: *mut CascadedPropertyStore,
     property_id: u16,
     value: *const c_void,
+    value_data: *const c_void,
     important: bool,
     origin: CascadeOrigin,
     has_layer_name: bool,
@@ -260,6 +313,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_set_property(
         unsafe { &mut *store }.set_property(
             property_id,
             value,
+            value_data,
             important,
             origin,
             layer_name,
@@ -351,20 +405,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_property_with_higher_priority(
     first_property_id: u16,
     second_property_id: u16,
 ) -> u16 {
-    abort_on_panic(|| {
-        let store = unsafe { &*store };
-        let Some(first_entry) = store.last_entry(first_property_id) else {
-            return second_property_id;
-        };
-        let Some(second_entry) = store.last_entry(second_property_id) else {
-            return first_property_id;
-        };
-        if first_entry.cascade_index >= second_entry.cascade_index {
-            first_property_id
-        } else {
-            second_property_id
-        }
-    })
+    abort_on_panic(|| unsafe { &*store }.property_with_higher_priority(first_property_id, second_property_id))
 }
 
 /// Returns the winning declaration's source slot, or -1 when the property has no cascaded value.
@@ -546,6 +587,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_apply_property_list(
                         let slot = store.set_property(
                             longhand_id,
                             retained_value,
+                            longhand_data,
                             important,
                             origin,
                             layer_name,
