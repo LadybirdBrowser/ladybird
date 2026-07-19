@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 98 tests
 
-92 Pass
-6 Fail
+94 Pass
+4 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface CSSRule: original interface defined
@@ -70,7 +70,7 @@ Pass	CSSKeyframesRule interface: existence and properties of interface prototype
 Pass	CSSKeyframesRule interface: attribute name
 Pass	CSSKeyframesRule interface: attribute cssRules
 Pass	CSSKeyframesRule interface: attribute length
-Fail	CSSKeyframesRule interface: operation appendRule(CSSOMString)
+Pass	CSSKeyframesRule interface: operation appendRule(CSSOMString)
 Fail	CSSKeyframesRule interface: operation deleteRule(CSSOMString)
 Fail	CSSKeyframesRule interface: operation findRule(CSSOMString)
 Pass	CSSKeyframesRule must be primary interface of keyframes
@@ -78,7 +78,7 @@ Pass	Stringification of keyframes
 Pass	CSSKeyframesRule interface: keyframes must inherit property "name" with the proper type
 Pass	CSSKeyframesRule interface: keyframes must inherit property "cssRules" with the proper type
 Pass	CSSKeyframesRule interface: keyframes must inherit property "length" with the proper type
-Fail	CSSKeyframesRule interface: keyframes must inherit property "appendRule(CSSOMString)" with the proper type
+Pass	CSSKeyframesRule interface: keyframes must inherit property "appendRule(CSSOMString)" with the proper type
 Pass	CSSKeyframesRule interface: calling appendRule(CSSOMString) on keyframes with too few arguments must throw TypeError
 Fail	CSSKeyframesRule interface: keyframes must inherit property "deleteRule(CSSOMString)" with the proper type
 Pass	CSSKeyframesRule interface: calling deleteRule(CSSOMString) on keyframes with too few arguments must throw TypeError

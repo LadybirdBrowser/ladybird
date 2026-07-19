@@ -909,8 +909,10 @@ void invalidate_root_for_keyframes_rule(DOM::Node& root, Utf16FlyString const& a
         });
 }
 
-void invalidate_owners_for_inserted_keyframes_rule(CSSStyleSheet const& style_sheet, CSSKeyframesRule const& keyframes_rule)
+void invalidate_owners_for_modified_keyframes_rule(CSSStyleSheet const& style_sheet, CSSKeyframesRule const& keyframes_rule)
 {
+    VERIFY(keyframes_rule.parent_style_sheet() == &style_sheet);
+
     for (auto& document_or_shadow_root : style_sheet.owning_documents_or_shadow_roots()) {
         auto& style_scope = document_or_shadow_root->is_shadow_root()
             ? as<DOM::ShadowRoot>(*document_or_shadow_root).style_scope()

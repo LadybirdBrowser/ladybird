@@ -138,9 +138,9 @@ void invalidate_style_for_style_sheet_owners(CSSStyleSheet const& style_sheet, D
 // `style_rule` into it.
 void invalidate_owners_for_inserted_style_rule(CSSStyleSheet const& style_sheet, CSSStyleRule const& style_rule, DOM::StyleInvalidationReason);
 
-// Apply a targeted invalidation to all documents and shadow roots that own `style_sheet` in response to inserting
-// `keyframes_rule` into it. Only elements already referencing the inserted animation-name are dirtied.
-void invalidate_owners_for_inserted_keyframes_rule(CSSStyleSheet const& style_sheet, CSSKeyframesRule const& keyframes_rule);
+// Apply a targeted invalidation to all documents and shadow roots that own `style_sheet` in response to inserting or
+// modifying `keyframes_rule` which it owns. Only elements already referencing the inserted animation-name are dirtied.
+void invalidate_owners_for_modified_keyframes_rule(CSSStyleSheet const& style_sheet, CSSKeyframesRule const& keyframes_rule);
 
 // Dirty only the elements (and pseudo-elements) under `root` that already reference `animation_name`. When `root` is
 // a shadow root, the walk also fans out to the shadow host side if active rules in the same scope can match there.

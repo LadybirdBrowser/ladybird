@@ -1666,6 +1666,21 @@ CSSRule* Parser::parse_as_css_rule(bool nested)
     return {};
 }
 
+GC::Ptr<CSSKeyframeRule> Parser::parse_as_keyframe_rule()
+{
+    m_rule_context.append(RuleContext::AtKeyframes);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::AtKeyframes);
+    };
+
+    auto maybe_rule = parse_a_rule(m_token_stream);
+    if (!maybe_rule.has_value() || !maybe_rule->has<QualifiedRule>())
+        return {};
+
+    return convert_to_keyframe_rule(maybe_rule->get<QualifiedRule>());
+}
+
 // https://drafts.csswg.org/css-syntax/#parse-rule
 template<typename T>
 Optional<Rule> Parser::parse_a_rule(TokenStream<T>& input, Nested nested)

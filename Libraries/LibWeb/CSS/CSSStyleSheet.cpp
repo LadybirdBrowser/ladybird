@@ -191,7 +191,7 @@ WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(Utf16View rule, unsigne
         parsed_rule->set_parent_style_sheet(this);
 
         if (!constructed() && owner_node() && owner_node()->is_html_style_element() && parsed_rule->type() == CSSRule::Type::Keyframes)
-            invalidate_owners_for_inserted_keyframes_rule(*this, as<CSSKeyframesRule>(*parsed_rule));
+            invalidate_owners_for_modified_keyframes_rule(*this, as<CSSKeyframesRule>(*parsed_rule));
         else if (!constructed() && owner_node() && owner_node()->is_html_style_element() && parsed_rule->type() == CSSRule::Type::Style)
             invalidate_owners_for_inserted_style_rule(*this, as<CSSStyleRule>(*parsed_rule), DOM::StyleInvalidationReason::StyleSheetInsertRule);
         else

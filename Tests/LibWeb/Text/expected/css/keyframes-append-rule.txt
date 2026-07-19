@@ -1,0 +1,13 @@
+appendRule return value: undefined
+fooRule.cssRules.length after appendRule: 2
+appended rule: [object CSSKeyframeRule] ~ 25%, 75% { opacity: 0.5; }
+appended rule parentRule === fooRule: true
+fooRule.cssRules.length after duplicate appendRule: 3
+original rule after duplicate appendRule: 0% { opacity: 0; }
+duplicate rule: 0% { opacity: 1; }
+fooRule.cssRules.length after invalid selector: 3
+fooRule.cssRules.length after missing comma: 3
+fooRule.cssRules.length after trailing comma: 3
+fooRule.cssRules.length after multiple rules: 3
+fooRule.cssRules.length after at-rule: 3
+fooRule.cssRules.length after empty input: 3

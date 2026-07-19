@@ -109,6 +109,13 @@ RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const& c
     return CSS::Parser::Parser::create(context, string).parse_as_type(value_type);
 }
 
+GC::Ptr<CSS::CSSKeyframeRule> CSS::Parser::parse_keyframe_rule(CSS::Parser::ParsingParams const& context, Utf16View string)
+{
+    if (string.is_empty())
+        return nullptr;
+    return CSS::Parser::Parser::create(context, string).parse_as_keyframe_rule();
+}
+
 RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, CSS::DescriptorNameAndID const& descriptor_name_and_id, Utf16View string)
 {
     if (string.is_empty())

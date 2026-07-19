@@ -1,0 +1,28 @@
+<!doctype html>
+<style>
+    #target {
+        animation: fade 1s -0.5s paused both;
+    }
+    @keyframes fade {
+        from,
+        to {
+            opacity: 0.25;
+        }
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const target = document.getElementById("target");
+        const keyframesRule = document.styleSheets[0].cssRules[1];
+
+        println("opacity before appendRule: " + getComputedStyle(target).opacity);
+
+        keyframesRule.appendRule("50% { opacity: 0.75; }");
+        await animationFrame();
+        println("opacity after appendRule: " + getComputedStyle(target).opacity);
+
+        done();
+    });
+</script>

@@ -1,0 +1,41 @@
+<!doctype html>
+<style>
+    @keyframes foo {
+        from {
+            opacity: 0;
+        }
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const fooRule = document.styleSheets[0].cssRules[0];
+
+        // Normal appendRule usage
+        const returnValue = fooRule.appendRule("25%, 75% { opacity: 0.5; }");
+        println("appendRule return value: " + returnValue);
+        println("fooRule.cssRules.length after appendRule: " + fooRule.cssRules.length);
+        println("appended rule: " + fooRule.cssRules[1] + " ~ " + fooRule.cssRules[1].cssText);
+        println("appended rule parentRule === fooRule: " + (fooRule.cssRules[1].parentRule === fooRule));
+
+        // Duplicate selector should be appended as a new rule
+        fooRule.appendRule("from { opacity: 1; }");
+        println("fooRule.cssRules.length after duplicate appendRule: " + fooRule.cssRules.length);
+        println("original rule after duplicate appendRule: " + fooRule.cssRules[0].cssText);
+        println("duplicate rule: " + fooRule.cssRules[2].cssText);
+
+        // Invalid rules should be rejected but not raise an error
+        const invalidRules = [
+            ["invalid selector", "invalid { opacity: 1; }"],
+            ["missing comma", "25% 75% { opacity: 1; }"],
+            ["trailing comma", "25%, { opacity: 1; }"],
+            ["multiple rules", "25% { opacity: 1; } 75% { opacity: 1; }"],
+            ["at-rule", "@media { }"],
+            ["empty input", ""],
+        ];
+        for (const [description, rule] of invalidRules) {
+            fooRule.appendRule(rule);
+            println("fooRule.cssRules.length after " + description + ": " + fooRule.cssRules.length);
+        }
+    });
+</script>

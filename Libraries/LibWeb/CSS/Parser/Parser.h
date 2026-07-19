@@ -149,6 +149,7 @@ public:
     Vector<DevToolsStyleDeclaration> parse_as_devtools_property_declaration_block();
     Vector<Descriptor> parse_as_descriptor_declaration_block(AtRuleID);
     CSSRule* parse_as_css_rule(bool nested = false);
+    GC::Ptr<CSSKeyframeRule> parse_as_keyframe_rule();
     Optional<StyleProperty> parse_as_supports_condition();
     GC::RootVector<GC::Ref<CSSRule>> parse_as_stylesheet_contents();
 
@@ -714,6 +715,8 @@ private:
 
     Vector<PseudoClass> m_pseudo_class_context; // Stack of pseudo-class functions we're currently inside
 };
+
+GC::Ptr<CSSKeyframeRule> parse_keyframe_rule(ParsingParams const&, Utf16View);
 
 }
 
