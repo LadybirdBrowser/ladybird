@@ -2747,51 +2747,31 @@ static void compute_text_align(ComputedProperties::Builder& builder, DOM::Abstra
     auto& style = builder.style();
     auto text_align_keyword = style.property(PropertyID::TextAlign).to_keyword();
 
-    // https://drafts.csswg.org/css-text-4/#valdef-text-align-match-parent
-    // This value behaves the same as inherit (computes to its parent’s computed value) except that an inherited
-    // value of start or end is interpreted against the parent’s direction value and results in a computed value of
-    // either left or right. Computes to start when specified on the root element.
-    if (text_align_keyword == Keyword::MatchParent) {
-        if (auto const parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
-            auto const& parent_values = *parent->computed_values();
-            auto parent_text_align = parent_values.text_align();
-            switch (parent_text_align) {
-            case TextAlign::Start:
-                if (parent_values.direction() == Direction::Ltr) {
-                    builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Left));
-                } else {
-                    builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Right));
-                }
-                break;
+    // NB: Only these two keywords trigger an adjustment in the Rust decision below; the early
+    //     return avoids fetching the parent's computed values for every element.
+    if (text_align_keyword != Keyword::MatchParent && text_align_keyword != Keyword::LibwebInheritOrCenter)
+        return;
 
-            case TextAlign::End:
-                if (parent_values.direction() == Direction::Ltr) {
-                    builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Right));
-                } else {
-                    builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Left));
-                }
-                break;
-
-            default:
-                builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(to_keyword(parent_text_align)));
-            }
-        } else {
-            builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Start));
-        }
+    auto const parent = abstract_element.element_to_inherit_style_from();
+    bool has_parent_with_computed_values = parent.has_value() && parent->computed_values();
+    u16 parent_text_align = 0;
+    bool parent_direction_is_ltr = true;
+    if (has_parent_with_computed_values) {
+        auto const& parent_values = *parent->computed_values();
+        parent_text_align = to_underlying(to_keyword(parent_values.text_align()));
+        parent_direction_is_ltr = parent_values.direction() == Direction::Ltr;
     }
 
-    // AD-HOC: The -libweb-inherit-or-center style defaults to centering, unless the parent element has a non-initial
-    //         computed text-align value. This is used to support the ad-hoc default <th> text-align behavior.
-    if (text_align_keyword == Keyword::LibwebInheritOrCenter && abstract_element.element().local_name() == HTML::TagNames::th) {
-        auto parent_element = abstract_element.element_to_inherit_style_from();
-        if (parent_element.has_value() && parent_element->computed_values()) {
-            auto parent_text_align = parent_element->computed_values()->text_align();
-            if (parent_text_align != TextAlign::Start) {
-                builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(to_keyword(parent_text_align)), ComputedProperties::Inherited::Yes);
-                return;
-            }
-        }
-        builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Center));
+    // The adjustment decision lives in the Rust style computation core.
+    auto adjustment = ComputedValuesFFI::rust_compute_text_align(
+        to_underlying(text_align_keyword),
+        abstract_element.element().local_name() == HTML::TagNames::th,
+        has_parent_with_computed_values,
+        parent_text_align,
+        parent_direction_is_ltr);
+    if (adjustment.changed) {
+        builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(static_cast<Keyword>(adjustment.keyword)),
+            adjustment.inherited ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
     }
 }
 

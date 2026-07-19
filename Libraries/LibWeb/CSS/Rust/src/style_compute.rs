@@ -1268,6 +1268,72 @@ pub extern "C" fn rust_resolve_effective_overflow_keywords(overflow_x: u16, over
     })
 }
 
+/// Result of the text-align adjustment: the replacement keyword and whether it
+/// counts as inherited.
+#[repr(C)]
+pub struct FfiTextAlignAdjustment {
+    pub changed: bool,
+    pub keyword: u16,
+    pub inherited: bool,
+}
+
+/// Decides the text-align adjustments applied after computation. The parent
+/// arguments are only read when `has_parent_with_computed_values` is set.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_compute_text_align(
+    text_align: u16,
+    is_th_element: bool,
+    has_parent_with_computed_values: bool,
+    parent_text_align: u16,
+    parent_direction_is_ltr: bool,
+) -> FfiTextAlignAdjustment {
+    abort_on_panic(|| {
+        let unchanged = FfiTextAlignAdjustment {
+            changed: false,
+            keyword: text_align,
+            inherited: false,
+        };
+        let replace = |keyword: u16| FfiTextAlignAdjustment {
+            changed: true,
+            keyword,
+            inherited: false,
+        };
+
+        // https://drafts.csswg.org/css-text-4/#valdef-text-align-match-parent
+        // This value behaves the same as inherit (computes to its parent's computed value) except that an inherited
+        // value of start or end is interpreted against the parent's direction value and results in a computed value of
+        // either left or right. Computes to start when specified on the root element.
+        if text_align == keyword::MATCH_PARENT {
+            if !has_parent_with_computed_values {
+                return replace(keyword::START);
+            }
+            return match parent_text_align {
+                keyword::START if parent_direction_is_ltr => replace(keyword::LEFT),
+                keyword::START => replace(keyword::RIGHT),
+                keyword::END if parent_direction_is_ltr => replace(keyword::RIGHT),
+                keyword::END => replace(keyword::LEFT),
+                _ => replace(parent_text_align),
+            };
+        }
+
+        // AD-HOC: The -libweb-inherit-or-center style defaults to centering, unless the parent element has a
+        //         non-initial computed text-align value. This is used to support the ad-hoc default <th>
+        //         text-align behavior.
+        if text_align == keyword::_LIBWEB_INHERIT_OR_CENTER && is_th_element {
+            if has_parent_with_computed_values && parent_text_align != keyword::START {
+                return FfiTextAlignAdjustment {
+                    changed: true,
+                    keyword: parent_text_align,
+                    inherited: true,
+                };
+            }
+            return replace(keyword::CENTER);
+        }
+
+        unchanged
+    })
+}
+
 /// Computes the font-weight property from its absolutized value.
 ///
 /// # Safety
