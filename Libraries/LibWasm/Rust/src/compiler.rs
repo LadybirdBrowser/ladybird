@@ -199,8 +199,6 @@ impl CraneliftCompiler {
             call_indirect_sig: i32 fn(ptr, ptr, i32, i32, i32);
             memory_copy_sig:   i32 fn(ptr, ptr, i32, i32, i32, i32, i32);
             memory_fill_sig:   i32 fn(ptr, ptr, i32, i32, i32, i32);
-            mem_load_sig:      i32 fn(ptr, ptr, i32, i64, ptr);
-            mem_store_sig:     i32 fn(ptr, ptr, i32, i64, i64);
             cage_base_sig:     i64 fn();
             mem_size_sig:      i64 fn(ptr, i32);
             mem_grow_sig:      i32 fn(ptr, i32, i32);
@@ -233,17 +231,6 @@ impl CraneliftCompiler {
         let h_direct_call_2 = decl_helper!(call_fn2_sig, HelperId::direct_call_2);
         let h_direct_call_3 = decl_helper!(call_fn3_sig, HelperId::direct_call_3);
         let h_set_trap = decl_helper!(set_trap_sig, HelperId::set_trap);
-        let h_mem_load8_s = decl_helper!(mem_load_sig, HelperId::memory_load8_s);
-        let h_mem_load8_u = decl_helper!(mem_load_sig, HelperId::memory_load8_u);
-        let h_mem_load16_s = decl_helper!(mem_load_sig, HelperId::memory_load16_s);
-        let h_mem_load16_u = decl_helper!(mem_load_sig, HelperId::memory_load16_u);
-        let h_mem_load32_s = decl_helper!(mem_load_sig, HelperId::memory_load32_s);
-        let h_mem_load32_u = decl_helper!(mem_load_sig, HelperId::memory_load32_u);
-        let h_mem_load64 = decl_helper!(mem_load_sig, HelperId::memory_load64);
-        let h_mem_store8 = decl_helper!(mem_store_sig, HelperId::memory_store8);
-        let h_mem_store16 = decl_helper!(mem_store_sig, HelperId::memory_store16);
-        let h_mem_store32 = decl_helper!(mem_store_sig, HelperId::memory_store32);
-        let h_mem_store64 = decl_helper!(mem_store_sig, HelperId::memory_store64);
         let h_mem_size = decl_helper!(mem_size_sig, HelperId::memory_size);
         let h_mem_grow = decl_helper!(mem_grow_sig, HelperId::memory_grow);
         let h_read_global = decl_helper!(read_global_sig, HelperId::read_global);
@@ -254,14 +241,14 @@ impl CraneliftCompiler {
         let h_memory_fill = decl_helper!(memory_fill_sig, HelperId::memory_fill);
         let h_primitive_storage_cage_base = decl_helper!(cage_base_sig, HelperId::primitive_storage_cage_base);
         let locals_base_offset = helpers.locals_base_offset as i32;
-        let default_memory_offset = helpers.default_memory_offset as i32;
+        let memory_instances_offset = helpers.memory_instances_offset as i32;
         let memory_instance_data_offset = helpers.memory_instance_data_offset as i32;
         let memory_buffer_storage_offset_offset = helpers.memory_buffer_storage_offset_offset as i32;
         let compiled_call_result_scratch_offset = helpers.compiled_call_result_scratch_offset as i32;
         let value_stack_base_offset = helpers.value_stack_base_offset as i32;
         let value_stack_top_offset = helpers.value_stack_top_offset as i32;
         let call_record_base_offset = helpers.call_record_base_offset as i32;
-        // Accesses to the default memory are unchecked and may fault; the fault handler turns
+        // Accesses to memory32 are unchecked and may fault; the fault handler turns
         // faults inside a memory's guarded reservation into wasm traps.
         let wasm_memory_flags = MemFlags::new();
         let interp_var = Variable::from_u32(8);
@@ -277,13 +264,9 @@ impl CraneliftCompiler {
                 .ins()
                 .load(ptr_type, MemFlags::trusted(), configuration_val, locals_base_offset);
         builder.def_var(locals_base_var, initial_locals_base);
-        let default_memory_base_var = Variable::from_u32(11);
-        builder.declare_var(default_memory_base_var, ptr_type);
-
-        let uses_default_memory = insns.iter().any(|insn| {
-            let mem_idx = insn.imm3 & 0x7fff_ffff;
+        let is_scalar_memory_access = |opcode: u64| {
             matches!(
-                insn.opcode,
+                opcode,
                 op::I32_LOAD
                     | op::I64_LOAD
                     | op::F32_LOAD
@@ -309,33 +292,50 @@ impl CraneliftCompiler {
                     | op::I64_STORE32
                     | op::SYNTHETIC_I32_STORELOCAL
                     | op::SYNTHETIC_I64_STORELOCAL
-            ) && mem_idx == 0
-        });
-        // The base address is stable for the whole call: memory32 storage reserves its maximum
-        // (plus guard) up front, so growing commits in place and never moves the allocation.
-        if uses_default_memory {
-            let default_memory =
-                builder
-                    .ins()
-                    .load(ptr_type, MemFlags::trusted(), configuration_val, default_memory_offset);
-            let storage_offset = builder.ins().load(
-                types::I64,
-                MemFlags::trusted(),
-                default_memory,
-                memory_instance_data_offset + memory_buffer_storage_offset_offset,
-            );
-            let storage_offset = if ptr_type == types::I64 {
-                storage_offset
-            } else {
-                builder.ins().ireduce(ptr_type, storage_offset)
-            };
+            )
+        };
+        let mut used_memory_indices: Vec<u32> = insns
+            .iter()
+            .filter(|insn| is_scalar_memory_access(insn.opcode))
+            .map(|insn| insn.imm3)
+            .collect();
+        used_memory_indices.sort_unstable();
+        used_memory_indices.dedup();
+
+        let mut memory_bases = Vec::with_capacity(used_memory_indices.len());
+        if !used_memory_indices.is_empty() {
+            // Each base address is stable for the whole call: memory32 storage reserves its
+            // maximum (plus guard) up front, so growing commits in place and never moves it.
             let cage_base_storage = builder.ins().func_addr(ptr_type, h_primitive_storage_cage_base);
             let cage_base = builder.ins().load(ptr_type, MemFlags::trusted(), cage_base_storage, 0);
-            let memory_base = builder.ins().iadd(cage_base, storage_offset);
-            builder.def_var(default_memory_base_var, memory_base);
-        } else {
-            let zero = builder.ins().iconst(ptr_type, 0);
-            builder.def_var(default_memory_base_var, zero);
+            let memory_instances = builder.ins().load(
+                ptr_type,
+                MemFlags::trusted(),
+                configuration_val,
+                memory_instances_offset,
+            );
+            for memory_index in used_memory_indices {
+                let memory_pointer_offset = builder
+                    .ins()
+                    .iconst(ptr_type, i64::from(memory_index) * i64::from(ptr_type.bytes()));
+                let memory_pointer_address = builder.ins().iadd(memory_instances, memory_pointer_offset);
+                let memory = builder
+                    .ins()
+                    .load(ptr_type, MemFlags::trusted(), memory_pointer_address, 0);
+                let storage_offset = builder.ins().load(
+                    types::I64,
+                    MemFlags::trusted(),
+                    memory,
+                    memory_instance_data_offset + memory_buffer_storage_offset_offset,
+                );
+                let storage_offset = if ptr_type == types::I64 {
+                    storage_offset
+                } else {
+                    builder.ins().ireduce(ptr_type, storage_offset)
+                };
+                let memory_base = builder.ins().iadd(cage_base, storage_offset);
+                memory_bases.push((memory_index, memory_base));
+            }
         }
 
         let mut control_stack: Vec<ControlFrame> = Vec::new();
@@ -1100,9 +1100,12 @@ impl CraneliftCompiler {
         }
         // No bounds checks: the memory reserves the full base (u32) + offset (u32) span, so any
         // out-of-bounds access faults on an uncommitted page and unwinds as a wasm trap.
-        macro_rules! inline_default_memory_address {
-            ($builder:expr, $addr:expr) => {{
-                let memory_base = $builder.use_var(default_memory_base_var);
+        macro_rules! inline_memory_address {
+            ($builder:expr, $memory_index:expr, $addr:expr) => {{
+                let memory_base = memory_bases
+                    .iter()
+                    .find_map(|(index, base)| (*index == $memory_index).then_some(*base))
+                    .expect("memory access must have a resolved base");
                 let addr_offset = if ptr_type == types::I64 {
                     $addr
                 } else {
@@ -2020,83 +2023,44 @@ impl CraneliftCompiler {
                     let offset = builder.ins().iconst(types::I64, insn.imm1);
                     let addr = builder.ins().iadd(base_u64, offset);
 
-                    let mem_idx = insn.imm3 & 0x7fff_ffff;
-                    if mem_idx == 0 {
-                        let address = inline_default_memory_address!(builder, addr);
-                        if opc == op::F64_LOAD {
-                            let result = builder.ins().load(types::F64, wasm_memory_flags, address, 0);
-                            write_dst_f64!(builder, insn.destination, result);
-                        } else if opc == op::F32_LOAD {
-                            let result = builder.ins().load(types::F32, wasm_memory_flags, address, 0);
-                            write_dst_f32!(builder, insn.destination, result);
-                        } else {
-                            let result = match opc {
-                                op::I32_LOAD | op::I64_LOAD32_U => {
-                                    let value = builder.ins().load(types::I32, wasm_memory_flags, address, 0);
-                                    builder.ins().uextend(types::I64, value)
-                                }
-                                op::I64_LOAD => builder.ins().load(types::I64, wasm_memory_flags, address, 0),
-                                op::I32_LOAD8_S | op::I64_LOAD8_S => {
-                                    let value = builder.ins().load(types::I8, wasm_memory_flags, address, 0);
-                                    builder.ins().sextend(types::I64, value)
-                                }
-                                op::I32_LOAD8_U | op::I64_LOAD8_U => {
-                                    let value = builder.ins().load(types::I8, wasm_memory_flags, address, 0);
-                                    builder.ins().uextend(types::I64, value)
-                                }
-                                op::I32_LOAD16_S | op::I64_LOAD16_S => {
-                                    let value = builder.ins().load(types::I16, wasm_memory_flags, address, 0);
-                                    builder.ins().sextend(types::I64, value)
-                                }
-                                op::I32_LOAD16_U | op::I64_LOAD16_U => {
-                                    let value = builder.ins().load(types::I16, wasm_memory_flags, address, 0);
-                                    builder.ins().uextend(types::I64, value)
-                                }
-                                op::I64_LOAD32_S => {
-                                    let value = builder.ins().load(types::I32, wasm_memory_flags, address, 0);
-                                    builder.ins().sextend(types::I64, value)
-                                }
-                                _ => unreachable!(),
-                            };
-                            write_dst!(builder, insn.destination, result);
-                        }
+                    let mem_idx = insn.imm3;
+                    let address = inline_memory_address!(builder, mem_idx, addr);
+                    if opc == op::F64_LOAD {
+                        let result = builder.ins().load(types::F64, wasm_memory_flags, address, 0);
+                        write_dst_f64!(builder, insn.destination, result);
+                    } else if opc == op::F32_LOAD {
+                        let result = builder.ins().load(types::F32, wasm_memory_flags, address, 0);
+                        write_dst_f32!(builder, insn.destination, result);
                     } else {
-                        let memory_load_helper = match opc {
-                            op::I32_LOAD | op::F32_LOAD => h_mem_load32_u,
-                            op::I64_LOAD | op::F64_LOAD => h_mem_load64,
-                            op::I32_LOAD8_S | op::I64_LOAD8_S => h_mem_load8_s,
-                            op::I32_LOAD8_U | op::I64_LOAD8_U => h_mem_load8_u,
-                            op::I32_LOAD16_S | op::I64_LOAD16_S => h_mem_load16_s,
-                            op::I32_LOAD16_U | op::I64_LOAD16_U => h_mem_load16_u,
-                            op::I64_LOAD32_S => h_mem_load32_s,
-                            op::I64_LOAD32_U => h_mem_load32_u,
+                        let result = match opc {
+                            op::I32_LOAD | op::I64_LOAD32_U => {
+                                let value = builder.ins().load(types::I32, wasm_memory_flags, address, 0);
+                                builder.ins().uextend(types::I64, value)
+                            }
+                            op::I64_LOAD => builder.ins().load(types::I64, wasm_memory_flags, address, 0),
+                            op::I32_LOAD8_S | op::I64_LOAD8_S => {
+                                let value = builder.ins().load(types::I8, wasm_memory_flags, address, 0);
+                                builder.ins().sextend(types::I64, value)
+                            }
+                            op::I32_LOAD8_U | op::I64_LOAD8_U => {
+                                let value = builder.ins().load(types::I8, wasm_memory_flags, address, 0);
+                                builder.ins().uextend(types::I64, value)
+                            }
+                            op::I32_LOAD16_S | op::I64_LOAD16_S => {
+                                let value = builder.ins().load(types::I16, wasm_memory_flags, address, 0);
+                                builder.ins().sextend(types::I64, value)
+                            }
+                            op::I32_LOAD16_U | op::I64_LOAD16_U => {
+                                let value = builder.ins().load(types::I16, wasm_memory_flags, address, 0);
+                                builder.ins().uextend(types::I64, value)
+                            }
+                            op::I64_LOAD32_S => {
+                                let value = builder.ins().load(types::I32, wasm_memory_flags, address, 0);
+                                builder.ins().sextend(types::I64, value)
+                            }
                             _ => unreachable!(),
                         };
-                        let result_slot =
-                            builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8, 0));
-                        let result_ptr = builder.ins().stack_addr(ptr_type, result_slot, 0);
-                        let mem_idx = builder.ins().iconst(types::I32, i64::from(mem_idx));
-                        let interp = builder.use_var(interp_var);
-                        let config = builder.use_var(config_var);
-                        let _xc_0 = builder.ins().func_addr(ptr_type, memory_load_helper);
-                        let call = builder.ins().call_indirect(
-                            mem_load_sig,
-                            _xc_0,
-                            &[interp, config, mem_idx, addr, result_ptr],
-                        );
-                        let trapped = builder.inst_results(call)[0];
-                        let is_trap = builder.ins().icmp_imm(IntCC::NotEqual, trapped, 0);
-                        let cont = builder.create_block();
-                        builder.ins().brif(is_trap, trap_block, &[], cont, &[]);
-                        builder.switch_to_block(cont);
-                        builder.seal_block(cont);
-                        let result = builder.ins().stack_load(types::I64, result_slot, 0);
-                        if opc == op::F64_LOAD {
-                            let result = builder.ins().bitcast(types::F64, MemFlags::new(), result);
-                            write_dst_f64!(builder, insn.destination, result);
-                        } else {
-                            write_dst!(builder, insn.destination, result);
-                        }
+                        write_dst!(builder, insn.destination, result);
                     }
                 }
 
@@ -2109,9 +2073,9 @@ impl CraneliftCompiler {
                 | op::I64_STORE8
                 | op::I64_STORE16
                 | op::I64_STORE32 => {
-                    let mem_idx = insn.imm3 & 0x7fff_ffff;
-                    let is_f32_inline = opc == op::F32_STORE && mem_idx == 0;
-                    let val = if is_f32_inline {
+                    let mem_idx = insn.imm3;
+                    let is_f32 = opc == op::F32_STORE;
+                    let val = if is_f32 {
                         read_src_f32!(builder, insn.sources[0])
                     } else {
                         read_src!(builder, insn.sources[0])
@@ -2122,51 +2086,26 @@ impl CraneliftCompiler {
                     let offset = builder.ins().iconst(types::I64, insn.imm1);
                     let addr = builder.ins().iadd(base_u64, offset);
 
-                    if mem_idx == 0 {
-                        let access_size = match opc {
-                            op::I32_STORE8 | op::I64_STORE8 => 1,
-                            op::I32_STORE16 | op::I64_STORE16 => 2,
-                            op::I32_STORE | op::F32_STORE | op::I64_STORE32 => 4,
-                            op::I64_STORE | op::F64_STORE => 8,
-                            _ => unreachable!(),
-                        };
-                        let address = inline_default_memory_address!(builder, addr);
-                        let value = if is_f32_inline {
-                            val
-                        } else {
-                            match access_size {
-                                1 => builder.ins().ireduce(types::I8, val),
-                                2 => builder.ins().ireduce(types::I16, val),
-                                4 => builder.ins().ireduce(types::I32, val),
-                                8 => val,
-                                _ => unreachable!(),
-                            }
-                        };
-                        builder.ins().store(wasm_memory_flags, value, address, 0);
+                    let access_size = match opc {
+                        op::I32_STORE8 | op::I64_STORE8 => 1,
+                        op::I32_STORE16 | op::I64_STORE16 => 2,
+                        op::I32_STORE | op::F32_STORE | op::I64_STORE32 => 4,
+                        op::I64_STORE | op::F64_STORE => 8,
+                        _ => unreachable!(),
+                    };
+                    let address = inline_memory_address!(builder, mem_idx, addr);
+                    let value = if is_f32 {
+                        val
                     } else {
-                        let memory_store_helper = match opc {
-                            op::I32_STORE | op::F32_STORE | op::I64_STORE32 => h_mem_store32,
-                            op::I64_STORE | op::F64_STORE => h_mem_store64,
-                            op::I32_STORE8 | op::I64_STORE8 => h_mem_store8,
-                            op::I32_STORE16 | op::I64_STORE16 => h_mem_store16,
+                        match access_size {
+                            1 => builder.ins().ireduce(types::I8, val),
+                            2 => builder.ins().ireduce(types::I16, val),
+                            4 => builder.ins().ireduce(types::I32, val),
+                            8 => val,
                             _ => unreachable!(),
-                        };
-                        let mem_idx = builder.ins().iconst(types::I32, i64::from(mem_idx));
-                        let interp = builder.use_var(interp_var);
-                        let _xv_config_var = builder.use_var(config_var);
-                        let _xc_0 = builder.ins().func_addr(ptr_type, memory_store_helper);
-                        let call = builder.ins().call_indirect(
-                            mem_store_sig,
-                            _xc_0,
-                            &[interp, _xv_config_var, mem_idx, addr, val],
-                        );
-                        let trapped = builder.inst_results(call)[0];
-                        let is_trap = builder.ins().icmp_imm(IntCC::NotEqual, trapped, 0);
-                        let cont = builder.create_block();
-                        builder.ins().brif(is_trap, trap_block, &[], cont, &[]);
-                        builder.switch_to_block(cont);
-                        builder.seal_block(cont);
-                    }
+                        }
+                    };
+                    builder.ins().store(wasm_memory_flags, value, address, 0);
                 }
 
                 op::MEMORY_SIZE => {
@@ -2433,37 +2372,14 @@ impl CraneliftCompiler {
                     let offset = builder.ins().iconst(types::I64, insn.imm1);
                     let addr = builder.ins().iadd(base_u64, offset);
 
-                    let mem_idx = insn.imm3 & 0x7fff_ffff;
-                    if mem_idx == 0 {
-                        let address = inline_default_memory_address!(builder, addr);
-                        let value = if opc == op::SYNTHETIC_I32_STORELOCAL {
-                            builder.ins().ireduce(types::I32, val)
-                        } else {
-                            val
-                        };
-                        builder.ins().store(wasm_memory_flags, value, address, 0);
+                    let mem_idx = insn.imm3;
+                    let address = inline_memory_address!(builder, mem_idx, addr);
+                    let value = if opc == op::SYNTHETIC_I32_STORELOCAL {
+                        builder.ins().ireduce(types::I32, val)
                     } else {
-                        let mem_idx = builder.ins().iconst(types::I32, i64::from(mem_idx));
-                        let memory_store_helper = if opc == op::SYNTHETIC_I32_STORELOCAL {
-                            h_mem_store32
-                        } else {
-                            h_mem_store64
-                        };
-                        let interp = builder.use_var(interp_var);
-                        let _uv_config_var = builder.use_var(config_var);
-                        let _ic_0 = builder.ins().func_addr(ptr_type, memory_store_helper);
-                        let call = builder.ins().call_indirect(
-                            mem_store_sig,
-                            _ic_0,
-                            &[interp, _uv_config_var, mem_idx, addr, val],
-                        );
-                        let trapped = builder.inst_results(call)[0];
-                        let is_trap = builder.ins().icmp_imm(IntCC::NotEqual, trapped, 0);
-                        let cont = builder.create_block();
-                        builder.ins().brif(is_trap, trap_block, &[], cont, &[]);
-                        builder.switch_to_block(cont);
-                        builder.seal_block(cont);
-                    }
+                        val
+                    };
+                    builder.ins().store(wasm_memory_flags, value, address, 0);
                 }
 
                 op::SYNTHETIC_TIER_UP => {

@@ -49,8 +49,7 @@ public:
 
         auto& frame = m_frame_stack.last();
         m_locals_base = locals_ptr;
-        auto const& memories = frame.module().memories();
-        m_default_memory = memories.is_empty() ? nullptr : m_store.unsafe_get(memories[0]);
+        m_memory_instances = frame.module().resolved_memories(m_store);
         frame.set_compiled_fn_table(&frame.module().compiled_fn_table(m_store));
 
         auto continuation = frame.expression().instructions().size() - 1;
@@ -89,8 +88,7 @@ public:
         m_frame_stack.last().set_compiled_fn_table(table);
         m_locals_base = locals_ptr;
         if (!same_module) {
-            auto const& memories = module.memories();
-            m_default_memory = memories.is_empty() ? nullptr : m_store.unsafe_get(memories[0]);
+            m_memory_instances = module.resolved_memories(m_store);
         }
         // Compiled code pushes to the value stack without bounds checks, so verify here that the
         // frame's whole stack usage fits the reservation.
@@ -115,7 +113,7 @@ public:
     ALWAYS_INLINE auto& label_stack() { return m_label_stack; }
     ALWAYS_INLINE auto& store() const { return m_store; }
     ALWAYS_INLINE auto& store() { return m_store; }
-    ALWAYS_INLINE MemoryInstance* default_memory() const { return m_default_memory; }
+    ALWAYS_INLINE MemoryInstance* memory_instance(size_t index) const { return m_memory_instances[index]; }
     ALWAYS_INLINE Value& compiled_call_result_scratch() { return m_compiled_call_result_scratch; }
     ALWAYS_INLINE Value const& compiled_call_result_scratch() const { return m_compiled_call_result_scratch; }
 
@@ -125,7 +123,7 @@ public:
     ALWAYS_INLINE void set_locals_base(Value* base) { m_locals_base = base; }
 
     static constexpr size_t locals_base_offset() { return __builtin_offsetof(Configuration, m_locals_base); }
-    static constexpr size_t default_memory_offset() { return __builtin_offsetof(Configuration, m_default_memory); }
+    static constexpr size_t memory_instances_offset() { return __builtin_offsetof(Configuration, m_memory_instances); }
     static constexpr size_t compiled_call_result_scratch_offset() { return __builtin_offsetof(Configuration, m_compiled_call_result_scratch); }
     static constexpr size_t value_stack_base_offset() { return __builtin_offsetof(Configuration, m_value_stack) + ValueStack::base_offset(); }
     static constexpr size_t value_stack_top_offset() { return __builtin_offsetof(Configuration, m_value_stack) + ValueStack::top_offset(); }
@@ -315,7 +313,7 @@ public:
     bool m_should_limit_instruction_count { false };
     Value* m_locals_base { nullptr };
     Value* m_call_record_base { nullptr };
-    MemoryInstance* m_default_memory { nullptr };
+    MemoryInstanceTable m_memory_instances { nullptr };
     Value m_compiled_call_result_scratch;
 };
 

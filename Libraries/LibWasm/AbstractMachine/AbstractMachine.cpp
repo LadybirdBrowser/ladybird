@@ -481,6 +481,18 @@ bool MemoryInstance::grow(size_t size_to_grow, GrowType grow_type, InhibitGrowCa
     return true;
 }
 
+MemoryInstanceTable ModuleInstance::resolved_memories(Store& store) const
+{
+    if (m_resolved_memories_built)
+        return m_resolved_memories.data();
+
+    m_resolved_memories.ensure_capacity(m_memories.size());
+    for (auto address : m_memories)
+        m_resolved_memories.unchecked_append(store.unsafe_get(address));
+    m_resolved_memories_built = true;
+    return m_resolved_memories.data();
+}
+
 Vector<CompiledFunctionEntry> const& ModuleInstance::compiled_fn_table(Store& store) const
 {
     if (m_compiled_fn_table_built)
