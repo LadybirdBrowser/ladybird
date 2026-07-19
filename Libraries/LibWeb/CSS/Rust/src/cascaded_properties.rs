@@ -18,8 +18,10 @@ use std::ffi::c_void;
 
 use crate::abort_on_panic;
 use crate::property_metadata::LAST_LONGHAND_PROPERTY_ID;
+use crate::style_compute::expand_shorthands_with;
 use crate::style_value::RetainedStyleValue;
 use crate::style_value::RetainedUtf16FlyString;
+use crate::style_value::StyleValueData;
 
 /// Mirrors the C++ `enum class CascadeOrigin : u8`; the C++ side static_asserts
 /// that every discriminant matches.
@@ -378,4 +380,183 @@ pub unsafe extern "C" fn rust_cascaded_properties_source_slot(
         Some(entry) => entry.source_slot as i64,
         None => -1,
     })
+}
+
+/// A declared property crossing into `rust_cascaded_properties_apply_property_list`: the
+/// property identifier, its importance, and the borrowed value shell with its Rust-owned data.
+#[repr(C)]
+pub struct FfiCascadeDeclaration {
+    pub property_id: u16,
+    pub important: bool,
+    pub shell: *const c_void,
+    pub data: *const c_void,
+}
+
+/// Shell-level callbacks for applying a declaration list to the cascade. Values cross as
+/// opaque C++ style value shells; the C++ side pins every value it creates until the
+/// application returns.
+#[repr(C)]
+pub struct FfiCascadeApplicationCallbacks {
+    pub context: *mut c_void,
+    /// Whether the property may not be applied to the current element or pseudo-element.
+    pub is_property_disallowed: unsafe extern "C" fn(context: *mut c_void, property_id: u16) -> bool,
+    /// Resolves an unresolved (arbitrary-substitution) value; returns the pinned resolved shell.
+    pub resolve_unresolved:
+        unsafe extern "C" fn(context: *mut c_void, property_id: u16, shell: *const c_void) -> *const c_void,
+    /// Returns the Rust-owned data of a C++ style value shell.
+    pub data_of: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
+    /// Creates and pins a pending-substitution value wrapping the given value; returns its shell.
+    pub create_pending_substitution: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
+    /// Records the current declaration source pair at the given store slot.
+    pub assign_source_slot: unsafe extern "C" fn(context: *mut c_void, slot: u32),
+}
+
+/// Applies a declaration list to the cascade: filters by importance and applicability,
+/// resolves arbitrary-substitution values through the parser callback, downgrades
+/// invalid-at-computed-value-time declarations to unset, expands shorthands, and routes
+/// each longhand to the store as a set, revert, or revert-layer.
+///
+/// # Safety
+/// `store` must be a valid store, `declarations` must point to `declaration_count` valid
+/// entries, `callbacks` must be a valid callback table, `unset_shell`/`unset_data` must be
+/// a pinned unset keyword value, and `layer_name_raw` (borrowed) must be live for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_cascaded_properties_apply_property_list(
+    store: *mut CascadedPropertyStore,
+    declarations: *const FfiCascadeDeclaration,
+    declaration_count: usize,
+    important: bool,
+    origin: CascadeOrigin,
+    has_layer_name: bool,
+    layer_name_raw: usize,
+    source_shadow_root_identity: usize,
+    unset_shell: *const c_void,
+    unset_data: *const c_void,
+    callbacks: *const FfiCascadeApplicationCallbacks,
+) {
+    abort_on_panic(|| {
+        let store = unsafe { &mut *store };
+        let callbacks = unsafe { &*callbacks };
+        let context = callbacks.context;
+        let declarations = if declaration_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(declarations, declaration_count) }
+        };
+
+        let mut seen = [0u64; CONTAINED_BITMAP_WORDS];
+
+        for declaration in declarations {
+            if declaration.important != important {
+                continue;
+            }
+
+            let declared_value = unsafe { &*(declaration.data as *const StyleValueData) };
+            let declared_is_unresolved = matches!(declared_value, StyleValueData::Unresolved { .. });
+
+            if unsafe { (callbacks.is_property_disallowed)(context, declaration.property_id) }
+                && !declared_is_unresolved
+            {
+                continue;
+            }
+
+            if matches!(declared_value, StyleValueData::PendingSubstitution { .. }) {
+                continue;
+            }
+
+            let mut shell = declaration.shell;
+            let mut data = declaration.data;
+
+            if declared_is_unresolved {
+                shell = unsafe { (callbacks.resolve_unresolved)(context, declaration.property_id, shell) };
+                data = unsafe { (callbacks.data_of)(context, shell) };
+            }
+
+            if matches!(
+                unsafe { &*(data as *const StyleValueData) },
+                StyleValueData::GuaranteedInvalid
+            ) {
+                // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
+                // When substitution results in a property's value containing the guaranteed-invalid value, this makes the
+                // declaration invalid at computed-value time. When this happens, the computed value is one of the
+                // following depending on the property's type:
+
+                // -> The property is a non-registered custom property
+                // -> The property is a registered custom property with universal syntax
+                // FIXME: Process custom properties here?
+                // The computed value is the guaranteed-invalid value.
+
+                // -> Otherwise
+                // Either the property's inherited value or its initial value depending on whether the property is
+                // inherited or not, respectively, as if the property's value had been specified as the unset keyword.
+                shell = unset_shell;
+                data = unset_data;
+            }
+
+            let value_is_pending_substitution = matches!(
+                unsafe { &*(data as *const StyleValueData) },
+                StyleValueData::PendingSubstitution { .. }
+            );
+
+            expand_shorthands_with(
+                &|shell| unsafe { (callbacks.data_of)(context, shell) },
+                &|shell| unsafe { (callbacks.create_pending_substitution)(context, shell) },
+                declaration.property_id,
+                shell,
+                data,
+                &mut |longhand_id, longhand_shell, longhand_data| {
+                    if unsafe { (callbacks.is_property_disallowed)(context, longhand_id) } {
+                        return;
+                    }
+
+                    // If we're a PSV that's already been seen, that should mean that our shorthand already got
+                    // resolved and gave us a value, so we don't want to overwrite it with a PSV.
+                    let seen_index = longhand_id as usize;
+                    debug_assert!(seen_index <= LAST_LONGHAND_PROPERTY_ID as usize);
+                    if seen[seen_index / 64] & (1 << (seen_index % 64)) != 0 && value_is_pending_substitution {
+                        return;
+                    }
+                    seen[seen_index / 64] |= 1 << (seen_index % 64);
+
+                    let longhand_value = unsafe { &*(longhand_data as *const StyleValueData) };
+                    let longhand_keyword = match longhand_value {
+                        StyleValueData::Keyword { keyword } => Some(*keyword),
+                        _ => None,
+                    };
+                    if longhand_keyword == Some(crate::style_compute::keyword::REVERT) {
+                        store.revert_property(longhand_id, important, origin);
+                    } else if longhand_keyword == Some(crate::style_compute::keyword::REVERT_LAYER) {
+                        store.revert_layer_property(
+                            longhand_id,
+                            important,
+                            origin,
+                            has_layer_name,
+                            layer_name_raw,
+                            source_shadow_root_identity,
+                        );
+                    } else {
+                        // Track the exact shadow-root scope that supplied this winning declaration. A constructable
+                        // stylesheet can be adopted into multiple scopes at once, so the declaration object alone is
+                        // not specific enough.
+                        let retained_value = unsafe { RetainedStyleValue::from_borrowed_shell_pointer(longhand_shell) };
+                        let layer_name = LayerName(
+                            has_layer_name
+                                .then(|| unsafe { RetainedUtf16FlyString::from_borrowed_raw(layer_name_raw) }),
+                        );
+                        let slot = store.set_property(
+                            longhand_id,
+                            retained_value,
+                            important,
+                            origin,
+                            layer_name,
+                            source_shadow_root_identity,
+                        );
+                        if slot >= 0 {
+                            unsafe { (callbacks.assign_source_slot)(context, slot as u32) };
+                        }
+                    }
+                },
+            );
+        }
+    });
 }

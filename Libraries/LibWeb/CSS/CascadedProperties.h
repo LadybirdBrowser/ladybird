@@ -42,6 +42,11 @@ public:
     void revert_property(PropertyID, Important, CascadeOrigin);
     void revert_layer_property(PropertyID, Important, CascadeOrigin, Optional<Utf16FlyString> layer_name, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
 
+    // For the Rust-driven cascade application: the underlying store, and assignment of the
+    // GC-weak declaration source pair for a slot the store handed out.
+    ComputedValuesFFI::CascadedPropertyStore* rust_store() { return m_store; }
+    void assign_source_slot(u32 slot, GC::Ptr<CSS::CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
+
 private:
     CascadedProperties();
 

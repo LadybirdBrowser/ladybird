@@ -1097,7 +1097,7 @@ pub struct FfiShorthandExpansionCallbacks {
     pub set_longhand_property: unsafe extern "C" fn(context: *mut c_void, property_id: u16, shell: *const c_void),
 }
 
-fn value_is_css_wide_keyword(value: &StyleValueData) -> bool {
+pub(crate) fn value_is_css_wide_keyword(value: &StyleValueData) -> bool {
     match value {
         StyleValueData::Keyword { keyword } => matches!(
             *keyword,
@@ -1107,13 +1107,21 @@ fn value_is_css_wide_keyword(value: &StyleValueData) -> bool {
     }
 }
 
-fn expand_shorthands(
-    callbacks: &FfiShorthandExpansionCallbacks,
+/// The expansion recursion over `(shell, data)` value pairs. `data_of` returns the Rust-owned
+/// data of a shell, `create_pending_substitution` wraps a shell in a pinned
+/// pending-substitution value, and `sink` receives each `(longhand id, shell, data)` result.
+pub(crate) fn expand_shorthands_with<DataOf, CreatePendingSubstitution, Sink>(
+    data_of: &DataOf,
+    create_pending_substitution: &CreatePendingSubstitution,
     property_id: u16,
     shell: *const c_void,
     data: *const c_void,
-) {
-    let context = callbacks.context;
+    sink: &mut Sink,
+) where
+    DataOf: Fn(*const c_void) -> *const c_void,
+    CreatePendingSubstitution: Fn(*const c_void) -> *const c_void,
+    Sink: FnMut(u16, *const c_void, *const c_void),
+{
     let value = unsafe { &*(data as *const StyleValueData) };
     let is_shorthand = property_is_shorthand(property_id);
 
@@ -1130,11 +1138,18 @@ fn expand_shorthands(
         // determined until after substituted.
         // https://drafts.csswg.org/css-values-5/#pending-substitution-value
         // Ensure we keep the longhand around until it can be resolved.
-        unsafe { (callbacks.set_longhand_property)(context, property_id, shell) };
-        let pending = unsafe { (callbacks.create_pending_substitution)(context, shell) };
-        let pending_data = unsafe { (callbacks.data_of)(context, pending) };
+        sink(property_id, shell, data);
+        let pending = create_pending_substitution(shell);
+        let pending_data = data_of(pending);
         for &longhand in longhands_for_shorthand(property_id) {
-            expand_shorthands(callbacks, longhand, pending, pending_data);
+            expand_shorthands_with(
+                data_of,
+                create_pending_substitution,
+                longhand,
+                pending,
+                pending_data,
+                sink,
+            );
         }
         return;
     }
@@ -1145,8 +1160,15 @@ fn expand_shorthands(
     {
         for (&sub_property, sub_value) in sub_properties.as_slice().iter().zip(values.as_slice()) {
             let sub_shell = sub_value.shell_pointer();
-            let sub_data = unsafe { (callbacks.data_of)(context, sub_shell) };
-            expand_shorthands(callbacks, sub_property, sub_shell, sub_data);
+            let sub_data = data_of(sub_shell);
+            expand_shorthands_with(
+                data_of,
+                create_pending_substitution,
+                sub_property,
+                sub_shell,
+                sub_data,
+                sink,
+            );
         }
         return;
     }
@@ -1158,12 +1180,31 @@ fn expand_shorthands(
         // because the longhands might have longhands of their own.
         assert!(value_is_css_wide_keyword(value) || matches!(value, StyleValueData::GuaranteedInvalid));
         for &longhand in longhands_for_shorthand(property_id) {
-            expand_shorthands(callbacks, longhand, shell, data);
+            expand_shorthands_with(data_of, create_pending_substitution, longhand, shell, data, sink);
         }
         return;
     }
 
-    unsafe { (callbacks.set_longhand_property)(context, property_id, shell) };
+    sink(property_id, shell, data);
+}
+
+fn expand_shorthands(
+    callbacks: &FfiShorthandExpansionCallbacks,
+    property_id: u16,
+    shell: *const c_void,
+    data: *const c_void,
+) {
+    let context = callbacks.context;
+    expand_shorthands_with(
+        &|shell| unsafe { (callbacks.data_of)(context, shell) },
+        &|shell| unsafe { (callbacks.create_pending_substitution)(context, shell) },
+        property_id,
+        shell,
+        data,
+        &mut |longhand_id, longhand_shell, _longhand_data| unsafe {
+            (callbacks.set_longhand_property)(context, longhand_id, longhand_shell);
+        },
+    );
 }
 
 /// Expands a declared property into longhand assignments, recursing through
@@ -1211,7 +1252,11 @@ mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_style_value_unref(_style_value: *const c_void) {}
     #[unsafe(no_mangle)]
+    extern "C" fn ladybird_style_value_ref(_style_value: *const c_void) {}
+    #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_utf16_fly_string_ref(_raw: usize) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]

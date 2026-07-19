@@ -77,7 +77,12 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<Styl
     if (slot < 0)
         return;
 
-    if (static_cast<size_t>(slot) >= m_source_slots.size())
+    assign_source_slot(slot, source, source_shadow_root);
+}
+
+void CascadedProperties::assign_source_slot(u32 slot, GC::Ptr<CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root)
+{
+    if (slot >= m_source_slots.size())
         m_source_slots.resize(slot + 1);
     m_source_slots[slot] = SourcePair { source.ptr(), source_shadow_root.ptr() };
 }

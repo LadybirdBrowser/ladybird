@@ -898,64 +898,86 @@ void StyleComputer::apply_property_list_to_cascade(
     GC::Ptr<DOM::ShadowRoot const> source_shadow_root,
     BypassPseudoElementPropertyWhitelist bypass_pseudo_element_property_whitelist) const
 {
-    AK::FixedBitmap<to_underlying(last_property_id) + 1> seen_properties(false);
+    // The application loop lives in the Rust style computation core; this wrapper marshals
+    // the declaration list and provides the shell-level callbacks, pinning every value it
+    // creates until the application returns.
+    struct CascadeApplicationContext {
+        CascadedProperties& cascaded_properties;
+        DOM::AbstractElement& abstract_element;
+        GC::Ptr<CSSStyleDeclaration const> source;
+        GC::Ptr<DOM::ShadowRoot const> source_shadow_root;
+        BypassPseudoElementPropertyWhitelist bypass_pseudo_element_property_whitelist;
+        Vector<NonnullRefPtr<StyleValue const>> pinned_values;
+    } application_context {
+        .cascaded_properties = cascaded_properties,
+        .abstract_element = abstract_element,
+        .source = source,
+        .source_shadow_root = source_shadow_root,
+        .bypass_pseudo_element_property_whitelist = bypass_pseudo_element_property_whitelist,
+        .pinned_values = {},
+    };
+
+    Vector<ComputedValuesFFI::FfiCascadeDeclaration> declarations;
+    declarations.ensure_capacity(properties.size());
     for (auto const& property : properties) {
-        if (important != property.important)
-            continue;
-
-        if (property_is_disallowed_in_cascade(property.property_id, abstract_element, bypass_pseudo_element_property_whitelist) && !property.value->is_unresolved())
-            continue;
-
-        auto property_value = property.value;
-
-        if (property_value->is_pending_substitution())
-            continue;
-
-        if (property_value->is_unresolved())
-            property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, {}, PropertyNameAndID::from_id(property.property_id), property_value->as_unresolved());
-
-        if (property_value->is_guaranteed_invalid()) {
-            // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
-            // When substitution results in a property’s value containing the guaranteed-invalid value, this makes the
-            // declaration invalid at computed-value time. When this happens, the computed value is one of the
-            // following depending on the property’s type:
-
-            // -> The property is a non-registered custom property
-            // -> The property is a registered custom property with universal syntax
-            // FIXME: Process custom properties here?
-            if (false) {
-                // The computed value is the guaranteed-invalid value.
-            }
-            // -> Otherwise
-            else {
-                // Either the property’s inherited value or its initial value depending on whether the property is
-                // inherited or not, respectively, as if the property’s value had been specified as the unset keyword.
-                property_value = KeywordStyleValue::create(Keyword::Unset);
-            }
-        }
-
-        for_each_property_expanding_shorthands(property.property_id, property_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
-            if (property_is_disallowed_in_cascade(longhand_id, abstract_element, bypass_pseudo_element_property_whitelist))
-                return;
-
-            // If we're a PSV that's already been seen, that should mean that our shorthand already got
-            // resolved and gave us a value, so we don't want to overwrite it with a PSV.
-            if (seen_properties.get(to_underlying(longhand_id)) && property_value->is_pending_substitution())
-                return;
-            seen_properties.set(to_underlying(longhand_id), true);
-
-            if (longhand_value.is_revert()) {
-                cascaded_properties.revert_property(longhand_id, important, cascade_origin);
-            } else if (longhand_value.is_revert_layer()) {
-                cascaded_properties.revert_layer_property(longhand_id, important, cascade_origin, layer_name, source_shadow_root);
-            } else {
-                // Track the exact shadow-root scope that supplied this winning declaration. A constructable
-                // stylesheet can be adopted into multiple scopes at once, so the declaration object alone is
-                // not specific enough.
-                cascaded_properties.set_property(longhand_id, longhand_value, important, cascade_origin, layer_name, source, source_shadow_root);
-            }
+        declarations.unchecked_append({
+            .property_id = to_underlying(property.property_id),
+            .important = property.important == Important::Yes,
+            .shell = property.value.ptr(),
+            .data = property.value->rust_style_value_data(),
         });
     }
+
+    auto unset_value = KeywordStyleValue::create(Keyword::Unset);
+
+    ComputedValuesFFI::FfiCascadeApplicationCallbacks const callbacks {
+        .context = &application_context,
+        .is_property_disallowed = [](void* context, u16 property_id) -> bool {
+            auto& application_context = *static_cast<CascadeApplicationContext*>(context);
+            return property_is_disallowed_in_cascade(static_cast<PropertyID>(property_id), application_context.abstract_element, application_context.bypass_pseudo_element_property_whitelist);
+        },
+        .resolve_unresolved = [](void* context, u16 property_id, void const* shell) -> void const* {
+            auto& application_context = *static_cast<CascadeApplicationContext*>(context);
+            auto resolved = Parser::Parser::resolve_unresolved_style_value(
+                Parser::ParsingParams { application_context.abstract_element.document() },
+                application_context.abstract_element,
+                {},
+                PropertyNameAndID::from_id(static_cast<PropertyID>(property_id)),
+                static_cast<StyleValue const*>(shell)->as_unresolved());
+            auto const* pointer = resolved.ptr();
+            application_context.pinned_values.append(move(resolved));
+            return pointer;
+        },
+        .data_of = [](void*, void const* shell) -> void const* {
+            return static_cast<StyleValue const*>(shell)->rust_style_value_data();
+        },
+        .create_pending_substitution = [](void* context, void const* shell) -> void const* {
+            auto& application_context = *static_cast<CascadeApplicationContext*>(context);
+            auto pending_substitution_value = PendingSubstitutionStyleValue::create(*static_cast<StyleValue const*>(shell));
+            auto const* pointer = pending_substitution_value.ptr();
+            application_context.pinned_values.append(move(pending_substitution_value));
+            return pointer;
+        },
+        .assign_source_slot = [](void* context, u32 slot) {
+            auto& application_context = *static_cast<CascadeApplicationContext*>(context);
+            application_context.cascaded_properties.assign_source_slot(slot, application_context.source, application_context.source_shadow_root); },
+    };
+
+    FlatPtr layer_name_raw = layer_name.has_value() ? layer_name->to_raw_leaked() : 0;
+    ComputedValuesFFI::rust_cascaded_properties_apply_property_list(
+        cascaded_properties.rust_store(),
+        declarations.data(),
+        declarations.size(),
+        important == Important::Yes,
+        static_cast<ComputedValuesFFI::CascadeOrigin>(to_underlying(cascade_origin)),
+        layer_name.has_value(),
+        layer_name_raw,
+        bit_cast<FlatPtr>(source_shadow_root.ptr()),
+        unset_value.ptr(),
+        unset_value->rust_style_value_data(),
+        &callbacks);
+    if (layer_name.has_value())
+        Utf16FlyString::unref_raw(layer_name_raw);
 }
 
 void StyleComputer::cascade_declarations(

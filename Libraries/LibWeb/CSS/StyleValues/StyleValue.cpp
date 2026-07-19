@@ -97,6 +97,8 @@
 
 extern "C" void ladybird_style_value_unref(void const*);
 extern "C" void ladybird_utf16_fly_string_unref(size_t);
+extern "C" void ladybird_style_value_ref(void const*);
+extern "C" void ladybird_utf16_fly_string_ref(size_t);
 extern "C" void ladybird_string_unref(size_t);
 extern "C" void ladybird_calculation_node_unref(void const*);
 
@@ -567,6 +569,18 @@ extern "C" void ladybird_style_value_unref(void const* style_value)
 extern "C" void ladybird_utf16_fly_string_unref(size_t raw)
 {
     Utf16FlyString::unref_raw(raw);
+}
+
+// Called when Rust-owned cascade data retains an additional reference to a C++ style value.
+extern "C" void ladybird_style_value_ref(void const* style_value)
+{
+    static_cast<Web::CSS::StyleValue const*>(style_value)->ref();
+}
+
+// Called when Rust-owned cascade data retains an additional reference to a Utf16FlyString.
+extern "C" void ladybird_utf16_fly_string_ref(size_t raw)
+{
+    (void)Utf16FlyString::from_raw(raw).to_raw_leaked();
 }
 
 // Called when Rust-owned style value data drops a retained String.

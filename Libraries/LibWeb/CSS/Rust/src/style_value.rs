@@ -20,6 +20,8 @@ unsafe extern "C" {
     fn ladybird_utf16_fly_string_unref(raw: usize);
     fn ladybird_string_unref(raw: usize);
     fn ladybird_calculation_node_unref(node: *const c_void);
+    fn ladybird_style_value_ref(style_value: *const c_void);
+    fn ladybird_utf16_fly_string_ref(raw: usize);
 }
 
 /// A strong reference to a C++ StyleValue held from Rust-owned value data.
@@ -42,6 +44,15 @@ impl RetainedStyleValue {
     /// # Safety
     /// `pointer` must be a leaked strong StyleValue reference (or null for an absent value).
     pub(crate) unsafe fn from_shell_pointer(pointer: *const c_void) -> Self {
+        Self { pointer }
+    }
+
+    /// Retains a new strong reference to the C++ StyleValue shell.
+    ///
+    /// # Safety
+    /// `pointer` must point at a live StyleValue shell.
+    pub(crate) unsafe fn from_borrowed_shell_pointer(pointer: *const c_void) -> Self {
+        unsafe { ladybird_style_value_ref(pointer) };
         Self { pointer }
     }
 }
@@ -75,6 +86,15 @@ impl RetainedUtf16FlyString {
     /// # Safety
     /// `raw` must be the raw representation of a fly string whose reference this may own.
     pub(crate) unsafe fn from_raw(raw: usize) -> Self {
+        Self { raw }
+    }
+
+    /// Retains a new reference to the underlying string data.
+    ///
+    /// # Safety
+    /// `raw` must be the raw representation of a live fly string.
+    pub(crate) unsafe fn from_borrowed_raw(raw: usize) -> Self {
+        unsafe { ladybird_utf16_fly_string_ref(raw) };
         Self { raw }
     }
 }
