@@ -128,7 +128,6 @@ public:
     static CSSPixels default_user_font_size();
     static void ensure_style_metadata_tables_installed();
     static CSSPixels absolute_size_mapping(AbsoluteSize, CSSPixels default_font_size);
-    static CSSPixels relative_size_mapping(RelativeSize, CSSPixels inherited_font_size);
     [[nodiscard]] RefPtr<StyleValue const> recascade_font_size_if_needed(DOM::AbstractElement, CascadedProperties&, bool& depends_on_viewport_metrics) const;
 
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }

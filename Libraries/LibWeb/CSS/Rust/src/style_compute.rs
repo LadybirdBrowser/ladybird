@@ -390,6 +390,44 @@ pub unsafe extern "C" fn rust_compute_font_width(absolutized_value: *const c_voi
     })
 }
 
+/// An <absolute-size> keyword refers to an entry in a table of font sizes computed and kept by
+/// the user agent. See 2.5.1 Absolute Size Keyword Mapping Table.
+fn absolute_size_font_mapping(keyword: u16, default_font_size: CssPixels) -> Option<CssPixels> {
+    let entry = |numerator: i64, denominator: i64| {
+        Some(
+            (default_font_size * CssPixels::from_integer(numerator))
+                .div_as_fraction(CssPixels::from_integer(denominator)),
+        )
+    };
+    match keyword {
+        keyword::XX_SMALL => entry(3, 5),
+        keyword::X_SMALL => entry(3, 4),
+        keyword::SMALL => entry(8, 9),
+        keyword::MEDIUM => Some(default_font_size),
+        keyword::LARGE => entry(6, 5),
+        keyword::X_LARGE => entry(3, 2),
+        keyword::XX_LARGE => Some(default_font_size * CssPixels::from_integer(2)),
+        keyword::XXX_LARGE => Some(default_font_size * CssPixels::from_integer(3)),
+        _ => None,
+    }
+}
+
+/// A <relative-size> keyword is interpreted relative to the computed font-size of the parent
+/// element. User agents may use a simple ratio, which should be around 1.2-1.5.
+fn relative_size_font_mapping(keyword: u16, inherited_font_size: CssPixels) -> Option<CssPixels> {
+    let entry = |numerator: i64, denominator: i64| {
+        Some(
+            (inherited_font_size * CssPixels::from_integer(numerator))
+                .div_as_fraction(CssPixels::from_integer(denominator)),
+        )
+    };
+    match keyword {
+        keyword::SMALLER => entry(4, 5),
+        keyword::LARGER => entry(5, 4),
+        _ => None,
+    }
+}
+
 // https://drafts.csswg.org/css-fonts/#font-size-prop
 // an absolute length
 //
@@ -407,24 +445,6 @@ fn compute_font_size(
         unchanged: false,
         value: px,
     };
-    // An <absolute-size> keyword refers to an entry in a table of font sizes computed and kept by
-    // the user agent. See 2.5.1 Absolute Size Keyword Mapping Table.
-    let absolute = |numerator: i64, denominator: i64| {
-        computed(
-            (default_font_size * CssPixels::from_integer(numerator))
-                .div_as_fraction(CssPixels::from_integer(denominator))
-                .to_double(),
-        )
-    };
-    // A <relative-size> keyword is interpreted relative to the computed font-size of the parent
-    // element. User agents may use a simple ratio, which should be around 1.2-1.5.
-    let relative = |numerator: i64, denominator: i64| {
-        computed(
-            (inherited_font_size * CssPixels::from_integer(numerator))
-                .div_as_fraction(CssPixels::from_integer(denominator))
-                .to_double(),
-        )
-    };
     match value {
         // <length-percentage [0,inf]>
         // A length value specifies an absolute font size (independent of the user agent's font
@@ -437,61 +457,59 @@ fn compute_font_size(
         // A percentage value specifies an absolute font size relative to the parent element's
         // computed font-size. Negative percentages are invalid.
         StyleValueData::Percentage { value } => computed(inherited_font_size.to_double() * (value / 100.0)),
-        StyleValueData::Keyword { keyword } => match *keyword {
-            keyword::XX_SMALL => absolute(3, 5),
-            keyword::X_SMALL => absolute(3, 4),
-            keyword::SMALL => absolute(8, 9),
-            keyword::MEDIUM => computed(default_font_size.to_double()),
-            keyword::LARGE => absolute(6, 5),
-            keyword::X_LARGE => absolute(3, 2),
-            keyword::XX_LARGE => computed((default_font_size * CssPixels::from_integer(2)).to_double()),
-            keyword::XXX_LARGE => computed((default_font_size * CssPixels::from_integer(3)).to_double()),
-            keyword::SMALLER => relative(4, 5),
-            keyword::LARGER => relative(5, 4),
-            // math
-            // Special mathematical scaling rules must be applied when determining the computed
-            // value of the font-size property.
-            keyword::MATH => {
-                // https://w3c.github.io/mathml-core/#the-math-script-level-property
-                // If the specified value font-size is math then the computed value of font-size is
-                // obtained by multiplying the inherited value of font-size by a nonzero scale
-                // factor calculated by the following procedure:
-                // 1. Let A be the inherited math-depth value, B the computed math-depth value,
-                //    C be 0.71 and S be 1.0
-                let mut a = inherited_math_depth;
-                let mut b = computed_math_depth;
-                let size_ratio = 0.71f64;
-                let mut scale = 1.0f64;
-                let math_scaling_factor = if a == b {
-                    // 2. If A = B then return S.
-                    scale
-                } else {
-                    // If B < A, swap A and B and set InvertScaleFactor to true.
-                    // Otherwise B > A and set InvertScaleFactor to false.
-                    let invert_scale_factor = if b < a {
-                        std::mem::swap(&mut a, &mut b);
-                        true
-                    } else {
-                        false
-                    };
-                    // 3. Let E be B - A > 0.
-                    let e = f64::from(b - a > 0);
-                    // FIXME: 4. If the inherited first available font has an OpenType MATH table:
-                    //    - If A <= 0 and B >= 2 then multiply S by scriptScriptPercentScaleDown
-                    //      and decrement E by 2.
-                    //    - Otherwise if A = 1 then multiply S by scriptScriptPercentScaleDown /
-                    //      scriptPercentScaleDown and decrement E by 1.
-                    //    - Otherwise if B = 1 then multiply S by scriptPercentScaleDown and
-                    //      decrement E by 1.
-                    // 5. Multiply S by C^E.
-                    scale *= size_ratio.powf(e);
-                    // 6. Return S if InvertScaleFactor is false and 1/S otherwise.
-                    if !invert_scale_factor { scale } else { 1.0 / scale }
-                };
-                computed(inherited_font_size.scaled(math_scaling_factor).to_double())
+        StyleValueData::Keyword { keyword } => {
+            if let Some(px) = absolute_size_font_mapping(*keyword, default_font_size) {
+                return computed(px.to_double());
             }
-            _ => NUMBER_UNHANDLED,
-        },
+            if let Some(px) = relative_size_font_mapping(*keyword, inherited_font_size) {
+                return computed(px.to_double());
+            }
+            match *keyword {
+                // math
+                // Special mathematical scaling rules must be applied when determining the computed
+                // value of the font-size property.
+                keyword::MATH => {
+                    // https://w3c.github.io/mathml-core/#the-math-script-level-property
+                    // If the specified value font-size is math then the computed value of font-size is
+                    // obtained by multiplying the inherited value of font-size by a nonzero scale
+                    // factor calculated by the following procedure:
+                    // 1. Let A be the inherited math-depth value, B the computed math-depth value,
+                    //    C be 0.71 and S be 1.0
+                    let mut a = inherited_math_depth;
+                    let mut b = computed_math_depth;
+                    let size_ratio = 0.71f64;
+                    let mut scale = 1.0f64;
+                    let math_scaling_factor = if a == b {
+                        // 2. If A = B then return S.
+                        scale
+                    } else {
+                        // If B < A, swap A and B and set InvertScaleFactor to true.
+                        // Otherwise B > A and set InvertScaleFactor to false.
+                        let invert_scale_factor = if b < a {
+                            std::mem::swap(&mut a, &mut b);
+                            true
+                        } else {
+                            false
+                        };
+                        // 3. Let E be B - A > 0.
+                        let e = f64::from(b) - f64::from(a);
+                        // FIXME: 4. If the inherited first available font has an OpenType MATH table:
+                        //    - If A <= 0 and B >= 2 then multiply S by scriptScriptPercentScaleDown
+                        //      and decrement E by 2.
+                        //    - Otherwise if A = 1 then multiply S by scriptScriptPercentScaleDown /
+                        //      scriptPercentScaleDown and decrement E by 1.
+                        //    - Otherwise if B = 1 then multiply S by scriptPercentScaleDown and
+                        //      decrement E by 1.
+                        // 5. Multiply S by C^E.
+                        scale *= size_ratio.powf(e);
+                        // 6. Return S if InvertScaleFactor is false and 1/S otherwise.
+                        if !invert_scale_factor { scale } else { 1.0 / scale }
+                    };
+                    computed(inherited_font_size.scaled(math_scaling_factor).to_double())
+                }
+                _ => NUMBER_UNHANDLED,
+            }
+        }
         // AD-HOC: calc values are resolved by the C++ caller.
         _ => NUMBER_UNHANDLED,
     }
@@ -519,6 +537,119 @@ pub unsafe extern "C" fn rust_compute_font_size(
             inherited_math_depth,
             CssPixels::from_raw(default_font_size_raw),
         )
+    })
+}
+
+/// What one step of the monospace font-size time travel decided.
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum FontSizeRecascadeAction {
+    /// Keep the current size and viewport-dependency flag.
+    Unchanged,
+    /// Replace the current size and viewport-dependency flag.
+    Set,
+    /// The value is a calc, which the traversal does not support yet; skip it.
+    CalcSkipped,
+    /// The value is a length the core cannot resolve, either because no
+    /// resolution context was supplied or because the unit is unsupported;
+    /// the caller resolves it.
+    NeedsLengthResolution,
+}
+
+#[repr(C)]
+pub struct FfiFontSizeRecascadeStep {
+    pub action: FontSizeRecascadeAction,
+    pub new_size_raw: i32,
+    pub depends_on_viewport_metrics: bool,
+}
+
+/// One ancestor step of the time-traveling font-size inheritance applied when
+/// the cascade ends up with `font-family: monospace`: interprets the
+/// ancestor's raw cascaded font-size against the running size, with keyword
+/// sizes mapped against the default monospace font size.
+///
+/// `length_resolution_context` may be null; a length value then reports
+/// `NeedsLengthResolution` so the caller can build the context lazily and call
+/// again, since building it involves font work the other value types never
+/// need.
+///
+/// # Safety
+/// `value` must point at a valid StyleValueData, and
+/// `length_resolution_context` must be null or valid.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_recascade_font_size_step(
+    value: *const c_void,
+    current_size_raw: i32,
+    current_depends_on_viewport_metrics: bool,
+    default_size_raw: i32,
+    length_resolution_context: *const FfiLengthResolutionContext,
+) -> FfiFontSizeRecascadeStep {
+    abort_on_panic(|| {
+        let value = unsafe { &*(value as *const StyleValueData) };
+        let current_size = CssPixels::from_raw(current_size_raw);
+        let default_size = CssPixels::from_raw(default_size_raw);
+        let unchanged = FfiFontSizeRecascadeStep {
+            action: FontSizeRecascadeAction::Unchanged,
+            new_size_raw: current_size_raw,
+            depends_on_viewport_metrics: current_depends_on_viewport_metrics,
+        };
+        let set = |size: CssPixels, depends_on_viewport_metrics: bool| FfiFontSizeRecascadeStep {
+            action: FontSizeRecascadeAction::Set,
+            new_size_raw: size.raw_value(),
+            depends_on_viewport_metrics,
+        };
+        let needs_length_resolution = FfiFontSizeRecascadeStep {
+            action: FontSizeRecascadeAction::NeedsLengthResolution,
+            new_size_raw: current_size_raw,
+            depends_on_viewport_metrics: current_depends_on_viewport_metrics,
+        };
+
+        match value {
+            StyleValueData::Keyword { keyword } => {
+                if *keyword == keyword::INITIAL || *keyword == keyword::UNSET {
+                    return set(default_size, false);
+                }
+                if *keyword == keyword::INHERIT {
+                    // Do nothing.
+                    return unchanged;
+                }
+                if let Some(px) = absolute_size_font_mapping(*keyword, default_size) {
+                    return set(px, false);
+                }
+                if let Some(px) = relative_size_font_mapping(*keyword, current_size) {
+                    return set(px, current_depends_on_viewport_metrics);
+                }
+                // FIXME: Resolve `font-size: math`
+                if *keyword == keyword::MATH {
+                    return unchanged;
+                }
+                // Unknown keywords fall through to the caller, which rejects them.
+                needs_length_resolution
+            }
+            StyleValueData::Percentage { value } => set(
+                CssPixels::nearest_value_for(value / 100.0 * current_size.to_double()),
+                current_depends_on_viewport_metrics,
+            ),
+            StyleValueData::Length { value, unit } => {
+                if length_resolution_context.is_null() {
+                    return needs_length_resolution;
+                }
+                let result = absolutize_length(*value, *unit as usize, unsafe { &*length_resolution_context });
+                if !result.handled {
+                    return needs_length_resolution;
+                }
+                set(
+                    CssPixels::nearest_value_for(result.px),
+                    result.resolved_viewport_relative_length,
+                )
+            }
+            StyleValueData::Calculated { .. } => FfiFontSizeRecascadeStep {
+                action: FontSizeRecascadeAction::CalcSkipped,
+                new_size_raw: current_size_raw,
+                depends_on_viewport_metrics: current_depends_on_viewport_metrics,
+            },
+            _ => needs_length_resolution,
+        }
     })
 }
 
@@ -1781,6 +1912,17 @@ mod tests {
             sixteen,
         );
         assert_eq!(math.value, CssPixels::from_integer(16).scaled(0.71).to_double());
+        let math_two_levels = compute_font_size(
+            &StyleValueData::Keyword { keyword: keyword::MATH },
+            2,
+            sixteen,
+            0,
+            sixteen,
+        );
+        assert_eq!(
+            math_two_levels.value,
+            CssPixels::from_integer(16).scaled(0.71f64.powi(2)).to_double()
+        );
     }
 
     #[test]

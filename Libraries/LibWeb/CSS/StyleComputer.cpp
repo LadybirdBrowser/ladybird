@@ -2526,29 +2526,6 @@ CSSPixels StyleComputer::absolute_size_mapping(AbsoluteSize absolute_size, CSSPi
     VERIFY_NOT_REACHED();
 }
 
-// https://drafts.csswg.org/css-fonts/#font-size-prop
-CSSPixels StyleComputer::relative_size_mapping(RelativeSize relative_size, CSSPixels inherited_font_size)
-{
-    // A <relative-size> keyword is interpreted relative to the computed font-size of the parent element and possibly
-    // the table of font sizes.
-
-    // If the parent element has a keyword font size in the absolute size keyword mapping table, larger may compute the
-    // font size to the next entry in the table, and smaller may compute the font size to the previous entry in the
-    // table. For example, if the parent element has a font size of font-size:medium, specifying a value of larger may
-    // make the font size of the child element font-size:large.
-
-    // Instead of using next and previous items in the previous keyword table, User agents may instead use a simple
-    // ratio to increase or decrease the font size relative to the parent element. The specific ratio is unspecified,
-    // but should be around 1.2–1.5. This ratio may vary across different elements.
-    switch (relative_size) {
-    case RelativeSize::Smaller:
-        return inherited_font_size * CSSPixels(4) / 5;
-    case RelativeSize::Larger:
-        return inherited_font_size * CSSPixels(5) / 4;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 static bool font_size_value_depends_on_inherited_font_size(StyleValue const& value)
 {
     return value.is_percentage()
@@ -3224,65 +3201,67 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
 
         if (!font_size_value)
             continue;
-        if (font_size_value->is_initial() || font_size_value->is_unset()) {
-            current_size_in_px = default_monospace_font_size_in_px;
-            current_size_depends_on_viewport_metrics = false;
-            continue;
-        }
-        if (font_size_value->is_inherit()) {
-            // Do nothing.
-            continue;
+
+        // The per-value step lives in the Rust style computation core. A length value needs a
+        // resolution context, which is built lazily on request since it involves font work the
+        // other value types never need.
+        auto step = ComputedValuesFFI::rust_recascade_font_size_step(
+            font_size_value->rust_style_value_data(),
+            current_size_in_px.raw_value(),
+            current_size_depends_on_viewport_metrics,
+            default_monospace_font_size_in_px.raw_value(),
+            nullptr);
+
+        if (step.action == ComputedValuesFFI::FontSizeRecascadeAction::NeedsLengthResolution) {
+            bool inherited_font_metrics_depend_on_viewport_metrics = false;
+            auto inherited_line_height = ancestor.element_to_inherit_style_from()
+                                             .map([&](auto&& parent_element) {
+                                                 inherited_font_metrics_depend_on_viewport_metrics = parent_element.computed_values()->font_metrics_depend_on_viewport_metrics();
+                                                 return parent_element.computed_values()->line_height();
+                                             })
+                                             .value_or(InitialValues::line_height());
+
+            bool did_resolve_viewport_relative_length = false;
+            Length::ResolutionContext resolution_context {
+                .viewport_rect = viewport_rect(),
+                .font_metrics = { current_size_in_px, monospace_font.with_size(current_size_in_px * 0.75f)->pixel_metrics(), inherited_line_height },
+                .root_font_metrics = m_root_element_font_metrics,
+                .font_metrics_depend_on_viewport_metrics = current_size_depends_on_viewport_metrics || inherited_font_metrics_depend_on_viewport_metrics,
+                .root_font_metrics_depend_on_viewport_metrics = m_root_element_font_metrics_depend_on_viewport_metrics,
+                .subject_inline_axis_is_horizontal = ancestor.computed_values()->writing_mode() == WritingMode::HorizontalTb,
+                .subject_element = &ancestor.element(),
+            };
+            auto ffi_resolution_context = to_ffi_length_resolution_context(resolution_context);
+            step = ComputedValuesFFI::rust_recascade_font_size_step(
+                font_size_value->rust_style_value_data(),
+                current_size_in_px.raw_value(),
+                current_size_depends_on_viewport_metrics,
+                default_monospace_font_size_in_px.raw_value(),
+                &ffi_resolution_context);
+
+            if (step.action == ComputedValuesFFI::FontSizeRecascadeAction::NeedsLengthResolution) {
+                // A length unit the core cannot resolve; resolve it here instead.
+                VERIFY(font_size_value->is_length());
+                resolution_context.set_did_resolve_viewport_relative_length(did_resolve_viewport_relative_length);
+                current_size_in_px = font_size_value->as_length().length().to_px(resolution_context);
+                current_size_depends_on_viewport_metrics = did_resolve_viewport_relative_length;
+                continue;
+            }
         }
 
-        if (auto absolute_size = keyword_to_absolute_size(font_size_value->to_keyword()); absolute_size.has_value()) {
-            current_size_in_px = absolute_size_mapping(absolute_size.value(), default_monospace_font_size_in_px);
-            current_size_depends_on_viewport_metrics = false;
-            continue;
-        }
-
-        if (auto relative_size = keyword_to_relative_size(font_size_value->to_keyword()); relative_size.has_value()) {
-            current_size_in_px = relative_size_mapping(relative_size.value(), current_size_in_px);
-            continue;
-        }
-
-        // FIXME: Resolve `font-size: math`
-        if (font_size_value->to_keyword() == Keyword::Math) {
-            continue;
-        }
-
-        if (font_size_value->is_percentage()) {
-            current_size_in_px = CSSPixels::nearest_value_for(font_size_value->as_percentage().percentage().as_fraction() * current_size_in_px);
-            continue;
-        }
-
-        if (font_size_value->is_calculated()) {
+        switch (step.action) {
+        case ComputedValuesFFI::FontSizeRecascadeAction::Unchanged:
+            break;
+        case ComputedValuesFFI::FontSizeRecascadeAction::Set:
+            current_size_in_px = CSSPixels::from_raw(step.new_size_raw);
+            current_size_depends_on_viewport_metrics = step.depends_on_viewport_metrics;
+            break;
+        case ComputedValuesFFI::FontSizeRecascadeAction::CalcSkipped:
             dbgln("FIXME: Support calc() when time-traveling for monospace font-size");
-            continue;
+            break;
+        case ComputedValuesFFI::FontSizeRecascadeAction::NeedsLengthResolution:
+            VERIFY_NOT_REACHED();
         }
-
-        VERIFY(font_size_value->is_length());
-
-        bool inherited_font_metrics_depend_on_viewport_metrics = false;
-        auto inherited_line_height = ancestor.element_to_inherit_style_from()
-                                         .map([&](auto&& parent_element) {
-                                             inherited_font_metrics_depend_on_viewport_metrics = parent_element.computed_values()->font_metrics_depend_on_viewport_metrics();
-                                             return parent_element.computed_values()->line_height();
-                                         })
-                                         .value_or(InitialValues::line_height());
-
-        bool did_resolve_viewport_relative_length = false;
-        Length::ResolutionContext resolution_context {
-            .viewport_rect = viewport_rect(),
-            .font_metrics = { current_size_in_px, monospace_font.with_size(current_size_in_px * 0.75f)->pixel_metrics(), inherited_line_height },
-            .root_font_metrics = m_root_element_font_metrics,
-            .font_metrics_depend_on_viewport_metrics = current_size_depends_on_viewport_metrics || inherited_font_metrics_depend_on_viewport_metrics,
-            .root_font_metrics_depend_on_viewport_metrics = m_root_element_font_metrics_depend_on_viewport_metrics,
-            .subject_inline_axis_is_horizontal = ancestor.computed_values()->writing_mode() == WritingMode::HorizontalTb,
-            .subject_element = &ancestor.element(),
-        };
-        resolution_context.set_did_resolve_viewport_relative_length(did_resolve_viewport_relative_length);
-        current_size_in_px = font_size_value->as_length().length().to_px(resolution_context);
-        current_size_depends_on_viewport_metrics = did_resolve_viewport_relative_length;
     };
 
     depends_on_viewport_metrics = current_size_depends_on_viewport_metrics;
