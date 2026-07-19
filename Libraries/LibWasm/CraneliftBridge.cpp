@@ -103,7 +103,7 @@ struct BatchInput {
 // any rebuild that changes those will simply miss the cache rather than try to
 // execute incompatible bytes.
 constexpr u64 cache_blob_magic = 0x4354494A4D534157ULL; // "WASMJITC" little-endian
-constexpr u32 cache_blob_format_version = 11;
+constexpr u32 cache_blob_format_version = 12;
 
 struct CacheBlobHeader {
     u64 magic;
@@ -184,9 +184,9 @@ static u64 compute_layout_hash(RuntimeHelpers const& h)
 // `HelperId` values are assigned in lockstep with the field order of `RuntimeHelpers`,
 // so the helper address for id N is simply the N-th `size_t` field of the struct.
 static_assert(offsetof(RuntimeHelpers, call_function) == 0);
-static_assert(offsetof(RuntimeHelpers, memory_fill) == sizeof(size_t) * 19);
-static_assert(offsetof(RuntimeHelpers, primitive_storage_cage_base) == sizeof(size_t) * 20);
-static_assert(HELPER_COUNT == 21);
+static_assert(offsetof(RuntimeHelpers, memory_fill) == sizeof(size_t) * 13);
+static_assert(offsetof(RuntimeHelpers, primitive_storage_cage_base) == sizeof(size_t) * 14);
+static_assert(HELPER_COUNT == 15);
 
 static bool apply_helper_relocs(u8* code_bytes, size_t code_size, HelperReloc const* relocs, size_t reloc_count, RuntimeHelpers const& helpers)
 {
@@ -555,76 +555,6 @@ i32 wasm_cl_memory_fill(void* interp_ptr, void* config_ptr, u32 mem_idx, i32 off
     return 0;
 }
 
-void wasm_cl_stack_push(void* config_ptr, i64 value);
-void wasm_cl_stack_push(void* config_ptr, i64 value)
-{
-    auto& config = *static_cast<Configuration*>(config_ptr);
-    config.value_stack().append(Value(value));
-}
-
-i64 wasm_cl_stack_pop(void* config_ptr);
-i64 wasm_cl_stack_pop(void* config_ptr)
-{
-    auto& config = *static_cast<Configuration*>(config_ptr);
-    return config.value_stack().unsafe_take_last().to<i64>();
-}
-
-i64 wasm_cl_stack_size(void* config_ptr);
-i64 wasm_cl_stack_size(void* config_ptr)
-{
-    auto& config = *static_cast<Configuration*>(config_ptr);
-    return static_cast<i64>(config.value_stack().size());
-}
-
-void wasm_cl_stack_cleanup(void* config_ptr, i64 initial_size, i32 result_arity);
-void wasm_cl_stack_cleanup(void* config_ptr, i64 initial_size, i32 result_arity)
-{
-    auto& config = *static_cast<Configuration*>(config_ptr);
-    auto& stack = config.value_stack();
-    auto expected = static_cast<size_t>(initial_size) + static_cast<size_t>(result_arity);
-    if (stack.size() == expected)
-        return;
-    if (stack.size() < expected) {
-        // Under-push (e.g. trap path), fill with zeros so the caller has something to pop.
-        while (stack.size() < expected)
-            stack.append(Value(static_cast<i64>(0)));
-        return;
-    }
-
-    // Take results, trim stack, and put them back.
-    Value saved[8];
-    auto n = min(static_cast<size_t>(result_arity), size_t(8));
-    for (size_t i = 0; i < n; i++)
-        saved[i] = stack.unsafe_take_last();
-
-    while (stack.size() > static_cast<size_t>(initial_size))
-        stack.unsafe_take_last();
-
-    for (size_t i = n; i > 0; i--)
-        stack.append(saved[i - 1]);
-}
-
-i64 wasm_cl_callrec_read(void* config_ptr, i32 index);
-i64 wasm_cl_callrec_read(void* config_ptr, i32 index)
-{
-    auto& config = *static_cast<Configuration*>(config_ptr);
-    return config.call_record_entry(index).to<i64>();
-}
-
-void wasm_cl_callrec_write(void* config_ptr, i32 index, i64 value);
-void wasm_cl_callrec_write(void* config_ptr, i32 index, i64 value)
-{
-    auto& config = *static_cast<Configuration*>(config_ptr);
-    if (!config.call_record_base()) [[unlikely]] {
-        // No call record yet, allocate now.
-        auto size = config.frame().expression().compiled_instructions.max_call_rec_size;
-        if (size == 0)
-            size = static_cast<size_t>(index) + 1;
-        config.setup_call_record(size);
-    }
-    config.call_record_entry(index) = Value(value);
-}
-
 i32 wasm_cl_call_with_record(void* interp_ptr, void* config_ptr, i32 func_index);
 i32 wasm_cl_call_with_record(void* interp_ptr, void* config_ptr, i32 func_index)
 {
@@ -756,12 +686,6 @@ static RuntimeHelpers make_runtime_helpers()
         .memory_grow = bit_cast<uintptr_t>(&wasm_cl_memory_grow),
         .read_global = bit_cast<uintptr_t>(&wasm_cl_read_global),
         .write_global = bit_cast<uintptr_t>(&wasm_cl_write_global),
-        .stack_push = bit_cast<uintptr_t>(&wasm_cl_stack_push),
-        .stack_pop = bit_cast<uintptr_t>(&wasm_cl_stack_pop),
-        .stack_size = bit_cast<uintptr_t>(&wasm_cl_stack_size),
-        .stack_cleanup = bit_cast<uintptr_t>(&wasm_cl_stack_cleanup),
-        .callrec_read = bit_cast<uintptr_t>(&wasm_cl_callrec_read),
-        .callrec_write = bit_cast<uintptr_t>(&wasm_cl_callrec_write),
         .call_with_record = bit_cast<uintptr_t>(&wasm_cl_call_with_record),
         .direct_call_0 = bit_cast<uintptr_t>(&wasm_cl_direct_call_0),
         .direct_call_1 = bit_cast<uintptr_t>(&wasm_cl_direct_call_1),
