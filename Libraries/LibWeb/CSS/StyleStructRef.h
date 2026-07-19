@@ -108,8 +108,16 @@ private:
     {
         // NB: Seeded with one permanent reference and intentionally leaked, so
         //     the default payload is never destroyed and default construction
-        //     never allocates.
-        static Payload* payload = new Payload { 1, T {} };
+        //     never allocates. Groups whose initial computed values are not
+        //     value-initialized members provide make_default_payload_value()
+        //     so that the default payload matches what ComputedValues::create()
+        //     produces for a completely unstyled element.
+        static Payload* payload = [] {
+            if constexpr (requires { T::make_default_payload_value(); })
+                return new Payload { 1, T::make_default_payload_value() };
+            else
+                return new Payload { 1, T {} };
+        }();
         return payload;
     }
 

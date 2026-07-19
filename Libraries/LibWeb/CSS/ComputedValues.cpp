@@ -18,6 +18,8 @@
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
+#include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
@@ -40,6 +42,138 @@
 #include <LibWeb/Page/Page.h>
 
 namespace Web::CSS {
+
+// The default group payloads must match what create() produces for a completely
+// unstyled element, or every element clones these groups instead of sharing the
+// leaked default payload. Groups whose initial computed values are not simply
+// value-initialized members build their defaults from the property initial
+// values here, exactly as create() would.
+
+// create() appends the elements of comma-separated lists, so the seeded default
+// must hold the list element, not the list value itself.
+static NonnullRefPtr<StyleValue const> initial_list_element(PropertyID property_id)
+{
+    auto value = property_initial_value(property_id);
+    if (value->is_value_list())
+        return value->as_value_list().values().first();
+    return value;
+}
+
+ComputedValues::AnimationValues ComputedValues::AnimationValues::make_default_payload_value()
+{
+    AnimationValues values;
+    values.animation_timing_function_style_values = { initial_list_element(PropertyID::AnimationTimingFunction) };
+    values.transition_timing_function_style_values = { initial_list_element(PropertyID::TransitionTimingFunction) };
+    return values;
+}
+
+ComputedValues::MaskValues ComputedValues::MaskValues::make_default_payload_value()
+{
+    MaskValues values;
+    VERIFY(values.mask_layers.size() == 1);
+    values.mask_layers[0].image_style_value = initial_list_element(PropertyID::MaskImage);
+    // NB: The computed initial mask-position offsets are percentages, not lengths.
+    values.mask_positions = { Position { .offset_x = Percentage(0), .offset_y = Percentage(0) } };
+    return values;
+}
+
+ComputedValues::InheritedSVGValues ComputedValues::InheritedSVGValues::make_default_payload_value()
+{
+    InheritedSVGValues values;
+    // NB: The initial fill is black, which create() materializes as an SVGPaint.
+    values.fill = SVGPaint { Color::Black };
+    return values;
+}
+
+ComputedValues::GridValues ComputedValues::GridValues::make_default_payload_value()
+{
+    GridValues values;
+    values.grid_auto_columns = property_initial_value(PropertyID::GridAutoColumns)->as_grid_track_size_list().grid_track_size_list();
+    values.grid_auto_rows = property_initial_value(PropertyID::GridAutoRows)->as_grid_track_size_list().grid_track_size_list();
+    values.grid_template_columns = property_initial_value(PropertyID::GridTemplateColumns)->as_grid_track_size_list().grid_track_size_list();
+    values.grid_template_rows = property_initial_value(PropertyID::GridTemplateRows)->as_grid_track_size_list().grid_track_size_list();
+    values.grid_column_start = property_initial_value(PropertyID::GridColumnStart)->as_grid_track_placement().grid_track_placement();
+    values.grid_column_end = property_initial_value(PropertyID::GridColumnEnd)->as_grid_track_placement().grid_track_placement();
+    values.grid_row_start = property_initial_value(PropertyID::GridRowStart)->as_grid_track_placement().grid_track_placement();
+    values.grid_row_end = property_initial_value(PropertyID::GridRowEnd)->as_grid_track_placement().grid_track_placement();
+    return values;
+}
+
+ComputedValues::TransformValues ComputedValues::TransformValues::make_default_payload_value()
+{
+    TransformValues values;
+    // NB: The computed transform-origin z component is a length, not a percentage.
+    values.transform_origin.z = Length::make_px(0);
+    return values;
+}
+
+bool ComputedValues::FontValues::operator==(FontValues const& other) const
+{
+    if (font_list != other.font_list) {
+        if (!font_list || !other.font_list || !font_list->equals(*other.font_list))
+            return false;
+    }
+    if (font_variation_settings.size() != other.font_variation_settings.size())
+        return false;
+    for (auto const& entry : font_variation_settings) {
+        auto it = other.font_variation_settings.find(entry.key);
+        if (it == other.font_variation_settings.end() || it->value != entry.value)
+            return false;
+    }
+    return font_size == other.font_size
+        && font_families == other.font_families
+        && font_weight == other.font_weight
+        && font_width == other.font_width
+        && font_style == other.font_style
+        && font_optical_sizing == other.font_optical_sizing
+        && font_feature_data == other.font_feature_data
+        && font_language_override == other.font_language_override
+        && line_height == other.line_height
+        && font_variant_emoji == other.font_variant_emoji
+        && math_shift == other.math_shift
+        && math_style == other.math_style
+        && math_depth == other.math_depth;
+}
+
+bool ComputedValues::adopt_identical_group_payloads(ComputedValues const& previous) const
+{
+    bool all_shared = true;
+    auto adopt = [&]<typename T>(StyleStructRef<T> const& mine, StyleStructRef<T> const& theirs) {
+        if (mine.ptr_equals(theirs))
+            return;
+        if (mine == theirs) {
+            const_cast<StyleStructRef<T>&>(mine) = theirs;
+            return;
+        }
+        all_shared = false;
+    };
+#define LIBWEB_ADOPT_STYLE_GROUP(path) adopt(path, previous.path);
+    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.table)
+    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.list)
+    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.ui)
+    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.svg)
+    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.text)
+    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.box)
+    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.font)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.animation)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.box)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.surround)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.sizing)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.misc)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.alignment)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.border)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.background)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.transform)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.effects)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.mask_data)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.text_reset)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.content_data)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.anchor)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.grid)
+    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.svg_reset)
+#undef LIBWEB_ADOPT_STYLE_GROUP
+    return all_shared;
+}
 
 NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context)
 {

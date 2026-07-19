@@ -2995,16 +2995,31 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_computed_values(Compute
         .current_color_style_value = &computed_properties.property(PropertyID::Color),
         .calculation_resolution_context = { .length_resolution_context = computation_context.length_resolution_context },
     };
+    // NB: Sharing group payloads with the parent costs almost nothing for groups that already
+    //     share the leaked defaults (a pointer compare each) and lets children reference their
+    //     parent's payloads for everything they inherit unchanged, including values that can
+    //     never match the process-wide defaults, like scope-resolved counter styles.
+    auto adopt_group_payloads_from_parent = [&](ComputedValues const& style) {
+        if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
+            if (auto parent_values = parent->computed_values())
+                style.adopt_identical_group_payloads(*parent_values);
+        }
+    };
+
     auto base_properties = computed_properties.copy_without_animations();
     auto base_values = ComputedValues::create(*base_properties, document(), style_scope, color_resolution_context);
     auto animated_properties = computed_properties.animated_properties_snapshot();
-    if (!animated_properties || animated_properties->is_empty())
+    if (!animated_properties || animated_properties->is_empty()) {
+        adopt_group_payloads_from_parent(*base_values);
         return base_values;
+    }
 
     ComputedValues::Builder builder(*ComputedValues::create(computed_properties, document(), style_scope, move(color_resolution_context)));
     builder->set_base_values(move(base_values));
     builder->set_animated_properties(animated_properties.ptr());
-    return move(builder).build();
+    auto style = move(builder).build();
+    adopt_group_payloads_from_parent(*style);
+    return style;
 }
 
 NonnullRefPtr<ComputedProperties> StyleComputer::reconstruct_computed_properties(ComputedValues const& computed_values) const

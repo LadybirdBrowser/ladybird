@@ -75,7 +75,22 @@ struct AspectRatio {
     bool computed_use_natural_aspect_ratio_if_available;
     Optional<Ratio> computed_ratio;
 
-    bool operator==(AspectRatio const&) const = default;
+    bool operator==(AspectRatio const& other) const
+    {
+        // NB: Ratio's own equality is proportional (1 / 2 equals 0.5 / 1), but these ratios are
+        //     observable through serialization, so compare the components exactly.
+        auto ratios_identical = [](Optional<Ratio> const& a, Optional<Ratio> const& b) {
+            if (a.has_value() != b.has_value())
+                return false;
+            if (!a.has_value())
+                return true;
+            return a->numerator() == b->numerator() && a->denominator() == b->denominator();
+        };
+        return use_natural_aspect_ratio_if_available == other.use_natural_aspect_ratio_if_available
+            && computed_use_natural_aspect_ratio_if_available == other.computed_use_natural_aspect_ratio_if_available
+            && ratios_identical(preferred_ratio, other.preferred_ratio)
+            && ratios_identical(computed_ratio, other.computed_ratio);
+    }
 };
 
 struct AnchorScopeData {
@@ -336,7 +351,7 @@ public:
     static Color caret_color() { return Color::Black; }
     static Clear clear() { return Clear::None; }
     static Clip clip() { return Clip::make_auto(); }
-    static ColorInterpolation color_interpolation() { return ColorInterpolation::Auto; }
+    static ColorInterpolation color_interpolation() { return ColorInterpolation::Srgb; }
     static ColorInterpolation color_interpolation_filters() { return ColorInterpolation::Linearrgb; }
     static PreferredColorScheme color_scheme() { return PreferredColorScheme::Auto; }
     static ContentVisibility content_visibility() { return ContentVisibility::Visible; }
@@ -928,6 +943,13 @@ public:
     };
     static Statistics const& statistics() { return s_statistics; }
 
+    // Shares group payloads with `previous` wherever the values compare equal. This changes no
+    // observable value, only the identity of the backing payloads, so it is safe on an otherwise
+    // immutable ComputedValues. It makes pointer-based diffing hit on the next restyle and lets a
+    // restyled element keep sharing storage across style generations. Returns true when every
+    // group ends up sharing its payload with `previous`.
+    bool adopt_identical_group_payloads(ComputedValues const& previous) const;
+
     // Calls back with (name, shared_with_parent, is_default) for every style value group,
     // for introspecting how well group sharing is working (see internals.styleGroupSharingInfo()).
     template<typename Callback>
@@ -1371,6 +1393,8 @@ private:
         TextAnchor text_anchor { InitialValues::text_anchor() };
         Optional<BaselineMetric> dominant_baseline { InitialValues::dominant_baseline() };
 
+        static InheritedSVGValues make_default_payload_value();
+
         bool operator==(InheritedSVGValues const&) const = default;
     };
 
@@ -1431,6 +1455,8 @@ private:
         MathShift math_shift { InitialValues::math_shift() };
         MathStyle math_style { InitialValues::math_style() };
         int math_depth { InitialValues::math_depth() };
+
+        bool operator==(FontValues const&) const;
     };
 
     struct InheritedValues {
@@ -1470,6 +1496,8 @@ private:
         Vector<Time> transition_delays { Time::make_seconds(0) };
         Vector<TransitionBehavior> transition_behaviors { TransitionBehavior::Normal };
 
+        static AnimationValues make_default_payload_value();
+
         bool operator==(AnimationValues const&) const = default;
     };
 
@@ -1502,6 +1530,8 @@ private:
         GridTrackPlacement grid_row_end { InitialValues::grid_row_end() };
         GridTrackPlacement grid_row_start { InitialValues::grid_row_start() };
         GridTemplateAreas grid_template_areas { InitialValues::grid_template_areas() };
+
+        static GridValues make_default_payload_value();
 
         bool operator==(GridValues const&) const = default;
     };
@@ -1543,6 +1573,8 @@ private:
         Vector<Position> mask_positions { Position { .offset_x = Length::make_px(0), .offset_y = Length::make_px(0) } };
         Optional<ClipPathReference> clip_path;
 
+        static MaskValues make_default_payload_value();
+
         bool operator==(MaskValues const&) const = default;
     };
 
@@ -1578,6 +1610,8 @@ private:
         RefPtr<TransformationStyleValue const> scale;
         Optional<CSSPixels> perspective;
         Position perspective_origin;
+
+        static TransformValues make_default_payload_value();
 
         bool operator==(TransformValues const&) const = default;
     };

@@ -1004,26 +1004,45 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
-    if (!old_computed_values.font_list().equals(new_computed_values.font_list()))
-        invalidation.ensure_at_least(CSS::InvalidationLevel::Relayout);
+    // Shortcut the per-longhand diff below when every style value group payload of the new style
+    // is (or has just been made) shared with the old style: equal group payloads mean equal
+    // computed values for every longhand. Animated values live outside the groups, so the
+    // shortcut only applies when neither side has any.
+    // NB: The adoption also makes an unchanged element keep sharing group storage with its
+    //     previous style generation, which future diffs turn into pure pointer compares.
+    bool const all_group_payloads_shared = new_computed_values.adopt_identical_group_payloads(old_computed_values);
+    bool const property_diff_can_be_skipped = all_group_payloads_shared
+        && !old_computed_values.has_animated_values() && !new_computed_values.has_animated_values()
+        && !old_computed_values.animated_properties() && !new_computed_values.animated_properties();
+    static bool const verify_fast_path = getenv("LIBWEB_VERIFY_STYLE_DIFF_FAST_PATH") != nullptr;
 
-    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
-        auto property_id = static_cast<CSS::PropertyID>(i);
-        auto old_physical_property_id = property_id;
-        auto new_physical_property_id = property_id;
-        if (CSS::property_is_logical_alias(property_id)) {
-            old_physical_property_id = CSS::map_logical_alias_to_physical_property(property_id, CSS::LogicalAliasMappingContext { old_computed_values.writing_mode(), old_computed_values.direction() });
-            new_physical_property_id = CSS::map_logical_alias_to_physical_property(property_id, CSS::LogicalAliasMappingContext { new_computed_values.writing_mode(), new_computed_values.direction() });
+    if (!property_diff_can_be_skipped || verify_fast_path) {
+        if (!old_computed_values.font_list().equals(new_computed_values.font_list()))
+            invalidation.ensure_at_least(CSS::InvalidationLevel::Relayout);
+
+        for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
+            auto property_id = static_cast<CSS::PropertyID>(i);
+            auto old_physical_property_id = property_id;
+            auto new_physical_property_id = property_id;
+            if (CSS::property_is_logical_alias(property_id)) {
+                old_physical_property_id = CSS::map_logical_alias_to_physical_property(property_id, CSS::LogicalAliasMappingContext { old_computed_values.writing_mode(), old_computed_values.direction() });
+                new_physical_property_id = CSS::map_logical_alias_to_physical_property(property_id, CSS::LogicalAliasMappingContext { new_computed_values.writing_mode(), new_computed_values.direction() });
+            }
+
+            auto old_value = old_computed_values.computed_style_value(old_physical_property_id);
+            auto new_value = new_computed_values.computed_style_value(new_physical_property_id);
+
+            if (!style_value_changed(*old_value, *new_value))
+                continue;
+            if (CSS::is_inherited_property(property_id))
+                invalidation.inherited_style_changed = true;
+            invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), new_value.ptr(), &old_computed_values, &new_computed_values);
         }
 
-        auto old_value = old_computed_values.computed_style_value(old_physical_property_id);
-        auto new_value = new_computed_values.computed_style_value(new_physical_property_id);
-
-        if (!style_value_changed(*old_value, *new_value))
-            continue;
-        if (CSS::is_inherited_property(property_id))
-            invalidation.inherited_style_changed = true;
-        invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), new_value.ptr(), &old_computed_values, &new_computed_values);
+        // With the verification mode enabled, the full diff must agree that a skippable style
+        // change produces no invalidation at all.
+        if (verify_fast_path && property_diff_can_be_skipped)
+            VERIFY(invalidation.is_none());
     }
 
     // NB: Even if the computed value hasn't changed the resolved counter style may have (e.g. if the relevant

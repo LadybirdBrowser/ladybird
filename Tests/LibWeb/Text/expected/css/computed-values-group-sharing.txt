@@ -1,15 +1,20 @@
-unstyled child animation at default: false
-unstyled child grid at default: false
+unstyled child animation at default: true
+unstyled child grid at default: true
 unstyled child svgReset at default: true
-unstyled child mask at default: false
+unstyled child mask at default: true
 unstyled child anchor at default: true
 unstyled child content at default: true
-unstyled child transform at default: false
+unstyled child transform at default: true
 unstyled child effects at default: true
 unstyled child inheritedTable at default: true
 unstyled child inheritedList at default: false
-unstyled child inheritedSVG at default: false
+unstyled child inheritedSVG at default: true
 color-styled child inheritedText at default: false
 color-styled child inheritedText shared with parent: false
-color-styled child grid still at default: false
+color-styled child grid still at default: true
 grid-styled child grid at default: false
+unstyled-again child inheritedList shared with parent: true
+unstyled-again child inheritedText shared with parent: true
+unstyled-again child font shared with parent: true
+unstyled-again child inheritedBox shared with parent: true
+unstyled-again child inheritedUI shared with parent: true

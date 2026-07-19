@@ -21,5 +21,11 @@
         internals.updateStyle();
         info = internals.styleGroupSharingInfo(child);
         println(`grid-styled child grid at default: ${info.grid.isDefault}`);
+
+        child.style.color = "";
+        internals.updateStyle();
+        info = internals.styleGroupSharingInfo(child);
+        for (const group of ["inheritedList", "inheritedText", "font", "inheritedBox", "inheritedUI"])
+            println(`unstyled-again child ${group} shared with parent: ${info[group].sharedWithParent}`);
     });
 </script>
