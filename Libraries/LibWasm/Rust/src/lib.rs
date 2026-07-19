@@ -42,17 +42,6 @@ pub struct RuntimeHelpers {
     pub read_global: usize,
     // void fn(config, index, value)
     pub write_global: usize,
-    // void fn(config, value)
-    pub stack_push: usize,
-    // i64 fn(config)
-    pub stack_pop: usize,
-    pub stack_size: usize,
-    // void fn(config, initial_size, result_arity)
-    pub stack_cleanup: usize,
-    // i64 fn(config, index)
-    pub callrec_read: usize,
-    // void fn(config, index, value)
-    pub callrec_write: usize,
     // i32 fn(interp, config, func_index); call using call record args
     pub call_with_record: usize,
     // i32 fn(interp, config, func_index, ...args); direct call via compiled function table
@@ -94,24 +83,18 @@ pub enum HelperId {
     memory_grow = 3,
     read_global = 4,
     write_global = 5,
-    stack_push = 6,
-    stack_pop = 7,
-    stack_size = 8,
-    stack_cleanup = 9,
-    callrec_read = 10,
-    callrec_write = 11,
-    call_with_record = 12,
-    direct_call_0 = 13,
-    direct_call_1 = 14,
-    direct_call_2 = 15,
-    direct_call_3 = 16,
-    call_indirect = 17,
-    memory_copy = 18,
-    memory_fill = 19,
-    primitive_storage_cage_base = 20,
+    call_with_record = 6,
+    direct_call_0 = 7,
+    direct_call_1 = 8,
+    direct_call_2 = 9,
+    direct_call_3 = 10,
+    call_indirect = 11,
+    memory_copy = 12,
+    memory_fill = 13,
+    primitive_storage_cage_base = 14,
 }
 
-pub const HELPER_COUNT: u32 = 21;
+pub const HELPER_COUNT: u32 = 15;
 
 /// One relocation slot in the generated machine code. `code_offset` is the byte offset
 /// from the start of the function where 8 contiguous bytes hold the absolute helper
