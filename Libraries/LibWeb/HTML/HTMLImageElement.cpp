@@ -404,6 +404,9 @@ int HTMLImageElement::x() const
     // associated with the element, relative to the initial containing block origin, ignoring any transforms that apply
     // to the element and its ancestors, or zero if there is no box.
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementX);
+    // Scroll frames are created together with the visual context tree at the lazy resolution point,
+    // so resolve it before reading the enclosing scroll frame below.
+    const_cast<DOM::Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
 
     auto paintable_box = this->paintable_box();
     if (!paintable_box)
@@ -423,6 +426,9 @@ int HTMLImageElement::y() const
     // associated with the element, relative to the initial containing block origin, ignoring any transforms that apply
     // to the element and its ancestors, or zero if there is no box.
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementY);
+    // Scroll frames are created together with the visual context tree at the lazy resolution point,
+    // so resolve it before reading the enclosing scroll frame below.
+    const_cast<DOM::Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
 
     auto paintable_box = this->paintable_box();
     if (!paintable_box)

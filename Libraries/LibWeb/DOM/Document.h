@@ -1349,7 +1349,6 @@ private:
         Yes,
     };
     void after_layout_commit(LayoutTreeChanged);
-    void rebuild_sticky_insets_and_reassign_scroll_frames();
 
     void run_unloading_cleanup_steps();
 

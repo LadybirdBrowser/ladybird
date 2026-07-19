@@ -36,7 +36,7 @@ public:
     ScrollFrame() = default;
     ScrollFrame(Paintable const& paintable_box, bool sticky, ScrollFrameIndex parent_index);
 
-    Paintable const& paintable_box() const;
+    RefPtr<Paintable const> paintable_box_if_alive() const;
 
     bool is_sticky() const { return m_sticky; }
 

@@ -1816,7 +1816,7 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
         m_scrollable_overflow_contained_boxes_from_last_layout = Layout::collect_scrollable_overflow_contained_boxes(*m_layout_root);
     update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::HandledByAfterLayoutCommit);
 
-    rebuild_sticky_insets_and_reassign_scroll_frames();
+    set_needs_accumulated_visual_contexts_update(true);
 
     // Selection state lives on paintable fragments, which the commit has rebuilt.
     if (auto range = get_selection()->range())
@@ -2419,13 +2419,6 @@ static void rebuild_sticky_insets(Layout::Node const& root)
     });
 }
 
-void Document::rebuild_sticky_insets_and_reassign_scroll_frames()
-{
-    rebuild_sticky_insets(*m_layout_root);
-    unsafe_paintable()->reassign_scroll_frames();
-    set_needs_accumulated_visual_contexts_update(true);
-}
-
 void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates derived_structure_updates)
 {
     // For every box that will be re-measured, the overflow data it had before, so the diff below
@@ -2523,11 +2516,13 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         return;
 
     if (any_has_scrollable_overflow_flipped) {
-        rebuild_sticky_insets_and_reassign_scroll_frames();
-    } else {
+        set_needs_accumulated_visual_contexts_update(true);
+    } else if (!m_needs_accumulated_visual_contexts_update) {
         // Sticky insets only depend on scrollport geometry and which ancestor is scrollable, neither of
         // which changes without a flip; the constraints capture the scroll ancestor's scrollable
-        // overflow size though, so they have to be refreshed.
+        // overflow size though, so they have to be refreshed. When a full visual context rebuild is
+        // already pending it recaptures constraints anyway, and skipping the refresh then also avoids
+        // touching scroll frames whose paintables a subtree relayout may have replaced.
         unsafe_paintable()->refresh_sticky_constraints();
     }
     set_needs_to_record_display_list();
@@ -2537,14 +2532,12 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
 void Document::update_paint_and_hit_testing_properties_if_needed()
 {
     // NB: Called during paint property resolution.
-    if (auto paintable = this->unsafe_paintable()) {
-        paintable->refresh_scroll_state();
-    }
-
     if (m_needs_accumulated_visual_contexts_update) {
         m_needs_accumulated_visual_contexts_update = false;
         m_paintable_boxes_needing_visual_context_value_update.clear_with_capacity();
         if (auto paintable = this->unsafe_paintable()) {
+            if (m_layout_root)
+                rebuild_sticky_insets(*m_layout_root);
             paintable->assign_accumulated_visual_contexts();
         }
     } else if (!m_paintable_boxes_needing_visual_context_value_update.is_empty()) {
@@ -2560,6 +2553,11 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
             }
         }
     }
+
+    // Scroll frames are (re)created by the visual context tree build above, so scroll offsets and
+    // the snapshot must be derived only after structure work is done.
+    if (auto paintable = this->unsafe_paintable())
+        paintable->refresh_scroll_state();
 }
 
 void Document::set_normal_link_color(Color color)

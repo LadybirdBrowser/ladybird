@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="scroller" style="width: 100px; height: 100px; overflow: scroll">
+    <div style="width: 500px; height: 500px"></div>
+</div>
+<script>
+    test(() => {
+        const scroller = document.getElementById('scroller');
+
+        scroller.getBoundingClientRect();
+        const initialBuildCount = internals.accumulatedVisualContextTreeBuildCount();
+        const lines = [];
+
+        scroller.scrollTop = 100;
+        scroller.scrollLeft = 50;
+        lines.push(`scrollTop: ${scroller.scrollTop}`);
+        lines.push(`scrollLeft: ${scroller.scrollLeft}`);
+        lines.push(`bounding rect y: ${scroller.getBoundingClientRect().y}`);
+        lines.push(`builds after pure scroll: ${internals.accumulatedVisualContextTreeBuildCount() - initialBuildCount}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

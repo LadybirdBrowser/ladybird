@@ -16,11 +16,9 @@ ScrollFrame::ScrollFrame(Paintable const& paintable_box, bool sticky, ScrollFram
 {
 }
 
-Paintable const& ScrollFrame::paintable_box() const
+RefPtr<Paintable const> ScrollFrame::paintable_box_if_alive() const
 {
-    auto paintable_box = m_paintable_box.strong_ref();
-    VERIFY(paintable_box);
-    return *paintable_box;
+    return m_paintable_box.strong_ref();
 }
 
 }

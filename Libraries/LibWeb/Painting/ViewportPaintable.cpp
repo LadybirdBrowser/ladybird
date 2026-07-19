@@ -172,8 +172,10 @@ void ViewportPaintable::precompute_sticky_constraints(ScrollFrameIndex sticky_fr
     if (!nearest_scrolling_ancestor_index.value())
         return;
 
-    auto const& scroll_ancestor_paintable = m_scroll_state.frame_at(nearest_scrolling_ancestor_index).paintable_box();
-    RefPtr<Paintable const> scroll_ancestor_paintable_ref = scroll_ancestor_paintable;
+    auto scroll_ancestor_paintable_ref = m_scroll_state.frame_at(nearest_scrolling_ancestor_index).paintable_box_if_alive();
+    if (!scroll_ancestor_paintable_ref)
+        return;
+    auto const& scroll_ancestor_paintable = *scroll_ancestor_paintable_ref;
     auto sticky_border_box_rect = paintable_box.absolute_border_box_rect();
     RefPtr<Paintable const> containing_block_of_sticky = paintable_box.containing_block();
 
@@ -200,7 +202,10 @@ void ViewportPaintable::precompute_sticky_constraints(ScrollFrameIndex sticky_fr
 void ViewportPaintable::refresh_sticky_constraints()
 {
     m_scroll_state.for_each_sticky_frame([&](ScrollFrameIndex index, ScrollFrame& frame) {
-        precompute_sticky_constraints(index, frame.paintable_box());
+        // Skip frames whose paintables a subtree relayout has replaced; the pending visual context
+        // tree rebuild recreates those frames before anything reads them.
+        if (auto paintable_box = frame.paintable_box_if_alive())
+            precompute_sticky_constraints(index, *paintable_box);
     });
     m_needs_to_refresh_scroll_state = true;
 }
@@ -266,6 +271,7 @@ void ViewportPaintable::assign_scroll_frames()
 
 void ViewportPaintable::assign_accumulated_visual_contexts()
 {
+    reassign_scroll_frames();
     auto visual_context_tree = build_accumulated_visual_context_tree(*this);
     ++m_accumulated_visual_context_tree_build_count;
     auto is_compatible = m_visual_context_tree.has_value() && visual_context_tree.is_compatible_with(*m_visual_context_tree);
@@ -341,7 +347,10 @@ void ViewportPaintable::refresh_scroll_state()
 
         auto const& sticky_data = frame.sticky_constraints();
         auto const& sticky_insets = sticky_data.insets;
-        auto const& scroll_ancestor_paintable = m_scroll_state.frame_at(nearest_scrolling_ancestor_index).paintable_box();
+        auto scroll_ancestor_paintable_ref = m_scroll_state.frame_at(nearest_scrolling_ancestor_index).paintable_box_if_alive();
+        if (!scroll_ancestor_paintable_ref)
+            return;
+        auto const& scroll_ancestor_paintable = *scroll_ancestor_paintable_ref;
 
         // NB: For nested sticky elements, work in the coordinate space where the sticky ancestors are
         //     at their current positions. The scrolling ancestor's offset is already represented by
@@ -383,7 +392,8 @@ void ViewportPaintable::refresh_scroll_state()
     });
 
     m_scroll_state.for_each_scroll_frame([&](auto, auto& frame) {
-        frame.set_own_offset(-frame.paintable_box().scroll_offset());
+        if (auto paintable_box = frame.paintable_box_if_alive())
+            frame.set_own_offset(-paintable_box->scroll_offset());
     });
 
     m_scroll_state_snapshot = m_scroll_state.snapshot(document().page().client().device_pixels_per_css_pixel());
