@@ -20,6 +20,7 @@ use std::sync::OnceLock;
 
 use crate::abort_on_panic;
 use crate::css_pixels::CssPixels;
+use crate::property_metadata::property_is_inherited;
 use crate::style_value::StyleValueData;
 
 include!(concat!(env!("OUT_DIR"), "/length_units_generated.rs"));
@@ -741,6 +742,90 @@ pub extern "C" fn rust_position_area_short_keyword(keyword: u16) -> u16 {
     }
 }
 
+/// The inherit-or-initial decision for one longhand in the property
+/// computation loop.
+#[repr(C)]
+pub struct FfiLonghandDecision {
+    pub should_inherit: bool,
+    pub explicitly_inherits_non_inherited_property: bool,
+    /// True when, absent a successful inheritance fetch, the value falls back
+    /// to the property's initial value.
+    pub use_initial_without_inherit: bool,
+}
+
+fn longhand_decision(value: Option<&StyleValueData>, property_id: u16) -> FfiLonghandDecision {
+    let keyword = match value {
+        Some(StyleValueData::Keyword { keyword }) => Some(*keyword),
+        _ => None,
+    };
+    let is_inherit = keyword == Some(keyword::INHERIT);
+    let is_unset = keyword == Some(keyword::UNSET);
+    let is_initial = keyword == Some(keyword::INITIAL);
+    let inherited_property = property_is_inherited(property_id);
+
+    let explicitly_inherits_non_inherited_property = is_inherit && !inherited_property;
+    let mut should_inherit = value.is_none() && inherited_property;
+
+    // https://www.w3.org/TR/css-cascade-4/#inherit
+    // If the cascaded value of a property is the inherit keyword, the property's specified and
+    // computed values are the inherited value.
+    should_inherit |= is_inherit;
+
+    // https://www.w3.org/TR/css-cascade-4/#inherit-initial
+    // If the cascaded value of a property is the unset keyword, then if it is an inherited
+    // property, this is treated as inherit, and if it is not, this is treated as initial.
+    should_inherit |= is_unset && inherited_property;
+
+    // https://www.w3.org/TR/css-color-4/#resolving-other-colors
+    // In the color property, the used value of currentcolor is the resolved inherited value.
+    should_inherit |=
+        property_id == crate::property_metadata::property_id::COLOR && keyword == Some(keyword::CURRENTCOLOR);
+
+    FfiLonghandDecision {
+        should_inherit,
+        explicitly_inherits_non_inherited_property,
+        use_initial_without_inherit: value.is_none() || is_initial || is_unset || should_inherit,
+    }
+}
+
+/// Decides how the cascaded value of a longhand resolves against inheritance
+/// and the initial value.
+///
+/// # Safety
+/// `cascaded_value` must be null or point at a valid StyleValueData.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_longhand_decision(
+    cascaded_value: *const c_void,
+    property_id: u16,
+) -> FfiLonghandDecision {
+    abort_on_panic(|| {
+        let value = if cascaded_value.is_null() {
+            None
+        } else {
+            Some(unsafe { &*(cascaded_value as *const StyleValueData) })
+        };
+        longhand_decision(value, property_id)
+    })
+}
+
+/// Drives the property computation loop: iterates every longhand in
+/// computation order and calls back into C++ for the per-property work that
+/// has not moved into the core yet.
+///
+/// # Safety
+/// `process_longhand` must be callable with `context`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_drive_property_computation(
+    context: *mut c_void,
+    process_longhand: unsafe extern "C" fn(context: *mut c_void, property_id: u16),
+) {
+    abort_on_panic(|| {
+        for &property_id in crate::property_metadata::property_computation_order() {
+            unsafe { process_longhand(context, property_id) };
+        }
+    });
+}
+
 /// Computes the font-weight property from its absolutized value.
 ///
 /// # Safety
@@ -1024,6 +1109,44 @@ mod tests {
             .value,
             f64::NEG_INFINITY
         );
+    }
+
+    #[test]
+    fn longhand_decisions() {
+        use crate::property_metadata::{FIRST_INHERITED_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID};
+        let inherited_id = FIRST_INHERITED_PROPERTY_ID;
+        let reset_id = LAST_LONGHAND_PROPERTY_ID;
+
+        // Missing value: inherited properties inherit, reset properties go initial.
+        let missing_inherited = longhand_decision(None, inherited_id);
+        assert!(missing_inherited.should_inherit);
+        let missing_reset = longhand_decision(None, reset_id);
+        assert!(!missing_reset.should_inherit);
+        assert!(missing_reset.use_initial_without_inherit);
+
+        // Explicit inherit on a reset property is flagged.
+        let inherit = StyleValueData::Keyword {
+            keyword: keyword::INHERIT,
+        };
+        let explicit = longhand_decision(Some(&inherit), reset_id);
+        assert!(explicit.should_inherit);
+        assert!(explicit.explicitly_inherits_non_inherited_property);
+
+        // unset: inherit for inherited properties, initial for reset ones.
+        let unset = StyleValueData::Keyword {
+            keyword: keyword::UNSET,
+        };
+        assert!(longhand_decision(Some(&unset), inherited_id).should_inherit);
+        let unset_reset = longhand_decision(Some(&unset), reset_id);
+        assert!(!unset_reset.should_inherit);
+        assert!(unset_reset.use_initial_without_inherit);
+
+        // currentcolor in the color property inherits.
+        let currentcolor = StyleValueData::Keyword {
+            keyword: keyword::CURRENTCOLOR,
+        };
+        assert!(longhand_decision(Some(&currentcolor), crate::property_metadata::property_id::COLOR).should_inherit);
+        assert!(!longhand_decision(Some(&currentcolor), reset_id).should_inherit);
     }
 
     #[test]

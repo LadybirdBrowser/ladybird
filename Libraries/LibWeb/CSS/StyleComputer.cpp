@@ -3372,7 +3372,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         return *logical_alias_mapping_context;
     };
 
-    for (auto property_id : property_computation_order()) {
+    auto process_longhand = [&](PropertyID property_id) {
         RefPtr<StyleValue const> value;
         bool requires_computation;
 
@@ -3417,25 +3417,14 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
 
         // NOTE: We've already handled font-size above.
         if (property_id == PropertyID::FontSize && !value && new_font_size)
-            continue;
+            return;
 
-        bool const explicitly_inherits_non_inherited_property = value && value->is_inherit() && !is_inherited_property(property_id);
-        bool should_inherit = (!value && is_inherited_property(property_id));
-
-        // https://www.w3.org/TR/css-cascade-4/#inherit
-        // If the cascaded value of a property is the inherit keyword, the property’s specified and computed values are the inherited value.
-        should_inherit |= value && value->is_inherit();
-
-        // https://www.w3.org/TR/css-cascade-4/#inherit-initial
-        // If the cascaded value of a property is the unset keyword, then if it is an inherited property, this is treated as inherit, and if it is not, this is treated as initial.
-        should_inherit |= value && value->is_unset() && is_inherited_property(property_id);
-
-        // https://www.w3.org/TR/css-color-4/#resolving-other-colors
-        // In the color property, the used value of currentcolor is the resolved inherited value.
-        should_inherit |= property_id == PropertyID::Color && value && value->to_keyword() == Keyword::Currentcolor;
+        // The inherit-or-initial decision rules live in the Rust style computation core.
+        auto decision = ComputedValuesFFI::rust_compute_longhand_decision(value ? value->rust_style_value_data() : nullptr, to_underlying(property_id));
+        bool const should_inherit = decision.should_inherit;
 
         if (should_inherit && computed_values_to_inherit_from) {
-            if (explicitly_inherits_non_inherited_property) {
+            if (decision.explicitly_inherits_non_inherited_property) {
                 if (auto* parent = abstract_element.element().parent(); parent && is<DOM::ShadowRoot>(*parent))
                     parent->set_children_may_depend_on_non_inherited_property_inheritance();
             }
@@ -3489,7 +3478,14 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
                 builder.set_font_metrics_depend_on_viewport_metrics();
         }
         builder.set_property_without_modifying_flags(property_id, move(computed_value));
-    }
+    };
+
+    // The property computation loop is driven from the Rust style computation core in
+    // computation order; the callback performs the per-property work that has not moved
+    // into the core yet.
+    ComputedValuesFFI::rust_drive_property_computation(&process_longhand, [](void* context, u16 raw_property_id) {
+        (*static_cast<decltype(process_longhand)*>(context))(static_cast<PropertyID>(raw_property_id));
+    });
 
     if (is<HTML::HTMLHtmlElement>(abstract_element.element())) {
         m_root_element_font_metrics = calculate_root_element_font_metrics(computed_style);
