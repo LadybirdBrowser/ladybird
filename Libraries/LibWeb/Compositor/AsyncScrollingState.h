@@ -18,13 +18,13 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/ScrollFrame.h>
+#include <LibWeb/Painting/ScrollNodeState.h>
 
 namespace Web::Compositor {
 
 using AsyncScrollOperationID = u64;
 
-// Stable identifier for a scroll frame in a document; the frame index alone is not unique across nested documents.
+// Stable identifier for a scroll node in a document; the node index alone is not unique across nested documents.
 struct AsyncScrollNodeID {
     UniqueNodeID document_id;
     Painting::VisualContextIndex scroll_node_index;
@@ -65,7 +65,7 @@ struct AsyncScrollNode {
     bool can_be_wheel_scrolled_vertically { false };
 };
 
-// Sticky elements are represented as scroll frames whose offset is derived from ancestor scroll offsets. Keep only
+// Sticky elements are represented as scroll nodes whose offset is derived from ancestor scroll offsets. Keep only
 // the precomputed geometry needed to replay that calculation on the compositor thread after an async scroll mutation.
 struct AsyncStickyArea {
     UniqueNodeID document_id;

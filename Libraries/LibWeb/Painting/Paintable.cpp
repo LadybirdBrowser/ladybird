@@ -1624,17 +1624,17 @@ void Paintable::record_async_scrolling_metadata(DisplayListRecordingContext& con
     record_viewport_scrollbar_state(*this, context);
 
     auto const& scroll_state = context.async_scrolling_scroll_state();
-    auto sticky_frame_index = enclosing_scroll_node_index();
-    if (is_sticky_position() && sticky_frame_index.value()) {
-        auto sticky_slot = context.async_scrolling_visual_context_tree().scroll_state_slot_for_node(sticky_frame_index);
-        auto const& frame = scroll_state.frame_at_slot(sticky_slot);
-        if (frame.is_sticky() && frame.has_sticky_constraints()) {
-            auto const& constraints = frame.sticky_constraints();
+    auto sticky_node_index = enclosing_scroll_node_index();
+    if (is_sticky_position() && sticky_node_index.value()) {
+        auto sticky_slot = context.async_scrolling_visual_context_tree().scroll_state_slot_for_node(sticky_node_index);
+        auto const& sticky_node_state = scroll_state.state_at_slot(sticky_slot);
+        if (sticky_node_state.is_sticky() && sticky_node_state.has_sticky_constraints()) {
+            auto const& constraints = sticky_node_state.sticky_constraints();
             auto const& insets = constraints.insets;
             recorder.compositor_sticky_area({
                 .document_id = context.async_scrolling_document_id(),
-                .scroll_node_index = sticky_frame_index,
-                .parent_scroll_node_index = scroll_state.node_index_for_slot(frame.parent_slot()),
+                .scroll_node_index = sticky_node_index,
+                .parent_scroll_node_index = scroll_state.node_index_for_slot(sticky_node_state.parent_slot()),
                 .nearest_scrolling_ancestor_index = scroll_state.node_index_for_slot(scroll_state.nearest_scrolling_ancestor_slot(sticky_slot)),
                 .position_relative_to_scroll_ancestor = css_point_to_device_point(constraints.position_relative_to_scroll_ancestor, device_pixels_per_css_pixel),
                 .border_box_size = css_size_to_device_size(constraints.border_box_size, device_pixels_per_css_pixel),

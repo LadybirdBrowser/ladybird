@@ -19,7 +19,7 @@
 #include <LibGfx/WindingRule.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Painting/ScrollFrame.h>
+#include <LibWeb/Painting/ScrollNodeState.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::CSS {

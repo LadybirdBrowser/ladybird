@@ -35,16 +35,16 @@
     test(() => {
         const state = internals.asyncScrollingState();
         const viewportNode = state.scrollNodes.find(node => node.isViewport);
-        const outerArea = state.stickyAreas.find(area => area.parentScrollFrameIndex === viewportNode.scrollFrameIndex);
-        const innerArea = state.stickyAreas.find(area => area.parentScrollFrameIndex === outerArea.scrollFrameIndex);
+        const outerArea = state.stickyAreas.find(area => area.parentScrollNodeIndex === viewportNode.scrollNodeIndex);
+        const innerArea = state.stickyAreas.find(area => area.parentScrollNodeIndex === outerArea.scrollNodeIndex);
 
         printOutputAndDisplayList([
             `scroll nodes: ${state.scrollNodeCount}`,
             `sticky areas: ${state.stickyAreaCount}`,
-            `outer parent is viewport: ${outerArea.parentScrollFrameIndex === viewportNode.scrollFrameIndex}`,
-            `inner parent is outer: ${innerArea.parentScrollFrameIndex === outerArea.scrollFrameIndex}`,
-            `outer ancestor is viewport: ${outerArea.nearestScrollingAncestorIndex === viewportNode.scrollFrameIndex}`,
-            `inner ancestor is viewport: ${innerArea.nearestScrollingAncestorIndex === viewportNode.scrollFrameIndex}`,
+            `outer parent is viewport: ${outerArea.parentScrollNodeIndex === viewportNode.scrollNodeIndex}`,
+            `inner parent is outer: ${innerArea.parentScrollNodeIndex === outerArea.scrollNodeIndex}`,
+            `outer ancestor is viewport: ${outerArea.nearestScrollingAncestorIndex === viewportNode.scrollNodeIndex}`,
+            `inner ancestor is viewport: ${innerArea.nearestScrollingAncestorIndex === viewportNode.scrollNodeIndex}`,
             `outer has top inset only: ${outerArea.hasTopInset && !outerArea.hasRightInset && !outerArea.hasBottomInset && !outerArea.hasLeftInset}`,
             `inner has top inset only: ${innerArea.hasTopInset && !innerArea.hasRightInset && !innerArea.hasBottomInset && !innerArea.hasLeftInset}`,
         ]);

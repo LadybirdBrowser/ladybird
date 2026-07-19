@@ -36,10 +36,10 @@
 
     test(() => {
         const state = internals.asyncScrollingState();
-        const scrollNodeIDs = new Set(state.scrollNodes.map(node => `${node.documentID}:${node.scrollFrameIndex}`));
+        const scrollNodeIDs = new Set(state.scrollNodes.map(node => `${node.documentID}:${node.scrollNodeIndex}`));
         const viewportNode = state.scrollNodes.find(node => node.isViewport);
         const childNodes = state.scrollNodes.filter(node => !node.isViewport);
-        const danglingParentNodes = state.scrollNodes.filter(node => node.parentScrollFrameIndex !== 0 && !scrollNodeIDs.has(`${node.parentDocumentID}:${node.parentScrollFrameIndex}`));
+        const danglingParentNodes = state.scrollNodes.filter(node => node.parentScrollNodeIndex !== 0 && !scrollNodeIDs.has(`${node.parentDocumentID}:${node.parentScrollNodeIndex}`));
 
         const output = [
             `scroll nodes: ${state.scrollNodes.length}`,
@@ -47,7 +47,7 @@
             `dangling parent nodes: ${danglingParentNodes.length}`,
         ];
         for (const node of childNodes)
-            output.push(`child parent is viewport: ${node.parentScrollFrameIndex === viewportNode.scrollFrameIndex}`);
+            output.push(`child parent is viewport: ${node.parentScrollNodeIndex === viewportNode.scrollNodeIndex}`);
         printOutputAndDisplayList(output);
     });
 </script>

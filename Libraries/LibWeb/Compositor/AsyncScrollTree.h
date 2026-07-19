@@ -75,7 +75,7 @@ private:
     AsyncScrollNode const* scroll_node_for_stable_id(AsyncScrollNodeStableID) const;
     AsyncStickyArea const* sticky_area_for_scroll_node_index(Painting::VisualContextIndex) const;
     Optional<AsyncScrollNodeID> scrollable_ancestor_for_node(AsyncScrollNodeID, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint delta) const;
-    Gfx::FloatPoint cumulative_device_sticky_offset_for_frame(Painting::VisualContextIndex, Painting::ScrollStateSnapshot const&) const;
+    Gfx::FloatPoint cumulative_device_sticky_offset_for_node(Painting::VisualContextIndex, Painting::ScrollStateSnapshot const&) const;
     Gfx::FloatPoint apply_scroll_delta_to_node(AsyncScrollNode const&, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot&);
     void update_sticky_offsets(Painting::ScrollStateSnapshot&) const;
 

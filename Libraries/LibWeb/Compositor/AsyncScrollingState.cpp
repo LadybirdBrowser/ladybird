@@ -42,8 +42,8 @@ static AsyncScrollNodeStableID stable_scroll_node_id_for(UniqueNodeID scrollable
 AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayList const& display_list)
 {
     AsyncScrollingState async_scrolling_state;
-    Vector<Painting::VisualContextIndex> parent_scroll_frame_indices;
-    Vector<Painting::VisualContextIndex> wheel_hit_test_target_scroll_frame_indices;
+    Vector<Painting::VisualContextIndex> parent_scroll_node_indices;
+    Vector<Painting::VisualContextIndex> wheel_hit_test_target_scroll_node_indices;
     Vector<UniqueNodeID> wheel_hit_test_target_document_ids;
 
     if (auto const& metadata = display_list.async_scrolling_metadata(); metadata.has_value()) {
@@ -61,7 +61,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
                 .corner_radii = corner_radii,
                 .target_node_id = {},
             });
-            wheel_hit_test_target_scroll_frame_indices.append(command.target_scroll_node_index);
+            wheel_hit_test_target_scroll_node_indices.append(command.target_scroll_node_index);
             wheel_hit_test_target_document_ids.append(command.document_id);
         };
 
@@ -106,7 +106,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
                 .can_be_wheel_scrolled_horizontally = command.can_be_wheel_scrolled_horizontally,
                 .can_be_wheel_scrolled_vertically = command.can_be_wheel_scrolled_vertically,
             });
-            parent_scroll_frame_indices.append(command.parent_scroll_node_index);
+            parent_scroll_node_indices.append(command.parent_scroll_node_index);
             break;
         }
         case Painting::DisplayListCommandType::CompositorWheelHitTestTarget: {
@@ -150,17 +150,17 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
         }
     });
 
-    VERIFY(parent_scroll_frame_indices.size() == async_scrolling_state.scroll_nodes.size());
+    VERIFY(parent_scroll_node_indices.size() == async_scrolling_state.scroll_nodes.size());
     for (size_t i = 0; i < async_scrolling_state.scroll_nodes.size(); ++i) {
-        auto parent_scroll_node_index = parent_scroll_frame_indices[i];
+        auto parent_scroll_node_index = parent_scroll_node_indices[i];
         if (parent_scroll_node_index.value())
             async_scrolling_state.scroll_nodes[i].parent_node_id = scroll_node_id_for(async_scrolling_state.scroll_nodes[i].node_id.document_id, parent_scroll_node_index);
     }
 
-    VERIFY(wheel_hit_test_target_scroll_frame_indices.size() == async_scrolling_state.wheel_hit_test_targets.size());
+    VERIFY(wheel_hit_test_target_scroll_node_indices.size() == async_scrolling_state.wheel_hit_test_targets.size());
     VERIFY(wheel_hit_test_target_document_ids.size() == async_scrolling_state.wheel_hit_test_targets.size());
     for (size_t i = 0; i < async_scrolling_state.wheel_hit_test_targets.size(); ++i) {
-        auto target_scroll_node_index = wheel_hit_test_target_scroll_frame_indices[i];
+        auto target_scroll_node_index = wheel_hit_test_target_scroll_node_indices[i];
         if (target_scroll_node_index.value())
             async_scrolling_state.wheel_hit_test_targets[i].target_node_id = scroll_node_id_for(wheel_hit_test_target_document_ids[i], target_scroll_node_index);
     }

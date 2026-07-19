@@ -23,7 +23,7 @@
 </div>
 <script>
     // The anchor is a later sibling subtree than the anchor-positioned box, so building the
-    // positioned box's visual context requires the anchor's scroll frame chain to be known
+    // positioned box's visual context requires the anchor's scroll node chain to be known
     // even though the anchor has not been visited yet in tree order.
     test(() => {
         const anchored = document.getElementById("anchored");

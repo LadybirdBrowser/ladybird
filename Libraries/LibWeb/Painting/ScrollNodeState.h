@@ -42,10 +42,10 @@ struct StickyConstraints {
 // scroll-parent reference is derived from the containing block chain at build time, which
 // deliberately differs from the node's visual context parent chain for sticky content inside
 // fixed-position ancestors.
-class ScrollFrame {
+class ScrollNodeState {
 public:
-    ScrollFrame() = default;
-    ScrollFrame(VisualContextIndex node_index, Paintable const& paintable_box, bool sticky, ScrollStateSlot parent_slot);
+    ScrollNodeState() = default;
+    ScrollNodeState(VisualContextIndex node_index, Paintable const& paintable_box, bool sticky, ScrollStateSlot parent_slot);
 
     RefPtr<Paintable const> paintable_box_if_alive() const;
 

@@ -36,13 +36,13 @@
 
         const viewportNode = state.scrollNodes.find(node => node.isViewport);
         output.push(`has viewport node: ${!!viewportNode}`);
-        output.push(`viewport parent: ${viewportNode?.parentScrollFrameIndex ?? "missing"}`);
+        output.push(`viewport parent: ${viewportNode?.parentScrollNodeIndex ?? "missing"}`);
 
         const childNodes = state.scrollNodes.filter(node => !node.isViewport);
         output.push(`child nodes: ${childNodes.length}`);
         for (const node of childNodes) {
             output.push(`child has same document as viewport: ${node.documentID === viewportNode.documentID}`);
-            output.push(`child parent is viewport: ${node.parentScrollFrameIndex === viewportNode.scrollFrameIndex}`);
+            output.push(`child parent is viewport: ${node.parentScrollNodeIndex === viewportNode.scrollNodeIndex}`);
         }
         printOutputAndDisplayList(output);
     });

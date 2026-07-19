@@ -15,8 +15,8 @@ ScrollStateSnapshot ScrollState::snapshot(double device_pixels_per_css_pixel) co
 {
     ScrollStateSnapshot snapshot;
     auto scale = static_cast<float>(device_pixels_per_css_pixel);
-    for (auto const& frame : m_frames_by_slot)
-        snapshot.set_device_offset_for_index(frame.node_index(), frame.own_offset().to_type<float>() * scale);
+    for (auto const& state : m_states_by_slot)
+        snapshot.set_device_offset_for_index(state.node_index(), state.own_offset().to_type<float>() * scale);
     return snapshot;
 }
 

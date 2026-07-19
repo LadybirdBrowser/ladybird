@@ -2522,7 +2522,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         // which changes without a flip; the constraints capture the scroll ancestor's scrollable
         // overflow size though, so they have to be refreshed. When a full visual context rebuild is
         // already pending it recaptures constraints anyway, and skipping the refresh then also avoids
-        // touching scroll frames whose paintables a subtree relayout may have replaced.
+        // touching scroll nodes whose paintables a subtree relayout may have replaced.
         unsafe_paintable()->refresh_sticky_constraints();
     }
     set_needs_to_record_display_list();
@@ -2554,7 +2554,7 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
         }
     }
 
-    // Scroll frames are (re)created by the visual context tree build above, so scroll offsets and
+    // Scroll nodes are (re)created by the visual context tree build above, so scroll offsets and
     // the snapshot must be derived only after structure work is done.
     if (auto paintable = this->unsafe_paintable())
         paintable->refresh_scroll_state();

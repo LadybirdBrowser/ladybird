@@ -19,7 +19,7 @@
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
-#include <LibWeb/Painting/ScrollFrame.h>
+#include <LibWeb/Painting/ScrollNodeState.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Selection/Selection.h>
@@ -173,7 +173,7 @@ void ViewportPaintable::precompute_sticky_constraints(ScrollStateSlot sticky_slo
     if (nearest_scrolling_ancestor_slot == NO_SCROLL_STATE_SLOT)
         return;
 
-    auto scroll_ancestor_paintable_ref = m_scroll_state.frame_at_slot(nearest_scrolling_ancestor_slot).paintable_box_if_alive();
+    auto scroll_ancestor_paintable_ref = m_scroll_state.state_at_slot(nearest_scrolling_ancestor_slot).paintable_box_if_alive();
     if (!scroll_ancestor_paintable_ref)
         return;
     auto const& scroll_ancestor_paintable = *scroll_ancestor_paintable_ref;
@@ -190,7 +190,7 @@ void ViewportPaintable::precompute_sticky_constraints(ScrollStateSlot sticky_slo
         needs_parent_offset_adjustment = true;
     }
 
-    m_scroll_state.frame_at_slot(sticky_slot).set_sticky_constraints({
+    m_scroll_state.state_at_slot(sticky_slot).set_sticky_constraints({
         .position_relative_to_scroll_ancestor = sticky_border_box_rect.top_left() - scroll_ancestor_paintable.absolute_rect().top_left(),
         .border_box_size = sticky_border_box_rect.size(),
         .scrollport_size = scroll_ancestor_paintable.absolute_rect().size(),
@@ -202,10 +202,10 @@ void ViewportPaintable::precompute_sticky_constraints(ScrollStateSlot sticky_slo
 
 void ViewportPaintable::refresh_sticky_constraints()
 {
-    m_scroll_state.for_each_sticky_frame([&](ScrollStateSlot slot, ScrollFrame& frame) {
-        // Skip frames whose paintables a subtree relayout has replaced; the pending visual context
-        // tree rebuild recreates those frames before anything reads them.
-        if (auto paintable_box = frame.paintable_box_if_alive())
+    m_scroll_state.for_each_sticky_node([&](ScrollStateSlot slot, ScrollNodeState& state) {
+        // Skip entries whose paintables a subtree relayout has replaced; the pending visual context
+        // tree rebuild recreates those entries before anything reads them.
+        if (auto paintable_box = state.paintable_box_if_alive())
             precompute_sticky_constraints(slot, *paintable_box);
     });
     m_needs_to_refresh_scroll_state = true;
@@ -218,15 +218,15 @@ void ViewportPaintable::clear_scroll_state()
     m_needs_to_refresh_scroll_state = true;
 }
 
-void ViewportPaintable::register_scroll_frame(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const& paintable_box, VisualContextIndex parent_index)
+void ViewportPaintable::register_scroll_node(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const& paintable_box, VisualContextIndex parent_index)
 {
-    auto slot = m_scroll_state.register_scroll_frame(node_index, paintable_box, visual_context_tree_being_built.scroll_state_slot_for_node(parent_index));
+    auto slot = m_scroll_state.register_scroll_node(node_index, paintable_box, visual_context_tree_being_built.scroll_state_slot_for_node(parent_index));
     visual_context_tree_being_built.node_at(node_index).data.get<ScrollData>().state_slot = slot;
 }
 
-void ViewportPaintable::register_sticky_frame(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const& paintable_box, VisualContextIndex parent_index)
+void ViewportPaintable::register_sticky_node(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const& paintable_box, VisualContextIndex parent_index)
 {
-    auto slot = m_scroll_state.register_sticky_frame(node_index, paintable_box, visual_context_tree_being_built.scroll_state_slot_for_node(parent_index));
+    auto slot = m_scroll_state.register_sticky_node(node_index, paintable_box, visual_context_tree_being_built.scroll_state_slot_for_node(parent_index));
     visual_context_tree_being_built.node_at(node_index).data.get<ScrollData>().state_slot = slot;
     precompute_sticky_constraints(slot, paintable_box);
 }
@@ -307,14 +307,14 @@ void ViewportPaintable::refresh_scroll_state()
     // https://drafts.csswg.org/css-position/#sticky-pos
     // Sticky positioning is similar to relative positioning except the offsets are automatically calculated
     // in reference to the nearest scrollport.
-    m_scroll_state.for_each_sticky_frame([&](auto slot, auto& frame) {
+    m_scroll_state.for_each_sticky_node([&](auto slot, auto& state) {
         auto nearest_scrolling_ancestor_slot = m_scroll_state.nearest_scrolling_ancestor_slot(slot);
-        if (nearest_scrolling_ancestor_slot == NO_SCROLL_STATE_SLOT || !frame.has_sticky_constraints())
+        if (nearest_scrolling_ancestor_slot == NO_SCROLL_STATE_SLOT || !state.has_sticky_constraints())
             return;
 
-        auto const& sticky_data = frame.sticky_constraints();
+        auto const& sticky_data = state.sticky_constraints();
         auto const& sticky_insets = sticky_data.insets;
-        auto scroll_ancestor_paintable_ref = m_scroll_state.frame_at_slot(nearest_scrolling_ancestor_slot).paintable_box_if_alive();
+        auto scroll_ancestor_paintable_ref = m_scroll_state.state_at_slot(nearest_scrolling_ancestor_slot).paintable_box_if_alive();
         if (!scroll_ancestor_paintable_ref)
             return;
         auto const& scroll_ancestor_paintable = *scroll_ancestor_paintable_ref;
@@ -322,7 +322,7 @@ void ViewportPaintable::refresh_scroll_state()
         // NB: For nested sticky elements, work in the coordinate space where the sticky ancestors are
         //     at their current positions. The scrolling ancestor's offset is already represented by
         //     scrollport_rect and must not be applied to the sticky position a second time.
-        auto parent_sticky_offset = m_scroll_state.cumulative_sticky_offset(frame.parent_slot());
+        auto parent_sticky_offset = m_scroll_state.cumulative_sticky_offset(state.parent_slot());
 
         auto sticky_position_in_ancestor = sticky_data.position_relative_to_scroll_ancestor + parent_sticky_offset;
 
@@ -355,12 +355,12 @@ void ViewportPaintable::refresh_scroll_state()
                 sticky_offset.set_x(max(scrollport_rect.right() - sticky_data.border_box_size.width() - *sticky_insets.right, min_offset_within_containing_block.x()) - sticky_position_in_ancestor.x());
         }
 
-        frame.set_own_offset(sticky_offset);
+        state.set_own_offset(sticky_offset);
     });
 
-    m_scroll_state.for_each_scroll_frame([&](auto, auto& frame) {
-        if (auto paintable_box = frame.paintable_box_if_alive())
-            frame.set_own_offset(-paintable_box->scroll_offset());
+    m_scroll_state.for_each_scroll_node([&](auto, auto& state) {
+        if (auto paintable_box = state.paintable_box_if_alive())
+            state.set_own_offset(-paintable_box->scroll_offset());
     });
 
     m_scroll_state_snapshot = m_scroll_state.snapshot(document().page().client().device_pixels_per_css_pixel());

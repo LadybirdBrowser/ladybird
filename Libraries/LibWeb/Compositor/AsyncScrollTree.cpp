@@ -114,7 +114,7 @@ Optional<AsyncScrollNodeID> AsyncScrollTree::scrollable_ancestor_for_node(AsyncS
     return {};
 }
 
-Gfx::FloatPoint AsyncScrollTree::cumulative_device_sticky_offset_for_frame(Painting::VisualContextIndex scroll_node_index, Painting::ScrollStateSnapshot const& scroll_state_snapshot) const
+Gfx::FloatPoint AsyncScrollTree::cumulative_device_sticky_offset_for_node(Painting::VisualContextIndex scroll_node_index, Painting::ScrollStateSnapshot const& scroll_state_snapshot) const
 {
     Gfx::FloatPoint offset;
     for (auto index = scroll_node_index; index.value();) {
@@ -167,7 +167,7 @@ void AsyncScrollTree::update_sticky_offsets(Painting::ScrollStateSnapshot& scrol
         if (!sticky_area.nearest_scrolling_ancestor_index.value())
             continue;
 
-        auto parent_sticky_offset = cumulative_device_sticky_offset_for_frame(sticky_area.parent_scroll_node_index, scroll_state_snapshot);
+        auto parent_sticky_offset = cumulative_device_sticky_offset_for_node(sticky_area.parent_scroll_node_index, scroll_state_snapshot);
 
         auto sticky_position_in_ancestor = sticky_area.position_relative_to_scroll_ancestor.translated(parent_sticky_offset);
 

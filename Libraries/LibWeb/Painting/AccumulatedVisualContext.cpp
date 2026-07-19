@@ -42,15 +42,15 @@ bool ClipData::contains(DevicePixelPoint point) const
 
 static Atomic<u64> s_next_accumulated_visual_context_tree_version { 1 };
 
-static ScrollStateSlot scroll_frame_common_ancestor(ScrollState const& scroll_state, ScrollStateSlot a_slot, ScrollStateSlot b_slot)
+static ScrollStateSlot common_ancestor_slot_along_scroll_parent_chain(ScrollState const& scroll_state, ScrollStateSlot a_slot, ScrollStateSlot b_slot)
 {
     Vector<ScrollStateSlot, 8> a_slot_and_ancestors;
-    for (auto slot = a_slot;; slot = scroll_state.frame_at_slot(slot).parent_slot()) {
+    for (auto slot = a_slot;; slot = scroll_state.state_at_slot(slot).parent_slot()) {
         a_slot_and_ancestors.append(slot);
         if (slot == NO_SCROLL_STATE_SLOT)
             break;
     }
-    for (auto slot = b_slot;; slot = scroll_state.frame_at_slot(slot).parent_slot()) {
+    for (auto slot = b_slot;; slot = scroll_state.state_at_slot(slot).parent_slot()) {
         if (a_slot_and_ancestors.contains_slow(slot))
             return slot;
         if (slot == NO_SCROLL_STATE_SLOT)
@@ -354,7 +354,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
 
     viewport_paintable.set_enclosing_scroll_node_index({});
     auto viewport_state_for_descendants = append_node(visual_viewport_context_index, ScrollData { .is_sticky = false });
-    viewport_paintable.register_scroll_frame(visual_context_tree, viewport_state_for_descendants, viewport_paintable, {});
+    viewport_paintable.register_scroll_node(visual_context_tree, viewport_state_for_descendants, viewport_paintable, {});
     viewport_paintable.set_own_scroll_node_index(viewport_state_for_descendants);
     viewport_paintable.set_accumulated_visual_context(VISUAL_VIEWPORT_NODE_INDEX);
     viewport_paintable.set_accumulated_visual_context_for_descendants(viewport_state_for_descendants);
@@ -418,12 +418,12 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
                 visited.append(box);
                 compensate_horizontal_scroll = compensate_horizontal_scroll && box->compensates_for_horizontal_scroll();
                 compensate_vertical_scroll = compensate_vertical_scroll && box->compensates_for_vertical_scroll();
-                auto anchor_frame_slot = visual_context_tree.scroll_state_slot_for_node(anchor_paintable->enclosing_scroll_node_index());
-                auto base_frame_slot = visual_context_tree.scroll_state_slot_for_node(box_paintable->enclosing_scroll_node_index());
-                auto shared_frame_slot = scroll_frame_common_ancestor(scroll_state, anchor_frame_slot, base_frame_slot);
-                for (auto slot = anchor_frame_slot; slot != NO_SCROLL_STATE_SLOT && slot != shared_frame_slot; slot = scroll_state.frame_at_slot(slot).parent_slot())
+                auto anchor_scroll_slot = visual_context_tree.scroll_state_slot_for_node(anchor_paintable->enclosing_scroll_node_index());
+                auto base_scroll_slot = visual_context_tree.scroll_state_slot_for_node(box_paintable->enclosing_scroll_node_index());
+                auto shared_scroll_slot = common_ancestor_slot_along_scroll_parent_chain(scroll_state, anchor_scroll_slot, base_scroll_slot);
+                for (auto slot = anchor_scroll_slot; slot != NO_SCROLL_STATE_SLOT && slot != shared_scroll_slot; slot = scroll_state.state_at_slot(slot).parent_slot())
                     own_state = append_node(own_state, AnchorScrollShift { scroll_state.node_index_for_slot(slot), false, compensate_horizontal_scroll, compensate_vertical_scroll });
-                for (auto slot = base_frame_slot; slot != NO_SCROLL_STATE_SLOT && slot != shared_frame_slot; slot = scroll_state.frame_at_slot(slot).parent_slot())
+                for (auto slot = base_scroll_slot; slot != NO_SCROLL_STATE_SLOT && slot != shared_scroll_slot; slot = scroll_state.state_at_slot(slot).parent_slot())
                     own_state = append_node(own_state, AnchorScrollShift { scroll_state.node_index_for_slot(slot), true, compensate_horizontal_scroll, compensate_vertical_scroll });
                 box = anchor_box;
             }
@@ -445,7 +445,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         if (creates_sticky_scroll_node) {
             sticky_scroll_node_index = append_node(own_state, ScrollData { .is_sticky = true });
             own_state = sticky_scroll_node_index;
-            viewport_paintable.register_sticky_frame(visual_context_tree, sticky_scroll_node_index, paintable_box, nearest_ancestor_scroll_node_index);
+            viewport_paintable.register_sticky_node(visual_context_tree, sticky_scroll_node_index, paintable_box, nearest_ancestor_scroll_node_index);
             paintable_box.set_enclosing_scroll_node_index(sticky_scroll_node_index);
             paintable_box.set_own_scroll_node_index(sticky_scroll_node_index);
         }
@@ -510,7 +510,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
                 }
 
                 if (!has_transform_ancestor) {
-                    // Build a context that negates all scroll frames in the ancestor chain. This keeps the background
+                    // Build a context that negates all scroll nodes in the ancestor chain. This keeps the background
                     // fixed relative to the viewport.
                     auto fixed_background_context = own_state;
                     for (auto index = own_state; index.value(); index = visual_context_tree.node_at(index).parent_index) {
@@ -544,7 +544,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             auto parent_index = creates_sticky_scroll_node ? sticky_scroll_node_index : nearest_ancestor_scroll_node_index;
             auto scroll_node_index = append_node(state_for_descendants, ScrollData { .is_sticky = false });
             state_for_descendants = scroll_node_index;
-            viewport_paintable.register_scroll_frame(visual_context_tree, scroll_node_index, paintable_box, parent_index);
+            viewport_paintable.register_scroll_node(visual_context_tree, scroll_node_index, paintable_box, parent_index);
             paintable_box.set_own_scroll_node_index(scroll_node_index);
         }
 
@@ -580,7 +580,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         return box && box->default_scroll_shift_anchor();
     };
 
-    // Anchor-positioned boxes emit AnchorScrollShift nodes by reading the enclosing scroll frames of their
+    // Anchor-positioned boxes emit AnchorScrollShift nodes by reading the enclosing scroll nodes of their
     // anchors, and an acceptable anchor may come later in tree order than the positioned box. Building such
     // boxes' subtrees is deferred until their anchors have been built; the hash table mirrors the queue so
     // readiness checks stay cheap across rounds.
