@@ -23,15 +23,7 @@ namespace Web::MimeSniff {
 
 static bool equals_ignoring_ascii_case(Utf16View string, StringView ascii_string)
 {
-    if (string.length_in_code_units() != ascii_string.length())
-        return false;
-
-    for (size_t i = 0; i < string.length_in_code_units(); ++i) {
-        if (AK::to_ascii_lowercase(string.code_unit_at(i)) != AK::to_ascii_lowercase(ascii_string[i]))
-            return false;
-    }
-
-    return true;
+    return string.equals_ignoring_ascii_case(ascii_string);
 }
 
 static void append_utf8_as_utf16(Utf16StringBuilder& builder, StringView string)
