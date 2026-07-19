@@ -32,8 +32,6 @@ public:
 
     bool equals(StyleValue const& other) const;
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     explicit AngleStyleValue(Angle angle);
 };

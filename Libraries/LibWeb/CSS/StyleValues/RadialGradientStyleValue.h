@@ -38,8 +38,6 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool equals(StyleValue const& other) const;
 
-    bool is_computationally_independent() const;
-
     Vector<ColorStopListElement> color_stop_list() const
     {
         auto const& list = m_value->radial_gradient.color_stop_list;

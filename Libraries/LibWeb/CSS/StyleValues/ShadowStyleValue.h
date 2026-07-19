@@ -57,15 +57,6 @@ public:
 
     bool properties_equal(ShadowStyleValue const& other) const { return shadow_type() == other.shadow_type() && color_or_null() == other.color_or_null() && offset_x() == other.offset_x() && offset_y() == other.offset_y() && blur_radius_or_null() == other.blur_radius_or_null() && spread_distance_or_null() == other.spread_distance_or_null() && placement() == other.placement(); }
 
-    bool is_computationally_independent() const
-    {
-        return (!color_or_null() || color_or_null()->is_computationally_independent())
-            && offset_x()->is_computationally_independent()
-            && offset_y()->is_computationally_independent()
-            && (!blur_radius_or_null() || blur_radius_or_null()->is_computationally_independent())
-            && (!spread_distance_or_null() || spread_distance_or_null()->is_computationally_independent());
-    }
-
 private:
     ShadowStyleValue(
         ShadowType shadow_type,

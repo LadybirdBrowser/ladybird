@@ -56,7 +56,6 @@ public:
     }
     ColorSyntax color_syntax() const { return static_cast<ColorSyntax>(m_value->color_function.color_base.color_syntax); }
 
-    bool is_computationally_independent() const;
     void serialize(StringBuilder&, SerializationMode) const;
     bool equals(StyleValue const& other) const;
     Optional<Color> to_color(ColorResolutionContext) const;

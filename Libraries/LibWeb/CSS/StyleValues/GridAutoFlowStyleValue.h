@@ -30,8 +30,6 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
     bool properties_equal(GridAutoFlowStyleValue const& other) const { return is_row() == other.is_row() && is_dense() == other.is_dense(); }
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     explicit GridAutoFlowStyleValue(Axis axis, Dense dense)
         : StyleValueWithDefaultOperators(Type::GridAutoFlow, StyleValueFFI::rust_style_value_create_grid_auto_flow(axis == Axis::Row, dense == Dense::Yes))

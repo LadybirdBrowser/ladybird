@@ -202,6 +202,9 @@ public:
     // A property value is computationally independent if it can be converted into a computed value using only the value
     // of the property on the element, and "global" information that cannot be changed by CSS.
     bool is_computationally_independent() const;
+    // The C++ decision for the value types the Rust core cannot decide (called for such
+    // values at any depth of a value tree).
+    bool decide_computational_independence_fallback() const;
 
 protected:
     StyleValue(Type, StyleValueFFI::StyleValueData*);

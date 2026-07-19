@@ -25,8 +25,6 @@ public:
 
     bool equals(StyleValue const& other) const;
 
-    bool is_computationally_independent() const { return true; }
-
     Optional<Utf16FlyString> anchor_name() const
     {
         if (!m_value->anchor.has_anchor_name)

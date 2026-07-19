@@ -39,8 +39,6 @@ public:
 
     bool properties_equal(ScrollbarGutterStyleValue const& other) const { return value() == other.value(); }
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     ScrollbarGutterStyleValue(ScrollbarGutter value)
         : StyleValueWithDefaultOperators(Type::ScrollbarGutter, StyleValueFFI::rust_style_value_create_scrollbar_gutter(to_underlying(value)))

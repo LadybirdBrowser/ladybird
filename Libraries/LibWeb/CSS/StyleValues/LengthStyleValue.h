@@ -28,8 +28,6 @@ public:
     void serialize(Utf16StringBuilder& builder, SerializationMode mode) const { length().serialize(builder, mode); }
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    bool is_computationally_independent() const { return length().is_computationally_independent(); }
-
     bool equals(StyleValue const& other) const;
 
 private:

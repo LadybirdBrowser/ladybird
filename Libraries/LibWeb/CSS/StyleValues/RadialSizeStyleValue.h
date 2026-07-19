@@ -49,15 +49,6 @@ public:
 
     bool properties_equal(RadialSizeStyleValue const& other) const;
 
-    bool is_computationally_independent() const
-    {
-        return all_of(components(), [](auto const& component) {
-            return component.visit(
-                [](RadialExtent) { return true; },
-                [](NonnullRefPtr<StyleValue const> const& value) { return value->is_computationally_independent(); });
-        });
-    }
-
 private:
     explicit RadialSizeStyleValue(Vector<Component> components)
         : StyleValueWithDefaultOperators(Type::RadialSize, make_radial_size_data(components))

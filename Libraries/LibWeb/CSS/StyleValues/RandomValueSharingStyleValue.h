@@ -49,8 +49,6 @@ public:
             && element_shared() == other.element_shared();
     }
 
-    bool is_computationally_independent() const { return !fixed_value() || fixed_value()->is_computationally_independent(); }
-
 private:
     explicit RandomValueSharingStyleValue(RefPtr<StyleValue const> fixed_value, bool is_auto, Optional<Utf16FlyString> name, bool element_shared)
         : StyleValueWithDefaultOperators(Type::RandomValueSharing, make_random_value_sharing_data(fixed_value, is_auto, name, element_shared))

@@ -45,8 +45,6 @@ public:
 
     bool properties_equal(CounterStyleStyleValue const& other) const { return value() == other.value(); }
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     explicit CounterStyleStyleValue(Variant<Utf16FlyString, SymbolsFunction> value)
         : StyleValueWithDefaultOperators(Type::CounterStyle, make_counter_style_data(value))

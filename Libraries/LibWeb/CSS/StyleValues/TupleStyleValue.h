@@ -35,11 +35,6 @@ public:
 
     bool properties_equal(TupleStyleValue const& other) const { return tuple() == other.tuple(); }
 
-    bool is_computationally_independent() const
-    {
-        return all_of(tuple(), [](auto& value) { return !value || value->is_computationally_independent(); });
-    }
-
     struct Indices {
         struct FontVariantEastAsian {
             static constexpr size_t Variant = 0;

@@ -27,8 +27,6 @@ public:
 
     bool properties_equal(GuaranteedInvalidStyleValue const&) const { return true; }
 
-    bool is_computationally_independent() const { VERIFY_NOT_REACHED(); }
-
 private:
     GuaranteedInvalidStyleValue()
         : StyleValueWithDefaultOperators(Type::GuaranteedInvalid, StyleValueFFI::rust_style_value_create_guaranteed_invalid())

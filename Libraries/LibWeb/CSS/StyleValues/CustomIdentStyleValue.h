@@ -29,8 +29,6 @@ public:
 
     bool properties_equal(CustomIdentStyleValue const& other) const { return custom_ident() == other.custom_ident(); }
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     explicit CustomIdentStyleValue(Utf16FlyString custom_ident)
         : StyleValueWithDefaultOperators(Type::CustomIdent, StyleValueFFI::rust_style_value_create_custom_ident(custom_ident.to_raw_leaked()))

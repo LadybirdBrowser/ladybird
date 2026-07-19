@@ -103,22 +103,6 @@ void ColorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) 
     }
 }
 
-bool ColorStyleValue::is_computationally_independent() const
-{
-    switch (m_value->tag) {
-    case StyleValueFFI::StyleValueData::Tag::ColorFunction:
-        return static_cast<ColorFunctionStyleValue const&>(*this).is_computationally_independent();
-    case StyleValueFFI::StyleValueData::Tag::ColorMix:
-        return static_cast<ColorMixStyleValue const&>(*this).is_computationally_independent();
-    case StyleValueFFI::StyleValueData::Tag::ContrastColor:
-        return static_cast<ContrastColorStyleValue const&>(*this).is_computationally_independent();
-    case StyleValueFFI::StyleValueData::Tag::LightDark:
-        return static_cast<LightDarkStyleValue const&>(*this).is_computationally_independent();
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<Utf16FlyString> name)
 {
     return ColorFunctionStyleValue::create(

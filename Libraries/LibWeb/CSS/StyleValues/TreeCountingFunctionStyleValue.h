@@ -37,8 +37,6 @@ public:
 
     bool equals(StyleValue const& other) const;
 
-    bool is_computationally_independent() const { return false; }
-
 private:
     TreeCountingFunction function() const { return static_cast<TreeCountingFunction>(m_value->tree_counting_function.function); }
     ComputedType computed_type() const { return static_cast<ComputedType>(m_value->tree_counting_function.computed_type); }

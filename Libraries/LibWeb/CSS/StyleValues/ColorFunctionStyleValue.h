@@ -73,15 +73,6 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> computed_value_form() const;
 
-    bool is_computationally_independent() const
-    {
-        return channels()[0]->is_computationally_independent()
-            && channels()[1]->is_computationally_independent()
-            && channels()[2]->is_computationally_independent()
-            && (!alpha() || alpha()->is_computationally_independent())
-            && (!origin_color() || origin_color()->is_computationally_independent());
-    }
-
     bool serializes_as_color_function() const
     {
         return descriptor().serialization_behavior == SerializationBehavior::ColorFunction;

@@ -29,8 +29,6 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool properties_equal(OverflowClipMarginStyleValue const&) const;
 
-    bool is_computationally_independent() const { return offset().is_computationally_independent(); }
-
 private:
     OverflowClipMarginStyleValue(Optional<BackgroundBox> visual_box, NonnullRefPtr<StyleValue const> offset);
 };

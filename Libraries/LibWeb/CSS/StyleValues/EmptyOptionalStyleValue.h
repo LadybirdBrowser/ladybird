@@ -27,8 +27,6 @@ public:
 
     bool properties_equal(EmptyOptionalStyleValue const&) const { return true; }
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     EmptyOptionalStyleValue()
         : StyleValueWithDefaultOperators(Type::EmptyOptional, StyleValueFFI::rust_style_value_create_empty_optional())

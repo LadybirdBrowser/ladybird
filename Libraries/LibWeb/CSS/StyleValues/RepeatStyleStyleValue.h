@@ -28,8 +28,6 @@ public:
 
     bool properties_equal(RepeatStyleStyleValue const& other) const { return repeat_x() == other.repeat_x() && repeat_y() == other.repeat_y(); }
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     RepeatStyleStyleValue(Repetition repeat_x, Repetition repeat_y);
 };

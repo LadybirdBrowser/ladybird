@@ -41,8 +41,6 @@ public:
             && vertical_radius() == other.vertical_radius();
     }
 
-    bool is_computationally_independent() const { return horizontal_radius()->is_computationally_independent() && vertical_radius()->is_computationally_independent(); }
-
 private:
     BorderRadiusStyleValue(ValueComparingNonnullRefPtr<StyleValue const> const& horizontal_radius, ValueComparingNonnullRefPtr<StyleValue const> const& vertical_radius)
         : StyleValueWithDefaultOperators(Type::BorderRadius, make_border_radius_data(horizontal_radius, vertical_radius))

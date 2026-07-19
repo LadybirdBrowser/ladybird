@@ -25,8 +25,6 @@ public:
 
     bool properties_equal(TextUnderlinePositionStyleValue const& other) const { return horizontal() == other.horizontal() && vertical() == other.vertical(); }
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     explicit TextUnderlinePositionStyleValue(TextUnderlinePositionHorizontal horizontal, TextUnderlinePositionVertical vertical)
         : StyleValueWithDefaultOperators(Type::TextUnderlinePosition, StyleValueFFI::rust_style_value_create_text_underline_position(to_underlying(horizontal), to_underlying(vertical)))

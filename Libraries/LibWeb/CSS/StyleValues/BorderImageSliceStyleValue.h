@@ -30,14 +30,6 @@ public:
 
     bool properties_equal(BorderImageSliceStyleValue const& other) const { return top() == other.top() && right() == other.right() && bottom() == other.bottom() && left() == other.left() && fill() == other.fill(); }
 
-    bool is_computationally_independent() const
-    {
-        return top()->is_computationally_independent()
-            && right()->is_computationally_independent()
-            && bottom()->is_computationally_independent()
-            && left()->is_computationally_independent();
-    }
-
 private:
     BorderImageSliceStyleValue(ValueComparingNonnullRefPtr<StyleValue const> top, ValueComparingNonnullRefPtr<StyleValue const> right, ValueComparingNonnullRefPtr<StyleValue const> bottom, ValueComparingNonnullRefPtr<StyleValue const> left, bool fill)
         : StyleValueWithDefaultOperators(Type::BorderImageSlice, StyleValueFFI::rust_style_value_create_border_image_slice(&top.leak_ref(), &right.leak_ref(), &bottom.leak_ref(), &left.leak_ref(), fill))

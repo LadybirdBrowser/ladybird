@@ -37,14 +37,6 @@ public:
             && left() == other.left();
     }
 
-    bool is_computationally_independent() const
-    {
-        return top()->is_computationally_independent()
-            && right()->is_computationally_independent()
-            && bottom()->is_computationally_independent()
-            && left()->is_computationally_independent();
-    }
-
 private:
     explicit RectStyleValue(NonnullRefPtr<StyleValue const> top, NonnullRefPtr<StyleValue const> right, NonnullRefPtr<StyleValue const> bottom, NonnullRefPtr<StyleValue const> left)
         : StyleValueWithDefaultOperators(Type::Rect, StyleValueFFI::rust_style_value_create_rect(&top.leak_ref(), &right.leak_ref(), &bottom.leak_ref(), &left.leak_ref()))

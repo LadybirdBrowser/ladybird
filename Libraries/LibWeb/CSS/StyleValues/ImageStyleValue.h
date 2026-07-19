@@ -80,8 +80,6 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
     bool equals(StyleValue const& other) const;
 
-    bool is_computationally_independent() const { return true; }
-
     virtual void load_any_resources(DOM::Document&) override;
 
     Optional<CSSPixels> natural_width(DOM::Document const&) const override;

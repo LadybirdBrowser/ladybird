@@ -32,8 +32,6 @@ public:
 
     bool properties_equal(SuperellipseStyleValue const& other) const { return parameter_style_value() == other.parameter_style_value(); }
 
-    bool is_computationally_independent() const { return parameter_style_value()->is_computationally_independent(); }
-
 private:
     explicit SuperellipseStyleValue(ValueComparingNonnullRefPtr<StyleValue const> const& parameter)
         : StyleValueWithDefaultOperators(Type::Superellipse, StyleValueFFI::rust_style_value_create_superellipse(&NonnullRefPtr<StyleValue const>(parameter).leak_ref()))

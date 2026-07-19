@@ -50,11 +50,6 @@ public:
 
     bool properties_equal(CounterDefinitionsStyleValue const& other) const;
 
-    bool is_computationally_independent() const
-    {
-        return all_of(counter_definitions(), [](auto const& definition) { return !definition.value || definition.value->is_computationally_independent(); });
-    }
-
 private:
     explicit CounterDefinitionsStyleValue(Vector<CounterDefinition> counter_definitions)
         : StyleValueWithDefaultOperators(Type::CounterDefinitions, make_counter_definitions_data(counter_definitions))

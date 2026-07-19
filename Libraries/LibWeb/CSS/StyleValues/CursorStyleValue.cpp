@@ -60,13 +60,6 @@ ValueComparingNonnullRefPtr<StyleValue const> CursorStyleValue::absolutized(Comp
     return CursorStyleValue::create(image().absolutized(computation_context)->as_abstract_image(), absolutized_x, absolutized_y);
 }
 
-bool CursorStyleValue::is_computationally_independent() const
-{
-    return image().is_computationally_independent()
-        && (!x() || x()->is_computationally_independent())
-        && (!y() || y()->is_computationally_independent());
-}
-
 Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithStyle const& layout_node) const
 {
     auto const& image = this->image();

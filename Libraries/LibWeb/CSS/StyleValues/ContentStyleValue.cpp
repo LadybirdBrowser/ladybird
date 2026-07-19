@@ -39,11 +39,6 @@ void ContentStyleValue::serialize(StringBuilder& builder, SerializationMode mode
     }
 }
 
-bool ContentStyleValue::is_computationally_independent() const
-{
-    return content().is_computationally_independent() && (!alt_text() || alt_text()->is_computationally_independent());
-}
-
 void ContentStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
     const_cast<StyleValueList&>(content()).set_style_sheet(style_sheet);

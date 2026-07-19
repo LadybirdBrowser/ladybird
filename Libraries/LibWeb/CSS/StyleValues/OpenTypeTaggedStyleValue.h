@@ -36,8 +36,6 @@ public:
 
     bool properties_equal(OpenTypeTaggedStyleValue const&) const;
 
-    bool is_computationally_independent() const { return value()->is_computationally_independent(); }
-
 private:
     explicit OpenTypeTaggedStyleValue(Mode mode, Utf16FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)
         : StyleValueWithDefaultOperators(Type::OpenTypeTagged, StyleValueFFI::rust_style_value_create_open_type_tagged(to_underlying(mode), tag.to_raw_leaked(), &value.leak_ref()))

@@ -55,15 +55,6 @@ public:
         return true;
     }
 
-    bool is_computationally_independent() const
-    {
-        for (size_t i = 0; i < size(); ++i) {
-            if (!value_at(i)->is_computationally_independent())
-                return false;
-        }
-        return true;
-    }
-
 private:
     TransformationStyleValue(PropertyID property, TransformFunction transform_function, StyleValueVector&& values)
         : StyleValueWithDefaultOperators(Type::Transformation, make_transformation_data(property, transform_function, move(values)))

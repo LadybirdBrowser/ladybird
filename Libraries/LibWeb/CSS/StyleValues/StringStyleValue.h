@@ -30,8 +30,6 @@ public:
 
     bool properties_equal(StringStyleValue const& other) const { return string_value() == other.string_value(); }
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     explicit StringStyleValue(Utf16FlyString string)
         : StyleValueWithDefaultOperators(Type::String, StyleValueFFI::rust_style_value_create_string(string.to_raw_leaked()))

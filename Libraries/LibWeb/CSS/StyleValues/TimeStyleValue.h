@@ -32,8 +32,6 @@ public:
 
     bool equals(StyleValue const& other) const;
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     explicit TimeStyleValue(Time time)
         : DimensionStyleValue(Type::Time, StyleValueFFI::rust_style_value_create_time(time.raw_value(), to_underlying(time.unit())))

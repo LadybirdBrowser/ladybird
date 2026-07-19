@@ -45,8 +45,6 @@ public:
         return number() == other_number.number();
     }
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     explicit NumberStyleValue(double value)
         : StyleValue(Type::Number, StyleValueFFI::rust_style_value_create_number(value))

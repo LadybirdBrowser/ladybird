@@ -47,8 +47,6 @@ public:
 
     GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
 
-    bool is_computationally_independent() const { VERIFY_NOT_REACHED(); }
-
 private:
     UnresolvedStyleValue(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence, bool contains_attr_tainted_values);
 

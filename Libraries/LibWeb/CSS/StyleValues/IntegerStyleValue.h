@@ -47,8 +47,6 @@ public:
         return integer() == other_integer.integer();
     }
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     explicit IntegerStyleValue(i32 value)
         : StyleValue(Type::Integer, StyleValueFFI::rust_style_value_create_integer(value))

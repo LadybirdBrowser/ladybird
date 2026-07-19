@@ -102,14 +102,6 @@ bool ConicGradientStyleValue::equals(StyleValue const& other) const
         && gradient_color_syntax() == other_gradient.gradient_color_syntax();
 }
 
-bool ConicGradientStyleValue::is_computationally_independent() const
-{
-    return (!from_angle_value() || from_angle_value()->is_computationally_independent())
-        && position_value()->is_computationally_independent()
-        && all_of(color_stop_list(), [](auto const& color_stop) { return color_stop.is_computationally_independent(); })
-        && (!color_interpolation_method_value() || color_interpolation_method_value()->is_computationally_independent());
-}
-
 float ConicGradientStyleValue::angle_degrees() const
 {
     if (!from_angle_value())

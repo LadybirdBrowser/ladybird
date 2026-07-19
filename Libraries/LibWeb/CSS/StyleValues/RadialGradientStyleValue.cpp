@@ -120,14 +120,6 @@ bool RadialGradientStyleValue::equals(StyleValue const& other) const
         && gradient_color_syntax() == other_gradient.gradient_color_syntax();
 }
 
-bool RadialGradientStyleValue::is_computationally_independent() const
-{
-    return size_value()->is_computationally_independent()
-        && position_value()->is_computationally_independent()
-        && all_of(color_stop_list(), [](auto const& stop) { return stop.is_computationally_independent(); })
-        && (!color_interpolation_method_value() || color_interpolation_method_value()->is_computationally_independent());
-}
-
 void RadialGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const
 {
     VERIFY(m_resolved.has_value());

@@ -46,19 +46,6 @@ public:
 
     bool properties_equal(KeywordStyleValue const& other) const { return keyword() == other.keyword(); }
 
-    bool is_computationally_independent() const
-    {
-        if (is_css_wide_keyword())
-            return false;
-
-        // FIXME: Are there any other color keywords which aren't computationally independent?
-        if (first_is_one_of(keyword(), Keyword::Accentcolor, Keyword::Accentcolortext))
-            return false;
-
-        // FIXME: Are there any other keywords which aren't computationally independent?
-        return true;
-    }
-
 private:
     explicit KeywordStyleValue(Keyword keyword)
         : StyleValueWithDefaultOperators(Type::Keyword, StyleValueFFI::rust_style_value_create_keyword(to_underlying(keyword)))

@@ -35,8 +35,6 @@ public:
 
     bool properties_equal(CursorStyleValue const& other) const { return image_as_style_value().equals(other.image_as_style_value()) && x() == other.x() && y() == other.y(); }
 
-    bool is_computationally_independent() const;
-
 private:
     CursorStyleValue(ValueComparingNonnullRefPtr<AbstractImageStyleValue const> image,
         RefPtr<StyleValue const> x,

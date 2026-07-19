@@ -123,17 +123,6 @@ bool ImageSetStyleValue::equals(StyleValue const& other) const
     return true;
 }
 
-bool ImageSetStyleValue::is_computationally_independent() const
-{
-    for (auto const& option : options()) {
-        if (!option.image->is_computationally_independent())
-            return false;
-        if (!option.resolution->is_computationally_independent())
-            return false;
-    }
-    return true;
-}
-
 void ImageSetStyleValue::load_any_resources(DOM::Document& document)
 {
     auto dpr = document.page().client().device_pixels_per_css_pixel();

@@ -25,8 +25,6 @@ public:
 
     bool properties_equal(UnicodeRangeStyleValue const&) const;
 
-    bool is_computationally_independent() const { VERIFY_NOT_REACHED(); }
-
 private:
     UnicodeRangeStyleValue(Gfx::UnicodeRange);
 };

@@ -32,8 +32,6 @@ public:
             && denominator() == other.denominator();
     }
 
-    bool is_computationally_independent() const { return numerator()->is_computationally_independent() && denominator()->is_computationally_independent(); }
-
 private:
     RatioStyleValue(ValueComparingNonnullRefPtr<StyleValue const> numerator, ValueComparingNonnullRefPtr<StyleValue const> denominator)
         : StyleValueWithDefaultOperators(Type::Ratio, StyleValueFFI::rust_style_value_create_ratio(&numerator.leak_ref(), &denominator.leak_ref()))

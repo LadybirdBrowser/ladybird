@@ -32,8 +32,6 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool properties_equal(TextIndentStyleValue const&) const;
 
-    bool is_computationally_independent() const { return length_percentage().is_computationally_independent(); }
-
 private:
     TextIndentStyleValue(NonnullRefPtr<StyleValue const> length_percentage, Hanging hanging, EachLine each_line);
 };

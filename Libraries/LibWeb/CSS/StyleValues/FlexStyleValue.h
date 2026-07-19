@@ -33,8 +33,6 @@ public:
         return flex() == other_flex.flex();
     }
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     FlexStyleValue(Flex&& flex)
         : DimensionStyleValue(Type::Flex, StyleValueFFI::rust_style_value_create_flex(flex.raw_value(), to_underlying(flex.unit())))

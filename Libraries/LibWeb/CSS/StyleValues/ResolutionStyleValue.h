@@ -28,8 +28,6 @@ public:
     void serialize(StringBuilder& builder, SerializationMode mode) const { resolution().serialize(builder, mode); }
     void serialize(Utf16StringBuilder& builder, SerializationMode mode) const { resolution().serialize(builder, mode); }
 
-    bool is_computationally_independent() const { return true; }
-
     bool equals(StyleValue const& other) const;
 
 private:

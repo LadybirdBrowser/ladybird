@@ -26,8 +26,6 @@ public:
 
     bool properties_equal(FunctionStyleValue const& other) const { return name() == other.name() && value() == other.value(); }
 
-    bool is_computationally_independent() const { return value()->is_computationally_independent(); }
-
 private:
     FunctionStyleValue(Utf16FlyString name, NonnullRefPtr<StyleValue const> value)
         : StyleValueWithDefaultOperators(Type::Function, StyleValueFFI::rust_style_value_create_function(name.to_raw_leaked(), &value.leak_ref()))

@@ -63,15 +63,6 @@ public:
         return true;
     }
 
-    bool is_computationally_independent() const
-    {
-        for (size_t i = 0; i < size(); ++i) {
-            if (!value_at(i)->is_computationally_independent())
-                return false;
-        }
-        return true;
-    }
-
     Separator separator() const { return static_cast<Separator>(m_value->value_list.separator); }
 
     void set_style_sheet(GC::Ptr<CSSStyleSheet>);

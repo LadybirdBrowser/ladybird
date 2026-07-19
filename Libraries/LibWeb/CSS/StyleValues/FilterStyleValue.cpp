@@ -100,21 +100,6 @@ void FilterStyleValue::serialize(StringBuilder& builder, SerializationMode mode)
     VERIFY_NOT_REACHED();
 }
 
-bool FilterStyleValue::is_computationally_independent() const
-{
-    switch (kind()) {
-    case Kind::Blur:
-        return static_cast<BlurFilterStyleValue const&>(*this).is_computationally_independent();
-    case Kind::DropShadow:
-        return static_cast<DropShadowFilterStyleValue const&>(*this).is_computationally_independent();
-    case Kind::HueRotate:
-        return static_cast<HueRotateFilterStyleValue const&>(*this).is_computationally_independent();
-    case Kind::Color:
-        return static_cast<ColorFilterStyleValue const&>(*this).is_computationally_independent();
-    }
-    VERIFY_NOT_REACHED();
-}
-
 float BlurFilterStyleValue::resolved_radius() const
 {
     return Length::from_style_value(radius(), {}).absolute_length_to_px_without_rounding();

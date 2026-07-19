@@ -45,8 +45,6 @@ public:
             && grid_areas() == other.grid_areas();
     }
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     explicit GridTemplateAreaStyleValue(HashMap<Utf16FlyString, GridArea> grid_areas, size_t row_count, size_t column_count)
         : StyleValueWithDefaultOperators(Type::GridTemplateArea, make_grid_template_area_data(grid_areas, row_count, column_count))

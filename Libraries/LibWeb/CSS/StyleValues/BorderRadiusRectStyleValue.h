@@ -42,14 +42,6 @@ public:
             && bottom_left() == other.bottom_left();
     }
 
-    bool is_computationally_independent() const
-    {
-        return top_left()->is_computationally_independent()
-            && top_right()->is_computationally_independent()
-            && bottom_right()->is_computationally_independent()
-            && bottom_left()->is_computationally_independent();
-    }
-
 private:
     BorderRadiusRectStyleValue(NonnullRefPtr<StyleValue const> top_left, NonnullRefPtr<StyleValue const> top_right, NonnullRefPtr<StyleValue const> bottom_right, NonnullRefPtr<StyleValue const> bottom_left)
         : StyleValueWithDefaultOperators(Type::BorderRadiusRect, StyleValueFFI::rust_style_value_create_border_radius_rect(&top_left.leak_ref(), &top_right.leak_ref(), &bottom_right.leak_ref(), &bottom_left.leak_ref()))

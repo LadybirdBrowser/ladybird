@@ -27,7 +27,6 @@ public:
     virtual ~FilterStyleValue() override = default;
 
     Kind kind() const { return static_cast<Kind>(m_value->filter.kind); }
-    bool is_computationally_independent() const;
     void serialize(StringBuilder&, SerializationMode) const;
     bool equals(StyleValue const& other) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
@@ -60,7 +59,6 @@ public:
 
     void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-    bool is_computationally_independent() const { return radius()->is_computationally_independent(); }
     bool equals(StyleValue const&) const;
 
 private:
@@ -103,10 +101,6 @@ public:
 
     void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-    bool is_computationally_independent() const
-    {
-        return shadow().is_computationally_independent();
-    }
     bool equals(StyleValue const&) const;
 
 private:
@@ -129,7 +123,6 @@ public:
 
     void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-    bool is_computationally_independent() const { return angle()->is_computationally_independent(); }
     bool equals(StyleValue const&) const;
 
 private:
@@ -154,7 +147,6 @@ public:
 
     void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-    bool is_computationally_independent() const { return amount()->is_computationally_independent(); }
     bool equals(StyleValue const&) const;
 
 private:

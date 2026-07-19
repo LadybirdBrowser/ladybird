@@ -30,8 +30,6 @@ public:
 
     bool properties_equal(OpacityValueStyleValue const& other) const { return value() == other.value(); }
 
-    bool is_computationally_independent() const { return value()->is_computationally_independent(); }
-
 private:
     OpacityValueStyleValue(NonnullRefPtr<StyleValue const>&& value)
         : StyleValueWithDefaultOperators(Type::OpacityValue, StyleValueFFI::rust_style_value_create_opacity_value(&value.leak_ref()))

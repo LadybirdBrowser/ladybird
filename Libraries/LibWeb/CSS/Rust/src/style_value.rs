@@ -319,6 +319,68 @@ pub struct RetainedColorStopList {
 
 retained_list!(RetainedColorStopList, RetainedColorStop);
 
+impl RetainedCounterDefinition {
+    pub(crate) fn value(&self) -> &RetainedStyleValue {
+        &self.value
+    }
+}
+
+impl RetainedImageSetOption {
+    pub(crate) fn values(&self) -> [&RetainedStyleValue; 2] {
+        [&self.image, &self.resolution]
+    }
+}
+
+impl RetainedLinearEasingStop {
+    pub(crate) fn values(&self) -> [&RetainedStyleValue; 2] {
+        [&self.output, &self.input]
+    }
+}
+
+macro_rules! retained_list_as_slice {
+    ($list:ident, $element:ty) => {
+        impl $list {
+            pub(crate) fn as_slice(&self) -> &[$element] {
+                if self.pointer.is_null() {
+                    return &[];
+                }
+                unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+            }
+        }
+    };
+}
+retained_list_as_slice!(RetainedCounterDefinitionList, RetainedCounterDefinition);
+retained_list_as_slice!(RetainedImageSetOptionList, RetainedImageSetOption);
+retained_list_as_slice!(RetainedLinearEasingStopList, RetainedLinearEasingStop);
+
+impl RetainedShapePoint {
+    pub(crate) fn values(&self) -> [&RetainedStyleValue; 2] {
+        [&self.x, &self.y]
+    }
+}
+retained_list_as_slice!(RetainedShapePointList, RetainedShapePoint);
+
+impl RetainedColorStop {
+    /// The stop's retained values, absent ones as null retained references.
+    pub(crate) fn values(&self) -> [&RetainedStyleValue; 4] {
+        [
+            &self.transition_hint,
+            &self.color,
+            &self.position,
+            &self.second_position,
+        ]
+    }
+}
+
+impl RetainedColorStopList {
+    pub(crate) fn as_slice(&self) -> &[RetainedColorStop] {
+        if self.pointer.is_null() {
+            return &[];
+        }
+        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+    }
+}
+
 /// A retained named grid area: the retained area name and its grid line indices.
 #[repr(C)]
 pub struct RetainedGridArea {

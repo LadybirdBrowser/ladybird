@@ -28,15 +28,6 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     void serialize(StringBuilder&, SerializationMode) const;
 
-    bool is_computationally_independent() const
-    {
-        return (!color_interpolation_method_value() || color_interpolation_method_value()->is_computationally_independent())
-            && first_component().color->is_computationally_independent()
-            && second_component().color->is_computationally_independent()
-            && (!first_component().percentage || first_component().percentage->is_computationally_independent())
-            && (!second_component().percentage || second_component().percentage->is_computationally_independent());
-    }
-
 private:
     ColorMixStyleValue(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component);
 

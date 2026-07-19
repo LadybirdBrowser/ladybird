@@ -49,8 +49,6 @@ public:
         return percentage() == other_percentage.percentage();
     }
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     PercentageStyleValue(Percentage&& percentage)
         : DimensionStyleValue(Type::Percentage, StyleValueFFI::rust_style_value_create_percentage(percentage.value()))

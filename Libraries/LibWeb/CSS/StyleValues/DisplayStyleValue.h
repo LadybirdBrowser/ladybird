@@ -24,8 +24,6 @@ public:
     bool properties_equal(DisplayStyleValue const& other) const { return display() == other.display(); }
     GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
 
-    bool is_computationally_independent() const { return true; }
-
 private:
     explicit DisplayStyleValue(Display const& display)
         : StyleValueWithDefaultOperators(Type::Display, StyleValueFFI::rust_style_value_create_display(bit_cast<u32>(display)))

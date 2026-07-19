@@ -28,8 +28,6 @@ public:
 
     bool properties_equal(ContentStyleValue const& other) const;
 
-    bool is_computationally_independent() const;
-
     void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 
 private:

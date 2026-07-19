@@ -50,17 +50,6 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool equals(StyleValue const& other) const;
 
-    bool is_computationally_independent() const
-    {
-        auto is_direction_computationally_independent = direction().visit(
-            [](NonnullRefPtr<StyleValue const> const& value) { return value->is_computationally_independent(); },
-            [](SideOrCorner) { return true; });
-
-        return is_direction_computationally_independent
-            && all_of(color_stop_list(), [&](auto const& stop) { return stop.is_computationally_independent(); })
-            && (!color_interpolation_method_value() || color_interpolation_method_value()->is_computationally_independent());
-    }
-
     Vector<ColorStopListElement> color_stop_list() const
     {
         auto const& list = m_value->linear_gradient.color_stop_list;

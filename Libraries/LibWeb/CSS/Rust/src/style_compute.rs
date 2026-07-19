@@ -171,6 +171,15 @@ fn length_unit_kinds() -> &'static [LengthUnitKind] {
     })
 }
 
+/// Whether a length unit is font-relative or container-relative, the two
+/// relativities that make a length depend on more than global information.
+pub(crate) fn length_unit_is_font_or_container_relative(unit: u8) -> bool {
+    matches!(
+        length_unit_kinds().get(unit as usize),
+        Some(LengthUnitKind::FontRelative { .. } | LengthUnitKind::ContainerRelative)
+    )
+}
+
 fn select_font_metric(metrics: &FfiFontMetrics, metric: FontMetricSelector) -> f64 {
     match metric {
         FontMetricSelector::FontSize => metrics.font_size,
@@ -700,6 +709,310 @@ pub unsafe extern "C" fn rust_pseudo_element_content_bails(content_value: *const
                 crate::selector_engine::pseudo_element_type_from_code(pseudo_element),
                 PseudoElementType::Before | PseudoElementType::After
             )
+    })
+}
+
+/// Whether a value is computationally independent, when the decision is
+/// available in the core; `handled` is false for value types whose rule still
+/// lives with their C++ shells.
+#[repr(C)]
+pub struct FfiIndependenceDecision {
+    pub handled: bool,
+    pub independent: bool,
+}
+
+/// https://drafts.css-houdini.org/css-properties-values-api/#computationally-independent
+/// A property value is computationally independent if it can be converted into a computed value
+/// using only the value of the property on the element, and "global" information that cannot be
+/// changed by CSS.
+///
+/// Returns None for value types whose rule still lives with their C++ shells; a container is
+/// also undecided when any of its nested values is, so the whole tree falls back.
+fn value_is_computationally_independent(
+    value: &StyleValueData,
+    data_of: unsafe extern "C" fn(*const c_void) -> *const c_void,
+    decide_fallback: unsafe extern "C" fn(*const c_void) -> bool,
+) -> Option<bool> {
+    use crate::style_value::RetainedStyleValue;
+    // An absent nested value never makes its container dependent. A nested value the core
+    // cannot decide is decided by the C++ fallback in place, so containers never go
+    // unhandled; only root values fall back.
+    let child = |retained: &RetainedStyleValue| -> Option<bool> {
+        let shell = retained.shell_pointer();
+        if shell.is_null() {
+            return Some(true);
+        }
+        let data = unsafe { data_of(shell) };
+        match value_is_computationally_independent(
+            unsafe { &*(data as *const StyleValueData) },
+            data_of,
+            decide_fallback,
+        ) {
+            Some(independent) => Some(independent),
+            None => Some(unsafe { decide_fallback(shell) }),
+        }
+    };
+    let all_of = |children: &[&RetainedStyleValue]| -> Option<bool> {
+        let mut independent = true;
+        for retained in children {
+            independent = independent && child(retained)?;
+        }
+        Some(independent)
+    };
+    let all_in_list = |list: &crate::style_value::RetainedStyleValueList| -> Option<bool> {
+        let mut independent = true;
+        for retained in list.as_slice() {
+            independent = independent && child(retained)?;
+        }
+        Some(independent)
+    };
+    match value {
+        StyleValueData::Keyword { keyword } => {
+            if value_is_css_wide_keyword(value) {
+                return Some(false);
+            }
+            // FIXME: Are there any other color keywords which aren't computationally independent?
+            if *keyword == keyword::ACCENTCOLOR || *keyword == keyword::ACCENTCOLORTEXT {
+                return Some(false);
+            }
+            // FIXME: Are there any other keywords which aren't computationally independent?
+            Some(true)
+        }
+        StyleValueData::Length { unit, .. } => Some(!length_unit_is_font_or_container_relative(*unit)),
+        StyleValueData::Number { .. }
+        | StyleValueData::Integer { .. }
+        | StyleValueData::Percentage { .. }
+        | StyleValueData::Angle { .. }
+        | StyleValueData::Flex { .. }
+        | StyleValueData::Frequency { .. }
+        | StyleValueData::Resolution { .. }
+        | StyleValueData::Time { .. }
+        | StyleValueData::String { .. } => Some(true),
+        // NB: anchor() and anchor-size() count as independent even though they carry a
+        //     fallback value, matching their C++ rules.
+        StyleValueData::Anchor { .. }
+        | StyleValueData::AnchorSize { .. }
+        | StyleValueData::ColorScheme { .. }
+        | StyleValueData::CounterStyle { .. }
+        | StyleValueData::CustomIdent { .. }
+        | StyleValueData::Display { .. }
+        | StyleValueData::EmptyOptional
+        | StyleValueData::GridAutoFlow { .. }
+        | StyleValueData::GridTemplateArea { .. }
+        | StyleValueData::Image { .. }
+        | StyleValueData::RepeatStyle { .. }
+        | StyleValueData::TextUnderlinePosition { .. }
+        | StyleValueData::Url { .. }
+        | StyleValueData::FontSource { .. }
+        | StyleValueData::ScrollbarGutter { .. } => Some(true),
+        StyleValueData::LightDark { .. } | StyleValueData::TreeCountingFunction { .. } => Some(false),
+        StyleValueData::Ratio {
+            numerator, denominator, ..
+        } => all_of(&[numerator, denominator]),
+        StyleValueData::Edge { offset, .. } => child(offset),
+        StyleValueData::Function { value, .. } => child(value),
+        StyleValueData::OpacityValue { value } => child(value),
+        // Auto placements carry no value; spans and lines recurse into theirs.
+        StyleValueData::GridTrackPlacement { value, .. } => child(value),
+        // FIXME: Consider sub-values once we support <custom-color-space> values
+        StyleValueData::ColorInterpolationMethod { .. } => Some(true),
+        StyleValueData::ColorFunction {
+            channel_0,
+            channel_1,
+            channel_2,
+            alpha,
+            origin_color,
+            ..
+        } => all_of(&[channel_0, channel_1, channel_2, alpha, origin_color]),
+        StyleValueData::BorderImageSlice {
+            top,
+            right,
+            bottom,
+            left,
+            ..
+        } => all_of(&[top, right, bottom, left]),
+        StyleValueData::Content { content, alt_text } => all_of(&[content, alt_text]),
+        // Extent components carry no value; explicit sizes recurse into theirs.
+        StyleValueData::RadialSize { value_0, value_1, .. } => all_of(&[value_0, value_1]),
+        // Every shape kind's rule is a conjunction over the values it uses; the
+        // unused generic fields and point list of the other kinds are absent, so
+        // one null-tolerant conjunction covers inset, xywh, rect, circle,
+        // ellipse, polygon and path exactly.
+        StyleValueData::BasicShape {
+            v0,
+            v1,
+            v2,
+            v3,
+            v4,
+            points,
+            ..
+        } => {
+            let mut independent = all_of(&[v0, v1, v2, v3, v4])?;
+            for point in points.as_slice() {
+                independent = independent && all_of(&point.values())?;
+            }
+            Some(independent)
+        }
+        // Every filter kind's rule recurses into its single value.
+        StyleValueData::Filter { value, .. } => child(value),
+        StyleValueData::Counter { counter_style, .. } => child(counter_style),
+        StyleValueData::OpenTypeTagged { value, .. } => child(value),
+        StyleValueData::RandomValueSharing { fixed_value, .. } => child(fixed_value),
+        StyleValueData::Cursor { image, x, y } => all_of(&[image, x, y]),
+        // The unused fields of the non-matching easing kinds are absent, so one
+        // null-tolerant conjunction covers every kind's rule.
+        StyleValueData::Easing {
+            linear_stops,
+            x1,
+            y1,
+            x2,
+            y2,
+            number_of_intervals,
+            ..
+        } => {
+            let mut independent = all_of(&[x1, y1, x2, y2, number_of_intervals])?;
+            for stop in linear_stops.as_slice() {
+                independent = independent && all_of(&stop.values())?;
+            }
+            Some(independent)
+        }
+        StyleValueData::ImageSet { options } => {
+            let mut independent = true;
+            for option in options.as_slice() {
+                independent = independent && all_of(&option.values())?;
+            }
+            Some(independent)
+        }
+        StyleValueData::CounterDefinitions { counter_definitions } => {
+            let mut independent = true;
+            for definition in counter_definitions.as_slice() {
+                independent = independent && child(definition.value())?;
+            }
+            Some(independent)
+        }
+        StyleValueData::LinearGradient {
+            direction_value,
+            color_stop_list,
+            color_interpolation_method,
+            ..
+        } => {
+            let mut independent = child(direction_value)? && child(color_interpolation_method)?;
+            for stop in color_stop_list.as_slice() {
+                independent = independent && all_of(&stop.values())?;
+            }
+            Some(independent)
+        }
+        StyleValueData::ConicGradient {
+            from_angle,
+            position,
+            color_stop_list,
+            color_interpolation_method,
+            ..
+        } => {
+            let mut independent = child(from_angle)? && child(position)? && child(color_interpolation_method)?;
+            for stop in color_stop_list.as_slice() {
+                independent = independent && all_of(&stop.values())?;
+            }
+            Some(independent)
+        }
+        StyleValueData::RadialGradient {
+            size,
+            position,
+            color_stop_list,
+            color_interpolation_method,
+            ..
+        } => {
+            let mut independent = child(size)? && child(position)? && child(color_interpolation_method)?;
+            for stop in color_stop_list.as_slice() {
+                independent = independent && all_of(&stop.values())?;
+            }
+            Some(independent)
+        }
+        StyleValueData::ContrastColor { color, .. } => child(color),
+        StyleValueData::Superellipse { parameter } => child(parameter),
+        StyleValueData::ScrollbarColor {
+            thumb_color,
+            track_color,
+            ..
+        } => all_of(&[thumb_color, track_color]),
+        StyleValueData::Rect {
+            top,
+            right,
+            bottom,
+            left,
+            ..
+        } => all_of(&[top, right, bottom, left]),
+        StyleValueData::FontStyle { angle_value, .. } => child(angle_value),
+        StyleValueData::TextIndent { length_percentage, .. } => child(length_percentage),
+        StyleValueData::OverflowClipMargin { offset, .. } => child(offset),
+        StyleValueData::BackgroundSize { size_x, size_y, .. } => all_of(&[size_x, size_y]),
+        StyleValueData::Position { edge_x, edge_y, .. } => all_of(&[edge_x, edge_y]),
+        StyleValueData::Shadow {
+            color,
+            offset_x,
+            offset_y,
+            blur_radius,
+            spread_distance,
+            ..
+        } => all_of(&[color, offset_x, offset_y, blur_radius, spread_distance]),
+        StyleValueData::ColorMix {
+            color_interpolation_method,
+            first_color,
+            first_percentage,
+            second_color,
+            second_percentage,
+            ..
+        } => all_of(&[
+            color_interpolation_method,
+            first_color,
+            first_percentage,
+            second_color,
+            second_percentage,
+        ]),
+        StyleValueData::ValueList { values, .. }
+        | StyleValueData::Tuple { values }
+        | StyleValueData::Transformation { values, .. }
+        | StyleValueData::Shorthand { values, .. } => all_in_list(values),
+        StyleValueData::BorderRadiusRect {
+            top_left,
+            top_right,
+            bottom_right,
+            bottom_left,
+            ..
+        } => all_of(&[top_left, top_right, bottom_right, bottom_left]),
+        StyleValueData::BorderRadius {
+            horizontal_radius,
+            vertical_radius,
+            ..
+        } => all_of(&[horizontal_radius, vertical_radius]),
+        _ => None,
+    }
+}
+
+/// # Safety
+/// `data` must point at a valid StyleValueData and `data_of` must be a valid callback mapping a
+/// nested value's shell pointer to its Rust-owned data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_is_computationally_independent(
+    data: *const c_void,
+    data_of: unsafe extern "C" fn(shell: *const c_void) -> *const c_void,
+    decide_fallback: unsafe extern "C" fn(shell: *const c_void) -> bool,
+) -> FfiIndependenceDecision {
+    abort_on_panic(|| {
+        match value_is_computationally_independent(
+            unsafe { &*(data as *const StyleValueData) },
+            data_of,
+            decide_fallback,
+        ) {
+            Some(independent) => FfiIndependenceDecision {
+                handled: true,
+                independent,
+            },
+            None => FfiIndependenceDecision {
+                handled: false,
+                independent: false,
+            },
+        }
     })
 }
 
