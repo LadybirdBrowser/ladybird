@@ -49,7 +49,7 @@ TEST_CASE(rust_length_resolution_matches_cpp)
             auto cpp_context = make_context(&cpp_resolved_viewport);
             auto ffi_context = to_ffi_length_resolution_context(cpp_context);
 
-            auto rust_result = rust_absolutize_length(value, to_underlying(unit), &ffi_context);
+            auto rust_result = invoke_rust_absolutize_length(value, to_underlying(unit), &ffi_context);
             EXPECT(rust_result.handled);
 
             Length length { value, unit };
@@ -95,7 +95,7 @@ TEST_CASE(container_relative_units_fall_back_to_cpp)
     bool unused = false;
     auto cpp_context = make_context(&unused);
     auto ffi_context = to_ffi_length_resolution_context(cpp_context);
-    auto result = rust_absolutize_length(1.0, to_underlying(LengthUnit::Cqw), &ffi_context);
+    auto result = invoke_rust_absolutize_length(1.0, to_underlying(LengthUnit::Cqw), &ffi_context);
     EXPECT(!result.handled);
 }
 

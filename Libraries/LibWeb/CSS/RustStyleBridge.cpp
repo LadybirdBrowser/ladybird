@@ -19,47 +19,47 @@ void free_rust_style_group(size_t group_index, void* payload)
     ComputedValuesFFI::rust_style_group_free(group_index, payload);
 }
 
-void rust_property_metadata_bounds(u16* first_longhand, u16* last_longhand, u16* first_inherited, u16* last_inherited)
+void invoke_rust_property_metadata_bounds(u16* first_longhand, u16* last_longhand, u16* first_inherited, u16* last_inherited)
 {
     ComputedValuesFFI::rust_property_metadata_bounds(first_longhand, last_longhand, first_inherited, last_inherited);
 }
 
-bool rust_property_metadata_is_inherited(u16 property_id)
+bool invoke_rust_property_metadata_is_inherited(u16 property_id)
 {
     return ComputedValuesFFI::rust_property_metadata_is_inherited(property_id);
 }
 
-u16 const* rust_property_metadata_computation_order(size_t* length)
+u16 const* invoke_rust_property_metadata_computation_order(size_t* length)
 {
     return ComputedValuesFFI::rust_property_metadata_computation_order(length);
 }
 
-u16 rust_map_logical_alias_to_physical(u16 property_id, u8 writing_mode, u8 direction)
+u16 invoke_rust_map_logical_alias_to_physical(u16 property_id, u8 writing_mode, u8 direction)
 {
     return ComputedValuesFFI::rust_map_logical_alias_to_physical(property_id, writing_mode, direction);
 }
 
-u16 rust_map_physical_to_logical_alias(u16 property_id, u8 writing_mode, u8 direction)
+u16 invoke_rust_map_physical_to_logical_alias(u16 property_id, u8 writing_mode, u8 direction)
 {
     return ComputedValuesFFI::rust_map_physical_to_logical_alias(property_id, writing_mode, direction);
 }
 
-bool rust_property_metadata_is_shorthand(u16 property_id)
+bool invoke_rust_property_metadata_is_shorthand(u16 property_id)
 {
     return ComputedValuesFFI::rust_property_metadata_is_shorthand(property_id);
 }
 
-u16 const* rust_property_metadata_longhands_for_shorthand(u16 property_id, size_t* length)
+u16 const* invoke_rust_property_metadata_longhands_for_shorthand(u16 property_id, size_t* length)
 {
     return ComputedValuesFFI::rust_property_metadata_longhands_for_shorthand(property_id, length);
 }
 
-u8 rust_property_metadata_requires_computation_level(u16 property_id)
+u8 invoke_rust_property_metadata_requires_computation_level(u16 property_id)
 {
     return ComputedValuesFFI::rust_property_metadata_requires_computation_level(property_id);
 }
 
-ComputedValuesFFI::FfiAbsolutizedLength rust_absolutize_length(double value, u8 unit, ComputedValuesFFI::FfiLengthResolutionContext const* context)
+ComputedValuesFFI::FfiAbsolutizedLength invoke_rust_absolutize_length(double value, u8 unit, ComputedValuesFFI::FfiLengthResolutionContext const* context)
 {
     return ComputedValuesFFI::rust_absolutize_length(value, unit, context);
 }
@@ -82,6 +82,11 @@ i32 rust_css_pixels_nearest_value_for(double value)
 i32 rust_css_pixels_scaled(i32 value, double factor)
 {
     return ComputedValuesFFI::rust_css_pixels_scaled(value, factor);
+}
+
+StyleValueFFI::FfiNumericType invoke_rust_numeric_type_operate(u8 operation, StyleValueFFI::FfiNumericType const* first, StyleValueFFI::FfiNumericType const* second)
+{
+    return StyleValueFFI::rust_numeric_type_operate(operation, first, second);
 }
 
 }

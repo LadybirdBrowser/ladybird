@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <LibWeb/Export.h>
+
 #include <AK/Array.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
@@ -18,7 +20,7 @@ using UnitMap = HashMap<Utf16FlyString, i32>;
 UnitMap product_of_two_unit_maps(UnitMap const&, UnitMap const&);
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-type
-class NumericType {
+class WEB_API NumericType {
 public:
     enum class BaseType {
         Length,

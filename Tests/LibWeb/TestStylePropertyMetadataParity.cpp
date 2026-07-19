@@ -22,7 +22,7 @@ TEST_CASE(property_bounds_match)
     u16 last_longhand = 0;
     u16 first_inherited = 0;
     u16 last_inherited = 0;
-    rust_property_metadata_bounds(&first_longhand, &last_longhand, &first_inherited, &last_inherited);
+    invoke_rust_property_metadata_bounds(&first_longhand, &last_longhand, &first_inherited, &last_inherited);
     EXPECT_EQ(first_longhand, to_underlying(first_longhand_property_id));
     EXPECT_EQ(last_longhand, to_underlying(last_longhand_property_id));
     EXPECT_EQ(first_inherited, to_underlying(first_inherited_property_id));
@@ -32,13 +32,13 @@ TEST_CASE(property_bounds_match)
 TEST_CASE(inherited_flags_match)
 {
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i)
-        EXPECT_EQ(rust_property_metadata_is_inherited(i), is_inherited_property(static_cast<PropertyID>(i)));
+        EXPECT_EQ(invoke_rust_property_metadata_is_inherited(i), is_inherited_property(static_cast<PropertyID>(i)));
 }
 
 TEST_CASE(computation_order_matches)
 {
     size_t length = 0;
-    auto const* order = rust_property_metadata_computation_order(&length);
+    auto const* order = invoke_rust_property_metadata_computation_order(&length);
     auto const& cpp_order = property_computation_order();
     EXPECT_EQ(length, cpp_order.size());
     for (size_t i = 0; i < min(length, cpp_order.size()); ++i)
@@ -55,7 +55,7 @@ TEST_CASE(logical_alias_mapping_matches)
                 auto expected = property_is_logical_alias(property_id)
                     ? map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { static_cast<WritingMode>(writing_mode), static_cast<Direction>(direction) })
                     : property_id;
-                EXPECT_EQ(rust_map_logical_alias_to_physical(i, writing_mode, direction), to_underlying(expected));
+                EXPECT_EQ(invoke_rust_map_logical_alias_to_physical(i, writing_mode, direction), to_underlying(expected));
             }
         }
     }
@@ -71,7 +71,7 @@ TEST_CASE(physical_to_logical_mapping_matches)
                 auto expected = property_is_logical_alias(property_id)
                     ? property_id
                     : map_physical_property_to_logical_alias(property_id, LogicalAliasMappingContext { static_cast<WritingMode>(writing_mode), static_cast<Direction>(direction) });
-                EXPECT_EQ(rust_map_physical_to_logical_alias(i, writing_mode, direction), to_underlying(expected));
+                EXPECT_EQ(invoke_rust_map_physical_to_logical_alias(i, writing_mode, direction), to_underlying(expected));
             }
         }
     }
@@ -81,11 +81,11 @@ TEST_CASE(shorthand_expansions_match)
 {
     for (auto i = to_underlying(first_property_id); i <= to_underlying(last_property_id); ++i) {
         auto property_id = static_cast<PropertyID>(i);
-        EXPECT_EQ(rust_property_metadata_is_shorthand(i), property_is_shorthand(property_id));
+        EXPECT_EQ(invoke_rust_property_metadata_is_shorthand(i), property_is_shorthand(property_id));
         if (!property_is_shorthand(property_id))
             continue;
         size_t length = 0;
-        auto const* longhands = rust_property_metadata_longhands_for_shorthand(i, &length);
+        auto const* longhands = invoke_rust_property_metadata_longhands_for_shorthand(i, &length);
         auto const& cpp_longhands = longhands_for_shorthand(property_id);
         EXPECT_EQ(length, cpp_longhands.size());
         for (size_t j = 0; j < min(length, cpp_longhands.size()); ++j)
@@ -97,7 +97,7 @@ TEST_CASE(requires_computation_levels_match)
 {
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
         auto property_id = static_cast<PropertyID>(i);
-        auto level = rust_property_metadata_requires_computation_level(i);
+        auto level = invoke_rust_property_metadata_requires_computation_level(i);
         EXPECT_EQ(level >= 1, property_requires_computation_with_cascaded_value(property_id));
         EXPECT_EQ(level >= 2, property_requires_computation_with_initial_value(property_id));
         EXPECT_EQ(level >= 3, property_requires_computation_with_inherited_value(property_id));

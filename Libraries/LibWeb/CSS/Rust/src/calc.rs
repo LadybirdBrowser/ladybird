@@ -33,17 +33,308 @@ pub enum CalcNumericValue {
     Time { value: f64, unit: u8 },
 }
 
+pub(crate) const BASE_TYPE_COUNT: usize = 7;
+pub(crate) const BASE_TYPE_PERCENT: usize = 6;
+
 /// https://drafts.css-houdini.org/css-typed-om-1/#numeric-typing
-/// The type of a calculation: an exponent per base type plus the percent
-/// hint, mirroring the C++ NumericType.
-#[derive(Clone, Copy, PartialEq, Eq, Default)]
-#[allow(dead_code)]
+/// The type of a calculation: an optional exponent per base type plus the
+/// percent hint, mirroring the C++ NumericType. Absent and zero exponents are
+/// distinct, exactly as in the typed-om algebra.
+#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
 pub(crate) struct CalcNumericType {
     /// Exponents indexed by base type: length, angle, time, frequency,
     /// resolution, flex, percent, in the C++ BaseType order.
-    pub exponents: [i32; 7],
+    pub exponents: [Option<i32>; BASE_TYPE_COUNT],
     /// The percent hint: an index into the base types, when set.
     pub percent_hint: Option<u8>,
+}
+
+#[allow(dead_code)]
+impl CalcNumericType {
+    fn contains_all_the_non_zero_entries_of_other_with_the_same_value(&self, other: &CalcNumericType) -> bool {
+        for i in 0..BASE_TYPE_COUNT {
+            let other_exponent = other.exponents[i];
+            if other_exponent.is_some() && other_exponent != Some(0) && self.exponents[i] != other_exponent {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn contains_a_key_other_than_percent_with_a_non_zero_value(&self) -> bool {
+        (0..BASE_TYPE_COUNT)
+            .any(|i| i != BASE_TYPE_PERCENT && self.exponents[i].is_some() && self.exponents[i] != Some(0))
+    }
+
+    /// Copies entries from `other`, optionally skipping the ones already present.
+    fn copy_all_entries_from(&mut self, other: &CalcNumericType, skip_if_already_present: bool) {
+        for i in 0..BASE_TYPE_COUNT {
+            if other.exponents[i].is_some() && !(skip_if_already_present && self.exponents[i].is_some()) {
+                self.exponents[i] = other.exponents[i];
+            }
+        }
+    }
+
+    /// https://drafts.css-houdini.org/css-typed-om-1/#apply-the-percent-hint
+    fn apply_percent_hint(&mut self, hint: u8) {
+        // To apply the percent hint hint to a type without a percent hint, perform the following steps:
+        assert!(self.percent_hint.is_none());
+        let hint_index = hint as usize;
+
+        // 1. Set type's percent hint to hint.
+        self.percent_hint = Some(hint);
+
+        // 2. If type doesn't contain hint, set type[hint] to 0.
+        if self.exponents[hint_index].is_none() {
+            self.exponents[hint_index] = Some(0);
+        }
+
+        // 3. If hint is anything other than "percent", and type contains "percent",
+        //    add type["percent"] to type[hint], then set type["percent"] to 0.
+        if hint_index != BASE_TYPE_PERCENT && self.exponents[BASE_TYPE_PERCENT].is_some() {
+            self.exponents[hint_index] =
+                Some(self.exponents[BASE_TYPE_PERCENT].unwrap() + self.exponents[hint_index].unwrap());
+            self.exponents[BASE_TYPE_PERCENT] = Some(0);
+        }
+    }
+
+    /// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-add-two-types
+    pub(crate) fn added_to(&self, other: &CalcNumericType) -> Option<CalcNumericType> {
+        // To add two types type1 and type2, perform the following steps:
+
+        // 1. Replace type1 with a fresh copy of type1, and type2 with a fresh copy of type2.
+        //    Let finalType be a new type with an initially empty ordered map and an initially null percent hint.
+        let mut type1 = *self;
+        let mut type2 = *other;
+        let mut final_type = CalcNumericType::default();
+
+        // 2. If both type1 and type2 have non-null percent hints with different values
+        if type1.percent_hint.is_some() && type2.percent_hint.is_some() && type1.percent_hint != type2.percent_hint {
+            // The types can't be added. Return failure.
+            return None;
+        }
+        //    If type1 has a non-null percent hint hint and type2 doesn't
+        if let (Some(hint), None) = (type1.percent_hint, type2.percent_hint) {
+            // Apply the percent hint hint to type2.
+            type2.apply_percent_hint(hint);
+        }
+        //    Vice versa if type2 has a non-null percent hint and type1 doesn't.
+        else if let (Some(hint), None) = (type2.percent_hint, type1.percent_hint) {
+            type1.apply_percent_hint(hint);
+        }
+
+        // 3. If all the entries of type1 with non-zero values are contained in type2 with the same value, and vice-versa
+        if type2.contains_all_the_non_zero_entries_of_other_with_the_same_value(&type1)
+            && type1.contains_all_the_non_zero_entries_of_other_with_the_same_value(&type2)
+        {
+            // Copy all of type1's entries to finalType, and then copy all of type2's entries to finalType that
+            // finalType doesn't already contain. Set finalType's percent hint to type1's percent hint. Return finalType.
+            final_type.copy_all_entries_from(&type1, false);
+            final_type.copy_all_entries_from(&type2, true);
+            final_type.percent_hint = type1.percent_hint;
+            return Some(final_type);
+        }
+        //    If type1 and/or type2 contain "percent" with a non-zero value,
+        //    and type1 and/or type2 contain a key other than "percent" with a non-zero value
+        let percent_is_non_zero =
+            |t: &CalcNumericType| t.exponents[BASE_TYPE_PERCENT].is_some() && t.exponents[BASE_TYPE_PERCENT] != Some(0);
+        if (percent_is_non_zero(&type1) || percent_is_non_zero(&type2))
+            && (type1.contains_a_key_other_than_percent_with_a_non_zero_value()
+                || type2.contains_a_key_other_than_percent_with_a_non_zero_value())
+        {
+            // For each base type other than "percent" hint:
+            for hint in 0..BASE_TYPE_COUNT as u8 {
+                if hint as usize == BASE_TYPE_PERCENT {
+                    continue;
+                }
+
+                // 1. Provisionally apply the percent hint hint to both type1 and type2.
+                let mut provisional_type1 = type1;
+                provisional_type1.apply_percent_hint(hint);
+                let mut provisional_type2 = type2;
+                provisional_type2.apply_percent_hint(hint);
+
+                // 2. If, afterwards, all the entries of type1 with non-zero values are contained in type2
+                //    with the same value, and vice versa, then copy all of type1's entries to finalType,
+                //    and then copy all of type2's entries to finalType that finalType doesn't already contain.
+                //    Set finalType's percent hint to hint. Return finalType.
+                if provisional_type2.contains_all_the_non_zero_entries_of_other_with_the_same_value(&provisional_type1)
+                    && provisional_type1
+                        .contains_all_the_non_zero_entries_of_other_with_the_same_value(&provisional_type2)
+                {
+                    final_type.copy_all_entries_from(&provisional_type1, false);
+                    final_type.copy_all_entries_from(&provisional_type2, true);
+                    final_type.percent_hint = Some(hint);
+                    return Some(final_type);
+                }
+
+                // 3. Otherwise, revert type1 and type2 to their state at the start of this loop.
+                // NOTE: The modifications were made to the provisional copies, so this is a no-op.
+            }
+
+            // If the loop finishes without returning finalType, then the types can't be added. Return failure.
+            return None;
+        }
+        // Otherwise
+        //     The types can't be added. Return failure.
+        None
+    }
+
+    /// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-multiply-two-types
+    pub(crate) fn multiplied_by(&self, other: &CalcNumericType) -> Option<CalcNumericType> {
+        // To multiply two types type1 and type2, perform the following steps:
+
+        // 1. Replace type1 with a fresh copy of type1, and type2 with a fresh copy of type2.
+        //    Let finalType be a new type with an initially empty ordered map and an initially null percent hint.
+        let mut type1 = *self;
+        let mut type2 = *other;
+        let mut final_type = CalcNumericType::default();
+
+        // 2. If both type1 and type2 have non-null percent hints with different values,
+        //    the types can't be multiplied. Return failure.
+        if type1.percent_hint.is_some() && type2.percent_hint.is_some() && type1.percent_hint != type2.percent_hint {
+            return None;
+        }
+
+        // 3. If type1 has a non-null percent hint hint and type2 doesn't, apply the percent hint hint to type2.
+        if let (Some(hint), None) = (type1.percent_hint, type2.percent_hint) {
+            type2.apply_percent_hint(hint);
+        }
+        //    Vice versa if type2 has a non-null percent hint and type1 doesn't.
+        else if let (Some(hint), None) = (type2.percent_hint, type1.percent_hint) {
+            type1.apply_percent_hint(hint);
+        }
+
+        // 4. Copy all of type1's entries to finalType, then for each baseType -> power of type2:
+        final_type.copy_all_entries_from(&type1, false);
+        for i in 0..BASE_TYPE_COUNT {
+            let Some(power) = type2.exponents[i] else {
+                continue;
+            };
+            // 1. If finalType[baseType] exists, increment its value by power.
+            // 2. Otherwise, set finalType[baseType] to power.
+            final_type.exponents[i] = Some(final_type.exponents[i].unwrap_or(0) + power);
+        }
+        //    Set finalType's percent hint to type1's percent hint.
+        final_type.percent_hint = type1.percent_hint;
+
+        // 5. Return finalType.
+        Some(final_type)
+    }
+
+    /// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-invert-a-type
+    pub(crate) fn inverted(&self) -> CalcNumericType {
+        // To invert a type type, perform the following steps:
+
+        // 1. Let result be a new type with an initially empty ordered map and a percent hint matching that of type.
+        let mut result = CalcNumericType {
+            percent_hint: self.percent_hint,
+            ..Default::default()
+        };
+
+        // 2. For each unit -> exponent of type, set result[unit] to (-1 * exponent).
+        for i in 0..BASE_TYPE_COUNT {
+            if let Some(power) = self.exponents[i] {
+                result.exponents[i] = Some(-power);
+            }
+        }
+
+        // 3. Return result.
+        result
+    }
+
+    /// https://drafts.csswg.org/css-values-4/#css-make-a-type-consistent
+    pub(crate) fn made_consistent_with(&self, input: &CalcNumericType) -> Option<CalcNumericType> {
+        let mut base = *self;
+
+        // 1. If both base and input have different non-null percent hints, they can't be made consistent. Return failure.
+        if base.percent_hint.is_some() && input.percent_hint.is_some() && base.percent_hint != input.percent_hint {
+            return None;
+        }
+
+        // 2. If base has a null percent hint set base's percent hint to input's percent hint.
+        if base.percent_hint.is_none() {
+            base.percent_hint = input.percent_hint;
+        }
+
+        // 3. Return base.
+        Some(base)
+    }
+}
+
+/// The FFI mirror of a numeric type, for the parity test on the C++ side.
+/// NB: The array dimension is the base type count, spelled literally so the
+///     generated header does not depend on the crate-private constant.
+#[repr(C)]
+pub struct FfiNumericType {
+    pub has_exponent: [bool; 7],
+    pub exponents: [i32; 7],
+    pub has_percent_hint: bool,
+    pub percent_hint: u8,
+    pub valid: bool,
+}
+
+impl FfiNumericType {
+    fn from_calc(value: Option<CalcNumericType>) -> Self {
+        let mut result = FfiNumericType {
+            has_exponent: [false; BASE_TYPE_COUNT],
+            exponents: [0; BASE_TYPE_COUNT],
+            has_percent_hint: false,
+            percent_hint: 0,
+            valid: value.is_some(),
+        };
+        if let Some(value) = value {
+            for i in 0..BASE_TYPE_COUNT {
+                if let Some(exponent) = value.exponents[i] {
+                    result.has_exponent[i] = true;
+                    result.exponents[i] = exponent;
+                }
+            }
+            if let Some(hint) = value.percent_hint {
+                result.has_percent_hint = true;
+                result.percent_hint = hint;
+            }
+        }
+        result
+    }
+
+    fn to_calc(&self) -> CalcNumericType {
+        let mut result = CalcNumericType::default();
+        for i in 0..BASE_TYPE_COUNT {
+            if self.has_exponent[i] {
+                result.exponents[i] = Some(self.exponents[i]);
+            }
+        }
+        if self.has_percent_hint {
+            result.percent_hint = Some(self.percent_hint);
+        }
+        result
+    }
+}
+
+/// FFI parity hooks for the C++ parity test: operation 0 adds, 1 multiplies,
+/// 2 inverts (always valid), 3 makes consistent.
+///
+/// # Safety
+/// Both pointers must be valid.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_numeric_type_operate(
+    operation: u8,
+    first: *const FfiNumericType,
+    second: *const FfiNumericType,
+) -> FfiNumericType {
+    crate::abort_on_panic(|| {
+        let first = unsafe { &*first }.to_calc();
+        let second = unsafe { &*second }.to_calc();
+        let result = match operation {
+            0 => first.added_to(&second),
+            1 => first.multiplied_by(&second),
+            2 => Some(first.inverted()),
+            3 => first.made_consistent_with(&second),
+            _ => unreachable!("invalid numeric type operation {operation}"),
+        };
+        FfiNumericType::from_calc(result)
+    })
 }
 
 /// https://drafts.csswg.org/css-values-4/#round-func
@@ -253,8 +544,33 @@ mod tests {
     #[test]
     fn numeric_type_defaults_to_empty() {
         let numeric_type = CalcNumericType::default();
-        assert_eq!(numeric_type.exponents, [0; 7]);
+        assert_eq!(numeric_type.exponents, [None; BASE_TYPE_COUNT]);
         assert!(numeric_type.percent_hint.is_none());
+    }
+
+    #[test]
+    fn adding_percentage_to_length_hints_the_percent() {
+        // «[ "length" -> 1 ]» + «[ "percent" -> 1 ]» resolves with a length percent hint.
+        let mut length = CalcNumericType::default();
+        length.exponents[0] = Some(1);
+        let mut percent = CalcNumericType::default();
+        percent.exponents[BASE_TYPE_PERCENT] = Some(1);
+        let sum = length.added_to(&percent).expect("length + percent is consistent");
+        assert_eq!(sum.percent_hint, Some(0));
+        assert_eq!(sum.exponents[0], Some(1));
+        // Incompatible dimensions fail.
+        let mut angle = CalcNumericType::default();
+        angle.exponents[1] = Some(1);
+        assert!(length.added_to(&angle).is_none());
+    }
+
+    #[test]
+    fn multiplying_types_adds_exponents() {
+        let mut length = CalcNumericType::default();
+        length.exponents[0] = Some(1);
+        let product = length.multiplied_by(&length).expect("length * length");
+        assert_eq!(product.exponents[0], Some(2));
+        assert_eq!(length.inverted().exponents[0], Some(-1));
     }
 }
 
