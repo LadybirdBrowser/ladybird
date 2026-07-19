@@ -605,6 +605,142 @@ pub unsafe extern "C" fn rust_compute_line_height(
     })
 }
 
+// https://drafts.csswg.org/css-backgrounds/#border-width
+// absolute length, snapped as a border width
+fn compute_border_or_outline_width(value: &StyleValueData, device_pixels_per_css_pixel: f64) -> FfiComputedNumber {
+    let absolute_length = match value {
+        // The thin, medium, and thick keywords are equivalent to 1px, 3px, and 5px, respectively.
+        // https://drafts.csswg.org/css-backgrounds/#typedef-line-width
+        StyleValueData::Keyword { keyword } => match *keyword {
+            keyword::THIN => CssPixels::from_integer(1),
+            keyword::MEDIUM => CssPixels::from_integer(3),
+            keyword::THICK => CssPixels::from_integer(5),
+            _ => return NUMBER_UNHANDLED,
+        },
+        StyleValueData::Length { value, unit } => {
+            let kinds = length_unit_kinds();
+            match kinds.get(*unit as usize) {
+                Some(LengthUnitKind::Px) => CssPixels::nearest_value_for(*value),
+                Some(LengthUnitKind::Absolute { px_per_unit }) => CssPixels::nearest_value_for(px_per_unit * value),
+                _ => return NUMBER_UNHANDLED,
+            }
+        }
+        _ => return NUMBER_UNHANDLED,
+    };
+    FfiComputedNumber {
+        handled: true,
+        unchanged: false,
+        value: snap_a_length_as_a_border_width(device_pixels_per_css_pixel, absolute_length).to_double(),
+    }
+}
+
+// https://drafts.csswg.org/css-backgrounds/#compute-a-border-width
+fn snap_a_length_as_a_border_width(device_pixels_per_css_pixel: f64, length: CssPixels) -> CssPixels {
+    // 1. Assert: len is non-negative.
+    // NB: The caller guarantees this; negative widths are invalid at parse time.
+
+    // 2. If len is an integer number of device pixels, do nothing.
+    let device_pixels = length.to_double() * device_pixels_per_css_pixel;
+    if device_pixels == device_pixels.trunc() {
+        return length;
+    }
+
+    // 3. If len is greater than zero, but less than 1 device pixel, round len up to 1 device pixel.
+    if device_pixels > 0.0 && device_pixels < 1.0 {
+        return CssPixels::nearest_value_for(1.0 / device_pixels_per_css_pixel);
+    }
+
+    // 4. If len is greater than 1 device pixel, round it down to the nearest integer number of
+    //    device pixels.
+    if device_pixels > 1.0 {
+        return CssPixels::nearest_value_for(device_pixels.floor() / device_pixels_per_css_pixel);
+    }
+
+    length
+}
+
+/// Computes a border or outline width property from its absolutized value.
+///
+/// # Safety
+/// `absolutized_value` must point at a valid StyleValueData.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_border_or_outline_width(
+    absolutized_value: *const c_void,
+    device_pixels_per_css_pixel: f64,
+) -> FfiComputedNumber {
+    abort_on_panic(|| {
+        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
+        compute_border_or_outline_width(value, device_pixels_per_css_pixel)
+    })
+}
+
+// https://drafts.csswg.org/css-borders-4/#propdef-corner-top-left-shape
+// the corresponding superellipse() value
+fn compute_corner_shape_parameter(value: &StyleValueData) -> FfiComputedNumber {
+    let computed = |parameter: f64| FfiComputedNumber {
+        handled: true,
+        unchanged: false,
+        value: parameter,
+    };
+    match value {
+        StyleValueData::Keyword { keyword } => match *keyword {
+            // The corner shape is a quarter of a convex ellipse. Equivalent to superellipse(1).
+            keyword::ROUND => computed(1.0),
+            // The corner shape is a quarter of a "squircle", a convex curve between round and
+            // square. Equivalent to superellipse(2).
+            keyword::SQUIRCLE => computed(2.0),
+            // The corner shape is a convex 90deg angle. Equivalent to superellipse(infinity).
+            keyword::SQUARE => computed(f64::INFINITY),
+            // The corner shape is a straight diagonal line, neither convex nor concave.
+            // Equivalent to superellipse(0).
+            keyword::BEVEL => computed(0.0),
+            // The corner shape is a concave quarter-ellipse. Equivalent to superellipse(-1).
+            keyword::SCOOP => computed(-1.0),
+            // The corner shape is a concave 90deg angle. Equivalent to superellipse(-infinity).
+            keyword::NOTCH => computed(f64::NEG_INFINITY),
+            _ => NUMBER_UNHANDLED,
+        },
+        // Superellipse values are already computed.
+        StyleValueData::Superellipse { .. } => FfiComputedNumber {
+            handled: true,
+            unchanged: true,
+            value: 0.0,
+        },
+        _ => NUMBER_UNHANDLED,
+    }
+}
+
+/// Computes the superellipse parameter for a corner shape property.
+///
+/// # Safety
+/// `absolutized_value` must point at a valid StyleValueData.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_corner_shape_parameter(absolutized_value: *const c_void) -> FfiComputedNumber {
+    abort_on_panic(|| {
+        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
+        compute_corner_shape_parameter(value)
+    })
+}
+
+// https://drafts.csswg.org/css-anchor-position/#position-area-computed
+// The computed value of a <position-area> value is the two keywords indicating the selected
+// tracks in each axis, with the long (block-start) and short (start) logical keywords treated
+// as equivalent. It serializes with the logical keywords in their short forms.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_position_area_short_keyword(keyword: u16) -> u16 {
+    match keyword {
+        keyword::BLOCK_START | keyword::INLINE_START => keyword::START,
+        keyword::BLOCK_END | keyword::INLINE_END => keyword::END,
+        keyword::SELF_BLOCK_START | keyword::SELF_INLINE_START => keyword::SELF_START,
+        keyword::SELF_BLOCK_END | keyword::SELF_INLINE_END => keyword::SELF_END,
+        keyword::SPAN_BLOCK_START | keyword::SPAN_INLINE_START => keyword::SPAN_START,
+        keyword::SPAN_BLOCK_END | keyword::SPAN_INLINE_END => keyword::SPAN_END,
+        keyword::SPAN_SELF_BLOCK_START | keyword::SPAN_SELF_INLINE_START => keyword::SPAN_SELF_START,
+        keyword::SPAN_SELF_BLOCK_END | keyword::SPAN_SELF_INLINE_END => keyword::SPAN_SELF_END,
+        _ => keyword,
+    }
+}
+
 /// Computes the font-weight property from its absolutized value.
 ///
 /// # Safety
@@ -842,6 +978,51 @@ mod tests {
         assert_eq!(
             compute_line_height(&StyleValueData::Percentage { value: 150.0 }, sixteen).value,
             24.0
+        );
+    }
+
+    #[test]
+    fn border_width_snaps() {
+        // 2.5px at 2 dppx is an integer number of device pixels: unchanged.
+        let length = StyleValueData::Length {
+            value: 2.5,
+            unit: unit_code("px") as u8,
+        };
+        assert_eq!(compute_border_or_outline_width(&length, 2.0).value, 2.5);
+        // 0.4px at 1 dppx rounds up to 1 device pixel.
+        let thin = StyleValueData::Length {
+            value: 0.4,
+            unit: unit_code("px") as u8,
+        };
+        assert_eq!(compute_border_or_outline_width(&thin, 1.0).value, 1.0);
+        // medium is 3px.
+        assert_eq!(
+            compute_border_or_outline_width(
+                &StyleValueData::Keyword {
+                    keyword: keyword::MEDIUM
+                },
+                1.0
+            )
+            .value,
+            3.0
+        );
+    }
+
+    #[test]
+    fn corner_shapes_map_to_superellipse_parameters() {
+        assert_eq!(
+            compute_corner_shape_parameter(&StyleValueData::Keyword {
+                keyword: keyword::ROUND
+            })
+            .value,
+            1.0
+        );
+        assert_eq!(
+            compute_corner_shape_parameter(&StyleValueData::Keyword {
+                keyword: keyword::NOTCH
+            })
+            .value,
+            f64::NEG_INFINITY
         );
     }
 

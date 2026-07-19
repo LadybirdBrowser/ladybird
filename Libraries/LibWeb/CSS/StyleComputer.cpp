@@ -4049,22 +4049,6 @@ void StyleComputer::compute_custom_properties(ComputedProperties& computed_style
         CustomPropertyData::create(move(resolved_own), parent_data ? move(parent_data) : data->parent()));
 }
 
-static CSSPixels line_width_keyword_to_css_pixels(Keyword keyword)
-{
-    // https://drafts.csswg.org/css-backgrounds/#typedef-line-width
-    // The thin, medium, and thick keywords are equivalent to 1px, 3px, and 5px, respectively.
-    switch (keyword) {
-    case Keyword::Thin:
-        return CSSPixels { 1 };
-    case Keyword::Medium:
-        return CSSPixels { 3 };
-    case Keyword::Thick:
-        return CSSPixels { 5 };
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 // https://www.w3.org/TR/css-values-4/#snap-a-length-as-a-border-width
 static CSSPixels snap_a_length_as_a_border_width(double device_pixels_per_css_pixel, CSSPixels length)
 {
@@ -4243,54 +4227,31 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_feature_tag_value_li
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(NonnullRefPtr<StyleValue const> const& absolutized_value, double device_pixels_per_css_pixel)
 {
-    // https://drafts.csswg.org/css-backgrounds/#border-width
-    // absolute length, snapped as a border width
-    auto const absolute_length = [&]() -> CSSPixels {
-        if (absolutized_value->is_keyword())
-            return line_width_keyword_to_css_pixels(absolutized_value->to_keyword());
+    // The line-width keywords and the border-width snapping live in the Rust style computation core.
+    auto result = ComputedValuesFFI::rust_compute_border_or_outline_width(absolutized_value->rust_style_value_data(), device_pixels_per_css_pixel);
+    if (result.handled)
+        return LengthStyleValue::create(Length::make_px(result.value));
 
-        return Length::from_style_value(absolutized_value, {}).absolute_length_to_px();
-    }();
-
+    auto const absolute_length = Length::from_style_value(absolutized_value, {}).absolute_length_to_px();
     return LengthStyleValue::create(Length::make_px(snap_a_length_as_a_border_width(device_pixels_per_css_pixel, absolute_length)));
 }
 
 // https://drafts.csswg.org/css-borders-4/#propdef-corner-top-left-shape
 NonnullRefPtr<StyleValue const> StyleComputer::compute_corner_shape(NonnullRefPtr<StyleValue const> const& absolutized_value)
 {
-    // the corresponding superellipse() value
-
-    if (absolutized_value->is_superellipse())
+    // The keyword-to-superellipse mapping lives in the Rust style computation core.
+    auto result = ComputedValuesFFI::rust_compute_corner_shape_parameter(absolutized_value->rust_style_value_data());
+    VERIFY(result.handled);
+    if (result.unchanged)
         return absolutized_value;
 
-    switch (absolutized_value->to_keyword()) {
-    case Keyword::Round:
-        // The corner shape is a quarter of a convex ellipse. Equivalent to superellipse(1).
-        // NB: We cache this value since 'round' is the initial value of the `corner-*-*-shape` properties
+    // NB: The round value is cached since it is the initial value of the corner-*-shape properties.
+    if (result.value == 1) {
         static auto const& cached_round_value = SuperellipseStyleValue::create(NumberStyleValue::create(1)).leak_ref();
         return cached_round_value;
-    case Keyword::Squircle:
-        // The corner shape is a quarter of a "squircle", a convex curve between round and square. Equivalent to superellipse(2).
-        return SuperellipseStyleValue::create(NumberStyleValue::create(2));
-    case Keyword::Square:
-        // The corner shape is a convex 90deg angle. Equivalent to superellipse(infinity).
-        return SuperellipseStyleValue::create(NumberStyleValue::create(AK::Infinity<double>));
-    case Keyword::Bevel:
-        // The corner shape is a straight diagonal line, neither convex nor concave. Equivalent to superellipse(0).
-        return SuperellipseStyleValue::create(NumberStyleValue::create(0));
-    case Keyword::Scoop:
-        // The corner shape is a concave quarter-ellipse. Equivalent to superellipse(-1).
-        return SuperellipseStyleValue::create(NumberStyleValue::create(-1));
-    case Keyword::Notch:
-        // The corner shape is a concave 90deg angle. Equivalent to superellipse(-infinity).
-        return SuperellipseStyleValue::create(NumberStyleValue::create(-AK::Infinity<double>));
-    default:
-        VERIFY_NOT_REACHED();
     }
-
-    VERIFY_NOT_REACHED();
+    return SuperellipseStyleValue::create(NumberStyleValue::create(result.value));
 }
-
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& absolutized_value, int computed_math_depth, Optional<DOM::AbstractElement> const& inheritance_parent, CSSPixels initial_font_size)
 {
     auto inherited_font_size = inheritance_parent.has_value()
@@ -4388,35 +4349,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefP
         return absolutized_value;
 
     auto to_short_keyword = [](NonnullRefPtr<KeywordStyleValue const> const& keyword_value) -> NonnullRefPtr<KeywordStyleValue const> {
-        switch (keyword_value->keyword()) {
-        case Keyword::BlockStart:
-        case Keyword::InlineStart:
-            return KeywordStyleValue::create(Keyword::Start);
-        case Keyword::BlockEnd:
-        case Keyword::InlineEnd:
-            return KeywordStyleValue::create(Keyword::End);
-        case Keyword::SelfBlockStart:
-        case Keyword::SelfInlineStart:
-            return KeywordStyleValue::create(Keyword::SelfStart);
-        case Keyword::SelfBlockEnd:
-        case Keyword::SelfInlineEnd:
-            return KeywordStyleValue::create(Keyword::SelfEnd);
-        case Keyword::SpanBlockStart:
-        case Keyword::SpanInlineStart:
-            return KeywordStyleValue::create(Keyword::SpanStart);
-        case Keyword::SpanBlockEnd:
-        case Keyword::SpanInlineEnd:
-            return KeywordStyleValue::create(Keyword::SpanEnd);
-        case Keyword::SpanSelfBlockStart:
-        case Keyword::SpanSelfInlineStart:
-            return KeywordStyleValue::create(Keyword::SpanSelfStart);
-        case Keyword::SpanSelfBlockEnd:
-        case Keyword::SpanSelfInlineEnd:
-            return KeywordStyleValue::create(Keyword::SpanSelfEnd);
-        default:
-            break;
-        }
-        return keyword_value;
+        // The short-form mapping lives in the Rust style computation core.
+        auto short_keyword = static_cast<Keyword>(ComputedValuesFFI::rust_position_area_short_keyword(to_underlying(keyword_value->keyword())));
+        if (short_keyword == keyword_value->keyword())
+            return keyword_value;
+        return KeywordStyleValue::create(short_keyword);
     };
 
     auto const& value_list = absolutized_value->as_value_list();
