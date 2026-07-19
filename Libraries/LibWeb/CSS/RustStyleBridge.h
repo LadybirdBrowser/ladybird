@@ -20,6 +20,8 @@ WEB_API bool rust_property_metadata_is_inherited(u16 property_id);
 WEB_API u16 const* rust_property_metadata_computation_order(size_t* length);
 WEB_API u16 rust_map_logical_alias_to_physical(u16 property_id, u8 writing_mode, u8 direction);
 WEB_API u16 rust_map_physical_to_logical_alias(u16 property_id, u8 writing_mode, u8 direction);
+WEB_API bool rust_property_metadata_is_shorthand(u16 property_id);
+WEB_API u16 const* rust_property_metadata_longhands_for_shorthand(u16 property_id, size_t* length);
 WEB_API u8 rust_property_metadata_requires_computation_level(u16 property_id);
 
 WEB_API ComputedValuesFFI::FfiAbsolutizedLength rust_absolutize_length(double value, u8 unit, ComputedValuesFFI::FfiLengthResolutionContext const* context);

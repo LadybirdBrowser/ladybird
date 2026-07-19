@@ -278,8 +278,8 @@ bool property_accepts_percentage(PropertyID, Percentage const&);
 bool property_accepts_resolution(PropertyID, Resolution const&);
 bool property_accepts_time(PropertyID, Time const&);
 
-bool property_is_shorthand(PropertyID);
-Vector<PropertyID> const& longhands_for_shorthand(PropertyID);
+WEB_API bool property_is_shorthand(PropertyID);
+WEB_API Vector<PropertyID> const& longhands_for_shorthand(PropertyID);
 Vector<PropertyID> const& expanded_longhands_for_shorthand(PropertyID);
 bool property_maps_to_shorthand(PropertyID);
 Vector<PropertyID> const& shorthands_for_longhand(PropertyID);

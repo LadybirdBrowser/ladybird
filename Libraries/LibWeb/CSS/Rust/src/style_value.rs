@@ -32,6 +32,12 @@ pub struct RetainedStyleValue {
     pointer: *const c_void,
 }
 
+impl RetainedStyleValue {
+    pub(crate) fn shell_pointer(&self) -> *const c_void {
+        self.pointer
+    }
+}
+
 impl Drop for RetainedStyleValue {
     fn drop(&mut self) {
         // A null pointer represents an absent optional reference.
@@ -101,6 +107,13 @@ pub struct RetainedStyleValueList {
 }
 
 impl RetainedStyleValueList {
+    pub(crate) fn as_slice(&self) -> &[RetainedStyleValue] {
+        if self.pointer.is_null() {
+            return &[];
+        }
+        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+    }
+
     /// Takes ownership of one strong reference to each value.
     ///
     /// # Safety
@@ -127,6 +140,15 @@ pub struct RetainedPropertyIdList {
 }
 
 retained_list!(RetainedPropertyIdList, u16);
+
+impl RetainedPropertyIdList {
+    pub(crate) fn as_slice(&self) -> &[u16] {
+        if self.pointer.is_null() {
+            return &[];
+        }
+        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+    }
+}
 
 /// A retained AK::String, stored as its one-word raw representation. Owns one reference to the
 /// underlying string data unless it is a short string; the C++ bridge handles both cases.

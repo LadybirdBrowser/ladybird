@@ -77,6 +77,22 @@ TEST_CASE(physical_to_logical_mapping_matches)
     }
 }
 
+TEST_CASE(shorthand_expansions_match)
+{
+    for (auto i = to_underlying(first_property_id); i <= to_underlying(last_property_id); ++i) {
+        auto property_id = static_cast<PropertyID>(i);
+        EXPECT_EQ(rust_property_metadata_is_shorthand(i), property_is_shorthand(property_id));
+        if (!property_is_shorthand(property_id))
+            continue;
+        size_t length = 0;
+        auto const* longhands = rust_property_metadata_longhands_for_shorthand(i, &length);
+        auto const& cpp_longhands = longhands_for_shorthand(property_id);
+        EXPECT_EQ(length, cpp_longhands.size());
+        for (size_t j = 0; j < min(length, cpp_longhands.size()); ++j)
+            EXPECT_EQ(longhands[j], to_underlying(cpp_longhands[j]));
+    }
+}
+
 TEST_CASE(requires_computation_levels_match)
 {
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {

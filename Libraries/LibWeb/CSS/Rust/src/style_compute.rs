@@ -20,7 +20,9 @@ use std::sync::OnceLock;
 
 use crate::abort_on_panic;
 use crate::css_pixels::CssPixels;
+use crate::property_metadata::longhands_for_shorthand;
 use crate::property_metadata::property_is_inherited;
+use crate::property_metadata::property_is_shorthand;
 use crate::style_value::StyleValueData;
 
 include!(concat!(env!("OUT_DIR"), "/length_units_generated.rs"));
@@ -1041,6 +1043,105 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             unsafe { (callbacks.compute_and_store)(context, property_id) };
         }
     });
+}
+
+/// Shell-level callbacks for the shorthand expansion recursion. Values cross
+/// as opaque C++ style value shells; the C++ side pins every value it creates
+/// until the expansion returns.
+#[repr(C)]
+pub struct FfiShorthandExpansionCallbacks {
+    pub context: *mut c_void,
+    /// Returns the Rust-owned data of a C++ style value shell.
+    pub data_of: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
+    /// Creates and pins a pending-substitution value wrapping the given value;
+    /// returns its shell.
+    pub create_pending_substitution: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
+    pub set_longhand_property: unsafe extern "C" fn(context: *mut c_void, property_id: u16, shell: *const c_void),
+}
+
+fn value_is_css_wide_keyword(value: &StyleValueData) -> bool {
+    match value {
+        StyleValueData::Keyword { keyword } => matches!(
+            *keyword,
+            keyword::INHERIT | keyword::INITIAL | keyword::UNSET | keyword::REVERT | keyword::REVERT_LAYER
+        ),
+        _ => false,
+    }
+}
+
+fn expand_shorthands(
+    callbacks: &FfiShorthandExpansionCallbacks,
+    property_id: u16,
+    shell: *const c_void,
+    data: *const c_void,
+) {
+    let context = callbacks.context;
+    let value = unsafe { &*(data as *const StyleValueData) };
+    let is_shorthand = property_is_shorthand(property_id);
+
+    if is_shorthand
+        && matches!(
+            value,
+            StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. }
+        )
+    {
+        // If a shorthand property contains an arbitrary substitution function in its value, the
+        // longhand properties it's associated with must instead be filled in with a special,
+        // unobservable-to-authors pending-substitution value that indicates the shorthand
+        // contains an arbitrary substitution function, and thus the longhand's value can't be
+        // determined until after substituted.
+        // https://drafts.csswg.org/css-values-5/#pending-substitution-value
+        // Ensure we keep the longhand around until it can be resolved.
+        unsafe { (callbacks.set_longhand_property)(context, property_id, shell) };
+        let pending = unsafe { (callbacks.create_pending_substitution)(context, shell) };
+        let pending_data = unsafe { (callbacks.data_of)(context, pending) };
+        for &longhand in longhands_for_shorthand(property_id) {
+            expand_shorthands(callbacks, longhand, pending, pending_data);
+        }
+        return;
+    }
+
+    if let StyleValueData::Shorthand {
+        sub_properties, values, ..
+    } = value
+    {
+        for (&sub_property, sub_value) in sub_properties.as_slice().iter().zip(values.as_slice()) {
+            let sub_shell = sub_value.shell_pointer();
+            let sub_data = unsafe { (callbacks.data_of)(context, sub_shell) };
+            expand_shorthands(callbacks, sub_property, sub_shell, sub_data);
+        }
+        return;
+    }
+
+    if is_shorthand {
+        // ShorthandStyleValue was handled already, as were unresolved shorthands. That means the
+        // only values we should see are the CSS-wide keywords, or the guaranteed-invalid value.
+        // Both should be applied to our longhand properties. We do not directly set the longhand
+        // because the longhands might have longhands of their own.
+        assert!(value_is_css_wide_keyword(value) || matches!(value, StyleValueData::GuaranteedInvalid));
+        for &longhand in longhands_for_shorthand(property_id) {
+            expand_shorthands(callbacks, longhand, shell, data);
+        }
+        return;
+    }
+
+    unsafe { (callbacks.set_longhand_property)(context, property_id, shell) };
+}
+
+/// Expands a declared property into longhand assignments, recursing through
+/// shorthand and pending-substitution values.
+///
+/// # Safety
+/// `callbacks` must be a valid callback table and `shell`/`data` a valid
+/// C++ style value and its Rust-owned data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_for_each_property_expanding_shorthands(
+    callbacks: *const FfiShorthandExpansionCallbacks,
+    property_id: u16,
+    shell: *const c_void,
+    data: *const c_void,
+) {
+    abort_on_panic(|| expand_shorthands(unsafe { &*callbacks }, property_id, shell, data));
 }
 
 /// Computes the font-weight property from its absolutized value.

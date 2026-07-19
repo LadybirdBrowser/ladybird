@@ -44,6 +44,16 @@ u16 rust_map_physical_to_logical_alias(u16 property_id, u8 writing_mode, u8 dire
     return ComputedValuesFFI::rust_map_physical_to_logical_alias(property_id, writing_mode, direction);
 }
 
+bool rust_property_metadata_is_shorthand(u16 property_id)
+{
+    return ComputedValuesFFI::rust_property_metadata_is_shorthand(property_id);
+}
+
+u16 const* rust_property_metadata_longhands_for_shorthand(u16 property_id, size_t* length)
+{
+    return ComputedValuesFFI::rust_property_metadata_longhands_for_shorthand(property_id, length);
+}
+
 u8 rust_property_metadata_requires_computation_level(u16 property_id)
 {
     return ComputedValuesFFI::rust_property_metadata_requires_computation_level(property_id);

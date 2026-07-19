@@ -78,3 +78,33 @@ pub unsafe extern "C" fn rust_property_metadata_bounds(
         *out_last_inherited = LAST_INHERITED_PROPERTY_ID;
     }
 }
+
+pub fn property_is_shorthand(property_id: u16) -> bool {
+    (FIRST_SHORTHAND_PROPERTY_ID..=LAST_SHORTHAND_PROPERTY_ID).contains(&property_id)
+}
+
+/// Returns the longhands a shorthand expands to, in Properties.json order.
+pub fn longhands_for_shorthand(property_id: u16) -> &'static [u16] {
+    if !property_is_shorthand(property_id) {
+        return &[];
+    }
+    SHORTHAND_EXPANSIONS[(property_id - FIRST_SHORTHAND_PROPERTY_ID) as usize]
+}
+
+/// FFI accessors for the parity test on the C++ side.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_property_metadata_is_shorthand(property_id: u16) -> bool {
+    property_is_shorthand(property_id)
+}
+
+/// # Safety
+/// `out_length` must be a valid pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_property_metadata_longhands_for_shorthand(
+    property_id: u16,
+    out_length: *mut usize,
+) -> *const u16 {
+    let longhands = longhands_for_shorthand(property_id);
+    unsafe { *out_length = longhands.len() };
+    longhands.as_ptr()
+}

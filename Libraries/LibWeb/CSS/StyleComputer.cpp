@@ -848,43 +848,31 @@ static void sort_matching_rules(Vector<StyleComputer::ScopedMatchingRule>& match
 
 void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_id, StyleValue const& value, Function<void(PropertyID, StyleValue const&)> const& set_longhand_property)
 {
-    if (property_is_shorthand(property_id) && (value.is_unresolved() || value.is_pending_substitution())) {
-        // If a shorthand property contains an arbitrary substitution function in its value, the longhand properties
-        // it’s associated with must instead be filled in with a special, unobservable-to-authors pending-substitution
-        // value that indicates the shorthand contains an arbitrary substitution function, and thus the longhand’s
-        // value can’t be determined until after substituted.
-        // https://drafts.csswg.org/css-values-5/#pending-substitution-value
-        // Ensure we keep the longhand around until it can be resolved.
-        set_longhand_property(property_id, value);
-        auto pending_substitution_value = PendingSubstitutionStyleValue::create(value);
-        for (auto longhand_id : longhands_for_shorthand(property_id)) {
-            for_each_property_expanding_shorthands(longhand_id, pending_substitution_value, set_longhand_property);
-        }
-        return;
-    }
+    // The expansion recursion lives in the Rust style computation core; this wrapper provides
+    // the shell-level callbacks and pins every pending-substitution value it creates until the
+    // expansion returns.
+    struct ExpansionContext {
+        Function<void(PropertyID, StyleValue const&)> const& set_longhand_property;
+        Vector<NonnullRefPtr<StyleValue const>> pinned_values;
+    } expansion_context { set_longhand_property, {} };
 
-    if (value.is_shorthand()) {
-        auto& shorthand_value = value.as_shorthand();
-        auto properties = shorthand_value.sub_properties();
-        auto values = shorthand_value.values();
-        for (size_t i = 0; i < properties.size(); ++i)
-            for_each_property_expanding_shorthands(properties[i], values[i], set_longhand_property);
-        return;
-    }
-
-    if (property_is_shorthand(property_id)) {
-        // ShorthandStyleValue was handled already, as were unresolved shorthands.
-        // That means the only values we should see are the CSS-wide keywords, or the guaranteed-invalid value.
-        // Both should be applied to our longhand properties.
-        // We don't directly call `set_longhand_property()` because the longhands might have longhands of their own.
-        // (eg `grid` -> `grid-template` -> `grid-template-areas` & `grid-template-rows` & `grid-template-columns`)
-        VERIFY(value.is_css_wide_keyword() || value.is_guaranteed_invalid());
-        for (auto longhand : longhands_for_shorthand(property_id))
-            for_each_property_expanding_shorthands(longhand, value, set_longhand_property);
-        return;
-    }
-
-    set_longhand_property(property_id, value);
+    ComputedValuesFFI::FfiShorthandExpansionCallbacks const callbacks {
+        .context = &expansion_context,
+        .data_of = [](void*, void const* shell) -> void const* {
+            return static_cast<StyleValue const*>(shell)->rust_style_value_data();
+        },
+        .create_pending_substitution = [](void* context, void const* shell) -> void const* {
+            auto& expansion_context = *static_cast<ExpansionContext*>(context);
+            auto pending_substitution_value = PendingSubstitutionStyleValue::create(*static_cast<StyleValue const*>(shell));
+            auto const* pointer = pending_substitution_value.ptr();
+            expansion_context.pinned_values.append(move(pending_substitution_value));
+            return pointer;
+        },
+        .set_longhand_property = [](void* context, u16 property_id, void const* shell) {
+            auto& expansion_context = *static_cast<ExpansionContext*>(context);
+            expansion_context.set_longhand_property(static_cast<PropertyID>(property_id), *static_cast<StyleValue const*>(shell)); },
+    };
+    ComputedValuesFFI::rust_for_each_property_expanding_shorthands(&callbacks, to_underlying(property_id), &value, value.rust_style_value_data());
 }
 
 static bool property_is_disallowed_in_cascade(PropertyID property_id, DOM::AbstractElement const& abstract_element, StyleComputer::BypassPseudoElementPropertyWhitelist bypass_pseudo_element_property_whitelist)
