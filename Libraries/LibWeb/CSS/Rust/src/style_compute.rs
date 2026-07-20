@@ -283,6 +283,26 @@ pub struct FfiComputedNumber {
     pub value: f64,
 }
 
+/// Result of computing line-height: like FfiComputedNumber, but a resolved
+/// calc may produce either a pixel length or a unitless number multiplier.
+#[repr(C)]
+pub struct FfiComputedLineHeight {
+    /// False when the value needs C++ handling (calc the core cannot resolve).
+    pub handled: bool,
+    /// True when the absolutized value is already the computed value.
+    pub unchanged: bool,
+    /// True when the value is a unitless multiplier rather than pixels.
+    pub is_number: bool,
+    pub value: f64,
+}
+
+const LINE_HEIGHT_UNHANDLED: FfiComputedLineHeight = FfiComputedLineHeight {
+    handled: false,
+    unchanged: false,
+    is_number: false,
+    value: 0.0,
+};
+
 const NUMBER_UNHANDLED: FfiComputedNumber = FfiComputedNumber {
     handled: false,
     unchanged: false,
@@ -351,7 +371,12 @@ fn compute_font_weight(value: &StyleValueData, inherited_font_weight: f64) -> Ff
             }
             _ => NUMBER_UNHANDLED,
         },
-        // AD-HOC: calc values are resolved by the C++ caller.
+        // Calc values resolve in the calc core with no external context; anything the
+        // core cannot resolve keeps the C++ caller's behavior.
+        StyleValueData::Calculated { .. } => match crate::calc::resolve_calculated_number_without_context(value) {
+            Some(resolved) => computed(resolved),
+            None => NUMBER_UNHANDLED,
+        },
         _ => NUMBER_UNHANDLED,
     }
 }
@@ -392,7 +417,12 @@ fn compute_font_width(value: &StyleValueData) -> FfiComputedNumber {
             keyword::ULTRA_EXPANDED => computed(200.0),
             _ => NUMBER_UNHANDLED,
         },
-        // AD-HOC: calc percentages are resolved by the C++ caller.
+        // Calc percentages resolve in the calc core with no external context; anything
+        // the core cannot resolve keeps the C++ caller's behavior.
+        StyleValueData::Calculated { .. } => match crate::calc::resolve_calculated_percentage_without_context(value) {
+            Some(resolved) => computed(resolved),
+            None => NUMBER_UNHANDLED,
+        },
         _ => NUMBER_UNHANDLED,
     }
 }
@@ -529,7 +559,14 @@ fn compute_font_size(
                 _ => NUMBER_UNHANDLED,
             }
         }
-        // AD-HOC: calc values are resolved by the C++ caller.
+        // Calc lengths and percentages resolve in the calc core against the inherited
+        // font size; anything the core cannot resolve keeps the C++ caller's behavior.
+        StyleValueData::Calculated { .. } => {
+            match crate::calc::resolve_calculated_length_without_context(value, inherited_font_size.to_double()) {
+                Some(px) => computed(px),
+                None => NUMBER_UNHANDLED,
+            }
+        }
         _ => NUMBER_UNHANDLED,
     }
 }
@@ -1069,8 +1106,14 @@ fn compute_math_depth(
         // - If the specified value of math-depth is of the form <integer> then the computed value
         //   of math-depth of the element is the specified integer.
         StyleValueData::Integer { value } => computed(*value),
-        // AD-HOC: add(<integer>) functions and calc values are resolved by the C++ caller.
-        StyleValueData::Function { .. } | StyleValueData::Calculated { .. } => NUMBER_UNHANDLED,
+        // Calc values resolve to an integer in the calc core with no external context;
+        // anything the core cannot resolve keeps the C++ caller's behavior.
+        StyleValueData::Calculated { .. } => match crate::calc::resolve_calculated_integer_without_context(value) {
+            Some(int) => computed(int),
+            None => NUMBER_UNHANDLED,
+        },
+        // AD-HOC: the add(<integer>) function form is resolved by the C++ caller.
+        StyleValueData::Function { .. } => NUMBER_UNHANDLED,
         // - Otherwise, the computed value of math-depth of the element is the inherited one.
         _ => computed(inherited_math_depth),
     }
@@ -1093,30 +1136,51 @@ pub unsafe extern "C" fn rust_compute_math_depth(
 }
 
 // https://drafts.csswg.org/css-inline-3/#line-height-property
-fn compute_line_height(value: &StyleValueData, computed_font_size: CssPixels) -> FfiComputedNumber {
+fn compute_line_height(value: &StyleValueData, computed_font_size: CssPixels) -> FfiComputedLineHeight {
     match value {
         // normal
         // <length [0,inf]>
         // <number [0,inf]>
-        StyleValueData::Keyword { keyword } if *keyword == keyword::NORMAL => FfiComputedNumber {
+        StyleValueData::Keyword { keyword } if *keyword == keyword::NORMAL => FfiComputedLineHeight {
             handled: true,
             unchanged: true,
+            is_number: false,
             value: 0.0,
         },
-        StyleValueData::Length { .. } | StyleValueData::Number { .. } => FfiComputedNumber {
+        StyleValueData::Length { .. } | StyleValueData::Number { .. } => FfiComputedLineHeight {
             handled: true,
             unchanged: true,
+            is_number: false,
             value: 0.0,
         },
         // <percentage [0,inf]>
-        StyleValueData::Percentage { value } => FfiComputedNumber {
+        StyleValueData::Percentage { value } => FfiComputedLineHeight {
             handled: true,
             unchanged: false,
+            is_number: false,
             value: computed_font_size.to_double() * (value / 100.0),
         },
-        // NB: calc lengths and numbers are resolved by the C++ caller, and any other value would
-        //     be unreachable there.
-        _ => NUMBER_UNHANDLED,
+        // Calc lengths, percentages, and numbers resolve in the calc core against the
+        // computed font size; anything the core cannot resolve keeps the C++ caller's
+        // behavior. Any other value would be unreachable there.
+        StyleValueData::Calculated { .. } => {
+            match crate::calc::resolve_calculated_line_height_without_context(value, computed_font_size.to_double()) {
+                Some(crate::calc::ResolvedLineHeightCalc::Px(px)) => FfiComputedLineHeight {
+                    handled: true,
+                    unchanged: false,
+                    is_number: false,
+                    value: px,
+                },
+                Some(crate::calc::ResolvedLineHeightCalc::Number(number)) => FfiComputedLineHeight {
+                    handled: true,
+                    unchanged: false,
+                    is_number: true,
+                    value: number,
+                },
+                None => LINE_HEIGHT_UNHANDLED,
+            }
+        }
+        _ => LINE_HEIGHT_UNHANDLED,
     }
 }
 
@@ -1129,7 +1193,7 @@ fn compute_line_height(value: &StyleValueData, computed_font_size: CssPixels) ->
 pub unsafe extern "C" fn rust_compute_line_height(
     absolutized_value: *const c_void,
     computed_font_size_raw: i32,
-) -> FfiComputedNumber {
+) -> FfiComputedLineHeight {
     abort_on_panic(|| {
         let value = unsafe { &*(absolutized_value as *const StyleValueData) };
         compute_line_height(value, CssPixels::from_raw(computed_font_size_raw))

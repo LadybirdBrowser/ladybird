@@ -1,0 +1,5 @@
+math-depth: 3 => 3
+math-depth: calc(1 + 2) => 3
+math-depth: calc(2 * 3) => 6
+math-depth: calc(7 / 2) => 4
+math-depth: add(2) => 2

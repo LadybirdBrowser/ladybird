@@ -1,0 +1,9 @@
+font-weight: calc(300 + 400) => 700
+font-weight: calc(700) => 700
+font-stretch: calc(50% + 25%) => 75%
+line-height: calc(1em + 6px) => 26px
+line-height: calc(2 * 1.5) => 60px
+line-height: calc(50% + 50%) => 20px
+font-size: calc(10px + 20px) => 30px
+font-size: calc(50% + 50%) => 20px
+font-size: calc(1em + 5px) => 25px

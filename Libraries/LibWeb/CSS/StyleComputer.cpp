@@ -4307,11 +4307,14 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_width(NonnullRefPtr<
 }
 NonnullRefPtr<StyleValue const> StyleComputer::compute_line_height(NonnullRefPtr<StyleValue const> const& absolutized_value, CSSPixels computed_font_size)
 {
-    // The line-height rules live in the Rust style computation core.
+    // The line-height rules live in the Rust style computation core, including calc
+    // resolution against the computed font size.
     auto result = ComputedValuesFFI::rust_compute_line_height(absolutized_value->rust_style_value_data(), computed_font_size.raw_value());
     if (result.handled) {
         if (result.unchanged)
             return absolutized_value;
+        if (result.is_number)
+            return NumberStyleValue::create(result.value);
         return LengthStyleValue::create(Length::make_px(result.value));
     }
 

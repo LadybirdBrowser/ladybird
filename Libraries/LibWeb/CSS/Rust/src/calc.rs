@@ -2463,6 +2463,200 @@ pub struct FfiResolvedCalc {
     pub numeric_type: FfiNumericType,
 }
 
+/// The post-simplification resolution tail shared by the FFI entry and the
+/// crate-internal resolver: materialize the numeric result and apply the
+/// css-values-4 top-level censoring and clamping rules.
+fn resolve_simplified_calculation(
+    simplified: &Arc<CalcNode>,
+    evaluation_context: &CalcEvaluationContext,
+    resolve_as: Option<ResolveAs>,
+    resolve_numbers_as_integers: bool,
+    accepted_ranges: &[crate::style_value::RetainedNumericRangeByType],
+    apply_censoring_and_clamping: bool,
+) -> Option<(f64, Option<CalcNumericType>)> {
+    if !matches!(&**simplified, CalcNode::Numeric(..)) || (simplified.contains_percentage() && resolve_as.is_some()) {
+        return None;
+    }
+    let result = simplified.try_canonical_result(evaluation_context)?;
+
+    let mut raw_value = result.value;
+    if apply_censoring_and_clamping {
+        // https://drafts.csswg.org/css-values/#calc-ieee
+        // NaN does not escape a top-level calculation; it's censored into a zero value.
+        if raw_value.is_nan() {
+            raw_value = 0.0;
+        }
+
+        // https://drafts.csswg.org/css-values/#calc-range
+        // The value resulting from a top-level calculation must be clamped to the range
+        // allowed in the target context.
+        let numeric_type = result.numeric_type.as_ref().expect("canonical result has a type");
+        let wanted_value_type = if numeric_type.matches_number(resolve_as) {
+            Some(if resolve_numbers_as_integers {
+                value_type::INTEGER
+            } else {
+                value_type::NUMBER
+            })
+        } else if numeric_type.matches_dimension(1, resolve_as) {
+            Some(value_type::ANGLE)
+        } else if numeric_type.matches_dimension(5, resolve_as) {
+            Some(value_type::FLEX)
+        } else if numeric_type.matches_dimension(3, resolve_as) {
+            Some(value_type::FREQUENCY)
+        } else if numeric_type.matches_dimension(0, resolve_as) {
+            Some(value_type::LENGTH)
+        } else if numeric_type.matches_percentage() {
+            Some(value_type::PERCENTAGE)
+        } else if numeric_type.matches_dimension(4, resolve_as) {
+            Some(value_type::RESOLUTION)
+        } else if numeric_type.matches_dimension(2, resolve_as) {
+            Some(value_type::TIME)
+        } else {
+            None
+        };
+        let range = wanted_value_type.and_then(|wanted| {
+            accepted_ranges
+                .iter()
+                .find(|entry| entry.value_type() == wanted)
+                .map(|entry| entry.range())
+        });
+        // FIXME: Infinity for integers should be i32 max rather than float max.
+        let (min, max) = range.unwrap_or((f32::MIN as f64, f32::MAX as f64));
+        raw_value = raw_value.clamp(min, max);
+    }
+    Some((raw_value, result.numeric_type))
+}
+
+/// Resolves a calculated value with no external context: the equivalent of a
+/// resolution against an empty C++ resolution context, where the callbacks for
+/// non-math functions, relative-color channels, and random() all fail. Used by
+/// the style computation core's own property helpers.
+fn resolve_calculated_without_context(
+    calculated: &crate::style_value::StyleValueData,
+    percentage_basis: Option<CalcNumericValue>,
+) -> Option<(f64, CalcNumericType, Option<ResolveAs>)> {
+    use crate::style_value::StyleValueData;
+    let StyleValueData::Calculated {
+        rust_calculation,
+        has_percentages_resolve_as,
+        resolve_as_is_number,
+        resolve_as_base,
+        resolve_numbers_as_integers,
+        accepted_ranges,
+        ..
+    } = calculated
+    else {
+        return None;
+    };
+    let root = rust_calculation.node_arc();
+    let resolve_as = resolve_as_from_fields(*has_percentages_resolve_as, *resolve_as_is_number, *resolve_as_base);
+    let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
+    let evaluation_context = CalcEvaluationContext {
+        percentage_leaf_type: &percentage_leaf_type,
+        resolve_as,
+        percentage_basis,
+        length_resolution: LengthResolution::default(),
+        random_base_value: None,
+    };
+    let callbacks = CalcSimplifyCallbacks {
+        absolutize_random_sharing: &|_| None,
+        resolve_non_math_function: &|_| None,
+        resolve_channel_keyword: &|_| None,
+    };
+    let simplified = root.simplify(&evaluation_context, &callbacks);
+    let (value, numeric_type) = resolve_simplified_calculation(
+        &simplified,
+        &evaluation_context,
+        resolve_as,
+        *resolve_numbers_as_integers,
+        accepted_ranges.as_slice(),
+        true,
+    )?;
+    Some((value, numeric_type.expect("canonical result has a type"), resolve_as))
+}
+
+/// Resolves a calculated value that must produce a number, with no external
+/// context; the equivalent of the C++ resolve_number with an empty context.
+pub(crate) fn resolve_calculated_number_without_context(
+    calculated: &crate::style_value::StyleValueData,
+) -> Option<f64> {
+    let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, None)?;
+    numeric_type.matches_number(resolve_as).then_some(value)
+}
+
+/// Resolves a calculated value that must produce a percentage, with no
+/// external context; the equivalent of the C++ resolve_percentage with an
+/// empty context.
+pub(crate) fn resolve_calculated_percentage_without_context(
+    calculated: &crate::style_value::StyleValueData,
+) -> Option<f64> {
+    let (value, numeric_type, ..) = resolve_calculated_without_context(calculated, None)?;
+    numeric_type.matches_percentage().then_some(value)
+}
+
+/// Resolves a calculated value that must produce a number and rounds it to the
+/// nearest integer (toward +inf on a .5 fraction), with no external context;
+/// the equivalent of the C++ resolve_integer with an empty context.
+pub(crate) fn resolve_calculated_integer_without_context(
+    calculated: &crate::style_value::StyleValueData,
+) -> Option<i32> {
+    let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, None)?;
+    if !numeric_type.matches_number(resolve_as) {
+        return None;
+    }
+    // https://drafts.csswg.org/css-values-4/#css-round-to-the-nearest-integer
+    // Round toward +inf when the fractional portion is exactly 0.5, matching round_to_nearest_integer.
+    if value.is_nan() {
+        return Some(0);
+    }
+    if value.is_infinite() {
+        return Some(if value > 0.0 { i32::MAX } else { i32::MIN });
+    }
+    Some((value + 0.5).floor().clamp(i32::MIN as f64, i32::MAX as f64) as i32)
+}
+
+/// Resolves a calculated value that must produce a length, with a percentage
+/// basis length; the equivalent of the C++ resolve_length with a percentage
+/// basis and an otherwise empty context. Returns pixels.
+pub(crate) fn resolve_calculated_length_without_context(
+    calculated: &crate::style_value::StyleValueData,
+    percentage_basis_px: f64,
+) -> Option<f64> {
+    let basis = CalcNumericValue::Length {
+        value: percentage_basis_px,
+        unit: canonical_unit_code(&crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS),
+    };
+    let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, Some(basis))?;
+    (numeric_type.matches_dimension(0, resolve_as) || numeric_type.matches_percentage()).then_some(value)
+}
+
+/// The outcome of resolving a line-height calculation: a pixel length or a
+/// unitless number multiplier.
+pub(crate) enum ResolvedLineHeightCalc {
+    Px(f64),
+    Number(f64),
+}
+
+/// Resolves a line-height calculation against the computed font size: lengths
+/// and percentages resolve to pixels, numbers stay multipliers, as in the C++
+/// compute_line_height calc handling.
+pub(crate) fn resolve_calculated_line_height_without_context(
+    calculated: &crate::style_value::StyleValueData,
+    computed_font_size_px: f64,
+) -> Option<ResolvedLineHeightCalc> {
+    let basis = CalcNumericValue::Length {
+        value: computed_font_size_px,
+        unit: canonical_unit_code(&crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS),
+    };
+    let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, Some(basis))?;
+    if numeric_type.matches_dimension(0, resolve_as) || numeric_type.matches_percentage() {
+        return Some(ResolvedLineHeightCalc::Px(value));
+    }
+    numeric_type
+        .matches_number(resolve_as)
+        .then_some(ResolvedLineHeightCalc::Number(value))
+}
+
 /// Resolves a calculated style value: simplifies its tree with used-value
 /// information and, when the tree collapses to a numeric leaf, applies the
 /// css-values-4 top-level censoring and clamping rules.
@@ -2478,11 +2672,6 @@ pub unsafe extern "C" fn rust_calc_resolve(
 ) -> FfiResolvedCalc {
     use crate::style_value::StyleValueData;
     crate::abort_on_panic(|| {
-        let unresolved = || FfiResolvedCalc {
-            resolved: false,
-            value: 0.0,
-            numeric_type: FfiNumericType::from_calc(None),
-        };
         let StyleValueData::Calculated {
             rust_calculation,
             has_percentages_resolve_as,
@@ -2503,67 +2692,24 @@ pub unsafe extern "C" fn rust_calc_resolve(
         with_ffi_evaluation(resolve_as, context, |evaluation_context, callbacks| {
             // The calculation tree is again simplified at used value time.
             let simplified = root.simplify(evaluation_context, callbacks);
-
-            if !matches!(&*simplified, CalcNode::Numeric(..))
-                || (simplified.contains_percentage() && resolve_as.is_some())
-            {
-                return unresolved();
-            }
-            let Some(result) = simplified.try_canonical_result(evaluation_context) else {
-                return unresolved();
-            };
-
-            let mut raw_value = result.value;
-            if apply_censoring_and_clamping {
-                // https://drafts.csswg.org/css-values/#calc-ieee
-                // NaN does not escape a top-level calculation; it's censored into a zero value.
-                if raw_value.is_nan() {
-                    raw_value = 0.0;
-                }
-
-                // https://drafts.csswg.org/css-values/#calc-range
-                // The value resulting from a top-level calculation must be clamped to the range
-                // allowed in the target context.
-                let numeric_type = result.numeric_type.as_ref().expect("canonical result has a type");
-                let wanted_value_type = if numeric_type.matches_number(resolve_as) {
-                    Some(if *resolve_numbers_as_integers {
-                        value_type::INTEGER
-                    } else {
-                        value_type::NUMBER
-                    })
-                } else if numeric_type.matches_dimension(1, resolve_as) {
-                    Some(value_type::ANGLE)
-                } else if numeric_type.matches_dimension(5, resolve_as) {
-                    Some(value_type::FLEX)
-                } else if numeric_type.matches_dimension(3, resolve_as) {
-                    Some(value_type::FREQUENCY)
-                } else if numeric_type.matches_dimension(0, resolve_as) {
-                    Some(value_type::LENGTH)
-                } else if numeric_type.matches_percentage() {
-                    Some(value_type::PERCENTAGE)
-                } else if numeric_type.matches_dimension(4, resolve_as) {
-                    Some(value_type::RESOLUTION)
-                } else if numeric_type.matches_dimension(2, resolve_as) {
-                    Some(value_type::TIME)
-                } else {
-                    None
-                };
-                let range = wanted_value_type.and_then(|wanted| {
-                    accepted_ranges
-                        .as_slice()
-                        .iter()
-                        .find(|entry| entry.value_type() == wanted)
-                        .map(|entry| entry.range())
-                });
-                // FIXME: Infinity for integers should be i32 max rather than float max.
-                let (min, max) = range.unwrap_or((f32::MIN as f64, f32::MAX as f64));
-                raw_value = raw_value.clamp(min, max);
-            }
-
-            FfiResolvedCalc {
-                resolved: true,
-                value: raw_value,
-                numeric_type: FfiNumericType::from_calc(result.numeric_type),
+            match resolve_simplified_calculation(
+                &simplified,
+                evaluation_context,
+                resolve_as,
+                *resolve_numbers_as_integers,
+                accepted_ranges.as_slice(),
+                apply_censoring_and_clamping,
+            ) {
+                Some((value, numeric_type)) => FfiResolvedCalc {
+                    resolved: true,
+                    value,
+                    numeric_type: FfiNumericType::from_calc(numeric_type),
+                },
+                None => FfiResolvedCalc {
+                    resolved: false,
+                    value: 0.0,
+                    numeric_type: FfiNumericType::from_calc(None),
+                },
             }
         })
     })

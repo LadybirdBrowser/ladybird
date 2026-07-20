@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+// calc() in font-weight, font-stretch, line-height, and font-size must
+// resolve to the same computed values as their non-calc equivalents.
+test(() => {
+    const target = document.getElementById("target");
+    const cases = [
+        ["font-weight", "calc(300 + 400)", "fontWeight"],
+        ["font-weight", "calc(700)", "fontWeight"],
+        ["font-stretch", "calc(50% + 25%)", "fontStretch"],
+        ["line-height", "calc(1em + 6px)", "lineHeight"],
+        ["line-height", "calc(2 * 1.5)", "lineHeight"],
+        ["line-height", "calc(50% + 50%)", "lineHeight"],
+    ];
+    for (const [property, value, key] of cases) {
+        target.style.fontSize = "20px";
+        target.style.setProperty(property, value);
+        println(`${property}: ${value} => ${getComputedStyle(target)[key]}`);
+        target.style.removeProperty(property);
+    }
+    // font-size calc resolves against the inherited font size, so nest under a parent.
+    const parent = document.createElement("div");
+    parent.style.fontSize = "20px";
+    const child = document.createElement("div");
+    parent.appendChild(child);
+    document.body.appendChild(parent);
+    for (const value of ["calc(10px + 20px)", "calc(50% + 50%)", "calc(1em + 5px)"]) {
+        child.style.fontSize = value;
+        println(`font-size: ${value} => ${getComputedStyle(child).fontSize}`);
+        child.style.removeProperty("font-size");
+    }
+    parent.remove();
+});
+</script>

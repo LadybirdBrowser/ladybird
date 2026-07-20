@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+// calc() in math-depth must resolve to an integer in the compute core, the
+// same as its non-calc integer equivalents.
+test(() => {
+    const target = document.getElementById("target");
+    for (const value of ["3", "calc(1 + 2)", "calc(2 * 3)", "calc(7 / 2)", "add(2)"]) {
+        target.style.mathDepth = value;
+        println(`math-depth: ${value} => ${getComputedStyle(target).mathDepth}`);
+        target.style.removeProperty("math-depth");
+    }
+});
+</script>
