@@ -71,6 +71,7 @@ public:
         Paragraph,
     };
     bool is_handling_mouse_selection() const { return m_selection_mode != SelectionMode::None; }
+    void reset_mouse_input_tracking(Badge<Page>);
 
     Optional<MiddleButtonScrollHandler&> middle_button_scroll_handler() const
     {

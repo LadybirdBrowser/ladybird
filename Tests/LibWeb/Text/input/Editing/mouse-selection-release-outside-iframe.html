@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<style>
+    iframe {
+        border: 0;
+        width: 400px;
+        height: 140px;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    // SCEditor places its editing host in an iframe. Releasing a drag below that frame must end selection tracking in
+    // the child document, so a later unpressed move inside the editor cannot modify the selection.
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = '<style>body { margin: 0; } #editor { font: 16px sans-serif; line-height: 24px; }</style><div id="editor" contenteditable><div>First line of editable text</div><div>Second line of editable text</div><div>Third line of editable text</div><div id="last">Last line of editable text</div></div>';
+        iframe.onload = () => {
+            const iframeRect = iframe.getBoundingClientRect();
+            const frameDocument = iframe.contentDocument;
+            const range = frameDocument.createRange();
+            range.selectNodeContents(frameDocument.querySelector("#last"));
+            const lastLineRect = range.getBoundingClientRect();
+            range.selectNodeContents(frameDocument.querySelector("#editor").children[1]);
+            const secondLineRect = range.getBoundingClientRect();
+            const framePoint = (rect, x) => ({
+                x: iframeRect.left + rect.left + x,
+                y: iframeRect.top + rect.top + rect.height / 2,
+            });
+
+            const start = framePoint(lastLineRect, 2);
+            const end = framePoint(lastLineRect, lastLineRect.width - 2);
+            internals.mouseDown(start.x, start.y);
+            internals.mouseMove(end.x, end.y);
+
+            const outsideY = iframeRect.bottom + 20;
+            internals.mouseMove(end.x, outsideY);
+            internals.mouseUp(end.x, outsideY);
+
+            const selection = iframe.contentWindow.getSelection();
+            const selectionAfterRelease = selection.toString();
+            const unpressedMove = framePoint(secondLineRect, secondLineRect.width / 2);
+            internals.mouseMove(unpressedMove.x, unpressedMove.y);
+
+            println(`selection after release: ${selectionAfterRelease}`);
+            println(`selection after unpressed move: ${selection.toString()}`);
+            done();
+        };
+        document.body.appendChild(iframe);
+    });
+</script>

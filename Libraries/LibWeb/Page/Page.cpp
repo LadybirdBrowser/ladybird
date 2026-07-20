@@ -127,6 +127,8 @@ void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigab
 {
     if (&navigable == m_focused_navigable.ptr())
         m_focused_navigable = nullptr;
+    if (&navigable == m_mouse_event_tracking_navigable.ptr())
+        m_mouse_event_tracking_navigable = nullptr;
 }
 
 void Page::load(URL::URL const& url, Bindings::NavigationHistoryBehavior history_handling)
@@ -334,12 +336,30 @@ ChromeMetrics Page::chrome_metrics() const
 
 EventResult Page::handle_mouseup(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers)
 {
+    // INTEROP: Releasing outside an iframe still ends selection and drag tracking in the child document where the
+    //          interaction began, while the mouseup event itself remains targeted at the document under the pointer.
+    ScopeGuard reset_mouse_input_tracking = [&] {
+        if (auto navigable = m_mouse_event_tracking_navigable) {
+            m_mouse_event_tracking_navigable = nullptr;
+            navigable->event_handler().reset_mouse_input_tracking({});
+        }
+    };
     return top_level_traversable()->event_handler().handle_mouseup(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers);
 }
 
 EventResult Page::handle_mousedown(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
 {
+    if (button == UIEvents::MouseButton::Primary) {
+        if (auto navigable = m_mouse_event_tracking_navigable)
+            navigable->event_handler().reset_mouse_input_tracking({});
+        m_mouse_event_tracking_navigable = nullptr;
+    }
     return top_level_traversable()->event_handler().handle_mousedown(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, click_count);
+}
+
+void Page::set_mouse_event_tracking_navigable(Badge<EventHandler>, HTML::LocalNavigable& navigable)
+{
+    m_mouse_event_tracking_navigable = navigable;
 }
 
 EventResult Page::handle_mousemove(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned buttons, unsigned modifiers)

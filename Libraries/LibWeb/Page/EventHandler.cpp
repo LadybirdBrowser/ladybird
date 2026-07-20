@@ -322,8 +322,10 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     if (!node)
         return EventResult::Dropped;
 
-    if (button == UIEvents::MouseButton::Primary)
+    if (button == UIEvents::MouseButton::Primary) {
         clear_mousedown_tracking();
+        m_navigable->page().set_mouse_event_tracking_navigable({}, *m_navigable);
+    }
 
     m_mousedown_click_count = click_count;
 
@@ -3010,6 +3012,12 @@ void EventHandler::stop_updating_selection()
     m_mouse_selection_target = nullptr;
 
     m_auto_scroll_handler = nullptr;
+}
+
+void EventHandler::reset_mouse_input_tracking(Badge<Page>)
+{
+    clear_mousedown_tracking();
+    stop_updating_selection();
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#run-light-dismiss-activities

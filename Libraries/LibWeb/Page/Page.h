@@ -136,6 +136,7 @@ public:
     EventResult handle_mousedown(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
     EventResult handle_mousemove(DevicePixelPoint, DevicePixelPoint screen_position, unsigned buttons, unsigned modifiers);
     EventResult handle_mouseleave();
+    void set_mouse_event_tracking_navigable(Badge<EventHandler>, HTML::LocalNavigable&);
 #if defined(AK_OS_MACOS)
     bool select_word_for_dictionary_lookup(DevicePixelPoint);
 #endif
@@ -338,6 +339,9 @@ private:
     GC::Ref<PageClient> m_client;
 
     GC::Weak<HTML::LocalNavigable> m_focused_navigable;
+    // Mouse events are hit-tested independently, so a release can target an ancestor document after a press began in
+    // a child navigable. Retain the interaction owner separately from focus to clear its non-DOM input state.
+    GC::Weak<HTML::LocalNavigable> m_mouse_event_tracking_navigable;
 
     GC::Ptr<HTML::LocalTraversableNavigable> m_top_level_traversable;
 
