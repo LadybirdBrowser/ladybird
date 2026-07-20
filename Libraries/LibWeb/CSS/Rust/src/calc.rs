@@ -2432,9 +2432,6 @@ fn with_ffi_evaluation<R>(
 /// The outcome of resolving a calculation.
 #[repr(C)]
 pub struct FfiResolvedCalc {
-    /// False when the tree contains nodes the core defers to C++ (random()),
-    /// so the caller must run its own resolution.
-    pub handled: bool,
     /// Whether the calculation fully resolved to a numeric value.
     pub resolved: bool,
     pub value: f64,
@@ -2456,8 +2453,7 @@ pub unsafe extern "C" fn rust_calc_resolve(
 ) -> FfiResolvedCalc {
     use crate::style_value::StyleValueData;
     crate::abort_on_panic(|| {
-        let unresolved = |handled: bool| FfiResolvedCalc {
-            handled,
+        let unresolved = || FfiResolvedCalc {
             resolved: false,
             value: 0.0,
             numeric_type: FfiNumericType::from_calc(None),
@@ -2486,10 +2482,10 @@ pub unsafe extern "C" fn rust_calc_resolve(
             if !matches!(&*simplified, CalcNode::Numeric(..))
                 || (simplified.contains_percentage() && resolve_as.is_some())
             {
-                return unresolved(true);
+                return unresolved();
             }
             let Some(result) = simplified.try_canonical_result(evaluation_context) else {
-                return unresolved(true);
+                return unresolved();
             };
 
             let mut raw_value = result.value;
@@ -2540,7 +2536,6 @@ pub unsafe extern "C" fn rust_calc_resolve(
             }
 
             FfiResolvedCalc {
-                handled: true,
                 resolved: true,
                 value: raw_value,
                 numeric_type: FfiNumericType::from_calc(result.numeric_type),
@@ -2933,8 +2928,7 @@ impl CalcSerializer<'_> {
 }
 
 /// Serializes a calculated style value's math function through the callback
-/// surface. Returns false for trees containing random(), whose serialization
-/// stays with the C++ nodes.
+/// surface.
 ///
 /// # Safety
 /// `calculated` must point at Calculated style value data and `callbacks` at a
@@ -2944,7 +2938,7 @@ pub unsafe extern "C" fn rust_calc_serialize(
     calculated: *const std::ffi::c_void,
     callbacks: *const FfiCalcSerializationCallbacks,
     resolved_mode: bool,
-) -> bool {
+) {
     use crate::style_value::StyleValueData;
     crate::abort_on_panic(|| {
         let StyleValueData::Calculated {
@@ -2975,8 +2969,7 @@ pub unsafe extern "C" fn rust_calc_serialize(
             accepted_ranges: accepted_ranges.as_slice(),
         };
         serializer.serialize_math_function(&root);
-        true
-    })
+    });
 }
 
 #[allow(dead_code)]

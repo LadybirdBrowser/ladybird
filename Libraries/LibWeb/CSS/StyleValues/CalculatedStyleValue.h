@@ -805,9 +805,6 @@ public:
     // NOTE: We don't return children here as serialization is handled ad-hoc
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return {}; }
 
-    void serialize(StringBuilder&, CalculationContext const&, SerializationMode) const;
-    String to_string(CalculationContext const&, SerializationMode serialization_mode) const;
-
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
     RandomValueSharingStyleValue const& random_value_sharing() const { return m_random_value_sharing; }
