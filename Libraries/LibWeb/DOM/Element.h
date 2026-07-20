@@ -205,6 +205,7 @@ public:
 
     bool cannot_navigate() const;
 
+    bool creates_a_hyperlink() const;
     void follow_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML::UserNavigationInvolvement = HTML::UserNavigationInvolvement::None);
     void download_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML::UserNavigationInvolvement = HTML::UserNavigationInvolvement::None);
     void activate_the_hyperlink(Event const&);

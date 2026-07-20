@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<map name="m">
+    <area id="link" shape="rect" coords="0,0,100,100" href="../data/area-navigation-target.html" target="frame" alt="target">
+</map>
+<iframe name="frame"></iframe>
+<script>
+    asyncTest(done => {
+        window.addEventListener("message", event => {
+            println(`activating an area element navigated its target frame: ${event.data === "navigated"}`);
+            done();
+        }, { once: true });
+
+        document.getElementById("link").click();
+    });
+</script>
