@@ -701,9 +701,13 @@ static char const* syscall_name(long syscall_number)
 
 #undef CASE_SYSCALL_NAME
 
+static char s_process_name[16] = "unknown";
+
 static void handle_sigsys(int, siginfo_t* info, void* context)
 {
-    write_string("Sandbox violation: disallowed syscall ");
+    write_string("Sandbox violation in ");
+    write_string(s_process_name);
+    write_string(": disallowed syscall ");
     write_string(syscall_name(info->si_syscall));
     write_string(" (");
     write_unsigned(static_cast<u64>(info->si_syscall));
@@ -757,6 +761,8 @@ static ErrorOr<void> install_sigsys_handler()
         return Error::from_syscall("sigemptyset"sv, errno);
     if (sigaction(SIGSYS, &action, nullptr) < 0)
         return Error::from_syscall("sigaction(SIGSYS)"sv, errno);
+
+    (void)prctl(PR_GET_NAME, s_process_name, 0ul, 0ul, 0ul);
     return {};
 }
 
