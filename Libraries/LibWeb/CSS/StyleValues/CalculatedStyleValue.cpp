@@ -2931,7 +2931,7 @@ static StyleValueFFI::FfiCalcResolutionContext make_calc_ffi_resolution_context(
 // Rebuilds a C++ calculation tree from a Rust calculation node. Absolutized
 // values must still carry a C++ tree for math-function composition through
 // CalculationNode::from_style_value until the calculation storage drops it.
-static NonnullRefPtr<CalculationNode const> cpp_calc_tree_from_rust(void const* calculated_data, StyleValueFFI::CalcNode const* node, CalculationContext const& context)
+static NonnullRefPtr<CalculationNode const> cpp_calc_tree_from_rust(StyleValueFFI::CalcNode const* node, CalculationContext const& context)
 {
     auto children_of = [&]() {
         Vector<StyleValueFFI::CalcNode const*> rust_children;
@@ -2941,7 +2941,7 @@ static NonnullRefPtr<CalculationNode const> cpp_calc_tree_from_rust(void const* 
         Vector<NonnullRefPtr<CalculationNode const>> children;
         children.ensure_capacity(count);
         for (auto const* child : rust_children)
-            children.unchecked_append(cpp_calc_tree_from_rust(calculated_data, child, context));
+            children.unchecked_append(cpp_calc_tree_from_rust(child, context));
         return children;
     };
     switch (StyleValueFFI::rust_calc_node_kind(node)) {
@@ -3049,7 +3049,7 @@ static NonnullRefPtr<CalculationNode const> cpp_calc_tree_from_rust(void const* 
     }
     case 28: {
         auto const& function = *static_cast<AbstractNonMathCalcFunctionStyleValue const*>(StyleValueFFI::rust_calc_node_style_value(node));
-        auto numeric_type = from_ffi_numeric_type(StyleValueFFI::rust_calc_node_numeric_type(calculated_data, node));
+        auto numeric_type = from_ffi_numeric_type(StyleValueFFI::rust_calc_node_non_math_function_type(node));
         return NonMathFunctionCalculationNode::create(function, numeric_type.value());
     }
     }
@@ -3070,7 +3070,7 @@ ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(
     if (result.is_percentage)
         return PercentageStyleValue::create(Percentage { result.percentage_value });
 
-    auto simplified_calculation_tree = cpp_calc_tree_from_rust(m_value.operator->(), result.simplified, calculation_context);
+    auto simplified_calculation_tree = cpp_calc_tree_from_rust(result.simplified, calculation_context);
     StyleValueFFI::rust_calc_node_release(result.simplified);
     return CalculatedStyleValue::create(simplified_calculation_tree, resolved_type(), calculation_context);
 }
@@ -3385,536 +3385,32 @@ struct NumericChildAndIndex {
     NonnullRefPtr<NumericCalculationNode const> child;
     size_t index;
 };
-static Optional<NumericChildAndIndex> find_numeric_child_with_same_unit(Vector<NonnullRefPtr<CalculationNode const>> children, NumericCalculationNode const& target)
-{
-    for (auto i = 0u; i < children.size(); ++i) {
-        auto& child = children[i];
-        if (child->type() != CalculationNode::Type::Numeric)
-            continue;
-        auto const& child_numeric = as<NumericCalculationNode>(*child);
-        if (child_numeric.value().index() != target.value().index())
-            continue;
-
-        auto matches = child_numeric.value().visit(
-            [&](Percentage const&) {
-                return target.value().has<Percentage>();
-            },
-            [&](Number const&) {
-                return target.value().has<Number>();
-            },
-            [&]<typename T>(T const& value) {
-                if (auto const* other = target.value().get_pointer<T>(); other && other->unit() == value.unit()) {
-                    return true;
-                }
-                return false;
-            });
-
-        if (matches)
-            return NumericChildAndIndex { child_numeric, i };
-    }
-
-    return {};
-}
-
-static RefPtr<NumericCalculationNode const> make_calculation_node(CalculatedStyleValue::CalculationResult const& calculation_result, CalculationContext const& context)
-{
-    auto const& accumulated_type = calculation_result.type().value();
-    if (accumulated_type.matches_number(context.percentages_resolve_as))
-        return NumericCalculationNode::create(Number { Number::Type::Number, calculation_result.value() }, context);
-    if (accumulated_type.matches_percentage())
-        return NumericCalculationNode::create(Percentage { calculation_result.value() }, context);
-    if (accumulated_type.matches_angle(context.percentages_resolve_as))
-        return NumericCalculationNode::create(Angle::make_degrees(calculation_result.value()), context);
-    if (accumulated_type.matches_flex(context.percentages_resolve_as))
-        return NumericCalculationNode::create(Flex::make_fr(calculation_result.value()), context);
-    if (accumulated_type.matches_frequency(context.percentages_resolve_as))
-        return NumericCalculationNode::create(Frequency::make_hertz(calculation_result.value()), context);
-    if (accumulated_type.matches_length(context.percentages_resolve_as))
-        return NumericCalculationNode::create(Length::make_px(calculation_result.value()), context);
-    if (accumulated_type.matches_resolution(context.percentages_resolve_as))
-        return NumericCalculationNode::create(Resolution::make_dots_per_pixel(calculation_result.value()), context);
-    if (accumulated_type.matches_time(context.percentages_resolve_as))
-        return NumericCalculationNode::create(Time::make_seconds(calculation_result.value()), context);
-
-    return nullptr;
-}
-
+// https://drafts.csswg.org/css-values-4/#calc-simplification
 // https://drafts.csswg.org/css-values-4/#calc-simplification
 NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode const& original_root, CalculationContext const& context, CalculationResolutionContext const& resolution_context)
 {
-    // To simplify a calculation tree root:
-    // FIXME: If needed, we could detect that nothing has changed and then return the original `root`, in more places.
-    NonnullRefPtr<CalculationNode const> root = original_root;
+    // The algorithm runs in the Rust calc core; this entry simplifies trees that are not (yet)
+    // owned by a calculated style value, so it converts the tree, simplifies, and materializes
+    // the result back into C++ nodes.
+    CalcResolveCallbackContext callback_context { context, resolution_context };
+    Optional<ComputedValuesFFI::FfiLengthResolutionContext> ffi_length_resolution_context;
+    auto ffi_context = make_calc_ffi_resolution_context(callback_context, ffi_length_resolution_context);
 
-    // 1. If root is a numeric value:
-    if (root->type() == CalculationNode::Type::Numeric) {
-        auto const& root_numeric = as<NumericCalculationNode>(*root);
+    auto resolve_as_base = context.percentages_resolve_as.has_value()
+        ? NumericType::base_type_from_value_type(*context.percentages_resolve_as)
+        : OptionalNone {};
 
-        // 1. If root is a percentage that will be resolved against another value, and there is enough information
-        //    available to resolve it, do so, and express the resulting numeric value in the appropriate canonical unit.
-        //    Return the value.
-        if (auto const* percentage = root_numeric.value().get_pointer<Percentage>(); percentage && context.percentages_resolve_as.has_value()) {
-            // NOTE: We use nullptr here to signify "use the original".
-            RefPtr<NumericCalculationNode const> resolved = resolution_context.percentage_basis.visit(
-                [](Empty const&) -> RefPtr<NumericCalculationNode const> { return nullptr; },
-                [&](Angle const& angle) -> RefPtr<NumericCalculationNode const> {
-                    VERIFY(context.percentages_resolve_as == ValueType::Angle);
-                    if (angle.unit() == AngleUnit::Deg)
-                        return NumericCalculationNode::create(angle.percentage_of(*percentage), context);
-                    return NumericCalculationNode::create(Angle::make_degrees(angle.to_degrees()).percentage_of(*percentage), context);
-                },
-                [&](Frequency const& frequency) -> RefPtr<NumericCalculationNode const> {
-                    VERIFY(context.percentages_resolve_as == ValueType::Frequency);
-                    if (frequency.unit() == FrequencyUnit::Hz)
-                        return NumericCalculationNode::create(frequency.percentage_of(*percentage), context);
-                    return NumericCalculationNode::create(Frequency::make_hertz(frequency.to_hertz()).percentage_of(*percentage), context);
-                },
-                [&](Length const& length) -> RefPtr<NumericCalculationNode const> {
-                    VERIFY(context.percentages_resolve_as == ValueType::Length);
-                    if (length.unit() == LengthUnit::Px)
-                        return NumericCalculationNode::create(length.percentage_of(*percentage), context);
-                    if (length.is_absolute())
-                        return NumericCalculationNode::create(Length::make_px(length.absolute_length_to_px()).percentage_of(*percentage), context);
-                    if (resolution_context.length_resolution_context.has_value())
-                        return NumericCalculationNode::create(Length::make_px(length.to_px_without_rounding(resolution_context.length_resolution_context.value())).percentage_of(*percentage), context);
-                    return nullptr;
-                },
-                [&](Time const& time) -> RefPtr<NumericCalculationNode const> {
-                    VERIFY(context.percentages_resolve_as == ValueType::Time);
-                    if (time.unit() == TimeUnit::S)
-                        return NumericCalculationNode::create(time.percentage_of(*percentage), context);
-                    return NumericCalculationNode::create(Time::make_seconds(time.to_seconds()).percentage_of(*percentage), context);
-                });
-
-            if (resolved)
-                return resolved.release_nonnull();
-        }
-
-        // 2. If root is a dimension that is not expressed in its canonical unit, and there is enough information available
-        //    to convert it to the canonical unit, do so, and return the value.
-        else {
-            // NOTE: We use nullptr here to signify "use the original".
-            RefPtr<CalculationNode const> resolved = root_numeric.value().visit(
-                [&](Angle const& angle) -> RefPtr<CalculationNode const> {
-                    if (angle.unit() == AngleUnit::Deg)
-                        return nullptr;
-                    return NumericCalculationNode::create(Angle::make_degrees(angle.to_degrees()), context);
-                },
-                [&](Flex const& flex) -> RefPtr<CalculationNode const> {
-                    if (flex.unit() == FlexUnit::Fr)
-                        return nullptr;
-                    return NumericCalculationNode::create(Flex::make_fr(flex.to_fr()), context);
-                },
-                [&](Frequency const& frequency) -> RefPtr<CalculationNode const> {
-                    if (frequency.unit() == FrequencyUnit::Hz)
-                        return nullptr;
-                    return NumericCalculationNode::create(Frequency::make_hertz(frequency.to_hertz()), context);
-                },
-                [&](Length const& length) -> RefPtr<CalculationNode const> {
-                    if (length.unit() == LengthUnit::Px)
-                        return nullptr;
-                    if (length.is_absolute())
-                        return NumericCalculationNode::create(Length::make_px(length.absolute_length_to_px_without_rounding()), context);
-                    if (resolution_context.length_resolution_context.has_value())
-                        return NumericCalculationNode::create(Length::make_px(length.to_px_without_rounding(resolution_context.length_resolution_context.value())), context);
-                    return nullptr;
-                },
-                [&](Number const&) -> RefPtr<CalculationNode const> {
-                    return nullptr;
-                },
-                [&](Percentage const&) -> RefPtr<CalculationNode const> {
-                    return nullptr;
-                },
-                [&](Resolution const& resolution) -> RefPtr<CalculationNode const> {
-                    if (resolution.unit() == ResolutionUnit::Dppx)
-                        return nullptr;
-                    return NumericCalculationNode::create(Resolution::make_dots_per_pixel(resolution.to_dots_per_pixel()), context);
-                },
-                [&](Time const& time) -> RefPtr<CalculationNode const> {
-                    if (time.unit() == TimeUnit::S)
-                        return nullptr;
-                    return NumericCalculationNode::create(Time::make_seconds(time.to_seconds()), context);
-                });
-            if (resolved)
-                return resolved.release_nonnull();
-        }
-
-        // 3. If root is a <calc-keyword> that can be resolved, return what it resolves to, simplified.
-        // NOTE: We already resolve our `<calc-keyword>`s at parse-time.
-        // FIXME: Revisit this once we support any keywords that need resolving later.
-
-        // 4. Otherwise, return root.
-        return root;
-    }
-
-    // 2. If root is any other leaf node (not an operator node):
-    if (root->type() == CalculationNode::Type::NonMathFunction) {
-        //  1. If there is enough information available to determine its numeric value, return its value, expressed in
-        //     the value’s canonical unit.
-        if (auto resolved_calculation_node = as<NonMathFunctionCalculationNode>(*root).function()->resolve_to_calculation_node(context, resolution_context))
-            return resolved_calculation_node.release_nonnull();
-
-        // 2. Otherwise, return root.
-        return root;
-    }
-
-    // https://drafts.csswg.org/css-color-5/#relative-color
-    if (root->type() == CalculationNode::Type::ChannelKeyword) {
-        if (resolution_context.relative_color.has_value()) {
-            auto channel = as<ChannelKeywordCalculationNode>(*root).channel();
-            if (auto resolved = resolution_context.relative_color->get(channel); resolved.has_value())
-                return NumericCalculationNode::create(Number { Number::Type::Number, resolved.value() }, context);
-        }
-        return root;
-    }
-
-    // 3. At this point, root is an operator node. Simplify all the calculation children of root.
-    root = root->with_simplified_children(context, resolution_context);
-
-    // 4. If root is an operator node that’s not one of the calc-operator nodes, and all of its calculation children
-    //    are numeric values with enough information to compute the operation root represents, return the result of
-    //    running root’s operation using its children, expressed in the result’s canonical unit.
-    if (root->is_math_function_node()) {
-        if (auto maybe_simplified = root->run_operation_if_possible(context, resolution_context); maybe_simplified.has_value()) {
-            if (auto node = make_calculation_node(maybe_simplified.release_value(), context))
-                return node.release_nonnull();
-            return root;
-        }
-    }
-
-    // 5. If root is a Min or Max node, attempt to partially simplify it:
-    if (root->type() == CalculationNode::Type::Min || root->type() == CalculationNode::Type::Max) {
-        bool const is_min = root->type() == CalculationNode::Type::Min;
-        auto const& children = is_min ? as<MinCalculationNode>(*root).children() : as<MaxCalculationNode>(*root).children();
-
-        // 1. For each node child of root’s children:
-        //    If child is a numeric value with enough information to compare magnitudes with another child of the same
-        //    unit (see note in previous step), and there are other children of root that are numeric values with the
-        //    same unit, combine all such children with the appropriate operator per root, and replace child with the
-        //    result, removing all other child nodes involved.
-        Vector<NonnullRefPtr<CalculationNode const>> simplified_children;
-        simplified_children.ensure_capacity(children.size());
-        for (auto const& child : children) {
-            if (child->type() != CalculationNode::Type::Numeric || simplified_children.is_empty()) {
-                simplified_children.append(child);
-                continue;
-            }
-
-            auto const& child_numeric = as<NumericCalculationNode>(*child);
-            if (context.percentages_resolve_as.has_value() && child_numeric.value().has<Percentage>()) {
-                // NOTE: We can't compare this percentage yet.
-                simplified_children.append(child);
-                continue;
-            }
-
-            auto existing_child_and_index = find_numeric_child_with_same_unit(simplified_children, child_numeric);
-            if (existing_child_and_index.has_value()) {
-                bool const should_replace_existing_value = existing_child_and_index->child->value().visit(
-                    [&](Percentage const& percentage) {
-                        if (is_min)
-                            return child_numeric.value().get_pointer<Percentage>()->value() < percentage.value();
-                        return child_numeric.value().get_pointer<Percentage>()->value() > percentage.value();
-                    },
-                    [&](Number const& number) {
-                        if (is_min)
-                            return child_numeric.value().get_pointer<Number>()->value() < number.value();
-                        return child_numeric.value().get_pointer<Number>()->value() > number.value();
-                    },
-                    [&]<typename T>(T const& value) {
-                        if (is_min)
-                            return child_numeric.value().get_pointer<T>()->raw_value() < value.raw_value();
-                        return child_numeric.value().get_pointer<T>()->raw_value() > value.raw_value();
-                    });
-
-                if (should_replace_existing_value)
-                    simplified_children[existing_child_and_index->index] = child_numeric;
-
-            } else {
-                simplified_children.append(child);
-            }
-        }
-
-        // 2. If root has only one child, return the child.
-        //    Otherwise, return root.
-        if (simplified_children.size() == 1)
-            return simplified_children.first();
-        // NOTE: Because our root is immutable, we have to return a new node with the modified children.
-        if (is_min)
-            return MinCalculationNode::create(move(simplified_children));
-        return MaxCalculationNode::create(move(simplified_children));
-    }
-
-    // 6. If root is a Negate node:
-    if (root->type() == CalculationNode::Type::Negate) {
-        auto const& root_negate = as<NegateCalculationNode>(*root);
-        auto const& child = root_negate.child();
-        // 1. If root’s child is a numeric value, return an equivalent numeric value, but with the value negated (0 - value).
-        if (child.type() == CalculationNode::Type::Numeric)
-            return as<NumericCalculationNode>(child).negated(context);
-
-        // 2. If root’s child is a Negate node, return the child’s child.
-        if (child.type() == CalculationNode::Type::Negate)
-            return as<NegateCalculationNode>(child).child();
-
-        // AD-HOC: Convert negated sums into sums of negated nodes - see https://github.com/w3c/csswg-drafts/issues/13020
-        if (child.type() == CalculationNode::Type::Sum) {
-            Vector<NonnullRefPtr<CalculationNode const>> negated_sum_components;
-
-            for (auto const& sum_child : child.children()) {
-                if (sum_child->type() == CalculationNode::Type::Numeric)
-                    negated_sum_components.append(as<NumericCalculationNode>(*sum_child).negated(context));
-                else if (sum_child->type() == CalculationNode::Type::Negate)
-                    negated_sum_components.append(as<NegateCalculationNode>(*sum_child).child());
-                else
-                    negated_sum_components.append(NegateCalculationNode::create(sum_child));
-            }
-
-            return SumCalculationNode::create(negated_sum_components);
-        }
-
-        // 3. Return root.
-        // NOTE: Because our root is immutable, we have to return a new node if the child was modified.
-        if (&child == &root_negate.child())
-            return root;
-        return NegateCalculationNode::create(move(child));
-    }
-
-    // 7. If root is an Invert node:
-    if (root->type() == CalculationNode::Type::Invert) {
-        auto const& root_invert = as<InvertCalculationNode>(*root);
-        auto const& child = root_invert.child();
-
-        // 1. If root’s child is a number (not a percentage or dimension) return the reciprocal of the child’s value.
-        if (child.type() == CalculationNode::Type::Numeric) {
-            if (auto const* number = as<NumericCalculationNode>(child).value().get_pointer<Number>()) {
-                // TODO: Ensure we're doing the right thing for weird divisions.
-                return NumericCalculationNode::create(Number(Number::Type::Number, 1.0 / number->value()), context);
-            }
-        }
-
-        // 2. If root’s child is an Invert node, return the child’s child.
-        if (child.type() == CalculationNode::Type::Invert)
-            return as<InvertCalculationNode>(child).child();
-
-        // 3. Return root.
-        // NOTE: Because our root is immutable, we have to return a new node if the child was modified.
-        if (&child == &root_invert.child())
-            return root;
-        return InvertCalculationNode::create(move(child));
-    }
-
-    // 8. If root is a Sum node:
-    if (root->type() == CalculationNode::Type::Sum) {
-        auto const& root_sum = as<SumCalculationNode>(*root);
-
-        Vector<NonnullRefPtr<CalculationNode const>> flattened_children;
-        flattened_children.ensure_capacity(root_sum.children().size());
-        // 1. For each of root’s children that are Sum nodes, replace them with their children.
-        for (auto const& child : root_sum.children()) {
-            if (child->type() == CalculationNode::Type::Sum) {
-                flattened_children.extend(as<SumCalculationNode>(*child).children());
-            } else {
-                flattened_children.append(child);
-            }
-        }
-
-        // 2. For each set of root’s children that are numeric values with identical units, remove those children and
-        //    replace them with a single numeric value containing the sum of the removed nodes, and with the same unit.
-        //    (E.g. combine numbers, combine percentages, combine px values, etc.)
-
-        // NOTE: For each child, scan this summed_children list for the first one that has the same type, then replace that with the new summed value.
-        Vector<NonnullRefPtr<CalculationNode const>> summed_children;
-        for (auto const& child : flattened_children) {
-            if (child->type() != CalculationNode::Type::Numeric) {
-                summed_children.append(child);
-                continue;
-            }
-            auto const& child_numeric = as<NumericCalculationNode>(*child);
-
-            auto existing_child_and_index = find_numeric_child_with_same_unit(summed_children, child_numeric);
-            if (existing_child_and_index.has_value()) {
-                auto new_value = existing_child_and_index->child->value().visit(
-                    [&](Percentage const& percentage) {
-                        return NumericCalculationNode::create(Percentage(percentage.value() + child_numeric.value().get<Percentage>().value()), context);
-                    },
-                    [&](Number const& number) {
-                        return NumericCalculationNode::create(Number(Number::Type::Number, number.value() + child_numeric.value().get<Number>().value()), context);
-                    },
-                    [&]<typename T>(T const& value) {
-                        return NumericCalculationNode::create(T(value.raw_value() + child_numeric.value().get<T>().raw_value(), value.unit()), context);
-                    });
-                summed_children[existing_child_and_index->index] = move(new_value);
-            } else {
-                summed_children.append(child);
-            }
-        }
-
-        // 3. If root has only a single child at this point, return the child. Otherwise, return root.
-        if (summed_children.size() == 1)
-            return summed_children.first();
-
-        // NOTE: Because our root is immutable, we have to return a new node with the modified children.
-        return SumCalculationNode::create(move(summed_children));
-    }
-
-    // 9. If root is a Product node:
-    if (root->type() == CalculationNode::Type::Product) {
-        auto const& root_product = as<ProductCalculationNode>(*root);
-
-        Vector<NonnullRefPtr<CalculationNode const>> children;
-        children.ensure_capacity(root_product.children().size());
-
-        // 1. For each of root’s children that are Product nodes, replace them with their children.
-        for (auto const& child : root_product.children()) {
-            if (child->type() == CalculationNode::Type::Product) {
-                children.extend(as<ProductCalculationNode>(*child).children());
-            } else {
-                children.append(child);
-            }
-        }
-
-        // 2. If root has multiple children that are numbers (not percentages or dimensions),
-        //    remove them and replace them with a single number containing the product of the removed nodes.
-        Optional<size_t> number_index;
-        for (auto i = 0u; i < children.size(); ++i) {
-            if (children[i]->type() == CalculationNode::Type::Numeric) {
-                if (auto const* number = as<NumericCalculationNode>(*children[i]).value().get_pointer<Number>()) {
-                    if (!number_index.has_value()) {
-                        number_index = i;
-                        continue;
-                    }
-                    children[*number_index] = NumericCalculationNode::create(as<NumericCalculationNode>(*children[*number_index]).value().get<Number>() * *number, context);
-                    children.remove(i);
-                    --i; // Look at this same index again next loop.
-                }
-            }
-        }
-
-        // 3. If root contains only two children, one of which is a number(not a percentage or dimension) and the other
-        //    of which is a Sum whose children are all numeric values, multiply all of the Sum’ s children by the number,
-        //    then return the Sum.
-        if (children.size() == 2) {
-            auto const& child_1 = children[0];
-            auto const& child_2 = children[1];
-
-            Optional<Number> multiplier;
-            RefPtr<SumCalculationNode const> sum;
-
-            if (child_1->type() == CalculationNode::Type::Numeric && child_2->type() == CalculationNode::Type::Sum) {
-                if (auto const* maybe_multiplier = as<NumericCalculationNode>(*child_1).value().get_pointer<Number>()) {
-                    multiplier = *maybe_multiplier;
-                    sum = as<SumCalculationNode>(*child_2);
-                }
-            }
-            if (child_1->type() == CalculationNode::Type::Sum && child_2->type() == CalculationNode::Type::Numeric) {
-                if (auto const* maybe_multiplier = as<NumericCalculationNode>(*child_2).value().get_pointer<Number>()) {
-                    multiplier = *maybe_multiplier;
-                    sum = as<SumCalculationNode>(*child_1);
-                }
-            }
-
-            if (multiplier.has_value() && sum) {
-                Vector<NonnullRefPtr<CalculationNode const>> multiplied_children;
-                multiplied_children.ensure_capacity(sum->children().size());
-
-                bool all_numeric = true;
-                for (auto const& sum_child : sum->children()) {
-                    if (sum_child->type() != CalculationNode::Type::Numeric) {
-                        all_numeric = false;
-                        break;
-                    }
-                    auto& child_value = as<NumericCalculationNode>(*sum_child).value();
-                    multiplied_children.append(child_value.visit(
-                        [&](Percentage const& percentage) {
-                            return NumericCalculationNode::create(Percentage(percentage.value() * multiplier->value()), context);
-                        },
-                        [&](Number const& number) {
-                            return NumericCalculationNode::create(Number(Number::Type::Number, number.value() * multiplier->value()), context);
-                        },
-                        [&]<typename T>(T const& value) {
-                            return NumericCalculationNode::create(T(value.raw_value() * multiplier->value(), value.unit()), context);
-                        }));
-                }
-
-                if (all_numeric)
-                    return SumCalculationNode::create(move(multiplied_children));
-            }
-        }
-
-        // 4. If root contains only numeric values and/or Invert nodes containing numeric values, and multiplying the
-        //    types of all the children (noting that the type of an Invert node is the inverse of its child’s type)
-        //    results in a type that matches any of the types that a math function can resolve to, return the result of
-        //    multiplying all the values of the children (noting that the value of an Invert node is the reciprocal of
-        //    its child’s value), expressed in the result’s canonical unit.
-        Optional<CalculatedStyleValue::CalculationResult> accumulated_result;
-        bool is_valid = true;
-
-        auto accumulate = [&accumulated_result, &resolution_context](NumericCalculationNode const& numeric_child, bool invert) {
-            auto child_type = numeric_child.numeric_type();
-
-            if (!child_type.has_value())
-                return false;
-
-            // FIXME: The spec doesn't cover how to handle values in non-canonical units
-            if (!numeric_child.is_in_canonical_unit())
-                return false;
-
-            // AD-HOC: The spec doesn't cover how to handle unresolved percentages, to handle this we force percentages
-            //         back to the percent type (e.g. { hint: None, "percent" → 1 } rather than
-            //         { hint: length, "length" → 1 }), this avoids a situation calling make_calculation_node below
-            //         where we would treat the value as an absolute value expressed in canonical units rather than a
-            //         percent. `make_calculation_node` will still calculate the correct numeric type for the
-            //         simplified node. See spec issue: https://github.com/w3c/csswg-drafts/issues/11588
-            if (numeric_child.value().has<Percentage>())
-                child_type = NumericType { NumericType::BaseType::Percent, 1 };
-
-            auto child_value = CalculatedStyleValue::CalculationResult::from_value(numeric_child.value(), resolution_context, child_type);
-
-            if (invert)
-                child_value.invert();
-
-            if (accumulated_result.has_value())
-                accumulated_result->multiply_by(child_value);
-            else
-                accumulated_result = child_value;
-
-            if (!accumulated_result->type().has_value())
-                return false;
-
-            return true;
-        };
-
-        for (auto const& child : children) {
-            if (child->type() == CalculationNode::Type::Numeric) {
-                if (!accumulate(as<NumericCalculationNode>(*child), false)) {
-                    is_valid = false;
-                    break;
-                }
-                continue;
-            }
-            if (child->type() == CalculationNode::Type::Invert) {
-                auto const& invert_child = as<InvertCalculationNode>(*child);
-                if (invert_child.child().type() != CalculationNode::Type::Numeric || !accumulate(as<NumericCalculationNode>(invert_child.child()), true)) {
-                    is_valid = false;
-                    break;
-                }
-                continue;
-            }
-            is_valid = false;
-            break;
-        }
-        if (is_valid) {
-            if (auto node = make_calculation_node(*accumulated_result, context))
-                return node.release_nonnull();
-        }
-
-        // 5. Return root.
-        // NOTE: Because our root is immutable, we have to return a new node with the modified children.
-        return ProductCalculationNode::create(move(children));
-    }
-
-    // 10. Return root.
-    return root;
+    auto const* rust_root = to_rust_calc_node(original_root);
+    auto const* simplified = StyleValueFFI::rust_calc_simplify_tree(
+        rust_root,
+        &ffi_context,
+        context.percentages_resolve_as.has_value(),
+        context.percentages_resolve_as == ValueType::Number,
+        resolve_as_base.has_value() ? to_underlying(*resolve_as_base) : 0);
+    auto result = cpp_calc_tree_from_rust(simplified, context);
+    StyleValueFFI::rust_calc_node_release(simplified);
+    StyleValueFFI::rust_calc_node_release(rust_root);
+    return result;
 }
 
 }

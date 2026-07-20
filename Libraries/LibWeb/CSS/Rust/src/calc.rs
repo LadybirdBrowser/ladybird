@@ -1127,16 +1127,18 @@ pub(crate) struct CalcSimplifyCallbacks<'a> {
 }
 
 fn is_canonical_unit(value: CalcNumericValue) -> bool {
+    // NB: Compare unit codes, not ratios: the "x" resolution unit shares dppx's
+    //     ratio of one but is an alias that must still convert to dppx.
     match value {
         CalcNumericValue::Number { .. } | CalcNumericValue::Percentage(..) => true,
         CalcNumericValue::Length { unit, .. } => {
-            crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[unit as usize] == 1.0
+            unit == canonical_unit_code(&crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS)
         }
-        CalcNumericValue::Angle { unit, .. } => ANGLE_UNIT_CANONICAL_RATIOS[unit as usize] == 1.0,
-        CalcNumericValue::Flex { unit, .. } => FLEX_UNIT_CANONICAL_RATIOS[unit as usize] == 1.0,
-        CalcNumericValue::Frequency { unit, .. } => FREQUENCY_UNIT_CANONICAL_RATIOS[unit as usize] == 1.0,
-        CalcNumericValue::Resolution { unit, .. } => RESOLUTION_UNIT_CANONICAL_RATIOS[unit as usize] == 1.0,
-        CalcNumericValue::Time { unit, .. } => TIME_UNIT_CANONICAL_RATIOS[unit as usize] == 1.0,
+        CalcNumericValue::Angle { unit, .. } => unit == canonical_unit_code(&ANGLE_UNIT_CANONICAL_RATIOS),
+        CalcNumericValue::Flex { unit, .. } => unit == canonical_unit_code(&FLEX_UNIT_CANONICAL_RATIOS),
+        CalcNumericValue::Frequency { unit, .. } => unit == canonical_unit_code(&FREQUENCY_UNIT_CANONICAL_RATIOS),
+        CalcNumericValue::Resolution { unit, .. } => unit == canonical_unit_code(&RESOLUTION_UNIT_CANONICAL_RATIOS),
+        CalcNumericValue::Time { unit, .. } => unit == canonical_unit_code(&TIME_UNIT_CANONICAL_RATIOS),
     }
 }
 
@@ -3376,6 +3378,49 @@ pub unsafe extern "C" fn rust_calc_node_progress_no_clamp(node: *const CalcNode)
     crate::abort_on_panic(|| match unsafe { &*node } {
         CalcNode::Progress { no_clamp, .. } => *no_clamp,
         _ => false,
+    })
+}
+
+/// The numeric type stored on a non-math-function node; invalid for other
+/// nodes. The type is fixed at construction, so no resolve-as context is
+/// needed to read it back.
+///
+/// # Safety
+/// `node` must be a valid calculation node pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_node_non_math_function_type(node: *const CalcNode) -> FfiNumericType {
+    crate::abort_on_panic(|| match unsafe { &*node } {
+        CalcNode::NonMathFunction { numeric_type, .. } => FfiNumericType::from_calc(Some(*numeric_type)),
+        _ => FfiNumericType::from_calc(None),
+    })
+}
+
+/// Simplifies a free-standing calculation tree: the css-values-4 algorithm
+/// over a borrowed root, returning the simplified tree as a transferred
+/// handle. This backs the C++ simplify_a_calculation_tree entry, whose
+/// callers simplify trees that are not (yet) owned by a calculated style
+/// value: parse-time math functions, interpolation sums, flipped edge
+/// offsets, and anchor fallbacks.
+///
+/// # Safety
+/// `root` must be a valid calculation node pointer and `context` a valid
+/// resolution context.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_simplify_tree(
+    root: *const CalcNode,
+    context: *const FfiCalcResolutionContext,
+    has_percentages_resolve_as: bool,
+    resolve_as_is_number: bool,
+    resolve_as_base: u8,
+) -> *const CalcNode {
+    crate::abort_on_panic(|| {
+        let context = unsafe { &*context };
+        unsafe { Arc::increment_strong_count(root) };
+        let root = unsafe { Arc::from_raw(root) };
+        let resolve_as = resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base);
+        with_ffi_evaluation(resolve_as, context, |evaluation_context, callbacks| {
+            Arc::into_raw(root.simplify(evaluation_context, callbacks))
+        })
     })
 }
 
