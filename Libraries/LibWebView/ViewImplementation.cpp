@@ -2721,9 +2721,12 @@ void ViewImplementation::did_request_link_context_menu(Badge<WebContentClient>, 
 
 void ViewImplementation::download_context_menu_url(PromptForPath prompt_for_path)
 {
+    // URLs with an opaque path, such as data: URLs, do not contain a usable filename, so the default filename is
+    // used instead.
+    auto suggested_filename = m_context_menu_url.has_an_opaque_path() ? ByteString {} : m_context_menu_url.basename();
     auto download_path = prompt_for_path == PromptForPath::Yes
-        ? Application::the().path_for_downloaded_file(m_context_menu_url.basename())
-        : Application::the().default_path_for_downloaded_file(m_context_menu_url.basename());
+        ? Application::the().path_for_downloaded_file(suggested_filename)
+        : Application::the().default_path_for_downloaded_file(suggested_filename);
     if (download_path.is_error())
         return;
 

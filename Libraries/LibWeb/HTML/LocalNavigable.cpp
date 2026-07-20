@@ -356,6 +356,11 @@ static ByteString suggested_download_filename(URL::URL const& url, HTTP::HeaderL
     if (content_disposition.is_attachment && content_disposition.filename.has_value())
         return sanitize_suggested_download_filename(content_disposition.filename.release_value());
 
+    // The filename is derived from the URL of the response. URLs with an opaque path, such as data: URLs, do not
+    // contain a usable filename, so the default filename is used instead.
+    if (url.has_an_opaque_path())
+        return sanitize_suggested_download_filename({});
+
     return sanitize_suggested_download_filename(url.basename());
 }
 
