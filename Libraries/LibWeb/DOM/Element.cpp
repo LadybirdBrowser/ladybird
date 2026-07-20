@@ -65,6 +65,11 @@
 #include <LibWeb/DOM/SelectorQuery.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -102,6 +107,7 @@
 #include <LibWeb/HTML/HTMLUListElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -449,6 +455,106 @@ void Element::follow_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML:
         : URL::Parser::basic_parse(url_string);
     VERIFY(url.has_value());
     MUST(target_navigable->navigate({ .url = url.release_value(), .source_document = document(), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
+}
+
+// https://html.spec.whatwg.org/multipage/links.html#downloading-hyperlinks
+void Element::download_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML::UserNavigationInvolvement user_involvement)
+{
+    // 1. If subject cannot navigate, then return.
+    if (cannot_navigate())
+        return;
+
+    // 2. If subject's node document's active sandboxing flag set has the sandboxed downloads browsing context flag
+    //    set, then return.
+    if (has_flag(document().active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedDownloads))
+        return;
+
+    // 3. Let urlString be the result of encoding-parsing-and-serializing a URL given subject's href attribute
+    //    value, relative to subject's node document.
+    auto url_record = document().encoding_parse_url(get_attribute_value_view(HTML::AttributeNames::href).value_or({}));
+
+    // 4. If urlString is failure, then return.
+    if (!url_record.has_value())
+        return;
+
+    auto url = url_record.release_value();
+
+    // 5. If hyperlinkSuffix is non-null, then append it to urlString.
+    if (hyperlink_suffix.has_value()) {
+        auto url_string = url.serialize();
+        Utf16StringBuilder url_string_builder;
+        url_string_builder.append_ascii(url_string.bytes_as_string_view());
+        url_string_builder.append(hyperlink_suffix->utf16_view());
+        auto url_string_with_suffix = url_string_builder.to_string();
+        auto url_with_suffix = URL::Parser::basic_parse(url_string_with_suffix.utf16_view());
+        VERIFY(url_with_suffix.has_value());
+        url = url_with_suffix.release_value();
+    }
+
+    // NB: The download attribute is read once here, before any script can run, so the proposed filename used when
+    //     getting the suggested filename reflects its value at the time the download was initiated.
+    auto download_attribute = attribute(HTML::AttributeNames::download);
+
+    // 6. If userInvolvement is not "browser UI":
+    if (user_involvement != HTML::UserNavigationInvolvement::BrowserUI) {
+        // 1. Assert: subject has a download attribute.
+        VERIFY(download_attribute.has_value());
+
+        // 2. Let navigation be subject's relevant global object's navigation API.
+        auto navigation = as<HTML::Window>(HTML::relevant_global_object(*this)).navigation();
+
+        // 3. Let filename be the value of subject's download attribute.
+        auto filename = download_attribute.value();
+
+        // 4. Let continue be the result of firing a download request navigate event at navigation with
+        //    destinationURL set to urlString, userInvolvement set to userInvolvement, sourceElement set to
+        //    subject, and filename set to filename.
+        auto continue_ = navigation->fire_a_download_request_navigate_event(url, user_involvement, this, move(filename));
+
+        // 5. If continue is false, then return.
+        if (!continue_)
+            return;
+
+        // 6. Inform the navigation API about aborting navigation given subject's node navigable.
+        if (auto navigable = document().navigable())
+            navigable->inform_the_navigation_api_about_aborting_navigation();
+    }
+
+    // NB: Firing the navigate event above runs script, which may have detached this element's document from its
+    //     navigable.
+    auto navigable = document().navigable();
+    if (!navigable)
+        return;
+
+    auto proposed_filename = download_attribute.map([](auto const& filename) {
+        return filename.utf16_view().to_utf8_but_should_be_ported_to_utf16().to_byte_string();
+    });
+
+    // 7. Run these steps in parallel:
+    //    1. Optionally, the user agent may abort these steps, if it believes doing so would safeguard the user
+    //       from a potentially hostile download.
+    //    2. Let request be a new request whose URL is urlString, client is entry settings object, initiator is
+    //       "download", destination is the empty string, and whose synchronous flag and use-URL-credentials flag
+    //       are set.
+    // AD-HOC: The entry settings object may be empty when a hyperlink is activated by the user, so the node
+    //         document's relevant settings object is used as the request client instead.
+    auto request = Fetch::Infrastructure::Request::create(vm());
+    request->set_url(url);
+    request->set_client(&document().relevant_settings_object());
+    request->set_initiator(Fetch::Infrastructure::Request::Initiator::Download);
+    request->set_use_url_credentials(true);
+    // NB: The synchronous flag is not set; the response is instead processed asynchronously on the main thread.
+
+    //    3. Let response be the result of fetching request.
+    //    4. Handle as a download response with subject's node navigable and null.
+    auto controller_holder = Fetch::Infrastructure::FetchControllerHolder::create(vm());
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    fetch_algorithms_input.process_response = [navigable = GC::Ref { *navigable }, url, proposed_filename = move(proposed_filename), interface_origin = document().origin(), controller_holder](GC::Ref<Fetch::Infrastructure::Response> response) {
+        if (response->is_network_error())
+            return;
+        navigable->handle_as_a_download(response->unsafe_response(), url, controller_holder->controller(), proposed_filename, interface_origin);
+    };
+    controller_holder->set_controller(Fetch::Fetching::fetch(realm(), request, Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input))));
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributenode

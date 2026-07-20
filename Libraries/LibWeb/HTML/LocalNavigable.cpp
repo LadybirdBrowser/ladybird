@@ -329,22 +329,108 @@ static ContentDispositionInfo parse_content_disposition(HTTP::HeaderList const& 
     return info;
 }
 
-static ByteString suggested_download_filename(URL::URL const& url, HTTP::HeaderList const& headers)
+// https://html.spec.whatwg.org/multipage/links.html#getting-the-suggested-filename
+static ByteString suggested_download_filename(URL::URL const& url, HTTP::HeaderList const& headers, Optional<ByteString> const& proposed_filename, Optional<URL::Origin> const& interface_origin)
 {
-    // https://html.spec.whatwg.org/multipage/links.html#getting-the-suggested-filename
-    // FIXME: This is a partial implementation. We do not yet model the
-    //        hyperlink download attribute, trusted operation, or extension
-    //        adjustment steps.
+    // 1. Let filename be the undefined value.
+    Optional<ByteString> filename;
+
+    // 2. If response has a `Content-Disposition` header, that header specifies the attachment disposition type,
+    //    and the header includes filename information, then let filename have the value specified by the header,
+    //    and jump to the step labeled sanitize below.
     auto content_disposition = parse_content_disposition(headers);
-    if (content_disposition.is_attachment && content_disposition.filename.has_value())
-        return sanitize_suggested_download_filename(content_disposition.filename.release_value());
+    if (content_disposition.is_attachment && content_disposition.filename.has_value()) {
+        filename = content_disposition.filename.value();
+        goto sanitize;
+    }
 
-    // The filename is derived from the URL of the response. URLs with an opaque path, such as data: URLs, do not
-    // contain a usable filename, so the default filename is used instead.
-    if (url.has_an_opaque_path())
-        return sanitize_suggested_download_filename({});
+    // NB: Steps 3 to 10 are enclosed in a scope, so the jumps below may bypass the variables declared here.
+    {
+        // 3. Let interface origin be the origin of the Document in which the download or navigate action resulting
+        //    in the download was initiated, if any.
+        // NB: The interface origin is provided by the caller.
 
-    return sanitize_suggested_download_filename(url.basename());
+        // 4. Let response origin be the origin of the URL of response, unless that URL's scheme component is data,
+        //    in which case let response origin be the same as the interface origin, if any.
+        Optional<URL::Origin> response_origin = url.scheme() == "data"sv ? interface_origin : url.origin();
+
+        // 5. If there is no interface origin, then let trusted operation be true. Otherwise, let trusted operation
+        //    be true if response origin is the same origin as interface origin, and false otherwise.
+        auto trusted_operation = !interface_origin.has_value() || response_origin->is_same_origin(*interface_origin);
+
+        // 6. If trusted operation is true and response has a `Content-Disposition` header and that header includes
+        //    filename information, then let filename have the value specified by the header, and jump to the step
+        //    labeled sanitize below.
+        if (trusted_operation && content_disposition.filename.has_value()) {
+            filename = content_disposition.filename.value();
+            goto sanitize;
+        }
+
+        // 7. If the download was not initiated from a hyperlink created by an a or area element, or if the element
+        //    of the hyperlink from which it was initiated did not have a download attribute when the download was
+        //    initiated, or if there was such an attribute but its value when the download was initiated was the
+        //    empty string, then jump to the step labeled no proposed filename.
+        if (!proposed_filename.has_value() || proposed_filename->is_empty())
+            goto no_proposed_filename;
+
+        // 8. Let proposed filename have the value of the download attribute of the element of the hyperlink that
+        //    initiated the download at the time the download was initiated.
+        // NB: The proposed filename is provided by the caller.
+
+        // 9. If trusted operation is true, let filename have the value of proposed filename, and jump to the step
+        //    labeled sanitize below.
+        if (trusted_operation) {
+            filename = proposed_filename.value();
+            goto sanitize;
+        }
+
+        // 10. If response has a `Content-Disposition` header and that header specifies the attachment disposition
+        //     type, let filename have the value of proposed filename, and jump to the step labeled sanitize below.
+        if (content_disposition.is_attachment) {
+            filename = proposed_filename.value();
+            goto sanitize;
+        }
+    }
+
+    // 11. No proposed filename: If trusted operation is true, or if the user indicated a preference for having the
+    //     response in question downloaded, let filename have a value derived from the URL of response in an
+    //     implementation-defined manner, and jump to the step labeled sanitize below.
+no_proposed_filename:
+    // 12. Let filename be set to the user's preferred filename or to a filename selected by the user agent, and
+    //     jump to the step labeled sanitize below.
+    // NB: In both cases the filename is derived from the URL of the response. URLs with an opaque path, such as
+    //     data: URLs, do not contain a usable filename, so the default filename is used instead.
+    if (!url.has_an_opaque_path())
+        filename = url.basename();
+
+    // 13. Sanitize: Optionally, allow the user to influence filename. For example, a user agent could prompt the
+    //     user for a filename, potentially providing the value of filename as determined above as a default value.
+sanitize:
+
+    // 14. Adjust filename to be suitable for the local file system.
+    filename = sanitize_suggested_download_filename(filename.value_or({}));
+
+    // FIXME: 15. If the platform conventions do not in any way use extensions to determine the types of file on
+    //        the file system, then return filename as the filename.
+
+    // FIXME: 16. Let claimed type be the type given by response's Content-Type metadata, if any is known. Let
+    //        named type be the type given by filename's extension, if any is known. For the purposes of this step, a
+    //        type is a mapping of a MIME type to an extension.
+
+    // FIXME: 17. If named type is consistent with the user's preferences (e.g., because the value of filename was
+    //        determined by prompting the user), then return filename as the filename.
+
+    // FIXME: 18. If claimed type and named type are the same type (i.e., the type given by response's Content-Type
+    //        metadata is consistent with the type given by filename's extension), then return filename as the filename.
+
+    // FIXME: 19. If the claimed type is known, then alter filename to add an extension corresponding to claimed
+    //        type. Otherwise, if named type is known to be potentially dangerous (e.g. it will be treated by the
+    //        platform conventions as a native executable, shell script, HTML application, or
+    //        executable-macro-capable document), then optionally alter filename to add a known-safe extension
+    //        (e.g. ".txt").
+
+    // 20. Return filename as the filename.
+    return filename.release_value();
 }
 
 static Optional<u64> response_content_length(HTTP::HeaderList const& headers)
@@ -355,8 +441,65 @@ static Optional<u64> response_content_length(HTTP::HeaderList const& headers)
     return {};
 }
 
+void LocalNavigable::start_download_for_response(GC::Ref<Fetch::Infrastructure::Response> response, URL::URL const& download_url, ByteString suggested_filename, GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller)
+{
+    auto active_window = this->active_window();
+    if (!active_window) {
+        response->release_request_for_transfer();
+        return;
+    }
+    auto& realm = active_window->realm();
+
+    auto download_id = page().client().page_did_start_download(download_url, suggested_filename, response_content_length(*response->header_list()));
+    if (!download_id.has_value()) {
+        if (fetch_controller)
+            fetch_controller->stop_fetch();
+        return;
+    }
+
+    if (fetch_controller)
+        page().client().page_did_register_download_controller(*download_id, *fetch_controller);
+
+    auto process_body_chunk = GC::create_function(realm.heap(), [navigable = GC::Ref { *this }, download_id = *download_id](ByteBuffer data) {
+        if (navigable->page().client().page_is_download_canceled(download_id))
+            return;
+
+        navigable->page().client().page_did_receive_download_data(download_id, move(data));
+    });
+
+    auto process_end_of_body = GC::create_function(realm.heap(), [navigable = GC::Ref { *this }, download_id = *download_id]() {
+        if (navigable->page().client().page_is_download_canceled(download_id))
+            return;
+
+        navigable->page().client().page_did_finish_download(download_id);
+    });
+
+    auto process_body_error = GC::create_function(realm.heap(), [navigable = GC::Ref { *this }, download_id = *download_id](JS::Value) {
+        if (navigable->page().client().page_is_download_canceled(download_id))
+            return;
+
+        navigable->page().client().page_did_fail_download(download_id, "Unable to read downloaded file"_string);
+    });
+
+    // https://fetch.spec.whatwg.org/#body-incrementally-read
+    auto reader = response->body()->incrementally_read(process_body_chunk, process_end_of_body, process_body_error, GC::Ref { realm.global_object() });
+    page().client().page_did_register_download_reader(*download_id, reader);
+    response->resume_body_delivery();
+}
+
 // https://html.spec.whatwg.org/multipage/links.html#handle-as-a-download
-static bool handle_navigation_response_as_download(JS::Realm& realm, GC::Ref<NavigationParams> navigation_params, GC::Ref<SourceSnapshotParams> source_snapshot_params, Optional<ReadonlyBytes> initial_data = {})
+void LocalNavigable::handle_as_a_download(GC::Ref<Fetch::Infrastructure::Response> response, URL::URL const& fallback_url, GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller, Optional<ByteString> proposed_filename, Optional<URL::Origin> interface_origin)
+{
+    if (!response->body())
+        return;
+
+    auto download_url = response->url().value_or(fallback_url);
+    auto suggested_filename = suggested_download_filename(download_url, *response->header_list(), proposed_filename, interface_origin);
+
+    start_download_for_response(response, download_url, move(suggested_filename), fetch_controller);
+}
+
+static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> navigation_params, GC::Ref<SourceSnapshotParams> source_snapshot_params, Optional<ReadonlyBytes> initial_data = {})
 {
     auto response = navigation_params->response;
     if (!response || !response->body())
@@ -382,8 +525,8 @@ static bool handle_navigation_response_as_download(JS::Realm& realm, GC::Ref<Nav
     }
 
     auto download_url = response->url().value_or(navigation_params->request ? navigation_params->request->current_url() : URL::about_blank());
-    auto suggested_filename = suggested_download_filename(download_url, *response->header_list());
     if (auto const& request_server_request = response->request_server_request(); request_server_request.has_value()) {
+        auto suggested_filename = suggested_download_filename(download_url, *response->header_list(), {}, source_snapshot_params->fetch_client->origin());
         auto response_body_will_be_transferred_in_full = request_server_request->request && request_server_request->request->has_file_backed_response_body();
         ByteBuffer initial_data_buffer;
         if (initial_data.has_value() && !initial_data->is_empty() && !response_body_will_be_transferred_in_full)
@@ -402,42 +545,7 @@ static bool handle_navigation_response_as_download(JS::Realm& realm, GC::Ref<Nav
         return true;
     }
 
-    auto download_id = navigation_params->navigable->page().client().page_did_start_download(download_url, suggested_filename, response_content_length(*response->header_list()));
-    if (!download_id.has_value()) {
-        if (navigation_params->fetch_controller)
-            navigation_params->fetch_controller->stop_fetch();
-        return true;
-    }
-
-    if (navigation_params->fetch_controller)
-        navigation_params->navigable->page().client().page_did_register_download_controller(*download_id, *navigation_params->fetch_controller);
-
-    auto process_body_chunk = GC::create_function(realm.heap(), [navigable = navigation_params->navigable, download_id = *download_id](ByteBuffer data) {
-        if (navigable->page().client().page_is_download_canceled(download_id))
-            return;
-
-        navigable->page().client().page_did_receive_download_data(download_id, move(data));
-    });
-
-    auto process_end_of_body = GC::create_function(realm.heap(), [navigable = navigation_params->navigable, download_id = *download_id]() {
-        if (navigable->page().client().page_is_download_canceled(download_id))
-            return;
-
-        navigable->page().client().page_did_finish_download(download_id);
-    });
-
-    auto process_body_error = GC::create_function(realm.heap(), [navigable = navigation_params->navigable, download_id = *download_id](JS::Value) {
-        if (navigable->page().client().page_is_download_canceled(download_id))
-            return;
-
-        navigable->page().client().page_did_fail_download(download_id, "Unable to read downloaded file"_string);
-    });
-
-    // https://fetch.spec.whatwg.org/#body-incrementally-read
-    auto reader = response->body()->incrementally_read(process_body_chunk, process_end_of_body, process_body_error, GC::Ref { realm.global_object() });
-    navigation_params->navigable->page().client().page_did_register_download_reader(*download_id, reader);
-    response->resume_body_delivery();
-
+    navigation_params->navigable->handle_as_a_download(*response, download_url, navigation_params->fetch_controller, {}, source_snapshot_params->fetch_client->origin());
     return true;
 }
 
@@ -2154,7 +2262,7 @@ void LocalNavigable::populate_session_history_entry_document(
             //    disposition type, then:
             else if (auto nav_params = navigation_params.get<GC::Ref<NavigationParams>>();
                 parse_content_disposition(*nav_params->response->header_list()).is_attachment) {
-                output->download_handled = handle_navigation_response_as_download(active_window()->realm(), nav_params, source_snapshot_params);
+                output->download_handled = handle_navigation_response_as_download(nav_params, source_snapshot_params);
                 output->save_extra_document_state = false;
             }
 
@@ -2177,7 +2285,7 @@ void LocalNavigable::populate_session_history_entry_document(
                             if (nav_params->navigable->active_browsing_context()) {
                                 output->document = load_document(nav_params, sniff_bytes);
                                 if (!output->document) {
-                                    output->download_handled = handle_navigation_response_as_download(nav_params->navigable->active_window()->realm(), nav_params, source_snapshot_params, sniff_bytes);
+                                    output->download_handled = handle_navigation_response_as_download(nav_params, source_snapshot_params, sniff_bytes);
                                     output->save_extra_document_state = false;
                                 } else {
                                     nav_params->response->resume_body_delivery();
@@ -2195,7 +2303,7 @@ void LocalNavigable::populate_session_history_entry_document(
                 // Sync path: bytes available immediately
                 output->document = load_document(nav_params, sniff_bytes.value());
                 if (!output->document) {
-                    output->download_handled = handle_navigation_response_as_download(active_window()->realm(), nav_params, source_snapshot_params, sniff_bytes.value());
+                    output->download_handled = handle_navigation_response_as_download(nav_params, source_snapshot_params, sniff_bytes.value());
                     output->save_extra_document_state = false;
                 } else {
                     nav_params->response->resume_body_delivery();

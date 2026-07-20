@@ -144,6 +144,7 @@ public:
     bool cannot_navigate() const;
 
     void follow_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML::UserNavigationInvolvement = HTML::UserNavigationInvolvement::None);
+    void download_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML::UserNavigationInvolvement = HTML::UserNavigationInvolvement::None);
 
     Optional<Utf16String> lang() const;
     void invalidate_lang_value();

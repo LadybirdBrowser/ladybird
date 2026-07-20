@@ -105,22 +105,21 @@ void HTMLAnchorElement::activation_behavior(Web::DOM::Event const& event)
     // 4. Let userInvolvement be event's user navigation involvement.
     auto user_involvement = user_navigation_involvement(event);
 
-    // 5. If the user has expressed a preference to download the hyperlink, then set userInvolvement to "browser UI".
+    // FIXME: 5. If the user has expressed a preference to download the hyperlink, then set userInvolvement to "browser UI".
     // NOTE: That is, if the user has expressed a specific preference for downloading, this no longer counts as merely "activation".
-    if (has_download_preference())
-        user_involvement = UserNavigationInvolvement::BrowserUI;
+    // NB: There is currently no way for the user to express a preference to download a hyperlink at activation
+    //     time.
 
-    // FIXME: 6. If element has a download attribute, or if the user has expressed a preference to download the
-    //     hyperlink, then download the hyperlink created by element with hyperlinkSuffix set to hyperlinkSuffix and
-    //     userInvolvement set to userInvolvement.
+    // 6. If element has a download attribute, or if the user has expressed a preference to download the
+    //    hyperlink, then download the hyperlink created by element with hyperlinkSuffix set to hyperlinkSuffix and
+    //    userInvolvement set to userInvolvement.
+    if (has_attribute(HTML::AttributeNames::download)) {
+        download_the_hyperlink(hyperlink_suffix, user_involvement);
+        return;
+    }
 
     // 7. Otherwise, follow the hyperlink created by element with hyperlinkSuffix set to hyperlinkSuffix and userInvolvement set to userInvolvement.
     follow_the_hyperlink(hyperlink_suffix, user_involvement);
-}
-
-bool HTMLAnchorElement::has_download_preference() const
-{
-    return has_attribute(HTML::AttributeNames::download);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex

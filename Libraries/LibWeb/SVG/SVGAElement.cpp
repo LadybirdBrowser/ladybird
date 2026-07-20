@@ -107,9 +107,13 @@ void SVGAElement::activation_behavior(DOM::Event const& event)
 
     // FIXME: 5. If the user has expressed a preference to download the hyperlink, then set userInvolvement to "browser UI".
 
-    // FIXME: 6. If element has a download attribute, or if the user has expressed a preference to download the
-    //     hyperlink, then download the hyperlink created by element with hyperlinkSuffix set to hyperlinkSuffix and
-    //     userInvolvement set to userInvolvement.
+    // 6. If element has a download attribute, or if the user has expressed a preference to download the
+    //    hyperlink, then download the hyperlink created by element with hyperlinkSuffix set to hyperlinkSuffix and
+    //    userInvolvement set to userInvolvement.
+    if (has_attribute(HTML::AttributeNames::download)) {
+        download_the_hyperlink(hyperlink_suffix, user_involvement);
+        return;
+    }
 
     // 7. Otherwise, follow the hyperlink created by element with hyperlinkSuffix set to hyperlinkSuffix and userInvolvement set to userInvolvement.
     follow_the_hyperlink(hyperlink_suffix, user_involvement);

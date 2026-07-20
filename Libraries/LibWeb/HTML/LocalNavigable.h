@@ -153,6 +153,10 @@ public:
 
     GC::Ptr<LocalNavigable> find_a_navigable_by_target_name(Utf16View name);
 
+    void handle_as_a_download(GC::Ref<Fetch::Infrastructure::Response>, URL::URL const& fallback_url, GC::Ptr<Fetch::Infrastructure::FetchController>, Optional<ByteString> proposed_filename, Optional<URL::Origin> interface_origin);
+
+    void inform_the_navigation_api_about_aborting_navigation();
+
     enum class Traversal {
         Tag
     };
@@ -340,7 +344,8 @@ private:
     void clear_parent_compositor_context();
     void destroy_compositor_context();
 
-    void inform_the_navigation_api_about_aborting_navigation();
+    void start_download_for_response(GC::Ref<Fetch::Infrastructure::Response>, URL::URL const& download_url, ByteString suggested_filename, GC::Ptr<Fetch::Infrastructure::FetchController>);
+
     void resolve_async_scroll_operation(Compositor::AsyncScrollOperationID);
     void resolve_all_pending_async_scroll_operations();
     void schedule_hover_update_after_async_scroll();
