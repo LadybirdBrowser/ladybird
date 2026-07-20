@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/System.h>
 #include <LibTest/TestCase.h>
@@ -18,6 +19,20 @@ TEST_CASE(create_with_size)
     EXPECT_EQ(buffer.size(), 1024u);
     EXPECT_NE(buffer.data<void>(), nullptr);
     EXPECT_EQ(buffer.bytes().size(), 1024u);
+}
+
+TEST_CASE(create_with_size_produces_independent_buffers)
+{
+    Vector<Core::AnonymousBuffer> buffers;
+    for (u8 i = 0; i < 64; ++i) {
+        auto buffer = MUST(Core::AnonymousBuffer::create_with_size(64));
+        EXPECT(buffer.is_valid());
+        *buffer.data<u8>() = i;
+        buffers.append(move(buffer));
+    }
+
+    for (u8 i = 0; i < 64; ++i)
+        EXPECT_EQ(*buffers[i].data<u8>(), i);
 }
 
 TEST_CASE(default_constructed_is_invalid)
