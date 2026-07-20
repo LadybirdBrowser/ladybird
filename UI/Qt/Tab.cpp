@@ -721,6 +721,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     view().on_link_hover = [this](auto const& url) {
         m_hover_label->setText(qstring_from_ak_string(url.to_byte_string()));
         update_hover_label();
+        m_hover_label->setCursor(view().cursor());
         m_hover_label->show();
     };
 
