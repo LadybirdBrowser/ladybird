@@ -1092,7 +1092,13 @@ pub(crate) struct CalcEvaluationContext<'a> {
     /// The value percentages resolve against, when known.
     pub percentage_basis: Option<CalcNumericValue>,
     pub length_resolution_context: Option<&'a crate::style_compute::FfiLengthResolutionContext>,
+    /// Produces the random base value for a random() node's sharing options,
+    /// when the resolution context can (it needs per-element state).
+    pub random_base_value: Option<RandomBaseValueResolver<'a>>,
 }
+
+/// Produces the random base value for a random() node's sharing options.
+pub(crate) type RandomBaseValueResolver<'a> = &'a dyn Fn(&RetainedStyleValue) -> Option<f64>;
 
 /// The C++ seams the simplification needs: resolving a non-math function to a
 /// calculation subtree, and looking up a relative-color channel value.
@@ -1100,6 +1106,9 @@ pub(crate) struct CalcEvaluationContext<'a> {
 pub(crate) struct CalcSimplifyCallbacks<'a> {
     pub resolve_non_math_function: &'a dyn Fn(&RetainedStyleValue) -> Option<Arc<CalcNode>>,
     pub resolve_channel_keyword: &'a dyn Fn(u8) -> Option<f64>,
+    /// Absolutizes a random() node's sharing options at computed-value time,
+    /// fixing its per-element random base value; None keeps the original.
+    pub absolutize_random_sharing: &'a dyn Fn(&RetainedStyleValue) -> Option<RetainedStyleValue>,
 }
 
 fn is_canonical_unit(value: CalcNumericValue) -> bool {
@@ -1515,8 +1524,74 @@ impl CalcNode {
                     numeric_type,
                 })
             }
-            // random() stays with the C++ per-element sharing state.
-            CalcNode::Random { .. } => None,
+            // https://drafts.csswg.org/css-values-5/#random
+            CalcNode::Random {
+                min,
+                max,
+                step,
+                sharing,
+                ..
+            } => {
+                let random_base_value = context.random_base_value.as_ref()?(sharing)?;
+                let minimum = min.try_canonical_result(context)?;
+                let maximum = max.try_canonical_result(context)?;
+                let minimum_value = minimum.value;
+                let mut maximum_value = maximum.value;
+                let mut step_value = 0.0;
+                if let Some(step) = step {
+                    step_value = step.try_canonical_result(context)?.value;
+                }
+                let numeric_type = self.numeric_type(leaf_type);
+                let result = |value: f64| Some(CalcResult { value, numeric_type });
+
+                // https://drafts.csswg.org/css-values-5/#random-infinities
+                // If the maximum value is less than the minimum value, it behaves as if it's
+                // equal to the minimum value.
+                if maximum_value < minimum_value {
+                    maximum_value = minimum_value;
+                }
+                // In random(A, B), if A is infinite, the result is infinite. If A is finite,
+                // but the difference between A and B is infinite, the result is NaN. If C is
+                // infinite, the result is A.
+                if minimum_value.is_infinite() {
+                    return result(f64::INFINITY);
+                }
+                if maximum_value.is_infinite() {
+                    return result(f64::NAN);
+                }
+                if step_value.is_infinite() {
+                    return result(minimum_value);
+                }
+                // As usual for math functions, if any argument calculation is NaN, the result is NaN.
+                if minimum_value.is_nan() || maximum_value.is_nan() || step_value.is_nan() {
+                    return result(f64::NAN);
+                }
+                // If C is negative, zero, or close enough to zero that the step multiplier
+                // range would be infinite, the step must be ignored.
+                let has_step = step_value > f64::from(f32::EPSILON) * 1000.0;
+                // For a random() function with min and max, but no step: min + R * (max - min).
+                if !has_step {
+                    return result(minimum_value + random_base_value * (maximum_value - minimum_value));
+                }
+                // Let epsilon be step / 1000. Let N be the largest integer such that
+                // min + N * step is less than or equal to max; if N is not within epsilon of
+                // max but N+1 is, use N+1. Let step index be a random integer less than N+1.
+                let epsilon = step_value / 1000.0;
+                let mut n = ((maximum_value - minimum_value) / step_value).floor();
+                if (maximum_value - (n * step_value + minimum_value)).abs() > epsilon
+                    && (maximum_value - ((n + 1.0) * step_value + minimum_value)).abs() < epsilon
+                {
+                    n += 1.0;
+                }
+                let step_index = ((n + 1.0) * random_base_value).floor();
+                // Let value be min + step index * step; if step index is N and value is
+                // within epsilon of max, return max.
+                let value = minimum_value + step_index * step_value;
+                if step_index == n && (maximum_value - value).abs() < epsilon {
+                    return result(maximum_value);
+                }
+                result(value)
+            }
             // Sums, products, negation and inversion collapse in the
             // simplification driver; leaves and non-math functions have no
             // operation to run.
@@ -2145,10 +2220,32 @@ impl CalcNode {
                 value: simplify_child(value, &mut changed),
                 divisor: simplify_child(divisor, &mut changed),
             },
-            CalcNode::Random { .. }
-            | CalcNode::Numeric(..)
-            | CalcNode::ChannelKeyword(..)
-            | CalcNode::NonMathFunction { .. } => return self.clone(),
+            CalcNode::Random {
+                min,
+                max,
+                step,
+                sharing,
+                ..
+            } => {
+                // The sharing options absolutize at computed-value time, fixing
+                // the per-element random base value.
+                let simplified_sharing = match (callbacks.absolutize_random_sharing)(sharing) {
+                    Some(absolutized) => {
+                        changed = true;
+                        absolutized
+                    }
+                    None => sharing.clone_retained(),
+                };
+                CalcNode::Random {
+                    min: simplify_child(min, &mut changed),
+                    max: simplify_child(max, &mut changed),
+                    step: step.as_ref().map(|step| simplify_child(step, &mut changed)),
+                    sharing: simplified_sharing,
+                }
+            }
+            CalcNode::Numeric(..) | CalcNode::ChannelKeyword(..) | CalcNode::NonMathFunction { .. } => {
+                return self.clone();
+            }
         };
         if changed { shared(rebuilt) } else { self.clone() }
     }
@@ -2166,21 +2263,6 @@ mod value_type {
     pub const PERCENTAGE: u8 = 31;
     pub const RESOLUTION: u8 = 35;
     pub const TIME: u8 = 38;
-}
-
-impl CalcNode {
-    /// Whether the tree contains a random() node, whose evaluation stays with
-    /// the C++ per-element sharing state.
-    fn contains_random(&self) -> bool {
-        if matches!(self, CalcNode::Random { .. }) {
-            return true;
-        }
-        let mut found = false;
-        self.for_each_child(&mut |child| {
-            found = found || child.contains_random();
-        });
-        found
-    }
 }
 
 /// The resolution inputs marshaled from the C++ CalculationResolutionContext.
@@ -2201,6 +2283,19 @@ pub struct FfiCalcResolutionContext {
     /// Looks up a relative-color channel value.
     pub resolve_channel_keyword:
         unsafe extern "C" fn(context: *mut std::ffi::c_void, channel: u8, out_value: *mut f64) -> bool,
+    /// Produces the random base value for a random() node's sharing options,
+    /// or reports that the context cannot (it needs per-element state).
+    pub random_base_value: unsafe extern "C" fn(
+        context: *mut std::ffi::c_void,
+        sharing: *const std::ffi::c_void,
+        out_value: *mut f64,
+    ) -> bool,
+    /// Absolutizes a random() node's sharing options at computed-value time,
+    /// returning a leaked strong reference to the fixed value, or null.
+    pub absolutize_random_sharing: unsafe extern "C" fn(
+        context: *mut std::ffi::c_void,
+        sharing: *const std::ffi::c_void,
+    ) -> *const std::ffi::c_void,
 }
 
 /// The outcome of resolving a calculation.
@@ -2251,10 +2346,6 @@ pub unsafe extern "C" fn rust_calc_resolve(
         let context = unsafe { &*context };
         let root = rust_calculation.node_arc();
 
-        if root.contains_random() {
-            return unresolved(false);
-        }
-
         // The percentage leaf type and resolve-as target from the creation-time fields.
         let resolve_as = if !has_percentages_resolve_as {
             None
@@ -2293,6 +2384,15 @@ pub unsafe extern "C" fn rust_calc_resolve(
             _ => unreachable!("invalid percentage basis kind"),
         };
 
+        let random_base_value = |sharing: &RetainedStyleValue| -> Option<f64> {
+            let mut value = 0.0;
+            if unsafe { (context.random_base_value)(context.callback_context, sharing.shell_pointer(), &raw mut value) }
+            {
+                Some(value)
+            } else {
+                None
+            }
+        };
         let evaluation_context = CalcEvaluationContext {
             percentage_leaf_type: &percentage_leaf_type,
             resolve_as,
@@ -2304,8 +2404,19 @@ pub unsafe extern "C" fn rust_calc_resolve(
                     &*(context.length_resolution_context as *const crate::style_compute::FfiLengthResolutionContext)
                 })
             },
+            random_base_value: Some(&random_base_value),
+        };
+        let absolutize_random_sharing = |sharing: &RetainedStyleValue| -> Option<RetainedStyleValue> {
+            let absolutized =
+                unsafe { (context.absolutize_random_sharing)(context.callback_context, sharing.shell_pointer()) };
+            if absolutized.is_null() {
+                None
+            } else {
+                Some(unsafe { RetainedStyleValue::from_shell_pointer(absolutized) })
+            }
         };
         let callbacks = CalcSimplifyCallbacks {
+            absolutize_random_sharing: &absolutize_random_sharing,
             resolve_non_math_function: &|value| {
                 let resolved =
                     unsafe { (context.resolve_non_math_function)(context.callback_context, value.shell_pointer()) };
@@ -2403,8 +2514,10 @@ pub struct FfiCalcSerializationCallbacks {
     /// the C++ side materializes the value type and runs its serializer.
     pub append_numeric_leaf:
         unsafe extern "C" fn(context: *mut std::ffi::c_void, kind: u8, value: f64, unit: u8, resolved_mode: bool),
-    /// Serializes a non-math function's style value per its own rules.
-    pub append_style_value: unsafe extern "C" fn(context: *mut std::ffi::c_void, shell: *const std::ffi::c_void),
+    /// Serializes a style value per its own rules, reporting whether any
+    /// bytes were appended (random()'s sharing options may serialize empty).
+    pub append_style_value:
+        unsafe extern "C" fn(context: *mut std::ffi::c_void, shell: *const std::ffi::c_void) -> bool,
     pub append_channel_name: unsafe extern "C" fn(context: *mut std::ffi::c_void, channel: u8),
 }
 
@@ -2564,6 +2677,33 @@ impl CalcSerializer<'_> {
                 return;
             }
         }
+        // AD-HOC: random() serializes directly since it has abnormal children: the sharing
+        // options value, which may serialize empty, and the nullable step.
+        if let CalcNode::Random {
+            min,
+            max,
+            step,
+            sharing,
+            ..
+        } = &**node
+        {
+            self.literal("random(");
+            let appended =
+                unsafe { (self.callbacks.append_style_value)(self.callbacks.context, sharing.shell_pointer()) };
+            if appended {
+                self.literal(", ");
+            }
+            self.serialize_tree(min, true);
+            self.literal(", ");
+            self.serialize_tree(max, true);
+            if let Some(step) = step {
+                self.literal(", ");
+                self.serialize_tree(step, true);
+            }
+            self.literal(")");
+            return;
+        }
+
         // AD-HOC: A non-math function has no calc() wrapper; serialize it directly.
         if matches!(&**node, CalcNode::NonMathFunction { .. }) {
             self.serialize_tree(node, false);
@@ -2667,9 +2807,9 @@ impl CalcSerializer<'_> {
     fn serialize_tree(&self, node: &Arc<CalcNode>, emit_outer_parentheses: bool) {
         match &**node {
             CalcNode::Numeric(value) => self.leaf(*value),
-            CalcNode::NonMathFunction { value, .. } => unsafe {
-                (self.callbacks.append_style_value)(self.callbacks.context, value.shell_pointer());
-            },
+            CalcNode::NonMathFunction { value, .. } => {
+                unsafe { (self.callbacks.append_style_value)(self.callbacks.context, value.shell_pointer()) };
+            }
             CalcNode::ChannelKeyword(channel) => unsafe {
                 (self.callbacks.append_channel_name)(self.callbacks.context, *channel);
             },
@@ -2774,9 +2914,6 @@ pub unsafe extern "C" fn rust_calc_serialize(
             unreachable!("rust_calc_serialize requires calculated value data");
         };
         let root = rust_calculation.node_arc();
-        if root.contains_random() {
-            return false;
-        }
         let resolve_as = if !has_percentages_resolve_as {
             None
         } else if *resolve_as_is_number {

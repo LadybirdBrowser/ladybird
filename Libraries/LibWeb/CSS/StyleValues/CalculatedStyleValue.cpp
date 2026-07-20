@@ -3209,9 +3209,11 @@ void CalculatedStyleValue::serialize(StringBuilder& builder, SerializationMode m
                 return;
             }
             VERIFY_NOT_REACHED(); },
-        .append_style_value = [](void* context, void const* shell) {
+        .append_style_value = [](void* context, void const* shell) -> bool {
             auto& callback_context = *static_cast<SerializationCallbackContext*>(context);
-            static_cast<StyleValue const*>(shell)->serialize(callback_context.builder, callback_context.mode); },
+            auto start_length = callback_context.builder.length();
+            static_cast<StyleValue const*>(shell)->serialize(callback_context.builder, callback_context.mode);
+            return callback_context.builder.length() > start_length; },
         .append_channel_name = [](void* context, u8 channel) {
             auto& callback_context = *static_cast<SerializationCallbackContext*>(context);
             callback_context.builder.append(CSS::to_string(static_cast<ChannelKeyword>(channel))); },
@@ -3350,6 +3352,28 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
                 return false;
             *out_value = resolved.value();
             return true;
+        },
+        .random_base_value = [](void* context, void const* sharing, double* out_value) -> bool {
+            auto& callback_context = *static_cast<ResolveCallbackContext*>(context);
+            // NB: We don't want to resolve this before computation time even if it's possible.
+            auto const& resolution_context = callback_context.resolution_context;
+            if (!resolution_context.abstract_element.has_value() && !resolution_context.length_resolution_context.has_value() && resolution_context.percentage_basis.has<Empty>())
+                return false;
+            *out_value = static_cast<RandomValueSharingStyleValue const*>(sharing)->random_base_value();
+            return true;
+        },
+        .absolutize_random_sharing = [](void* context, void const* sharing) -> void const* {
+            auto& callback_context = *static_cast<ResolveCallbackContext*>(context);
+            auto const& resolution_context = callback_context.resolution_context;
+            // When we are in the absolutization process we should absolutize the sharing options.
+            if (!resolution_context.length_resolution_context.has_value())
+                return nullptr;
+            ComputationContext computation_context {
+                .length_resolution_context = resolution_context.length_resolution_context.value(),
+                .abstract_element = resolution_context.abstract_element
+            };
+            auto absolutized = static_cast<RandomValueSharingStyleValue const*>(sharing)->absolutized(computation_context);
+            return retain_style_value_for_rust(absolutized.ptr());
         },
     };
     Optional<ComputedValuesFFI::FfiLengthResolutionContext> ffi_length_resolution_context;

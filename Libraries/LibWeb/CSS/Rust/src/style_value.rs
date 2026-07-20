@@ -55,6 +55,11 @@ impl RetainedStyleValue {
         unsafe { ladybird_style_value_ref(pointer) };
         Self { pointer }
     }
+
+    /// Clones the retained reference, bumping the shell's reference count.
+    pub(crate) fn clone_retained(&self) -> Self {
+        unsafe { Self::from_borrowed_shell_pointer(self.pointer) }
+    }
 }
 
 impl Drop for RetainedStyleValue {
