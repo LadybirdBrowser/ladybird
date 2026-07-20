@@ -7,6 +7,7 @@
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/Bindings/HTMLAreaElement.h>
 #include <LibWeb/DOM/DOMTokenList.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/Window.h>
 
@@ -43,6 +44,16 @@ void HTMLAreaElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
         if (m_rel_list)
             m_rel_list->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
     }
+}
+
+bool HTMLAreaElement::has_activation_behavior() const
+{
+    return creates_a_hyperlink();
+}
+
+void HTMLAreaElement::activation_behavior(Web::DOM::Event const& event)
+{
+    activate_the_hyperlink(event);
 }
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#dom-area-rellist
