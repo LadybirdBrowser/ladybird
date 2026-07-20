@@ -25,14 +25,37 @@ include!(concat!(env!("OUT_DIR"), "/dimension_units_generated.rs"));
 #[derive(Clone, Copy, PartialEq)]
 #[allow(dead_code)]
 pub enum CalcNumericValue {
-    Number(f64),
-    Angle { value: f64, unit: u8 },
-    Flex { value: f64, unit: u8 },
-    Frequency { value: f64, unit: u8 },
-    Length { value: f64, unit: u8 },
+    /// The number type mirrors the C++ Number::Type discriminants
+    /// (number, integer with explicit sign, integer), pinned C++-side.
+    Number {
+        value: f64,
+        number_type: u8,
+    },
+    Angle {
+        value: f64,
+        unit: u8,
+    },
+    Flex {
+        value: f64,
+        unit: u8,
+    },
+    Frequency {
+        value: f64,
+        unit: u8,
+    },
+    Length {
+        value: f64,
+        unit: u8,
+    },
     Percentage(f64),
-    Resolution { value: f64, unit: u8 },
-    Time { value: f64, unit: u8 },
+    Resolution {
+        value: f64,
+        unit: u8,
+    },
+    Time {
+        value: f64,
+        unit: u8,
+    },
 }
 
 pub(crate) const BASE_TYPE_COUNT: usize = 7;
@@ -332,7 +355,7 @@ impl CalcNumericValue {
         length_resolution_context: Option<&crate::style_compute::FfiLengthResolutionContext>,
     ) -> f64 {
         match self {
-            CalcNumericValue::Number(value) => value,
+            CalcNumericValue::Number { value, .. } => value,
             CalcNumericValue::Percentage(value) => value,
             CalcNumericValue::Angle { value, unit } => value * ANGLE_UNIT_CANONICAL_RATIOS[unit as usize],
             CalcNumericValue::Flex { value, unit } => value * FLEX_UNIT_CANONICAL_RATIOS[unit as usize],
@@ -609,7 +632,7 @@ impl CalcNode {
             // Anything else is a terminal value, whose type is determined based on its CSS type.
             CalcNode::Numeric(value) => match value {
                 // -> <number> / <integer>: the type is «[ ]» (empty map)
-                CalcNumericValue::Number(..) => Some(CalcNumericType::default()),
+                CalcNumericValue::Number { .. } => Some(CalcNumericType::default()),
                 // -> each dimension: «[ dimension -> 1 ]», in the base type order.
                 CalcNumericValue::Length { .. } => single(0),
                 CalcNumericValue::Angle { .. } => single(1),
@@ -714,7 +737,10 @@ mod tests {
     #[test]
     fn contains_percentage_walks_the_tree() {
         let percent = Arc::new(CalcNode::Numeric(CalcNumericValue::Percentage(50.0)));
-        let number = Arc::new(CalcNode::Numeric(CalcNumericValue::Number(2.0)));
+        let number = Arc::new(CalcNode::Numeric(CalcNumericValue::Number {
+            value: 2.0,
+            number_type: 0,
+        }));
         let sum = CalcNode::Sum(vec![number.clone(), percent]);
         assert!(sum.contains_percentage());
         let product = CalcNode::Product(vec![number.clone(), number]);
@@ -814,8 +840,8 @@ unsafe fn children_from_raw(children: *const *const CalcNode, count: usize) -> V
 /// # Safety
 /// See `children_from_raw`; single-child forms transfer one handle each.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_create_numeric_number(value: f64) -> *const CalcNode {
-    crate::abort_on_panic(|| handle(CalcNode::Numeric(CalcNumericValue::Number(value))))
+pub unsafe extern "C" fn rust_calc_node_create_numeric_number(value: f64, number_type: u8) -> *const CalcNode {
+    crate::abort_on_panic(|| handle(CalcNode::Numeric(CalcNumericValue::Number { value, number_type })))
 }
 
 /// Creates a numeric leaf for a dimension: kind selects the dimension in the
@@ -824,7 +850,10 @@ pub unsafe extern "C" fn rust_calc_node_create_numeric_number(value: f64) -> *co
 pub extern "C" fn rust_calc_node_create_numeric_dimension(kind: u8, value: f64, unit: u8) -> *const CalcNode {
     crate::abort_on_panic(|| {
         let numeric = match kind {
-            0 => CalcNumericValue::Number(value),
+            0 => CalcNumericValue::Number {
+                value,
+                number_type: unit,
+            },
             1 => CalcNumericValue::Angle { value, unit },
             2 => CalcNumericValue::Flex { value, unit },
             3 => CalcNumericValue::Frequency { value, unit },
@@ -1075,7 +1104,7 @@ pub(crate) struct CalcSimplifyCallbacks<'a> {
 
 fn is_canonical_unit(value: CalcNumericValue) -> bool {
     match value {
-        CalcNumericValue::Number(..) | CalcNumericValue::Percentage(..) => true,
+        CalcNumericValue::Number { .. } | CalcNumericValue::Percentage(..) => true,
         CalcNumericValue::Length { unit, .. } => {
             crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[unit as usize] == 1.0
         }
@@ -1111,7 +1140,7 @@ impl CalcNode {
     /// Mirrors try_get_number: a plain number leaf.
     fn try_number(&self) -> Option<f64> {
         match self {
-            CalcNode::Numeric(CalcNumericValue::Number(value)) => Some(*value),
+            CalcNode::Numeric(CalcNumericValue::Number { value, .. }) => Some(*value),
             _ => None,
         }
     }
@@ -1184,7 +1213,7 @@ impl CalcNode {
                     return None;
                 };
                 let raw_value = match *value {
-                    CalcNumericValue::Number(value) => value,
+                    CalcNumericValue::Number { value, .. } => value,
                     CalcNumericValue::Percentage(value) => value / 100.0,
                     CalcNumericValue::Angle { value, .. }
                     | CalcNumericValue::Flex { value, .. }
@@ -1217,7 +1246,7 @@ impl CalcNode {
                     return None;
                 };
                 let radians = match *value {
-                    CalcNumericValue::Number(value) => value,
+                    CalcNumericValue::Number { value, .. } => value,
                     CalcNumericValue::Angle { value, unit } => {
                         (value * ANGLE_UNIT_CANONICAL_RATIOS[unit as usize]).to_radians()
                     }
@@ -1571,7 +1600,7 @@ fn make_calc_result_node(result: &CalcResult, resolve_as: Option<ResolveAs>) -> 
     let numeric_type = result.numeric_type.as_ref()?;
     let value = result.value;
     let numeric = if numeric_type.matches_number(resolve_as) {
-        CalcNumericValue::Number(value)
+        CalcNumericValue::Number { value, number_type: 0 }
     } else if numeric_type.matches_percentage() {
         CalcNumericValue::Percentage(value)
     } else if numeric_type.matches_dimension(1, resolve_as) {
@@ -1615,7 +1644,7 @@ fn make_calc_result_node(result: &CalcResult, resolve_as: Option<ResolveAs>) -> 
 #[allow(dead_code)]
 fn same_unit(a: CalcNumericValue, b: CalcNumericValue) -> bool {
     match (a, b) {
-        (CalcNumericValue::Number(..), CalcNumericValue::Number(..)) => true,
+        (CalcNumericValue::Number { .. }, CalcNumericValue::Number { .. }) => true,
         (CalcNumericValue::Percentage(..), CalcNumericValue::Percentage(..)) => true,
         (CalcNumericValue::Angle { unit: a, .. }, CalcNumericValue::Angle { unit: b, .. })
         | (CalcNumericValue::Flex { unit: a, .. }, CalcNumericValue::Flex { unit: b, .. })
@@ -1631,7 +1660,7 @@ fn same_unit(a: CalcNumericValue, b: CalcNumericValue) -> bool {
 impl CalcNumericValue {
     fn raw(self) -> f64 {
         match self {
-            CalcNumericValue::Number(value) | CalcNumericValue::Percentage(value) => value,
+            CalcNumericValue::Number { value, .. } | CalcNumericValue::Percentage(value) => value,
             CalcNumericValue::Angle { value, .. }
             | CalcNumericValue::Flex { value, .. }
             | CalcNumericValue::Frequency { value, .. }
@@ -1643,7 +1672,10 @@ impl CalcNumericValue {
 
     fn with_raw(self, raw: f64) -> CalcNumericValue {
         match self {
-            CalcNumericValue::Number(..) => CalcNumericValue::Number(raw),
+            CalcNumericValue::Number { number_type, .. } => CalcNumericValue::Number {
+                value: raw,
+                number_type,
+            },
             CalcNumericValue::Percentage(..) => CalcNumericValue::Percentage(raw),
             CalcNumericValue::Angle { unit, .. } => CalcNumericValue::Angle { value: raw, unit },
             CalcNumericValue::Flex { unit, .. } => CalcNumericValue::Flex { value: raw, unit },
@@ -1664,7 +1696,7 @@ impl CalcNumericValue {
             return Some(self);
         }
         match self {
-            CalcNumericValue::Number(..) | CalcNumericValue::Percentage(..) => Some(self),
+            CalcNumericValue::Number { .. } | CalcNumericValue::Percentage(..) => Some(self),
             CalcNumericValue::Angle { value, unit } => Some(CalcNumericValue::Angle {
                 value: value * ANGLE_UNIT_CANONICAL_RATIOS[unit as usize],
                 unit: canonical_unit_code(&ANGLE_UNIT_CANONICAL_RATIOS),
@@ -1759,7 +1791,10 @@ impl CalcNode {
         // https://drafts.csswg.org/css-color-5/#relative-color
         if let CalcNode::ChannelKeyword(channel) = &**self {
             if let Some(resolved) = (callbacks.resolve_channel_keyword)(*channel) {
-                return shared(CalcNode::Numeric(CalcNumericValue::Number(resolved)));
+                return shared(CalcNode::Numeric(CalcNumericValue::Number {
+                    value: resolved,
+                    number_type: 0,
+                }));
             }
             return self.clone();
         }
@@ -1855,8 +1890,11 @@ impl CalcNode {
             // 7. If root is an Invert node:
             CalcNode::Invert(child) => {
                 // 1. If root's child is a number (not a percentage or dimension) return the reciprocal.
-                if let CalcNode::Numeric(CalcNumericValue::Number(number)) = &**child {
-                    return shared(CalcNode::Numeric(CalcNumericValue::Number(1.0 / number)));
+                if let CalcNode::Numeric(CalcNumericValue::Number { value: number, .. }) = &**child {
+                    return shared(CalcNode::Numeric(CalcNumericValue::Number {
+                        value: 1.0 / number,
+                        number_type: 0,
+                    }));
                 }
                 // 2. If root's child is an Invert node, return the child's child.
                 if let CalcNode::Invert(inner) = &**child {
@@ -1923,15 +1961,19 @@ impl CalcNode {
                 let mut number_index: Option<usize> = None;
                 let mut i = 0;
                 while i < flattened.len() {
-                    if let CalcNode::Numeric(CalcNumericValue::Number(number)) = &*flattened[i] {
+                    if let CalcNode::Numeric(CalcNumericValue::Number { value: number, .. }) = &*flattened[i] {
                         match number_index {
                             None => number_index = Some(i),
                             Some(index) => {
-                                let CalcNode::Numeric(CalcNumericValue::Number(existing)) = &*flattened[index] else {
+                                let CalcNode::Numeric(CalcNumericValue::Number { value: existing, .. }) =
+                                    &*flattened[index]
+                                else {
                                     unreachable!();
                                 };
-                                flattened[index] =
-                                    shared(CalcNode::Numeric(CalcNumericValue::Number(existing * number)));
+                                flattened[index] = shared(CalcNode::Numeric(CalcNumericValue::Number {
+                                    value: existing * number,
+                                    number_type: 0,
+                                }));
                                 flattened.remove(i);
                                 continue;
                             }
@@ -1942,10 +1984,10 @@ impl CalcNode {
 
                 if flattened.len() == 2 {
                     let multiplier_and_sum = match (&*flattened[0], &*flattened[1]) {
-                        (CalcNode::Numeric(CalcNumericValue::Number(multiplier)), CalcNode::Sum(sum)) => {
+                        (CalcNode::Numeric(CalcNumericValue::Number { value: multiplier, .. }), CalcNode::Sum(sum)) => {
                             Some((*multiplier, sum))
                         }
-                        (CalcNode::Sum(sum), CalcNode::Numeric(CalcNumericValue::Number(multiplier))) => {
+                        (CalcNode::Sum(sum), CalcNode::Numeric(CalcNumericValue::Number { value: multiplier, .. })) => {
                             Some((*multiplier, sum))
                         }
                         _ => None,
@@ -2347,5 +2389,409 @@ pub unsafe extern "C" fn rust_calc_resolve(
             value: raw_value,
             numeric_type: FfiNumericType::from_calc(result.numeric_type),
         }
+    })
+}
+
+/// The output surface for serialization: the structure is built here, but
+/// every formatted byte comes from the C++ side, so leaf formatting stays
+/// identical to the values' own serializers.
+#[repr(C)]
+pub struct FfiCalcSerializationCallbacks {
+    pub context: *mut std::ffi::c_void,
+    pub append_literal: unsafe extern "C" fn(context: *mut std::ffi::c_void, bytes: *const u8, length: usize),
+    /// Appends a numeric leaf: kind follows the numeric dimension order, and
+    /// the C++ side materializes the value type and runs its serializer.
+    pub append_numeric_leaf:
+        unsafe extern "C" fn(context: *mut std::ffi::c_void, kind: u8, value: f64, unit: u8, resolved_mode: bool),
+    /// Serializes a non-math function's style value per its own rules.
+    pub append_style_value: unsafe extern "C" fn(context: *mut std::ffi::c_void, shell: *const std::ffi::c_void),
+    pub append_channel_name: unsafe extern "C" fn(context: *mut std::ffi::c_void, channel: u8),
+}
+
+#[allow(dead_code)]
+impl CalcNumericValue {
+    fn leaf_parts(self) -> (u8, f64, u8) {
+        match self {
+            CalcNumericValue::Number { value, number_type } => (0, value, number_type),
+            CalcNumericValue::Angle { value, unit } => (1, value, unit),
+            CalcNumericValue::Flex { value, unit } => (2, value, unit),
+            CalcNumericValue::Frequency { value, unit } => (3, value, unit),
+            CalcNumericValue::Length { value, unit } => (4, value, unit),
+            CalcNumericValue::Percentage(value) => (5, value, 0),
+            CalcNumericValue::Resolution { value, unit } => (6, value, unit),
+            CalcNumericValue::Time { value, unit } => (7, value, unit),
+        }
+    }
+
+    fn unit_name(self) -> &'static str {
+        match self {
+            CalcNumericValue::Number { .. } => "",
+            CalcNumericValue::Percentage(..) => "%",
+            CalcNumericValue::Angle { unit, .. } => ANGLE_UNIT_NAMES[unit as usize],
+            CalcNumericValue::Flex { unit, .. } => FLEX_UNIT_NAMES[unit as usize],
+            CalcNumericValue::Frequency { unit, .. } => FREQUENCY_UNIT_NAMES[unit as usize],
+            CalcNumericValue::Length { unit, .. } => crate::style_compute::LENGTH_UNIT_NAMES[unit as usize],
+            CalcNumericValue::Resolution { unit, .. } => RESOLUTION_UNIT_NAMES[unit as usize],
+            CalcNumericValue::Time { unit, .. } => TIME_UNIT_NAMES[unit as usize],
+        }
+    }
+}
+
+#[allow(dead_code)]
+struct CalcSerializer<'a> {
+    callbacks: &'a FfiCalcSerializationCallbacks,
+    resolved_mode: bool,
+    resolve_as: Option<ResolveAs>,
+    resolve_numbers_as_integers: bool,
+    accepted_ranges: &'a [crate::style_value::RetainedNumericRangeByType],
+}
+
+#[allow(dead_code)]
+impl CalcSerializer<'_> {
+    fn literal(&self, text: &str) {
+        unsafe { (self.callbacks.append_literal)(self.callbacks.context, text.as_ptr(), text.len()) };
+    }
+
+    fn leaf(&self, value: CalcNumericValue) {
+        let (kind, raw, unit) = value.leaf_parts();
+        unsafe { (self.callbacks.append_numeric_leaf)(self.callbacks.context, kind, raw, unit, self.resolved_mode) };
+    }
+
+    fn function_name(node: &CalcNode) -> &'static str {
+        match node {
+            CalcNode::Min(..) => "min",
+            CalcNode::Max(..) => "max",
+            CalcNode::Clamp { .. } => "clamp",
+            CalcNode::Abs(..) => "abs",
+            CalcNode::Sign(..) => "sign",
+            CalcNode::Sin(..) => "sin",
+            CalcNode::Cos(..) => "cos",
+            CalcNode::Tan(..) => "tan",
+            CalcNode::Asin(..) => "asin",
+            CalcNode::Acos(..) => "acos",
+            CalcNode::Atan(..) => "atan",
+            CalcNode::Atan2 { .. } => "atan2",
+            CalcNode::Pow { .. } => "pow",
+            CalcNode::Sqrt(..) => "sqrt",
+            CalcNode::Hypot(..) => "hypot",
+            CalcNode::Log { .. } => "log",
+            CalcNode::Exp(..) => "exp",
+            CalcNode::Round { .. } => "round",
+            CalcNode::Mod { .. } => "mod",
+            CalcNode::Rem { .. } => "rem",
+            CalcNode::Progress { .. } => "progress",
+            _ => unreachable!("node has no function name"),
+        }
+    }
+
+    /// https://drafts.csswg.org/css-values/#calc-range
+    /// The step-1 clamping of a resolved numeric leaf, with NaN censored to zero.
+    fn clamp_and_censor(&self, value: CalcNumericValue) -> CalcNumericValue {
+        let wanted = match value {
+            CalcNumericValue::Number { .. } => {
+                if self.resolve_numbers_as_integers {
+                    value_type::INTEGER
+                } else {
+                    value_type::NUMBER
+                }
+            }
+            CalcNumericValue::Angle { .. } => value_type::ANGLE,
+            CalcNumericValue::Flex { .. } => value_type::FLEX,
+            CalcNumericValue::Frequency { .. } => value_type::FREQUENCY,
+            CalcNumericValue::Length { .. } => value_type::LENGTH,
+            CalcNumericValue::Percentage(..) => value_type::PERCENTAGE,
+            CalcNumericValue::Resolution { .. } => value_type::RESOLUTION,
+            CalcNumericValue::Time { .. } => value_type::TIME,
+        };
+        let range = self
+            .accepted_ranges
+            .iter()
+            .find(|entry| entry.value_type() == wanted)
+            .map(|entry| entry.range())
+            // FIXME: Min and max values for Integer should be based on i32 rather than float.
+            .unwrap_or((f32::MIN as f64, f32::MAX as f64));
+        // https://drafts.csswg.org/css-values-4/#css-round-to-the-nearest-integer
+        // Numbers round to the nearest integer in integer contexts, in the
+        // direction of positive infinity when the fraction is exactly half.
+        let raw = if matches!(value, CalcNumericValue::Number { .. }) && self.resolve_numbers_as_integers {
+            (value.raw() + 0.5).floor()
+        } else {
+            value.raw()
+        };
+        // https://drafts.csswg.org/css-values/#calc-ieee
+        // NaN does not escape a top-level calculation; it's censored into a zero value.
+        let censored = if raw.is_nan() { 0.0 } else { raw };
+        value.with_raw(censored.clamp(range.0, range.1))
+    }
+
+    /// https://drafts.csswg.org/css-values-4/#serialize-a-math-function
+    fn serialize_math_function(&self, node: &Arc<CalcNode>) {
+        // 1. If the root is a numeric value and the serialization is of a computed value or
+        //    later, clamp the value to the range allowed for its context, then serialize it.
+        if let CalcNode::Numeric(value) = &**node {
+            if self.resolved_mode {
+                self.leaf(self.clamp_and_censor(*value));
+                return;
+            }
+            // 2. If fn represents an infinite or NaN value:
+            let raw = match value {
+                CalcNumericValue::Percentage(percentage) => percentage / 100.0,
+                _ => value.raw(),
+            };
+            if raw.is_nan() || raw.is_infinite() {
+                // Serialize the keyword infinity, -infinity, or NaN inside calc(); a non-number
+                // type appends a multiplication by one of its canonical unit.
+                self.literal("calc(");
+                self.literal(if raw.is_nan() {
+                    "NaN"
+                } else if raw > 0.0 {
+                    "infinity"
+                } else {
+                    "-infinity"
+                });
+                let suffix = match value {
+                    CalcNumericValue::Number { .. } => "",
+                    CalcNumericValue::Angle { .. } => " * 1deg",
+                    CalcNumericValue::Flex { .. } => " * 1fr",
+                    CalcNumericValue::Frequency { .. } => " * 1hz",
+                    CalcNumericValue::Length { .. } => " * 1px",
+                    CalcNumericValue::Percentage(..) => " * 1%",
+                    CalcNumericValue::Resolution { .. } => " * 1dppx",
+                    CalcNumericValue::Time { .. } => " * 1s",
+                };
+                self.literal(suffix);
+                self.literal(")");
+                return;
+            }
+        }
+        // AD-HOC: A non-math function has no calc() wrapper; serialize it directly.
+        if matches!(&**node, CalcNode::NonMathFunction { .. }) {
+            self.serialize_tree(node, false);
+            return;
+        }
+
+        // 3. If the root is a numeric value, a channel keyword, or a calc-operator node, open
+        //    with "calc("; otherwise with the function name and "(".
+        let is_operator = matches!(
+            &**node,
+            CalcNode::Sum(..) | CalcNode::Product(..) | CalcNode::Negate(..) | CalcNode::Invert(..)
+        );
+        if matches!(&**node, CalcNode::Numeric(..) | CalcNode::ChannelKeyword(..)) || is_operator {
+            self.literal("calc(");
+            self.serialize_tree(node, false);
+            self.literal(")");
+            return;
+        }
+
+        self.literal(Self::function_name(node));
+        self.literal("(");
+        let mut first = true;
+        // AD-HOC: round()'s strategy keyword serializes as the first argument.
+        if let CalcNode::Round { strategy, .. } = &**node {
+            self.literal(match *strategy {
+                0 => "nearest",
+                1 => "up",
+                2 => "down",
+                3 => "to-zero",
+                _ => unreachable!("invalid rounding strategy"),
+            });
+            first = false;
+        }
+        // AD-HOC: progress()'s no-clamp keyword serializes without a following comma.
+        if let CalcNode::Progress { no_clamp: true, .. } = &**node {
+            self.literal("no-clamp ");
+        }
+        let mut children = Vec::new();
+        node.for_each_child(&mut |child| children.push(child.clone()));
+        for child in &children {
+            if !first {
+                self.literal(", ");
+            }
+            first = false;
+            self.serialize_tree(child, false);
+        }
+        // 5. Append ")" and return.
+        self.literal(")");
+    }
+
+    /// https://drafts.csswg.org/css-values-4/#sort-a-calculations-children
+    fn sort_children(children: &[Arc<CalcNode>]) -> Vec<Arc<CalcNode>> {
+        let mut remaining: Vec<Arc<CalcNode>> = children.to_vec();
+        let mut result = Vec::with_capacity(remaining.len());
+        // 2. If nodes contains a number, remove it and append it.
+        if let Some(index) = remaining
+            .iter()
+            .position(|node| matches!(&**node, CalcNode::Numeric(CalcNumericValue::Number { .. })))
+        {
+            result.push(remaining.remove(index));
+        }
+        // 3. If nodes contains a percentage, remove it and append it.
+        if let Some(index) = remaining
+            .iter()
+            .position(|node| matches!(&**node, CalcNode::Numeric(CalcNumericValue::Percentage(..))))
+        {
+            result.push(remaining.remove(index));
+        }
+        // 4. If nodes contains any dimensions, remove them, sort them by their units ordered
+        //    ASCII case-insensitively, and append them.
+        let mut dimensions = Vec::new();
+        let mut index = 0;
+        while index < remaining.len() {
+            let is_dimension = matches!(
+                &*remaining[index],
+                CalcNode::Numeric(value) if !matches!(value, CalcNumericValue::Number { .. } | CalcNumericValue::Percentage(..))
+            );
+            if is_dimension {
+                dimensions.push(remaining.remove(index));
+            } else {
+                index += 1;
+            }
+        }
+        dimensions.sort_by(|a, b| {
+            let unit_of = |node: &Arc<CalcNode>| {
+                let CalcNode::Numeric(value) = &**node else {
+                    unreachable!();
+                };
+                value.unit_name().to_ascii_lowercase()
+            };
+            unit_of(a).cmp(&unit_of(b))
+        });
+        result.extend(dimensions);
+        // 5. Append the remaining nodes.
+        result.extend(remaining);
+        result
+    }
+
+    /// The tree serialization: leaves per their own rules, operators with the
+    /// spec's sign- and division-aware joining.
+    fn serialize_tree(&self, node: &Arc<CalcNode>, emit_outer_parentheses: bool) {
+        match &**node {
+            CalcNode::Numeric(value) => self.leaf(*value),
+            CalcNode::NonMathFunction { value, .. } => unsafe {
+                (self.callbacks.append_style_value)(self.callbacks.context, value.shell_pointer());
+            },
+            CalcNode::ChannelKeyword(channel) => unsafe {
+                (self.callbacks.append_channel_name)(self.callbacks.context, *channel);
+            },
+            CalcNode::Negate(child) => {
+                if emit_outer_parentheses {
+                    self.literal("(");
+                }
+                self.literal("-1 * ");
+                self.serialize_tree(child, true);
+                if emit_outer_parentheses {
+                    self.literal(")");
+                }
+            }
+            CalcNode::Invert(child) => {
+                if emit_outer_parentheses {
+                    self.literal("(");
+                }
+                self.literal("1 / ");
+                self.serialize_tree(child, true);
+                if emit_outer_parentheses {
+                    self.literal(")");
+                }
+            }
+            CalcNode::Sum(children) => {
+                if emit_outer_parentheses {
+                    self.literal("(");
+                }
+                let sorted = Self::sort_children(children);
+                self.serialize_tree(&sorted[0], true);
+                for child in &sorted[1..] {
+                    match &**child {
+                        CalcNode::Negate(negated) => {
+                            self.literal(" - ");
+                            self.serialize_tree(negated, true);
+                        }
+                        CalcNode::Numeric(value) if value.raw() < 0.0 => {
+                            self.literal(" - ");
+                            self.leaf(value.with_raw(0.0 - value.raw()));
+                        }
+                        _ => {
+                            self.literal(" + ");
+                            self.serialize_tree(child, true);
+                        }
+                    }
+                }
+                if emit_outer_parentheses {
+                    self.literal(")");
+                }
+            }
+            CalcNode::Product(children) => {
+                if emit_outer_parentheses {
+                    self.literal("(");
+                }
+                let sorted = Self::sort_children(children);
+                self.serialize_tree(&sorted[0], true);
+                for child in &sorted[1..] {
+                    match &**child {
+                        CalcNode::Invert(inverted) => {
+                            self.literal(" / ");
+                            self.serialize_tree(inverted, true);
+                        }
+                        _ => {
+                            self.literal(" * ");
+                            self.serialize_tree(child, true);
+                        }
+                    }
+                }
+                if emit_outer_parentheses {
+                    self.literal(")");
+                }
+            }
+            _ => self.serialize_math_function(node),
+        }
+    }
+}
+
+/// Serializes a calculated style value's math function through the callback
+/// surface. Returns false for trees containing random(), whose serialization
+/// stays with the C++ nodes.
+///
+/// # Safety
+/// `calculated` must point at Calculated style value data and `callbacks` at a
+/// valid callback table.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_serialize(
+    calculated: *const std::ffi::c_void,
+    callbacks: *const FfiCalcSerializationCallbacks,
+    resolved_mode: bool,
+) -> bool {
+    use crate::style_value::StyleValueData;
+    crate::abort_on_panic(|| {
+        let StyleValueData::Calculated {
+            rust_calculation,
+            has_percentages_resolve_as,
+            resolve_as_is_number,
+            resolve_as_base,
+            resolve_numbers_as_integers,
+            accepted_ranges,
+            ..
+        } = (unsafe { &*(calculated as *const StyleValueData) })
+        else {
+            unreachable!("rust_calc_serialize requires calculated value data");
+        };
+        let root = rust_calculation.node_arc();
+        if root.contains_random() {
+            return false;
+        }
+        let resolve_as = if !has_percentages_resolve_as {
+            None
+        } else if *resolve_as_is_number {
+            Some(ResolveAs::Number)
+        } else {
+            Some(ResolveAs::Base(*resolve_as_base))
+        };
+        let serializer = CalcSerializer {
+            callbacks: unsafe { &*callbacks },
+            resolved_mode,
+            resolve_as,
+            resolve_numbers_as_integers: *resolve_numbers_as_integers,
+            accepted_ranges: accepted_ranges.as_slice(),
+        };
+        serializer.serialize_math_function(&root);
+        true
     })
 }

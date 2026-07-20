@@ -87,7 +87,7 @@ static StyleValueFFI::CalcNode const* to_rust_calc_node(CalculationNode const& n
     switch (node.type()) {
     case CalculationNode::Type::Numeric:
         return static_cast<NumericCalculationNode const&>(node).value().visit(
-            [](Number const& number) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(0, number.value(), 0); },
+            [](Number const& number) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(0, number.value(), to_underlying(number.type())); },
             [](Angle const& angle) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(1, angle.raw_value(), to_underlying(angle.unit())); },
             [](Flex const& flex) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(2, flex.raw_value(), to_underlying(flex.unit())); },
             [](Frequency const& frequency) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(3, frequency.raw_value(), to_underlying(frequency.unit())); },
@@ -3167,6 +3167,58 @@ void CalculatedStyleValue::CalculationResult::invert()
 
 void CalculatedStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
+    // The serialization structure lives in the Rust style computation core; every formatted
+    // byte still comes from the value serializers below. Trees containing random() keep the
+    // C++ path, like resolution does.
+    struct SerializationCallbackContext {
+        StringBuilder& builder;
+        SerializationMode mode;
+    } callback_context { builder, mode };
+
+    StyleValueFFI::FfiCalcSerializationCallbacks const callbacks {
+        .context = &callback_context,
+        .append_literal = [](void* context, u8 const* bytes, size_t length) {
+            auto& callback_context = *static_cast<SerializationCallbackContext*>(context);
+            callback_context.builder.append(StringView { bytes, length }); },
+        .append_numeric_leaf = [](void* context, u8 kind, double value, u8 unit, bool) {
+            auto& callback_context = *static_cast<SerializationCallbackContext*>(context);
+            switch (kind) {
+            case 0:
+                Number { static_cast<Number::Type>(unit), value }.serialize(callback_context.builder, callback_context.mode);
+                return;
+            case 1:
+                Angle { value, static_cast<AngleUnit>(unit) }.serialize(callback_context.builder, callback_context.mode);
+                return;
+            case 2:
+                Flex { value, static_cast<FlexUnit>(unit) }.serialize(callback_context.builder, callback_context.mode);
+                return;
+            case 3:
+                Frequency { value, static_cast<FrequencyUnit>(unit) }.serialize(callback_context.builder, callback_context.mode);
+                return;
+            case 4:
+                Length { value, static_cast<LengthUnit>(unit) }.serialize(callback_context.builder, callback_context.mode);
+                return;
+            case 5:
+                Percentage { value }.serialize(callback_context.builder, callback_context.mode);
+                return;
+            case 6:
+                Resolution { value, static_cast<ResolutionUnit>(unit) }.serialize(callback_context.builder, callback_context.mode);
+                return;
+            case 7:
+                Time { value, static_cast<TimeUnit>(unit) }.serialize(callback_context.builder, callback_context.mode);
+                return;
+            }
+            VERIFY_NOT_REACHED(); },
+        .append_style_value = [](void* context, void const* shell) {
+            auto& callback_context = *static_cast<SerializationCallbackContext*>(context);
+            static_cast<StyleValue const*>(shell)->serialize(callback_context.builder, callback_context.mode); },
+        .append_channel_name = [](void* context, u8 channel) {
+            auto& callback_context = *static_cast<SerializationCallbackContext*>(context);
+            callback_context.builder.append(CSS::to_string(static_cast<ChannelKeyword>(channel))); },
+    };
+    if (StyleValueFFI::rust_calc_serialize(m_value.operator->(), &callbacks, mode == SerializationMode::ResolvedValue))
+        return;
+
     serialize_a_math_function(builder, *calculation(), calculation_context(), mode);
 }
 
@@ -3230,6 +3282,11 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
 {
     return resolve_value(calculation_context(), resolution_context, apply_censoring_and_clamping);
 }
+
+// The Number::Type discriminants cross the boundary in the numeric leaf's unit slot; pin them.
+static_assert(to_underlying(Number::Type::Number) == 0);
+static_assert(to_underlying(Number::Type::IntegerWithExplicitSign) == 1);
+static_assert(to_underlying(Number::Type::Integer) == 2);
 
 // The C++ ValueType discriminants mirrored in the Rust range lookup; pin them.
 static_assert(to_underlying(ValueType::Angle) == 2);

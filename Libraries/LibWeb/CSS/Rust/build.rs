@@ -382,6 +382,13 @@ fn generate_length_units(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<
             ratios.len(),
             ratios.join(", ")
         ));
+        let names: Vec<&str> = units.keys().map(String::as_str).collect();
+        output.push_str(&format!(
+            "\n#[allow(dead_code)]\npub(crate) static {}_UNIT_NAMES: [&str; {}] = {:?};\n",
+            dimension.to_uppercase(),
+            names.len(),
+            names
+        ));
     }
     std::fs::write(out_dir.join("dimension_units_generated.rs"), output)?;
     Ok(())
