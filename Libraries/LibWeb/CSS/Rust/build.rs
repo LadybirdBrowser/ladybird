@@ -442,6 +442,35 @@ fn generate_css_enums(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn
             code = code.checked_add(1).ok_or("enum has too many values for u8")?;
         }
         output.push_str("}\n\n");
+
+        // The keyword-to-enum-value mapping, mirroring the C++ keyword_to_<enum> generator,
+        // including its alias handling ("keyword=member" maps the keyword to member's value).
+        let mut member_codes = std::collections::HashMap::new();
+        let mut member_code: u8 = 0;
+        for value in values {
+            let value = value.as_str().ok_or("enum value is not a string")?;
+            if value.contains('=') {
+                continue;
+            }
+            member_codes.insert(value.to_string(), member_code);
+            member_code = member_code.checked_add(1).ok_or("enum has too many values for u8")?;
+        }
+        output.push_str(&format!(
+            "#[allow(dead_code)]\npub fn keyword_to_{module}(keyword: u16) -> Option<u8> {{\n    match keyword {{\n"
+        ));
+        for value in values {
+            let value = value.as_str().ok_or("enum value is not a string")?;
+            let (keyword_name, member_name) = match value.split_once('=') {
+                Some((keyword, member)) => (keyword, member),
+                None => (value, value),
+            };
+            let keyword_constant = keyword_name.replace('-', "_").to_uppercase();
+            let code = member_codes
+                .get(member_name)
+                .ok_or("enum alias targets an unknown member")?;
+            output.push_str(&format!("        keyword::{keyword_constant} => Some({code}),\n"));
+        }
+        output.push_str("        _ => None,\n    }\n}\n\n");
     }
     std::fs::write(out_dir.join("css_enums_generated.rs"), output)?;
     Ok(())

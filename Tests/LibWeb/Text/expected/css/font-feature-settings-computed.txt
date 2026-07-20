@@ -1,0 +1,5 @@
+"liga" 1, "kern" 1 => "kern", "liga"
+"kern" 1, "liga" 0, "kern" 0 => "kern" 0, "liga" 0
+"zero" 1, "aalt" 2, "liga" 1 => "aalt" 2, "liga", "zero"
+"smcp" 1, "smcp" 0 => "smcp" 0
+variation "wght" 400, "wdth" 100, "wght" 700 => "wdth" 100, "wght" 700

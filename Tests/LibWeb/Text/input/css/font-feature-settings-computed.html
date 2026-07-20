@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+// font-feature-settings computed value: duplicate tags dedup with the later
+// occurrence winning, and the result sorts ascending by tag.
+test(() => {
+    const target = document.getElementById("target");
+    for (const value of [
+        '"liga" 1, "kern" 1',
+        '"kern" 1, "liga" 0, "kern" 0',
+        '"zero" 1, "aalt" 2, "liga" 1',
+        '"smcp" 1, "smcp" 0',
+    ]) {
+        target.style.fontFeatureSettings = value;
+        println(`${value} => ${getComputedStyle(target).fontFeatureSettings}`);
+        target.style.removeProperty("font-feature-settings");
+    }
+    for (const value of ['"wght" 400, "wdth" 100, "wght" 700']) {
+        target.style.fontVariationSettings = value;
+        println(`variation ${value} => ${getComputedStyle(target).fontVariationSettings}`);
+        target.style.removeProperty("font-variation-settings");
+    }
+});
+</script>

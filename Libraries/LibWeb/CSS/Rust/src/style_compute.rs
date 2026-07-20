@@ -1345,6 +1345,45 @@ pub unsafe extern "C" fn rust_font_family_is_monospace(
     })
 }
 
+/// Computes the ordering of a font-feature-settings or font-variation-settings
+/// value list: deduplicate by tag with the later occurrence taking precedence,
+/// then sort the survivors ascending by tag. The tag comparisons run through
+/// C++ callbacks over the entry indices, since the tags are interned fly
+/// strings the core does not read directly. Writes the surviving original
+/// indices in computed order to `out_indices` and returns their count.
+/// https://drafts.csswg.org/css-fonts/#font-feature-settings-prop
+///
+/// # Safety
+/// The callbacks must be valid and `out_indices` must have room for `count`
+/// entries.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_font_feature_settings_computed_order(
+    count: usize,
+    context: *mut c_void,
+    tags_equal: unsafe extern "C" fn(*mut c_void, usize, usize) -> bool,
+    tag_less: unsafe extern "C" fn(*mut c_void, usize, usize) -> bool,
+    out_indices: *mut u32,
+) -> usize {
+    abort_on_panic(|| {
+        // Keep the last occurrence of each tag; later declarations take precedence.
+        let mut survivors: Vec<usize> = (0..count)
+            .filter(|&i| !((i + 1)..count).any(|j| unsafe { tags_equal(context, i, j) }))
+            .collect();
+        // The survivors have distinct tags, so tag_less is a total order over them.
+        survivors.sort_by(|&a, &b| {
+            if unsafe { tag_less(context, a, b) } {
+                std::cmp::Ordering::Less
+            } else {
+                std::cmp::Ordering::Greater
+            }
+        });
+        for (slot, &index) in survivors.iter().enumerate() {
+            unsafe { *out_indices.add(slot) = index as u32 };
+        }
+        survivors.len()
+    })
+}
+
 /// Whether a value contains a percentage, either directly or inside a
 /// calculation tree; the shared core of the two font predicates below.
 fn value_contains_percentage(value: &StyleValueData) -> bool {
@@ -1387,6 +1426,61 @@ pub unsafe extern "C" fn rust_value_depends_on_inherited_info_for_property(
             prop::LINE_HEIGHT => value_contains_percentage(value),
             _ => false,
         }
+    })
+}
+
+/// The outcome of the font-style computation: whether a keyword was mapped to
+/// a font-style keyword the caller should construct, and that keyword's code.
+#[repr(C)]
+pub struct FfiFontStyleComputation {
+    pub is_keyword: bool,
+    pub font_style_keyword: u8,
+}
+
+/// Computes font-style: a bare keyword maps to a font-style keyword (the caller
+/// constructs the FontStyleStyleValue from it); any other value is already the
+/// computed value. Font-style normally parses straight to a FontStyleStyleValue;
+/// this keyword arm is reached when StylePropertyMap sets a keyword directly.
+/// https://drafts.csswg.org/css-fonts-4/#font-style-prop
+///
+/// # Safety
+/// `absolutized_value` must point at a valid StyleValueData.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_font_style(absolutized_value: *const c_void) -> FfiFontStyleComputation {
+    abort_on_panic(|| {
+        if let StyleValueData::Keyword { keyword } = (unsafe { &*(absolutized_value as *const StyleValueData) })
+            && let Some(font_style_keyword) = keyword_to_font_style_keyword(*keyword)
+        {
+            return FfiFontStyleComputation {
+                is_keyword: true,
+                font_style_keyword,
+            };
+        }
+        FfiFontStyleComputation {
+            is_keyword: false,
+            font_style_keyword: 0,
+        }
+    })
+}
+
+/// Computes letter-spacing or word-spacing: the normal keyword computes to a
+/// zero length, and any other value is already the computed value.
+///
+/// # Safety
+/// `absolutized_value` must point at a valid StyleValueData.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_letter_or_word_spacing(absolutized_value: *const c_void) -> FfiComputedNumber {
+    abort_on_panic(|| match unsafe { &*(absolutized_value as *const StyleValueData) } {
+        StyleValueData::Keyword { keyword } if *keyword == keyword::NORMAL => FfiComputedNumber {
+            handled: true,
+            unchanged: false,
+            value: 0.0,
+        },
+        _ => FfiComputedNumber {
+            handled: true,
+            unchanged: true,
+            value: 0.0,
+        },
     })
 }
 

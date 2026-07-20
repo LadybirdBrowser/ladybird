@@ -4122,10 +4122,13 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
     case PropertyID::FontVariationSettings:
         return compute_font_feature_tag_value_list(absolutized_value);
     case PropertyID::LetterSpacing:
-    case PropertyID::WordSpacing:
-        if (absolutized_value->to_keyword() == Keyword::Normal)
-            return LengthStyleValue::create(Length::make_px(0));
-        return absolutized_value;
+    case PropertyID::WordSpacing: {
+        // The normal-keyword-to-zero-length rule lives in the Rust style computation core.
+        auto result = ComputedValuesFFI::rust_compute_letter_or_word_spacing(absolutized_value->rust_style_value_data());
+        if (result.unchanged)
+            return absolutized_value;
+        return LengthStyleValue::create(Length::make_px(result.value));
+    }
     case PropertyID::LineHeight:
         return compute_line_height(absolutized_value, computation_context.length_resolution_context.font_metrics.font_size);
     case PropertyID::MathDepth:
@@ -4173,22 +4176,32 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_feature_tag_value_li
     if (absolutized_value->is_keyword())
         return absolutized_value;
 
-    auto const& value_list = absolutized_value->as_value_list();
-    auto values = value_list.values();
-    OrderedHashMap<Utf16FlyString, NonnullRefPtr<OpenTypeTaggedStyleValue const>> axis_tags_map;
-    for (size_t i = 0; i < values.size(); i++) {
-        auto const& axis_tag = values.at(i)->as_open_type_tagged();
-        axis_tags_map.set(axis_tag.tag(), axis_tag);
-    }
+    // The deduplication and sorting live in the Rust style computation core; it works over the
+    // entry indices and calls back for the interned-fly-string tag comparisons.
+    auto values = absolutized_value->as_value_list().values();
+    struct TagContext {
+        StyleValueVector const& values;
+    } context { values };
+
+    Vector<u32> order;
+    order.resize(values.size());
+    auto count = ComputedValuesFFI::rust_font_feature_settings_computed_order(
+        values.size(),
+        &context,
+        [](void* context, size_t i, size_t j) -> bool {
+            auto const& values = static_cast<TagContext*>(context)->values;
+            return values[i]->as_open_type_tagged().tag() == values[j]->as_open_type_tagged().tag();
+        },
+        [](void* context, size_t i, size_t j) -> bool {
+            auto const& values = static_cast<TagContext*>(context)->values;
+            return values[i]->as_open_type_tagged().tag().operator<=>(values[j]->as_open_type_tagged().tag()) < 0;
+        },
+        order.data());
 
     StyleValueVector axis_tags;
-
-    for (auto const& [key, axis_tag] : axis_tags_map)
-        axis_tags.append(axis_tag);
-
-    quick_sort(axis_tags, [](auto& a, auto& b) {
-        return a->as_open_type_tagged().tag() < b->as_open_type_tagged().tag();
-    });
+    axis_tags.ensure_capacity(count);
+    for (size_t i = 0; i < count; ++i)
+        axis_tags.unchecked_append(values[order[i]]);
 
     return StyleValueList::create(move(axis_tags), StyleValueList::Separator::Comma);
 }
@@ -4242,14 +4255,23 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<S
     return LengthStyleValue::create(absolutized_value->as_calculated().resolve_length({ .percentage_basis = Length::make_px(inherited_font_size) }).value());
 }
 
+// The FontStyleKeyword discriminants cross the boundary as the mapped keyword code; pin them.
+static_assert(to_underlying(FontStyleKeyword::Normal) == 0);
+static_assert(to_underlying(FontStyleKeyword::Italic) == 1);
+static_assert(to_underlying(FontStyleKeyword::Left) == 2);
+static_assert(to_underlying(FontStyleKeyword::Right) == 3);
+static_assert(to_underlying(FontStyleKeyword::Oblique) == 4);
+
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_style(NonnullRefPtr<StyleValue const> const& absolutized_value)
 {
     // https://drafts.csswg.org/css-fonts-4/#font-style-prop
     // the keyword specified, plus angle in degrees if specified
 
+    // The keyword-to-font-style-keyword mapping lives in the Rust style computation core.
     // NB: We always parse as a FontStyleStyleValue, but StylePropertyMap is able to set a KeywordStyleValue directly.
-    if (absolutized_value->is_keyword())
-        return FontStyleStyleValue::create(keyword_to_font_style_keyword(absolutized_value->to_keyword()).release_value());
+    auto computation = ComputedValuesFFI::rust_compute_font_style(absolutized_value->rust_style_value_data());
+    if (computation.is_keyword)
+        return FontStyleStyleValue::create(static_cast<FontStyleKeyword>(computation.font_style_keyword));
 
     return absolutized_value;
 }
