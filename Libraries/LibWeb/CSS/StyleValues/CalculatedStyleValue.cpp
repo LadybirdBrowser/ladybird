@@ -27,6 +27,7 @@
 #include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleValues/AbstractNonMathCalcFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
@@ -202,6 +203,11 @@ StyleValueFFI::StyleValueData* CalculatedStyleValue::make_calculated_data_from_r
         context.percentages_resolve_as.has_value() ? to_underlying(*context.percentages_resolve_as) : 0,
         context.resolve_numbers_as_integers,
         ranges.data(), ranges.size());
+}
+
+ValueComparingNonnullRefPtr<CalculatedStyleValue const> CalculatedStyleValue::create(CalcNodeRef root, NumericType resolved_type, CalculationContext context)
+{
+    return adopt_ref(*new (nothrow) CalculatedStyleValue(root.release(), move(resolved_type), move(context)));
 }
 
 NumericType CalculatedStyleValue::resolved_type() const
@@ -1748,6 +1754,160 @@ GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, Utf16FlyStr
     // Some math functions are not reifiable yet. If we contain one, we have to fall back to CSSStyleValue.
     // https://github.com/w3c/css-houdini-drafts/issues/1090
     return default_reify(realm, associated_property);
+}
+
+CalcNodeRef CalcNodeRef::numeric(NumericValue const& value)
+{
+    return adopt(value.visit(
+        [](Number const& number) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(0, number.value(), to_underlying(number.type())); },
+        [](Angle const& angle) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(1, angle.raw_value(), to_underlying(angle.unit())); },
+        [](Flex const& flex) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(2, flex.raw_value(), to_underlying(flex.unit())); },
+        [](Frequency const& frequency) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(3, frequency.raw_value(), to_underlying(frequency.unit())); },
+        [](Length const& length) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(4, length.raw_value(), to_underlying(length.unit())); },
+        [](Percentage const& percentage) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(5, percentage.value(), 0); },
+        [](Resolution const& resolution) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(6, resolution.raw_value(), to_underlying(resolution.unit())); },
+        [](Time const& time) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(7, time.raw_value(), to_underlying(time.unit())); }));
+}
+
+Optional<CalcNodeRef> CalcNodeRef::from_keyword(Keyword keyword)
+{
+    switch (keyword) {
+    case Keyword::E:
+        // https://drafts.csswg.org/css-values-4/#valdef-calc-e
+        return numeric(Number { Number::Type::Number, AK::E<double> });
+    case Keyword::Pi:
+        // https://drafts.csswg.org/css-values-4/#valdef-calc-pi
+        return numeric(Number { Number::Type::Number, AK::Pi<double> });
+    case Keyword::Infinity:
+        // https://drafts.csswg.org/css-values-4/#valdef-calc-infinity
+        return numeric(Number { Number::Type::Number, AK::Infinity<double> });
+    case Keyword::NegativeInfinity:
+        // https://drafts.csswg.org/css-values-4/#valdef-calc--infinity
+        return numeric(Number { Number::Type::Number, -AK::Infinity<double> });
+    case Keyword::Nan:
+        // https://drafts.csswg.org/css-values-4/#valdef-calc-nan
+        return numeric(Number { Number::Type::Number, AK::NaN<double> });
+    default:
+        return {};
+    }
+}
+
+CalcNodeRef CalcNodeRef::channel_keyword(ChannelKeyword channel)
+{
+    return adopt(StyleValueFFI::rust_calc_node_create_channel_keyword(to_underlying(channel)));
+}
+
+static CalcNodeRef make_variadic_node(u8 kind, Vector<CalcNodeRef> children)
+{
+    Vector<StyleValueFFI::CalcNode const*> handles;
+    handles.ensure_capacity(children.size());
+    for (auto& child : children)
+        handles.unchecked_append(child.release());
+    return CalcNodeRef::adopt(StyleValueFFI::rust_calc_node_create_variadic(kind, handles.data(), handles.size()));
+}
+
+CalcNodeRef CalcNodeRef::sum(Vector<CalcNodeRef> children) { return make_variadic_node(0, move(children)); }
+CalcNodeRef CalcNodeRef::product(Vector<CalcNodeRef> children) { return make_variadic_node(1, move(children)); }
+CalcNodeRef CalcNodeRef::min(Vector<CalcNodeRef> children) { return make_variadic_node(2, move(children)); }
+CalcNodeRef CalcNodeRef::max(Vector<CalcNodeRef> children) { return make_variadic_node(3, move(children)); }
+CalcNodeRef CalcNodeRef::hypot(Vector<CalcNodeRef> children) { return make_variadic_node(4, move(children)); }
+
+static CalcNodeRef make_unary_node(u8 kind, CalcNodeRef child)
+{
+    return CalcNodeRef::adopt(StyleValueFFI::rust_calc_node_create_unary(kind, child.release()));
+}
+
+CalcNodeRef CalcNodeRef::negate(CalcNodeRef child) { return make_unary_node(0, move(child)); }
+CalcNodeRef CalcNodeRef::invert(CalcNodeRef child) { return make_unary_node(1, move(child)); }
+CalcNodeRef CalcNodeRef::abs(CalcNodeRef child) { return make_unary_node(2, move(child)); }
+CalcNodeRef CalcNodeRef::sign(CalcNodeRef child) { return make_unary_node(3, move(child)); }
+CalcNodeRef CalcNodeRef::sin(CalcNodeRef child) { return make_unary_node(4, move(child)); }
+CalcNodeRef CalcNodeRef::cos(CalcNodeRef child) { return make_unary_node(5, move(child)); }
+CalcNodeRef CalcNodeRef::tan(CalcNodeRef child) { return make_unary_node(6, move(child)); }
+CalcNodeRef CalcNodeRef::asin(CalcNodeRef child) { return make_unary_node(7, move(child)); }
+CalcNodeRef CalcNodeRef::acos(CalcNodeRef child) { return make_unary_node(8, move(child)); }
+CalcNodeRef CalcNodeRef::atan(CalcNodeRef child) { return make_unary_node(9, move(child)); }
+CalcNodeRef CalcNodeRef::sqrt(CalcNodeRef child) { return make_unary_node(10, move(child)); }
+CalcNodeRef CalcNodeRef::exp(CalcNodeRef child) { return make_unary_node(11, move(child)); }
+
+static CalcNodeRef make_binary_node(u8 kind, CalcNodeRef first, CalcNodeRef second)
+{
+    auto const* first_handle = first.release();
+    return CalcNodeRef::adopt(StyleValueFFI::rust_calc_node_create_binary(kind, first_handle, second.release()));
+}
+
+CalcNodeRef CalcNodeRef::atan2(CalcNodeRef y, CalcNodeRef x) { return make_binary_node(0, move(y), move(x)); }
+CalcNodeRef CalcNodeRef::pow(CalcNodeRef base, CalcNodeRef exponent) { return make_binary_node(1, move(base), move(exponent)); }
+CalcNodeRef CalcNodeRef::log(CalcNodeRef value, CalcNodeRef base) { return make_binary_node(2, move(value), move(base)); }
+CalcNodeRef CalcNodeRef::mod(CalcNodeRef value, CalcNodeRef modulus) { return make_binary_node(3, move(value), move(modulus)); }
+CalcNodeRef CalcNodeRef::rem(CalcNodeRef value, CalcNodeRef divisor) { return make_binary_node(4, move(value), move(divisor)); }
+
+CalcNodeRef CalcNodeRef::clamp(CalcNodeRef minimum, CalcNodeRef center, CalcNodeRef maximum)
+{
+    auto const* minimum_handle = minimum.release();
+    auto const* center_handle = center.release();
+    return adopt(StyleValueFFI::rust_calc_node_create_clamp(minimum_handle, center_handle, maximum.release()));
+}
+
+CalcNodeRef CalcNodeRef::progress(bool no_clamp, CalcNodeRef value, CalcNodeRef start, CalcNodeRef end)
+{
+    auto const* value_handle = value.release();
+    auto const* start_handle = start.release();
+    return adopt(StyleValueFFI::rust_calc_node_create_progress(no_clamp, value_handle, start_handle, end.release()));
+}
+
+CalcNodeRef CalcNodeRef::round(RoundingStrategy strategy, CalcNodeRef value, CalcNodeRef interval)
+{
+    auto const* value_handle = value.release();
+    return adopt(StyleValueFFI::rust_calc_node_create_round(to_underlying(strategy), value_handle, interval.release()));
+}
+
+CalcNodeRef CalcNodeRef::random(CalcNodeRef minimum, CalcNodeRef maximum, Optional<CalcNodeRef> step, StyleValue const& random_value_sharing)
+{
+    auto const* minimum_handle = minimum.release();
+    auto const* maximum_handle = maximum.release();
+    return adopt(StyleValueFFI::rust_calc_node_create_random(
+        minimum_handle, maximum_handle,
+        step.has_value() ? step->release() : nullptr,
+        retain_style_value_for_rust(&random_value_sharing)));
+}
+
+CalcNodeRef CalcNodeRef::non_math_function(StyleValue const& function, Optional<NumericType> const& numeric_type)
+{
+    auto ffi_numeric_type = to_ffi_numeric_type(numeric_type);
+    return adopt(StyleValueFFI::rust_calc_node_create_non_math_function(
+        retain_style_value_for_rust(&function), &ffi_numeric_type));
+}
+
+Optional<NumericType> CalcNodeRef::determine_type(CalculationContext const& context) const
+{
+    auto resolve_as_base = context.percentages_resolve_as.has_value()
+        ? NumericType::base_type_from_value_type(*context.percentages_resolve_as)
+        : OptionalNone {};
+    return from_ffi_numeric_type(StyleValueFFI::rust_calc_node_determine_type(
+        m_node,
+        context.percentages_resolve_as.has_value(),
+        context.percentages_resolve_as == ValueType::Number,
+        resolve_as_base.has_value() ? to_underlying(*resolve_as_base) : 0));
+}
+
+// https://drafts.csswg.org/css-values-4/#calc-simplification
+CalcNodeRef simplify_a_calculation_tree(CalcNodeRef const& root, CalculationContext const& context, CalculationResolutionContext const& resolution_context)
+{
+    CalcResolveCallbackContext callback_context { context, resolution_context };
+    Optional<ComputedValuesFFI::FfiLengthResolutionContext> ffi_length_resolution_context;
+    auto ffi_context = make_calc_ffi_resolution_context(callback_context, ffi_length_resolution_context);
+
+    auto resolve_as_base = context.percentages_resolve_as.has_value()
+        ? NumericType::base_type_from_value_type(*context.percentages_resolve_as)
+        : OptionalNone {};
+
+    return CalcNodeRef::adopt(StyleValueFFI::rust_calc_simplify_tree(
+        root.node(),
+        &ffi_context,
+        context.percentages_resolve_as.has_value(),
+        context.percentages_resolve_as == ValueType::Number,
+        resolve_as_base.has_value() ? to_underlying(*resolve_as_base) : 0));
 }
 
 // https://drafts.csswg.org/css-values-4/#calc-simplification

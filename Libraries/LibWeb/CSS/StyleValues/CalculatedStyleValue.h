@@ -26,6 +26,8 @@
 
 namespace Web::CSS {
 
+class CalcNodeRef;
+
 // https://drafts.csswg.org/css-values-4/#calc-context
 // Contains the context available at parse-time.
 struct CalculationContext {
@@ -46,6 +48,7 @@ public:
     {
         return adopt_ref(*new (nothrow) CalculatedStyleValue(move(calculation), move(resolved_type), move(context)));
     }
+    static ValueComparingNonnullRefPtr<CalculatedStyleValue const> create(CalcNodeRef root, NumericType resolved_type, CalculationContext context);
 
     void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
@@ -643,5 +646,6 @@ ENUMERATE_CALCULATION_NODE_TYPES(ENUMERATE_TYPE)
 
 // https://drafts.csswg.org/css-values-4/#calc-simplification
 NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode const& root, CalculationContext const& context, CalculationResolutionContext const& resolution_context);
+CalcNodeRef simplify_a_calculation_tree(CalcNodeRef const& root, CalculationContext const& context, CalculationResolutionContext const& resolution_context);
 
 }

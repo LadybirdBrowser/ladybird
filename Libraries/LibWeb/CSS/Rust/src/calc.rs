@@ -1071,6 +1071,37 @@ pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
     crate::abort_on_panic(|| drop(unsafe { Arc::from_raw(node) }));
 }
 
+/// Retains an additional strong reference to a calculation node, so the C++
+/// side can take ownership of a borrowed node.
+///
+/// # Safety
+/// `node` must be a valid calculation node pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_node_retain(node: *const CalcNode) {
+    crate::abort_on_panic(|| unsafe { Arc::increment_strong_count(node) });
+}
+
+/// https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
+/// Determines the type of the calculation rooted at `node` under the given
+/// resolve-as target. The result's valid flag is false when the tree does not
+/// type-check.
+///
+/// # Safety
+/// `node` must be a valid calculation node pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_node_determine_type(
+    node: *const CalcNode,
+    has_percentages_resolve_as: bool,
+    resolve_as_is_number: bool,
+    resolve_as_base: u8,
+) -> FfiNumericType {
+    crate::abort_on_panic(|| {
+        let resolve_as = resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base);
+        let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
+        FfiNumericType::from_calc(unsafe { &*node }.numeric_type(&percentage_leaf_type))
+    })
+}
+
 /// Whether any leaf of the calculation is a percentage.
 ///
 /// # Safety
@@ -2367,14 +2398,8 @@ fn resolve_as_from_fields(has_percentages_resolve_as: bool, is_number: bool, bas
     }
 }
 
-/// Builds the evaluation context and simplify callbacks from an FFI resolution
-/// context and runs `f` with them; the setup shared by resolution and
-/// absolutization.
-fn with_ffi_evaluation<R>(
-    resolve_as: Option<ResolveAs>,
-    context: &FfiCalcResolutionContext,
-    f: impl FnOnce(&CalcEvaluationContext, &CalcSimplifyCallbacks) -> R,
-) -> R {
+/// The type a percentage leaf takes under the given resolve-as target.
+fn percentage_leaf_type_for(resolve_as: Option<ResolveAs>) -> CalcNumericType {
     let mut percentage_leaf_type = CalcNumericType::default();
     match resolve_as {
         Some(ResolveAs::Base(base)) => {
@@ -2383,6 +2408,18 @@ fn with_ffi_evaluation<R>(
         }
         _ => percentage_leaf_type.exponents[BASE_TYPE_PERCENT] = Some(1),
     }
+    percentage_leaf_type
+}
+
+/// Builds the evaluation context and simplify callbacks from an FFI resolution
+/// context and runs `f` with them; the setup shared by resolution and
+/// absolutization.
+fn with_ffi_evaluation<R>(
+    resolve_as: Option<ResolveAs>,
+    context: &FfiCalcResolutionContext,
+    f: impl FnOnce(&CalcEvaluationContext, &CalcSimplifyCallbacks) -> R,
+) -> R {
+    let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
     let percentage_basis = match context.basis_kind {
         0 => None,
         1 => Some(CalcNumericValue::Angle {
