@@ -808,6 +808,18 @@ void SeccompPolicy::deny_readonly_filesystem_probes()
     append(SECCOMP_ERRNO(EACCES));
     append(SECCOMP_LOAD_SYSCALL_NR);
 #endif
+#ifdef __NR_access
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_access, 0, 1));
+    append(SECCOMP_ERRNO(EACCES));
+#endif
+#ifdef __NR_faccessat
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_faccessat, 0, 1));
+    append(SECCOMP_ERRNO(EACCES));
+#endif
+#ifdef __NR_faccessat2
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_faccessat2, 0, 1));
+    append(SECCOMP_ERRNO(EACCES));
+#endif
 }
 
 void SeccompPolicy::allow_readonly_file_opens()
