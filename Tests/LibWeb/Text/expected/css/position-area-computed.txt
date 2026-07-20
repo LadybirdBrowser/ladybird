@@ -1,0 +1,9 @@
+position-area: span-all start => inline-start
+position-area: span-all end => inline-end
+position-area: span-all self-start => self-inline-start
+position-area: start span-all => block-start
+position-area: end span-all => block-end
+position-area: block-start inline-start => start
+position-area: start start => start
+position-area: center center => center
+position-area: span-all span-all => span-all

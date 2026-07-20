@@ -4351,50 +4351,17 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefP
     auto values = value_list.values();
     auto const& block_value = values.at(0);
     auto const& inline_value = values.at(1);
-    if (block_value->as_keyword().keyword() == Keyword::SpanAll) {
-        switch (inline_value->as_keyword().keyword()) {
-        case Keyword::Start:
-            return KeywordStyleValue::create(Keyword::InlineStart);
-        case Keyword::End:
-            return KeywordStyleValue::create(Keyword::InlineEnd);
-        case Keyword::SelfStart:
-            return KeywordStyleValue::create(Keyword::SelfInlineStart);
-        case Keyword::SelfEnd:
-            return KeywordStyleValue::create(Keyword::SelfInlineEnd);
-        case Keyword::SpanStart:
-            return KeywordStyleValue::create(Keyword::SpanInlineStart);
-        case Keyword::SpanEnd:
-            return KeywordStyleValue::create(Keyword::SpanInlineEnd);
-        case Keyword::SpanSelfStart:
-            return KeywordStyleValue::create(Keyword::SpanSelfInlineStart);
-        case Keyword::SpanSelfEnd:
-            return KeywordStyleValue::create(Keyword::SpanSelfInlineEnd);
-        default:
-            return absolutized_value;
-        }
+
+    // When one axis is span-all, the value computes to a single logical keyword from the
+    // other axis. The remapping decision lives in the Rust style computation core.
+    auto span_all_remap = ComputedValuesFFI::rust_position_area_span_all_remap(
+        to_underlying(block_value->as_keyword().keyword()), to_underlying(inline_value->as_keyword().keyword()));
+    if (block_value->as_keyword().keyword() == Keyword::SpanAll || inline_value->as_keyword().keyword() == Keyword::SpanAll) {
+        if (span_all_remap.remapped)
+            return KeywordStyleValue::create(static_cast<Keyword>(span_all_remap.keyword));
+        return absolutized_value;
     }
-    if (inline_value->as_keyword().keyword() == Keyword::SpanAll) {
-        switch (block_value->as_keyword().keyword()) {
-        case Keyword::Start:
-            return KeywordStyleValue::create(Keyword::BlockStart);
-        case Keyword::End:
-            return KeywordStyleValue::create(Keyword::BlockEnd);
-        case Keyword::SelfStart:
-            return KeywordStyleValue::create(Keyword::SelfBlockStart);
-        case Keyword::SelfEnd:
-            return KeywordStyleValue::create(Keyword::SelfBlockEnd);
-        case Keyword::SpanStart:
-            return KeywordStyleValue::create(Keyword::SpanBlockStart);
-        case Keyword::SpanEnd:
-            return KeywordStyleValue::create(Keyword::SpanBlockEnd);
-        case Keyword::SpanSelfStart:
-            return KeywordStyleValue::create(Keyword::SpanSelfBlockStart);
-        case Keyword::SpanSelfEnd:
-            return KeywordStyleValue::create(Keyword::SpanSelfBlockEnd);
-        default:
-            return absolutized_value;
-        }
-    }
+
     auto short_block_value = to_short_keyword(block_value->as_keyword());
     auto short_inline_value = to_short_keyword(inline_value->as_keyword());
     if (*block_value != short_block_value || *inline_value != short_inline_value)

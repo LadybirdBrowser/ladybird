@@ -1336,6 +1336,58 @@ pub extern "C" fn rust_position_area_short_keyword(keyword: u16) -> u16 {
     }
 }
 
+/// The outcome of the position-area span-all remapping: whether a single
+/// keyword replaces the two-keyword value, and that keyword.
+#[repr(C)]
+pub struct FfiPositionAreaRemap {
+    pub remapped: bool,
+    pub keyword: u16,
+}
+
+/// When one axis of a position-area value is span-all, the value computes to a
+/// single logical keyword drawn from the other axis. Returns that keyword, or
+/// reports that no span-all remapping applies (both axes are then serialized
+/// in short form by the caller).
+/// https://drafts.csswg.org/css-anchor-position/#position-area-computed
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_position_area_span_all_remap(block_keyword: u16, inline_keyword: u16) -> FfiPositionAreaRemap {
+    let remapped = |keyword| FfiPositionAreaRemap {
+        remapped: true,
+        keyword,
+    };
+    let not_remapped = FfiPositionAreaRemap {
+        remapped: false,
+        keyword: 0,
+    };
+    if block_keyword == keyword::SPAN_ALL {
+        return match inline_keyword {
+            keyword::START => remapped(keyword::INLINE_START),
+            keyword::END => remapped(keyword::INLINE_END),
+            keyword::SELF_START => remapped(keyword::SELF_INLINE_START),
+            keyword::SELF_END => remapped(keyword::SELF_INLINE_END),
+            keyword::SPAN_START => remapped(keyword::SPAN_INLINE_START),
+            keyword::SPAN_END => remapped(keyword::SPAN_INLINE_END),
+            keyword::SPAN_SELF_START => remapped(keyword::SPAN_SELF_INLINE_START),
+            keyword::SPAN_SELF_END => remapped(keyword::SPAN_SELF_INLINE_END),
+            _ => not_remapped,
+        };
+    }
+    if inline_keyword == keyword::SPAN_ALL {
+        return match block_keyword {
+            keyword::START => remapped(keyword::BLOCK_START),
+            keyword::END => remapped(keyword::BLOCK_END),
+            keyword::SELF_START => remapped(keyword::SELF_BLOCK_START),
+            keyword::SELF_END => remapped(keyword::SELF_BLOCK_END),
+            keyword::SPAN_START => remapped(keyword::SPAN_BLOCK_START),
+            keyword::SPAN_END => remapped(keyword::SPAN_BLOCK_END),
+            keyword::SPAN_SELF_START => remapped(keyword::SPAN_SELF_BLOCK_START),
+            keyword::SPAN_SELF_END => remapped(keyword::SPAN_SELF_BLOCK_END),
+            _ => not_remapped,
+        };
+    }
+    not_remapped
+}
+
 /// The inherit-or-initial decision for one longhand in the property
 /// computation loop.
 #[repr(C)]

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="anchor" style="anchor-name: --a"></div>
+<div id="target" style="position: absolute; position-anchor: --a"></div>
+<script>
+// position-area computed values: span-all on one axis maps to a single logical
+// keyword from the other axis; logical long forms serialize in short form.
+test(() => {
+    const target = document.getElementById("target");
+    for (const value of [
+        "span-all start",
+        "span-all end",
+        "span-all self-start",
+        "start span-all",
+        "end span-all",
+        "block-start inline-start",
+        "start start",
+        "center center",
+        "span-all span-all",
+    ]) {
+        target.style.positionArea = value;
+        println(`position-area: ${value} => ${getComputedStyle(target).positionArea}`);
+        target.style.removeProperty("position-area");
+    }
+});
+</script>
