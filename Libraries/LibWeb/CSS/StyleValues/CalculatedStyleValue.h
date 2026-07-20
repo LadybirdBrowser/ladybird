@@ -9,9 +9,7 @@
 
 #pragma once
 
-#include <AK/Function.h>
 #include <LibWeb/CSS/Angle.h>
-#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Length.h>
@@ -20,7 +18,6 @@
 #include <LibWeb/CSS/NumericType.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/Resolution.h>
-#include <LibWeb/CSS/StyleValues/AbstractNonMathCalcFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
@@ -61,7 +58,6 @@ public:
 
     bool resolves_to_frequency() const { return resolved_type().matches_frequency(calculation_context().percentages_resolve_as); }
     bool resolves_to_frequency_percentage() const { return resolved_type().matches_frequency_percentage(calculation_context().percentages_resolve_as); }
-    Optional<Frequency> resolve_frequency(CalculationResolutionContext const&) const;
 
     bool resolves_to_length() const { return resolved_type().matches_length(calculation_context().percentages_resolve_as); }
     bool resolves_to_length_percentage() const { return resolved_type().matches_length_percentage(calculation_context().percentages_resolve_as); }
@@ -83,8 +79,6 @@ public:
     Optional<i32> resolve_integer(CalculationResolutionContext const&) const;
 
     RefPtr<StyleValue const> resolve_as_style_value(CalculationResolutionContext const&) const;
-
-    bool resolves_to_dimension() const { return resolved_type().matches_dimension(); }
 
     bool contains_percentage() const;
     bool is_fully_simplified() const;
@@ -112,8 +106,6 @@ private:
     //        StyleValue classes which lack their own absolutized method) which will need to be fixed beforehand.
     Optional<ResolvedValue> resolve_value(CalculationResolutionContext const&, bool apply_censoring_and_clamping = true) const;
     Optional<ResolvedValue> resolve_value(CalculationContext const&, CalculationResolutionContext const&, bool apply_censoring_and_clamping = true) const;
-
-    Optional<ValueType> percentage_resolved_type() const;
 
     static StyleValueFFI::StyleValueData* make_calculated_data_from_rust_root(StyleValueFFI::CalcNode const*, NumericType const&, CalculationContext const&);
 

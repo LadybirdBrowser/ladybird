@@ -69,7 +69,6 @@ public:
     Optional<NumericType> multiplied_by(NumericType const& other) const;
     NumericType inverted() const;
 
-    bool has_consistent_type_with(NumericType const& other) const;
     Optional<NumericType> consistent_type(NumericType const& other) const;
     Optional<NumericType> made_consistent_with(NumericType const& other) const;
 
@@ -102,6 +101,8 @@ public:
         }
     }
 
+    Optional<BaseType> entry_with_value_1_while_all_others_are_0() const;
+
     Optional<BaseType> const& percent_hint() const { return m_percent_hint; }
     void set_percent_hint(Optional<BaseType> hint) { m_percent_hint = hint; }
     void apply_percent_hint(BaseType hint);
@@ -109,7 +110,6 @@ public:
     bool operator==(NumericType const& other) const = default;
 
     String dump() const;
-    Optional<BaseType> entry_with_value_1_while_all_others_are_0() const;
 
 private:
     bool contains_all_the_non_zero_entries_of_other_with_the_same_value(NumericType const& other) const;
@@ -128,11 +128,3 @@ private:
 };
 
 }
-
-template<>
-struct AK::Formatter<Web::CSS::NumericType> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::NumericType const& value)
-    {
-        return Formatter<StringView>::format(builder, value.dump());
-    }
-};

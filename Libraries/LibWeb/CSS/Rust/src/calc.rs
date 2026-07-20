@@ -3601,59 +3601,6 @@ pub unsafe extern "C" fn rust_calc_node_numeric_type(
     })
 }
 
-/// The channel keyword carried by a channel-keyword leaf; false otherwise.
-///
-/// # Safety
-/// `node` must be a valid calculation node pointer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_channel_keyword(node: *const CalcNode, out_channel: *mut u8) -> bool {
-    crate::abort_on_panic(|| {
-        let CalcNode::ChannelKeyword(channel) = (unsafe { &*node }) else {
-            return false;
-        };
-        unsafe { *out_channel = *channel };
-        true
-    })
-}
-
-/// The rounding strategy of a round() node; 0 for other nodes.
-///
-/// # Safety
-/// `node` must be a valid calculation node pointer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_round_strategy(node: *const CalcNode) -> u8 {
-    crate::abort_on_panic(|| match unsafe { &*node } {
-        CalcNode::Round { strategy, .. } => *strategy,
-        _ => 0,
-    })
-}
-
-/// Whether a progress() node skips the [0, 1] clamp; false for other nodes.
-///
-/// # Safety
-/// `node` must be a valid calculation node pointer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_progress_no_clamp(node: *const CalcNode) -> bool {
-    crate::abort_on_panic(|| match unsafe { &*node } {
-        CalcNode::Progress { no_clamp, .. } => *no_clamp,
-        _ => false,
-    })
-}
-
-/// The numeric type stored on a non-math-function node; invalid for other
-/// nodes. The type is fixed at construction, so no resolve-as context is
-/// needed to read it back.
-///
-/// # Safety
-/// `node` must be a valid calculation node pointer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_non_math_function_type(node: *const CalcNode) -> FfiNumericType {
-    crate::abort_on_panic(|| match unsafe { &*node } {
-        CalcNode::NonMathFunction { numeric_type, .. } => FfiNumericType::from_calc(Some(*numeric_type)),
-        _ => FfiNumericType::from_calc(None),
-    })
-}
-
 /// Simplifies a free-standing calculation tree: the css-values-4 algorithm
 /// over a borrowed root, returning the simplified tree as a transferred
 /// handle. This backs the C++ simplify_a_calculation_tree entry, whose

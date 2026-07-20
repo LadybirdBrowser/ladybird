@@ -312,13 +312,6 @@ NumericType NumericType::inverted() const
 }
 
 // https://drafts.csswg.org/css-values-4/#css-consistent-typec
-bool NumericType::has_consistent_type_with(NumericType const& other) const
-{
-    // Two or more calculations have a consistent type if adding the types doesn’t result in failure.
-    return added_to(other).has_value();
-}
-
-// https://drafts.csswg.org/css-values-4/#css-consistent-typec
 Optional<NumericType> NumericType::consistent_type(NumericType const& other) const
 {
     // The consistent type is the result of the type addition.

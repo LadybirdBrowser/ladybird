@@ -8,8 +8,6 @@
  */
 
 #include "CalculatedStyleValue.h"
-#include <AK/QuickSort.h>
-#include <AK/TypeCasts.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/CSSMathClamp.h>
 #include <LibWeb/CSS/CSSMathInvert.h>
@@ -377,17 +375,6 @@ Optional<Flex> CalculatedStyleValue::resolve_flex(CalculationResolutionContext c
 
     if (result.has_value() && result->type.has_value() && result->type->matches_flex(calculation_context.percentages_resolve_as))
         return Flex::make_fr(result->value);
-
-    return {};
-}
-
-Optional<Frequency> CalculatedStyleValue::resolve_frequency(CalculationResolutionContext const& context) const
-{
-    auto calculation_context = this->calculation_context();
-    auto result = resolve_value(calculation_context, context);
-
-    if (result.has_value() && result->type.has_value() && result->type->matches_frequency(calculation_context.percentages_resolve_as))
-        return Frequency::make_hertz(result->value);
 
     return {};
 }

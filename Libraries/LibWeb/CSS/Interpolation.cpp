@@ -1505,22 +1505,6 @@ static RefPtr<StyleValue const> interpolate_mixed_value(CalculationContext const
     return {};
 }
 
-template<typename T>
-static NonnullRefPtr<StyleValue const> length_percentage_or_auto_to_style_value(T const& value)
-{
-    if constexpr (requires { value.is_auto(); }) {
-        if (value.is_auto())
-            return KeywordStyleValue::create(Keyword::Auto);
-    }
-    if (value.is_length())
-        return LengthStyleValue::create(value.length());
-    if (value.is_percentage())
-        return PercentageStyleValue::create(value.percentage());
-    if (value.is_calculated())
-        return value.calculated();
-    VERIFY_NOT_REACHED();
-}
-
 static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete, ColorResolutionContext const* color_resolution_context)
 {
     ColorResolutionContext fallback_color_resolution_context {};

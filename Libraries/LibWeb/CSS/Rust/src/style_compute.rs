@@ -30,12 +30,6 @@ include!(concat!(env!("OUT_DIR"), "/length_units_generated.rs"));
 include!(concat!(env!("OUT_DIR"), "/keywords_generated.rs"));
 include!(concat!(env!("OUT_DIR"), "/css_enums_generated.rs"));
 
-/// FFI accessor for the keyword-code parity test on the C++ side.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_compute_keyword_code_bold() -> u16 {
-    keyword::BOLD
-}
-
 /// The font metrics needed for font-relative length resolution, as unrounded
 /// CSS pixel values.
 #[repr(C)]

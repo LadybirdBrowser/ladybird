@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Vector.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/NumericType.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
