@@ -1185,9 +1185,15 @@ impl CalcNode {
                     None => result = Some(child_value),
                     Some(previous) => {
                         let consistent_type = previous.numeric_type?.added_to(&child_value.numeric_type?)?;
+                        // Strict comparisons, so ties (including 0 vs -0) keep the earlier child.
+                        let replace = if is_min {
+                            child_value.value < previous.value
+                        } else {
+                            child_value.value > previous.value
+                        };
                         let value = if child_value.value.is_nan() || previous.value.is_nan() {
                             f64::NAN
-                        } else if is_min == (child_value.value < previous.value) {
+                        } else if replace {
                             child_value.value
                         } else {
                             previous.value
@@ -1219,7 +1225,18 @@ impl CalcNode {
                 let value = if min_result.value.is_nan() || center_result.value.is_nan() || max_result.value.is_nan() {
                     f64::NAN
                 } else {
-                    min_result.value.max(center_result.value.min(max_result.value))
+                    // Branch-based min/max, so ties (including 0 vs -0) keep the first
+                    // operand; f64::min and f64::max may lose the zero sign on ties.
+                    let inner = if max_result.value < center_result.value {
+                        max_result.value
+                    } else {
+                        center_result.value
+                    };
+                    if min_result.value < inner {
+                        inner
+                    } else {
+                        min_result.value
+                    }
                 };
                 Some(CalcResult { value, numeric_type })
             }
@@ -1668,9 +1685,14 @@ impl CalcNumericType {
                 return false;
             }
         }
+        // The percent hint must be null when the context does not allow percentages, percent when
+        // they resolve as numbers, and null or the resolved type otherwise, as in matches_number.
         match resolve_as {
-            Some(ResolveAs::Number) | None => true,
-            Some(resolve_as) => self.hint_matches(resolve_as),
+            Some(ResolveAs::Base(base)) => self.percent_hint.is_none() || self.percent_hint == Some(base),
+            Some(ResolveAs::Number) => {
+                self.percent_hint.is_none() || self.percent_hint == Some(BASE_TYPE_PERCENT as u8)
+            }
+            None => self.percent_hint.is_none(),
         }
     }
 }
@@ -1955,8 +1977,9 @@ impl CalcNode {
             // 6. If root is a Negate node:
             CalcNode::Negate(child) => {
                 // 1. If root's child is a numeric value, return an equivalent numeric value with the value negated.
+                // NB: Unary negation, not 0 - x, which would turn -0 into +0.
                 if let CalcNode::Numeric(value) = &**child {
-                    return shared(CalcNode::Numeric(value.with_raw(0.0 - value.raw())));
+                    return shared(CalcNode::Numeric(value.with_raw(-value.raw())));
                 }
                 // 2. If root's child is a Negate node, return the child's child.
                 if let CalcNode::Negate(inner) = &**child {
@@ -1968,7 +1991,7 @@ impl CalcNode {
                     let negated = sum_children
                         .iter()
                         .map(|sum_child| match &**sum_child {
-                            CalcNode::Numeric(value) => shared(CalcNode::Numeric(value.with_raw(0.0 - value.raw()))),
+                            CalcNode::Numeric(value) => shared(CalcNode::Numeric(value.with_raw(-value.raw()))),
                             CalcNode::Negate(inner) => inner.clone(),
                             _ => shared(CalcNode::Negate(sum_child.clone())),
                         })
