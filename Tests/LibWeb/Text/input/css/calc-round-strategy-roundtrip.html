@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+// Each rounding strategy must survive the parse -> serialize round trip and
+// round accordingly once the font-relative operand resolves at computed time.
+test(() => {
+    const target = document.getElementById("target");
+    for (const strategy of ["", "nearest, ", "up, ", "down, ", "to-zero, "]) {
+        const value = `round(${strategy}2rem, 5px)`;
+        target.style.width = value;
+        println(`${value} => ${target.style.width} => ${getComputedStyle(target).width}`);
+        target.style.width = "";
+    }
+});
+</script>

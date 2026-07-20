@@ -3291,6 +3291,12 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
     return resolve_value(calculation_context(), resolution_context, apply_censoring_and_clamping);
 }
 
+// The RoundingStrategy discriminants cross the boundary as round()'s strategy code; pin them.
+static_assert(to_underlying(RoundingStrategy::Down) == 0);
+static_assert(to_underlying(RoundingStrategy::Nearest) == 1);
+static_assert(to_underlying(RoundingStrategy::ToZero) == 2);
+static_assert(to_underlying(RoundingStrategy::Up) == 3);
+
 // The Number::Type discriminants cross the boundary in the numeric leaf's unit slot; pin them.
 static_assert(to_underlying(Number::Type::Number) == 0);
 static_assert(to_underlying(Number::Type::IntegerWithExplicitSign) == 1);

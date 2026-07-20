@@ -1387,9 +1387,9 @@ impl CalcNode {
                     })
                 };
 
-                // Rounding strategy codes follow the C++ RoundingStrategy order:
-                // nearest, up, down, to-zero.
-                let (nearest, up, down, to_zero) = (0u8, 1u8, 2u8, 3u8);
+                // Rounding strategy codes follow the generated C++ RoundingStrategy
+                // order: down, nearest, to-zero, up.
+                let (down, nearest, to_zero, up) = (0u8, 1u8, 2u8, 3u8);
 
                 // https://drafts.csswg.org/css-values-4/#round-infinities
                 // In round(A, B), if B is 0, the result is NaN. If A and B are both infinite, the result is NaN.
@@ -2729,10 +2729,10 @@ impl CalcSerializer<'_> {
         // AD-HOC: round()'s strategy keyword serializes as the first argument.
         if let CalcNode::Round { strategy, .. } = &**node {
             self.literal(match *strategy {
-                0 => "nearest",
-                1 => "up",
-                2 => "down",
-                3 => "to-zero",
+                0 => "down",
+                1 => "nearest",
+                2 => "to-zero",
+                3 => "up",
                 _ => unreachable!("invalid rounding strategy"),
             });
             first = false;
