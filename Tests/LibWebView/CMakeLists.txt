@@ -26,6 +26,13 @@ if (NOT WIN32)
     if (APPLE)
         target_compile_definitions(TestAutocomplete PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
     endif()
+
+    add_executable(TestInputMethodState TestInputMethodState.cpp)
+    add_dependencies(TestInputMethodState ladybird_build_resource_files ${ladybird_helper_processes})
+    target_link_libraries(TestInputMethodState PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
+    if (APPLE)
+        target_compile_definitions(TestInputMethodState PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
+    endif()
 endif()
 
 if (BUILD_TESTING AND NOT WIN32)
@@ -37,4 +44,7 @@ if (BUILD_TESTING AND NOT WIN32)
 
     add_test(NAME TestAutocomplete COMMAND $<TARGET_FILE:TestAutocomplete>)
     set_tests_properties(TestAutocomplete PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
+
+    add_test(NAME TestInputMethodState COMMAND $<TARGET_FILE:TestInputMethodState>)
+    set_tests_properties(TestInputMethodState PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
 endif()
