@@ -98,7 +98,7 @@ public:
     static CalcNodeRef clamp(CalcNodeRef minimum, CalcNodeRef center, CalcNodeRef maximum);
     static CalcNodeRef progress(bool no_clamp, CalcNodeRef value, CalcNodeRef start, CalcNodeRef end);
     static CalcNodeRef round(RoundingStrategy, CalcNodeRef value, CalcNodeRef interval);
-    static CalcNodeRef random(CalcNodeRef minimum, CalcNodeRef maximum, Optional<CalcNodeRef> step, StyleValue const& random_value_sharing);
+    static CalcNodeRef random(StyleValue const& random_value_sharing, CalcNodeRef minimum, CalcNodeRef maximum, Optional<CalcNodeRef> step);
     static CalcNodeRef non_math_function(StyleValue const& function, Optional<NumericType> const&);
 
     // https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation

@@ -5086,17 +5086,17 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
         return nullptr;
 
     auto function_node = parse_a_calc_function_node(component_value.function(), context);
-    if (!function_node)
+    if (!function_node.has_value())
         return nullptr;
 
-    auto function_type = function_node->numeric_type();
+    auto function_type = function_node->determine_type(context);
     if (!function_type.has_value())
         return nullptr;
 
-    return CalculatedStyleValue::create(function_node.release_nonnull(), function_type.release_value(), context);
+    return CalculatedStyleValue::create(function_node.release_value(), function_type.release_value(), context);
 }
 
-RefPtr<CalculationNode const> Parser::parse_a_calc_function_node(Function const& function, CalculationContext const& context)
+Optional<CalcNodeRef> Parser::parse_a_calc_function_node(Function const& function, CalculationContext const& context)
 {
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
 
@@ -5105,57 +5105,57 @@ RefPtr<CalculationNode const> Parser::parse_a_calc_function_node(Function const&
         return parse_a_calculation(tokens, context);
     }
 
-    if (auto maybe_function = parse_math_function(function, context)) {
+    if (auto maybe_function = parse_math_function(function, context); maybe_function.has_value()) {
         // NOTE: We have to simplify manually here, since parse_math_function() is a helper for calc() parsing
         //       that doesn't do it directly by itself.
         return simplify_a_calculation_tree(*maybe_function, context, CalculationResolutionContext {});
     }
 
-    return nullptr;
+    return {};
 }
 
-RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::Node const& node, CalculationContext const& context)
+Optional<CalcNodeRef> Parser::convert_to_calculation_node(CalcParsing::Node const& node, CalculationContext const& context)
 {
     return node.visit(
-        [this, &context](NonnullOwnPtr<CalcParsing::ProductNode> const& product_node) -> RefPtr<CalculationNode const> {
-            Vector<NonnullRefPtr<CalculationNode const>> children;
+        [this, &context](NonnullOwnPtr<CalcParsing::ProductNode> const& product_node) -> Optional<CalcNodeRef> {
+            Vector<CalcNodeRef> children;
             children.ensure_capacity(product_node->children.size());
 
             for (auto const& child : product_node->children) {
-                if (auto child_as_node = convert_to_calculation_node(child, context)) {
-                    children.append(child_as_node.release_nonnull());
+                if (auto child_as_node = convert_to_calculation_node(child, context); child_as_node.has_value()) {
+                    children.append(child_as_node.release_value());
                 } else {
-                    return nullptr;
+                    return {};
                 }
             }
 
-            return ProductCalculationNode::create(move(children));
+            return CalcNodeRef::product(move(children));
         },
-        [this, &context](NonnullOwnPtr<CalcParsing::SumNode> const& sum_node) -> RefPtr<CalculationNode const> {
-            Vector<NonnullRefPtr<CalculationNode const>> children;
+        [this, &context](NonnullOwnPtr<CalcParsing::SumNode> const& sum_node) -> Optional<CalcNodeRef> {
+            Vector<CalcNodeRef> children;
             children.ensure_capacity(sum_node->children.size());
 
             for (auto const& child : sum_node->children) {
-                if (auto child_as_node = convert_to_calculation_node(child, context)) {
-                    children.append(child_as_node.release_nonnull());
+                if (auto child_as_node = convert_to_calculation_node(child, context); child_as_node.has_value()) {
+                    children.append(child_as_node.release_value());
                 } else {
-                    return nullptr;
+                    return {};
                 }
             }
 
-            return SumCalculationNode::create(move(children));
+            return CalcNodeRef::sum(move(children));
         },
-        [this, &context](NonnullOwnPtr<CalcParsing::InvertNode> const& invert_node) -> RefPtr<CalculationNode const> {
-            if (auto child_as_node = convert_to_calculation_node(invert_node->child, context))
-                return InvertCalculationNode::create(child_as_node.release_nonnull());
-            return nullptr;
+        [this, &context](NonnullOwnPtr<CalcParsing::InvertNode> const& invert_node) -> Optional<CalcNodeRef> {
+            if (auto child_as_node = convert_to_calculation_node(invert_node->child, context); child_as_node.has_value())
+                return CalcNodeRef::invert(child_as_node.release_value());
+            return {};
         },
-        [this, &context](NonnullOwnPtr<CalcParsing::NegateNode> const& negate_node) -> RefPtr<CalculationNode const> {
-            if (auto child_as_node = convert_to_calculation_node(negate_node->child, context))
-                return NegateCalculationNode::create(child_as_node.release_nonnull());
-            return nullptr;
+        [this, &context](NonnullOwnPtr<CalcParsing::NegateNode> const& negate_node) -> Optional<CalcNodeRef> {
+            if (auto child_as_node = convert_to_calculation_node(negate_node->child, context); child_as_node.has_value())
+                return CalcNodeRef::negate(child_as_node.release_value());
+            return {};
         },
-        [this, &context](NonnullRawPtr<ComponentValue const> const& component_value) -> RefPtr<CalculationNode const> {
+        [this, &context](NonnullRawPtr<ComponentValue const> const& component_value) -> Optional<CalcNodeRef> {
             // NOTE: This is the "process the leaf nodes" part of step 5 of https://drafts.csswg.org/css-values-4/#parse-a-calculation
             //       We divert a little from the spec: Rather than modify an existing tree of values, we construct a new one from that source tree.
             //       This lets us make CalculationNodes immutable.
@@ -5163,21 +5163,13 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
             // 1. If leaf is a parenthesized simple block, replace leaf with the result of parsing a calculation from leaf’s contents.
             if (component_value->is_block() && component_value->block().is_paren()) {
                 TokenStream tokens { component_value->block().value };
-                auto leaf_calculation = parse_a_calculation(tokens, context);
-                if (!leaf_calculation)
-                    return nullptr;
-
-                return leaf_calculation.release_nonnull();
+                return parse_a_calculation(tokens, context);
             }
 
             // 2. If leaf is a math function, replace leaf with the internal representation of that math function.
             if (component_value->is_function() && math_function_from_string(component_value->function().name).has_value()) {
                 auto const& function = component_value->function();
-                auto leaf_calculation = parse_a_calc_function_node(function, context);
-                if (!leaf_calculation)
-                    return nullptr;
-
-                return leaf_calculation.release_nonnull();
+                return parse_a_calc_function_node(function, context);
             }
 
             // AD-HOC: We also need to convert tokens into their numeric types.
@@ -5185,59 +5177,59 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
             if (component_value->is(Token::Type::Ident)) {
                 auto maybe_keyword = keyword_from_string(component_value->token().ident());
                 if (!maybe_keyword.has_value())
-                    return nullptr;
+                    return {};
                 if (auto const* relative = current_relative_color_context()) {
                     if (auto channel = keyword_to_channel_keyword(*maybe_keyword); channel.has_value()) {
                         if (relative->allowed_channels[to_underlying(*channel)])
-                            return ChannelKeywordCalculationNode::create(*channel, context);
+                            return CalcNodeRef::channel_keyword(*channel);
                     }
                 }
-                return NumericCalculationNode::from_keyword(*maybe_keyword, context);
+                return CalcNodeRef::from_keyword(*maybe_keyword);
             }
 
             if (component_value->is(Token::Type::Number))
-                return NumericCalculationNode::create(Number { Number::Type::Number, component_value->token().number_value() }, context);
+                return CalcNodeRef::numeric(Number { Number::Type::Number, component_value->token().number_value() });
 
             if (component_value->is(Token::Type::Dimension)) {
                 auto numeric_value = component_value->token().dimension_value();
                 auto unit_string = component_value->token().dimension_unit();
 
                 if (auto length_type = string_to_length_unit(unit_string); length_type.has_value())
-                    return NumericCalculationNode::create(Length { numeric_value, length_type.release_value() }, context);
+                    return CalcNodeRef::numeric(Length { numeric_value, length_type.release_value() });
 
                 if (auto angle_type = string_to_angle_unit(unit_string); angle_type.has_value())
-                    return NumericCalculationNode::create(Angle { numeric_value, angle_type.release_value() }, context);
+                    return CalcNodeRef::numeric(Angle { numeric_value, angle_type.release_value() });
 
                 if (auto flex_type = string_to_flex_unit(unit_string); flex_type.has_value())
-                    return NumericCalculationNode::create(Flex { numeric_value, flex_type.release_value() }, context);
+                    return CalcNodeRef::numeric(Flex { numeric_value, flex_type.release_value() });
 
                 if (auto frequency_type = string_to_frequency_unit(unit_string); frequency_type.has_value())
-                    return NumericCalculationNode::create(Frequency { numeric_value, frequency_type.release_value() }, context);
+                    return CalcNodeRef::numeric(Frequency { numeric_value, frequency_type.release_value() });
 
                 if (auto resolution_type = string_to_resolution_unit(unit_string); resolution_type.has_value())
-                    return NumericCalculationNode::create(Resolution { numeric_value, resolution_type.release_value() }, context);
+                    return CalcNodeRef::numeric(Resolution { numeric_value, resolution_type.release_value() });
 
                 if (auto time_type = string_to_time_unit(unit_string); time_type.has_value())
-                    return NumericCalculationNode::create(Time { numeric_value, time_type.release_value() }, context);
+                    return CalcNodeRef::numeric(Time { numeric_value, time_type.release_value() });
 
                 ErrorReporter::the().report(InvalidValueError {
                     .value_type = "math-function"_utf16_fly_string,
                     .value_string = component_value->to_string().to_utf8(),
                     .description = "Unrecognized dimension type."_string,
                 });
-                return nullptr;
+                return {};
             }
 
             if (component_value->is(Token::Type::Percentage))
-                return NumericCalculationNode::create(Percentage { component_value->token().percentage() }, context);
+                return CalcNodeRef::numeric(Percentage { component_value->token().percentage() });
 
             auto tree_counting_function_tokens = TokenStream<ComponentValue>::of_single_token(component_value);
             if (auto tree_counting_function = parse_tree_counting_function(tree_counting_function_tokens, TreeCountingFunctionStyleValue::ComputedType::Number))
-                return NonMathFunctionCalculationNode::create(tree_counting_function.release_nonnull(), NumericType {});
+                return CalcNodeRef::non_math_function(*tree_counting_function, NumericType {});
 
             auto anchor_function_tokens = TokenStream<ComponentValue>::of_single_token(component_value);
             if (auto anchor_function = parse_anchor(anchor_function_tokens))
-                return NonMathFunctionCalculationNode::create(anchor_function->as_anchor(), NumericType { NumericType::BaseType::Length, 1 });
+                return CalcNodeRef::non_math_function(anchor_function->as_anchor(), NumericType { NumericType::BaseType::Length, 1 });
 
             // NOTE: If we get here, then we have a ComponentValue that didn't get replaced with something else,
             //       so the calc() is invalid.
@@ -5246,20 +5238,20 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
                 .value_string = component_value->to_string().to_utf8(),
                 .description = "Left-over ComponentValue in calculation tree."_string,
             });
-            return nullptr;
+            return {};
         },
-        [](CalcParsing::Operator const& op) -> RefPtr<CalculationNode const> {
+        [](CalcParsing::Operator const& op) -> Optional<CalcNodeRef> {
             ErrorReporter::the().report(InvalidValueError {
                 .value_type = "math-function"_utf16_fly_string,
                 .value_string = String::from_code_point(op.delim),
                 .description = "Left-over Operator in calculation tree."_string,
             });
-            return nullptr;
+            return {};
         });
 }
 
 // https://drafts.csswg.org/css-values-4/#parse-a-calculation
-RefPtr<CalculationNode const> Parser::parse_a_calculation(TokenStream<ComponentValue>& tokens, CalculationContext const& context)
+Optional<CalcNodeRef> Parser::parse_a_calculation(TokenStream<ComponentValue>& tokens, CalculationContext const& context)
 {
     auto transaction = tokens.begin_transaction();
 
@@ -5275,7 +5267,7 @@ RefPtr<CalculationNode const> Parser::parse_a_calculation(TokenStream<ComponentV
             if (first_is_one_of(value.token().delim(), static_cast<u32>('+'), static_cast<u32>('-'), static_cast<u32>('*'), static_cast<u32>('/'))) {
                 // NOTE: Sequential operators are invalid syntax.
                 if (!values.is_empty() && values.last().has<CalcParsing::Operator>())
-                    return nullptr;
+                    return {};
 
                 values.append(CalcParsing::Operator { static_cast<char>(value.token().delim()) });
                 continue;
@@ -5287,11 +5279,11 @@ RefPtr<CalculationNode const> Parser::parse_a_calculation(TokenStream<ComponentV
 
     // If we have no values, the syntax is invalid.
     if (values.is_empty())
-        return nullptr;
+        return {};
 
     // NOTE: If the first or last value is an operator, the syntax is invalid.
     if (values.first().has<CalcParsing::Operator>() || values.last().has<CalcParsing::Operator>())
-        return nullptr;
+        return {};
 
     // 3. Collect children into Product and Invert nodes.
     //    For every consecutive run of value items in values separated by "*" or "/" operators:
@@ -5378,7 +5370,7 @@ RefPtr<CalculationNode const> Parser::parse_a_calculation(TokenStream<ComponentV
                 }
             }
             if (values.size() == 0 || operator_count != values.size() - 1)
-                return nullptr;
+                return {};
 
             single_value = make<CalcParsing::SumNode>(move(values));
         }
@@ -5388,8 +5380,8 @@ RefPtr<CalculationNode const> Parser::parse_a_calculation(TokenStream<ComponentV
     // 5. At this point values is a tree of Sum, Product, Negate, and Invert nodes, with other types of values at the leaf nodes. Process the leaf nodes.
     // NOTE: We process leaf nodes as part of this conversion.
     auto calculation_tree = convert_to_calculation_node(*single_value, context);
-    if (!calculation_tree)
-        return nullptr;
+    if (!calculation_tree.has_value())
+        return {};
 
     // 6. Return the result of simplifying a calculation tree from values.
     transaction.commit();

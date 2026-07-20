@@ -77,6 +77,7 @@ def write_implementation_file(out: TextIO, functions_data: dict) -> None:
 #include <LibWeb/CSS/MathFunctions.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 
@@ -139,7 +140,7 @@ static Optional<RoundingStrategy> parse_rounding_strategy(TokenStream<ComponentV
     return keyword_to_rounding_strategy(maybe_keyword.value());
 }
 
-RefPtr<CalculationNode const> Parser::parse_math_function(Function const& function, CalculationContext const& context)
+Optional<CalcNodeRef> Parser::parse_math_function(Function const& function, CalculationContext const& context)
 {
     TokenStream stream { function.value };
 
@@ -163,36 +164,35 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
         else:
             requires_same_parameters = True
 
-        name_titlecase = title_casify(name)
         out.write(f'    if (function.name.equals_ignoring_ascii_case("{name}"sv)) {{\n')
 
         if function_data.get("is-variadic", False):
             # Variadic function
             out.write(f"""
         Optional<NumericType> determined_argument_type;
-        Vector<NonnullRefPtr<CalculationNode const>> parsed_arguments;
+        Vector<CalcNodeRef> parsed_arguments;
         parsed_arguments.ensure_capacity(arguments.size());
 
         for (auto& argument : arguments) {{
             TokenStream<ComponentValue> tokens {{ argument }};
             auto calculation_node = parse_a_calculation(tokens, context);
-            if (!calculation_node) {{
+            if (!calculation_node.has_value()) {{
                 ErrorReporter::the().report(InvalidValueError {{
                     .value_type = "{name}()"_utf16_fly_string,
                     .value_string = stream.dump_string(),
                     .description = MUST(String::formatted("Argument #{{}} is not a valid calculation.", parsed_arguments.size())),
                 }});
-                return nullptr;
+                return {{}};
             }}
 
-            auto maybe_argument_type = calculation_node->numeric_type();
+            auto maybe_argument_type = calculation_node->determine_type(context);
             if (!maybe_argument_type.has_value()) {{
                 ErrorReporter::the().report(InvalidValueError {{
                     .value_type = "{name}()"_utf16_fly_string,
                     .value_string = stream.dump_string(),
                     .description = MUST(String::formatted("Argument #{{}} couldn't determine its type.", parsed_arguments.size())),
                 }});
-                return nullptr;
+                return {{}};
             }}
             auto argument_type = maybe_argument_type.release_value();
 
@@ -207,7 +207,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     .value_string = stream.dump_string(),
                     .description = MUST(String::formatted("Argument #{{}} type ({{}}) is not an accepted type.", parsed_arguments.size(), argument_type.dump())),
                 }});
-                return nullptr;
+                return {{}};
             }}
 
             if (!determined_argument_type.has_value()) {{
@@ -222,7 +222,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                         .value_string = stream.dump_string(),
                         .description = MUST(String::formatted("Argument #{{}} type ({{}}) doesn't match type of previous arguments ({{}}).", parsed_arguments.size(), argument_type.dump(), determined_argument_type->dump())),
                     }});
-                    return nullptr;
+                    return {{}};
                 }}
 """)
             else:
@@ -235,16 +235,16 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                         .value_string = stream.dump_string(),
                         .description = MUST(String::formatted("Argument #{{}} type ({{}}) is not consistent with type of previous arguments ({{}}).", parsed_arguments.size(), argument_type.dump(), determined_argument_type->dump())),
                     }});
-                    return nullptr;
+                    return {{}};
                 }}
 """)
             out.write(f"""
             }}
 
-            parsed_arguments.append(calculation_node.release_nonnull());
+            parsed_arguments.append(calculation_node.release_value());
         }}
 
-        return {name_titlecase}CalculationNode::create(move(parsed_arguments));
+        return CalcNodeRef::{name}(move(parsed_arguments));
     }}
 """)
 
@@ -256,7 +256,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
             if name == "random":
                 out.write("""
         if (!context_allows_random_functions())
-            return nullptr;
+            return {};
 
         m_random_function_index++;
 """)
@@ -268,7 +268,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                 .value_string = stream.dump_string(),
                 .description = MUST(String::formatted("Wrong number of arguments {{}}, expected between {min_argument_count} and {max_argument_count} inclusive.", arguments.size())),
             }});
-            return nullptr;
+            return {{}};
         }}
         size_t argument_index = 0;
         Optional<NumericType> determined_argument_type;
@@ -302,15 +302,13 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                 else:
                     # NOTE: This assumes everything not handled above is a calculation node of some kind.
                     parameter_is_calculation = True
-                    parameter_type = "RefPtr<CalculationNode const>"
+                    parameter_type = "Optional<CalcNodeRef>"
                     parse_function = f"parse_a_calculation(tokens_{parameter_index}, context)"
-                    check_function = " != nullptr"
-                    release_function = ".release_nonnull()"
+                    check_function = ".has_value()"
+                    release_function = ".release_value()"
                     default_value = parameter.get("default")
                     if default_value is not None:
-                        parameter_default = (
-                            f" = NumericCalculationNode::from_keyword(Keyword::{title_casify(default_value)}, context)"
-                        )
+                        parameter_default = f" = CalcNodeRef::from_keyword(Keyword::{title_casify(default_value)})"
                     else:
                         parameter_default = ""
 
@@ -326,7 +324,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                 .value_string = stream.dump_string(),
                 .description = "Missing required argument '{parameter_name}'."_string,
             }});
-            return nullptr;
+            return {{}};
         }} else {{
 """)
                 else:
@@ -349,7 +347,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     .value_string = stream.dump_string(),
                     .description = "Failed to parse required argument '{parameter_name}'."_string,
                 }});
-                return nullptr;
+                return {{}};
 """)
                 out.write("""
             }
@@ -360,15 +358,15 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     parameter_type_variable = f"argument_type_{parameter_index}"
                     type_check = generate_calculation_type_check(parameter_type_variable, parameter_type_string)
                     out.write(f"""
-        if (parameter_{parameter_index}) {{
-            auto maybe_argument_type_{parameter_index} = parameter_{parameter_index}->numeric_type();
+        if (parameter_{parameter_index}.has_value()) {{
+            auto maybe_argument_type_{parameter_index} = parameter_{parameter_index}->determine_type(context);
             if (!maybe_argument_type_{parameter_index}.has_value()) {{
                 ErrorReporter::the().report(InvalidValueError {{
                     .value_type = "{name}()"_utf16_fly_string,
                     .value_string = stream.dump_string(),
                     .description = "Argument '{parameter_name}' couldn't determine its type."_string,
                 }});
-                return nullptr;
+                return {{}};
             }}
             auto argument_type_{parameter_index} = maybe_argument_type_{parameter_index}.release_value();
 
@@ -378,7 +376,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                     .value_string = stream.dump_string(),
                     .description = MUST(String::formatted("Argument '{parameter_name}' type ({{}}) is not an accepted type.", argument_type_{parameter_index}.dump())),
                 }});
-                return nullptr;
+                return {{}};
             }}
 
             if (!determined_argument_type.has_value()) {{
@@ -393,7 +391,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                         .value_string = stream.dump_string(),
                         .description = MUST(String::formatted("Argument '{parameter_name}' type ({{}}) doesn't match type of previous arguments ({{}}).", argument_type_{parameter_index}.dump(), determined_argument_type->dump())),
                     }});
-                    return nullptr;
+                    return {{}};
                 }}
 """)
                     else:
@@ -406,7 +404,7 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
                         .value_string = stream.dump_string(),
                         .description = MUST(String::formatted("Argument '{parameter_name}' type ({{}}) is not consistent with type of previous arguments ({{}}).", argument_type_{parameter_index}.dump(), determined_argument_type->dump())),
                     }});
-                    return nullptr;
+                    return {{}};
                 }}
 """)
                     out.write("""
@@ -416,35 +414,31 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
 
             out.write("""
         if (argument_index < arguments.size())
-            return nullptr;
+            return {};
 """)
-            # Generate the call to the constructor
-            out.write(f"        return {name_titlecase}CalculationNode::create(")
+            # Generate the call to the CalcNodeRef factory.
+            out.write(f"        return CalcNodeRef::{name}(")
+            argument_expressions = []
             if name == "progress":
-                out.write("progress_function_no_clamp")
-                if parameters:
-                    out.write(", ")
+                argument_expressions.append("progress_function_no_clamp")
 
             for parameter_index, parameter in enumerate(parameters):
                 parameter_type_string = parameter["type"]
                 if parameter_type_string == "<rounding-strategy>":
-                    release_value = ""
+                    argument_expressions.append(f"parameter_{parameter_index}")
+                elif parameter_type_string == "<random-value-sharing>":
+                    argument_expressions.append(f"*parameter_{parameter_index}")
+                elif parameter["required"] or parameter.get("default") is not None:
+                    argument_expressions.append(f"parameter_{parameter_index}.release_value()")
                 else:
-                    if parameter["required"] or parameter.get("default") is not None:
-                        release_value = ".release_nonnull()"
-                    else:
-                        release_value = ""
-
-                if parameter_index == 0:
-                    out.write(f"parameter_{parameter_index}{release_value}")
-                else:
-                    out.write(f", parameter_{parameter_index}{release_value}")
+                    argument_expressions.append(f"move(parameter_{parameter_index})")
+            out.write(", ".join(argument_expressions))
             out.write(""");
     }
 """)
 
     out.write("""
-    return nullptr;
+    return {};
 }
 
 }

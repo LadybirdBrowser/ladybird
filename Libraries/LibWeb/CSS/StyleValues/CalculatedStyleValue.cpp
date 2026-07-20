@@ -1862,7 +1862,7 @@ CalcNodeRef CalcNodeRef::round(RoundingStrategy strategy, CalcNodeRef value, Cal
     return adopt(StyleValueFFI::rust_calc_node_create_round(to_underlying(strategy), value_handle, interval.release()));
 }
 
-CalcNodeRef CalcNodeRef::random(CalcNodeRef minimum, CalcNodeRef maximum, Optional<CalcNodeRef> step, StyleValue const& random_value_sharing)
+CalcNodeRef CalcNodeRef::random(StyleValue const& random_value_sharing, CalcNodeRef minimum, CalcNodeRef maximum, Optional<CalcNodeRef> step)
 {
     auto const* minimum_handle = minimum.release();
     auto const* maximum_handle = maximum.release();

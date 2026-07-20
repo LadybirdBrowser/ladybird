@@ -30,6 +30,7 @@
 #include <LibWeb/CSS/Parser/Types.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/StyleValues/TreeCountingFunctionStyleValue.h>
@@ -428,8 +429,8 @@ private:
     RefPtr<CustomIdentStyleValue const> parse_dashed_ident_value(TokenStream<ComponentValue>&);
     RefPtr<RandomValueSharingStyleValue const> parse_random_value_sharing(TokenStream<ComponentValue>&);
     // NOTE: Implemented in generated code. (GenerateCSSMathFunctions.cpp)
-    RefPtr<CalculationNode const> parse_math_function(Function const&, CalculationContext const&);
-    RefPtr<CalculationNode const> parse_a_calc_function_node(Function const&, CalculationContext const&);
+    Optional<CalcNodeRef> parse_math_function(Function const&, CalculationContext const&);
+    Optional<CalcNodeRef> parse_a_calc_function_node(Function const&, CalculationContext const&);
     RefPtr<StyleValue const> parse_keyword_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_specific_keyword_value(TokenStream<ComponentValue>&, ReadonlySpan<Keyword>);
     RefPtr<StyleValue const> parse_hue_none_value(TokenStream<ComponentValue>&);
@@ -613,8 +614,8 @@ private:
     ENUMERATE_GENERATED_CSS_VALUE_TYPES
 #undef __ENUMERATE_GENERATED_CSS_VALUE_TYPE
 
-    RefPtr<CalculationNode const> convert_to_calculation_node(CalcParsing::Node const&, CalculationContext const&);
-    RefPtr<CalculationNode const> parse_a_calculation(TokenStream<ComponentValue>&, CalculationContext const&);
+    Optional<CalcNodeRef> convert_to_calculation_node(CalcParsing::Node const&, CalculationContext const&);
+    Optional<CalcNodeRef> parse_a_calculation(TokenStream<ComponentValue>&, CalculationContext const&);
 
     ParseErrorOr<NonnullRefPtr<Selector>> parse_complex_selector(TokenStream<ComponentValue>&, SelectorType);
     ParseErrorOr<Selector::CompoundSelector> parse_compound_selector(TokenStream<ComponentValue>&);
