@@ -35,13 +35,13 @@ public:
 private:
     TestWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
 
-    virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation) override;
+    virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem) override;
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const override;
 
     virtual void did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot) override;
     RefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> m_pending_screenshot;
 
-    Optional<Web::Clipboard::SystemClipboardRepresentation> m_clipboard_entry;
+    Optional<Web::Clipboard::SystemClipboardItem> m_clipboard_item;
     NonnullRefPtr<TestPromise> m_test_promise;
 };
 

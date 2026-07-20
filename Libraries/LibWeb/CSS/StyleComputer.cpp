@@ -2337,7 +2337,7 @@ JsonArray StyleComputer::collect_devtools_applied_style_rules(DOM::AbstractEleme
 
 // https://www.w3.org/TR/css-cascade/#cascading
 // https://drafts.csswg.org/css-cascade-5/#layering
-NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::AbstractElement abstract_element, bool did_match_any_pseudo_element_rules, ComputeStyleMode mode, MatchingRuleSet const& matching_rule_set) const
+NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::AbstractElement abstract_element, bool did_match_any_pseudo_element_rules, ComputeStyleMode mode, MatchingRuleSet const& matching_rule_set, IncludeInlineStyle include_inline_style) const
 {
     auto cascaded_properties = CascadedProperties::create();
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
@@ -2376,6 +2376,8 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
 
     auto element_context_shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root());
     auto cascade_inline_style = [&](Important important) {
+        if (include_inline_style == IncludeInlineStyle::No)
+            return;
         cascade_declarations(cascaded_properties, abstract_element, {}, CascadeOrigin::Author, important, {}, true);
     };
 
@@ -2928,9 +2930,26 @@ NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const
 NonnullRefPtr<ComputedValues const> StyleComputer::compute_style(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
 {
     auto& style_scope = abstract_element.style_scope();
-    auto computed_properties = compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties, style_scope);
+    auto computed_properties = compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties, style_scope, IncludeInlineStyle::Yes);
     VERIFY(computed_properties);
     return build_computed_values(*computed_properties, abstract_element, style_scope);
+}
+
+NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties_without_inline_style(DOM::AbstractElement abstract_element) const
+{
+    // Computing custom properties normally caches them on the element. Preserve the real cache while asking the
+    // cascade what this element would look like without its inline declaration.
+    auto custom_property_data = abstract_element.custom_property_data();
+    auto needs_style_update = abstract_element.element().needs_style_update();
+    ScopeGuard restore_custom_property_data = [&] {
+        abstract_element.set_custom_property_data(move(custom_property_data));
+        abstract_element.element().set_needs_style_update(needs_style_update);
+    };
+
+    auto& style_scope = abstract_element.style_scope();
+    auto computed_properties = compute_style_impl(abstract_element, ComputeStyleMode::Normal, {}, style_scope, IncludeInlineStyle::No);
+    VERIFY(computed_properties);
+    return computed_properties.release_nonnull();
 }
 
 NonnullRefPtr<ComputedValues const> StyleComputer::compute_style_with_seeded_ancestors(DOM::AbstractElement abstract_element)
@@ -2956,7 +2975,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::compute_style_with_seeded_anc
 RefPtr<ComputedValues const> StyleComputer::compute_pseudo_element_style_if_needed(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
 {
     auto& style_scope = abstract_element.style_scope();
-    auto computed_properties = compute_style_impl(abstract_element, ComputeStyleMode::CreatePseudoElementStyleIfNeeded, did_change_custom_properties, style_scope);
+    auto computed_properties = compute_style_impl(abstract_element, ComputeStyleMode::CreatePseudoElementStyleIfNeeded, did_change_custom_properties, style_scope, IncludeInlineStyle::Yes);
     if (computed_properties) {
         return build_computed_values(*computed_properties, abstract_element, style_scope);
     }
@@ -3032,7 +3051,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::reconstruct_computed_properties
     return style;
 }
 
-RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElement abstract_element, ComputeStyleMode mode, Optional<bool&> did_change_custom_properties, StyleScope const& style_scope) const
+RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElement abstract_element, ComputeStyleMode mode, Optional<bool&> did_change_custom_properties, StyleScope const& style_scope, IncludeInlineStyle include_inline_style) const
 {
     style_scope.build_rule_cache_if_needed();
 
@@ -3051,7 +3070,7 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
             abstract_element_for_pseudo_element.set_inheritance_override(host_element);
 
         auto& inherited_style_scope = abstract_element_for_pseudo_element.style_scope();
-        auto inherited_pseudo_element_style = compute_style_impl(abstract_element_for_pseudo_element, ComputeStyleMode::Normal, {}, inherited_style_scope);
+        auto inherited_pseudo_element_style = compute_style_impl(abstract_element_for_pseudo_element, ComputeStyleMode::Normal, {}, inherited_style_scope, include_inline_style);
         VERIFY(inherited_pseudo_element_style);
         auto builder = ComputedProperties::create_builder_with_base_values_from(*inherited_pseudo_element_style);
 
@@ -3092,6 +3111,8 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
 
         auto element_context_shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root());
         auto cascade_inline_style = [&](Important important) {
+            if (include_inline_style == IncludeInlineStyle::No)
+                return;
             cascade_custom_properties(abstract_element, {}, cascaded_all, important, true);
         };
 
@@ -3137,7 +3158,7 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
         }
     }
 
-    auto cascaded_properties = compute_cascaded_values(abstract_element, did_match_any_pseudo_element_rules, mode, matching_rule_set);
+    auto cascaded_properties = compute_cascaded_values(abstract_element, did_match_any_pseudo_element_rules, mode, matching_rule_set, include_inline_style);
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         // Bail if no pseudo-element would be generated due to...

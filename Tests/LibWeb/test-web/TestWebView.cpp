@@ -43,16 +43,16 @@ pid_t TestWebView::web_content_pid() const
     return client().pid();
 }
 
-void TestWebView::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation entry)
+void TestWebView::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item)
 {
-    m_clipboard_entry = move(entry);
+    m_clipboard_item = move(item);
 }
 
 Vector<Web::Clipboard::SystemClipboardRepresentation> TestWebView::clipboard_entries() const
 {
-    if (!m_clipboard_entry.has_value())
+    if (!m_clipboard_item.has_value())
         return {};
-    return { *m_clipboard_entry };
+    return m_clipboard_item->system_clipboard_representations;
 }
 
 NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> TestWebView::take_screenshot()

@@ -233,25 +233,27 @@ Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_ent
     return representations;
 }
 
-void Application::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation entry)
+void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item)
 {
-    NSPasteboardType pasteboard_type = nil;
-
-    // https://w3c.github.io/clipboard-apis/#os-specific-well-known-format
-    if (entry.mime_type == "text/plain"sv)
-        pasteboard_type = NSPasteboardTypeString;
-    else if (entry.mime_type == "text/html"sv)
-        pasteboard_type = NSPasteboardTypeHTML;
-    else if (entry.mime_type == "image/png"sv)
-        pasteboard_type = NSPasteboardTypePNG;
-    else
-        return;
-
     auto* paste_board = [NSPasteboard generalPasteboard];
     [paste_board clearContents];
 
-    [paste_board setData:Ladybird::string_to_ns_data(entry.data)
-                 forType:pasteboard_type];
+    for (auto const& entry : item.system_clipboard_representations) {
+        NSPasteboardType pasteboard_type = nil;
+
+        // https://w3c.github.io/clipboard-apis/#os-specific-well-known-format
+        if (entry.mime_type == "text/plain"sv)
+            pasteboard_type = NSPasteboardTypeString;
+        else if (entry.mime_type == "text/html"sv)
+            pasteboard_type = NSPasteboardTypeHTML;
+        else if (entry.mime_type == "image/png"sv)
+            pasteboard_type = NSPasteboardTypePNG;
+        else
+            continue;
+
+        [paste_board setData:Ladybird::string_to_ns_data(entry.data)
+                     forType:pasteboard_type];
+    }
 }
 
 void Application::rebuild_bookmarks_menu() const

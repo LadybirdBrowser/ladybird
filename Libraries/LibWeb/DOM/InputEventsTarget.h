@@ -21,6 +21,10 @@ public:
     virtual GC::Ref<JS::Cell> as_cell() = 0;
 
     virtual void handle_insert(Utf16FlyString const& input_type, Utf16View) = 0;
+    virtual void handle_insert_from_clipboard(Utf16FlyString const& input_type, Utf16View plain_text, Optional<Utf16View>)
+    {
+        handle_insert(input_type, plain_text);
+    }
     virtual EventResult handle_return_key(Utf16FlyString const& input_type) = 0;
     enum class DispatchInputEvent {
         No,

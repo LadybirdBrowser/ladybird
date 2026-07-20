@@ -1230,9 +1230,9 @@ void PageClient::page_did_change_background_color(Gfx::Color color)
     client().async_did_change_background_color(m_id, color);
 }
 
-void PageClient::page_did_insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation const& entry, StringView presentation_style)
+void PageClient::page_did_insert_clipboard_item(Web::Clipboard::SystemClipboardItem const& item, StringView presentation_style)
 {
-    client().async_did_insert_clipboard_entry(m_id, entry, presentation_style);
+    client().async_did_insert_clipboard_item(m_id, item, presentation_style);
 }
 
 void PageClient::page_did_request_clipboard_entries(u64 request_id)

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="parentInput">
+<iframe id="frame" srcdoc="<input id='childInput'>"></iframe>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        const childInput = frame.contentDocument.querySelector("#childInput");
+
+        parentInput.focus();
+        childInput.addEventListener("focus", () => parentInput.focus(), { once: true });
+        childInput.focus();
+
+        internals.sendText(parentInput, "X");
+        println(`parent active: ${document.activeElement === parentInput}`);
+        println(`parent value: ${JSON.stringify(parentInput.value)}`);
+        println(`child value: ${JSON.stringify(childInput.value)}`);
+        done();
+    });
+</script>

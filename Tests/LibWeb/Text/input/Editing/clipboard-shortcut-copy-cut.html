@@ -33,11 +33,15 @@
         // A canceled copy writes the event's data to the clipboard instead (the Lexical pattern).
         editor.addEventListener("copy", e => {
             e.clipboardData.setData("text/plain", "custom payload");
+            e.clipboardData.setData("text/html", "<b>custom payload</b>");
             e.preventDefault();
         }, { once: true });
         getSelection().setBaseAndExtent(editor.firstChild, 0, editor.firstChild, 5);
         internals.sendKey(editor, "C", modCtrl);
         println(`clipboard after canceled copy: ${JSON.stringify(await readClipboard())}`);
+        internals.dispatchUserActivatedEvent(editor, new Event("mousedown"));
+        const [clipboardItem] = await navigator.clipboard.read();
+        println(`formats after canceled copy: ${JSON.stringify(clipboardItem.types)}`);
 
         for (const line of events) println(line);
         done();

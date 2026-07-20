@@ -1266,9 +1266,9 @@ void ViewImplementation::retrieved_clipboard_entries(u64 request_id, ReadonlySpa
     client().async_retrieved_clipboard_entries(page_id(), request_id, items);
 }
 
-void ViewImplementation::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation entry)
+void ViewImplementation::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item)
 {
-    Application::the().insert_clipboard_entry(move(entry));
+    Application::the().insert_clipboard_item(move(item));
 }
 
 Vector<Web::Clipboard::SystemClipboardRepresentation> ViewImplementation::clipboard_entries() const

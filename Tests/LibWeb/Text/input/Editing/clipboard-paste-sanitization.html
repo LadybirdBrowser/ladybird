@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true">ab</div>
+<script>
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const selection = getSelection();
+
+        editor.addEventListener("copy", event => {
+            event.clipboardData.setData("text/plain", "plain fallback");
+            event.clipboardData.setData("text/html", `<b id="safe" style="color: red" onclick="globalThis.executed = true">safe</b><script>globalThis.executed = true;<\/script><iframe srcdoc="<script>parent.executed = true;<\/script>"></iframe><a id="link" href="javascript:globalThis.executed = true">link</a><img id="image" src="../Screenshot/data/smiley.png" onerror="globalThis.executed = true"><style>#editor { display: none; }</style>`);
+            event.preventDefault();
+        }, { once: true });
+
+        globalThis.executed = false;
+        selection.setBaseAndExtent(editor.firstChild, 0, editor.firstChild, 1);
+        internals.sendKey(editor, "C", platformControl);
+        internals.dispatchUserActivatedEvent(editor, new Event("mousedown"));
+        await navigator.clipboard.read();
+
+        selection.collapse(editor.firstChild, 1);
+        const pasteInput = new Promise(resolve => editor.addEventListener("input", resolve, { once: true }));
+        internals.sendKey(editor, "V", platformControl);
+        await pasteInput;
+
+        println(`text: ${JSON.stringify(editor.textContent)}`);
+        println(`active elements: ${editor.querySelectorAll("script, iframe, object, embed, style, link, meta, template").length}`);
+        println(`event attributes: ${editor.querySelectorAll("[onclick], [onerror]").length}`);
+        println(`link href: ${JSON.stringify(editor.querySelector("#link").getAttribute("href"))}`);
+        println(`image src: ${JSON.stringify(editor.querySelector("#image").getAttribute("src"))}`);
+        println(`inline style: ${JSON.stringify(editor.querySelector("#safe").getAttribute("style"))}`);
+        println(`script ran: ${globalThis.executed}`);
+
+        internals.sendKey(editor, "Z", platformControl);
+        println(`undo DOM: ${editor.innerHTML}`);
+        internals.sendKey(editor, "Z", platformControlShift);
+        println(`redo active content: ${editor.querySelectorAll("script, iframe, object, embed, style, link, meta, template, [onclick], [onerror], [href^='javascript:']").length}`);
+        done();
+    });
+</script>

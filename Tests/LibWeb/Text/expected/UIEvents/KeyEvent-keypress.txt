@@ -10,5 +10,7 @@ keydown key=Enter charCode=0 modifiers=Control
 keypress key=Enter charCode=0 modifiers=Control
 keydown key=Enter charCode=0 modifiers=Shift
 keypress key=Enter charCode=0 modifiers=Shift
+keydown key=Enter charCode=0 modifiers=Meta
 keydown key=Enter charCode=0
-keydown key=Enter charCode=0
+keydown key=c charCode=0 modifiers=Control
+keydown key=v charCode=0 modifiers=Meta

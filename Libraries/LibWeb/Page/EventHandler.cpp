@@ -333,7 +333,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     if (dispath_result.has_value())
         return *dispath_result;
 
-    m_navigable->page().set_focused_navigable({}, m_navigable);
+    m_navigable->page().set_focused_navigable(m_navigable);
 
     // NB: Search for the first parent of the hit target that's an element.
     //
@@ -1081,7 +1081,8 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     // AD-HOC: For web compat and for interop with other engines, we make an exception here for the Enter key. See:
     //         https://github.com/w3c/uievents/issues/183#issuecomment-448091687 and
     //         https://github.com/w3c/uievents/issues/266#issuecomment-1887917756
-    if (produces_character_value(code_point) || is_enter_key_or_interoperable_enter_key_combo(key, modifiers)) {
+    if ((produces_character_value(code_point) && !should_ignore_keydown_event(code_point, modifiers, should_insert_text))
+        || is_enter_key_or_interoperable_enter_key_combo(key, modifiers)) {
         dispatch_result = fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point, repeat);
         if (dispatch_result != EventResult::Accepted)
             return dispatch_result;
@@ -1486,15 +1487,19 @@ static bool fire_clipboard_event(DOM::Document& document, Utf16FlyString const& 
 }
 
 // https://w3c.github.io/clipboard-apis/#write-content-to-the-clipboard
-// AD-HOC: Our system clipboard interface carries a single representation, so this writes the plain text one.
 static void write_data_transfer_to_clipboard(DOM::Document& document, HTML::DragDataStore const& data_store)
 {
+    Vector<Clipboard::SystemClipboardRepresentation> representations;
     for (auto const& item : data_store.item_list()) {
-        if (item.kind == HTML::DragDataStoreItem::Kind::Text && item.type_string == u"text/plain"sv) {
-            document.page().client().page_did_insert_clipboard_entry({ item.data.to_byte_string(), "text/plain"_string }, "unspecified"sv);
-            return;
-        }
+        if (item.kind != HTML::DragDataStoreItem::Kind::Text)
+            continue;
+        if (item.type_string != u"text/plain"sv && item.type_string != u"text/html"sv)
+            continue;
+        auto mime_type = item.type_string == u"text/plain"sv ? "text/plain"_string : "text/html"_string;
+        representations.empend(item.data.to_byte_string(), move(mime_type));
     }
+    if (!representations.is_empty())
+        document.page().client().page_did_insert_clipboard_item({ move(representations) }, "unspecified"sv);
 }
 
 // https://w3c.github.io/clipboard-apis/#the-copy-action
@@ -1516,9 +1521,15 @@ EventResult EventHandler::perform_copy_action()
     if (event_was_not_canceled) {
         // 1. Copy the selected contents, if any, to the clipboard. Implementations should create alternate text/html
         //    and text/plain clipboard formats when content in a web page is selected.
-        // FIXME: Also create a text/html representation of the selection.
-        if (auto text = m_navigable->selected_text(); !text.is_empty())
-            document->page().client().page_did_insert_clipboard_entry({ text.to_byte_string(), "text/plain"_string }, "unspecified"sv);
+        auto text = m_navigable->selected_text();
+        auto html = m_navigable->selected_html_for_clipboard();
+        Vector<Clipboard::SystemClipboardRepresentation> representations;
+        if (!html.is_empty())
+            representations.empend(html.to_byte_string(), "text/html"_string);
+        if (!text.is_empty())
+            representations.empend(text.to_byte_string(), "text/plain"_string);
+        if (!representations.is_empty())
+            document->page().client().page_did_insert_clipboard_item({ move(representations) }, "unspecified"sv);
 
         // FIXME: 2. Fire a clipboard event named clipboardchange.
     }
@@ -1553,10 +1564,16 @@ EventResult EventHandler::perform_cut_action()
         // 1. If there is a selection in an editable context where cutting is enabled, then:
         if (auto* target = document->active_input_events_target()) {
             auto text = m_navigable->selected_text();
-            if (!text.is_empty()) {
+            auto html = m_navigable->selected_html_for_clipboard();
+            if (!text.is_empty() || !html.is_empty()) {
                 // 1. Copy the selected contents, if any, to the clipboard. Implementations should create alternate
                 //    text/html and text/plain clipboard formats when content in a web page is selected.
-                document->page().client().page_did_insert_clipboard_entry({ text.to_byte_string(), "text/plain"_string }, "unspecified"sv);
+                Vector<Clipboard::SystemClipboardRepresentation> representations;
+                if (!html.is_empty())
+                    representations.empend(html.to_byte_string(), "text/html"_string);
+                if (!text.is_empty())
+                    representations.empend(text.to_byte_string(), "text/plain"_string);
+                document->page().client().page_did_insert_clipboard_item({ move(representations) }, "unspecified"sv);
 
                 // 2. Remove the contents of the selection from the document and collapse the selection.
                 // 4. Queue tasks to fire any events that should fire due to the modification.
@@ -1595,16 +1612,21 @@ EventResult EventHandler::perform_paste_action()
         if (!items.is_empty()) {
             for (auto const& representation : items.first().system_clipboard_representations) {
                 // NB: The clipboard representation's type may carry parameters, e.g. "text/plain;charset=utf-8".
-                if (representation.mime_type == "text/plain"sv || representation.mime_type.starts_with_bytes("text/plain;"sv)) {
-                    data_store->add_item({
-                        .kind = HTML::DragDataStoreItem::Kind::Text,
-                        .type_string = "text/plain"_utf16_fly_string,
-                        .data = Utf16String::from_utf8_with_replacement_character(representation.data),
-                        .file_data = {},
-                        .file_name = {},
-                    });
-                    break;
-                }
+                Utf16FlyString type;
+                if (representation.mime_type == "text/plain"sv || representation.mime_type.starts_with_bytes("text/plain;"sv))
+                    type = "text/plain"_utf16_fly_string;
+                else if (representation.mime_type == "text/html"sv || representation.mime_type.starts_with_bytes("text/html;"sv))
+                    type = "text/html"_utf16_fly_string;
+                else
+                    continue;
+
+                data_store->add_item({
+                    .kind = HTML::DragDataStoreItem::Kind::Text,
+                    .type_string = move(type),
+                    .data = Utf16String::from_utf8_with_replacement_character(representation.data),
+                    .file_data = {},
+                    .file_name = {},
+                });
             }
         }
         data_store->set_mode(HTML::DragDataStore::Mode::ReadOnly);
@@ -1617,20 +1639,25 @@ EventResult EventHandler::perform_paste_action()
         // 3. If the event was not canceled, then: if there is a selection or cursor in an editable context where
         //    pasting is enabled, insert the most suitable content found on the clipboard, if any, into the context.
         if (event_was_not_canceled) {
+            Optional<Utf16View> html;
+            Utf16View plain_text;
             for (auto const& item : data_store->item_list()) {
-                if (item.kind == HTML::DragDataStoreItem::Kind::Text && item.type_string == u"text/plain"sv) {
-                    if (auto navigable = document->navigable())
-                        navigable->event_handler().handle_paste(item.data);
-                    break;
-                }
+                if (item.kind != HTML::DragDataStoreItem::Kind::Text)
+                    continue;
+                if (item.type_string == u"text/html"sv)
+                    html = item.data;
+                else if (item.type_string == u"text/plain"sv)
+                    plain_text = item.data;
             }
+            if (auto navigable = document->navigable(); html.has_value() || !plain_text.is_empty())
+                navigable->event_handler().handle_paste(plain_text, html);
         }
     }));
 
     return EventResult::Handled;
 }
 
-EventResult EventHandler::handle_paste(Utf16View text)
+EventResult EventHandler::handle_paste(Utf16View plain_text, Optional<Utf16View> html)
 {
     auto active_document = m_navigable->active_document();
     if (!active_document)
@@ -1644,10 +1671,10 @@ EventResult EventHandler::handle_paste(Utf16View text)
 
     // Clipboard text can contain CRLF or lone CR line breaks (e.g. from the system clipboard); normalize them to
     // newlines like other browsers, so that no raw carriage returns end up in the document.
-    auto normalized_text = Infra::normalize_newlines(text);
+    auto normalized_text = Infra::normalize_newlines(plain_text);
 
     FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertFromPaste, m_navigable, normalized_text));
-    target->handle_insert(UIEvents::InputTypes::insertFromPaste, normalized_text);
+    target->handle_insert_from_clipboard(UIEvents::InputTypes::insertFromPaste, normalized_text, html);
 
     return EventResult::Handled;
 }

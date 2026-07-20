@@ -1613,16 +1613,22 @@ Utf16String Application::clipboard_text(ClipboardType) const
 {
     if (!m_clipboard.has_value())
         return {};
-    if (m_clipboard->mime_type != "text/plain"sv)
-        return {};
-    return Utf16String::from_utf8(m_clipboard->data);
+    for (auto const& representation : m_clipboard->system_clipboard_representations) {
+        if (representation.mime_type == "text/plain"sv)
+            return Utf16String::from_utf8(representation.data);
+    }
+    return {};
 }
 
 void Application::set_clipboard_text(String text, ClipboardType)
 {
-    m_clipboard = Web::Clipboard::SystemClipboardRepresentation {
-        .data = text.to_byte_string(),
-        .mime_type = "text/plain"_string,
+    m_clipboard = Web::Clipboard::SystemClipboardItem {
+        .system_clipboard_representations = {
+            {
+                .data = text.to_byte_string(),
+                .mime_type = "text/plain"_string,
+            },
+        },
     };
 }
 
@@ -1630,12 +1636,17 @@ Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_ent
 {
     if (!m_clipboard.has_value())
         return {};
-    return { *m_clipboard };
+    return m_clipboard->system_clipboard_representations;
+}
+
+void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item)
+{
+    m_clipboard = move(item);
 }
 
 void Application::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation entry)
 {
-    m_clipboard = move(entry);
+    insert_clipboard_item({ { move(entry) } });
 }
 
 NonnullRefPtr<Core::Promise<Application::BrowsingDataSizes>> Application::estimate_browsing_data_size_accessed_since(UnixDateTime since)

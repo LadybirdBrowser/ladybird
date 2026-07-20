@@ -3,6 +3,7 @@ editor text after copy: "hello world"
 clipboard after cut: " world"
 editor text after cut: "hello"
 clipboard after canceled copy: "custom payload"
+formats after canceled copy: ["text/plain","text/html"]
 copy(cancelable=true composed=true data="")
 cut(cancelable=true composed=true data="")
 copy(cancelable=true composed=true data="")

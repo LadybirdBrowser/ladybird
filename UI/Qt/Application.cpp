@@ -825,15 +825,16 @@ Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_ent
     return representations;
 }
 
-void Application::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation entry)
+void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item)
 {
     if (browser_options().headless_mode.has_value()) {
-        WebView::Application::insert_clipboard_entry(move(entry));
+        WebView::Application::insert_clipboard_item(move(item));
         return;
     }
 
     auto* mime_data = new QMimeData();
-    mime_data->setData(qstring_from_ak_string(entry.mime_type), qbytearray_from_ak_string(entry.data));
+    for (auto const& entry : item.system_clipboard_representations)
+        mime_data->setData(qstring_from_ak_string(entry.mime_type), qbytearray_from_ak_string(entry.data));
 
     auto* clipboard = QGuiApplication::clipboard();
     clipboard->setMimeData(mime_data);

@@ -5,6 +5,7 @@
  */
 
 #include <AK/Utf16StringBuilder.h>
+#include <LibGC/RootVector.h>
 #include <LibGfx/Color.h>
 #include <LibWeb/Bindings/Document.h>
 #include <LibWeb/CSS/CascadedProperties.h>
@@ -21,11 +22,13 @@
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ElementFactory.h>
+#include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/CommandNames.h>
 #include <LibWeb/Editing/Commands.h>
 #include <LibWeb/Editing/EditCommand.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
+#include <LibWeb/Editing/MutationTrackedRange.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLDivElement.h>
@@ -42,6 +45,7 @@
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Selection/CaretNavigation.h>
 
 namespace Web::Editing {
 
@@ -275,6 +279,31 @@ GC::Ptr<DOM::Node> block_node_of_node(GC::Ref<DOM::Node> input_node)
     return node;
 }
 
+bool editing_ignores_content(DOM::Node const& node)
+{
+    // INTEROP: Blink and WebKit distinguish nodes whose descendants participate in editing from atomic content by
+    //          querying the DOM node, not its renderer. In Ladybird, HTML void elements are the nodes which cannot
+    //          contain an editing boundary. Keeping this independent of layout also makes it safe during mutation.
+    auto const* element = as_if<DOM::Element>(node);
+    return element && element->is_void_element();
+}
+
+DOM::BoundaryPoint end_boundary_of_node(GC::Ref<DOM::Node> node)
+{
+    // INTEROP: Editing endpoints are inside text, before a trailing placeholder br, and after atomic content. A raw
+    //          deepest-last-descendant walk would instead place the selection inside void elements or after the br.
+    if (auto* text = as_if<DOM::Text>(*node))
+        return { *text, text->length_in_utf16_code_units() };
+    if (auto* last_child = node->last_child()) {
+        if (is<HTML::HTMLBRElement>(*last_child))
+            return { node, static_cast<WebIDL::UnsignedLong>(last_child->index()) };
+        return end_boundary_of_node(*last_child);
+    }
+    if (editing_ignores_content(node) && !is<HTML::HTMLBRElement>(*node) && node->parent())
+        return { *node->parent(), static_cast<WebIDL::UnsignedLong>(node->index() + 1) };
+    return { node, 0 };
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#canonical-space-sequence
 Utf16String canonical_space_sequence(size_t length, bool non_breaking_start, bool non_breaking_end)
 {
@@ -352,8 +381,35 @@ Utf16String canonical_space_sequence(size_t length, bool non_breaking_start, boo
     return buffer.to_string();
 }
 
+// INTEROP: Chromium canonicalizes caret positions for editing into the nearest equivalent text position. An
+//          element-level caret descends into adjacent editable leaf content, preferring the end of what comes before
+//          it and then the start of what comes after it. Commands use the canonical point both between editing phases
+//          and when recording their final selection in the editing history.
+void canonicalize_collapsed_selection_for_editing(Selection& selection)
+{
+    auto range = selection.range();
+    if (!range || !selection.is_collapsed())
+        return;
+
+    Web::Selection::CaretNavigator navigator(selection.document());
+    auto canonical_location = navigator.canonical_location_for_editing({ range->start_container(), range->start_offset(), selection.focus_affinity() });
+    if (canonical_location.node != range->start_container() || canonical_location.offset != range->start_offset())
+        MUST(selection.collapse(canonical_location.node, canonical_location.offset));
+}
+
+enum class PreserveLeadingSpaceAcrossNodeBoundary {
+    No,
+    Yes,
+};
+
+enum class AtomicContentTraversal {
+    Cross,
+    Stop,
+};
+
 // https://w3c.github.io/editing/docs/execCommand/#canonicalize-whitespace
-void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_space)
+static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_collapsed_space,
+    PreserveLeadingSpaceAcrossNodeBoundary preserve_leading_space, AtomicContentTraversal atomic_content_traversal)
 {
     auto node = boundary.node;
     auto offset = boundary.offset;
@@ -372,6 +428,8 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
         //    set start node to that child, then set start offset to start node's length.
         auto* offset_minus_one_child = start_node->child_at_index(start_offset - 1);
         if (offset_minus_one_child && is_in_same_editing_host(*start_node, *offset_minus_one_child)) {
+            if (atomic_content_traversal == AtomicContentTraversal::Stop && editing_ignores_content(*offset_minus_one_child))
+                break;
             start_node = *offset_minus_one_child;
             start_offset = start_node->length();
             continue;
@@ -424,6 +482,8 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
         //    to that child, then set end offset to zero.
         auto* offset_child = end_node->child_at_index(end_offset);
         if (offset_child && is_in_same_editing_host(*end_node, *offset_child)) {
+            if (atomic_content_traversal == AtomicContentTraversal::Stop && editing_ignores_content(*offset_child))
+                break;
             end_node = *offset_child;
             end_offset = 0;
             continue;
@@ -535,9 +595,14 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
     //    precedes a line break, and false otherwise.
     // AD-HOC: Other browsers' behavior here is to set non_breaking_start to true if length > 1, so we add that
     //         condition as well.
+    // INTEROP: After deleting a selection, Chromium preserves a whitespace run that crosses an inline node boundary.
+    // This matters when replacing content across wrappers or atomic inline content, where an ordinary leading space
+    // would otherwise collapse against the preceding run. Ordinary insertion across the same boundary keeps the space.
+    auto non_breaking_start = (start_offset == 0 && follows_a_line_break(start_node))
+        || (preserve_leading_space == PreserveLeadingSpaceAcrossNodeBoundary::Yes && start_node != end_node);
     auto replacement_whitespace = canonical_space_sequence(
         length,
-        (start_offset == 0 && follows_a_line_break(start_node)) || length > 1,
+        non_breaking_start || length > 1,
         end_offset == end_node->length() && precedes_a_line_break(end_node));
     auto replacement_whitespace_view = replacement_whitespace.utf16_view();
 
@@ -585,6 +650,27 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
             ++start_offset;
         }
     }
+}
+
+void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_space)
+{
+    canonicalize_whitespace_impl(boundary, fix_collapsed_space, PreserveLeadingSpaceAcrossNodeBoundary::No, AtomicContentTraversal::Cross);
+}
+
+void canonicalize_whitespace_after_selection_replacement(DOM::BoundaryPoint boundary)
+{
+    // INTEROP: Chromium preserves a leading collapsible space when replacing a selection exposes it across an
+    //          inline node boundary. The execCommand draft does not distinguish this case from ordinary insertion.
+    canonicalize_whitespace_impl(boundary, false, PreserveLeadingSpaceAcrossNodeBoundary::Yes, AtomicContentTraversal::Cross);
+}
+
+void canonicalize_whitespace_after_node_insertion(DOM::BoundaryPoint boundary)
+{
+    // INTEROP: Inserting an inline node can strand a collapsible space at the new node boundary. Chromium preserves
+    //          that space with the same non-breaking-space canonicalization used after replacing a selection.
+    // Clipboard serialization has already protected whitespace adjacent to atomic content. Normalize the insertion
+    // seam up to that content, but do not rewrite a separate whitespace seam on its other side.
+    canonicalize_whitespace_impl(boundary, false, PreserveLeadingSpaceAcrossNodeBoundary::Yes, AtomicContentTraversal::Stop);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#clear-the-value
@@ -2823,15 +2909,36 @@ void move_node_preserving_ranges(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> new
     // (if any), then insert it in the new location. In doing so, follow these rules instead of
     // those defined by the insert and remove algorithms:
 
-    // AD-HOC: We implement this spec by taking note of the current active range (if any), performing the remove and
-    //         insertion of node, and then restoring the range after performing any necessary adjustments.
-    Optional<DOM::BoundaryPoint> start;
-    Optional<DOM::BoundaryPoint> end;
-
-    auto range = active_range(node->document());
-    if (range) {
-        start = range->start();
-        end = range->end();
+    // Preserve the active selection range and internal mutation-tracked ranges. Script-created ranges retain the DOM
+    // remove-and-insert behavior exposed by other engines. Root both the selected ranges and their boundary containers
+    // because removing the subtree can trigger garbage collection before the ranges are restored.
+    GC::RootVector<GC::Ref<DOM::Range>> ranges;
+    GC::RootVector<GC::Ref<DOM::Node>> start_nodes;
+    GC::RootVector<GC::Ref<DOM::Node>> end_nodes;
+    Vector<WebIDL::UnsignedLong> start_offsets;
+    Vector<WebIDL::UnsignedLong> end_offsets;
+    auto preserve_range = [&](DOM::Range& range) {
+        if (&range.start_container()->document() != &node->document())
+            return;
+        ranges.append(range);
+        start_nodes.append(range.start_container());
+        start_offsets.append(range.start_offset());
+        end_nodes.append(range.end_container());
+        end_offsets.append(range.end_offset());
+    };
+    if (auto range = active_range(node->document()))
+        preserve_range(*range);
+    for (auto* range : MutationTrackedRange::ranges()) {
+        bool already_preserved = false;
+        for (auto const& preserved_range : ranges) {
+            if (preserved_range.ptr() == range) {
+                already_preserved = true;
+                break;
+            }
+        }
+        if (already_preserved)
+            continue;
+        preserve_range(*range);
     }
 
     // 1. Let node be the moved node, old parent and old index be the old parent (which may be null)
@@ -2844,42 +2951,45 @@ void move_node_preserving_ranges(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> new
     auto* new_next_sibling = new_parent->child_at_index(new_index);
     insert_node_before(node, *new_parent, new_next_sibling);
 
-    // AD-HOC: Return early if there was no active range
-    if (!range)
-        return;
+    for (size_t index = 0; index < ranges.size(); ++index) {
+        DOM::BoundaryPoint start { start_nodes[index], start_offsets[index] };
+        DOM::BoundaryPoint end { end_nodes[index], end_offsets[index] };
 
-    // 2. If a boundary point's node is the same as or a descendant of node, leave it unchanged, so
-    //    it moves to the new location.
-    // NOTE: This step exists for completeness.
+        auto adjust_boundary = [&](DOM::BoundaryPoint& boundary) {
+            // 2. If a boundary point's node is the same as or a descendant of node, leave it unchanged, so it moves
+            //    to the new location.
 
-    // 3. If a boundary point's node is new parent and its offset is greater than new index, add one
-    //    to its offset.
-    if (start->node == new_parent && start->offset > new_index)
-        start->offset++;
-    if (end->node == new_parent && end->offset > new_index)
-        end->offset++;
+            // 3. If a boundary point's node is new parent and its offset is greater than new index, add one to its
+            //    offset.
+            if (boundary.node == new_parent && boundary.offset > new_index)
+                ++boundary.offset;
 
-    // 4. If a boundary point's node is old parent and its offset is old index or old index + 1, set
-    //    its node to new parent and add new index − old index to its offset.
-    if (start->node == old_parent && (start->offset == old_index || start->offset == old_index + 1)) {
-        start->node = new_parent;
-        start->offset += new_index - old_index;
+            // 4. If a boundary point's node is old parent and its offset is old index or old index + 1, set its node
+            //    to new parent and preserve its position relative to the moved node.
+            if (boundary.node == old_parent && (boundary.offset == old_index || boundary.offset == old_index + 1)) {
+                boundary.node = new_parent;
+                boundary.offset = new_index + (boundary.offset - old_index);
+            }
+
+            // 5. If a boundary point's node is old parent and its offset is greater than old index + 1, subtract one
+            //    from its offset.
+            if (boundary.node == old_parent && boundary.offset > old_index + 1)
+                --boundary.offset;
+        };
+        adjust_boundary(start);
+        adjust_boundary(end);
+
+        MUST(ranges[index]->set_start(start.node, start.offset));
+        MUST(ranges[index]->set_end(end.node, end.offset));
     }
-    if (end->node == old_parent && (end->offset == old_index || end->offset == old_index + 1)) {
-        end->node = new_parent;
-        end->offset += new_index - old_index;
-    }
+}
 
-    // 5. If a boundary point's node is old parent and its offset is greater than old index + 1,
-    //    subtract one from its offset.
-    if (start->node == old_parent && start->offset > old_index + 1)
-        start->offset--;
-    if (end->node == old_parent && end->offset > old_index + 1)
-        end->offset--;
-
-    // AD-HOC: Set the new active range
-    MUST(range->set_start(start->node, start->offset));
-    MUST(range->set_end(end->node, end->offset));
+void unwrap_node_preserving_ranges(GC::Ref<DOM::Node> node)
+{
+    auto parent = GC::Ref { *node->parent() };
+    while (node->first_child())
+        move_node_preserving_ranges(*node->first_child(), parent, node->index());
+    remove_node(node);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#next-equivalent-point
@@ -4021,7 +4131,7 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
     // 7. If the first child of original parent is not in node list:
     if (!first_child_in_nodes_list) {
         // 1. Let cloned parent be the result of calling cloneNode(false) on original parent.
-        auto cloned_parent = MUST(original_parent->clone_node(nullptr, false));
+        auto cloned_parent = MUST(clone_node_for_editing(original_parent, false));
 
         // 2. If original parent has an id attribute, unset it.
         auto& original_parent_element = static_cast<DOM::Element&>(*original_parent);
@@ -4030,6 +4140,7 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
 
         // 3. Insert cloned parent into the parent of original parent immediately before original parent.
         insert_node_before(cloned_parent, *original_parent->parent(), original_parent);
+        original_parent_index = original_parent->index();
 
         // 4. While the previousSibling of the first member of node list is not null, append the first child of original
         //    parent as the last child of cloned parent, preserving ranges.

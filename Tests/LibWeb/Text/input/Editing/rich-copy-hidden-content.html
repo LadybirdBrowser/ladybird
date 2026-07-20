@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const host = document.createElement("div");
+        host.contentEditable = "true";
+        host.innerHTML = `<div>visible<span style="display:none">secret <b>nested</b></span><span style="display:contents"><i>shown</i></span> tail</div>`;
+        document.body.appendChild(host);
+        host.focus();
+
+        getSelection().selectAllChildren(host);
+        internals.sendKey(host, "C", platformControl);
+
+        const pasteEvent = new Promise(resolve => host.addEventListener("paste", event => {
+            event.preventDefault();
+            const plainText = event.clipboardData.getData("text/plain");
+            const styledMarkup = event.clipboardData.getData("text/html");
+            println(plainText === "visibleshown tail" ? "PASS: plain text omits hidden content" : `FAIL: plain text: ${plainText}`);
+            println(!styledMarkup.includes("secret") && !styledMarkup.includes("nested")
+                ? "PASS: styled markup omits hidden subtree"
+                : `FAIL: styled markup contains hidden subtree: ${styledMarkup}`);
+            println(styledMarkup.includes("visible") && styledMarkup.includes("<i>shown</i>") && styledMarkup.includes("tail")
+                ? "PASS: styled markup retains rendered content"
+                : `FAIL: styled markup lost rendered content: ${styledMarkup}`);
+            println(styledMarkup.includes("display:contents") || styledMarkup.includes("display: contents")
+                ? "PASS: styled markup retains display-contents wrapper"
+                : `FAIL: styled markup lost display-contents wrapper: ${styledMarkup}`);
+            resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await pasteEvent;
+        done();
+    });
+</script>

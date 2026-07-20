@@ -5,7 +5,7 @@
     test(() => {
         let input = document.getElementById("input");
 
-        const modifierKeys = ['Alt', 'Control', 'Shift', 'Super', 'NumLock'];
+        const modifierKeys = ['Alt', 'Control', 'Shift', 'Meta', 'NumLock'];
         input.addEventListener("keydown", e => {
             const activeModifiers = modifierKeys.filter(modifier => e.getModifierState(modifier));
             if (activeModifiers.length > 0) {
@@ -39,5 +39,11 @@
         internals.sendKey(input, "Return", modifiers);
         modifiers = 1 << 4; // Mod_Keypad
         internals.sendKey(input, "Return", modifiers);
+
+        // Platform-modified character shortcuts do not produce a legacy keypress event.
+        modifiers = 1 << 1; // Mod_Ctrl
+        internals.sendKey(input, "C", modifiers);
+        modifiers = 1 << 3; // Mod_Super
+        internals.sendKey(input, "V", modifiers);
     });
 </script>

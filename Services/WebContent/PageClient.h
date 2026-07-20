@@ -263,7 +263,7 @@ private:
     virtual void page_did_set_device_pixel_ratio_for_testing(double ratio) override;
     virtual void page_did_change_theme_color(Gfx::Color color) override;
     virtual void page_did_change_background_color(Gfx::Color color) override;
-    virtual void page_did_insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation const&, StringView presentation_style) override;
+    virtual void page_did_insert_clipboard_item(Web::Clipboard::SystemClipboardItem const&, StringView presentation_style) override;
     virtual void page_did_request_clipboard_entries(u64 request_id) override;
     virtual void page_did_request_primary_paste() override;
     virtual void page_did_update_primary_selection(Utf16String const&) override;

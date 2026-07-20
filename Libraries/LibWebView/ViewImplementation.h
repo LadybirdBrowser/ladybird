@@ -419,7 +419,7 @@ public:
 
 protected:
     HistoryTraversalOutcome start_history_traversal(HistoryTraversalDecision);
-    virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation);
+    virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem);
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const;
 
     virtual bool defer_backing_store_release(i32) { return false; }

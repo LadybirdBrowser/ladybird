@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../../Text/input/include.js"></script>
+<div id="host"><img alt="image"></div>
+<script>
+    asyncTest(async done => {
+        host.offsetWidth;
+        host.textContent = "";
+
+        // Allow mutation records and other temporary DOM roots to be released while the old layout subtree is still
+        // pending removal. Its image box must keep the disconnected element alive until layout-tree detachment runs.
+        await Promise.resolve();
+        internals.gc();
+        document.body.offsetWidth;
+        done();
+    });
+</script>

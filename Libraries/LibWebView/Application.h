@@ -198,7 +198,8 @@ public:
     virtual void set_clipboard_text(String, ClipboardType = ClipboardType::Text);
 
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const;
-    virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation);
+    virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem);
+    void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation);
 
     struct BrowsingDataSizes {
         u64 cache_size_since_requested_time { 0 };
@@ -489,7 +490,7 @@ private:
     StringView m_user_agent_string;
     StringView m_navigator_compatibility_mode;
 
-    Optional<Web::Clipboard::SystemClipboardRepresentation> m_clipboard;
+    Optional<Web::Clipboard::SystemClipboardItem> m_clipboard;
 
     FileDownloader m_file_downloader;
 

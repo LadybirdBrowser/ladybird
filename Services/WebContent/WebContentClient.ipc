@@ -174,7 +174,7 @@ endpoint WebContentClient
     did_change_theme_color(u64 page_id, Gfx::Color color) =|
     did_change_background_color(u64 page_id, Gfx::Color color) =|
 
-    did_insert_clipboard_entry(u64 page_id, Web::Clipboard::SystemClipboardRepresentation entry, String presentation_style) =|
+    did_insert_clipboard_item(u64 page_id, Web::Clipboard::SystemClipboardItem item, String presentation_style) =|
     did_request_clipboard_entries(u64 page_id, u64 request_id) =|
     did_request_primary_paste(u64 page_id) =|
     did_update_primary_selection(u64 page_id, String text) =|

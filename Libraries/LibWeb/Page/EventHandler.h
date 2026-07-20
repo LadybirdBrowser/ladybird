@@ -59,7 +59,7 @@ public:
 
     EventResult handle_drag_and_drop_event(DragEvent::Type, CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
     EventResult handle_pinch_event(CSSPixelPoint, unsigned modifiers, double scale_delta);
-    EventResult handle_paste(Utf16View text);
+    EventResult handle_paste(Utf16View plain_text, Optional<Utf16View> html);
     void handle_sdl_input_events();
 
     void process_auto_scroll();

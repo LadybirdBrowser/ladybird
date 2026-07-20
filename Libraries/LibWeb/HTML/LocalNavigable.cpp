@@ -13,7 +13,9 @@
 #include <LibCore/Timer.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
+#include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/Compositor/CompositorHost.h>
@@ -23,13 +25,17 @@
 #include <LibWeb/ContentSecurityPolicy/Violation.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/DocumentLoading.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/ClipboardSerializer.h>
 #include <LibWeb/Editing/EditingHistory.h>
+#include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -62,6 +68,7 @@
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -3914,100 +3921,11 @@ bool LocalNavigable::is_focused() const
 {
     if (!m_page->client().has_focus())
         return false;
+
+    // A top-level traversable retains system focus while the focus chain descends into a child navigable.
+    if (is_traversable())
+        return true;
     return &m_page->focused_navigable() == this;
-}
-
-namespace {
-
-struct RequiredLineBreakCount {
-    int count { 0 };
-};
-
-// Range-clipped variant of the HTML rendered-text collection steps — to serialize a selection for the clipboard. This
-// skips nodes with no layout box, and skips user-select:none content, and inserts line breaks at block boundaries.
-void collect_clipboard_text(DOM::Node const& node, DOM::Range const& range, Vector<Variant<Utf16String, RequiredLineBreakCount>>& items)
-{
-    if (!range.intersects_node(const_cast<DOM::Node&>(node)))
-        return;
-
-    node.for_each_child([&](DOM::Node const& child) {
-        collect_clipboard_text(child, range, items);
-        return IterationDecision::Continue;
-    });
-
-    auto const* layout_node = node.layout_node();
-    if (!layout_node)
-        return;
-
-    if (auto const* text = as_if<DOM::Text>(node)) {
-        if (layout_node->user_select_used_value() == CSS::UserSelect::None)
-            return;
-        Utf16String data;
-        if (&node == range.start_container().ptr() && &node == range.end_container().ptr())
-            data = MUST(text->substring_data(range.start_offset(), range.end_offset() - range.start_offset()));
-        else if (&node == range.start_container().ptr())
-            data = MUST(text->substring_data(range.start_offset(), text->length_in_utf16_code_units() - range.start_offset()));
-        else if (&node == range.end_container().ptr())
-            data = MUST(text->substring_data(0, range.end_offset()));
-        else
-            data = text->data();
-        items.append(move(data));
-        return;
-    }
-
-    if (is<HTMLBRElement>(node)) {
-        items.append("\n"_utf16);
-        return;
-    }
-
-    auto display = as<Layout::NodeWithStyle>(*layout_node).display();
-    if (display.is_table_cell() && node.next_sibling())
-        items.append("\t"_utf16);
-    if (display.is_table_row() && node.next_sibling())
-        items.append("\n"_utf16);
-
-    if (is<HTMLParagraphElement>(node)) {
-        items.prepend(RequiredLineBreakCount { 2 });
-        items.append(RequiredLineBreakCount { 2 });
-    } else if (display.is_block_outside() || display.is_table_caption()) {
-        items.prepend(RequiredLineBreakCount { 1 });
-        items.append(RequiredLineBreakCount { 1 });
-    }
-}
-
-}
-
-static Utf16String visible_text_in_range(DOM::Range const& range)
-{
-    Vector<Variant<Utf16String, RequiredLineBreakCount>> items;
-    collect_clipboard_text(range.common_ancestor_container(), range, items);
-
-    items.remove_all_matching([](auto& item) {
-        return item.visit(
-            [](Utf16String const& string) { return string.is_empty(); },
-            [](RequiredLineBreakCount const&) { return false; });
-    });
-    while (!items.is_empty() && items.first().has<RequiredLineBreakCount>())
-        items.take_first();
-    while (!items.is_empty() && items.last().has<RequiredLineBreakCount>())
-        items.take_last();
-
-    Utf16StringBuilder builder;
-    for (size_t i = 0; i < items.size(); ++i) {
-        items[i].visit(
-            [&](Utf16String const& string) { builder.append(string); },
-            [&](RequiredLineBreakCount const& line_break) {
-                int max_line_breaks = line_break.count;
-                size_t j = i + 1;
-                while (j < items.size() && items[j].has<RequiredLineBreakCount>()) {
-                    max_line_breaks = max(max_line_breaks, items[j].get<RequiredLineBreakCount>().count);
-                    ++j;
-                }
-                i = j - 1;
-                builder.append_repeated_ascii('\n', max_line_breaks);
-            });
-    }
-    return builder.to_string();
 }
 
 Utf16String LocalNavigable::selected_text() const
@@ -4030,7 +3948,23 @@ Utf16String LocalNavigable::selected_text() const
     auto range = selection->range();
     if (!range)
         return Utf16String {};
-    return visible_text_in_range(*range);
+    return Editing::serialize_range_as_plain_text_for_clipboard(*range);
+}
+
+Utf16String LocalNavigable::selected_html_for_clipboard() const
+{
+    auto document = active_document();
+    if (!document)
+        return {};
+
+    auto selection = document->get_selection();
+    if (selection->try_form_control_selected_text_for_stringifier().has_value())
+        return {};
+
+    auto range = selection->range();
+    if (!range)
+        return {};
+    return Editing::serialize_range_as_html_for_clipboard(*range);
 }
 
 Utf16String LocalNavigable::cut_selected_text() const
@@ -4074,7 +4008,7 @@ void LocalNavigable::paste(Utf16View text)
     if (!document)
         return;
 
-    m_event_handler.handle_paste(text);
+    m_event_handler.handle_paste(text, {});
 }
 
 void LocalNavigable::undo()

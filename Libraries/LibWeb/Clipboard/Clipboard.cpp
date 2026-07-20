@@ -107,6 +107,7 @@ static String os_specific_well_known_format(Utf16View mime_type_string)
 static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<GC::Ref<FileAPI::Blob>> items, Utf16String const& presentation_style)
 {
     auto& window = as<HTML::Window>(realm.global_object());
+    Vector<SystemClipboardRepresentation> representations;
 
     // FIXME: 1. Let webCustomFormats be a sequence<Blob>.
 
@@ -133,8 +134,10 @@ static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<G
         auto payload = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, item->raw_bytes()));
 
         // 4. Insert payload and presentationStyle into the system clipboard using formatString as the native clipboard format.
-        window.page().client().page_did_insert_clipboard_entry({ payload.to_byte_string(), move(format_string) }, presentation_style.to_byte_string());
+        representations.empend(payload.to_byte_string(), move(format_string));
     }
+
+    window.page().client().page_did_insert_clipboard_item({ move(representations) }, presentation_style.to_byte_string());
 
     // FIXME: 3. Write web custom formats given webCustomFormats.
 }

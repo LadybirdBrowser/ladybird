@@ -242,6 +242,7 @@ public:
     Page const& page() const { return m_page; }
 
     Utf16String selected_text() const;
+    Utf16String selected_html_for_clipboard() const;
     Utf16String cut_selected_text() const;
     void select_all();
     void paste(Utf16View);

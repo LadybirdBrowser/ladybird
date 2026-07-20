@@ -38,7 +38,7 @@ private:
 
     virtual Utf16String clipboard_text(ClipboardType) const override;
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const override;
-    virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation) override;
+    virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem) override;
 
     virtual void rebuild_bookmarks_menu() const override;
     virtual void show_bookmark_context_menu(Gfx::IntPoint, Optional<WebView::BookmarkItem const&>, Optional<String const&> target_folder_id) override;

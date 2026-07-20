@@ -109,7 +109,7 @@ public:
     HTML::LocalNavigable& focused_navigable();
     HTML::LocalNavigable const& focused_navigable() const { return const_cast<Page*>(this)->focused_navigable(); }
 
-    void set_focused_navigable(Badge<EventHandler>, HTML::LocalNavigable&);
+    void set_focused_navigable(HTML::LocalNavigable&);
     void navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigable&);
 
     void load(URL::URL const&, Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto);
@@ -612,7 +612,7 @@ public:
     virtual void page_did_change_theme_color(Gfx::Color) { }
     virtual void page_did_change_background_color(Gfx::Color) { }
 
-    virtual void page_did_insert_clipboard_entry(Clipboard::SystemClipboardRepresentation const&, [[maybe_unused]] StringView presentation_style) { }
+    virtual void page_did_insert_clipboard_item(Clipboard::SystemClipboardItem const&, [[maybe_unused]] StringView presentation_style) { }
     virtual void page_did_request_clipboard_entries([[maybe_unused]] u64 request_id) { }
     virtual void page_did_request_primary_paste() { }
     virtual void page_did_update_primary_selection(Utf16String const&) { }

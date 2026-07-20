@@ -1,0 +1,9 @@
+text: "asafelinkb"
+active elements: 0
+event attributes: 0
+link href: null
+image src: "../Screenshot/data/smiley.png"
+inline style: "color: red"
+script ran: false
+undo DOM: ab
+redo active content: 0

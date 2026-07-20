@@ -167,6 +167,10 @@ void set_attribute_value(GC::Ref<DOM::Element>, Utf16FlyString const& local_name
 void remove_attribute(GC::Ref<DOM::Element>, Utf16FlyString const& name);
 void remove_attribute_ns(GC::Ref<DOM::Element>, Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name);
 
+// Create detached staging content without diagnosing its internal construction as an unrecorded edit. The eventual
+// insertion of the completed clone still goes through an InsertNodeCommand and is therefore fully reversible.
+WebIDL::ExceptionOr<GC::Ref<DOM::Node>> clone_node_for_editing(GC::Ref<DOM::Node>, bool subtree);
+
 // AD-HOC: Equivalent of Range::insert_node() that performs its mutations through reversible
 //         edit commands. https://dom.spec.whatwg.org/#concept-range-insert
 WebIDL::ExceptionOr<void> insert_node_into_range(GC::Ref<DOM::Range>, GC::Ref<DOM::Node>);

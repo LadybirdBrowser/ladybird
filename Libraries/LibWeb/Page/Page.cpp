@@ -118,7 +118,7 @@ HTML::LocalNavigable& Page::focused_navigable()
     return top_level_traversable();
 }
 
-void Page::set_focused_navigable(Badge<EventHandler>, HTML::LocalNavigable& navigable)
+void Page::set_focused_navigable(HTML::LocalNavigable& navigable)
 {
     m_focused_navigable = navigable;
 }

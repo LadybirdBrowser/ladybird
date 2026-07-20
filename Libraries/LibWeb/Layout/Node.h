@@ -15,7 +15,7 @@
 #include <AK/Weakable.h>
 #include <AK/kmalloc.h>
 #include <LibGC/Cell.h>
-#include <LibGC/Weak.h>
+#include <LibGC/Root.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/Export.h>
@@ -249,7 +249,9 @@ protected:
 private:
     friend class NodeWithStyle;
 
-    GC::Weak<DOM::Node> m_dom_node;
+    // A DOM mutation can disconnect a node before the next layout-tree update. Keep the DOM node alive until this
+    // layout node is destroyed so detach hooks never observe a collected image provider or other element state.
+    GC::Root<DOM::Node> m_dom_node;
     RefPtr<Painting::Paintable> m_paintable;
 
     Box* m_containing_block { nullptr };

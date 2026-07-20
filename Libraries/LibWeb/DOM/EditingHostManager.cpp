@@ -9,7 +9,9 @@
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/ClipboardSanitizer.h>
 #include <LibWeb/Editing/CommandNames.h>
+#include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/Selection/SelectionModifier.h>
 #include <LibWeb/UIEvents/InputTypes.h>
@@ -49,6 +51,31 @@ void EditingHostManager::handle_insert(Utf16FlyString const& input_type, Utf16Vi
     auto editing_result = m_document->exec_command_internal(Editing::CommandNames::insertText, false, value, Document::DispatchInputEvent::Yes, input_type);
     if (editing_result.is_exception())
         dbgln("handle_insert(): editing resulted in exception: {}", editing_result.exception());
+}
+
+void EditingHostManager::handle_insert_from_clipboard(Utf16FlyString const& input_type, Utf16View plain_text, Optional<Utf16View> html)
+{
+    auto range = m_document->get_selection()->range();
+    auto editing_host = range ? range->start_container()->editing_host() : nullptr;
+    bool accepts_rich_text = !editing_host || !is<HTML::HTMLElement>(*editing_host)
+        || as<HTML::HTMLElement>(*editing_host).content_editable_state() != HTML::ContentEditableState::PlaintextOnly;
+
+    if (!range || !html.has_value() || !accepts_rich_text) {
+        handle_insert(input_type, plain_text);
+        return;
+    }
+
+    auto sanitized_html = Editing::sanitize_clipboard_html(*range, *html);
+    if (sanitized_html.is_exception() || sanitized_html.value().is_empty()) {
+        handle_insert(input_type, plain_text);
+        return;
+    }
+
+    // INTEROP: Rich editing hosts prefer text/html over text/plain when both clipboard representations are present.
+    //          Run insertHTML as one user edit so its DOM mutations and final selection form one undo unit.
+    auto editing_result = m_document->exec_command_internal(Editing::CommandNames::insertHTML, false, sanitized_html.value(), Document::DispatchInputEvent::Yes, input_type);
+    if (editing_result.is_exception())
+        dbgln("handle_insert_from_clipboard(): editing resulted in exception: {}", editing_result.exception());
 }
 
 void EditingHostManager::select_all()

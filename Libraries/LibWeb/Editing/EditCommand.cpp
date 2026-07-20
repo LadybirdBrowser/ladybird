@@ -272,7 +272,7 @@ void insert_node_before(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> parent, GC::
 {
     // Inserting a DocumentFragment inserts its children instead, like the DOM insertion algorithm.
     if (auto* fragment = as_if<DOM::DocumentFragment>(*node)) {
-        Vector<GC::Ref<DOM::Node>> children;
+        GC::RootVector<GC::Ref<DOM::Node>> children;
         fragment->for_each_child([&children](DOM::Node& fragment_child) {
             children.append(fragment_child);
             return IterationDecision::Continue;
@@ -285,8 +285,11 @@ void insert_node_before(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> parent, GC::
     auto step = undo_step_being_recorded(parent);
     EditingHistory::ProxyMutationScope proxy_scope { parent };
 
-    // NB: Moving a node records its removal first, so that undo can put it back where it came from.
-    if (node->parent()) {
+    // NB: Moving a node records its removal first, so that undo can put it back where it came from. Children of a
+    //     DocumentFragment are staging nodes, however: undo only removes them from the edited document, and redo
+    //     inserts them again. Recording their temporary fragment parent would make the undo step depend on a
+    //     non-editable, detached node.
+    if (node->parent() && !is<DOM::DocumentFragment>(*node->parent())) {
         auto remove_command = parent->heap().allocate<RemoveNodeCommand>(node);
         remove_command->apply();
         if (step)
@@ -392,6 +395,12 @@ void remove_attribute_ns(GC::Ref<DOM::Element> element, Optional<Utf16FlyString>
     command->apply();
     if (step)
         step->add_command(*command);
+}
+
+WebIDL::ExceptionOr<GC::Ref<DOM::Node>> clone_node_for_editing(GC::Ref<DOM::Node> node, bool subtree)
+{
+    EditingHistory::ProxyMutationScope mutation_scope { node };
+    return node->clone_node(nullptr, subtree);
 }
 
 // AD-HOC: This mirrors Range::insert_node() step for step, but performs the split and the

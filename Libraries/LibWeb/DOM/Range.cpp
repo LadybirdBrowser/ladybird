@@ -1318,6 +1318,11 @@ GC::Ref<Geometry::DOMRect> Range::get_bounding_client_rect()
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
 WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment(TrustedTypes::TrustedHTMLOrString const& string)
 {
+    return create_contextual_fragment(string, HTML::ParserScriptingMode::Fragment);
+}
+
+WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment(TrustedTypes::TrustedHTMLOrString const& string, HTML::ParserScriptingMode scripting_mode)
+{
     // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedHTML, this's relevant global object, string, "Range createContextualFragment", and "script".
     auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
@@ -1352,7 +1357,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment
     }
 
     // 7. Return the result of invoking the fragment parsing algorithm steps with element, compliantString, and Fragment.
-    return Element::parse_fragment(GC::Ref { *element }, compliant_string.utf16_view(), HTML::ParserScriptingMode::Fragment);
+    return Element::parse_fragment(GC::Ref { *element }, compliant_string.utf16_view(), scripting_mode);
 }
 
 }

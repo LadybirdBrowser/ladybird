@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/RootVector.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -18,6 +19,7 @@
 #include <LibWeb/Editing/EditCommand.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
+#include <LibWeb/Editing/ReplaceSelection.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLHRElement.h>
@@ -1284,59 +1286,15 @@ bool command_insert_html_action(DOM::Document& document, Utf16View value)
     if (!range->start_container()->is_editable_or_editing_host())
         return true;
 
-    // 4. Let frag be the result of calling createContextualFragment(value) on the active range.
-    auto frag = MUST(range->create_contextual_fragment(resulting_value));
-
-    // 5. Let last child be the lastChild of frag.
-    GC::Ptr<DOM::Node> last_child = frag->last_child();
-
-    // 6. If last child is null, return true.
-    if (!last_child)
-        return true;
-
-    // 7. Let descendants be all descendants of frag.
-    Vector<GC::Ref<DOM::Node>> descendants;
-    frag->for_each_in_subtree([&descendants](GC::Ref<DOM::Node> descendant) {
-        descendants.append(descendant);
-        return TraversalDecision::Continue;
-    });
-
-    // 8. If the active range's start node is a block node:
-    if (is_block_node(range->start_container())) {
-        // 1. Let collapsed block props be all editable collapsed block prop children of the active range's start node
-        //    that have index greater than or equal to the active range's start offset.
-        Vector<GC::Ref<DOM::Node>> collapsed_block_props;
-        range->start_container()->for_each_child([&](GC::Ref<DOM::Node> child) {
-            if (child->is_editable() && is_collapsed_block_prop(child) && child->index() >= range->start_offset())
-                collapsed_block_props.append(child);
-            return IterationDecision::Continue;
-        });
-
-        // 2. For each node in collapsed block props, remove node from its parent.
-        for (auto node : collapsed_block_props)
-            remove_node(*node);
-    }
-
-    // 9. Call insertNode(frag) on the active range.
-    MUST(insert_node_into_range(*range, frag));
-
-    // 10. If the active range's start node is a block node with no visible children, call createElement("br") on the
-    //     context object and append the result as the last child of the active range's start node.
+    // INTEROP: Chromium preserves a collapsible space immediately before pasted inline content by converting it to a
+    //          non-breaking space, just as it does when inserting text at the same boundary.
+    canonicalize_whitespace(range->start());
     range = active_range(document);
-    if (is_block_node(range->start_container()) && !has_visible_children(range->start_container())) {
-        auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
-        MUST(append_node(br, *range->start_container()));
-    }
 
-    // 11. Call collapse() on the context object's selection, with last child's parent as the first argument and one
-    //     plus its index as the second.
-    MUST(selection.collapse(last_child->parent(), last_child->index() + 1));
-
-    // 12. Fix disallowed ancestors of each member of descendants.
-    for (auto member : descendants)
-        fix_disallowed_ancestors_of_node(member);
-
-    // 13. Return true.
+    // INTEROP: Blink and WebKit route both inline and block rich paste through their selection-replacement command.
+    //          Keeping fragment parsing, inserted-range tracking, and completion in that command prevents the two
+    //          structural cases from acquiring different whitespace and caret behavior.
+    replace_selection_with_fragment(document, resulting_value);
     return true;
 }
 
@@ -1795,11 +1753,13 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
             //     node boundary is strictly inside the node.
             MUST(split_text(*text, start_offset));
         } else {
-            auto clone = MUST(start_node->clone_node(nullptr, false));
-            // NB: The clone is not in the tree yet, so this deliberately bypasses the editing
-            //     proxy; the recorded insertion below carries the clone's final state.
-            if (auto* clone_element = as_if<DOM::Element>(*clone))
+            auto clone = MUST(clone_node_for_editing(*start_node, false));
+            // NB: The clone is not in the tree yet, so its final detached state is staging content. The recorded
+            //     insertion below carries that complete state as one reversible mutation.
+            if (auto* clone_element = as_if<DOM::Element>(*clone)) {
+                EditingHistory::ProxyMutationScope mutation_scope { *clone };
                 clone_element->remove_attribute(HTML::AttributeNames::id);
+            }
             insert_node_before(clone, parent, start_node->next_sibling());
             Vector<GC::Ref<DOM::Node>> children_to_move;
             for (auto* child = start_node->child_at_index(start_offset); child; child = child->next_sibling())
@@ -1848,7 +1808,9 @@ bool command_insert_text_action(DOM::Document& document, Utf16View value)
 {
     // 1. Delete the selection, with strip wrappers false.
     auto& selection = *document.get_selection();
+    auto replaces_selection = !selection.is_collapsed();
     delete_the_selection(selection, true, false);
+    canonicalize_collapsed_selection_for_editing(selection);
 
     // 2. If the active range's start node is neither editable nor an editing host, return true.
     auto range = active_range(document);
@@ -1861,6 +1823,11 @@ bool command_insert_text_action(DOM::Document& document, Utf16View value)
         for (size_t i = 0; i < value.length_in_code_units(); ++i) {
             auto code_unit = value.code_unit_at(i);
             take_the_action_for_command(document, CommandNames::insertText, Utf16View { &code_unit, 1 });
+        }
+
+        if (replaces_selection) {
+            canonicalize_whitespace_after_selection_replacement(active_range(document)->start());
+            canonicalize_whitespace_after_selection_replacement(active_range(document)->end());
         }
 
         // 2. Return true.
@@ -1958,10 +1925,16 @@ bool command_insert_text_action(DOM::Document& document, Utf16View value)
     restore_states_and_values(document, overrides);
 
     // 16. Canonicalize whitespace at the active range's start, with fix collapsed space false.
-    canonicalize_whitespace(active_range(document)->start(), false);
+    if (replaces_selection)
+        canonicalize_whitespace_after_selection_replacement(active_range(document)->start());
+    else
+        canonicalize_whitespace(active_range(document)->start(), false);
 
     // 17. Canonicalize whitespace at the active range's end, with fix collapsed space false.
-    canonicalize_whitespace(active_range(document)->end(), false);
+    if (replaces_selection)
+        canonicalize_whitespace_after_selection_replacement(active_range(document)->end());
+    else
+        canonicalize_whitespace(active_range(document)->end(), false);
 
     // 18. If value is a space character, autolink the active range's start.
     if (value == " "sv)

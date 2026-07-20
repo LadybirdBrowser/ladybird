@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/UIEvents/FocusEvent.h>
 
 namespace Web::HTML {
@@ -394,6 +395,13 @@ void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target,
 
     // 8. Run the focus update steps with old chain, new chain, and new focus target respectively.
     run_focus_update_steps(move(old_chain), move(new_chain), new_focus_target);
+
+    // INTEROP: Keyboard input follows the deepest focused navigable. Focus event handlers can move focus reentrantly,
+    //          so derive the input target from the final focused area instead of the target which began this update.
+    if (auto focused_area = top_level_traversable->currently_focused_area()) {
+        if (auto navigable = focused_area->document().navigable())
+            navigable->page().set_focused_navigable(*navigable);
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#unfocusing-steps

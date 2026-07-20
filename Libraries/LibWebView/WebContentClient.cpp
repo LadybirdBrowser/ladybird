@@ -1819,10 +1819,10 @@ void WebContentClient::did_change_background_color(u64 page_id, Gfx::Color color
         view->did_change_background_color({}, color);
 }
 
-void WebContentClient::did_insert_clipboard_entry(u64 page_id, Web::Clipboard::SystemClipboardRepresentation entry, String)
+void WebContentClient::did_insert_clipboard_item(u64 page_id, Web::Clipboard::SystemClipboardItem item, String)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->insert_clipboard_entry(move(entry));
+        view->insert_clipboard_item(move(item));
 }
 
 void WebContentClient::did_request_clipboard_entries(u64 page_id, u64 request_id)

@@ -6,6 +6,7 @@
 
 #include <AK/ScopeGuard.h>
 #include <AK/TemporaryChange.h>
+#include <LibGC/Root.h>
 #include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -15,6 +16,7 @@
 #include <LibWeb/Editing/Commands.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
+#include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputEvent.h>
 #include <LibWeb/UIEvents/InputTypes.h>
@@ -26,49 +28,6 @@ GC::Ref<Editing::EditingHistory> Document::editing_history()
     if (!m_editing_history)
         m_editing_history = Editing::EditingHistory::create(realm());
     return *m_editing_history;
-}
-
-// INTEROP: Chromium canonicalizes caret positions for editing into the nearest equivalent text
-//          position: an element-level caret descends into the adjacent editable leaf content,
-//          preferring the end of what comes before it, then the start of what comes after it.
-//          We do the same around every editing command so that both the command itself and the
-//          selections recorded in the editing history operate on Chromium-compatible positions.
-static void canonicalize_collapsed_selection_for_editing(Selection::Selection& selection)
-{
-    auto range = selection.range();
-    if (!range || !selection.is_collapsed())
-        return;
-
-    GC::Ptr<Node> node = range->start_container();
-    auto offset = range->start_offset();
-    if (!is<Element>(*node))
-        return;
-
-    auto can_descend_into = [](Node const& candidate) {
-        if (!candidate.is_editable())
-            return false;
-        if (is<Text>(candidate))
-            return true;
-        return is<Element>(candidate) && candidate.has_children();
-    };
-
-    bool changed = false;
-    while (is<Element>(*node)) {
-        GC::Ptr<Node> before = offset > 0 ? node->child_at_index(offset - 1) : nullptr;
-        GC::Ptr<Node> after = node->child_at_index(offset);
-        if (before && can_descend_into(*before)) {
-            node = before;
-            offset = before->length();
-        } else if (after && can_descend_into(*after)) {
-            node = after;
-            offset = 0;
-        } else {
-            break;
-        }
-        changed = true;
-    }
-    if (changed)
-        MUST(selection.collapse(node, offset));
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#execcommand()
@@ -156,6 +115,19 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     if (command_definition.preserves_overrides)
         overrides = Editing::record_current_overrides(*this);
 
+    // INTEROP: Chromium distinguishes pastes that begin inside text from pastes at an element boundary when deciding
+    //          whether a trailing line break is merely a placeholder. Record this before caret canonicalization can
+    //          turn an element-level boundary into an equivalent text position.
+    auto range_before_command = Editing::active_range(*this);
+    bool paste_started_in_text_node = user_input_type == UIEvents::InputTypes::insertFromPaste
+        && range_before_command && is<DOM::Text>(*range_before_command->start_container())
+        // INTEROP: An Apple-interchange-newline represents an intentional paragraph boundary, not a fragment-ending
+        //          placeholder. Blink and WebKit preserve the destination paragraph's trailing break in this case.
+        && !value.contains(u"Apple-interchange-newline"sv);
+    GC::Root<DOM::Node> paste_start_block;
+    if (paste_started_in_text_node)
+        paste_start_block = Editing::block_node_of_node(*range_before_command->start_container());
+
     // NOTE: Step 7 below asks us whether the DOM tree was modified, so keep track of the document versions.
     auto old_dom_tree_version = dom_tree_version();
     auto old_character_data_version = character_data_version();
@@ -172,7 +144,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
         Editing::CommandNames::justifyCenter, Editing::CommandNames::justifyFull, Editing::CommandNames::justifyLeft,
         Editing::CommandNames::justifyRight, Editing::CommandNames::outdent);
     if (affected_editing_host && m_selection && command_edits_at_caret)
-        canonicalize_collapsed_selection_for_editing(*m_selection);
+        Editing::canonicalize_collapsed_selection_for_editing(*m_selection);
 
     // AD-HOC: Record the mutations performed by the command action on the editing history, so the user can undo them.
     //         end_recording() is a no-op if the guard below already ended the recording.
@@ -199,6 +171,19 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     // 5. Take the action for command, passing value to the instructions as an argument.
     auto command_result = command_definition.action(*this, value);
 
+    // INTEROP: Chromium removes the trailing placeholder line break after pasting into an existing text node. The
+    //          execCommand draft only removes it when insertion creates a new text node. Perform this while the paste
+    //          history transaction is still open so undo restores the placeholder and redo removes it again.
+    if (paste_started_in_text_node) {
+        if (auto range = Editing::active_range(*this)) {
+            // INTEROP: A trailing break remains the list item's line terminator after a block fragment is merged into
+            //          that item. Blink removes paragraph placeholders here, but preserves list-item terminators.
+            if (auto block = Editing::block_node_of_node(*range->start_container()); block && block == paste_start_block.ptr()
+                && !is<HTML::HTMLLIElement>(*block))
+                Editing::remove_extraneous_line_breaks_at_the_end_of_node(*block);
+        }
+    }
+
     // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
     // After taking the action, if the active range is collapsed, it must restore states and values from the recorded
     // list.
@@ -210,7 +195,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     bool tree_was_modified = dom_tree_version() != old_dom_tree_version
         || character_data_version() != old_character_data_version;
     if (affected_editing_host && m_selection && tree_was_modified)
-        canonicalize_collapsed_selection_for_editing(*m_selection);
+        Editing::canonicalize_collapsed_selection_for_editing(*m_selection);
 
     // NB: End the recording before dispatching the input event below, so that the undo step's ending selection is the
     //     selection produced by the command itself, not whatever an input event handler changed it to.
