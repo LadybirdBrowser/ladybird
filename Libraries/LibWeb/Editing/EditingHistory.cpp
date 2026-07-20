@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Editing/EditCommand.h>
 #include <LibWeb/Editing/EditingHistory.h>
+#include <LibWeb/Editing/VisiblePosition.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -197,10 +198,26 @@ static SelectionSnapshot capture_selection(DOM::Node& editing_host)
     auto selection = editing_host.document().get_selection();
     if (!selection || !selection->range())
         return snapshot;
-    snapshot.anchor_node = selection->anchor_node();
-    snapshot.anchor_offset = selection->anchor_offset();
-    snapshot.focus_node = selection->focus_node();
-    snapshot.focus_offset = selection->focus_offset();
+
+    auto anchor_node = selection->anchor_node();
+    auto focus_node = selection->focus_node();
+    auto anchor_offset = selection->anchor_offset();
+    auto focus_offset = selection->focus_offset();
+    if (selection->is_collapsed() && focus_node) {
+        // A collapsed selection can have multiple DOM representations for one rendered caret. Store the canonical
+        // visible position in history without moving the live selection: replacement still acts at the exact DOM
+        // boundary chosen by script, while undo restores the position Chromium exposes after the edit.
+        auto visible_position = VisiblePosition::create(editing_host.document(), { *focus_node, static_cast<WebIDL::UnsignedLong>(focus_offset) }, selection->focus_affinity());
+        auto deep_equivalent = visible_position.deep_equivalent();
+        anchor_node = deep_equivalent.node;
+        focus_node = deep_equivalent.node;
+        anchor_offset = deep_equivalent.offset;
+        focus_offset = deep_equivalent.offset;
+    }
+    snapshot.anchor_node = anchor_node;
+    snapshot.anchor_offset = anchor_offset;
+    snapshot.focus_node = focus_node;
+    snapshot.focus_offset = focus_offset;
     snapshot.focus_affinity = selection->focus_affinity();
     return snapshot;
 }

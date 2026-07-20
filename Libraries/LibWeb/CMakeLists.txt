@@ -402,6 +402,7 @@ set(SOURCES
     Editing/EditCommand.cpp
     Editing/EditingHistory.cpp
     Editing/ExecCommand.cpp
+    Editing/VisiblePosition.cpp
     Editing/Internal/Algorithms.cpp
     Encoding/TextDecoder.cpp
     Encoding/TextDecoderCommon.cpp
@@ -953,6 +954,7 @@ set(SOURCES
     ResourceTiming/PerformanceResourceTiming.cpp
     SecureContexts/AbstractOperations.cpp
     Selection/Selection.cpp
+    Selection/CaretNavigation.cpp
     Selection/SelectionModifier.cpp
     ServiceWorker/Cache.cpp
     ServiceWorker/CacheStorage.cpp

@@ -6,33 +6,13 @@
 
 #pragma once
 
-#include <AK/Types.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Selection/CaretNavigation.h>
 
 namespace Web::Selection {
 
 class Selection;
-
-enum class SelectionAlteration : u8 {
-    Move,
-    Extend,
-};
-
-enum class SelectionDirection : u8 {
-    Forward,
-    Backward,
-};
-
-enum class SelectionGranularity : u8 {
-    Character,
-    Word,
-    Line,
-    Page,
-    LineBoundary,
-    // The boundary of the active editing host, which is the effective document for contenteditable navigation.
-    DocumentBoundary,
-};
 
 // INTEROP: The web editing specifications do not define caret navigation in enough detail to implement it directly.
 // SelectionModifier follows the architecture used by other engines: compute a visual caret destination without
