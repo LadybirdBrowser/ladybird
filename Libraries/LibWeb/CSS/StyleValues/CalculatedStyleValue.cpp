@@ -3224,73 +3224,6 @@ void CalculatedStyleValue::serialize(StringBuilder& builder, SerializationMode m
     serialize_a_math_function(builder, *calculation(), calculation_context(), mode);
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    // NB: Materialize the context once; rebuilding it per use is a HashMap construction each time.
-    auto calculation_context = this->calculation_context();
-
-    auto simplified_calculation_tree = simplify_a_calculation_tree(calculation(), calculation_context, CalculationResolutionContext::from_computation_context(computation_context));
-
-    auto const simplified_percentage_dimension_mix = [&]() -> Optional<ValueComparingNonnullRefPtr<StyleValue const>> {
-        // NOTE: A percentage dimension mix is a SumCalculationNode with two NumericCalculationNode children which have
-        //       matching base types - only the first of which has a percent hint.
-        if (simplified_calculation_tree->type() != CalculationNode::Type::Sum)
-            return {};
-
-        auto const& sum_node = as<SumCalculationNode>(*simplified_calculation_tree);
-
-        if (sum_node.children()[0]->type() != CalculationNode::Type::Numeric || sum_node.children()[1]->type() != CalculationNode::Type::Numeric)
-            return {};
-
-        auto const& first_node = as<NumericCalculationNode>(*sum_node.children()[0]);
-        auto const& second_node = as<NumericCalculationNode>(*sum_node.children()[1]);
-
-        auto first_base_type = first_node.numeric_type()->entry_with_value_1_while_all_others_are_0();
-        auto second_base_type = second_node.numeric_type()->entry_with_value_1_while_all_others_are_0();
-
-        if (!first_base_type.has_value() || first_base_type != second_base_type)
-            return {};
-
-        if (!first_node.numeric_type()->percent_hint().has_value() || second_node.numeric_type()->percent_hint().has_value())
-            return {};
-
-        auto dimension_component = try_get_value_with_canonical_unit(second_node, calculation_context, {});
-
-        // https://drafts.csswg.org/css-values-4/#combine-mixed
-        // The computed value of a percentage-dimension mix is defined as
-        //  - a computed percentage if the dimension component is zero
-        if (dimension_component->value() == 0)
-            return PercentageStyleValue::create(first_node.value().get<Percentage>());
-
-        return {};
-    }();
-
-    if (simplified_percentage_dimension_mix.has_value())
-        return simplified_percentage_dimension_mix.value();
-
-    return CalculatedStyleValue::create(simplified_calculation_tree, resolved_type(), calculation_context);
-}
-
-bool CalculatedStyleValue::equals(StyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-
-    // Structural equality runs over the Rust trees; the style values carried by
-    // random() and non-math-function nodes compare through their own equals.
-    return StyleValueFFI::rust_calc_equals(
-        m_value.operator->(), other.as_calculated().m_value.operator->(), nullptr,
-        [](void*, void const* a, void const* b) -> bool {
-            return static_cast<StyleValue const*>(a)->equals(*static_cast<StyleValue const*>(b));
-        });
-}
-
-// https://drafts.csswg.org/css-values-4/#calc-computed-value
-Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationResolutionContext const& resolution_context, bool apply_censoring_and_clamping) const
-{
-    return resolve_value(calculation_context(), resolution_context, apply_censoring_and_clamping);
-}
-
 // The RoundingStrategy discriminants cross the boundary as round()'s strategy code; pin them.
 static_assert(to_underlying(RoundingStrategy::Down) == 0);
 static_assert(to_underlying(RoundingStrategy::Nearest) == 1);
@@ -3327,15 +3260,15 @@ static Optional<NumericType> from_ffi_numeric_type(StyleValueFFI::FfiNumericType
     return result;
 }
 
-Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationContext const& calculation_context, CalculationResolutionContext const& resolution_context, bool apply_censoring_and_clamping) const
-{
-    // The resolution runs in the Rust style computation core; only trees containing random(),
-    // whose evaluation needs the C++ per-element sharing state, take the legacy path below.
-    struct ResolveCallbackContext {
-        CalculationContext const& calculation_context;
-        CalculationResolutionContext const& resolution_context;
-    } callback_context { calculation_context, resolution_context };
+// The callback seams shared by resolution and absolutization: the C++ leaf
+// I/O the Rust calc core calls back into while simplifying a tree.
+struct CalcResolveCallbackContext {
+    CalculationContext const& calculation_context;
+    CalculationResolutionContext const& resolution_context;
+};
 
+static StyleValueFFI::FfiCalcResolutionContext make_calc_ffi_resolution_context(CalcResolveCallbackContext& callback_context, Optional<ComputedValuesFFI::FfiLengthResolutionContext>& length_context_storage)
+{
     StyleValueFFI::FfiCalcResolutionContext ffi_context {
         .basis_kind = 0,
         .basis_value = 0,
@@ -3343,14 +3276,14 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
         .length_resolution_context = nullptr,
         .callback_context = &callback_context,
         .resolve_non_math_function = [](void* context, void const* shell) -> StyleValueFFI::CalcNode const* {
-            auto& callback_context = *static_cast<ResolveCallbackContext*>(context);
+            auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
             auto resolved = static_cast<AbstractNonMathCalcFunctionStyleValue const*>(shell)->resolve_to_calculation_node(callback_context.calculation_context, callback_context.resolution_context);
             if (!resolved)
                 return nullptr;
             return to_rust_calc_node(*resolved);
         },
         .resolve_channel_keyword = [](void* context, u8 channel, double* out_value) -> bool {
-            auto& callback_context = *static_cast<ResolveCallbackContext*>(context);
+            auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
             if (!callback_context.resolution_context.relative_color.has_value())
                 return false;
             auto resolved = callback_context.resolution_context.relative_color->get(static_cast<ChannelKeyword>(channel));
@@ -3360,7 +3293,7 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
             return true;
         },
         .random_base_value = [](void* context, void const* sharing, double* out_value) -> bool {
-            auto& callback_context = *static_cast<ResolveCallbackContext*>(context);
+            auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
             // NB: We don't want to resolve this before computation time even if it's possible.
             auto const& resolution_context = callback_context.resolution_context;
             if (!resolution_context.abstract_element.has_value() && !resolution_context.length_resolution_context.has_value() && resolution_context.percentage_basis.has<Empty>())
@@ -3369,7 +3302,7 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
             return true;
         },
         .absolutize_random_sharing = [](void* context, void const* sharing) -> void const* {
-            auto& callback_context = *static_cast<ResolveCallbackContext*>(context);
+            auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
             auto const& resolution_context = callback_context.resolution_context;
             // When we are in the absolutization process we should absolutize the sharing options.
             if (!resolution_context.length_resolution_context.has_value())
@@ -3381,11 +3314,19 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
             auto absolutized = static_cast<RandomValueSharingStyleValue const*>(sharing)->absolutized(computation_context);
             return retain_style_value_for_rust(absolutized.ptr());
         },
+        .resolve_length = [](void* context, double value, u8 unit, double* out_px) -> bool {
+            auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
+            auto const& resolution_context = callback_context.resolution_context;
+            if (!resolution_context.length_resolution_context.has_value())
+                return false;
+            *out_px = Length { value, static_cast<LengthUnit>(unit) }.to_px(*resolution_context.length_resolution_context).to_double();
+            return true;
+        },
     };
-    Optional<ComputedValuesFFI::FfiLengthResolutionContext> ffi_length_resolution_context;
+    auto const& resolution_context = callback_context.resolution_context;
     if (resolution_context.length_resolution_context.has_value()) {
-        ffi_length_resolution_context = to_ffi_length_resolution_context(*resolution_context.length_resolution_context);
-        ffi_context.length_resolution_context = &ffi_length_resolution_context.value();
+        length_context_storage = to_ffi_length_resolution_context(*resolution_context.length_resolution_context);
+        ffi_context.length_resolution_context = &length_context_storage.value();
     }
     resolution_context.percentage_basis.visit(
         [](Empty const&) {},
@@ -3409,6 +3350,184 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
             ffi_context.basis_value = time.raw_value();
             ffi_context.basis_unit = to_underlying(time.unit());
         });
+
+    return ffi_context;
+}
+
+// Rebuilds a C++ calculation tree from a Rust calculation node. Absolutized
+// values must still carry a C++ tree for math-function composition through
+// CalculationNode::from_style_value until the calculation storage drops it.
+static NonnullRefPtr<CalculationNode const> cpp_calc_tree_from_rust(void const* calculated_data, StyleValueFFI::CalcNode const* node, CalculationContext const& context)
+{
+    auto children_of = [&]() {
+        Vector<StyleValueFFI::CalcNode const*> rust_children;
+        auto count = StyleValueFFI::rust_calc_node_children(node, nullptr, 0);
+        rust_children.resize(count);
+        StyleValueFFI::rust_calc_node_children(node, rust_children.data(), rust_children.size());
+        Vector<NonnullRefPtr<CalculationNode const>> children;
+        children.ensure_capacity(count);
+        for (auto const* child : rust_children)
+            children.unchecked_append(cpp_calc_tree_from_rust(calculated_data, child, context));
+        return children;
+    };
+    switch (StyleValueFFI::rust_calc_node_kind(node)) {
+    case 0: {
+        u8 kind = 0;
+        double value = 0;
+        u8 unit = 0;
+        StyleValueFFI::rust_calc_node_numeric_leaf(node, &kind, &value, &unit);
+        switch (kind) {
+        case 0:
+            return NumericCalculationNode::create(Number { static_cast<Number::Type>(unit), value }, context);
+        case 1:
+            return NumericCalculationNode::create(Angle { value, static_cast<AngleUnit>(unit) }, context);
+        case 2:
+            return NumericCalculationNode::create(Flex { value, static_cast<FlexUnit>(unit) }, context);
+        case 3:
+            return NumericCalculationNode::create(Frequency { value, static_cast<FrequencyUnit>(unit) }, context);
+        case 4:
+            return NumericCalculationNode::create(Length { value, static_cast<LengthUnit>(unit) }, context);
+        case 5:
+            return NumericCalculationNode::create(Percentage { value }, context);
+        case 6:
+            return NumericCalculationNode::create(Resolution { value, static_cast<ResolutionUnit>(unit) }, context);
+        case 7:
+            return NumericCalculationNode::create(Time { value, static_cast<TimeUnit>(unit) }, context);
+        }
+        VERIFY_NOT_REACHED();
+    }
+    case 1: {
+        u8 channel = 0;
+        VERIFY(StyleValueFFI::rust_calc_node_channel_keyword(node, &channel));
+        return ChannelKeywordCalculationNode::create(static_cast<ChannelKeyword>(channel), context);
+    }
+    case 2:
+        return SumCalculationNode::create(children_of());
+    case 3:
+        return ProductCalculationNode::create(children_of());
+    case 4:
+        return NegateCalculationNode::create(children_of()[0]);
+    case 5:
+        return InvertCalculationNode::create(children_of()[0]);
+    case 6:
+        return MinCalculationNode::create(children_of());
+    case 7:
+        return MaxCalculationNode::create(children_of());
+    case 8: {
+        auto children = children_of();
+        return ClampCalculationNode::create(children[0], children[1], children[2]);
+    }
+    case 9: {
+        auto children = children_of();
+        return ProgressCalculationNode::create(StyleValueFFI::rust_calc_node_progress_no_clamp(node), children[0], children[1], children[2]);
+    }
+    case 10:
+        return AbsCalculationNode::create(children_of()[0]);
+    case 11:
+        return SignCalculationNode::create(children_of()[0]);
+    case 12:
+        return SinCalculationNode::create(children_of()[0]);
+    case 13:
+        return CosCalculationNode::create(children_of()[0]);
+    case 14:
+        return TanCalculationNode::create(children_of()[0]);
+    case 15:
+        return AsinCalculationNode::create(children_of()[0]);
+    case 16:
+        return AcosCalculationNode::create(children_of()[0]);
+    case 17:
+        return AtanCalculationNode::create(children_of()[0]);
+    case 18: {
+        // NB: Atan2's children are ordered y then x, matching its members.
+        auto children = children_of();
+        return Atan2CalculationNode::create(children[0], children[1]);
+    }
+    case 19: {
+        auto children = children_of();
+        return PowCalculationNode::create(children[0], children[1]);
+    }
+    case 20:
+        return SqrtCalculationNode::create(children_of()[0]);
+    case 21:
+        return HypotCalculationNode::create(children_of());
+    case 22: {
+        auto children = children_of();
+        return LogCalculationNode::create(children[0], children[1]);
+    }
+    case 23:
+        return ExpCalculationNode::create(children_of()[0]);
+    case 24: {
+        auto children = children_of();
+        return RoundCalculationNode::create(static_cast<RoundingStrategy>(StyleValueFFI::rust_calc_node_round_strategy(node)), children[0], children[1]);
+    }
+    case 25: {
+        auto children = children_of();
+        return ModCalculationNode::create(children[0], children[1]);
+    }
+    case 26: {
+        auto children = children_of();
+        return RemCalculationNode::create(children[0], children[1]);
+    }
+    case 27: {
+        auto children = children_of();
+        auto const& sharing = static_cast<StyleValue const*>(StyleValueFFI::rust_calc_node_style_value(node))->as_random_value_sharing();
+        return RandomCalculationNode::create(sharing, children[0], children[1], children.size() == 3 ? RefPtr<CalculationNode const> { children[2] } : nullptr);
+    }
+    case 28: {
+        auto const& function = *static_cast<AbstractNonMathCalcFunctionStyleValue const*>(StyleValueFFI::rust_calc_node_style_value(node));
+        auto numeric_type = from_ffi_numeric_type(StyleValueFFI::rust_calc_node_numeric_type(calculated_data, node));
+        return NonMathFunctionCalculationNode::create(function, numeric_type.value());
+    }
+    }
+    VERIFY_NOT_REACHED();
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(ComputationContext const& computation_context) const
+{
+    // NB: Materialize the context once; rebuilding it per use is a HashMap construction each time.
+    auto calculation_context = this->calculation_context();
+    auto resolution_context = CalculationResolutionContext::from_computation_context(computation_context);
+
+    CalcResolveCallbackContext callback_context { calculation_context, resolution_context };
+    Optional<ComputedValuesFFI::FfiLengthResolutionContext> ffi_length_resolution_context;
+    auto ffi_context = make_calc_ffi_resolution_context(callback_context, ffi_length_resolution_context);
+
+    auto result = StyleValueFFI::rust_calc_absolutize(m_value.operator->(), &ffi_context);
+    if (result.is_percentage)
+        return PercentageStyleValue::create(Percentage { result.percentage_value });
+
+    auto simplified_calculation_tree = cpp_calc_tree_from_rust(m_value.operator->(), result.simplified, calculation_context);
+    StyleValueFFI::rust_calc_node_release(result.simplified);
+    return CalculatedStyleValue::create(simplified_calculation_tree, resolved_type(), calculation_context);
+}
+
+bool CalculatedStyleValue::equals(StyleValue const& other) const
+{
+    if (type() != other.type())
+        return false;
+
+    // Structural equality runs over the Rust trees; the style values carried by
+    // random() and non-math-function nodes compare through their own equals.
+    return StyleValueFFI::rust_calc_equals(
+        m_value.operator->(), other.as_calculated().m_value.operator->(), nullptr,
+        [](void*, void const* a, void const* b) -> bool {
+            return static_cast<StyleValue const*>(a)->equals(*static_cast<StyleValue const*>(b));
+        });
+}
+
+// https://drafts.csswg.org/css-values-4/#calc-computed-value
+Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationResolutionContext const& resolution_context, bool apply_censoring_and_clamping) const
+{
+    return resolve_value(calculation_context(), resolution_context, apply_censoring_and_clamping);
+}
+
+Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationContext const& calculation_context, CalculationResolutionContext const& resolution_context, bool apply_censoring_and_clamping) const
+{
+    // The resolution runs in the Rust style computation core; only trees containing random(),
+    // whose evaluation needs the C++ per-element sharing state, take the legacy path below.
+    CalcResolveCallbackContext callback_context { calculation_context, resolution_context };
+    Optional<ComputedValuesFFI::FfiLengthResolutionContext> ffi_length_resolution_context;
+    auto ffi_context = make_calc_ffi_resolution_context(callback_context, ffi_length_resolution_context);
 
     auto rust_result = StyleValueFFI::rust_calc_resolve(m_value.operator->(), &ffi_context, apply_censoring_and_clamping);
     if (rust_result.handled) {
