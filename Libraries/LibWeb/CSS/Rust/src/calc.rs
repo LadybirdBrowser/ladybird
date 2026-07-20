@@ -1468,6 +1468,12 @@ impl CalcNode {
                     return Some(maybe_a);
                 }
 
+                // Otherwise, there are two integer multiples of B that are potentially "closest"
+                // to A, lower B which is closer to −∞ and upper B which is closer to +∞. The
+                // following <rounding-strategy>s dictate how to choose between them:
+
+                // FIXME: If lower B would be zero, it is specifically equal to 0⁺;
+                //        if upper B would be zero, it is specifically equal to 0⁻.
                 let lower_b = (a / b).floor() * b;
                 let upper_b = (a / b).ceil() * b;
                 let rounded = match *strategy {
@@ -1558,7 +1564,7 @@ impl CalcNode {
                     numeric_type,
                 })
             }
-            // https://drafts.csswg.org/css-values-5/#random
+            // https://drafts.csswg.org/css-values-5/#random-evaluation
             CalcNode::Random {
                 min,
                 max,
@@ -1891,6 +1897,11 @@ impl CalcNode {
                 return shared(CalcNode::Numeric(canonical));
             }
 
+            // 3. If root is a <calc-keyword> that can be resolved, return what it resolves to,
+            //    simplified.
+            // NOTE: We already resolve our `<calc-keyword>`s at parse-time.
+            // FIXME: Revisit this once we support any keywords that need resolving later.
+
             // 4. Otherwise, return root.
             return self.clone();
         }
@@ -1934,6 +1945,8 @@ impl CalcNode {
                 let is_min = matches!(&*root, CalcNode::Min(..));
                 let mut simplified_children: Vec<Arc<CalcNode>> = Vec::with_capacity(children.len());
                 for child in children {
+                    // NOTE: When a percentage will resolve against another value we can't compare
+                    //       it with other children yet.
                     let merged = match &**child {
                         CalcNode::Numeric(child_value)
                             if !simplified_children.is_empty()
@@ -2126,7 +2139,14 @@ impl CalcNode {
                 }
 
                 // Accumulate the whole product when every child is a canonical numeric value or
-                // the inversion of one, treating percentage children as the percent type.
+                // the inversion of one.
+                // AD-HOC: The spec doesn't cover how to handle unresolved percentages, to handle
+                //         this we force percentages back to the percent type (e.g.
+                //         { hint: None, "percent" → 1 } rather than { hint: length, "length" → 1 }),
+                //         this avoids treating the value as an absolute value expressed in
+                //         canonical units rather than a percent. The correct numeric type is still
+                //         calculated for the simplified node afterwards.
+                //         See spec issue: https://github.com/w3c/csswg-drafts/issues/11588
                 let mut accumulated: Option<CalcResult> = None;
                 let mut is_valid = true;
                 let mut accumulate = |leaf: &CalcNode, invert: bool| -> bool {
@@ -2851,8 +2871,12 @@ impl CalcSerializer<'_> {
 
     /// https://drafts.csswg.org/css-values-4/#serialize-a-math-function
     fn serialize_math_function(&self, node: &Arc<CalcNode>) {
-        // 1. If the root is a numeric value and the serialization is of a computed value or
-        //    later, clamp the value to the range allowed for its context, then serialize it.
+        // To serialize a math function fn:
+
+        // 1. If the root of the calculation tree fn represents is a numeric value (number,
+        //    percentage, or dimension), and the serialization being produced is of a computed
+        //    value or later, then clamp the value to the range allowed for its context (if
+        //    necessary), then serialize the value as normal and return the result.
         if let CalcNode::Numeric(value) = &**node {
             if self.resolved_mode {
                 self.leaf(self.clamp_and_censor(*value));
@@ -2864,9 +2888,10 @@ impl CalcSerializer<'_> {
                 _ => value.raw(),
             };
             if raw.is_nan() || raw.is_infinite() {
-                // Serialize the keyword infinity, -infinity, or NaN inside calc(); a non-number
-                // type appends a multiplication by one of its canonical unit.
+                // 1. Let s be the string "calc(".
                 self.literal("calc(");
+                // 2. Serialize the keyword infinity, -infinity, or NaN, as appropriate to
+                //    represent the value, and append it to s.
                 self.literal(if raw.is_nan() {
                     "NaN"
                 } else if raw > 0.0 {
@@ -2874,6 +2899,10 @@ impl CalcSerializer<'_> {
                 } else {
                     "-infinity"
                 });
+                // 3. If fn's type is anything other than «[ ]» (empty, representing a <number>),
+                //    append " * " to s. Create a numeric value in the canonical unit for fn's type
+                //    (such as px for <length>), with a value of 1. Serialize this numeric value
+                //    and append it to s.
                 let suffix = match value {
                     CalcNumericValue::Number { .. } => "",
                     CalcNumericValue::Angle { .. } => " * 1deg",
@@ -2885,6 +2914,7 @@ impl CalcSerializer<'_> {
                     CalcNumericValue::Time { .. } => " * 1s",
                 };
                 self.literal(suffix);
+                // 4. Append ")" to s, then return it.
                 self.literal(")");
                 return;
             }
@@ -2922,12 +2952,28 @@ impl CalcSerializer<'_> {
             return;
         }
 
-        // 3. If the root is a numeric value, a channel keyword, or a calc-operator node, open
-        //    with "calc("; otherwise with the function name and "(".
+        // 3. If the calculation tree's root node is a numeric value, or a calc-operator node,
+        //    let s be a string initially containing "calc(".
+        //    Otherwise, let s be a string initially containing the name of the root node,
+        //    lowercased (such as "sin" or "max"), followed by a "(" (open parenthesis).
         let is_operator = matches!(
             &**node,
             CalcNode::Sum(..) | CalcNode::Product(..) | CalcNode::Negate(..) | CalcNode::Invert(..)
         );
+
+        // 4. For each child of the root node, serialize the calculation tree.
+        //    If a result of this serialization starts with a "(" (open parenthesis) and ends with
+        //    a ")" (close parenthesis), remove those characters from the result.
+        //    Concatenate all of the results using ", " (comma followed by space), then append the
+        //    result to s.
+
+        // Spec issue: https://github.com/w3c/csswg-drafts/issues/11783
+        //             The four AD-HOCs in this step are mentioned there.
+        // AD-HOC: Numeric nodes have no children and should serialize directly.
+        // AD-HOC: calc-operator nodes should also serialize directly, instead of separating their
+        //         children by commas.
+        // AD-HOC: ChannelKeyword nodes, used for relative-color syntax, serialize directly as the
+        //         keyword name.
         if matches!(&**node, CalcNode::Numeric(..) | CalcNode::ChannelKeyword(..)) || is_operator {
             self.literal("calc(");
             self.serialize_tree(node, false);
@@ -2938,7 +2984,9 @@ impl CalcSerializer<'_> {
         self.literal(Self::function_name(node));
         self.literal("(");
         let mut first = true;
-        // AD-HOC: round()'s strategy keyword serializes as the first argument.
+        // AD-HOC: For round(), the first child is a <rounding-strategy>, which is incompatible
+        //         with "serialize a calculation tree". So, we serialize it directly first, and
+        //         hope for the best.
         if let CalcNode::Round { strategy, .. } = &**node {
             self.literal(match *strategy {
                 0 => "down",
@@ -2949,7 +2997,8 @@ impl CalcSerializer<'_> {
             });
             first = false;
         }
-        // AD-HOC: progress()'s no-clamp keyword serializes without a following comma.
+        // AD-HOC: For progress() we serialize 'no-clamp' separately since it's not a calculation
+        //         node and shouldn't be followed by a comma.
         if let CalcNode::Progress { no_clamp: true, .. } = &**node {
             self.literal("no-clamp ");
         }
@@ -2962,8 +3011,9 @@ impl CalcSerializer<'_> {
             first = false;
             self.serialize_tree(child, false);
         }
-        // 5. Append ")" and return.
+        // 5. Append ")" (close parenthesis) to s.
         self.literal(")");
+        // 6. Return s.
     }
 
     /// https://drafts.csswg.org/css-values-4/#sort-a-calculations-children
@@ -3014,85 +3064,118 @@ impl CalcSerializer<'_> {
         result
     }
 
-    /// The tree serialization: leaves per their own rules, operators with the
-    /// spec's sign- and division-aware joining.
+    /// https://drafts.csswg.org/css-values-4/#serialize-a-calculation-tree
     fn serialize_tree(&self, node: &Arc<CalcNode>, emit_outer_parentheses: bool) {
+        // 1. Let root be the root node of the calculation tree.
+        // NOTE: Already the case.
         match &**node {
+            // 2. If root is a numeric value, or a non-math function, serialize root per the normal
+            //    rules for it and return the result.
             CalcNode::Numeric(value) => self.leaf(*value),
             CalcNode::NonMathFunction { value, .. } => {
                 unsafe { (self.callbacks.append_style_value)(self.callbacks.context, value.shell_pointer()) };
             }
+            // AD-HOC: ChannelKeyword nodes, used for relative-color syntax, serialize directly as
+            //         the keyword name.
             CalcNode::ChannelKeyword(channel) => unsafe {
                 (self.callbacks.append_channel_name)(self.callbacks.context, *channel);
             },
+            // 4. If root is a Negate node, let s be a string initially containing "(-1 * ".
             CalcNode::Negate(child) => {
                 if emit_outer_parentheses {
                     self.literal("(");
                 }
                 self.literal("-1 * ");
+                // Serialize root's child, and append it to s.
                 self.serialize_tree(child, true);
+                // Append ")" to s, then return it.
                 if emit_outer_parentheses {
                     self.literal(")");
                 }
             }
+            // 5. If root is an Invert node, let s be a string initially containing "(1 / ".
             CalcNode::Invert(child) => {
                 if emit_outer_parentheses {
                     self.literal("(");
                 }
                 self.literal("1 / ");
+                // Serialize root's child, and append it to s.
                 self.serialize_tree(child, true);
+                // Append ")" to s, then return it.
                 if emit_outer_parentheses {
                     self.literal(")");
                 }
             }
+            // 6. If root is a Sum node, let s be a string initially containing "(".
             CalcNode::Sum(children) => {
                 if emit_outer_parentheses {
                     self.literal("(");
                 }
                 let sorted = Self::sort_children(children);
+                // Serialize root's first child, and append it to s.
                 self.serialize_tree(&sorted[0], true);
+                // For each child of root beyond the first:
                 for child in &sorted[1..] {
                     match &**child {
+                        // 1. If child is a Negate node, append " - " to s, then serialize the
+                        //    Negate's child and append the result to s.
                         CalcNode::Negate(negated) => {
                             self.literal(" - ");
                             self.serialize_tree(negated, true);
                         }
+                        // 2. If child is a negative numeric value, append " - " to s, then
+                        //    serialize the negation of child as normal and append the result to s.
                         CalcNode::Numeric(value) if value.raw() < 0.0 => {
                             self.literal(" - ");
                             self.leaf(value.with_raw(0.0 - value.raw()));
                         }
+                        // 3. Otherwise, append " + " to s, then serialize child and append the
+                        //    result to s.
                         _ => {
                             self.literal(" + ");
                             self.serialize_tree(child, true);
                         }
                     }
                 }
+                // Finally, append ")" to s and return it.
                 if emit_outer_parentheses {
                     self.literal(")");
                 }
             }
+            // 7. If root is a Product node, let s be a string initially containing "(".
             CalcNode::Product(children) => {
                 if emit_outer_parentheses {
                     self.literal("(");
                 }
                 let sorted = Self::sort_children(children);
+                // Serialize root's first child, and append it to s.
                 self.serialize_tree(&sorted[0], true);
+                // For each child of root beyond the first:
                 for child in &sorted[1..] {
                     match &**child {
+                        // 1. If child is an Invert node, append " / " to s, then serialize the
+                        //    Invert's child and append the result to s.
                         CalcNode::Invert(inverted) => {
                             self.literal(" / ");
                             self.serialize_tree(inverted, true);
                         }
+                        // 2. Otherwise, append " * " to s, then serialize child and append the
+                        //    result to s.
                         _ => {
                             self.literal(" * ");
                             self.serialize_tree(child, true);
                         }
                     }
                 }
+                // Finally, append ")" to s and return it.
                 if emit_outer_parentheses {
                     self.literal(")");
                 }
             }
+            // 3. If root is anything but a Sum, Negate, Product, or Invert node, serialize a math
+            //    function for the function corresponding to the node type, treating the node's
+            //    children as the function's comma-separated calculation arguments, and return the
+            //    result.
             _ => self.serialize_math_function(node),
         }
     }
