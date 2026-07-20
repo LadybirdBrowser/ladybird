@@ -93,6 +93,10 @@ public:
 
     GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
 
+    // Whether any node of the calculation is an anchor() function, which layout must
+    // resolve with the anchor context of the box being positioned.
+    bool contains_anchor_function() const;
+
 private:
     explicit CalculatedStyleValue(NonnullRefPtr<CalculationNode const> calculation, NumericType resolved_type, CalculationContext context)
         : StyleValue(Type::Calculated, make_calculated_data(calculation, resolved_type, context))

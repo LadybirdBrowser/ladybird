@@ -2329,6 +2329,27 @@ static GC::Ptr<CSSNumericValue> reify_rust_calc_node(JS::Realm& realm, void cons
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-math-expression
+static bool rust_calc_node_contains_anchor(StyleValueFFI::CalcNode const* node)
+{
+    if (StyleValueFFI::rust_calc_node_kind(node) == 28
+        && static_cast<StyleValue const*>(StyleValueFFI::rust_calc_node_style_value(node))->is_anchor())
+        return true;
+    Vector<StyleValueFFI::CalcNode const*> children;
+    auto count = StyleValueFFI::rust_calc_node_children(node, nullptr, 0);
+    children.resize(count);
+    StyleValueFFI::rust_calc_node_children(node, children.data(), children.size());
+    for (auto const* child : children) {
+        if (rust_calc_node_contains_anchor(child))
+            return true;
+    }
+    return false;
+}
+
+bool CalculatedStyleValue::contains_anchor_function() const
+{
+    return rust_calc_node_contains_anchor(m_value->calculated.rust_calculation.node);
+}
+
 GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
 {
     // NB: This spec algorithm isn't really implementable here - it's incomplete, and assumes we don't already have a
@@ -2340,7 +2361,6 @@ GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, Utf16FlyStr
     return default_reify(realm, associated_property);
 }
 
-// https://drafts.csswg.org/css-values-4/#calc-simplification
 // https://drafts.csswg.org/css-values-4/#calc-simplification
 NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode const& original_root, CalculationContext const& context, CalculationResolutionContext const& resolution_context)
 {

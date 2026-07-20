@@ -1929,24 +1929,12 @@ AbsposContainingBlockInfo FormattingContext::resolve_abspos_containing_block_inf
     return { rect, inline_axis_mode, block_axis_mode, {}, {} };
 }
 
-static bool calculation_tree_contains_anchor(CSS::CalculationNode const& root)
-{
-    if (root.type() == CSS::CalculationNode::Type::NonMathFunction && as<CSS::NonMathFunctionCalculationNode>(root).function()->is_anchor())
-        return true;
-
-    for (auto const& child : root.children()) {
-        if (calculation_tree_contains_anchor(child))
-            return true;
-    }
-    return false;
-}
-
 static bool style_value_contains_anchor(CSS::StyleValue const& value)
 {
     if (value.is_anchor())
         return true;
     if (value.is_calculated())
-        return calculation_tree_contains_anchor(value.as_calculated().calculation());
+        return value.as_calculated().contains_anchor_function();
     return false;
 }
 
@@ -2713,7 +2701,7 @@ void FormattingContext::compute_inset(NodeWithStyleAndBoxModelMetrics const& box
     //     passed as const& through the compute_inset() call chain.
     if (auto const* anchored_box = as_if<Box>(box)) {
         auto inset_contains_anchor = [](CSS::LengthPercentageOrAuto const& value) {
-            return value.is_calculated() && calculation_tree_contains_anchor(value.calculated()->calculation());
+            return value.is_calculated() && value.calculated()->contains_anchor_function();
         };
         auto const& inset = anchored_box->computed_values().inset();
         if (inset_contains_anchor(inset.top()) || inset_contains_anchor(inset.right())
