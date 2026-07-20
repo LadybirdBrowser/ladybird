@@ -1,0 +1,6 @@
+last matching rule: true
+matching selector list: 25%, 75%
+matching reordered selector list: 75%, 25%
+to matches 100%: 100%
+partial selector list: null
+invalid selectors return null: true

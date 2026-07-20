@@ -113,6 +113,26 @@ void CSSKeyframesRule::delete_rule(Utf16String const& select)
     }
 }
 
+// https://drafts.csswg.org/css-animations-1/#interface-csskeyframesrule-findrule
+GC::Ptr<CSSKeyframeRule> CSSKeyframesRule::find_rule(Utf16String const& select)
+{
+    // The findRule returns the last declared CSSKeyframeRule matching the specified keyframe selector. If no matching
+    // rule exists, the method does nothing.
+    auto selectors = Parser::parse_keyframe_selectors(Parser::ParsingParams { realm() }, select);
+
+    if (selectors.is_empty())
+        return nullptr;
+
+    for (size_t i = m_rules->length(); i-- > 0;) {
+        auto& keyframe_rule = as<CSSKeyframeRule>(*m_rules->item(i));
+
+        if (keyframe_rule.keys() == selectors)
+            return keyframe_rule;
+    }
+
+    return nullptr;
+}
+
 void CSSKeyframesRule::dump(StringBuilder& builder, int indent_levels) const
 {
     Base::dump(builder, indent_levels);

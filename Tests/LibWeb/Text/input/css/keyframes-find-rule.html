@@ -1,0 +1,34 @@
+<!doctype html>
+<style>
+    @keyframes foo {
+        from {
+        }
+        0% {
+        }
+        25%,
+        75% {
+        }
+        75%,
+        25% {
+        }
+        to {
+        }
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const fooRule = document.styleSheets[0].cssRules[0];
+
+        println("last matching rule: " + (fooRule.findRule(" from ") === fooRule.cssRules[1]));
+        println("matching selector list: " + fooRule.findRule("25%,75%").keyText);
+        println("matching reordered selector list: " + fooRule.findRule("75%, 25%").keyText);
+        println("to matches 100%: " + fooRule.findRule("100%").keyText);
+        println("partial selector list: " + fooRule.findRule("75%"));
+
+        const invalidSelectors = ["", "0% 25%", "0%,", "0%, calc(25%)", "-1%", "101%"];
+        println(
+            "invalid selectors return null: " + invalidSelectors.every(selector => fooRule.findRule(selector) === null)
+        );
+    });
+</script>

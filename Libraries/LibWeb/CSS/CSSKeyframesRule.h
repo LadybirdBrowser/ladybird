@@ -36,6 +36,7 @@ public:
 
     void append_rule(Utf16String const& rule);
     void delete_rule(Utf16String const& select);
+    GC::Ptr<CSSKeyframeRule> find_rule(Utf16String const& select);
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
