@@ -4,15 +4,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#[path = "../../../RustAllocator.rs"]
+#[cfg(feature = "allocator")]
+#[path = "../../../../RustAllocator.rs"]
 mod rust_allocator;
 
-mod encoding_detection;
-
-pub use libweb_html_tokenizer as html_tokenizer;
+mod css_tokenizer;
+mod selector_engine;
+mod style_value;
 
 use std::panic::AssertUnwindSafe;
 use std::panic::catch_unwind;
+
+pub use css_tokenizer::CssHashType;
+pub use css_tokenizer::CssNumberType;
+pub use css_tokenizer::CssToken;
+pub use css_tokenizer::CssTokenType;
 
 fn abort_on_panic<F: FnOnce() -> R, R>(f: F) -> R {
     match catch_unwind(AssertUnwindSafe(f)) {

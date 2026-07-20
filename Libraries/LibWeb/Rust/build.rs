@@ -6,122 +6,32 @@
 
 use std::env;
 use std::error::Error;
-use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
-// Mirrors title_casify() in Meta/Utils/utils.py.
-fn title_casify(dashy_name: &str) -> String {
-    dashy_name
-        .split('-')
-        .filter(|part| !part.is_empty())
-        .map(|part| {
-            let mut chars = part.chars();
-            let first = chars.next().unwrap().to_ascii_uppercase();
-            format!("{first}{}", chars.as_str())
-        })
-        .collect()
-}
+fn main() -> Result<(), Box<dyn Error>> {
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
+    let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 
-fn write_enum_and_from_ffi(output: &mut String, enum_name: &str, variants: &[String]) {
-    writeln!(output, "#[derive(Clone, Copy, Debug, PartialEq, Eq)]").unwrap();
-    writeln!(output, "#[repr(u8)]").unwrap();
-    writeln!(output, "pub enum {enum_name} {{").unwrap();
-    for variant in variants {
-        writeln!(output, "    {variant},").unwrap();
-    }
-    writeln!(output, "}}").unwrap();
-    writeln!(output).unwrap();
-    let fn_name = if enum_name == "PseudoClassType" {
-        "pseudo_class_from_ffi"
-    } else {
-        "pseudo_element_from_ffi"
-    };
-    writeln!(output, "fn {fn_name}(value: u8) -> {enum_name} {{").unwrap();
-    writeln!(output, "    match value {{").unwrap();
-    for (index, variant) in variants.iter().enumerate() {
-        writeln!(output, "        {index} => {enum_name}::{variant},").unwrap();
-    }
-    writeln!(output, "        _ => panic!(\"invalid {enum_name} {{value}}\"),").unwrap();
-    writeln!(output, "    }}").unwrap();
-    writeln!(output, "}}").unwrap();
-    writeln!(output).unwrap();
-}
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=cbindgen.toml");
+    println!("cargo:rerun-if-env-changed=FFI_OUTPUT_DIR");
+    println!("cargo:rerun-if-changed=src");
 
-// Generates the Rust twins of the C++ PseudoClass and PseudoElement enums from the same JSON
-// sources as Meta/Generators/generate_libweb_css_pseudo_{class,element}.py, so the numeric
-// values that cross the selector FFI cannot drift out of sync with the C++ side.
-fn generate_selector_pseudo_types(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn Error>> {
-    let css_dir = manifest_dir.parent().unwrap().join("CSS");
-    let pseudo_classes_path = css_dir.join("PseudoClasses.json");
-    let pseudo_elements_path = css_dir.join("PseudoElements.json");
-    println!("cargo:rerun-if-changed={}", pseudo_classes_path.display());
-    println!("cargo:rerun-if-changed={}", pseudo_elements_path.display());
+    let ffi_out_dir = env::var("FFI_OUTPUT_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| out_dir.clone());
 
-    let parse_object = |path: &Path| -> Result<serde_json::Map<String, serde_json::Value>, Box<dyn Error>> {
-        let value: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path)?)?;
-        match value {
-            serde_json::Value::Object(object) => Ok(object),
-            _ => Err(format!("{} does not contain a JSON object", path.display()).into()),
-        }
-    };
+    let config = cbindgen::Config::from_file(manifest_dir.join("cbindgen.toml"))?;
 
-    let pseudo_class_names = parse_object(&pseudo_classes_path)?
-        .iter()
-        .filter(|(_, value)| !value.as_object().unwrap().contains_key("legacy-alias-for"))
-        .map(|(name, _)| title_casify(name))
-        .collect::<Vec<_>>();
+    // Encoding-detection header - namespace Web::HTML::Parser, rust_detect_encoding only.
+    let mut html_config = config;
+    html_config.namespaces = Some(vec!["Web".to_string(), "HTML".to_string(), "Parser".to_string()]);
+    html_config.export.include = vec!["rust_detect_encoding".to_string()];
 
-    let mut synthetic_pseudo_elements = Vec::new();
-    let mut element_reference_pseudo_elements = Vec::new();
-    let mut functional_pseudo_elements = Vec::new();
-    for (name, value) in &parse_object(&pseudo_elements_path)? {
-        let object = value.as_object().unwrap();
-        if object.contains_key("alias-for") {
-            continue;
-        }
-        if object.get("type").and_then(|value| value.as_str()) == Some("function") {
-            functional_pseudo_elements.push(title_casify(name));
-            continue;
-        }
-        match object.get("implementation").and_then(|value| value.as_str()) {
-            Some("synthetic") => synthetic_pseudo_elements.push(title_casify(name)),
-            Some("element-reference") => element_reference_pseudo_elements.push(title_casify(name)),
-            other => return Err(format!("invalid or missing implementation type for ::{name}: {other:?}").into()),
-        }
-    }
-    let mut pseudo_element_names = synthetic_pseudo_elements;
-    pseudo_element_names.extend(element_reference_pseudo_elements);
-    pseudo_element_names.extend(functional_pseudo_elements);
-    // NB: The C++ generator emits UnknownWebKit after KnownPseudoElementCount, so its FFI value is
-    //     the number of known pseudo-elements.
-    pseudo_element_names.push("UnknownWebKit".to_string());
-
-    let mut output = String::new();
-    writeln!(
-        output,
-        "// Generated by build.rs from CSS/PseudoClasses.json and CSS/PseudoElements.json."
-    )
-    .unwrap();
-    writeln!(output).unwrap();
-    write_enum_and_from_ffi(&mut output, "PseudoClassType", &pseudo_class_names);
-    write_enum_and_from_ffi(&mut output, "PseudoElementType", &pseudo_element_names);
-
-    std::fs::write(out_dir.join("selector_pseudo_generated.rs"), output)?;
-    Ok(())
-}
-
-fn generate_ffi_header(
-    config: cbindgen::Config,
-    sources: &[PathBuf],
-    out_dir: &Path,
-    ffi_out_dir: &Path,
-    header: &Path,
-) {
-    let builder = sources
-        .iter()
-        .fold(cbindgen::Builder::new().with_config(config), |builder, source| {
-            builder.with_src(source)
-        });
+    let header = Path::new("HTML/Parser/RustFFI.h");
+    let builder = cbindgen::Builder::new()
+        .with_config(html_config)
+        .with_src(manifest_dir.join("src/encoding_detection.rs"));
     builder.generate().map_or_else(
         |error| match error {
             cbindgen::Error::ParseSyntaxError { .. } => {}
@@ -137,103 +47,6 @@ fn generate_ffi_header(
                 bindings.write_to_file(ffi_header);
             }
         },
-    );
-}
-
-fn main() -> Result<(), Box<dyn Error>> {
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
-    let out_dir = PathBuf::from(env::var("OUT_DIR")?);
-
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=cbindgen.toml");
-    println!("cargo:rerun-if-env-changed=FFI_OUTPUT_DIR");
-    println!("cargo:rerun-if-changed=src");
-
-    generate_selector_pseudo_types(&manifest_dir, &out_dir)?;
-
-    let ffi_out_dir = env::var("FFI_OUTPUT_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| out_dir.clone());
-
-    let base_config = cbindgen::Config::from_file(manifest_dir.join("cbindgen.toml"))?;
-
-    // CSS tokenizer header — namespace Web::CSS::Parser::FFI, CSS types only.
-    let mut css_config = base_config.clone();
-    css_config.namespaces = Some(vec![
-        "Web".to_string(),
-        "CSS".to_string(),
-        "Parser".to_string(),
-        "FFI".to_string(),
-    ]);
-    css_config.export.include = vec![
-        "CssHashType".to_string(),
-        "CssNumberType".to_string(),
-        "CssToken".to_string(),
-        "CssTokenType".to_string(),
-    ];
-
-    generate_ffi_header(
-        css_config,
-        &[manifest_dir.join("src/css_tokenizer.rs")],
-        &out_dir,
-        &ffi_out_dir,
-        Path::new("RustFFI.h"),
-    );
-
-    // Selector matching header - namespace Web::CSS::SelectorFFI. Generate both sides of this
-    // ABI from the Rust declarations so changes to layouts or signatures cannot drift silently.
-    let mut selector_config = base_config.clone();
-    selector_config.namespaces = Some(vec!["Web".to_string(), "CSS".to_string(), "SelectorFFI".to_string()]);
-    for (rust_name, cxx_name) in [
-        ("FfiSimpleSelectorType", "SimpleSelectorType"),
-        ("FfiDirection", "Direction"),
-        ("FfiPseudoElementValueType", "PseudoElementValueType"),
-        ("FfiStringView", "StringView"),
-        ("FfiSimpleSelector", "SimpleSelector"),
-        ("FfiCompoundSelector", "CompoundSelector"),
-        ("FfiSelector", "Selector"),
-        ("FfiElementAndShadowHost", "ElementAndShadowHost"),
-    ] {
-        selector_config
-            .export
-            .rename
-            .insert(rust_name.to_string(), cxx_name.to_string());
-    }
-
-    generate_ffi_header(
-        selector_config,
-        &[manifest_dir.join("src/selector_engine.rs")],
-        &out_dir,
-        &ffi_out_dir,
-        Path::new("SelectorRustFFI.h"),
-    );
-
-    // Style value header - namespace Web::CSS::StyleValueFFI. The StyleValueData layout is
-    // exposed so converted C++ StyleValue subclasses can read variant payloads inline without
-    // an FFI call.
-    let mut style_value_config = base_config.clone();
-    style_value_config.namespaces = Some(vec!["Web".to_string(), "CSS".to_string(), "StyleValueFFI".to_string()]);
-    style_value_config.export.include = vec!["StyleValueData".to_string()];
-
-    generate_ffi_header(
-        style_value_config,
-        &[manifest_dir.join("src/style_value.rs")],
-        &out_dir,
-        &ffi_out_dir,
-        Path::new("StyleValueRustFFI.h"),
-    );
-
-    // Encoding-detection header - namespace Web::HTML::Parser, rust_detect_encoding only.
-    let mut html_config = base_config;
-    html_config.namespaces = Some(vec!["Web".to_string(), "HTML".to_string(), "Parser".to_string()]);
-    html_config.export.include = vec!["rust_detect_encoding".to_string()];
-
-    generate_ffi_header(
-        html_config,
-        &[manifest_dir.join("src/encoding_detection.rs")],
-        &out_dir,
-        &ffi_out_dir,
-        Path::new("HTML/Parser/RustFFI.h"),
     );
 
     Ok(())

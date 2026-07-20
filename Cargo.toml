@@ -8,6 +8,7 @@ members = [
     "Libraries/LibURL/Rust",
     "Libraries/LibWasm/Rust",
     "Libraries/LibWeb/ContentBlocker/Rust",
+    "Libraries/LibWeb/CSS/Rust",
     "Libraries/LibWeb/Rust",
     "Libraries/LibWeb/HTML/Parser/Rust",
 ]
