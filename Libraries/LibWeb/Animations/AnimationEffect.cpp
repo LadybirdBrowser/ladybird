@@ -100,6 +100,8 @@ Bindings::OptionalEffectTiming to_optional_effect_timing(Bindings::EffectTiming 
 // https://www.w3.org/TR/web-animations-1/#dom-animationeffect-gettiming
 Bindings::EffectTiming AnimationEffect::get_timing() const
 {
+    update_style_if_needed();
+
     // 1. Returns the specified timing properties for this animation effect.
     return {
         .delay = m_specified_start_delay,
@@ -117,6 +119,8 @@ Bindings::EffectTiming AnimationEffect::get_timing() const
 // https://drafts.csswg.org/web-animations-2/#dom-animationeffect-getcomputedtiming
 Bindings::ComputedEffectTiming AnimationEffect::get_computed_timing() const
 {
+    update_style_if_needed();
+
     // 1. Returns the calculated timing properties for this animation effect.
 
     // Note: Although some of the attributes of the object returned by getTiming() and getComputedTiming() are common,
@@ -373,6 +377,12 @@ void AnimationEffect::set_associated_animation(GC::Ptr<Animation> value)
 
     // NB: The normalization of the specified timing depends on the timeline of the associated animation.
     normalize_specified_timing();
+}
+
+void AnimationEffect::update_style_if_needed() const
+{
+    if (m_associated_animation)
+        m_associated_animation->update_style_if_needed();
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-direction

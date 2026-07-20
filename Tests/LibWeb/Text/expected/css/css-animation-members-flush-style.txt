@@ -1,0 +1,13 @@
+duration: 200000
+delay: 3000
+iterations: 4
+direction: alternate
+fill: forwards
+computed duration: 300000
+composite: add
+timeline: null
+start time: null
+current time: null
+ready changed: true
+pending: true
+finished changed: true

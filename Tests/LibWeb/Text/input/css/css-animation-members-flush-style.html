@@ -1,0 +1,75 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    .animation {
+        animation: fade 100s 1s both reverse;
+    }
+</style>
+<div class="animation" id="animation"></div>
+<div class="animation" id="start-time-animation"></div>
+<div class="animation" id="current-time-animation"></div>
+<div class="animation" id="state-animation"></div>
+<script>
+    test(() => {
+        const animationElement = document.getElementById("animation");
+        const animation = animationElement.getAnimations()[0];
+
+        animationElement.style.animationDuration = "200s";
+        animationElement.style.animationDelay = "3s";
+        animationElement.style.animationIterationCount = "4";
+        animationElement.style.animationDirection = "alternate";
+        animationElement.style.animationFillMode = "forwards";
+        const timing = animation.effect.getTiming();
+        println(`duration: ${timing.duration}`);
+        println(`delay: ${timing.delay}`);
+        println(`iterations: ${timing.iterations}`);
+        println(`direction: ${timing.direction}`);
+        println(`fill: ${timing.fill}`);
+
+        animationElement.style.animationDuration = "300s";
+        println(`computed duration: ${animation.effect.getComputedTiming().duration}`);
+
+        animationElement.style.animationComposition = "add";
+        println(`composite: ${animation.effect.composite}`);
+
+        animationElement.style.animationTimeline = "none";
+        println(`timeline: ${animation.timeline}`);
+
+        const startTimeAnimationElement = document.getElementById("start-time-animation");
+        const startTimeAnimation = startTimeAnimationElement.getAnimations()[0];
+        startTimeAnimation.startTime = 0;
+        startTimeAnimationElement.style.animationTimeline = "scroll()";
+        println(`start time: ${startTimeAnimation.startTime}`);
+
+        const currentTimeAnimationElement = document.getElementById("current-time-animation");
+        const currentTimeAnimation = currentTimeAnimationElement.getAnimations()[0];
+        currentTimeAnimation.startTime = 0;
+        currentTimeAnimationElement.style.animationTimeline = "none";
+        println(`current time: ${currentTimeAnimation.currentTime}`);
+
+        const stateAnimationElement = document.getElementById("state-animation");
+        const stateAnimation = stateAnimationElement.getAnimations()[0];
+        stateAnimation.finish();
+
+        const ready = stateAnimation.ready;
+        stateAnimationElement.style.animationPlayState = "paused";
+        println(`ready changed: ${stateAnimation.ready !== ready}`);
+
+        stateAnimation.finish();
+        stateAnimationElement.style.animationPlayState = "running";
+        println(`pending: ${stateAnimation.pending}`);
+
+        const finished = stateAnimation.finished;
+        stateAnimationElement.style.animationName = "none";
+        println(`finished changed: ${stateAnimation.finished !== finished}`);
+    });
+</script>

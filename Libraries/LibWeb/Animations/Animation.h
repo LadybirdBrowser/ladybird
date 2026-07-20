@@ -44,24 +44,18 @@ public:
     GC::Ptr<AnimationTimeline> timeline() const { return m_timeline; }
     void set_timeline(GC::Ptr<AnimationTimeline>);
 
-    virtual GC::Ptr<AnimationTimeline> timeline_for_bindings() const { return m_timeline; }
+    virtual GC::Ptr<AnimationTimeline> timeline_for_bindings() const;
     virtual void set_timeline_for_bindings(GC::Ptr<AnimationTimeline> timeline) { set_timeline(timeline); }
 
     // https://drafts.csswg.org/web-animations-2/#dom-animation-starttime
-    NullableCSSNumberish start_time_for_bindings() const
-    {
-        return NullableCSSNumberish::from_optional_css_numberish_time(realm(), start_time());
-    }
+    NullableCSSNumberish start_time_for_bindings() const;
     Optional<TimeValue> start_time() const { return m_start_time; }
     WebIDL::ExceptionOr<void> set_start_time_for_bindings(NullableCSSNumberish const&);
 
     void calculate_auto_aligned_start_time();
 
     // https://drafts.csswg.org/web-animations-2/#dom-animation-currenttime
-    NullableCSSNumberish current_time_for_bindings() const
-    {
-        return NullableCSSNumberish::from_optional_css_numberish_time(realm(), current_time());
-    }
+    NullableCSSNumberish current_time_for_bindings() const;
     Optional<TimeValue> current_time() const;
     WebIDL::ExceptionOr<void> set_current_time_for_bindings(NullableCSSNumberish const&);
 
@@ -78,12 +72,15 @@ public:
     void set_replace_state(Bindings::AnimationReplaceState value);
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-pending
+    bool pending_for_bindings() const;
     bool pending() const { return m_pending_play_task == TaskState::Scheduled || m_pending_pause_task == TaskState::Scheduled; }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-ready
+    GC::Ref<WebIDL::Promise> ready_for_bindings() const;
     GC::Ref<WebIDL::Promise> ready() const { return current_ready_promise(); }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-finished
+    GC::Ref<WebIDL::Promise> finished_for_bindings() const;
     GC::Ref<WebIDL::Promise> finished() const { return current_finished_promise(); }
     bool is_finished() const { return m_is_finished; }
 
@@ -126,6 +123,7 @@ public:
 
     Optional<DOM::AbstractElement> owning_element() const { return m_owning_element; }
     void set_owning_element(Optional<DOM::AbstractElement>&& value) { m_owning_element = move(value); }
+    void update_style_if_needed() const;
 
     virtual AnimationClass animation_class() const { return AnimationClass::None; }
     virtual int class_specific_composite_order(GC::Ref<Animation>) const { return 0; }

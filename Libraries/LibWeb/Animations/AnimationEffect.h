@@ -145,6 +145,7 @@ protected:
     AnimationEffect(JS::Realm&);
     virtual ~AnimationEffect() = default;
 
+    void update_style_if_needed() const;
     void invalidate_effect();
 
     virtual void visit_edges(Visitor&) override;

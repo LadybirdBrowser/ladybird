@@ -109,6 +109,12 @@ void Animation::set_effect(GC::Ptr<AnimationEffect> new_effect)
     update_finished_state(DidSeek::No, SynchronouslyNotify::No);
 }
 
+GC::Ptr<AnimationTimeline> Animation::timeline_for_bindings() const
+{
+    update_style_if_needed();
+    return m_timeline;
+}
+
 // https://www.w3.org/TR/web-animations-1/#animation-set-the-timeline-of-an-animation
 // https://drafts.csswg.org/web-animations-2/#setting-the-timeline
 void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
@@ -279,6 +285,12 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
     VERIFY_NOT_REACHED();
 }
 
+NullableCSSNumberish Animation::start_time_for_bindings() const
+{
+    update_style_if_needed();
+    return NullableCSSNumberish::from_optional_css_numberish_time(realm(), start_time());
+}
+
 // https://www.w3.org/TR/web-animations-1/#dom-animation-starttime
 // https://www.w3.org/TR/web-animations-1/#set-the-start-time
 WebIDL::ExceptionOr<void> Animation::set_start_time_for_bindings(NullableCSSNumberish const& raw_new_start_time)
@@ -411,6 +423,12 @@ Optional<TimeValue> Animation::current_time() const
     return (m_timeline->current_time().value() - m_start_time.value()) * playback_rate();
 }
 
+NullableCSSNumberish Animation::current_time_for_bindings() const
+{
+    update_style_if_needed();
+    return NullableCSSNumberish::from_optional_css_numberish_time(realm(), current_time());
+}
+
 // https://www.w3.org/TR/web-animations-1/#animation-set-the-current-time
 WebIDL::ExceptionOr<void> Animation::set_current_time_for_bindings(NullableCSSNumberish const& raw_seek_time)
 {
@@ -484,13 +502,35 @@ WebIDL::ExceptionOr<void> Animation::set_playback_rate(double new_playback_rate)
     return {};
 }
 
+void Animation::update_style_if_needed() const
+{
+    if (m_owning_element.has_value())
+        m_owning_element->document().update_style_if_needed_for_element(*m_owning_element);
+}
+
 // https://www.w3.org/TR/web-animations-1/#animation-play-state
 Bindings::AnimationPlayState Animation::play_state_for_bindings() const
 {
-    if (m_owning_element.has_value())
-        m_owning_element->document().update_style();
-
+    update_style_if_needed();
     return play_state();
+}
+
+bool Animation::pending_for_bindings() const
+{
+    update_style_if_needed();
+    return pending();
+}
+
+GC::Ref<WebIDL::Promise> Animation::ready_for_bindings() const
+{
+    update_style_if_needed();
+    return ready();
+}
+
+GC::Ref<WebIDL::Promise> Animation::finished_for_bindings() const
+{
+    update_style_if_needed();
+    return finished();
 }
 
 Bindings::AnimationPlayState Animation::play_state() const

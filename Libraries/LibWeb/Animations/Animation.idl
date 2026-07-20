@@ -12,9 +12,9 @@ interface Animation : EventTarget {
     attribute double playbackRate;
     [ImplementedAs=play_state_for_bindings] readonly attribute AnimationPlayState playState;
     readonly attribute AnimationReplaceState replaceState;
-    readonly attribute boolean pending;
-    readonly attribute Promise<Animation> ready;
-    readonly attribute Promise<Animation> finished;
+    [ImplementedAs=pending_for_bindings] readonly attribute boolean pending;
+    [ImplementedAs=ready_for_bindings] readonly attribute Promise<Animation> ready;
+    [ImplementedAs=finished_for_bindings] readonly attribute Promise<Animation> finished;
 
     attribute EventHandler onfinish;
     attribute EventHandler oncancel;

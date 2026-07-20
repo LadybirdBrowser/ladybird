@@ -853,6 +853,12 @@ void KeyframeEffect::set_composite(Bindings::CompositeOperation value)
     invalidate_effect();
 }
 
+Bindings::CompositeOperation KeyframeEffect::composite_for_bindings() const
+{
+    update_style_if_needed();
+    return composite();
+}
+
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-getkeyframes
 WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
 {

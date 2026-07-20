@@ -32,7 +32,7 @@ interface KeyframeEffect : AnimationEffect {
 
     attribute Element? target;
     attribute Utf16CSSOMString? pseudoElement;
-    attribute CompositeOperation composite;
+    [ImplementedAs=composite_for_bindings] attribute CompositeOperation composite;
     sequence<object> getKeyframes();
     undefined setKeyframes(object? keyframes);
 };
