@@ -1259,6 +1259,9 @@ Optional<Web::DevicePixelRect> ViewImplementation::get_input_caret_rect()
 void ViewImplementation::set_input_method_state(Badge<WebContentClient>, InputMethodState state)
 {
     m_input_method_state = move(state);
+
+    if (on_input_method_state_change)
+        on_input_method_state_change();
 }
 
 void ViewImplementation::retrieved_clipboard_entries(u64 request_id, ReadonlySpan<Web::Clipboard::SystemClipboardItem> items)

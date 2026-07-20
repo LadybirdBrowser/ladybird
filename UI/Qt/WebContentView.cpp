@@ -86,6 +86,14 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     m_client_state.page_index = page_index;
 
     setAttribute(Qt::WA_InputMethodEnabled, true);
+
+    // Push-based IME state (ViewImplementation::set_input_method_state) must nudge Qt to re-query inputMethodQuery().
+    // Without that, the platform IME keeps the stale first-keystroke caret and surrounding text — and composition stops
+    // after one character.
+    on_input_method_state_change = [this] {
+        updateMicroFocus();
+    };
+
     setMouseTracking(true);
     setAcceptDrops(true);
 
