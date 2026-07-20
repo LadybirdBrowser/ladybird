@@ -232,7 +232,6 @@ class BorderImageSliceStyleValue;
 class BorderRadiusRectStyleValue;
 class BorderRadiusStyleValue;
 class CalculatedStyleValue;
-class CalculationNode;
 class CascadedProperties;
 class CustomPropertyData;
 class Clip;

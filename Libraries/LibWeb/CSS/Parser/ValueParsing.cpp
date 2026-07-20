@@ -5158,7 +5158,7 @@ Optional<CalcNodeRef> Parser::convert_to_calculation_node(CalcParsing::Node cons
         [this, &context](NonnullRawPtr<ComponentValue const> const& component_value) -> Optional<CalcNodeRef> {
             // NOTE: This is the "process the leaf nodes" part of step 5 of https://drafts.csswg.org/css-values-4/#parse-a-calculation
             //       We divert a little from the spec: Rather than modify an existing tree of values, we construct a new one from that source tree.
-            //       This lets us make CalculationNodes immutable.
+            //       This lets the calculation tree stay immutable.
 
             // 1. If leaf is a parenthesized simple block, replace leaf with the result of parsing a calculation from leaf’s contents.
             if (component_value->is_block() && component_value->block().is_paren()) {
