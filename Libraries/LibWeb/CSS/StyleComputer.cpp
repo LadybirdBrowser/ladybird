@@ -2526,19 +2526,6 @@ CSSPixels StyleComputer::absolute_size_mapping(AbsoluteSize absolute_size, CSSPi
     VERIFY_NOT_REACHED();
 }
 
-static bool font_size_value_depends_on_inherited_font_size(StyleValue const& value)
-{
-    return value.is_percentage()
-        || (value.is_calculated() && value.as_calculated().contains_percentage())
-        || first_is_one_of(value.to_keyword(), Keyword::Larger, Keyword::Smaller, Keyword::Math);
-}
-
-static bool line_height_value_depends_on_computed_font_size(StyleValue const& value)
-{
-    return value.is_percentage()
-        || (value.is_calculated() && value.as_calculated().contains_percentage());
-}
-
 void StyleComputer::compute_property_values(ComputedProperties::Builder& builder, Optional<DOM::AbstractElement> abstract_element) const
 {
     VERIFY(computation_context_cache_is_empty());
@@ -3137,12 +3124,9 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
 
 static bool is_monospace(StyleValue const& value)
 {
-    if (!value.is_value_list())
-        return false;
-
-    auto const& values = value.as_value_list().values();
-
-    return values.size() == 1 && values[0]->to_keyword() == Keyword::Monospace;
+    return ComputedValuesFFI::rust_font_family_is_monospace(
+        value.rust_style_value_data(),
+        [](void const* shell) -> void const* { return static_cast<StyleValue const*>(shell)->rust_style_value_data(); });
 }
 
 // HACK: This function implements time-travelling inheritance for the font-size property
@@ -3413,9 +3397,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         // be re-resolved when an ancestor changes without keeping CascadedProperties alive on the element.
         bool depends_on_inherited_info = value->depends_on_current_color()
             || !value->is_computationally_independent()
-            || (property_id == PropertyID::FontWeight && first_is_one_of(value->to_keyword(), Keyword::Bolder, Keyword::Lighter))
-            || (property_id == PropertyID::FontSize && font_size_value_depends_on_inherited_font_size(*value))
-            || (property_id == PropertyID::LineHeight && line_height_value_depends_on_computed_font_size(*value));
+            || ComputedValuesFFI::rust_value_depends_on_inherited_info_for_property(value->rust_style_value_data(), to_underlying(property_id));
         if (depends_on_inherited_info)
             builder.add_inheritance_dependent_specified_value(property_id, *value);
 
@@ -4123,7 +4105,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
         return compute_corner_shape(absolutized_value);
     case PropertyID::FontSize: {
         auto parent = inheritance_parent();
-        if (font_size_value_depends_on_inherited_font_size(*absolutized_value) && parent.has_value()) {
+        if (ComputedValuesFFI::rust_value_depends_on_inherited_info_for_property(absolutized_value->rust_style_value_data(), to_underlying(PropertyID::FontSize)) && parent.has_value()) {
             auto parent_values = parent->computed_values();
             if (parent_values && parent_values->font_metrics_depend_on_viewport_metrics())
                 computation_context.length_resolution_context.record_viewport_relative_length_resolution();

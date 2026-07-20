@@ -1317,6 +1317,79 @@ pub unsafe extern "C" fn rust_compute_corner_shape_parameter(absolutized_value: 
     })
 }
 
+/// Whether a font-family value is a single monospace keyword, which triggers
+/// the monospace font-size recascade. The list entry's keyword is read through
+/// the nested value's shell pointer.
+///
+/// # Safety
+/// `data` must point at a valid StyleValueData and `data_of` map a nested
+/// value's shell pointer to its Rust-owned data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_font_family_is_monospace(
+    data: *const c_void,
+    data_of: unsafe extern "C" fn(shell: *const c_void) -> *const c_void,
+) -> bool {
+    abort_on_panic(|| {
+        let StyleValueData::ValueList { values, .. } = (unsafe { &*(data as *const StyleValueData) }) else {
+            return false;
+        };
+        let values = values.as_slice();
+        if values.len() != 1 {
+            return false;
+        }
+        let entry_data = unsafe { data_of(values[0].shell_pointer()) };
+        matches!(
+            unsafe { &*(entry_data as *const StyleValueData) },
+            StyleValueData::Keyword { keyword } if *keyword == keyword::MONOSPACE
+        )
+    })
+}
+
+/// Whether a value contains a percentage, either directly or inside a
+/// calculation tree; the shared core of the two font predicates below.
+fn value_contains_percentage(value: &StyleValueData) -> bool {
+    match value {
+        StyleValueData::Percentage { .. } => true,
+        StyleValueData::Calculated { rust_calculation, .. } => rust_calculation.node().contains_percentage(),
+        _ => false,
+    }
+}
+
+/// Whether a value's computed value depends on inherited font metrics because
+/// of the property it belongs to: a font-weight of bolder or lighter (relative
+/// to the inherited weight), a font-size that is a percentage, a percentage-
+/// bearing calc(), or one of larger/smaller/math (relative to the inherited
+/// size), or a line-height that is a percentage or percentage-bearing calc()
+/// (relative to the computed font size). This is the property-specific part of
+/// the flow's inheritance-dependency decision; the property-agnostic parts
+/// (depends-on-current-color and computational independence) stay with the
+/// value's own operations.
+///
+/// # Safety
+/// `value` must point at a valid StyleValueData.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_value_depends_on_inherited_info_for_property(
+    value: *const c_void,
+    property_id: u16,
+) -> bool {
+    use crate::property_metadata::property_id as prop;
+    abort_on_panic(|| {
+        let value = unsafe { &*(value as *const StyleValueData) };
+        match property_id {
+            prop::FONT_WEIGHT => {
+                matches!(value, StyleValueData::Keyword { keyword } if matches!(*keyword, keyword::BOLDER | keyword::LIGHTER))
+            }
+            prop::FONT_SIZE => {
+                value_contains_percentage(value)
+                    || matches!(value, StyleValueData::Keyword { keyword }
+                        if matches!(*keyword, keyword::LARGER | keyword::SMALLER | keyword::MATH))
+            }
+            prop::LINE_HEIGHT => value_contains_percentage(value),
+            _ => false,
+        }
+    })
+}
+
 // https://drafts.csswg.org/css-anchor-position/#position-area-computed
 // The computed value of a <position-area> value is the two keywords indicating the selected
 // tracks in each axis, with the long (block-start) and short (start) logical keywords treated
