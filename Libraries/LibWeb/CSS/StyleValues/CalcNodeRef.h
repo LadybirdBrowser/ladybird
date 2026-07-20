@@ -100,6 +100,9 @@ public:
     static CalcNodeRef round(RoundingStrategy, CalcNodeRef value, CalcNodeRef interval);
     static CalcNodeRef random(StyleValue const& random_value_sharing, CalcNodeRef minimum, CalcNodeRef maximum, Optional<CalcNodeRef> step);
     static CalcNodeRef non_math_function(StyleValue const& function, Optional<NumericType> const&);
+    // Numeric style values become numeric leaves; a calculated value
+    // contributes its own Rust tree.
+    static CalcNodeRef from_style_value(StyleValue const&);
 
     // https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
     // The type of the calculation this node roots, determined by the Rust

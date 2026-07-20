@@ -6,6 +6,7 @@
 
 #include "EdgeStyleValue.h"
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
@@ -48,14 +49,14 @@ ValueComparingNonnullRefPtr<EdgeStyleValue const> EdgeStyleValue::with_resolved_
         if (!offset_style_value())
             return EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage(100)));
 
-        auto negated_offset = NegateCalculationNode::create(CalculationNode::from_style_value(*offset_style_value(), calculation_context));
+        auto negated_offset = CalcNodeRef::negate(CalcNodeRef::from_style_value(*offset_style_value()));
 
-        auto flipped_offset = simplify_a_calculation_tree(
-            SumCalculationNode::create({ NumericCalculationNode::create(Percentage { 100 }, calculation_context), negated_offset }),
-            calculation_context,
-            {});
+        Vector<CalcNodeRef> sum_components;
+        sum_components.append(CalcNodeRef::numeric(Percentage { 100 }));
+        sum_components.append(move(negated_offset));
+        auto flipped_offset = simplify_a_calculation_tree(CalcNodeRef::sum(move(sum_components)), calculation_context, {});
 
-        auto flipped_percentage_style_value = CalculatedStyleValue::create(flipped_offset, NumericType(NumericType::BaseType::Length, 1), calculation_context);
+        auto flipped_percentage_style_value = CalculatedStyleValue::create(move(flipped_offset), NumericType(NumericType::BaseType::Length, 1), calculation_context);
 
         return EdgeStyleValue::create({}, flipped_percentage_style_value);
     }

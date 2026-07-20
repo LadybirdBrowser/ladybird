@@ -1207,9 +1207,9 @@ static StyleValueFFI::FfiCalcResolutionContext make_calc_ffi_resolution_context(
         .resolve_non_math_function = [](void* context, void const* shell) -> StyleValueFFI::CalcNode const* {
             auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
             auto resolved = static_cast<AbstractNonMathCalcFunctionStyleValue const*>(shell)->resolve_to_calculation_node(callback_context.calculation_context, callback_context.resolution_context);
-            if (!resolved)
+            if (!resolved.has_value())
                 return nullptr;
-            return to_rust_calc_node(*resolved);
+            return resolved->release();
         },
         .resolve_channel_keyword = [](void* context, u8 channel, double* out_value) -> bool {
             auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
@@ -1877,6 +1877,30 @@ CalcNodeRef CalcNodeRef::non_math_function(StyleValue const& function, Optional<
     auto ffi_numeric_type = to_ffi_numeric_type(numeric_type);
     return adopt(StyleValueFFI::rust_calc_node_create_non_math_function(
         retain_style_value_for_rust(&function), &ffi_numeric_type));
+}
+
+CalcNodeRef CalcNodeRef::from_style_value(StyleValue const& style_value)
+{
+    switch (style_value.type()) {
+    case StyleValue::Type::Angle:
+        return numeric(style_value.as_angle().angle());
+    case StyleValue::Type::Frequency:
+        return numeric(style_value.as_frequency().frequency());
+    case StyleValue::Type::Integer:
+        return numeric(Number { Number::Type::Number, static_cast<double>(style_value.as_integer().integer()) });
+    case StyleValue::Type::Length:
+        return numeric(style_value.as_length().length());
+    case StyleValue::Type::Number:
+        return numeric(Number { Number::Type::Number, style_value.as_number().number() });
+    case StyleValue::Type::Percentage:
+        return numeric(style_value.as_percentage().percentage());
+    case StyleValue::Type::Time:
+        return numeric(style_value.as_time().time());
+    case StyleValue::Type::Calculated:
+        return retain(style_value.as_calculated().rust_calculation_root());
+    default:
+        VERIFY_NOT_REACHED();
+    }
 }
 
 Optional<NumericType> CalcNodeRef::determine_type(CalculationContext const& context) const

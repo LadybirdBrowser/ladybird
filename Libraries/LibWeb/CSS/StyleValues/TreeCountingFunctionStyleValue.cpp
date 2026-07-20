@@ -5,6 +5,7 @@
  */
 
 #include "TreeCountingFunctionStyleValue.h"
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -40,12 +41,12 @@ size_t TreeCountingFunctionStyleValue::resolve(DOM::AbstractElement const& abstr
     VERIFY_NOT_REACHED();
 }
 
-RefPtr<CalculationNode const> TreeCountingFunctionStyleValue::resolve_to_calculation_node(CalculationContext const& calculation_context, CalculationResolutionContext const& calculation_resolution_context) const
+Optional<CalcNodeRef> TreeCountingFunctionStyleValue::resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const& calculation_resolution_context) const
 {
     if (!calculation_resolution_context.abstract_element.has_value())
-        return nullptr;
+        return {};
 
-    return NumericCalculationNode::create(Number { Number::Type::Number, static_cast<double>(resolve(calculation_resolution_context.abstract_element.value())) }, calculation_context);
+    return CalcNodeRef::numeric(Number { Number::Type::Number, static_cast<double>(resolve(calculation_resolution_context.abstract_element.value())) });
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> TreeCountingFunctionStyleValue::absolutized(ComputationContext const& computation_context) const

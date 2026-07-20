@@ -9,6 +9,7 @@
 #include <LibGfx/Path.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusRectStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
@@ -396,12 +397,13 @@ ValueComparingNonnullRefPtr<StyleValue const> BasicShapeStyleValue::absolutized(
     CalculationContext calculation_context { .percentages_resolve_as = ValueType::Length };
 
     auto const one_hundred_percent_minus = [&](Vector<NonnullRefPtr<StyleValue const>> const& values, CalculationContext const& calculation_context) {
-        Vector<NonnullRefPtr<CalculationNode const>> sum_components = { NumericCalculationNode::create(Percentage { 100 }, calculation_context) };
+        Vector<CalcNodeRef> sum_components;
+        sum_components.append(CalcNodeRef::numeric(Percentage { 100 }));
 
         for (auto const& value : values)
-            sum_components.append(NegateCalculationNode::create(CalculationNode::from_style_value(value, calculation_context)));
+            sum_components.append(CalcNodeRef::negate(CalcNodeRef::from_style_value(value)));
 
-        return CalculatedStyleValue::create(SumCalculationNode::create(sum_components), NumericType { NumericType::BaseType::Length, 1 }, calculation_context);
+        return CalculatedStyleValue::create(CalcNodeRef::sum(move(sum_components)), NumericType { NumericType::BaseType::Length, 1 }, calculation_context);
     };
 
     auto const absolutize_if_nonnull = [&](RefPtr<StyleValue const> const& value) -> ValueComparingRefPtr<StyleValue const> {

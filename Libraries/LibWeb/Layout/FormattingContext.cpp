@@ -7,6 +7,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -2321,8 +2322,8 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
         // A bare anchor() inset is wrapped in a calculation so it resolves through the same path as calc(anchor()).
         if (value.is_anchor()) {
             auto calculation_context = CSS::CalculationContext::for_property(CSS::PropertyNameAndID::from_id(property_id));
-            auto calculation_node = CSS::NonMathFunctionCalculationNode::create(value.as_anchor(), CSS::NumericType { CSS::NumericType::BaseType::Length, 1 });
-            auto calculated_value = CSS::CalculatedStyleValue::create(calculation_node, CSS::NumericType { CSS::NumericType::BaseType::Length, 1 }, calculation_context);
+            auto calculation_node = CSS::CalcNodeRef::non_math_function(value.as_anchor(), CSS::NumericType { CSS::NumericType::BaseType::Length, 1 });
+            auto calculated_value = CSS::CalculatedStyleValue::create(move(calculation_node), CSS::NumericType { CSS::NumericType::BaseType::Length, 1 }, calculation_context);
             return to_inset(calculated_value->resolve_length(resolution_context));
         }
 

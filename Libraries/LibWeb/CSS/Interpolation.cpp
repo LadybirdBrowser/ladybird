@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusRectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -1477,24 +1478,27 @@ static RefPtr<StyleValue const> interpolate_mixed_value(CalculationContext const
                 return PercentageStyleValue::create(Percentage { percentage_component });
         }
 
-        auto from_node = CalculationNode::from_style_value(from, calculation_context);
-        auto to_node = CalculationNode::from_style_value(to, calculation_context);
-
         // https://drafts.csswg.org/css-values-4/#combine-math
         // Interpolation of math functions, with each other or with numeric values and other numeric-valued functions, is defined as Vresult = calc((1 - p) * VA + p * VB).
-        auto from_contribution = ProductCalculationNode::create({
-            from_node,
-            NumericCalculationNode::create(Number { Number::Type::Number, 1.f - delta }, calculation_context),
-        });
+        Vector<CalcNodeRef> from_contribution_factors;
+        from_contribution_factors.append(CalcNodeRef::from_style_value(from));
+        from_contribution_factors.append(CalcNodeRef::numeric(Number { Number::Type::Number, 1.f - delta }));
+        auto from_contribution = CalcNodeRef::product(move(from_contribution_factors));
 
-        auto to_contribution = ProductCalculationNode::create({
-            to_node,
-            NumericCalculationNode::create(Number { Number::Type::Number, delta }, calculation_context),
-        });
+        Vector<CalcNodeRef> to_contribution_factors;
+        to_contribution_factors.append(CalcNodeRef::from_style_value(to));
+        to_contribution_factors.append(CalcNodeRef::numeric(Number { Number::Type::Number, delta }));
+        auto to_contribution = CalcNodeRef::product(move(to_contribution_factors));
 
+        Vector<CalcNodeRef> contributions;
+        contributions.append(move(from_contribution));
+        contributions.append(move(to_contribution));
+        auto interpolated_sum = CalcNodeRef::sum(move(contributions));
+
+        auto numeric_type = interpolated_sum.determine_type(calculation_context);
         return CalculatedStyleValue::create(
-            simplify_a_calculation_tree(SumCalculationNode::create({ from_contribution, to_contribution }), calculation_context, {}),
-            *from_node->numeric_type()->added_to(*to_node->numeric_type()),
+            simplify_a_calculation_tree(interpolated_sum, calculation_context, {}),
+            numeric_type.value(),
             calculation_context);
     }
 
@@ -2281,12 +2285,15 @@ static RefPtr<StyleValue const> composite_mixed_value(StyleValue const& underlyi
                 return PercentageStyleValue::create(Percentage { percentage_component });
         }
 
-        auto underlying_node = CalculationNode::from_style_value(underlying_value, calculation_context);
-        auto animated_node = CalculationNode::from_style_value(animated_value, calculation_context);
+        Vector<CalcNodeRef> contributions;
+        contributions.append(CalcNodeRef::from_style_value(underlying_value));
+        contributions.append(CalcNodeRef::from_style_value(animated_value));
+        auto composited_sum = CalcNodeRef::sum(move(contributions));
 
+        auto numeric_type = composited_sum.determine_type(calculation_context);
         return CalculatedStyleValue::create(
-            simplify_a_calculation_tree(SumCalculationNode::create({ underlying_node, animated_node }), calculation_context, {}),
-            *underlying_node->numeric_type()->added_to(*animated_node->numeric_type()),
+            simplify_a_calculation_tree(composited_sum, calculation_context, {}),
+            numeric_type.value(),
             calculation_context);
     }
 
