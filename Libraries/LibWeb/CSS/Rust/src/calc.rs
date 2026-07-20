@@ -790,6 +790,12 @@ fn handle(node: CalcNode) -> *const CalcNode {
     Arc::into_raw(Arc::new(node))
 }
 
+// NB: Same main-thread-only contract as `handle` above.
+#[allow(clippy::arc_with_non_send_sync)]
+fn shared(node: CalcNode) -> Arc<CalcNode> {
+    Arc::new(node)
+}
+
 /// Reconstructs the child Arcs from an array of transferred handles.
 ///
 /// # Safety
@@ -1030,15 +1036,34 @@ pub unsafe extern "C" fn rust_calc_node_contains_percentage(node: *const CalcNod
     crate::abort_on_panic(|| unsafe { &*node }.contains_percentage())
 }
 
+/// What percentages resolve against in the surrounding context.
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
+pub(crate) enum ResolveAs {
+    Number,
+    /// A base type index, in the numeric type order.
+    Base(u8),
+}
+
 /// The inputs a calculation evaluation takes from the surrounding context.
 #[allow(dead_code)]
 pub(crate) struct CalcEvaluationContext<'a> {
     /// The type a percentage leaf takes in this context.
     pub percentage_leaf_type: &'a CalcNumericType,
-    /// Whether percentages resolve against another type and are still
-    /// unresolved, so percentage leaves cannot evaluate yet.
-    pub percentages_unresolved: bool,
+    /// What percentages resolve against, when they resolve against another
+    /// type; percentage leaves cannot evaluate while this is set.
+    pub resolve_as: Option<ResolveAs>,
+    /// The value percentages resolve against, when known.
+    pub percentage_basis: Option<CalcNumericValue>,
     pub length_resolution_context: Option<&'a crate::style_compute::FfiLengthResolutionContext>,
+}
+
+/// The C++ seams the simplification needs: resolving a non-math function to a
+/// calculation subtree, and looking up a relative-color channel value.
+#[allow(dead_code)]
+pub(crate) struct CalcSimplifyCallbacks<'a> {
+    pub resolve_non_math_function: &'a dyn Fn(&RetainedStyleValue) -> Option<Arc<CalcNode>>,
+    pub resolve_channel_keyword: &'a dyn Fn(u8) -> Option<f64>,
 }
 
 fn is_canonical_unit(value: CalcNumericValue) -> bool {
@@ -1066,7 +1091,7 @@ impl CalcNode {
         // Can't run with non-canonical units or unresolved percentages.
         // Simplification has already attempted to resolve both.
         if !is_canonical_unit(*value)
-            || (matches!(value, CalcNumericValue::Percentage(..)) && context.percentages_unresolved)
+            || (matches!(value, CalcNumericValue::Percentage(..)) && context.resolve_as.is_some())
         {
             return None;
         }
@@ -1461,5 +1486,621 @@ impl CalcNode {
             // operation to run.
             _ => None,
         }
+    }
+}
+
+#[allow(dead_code)]
+impl CalcNumericType {
+    /// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
+    /// The single base type whose entry is 1 while all other entries are 0.
+    pub(crate) fn entry_with_value_1_while_all_others_are_0(&self) -> Option<usize> {
+        let mut found = None;
+        for i in 0..BASE_TYPE_COUNT {
+            match self.exponents[i] {
+                None | Some(0) => {}
+                Some(1) if found.is_none() => found = Some(i),
+                _ => return None,
+            }
+        }
+        found
+    }
+
+    fn hint_matches(&self, resolve_as: ResolveAs) -> bool {
+        match (self.percent_hint, resolve_as) {
+            (None, _) => true,
+            (Some(hint), ResolveAs::Base(base)) => hint == base,
+            (Some(..), ResolveAs::Number) => false,
+        }
+    }
+
+    /// A type matches a dimension if its only non-zero entry is that base type
+    /// with value 1, and the percent hint is compatible with the context.
+    pub(crate) fn matches_dimension(&self, base: usize, resolve_as: Option<ResolveAs>) -> bool {
+        if self.entry_with_value_1_while_all_others_are_0() != Some(base) {
+            return false;
+        }
+        match resolve_as {
+            Some(resolve_as) => self.hint_matches(resolve_as),
+            None => self.percent_hint.is_none(),
+        }
+    }
+
+    /// A type matches <percentage> if its only non-zero entry is percent with
+    /// value 1, and its percent hint is null or percent.
+    pub(crate) fn matches_percentage(&self) -> bool {
+        if self.percent_hint.is_some() && self.percent_hint != Some(BASE_TYPE_PERCENT as u8) {
+            return false;
+        }
+        self.entry_with_value_1_while_all_others_are_0() == Some(BASE_TYPE_PERCENT)
+    }
+
+    /// A type matches <number> if it has no non-zero entries, with the hint
+    /// compatible when percentages resolve against a non-number type.
+    pub(crate) fn matches_number(&self, resolve_as: Option<ResolveAs>) -> bool {
+        for i in 0..BASE_TYPE_COUNT {
+            if self.exponents[i].is_some() && self.exponents[i] != Some(0) {
+                return false;
+            }
+        }
+        match resolve_as {
+            Some(ResolveAs::Number) | None => true,
+            Some(resolve_as) => self.hint_matches(resolve_as),
+        }
+    }
+}
+
+/// The canonical unit code of each dimension: the index whose ratio is one.
+fn canonical_unit_code(ratios: &[f64]) -> u8 {
+    ratios
+        .iter()
+        .position(|&ratio| ratio == 1.0)
+        .expect("dimension has a canonical unit") as u8
+}
+
+#[allow(dead_code)]
+fn make_calc_result_node(result: &CalcResult, resolve_as: Option<ResolveAs>) -> Option<CalcNode> {
+    // Mirrors make_calculation_node: express the result in its type's
+    // canonical unit, or fail when the type matches nothing expressible.
+    let numeric_type = result.numeric_type.as_ref()?;
+    let value = result.value;
+    let numeric = if numeric_type.matches_number(resolve_as) {
+        CalcNumericValue::Number(value)
+    } else if numeric_type.matches_percentage() {
+        CalcNumericValue::Percentage(value)
+    } else if numeric_type.matches_dimension(1, resolve_as) {
+        CalcNumericValue::Angle {
+            value,
+            unit: canonical_unit_code(&ANGLE_UNIT_CANONICAL_RATIOS),
+        }
+    } else if numeric_type.matches_dimension(5, resolve_as) {
+        CalcNumericValue::Flex {
+            value,
+            unit: canonical_unit_code(&FLEX_UNIT_CANONICAL_RATIOS),
+        }
+    } else if numeric_type.matches_dimension(3, resolve_as) {
+        CalcNumericValue::Frequency {
+            value,
+            unit: canonical_unit_code(&FREQUENCY_UNIT_CANONICAL_RATIOS),
+        }
+    } else if numeric_type.matches_dimension(0, resolve_as) {
+        CalcNumericValue::Length {
+            value,
+            unit: canonical_unit_code(&crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS),
+        }
+    } else if numeric_type.matches_dimension(4, resolve_as) {
+        CalcNumericValue::Resolution {
+            value,
+            unit: canonical_unit_code(&RESOLUTION_UNIT_CANONICAL_RATIOS),
+        }
+    } else if numeric_type.matches_dimension(2, resolve_as) {
+        CalcNumericValue::Time {
+            value,
+            unit: canonical_unit_code(&TIME_UNIT_CANONICAL_RATIOS),
+        }
+    } else {
+        return None;
+    };
+    Some(CalcNode::Numeric(numeric))
+}
+
+/// Whether two numeric leaves are expressed in the same unit, so they can be
+/// merged or compared directly.
+#[allow(dead_code)]
+fn same_unit(a: CalcNumericValue, b: CalcNumericValue) -> bool {
+    match (a, b) {
+        (CalcNumericValue::Number(..), CalcNumericValue::Number(..)) => true,
+        (CalcNumericValue::Percentage(..), CalcNumericValue::Percentage(..)) => true,
+        (CalcNumericValue::Angle { unit: a, .. }, CalcNumericValue::Angle { unit: b, .. })
+        | (CalcNumericValue::Flex { unit: a, .. }, CalcNumericValue::Flex { unit: b, .. })
+        | (CalcNumericValue::Frequency { unit: a, .. }, CalcNumericValue::Frequency { unit: b, .. })
+        | (CalcNumericValue::Length { unit: a, .. }, CalcNumericValue::Length { unit: b, .. })
+        | (CalcNumericValue::Resolution { unit: a, .. }, CalcNumericValue::Resolution { unit: b, .. })
+        | (CalcNumericValue::Time { unit: a, .. }, CalcNumericValue::Time { unit: b, .. }) => a == b,
+        _ => false,
+    }
+}
+
+#[allow(dead_code)]
+impl CalcNumericValue {
+    fn raw(self) -> f64 {
+        match self {
+            CalcNumericValue::Number(value) | CalcNumericValue::Percentage(value) => value,
+            CalcNumericValue::Angle { value, .. }
+            | CalcNumericValue::Flex { value, .. }
+            | CalcNumericValue::Frequency { value, .. }
+            | CalcNumericValue::Length { value, .. }
+            | CalcNumericValue::Resolution { value, .. }
+            | CalcNumericValue::Time { value, .. } => value,
+        }
+    }
+
+    fn with_raw(self, raw: f64) -> CalcNumericValue {
+        match self {
+            CalcNumericValue::Number(..) => CalcNumericValue::Number(raw),
+            CalcNumericValue::Percentage(..) => CalcNumericValue::Percentage(raw),
+            CalcNumericValue::Angle { unit, .. } => CalcNumericValue::Angle { value: raw, unit },
+            CalcNumericValue::Flex { unit, .. } => CalcNumericValue::Flex { value: raw, unit },
+            CalcNumericValue::Frequency { unit, .. } => CalcNumericValue::Frequency { value: raw, unit },
+            CalcNumericValue::Length { unit, .. } => CalcNumericValue::Length { value: raw, unit },
+            CalcNumericValue::Resolution { unit, .. } => CalcNumericValue::Resolution { value: raw, unit },
+            CalcNumericValue::Time { unit, .. } => CalcNumericValue::Time { value: raw, unit },
+        }
+    }
+
+    /// The value converted to its dimension's canonical unit, when possible
+    /// without extra information (relative lengths need the context).
+    fn to_canonical_value(
+        self,
+        length_resolution_context: Option<&crate::style_compute::FfiLengthResolutionContext>,
+    ) -> Option<CalcNumericValue> {
+        if is_canonical_unit(self) {
+            return Some(self);
+        }
+        match self {
+            CalcNumericValue::Number(..) | CalcNumericValue::Percentage(..) => Some(self),
+            CalcNumericValue::Angle { value, unit } => Some(CalcNumericValue::Angle {
+                value: value * ANGLE_UNIT_CANONICAL_RATIOS[unit as usize],
+                unit: canonical_unit_code(&ANGLE_UNIT_CANONICAL_RATIOS),
+            }),
+            CalcNumericValue::Flex { value, unit } => Some(CalcNumericValue::Flex {
+                value: value * FLEX_UNIT_CANONICAL_RATIOS[unit as usize],
+                unit: canonical_unit_code(&FLEX_UNIT_CANONICAL_RATIOS),
+            }),
+            CalcNumericValue::Frequency { value, unit } => Some(CalcNumericValue::Frequency {
+                value: value * FREQUENCY_UNIT_CANONICAL_RATIOS[unit as usize],
+                unit: canonical_unit_code(&FREQUENCY_UNIT_CANONICAL_RATIOS),
+            }),
+            CalcNumericValue::Resolution { value, unit } => Some(CalcNumericValue::Resolution {
+                value: value * RESOLUTION_UNIT_CANONICAL_RATIOS[unit as usize],
+                unit: canonical_unit_code(&RESOLUTION_UNIT_CANONICAL_RATIOS),
+            }),
+            CalcNumericValue::Time { value, unit } => Some(CalcNumericValue::Time {
+                value: value * TIME_UNIT_CANONICAL_RATIOS[unit as usize],
+                unit: canonical_unit_code(&TIME_UNIT_CANONICAL_RATIOS),
+            }),
+            CalcNumericValue::Length { value, unit } => {
+                let px = canonical_unit_code(&crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS);
+                let ratio = crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[unit as usize];
+                if ratio.is_finite() {
+                    return Some(CalcNumericValue::Length {
+                        value: value * ratio,
+                        unit: px,
+                    });
+                }
+                let context = length_resolution_context?;
+                let result = crate::style_compute::absolutize_length_for_calc(value, unit as usize, context);
+                if !result.handled {
+                    return None;
+                }
+                Some(CalcNumericValue::Length {
+                    value: result.px,
+                    unit: px,
+                })
+            }
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl CalcNode {
+    /// https://drafts.csswg.org/css-values-4/#calc-simplification
+    /// Simplifies a calculation tree, mirroring the C++ driver: leaves resolve
+    /// to canonical units and against the percentage basis, operator nodes
+    /// simplify their children and collapse where possible, and sums and
+    /// products flatten and fold.
+    pub(crate) fn simplify(
+        self: &Arc<Self>,
+        context: &CalcEvaluationContext,
+        callbacks: &CalcSimplifyCallbacks,
+    ) -> Arc<CalcNode> {
+        // 1. If root is a numeric value:
+        if let CalcNode::Numeric(value) = &**self {
+            // 1. If root is a percentage that will be resolved against another value, and there is enough
+            //    information available to resolve it, do so, and express the resulting numeric value in the
+            //    appropriate canonical unit. Return the value.
+            if let (CalcNumericValue::Percentage(percentage), Some(..), Some(basis)) =
+                (*value, context.resolve_as, context.percentage_basis)
+            {
+                if let Some(canonical_basis) = basis.to_canonical_value(context.length_resolution_context) {
+                    return shared(CalcNode::Numeric(
+                        canonical_basis.with_raw(canonical_basis.raw() * percentage / 100.0),
+                    ));
+                }
+                return self.clone();
+            }
+
+            // 2. If root is a dimension that is not expressed in its canonical unit, and there is enough
+            //    information available to convert it to the canonical unit, do so, and return the value.
+            if !is_canonical_unit(*value)
+                && let Some(canonical) = value.to_canonical_value(context.length_resolution_context)
+            {
+                return shared(CalcNode::Numeric(canonical));
+            }
+
+            // 4. Otherwise, return root.
+            return self.clone();
+        }
+
+        // 2. If root is any other leaf node (not an operator node): if there is enough information
+        //    available to determine its numeric value, return its value in its canonical unit.
+        if let CalcNode::NonMathFunction { value, .. } = &**self {
+            if let Some(resolved) = (callbacks.resolve_non_math_function)(value) {
+                return resolved;
+            }
+            return self.clone();
+        }
+        // https://drafts.csswg.org/css-color-5/#relative-color
+        if let CalcNode::ChannelKeyword(channel) = &**self {
+            if let Some(resolved) = (callbacks.resolve_channel_keyword)(*channel) {
+                return shared(CalcNode::Numeric(CalcNumericValue::Number(resolved)));
+            }
+            return self.clone();
+        }
+
+        // 3. At this point, root is an operator node. Simplify all the calculation children of root.
+        let root = self.with_simplified_children(context, callbacks);
+
+        // 4. If root is an operator node that's not one of the calc-operator nodes, and all of its
+        //    calculation children are numeric values with enough information to compute the operation,
+        //    return the result of running root's operation, expressed in the result's canonical unit.
+        if let Some(result) = root.run_operation(context) {
+            if let Some(node) = make_calc_result_node(&result, context.resolve_as) {
+                return shared(node);
+            }
+            return root;
+        }
+
+        match &*root {
+            // 5. If root is a Min or Max node, attempt to partially simplify it: combine numeric
+            //    children that share a unit, and unwrap a singleton.
+            CalcNode::Min(children) | CalcNode::Max(children) => {
+                let is_min = matches!(&*root, CalcNode::Min(..));
+                let mut simplified_children: Vec<Arc<CalcNode>> = Vec::with_capacity(children.len());
+                for child in children {
+                    let merged = match &**child {
+                        CalcNode::Numeric(child_value)
+                            if !simplified_children.is_empty()
+                                && (!matches!(child_value, CalcNumericValue::Percentage(..))
+                                    || context.resolve_as.is_none()) =>
+                        {
+                            let existing = simplified_children.iter_mut().find(|existing| {
+                                matches!(&***existing, CalcNode::Numeric(existing_value) if same_unit(*existing_value, *child_value))
+                            });
+                            match existing {
+                                Some(existing) => {
+                                    let CalcNode::Numeric(existing_value) = &**existing else {
+                                        unreachable!();
+                                    };
+                                    let replace = if is_min {
+                                        child_value.raw() < existing_value.raw()
+                                    } else {
+                                        child_value.raw() > existing_value.raw()
+                                    };
+                                    if replace {
+                                        *existing = child.clone();
+                                    }
+                                    true
+                                }
+                                None => false,
+                            }
+                        }
+                        _ => false,
+                    };
+                    if !merged {
+                        simplified_children.push(child.clone());
+                    }
+                }
+                if simplified_children.len() == 1 {
+                    return simplified_children.remove(0);
+                }
+                if is_min {
+                    shared(CalcNode::Min(simplified_children))
+                } else {
+                    shared(CalcNode::Max(simplified_children))
+                }
+            }
+            // 6. If root is a Negate node:
+            CalcNode::Negate(child) => {
+                // 1. If root's child is a numeric value, return an equivalent numeric value with the value negated.
+                if let CalcNode::Numeric(value) = &**child {
+                    return shared(CalcNode::Numeric(value.with_raw(0.0 - value.raw())));
+                }
+                // 2. If root's child is a Negate node, return the child's child.
+                if let CalcNode::Negate(inner) = &**child {
+                    return inner.clone();
+                }
+                // AD-HOC: Convert negated sums into sums of negated nodes - see
+                // https://github.com/w3c/csswg-drafts/issues/13020
+                if let CalcNode::Sum(sum_children) = &**child {
+                    let negated = sum_children
+                        .iter()
+                        .map(|sum_child| match &**sum_child {
+                            CalcNode::Numeric(value) => shared(CalcNode::Numeric(value.with_raw(0.0 - value.raw()))),
+                            CalcNode::Negate(inner) => inner.clone(),
+                            _ => shared(CalcNode::Negate(sum_child.clone())),
+                        })
+                        .collect();
+                    return shared(CalcNode::Sum(negated));
+                }
+                // 3. Return root.
+                root
+            }
+            // 7. If root is an Invert node:
+            CalcNode::Invert(child) => {
+                // 1. If root's child is a number (not a percentage or dimension) return the reciprocal.
+                if let CalcNode::Numeric(CalcNumericValue::Number(number)) = &**child {
+                    return shared(CalcNode::Numeric(CalcNumericValue::Number(1.0 / number)));
+                }
+                // 2. If root's child is an Invert node, return the child's child.
+                if let CalcNode::Invert(inner) = &**child {
+                    return inner.clone();
+                }
+                // 3. Return root.
+                root
+            }
+            // 8. If root is a Sum node: flatten nested sums, combine same-unit numeric children,
+            //    and unwrap a singleton.
+            CalcNode::Sum(children) => {
+                let mut flattened: Vec<Arc<CalcNode>> = Vec::with_capacity(children.len());
+                for child in children {
+                    if let CalcNode::Sum(nested) = &**child {
+                        flattened.extend(nested.iter().cloned());
+                    } else {
+                        flattened.push(child.clone());
+                    }
+                }
+                let mut summed: Vec<Arc<CalcNode>> = Vec::with_capacity(flattened.len());
+                for child in flattened {
+                    let merged = match &*child {
+                        CalcNode::Numeric(child_value) => {
+                            let existing = summed.iter_mut().find(|existing| {
+                                matches!(&***existing, CalcNode::Numeric(existing_value) if same_unit(*existing_value, *child_value))
+                            });
+                            match existing {
+                                Some(existing) => {
+                                    let CalcNode::Numeric(existing_value) = &**existing else {
+                                        unreachable!();
+                                    };
+                                    *existing = shared(CalcNode::Numeric(
+                                        existing_value.with_raw(existing_value.raw() + child_value.raw()),
+                                    ));
+                                    true
+                                }
+                                None => false,
+                            }
+                        }
+                        _ => false,
+                    };
+                    if !merged {
+                        summed.push(child);
+                    }
+                }
+                if summed.len() == 1 {
+                    return summed.remove(0);
+                }
+                shared(CalcNode::Sum(summed))
+            }
+            // 9. If root is a Product node: flatten nested products, fold plain numbers together,
+            //    distribute a number over an all-numeric sum, and try to accumulate the whole
+            //    product into a single numeric value.
+            CalcNode::Product(children) => {
+                let mut flattened: Vec<Arc<CalcNode>> = Vec::with_capacity(children.len());
+                for child in children {
+                    if let CalcNode::Product(nested) = &**child {
+                        flattened.extend(nested.iter().cloned());
+                    } else {
+                        flattened.push(child.clone());
+                    }
+                }
+
+                let mut number_index: Option<usize> = None;
+                let mut i = 0;
+                while i < flattened.len() {
+                    if let CalcNode::Numeric(CalcNumericValue::Number(number)) = &*flattened[i] {
+                        match number_index {
+                            None => number_index = Some(i),
+                            Some(index) => {
+                                let CalcNode::Numeric(CalcNumericValue::Number(existing)) = &*flattened[index] else {
+                                    unreachable!();
+                                };
+                                flattened[index] =
+                                    shared(CalcNode::Numeric(CalcNumericValue::Number(existing * number)));
+                                flattened.remove(i);
+                                continue;
+                            }
+                        }
+                    }
+                    i += 1;
+                }
+
+                if flattened.len() == 2 {
+                    let multiplier_and_sum = match (&*flattened[0], &*flattened[1]) {
+                        (CalcNode::Numeric(CalcNumericValue::Number(multiplier)), CalcNode::Sum(sum)) => {
+                            Some((*multiplier, sum))
+                        }
+                        (CalcNode::Sum(sum), CalcNode::Numeric(CalcNumericValue::Number(multiplier))) => {
+                            Some((*multiplier, sum))
+                        }
+                        _ => None,
+                    };
+                    if let Some((multiplier, sum)) = multiplier_and_sum {
+                        let all_numeric = sum.iter().all(|child| matches!(&**child, CalcNode::Numeric(..)));
+                        if all_numeric {
+                            let multiplied = sum
+                                .iter()
+                                .map(|child| {
+                                    let CalcNode::Numeric(value) = &**child else {
+                                        unreachable!();
+                                    };
+                                    shared(CalcNode::Numeric(value.with_raw(value.raw() * multiplier)))
+                                })
+                                .collect();
+                            return shared(CalcNode::Sum(multiplied)).simplify(context, callbacks);
+                        }
+                    }
+                }
+
+                // Accumulate the whole product when every child is a canonical numeric value or
+                // the inversion of one, treating percentage children as the percent type.
+                let mut accumulated: Option<CalcResult> = None;
+                let mut is_valid = true;
+                let mut accumulate = |leaf: &CalcNode, invert: bool| -> bool {
+                    let CalcNode::Numeric(value) = leaf else {
+                        return false;
+                    };
+                    if !is_canonical_unit(*value) {
+                        return false;
+                    }
+                    let mut numeric_type = leaf.numeric_type(context.percentage_leaf_type);
+                    if matches!(value, CalcNumericValue::Percentage(..)) {
+                        let mut percent_type = CalcNumericType::default();
+                        percent_type.exponents[BASE_TYPE_PERCENT] = Some(1);
+                        numeric_type = Some(percent_type);
+                    }
+                    let mut child_value = CalcResult {
+                        value: value.to_canonical_number(context.length_resolution_context),
+                        numeric_type,
+                    };
+                    if invert {
+                        child_value.invert();
+                    }
+                    match &mut accumulated {
+                        Some(accumulated) => accumulated.multiply_by(&child_value),
+                        None => accumulated = Some(child_value),
+                    }
+                    accumulated.as_ref().is_some_and(|result| result.numeric_type.is_some())
+                };
+                for child in &flattened {
+                    let ok = match &**child {
+                        CalcNode::Numeric(..) => accumulate(child, false),
+                        CalcNode::Invert(inner) => matches!(&**inner, CalcNode::Numeric(..)) && accumulate(inner, true),
+                        _ => false,
+                    };
+                    if !ok {
+                        is_valid = false;
+                        break;
+                    }
+                }
+                if is_valid
+                    && let Some(result) = &accumulated
+                    && let Some(node) = make_calc_result_node(result, context.resolve_as)
+                {
+                    return shared(node);
+                }
+                shared(CalcNode::Product(flattened))
+            }
+            _ => root,
+        }
+    }
+
+    /// Simplifies every child, rebuilding the node only when a child changed.
+    fn with_simplified_children(
+        self: &Arc<Self>,
+        context: &CalcEvaluationContext,
+        callbacks: &CalcSimplifyCallbacks,
+    ) -> Arc<CalcNode> {
+        let mut changed = false;
+        let simplify_child = |child: &Arc<CalcNode>, changed: &mut bool| {
+            let simplified = child.simplify(context, callbacks);
+            if !Arc::ptr_eq(&simplified, child) {
+                *changed = true;
+            }
+            simplified
+        };
+        let simplify_children = |children: &[Arc<CalcNode>], changed: &mut bool| {
+            children
+                .iter()
+                .map(|child| simplify_child(child, changed))
+                .collect::<Vec<_>>()
+        };
+        let rebuilt = match &**self {
+            CalcNode::Sum(children) => CalcNode::Sum(simplify_children(children, &mut changed)),
+            CalcNode::Product(children) => CalcNode::Product(simplify_children(children, &mut changed)),
+            CalcNode::Min(children) => CalcNode::Min(simplify_children(children, &mut changed)),
+            CalcNode::Max(children) => CalcNode::Max(simplify_children(children, &mut changed)),
+            CalcNode::Hypot(children) => CalcNode::Hypot(simplify_children(children, &mut changed)),
+            CalcNode::Negate(child) => CalcNode::Negate(simplify_child(child, &mut changed)),
+            CalcNode::Invert(child) => CalcNode::Invert(simplify_child(child, &mut changed)),
+            CalcNode::Abs(child) => CalcNode::Abs(simplify_child(child, &mut changed)),
+            CalcNode::Sign(child) => CalcNode::Sign(simplify_child(child, &mut changed)),
+            CalcNode::Sin(child) => CalcNode::Sin(simplify_child(child, &mut changed)),
+            CalcNode::Cos(child) => CalcNode::Cos(simplify_child(child, &mut changed)),
+            CalcNode::Tan(child) => CalcNode::Tan(simplify_child(child, &mut changed)),
+            CalcNode::Asin(child) => CalcNode::Asin(simplify_child(child, &mut changed)),
+            CalcNode::Acos(child) => CalcNode::Acos(simplify_child(child, &mut changed)),
+            CalcNode::Atan(child) => CalcNode::Atan(simplify_child(child, &mut changed)),
+            CalcNode::Sqrt(child) => CalcNode::Sqrt(simplify_child(child, &mut changed)),
+            CalcNode::Exp(child) => CalcNode::Exp(simplify_child(child, &mut changed)),
+            CalcNode::Clamp { min, center, max } => CalcNode::Clamp {
+                min: simplify_child(min, &mut changed),
+                center: simplify_child(center, &mut changed),
+                max: simplify_child(max, &mut changed),
+            },
+            CalcNode::Progress {
+                no_clamp,
+                progress,
+                from,
+                to,
+            } => CalcNode::Progress {
+                no_clamp: *no_clamp,
+                progress: simplify_child(progress, &mut changed),
+                from: simplify_child(from, &mut changed),
+                to: simplify_child(to, &mut changed),
+            },
+            CalcNode::Atan2 { y, x } => CalcNode::Atan2 {
+                y: simplify_child(y, &mut changed),
+                x: simplify_child(x, &mut changed),
+            },
+            CalcNode::Pow { base, exponent } => CalcNode::Pow {
+                base: simplify_child(base, &mut changed),
+                exponent: simplify_child(exponent, &mut changed),
+            },
+            CalcNode::Log { value, base } => CalcNode::Log {
+                value: simplify_child(value, &mut changed),
+                base: simplify_child(base, &mut changed),
+            },
+            CalcNode::Round {
+                strategy,
+                value,
+                interval,
+            } => CalcNode::Round {
+                strategy: *strategy,
+                value: simplify_child(value, &mut changed),
+                interval: simplify_child(interval, &mut changed),
+            },
+            CalcNode::Mod { value, modulus } => CalcNode::Mod {
+                value: simplify_child(value, &mut changed),
+                modulus: simplify_child(modulus, &mut changed),
+            },
+            CalcNode::Rem { value, divisor } => CalcNode::Rem {
+                value: simplify_child(value, &mut changed),
+                divisor: simplify_child(divisor, &mut changed),
+            },
+            CalcNode::Random { .. }
+            | CalcNode::Numeric(..)
+            | CalcNode::ChannelKeyword(..)
+            | CalcNode::NonMathFunction { .. } => return self.clone(),
+        };
+        if changed { shared(rebuilt) } else { self.clone() }
     }
 }
