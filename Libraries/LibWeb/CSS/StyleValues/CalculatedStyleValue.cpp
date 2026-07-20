@@ -179,8 +179,11 @@ static StyleValueFFI::CalcNode const* to_rust_calc_node(CalculationNode const& n
 
 StyleValueFFI::StyleValueData* CalculatedStyleValue::make_calculated_data(NonnullRefPtr<CalculationNode const> const& calculation, NumericType const& resolved_type, CalculationContext const& context)
 {
-    // The Rust allocation takes ownership of one strong reference to the calculation node.
-    calculation->ref();
+    return make_calculated_data_from_rust_root(to_rust_calc_node(*calculation), resolved_type, context);
+}
+
+StyleValueFFI::StyleValueData* CalculatedStyleValue::make_calculated_data_from_rust_root(StyleValueFFI::CalcNode const* rust_root, NumericType const& resolved_type, CalculationContext const& context)
+{
     static_assert(IsTriviallyCopyable<NumericType>);
     auto resolved_type_bytes = bit_cast<Array<u8, sizeof(NumericType)>>(resolved_type);
     Vector<StyleValueFFI::RetainedNumericRangeByType> ranges;
@@ -191,8 +194,7 @@ StyleValueFFI::StyleValueData* CalculatedStyleValue::make_calculated_data(Nonnul
         ? NumericType::base_type_from_value_type(*context.percentages_resolve_as)
         : OptionalNone {};
     return StyleValueFFI::rust_style_value_create_calculated(
-        to_rust_calc_node(*calculation),
-        calculation.ptr(),
+        rust_root,
         resolved_type_bytes.data(), resolved_type_bytes.size(),
         context.percentages_resolve_as.has_value(),
         context.percentages_resolve_as == ValueType::Number,
@@ -315,6 +317,8 @@ static GC::Ptr<CSSNumericArray> reify_children(JS::Realm& realm, ReadonlySpan<No
     return CSSNumericArray::create(realm, move(reified_children));
 }
 
+static NonnullRefPtr<CalculationNode const> cpp_calc_tree_from_rust(StyleValueFFI::CalcNode const* node, CalculationContext const& context);
+
 NonnullRefPtr<CalculationNode const> CalculationNode::from_style_value(NonnullRefPtr<StyleValue const> const& style_value, CalculationContext const& calculation_context)
 {
     switch (style_value->type()) {
@@ -332,8 +336,12 @@ NonnullRefPtr<CalculationNode const> CalculationNode::from_style_value(NonnullRe
         return NumericCalculationNode::create(style_value->as_percentage().percentage(), calculation_context);
     case StyleValue::Type::Time:
         return NumericCalculationNode::create(style_value->as_time().time(), calculation_context);
-    case StyleValue::Type::Calculated:
-        return style_value->as_calculated().calculation();
+    case StyleValue::Type::Calculated: {
+        // NB: Materialize from the Rust tree under the value's own context, which is what
+        //     its nodes were typed under when it was created.
+        auto const& calculated = style_value->as_calculated();
+        return cpp_calc_tree_from_rust(calculated.rust_calculation_root(), calculated.calculation_context());
+    }
     default:
         VERIFY_NOT_REACHED();
     }
@@ -2029,9 +2037,9 @@ ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(
     if (result.is_percentage)
         return PercentageStyleValue::create(Percentage { result.percentage_value });
 
-    auto simplified_calculation_tree = cpp_calc_tree_from_rust(result.simplified, calculation_context);
-    StyleValueFFI::rust_calc_node_release(result.simplified);
-    return CalculatedStyleValue::create(simplified_calculation_tree, resolved_type(), calculation_context);
+    // The simplified root transfers straight into the new value's data; no
+    // C++ tree is materialized.
+    return adopt_ref(*new (nothrow) CalculatedStyleValue(result.simplified, resolved_type(), calculation_context));
 }
 
 bool CalculatedStyleValue::equals(StyleValue const& other) const
@@ -2221,7 +2229,7 @@ bool CalculatedStyleValue::is_fully_simplified() const
 String CalculatedStyleValue::dump() const
 {
     StringBuilder builder;
-    calculation()->dump(builder, 0);
+    cpp_calc_tree_from_rust(rust_calculation_root(), calculation_context())->dump(builder, 0);
     return builder.to_string_without_validation();
 }
 
@@ -2347,7 +2355,7 @@ static bool rust_calc_node_contains_anchor(StyleValueFFI::CalcNode const* node)
 
 bool CalculatedStyleValue::contains_anchor_function() const
 {
-    return rust_calc_node_contains_anchor(m_value->calculated.rust_calculation.node);
+    return rust_calc_node_contains_anchor(rust_calculation_root());
 }
 
 GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const

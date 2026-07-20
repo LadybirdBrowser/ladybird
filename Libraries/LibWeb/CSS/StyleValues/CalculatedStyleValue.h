@@ -50,7 +50,8 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool equals(StyleValue const& other) const;
-    NonnullRefPtr<CalculationNode const> calculation() const { return *static_cast<CalculationNode const*>(m_value->calculated.calculation.pointer); }
+    StyleValueFFI::CalcNode const* rust_calculation_root() const { return m_value->calculated.rust_calculation.node; }
+    CalculationContext calculation_context() const;
 
     bool resolves_to_angle() const { return resolved_type().matches_angle(calculation_context().percentages_resolve_as); }
     bool resolves_to_angle_percentage() const { return resolved_type().matches_angle_percentage(calculation_context().percentages_resolve_as); }
@@ -103,6 +104,12 @@ private:
     {
     }
 
+    // Takes ownership of a transferred Rust calculation root.
+    explicit CalculatedStyleValue(StyleValueFFI::CalcNode const* rust_root, NumericType resolved_type, CalculationContext context)
+        : StyleValue(Type::Calculated, make_calculated_data_from_rust_root(rust_root, resolved_type, context))
+    {
+    }
+
     struct ResolvedValue {
         double value;
         Optional<NumericType> type;
@@ -117,9 +124,9 @@ private:
     Optional<ValueType> percentage_resolved_type() const;
 
     static StyleValueFFI::StyleValueData* make_calculated_data(NonnullRefPtr<CalculationNode const> const&, NumericType const&, CalculationContext const&);
+    static StyleValueFFI::StyleValueData* make_calculated_data_from_rust_root(StyleValueFFI::CalcNode const*, NumericType const&, CalculationContext const&);
 
     NumericType resolved_type() const;
-    CalculationContext calculation_context() const;
 };
 
 #define ENUMERATE_CALCULATION_NODE_TYPES(X) \

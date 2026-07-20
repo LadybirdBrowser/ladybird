@@ -2137,8 +2137,6 @@ mod ffi_test_stubs {
     extern "C" fn ladybird_utf16_fly_string_ref(_raw: usize) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_string_unref(_raw: usize) {}
-    #[unsafe(no_mangle)]
-    extern "C" fn ladybird_calculation_node_unref(_node: *const c_void) {}
 }
 
 #[cfg(test)]

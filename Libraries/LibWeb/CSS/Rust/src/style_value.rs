@@ -19,7 +19,6 @@ unsafe extern "C" {
     fn ladybird_style_value_unref(style_value: *const c_void);
     fn ladybird_utf16_fly_string_unref(raw: usize);
     fn ladybird_string_unref(raw: usize);
-    fn ladybird_calculation_node_unref(node: *const c_void);
     fn ladybird_style_value_ref(style_value: *const c_void);
     fn ladybird_utf16_fly_string_ref(raw: usize);
 }
@@ -540,21 +539,6 @@ pub struct RetainedShapePointList {
 
 retained_list!(RetainedShapePointList, RetainedShapePoint);
 
-/// A strong reference to a C++ CalculationNode held from Rust-owned value data. The node tree
-/// is still C++-structured during the migration, like retained style values.
-#[repr(C)]
-pub struct RetainedCalculationNode {
-    pointer: *const c_void,
-}
-
-impl Drop for RetainedCalculationNode {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            unsafe { ladybird_calculation_node_unref(self.pointer) };
-        }
-    }
-}
-
 /// An accepted numeric range for one value type (the C++ `enum class ValueType : u8`, opaque
 /// to Rust).
 #[repr(C)]
@@ -650,7 +634,6 @@ pub enum StyleValueData {
     /// numeric type as its raw bytes (a trivially copyable C++ NumericType, opaque to Rust)
     /// and the parse-time calculation context.
     Calculated {
-        calculation: RetainedCalculationNode,
         rust_calculation: crate::calc::CalcNodeHandle,
         /// The resolve-against target, base-mapped at creation: whether one
         /// exists, whether it is the number type, and otherwise its base type
@@ -2186,7 +2169,6 @@ pub unsafe extern "C" fn rust_style_value_create_basic_shape(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_calculated(
     rust_calculation: *const crate::calc::CalcNode,
-    calculation: *const c_void,
     resolved_type: *const u8,
     resolved_type_length: usize,
     has_percentages_resolve_as: bool,
@@ -2202,7 +2184,6 @@ pub unsafe extern "C" fn rust_style_value_create_calculated(
             rust_calculation: unsafe { crate::calc::CalcNodeHandle::from_raw(rust_calculation) },
             resolve_as_is_number,
             resolve_as_base,
-            calculation: RetainedCalculationNode { pointer: calculation },
             resolved_type: unsafe { RetainedByteList::from_raw(resolved_type, resolved_type_length) },
             has_percentages_resolve_as,
             percentages_resolve_as,

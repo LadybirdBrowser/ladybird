@@ -101,7 +101,6 @@ extern "C" void ladybird_utf16_fly_string_unref(size_t);
 extern "C" void ladybird_style_value_ref(void const*);
 extern "C" void ladybird_utf16_fly_string_ref(size_t);
 extern "C" void ladybird_string_unref(size_t);
-extern "C" void ladybird_calculation_node_unref(void const*);
 
 namespace Web::CSS {
 
@@ -593,10 +592,4 @@ extern "C" void ladybird_utf16_fly_string_ref(size_t raw)
 extern "C" void ladybird_string_unref(size_t raw)
 {
     String::unref_raw(raw);
-}
-
-// Called when Rust-owned style value data drops a retained CalculationNode.
-extern "C" void ladybird_calculation_node_unref(void const* node)
-{
-    static_cast<Web::CSS::CalculationNode const*>(node)->unref();
 }
