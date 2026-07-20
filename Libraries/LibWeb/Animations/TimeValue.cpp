@@ -33,11 +33,12 @@ TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, CSS::Comp
         VERIFY_NOT_REACHED();
     }
 
-    auto const& calculation_node = MUST(numeric_value->create_calculation_node({}));
+    auto calculation_node = MUST(numeric_value->create_calculation_node({}));
 
-    VERIFY(calculation_node->numeric_type().has_value());
+    auto numeric_type = calculation_node.determine_type({});
+    VERIFY(numeric_type.has_value());
 
-    auto style_value = CSS::CalculatedStyleValue::create(calculation_node, calculation_node->numeric_type().value(), {});
+    auto style_value = CSS::CalculatedStyleValue::create(move(calculation_node), numeric_type.release_value(), {});
 
     auto calculation_resolution_context = CSS::CalculationResolutionContext::from_computation_context(computation_context);
 

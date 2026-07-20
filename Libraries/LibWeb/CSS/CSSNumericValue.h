@@ -13,6 +13,7 @@
 #include <LibWeb/Bindings/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/NumericType.h>
+#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -66,7 +67,7 @@ public:
 
     static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::VM&, Utf16View css_text);
 
-    virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const = 0;
+    virtual WebIDL::ExceptionOr<CalcNodeRef> create_calculation_node(CalculationContext const&) const = 0;
 
 protected:
     explicit CSSNumericValue(JS::Realm&, NumericType);

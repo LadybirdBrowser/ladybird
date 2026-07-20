@@ -301,7 +301,7 @@ Optional<SumValue> CSSUnitValue::create_a_sum_value() const
     return SumValue { SumValueItem { value, { { unit, 1 } } } };
 }
 
-static Optional<CalculationNode::NumericValue> create_numeric_value(double value, Utf16FlyString const& unit)
+static Optional<CalcNodeRef::NumericValue> create_numeric_value(double value, Utf16FlyString const& unit)
 {
     if (unit == "number"_utf16_fly_string)
         return Number { Number::Type::Number, value };
@@ -355,8 +355,9 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
 
     auto wrap_in_math_sum = [this, &property](auto&& value) -> NonnullRefPtr<StyleValue const> {
         auto context = CalculationContext::for_property(property);
-        auto numeric_node = NumericCalculationNode::create(value, context);
-        auto math_sum_node = SumCalculationNode::create({ move(numeric_node) });
+        Vector<CalcNodeRef> children;
+        children.append(CalcNodeRef::numeric(value));
+        auto math_sum_node = CalcNodeRef::sum(move(children));
         return CalculatedStyleValue::create(move(math_sum_node), NumericType::create_from_unit(m_unit).release_value(), context);
     };
 
@@ -476,13 +477,13 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
     return style_value.release_nonnull();
 }
 
-WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSUnitValue::create_calculation_node(CalculationContext const& context) const
+WebIDL::ExceptionOr<CalcNodeRef> CSSUnitValue::create_calculation_node(CalculationContext const&) const
 {
     auto value = create_numeric_value(m_value, m_unit);
     if (!value.has_value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unable to create calculation node."_utf16 };
 
-    return NumericCalculationNode::create(value.release_value(), context);
+    return CalcNodeRef::numeric(value.release_value());
 }
 
 }

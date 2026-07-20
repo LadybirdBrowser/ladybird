@@ -162,14 +162,14 @@ Optional<SumValue> CSSMathMin::create_a_sum_value() const
     return item_with_smallest_value;
 }
 
-WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSMathMin::create_calculation_node(CalculationContext const& context) const
+WebIDL::ExceptionOr<CalcNodeRef> CSSMathMin::create_calculation_node(CalculationContext const& context) const
 {
-    Vector<NonnullRefPtr<CalculationNode const>> child_nodes;
+    Vector<CalcNodeRef> child_nodes;
     for (auto const& child_value : m_values->values()) {
         child_nodes.append(TRY(child_value->create_calculation_node(context)));
     }
 
-    return MinCalculationNode::create(move(child_nodes));
+    return CalcNodeRef::min(move(child_nodes));
 }
 
 }

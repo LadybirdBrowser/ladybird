@@ -210,14 +210,14 @@ Optional<SumValue> CSSMathSum::create_a_sum_value() const
     return values;
 }
 
-WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSMathSum::create_calculation_node(CalculationContext const& context) const
+WebIDL::ExceptionOr<CalcNodeRef> CSSMathSum::create_calculation_node(CalculationContext const& context) const
 {
-    Vector<NonnullRefPtr<CalculationNode const>> child_nodes;
+    Vector<CalcNodeRef> child_nodes;
     for (auto const& child_value : m_values->values()) {
         child_nodes.append(TRY(child_value->create_calculation_node(context)));
     }
 
-    return SumCalculationNode::create(move(child_nodes));
+    return CalcNodeRef::sum(move(child_nodes));
 }
 
 }

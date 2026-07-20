@@ -145,12 +145,12 @@ Optional<SumValue> CSSMathClamp::create_a_sum_value() const
     };
 }
 
-WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSMathClamp::create_calculation_node(CalculationContext const& context) const
+WebIDL::ExceptionOr<CalcNodeRef> CSSMathClamp::create_calculation_node(CalculationContext const& context) const
 {
     auto lower = TRY(m_lower->create_calculation_node(context));
     auto value = TRY(m_value->create_calculation_node(context));
     auto upper = TRY(m_upper->create_calculation_node(context));
-    return ClampCalculationNode::create(move(lower), move(value), move(upper));
+    return CalcNodeRef::clamp(move(lower), move(value), move(upper));
 }
 
 }

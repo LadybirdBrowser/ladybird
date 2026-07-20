@@ -120,9 +120,9 @@ Optional<SumValue> CSSMathNegate::create_a_sum_value() const
     return values;
 }
 
-WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSMathNegate::create_calculation_node(CalculationContext const& context) const
+WebIDL::ExceptionOr<CalcNodeRef> CSSMathNegate::create_calculation_node(CalculationContext const& context) const
 {
-    return NegateCalculationNode::create(TRY(m_value->create_calculation_node(context)));
+    return CalcNodeRef::negate(TRY(m_value->create_calculation_node(context)));
 }
 
 }

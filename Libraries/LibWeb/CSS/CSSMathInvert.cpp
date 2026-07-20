@@ -130,9 +130,9 @@ Optional<SumValue> CSSMathInvert::create_a_sum_value() const
     return values;
 }
 
-WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSMathInvert::create_calculation_node(CalculationContext const& context) const
+WebIDL::ExceptionOr<CalcNodeRef> CSSMathInvert::create_calculation_node(CalculationContext const& context) const
 {
-    return InvertCalculationNode::create(TRY(m_value->create_calculation_node(context)));
+    return CalcNodeRef::invert(TRY(m_value->create_calculation_node(context)));
 }
 
 }

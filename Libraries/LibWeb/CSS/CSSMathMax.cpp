@@ -161,14 +161,14 @@ Optional<SumValue> CSSMathMax::create_a_sum_value() const
     return item_with_largest_value;
 }
 
-WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> CSSMathMax::create_calculation_node(CalculationContext const& context) const
+WebIDL::ExceptionOr<CalcNodeRef> CSSMathMax::create_calculation_node(CalculationContext const& context) const
 {
-    Vector<NonnullRefPtr<CalculationNode const>> child_nodes;
+    Vector<CalcNodeRef> child_nodes;
     for (auto const& child_value : m_values->values()) {
         child_nodes.append(TRY(child_value->create_calculation_node(context)));
     }
 
-    return MaxCalculationNode::create(move(child_nodes));
+    return CalcNodeRef::max(move(child_nodes));
 }
 
 }
