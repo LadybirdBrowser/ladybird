@@ -3139,3 +3139,141 @@ pub unsafe extern "C" fn rust_calc_equals(
         })
     })
 }
+
+/// The node kind codes exposed to the C++ read API, in a stable documented
+/// order for the reification walk.
+#[allow(dead_code)]
+fn node_kind_code(node: &CalcNode) -> u8 {
+    match node {
+        CalcNode::Numeric(..) => 0,
+        CalcNode::ChannelKeyword(..) => 1,
+        CalcNode::Sum(..) => 2,
+        CalcNode::Product(..) => 3,
+        CalcNode::Negate(..) => 4,
+        CalcNode::Invert(..) => 5,
+        CalcNode::Min(..) => 6,
+        CalcNode::Max(..) => 7,
+        CalcNode::Clamp { .. } => 8,
+        CalcNode::Progress { .. } => 9,
+        CalcNode::Abs(..) => 10,
+        CalcNode::Sign(..) => 11,
+        CalcNode::Sin(..) => 12,
+        CalcNode::Cos(..) => 13,
+        CalcNode::Tan(..) => 14,
+        CalcNode::Asin(..) => 15,
+        CalcNode::Acos(..) => 16,
+        CalcNode::Atan(..) => 17,
+        CalcNode::Atan2 { .. } => 18,
+        CalcNode::Pow { .. } => 19,
+        CalcNode::Sqrt(..) => 20,
+        CalcNode::Hypot(..) => 21,
+        CalcNode::Log { .. } => 22,
+        CalcNode::Exp(..) => 23,
+        CalcNode::Round { .. } => 24,
+        CalcNode::Mod { .. } => 25,
+        CalcNode::Rem { .. } => 26,
+        CalcNode::Random { .. } => 27,
+        CalcNode::NonMathFunction { .. } => 28,
+    }
+}
+
+/// # Safety
+/// `node` must be a valid calculation node pointer for all read functions.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_node_kind(node: *const CalcNode) -> u8 {
+    crate::abort_on_panic(|| node_kind_code(unsafe { &*node }))
+}
+
+/// The node's calculation children in their canonical order. Returned
+/// pointers are borrowed from the node's own references.
+///
+/// # Safety
+/// `out_children` must have room for `capacity` entries.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_node_children(
+    node: *const CalcNode,
+    out_children: *mut *const CalcNode,
+    capacity: usize,
+) -> usize {
+    crate::abort_on_panic(|| {
+        let mut count = 0;
+        unsafe { &*node }.for_each_child(&mut |child| {
+            if count < capacity {
+                unsafe { *out_children.add(count) = Arc::as_ptr(child) };
+            }
+            count += 1;
+        });
+        count
+    })
+}
+
+/// Reads a numeric leaf's parts; false for non-leaf nodes.
+///
+/// # Safety
+/// All out-pointers must be valid.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_node_numeric_leaf(
+    node: *const CalcNode,
+    out_kind: *mut u8,
+    out_value: *mut f64,
+    out_unit: *mut u8,
+) -> bool {
+    crate::abort_on_panic(|| {
+        let CalcNode::Numeric(value) = (unsafe { &*node }) else {
+            return false;
+        };
+        let (kind, raw, unit) = value.leaf_parts();
+        unsafe {
+            *out_kind = kind;
+            *out_value = raw;
+            *out_unit = unit;
+        }
+        true
+    })
+}
+
+/// The style value carried by a random() or non-math-function node
+/// (the sharing options or the function value), or null.
+///
+/// # Safety
+/// `node` must be a valid calculation node pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_node_style_value(node: *const CalcNode) -> *const std::ffi::c_void {
+    crate::abort_on_panic(|| match unsafe { &*node } {
+        CalcNode::Random { sharing, .. } => sharing.shell_pointer(),
+        CalcNode::NonMathFunction { value, .. } => value.shell_pointer(),
+        _ => std::ptr::null(),
+    })
+}
+
+/// The numeric type of a node within a calculated value's context, for the
+/// reification of math function objects.
+///
+/// # Safety
+/// `calculated` must point at Calculated style value data owning `node`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_node_numeric_type(
+    calculated: *const std::ffi::c_void,
+    node: *const CalcNode,
+) -> FfiNumericType {
+    use crate::style_value::StyleValueData;
+    crate::abort_on_panic(|| {
+        let StyleValueData::Calculated {
+            has_percentages_resolve_as,
+            resolve_as_is_number,
+            resolve_as_base,
+            ..
+        } = (unsafe { &*(calculated as *const StyleValueData) })
+        else {
+            unreachable!("rust_calc_node_numeric_type requires calculated value data");
+        };
+        let mut percentage_leaf_type = CalcNumericType::default();
+        if *has_percentages_resolve_as && !*resolve_as_is_number {
+            percentage_leaf_type.exponents[*resolve_as_base as usize] = Some(1);
+            percentage_leaf_type.percent_hint = Some(*resolve_as_base);
+        } else {
+            percentage_leaf_type.exponents[BASE_TYPE_PERCENT] = Some(1);
+        }
+        FfiNumericType::from_calc(unsafe { &*node }.numeric_type(&percentage_leaf_type))
+    })
+}

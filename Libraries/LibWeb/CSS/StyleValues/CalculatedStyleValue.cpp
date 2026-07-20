@@ -3623,12 +3623,115 @@ String CalculatedStyleValue::dump() const
     return builder.to_string_without_validation();
 }
 
+// Reifies one node of the Rust calculation tree into its typed-om object.
+static GC::Ptr<CSSNumericValue> reify_rust_calc_node(JS::Realm& realm, void const* calculated_data, StyleValueFFI::CalcNode const* node)
+{
+    auto numeric_type_of = [&]() {
+        return from_ffi_numeric_type(StyleValueFFI::rust_calc_node_numeric_type(calculated_data, node)).value();
+    };
+    auto children_of = [&]() {
+        Vector<StyleValueFFI::CalcNode const*> children;
+        auto count = StyleValueFFI::rust_calc_node_children(node, nullptr, 0);
+        children.resize(count);
+        StyleValueFFI::rust_calc_node_children(node, children.data(), children.size());
+        return children;
+    };
+    auto reify_children_of = [&]() -> GC::Ptr<CSSNumericArray> {
+        GC::RootVector<GC::Ref<CSSNumericValue>> reified_children;
+        for (auto const* child : children_of()) {
+            auto reified_child = reify_rust_calc_node(realm, calculated_data, child);
+            if (!reified_child)
+                return nullptr;
+            reified_children.append(reified_child.as_nonnull());
+        }
+        return CSSNumericArray::create(realm, move(reified_children));
+    };
+
+    switch (StyleValueFFI::rust_calc_node_kind(node)) {
+    case 0: {
+        // A numeric leaf reifies as a unit value in its own unit.
+        u8 kind = 0;
+        double value = 0;
+        u8 unit = 0;
+        StyleValueFFI::rust_calc_node_numeric_leaf(node, &kind, &value, &unit);
+        switch (kind) {
+        case 0:
+            return CSSUnitValue::create(realm, value, "number"_utf16_fly_string);
+        case 1:
+            return CSSUnitValue::create(realm, value, Angle { value, static_cast<AngleUnit>(unit) }.unit_name());
+        case 2:
+            return CSSUnitValue::create(realm, value, Flex { value, static_cast<FlexUnit>(unit) }.unit_name());
+        case 3:
+            return CSSUnitValue::create(realm, value, Frequency { value, static_cast<FrequencyUnit>(unit) }.unit_name());
+        case 4:
+            return CSSUnitValue::create(realm, value, Length { value, static_cast<LengthUnit>(unit) }.unit_name());
+        case 5:
+            return CSSUnitValue::create(realm, value, "percent"_utf16_fly_string);
+        case 6:
+            return CSSUnitValue::create(realm, value, Resolution { value, static_cast<ResolutionUnit>(unit) }.unit_name());
+        case 7:
+            return CSSUnitValue::create(realm, value, Time { value, static_cast<TimeUnit>(unit) }.unit_name());
+        }
+        VERIFY_NOT_REACHED();
+    }
+    case 2: {
+        auto reified_children = reify_children_of();
+        if (!reified_children)
+            return nullptr;
+        return CSSMathSum::create(realm, numeric_type_of(), reified_children.as_nonnull());
+    }
+    case 3: {
+        auto reified_children = reify_children_of();
+        if (!reified_children)
+            return nullptr;
+        return CSSMathProduct::create(realm, numeric_type_of(), reified_children.as_nonnull());
+    }
+    case 4:
+    case 5: {
+        auto children = children_of();
+        VERIFY(children.size() == 1);
+        auto reified_child = reify_rust_calc_node(realm, calculated_data, children[0]);
+        if (!reified_child)
+            return nullptr;
+        if (StyleValueFFI::rust_calc_node_kind(node) == 4)
+            return CSSMathNegate::create(realm, numeric_type_of(), reified_child.as_nonnull());
+        return CSSMathInvert::create(realm, numeric_type_of(), reified_child.as_nonnull());
+    }
+    case 6: {
+        auto reified_children = reify_children_of();
+        if (!reified_children)
+            return nullptr;
+        return CSSMathMin::create(realm, numeric_type_of(), reified_children.as_nonnull());
+    }
+    case 7: {
+        auto reified_children = reify_children_of();
+        if (!reified_children)
+            return nullptr;
+        return CSSMathMax::create(realm, numeric_type_of(), reified_children.as_nonnull());
+    }
+    case 8: {
+        auto children = children_of();
+        VERIFY(children.size() == 3);
+        auto lower = reify_rust_calc_node(realm, calculated_data, children[0]);
+        auto value = reify_rust_calc_node(realm, calculated_data, children[1]);
+        auto upper = reify_rust_calc_node(realm, calculated_data, children[2]);
+        if (!lower || !value || !upper)
+            return nullptr;
+        return CSSMathClamp::create(realm, numeric_type_of(), lower.as_nonnull(), value.as_nonnull(), upper.as_nonnull());
+    }
+    default:
+        // Some math functions are not reifiable yet.
+        // https://github.com/w3c/css-houdini-drafts/issues/1090
+        return nullptr;
+    }
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-math-expression
 GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
 {
     // NB: This spec algorithm isn't really implementable here - it's incomplete, and assumes we don't already have a
-    //     calculation tree. So we have a per-node method instead.
-    if (auto reified = calculation()->reify(realm))
+    //     calculation tree. So we have a per-node method instead, walking the Rust tree.
+    if (auto reified = reify_rust_calc_node(realm, m_value.operator->(), m_value->calculated.rust_calculation.node))
         return *reified;
     // Some math functions are not reifiable yet. If we contain one, we have to fall back to CSSStyleValue.
     // https://github.com/w3c/css-houdini-drafts/issues/1090
