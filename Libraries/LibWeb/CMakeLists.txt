@@ -921,6 +921,7 @@ set(SOURCES
     Painting/SVGClipPaintable.cpp
     Painting/SVGForeignObjectPaintable.cpp
     Painting/SVGGraphicsPaintable.cpp
+    Painting/SVGImagePaintable.cpp
     Painting/SVGMaskable.cpp
     Painting/SVGMaskPaintable.cpp
     Painting/SVGPaintable.cpp

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/image-clip-path-ref.html" />
+<svg width="100" height="100">
+    <clipPath id="top-half">
+        <rect width="100" height="50"></rect>
+    </clipPath>
+    <rect width="100" height="100" fill="red"></rect>
+    <image href="../../data/50x50-green.svg" width="100" height="100" clip-path="url(#top-half)"></image>
+    <rect y="50" width="100" height="50" fill="green"></rect>
+    <image href="../../data/50x50-red.svg" y="50" width="100" height="50" clip-path="url(#top-half)"></image>
+</svg>

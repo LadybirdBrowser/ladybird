@@ -60,25 +60,18 @@ static void paint_alt_text(DisplayListRecordingContext& context, Layout::Node co
     draw_line();
 }
 
-NonnullRefPtr<ImagePaintable> ImagePaintable::create(Layout::SVGImageBox const& layout_box)
-{
-    return adopt_ref(*new ImagePaintable(layout_box, layout_box.dom_node(), false, Utf16String {}, true));
-}
-
 NonnullRefPtr<ImagePaintable> ImagePaintable::create(Layout::ImageBox const& layout_box)
 {
     Utf16String alt;
     if (auto element = layout_box.dom_node())
         alt = element->get_attribute_value(HTML::AttributeNames::alt);
-    return adopt_ref(*new ImagePaintable(layout_box, layout_box.image_provider(), layout_box.renders_as_alt_text(), move(alt), false));
+    return adopt_ref(*new ImagePaintable(layout_box, layout_box.image_provider(), move(alt)));
 }
 
-ImagePaintable::ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider, bool renders_as_alt_text, Utf16String alt_text, bool is_svg_image)
+ImagePaintable::ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider, Utf16String alt_text)
     : Paintable(layout_box)
-    , m_renders_as_alt_text(renders_as_alt_text)
     , m_alt_text(move(alt_text))
     , m_image_provider(image_provider)
-    , m_is_svg_image(is_svg_image)
 {
 }
 
@@ -86,12 +79,9 @@ void ImagePaintable::reset_for_relayout()
 {
     Paintable::reset_for_relayout();
 
-    if (!m_is_svg_image) {
-        m_renders_as_alt_text = m_image_provider.renders_as_alt_text();
-        if (auto const* image_box = as_if<Layout::ImageBox>(layout_node())) {
-            if (auto element = image_box->dom_node())
-                m_alt_text = element->get_attribute_value(HTML::AttributeNames::alt);
-        }
+    if (auto const* image_box = as_if<Layout::ImageBox>(layout_node())) {
+        if (auto element = image_box->dom_node())
+            m_alt_text = element->get_attribute_value(HTML::AttributeNames::alt);
     }
 }
 
@@ -105,8 +95,7 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     if (phase == PaintPhase::Foreground) {
         auto image_rect = absolute_rect();
         auto image_rect_device_pixels = context.rounded_device_rect(image_rect);
-        auto renders_as_alt_text = m_is_svg_image ? m_renders_as_alt_text : m_image_provider.renders_as_alt_text();
-        if (renders_as_alt_text) {
+        if (m_image_provider.renders_as_alt_text()) {
             if (!m_alt_text.is_empty()) {
                 auto enclosing_rect = context.enclosing_device_rect(image_rect).to_type<int>();
                 context.display_list_recorder().save();
@@ -119,7 +108,7 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
             auto image_int_rect_device_pixels = image_rect_device_pixels.to_type<int>();
 
             // https://drafts.csswg.org/css-images/#the-object-fit
-            auto object_fit = m_is_svg_image ? CSS::ObjectFit::Contain : computed_values().object_fit();
+            auto object_fit = computed_values().object_fit();
 
             auto intrinsic_size = m_image_provider.intrinsic_size().value_or(image_rect.size());
 

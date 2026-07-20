@@ -5,9 +5,7 @@
  */
 
 #include <LibWeb/Layout/SVGImageBox.h>
-#include <LibWeb/Painting/ImagePaintable.h>
-#include <LibWeb/Painting/SVGGraphicsPaintable.h>
-#include <LibWeb/Painting/StackingContext.h>
+#include <LibWeb/Painting/SVGImagePaintable.h>
 
 namespace Web::Layout {
 
@@ -18,7 +16,7 @@ SVGImageBox::SVGImageBox(DOM::Document& document, SVG::SVGGraphicsElement& eleme
 
 RefPtr<Painting::Paintable> SVGImageBox::create_paintable() const
 {
-    return Painting::ImagePaintable::create(*this);
+    return Painting::SVGImagePaintable::create(*this);
 }
 
 }
