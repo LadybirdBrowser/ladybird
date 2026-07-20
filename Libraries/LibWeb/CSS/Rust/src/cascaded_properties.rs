@@ -285,81 +285,6 @@ pub unsafe extern "C" fn rust_cascaded_properties_destroy(store: *mut CascadedPr
     abort_on_panic(|| drop(unsafe { Box::from_raw(store) }));
 }
 
-/// Applies one declaration to the store. Takes ownership of one strong reference to `value` and,
-/// when `has_layer_name` is set, of one reference to the layer name fly string.
-///
-/// Returns the source slot the C++ shell must (re)assign its GC-weak declaration source pair to,
-/// or -1 when the declaration lost to an existing important entry and was not stored.
-///
-/// # Safety
-/// `store` must be a valid store, `value` a leaked strong StyleValue reference, and
-/// `layer_name_raw` a leaked fly string reference when `has_layer_name` is set.
-#[unsafe(no_mangle)]
-#[allow(clippy::too_many_arguments)]
-pub unsafe extern "C" fn rust_cascaded_properties_set_property(
-    store: *mut CascadedPropertyStore,
-    property_id: u16,
-    value: *const c_void,
-    value_data: *const c_void,
-    important: bool,
-    origin: CascadeOrigin,
-    has_layer_name: bool,
-    layer_name_raw: usize,
-    source_shadow_root_identity: usize,
-) -> i64 {
-    abort_on_panic(|| {
-        let value = unsafe { RetainedStyleValue::from_shell_pointer(value) };
-        let layer_name = LayerName(has_layer_name.then(|| unsafe { RetainedUtf16FlyString::from_raw(layer_name_raw) }));
-        unsafe { &mut *store }.set_property(
-            property_id,
-            value,
-            value_data,
-            important,
-            origin,
-            layer_name,
-            source_shadow_root_identity,
-        )
-    })
-}
-
-/// # Safety
-/// `store` must be a valid store.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascaded_properties_revert_property(
-    store: *mut CascadedPropertyStore,
-    property_id: u16,
-    important: bool,
-    origin: CascadeOrigin,
-) {
-    abort_on_panic(|| unsafe { &mut *store }.revert_property(property_id, important, origin));
-}
-
-/// The layer name is borrowed for comparison only; no reference is transferred.
-///
-/// # Safety
-/// `store` must be a valid store.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascaded_properties_revert_layer_property(
-    store: *mut CascadedPropertyStore,
-    property_id: u16,
-    important: bool,
-    origin: CascadeOrigin,
-    has_layer_name: bool,
-    layer_name_raw: usize,
-    source_shadow_root_identity: usize,
-) {
-    abort_on_panic(|| {
-        unsafe { &mut *store }.revert_layer_property(
-            property_id,
-            important,
-            origin,
-            has_layer_name,
-            layer_name_raw,
-            source_shadow_root_identity,
-        );
-    });
-}
-
 /// Returns a borrowed pointer to the winning declaration's StyleValue shell, or null.
 ///
 /// # Safety
@@ -373,39 +298,6 @@ pub unsafe extern "C" fn rust_cascaded_properties_property(
         Some(entry) => entry.value.shell_pointer(),
         None => std::ptr::null(),
     })
-}
-
-/// Like `rust_cascaded_properties_property`, but also reports the declaration's importance.
-///
-/// # Safety
-/// `store` must be a valid store and `out_important` a valid pointer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascaded_properties_style_property(
-    store: *const CascadedPropertyStore,
-    property_id: u16,
-    out_important: *mut bool,
-) -> *const c_void {
-    abort_on_panic(|| match unsafe { &*store }.last_entry(property_id) {
-        Some(entry) => {
-            unsafe { *out_important = entry.important };
-            entry.value.shell_pointer()
-        }
-        None => std::ptr::null(),
-    })
-}
-
-/// Returns whichever of the two properties has the higher-priority winning declaration.
-/// A property with no cascaded value at all loses to one that has any.
-///
-/// # Safety
-/// `store` must be a valid store.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascaded_properties_property_with_higher_priority(
-    store: *const CascadedPropertyStore,
-    first_property_id: u16,
-    second_property_id: u16,
-) -> u16 {
-    abort_on_panic(|| unsafe { &*store }.property_with_higher_priority(first_property_id, second_property_id))
 }
 
 /// Returns the winning declaration's source slot, or -1 when the property has no cascaded value.

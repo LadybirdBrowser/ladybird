@@ -85,14 +85,6 @@ impl RetainedUtf16FlyString {
         self.raw
     }
 
-    /// Assumes ownership of one reference to the underlying string data.
-    ///
-    /// # Safety
-    /// `raw` must be the raw representation of a fly string whose reference this may own.
-    pub(crate) unsafe fn from_raw(raw: usize) -> Self {
-        Self { raw }
-    }
-
     /// Retains a new reference to the underlying string data.
     ///
     /// # Safety

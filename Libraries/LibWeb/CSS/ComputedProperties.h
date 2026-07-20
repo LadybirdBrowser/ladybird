@@ -140,8 +140,6 @@ public:
         }
     }
 
-    void for_each_anchor_name(Function<void(Utf16FlyString const&)>) const;
-
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& animated_property_values() const;
     RefPtr<AnimatedProperties const> animated_properties_snapshot() const;
     bool has_animated_property(PropertyID property_id) const;
@@ -314,7 +312,6 @@ public:
 
     WillChange will_change() const;
 
-    ValueComparingRefPtr<Gfx::FontCascadeList const> cached_computed_font_list() const { return m_cached_computed_font_list; }
     ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> computed_font_list(FontComputer const&) const;
     ValueComparingNonnullRefPtr<Gfx::Font const> first_available_computed_font(FontComputer const&) const;
 

@@ -305,18 +305,6 @@ static Optional<NumericType> multiply_the_types(Vector<NonnullRefPtr<Calculation
     return left_type;
 }
 
-static GC::Ptr<CSSNumericArray> reify_children(JS::Realm& realm, ReadonlySpan<NonnullRefPtr<CalculationNode const>> children)
-{
-    GC::RootVector<GC::Ref<CSSNumericValue>> reified_children;
-    for (auto const& child : children) {
-        auto reified_child = child->reify(realm);
-        if (!reified_child)
-            return nullptr;
-        reified_children.append(reified_child.as_nonnull());
-    }
-    return CSSNumericArray::create(realm, move(reified_children));
-}
-
 static NonnullRefPtr<CalculationNode const> cpp_calc_tree_from_rust(StyleValueFFI::CalcNode const* node, CalculationContext const& context);
 
 NonnullRefPtr<CalculationNode const> CalculationNode::from_style_value(NonnullRefPtr<StyleValue const> const& style_value, CalculationContext const& calculation_context)
@@ -354,65 +342,6 @@ CalculationNode::CalculationNode(Type type, Optional<NumericType> numeric_type)
 }
 
 CalculationNode::~CalculationNode() = default;
-
-StringView CalculationNode::name() const
-{
-    switch (m_type) {
-    case Type::Min:
-        return "min"sv;
-    case Type::Max:
-        return "max"sv;
-    case Type::Clamp:
-        return "clamp"sv;
-    case Type::Abs:
-        return "abs"sv;
-    case Type::Sign:
-        return "sign"sv;
-    case Type::Sin:
-        return "sin"sv;
-    case Type::Cos:
-        return "cos"sv;
-    case Type::Tan:
-        return "tan"sv;
-    case Type::Asin:
-        return "asin"sv;
-    case Type::Acos:
-        return "acos"sv;
-    case Type::Atan:
-        return "atan"sv;
-    case Type::Atan2:
-        return "atan2"sv;
-    case Type::Pow:
-        return "pow"sv;
-    case Type::Progress:
-        return "progress"sv;
-    case Type::Sqrt:
-        return "sqrt"sv;
-    case Type::Hypot:
-        return "hypot"sv;
-    case Type::Log:
-        return "log"sv;
-    case Type::Exp:
-        return "exp"sv;
-    case Type::Random:
-        return "random"sv;
-    case Type::Round:
-        return "round"sv;
-    case Type::Mod:
-        return "mod"sv;
-    case Type::Rem:
-        return "rem"sv;
-    case Type::Numeric:
-    case Type::ChannelKeyword:
-    case Type::Sum:
-    case Type::Product:
-    case Type::Negate:
-    case Type::Invert:
-    case Type::NonMathFunction:
-        return "calc"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
 
 static NumericType numeric_type_from_calculated_style_value(CalculatedStyleValue::NumericValue const& value, CalculationContext const& context)
 {
@@ -503,15 +432,6 @@ void ChannelKeywordCalculationNode::dump(StringBuilder& builder, int indent) con
     builder.appendff("{: >{}}CHANNEL-KEYWORD({})\n", "", indent, to_string(m_channel));
 }
 
-bool ChannelKeywordCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_channel == static_cast<ChannelKeywordCalculationNode const&>(other).m_channel;
-}
-
 RefPtr<NumericCalculationNode const> NumericCalculationNode::from_keyword(Keyword keyword, CalculationContext const& context)
 {
     switch (keyword) {
@@ -543,57 +463,9 @@ NumericCalculationNode::NumericCalculationNode(NumericValue value, NumericType n
 
 NumericCalculationNode::~NumericCalculationNode() = default;
 
-bool NumericCalculationNode::contains_percentage() const
-{
-    return m_value.has<Percentage>();
-}
-
-Optional<NonFiniteValue> NumericCalculationNode::infinite_or_nan_value() const
-{
-    auto raw_value = m_value.visit(
-        [](Number const& number) { return number.value(); },
-        [](Percentage const& percentage) { return percentage.as_fraction(); },
-        [](auto const& dimension) { return dimension.raw_value(); });
-
-    if (isnan(raw_value))
-        return NonFiniteValue::NaN;
-    if (!isfinite(raw_value)) {
-        if (raw_value < 0)
-            return NonFiniteValue::NegativeInfinity;
-        return NonFiniteValue::Infinity;
-    }
-
-    return {};
-}
-
-bool NumericCalculationNode::is_negative() const
-{
-    return m_value.visit(
-        [&](Number const& number) { return number.value() < 0; },
-        [](Percentage const& percentage) { return percentage.value() < 0; },
-        [](auto const& dimension) { return dimension.raw_value() < 0; });
-}
-
 void NumericCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}NUMERIC({})\n", "", indent, m_value.visit([](auto& it) { return it.to_string(); }));
-}
-
-bool NumericCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_value == static_cast<NumericCalculationNode const&>(other).m_value;
-}
-
-GC::Ptr<CSSNumericValue> NumericCalculationNode::reify(JS::Realm& realm) const
-{
-    return m_value.visit(
-        [&realm](Number const& number) { return CSSUnitValue::create(realm, number.value(), "number"_utf16_fly_string); },
-        [&realm](Percentage const& percentage) { return CSSUnitValue::create(realm, percentage.value(), "percent"_utf16_fly_string); },
-        [&realm](auto const& dimension) { return CSSUnitValue::create(realm, dimension.raw_value(), dimension.unit_name()); });
 }
 
 NonnullRefPtr<SumCalculationNode const> SumCalculationNode::create(Vector<NonnullRefPtr<CalculationNode const>> values)
@@ -615,43 +487,11 @@ SumCalculationNode::SumCalculationNode(Vector<NonnullRefPtr<CalculationNode cons
 
 SumCalculationNode::~SumCalculationNode() = default;
 
-bool SumCalculationNode::contains_percentage() const
-{
-    for (auto const& value : m_values) {
-        if (value->contains_percentage())
-            return true;
-    }
-    return false;
-}
-
 void SumCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}SUM:\n", "", indent);
     for (auto const& item : m_values)
         item->dump(builder, indent + 2);
-}
-
-bool SumCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    if (m_values.size() != static_cast<SumCalculationNode const&>(other).m_values.size())
-        return false;
-    for (size_t i = 0; i < m_values.size(); ++i) {
-        if (!m_values[i]->equals(*static_cast<SumCalculationNode const&>(other).m_values[i]))
-            return false;
-    }
-    return true;
-}
-
-GC::Ptr<CSSNumericValue> SumCalculationNode::reify(JS::Realm& realm) const
-{
-    auto reified_children = reify_children(realm, m_values);
-    if (!reified_children)
-        return nullptr;
-    return CSSMathSum::create(realm, numeric_type().value(), reified_children.as_nonnull());
 }
 
 NonnullRefPtr<ProductCalculationNode const> ProductCalculationNode::create(Vector<NonnullRefPtr<CalculationNode const>> values)
@@ -672,43 +512,11 @@ ProductCalculationNode::ProductCalculationNode(Vector<NonnullRefPtr<CalculationN
 
 ProductCalculationNode::~ProductCalculationNode() = default;
 
-bool ProductCalculationNode::contains_percentage() const
-{
-    for (auto const& value : m_values) {
-        if (value->contains_percentage())
-            return true;
-    }
-    return false;
-}
-
 void ProductCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}PRODUCT:\n", "", indent);
     for (auto const& item : m_values)
         item->dump(builder, indent + 2);
-}
-
-bool ProductCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    if (m_values.size() != static_cast<ProductCalculationNode const&>(other).m_values.size())
-        return false;
-    for (size_t i = 0; i < m_values.size(); ++i) {
-        if (!m_values[i]->equals(*static_cast<ProductCalculationNode const&>(other).m_values[i]))
-            return false;
-    }
-    return true;
-}
-
-GC::Ptr<CSSNumericValue> ProductCalculationNode::reify(JS::Realm& realm) const
-{
-    auto reified_children = reify_children(realm, m_values);
-    if (!reified_children)
-        return nullptr;
-    return CSSMathProduct::create(realm, numeric_type().value(), reified_children.as_nonnull());
 }
 
 NonnullRefPtr<ProgressCalculationNode const> ProgressCalculationNode::create(bool no_clamp, NonnullRefPtr<CalculationNode const> value, NonnullRefPtr<CalculationNode const> start_value, NonnullRefPtr<CalculationNode const> end_value)
@@ -731,35 +539,12 @@ ProgressCalculationNode::ProgressCalculationNode(bool no_clamp, NonnullRefPtr<Ca
 
 ProgressCalculationNode::~ProgressCalculationNode() = default;
 
-bool ProgressCalculationNode::contains_percentage() const
-{
-    return m_value->contains_percentage()
-        || m_start_value->contains_percentage()
-        || m_end_value->contains_percentage();
-}
-
 void ProgressCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}PROGRESS (no-clamp: {})\n", "", indent, m_no_clamp);
     m_value->dump(builder, indent + 2);
     m_start_value->dump(builder, indent + 2);
     m_end_value->dump(builder, indent + 2);
-}
-
-bool ProgressCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-
-    if (type() != other.type())
-        return false;
-
-    auto const& other_progress = static_cast<ProgressCalculationNode const&>(other);
-
-    return m_no_clamp == other_progress.m_no_clamp
-        && m_value->equals(other_progress.m_value)
-        && m_start_value->equals(other_progress.m_start_value)
-        && m_end_value->equals(other_progress.m_end_value);
 }
 
 NonnullRefPtr<NegateCalculationNode const> NegateCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -776,32 +561,10 @@ NegateCalculationNode::NegateCalculationNode(NonnullRefPtr<CalculationNode const
 
 NegateCalculationNode::~NegateCalculationNode() = default;
 
-bool NegateCalculationNode::contains_percentage() const
-{
-    return m_value->contains_percentage();
-}
-
 void NegateCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}NEGATE:\n", "", indent);
     m_value->dump(builder, indent + 2);
-}
-
-bool NegateCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_value->equals(*static_cast<NegateCalculationNode const&>(other).m_value);
-}
-
-GC::Ptr<CSSNumericValue> NegateCalculationNode::reify(JS::Realm& realm) const
-{
-    auto reified_value = m_value->reify(realm);
-    if (!reified_value)
-        return nullptr;
-    return CSSMathNegate::create(realm, numeric_type().value(), reified_value.as_nonnull());
 }
 
 NonnullRefPtr<InvertCalculationNode const> InvertCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -824,32 +587,10 @@ InvertCalculationNode::InvertCalculationNode(NonnullRefPtr<CalculationNode const
 
 InvertCalculationNode::~InvertCalculationNode() = default;
 
-bool InvertCalculationNode::contains_percentage() const
-{
-    return m_value->contains_percentage();
-}
-
 void InvertCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}INVERT:\n", "", indent);
     m_value->dump(builder, indent + 2);
-}
-
-bool InvertCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_value->equals(*static_cast<InvertCalculationNode const&>(other).m_value);
-}
-
-GC::Ptr<CSSNumericValue> InvertCalculationNode::reify(JS::Realm& realm) const
-{
-    auto reified_value = m_value->reify(realm);
-    if (!reified_value)
-        return nullptr;
-    return CSSMathInvert::create(realm, numeric_type().value(), reified_value.as_nonnull());
 }
 
 NonnullRefPtr<MinCalculationNode const> MinCalculationNode::create(Vector<NonnullRefPtr<CalculationNode const>> values)
@@ -868,45 +609,12 @@ MinCalculationNode::MinCalculationNode(Vector<NonnullRefPtr<CalculationNode cons
 
 MinCalculationNode::~MinCalculationNode() = default;
 
-bool MinCalculationNode::contains_percentage() const
-{
-    for (auto const& value : m_values) {
-        if (value->contains_percentage())
-            return true;
-    }
-
-    return false;
-}
-
 // https://drafts.csswg.org/css-values-4/#funcdef-min
 void MinCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}MIN:\n", "", indent);
     for (auto const& value : m_values)
         value->dump(builder, indent + 2);
-}
-
-bool MinCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    if (m_values.size() != static_cast<MinCalculationNode const&>(other).m_values.size())
-        return false;
-    for (size_t i = 0; i < m_values.size(); ++i) {
-        if (!m_values[i]->equals(*static_cast<MinCalculationNode const&>(other).m_values[i]))
-            return false;
-    }
-    return true;
-}
-
-GC::Ptr<CSSNumericValue> MinCalculationNode::reify(JS::Realm& realm) const
-{
-    auto reified_children = reify_children(realm, m_values);
-    if (!reified_children)
-        return nullptr;
-    return CSSMathMin::create(realm, numeric_type().value(), reified_children.as_nonnull());
 }
 
 NonnullRefPtr<MaxCalculationNode const> MaxCalculationNode::create(Vector<NonnullRefPtr<CalculationNode const>> values)
@@ -925,44 +633,11 @@ MaxCalculationNode::MaxCalculationNode(Vector<NonnullRefPtr<CalculationNode cons
 
 MaxCalculationNode::~MaxCalculationNode() = default;
 
-bool MaxCalculationNode::contains_percentage() const
-{
-    for (auto const& value : m_values) {
-        if (value->contains_percentage())
-            return true;
-    }
-
-    return false;
-}
-
 void MaxCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}MAX:\n", "", indent);
     for (auto const& value : m_values)
         value->dump(builder, indent + 2);
-}
-
-bool MaxCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    if (m_values.size() != static_cast<MaxCalculationNode const&>(other).m_values.size())
-        return false;
-    for (size_t i = 0; i < m_values.size(); ++i) {
-        if (!m_values[i]->equals(*static_cast<MaxCalculationNode const&>(other).m_values[i]))
-            return false;
-    }
-    return true;
-}
-
-GC::Ptr<CSSNumericValue> MaxCalculationNode::reify(JS::Realm& realm) const
-{
-    auto reified_children = reify_children(realm, m_values);
-    if (!reified_children)
-        return nullptr;
-    return CSSMathMax::create(realm, numeric_type().value(), reified_children.as_nonnull());
 }
 
 NonnullRefPtr<ClampCalculationNode const> ClampCalculationNode::create(NonnullRefPtr<CalculationNode const> min, NonnullRefPtr<CalculationNode const> center, NonnullRefPtr<CalculationNode const> max)
@@ -983,39 +658,12 @@ ClampCalculationNode::ClampCalculationNode(NonnullRefPtr<CalculationNode const> 
 
 ClampCalculationNode::~ClampCalculationNode() = default;
 
-bool ClampCalculationNode::contains_percentage() const
-{
-    return m_min_value->contains_percentage() || m_center_value->contains_percentage() || m_max_value->contains_percentage();
-}
-
 void ClampCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}CLAMP:\n", "", indent);
     m_min_value->dump(builder, indent + 2);
     m_center_value->dump(builder, indent + 2);
     m_max_value->dump(builder, indent + 2);
-}
-
-bool ClampCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_min_value->equals(*static_cast<ClampCalculationNode const&>(other).m_min_value)
-        && m_center_value->equals(*static_cast<ClampCalculationNode const&>(other).m_center_value)
-        && m_max_value->equals(*static_cast<ClampCalculationNode const&>(other).m_max_value);
-}
-
-GC::Ptr<CSSNumericValue> ClampCalculationNode::reify(JS::Realm& realm) const
-{
-    auto lower = m_min_value->reify(realm);
-    auto value = m_center_value->reify(realm);
-    auto upper = m_max_value->reify(realm);
-    if (!lower || !value || !upper)
-        return nullptr;
-
-    return CSSMathClamp::create(realm, numeric_type().value(), lower.as_nonnull(), value.as_nonnull(), upper.as_nonnull());
 }
 
 NonnullRefPtr<AbsCalculationNode const> AbsCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -1033,24 +681,10 @@ AbsCalculationNode::AbsCalculationNode(NonnullRefPtr<CalculationNode const> valu
 
 AbsCalculationNode::~AbsCalculationNode() = default;
 
-bool AbsCalculationNode::contains_percentage() const
-{
-    return m_value->contains_percentage();
-}
-
 void AbsCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}ABS:\n", "", indent);
     m_value->dump(builder, indent + 2);
-}
-
-bool AbsCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_value->equals(*static_cast<AbsCalculationNode const&>(other).m_value);
 }
 
 NonnullRefPtr<SignCalculationNode const> SignCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -1068,24 +702,10 @@ SignCalculationNode::SignCalculationNode(NonnullRefPtr<CalculationNode const> va
 
 SignCalculationNode::~SignCalculationNode() = default;
 
-bool SignCalculationNode::contains_percentage() const
-{
-    return m_value->contains_percentage();
-}
-
 void SignCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}SIGN:\n", "", indent);
     m_value->dump(builder, indent + 2);
-}
-
-bool SignCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_value->equals(*static_cast<SignCalculationNode const&>(other).m_value);
 }
 
 NonnullRefPtr<SinCalculationNode const> SinCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -1102,24 +722,10 @@ SinCalculationNode::SinCalculationNode(NonnullRefPtr<CalculationNode const> valu
 
 SinCalculationNode::~SinCalculationNode() = default;
 
-bool SinCalculationNode::contains_percentage() const
-{
-    return m_value->contains_percentage();
-}
-
 void SinCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}SIN:\n", "", indent);
     m_value->dump(builder, indent + 2);
-}
-
-bool SinCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_value->equals(*static_cast<SinCalculationNode const&>(other).m_value);
 }
 
 NonnullRefPtr<CosCalculationNode const> CosCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -1137,24 +743,10 @@ CosCalculationNode::CosCalculationNode(NonnullRefPtr<CalculationNode const> valu
 
 CosCalculationNode::~CosCalculationNode() = default;
 
-bool CosCalculationNode::contains_percentage() const
-{
-    return m_value->contains_percentage();
-}
-
 void CosCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}COS:\n", "", indent);
     m_value->dump(builder, indent + 2);
-}
-
-bool CosCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_value->equals(*static_cast<CosCalculationNode const&>(other).m_value);
 }
 
 NonnullRefPtr<TanCalculationNode const> TanCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -1172,24 +764,10 @@ TanCalculationNode::TanCalculationNode(NonnullRefPtr<CalculationNode const> valu
 
 TanCalculationNode::~TanCalculationNode() = default;
 
-bool TanCalculationNode::contains_percentage() const
-{
-    return m_value->contains_percentage();
-}
-
 void TanCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}TAN:\n", "", indent);
     m_value->dump(builder, indent + 2);
-}
-
-bool TanCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_value->equals(*static_cast<TanCalculationNode const&>(other).m_value);
 }
 
 NonnullRefPtr<AsinCalculationNode const> AsinCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -1207,24 +785,10 @@ AsinCalculationNode::AsinCalculationNode(NonnullRefPtr<CalculationNode const> va
 
 AsinCalculationNode::~AsinCalculationNode() = default;
 
-bool AsinCalculationNode::contains_percentage() const
-{
-    return m_value->contains_percentage();
-}
-
 void AsinCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}ASIN:\n", "", indent);
     m_value->dump(builder, indent + 2);
-}
-
-bool AsinCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_value->equals(*static_cast<AsinCalculationNode const&>(other).m_value);
 }
 
 NonnullRefPtr<AcosCalculationNode const> AcosCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -1242,24 +806,10 @@ AcosCalculationNode::AcosCalculationNode(NonnullRefPtr<CalculationNode const> va
 
 AcosCalculationNode::~AcosCalculationNode() = default;
 
-bool AcosCalculationNode::contains_percentage() const
-{
-    return m_value->contains_percentage();
-}
-
 void AcosCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}ACOS:\n", "", indent);
     m_value->dump(builder, indent + 2);
-}
-
-bool AcosCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_value->equals(*static_cast<AcosCalculationNode const&>(other).m_value);
 }
 
 NonnullRefPtr<AtanCalculationNode const> AtanCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -1277,24 +827,10 @@ AtanCalculationNode::AtanCalculationNode(NonnullRefPtr<CalculationNode const> va
 
 AtanCalculationNode::~AtanCalculationNode() = default;
 
-bool AtanCalculationNode::contains_percentage() const
-{
-    return m_value->contains_percentage();
-}
-
 void AtanCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}ATAN:\n", "", indent);
     m_value->dump(builder, indent + 2);
-}
-
-bool AtanCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_value->equals(*static_cast<AtanCalculationNode const&>(other).m_value);
 }
 
 NonnullRefPtr<Atan2CalculationNode const> Atan2CalculationNode::create(NonnullRefPtr<CalculationNode const> y, NonnullRefPtr<CalculationNode const> x)
@@ -1313,26 +849,11 @@ Atan2CalculationNode::Atan2CalculationNode(NonnullRefPtr<CalculationNode const> 
 
 Atan2CalculationNode::~Atan2CalculationNode() = default;
 
-bool Atan2CalculationNode::contains_percentage() const
-{
-    return m_y->contains_percentage() || m_x->contains_percentage();
-}
-
 void Atan2CalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}ATAN2:\n", "", indent);
     m_x->dump(builder, indent + 2);
     m_y->dump(builder, indent + 2);
-}
-
-bool Atan2CalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_x->equals(*static_cast<Atan2CalculationNode const&>(other).m_x)
-        && m_y->equals(*static_cast<Atan2CalculationNode const&>(other).m_y);
 }
 
 NonnullRefPtr<PowCalculationNode const> PowCalculationNode::create(NonnullRefPtr<CalculationNode const> x, NonnullRefPtr<CalculationNode const> y)
@@ -1358,16 +879,6 @@ void PowCalculationNode::dump(StringBuilder& builder, int indent) const
     m_y->dump(builder, indent + 2);
 }
 
-bool PowCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_x->equals(*static_cast<PowCalculationNode const&>(other).m_x)
-        && m_y->equals(*static_cast<PowCalculationNode const&>(other).m_y);
-}
-
 NonnullRefPtr<SqrtCalculationNode const> SqrtCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
 {
     return adopt_ref(*new (nothrow) SqrtCalculationNode(move(value)));
@@ -1389,15 +900,6 @@ void SqrtCalculationNode::dump(StringBuilder& builder, int indent) const
     m_value->dump(builder, indent + 2);
 }
 
-bool SqrtCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_value->equals(*static_cast<SqrtCalculationNode const&>(other).m_value);
-}
-
 NonnullRefPtr<HypotCalculationNode const> HypotCalculationNode::create(Vector<NonnullRefPtr<CalculationNode const>> values)
 {
     // https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
@@ -1414,34 +916,11 @@ HypotCalculationNode::HypotCalculationNode(Vector<NonnullRefPtr<CalculationNode 
 
 HypotCalculationNode::~HypotCalculationNode() = default;
 
-bool HypotCalculationNode::contains_percentage() const
-{
-    for (auto const& value : m_values) {
-        if (value->contains_percentage())
-            return true;
-    }
-
-    return false;
-}
-
 void HypotCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}HYPOT:\n", "", indent);
     for (auto const& value : m_values)
         value->dump(builder, indent + 2);
-}
-
-bool HypotCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    for (size_t i = 0; i < m_values.size(); ++i) {
-        if (!m_values[i]->equals(*static_cast<HypotCalculationNode const&>(other).m_values[i]))
-            return false;
-    }
-    return true;
 }
 
 NonnullRefPtr<LogCalculationNode const> LogCalculationNode::create(NonnullRefPtr<CalculationNode const> x, NonnullRefPtr<CalculationNode const> y)
@@ -1467,16 +946,6 @@ void LogCalculationNode::dump(StringBuilder& builder, int indent) const
     m_y->dump(builder, indent + 2);
 }
 
-bool LogCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_x->equals(*static_cast<LogCalculationNode const&>(other).m_x)
-        && m_y->equals(*static_cast<LogCalculationNode const&>(other).m_y);
-}
-
 NonnullRefPtr<ExpCalculationNode const> ExpCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
 {
     return adopt_ref(*new (nothrow) ExpCalculationNode(move(value)));
@@ -1498,15 +967,6 @@ void ExpCalculationNode::dump(StringBuilder& builder, int indent) const
     m_value->dump(builder, indent + 2);
 }
 
-bool ExpCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_value->equals(*static_cast<ExpCalculationNode const&>(other).m_value);
-}
-
 NonnullRefPtr<RoundCalculationNode const> RoundCalculationNode::create(RoundingStrategy strategy, NonnullRefPtr<CalculationNode const> x, NonnullRefPtr<CalculationNode const> y)
 {
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1525,27 +985,11 @@ RoundCalculationNode::RoundCalculationNode(RoundingStrategy mode, NonnullRefPtr<
 
 RoundCalculationNode::~RoundCalculationNode() = default;
 
-bool RoundCalculationNode::contains_percentage() const
-{
-    return m_x->contains_percentage() || m_y->contains_percentage();
-}
-
 void RoundCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}ROUND: {}\n", "", indent, CSS::to_string(m_strategy));
     m_x->dump(builder, indent + 2);
     m_y->dump(builder, indent + 2);
-}
-
-bool RoundCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_strategy == static_cast<RoundCalculationNode const&>(other).m_strategy
-        && m_x->equals(*static_cast<RoundCalculationNode const&>(other).m_x)
-        && m_y->equals(*static_cast<RoundCalculationNode const&>(other).m_y);
 }
 
 NonnullRefPtr<ModCalculationNode const> ModCalculationNode::create(NonnullRefPtr<CalculationNode const> x, NonnullRefPtr<CalculationNode const> y)
@@ -1565,26 +1009,11 @@ ModCalculationNode::ModCalculationNode(NonnullRefPtr<CalculationNode const> x, N
 
 ModCalculationNode::~ModCalculationNode() = default;
 
-bool ModCalculationNode::contains_percentage() const
-{
-    return m_x->contains_percentage() || m_y->contains_percentage();
-}
-
 void ModCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}MOD:\n", "", indent);
     m_x->dump(builder, indent + 2);
     m_y->dump(builder, indent + 2);
-}
-
-bool ModCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_x->equals(*static_cast<ModCalculationNode const&>(other).m_x)
-        && m_y->equals(*static_cast<ModCalculationNode const&>(other).m_y);
 }
 
 NonnullRefPtr<RandomCalculationNode const> RandomCalculationNode::create(NonnullRefPtr<RandomValueSharingStyleValue const> random_value_sharing, NonnullRefPtr<CalculationNode const> minimum, NonnullRefPtr<CalculationNode const> maximum, RefPtr<CalculationNode const> step)
@@ -1610,11 +1039,6 @@ RandomCalculationNode::RandomCalculationNode(NonnullRefPtr<RandomValueSharingSty
 
 RandomCalculationNode::~RandomCalculationNode() = default;
 
-bool RandomCalculationNode::contains_percentage() const
-{
-    return m_minimum->contains_percentage() || m_maximum->contains_percentage() || (m_step && m_step->contains_percentage());
-}
-
 void RandomCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}RANDOM:\n", "", indent);
@@ -1623,22 +1047,6 @@ void RandomCalculationNode::dump(StringBuilder& builder, int indent) const
     m_maximum->dump(builder, indent + 2);
     if (m_step)
         m_step->dump(builder, indent + 2);
-}
-
-bool RandomCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-
-    if (type() != other.type())
-        return false;
-
-    auto const& other_random = as<RandomCalculationNode>(other);
-
-    return m_random_value_sharing == other_random.m_random_value_sharing
-        && m_minimum == other_random.m_minimum
-        && m_maximum == other_random.m_maximum
-        && m_step == other_random.m_step;
 }
 
 NonnullRefPtr<RemCalculationNode const> RemCalculationNode::create(NonnullRefPtr<CalculationNode const> x, NonnullRefPtr<CalculationNode const> y)
@@ -1658,26 +1066,11 @@ RemCalculationNode::RemCalculationNode(NonnullRefPtr<CalculationNode const> x, N
 
 RemCalculationNode::~RemCalculationNode() = default;
 
-bool RemCalculationNode::contains_percentage() const
-{
-    return m_x->contains_percentage() || m_y->contains_percentage();
-}
-
 void RemCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}REM:\n", "", indent);
     m_x->dump(builder, indent + 2);
     m_y->dump(builder, indent + 2);
-}
-
-bool RemCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-    if (type() != other.type())
-        return false;
-    return m_x->equals(*static_cast<RemCalculationNode const&>(other).m_x)
-        && m_y->equals(*static_cast<RemCalculationNode const&>(other).m_y);
 }
 
 NonnullRefPtr<NonMathFunctionCalculationNode const> NonMathFunctionCalculationNode::create(AbstractNonMathCalcFunctionStyleValue const& function, NumericType numeric_type)
@@ -1696,17 +1089,6 @@ NonMathFunctionCalculationNode::~NonMathFunctionCalculationNode() = default;
 void NonMathFunctionCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}NON-MATH FUNCTION: {}", "", indent, m_function->to_string(SerializationMode::Normal));
-}
-
-bool NonMathFunctionCalculationNode::equals(CalculationNode const& other) const
-{
-    if (this == &other)
-        return true;
-
-    if (type() != other.type())
-        return false;
-
-    return static_cast<NonMathFunctionCalculationNode const&>(other).function() == m_function;
 }
 
 void CalculatedStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
@@ -2216,8 +1598,7 @@ RefPtr<StyleValue const> CalculatedStyleValue::resolve_as_style_value(Calculatio
 
 bool CalculatedStyleValue::contains_percentage() const
 {
-    // The Rust mirror answers; the C++ node recursion remains for the
-    // simplification internals until evaluation moves over.
+    // The Rust mirror answers.
     return StyleValueFFI::rust_calc_node_contains_percentage(m_value->calculated.rust_calculation.node);
 }
 

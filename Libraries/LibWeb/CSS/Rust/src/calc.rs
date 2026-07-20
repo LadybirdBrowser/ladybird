@@ -852,13 +852,6 @@ unsafe fn children_from_raw(children: *const *const CalcNode, count: usize) -> V
     (0..count).map(|i| unsafe { Arc::from_raw(*children.add(i)) }).collect()
 }
 
-/// # Safety
-/// See `children_from_raw`; single-child forms transfer one handle each.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_create_numeric_number(value: f64, number_type: u8) -> *const CalcNode {
-    crate::abort_on_panic(|| handle(CalcNode::Numeric(CalcNumericValue::Number { value, number_type })))
-}
-
 /// Creates a numeric leaf for a dimension: kind selects the dimension in the
 /// order number, angle, flex, frequency, length, percentage, resolution, time.
 #[unsafe(no_mangle)]

@@ -1601,26 +1601,6 @@ fn longhand_decision(value: Option<&StyleValueData>, property_id: u16) -> FfiLon
     }
 }
 
-/// Decides how the cascaded value of a longhand resolves against inheritance
-/// and the initial value.
-///
-/// # Safety
-/// `cascaded_value` must be null or point at a valid StyleValueData.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compute_longhand_decision(
-    cascaded_value: *const c_void,
-    property_id: u16,
-) -> FfiLonghandDecision {
-    abort_on_panic(|| {
-        let value = if cascaded_value.is_null() {
-            None
-        } else {
-            Some(unsafe { &*(cascaded_value as *const StyleValueData) })
-        };
-        longhand_decision(value, property_id)
-    })
-}
-
 /// The logical-alias-to-physical-property mapping, marshalled once from the
 /// C++ generated mapping function so the two sides cannot drift: for each
 /// longhand, one physical property id per (writing-mode, direction) pair, with

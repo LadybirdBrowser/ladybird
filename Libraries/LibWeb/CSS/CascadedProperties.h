@@ -32,15 +32,7 @@ public:
     ~CascadedProperties();
 
     [[nodiscard]] RefPtr<StyleValue const> property(PropertyID) const;
-    [[nodiscard]] PropertyID property_with_higher_priority(PropertyID, PropertyID) const;
-    [[nodiscard]] GC::Ptr<CSSStyleDeclaration const> property_source(PropertyID) const;
     [[nodiscard]] GC::Ptr<DOM::ShadowRoot const> property_source_shadow_root(PropertyID) const;
-    [[nodiscard]] Optional<StyleProperty> style_property(PropertyID) const;
-
-    void set_property(PropertyID, NonnullRefPtr<StyleValue const>, Important, CascadeOrigin, Optional<Utf16FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
-
-    void revert_property(PropertyID, Important, CascadeOrigin);
-    void revert_layer_property(PropertyID, Important, CascadeOrigin, Optional<Utf16FlyString> layer_name, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
 
     // For the Rust-driven cascade application: the underlying store, and assignment of the
     // GC-weak declaration source pair for a slot the store handed out.

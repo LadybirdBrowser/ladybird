@@ -183,59 +183,11 @@ public:
 
     Type type() const { return m_type; }
 
-    // https://www.w3.org/TR/css-values-4/#calculation-tree-operator-nodes
-    bool is_operator_node() const
-    {
-        return is_calc_operator_node() || is_math_function_node();
-    }
-
-    bool is_math_function_node() const
-    {
-        switch (m_type) {
-        case Type::Min:
-        case Type::Max:
-        case Type::Clamp:
-        case Type::Abs:
-        case Type::Sign:
-        case Type::Sin:
-        case Type::Cos:
-        case Type::Tan:
-        case Type::Asin:
-        case Type::Acos:
-        case Type::Atan:
-        case Type::Atan2:
-        case Type::Pow:
-        case Type::Progress:
-        case Type::Sqrt:
-        case Type::Hypot:
-        case Type::Log:
-        case Type::Exp:
-        case Type::Round:
-        case Type::Mod:
-        case Type::Rem:
-        case Type::Random:
-            return true;
-
-        default:
-            return false;
-        }
-    }
-
-    // https://www.w3.org/TR/css-values-4/#calculation-tree-calc-operator-nodes
-    bool is_calc_operator_node() const
-    {
-        return first_is_one_of(m_type, Type::Sum, Type::Product, Type::Negate, Type::Invert);
-    }
-
-    StringView name() const;
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const = 0;
 
     Optional<NumericType> const& numeric_type() const { return m_numeric_type; }
-    virtual bool contains_percentage() const = 0;
 
     virtual void dump(StringBuilder&, int indent) const = 0;
-    virtual bool equals(CalculationNode const&) const = 0;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const { return nullptr; }
 
 protected:
     CalculationNode(Type, Optional<NumericType>);
@@ -245,29 +197,16 @@ private:
     Optional<NumericType> m_numeric_type;
 };
 
-enum class NonFiniteValue {
-    Infinity,
-    NegativeInfinity,
-    NaN,
-};
-
 class NumericCalculationNode final : public CalculationNode {
 public:
     static NonnullRefPtr<NumericCalculationNode const> create(NumericValue, CalculationContext const&);
     static RefPtr<NumericCalculationNode const> from_keyword(Keyword, CalculationContext const&);
     ~NumericCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return {}; }
     NumericValue const& value() const { return m_value; }
 
-    Optional<NonFiniteValue> infinite_or_nan_value() const;
-    bool is_negative() const;
-
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     NumericCalculationNode(NumericValue, NumericType);
@@ -282,12 +221,9 @@ public:
 
     ChannelKeyword channel() const { return m_channel; }
 
-    virtual bool contains_percentage() const override { return false; }
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return {}; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     ChannelKeywordCalculationNode(ChannelKeyword);
@@ -299,13 +235,9 @@ public:
     static NonnullRefPtr<SumCalculationNode const> create(Vector<NonnullRefPtr<CalculationNode const>>);
     ~SumCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     SumCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
@@ -317,13 +249,9 @@ public:
     static NonnullRefPtr<ProductCalculationNode const> create(Vector<NonnullRefPtr<CalculationNode const>>);
     ~ProductCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     ProductCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
@@ -335,12 +263,9 @@ public:
     static NonnullRefPtr<ProgressCalculationNode const> create(bool no_clamp, NonnullRefPtr<CalculationNode const> value, NonnullRefPtr<CalculationNode const> start_value, NonnullRefPtr<CalculationNode const> end_value);
     ~ProgressCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value, m_start_value, m_end_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
     bool no_clamp() const { return m_no_clamp; }
 
 private:
@@ -357,14 +282,10 @@ public:
     static NonnullRefPtr<NegateCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~NegateCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
     CalculationNode const& child() const { return m_value; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     explicit NegateCalculationNode(NonnullRefPtr<CalculationNode const>);
@@ -376,14 +297,10 @@ public:
     static NonnullRefPtr<InvertCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~InvertCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
     CalculationNode const& child() const { return m_value; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     InvertCalculationNode(NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
@@ -395,13 +312,9 @@ public:
     static NonnullRefPtr<MinCalculationNode const> create(Vector<NonnullRefPtr<CalculationNode const>>);
     ~MinCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     MinCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
@@ -413,13 +326,9 @@ public:
     static NonnullRefPtr<MaxCalculationNode const> create(Vector<NonnullRefPtr<CalculationNode const>>);
     ~MaxCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     MaxCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
@@ -431,13 +340,9 @@ public:
     static NonnullRefPtr<ClampCalculationNode const> create(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~ClampCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_min_value, m_center_value, m_max_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
 
 private:
     ClampCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
@@ -451,12 +356,9 @@ public:
     static NonnullRefPtr<AbsCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~AbsCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     explicit AbsCalculationNode(NonnullRefPtr<CalculationNode const>);
@@ -468,12 +370,9 @@ public:
     static NonnullRefPtr<SignCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~SignCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     explicit SignCalculationNode(NonnullRefPtr<CalculationNode const>);
@@ -485,12 +384,9 @@ public:
     static NonnullRefPtr<SinCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~SinCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     explicit SinCalculationNode(NonnullRefPtr<CalculationNode const>);
@@ -502,12 +398,9 @@ public:
     static NonnullRefPtr<CosCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~CosCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     explicit CosCalculationNode(NonnullRefPtr<CalculationNode const>);
@@ -519,12 +412,9 @@ public:
     static NonnullRefPtr<TanCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~TanCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     explicit TanCalculationNode(NonnullRefPtr<CalculationNode const>);
@@ -536,12 +426,9 @@ public:
     static NonnullRefPtr<AsinCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~AsinCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     explicit AsinCalculationNode(NonnullRefPtr<CalculationNode const>);
@@ -553,12 +440,9 @@ public:
     static NonnullRefPtr<AcosCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~AcosCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     explicit AcosCalculationNode(NonnullRefPtr<CalculationNode const>);
@@ -570,12 +454,9 @@ public:
     static NonnullRefPtr<AtanCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~AtanCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     explicit AtanCalculationNode(NonnullRefPtr<CalculationNode const>);
@@ -587,12 +468,9 @@ public:
     static NonnullRefPtr<Atan2CalculationNode const> create(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~Atan2CalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_y, m_x } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     Atan2CalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
@@ -605,12 +483,9 @@ public:
     static NonnullRefPtr<PowCalculationNode const> create(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~PowCalculationNode();
 
-    virtual bool contains_percentage() const override { return false; }
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_x, m_y } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     PowCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
@@ -623,12 +498,9 @@ public:
     static NonnullRefPtr<SqrtCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~SqrtCalculationNode();
 
-    virtual bool contains_percentage() const override { return false; }
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     explicit SqrtCalculationNode(NonnullRefPtr<CalculationNode const>);
@@ -640,12 +512,9 @@ public:
     static NonnullRefPtr<HypotCalculationNode const> create(Vector<NonnullRefPtr<CalculationNode const>>);
     ~HypotCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return m_values; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     HypotCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
@@ -657,12 +526,9 @@ public:
     static NonnullRefPtr<LogCalculationNode const> create(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~LogCalculationNode();
 
-    virtual bool contains_percentage() const override { return false; }
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_x, m_y } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     LogCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
@@ -675,12 +541,9 @@ public:
     static NonnullRefPtr<ExpCalculationNode const> create(NonnullRefPtr<CalculationNode const>);
     ~ExpCalculationNode();
 
-    virtual bool contains_percentage() const override { return false; }
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     explicit ExpCalculationNode(NonnullRefPtr<CalculationNode const>);
@@ -692,14 +555,11 @@ public:
     static NonnullRefPtr<RoundCalculationNode const> create(RoundingStrategy, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~RoundCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     // NOTE: This excludes the rounding strategy!
     RoundingStrategy rounding_strategy() const { return m_strategy; }
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_x, m_y } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     RoundCalculationNode(RoundingStrategy, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
@@ -713,12 +573,9 @@ public:
     static NonnullRefPtr<ModCalculationNode const> create(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~ModCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_x, m_y } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     ModCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
@@ -731,13 +588,10 @@ public:
     static NonnullRefPtr<RandomCalculationNode const> create(NonnullRefPtr<RandomValueSharingStyleValue const>, NonnullRefPtr<CalculationNode const> minimum, NonnullRefPtr<CalculationNode const> maximum, RefPtr<CalculationNode const> step);
     ~RandomCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     // NOTE: We don't return children here as serialization is handled ad-hoc
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return {}; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
     RandomValueSharingStyleValue const& random_value_sharing() const { return m_random_value_sharing; }
     CalculationNode const& minimum() const { return m_minimum; }
     CalculationNode const& maximum() const { return m_maximum; }
@@ -756,12 +610,9 @@ public:
     static NonnullRefPtr<RemCalculationNode const> create(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>);
     ~RemCalculationNode();
 
-    virtual bool contains_percentage() const override;
-
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_x, m_y } }; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
 
 private:
     RemCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
@@ -774,11 +625,9 @@ public:
     static NonnullRefPtr<NonMathFunctionCalculationNode const> create(AbstractNonMathCalcFunctionStyleValue const&, NumericType);
     ~NonMathFunctionCalculationNode();
 
-    virtual bool contains_percentage() const override { return false; }
     virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return {}; }
 
     virtual void dump(StringBuilder&, int indent) const override;
-    virtual bool equals(CalculationNode const&) const override;
     ValueComparingNonnullRefPtr<AbstractNonMathCalcFunctionStyleValue const> function() const { return m_function; }
 
 private:
