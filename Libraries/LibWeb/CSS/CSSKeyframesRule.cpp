@@ -49,7 +49,17 @@ void CSSKeyframesRule::initialize(JS::Realm& realm)
 Utf16String CSSKeyframesRule::serialized() const
 {
     Utf16StringBuilder builder;
-    builder.appendff("@keyframes \"{}\"", name());
+
+    builder.append("@keyframes "sv);
+
+    // https://drafts.csswg.org/css-animations-1/#keyframes
+    // When serialized, the value is serialized as an <ident> unless it’s a disallowed keyword, in which case
+    // it’s serialized as a <string>.
+    if (!is_valid_custom_ident(m_name, { { "none"sv } }))
+        serialize_a_string(builder, m_name);
+    else
+        serialize_an_identifier(builder, m_name);
+
     builder.append_ascii(" { "sv);
     for (auto const& keyframe : *m_rules) {
         builder.append(keyframe->serialized());
