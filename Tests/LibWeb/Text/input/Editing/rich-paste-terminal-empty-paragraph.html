@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const originalHTML = `<div>alpha</div><div><br></div><ul><li>tail</li></ul>`;
+        const pastedHTML = `<div>alpha</div><div><br></div><ul><li>tailalpha<div><br></div></li></ul>`;
+        const selection = getSelection();
+
+        const host = document.createElement("div");
+        host.contentEditable = "true";
+        host.innerHTML = originalHTML;
+        document.body.appendChild(host);
+        host.focus();
+
+        function selectionString() {
+            const segments = [];
+            let node = selection.anchorNode;
+            while (node !== host) {
+                segments.unshift(Array.prototype.indexOf.call(node.parentNode.childNodes, node));
+                node = node.parentNode;
+            }
+            return `host/${segments.join("/")}@${selection.anchorOffset}`;
+        }
+
+        selection.setBaseAndExtent(host.children[0].firstChild, 0, host.children[1], 1);
+        internals.sendKey(host, "C", platformControl);
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        await navigator.clipboard.read();
+
+        selection.collapse(host.children[2].firstChild.firstChild, 4);
+        const pasteInput = new Promise(resolve => host.addEventListener("input", event => {
+            if (event.inputType === "insertFromPaste")
+                resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await pasteInput;
+        println(host.innerHTML === pastedHTML ? "PASS: paste DOM" : `FAIL: paste DOM: ${host.innerHTML}`);
+        println(selectionString() === "host/2/0/1@0" ? "PASS: paste selection" : `FAIL: paste selection: ${selectionString()}`);
+
+        internals.sendKey(host, "Z", platformControl);
+        println(host.innerHTML === originalHTML ? "PASS: undo DOM" : `FAIL: undo DOM: ${host.innerHTML}`);
+        println(selectionString() === "host/2/0/0@4" ? "PASS: undo selection" : `FAIL: undo selection: ${selectionString()}`);
+
+        internals.sendKey(host, "Z", platformControlShift);
+        println(host.innerHTML === pastedHTML ? "PASS: redo DOM" : `FAIL: redo DOM: ${host.innerHTML}`);
+        println(selectionString() === "host/2/0/1@0" ? "PASS: redo selection" : `FAIL: redo selection: ${selectionString()}`);
+        done();
+    });
+</script>

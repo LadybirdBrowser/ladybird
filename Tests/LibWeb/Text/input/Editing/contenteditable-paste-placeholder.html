@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable><div id="line">Give it a try! <img><br></div></div>
+<script>
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const selection = getSelection();
+        const text = line.firstChild;
+
+        selection.setBaseAndExtent(text, 0, text, 4);
+        editor.focus();
+        internals.sendKey(editor, "C", platformControl);
+        internals.dispatchUserActivatedEvent(editor, new Event("mousedown"));
+        await navigator.clipboard.read();
+
+        selection.collapse(text, 3);
+        const pasteInput = new Promise(resolve => editor.addEventListener("input", resolve, { once: true }));
+        internals.sendKey(editor, "V", platformControl);
+        await pasteInput;
+        println(`paste: ${line.innerHTML} @ ${selection.focusOffset}`);
+
+        internals.sendKey(editor, "Z", platformControl);
+        println(`undo: ${line.innerHTML} @ ${selection.focusOffset}`);
+
+        internals.sendKey(editor, "Z", platformControlShift);
+        println(`redo: ${line.innerHTML} @ ${selection.focusOffset}`);
+        done();
+    });
+</script>

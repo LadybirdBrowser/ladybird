@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // This selection and its expected replacement were recorded from Chromium using the SCEditor-derived fixture.
+    // It covers cleanup after the first pasted paragraph has moved out of its original fragment wrapper.
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const selection = getSelection();
+        const failures = [];
+        let assertionCount = 0;
+
+        const originalHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+        const pastedHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">b</font><img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"></div><div><br></div><div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div><div><br></div><ul><li>A simple lis</li></ul><div><font color="#3399ff">lue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+
+        const host = document.createElement("div");
+        host.contentEditable = "true";
+        host.innerHTML = originalHTML;
+        document.body.appendChild(host);
+        host.focus();
+
+        function path(node) {
+            const segments = [];
+            while (node !== host) {
+                segments.unshift(Array.prototype.indexOf.call(node.parentNode.childNodes, node));
+                node = node.parentNode;
+            }
+            return `host/${segments.join("/")}`;
+        }
+
+        function selectionString() {
+            return `${path(selection.anchorNode)}@${selection.anchorOffset}`;
+        }
+
+        function expect(actual, expected, label) {
+            ++assertionCount;
+            if (actual !== expected)
+                failures.push(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+        }
+
+        const firstLineText = host.firstElementChild.firstChild;
+        const firstListItemText = host.querySelector("li").firstChild;
+        selection.setBaseAndExtent(firstLineText, firstLineText.length, firstListItemText, 12);
+        internals.sendKey(host, "C", platformControl);
+
+        // Synchronize the renderer-to-UI-process clipboard write without relying on timing.
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        await navigator.clipboard.read();
+
+        const blueText = host.querySelector('font[color="#3399ff"]').firstChild;
+        selection.collapse(blueText, 1);
+        const pasteInput = new Promise(resolve => host.addEventListener("input", event => {
+            if (event.inputType === "insertFromPaste")
+                resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await pasteInput;
+
+        expect(host.innerHTML, pastedHTML, "paste DOM");
+        expect(selectionString(), "host/8/0/0@12", "paste selection");
+        const movedRedText = host.childNodes[6].firstElementChild;
+        expect(movedRedText.childNodes.length, 2, "moved paragraph preserves its text-node seam");
+        expect(movedRedText.childNodes[0].data, "Red text and", "text before moved paragraph seam");
+        expect(movedRedText.childNodes[1].data, " ", "text after moved paragraph seam");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, originalHTML, "undo DOM");
+        expect(selectionString(), "host/4/1/0@1", "undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedHTML, "redo DOM");
+        expect(selectionString(), "host/8/0/0@12", "redo selection");
+        const redoneRedText = host.childNodes[6].firstElementChild;
+        expect(redoneRedText.childNodes.length, 2, "redo preserves the moved paragraph text-node seam");
+
+        if (failures.length)
+            println(`FAIL: ${failures.length}/${assertionCount} tracked-start paste assertions failed\n${failures.join("\n")}`);
+        else
+            println(`PASS: ${assertionCount} tracked-start paste assertions match Chromium`);
+        done();
+    });
+</script>

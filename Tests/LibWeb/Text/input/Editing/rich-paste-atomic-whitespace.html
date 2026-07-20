@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const selection = getSelection();
+        const originalHTML = `<div id="source">before <img alt=":)"> after</div><div id="target">x</div>`;
+        const pastedHTML = `<div id="source">before <img alt=":)"> after</div><div id="target">xbefore&nbsp;<img alt=":)">&nbsp;after</div>`;
+
+        const host = document.createElement("div");
+        host.contentEditable = "true";
+        host.innerHTML = originalHTML;
+        document.body.appendChild(host);
+        host.focus();
+
+        function selectionString() {
+            const segments = [];
+            let node = selection.anchorNode;
+            while (node !== host) {
+                segments.unshift(Array.prototype.indexOf.call(node.parentNode.childNodes, node));
+                node = node.parentNode;
+            }
+            return `host/${segments.join("/")}@${selection.anchorOffset}`;
+        }
+
+        const source = host.querySelector("#source");
+        const targetText = host.querySelector("#target").firstChild;
+        selection.setBaseAndExtent(source.firstChild, 0, source.lastChild, 6);
+        internals.sendKey(host, "C", platformControl);
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        await navigator.clipboard.read();
+
+        selection.collapse(targetText, 1);
+        const pasteInput = new Promise(resolve => host.addEventListener("input", event => {
+            if (event.inputType === "insertFromPaste")
+                resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await pasteInput;
+        println(host.innerHTML === pastedHTML ? "PASS: paste DOM" : `FAIL: paste DOM: ${host.innerHTML}`);
+        println(selectionString() === "host/1/3@5" ? "PASS: paste selection" : `FAIL: paste selection: ${selectionString()}`);
+        println(host.querySelector("#target").childNodes.length === 4 ? "PASS: paste text seams" : `FAIL: paste text seams: ${host.querySelector("#target").childNodes.length}`);
+
+        internals.sendKey(host, "Z", platformControl);
+        println(host.innerHTML === originalHTML ? "PASS: undo DOM" : `FAIL: undo DOM: ${host.innerHTML}`);
+        println(selectionString() === "host/1/0@1" ? "PASS: undo selection" : `FAIL: undo selection: ${selectionString()}`);
+
+        internals.sendKey(host, "Z", platformControlShift);
+        println(host.innerHTML === pastedHTML ? "PASS: redo DOM" : `FAIL: redo DOM: ${host.innerHTML}`);
+        println(selectionString() === "host/1/3@5" ? "PASS: redo selection" : `FAIL: redo selection: ${selectionString()}`);
+        println(host.querySelector("#target").childNodes.length === 4 ? "PASS: redo text seams" : `FAIL: redo text seams: ${host.querySelector("#target").childNodes.length}`);
+        done();
+    });
+</script>

@@ -63,5 +63,95 @@
         internals.sendText(host, "x");
         document.execCommand("undo");
         println(`undo restores canonical caret: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        // Capturing the upstream equivalent for history must not move the live caret before the edit. Chromium
+        // inserts at the text boundary selected by script, then restores the equivalent preceding text edge on undo.
+        newHost("<div><strong>:</strong>) rest</div>");
+        const suffix = host.firstChild.lastChild;
+        sel.collapse(suffix, 0);
+        document.execCommand("insertHTML", false, "<div>pasted</div>");
+        println(`paste at equivalent text edge: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("undo");
+        println(`undo restores upstream caret: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        // A br is only a placeholder when it terminates its block. A boundary after a real line break must remain on
+        // the following paragraph instead of canonicalizing to the preceding text end.
+        newHost("<div>one<br>two</div>");
+        sel.collapse(host.firstChild, 2);
+        internals.sendText(host, "x");
+        println(`typing after a real line break: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        // Chromium keeps a flow container intact when a block fragment is inserted at an internal paragraph boundary.
+        // The pasted final paragraph absorbs only the following br-delimited paragraph, not the rest of the block.
+        newHost("<div>one<br>two<br>three</div>");
+        sel.collapse(host.firstChild, 2);
+        document.execCommand("insertHTML", false, "<div>A</div><div>B</div>");
+        println(`block paste after a real line break: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("undo");
+        println(`undo block paste after a real line break: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("redo");
+        println(`redo block paste after a real line break: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        // Splitting an internal paragraph boundary must retain inline wrappers independently on both sides.
+        newHost("<div>one<span><b><br>two<br>three</b></span></div>");
+        sel.collapse(host.querySelector("b"), 1);
+        document.execCommand("insertHTML", false, "<div>A</div><div>B</div>");
+        println(`block paste after a wrapped line break: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("undo");
+        println(`undo block paste after a wrapped line break: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("redo");
+        println(`redo block paste after a wrapped line break: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        // An empty final pasted paragraph remains separate from the following destination paragraph.
+        newHost("<div>one<br>two<br>three</div>");
+        sel.collapse(host.firstChild, 2);
+        document.execCommand("insertHTML", false, "<div>A</div><div><br></div>");
+        println(`empty block paste after a real line break: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("undo");
+        println(`undo empty block paste after a real line break: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("redo");
+        println(`redo empty block paste after a real line break: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        // Formatting whitespace between blocks has no rendered caret. Chromium associates both of its DOM offsets
+        // with the following paragraph before inserting, and history snapshots that visible position.
+        newHost("<div>one</div>\n<div><br></div>");
+        sel.collapse(host.childNodes[1], 1);
+        document.execCommand("insertHTML", false, ".");
+        println(`paste in block formatting whitespace: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("undo");
+        println(`undo paste in block formatting whitespace: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("redo");
+        println(`redo paste in block formatting whitespace: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        // Chromium's visible-position canonicalization keeps an element boundary from crossing into the preceding
+        // block. This is observable when undo restores the selection recorded before a replacement.
+        newHost("<ul><li>one<br></li><li>two<br></li></ul>");
+        sel.collapse(host.firstChild, 1);
+        document.execCommand("insertHTML", false, ".");
+        println(`paste at list-item boundary: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("undo");
+        println(`undo paste at list-item boundary: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("redo");
+        println(`redo paste at list-item boundary: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        // A trailing br represents the caret before that placeholder, while formatting whitespace after the final
+        // block represents the end of that block. Neither has an independent rendered caret position.
+        newHost("<div>one<img><br></div>");
+        sel.collapse(host.firstChild, 3);
+        document.execCommand("insertHTML", false, ".");
+        println(`paste after trailing br: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("undo");
+        println(`undo paste after trailing br: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("redo");
+        println(`redo paste after trailing br: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
+        newHost("<div>one</div>\n");
+        sel.collapse(host, 2);
+        document.execCommand("insertHTML", false, ".");
+        println(`paste after trailing formatting whitespace: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("undo");
+        println(`undo trailing formatting whitespace: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+        document.execCommand("redo");
+        println(`redo trailing formatting whitespace: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
     });
 </script>

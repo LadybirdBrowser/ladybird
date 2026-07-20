@@ -1,0 +1,7 @@
+PASS: clipboard omits terminal placeholder
+PASS: paste DOM
+PASS: paste selection
+PASS: undo DOM
+PASS: undo selection
+PASS: redo DOM
+PASS: redo selection

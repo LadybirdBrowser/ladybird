@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // These clipboard payloads and resulting DOM/selection states were recorded from Chromium using WebDriver.
+    // Chromium's native serializer annotates copied content with its rendered style, then native paste removes the
+    // declarations which the destination cascade already supplies.
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const selection = getSelection();
+        const failures = [];
+        let assertionCount = 0;
+        let host;
+
+        function expect(actual, expected, label) {
+            ++assertionCount;
+            if (actual !== expected)
+                failures.push(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+        }
+
+        function path(node) {
+            const segments = [];
+            while (node !== host) {
+                segments.unshift(Array.prototype.indexOf.call(node.parentNode.childNodes, node));
+                node = node.parentNode;
+            }
+            return `host/${segments.join("/")}`;
+        }
+
+        function selectionString() {
+            return `${path(selection.anchorNode)}@${selection.anchorOffset}`;
+        }
+
+        async function verify(label, clipboardHTML, pastedHTML, pastedSelection, hostStyle = "font-family: Arial; font-size: 16px; color: rgb(0, 0, 0);") {
+            if (host)
+                host.remove();
+            host = document.createElement("div");
+            host.contentEditable = "true";
+            if (hostStyle)
+                host.style = hostStyle;
+            host.innerHTML = "ab";
+            document.body.appendChild(host);
+            host.focus();
+
+            host.addEventListener("copy", event => {
+                event.clipboardData.setData("text/plain", "plain");
+                event.clipboardData.setData("text/html", clipboardHTML);
+                event.preventDefault();
+            }, { once: true });
+            selection.setBaseAndExtent(host.firstChild, 0, host.firstChild, 1);
+            internals.sendKey(host, "C", platformControl);
+            internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+            await navigator.clipboard.read();
+
+            selection.collapse(host.firstChild, 1);
+            const pasteInput = new Promise(resolve => host.addEventListener("input", event => {
+                if (event.inputType === "insertFromPaste")
+                    resolve();
+            }, { once: true }));
+            internals.sendKey(host, "V", platformControl);
+            await pasteInput;
+            expect(host.innerHTML, pastedHTML, `${label} paste DOM`);
+            expect(selectionString(), pastedSelection, `${label} paste selection`);
+
+            internals.sendKey(host, "Z", platformControl);
+            expect(host.innerHTML, "ab", `${label} undo DOM`);
+            expect(selectionString(), "host/0@1", `${label} undo selection`);
+
+            internals.sendKey(host, "Z", platformControlShift);
+            expect(host.innerHTML, pastedHTML, `${label} redo DOM`);
+            expect(selectionString(), pastedSelection, `${label} redo selection`);
+        }
+
+        await verify(
+            "fully redundant annotation",
+            '<span style="color: rgb(0, 0, 0); font-family: Arial; font-size: 16px;">plain</span>',
+            "aplainb",
+            "host/0@6");
+        await verify(
+            "partially redundant annotation",
+            '<span style="color: rgb(0, 0, 255); font-family: Arial; font-size: 16px;">plain</span>',
+            'a<span style="color: rgb(0, 0, 255);">plain</span>b',
+            "host/1/0@5");
+        await verify(
+            "equivalent reconstructed color",
+            '<span style="color: rgb(0, 0, 0);">plain</span>',
+            "aplainb",
+            "host/0@6",
+            "");
+
+        if (failures.length)
+            println(`FAIL: ${failures.length}/${assertionCount} rich paste style cleanup assertions failed\n${failures.join("\n")}`);
+        else
+            println(`PASS: ${assertionCount} rich paste style cleanup assertions match Chromium`);
+        done();
+    });
+</script>

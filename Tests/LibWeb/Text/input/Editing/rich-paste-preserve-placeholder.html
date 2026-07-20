@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const selection = getSelection();
+        const originalHTML = `<div>ab<img alt=":)"><br></div><div><b>x</b><br></div><div><i>y</i></div>`;
+        const pastedHTML = `<div>a<b>x</b></div><div><i>y</i>b<img alt=":)"><br></div><div><b>x</b><br></div><div><i>y</i></div>`;
+
+        const host = document.createElement("div");
+        host.contentEditable = "true";
+        host.innerHTML = originalHTML;
+        document.body.appendChild(host);
+        host.focus();
+
+        function selectionString() {
+            const segments = [];
+            let node = selection.anchorNode;
+            while (node !== host) {
+                segments.unshift(Array.prototype.indexOf.call(node.parentNode.childNodes, node));
+                node = node.parentNode;
+            }
+            return `host/${segments.join("/")}@${selection.anchorOffset}`;
+        }
+
+        const sourceStart = host.children[1].querySelector("b").firstChild;
+        const sourceEnd = host.children[2].querySelector("i").firstChild;
+        selection.setBaseAndExtent(sourceStart, 0, sourceEnd, sourceEnd.length);
+        internals.sendKey(host, "C", platformControl);
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        await navigator.clipboard.read();
+
+        selection.collapse(host.firstElementChild.firstChild, 1);
+        const pasteInput = new Promise(resolve => host.addEventListener("input", event => {
+            if (event.inputType === "insertFromPaste")
+                resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await pasteInput;
+        println(host.innerHTML === pastedHTML ? "PASS: paste DOM" : `FAIL: paste DOM: ${host.innerHTML}`);
+        println(selectionString() === "host/1/0/0@1" ? "PASS: paste selection" : `FAIL: paste selection: ${selectionString()}`);
+
+        internals.sendKey(host, "Z", platformControl);
+        println(host.innerHTML === originalHTML ? "PASS: undo DOM" : `FAIL: undo DOM: ${host.innerHTML}`);
+        println(selectionString() === "host/0/0@1" ? "PASS: undo selection" : `FAIL: undo selection: ${selectionString()}`);
+
+        internals.sendKey(host, "Z", platformControlShift);
+        println(host.innerHTML === pastedHTML ? "PASS: redo DOM" : `FAIL: redo DOM: ${host.innerHTML}`);
+        println(selectionString() === "host/1/0/0@1" ? "PASS: redo selection" : `FAIL: redo selection: ${selectionString()}`);
+
+        const seamOriginalHTML = `<div>Give it a try! <img alt=":)"><br></div><div><font color="red">red </font><font color="blue">blue</font><br></div><div>Just <strong>:</strong></div>`;
+        const seamPastedHTML = `<div>Give it a t it a try!&nbsp;<img alt=":)"></div><div><font color="red">red </font><font color="blue">blue</font><br></div><div>Just <strong>:</strong>ry! <img alt=":)"><br></div><div><font color="red">red </font><font color="blue">blue</font><br></div><div>Just <strong>:</strong></div>`;
+        host.innerHTML = seamOriginalHTML;
+        host.focus();
+
+        const seamSourceStart = host.children[2].querySelector("strong");
+        const seamSourceEnd = host.children[0].firstChild;
+        selection.setBaseAndExtent(seamSourceStart, 1, seamSourceEnd, 4);
+        internals.sendKey(host, "C", platformControl);
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        await navigator.clipboard.read();
+
+        selection.collapse(host.firstElementChild.firstChild, 11);
+        const seamPasteInput = new Promise(resolve => host.addEventListener("input", event => {
+            if (event.inputType === "insertFromPaste")
+                resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await seamPasteInput;
+        println(host.innerHTML === seamPastedHTML ? "PASS: seam paste DOM" : `FAIL: seam paste DOM: ${host.innerHTML}`);
+        println(selectionString() === "host/2/1/0@1" ? "PASS: seam paste selection" : `FAIL: seam paste selection: ${selectionString()}`);
+        println(host.children[0].childNodes.length === 3 ? "PASS: seam paste top-level text nodes" : `FAIL: seam paste top-level text nodes: ${host.children[0].childNodes.length}`);
+        println(host.children[0].childNodes[0].data === "Give it a t it a try!" ? "PASS: seam paste merges around its rendered start" : `FAIL: seam paste rendered start: ${JSON.stringify(host.children[0].childNodes[0].data)}`);
+        println(host.children[0].childNodes[1].data === "\u00a0" ? "PASS: seam paste preserves trailing protected space" : `FAIL: seam paste trailing protected space: ${JSON.stringify(host.children[0].childNodes[1].data)}`);
+        println(host.children[1].firstChild.childNodes.length === 2 ? "PASS: seam paste inline text nodes" : `FAIL: seam paste inline text nodes: ${host.children[1].firstChild.childNodes.length}`);
+
+        internals.sendKey(host, "Z", platformControl);
+        println(host.innerHTML === seamOriginalHTML ? "PASS: seam undo DOM" : `FAIL: seam undo DOM: ${host.innerHTML}`);
+        println(selectionString() === "host/0/0@11" ? "PASS: seam undo selection" : `FAIL: seam undo selection: ${selectionString()}`);
+
+        internals.sendKey(host, "Z", platformControlShift);
+        println(host.innerHTML === seamPastedHTML ? "PASS: seam redo DOM" : `FAIL: seam redo DOM: ${host.innerHTML}`);
+        println(selectionString() === "host/2/1/0@1" ? "PASS: seam redo selection" : `FAIL: seam redo selection: ${selectionString()}`);
+        println(host.children[0].childNodes.length === 3 ? "PASS: seam redo top-level text nodes" : `FAIL: seam redo top-level text nodes: ${host.children[0].childNodes.length}`);
+        println(host.children[0].childNodes[0].data === "Give it a t it a try!" ? "PASS: seam redo merges around its rendered start" : `FAIL: seam redo rendered start: ${JSON.stringify(host.children[0].childNodes[0].data)}`);
+        println(host.children[0].childNodes[1].data === "\u00a0" ? "PASS: seam redo preserves trailing protected space" : `FAIL: seam redo trailing protected space: ${JSON.stringify(host.children[0].childNodes[1].data)}`);
+        println(host.children[1].firstChild.childNodes.length === 2 ? "PASS: seam redo inline text nodes" : `FAIL: seam redo inline text nodes: ${host.children[1].firstChild.childNodes.length}`);
+        done();
+    });
+</script>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // This fixture uses the styled runs, empty blocks, and images from the SCEditor front-page demo. The expected DOM
+    // and selection endpoints were recorded by driving Chromium through WebDriver with the same selections and keys.
+    test(() => {
+        const selection = getSelection();
+        const failures = [];
+        let assertionCount = 0;
+        let host = null;
+
+        const originalHTML = '<div id="first">Give it a try! <img id="smile" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just type <strong>:</strong>) and it will be converted into <img id="lastimg" alt=":)"> as you type.</div>';
+
+        function newHost() {
+            if (host)
+                host.remove();
+            host = document.createElement("div");
+            host.contentEditable = "true";
+            host.innerHTML = originalHTML;
+            document.body.appendChild(host);
+            host.focus();
+        }
+
+        function path(node) {
+            if (!node)
+                return "null";
+            const segments = [];
+            while (node !== host) {
+                segments.unshift(Array.prototype.indexOf.call(node.parentNode.childNodes, node));
+                node = node.parentNode;
+            }
+            return `host${segments.length ? "/" + segments.join("/") : ""}`;
+        }
+
+        function selectionString() {
+            return `${path(selection.anchorNode)}@${selection.anchorOffset}->${path(selection.focusNode)}@${selection.focusOffset}`;
+        }
+
+        function expect(actual, expected, label) {
+            ++assertionCount;
+            if (actual !== expected)
+                failures.push(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+        }
+
+        function expectState(label, html, selectionState) {
+            expect(host.innerHTML, html, `${label} DOM`);
+            expect(selectionString(), selectionState, `${label} selection`);
+        }
+
+        const styledReplacement = '<div id="first">Give it a try! <img id="smile" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red X</font><font id="blue" color="#3399ff">&nbsp;text!</font><br></div><div id="last">Just type <strong>:</strong>) and it will be converted into <img id="lastimg" alt=":)"> as you type.</div>';
+        newHost();
+        selection.setBaseAndExtent(host.querySelector("#red").firstChild, 4, host.querySelector("#blue").firstChild, 4);
+        internals.sendText(host, "X");
+        expectState("replace across styled runs", styledReplacement, "host/2/0/0@5->host/2/0/0@5");
+        expect(document.execCommand("undo"), true, "undo styled replacement");
+        expectState("undo styled replacement", originalHTML, "host/2/0/0@4->host/2/1/0@4");
+        expect(document.execCommand("redo"), true, "redo styled replacement");
+        expectState("redo styled replacement", styledReplacement, "host/2/0/0@5->host/2/0/0@5");
+
+        const imageReplacement = '<div id="first">Give it a try! <img id="smile" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just type <strong>:</strong>) and it will be convertX&nbsp;you type.</div>';
+        newHost();
+        const image = host.querySelector("#lastimg");
+        const lastLine = host.querySelector("#last");
+        selection.setBaseAndExtent(lastLine.childNodes[2], 24, lastLine.childNodes[4], 3);
+        internals.sendText(host, "X");
+        expectState("replace across an image", imageReplacement, "host/3/2@25->host/3/2@25");
+        expect(document.execCommand("undo"), true, "undo image replacement");
+        expectState("undo image replacement", originalHTML, "host/3/2@24->host/3/4@3");
+        expect(host.querySelector("#lastimg"), image, "undo restores the same image node");
+        expect(document.execCommand("redo"), true, "redo image replacement");
+        expectState("redo image replacement", imageReplacement, "host/3/2@25->host/3/2@25");
+
+        const emptyBlockReplacement = '<div id="first">Give it a try! <img id="smile" alt=":)"><br></div><div id="empty"><font id="red" color="#ff00">Xtext and </font><font id="blue" color="#3399ff">blue text!</font></div><div id="last">Just type <strong>:</strong>) and it will be converted into <img id="lastimg" alt=":)"> as you type.</div>';
+        newHost();
+        selection.setBaseAndExtent(host.querySelector("#empty"), 0, host.querySelector("#red").firstChild, 4);
+        internals.sendText(host, "X");
+        expectState("replace from an empty block into styled text", emptyBlockReplacement, "host/1/0/0@1->host/1/0/0@1");
+        expect(document.execCommand("undo"), true, "undo empty-block replacement");
+        expectState("undo empty-block replacement", originalHTML, "host/1@0->host/2/0/0@4");
+        expect(document.execCommand("redo"), true, "redo empty-block replacement");
+        expectState("redo empty-block replacement", emptyBlockReplacement, "host/1/0/0@1->host/1/0/0@1");
+
+        if (failures.length)
+            println(`FAIL: ${failures.length}/${assertionCount} SCEditor rich-editing assertions failed\n${failures.join("\n")}`);
+        else
+            println(`PASS: ${assertionCount} SCEditor rich-editing assertions match Chromium`);
+    });
+</script>

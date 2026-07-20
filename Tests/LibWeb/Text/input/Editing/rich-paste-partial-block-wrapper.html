@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // These source ranges come from the SCEditor-derived Chromium differential fixture. Each range contains only part
+    // of one block even though Range::cloneContents() represents it with a complete div wrapper.
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const failures = [];
+        let assertionCount = 0;
+        let host = null;
+
+        const originalHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+        const pastedHTML = `<div>Give it Ja try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+        const pastedStyledParagraphBoundaryHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Jus<font color="#ff00">d </font><font color="#3399ff">blue text!</font></div><div><br></div><div>t type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+        const pastedTrailingTextEdgeHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple</li><li>o items<br></li><div><br></div><li>&nbsp;list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+        const pastedRenderedElementEndHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red te</font></div><div><br class="Apple-interchange-newline"><br></div><ul></ul><div><font color="#ff00">xt and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+        const pastedLeadingListMarkerHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and&nbsp;</font></div><ul><li><br class="Apple-interchange-newline">A simple list<br></li><li>With two item</li></ul><div><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+
+        function newHost() {
+            if (host)
+                host.remove();
+            host = document.createElement("div");
+            host.contentEditable = "true";
+            host.innerHTML = originalHTML;
+            document.body.appendChild(host);
+            host.focus();
+            host.offsetWidth;
+            return getSelection();
+        }
+
+        function selectionString(selection) {
+            const segments = [];
+            let node = selection.anchorNode;
+            while (node && node !== host) {
+                if (!node.parentNode)
+                    return "outside host";
+                segments.unshift(Array.prototype.indexOf.call(node.parentNode.childNodes, node));
+                node = node.parentNode;
+            }
+            if (!node)
+                return "outside host";
+            return `host/${segments.join("/")}@${selection.anchorOffset}`;
+        }
+
+        function expect(actual, expected, label) {
+            ++assertionCount;
+            if (actual !== expected)
+                failures.push(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+        }
+
+        async function copyAndPaste(selection, sourceStart, sourceStartOffset, sourceEnd, sourceEndOffset, target, targetOffset) {
+            selection.setBaseAndExtent(sourceStart, sourceStartOffset, sourceEnd, sourceEndOffset);
+            internals.sendKey(host, "C", platformControl);
+            internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+            await navigator.clipboard.read();
+
+            selection.collapse(target, targetOffset);
+            const pasteInput = new Promise(resolve => host.addEventListener("input", event => {
+                if (event.inputType === "insertFromPaste")
+                    resolve();
+            }, { once: true }));
+            internals.sendKey(host, "V", platformControl);
+            await pasteInput;
+        }
+
+        let selection = newHost();
+        const lastParagraph = host.childNodes[11];
+        await copyAndPaste(selection, host, 11, lastParagraph.firstChild, 1, host.firstChild.firstChild, 8);
+        expect(host.innerHTML, pastedHTML, "partial block paste DOM");
+        expect(selectionString(selection), "host/0/0@9", "partial block paste selection");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, originalHTML, "partial block undo DOM");
+        expect(selectionString(selection), "host/0/0@8", "partial block undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedHTML, "partial block redo DOM");
+        expect(selectionString(selection), "host/0/0@9", "partial block redo selection");
+
+        selection = newHost();
+        const redText = host.childNodes[4].firstChild.firstChild;
+        await copyAndPaste(selection, host, 5, redText, 11, host.childNodes[11].firstChild, 3);
+        expect(host.innerHTML, pastedStyledParagraphBoundaryHTML, "styled paragraph boundary paste DOM");
+        expect(selectionString(selection), "host/12@0", "styled paragraph boundary paste selection");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, originalHTML, "styled paragraph boundary undo DOM");
+        expect(selectionString(selection), "host/11/0@3", "styled paragraph boundary undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedStyledParagraphBoundaryHTML, "styled paragraph boundary redo DOM");
+        expect(selectionString(selection), "host/12@0", "styled paragraph boundary redo selection");
+
+        selection = newHost();
+        const emptyParagraph = host.childNodes[9];
+        const listText = host.querySelector("li").firstChild;
+        await copyAndPaste(selection, host.childNodes[11], 0, emptyParagraph, 0, listText, 3);
+        expect(host.innerHTML, originalHTML, "boundary-only paste DOM");
+        expect(selectionString(selection), "host/8/0/0@3", "boundary-only paste selection");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, originalHTML, "boundary-only undo DOM");
+        expect(selectionString(selection), "host/8/0/0@3", "boundary-only undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, originalHTML, "boundary-only redo DOM");
+        expect(selectionString(selection), "host/8/0/0@3", "boundary-only redo selection");
+
+        selection = newHost();
+        const firstListText = host.querySelector("li").firstChild;
+        const secondListText = host.querySelectorAll("li")[1].firstChild;
+        await copyAndPaste(selection, secondListText, 7, host.childNodes[11].firstChild, 0, firstListText, 8);
+        expect(host.innerHTML, pastedTrailingTextEdgeHTML, "trailing text edge paste DOM");
+        expect(selectionString(selection), "host/8/3/0@0", "trailing text edge paste selection");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, originalHTML, "trailing text edge undo DOM");
+        expect(selectionString(selection), "host/8/0/0@8", "trailing text edge undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedTrailingTextEdgeHTML, "trailing text edge redo DOM");
+        expect(selectionString(selection), "host/8/3/0@0", "trailing text edge redo selection");
+
+        selection = newHost();
+        const blueFont = host.childNodes[4].children[1];
+        await copyAndPaste(selection, host, 8, blueFont, 1, host.childNodes[4].firstChild.firstChild, 6);
+        expect(host.innerHTML, pastedRenderedElementEndHTML, "rendered element end paste DOM");
+        expect(selectionString(selection), "host/7/0/0@0", "rendered element end paste selection");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, originalHTML, "rendered element end undo DOM");
+        expect(selectionString(selection), "host/4/0/0@6", "rendered element end undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedRenderedElementEndHTML, "rendered element end redo DOM");
+        expect(selectionString(selection), "host/7/0/0@0", "rendered element end redo selection");
+
+        selection = newHost();
+        const secondListItemText = host.querySelectorAll("li")[1].firstChild;
+        const leadingMarkerBlueFont = host.childNodes[4].children[1];
+        await copyAndPaste(selection, host.childNodes[5], 1, secondListItemText, 13, leadingMarkerBlueFont, 0);
+        expect(host.innerHTML, pastedLeadingListMarkerHTML, "leading list marker paste DOM");
+        expect(selectionString(selection), "host/5/1/0@13", "leading list marker paste selection");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, originalHTML, "leading list marker undo DOM");
+        expect(selectionString(selection), "host/4/0/0@13", "leading list marker undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedLeadingListMarkerHTML, "leading list marker redo DOM");
+        expect(selectionString(selection), "host/5/1/0@13", "leading list marker redo selection");
+
+        if (failures.length)
+            println(`FAIL: ${failures.length}/${assertionCount} partial-block assertions failed\n${failures.join("\n")}`);
+        else
+            println(`PASS: ${assertionCount} partial-block assertions match Chromium`);
+        done();
+    });
+</script>

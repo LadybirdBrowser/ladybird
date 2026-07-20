@@ -1,0 +1,3 @@
+paste: <font color="#ff00">Red&nbsp;</font>Give<font color="#ff00">text and </font> | Give @ 4
+undo: <font color="#ff00">Red text and </font> | Red text and  @ 4
+redo: <font color="#ff00">Red&nbsp;</font>Give<font color="#ff00">text and </font> | Give @ 4

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // This fixture uses the styled runs and images from the SCEditor front-page demo. The expected DOM and selection
+    // endpoints were recorded by driving Chromium through WebDriver with the same copy, paste, undo, and redo keys.
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const selection = getSelection();
+        const failures = [];
+        let assertionCount = 0;
+        let host = null;
+
+        const originalHTML = '<div id="first">Give it a try! <img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"> as you type.</div>';
+
+        function newHost() {
+            if (host)
+                host.remove();
+            host = document.createElement("div");
+            host.contentEditable = "true";
+            host.innerHTML = originalHTML;
+            document.body.appendChild(host);
+            host.focus();
+        }
+
+        function path(node) {
+            if (!node)
+                return "null";
+            const segments = [];
+            while (node !== host) {
+                segments.unshift(Array.prototype.indexOf.call(node.parentNode.childNodes, node));
+                node = node.parentNode;
+            }
+            return `host${segments.length ? "/" + segments.join("/") : ""}`;
+        }
+
+        function selectionString() {
+            return `${path(selection.anchorNode)}@${selection.anchorOffset}->${path(selection.focusNode)}@${selection.focusOffset}`;
+        }
+
+        function expect(actual, expected, label) {
+            ++assertionCount;
+            if (actual !== expected)
+                failures.push(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+        }
+
+        function expectState(label, html, selectionState) {
+            expect(host.innerHTML, html, `${label} DOM`);
+            expect(selectionString(), selectionState, `${label} selection`);
+        }
+
+        async function copyAndPaste(label, setSourceSelection) {
+            // Give each scenario a distinct plain-text fallback. Awaiting the clipboard read after copying also
+            // synchronizes the renderer-to-UI-process clipboard write without relying on timing.
+            internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+            await navigator.clipboard.writeText("plain-text fallback");
+
+            setSourceSelection();
+            if (label === "partial styled text") {
+                // SCEditor handles copy itself, providing both representations and canceling the browser's default.
+                // Keep this path distinct from the browser-provided rich serialization exercised below.
+                host.addEventListener("copy", event => {
+                    event.clipboardData.setData("text/plain", "blue text");
+                    event.clipboardData.setData("text/html", '<span style="color: rgb(51, 153, 255);">blue text</span>');
+                    event.preventDefault();
+                }, { once: true });
+            }
+            internals.sendKey(host, "C", platformControl);
+            internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+            const clipboardItems = await navigator.clipboard.read();
+            expect(clipboardItems.some(item => item.types.includes("text/html")), true, `copy ${label} includes text/html`);
+
+            selection.collapse(host.querySelector("#last").firstChild, 5);
+            const inputEvent = new Promise(resolve => host.addEventListener("input", event => {
+                if (event.inputType === "insertFromPaste")
+                    resolve();
+            }));
+            internals.sendKey(host, "V", platformControl);
+            await inputEvent;
+        }
+
+        async function verifyScenario(label, setSourceSelection, pastedHTML, pastedSelection) {
+            newHost();
+            await copyAndPaste(label, setSourceSelection);
+            expectState(`paste ${label}`, pastedHTML, pastedSelection);
+
+            internals.sendKey(host, "Z", platformControl);
+            expectState(`undo ${label}`, originalHTML, "host/3/0@5->host/3/0@5");
+
+            internals.sendKey(host, "Z", platformControlShift);
+            expectState(`redo ${label}`, pastedHTML, pastedSelection);
+        }
+
+        // SCEditor cancels both clipboard events. Its copy handler supplies the rich and plain representations, while
+        // its paste handler inserts the HTML with Range APIs. Chromium and Safari do not add that script mutation to
+        // native editing history, so Cmd+Z leaves it in place.
+        newHost();
+        host.addEventListener("copy", event => {
+            event.clipboardData.setData("text/plain", "blue text");
+            event.clipboardData.setData("text/html", '<span style="color: rgb(51, 153, 255);">blue text</span>');
+            event.preventDefault();
+        }, { once: true });
+        const blueText = host.querySelector("#blue").firstChild;
+        selection.setBaseAndExtent(blueText, 0, blueText, 9);
+        internals.sendKey(host, "C", platformControl);
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        const [scriptedClipboardItem] = await navigator.clipboard.read();
+        expect(scriptedClipboardItem.types.includes("text/html"), true, "scripted copy includes text/html");
+
+        const scriptedPasteEvent = new Promise(resolve => host.addEventListener("paste", event => {
+            event.preventDefault();
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
+            const fragment = range.createContextualFragment(event.clipboardData.getData("text/html"));
+            const last = fragment.lastChild;
+            range.insertNode(fragment);
+            selection.collapse(last.parentNode, Array.prototype.indexOf.call(last.parentNode.childNodes, last) + 1);
+            resolve();
+        }, { once: true }));
+        selection.collapse(host.querySelector("#last").firstChild, 5);
+        internals.sendKey(host, "V", platformControl);
+        await scriptedPasteEvent;
+
+        const scriptedPaste = '<div id="first">Give it a try! <img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just <span style="color: rgb(51, 153, 255);">blue text</span>type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"> as you type.</div>';
+        expectState("scripted paste", scriptedPaste, "host/3@2->host/3@2");
+
+        internals.sendKey(host, "Z", platformControl);
+        expectState("undo scripted paste", scriptedPaste, "host/3@2->host/3@2");
+
+        const blueTextPaste = '<div id="first">Give it a try! <img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just&nbsp;<span style="color: rgb(51, 153, 255);">blue text</span>type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"> as you type.</div>';
+        await verifyScenario("partial styled text", () => {
+            const blueText = host.querySelector("#blue").firstChild;
+            selection.setBaseAndExtent(blueText, 0, blueText, 9);
+        }, blueTextPaste, "host/3/1/0@9->host/3/1/0@9");
+
+        const styledRunsPaste = '<div id="first">Give it a try! <img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just&nbsp;<font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text</font>type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"> as you type.</div>';
+        await verifyScenario("multiple styled runs", () => {
+            selection.setBaseAndExtent(host.querySelector("#red").firstChild, 0, host.querySelector("#blue").firstChild, 9);
+        }, styledRunsPaste, "host/3/2/0@9->host/3/2/0@9");
+
+        const imagePaste = '<div id="first">Give it a try! <img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just&nbsp;<img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)">type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"> as you type.</div>';
+        await verifyScenario("image", () => {
+            const firstLine = host.querySelector("#first");
+            selection.setBaseAndExtent(firstLine, 1, firstLine, 2);
+        }, imagePaste, "host/3@2->host/3@2");
+
+        const mixedPaste = '<div id="first">Give it a try! <img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just try!&nbsp;<img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)">type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"> as you type.</div>';
+        await verifyScenario("mixed text and image", () => {
+            const firstLine = host.querySelector("#first");
+            selection.setBaseAndExtent(firstLine.firstChild, 10, firstLine, 2);
+        }, mixedPaste, "host/3@2->host/3@2");
+
+        if (failures.length)
+            println(`FAIL: ${failures.length}/${assertionCount} SCEditor rich clipboard assertions failed\n${failures.join("\n")}`);
+        else
+            println(`PASS: ${assertionCount} SCEditor rich clipboard assertions match Chromium`);
+        done();
+    });
+</script>

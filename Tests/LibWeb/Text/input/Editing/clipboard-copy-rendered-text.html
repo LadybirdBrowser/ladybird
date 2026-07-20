@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host" contenteditable><div>First <img alt=":)"><br></div>
+<div><br></div>
+<ul><li>One<br></li><li>Two<br></li></ul><div>Last</div></div>
+<script>
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        host.focus();
+        getSelection().selectAllChildren(host);
+        internals.sendKey(host, "C", platformControl);
+
+        const pasteEvent = new Promise(resolve => host.addEventListener("paste", event => {
+            event.preventDefault();
+            println(JSON.stringify(event.clipboardData.getData("text/plain")));
+            resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await pasteEvent;
+        done();
+    });
+</script>

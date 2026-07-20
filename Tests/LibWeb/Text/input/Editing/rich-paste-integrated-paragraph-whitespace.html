@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // This range comes from the SCEditor-derived Chromium differential fixture. It covers a protected clipboard
+    // space whose wrapper becomes redundant when the final pasted paragraph is integrated with the destination.
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const failures = [];
+        let assertionCount = 0;
+
+        const originalHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+        const pastedHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">b</font><span style="color: rgb(51, 153, 255);">e text!</span></div><div><br></div><ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div><div>Just type <strong>:</strong>) and it will be converted in<font color="#3399ff">lue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+
+        const host = document.createElement("div");
+        host.contentEditable = "true";
+        host.innerHTML = originalHTML;
+        document.body.appendChild(host);
+        host.focus();
+        host.offsetWidth;
+        const selection = getSelection();
+
+        function selectionString() {
+            const path = [];
+            let node = selection.anchorNode;
+            while (node !== host) {
+                path.unshift(Array.prototype.indexOf.call(node.parentNode.childNodes, node));
+                node = node.parentNode;
+            }
+            return `host/${path.join("/")}@${selection.anchorOffset}`;
+        }
+
+        function expect(actual, expected, label) {
+            ++assertionCount;
+            if (actual !== expected)
+                failures.push(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+        }
+
+        const blueText = host.childNodes[4].childNodes[1].firstChild;
+        const finalLineSuffix = host.childNodes[11].childNodes[2];
+        selection.setBaseAndExtent(blueText, 3, finalLineSuffix, 29);
+        internals.sendKey(host, "C", platformControl);
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        await navigator.clipboard.read();
+
+        selection.collapse(blueText, 1);
+        const pasteInput = new Promise(resolve => host.addEventListener("input", event => {
+            if (event.inputType === "insertFromPaste")
+                resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await pasteInput;
+
+        expect(host.innerHTML, pastedHTML, "paste DOM");
+        expect(selectionString(), "host/8/2@29", "paste selection");
+        expect(host.childNodes[8].firstChild.data, "Just type ", "integrated paragraph text seam");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, originalHTML, "undo DOM");
+        expect(selectionString(), "host/4/1/0@1", "undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedHTML, "redo DOM");
+        expect(selectionString(), "host/8/2@29", "redo selection");
+        expect(host.childNodes[8].firstChild.data, "Just type ", "redo integrated paragraph text seam");
+
+        if (failures.length)
+            println(`FAIL: ${failures.length}/${assertionCount} integrated-paragraph assertions failed\n${failures.join("\n")}`);
+        else
+            println(`PASS: ${assertionCount} integrated-paragraph assertions match Chromium`);
+        done();
+    });
+</script>

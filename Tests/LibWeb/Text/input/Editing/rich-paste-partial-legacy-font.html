@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame" srcdoc='<body contenteditable="true" dir="ltr"><div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+'></iframe>
+<script>
+    // This selection and its expected replacement were recorded from Chromium using the SCEditor-derived fixture.
+    // Its final paragraph ends partway through a legacy font and is merged with the destination paragraph.
+    asyncTest(async done => {
+        await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const host = frame.contentDocument.body;
+        const selection = frame.contentWindow.getSelection();
+        const failures = [];
+        let assertionCount = 0;
+
+        const originalHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+        const pastedHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div><img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div><div><br></div><div><span style="color: rgb(255, 0, 0);">Red text and</span>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+
+        function path(node) {
+            const segments = [];
+            while (node !== host) {
+                segments.unshift(Array.prototype.indexOf.call(node.parentNode.childNodes, node));
+                node = node.parentNode;
+            }
+            return `host/${segments.join("/")}`;
+        }
+
+        function selectionString() {
+            return `${path(selection.anchorNode)}@${selection.anchorOffset}`;
+        }
+
+        function expect(actual, expected, label) {
+            ++assertionCount;
+            if (actual !== expected)
+                failures.push(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+        }
+
+        host.focus();
+        host.offsetWidth;
+        const redText = host.querySelector('font[color="#ff00"]').firstChild;
+        const firstLine = host.firstChild.firstChild;
+        selection.setBaseAndExtent(redText, 12, firstLine, 15);
+        internals.sendKey(host, "C", platformControl);
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        await frame.contentWindow.navigator.clipboard.read();
+
+        selection.collapse(host.lastElementChild, 0);
+        const pasteInput = new Promise(resolve => host.addEventListener("input", event => {
+            if (event.inputType === "insertFromPaste")
+                resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await pasteInput;
+        expect(host.innerHTML, pastedHTML, "paste DOM");
+        expect(selectionString(), "host/13/0/0@12", "paste selection");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, originalHTML, "undo DOM");
+        expect(selectionString(), "host/11/0@0", "undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedHTML, "redo DOM");
+        expect(selectionString(), "host/13/0/0@12", "redo selection");
+
+        const legacyFontHTML = `<div><font color="red">abc</font><br></div><div><font color="blue">xyz</font><br></div><div>tail</div>`;
+        const pastedIntoLegacyFontHTML = `<div><font color="red">a</font><span style="color: blue;">yz</span></div><div>tail<font color="red">bc</font><br></div><div><font color="blue">xyz</font><br></div><div>tail</div>`;
+        host.innerHTML = legacyFontHTML;
+        host.focus();
+
+        const blueText = host.children[1].querySelector("font").firstChild;
+        const tailText = host.children[2].firstChild;
+        selection.setBaseAndExtent(blueText, 1, tailText, tailText.length);
+        internals.sendKey(host, "C", platformControl);
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        await frame.contentWindow.navigator.clipboard.read();
+
+        const destinationText = host.children[0].querySelector("font").firstChild;
+        selection.collapse(destinationText, 1);
+        const legacyFontPasteInput = new Promise(resolve => host.addEventListener("input", event => {
+            if (event.inputType === "insertFromPaste")
+                resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await legacyFontPasteInput;
+        expect(host.innerHTML, pastedIntoLegacyFontHTML, "legacy-font destination paste DOM");
+        expect(selectionString(), "host/1/0@4", "legacy-font destination paste selection");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, legacyFontHTML, "legacy-font destination undo DOM");
+        expect(selectionString(), "host/0/0/0@1", "legacy-font destination undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedIntoLegacyFontHTML, "legacy-font destination redo DOM");
+        expect(selectionString(), "host/1/0@4", "legacy-font destination redo selection");
+
+        const matchingLegacyFontHTML = `<div><font color="blue">abc</font><br></div><div><font color="red">q</font><font color="blue">xyz</font><br></div><div>tail</div>`;
+        const pastedMatchingLegacyFontHTML = `<div><font color="blue">a</font><font color="red">q</font><font color="blue">xyz</font></div><div>tail<font color="blue">bc</font><br></div><div><font color="red">q</font><font color="blue">xyz</font><br></div><div>tail</div>`;
+        host.innerHTML = matchingLegacyFontHTML;
+        host.focus();
+
+        const redSourceText = host.children[1].querySelector('font[color="red"]').firstChild;
+        const matchingTailText = host.children[2].firstChild;
+        selection.setBaseAndExtent(redSourceText, 0, matchingTailText, matchingTailText.length);
+        internals.sendKey(host, "C", platformControl);
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        await frame.contentWindow.navigator.clipboard.read();
+
+        const blueDestinationText = host.children[0].querySelector("font").firstChild;
+        selection.collapse(blueDestinationText, 1);
+        const matchingFontPasteInput = new Promise(resolve => host.addEventListener("input", event => {
+            if (event.inputType === "insertFromPaste")
+                resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await matchingFontPasteInput;
+        expect(host.innerHTML, pastedMatchingLegacyFontHTML, "matching legacy-font paste DOM");
+        expect(selectionString(), "host/1/0@4", "matching legacy-font paste selection");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, matchingLegacyFontHTML, "matching legacy-font undo DOM");
+        expect(selectionString(), "host/0/0/0@1", "matching legacy-font undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedMatchingLegacyFontHTML, "matching legacy-font redo DOM");
+        expect(selectionString(), "host/1/0@4", "matching legacy-font redo selection");
+
+        const pastedWithoutEmptyFormattingHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.<span style="color: rgb(51, 153, 255);">blue text!</span></div><div><br></div><ul><li>A simple lis</li></ul>
+`;
+        host.innerHTML = originalHTML;
+        host.focus();
+
+        const firstListItemText = host.querySelector("li").firstChild;
+        const partialRedText = host.querySelector('font[color="#ff00"]').firstChild;
+        selection.setBaseAndExtent(firstListItemText, 12, partialRedText, 13);
+        internals.sendKey(host, "C", platformControl);
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        await frame.contentWindow.navigator.clipboard.read();
+
+        selection.collapse(host, 13);
+        const partialAncestorPasteInput = new Promise(resolve => host.addEventListener("input", event => {
+            if (event.inputType === "insertFromPaste")
+                resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await partialAncestorPasteInput;
+        expect(host.innerHTML, pastedWithoutEmptyFormattingHTML, "partial-ancestor paste DOM");
+        expect(selectionString(), "host/13/0/0@12", "partial-ancestor paste selection");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, originalHTML, "partial-ancestor undo DOM");
+        expect(selectionString(), "host/11/4@13", "partial-ancestor undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedWithoutEmptyFormattingHTML, "partial-ancestor redo DOM");
+        expect(selectionString(), "host/13/0/0@12", "partial-ancestor redo selection");
+
+        const pastedFromEmptyInlineEdgeHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will&nbsp;</div><div><br class="Apple-interchange-newline"><br></div><ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div><div>Just type <strong>:</strong>) and it willbe converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+        host.innerHTML = originalHTML;
+        host.focus();
+
+        const blueFont = host.querySelector('font[color="#3399ff"]');
+        const finalParagraphText = host.lastElementChild.childNodes[2];
+        selection.setBaseAndExtent(blueFont, 1, finalParagraphText, 13);
+        internals.sendKey(host, "C", platformControl);
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        await frame.contentWindow.navigator.clipboard.read();
+
+        selection.collapse(finalParagraphText, 14);
+        const emptyInlineEdgePasteInput = new Promise(resolve => host.addEventListener("input", event => {
+            if (event.inputType === "insertFromPaste")
+                resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await emptyInlineEdgePasteInput;
+        expect(host.innerHTML, pastedFromEmptyInlineEdgeHTML, "empty-inline-edge paste DOM");
+        expect(selectionString(), "host/15/2@13", "empty-inline-edge paste selection");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, originalHTML, "empty-inline-edge undo DOM");
+        expect(selectionString(), "host/11/2@14", "empty-inline-edge undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedFromEmptyInlineEdgeHTML, "empty-inline-edge redo DOM");
+        expect(selectionString(), "host/15/2@13", "empty-inline-edge redo selection");
+
+        const pastedAfterParagraphIntegrationHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and&nbsp;</font><font color="#ff00">xt and </font><font color="#3399ff">blue text!</font></div><div><br></div><ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div><div>Just type <strong>:</strong>) and it will be converted into&nbsp;<img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)">&nbsp;as you type.<font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+        host.innerHTML = originalHTML;
+        host.focus();
+
+        const integratedRedText = host.querySelector('font[color="#ff00"]').firstChild;
+        const integratedFinalParagraph = host.lastElementChild;
+        selection.setBaseAndExtent(integratedRedText, 6, integratedFinalParagraph, 5);
+        internals.sendKey(host, "C", platformControl);
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        await frame.contentWindow.navigator.clipboard.read();
+
+        selection.collapse(integratedRedText, 13);
+        const integratedPasteInput = new Promise(resolve => host.addEventListener("input", event => {
+            if (event.inputType === "insertFromPaste")
+                resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await integratedPasteInput;
+        expect(host.innerHTML, pastedAfterParagraphIntegrationHTML, "integrated-wrapper paste DOM");
+        expect(selectionString(), "host/8/6@12", "integrated-wrapper paste selection");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, originalHTML, "integrated-wrapper undo DOM");
+        expect(selectionString(), "host/4/0/0@13", "integrated-wrapper undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedAfterParagraphIntegrationHTML, "integrated-wrapper redo DOM");
+        expect(selectionString(), "host/8/6@12", "integrated-wrapper redo selection");
+
+        if (failures.length)
+            println(`FAIL: ${failures.length}/${assertionCount} partial-font assertions failed\n${failures.join("\n")}`);
+        else
+            println(`PASS: ${assertionCount} partial-font assertions match Chromium`);
+        done();
+    });
+</script>

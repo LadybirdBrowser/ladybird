@@ -1,0 +1,20 @@
+PASS: paste DOM
+PASS: paste selection
+PASS: undo DOM
+PASS: undo selection
+PASS: redo DOM
+PASS: redo selection
+PASS: seam paste DOM
+PASS: seam paste selection
+PASS: seam paste top-level text nodes
+PASS: seam paste merges around its rendered start
+PASS: seam paste preserves trailing protected space
+PASS: seam paste inline text nodes
+PASS: seam undo DOM
+PASS: seam undo selection
+PASS: seam redo DOM
+PASS: seam redo selection
+PASS: seam redo top-level text nodes
+PASS: seam redo merges around its rendered start
+PASS: seam redo preserves trailing protected space
+PASS: seam redo inline text nodes

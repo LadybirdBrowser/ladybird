@@ -1,0 +1,3 @@
+copy formats: ["text/plain","text/html"]
+paste plain: "blue text"
+paste html: "<span style=\"color: blue\">blue text</span>"

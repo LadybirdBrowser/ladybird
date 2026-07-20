@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable><div id="source">Give</div><div id="target"><font color="#ff00">Red text and </font></div></div>
+<script>
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const selection = getSelection();
+        const sourceText = source.firstChild;
+        const targetText = target.firstChild.firstChild;
+
+        selection.selectAllChildren(source);
+        editor.focus();
+        internals.sendKey(editor, "C", platformControl);
+        internals.dispatchUserActivatedEvent(editor, new Event("mousedown"));
+        await navigator.clipboard.read();
+
+        selection.collapse(targetText, 4);
+        const pasteInput = new Promise(resolve => editor.addEventListener("input", resolve, { once: true }));
+        internals.sendKey(editor, "V", platformControl);
+        await pasteInput;
+        println(`paste: ${target.innerHTML} | ${selection.focusNode.data} @ ${selection.focusOffset}`);
+
+        internals.sendKey(editor, "Z", platformControl);
+        println(`undo: ${target.innerHTML} | ${selection.focusNode.data} @ ${selection.focusOffset}`);
+
+        internals.sendKey(editor, "Z", platformControlShift);
+        println(`redo: ${target.innerHTML} | ${selection.focusNode.data} @ ${selection.focusOffset}`);
+        done();
+    });
+</script>

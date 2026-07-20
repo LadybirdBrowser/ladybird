@@ -1,0 +1,8 @@
+PASS: paste DOM
+PASS: paste selection
+PASS: paste text seams
+PASS: undo DOM
+PASS: undo selection
+PASS: redo DOM
+PASS: redo selection
+PASS: redo text seams

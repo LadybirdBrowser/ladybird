@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // These selections and their expected replacement seams were recorded from Chromium using the SCEditor-derived
+    // fixture. They cover the distinction between the original replacement position and the inserted content range.
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const selection = getSelection();
+        const failures = [];
+        let assertionCount = 0;
+
+        const originalHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+
+        const host = document.createElement("div");
+        host.contentEditable = "true";
+        document.body.appendChild(host);
+
+        function nodeAt(path) {
+            return path.reduce((node, index) => node.childNodes[index], host);
+        }
+
+        function path(node) {
+            const segments = [];
+            while (node !== host) {
+                segments.unshift(Array.prototype.indexOf.call(node.parentNode.childNodes, node));
+                node = node.parentNode;
+            }
+            return `host/${segments.join("/")}`;
+        }
+
+        function selectionString() {
+            return `${path(selection.anchorNode)}@${selection.anchorOffset}`;
+        }
+
+        function childSignature(node) {
+            return Array.from(node.childNodes, child => child.nodeType === Node.TEXT_NODE ? `#text:${child.data}` : child.nodeName).join("|");
+        }
+
+        function expect(actual, expected, label) {
+            ++assertionCount;
+            if (actual !== expected)
+                failures.push(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+        }
+
+        async function copyAndPaste(sourceStart, sourceEnd, target) {
+            host.innerHTML = originalHTML;
+            host.focus();
+            selection.setBaseAndExtent(nodeAt(sourceStart[0]), sourceStart[1], nodeAt(sourceEnd[0]), sourceEnd[1]);
+            internals.sendKey(host, "C", platformControl);
+
+            // Synchronize the renderer-to-UI-process clipboard write without relying on timing.
+            internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+            await navigator.clipboard.read();
+
+            selection.collapse(nodeAt(target[0]), target[1]);
+            const pasteInput = new Promise(resolve => host.addEventListener("input", event => {
+                if (event.inputType === "insertFromPaste")
+                    resolve();
+            }, { once: true }));
+            internals.sendKey(host, "V", platformControl);
+            await pasteInput;
+        }
+
+        async function verifyReplacement(label, sourceStart, sourceEnd, target, expectedSelection, expectedUndoSelection, verifySeam) {
+            await copyAndPaste(sourceStart, sourceEnd, target);
+            verifySeam(`${label} paste`);
+            expect(selectionString(), expectedSelection, `${label} paste selection`);
+
+            internals.sendKey(host, "Z", platformControl);
+            expect(host.innerHTML, originalHTML, `${label} undo DOM`);
+            expect(selectionString(), expectedUndoSelection, `${label} undo selection`);
+
+            internals.sendKey(host, "Z", platformControlShift);
+            verifySeam(`${label} redo`);
+            expect(selectionString(), expectedSelection, `${label} redo selection`);
+        }
+
+        await verifyReplacement("integrated block", [[0, 0], 0], [[8, 1, 0], 4], [[4, 1, 0], 9], "host/8/1/0@4", "host/4/1/0@9", label => {
+            expect(childSignature(host.childNodes[4]), "FONT|FONT|#text:Give it a try!|#text:\u00a0|IMG", `${label} seam`);
+        });
+
+        await verifyReplacement("wrapped inline", [[4, 1, 0], 6], [[4, 0, 0], 1], [[11, 1, 0], 1], "host/11/3/0@6", "host/11/1/0@1", label => {
+            expect(childSignature(host.childNodes[11].childNodes[2]), "#text:ed text and ", `${label} seam`);
+        });
+
+        await verifyReplacement("direct inline", [[11, 0], 4], [[11, 2], 21], [[4, 0, 0], 6], "host/4/5@21", "host/4/0/0@6", label => {
+            expect(childSignature(host.childNodes[4]), "FONT|#text: |#text:type|#text: |STRONG|#text:) and it will be conv|FONT|FONT", `${label} seam`);
+        });
+
+        await verifyReplacement("atomic suffix", [[11, 2], 3], [[8, 1, 0], 0], [[0], 1], "host/3/2@3", "host/0/0@15", label => {
+            expect(childSignature(host.childNodes[3]), "#text:Just type |STRONG|#text:) a|IMG|BR", `${label} seam`);
+        });
+
+        await verifyReplacement("legacy color transfer", [[4, 0, 0], 7], [[0], 2], [[0, 0], 9], "host/2/0/0@7", "host/0/0@9", label => {
+            expect(host.childNodes[2].firstChild.outerHTML, '<span style="color: rgba(255, 255, 0, 0);">Red tex</span>', `${label} style`);
+        });
+
+        await verifyReplacement("styled whitespace transfer", [[0, 0], 5], [[4], 1], [[11, 2], 24], "host/13/1/0@1", "host/11/2@24", label => {
+            expect(childSignature(host.childNodes[13]), "SPAN|SPAN|#text:ed into |IMG|#text: as you type.", `${label} seam`);
+        });
+
+        await verifyReplacement("inline ancestor edge", [[0, 0], 4], [[0, 0], 5], [[4], 0], "host/4/0@1", "host/4/0/0@0", label => {
+            expect(childSignature(host.childNodes[4]), "#text:\u00a0|FONT|FONT|BR", `${label} seam`);
+        });
+
+        await verifyReplacement("atomic trailing seam", [[11, 2], 13], [[0, 0], 13], [[0], 3], "host/6/3@13", "host/0@2", label => {
+            expect(childSignature(host.childNodes[0]), "#text:Give it a try! |IMG|#text:!\u00a0|IMG|BR", `${label} seam`);
+        });
+
+        await verifyReplacement("complex paragraph endpoint", [[8, 1], 0], [[11, 2], 32], [[11, 2], 4], "host/14/3@1", "host/11/2@4", label => {
+            expect(childSignature(host.childNodes[14]), "#text:Just type |STRONG|#text:) and it will be converted into|#text: |#text:d it will be converted into |IMG|#text: as you type.", `${label} seam`);
+        });
+
+        await verifyReplacement("atomic canonicalization boundary", [[], 1], [[11], 4], [[11, 2], 16], "host/16@5", "host/11/2@16", label => {
+            expect(childSignature(host.childNodes[16]), "#text:Just type |STRONG|#text:) and it will be converted into|#text:\u00a0|IMG|#text:\u00a0converted into |IMG|#text: as you type.", `${label} seam`);
+        });
+
+        await verifyReplacement("single presentational run", [[4, 1, 0], 0], [[4, 0, 0], 5], [[11], 1], "host/11/2/0@1", "host/11/0@10", label => {
+            expect(childSignature(host.childNodes[11]), "#text:Just type\u00a0|SPAN|SPAN|STRONG|#text:) and it will be converted into |IMG|#text: as you type.", `${label} seam`);
+            expect(host.childNodes[11].childNodes[1].outerHTML, '<span style="color: rgb(255, 0, 0);">ext and</span>', `${label} content style`);
+            expect(host.childNodes[11].childNodes[2].outerHTML, '<span style="color: rgb(255, 0, 0);"> </span>', `${label} whitespace style`);
+        });
+
+        await verifyReplacement("inline replacement end", [[], 5], [[8, 0, 0], 5], [[8, 0, 0], 1], "host/8/0/2@5", "host/8/0/0@1", label => {
+            expect(childSignature(host.childNodes[8].firstChild), "#text:A|BR|#text:A sim|#text:\u00a0simple list|BR", `${label} seam`);
+        });
+
+        await verifyReplacement("terminal atomic inline run", [[11, 2], 2], [[11, 4], 1], [[8, 0, 0], 7], "host/8/0/3@1", "host/8/0/0@7", label => {
+            expect(childSignature(host.childNodes[8].firstChild), "#text:A simpland it will be converted into|#text:\u00a0|IMG|#text:\u00a0|#text:e list|BR", `${label} seam`);
+        });
+
+        await verifyReplacement("terminal atomic text run", [[0, 0], 10], [[0], 3], [[8, 0, 0], 1], "host/8/0@3", "host/8/0/0@1", label => {
+            expect(childSignature(host.childNodes[8].firstChild), "#text:Atry!|#text:\u00a0|IMG|#text:\u00a0simple list|BR", `${label} seam`);
+        });
+
+        await verifyReplacement("list destination style", [[11, 2], 19], [[4, 1, 0], 3], [[8, 1, 0], 5], "host/8/1/6@19", "host/8/1/0@5", label => {
+            const listItem = host.childNodes[8].children[1];
+            expect(childSignature(listItem), "#text:With e text!|DIV|UL|DIV|#text:Just type |STRONG|#text:) and it will be co|#text:two items|BR", `${label} seam`);
+            expect(listItem.querySelector('span[style*="color"]'), null, `${label} inherited style`);
+        });
+
+        await verifyReplacement("clipped list-item boundary", [[8, 0, 0], 0], [[4, 0, 0], 6], [[8, 1, 0], 0], "host/8/1/3@0", "host/8/1/0@0", label => {
+            const listItem = host.childNodes[8].children[1];
+            expect(childSignature(listItem), "DIV|DIV|UL|#text:With two items|BR", `${label} seam`);
+            expect(listItem.childNodes[2].childElementCount, 0, `${label} transport list`);
+        });
+
+        if (failures.length)
+            println(`FAIL: ${failures.length}/${assertionCount} replacement-boundary paste assertions failed\n${failures.join("\n")}`);
+        else
+            println(`PASS: ${assertionCount} replacement-boundary paste assertions match Chromium`);
+        done();
+    });
+</script>

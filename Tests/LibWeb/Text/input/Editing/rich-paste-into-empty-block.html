@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Chromium keeps an empty destination paragraph as the container for pasted block content. This fixture records
+    // that topology, including the selection restored by native undo and redo.
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const platformControlShift = platformControl | internals.MOD_SHIFT;
+        const selection = getSelection();
+        const failures = [];
+        let assertionCount = 0;
+
+        const originalHTML = `<div><br></div><div><b>one</b><br></div><div><i>two</i></div>`;
+        const pastedHTML = `<div><div><b>one</b><br></div><div><i>two</i></div></div><div><b>one</b><br></div><div><i>two</i></div>`;
+        const host = document.createElement("div");
+        host.contentEditable = "true";
+        host.innerHTML = originalHTML;
+        document.body.appendChild(host);
+        host.focus();
+
+        function selectionString() {
+            const segments = [];
+            let node = selection.anchorNode;
+            while (node !== host) {
+                segments.unshift(Array.prototype.indexOf.call(node.parentNode.childNodes, node));
+                node = node.parentNode;
+            }
+            return `host/${segments.join("/")}@${selection.anchorOffset}`;
+        }
+
+        function expect(actual, expected, label) {
+            ++assertionCount;
+            if (actual !== expected)
+                failures.push(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+        }
+
+        const sourceStart = host.children[1].querySelector("b").firstChild;
+        const sourceEnd = host.children[2].querySelector("i").firstChild;
+        selection.setBaseAndExtent(sourceStart, 0, sourceEnd, sourceEnd.length);
+        internals.sendKey(host, "C", platformControl);
+        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
+        await navigator.clipboard.read();
+
+        selection.collapse(host.firstElementChild, 0);
+        const pasteInput = new Promise(resolve => host.addEventListener("input", event => {
+            if (event.inputType === "insertFromPaste")
+                resolve();
+        }, { once: true }));
+        internals.sendKey(host, "V", platformControl);
+        await pasteInput;
+        expect(host.innerHTML, pastedHTML, "paste DOM");
+        expect(selectionString(), "host/0/1/0/0@3", "paste selection");
+
+        internals.sendKey(host, "Z", platformControl);
+        expect(host.innerHTML, originalHTML, "undo DOM");
+        expect(selectionString(), "host/0@0", "undo selection");
+
+        internals.sendKey(host, "Z", platformControlShift);
+        expect(host.innerHTML, pastedHTML, "redo DOM");
+        expect(selectionString(), "host/0/1/0/0@3", "redo selection");
+
+        if (failures.length)
+            println(`FAIL: ${failures.length}/${assertionCount} empty-block assertions failed\n${failures.join("\n")}`);
+        else
+            println(`PASS: ${assertionCount} empty-block assertions match Chromium`);
+        done();
+    });
+</script>
