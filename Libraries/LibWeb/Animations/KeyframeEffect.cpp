@@ -856,12 +856,12 @@ void KeyframeEffect::set_composite(Bindings::CompositeOperation value)
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-getkeyframes
 WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
 {
-    if (m_keyframe_objects.size() != m_keyframes.size()) {
+    if (m_keyframe_objects_cache.size() != m_keyframes.size()) {
         auto& vm = this->vm();
         auto& realm = this->realm();
 
         // Recalculate the keyframe objects
-        VERIFY(m_keyframe_objects.size() == 0);
+        VERIFY(m_keyframe_objects_cache.size() == 0);
 
         for (auto& keyframe : m_keyframes) {
             auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
@@ -886,12 +886,12 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
                 TRY(object->set(JS::PropertyKey { move(key), JS::PropertyKey::StringMayBeNumber::No }, value_string, ShouldThrowExceptions::Yes));
             }
 
-            m_keyframe_objects.append(object);
+            m_keyframe_objects_cache.append(object);
         }
     }
 
     GC::RootVector<JS::Object*> keyframes;
-    for (auto const& keyframe : m_keyframe_objects)
+    for (auto const& keyframe : m_keyframe_objects_cache)
         keyframes.append(keyframe);
     return keyframes;
 }
@@ -899,7 +899,7 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-setkeyframes
 WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(GC::Ptr<JS::Object> keyframe_object)
 {
-    m_keyframe_objects.clear();
+    m_keyframe_objects_cache.clear();
     m_keyframes = TRY(process_a_keyframes_argument(realm(), keyframe_object));
     // FIXME: After processing the keyframe argument, we need to turn the set of keyframes into a set of computed
     //        keyframes using the procedure outlined in the second half of
@@ -957,7 +957,7 @@ void KeyframeEffect::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_target_element);
-    visitor.visit(m_keyframe_objects);
+    visitor.visit(m_keyframe_objects_cache);
 }
 
 void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
