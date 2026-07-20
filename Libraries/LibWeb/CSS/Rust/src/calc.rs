@@ -773,6 +773,13 @@ impl CalcNodeHandle {
     pub(crate) fn node(&self) -> &CalcNode {
         unsafe { &*self.node }
     }
+
+    /// Borrows the handle's node as a shared reference without consuming the
+    /// handle's strong count; the clone bumps and the temporary drops it.
+    pub(crate) fn node_arc(&self) -> Arc<CalcNode> {
+        unsafe { Arc::increment_strong_count(self.node) };
+        unsafe { Arc::from_raw(self.node) }
+    }
 }
 
 impl Drop for CalcNodeHandle {
@@ -2103,4 +2110,242 @@ impl CalcNode {
         };
         if changed { shared(rebuilt) } else { self.clone() }
     }
+}
+
+/// The C++ ValueType discriminants the range lookup needs, pinned by
+/// static_asserts on the C++ side.
+mod value_type {
+    pub const ANGLE: u8 = 2;
+    pub const FLEX: u8 = 15;
+    pub const FREQUENCY: u8 = 21;
+    pub const INTEGER: u8 = 24;
+    pub const LENGTH: u8 = 25;
+    pub const NUMBER: u8 = 27;
+    pub const PERCENTAGE: u8 = 31;
+    pub const RESOLUTION: u8 = 35;
+    pub const TIME: u8 = 38;
+}
+
+impl CalcNode {
+    /// Whether the tree contains a random() node, whose evaluation stays with
+    /// the C++ per-element sharing state.
+    fn contains_random(&self) -> bool {
+        if matches!(self, CalcNode::Random { .. }) {
+            return true;
+        }
+        let mut found = false;
+        self.for_each_child(&mut |child| {
+            found = found || child.contains_random();
+        });
+        found
+    }
+}
+
+/// The resolution inputs marshaled from the C++ CalculationResolutionContext.
+#[repr(C)]
+pub struct FfiCalcResolutionContext {
+    /// The percentage basis: kind 0 = none, then angle, frequency, length,
+    /// time, with the value in the given unit of that dimension.
+    pub basis_kind: u8,
+    pub basis_value: f64,
+    pub basis_unit: u8,
+    /// The length resolution context as an opaque pointer (its type lives in
+    /// the computed-values header), or null.
+    pub length_resolution_context: *const std::ffi::c_void,
+    pub callback_context: *mut std::ffi::c_void,
+    /// Resolves a non-math function value to a calculation subtree, or null.
+    pub resolve_non_math_function:
+        unsafe extern "C" fn(context: *mut std::ffi::c_void, shell: *const std::ffi::c_void) -> *const CalcNode,
+    /// Looks up a relative-color channel value.
+    pub resolve_channel_keyword:
+        unsafe extern "C" fn(context: *mut std::ffi::c_void, channel: u8, out_value: *mut f64) -> bool,
+}
+
+/// The outcome of resolving a calculation.
+#[repr(C)]
+pub struct FfiResolvedCalc {
+    /// False when the tree contains nodes the core defers to C++ (random()),
+    /// so the caller must run its own resolution.
+    pub handled: bool,
+    /// Whether the calculation fully resolved to a numeric value.
+    pub resolved: bool,
+    pub value: f64,
+    pub numeric_type: FfiNumericType,
+}
+
+/// Resolves a calculated style value: simplifies its tree with used-value
+/// information and, when the tree collapses to a numeric leaf, applies the
+/// css-values-4 top-level censoring and clamping rules.
+///
+/// # Safety
+/// `calculated` must point at Calculated style value data and `context` at a
+/// valid resolution context.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_resolve(
+    calculated: *const std::ffi::c_void,
+    context: *const FfiCalcResolutionContext,
+    apply_censoring_and_clamping: bool,
+) -> FfiResolvedCalc {
+    use crate::style_value::StyleValueData;
+    crate::abort_on_panic(|| {
+        let unresolved = |handled: bool| FfiResolvedCalc {
+            handled,
+            resolved: false,
+            value: 0.0,
+            numeric_type: FfiNumericType::from_calc(None),
+        };
+        let StyleValueData::Calculated {
+            rust_calculation,
+            has_percentages_resolve_as,
+            resolve_as_is_number,
+            resolve_as_base,
+            resolve_numbers_as_integers,
+            accepted_ranges,
+            ..
+        } = (unsafe { &*(calculated as *const StyleValueData) })
+        else {
+            unreachable!("rust_calc_resolve requires calculated value data");
+        };
+        let context = unsafe { &*context };
+        let root = rust_calculation.node_arc();
+
+        if root.contains_random() {
+            return unresolved(false);
+        }
+
+        // The percentage leaf type and resolve-as target from the creation-time fields.
+        let resolve_as = if !has_percentages_resolve_as {
+            None
+        } else if *resolve_as_is_number {
+            Some(ResolveAs::Number)
+        } else {
+            Some(ResolveAs::Base(*resolve_as_base))
+        };
+        let mut percentage_leaf_type = CalcNumericType::default();
+        match resolve_as {
+            Some(ResolveAs::Base(base)) => {
+                percentage_leaf_type.exponents[base as usize] = Some(1);
+                percentage_leaf_type.percent_hint = Some(base);
+            }
+            _ => percentage_leaf_type.exponents[BASE_TYPE_PERCENT] = Some(1),
+        }
+
+        let percentage_basis = match context.basis_kind {
+            0 => None,
+            1 => Some(CalcNumericValue::Angle {
+                value: context.basis_value,
+                unit: context.basis_unit,
+            }),
+            2 => Some(CalcNumericValue::Frequency {
+                value: context.basis_value,
+                unit: context.basis_unit,
+            }),
+            3 => Some(CalcNumericValue::Length {
+                value: context.basis_value,
+                unit: context.basis_unit,
+            }),
+            4 => Some(CalcNumericValue::Time {
+                value: context.basis_value,
+                unit: context.basis_unit,
+            }),
+            _ => unreachable!("invalid percentage basis kind"),
+        };
+
+        let evaluation_context = CalcEvaluationContext {
+            percentage_leaf_type: &percentage_leaf_type,
+            resolve_as,
+            percentage_basis,
+            length_resolution_context: if context.length_resolution_context.is_null() {
+                None
+            } else {
+                Some(unsafe {
+                    &*(context.length_resolution_context as *const crate::style_compute::FfiLengthResolutionContext)
+                })
+            },
+        };
+        let callbacks = CalcSimplifyCallbacks {
+            resolve_non_math_function: &|value| {
+                let resolved =
+                    unsafe { (context.resolve_non_math_function)(context.callback_context, value.shell_pointer()) };
+                if resolved.is_null() {
+                    None
+                } else {
+                    Some(unsafe { Arc::from_raw(resolved) })
+                }
+            },
+            resolve_channel_keyword: &|channel| {
+                let mut value = 0.0;
+                if unsafe { (context.resolve_channel_keyword)(context.callback_context, channel, &raw mut value) } {
+                    Some(value)
+                } else {
+                    None
+                }
+            },
+        };
+
+        // The calculation tree is again simplified at used value time.
+        let simplified = root.simplify(&evaluation_context, &callbacks);
+
+        if !matches!(&*simplified, CalcNode::Numeric(..)) || (simplified.contains_percentage() && resolve_as.is_some())
+        {
+            return unresolved(true);
+        }
+        let Some(result) = simplified.try_canonical_result(&evaluation_context) else {
+            return unresolved(true);
+        };
+
+        let mut raw_value = result.value;
+        if apply_censoring_and_clamping {
+            // https://drafts.csswg.org/css-values/#calc-ieee
+            // NaN does not escape a top-level calculation; it's censored into a zero value.
+            if raw_value.is_nan() {
+                raw_value = 0.0;
+            }
+
+            // https://drafts.csswg.org/css-values/#calc-range
+            // The value resulting from a top-level calculation must be clamped to the range
+            // allowed in the target context.
+            let numeric_type = result.numeric_type.as_ref().expect("canonical result has a type");
+            let wanted_value_type = if numeric_type.matches_number(resolve_as) {
+                Some(if *resolve_numbers_as_integers {
+                    value_type::INTEGER
+                } else {
+                    value_type::NUMBER
+                })
+            } else if numeric_type.matches_dimension(1, resolve_as) {
+                Some(value_type::ANGLE)
+            } else if numeric_type.matches_dimension(5, resolve_as) {
+                Some(value_type::FLEX)
+            } else if numeric_type.matches_dimension(3, resolve_as) {
+                Some(value_type::FREQUENCY)
+            } else if numeric_type.matches_dimension(0, resolve_as) {
+                Some(value_type::LENGTH)
+            } else if numeric_type.matches_percentage() {
+                Some(value_type::PERCENTAGE)
+            } else if numeric_type.matches_dimension(4, resolve_as) {
+                Some(value_type::RESOLUTION)
+            } else if numeric_type.matches_dimension(2, resolve_as) {
+                Some(value_type::TIME)
+            } else {
+                None
+            };
+            let range = wanted_value_type.and_then(|wanted| {
+                accepted_ranges
+                    .as_slice()
+                    .iter()
+                    .find(|entry| entry.value_type() == wanted)
+                    .map(|entry| entry.range())
+            });
+            // FIXME: Infinity for integers should be i32 max rather than float max.
+            let (min, max) = range.unwrap_or((f32::MIN as f64, f32::MAX as f64));
+            raw_value = raw_value.clamp(min, max);
+        }
+
+        FfiResolvedCalc {
+            handled: true,
+            resolved: true,
+            value: raw_value,
+            numeric_type: FfiNumericType::from_calc(result.numeric_type),
+        }
+    })
 }

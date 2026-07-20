@@ -559,6 +559,17 @@ pub struct RetainedNumericRangeByType {
     max: f64,
 }
 
+#[allow(dead_code)]
+impl RetainedNumericRangeByType {
+    pub(crate) fn value_type(&self) -> u8 {
+        self.value_type
+    }
+
+    pub(crate) fn range(&self) -> (f64, f64) {
+        (self.min, self.max)
+    }
+}
+
 /// A Rust-owned array of accepted numeric ranges.
 #[repr(C)]
 pub struct RetainedNumericRangeList {
@@ -567,6 +578,16 @@ pub struct RetainedNumericRangeList {
 }
 
 retained_list!(RetainedNumericRangeList, RetainedNumericRangeByType);
+
+#[allow(dead_code)]
+impl RetainedNumericRangeList {
+    pub(crate) fn as_slice(&self) -> &[RetainedNumericRangeByType] {
+        if self.pointer.is_null() {
+            return &[];
+        }
+        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+    }
+}
 
 /// The shared leading fields of every color variant payload: the optional color type and the
 /// color syntax. Placing this first in each color payload lets C++ read it without knowing
@@ -626,6 +647,11 @@ pub enum StyleValueData {
     Calculated {
         calculation: RetainedCalculationNode,
         rust_calculation: crate::calc::CalcNodeHandle,
+        /// The resolve-against target, base-mapped at creation: whether one
+        /// exists, whether it is the number type, and otherwise its base type
+        /// index in the numeric type order.
+        resolve_as_is_number: bool,
+        resolve_as_base: u8,
         resolved_type: RetainedByteList,
         has_percentages_resolve_as: bool,
         percentages_resolve_as: u8,
@@ -2159,6 +2185,8 @@ pub unsafe extern "C" fn rust_style_value_create_calculated(
     resolved_type: *const u8,
     resolved_type_length: usize,
     has_percentages_resolve_as: bool,
+    resolve_as_is_number: bool,
+    resolve_as_base: u8,
     percentages_resolve_as: u8,
     resolve_numbers_as_integers: bool,
     accepted_ranges: *const RetainedNumericRangeByType,
@@ -2167,6 +2195,8 @@ pub unsafe extern "C" fn rust_style_value_create_calculated(
     abort_on_panic(|| {
         Box::into_raw(Box::new(StyleValueData::Calculated {
             rust_calculation: unsafe { crate::calc::CalcNodeHandle::from_raw(rust_calculation) },
+            resolve_as_is_number,
+            resolve_as_base,
             calculation: RetainedCalculationNode { pointer: calculation },
             resolved_type: unsafe { RetainedByteList::from_raw(resolved_type, resolved_type_length) },
             has_percentages_resolve_as,

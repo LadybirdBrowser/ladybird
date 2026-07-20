@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleValues/AbstractNonMathCalcFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
@@ -186,11 +187,16 @@ StyleValueFFI::StyleValueData* CalculatedStyleValue::make_calculated_data(Nonnul
     ranges.ensure_capacity(context.accepted_ranges_by_type.size());
     for (auto const& [value_type, range] : context.accepted_ranges_by_type)
         ranges.unchecked_append({ to_underlying(value_type), range.min, range.max });
+    auto resolve_as_base = context.percentages_resolve_as.has_value()
+        ? NumericType::base_type_from_value_type(*context.percentages_resolve_as)
+        : OptionalNone {};
     return StyleValueFFI::rust_style_value_create_calculated(
         to_rust_calc_node(*calculation),
         calculation.ptr(),
         resolved_type_bytes.data(), resolved_type_bytes.size(),
         context.percentages_resolve_as.has_value(),
+        context.percentages_resolve_as == ValueType::Number,
+        resolve_as_base.has_value() ? to_underlying(*resolve_as_base) : 0,
         context.percentages_resolve_as.has_value() ? to_underlying(*context.percentages_resolve_as) : 0,
         context.resolve_numbers_as_integers,
         ranges.data(), ranges.size());
@@ -3225,8 +3231,99 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
     return resolve_value(calculation_context(), resolution_context, apply_censoring_and_clamping);
 }
 
+// The C++ ValueType discriminants mirrored in the Rust range lookup; pin them.
+static_assert(to_underlying(ValueType::Angle) == 2);
+static_assert(to_underlying(ValueType::Flex) == 15);
+static_assert(to_underlying(ValueType::Frequency) == 21);
+static_assert(to_underlying(ValueType::Integer) == 24);
+static_assert(to_underlying(ValueType::Length) == 25);
+static_assert(to_underlying(ValueType::Number) == 27);
+static_assert(to_underlying(ValueType::Percentage) == 31);
+static_assert(to_underlying(ValueType::Resolution) == 35);
+static_assert(to_underlying(ValueType::Time) == 38);
+
+static Optional<NumericType> from_ffi_numeric_type(StyleValueFFI::FfiNumericType const& type)
+{
+    if (!type.valid)
+        return {};
+    NumericType result;
+    for (auto i = 0; i < to_underlying(NumericType::BaseType::__Count); ++i) {
+        if (type.has_exponent[i])
+            result.set_exponent(static_cast<NumericType::BaseType>(i), type.exponents[i]);
+    }
+    if (type.has_percent_hint)
+        result.set_percent_hint(static_cast<NumericType::BaseType>(type.percent_hint));
+    return result;
+}
+
 Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationContext const& calculation_context, CalculationResolutionContext const& resolution_context, bool apply_censoring_and_clamping) const
 {
+    // The resolution runs in the Rust style computation core; only trees containing random(),
+    // whose evaluation needs the C++ per-element sharing state, take the legacy path below.
+    struct ResolveCallbackContext {
+        CalculationContext const& calculation_context;
+        CalculationResolutionContext const& resolution_context;
+    } callback_context { calculation_context, resolution_context };
+
+    StyleValueFFI::FfiCalcResolutionContext ffi_context {
+        .basis_kind = 0,
+        .basis_value = 0,
+        .basis_unit = 0,
+        .length_resolution_context = nullptr,
+        .callback_context = &callback_context,
+        .resolve_non_math_function = [](void* context, void const* shell) -> StyleValueFFI::CalcNode const* {
+            auto& callback_context = *static_cast<ResolveCallbackContext*>(context);
+            auto resolved = static_cast<AbstractNonMathCalcFunctionStyleValue const*>(shell)->resolve_to_calculation_node(callback_context.calculation_context, callback_context.resolution_context);
+            if (!resolved)
+                return nullptr;
+            return to_rust_calc_node(*resolved);
+        },
+        .resolve_channel_keyword = [](void* context, u8 channel, double* out_value) -> bool {
+            auto& callback_context = *static_cast<ResolveCallbackContext*>(context);
+            if (!callback_context.resolution_context.relative_color.has_value())
+                return false;
+            auto resolved = callback_context.resolution_context.relative_color->get(static_cast<ChannelKeyword>(channel));
+            if (!resolved.has_value())
+                return false;
+            *out_value = resolved.value();
+            return true;
+        },
+    };
+    Optional<ComputedValuesFFI::FfiLengthResolutionContext> ffi_length_resolution_context;
+    if (resolution_context.length_resolution_context.has_value()) {
+        ffi_length_resolution_context = to_ffi_length_resolution_context(*resolution_context.length_resolution_context);
+        ffi_context.length_resolution_context = &ffi_length_resolution_context.value();
+    }
+    resolution_context.percentage_basis.visit(
+        [](Empty const&) {},
+        [&](Angle const& angle) {
+            ffi_context.basis_kind = 1;
+            ffi_context.basis_value = angle.raw_value();
+            ffi_context.basis_unit = to_underlying(angle.unit());
+        },
+        [&](Frequency const& frequency) {
+            ffi_context.basis_kind = 2;
+            ffi_context.basis_value = frequency.raw_value();
+            ffi_context.basis_unit = to_underlying(frequency.unit());
+        },
+        [&](Length const& length) {
+            ffi_context.basis_kind = 3;
+            ffi_context.basis_value = length.raw_value();
+            ffi_context.basis_unit = to_underlying(length.unit());
+        },
+        [&](Time const& time) {
+            ffi_context.basis_kind = 4;
+            ffi_context.basis_value = time.raw_value();
+            ffi_context.basis_unit = to_underlying(time.unit());
+        });
+
+    auto rust_result = StyleValueFFI::rust_calc_resolve(m_value.operator->(), &ffi_context, apply_censoring_and_clamping);
+    if (rust_result.handled) {
+        if (!rust_result.resolved)
+            return {};
+        return ResolvedValue { rust_result.value, from_ffi_numeric_type(rust_result.numeric_type) };
+    }
+
     // The calculation tree is again simplified at used value time; with used value time information.
     // NOTE: Any nodes which rely on dynamic state should have been simplified away in absolutized so we can pass a nullptr here
     auto simplified_tree = simplify_a_calculation_tree(calculation(), calculation_context, resolution_context);
