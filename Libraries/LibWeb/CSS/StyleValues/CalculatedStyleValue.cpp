@@ -149,7 +149,8 @@ static StyleValueFFI::CalcNode const* to_rust_calc_node(CalculationNode const& n
     case CalculationNode::Type::Progress: {
         auto children = children_of(node);
         VERIFY(children.size() == 3);
-        return StyleValueFFI::rust_calc_node_create_progress(children[0], children[1], children[2]);
+        return StyleValueFFI::rust_calc_node_create_progress(
+            static_cast<ProgressCalculationNode const&>(node).no_clamp(), children[0], children[1], children[2]);
     }
     case CalculationNode::Type::Round: {
         auto const& round = static_cast<RoundCalculationNode const&>(node);

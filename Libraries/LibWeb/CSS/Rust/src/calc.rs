@@ -340,6 +340,11 @@ impl CalcNumericValue {
             CalcNumericValue::Resolution { value, unit } => value * RESOLUTION_UNIT_CANONICAL_RATIOS[unit as usize],
             CalcNumericValue::Time { value, unit } => value * TIME_UNIT_CANONICAL_RATIOS[unit as usize],
             CalcNumericValue::Length { value, unit } => {
+                // Absolute lengths resolve without a context.
+                let ratio = crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[unit as usize];
+                if ratio.is_finite() {
+                    return value * ratio;
+                }
                 let Some(context) = length_resolution_context else {
                     return f64::NAN;
                 };
@@ -452,6 +457,7 @@ pub enum CalcNode {
     },
     /// https://drafts.csswg.org/css-values-5/#progress-func
     Progress {
+        no_clamp: bool,
         progress: Arc<CalcNode>,
         from: Arc<CalcNode>,
         to: Arc<CalcNode>,
@@ -538,7 +544,7 @@ impl CalcNode {
                 f(center);
                 f(max);
             }
-            CalcNode::Progress { progress, from, to } => {
+            CalcNode::Progress { progress, from, to, .. } => {
                 f(progress);
                 f(from);
                 f(to);
@@ -633,7 +639,7 @@ impl CalcNode {
             CalcNode::Negate(child) | CalcNode::Abs(child) => child.numeric_type(percentage_leaf_type),
             CalcNode::Invert(child) => Some(child.numeric_type(percentage_leaf_type)?.inverted()),
             CalcNode::Clamp { min, center, max } => add_children(&[min, center, max]),
-            CalcNode::Progress { progress, from, to } => {
+            CalcNode::Progress { progress, from, to, .. } => {
                 let sum = add_children(&[progress, from, to])?;
                 CalcNumericType::default().made_consistent_with(&sum)
             }
@@ -937,12 +943,14 @@ pub unsafe extern "C" fn rust_calc_node_create_clamp(
 /// All three children must be valid transferred handles.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_create_progress(
+    no_clamp: bool,
     progress: *const CalcNode,
     from: *const CalcNode,
     to: *const CalcNode,
 ) -> *const CalcNode {
     crate::abort_on_panic(|| {
         handle(CalcNode::Progress {
+            no_clamp,
             progress: unsafe { Arc::from_raw(progress) },
             from: unsafe { Arc::from_raw(from) },
             to: unsafe { Arc::from_raw(to) },
@@ -1020,4 +1028,438 @@ pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_contains_percentage(node: *const CalcNode) -> bool {
     crate::abort_on_panic(|| unsafe { &*node }.contains_percentage())
+}
+
+/// The inputs a calculation evaluation takes from the surrounding context.
+#[allow(dead_code)]
+pub(crate) struct CalcEvaluationContext<'a> {
+    /// The type a percentage leaf takes in this context.
+    pub percentage_leaf_type: &'a CalcNumericType,
+    /// Whether percentages resolve against another type and are still
+    /// unresolved, so percentage leaves cannot evaluate yet.
+    pub percentages_unresolved: bool,
+    pub length_resolution_context: Option<&'a crate::style_compute::FfiLengthResolutionContext>,
+}
+
+fn is_canonical_unit(value: CalcNumericValue) -> bool {
+    match value {
+        CalcNumericValue::Number(..) | CalcNumericValue::Percentage(..) => true,
+        CalcNumericValue::Length { unit, .. } => {
+            crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[unit as usize] == 1.0
+        }
+        CalcNumericValue::Angle { unit, .. } => ANGLE_UNIT_CANONICAL_RATIOS[unit as usize] == 1.0,
+        CalcNumericValue::Flex { unit, .. } => FLEX_UNIT_CANONICAL_RATIOS[unit as usize] == 1.0,
+        CalcNumericValue::Frequency { unit, .. } => FREQUENCY_UNIT_CANONICAL_RATIOS[unit as usize] == 1.0,
+        CalcNumericValue::Resolution { unit, .. } => RESOLUTION_UNIT_CANONICAL_RATIOS[unit as usize] == 1.0,
+        CalcNumericValue::Time { unit, .. } => TIME_UNIT_CANONICAL_RATIOS[unit as usize] == 1.0,
+    }
+}
+
+#[allow(dead_code)]
+impl CalcNode {
+    /// Mirrors try_get_value_with_canonical_unit: a numeric child in its
+    /// canonical unit whose percentages are resolved, as an evaluation result.
+    fn try_canonical_result(&self, context: &CalcEvaluationContext) -> Option<CalcResult> {
+        let CalcNode::Numeric(value) = self else {
+            return None;
+        };
+        // Can't run with non-canonical units or unresolved percentages.
+        // Simplification has already attempted to resolve both.
+        if !is_canonical_unit(*value)
+            || (matches!(value, CalcNumericValue::Percentage(..)) && context.percentages_unresolved)
+        {
+            return None;
+        }
+        Some(CalcResult {
+            value: value.to_canonical_number(context.length_resolution_context),
+            numeric_type: self.numeric_type(context.percentage_leaf_type),
+        })
+    }
+
+    /// Mirrors try_get_number: a plain number leaf.
+    fn try_number(&self) -> Option<f64> {
+        match self {
+            CalcNode::Numeric(CalcNumericValue::Number(value)) => Some(*value),
+            _ => None,
+        }
+    }
+
+    /// Collapses a function node whose children have already simplified to
+    /// canonical numeric leaves, mirroring the run_operation_if_possible
+    /// implementations. Returns None when the node cannot collapse (also for
+    /// random(), which stays with the C++ per-element state).
+    pub(crate) fn run_operation(&self, context: &CalcEvaluationContext) -> Option<CalcResult> {
+        let leaf_type = context.percentage_leaf_type;
+        // https://drafts.csswg.org/css-values-4/#calc-ieee
+        // Any operation with at least one NaN argument produces NaN.
+        let fold_min_or_max = |children: &[Arc<CalcNode>], is_min: bool| -> Option<CalcResult> {
+            let mut result: Option<CalcResult> = None;
+            for child in children {
+                let child_value = child.try_canonical_result(context)?;
+                match result {
+                    None => result = Some(child_value),
+                    Some(previous) => {
+                        let consistent_type = previous.numeric_type?.added_to(&child_value.numeric_type?)?;
+                        let value = if child_value.value.is_nan() || previous.value.is_nan() {
+                            f64::NAN
+                        } else if is_min == (child_value.value < previous.value) {
+                            child_value.value
+                        } else {
+                            previous.value
+                        };
+                        result = Some(CalcResult {
+                            value,
+                            numeric_type: Some(consistent_type),
+                        });
+                    }
+                }
+            }
+            result
+        };
+
+        match self {
+            // https://drafts.csswg.org/css-values-4/#funcdef-min
+            CalcNode::Min(children) => fold_min_or_max(children, true),
+            // https://drafts.csswg.org/css-values-4/#funcdef-max
+            CalcNode::Max(children) => fold_min_or_max(children, false),
+            // https://drafts.csswg.org/css-values-4/#funcdef-clamp
+            CalcNode::Clamp { min, center, max } => {
+                let min_result = min.try_canonical_result(context)?;
+                let center_result = center.try_canonical_result(context)?;
+                let max_result = max.try_canonical_result(context)?;
+                // The first consistency must hold; the second stays part of the
+                // result, exactly as in the C++ implementation.
+                let first = min_result.numeric_type?.added_to(&center_result.numeric_type?)?;
+                let numeric_type = first.added_to(&max_result.numeric_type?);
+                let value = if min_result.value.is_nan() || center_result.value.is_nan() || max_result.value.is_nan() {
+                    f64::NAN
+                } else {
+                    min_result.value.max(center_result.value.min(max_result.value))
+                };
+                Some(CalcResult { value, numeric_type })
+            }
+            // https://drafts.csswg.org/css-values-4/#funcdef-abs
+            CalcNode::Abs(child) => {
+                let child_value = child.try_canonical_result(context)?;
+                Some(CalcResult {
+                    value: child_value.value.abs(),
+                    numeric_type: child_value.numeric_type,
+                })
+            }
+            // https://drafts.csswg.org/css-values-4/#funcdef-sign
+            CalcNode::Sign(child) => {
+                let CalcNode::Numeric(value) = &**child else {
+                    return None;
+                };
+                let raw_value = match *value {
+                    CalcNumericValue::Number(value) => value,
+                    CalcNumericValue::Percentage(value) => value / 100.0,
+                    CalcNumericValue::Angle { value, .. }
+                    | CalcNumericValue::Flex { value, .. }
+                    | CalcNumericValue::Frequency { value, .. }
+                    | CalcNumericValue::Length { value, .. }
+                    | CalcNumericValue::Resolution { value, .. }
+                    | CalcNumericValue::Time { value, .. } => value,
+                };
+                let numeric_type =
+                    CalcNumericType::default().made_consistent_with(&child.numeric_type(leaf_type).unwrap_or_default());
+                let sign = if raw_value.is_nan() {
+                    f64::NAN
+                } else if raw_value < 0.0 {
+                    -1.0
+                } else if raw_value > 0.0 {
+                    1.0
+                } else if raw_value.is_sign_negative() {
+                    -0.0
+                } else {
+                    0.0
+                };
+                Some(CalcResult {
+                    value: sign,
+                    numeric_type,
+                })
+            }
+            // https://drafts.csswg.org/css-values-4/#funcdef-sin (and cos, tan)
+            CalcNode::Sin(child) | CalcNode::Cos(child) | CalcNode::Tan(child) => {
+                let CalcNode::Numeric(value) = &**child else {
+                    return None;
+                };
+                let radians = match *value {
+                    CalcNumericValue::Number(value) => value,
+                    CalcNumericValue::Angle { value, unit } => {
+                        (value * ANGLE_UNIT_CANONICAL_RATIOS[unit as usize]).to_radians()
+                    }
+                    _ => unreachable!("trigonometric argument must be a number or an angle"),
+                };
+                let result = match self {
+                    CalcNode::Sin(..) => radians.sin(),
+                    CalcNode::Cos(..) => radians.cos(),
+                    _ => radians.tan(),
+                };
+                Some(CalcResult {
+                    value: result,
+                    numeric_type: CalcNumericType::default().made_consistent_with(&child.numeric_type(leaf_type)?),
+                })
+            }
+            // https://drafts.csswg.org/css-values-4/#funcdef-asin (and acos, atan)
+            CalcNode::Asin(child) | CalcNode::Acos(child) | CalcNode::Atan(child) => {
+                let number = child.try_number()?;
+                let normalize_angle = |radians: f64, min_degrees: f64, max_degrees: f64| {
+                    let mut degrees = radians.to_degrees();
+                    while degrees < min_degrees {
+                        degrees += 360.0;
+                    }
+                    while degrees > max_degrees {
+                        degrees -= 360.0;
+                    }
+                    degrees
+                };
+                let result = match self {
+                    CalcNode::Asin(..) => normalize_angle(number.asin(), -90.0, 90.0),
+                    CalcNode::Acos(..) => normalize_angle(number.acos(), 0.0, 180.0),
+                    _ => normalize_angle(number.atan(), -90.0, 90.0),
+                };
+                let mut angle_type = CalcNumericType::default();
+                angle_type.exponents[1] = Some(1);
+                Some(CalcResult {
+                    value: result,
+                    numeric_type: angle_type.made_consistent_with(&child.numeric_type(leaf_type)?),
+                })
+            }
+            // https://drafts.csswg.org/css-values-4/#funcdef-atan2
+            CalcNode::Atan2 { y, x } => {
+                let y_value = y.try_canonical_result(context)?;
+                let x_value = x.try_canonical_result(context)?;
+                let input_consistent_type = y_value.numeric_type?.added_to(&x_value.numeric_type?)?;
+                let mut degrees = y_value.value.atan2(x_value.value).to_degrees();
+                while degrees <= -180.0 {
+                    degrees += 360.0;
+                }
+                while degrees > 180.0 {
+                    degrees -= 360.0;
+                }
+                let mut angle_type = CalcNumericType::default();
+                angle_type.exponents[1] = Some(1);
+                Some(CalcResult {
+                    value: degrees,
+                    numeric_type: angle_type.made_consistent_with(&input_consistent_type),
+                })
+            }
+            // https://drafts.csswg.org/css-values-4/#funcdef-pow
+            CalcNode::Pow { base, exponent } => {
+                let a = base.try_number()?;
+                let b = exponent.try_number()?;
+                let consistent_type = base
+                    .numeric_type(leaf_type)?
+                    .added_to(&exponent.numeric_type(leaf_type)?)?;
+                Some(CalcResult {
+                    value: a.powf(b),
+                    numeric_type: Some(consistent_type),
+                })
+            }
+            // https://drafts.csswg.org/css-values-4/#funcdef-sqrt
+            CalcNode::Sqrt(child) => {
+                let number = child.try_number()?;
+                Some(CalcResult {
+                    value: number.sqrt(),
+                    numeric_type: CalcNumericType::default().made_consistent_with(&child.numeric_type(leaf_type)?),
+                })
+            }
+            // https://drafts.csswg.org/css-values-4/#funcdef-log
+            CalcNode::Log { value, base } => {
+                let number = value.try_number()?;
+                let base_number = base.try_number()?;
+                Some(CalcResult {
+                    value: number.ln() / base_number.ln(),
+                    numeric_type: CalcNumericType::default().made_consistent_with(&value.numeric_type(leaf_type)?),
+                })
+            }
+            // https://drafts.csswg.org/css-values-4/#funcdef-exp
+            CalcNode::Exp(child) => {
+                let number = child.try_number()?;
+                Some(CalcResult {
+                    value: number.exp(),
+                    numeric_type: CalcNumericType::default().made_consistent_with(&child.numeric_type(leaf_type)?),
+                })
+            }
+            // https://drafts.csswg.org/css-values-4/#funcdef-hypot
+            CalcNode::Hypot(children) => {
+                let mut consistent_type: Option<CalcNumericType> = None;
+                let mut sum_of_squares = 0.0;
+                for child in children {
+                    let canonical_child = child.try_canonical_result(context)?;
+                    consistent_type = Some(match consistent_type {
+                        None => canonical_child.numeric_type?,
+                        Some(previous) => previous.added_to(&canonical_child.numeric_type?)?,
+                    });
+                    sum_of_squares += canonical_child.value * canonical_child.value;
+                }
+                Some(CalcResult {
+                    value: sum_of_squares.sqrt(),
+                    numeric_type: Some(consistent_type?),
+                })
+            }
+            // https://drafts.csswg.org/css-values-4/#funcdef-round
+            CalcNode::Round {
+                strategy,
+                value,
+                interval,
+            } => {
+                let maybe_a = value.try_canonical_result(context)?;
+                let maybe_b = interval.try_canonical_result(context)?;
+                let consistent_type = maybe_a.numeric_type?.made_consistent_with(&maybe_b.numeric_type?)?;
+                let a = maybe_a.value;
+                let b = maybe_b.value;
+                let result_with = |value: f64| {
+                    Some(CalcResult {
+                        value,
+                        numeric_type: Some(consistent_type),
+                    })
+                };
+
+                // Rounding strategy codes follow the C++ RoundingStrategy order:
+                // nearest, up, down, to-zero.
+                let (nearest, up, down, to_zero) = (0u8, 1u8, 2u8, 3u8);
+
+                // https://drafts.csswg.org/css-values-4/#round-infinities
+                // In round(A, B), if B is 0, the result is NaN. If A and B are both infinite, the result is NaN.
+                if b == 0.0 || (a.is_infinite() && b.is_infinite()) {
+                    return result_with(f64::NAN);
+                }
+                // If A is infinite but B is finite, the result is the same infinity.
+                if a.is_infinite() && b.is_finite() {
+                    return result_with(a);
+                }
+                // If A is finite but B is infinite, the result depends on the <rounding-strategy> and the sign of A:
+                if a.is_finite() && b.is_infinite() {
+                    let negative_zero = a.is_sign_negative();
+                    let signed_zero = if negative_zero { -0.0 } else { 0.0 };
+                    let result = match *strategy {
+                        // nearest, to-zero: If A is positive or 0+, return 0+. Otherwise, return 0-.
+                        s if s == nearest || s == to_zero => signed_zero,
+                        // up: If A is positive (not zero), return +Infinity; else the signed zero.
+                        s if s == up => {
+                            if a > 0.0 {
+                                f64::INFINITY
+                            } else {
+                                signed_zero
+                            }
+                        }
+                        // down: If A is negative (not zero), return -Infinity; else the signed zero.
+                        s if s == down => {
+                            if a < 0.0 {
+                                f64::NEG_INFINITY
+                            } else {
+                                signed_zero
+                            }
+                        }
+                        _ => unreachable!("invalid rounding strategy {strategy}"),
+                    };
+                    return result_with(result);
+                }
+
+                // If A is exactly equal to an integer multiple of B, round() resolves to A exactly
+                // (preserving whether A is 0- or 0+, if relevant).
+                if a % b == 0.0 {
+                    return Some(maybe_a);
+                }
+
+                let lower_b = (a / b).floor() * b;
+                let upper_b = (a / b).ceil() * b;
+                let rounded = match *strategy {
+                    // nearest: whichever of lower B and upper B has the smallest absolute
+                    // difference from A; ties choose upper B.
+                    s if s == nearest => {
+                        if (upper_b - a).abs() <= (lower_b - a).abs() {
+                            upper_b
+                        } else {
+                            lower_b
+                        }
+                    }
+                    s if s == up => upper_b,
+                    s if s == down => lower_b,
+                    // to-zero: whichever of lower B and upper B has the smallest absolute
+                    // difference from 0.
+                    s if s == to_zero => {
+                        if upper_b.abs() < lower_b.abs() {
+                            upper_b
+                        } else {
+                            lower_b
+                        }
+                    }
+                    _ => unreachable!("invalid rounding strategy {strategy}"),
+                };
+                result_with(rounded)
+            }
+            // https://drafts.csswg.org/css-values-4/#funcdef-mod (and rem)
+            CalcNode::Mod { value, modulus }
+            | CalcNode::Rem {
+                value,
+                divisor: modulus,
+            } => {
+                let numerator = value.try_canonical_result(context)?;
+                let denominator = modulus.try_canonical_result(context)?;
+                // The arguments must have the same type, not merely consistent ones.
+                if numerator.numeric_type != denominator.numeric_type {
+                    return None;
+                }
+                let result = if matches!(self, CalcNode::Mod { .. }) {
+                    numerator.value - denominator.value * (numerator.value / denominator.value).floor()
+                } else {
+                    numerator.value % denominator.value
+                };
+                Some(CalcResult {
+                    value: result,
+                    numeric_type: numerator.numeric_type,
+                })
+            }
+            // https://drafts.csswg.org/css-values-5/#calculate-a-progress-function
+            CalcNode::Progress {
+                no_clamp,
+                progress,
+                from,
+                to,
+            } => {
+                let value = progress.try_canonical_result(context)?;
+                let start = from.try_canonical_result(context)?;
+                let end = to.try_canonical_result(context)?;
+                let numeric_type = self.numeric_type(leaf_type);
+
+                // If the progress start value and progress end value are different values
+                if start != end {
+                    // (progress value - progress start value) / (progress end value - progress start value),
+                    // clamped to the [0,1] range if no-clamp is not specified.
+                    let mut result = (value.value - start.value) / (end.value - start.value);
+                    if !no_clamp {
+                        result = result.clamp(0.0, 1.0);
+                    }
+                    return Some(CalcResult {
+                        value: result,
+                        numeric_type,
+                    });
+                }
+
+                // If the progress start value and progress end value are the same value:
+                // 0 if no-clamp is not specified; otherwise 0, -Infinity, or +Infinity, depending
+                // on whether progress value is equal to, less than, or greater than the shared value.
+                let result = if !no_clamp || value.value == start.value {
+                    0.0
+                } else if value.value < start.value {
+                    f64::NEG_INFINITY
+                } else {
+                    f64::INFINITY
+                };
+                Some(CalcResult {
+                    value: result,
+                    numeric_type,
+                })
+            }
+            // random() stays with the C++ per-element sharing state.
+            CalcNode::Random { .. } => None,
+            // Sums, products, negation and inversion collapse in the
+            // simplification driver; leaves and non-math functions have no
+            // operation to run.
+            _ => None,
+        }
+    }
 }
