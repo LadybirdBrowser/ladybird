@@ -89,6 +89,30 @@ void CSSKeyframesRule::append_rule(Utf16String const& rule)
         invalidate_owners_for_modified_keyframes_rule(*sheet, *this);
 }
 
+// https://drafts.csswg.org/css-animations-1/#interface-csskeyframesrule-deleterule
+void CSSKeyframesRule::delete_rule(Utf16String const& select)
+{
+    // The deleteRule method deletes the last declared CSSKeyframeRule matching the specified keyframe selector. If no
+    // matching rule exists, the method does nothing.
+    auto selectors = Parser::parse_keyframe_selectors(Parser::ParsingParams { realm() }, select);
+
+    if (selectors.is_empty())
+        return;
+
+    for (size_t i = m_rules->length(); i-- > 0;) {
+        auto const& keyframe_rule = as<CSSKeyframeRule>(*m_rules->item(i));
+
+        if (keyframe_rule.keys() == selectors) {
+            MUST(m_rules->remove_a_css_rule(i));
+
+            if (auto* sheet = parent_style_sheet())
+                invalidate_owners_for_modified_keyframes_rule(*sheet, *this);
+
+            return;
+        }
+    }
+}
+
 void CSSKeyframesRule::dump(StringBuilder& builder, int indent_levels) const
 {
     Base::dump(builder, indent_levels);

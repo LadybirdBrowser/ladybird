@@ -1,0 +1,56 @@
+<!doctype html>
+<style>
+    @keyframes foo {
+        from {
+            opacity: 0;
+        }
+
+        0% {
+            opacity: 0.1;
+        }
+
+        25%,
+        75% {
+            opacity: 0.2;
+        }
+
+        75%,
+        25% {
+            opacity: 0.3;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const fooRule = document.styleSheets[0].cssRules[0];
+        const selectors = () => Array.from(fooRule.cssRules, rule => rule.keyText).join(" | ") || "(none)";
+
+        println("initial selectors: " + selectors());
+        println("deleteRule return value: " + fooRule.deleteRule(" from "));
+        println("after deleting the last 0% rule: " + selectors());
+
+        fooRule.deleteRule("25%, 75%");
+        println("after deleting 25%, 75%: " + selectors());
+
+        fooRule.deleteRule("25%, 75%");
+        println("after deleting 25%, 75% again: " + selectors());
+
+        fooRule.deleteRule("75%, 25%");
+        println("after deleting 75%, 25%: " + selectors());
+
+        fooRule.deleteRule("TO");
+        println("after deleting 100%: " + selectors());
+
+        const invalidSelectors = ["", "0% 25%", "0%,", "0%, calc(25%)", "-1%", "101%"];
+        for (const selector of invalidSelectors) fooRule.deleteRule(selector);
+        println("after invalid selectors: " + selectors());
+
+        fooRule.deleteRule("FROM");
+        println("after deleting the remaining 0% rule: " + selectors());
+    });
+</script>

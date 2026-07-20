@@ -1681,6 +1681,13 @@ GC::Ptr<CSSKeyframeRule> Parser::parse_as_keyframe_rule()
     return convert_to_keyframe_rule(maybe_rule->get<QualifiedRule>());
 }
 
+Vector<Percentage> Parser::parse_as_keyframe_selectors()
+{
+    auto component_values = parse_a_list_of_component_values(m_token_stream);
+    auto tokens = TokenStream { component_values };
+    return parse_keyframe_selectors(tokens);
+}
+
 // https://drafts.csswg.org/css-syntax/#parse-rule
 template<typename T>
 Optional<Rule> Parser::parse_a_rule(TokenStream<T>& input, Nested nested)

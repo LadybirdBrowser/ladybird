@@ -1,0 +1,9 @@
+initial selectors: 0% | 0% | 25%, 75% | 75%, 25% | 100%
+deleteRule return value: undefined
+after deleting the last 0% rule: 0% | 25%, 75% | 75%, 25% | 100%
+after deleting 25%, 75%: 0% | 75%, 25% | 100%
+after deleting 25%, 75% again: 0% | 75%, 25% | 100%
+after deleting 75%, 25%: 0% | 100%
+after deleting 100%: 0%
+after invalid selectors: 0%
+after deleting the remaining 0% rule: (none)

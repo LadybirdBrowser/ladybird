@@ -116,6 +116,13 @@ GC::Ptr<CSS::CSSKeyframeRule> CSS::Parser::parse_keyframe_rule(CSS::Parser::Pars
     return CSS::Parser::Parser::create(context, string).parse_as_keyframe_rule();
 }
 
+Vector<CSS::Percentage> CSS::Parser::parse_keyframe_selectors(CSS::Parser::ParsingParams const& context, Utf16View string)
+{
+    if (string.is_empty())
+        return {};
+    return CSS::Parser::Parser::create(context, string).parse_as_keyframe_selectors();
+}
+
 RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, CSS::DescriptorNameAndID const& descriptor_name_and_id, Utf16View string)
 {
     if (string.is_empty())

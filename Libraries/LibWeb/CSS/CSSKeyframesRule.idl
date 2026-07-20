@@ -7,6 +7,6 @@ interface CSSKeyframesRule : CSSRule {
 
     getter CSSKeyframeRule (unsigned long index);
     undefined appendRule(Utf16CSSOMString rule);
-    [FIXME] undefined deleteRule(Utf16CSSOMString select);
+    undefined deleteRule(Utf16CSSOMString select);
     [FIXME] CSSKeyframeRule? findRule(Utf16CSSOMString select);
 };
