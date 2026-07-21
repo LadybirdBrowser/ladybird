@@ -3363,7 +3363,8 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
         if (true) {
             // -> If scrolling box is associated with an element
             if (auto* element = as_if<Element>(scrolling_box)) {
-                ancestor_promises.append(element->document().navigable()->perform_a_scroll_of_an_element(*element, position, behavior));
+                if (auto navigable = element->document().navigable())
+                    ancestor_promises.append(navigable->perform_a_scroll_of_an_element(*element, position, behavior));
             }
             // -> If scrolling box is associated with a viewport
             else if (scrolling_box.is_document()) {
@@ -3373,7 +3374,8 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
                 // 2. Let root element be document’s root element, if there is one, or null otherwise.
                 // 3. Perform a scroll of the viewport to position, with root element as the associated element and behavior as the scroll behavior.
                 //    Add the Promise returned from this step in the set ancestorPromises.
-                ancestor_promises.append(document.navigable()->perform_a_scroll_of_the_viewport(position, behavior));
+                if (auto navigable = document.navigable())
+                    ancestor_promises.append(navigable->perform_a_scroll_of_the_viewport(position, behavior));
             }
         }
 
