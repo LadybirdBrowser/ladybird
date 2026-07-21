@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibUnicode/Bidi.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/BreakNode.h>
@@ -25,6 +26,7 @@ InlineLevelIterator::InlineLevelIterator(Layout::InlineFormattingContext& inline
     , m_next_node(containing_block.first_child())
     , m_layout_mode(layout_mode)
 {
+    m_is_unidirectional_left_to_right = is_unidirectional_left_to_right();
     skip_to_next();
     generate_all_items();
 }
@@ -33,6 +35,39 @@ static bool is_inline_flow_interrupting_block(Layout::Node const& node)
 {
     auto const* node_with_metrics = as_if<Layout::NodeWithStyleAndBoxModelMetrics>(node);
     return node_with_metrics && node_with_metrics->is_inline_flow_interrupting_block();
+}
+
+bool InlineLevelIterator::is_unidirectional_left_to_right()
+{
+    // https://drafts.csswg.org/css-writing-modes-4/#bidi-algo
+    // User agents that support bidirectional text must apply the Unicode bidirectional algorithm to every sequence of
+    // inline-level boxes uninterrupted by any block boundary or “bidi type B” forced paragraph break. This sequence
+    // forms the paragraph unit in the bidirectional algorithm.
+    //
+    // INTEROP: Skip bidi resolution when the inline formatting context cannot contain RTL text or bidi controls.
+    //          This also prevents neutral characters from becoming shaping boundaries in ordinary LTR text.
+    // The containing block's unicode-bidi value establishes the paragraph boundary and does not introduce a boundary
+    // within its contents. In particular, the HTML user-agent style sheet gives most block containers isolate.
+    if (m_containing_block.computed_values().direction() == CSS::Direction::Rtl)
+        return false;
+
+    auto const* node = m_containing_block.first_child().ptr();
+    while (node) {
+        if (auto const* node_with_style = as_if<NodeWithStyle>(*node); node_with_style
+            && (node_with_style->computed_values().direction() == CSS::Direction::Rtl
+                || node_with_style->computed_values().unicode_bidi() != CSS::UnicodeBidi::Normal))
+            return false;
+        if (auto const* text_node = as_if<TextNode>(*node); text_node && Unicode::may_require_bidi_processing(text_node->text_for_rendering()))
+            return false;
+
+        do {
+            node = next_inline_node_in_pre_order(*node, &m_containing_block);
+            if (node && node->is_svg_mask_box())
+                node = node->next_sibling();
+        } while (node && (!node->is_inline() && !node->is_out_of_flow(m_inline_formatting_context) && !is_inline_flow_interrupting_block(*node)));
+    }
+
+    return true;
 }
 
 void InlineLevelIterator::generate_all_items()
@@ -355,6 +390,10 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
             inline_offset = tab_stop_dist.to_float();
         }
 
+        // https://drafts.csswg.org/css-text-4/#boundary-shaping
+        // Text shaping must not be broken across inline box boundaries when there is no effective change in formatting,
+        // or if the only formatting changes do not affect the glyphs.
+        // FIXME: Shape compatible adjacent chunks together and split the resulting glyph run at item boundaries.
         auto glyph_run = Gfx::shape_text({ inline_offset, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type);
 
         CSSPixels chunk_inline_size = CSSPixels::nearest_value_for(glyph_run->width() + inline_offset);
@@ -473,7 +512,10 @@ void InlineLevelIterator::enter_text_node(Layout::TextNode const& text_node)
     bool do_wrap_lines = text_wrap_mode == CSS::TextWrapMode::Wrap;
     bool do_respect_linebreaks = first_is_one_of(white_space_collapse, CSS::WhiteSpaceCollapse::Preserve, CSS::WhiteSpaceCollapse::PreserveBreaks, CSS::WhiteSpaceCollapse::BreakSpaces);
 
-    auto const& chunks = text_node.chunks_for_layout(do_wrap_lines, do_respect_linebreaks);
+    auto text_direction_mode = m_is_unidirectional_left_to_right
+        ? TextNode::TextDirectionMode::UnidirectionalLeftToRight
+        : TextNode::TextDirectionMode::PerCodePoint;
+    auto const& chunks = text_node.chunks_for_layout(do_wrap_lines, do_respect_linebreaks, text_direction_mode);
 
     m_text_node_context = TextNodeContext {
         // OPTIMIZATION: The chunk list is cached by the TextNode and only read by this iterator, so keep a pointer

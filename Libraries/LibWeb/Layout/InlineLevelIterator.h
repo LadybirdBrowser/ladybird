@@ -71,6 +71,7 @@ public:
     Vector<NodeWithStyleAndBoxModelMetrics const*> take_visited_fragmented_inlines() { return move(m_visited_fragmented_inlines); }
 
 private:
+    bool is_unidirectional_left_to_right();
     void generate_all_items();
     Optional<Item> generate_next_item();
     Gfx::GlyphRun::TextType resolve_text_direction_from_context();
@@ -105,6 +106,7 @@ private:
     };
 
     Optional<TextNodeContext> m_text_node_context;
+    bool m_is_unidirectional_left_to_right { false };
 
     struct ExtraBoxMetrics {
         CSSPixels margin { 0 };

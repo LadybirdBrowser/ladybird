@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: LatoBold;
+        src: url("../../Assets/Lato-Bold.ttf");
+    }
+    span {
+        font: 48px LatoBold;
+    }
+</style>
+<p><span id="wrapping">’A</span></p>
+<p><span id="non-wrapping" style="white-space: nowrap">’A</span></p>
+<script>
+    asyncTest(async done => {
+        await document.fonts.ready;
+
+        const wrappingWidth = document.getElementById("wrapping").getBoundingClientRect().width;
+        const nonWrappingWidth = document.getElementById("non-wrapping").getBoundingClientRect().width;
+
+        println(`Wrapping and non-wrapping text have equal widths: ${wrappingWidth === nonWrappingWidth}`);
+        done();
+    });
+</script>

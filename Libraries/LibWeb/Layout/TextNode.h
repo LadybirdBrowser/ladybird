@@ -26,6 +26,11 @@ class TextNode : public Node {
     LAYOUT_NODE(TextNode, Node);
 
 public:
+    enum class TextDirectionMode {
+        PerCodePoint,
+        UnidirectionalLeftToRight,
+    };
+
     TextNode(DOM::Document&, DOM::Text&);
     virtual ~TextNode() override;
 
@@ -55,7 +60,8 @@ public:
     class ChunkIterator {
     public:
         ChunkIterator(TextNode const&, bool should_wrap_lines, bool should_respect_linebreaks);
-        ChunkIterator(TextNode const&, Utf16View const&, Unicode::Segmenter& grapheme_segmenter, Unicode::Segmenter& line_segmenter, CSS::WordBreak, bool should_wrap_lines, bool should_respect_linebreaks);
+        ChunkIterator(TextNode const&, TextDirectionMode, bool should_wrap_lines, bool should_respect_linebreaks);
+        ChunkIterator(TextNode const&, Utf16View const&, Unicode::Segmenter& grapheme_segmenter, Unicode::Segmenter& line_segmenter, CSS::WordBreak, TextDirectionMode, bool should_wrap_lines, bool should_respect_linebreaks);
 
         bool should_wrap_lines() const { return m_should_wrap_lines; }
         bool should_respect_linebreaks() const { return m_should_respect_linebreaks; }
@@ -84,6 +90,7 @@ public:
         Unicode::Segmenter& m_line_segmenter;
         CSS::WordBreak m_word_break;
         CSS::FontVariantEmoji m_font_variant_emoji;
+        TextDirectionMode m_text_direction_mode { TextDirectionMode::PerCodePoint };
         size_t m_current_index { 0 };
 
         Vector<Chunk> m_peek_queue;
@@ -96,7 +103,7 @@ public:
         bool should_collapse_whitespace { false };
     };
 
-    ChunkList const& chunks_for_layout(bool should_wrap_lines, bool should_respect_linebreaks) const;
+    ChunkList const& chunks_for_layout(bool should_wrap_lines, bool should_respect_linebreaks, TextDirectionMode) const;
 
     void invalidate_text_for_rendering();
 
@@ -132,6 +139,7 @@ private:
         CSS::WhiteSpaceCollapse white_space_collapse { CSS::WhiteSpaceCollapse::Collapse };
         CSS::WordBreak word_break { CSS::WordBreak::Normal };
         CSS::FontVariantEmoji font_variant_emoji { CSS::FontVariantEmoji::Normal };
+        TextDirectionMode text_direction_mode { TextDirectionMode::PerCodePoint };
         RefPtr<Gfx::FontCascadeList const> font_cascade_list;
 
         bool operator==(ChunkCacheKey const&) const = default;

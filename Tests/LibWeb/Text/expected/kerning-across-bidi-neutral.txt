@@ -1,0 +1,1 @@
+Wrapping and non-wrapping text have equal widths: true
