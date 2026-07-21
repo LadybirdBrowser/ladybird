@@ -96,19 +96,22 @@ void ImageStyleValueResource::notify_image_style_values_did_update()
         image_style_value->notify_clients_did_update();
 }
 
-ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(URL const& url)
-{
-    return adopt_ref(*new (nothrow) ImageStyleValue(url));
-}
-
 ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(URL const& url, Optional<::URL::URL> style_resource_base_url)
 {
     return adopt_ref(*new (nothrow) ImageStyleValue(url, move(style_resource_base_url)));
 }
 
+ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(URL const& url, StyleSheetResourceContext const& style_sheet_resource_context)
+{
+    auto image_style_value = adopt_ref(*new (nothrow) ImageStyleValue(url, style_sheet_resource_context.base_url));
+    image_style_value->m_parent_style_sheet_origin_clean = style_sheet_resource_context.origin_clean;
+    image_style_value->m_should_absolutize_url_for_computed_value = true;
+    return image_style_value;
+}
+
 ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(::URL::URL const& url)
 {
-    return adopt_ref(*new (nothrow) ImageStyleValue(URL { url.to_string() }));
+    return adopt_ref(*new (nothrow) ImageStyleValue(URL { url.to_string() }, {}));
 }
 
 ImageStyleValue::ImageStyleValue(URL const& url, Optional<::URL::URL> style_resource_base_url)

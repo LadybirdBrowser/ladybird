@@ -8,6 +8,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSUnparsedValue.h>
 #include <LibWeb/CSS/CSSVariableReferenceValue.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
@@ -16,6 +17,7 @@
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 
 namespace Web::CSS {
 
@@ -100,6 +102,33 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
 UnresolvedStyleValue::UnresolvedStyleValue(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values)
     : StyleValue(Type::Unresolved, create_rust_style_value(move(source_text), move(value_comparison_text), substitution_presence, contains_attr_tainted_values))
 {
+}
+
+void UnresolvedStyleValue::set_style_sheet(Badge<StyleValue>, GC::Ptr<CSSStyleSheet> style_sheet)
+{
+    if (!style_sheet) {
+        m_style_sheet_resource_context.clear();
+        return;
+    }
+
+    update_style_sheet_resource_context(*style_sheet);
+}
+
+void UnresolvedStyleValue::update_style_sheet_resource_context(Badge<CSSStyleSheet>, CSSStyleSheet const& style_sheet)
+{
+    update_style_sheet_resource_context(style_sheet);
+}
+
+void UnresolvedStyleValue::update_style_sheet_resource_context(CSSStyleSheet const& style_sheet)
+{
+    auto base_url = style_sheet.base_url()
+                        .value_or_lazy_evaluated_optional([&] { return style_sheet.location(); })
+                        .value_or_lazy_evaluated([&] { return HTML::relevant_settings_object(style_sheet).api_base_url(); });
+
+    m_style_sheet_resource_context = StyleSheetResourceContext {
+        .base_url = move(base_url),
+        .origin_clean = style_sheet.is_origin_clean(),
+    };
 }
 
 void UnresolvedStyleValue::serialize(StringBuilder& builder, SerializationMode) const

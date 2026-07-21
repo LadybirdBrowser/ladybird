@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSScopeRule.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -24,6 +25,7 @@
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleSheetList.h>
+#include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/StyleElementBase.h>
 #include <LibWeb/DOMURL/DOMURL.h>
@@ -557,6 +559,39 @@ GC::Ptr<DOM::Document> CSSStyleSheet::owning_document() const
         return element->document();
 
     return nullptr;
+}
+
+void CSSStyleSheet::update_unresolved_style_value_resource_contexts()
+{
+    auto update_declaration_values = [&](CSSStyleProperties const& declaration) {
+        for (auto const& property : declaration.properties()) {
+            if (property.value->is_unresolved())
+                const_cast<StyleValue&>(*property.value).as_unresolved().update_style_sheet_resource_context({}, *this);
+        }
+    };
+
+    Function<void(CSSRuleList const&)> update_rules = [&](CSSRuleList const& rules) {
+        for (auto const& rule : rules) {
+            if (auto const* keyframes_rule = as_if<CSSKeyframesRule>(*rule)) {
+                for (auto const& keyframe_rule : *keyframes_rule->css_rules()) {
+                    if (auto const* keyframe = as_if<CSSKeyframeRule>(*keyframe_rule))
+                        update_declaration_values(*keyframe->style());
+                }
+                continue;
+            }
+
+            if (auto const* style_rule = as_if<CSSStyleRule>(*rule)) {
+                update_declaration_values(style_rule->declaration());
+            } else if (auto const* nested_declarations = as_if<CSSNestedDeclarations>(*rule)) {
+                update_declaration_values(nested_declarations->declaration());
+            }
+
+            if (auto const* grouping_rule = as_if<CSSGroupingRule>(*rule))
+                update_rules(grouping_rule->css_rules());
+        }
+    };
+
+    update_rules(*m_rules);
 }
 
 void CSSStyleSheet::load_pending_image_resources(DOM::Document& document)

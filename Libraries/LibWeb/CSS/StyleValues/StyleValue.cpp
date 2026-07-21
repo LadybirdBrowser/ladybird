@@ -155,6 +155,8 @@ void StyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
         return as_image_set().set_style_sheet(style_sheet);
     case Type::Shorthand:
         return as_shorthand().set_style_sheet(style_sheet);
+    case Type::Unresolved:
+        return as_unresolved().set_style_sheet({}, style_sheet);
     case Type::ValueList:
         return as_value_list().set_style_sheet(style_sheet);
     default:

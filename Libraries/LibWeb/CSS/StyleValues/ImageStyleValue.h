@@ -16,6 +16,7 @@
 #include <LibGfx/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
+#include <LibWeb/CSS/StyleSheetResourceContext.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Forward.h>
@@ -72,8 +73,8 @@ public:
         Optional<::URL::URL> m_registered_url;
     };
 
-    static ValueComparingNonnullRefPtr<ImageStyleValue const> create(URL const&);
-    static ValueComparingNonnullRefPtr<ImageStyleValue const> create(URL const&, Optional<::URL::URL> style_resource_base_url);
+    static ValueComparingNonnullRefPtr<ImageStyleValue const> create(URL const&, Optional<::URL::URL> style_resource_base_url = {});
+    static ValueComparingNonnullRefPtr<ImageStyleValue const> create(URL const&, StyleSheetResourceContext const&);
     static ValueComparingNonnullRefPtr<ImageStyleValue const> create(::URL::URL const&);
     virtual ~ImageStyleValue() override;
 
@@ -99,7 +100,7 @@ private:
     friend class ImageStyleValueResource;
     friend class Client;
     friend class CSSStyleSheet;
-    ImageStyleValue(URL const&, Optional<::URL::URL> style_resource_base_url = {});
+    ImageStyleValue(URL const&, Optional<::URL::URL> style_resource_base_url);
 
     void register_client(Client&) const;
     void unregister_client(Client&) const;

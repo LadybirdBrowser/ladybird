@@ -263,6 +263,7 @@ void CSSImportRule::set_style_sheet(GC::Ref<CSSStyleSheet> style_sheet)
     auto document = m_style_sheet->owning_document();
     if (!document && m_parent_style_sheet)
         document = m_parent_style_sheet->owning_document();
+    m_style_sheet->update_unresolved_style_value_resource_contexts();
     if (document)
         m_style_sheet->load_pending_image_resources(*document);
 

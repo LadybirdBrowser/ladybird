@@ -124,6 +124,7 @@ public:
 
     void register_pending_image_value(ImageStyleValue& value) { m_pending_image_values.append(value); }
     void load_pending_image_resources(DOM::Document&);
+    void update_unresolved_style_value_resource_contexts();
 
     bool constructed() const { return m_constructed; }
 

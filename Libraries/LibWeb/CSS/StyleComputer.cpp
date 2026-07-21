@@ -2366,13 +2366,14 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             bulk_context.pinned_values.append(move(resolved));
             return result;
         },
-        .parse_substituted = [](void* context, u16 property_id, u8 const* source, size_t source_length) -> ComputedValuesFFI::FfiResolvedStyleValue {
+        .parse_substituted = [](void* context, u16 property_id, void const* shell, u8 const* source, size_t source_length) -> ComputedValuesFFI::FfiResolvedStyleValue {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
             bulk_context.abstract_element.element().set_style_uses_var_css_function();
-            auto parsed = parse_css_value(
+            auto parsed = Parser::Parser::parse_substituted_css_value(
                 Parser::ParsingParams { bulk_context.abstract_element.document() },
                 StringView { reinterpret_cast<char const*>(source), source_length },
-                static_cast<PropertyID>(property_id));
+                static_cast<PropertyID>(property_id),
+                static_cast<StyleValue const*>(shell)->as_unresolved());
             NonnullRefPtr<StyleValue const> resolved = parsed
                 ? parsed.release_nonnull()
                 : GuaranteedInvalidStyleValue::create();
