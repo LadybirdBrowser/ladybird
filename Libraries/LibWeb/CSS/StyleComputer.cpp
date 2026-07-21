@@ -3369,9 +3369,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         };
     }
 
-    // Computes the value the driver selected for the longhand, when computation is
-    // needed, and stores the result. The driver selects, pins and flags values
-    // natively; this is the only per-longhand callback left.
+    // Copies the parent's animated value when a longhand inherits, as its store is
+    // applied, so later properties' computation contexts observe the animated value.
     // FIXME: Do we need to recompute animated inherited values?
     auto copy_animated_inherited_value = [&](PropertyID property_id, PropertyID inherited_property_id) {
         if (auto const* animated_properties = computed_values_to_inherit_from->animated_properties(); animated_properties && animated_properties->has_property(inherited_property_id)) {
@@ -3388,27 +3387,6 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         }
     };
 
-    auto compute_and_store = [&](PropertyID property_id, PropertyID inherited_property_id, StyleValue const& value, bool inheritance_dependent, bool inherited) {
-        if (inherited)
-            copy_animated_inherited_value(property_id, inherited_property_id);
-
-        // Store the resolved specified value for properties whose computation depends on inherited info, so they can
-        // be re-resolved when an ancestor changes without keeping CascadedProperties alive on the element.
-        if (inheritance_dependent)
-            builder.add_inheritance_dependent_specified_value(property_id, value);
-
-        // NB: We compute using the inherited (physical) property to avoid having to add cases for all the logical
-        //     alias properties in `compute_value_of_property`
-        bool depends_on_viewport_metrics = false;
-        auto computed_value = compute_property(inherited_property_id, value, depends_on_viewport_metrics);
-        if (depends_on_viewport_metrics) {
-            builder.set_depends_on_viewport_metrics();
-            if (property_affects_font_metrics(inherited_property_id))
-                builder.set_font_metrics_depend_on_viewport_metrics();
-        }
-        builder.set_property_without_modifying_flags(property_id, move(computed_value));
-    };
-
     // Hands the driver the length resolution context a property's computation would
     // use, so plain lengths can absolutize natively; the driver caches one per
     // context kind, like get_computation_context_for_property does here.
@@ -3417,8 +3395,9 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         return to_ffi_length_resolution_context(computation_context.length_resolution_context);
     };
 
-    // Applies a batch of store operations the driver queued for properties that need no
-    // computation, in property order, replicating the per-property side effects.
+    // Applies a batch of store operations the driver queued, in property order,
+    // replicating the per-property side effects and performing any computation the
+    // driver deferred to C++.
     auto store_computed_batch = [&](ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count) {
         for (size_t i = 0; i < count; ++i) {
             auto const& entry = entries[i];
@@ -3427,14 +3406,39 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             auto const& value = *static_cast<StyleValue const*>(entry.shell);
             if (entry.inherited)
                 copy_animated_inherited_value(property_id, inherited_property_id);
+            // Store the resolved specified value for properties whose computation depends on
+            // inherited info, so they can be re-resolved when an ancestor changes without
+            // keeping CascadedProperties alive on the element.
             if (entry.inheritance_dependent)
                 builder.add_inheritance_dependent_specified_value(property_id, value);
             switch (entry.computed_kind) {
+            case ComputedValuesFFI::COMPUTED_KIND_COMPUTE_IN_CPP: {
+                // NB: We compute using the inherited (physical) property to avoid having to add cases for all the
+                //     logical alias properties in `compute_value_of_property`
+                bool depends_on_viewport_metrics = false;
+                auto computed_value = compute_property(inherited_property_id, value, depends_on_viewport_metrics);
+                if (depends_on_viewport_metrics) {
+                    builder.set_depends_on_viewport_metrics();
+                    if (property_affects_font_metrics(inherited_property_id))
+                        builder.set_font_metrics_depend_on_viewport_metrics();
+                }
+                builder.set_property_without_modifying_flags(property_id, move(computed_value));
+                break;
+            }
             case ComputedValuesFFI::COMPUTED_KIND_PX_LENGTH:
                 builder.set_property_without_modifying_flags(property_id, LengthStyleValue::create(Length::make_px(entry.value)));
                 break;
             case ComputedValuesFFI::COMPUTED_KIND_INTEGER:
                 builder.set_property_without_modifying_flags(property_id, IntegerStyleValue::create(static_cast<i64>(entry.value)));
+                break;
+            case ComputedValuesFFI::COMPUTED_KIND_NUMBER:
+                builder.set_property_without_modifying_flags(property_id, NumberStyleValue::create(entry.value));
+                break;
+            case ComputedValuesFFI::COMPUTED_KIND_PERCENTAGE:
+                builder.set_property_without_modifying_flags(property_id, PercentageStyleValue::create(Percentage(entry.value)));
+                break;
+            case ComputedValuesFFI::COMPUTED_KIND_FONT_STYLE:
+                builder.set_property_without_modifying_flags(property_id, FontStyleStyleValue::create(static_cast<FontStyleKeyword>(entry.value)));
                 break;
             case ComputedValuesFFI::COMPUTED_KIND_SUPERELLIPSE: {
                 // NB: The round value is cached since it is the initial value of the corner-*-shape properties.
@@ -3457,7 +3461,6 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     // iterates the longhands in computation order, resolves logical pairing through its
     // mapping tables, and selects the cascaded, inherited or initial value natively.
     struct LonghandLoopContext {
-        decltype(compute_and_store)& compute_and_store_callback;
         decltype(store_computed_batch)& store_computed_batch_callback;
         decltype(fetch_length_resolution_context)& fetch_length_resolution_context_callback;
         decltype(get_logical_alias_mapping_context)& get_logical_alias_mapping_context_callback;
@@ -3466,7 +3469,6 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         // of the drive; the driver may queue the shells in deferred store batches.
         Vector<NonnullRefPtr<StyleValue const>> pinned_parent_values;
     } loop_context {
-        .compute_and_store_callback = compute_and_store,
         .store_computed_batch_callback = store_computed_batch,
         .fetch_length_resolution_context_callback = fetch_length_resolution_context,
         .get_logical_alias_mapping_context_callback = get_logical_alias_mapping_context,
@@ -3476,9 +3478,6 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
 
     ComputedValuesFFI::FfiLonghandCallbacks const callbacks {
         .context = &loop_context,
-        .compute_and_store = [](void* context, u16 property_id, u16 inherited_property_id, void const* value_shell, bool inheritance_dependent, bool inherited) {
-            auto& loop_context = *static_cast<LonghandLoopContext*>(context);
-            loop_context.compute_and_store_callback(static_cast<PropertyID>(property_id), static_cast<PropertyID>(inherited_property_id), *static_cast<StyleValue const*>(value_shell), inheritance_dependent, inherited); },
         .store_computed_batch = [](void* context, ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count) {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             loop_context.store_computed_batch_callback(entries, count); },
@@ -3513,7 +3512,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         .font_metrics_depend_on_viewport_metrics = false,
         .explicitly_inherited_non_inherited_property = false,
     };
-    ComputedValuesFFI::rust_drive_property_computation(&callbacks, cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, new_font_size != nullptr, device_pixels_per_css_pixel, &driver_results);
+    ComputedValuesFFI::rust_drive_property_computation(&callbacks, cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, new_font_size != nullptr, device_pixels_per_css_pixel, InitialValues::font_size().raw_value(), default_user_font_size().raw_value(), &driver_results);
 
     // Apply the driver's bulk results.
     auto longhand_bit_is_set = [](Array<u64, longhand_bitmap_words> const& words, size_t index) {

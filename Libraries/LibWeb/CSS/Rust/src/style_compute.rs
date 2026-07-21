@@ -1833,31 +1833,33 @@ pub const COMPUTED_KIND_PX_LENGTH: u8 = 1;
 pub const COMPUTED_KIND_INTEGER: u8 = 2;
 /// A superellipse with parameter `value`.
 pub const COMPUTED_KIND_SUPERELLIPSE: u8 = 3;
+/// A number of `value`.
+pub const COMPUTED_KIND_NUMBER: u8 = 4;
+/// A percentage of `value`.
+pub const COMPUTED_KIND_PERCENTAGE: u8 = 5;
+/// A font-style value of the font-style keyword code in `value`.
+pub const COMPUTED_KIND_FONT_STYLE: u8 = 6;
+/// The value still needs computation, which the C++ flush handler performs in
+/// entry order; deferring it into the batch preserves the store sequence and
+/// the reads later computations make, since those reads only happen inside
+/// callbacks the driver invokes after flushing.
+pub const COMPUTED_KIND_COMPUTE_IN_CPP: u8 = 7;
 
 /// The leaf callbacks the C++ side provides to the property computation
 /// driver. The driver selects each longhand's cascaded, inherited or initial
-/// value natively and calls back only to compute and store the result.
+/// value natively and calls back only to flush store batches and to fetch
+/// the rare context a batch entry needs.
 #[repr(C)]
 pub struct FfiLonghandCallbacks {
     pub context: *mut c_void,
-    /// Computes the selected value and stores the result; only called for
-    /// properties that require computation. `value_shell` stays alive for
-    /// the duration of the call: cascaded values are retained by the store,
-    /// initial values are immortal, and parent values are pinned by the
-    /// snapshot or the fetch below.
-    pub compute_and_store: unsafe extern "C" fn(
-        context: *mut c_void,
-        property_id: u16,
-        inherited_property_id: u16,
-        value_shell: *const c_void,
-        inheritance_dependent: bool,
-        inherited: bool,
-    ),
-    /// Stores a batch of selected values that need no computation, applying
-    /// each entry's side effects in property order. The driver flushes the
-    /// batch before any callback that may read the stored values, so the
-    /// C++ side always observes the same store sequence as one call per
-    /// property would produce.
+    /// Stores a batch of selected values, applying each entry's side effects
+    /// and any remaining C++ computation in property order. The driver
+    /// flushes the batch before any callback that may read the stored
+    /// values, so the C++ side always observes the same compute and store
+    /// sequence as one call per property would produce. Every entry's shell
+    /// stays alive for the duration of the drive: cascaded values are
+    /// retained by the store, initial values are immortal, and parent values
+    /// are pinned by the snapshot or the fetch below.
     pub store_computed_batch:
         unsafe extern "C" fn(context: *mut c_void, entries: *const FfiComputedStoreEntry, count: usize),
     /// Rare: fetches the parent's computed value for an explicit `inherit` of
@@ -2053,6 +2055,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
     parent_snapshot: *const FfiParentSnapshot,
     has_new_font_size: bool,
     device_pixels_per_css_pixel: f64,
+    initial_font_size_raw: i32,
+    default_font_size_raw: i32,
     results: *mut FfiLonghandDriverResults,
 ) {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandDriverEntry);
@@ -2099,6 +2103,47 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             pending_stores.clear();
         }
 
+        fn fetch_length_resolution_context<'a>(
+            caches: &'a mut [Option<FfiLengthResolutionContext>; 3],
+            callbacks: &FfiLonghandCallbacks,
+            context: *mut c_void,
+            pending_stores: &mut Vec<FfiComputedStoreEntry>,
+            kind: usize,
+            property_id: u16,
+        ) -> &'a FfiLengthResolutionContext {
+            if caches[kind].is_none() {
+                // Building a context on the C++ side reads stored values.
+                flush_pending_stores(callbacks, context, pending_stores);
+                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandContextFetchCallback);
+                let mut fetched = std::mem::MaybeUninit::<FfiLengthResolutionContext>::uninit();
+                // SAFETY: The callback fills the context before returning.
+                caches[kind] = Some(unsafe {
+                    (callbacks.length_resolution_context)(context, property_id, fetched.as_mut_ptr());
+                    fetched.assume_init()
+                });
+            }
+            caches[kind].as_ref().unwrap()
+        }
+
+        /// The Rust-owned data of a parent snapshot entry.
+        fn snapshot_entry_data(snapshot: &FfiParentSnapshot, property_id: u16) -> Option<&StyleValueData> {
+            use crate::property_metadata::FIRST_INHERITED_PROPERTY_ID;
+            let index = (property_id - FIRST_INHERITED_PROPERTY_ID) as usize;
+            assert!(index < snapshot.entry_count);
+            // SAFETY: Snapshot entries are valid for the drive.
+            unsafe { ((*snapshot.entries.add(index)).data as *const StyleValueData).as_ref() }
+        }
+
+        // The computed math-depth, remembered for the font-size rule; None when C++
+        // computed it, in which case font-size falls back as well.
+        let mut computed_math_depth: Option<i32> = None;
+        // The background-image list length, for the coordinated background properties.
+        let mut background_image_list_length: Option<usize> = None;
+        // The computed writing-mode and direction, tracked for logical alias pairing;
+        // both properties only take keywords, whose computed value is the specified one.
+        let mut computed_writing_mode: Option<u8> = None;
+        let mut computed_direction: Option<u8> = None;
+
         for &property_id in crate::property_metadata::property_computation_order() {
             let mut cascaded_property_id = property_id;
             let mut inherited_property_id = property_id;
@@ -2112,7 +2157,11 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             let is_logical_alias = table_row_maps(&LOGICAL_ALIAS_TABLE, property_id);
             if is_logical_alias || table_row_maps(&PHYSICAL_TO_LOGICAL_TABLE, property_id) {
                 if cached_writing_mode_and_direction.is_none() {
-                    flush_pending_stores(callbacks, context, &mut pending_stores);
+                    if let (Some(writing_mode), Some(direction)) = (computed_writing_mode, computed_direction) {
+                        cached_writing_mode_and_direction = Some((writing_mode, direction));
+                    } else {
+                        flush_pending_stores(callbacks, context, &mut pending_stores);
+                    }
                 }
                 let (writing_mode, direction) = *cached_writing_mode_and_direction.get_or_insert_with(|| {
                     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandWritingModeCallback);
@@ -2203,6 +2252,19 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             // Whether the computed value depends on inherited information, so the specified
             // value must be kept for re-resolution when an ancestor changes.
             let value_data = unsafe { &*(value.data as *const StyleValueData) };
+
+            if inherited_property_id == crate::property_metadata::property_id::BACKGROUND_IMAGE
+                && let StyleValueData::ValueList { values, .. } = value_data
+            {
+                background_image_list_length = Some(values.as_slice().len());
+            }
+            if let StyleValueData::Keyword { keyword } = value_data {
+                if property_id == crate::property_metadata::property_id::WRITING_MODE {
+                    computed_writing_mode = keyword_to_writing_mode(*keyword);
+                } else if property_id == crate::property_metadata::property_id::DIRECTION {
+                    computed_direction = keyword_to_direction(*keyword);
+                }
+            }
             let inheritance_dependent =
                 crate::style_value::value_depends_on_current_color(value_data, callbacks.data_of)
                     || !value_is_computationally_independent(
@@ -2230,17 +2292,14 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 } = value_data
                 {
                     let kind = computation_context_kind(inherited_property_id) as usize;
-                    let resolution_context = cached_length_resolution_contexts[kind].get_or_insert_with(|| {
-                        // Building a context on the C++ side reads stored values.
-                        flush_pending_stores(callbacks, context, &mut pending_stores);
-                        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandContextFetchCallback);
-                        let mut fetched = std::mem::MaybeUninit::<FfiLengthResolutionContext>::uninit();
-                        // SAFETY: The callback fills the context before returning.
-                        unsafe {
-                            (callbacks.length_resolution_context)(context, inherited_property_id, fetched.as_mut_ptr());
-                            fetched.assume_init()
-                        }
-                    });
+                    let resolution_context = fetch_length_resolution_context(
+                        &mut cached_length_resolution_contexts,
+                        callbacks,
+                        context,
+                        &mut pending_stores,
+                        kind,
+                        inherited_property_id,
+                    );
                     let result = absolutize_length(*length_value, *unit as usize, resolution_context);
                     if result.handled {
                         if result.resolved_viewport_relative_length {
@@ -2266,6 +2325,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     Px(f64),
                     Integer(i32),
                     Superellipse(f64),
+                    Number(f64),
+                    Percentage(f64),
+                    FontStyle(u8),
                 }
                 use crate::property_metadata::property_id as prop;
                 let synthesized_px_length = |absolutized: Option<f64>| {
@@ -2318,18 +2380,12 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         // (math-depth 0, math-style normal).
                         let (inherited_math_depth, inherited_math_style_is_compact) = match snapshot {
                             Some(snapshot) => {
-                                let entry_data = |property_id: u16| {
-                                    let index = (property_id - FIRST_INHERITED_PROPERTY_ID) as usize;
-                                    assert!(index < snapshot.entry_count);
-                                    // SAFETY: Snapshot entries are valid for the drive.
-                                    unsafe { (*snapshot.entries.add(index)).data as *const StyleValueData }
-                                };
-                                let math_depth = match unsafe { entry_data(prop::MATH_DEPTH).as_ref() } {
+                                let math_depth = match snapshot_entry_data(snapshot, prop::MATH_DEPTH) {
                                     Some(StyleValueData::Integer { value }) => *value,
                                     _ => 0,
                                 };
                                 let compact = matches!(
-                                    unsafe { entry_data(prop::MATH_STYLE).as_ref() },
+                                    snapshot_entry_data(snapshot, prop::MATH_STYLE),
                                     Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::COMPACT
                                 );
                                 (math_depth, compact)
@@ -2339,10 +2395,176 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         let result =
                             compute_math_depth(value_data, inherited_math_depth, inherited_math_style_is_compact);
                         if result.handled {
+                            computed_math_depth = Some(result.value as i32);
                             NativeValue::Integer(result.value as i32)
                         } else {
                             NativeValue::Unsupported
                         }
+                    }
+                    (Some(absolutized), prop::FONT_SIZE) => {
+                        if let Some(computed_math_depth) = computed_math_depth {
+                            // A font-size relative to the inherited size also inherits the
+                            // parent's viewport dependence of its font metrics.
+                            if value_depends_on_inherited_info_for_property(value_data, prop::FONT_SIZE)
+                                && snapshot.is_some_and(|snapshot| snapshot.font_metrics_depend_on_viewport_metrics)
+                            {
+                                results.depends_on_viewport_metrics = true;
+                                results.font_metrics_depend_on_viewport_metrics = true;
+                            }
+                            let inherited = match snapshot {
+                                Some(snapshot) => match snapshot_entry_data(snapshot, prop::FONT_SIZE) {
+                                    Some(StyleValueData::Length { value, unit }) if *unit == px_length_unit() => {
+                                        let math_depth = match snapshot_entry_data(snapshot, prop::MATH_DEPTH) {
+                                            Some(StyleValueData::Integer { value }) => *value,
+                                            _ => 0,
+                                        };
+                                        Some((CssPixels::nearest_value_for(*value), math_depth))
+                                    }
+                                    _ => None,
+                                },
+                                None => Some((CssPixels::from_raw(initial_font_size_raw), 0)),
+                            };
+                            match inherited {
+                                Some((inherited_font_size, inherited_math_depth)) => {
+                                    let synthesized = synthesized_px_length(absolutized);
+                                    let result = compute_font_size(
+                                        synthesized.as_ref().unwrap_or(value_data),
+                                        computed_math_depth,
+                                        inherited_font_size,
+                                        inherited_math_depth,
+                                        CssPixels::from_raw(default_font_size_raw),
+                                    );
+                                    if result.handled {
+                                        if result.unchanged {
+                                            match absolutized {
+                                                Some(px) => NativeValue::Px(px),
+                                                None => NativeValue::Unchanged,
+                                            }
+                                        } else {
+                                            NativeValue::Px(result.value)
+                                        }
+                                    } else {
+                                        NativeValue::Unsupported
+                                    }
+                                }
+                                None => NativeValue::Unsupported,
+                            }
+                        } else {
+                            NativeValue::Unsupported
+                        }
+                    }
+                    (Some(_), prop::FONT_WEIGHT) => {
+                        let inherited_font_weight = match snapshot {
+                            Some(snapshot) => match snapshot_entry_data(snapshot, prop::FONT_WEIGHT) {
+                                Some(StyleValueData::Number { value }) => Some(*value),
+                                _ => None,
+                            },
+                            None => Some(400.0),
+                        };
+                        match inherited_font_weight {
+                            Some(inherited_font_weight) => {
+                                let result = compute_font_weight(value_data, inherited_font_weight);
+                                if result.handled {
+                                    if result.unchanged {
+                                        NativeValue::Unchanged
+                                    } else {
+                                        NativeValue::Number(result.value)
+                                    }
+                                } else {
+                                    NativeValue::Unsupported
+                                }
+                            }
+                            None => NativeValue::Unsupported,
+                        }
+                    }
+                    (Some(_), prop::FONT_STYLE) => match value_data {
+                        StyleValueData::Keyword { keyword } => match keyword_to_font_style_keyword(*keyword) {
+                            Some(font_style_keyword) => NativeValue::FontStyle(font_style_keyword),
+                            None => NativeValue::Unchanged,
+                        },
+                        _ => NativeValue::Unchanged,
+                    },
+                    (Some(_), prop::FONT_WIDTH) => {
+                        let result = compute_font_width(value_data);
+                        if result.handled {
+                            if result.unchanged {
+                                NativeValue::Unchanged
+                            } else {
+                                NativeValue::Percentage(result.value)
+                            }
+                        } else {
+                            NativeValue::Unsupported
+                        }
+                    }
+                    (Some(_), prop::FONT_FEATURE_SETTINGS | prop::FONT_VARIATION_SETTINGS)
+                        if matches!(value_data, StyleValueData::Keyword { .. }) =>
+                    {
+                        NativeValue::Unchanged
+                    }
+                    (Some(absolutized), prop::LINE_HEIGHT) => {
+                        let result = if matches!(value_data, StyleValueData::Percentage { .. }) {
+                            let resolution_context = fetch_length_resolution_context(
+                                &mut cached_length_resolution_contexts,
+                                callbacks,
+                                context,
+                                &mut pending_stores,
+                                ComputationContextKind::LineHeight as usize,
+                                prop::LINE_HEIGHT,
+                            );
+                            compute_line_height(
+                                value_data,
+                                CssPixels::nearest_value_for(resolution_context.font_metrics.font_size),
+                            )
+                        } else {
+                            let synthesized = synthesized_px_length(absolutized);
+                            compute_line_height(synthesized.as_ref().unwrap_or(value_data), CssPixels::from_raw(0))
+                        };
+                        if result.handled {
+                            if result.unchanged {
+                                match absolutized {
+                                    Some(px) => NativeValue::Px(px),
+                                    None => NativeValue::Unchanged,
+                                }
+                            } else if result.is_number {
+                                NativeValue::Number(result.value)
+                            } else {
+                                NativeValue::Px(result.value)
+                            }
+                        } else {
+                            NativeValue::Unsupported
+                        }
+                    }
+                    (None, prop::FONT_FAMILY) if matches!(value_data, StyleValueData::ValueList { .. }) => {
+                        // A font-family list only ever holds keywords, strings and custom
+                        // identifiers, whose absolutization is the identity.
+                        NativeValue::Unchanged
+                    }
+                    (
+                        None,
+                        prop::BACKGROUND_ATTACHMENT
+                        | prop::BACKGROUND_CLIP
+                        | prop::BACKGROUND_ORIGIN
+                        | prop::BACKGROUND_REPEAT,
+                    ) => {
+                        // These coordinated lists only ever hold keywords and repeat-style
+                        // values, whose absolutization is the identity; the coordination is
+                        // the identity too when the list already matches the layer count.
+                        match (value_data, background_image_list_length) {
+                            (StyleValueData::ValueList { values, .. }, Some(layer_count))
+                                if values.as_slice().len() == layer_count =>
+                            {
+                                NativeValue::Unchanged
+                            }
+                            _ => NativeValue::Unsupported,
+                        }
+                    }
+                    (Some(_), prop::ANIMATION_NAME)
+                        if matches!(
+                            value_data,
+                            StyleValueData::Keyword { .. } | StyleValueData::CustomIdent { .. }
+                        ) =>
+                    {
+                        NativeValue::Unchanged
                     }
                     (Some(absolutized), prop::LETTER_SPACING | prop::WORD_SPACING) => {
                         let synthesized = synthesized_px_length(absolutized);
@@ -2369,36 +2591,28 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     _ => NativeValue::Unsupported,
                 };
 
-                if !matches!(native, NativeValue::Unsupported) {
-                    let (computed_kind, computed_value) = match native {
-                        NativeValue::Px(px) => (COMPUTED_KIND_PX_LENGTH, px),
-                        NativeValue::Integer(integer) => (COMPUTED_KIND_INTEGER, integer as f64),
-                        NativeValue::Superellipse(parameter) => (COMPUTED_KIND_SUPERELLIPSE, parameter),
-                        _ => (COMPUTED_KIND_SHELL, 0.0),
-                    };
-                    pending_stores.push(FfiComputedStoreEntry {
-                        property_id,
-                        inherited_property_id,
-                        shell: value.shell,
-                        inheritance_dependent,
-                        inherited: inherit_fetch_attempted,
-                        computed_kind,
-                        value: computed_value,
-                    });
-                } else {
-                    flush_pending_stores(callbacks, context, &mut pending_stores);
-                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandComputeAndStoreCallback);
-                    unsafe {
-                        (callbacks.compute_and_store)(
-                            context,
-                            property_id,
-                            inherited_property_id,
-                            value.shell,
-                            inheritance_dependent,
-                            inherit_fetch_attempted,
-                        );
+                let (computed_kind, computed_value) = match native {
+                    NativeValue::Px(px) => (COMPUTED_KIND_PX_LENGTH, px),
+                    NativeValue::Integer(integer) => (COMPUTED_KIND_INTEGER, integer as f64),
+                    NativeValue::Superellipse(parameter) => (COMPUTED_KIND_SUPERELLIPSE, parameter),
+                    NativeValue::Number(number) => (COMPUTED_KIND_NUMBER, number),
+                    NativeValue::Percentage(percentage) => (COMPUTED_KIND_PERCENTAGE, percentage),
+                    NativeValue::FontStyle(font_style_keyword) => (COMPUTED_KIND_FONT_STYLE, font_style_keyword as f64),
+                    NativeValue::Unchanged => (COMPUTED_KIND_SHELL, 0.0),
+                    NativeValue::Unsupported => {
+                        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandCppComputeFallback);
+                        (COMPUTED_KIND_COMPUTE_IN_CPP, 0.0)
                     }
-                }
+                };
+                pending_stores.push(FfiComputedStoreEntry {
+                    property_id,
+                    inherited_property_id,
+                    shell: value.shell,
+                    inheritance_dependent,
+                    inherited: inherit_fetch_attempted,
+                    computed_kind,
+                    value: computed_value,
+                });
             } else {
                 pending_stores.push(FfiComputedStoreEntry {
                     property_id,

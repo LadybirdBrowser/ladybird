@@ -18,8 +18,6 @@
         internals.updateStyle();
         const afterOneElement = internals.styleFfiCounters();
         println(`longhand driver ran: ${afterOneElement.longhandDriverEntries >= 1}`);
-        const longhandCallbacks =
-            afterOneElement.longhandComputeAndStoreCallbacks + afterOneElement.longhandStoreBatchCallbacks;
-        println(`longhand loop called back into C++: ${longhandCallbacks >= 1}`);
+        println(`longhand loop called back into C++: ${afterOneElement.longhandStoreBatchCallbacks >= 1}`);
     });
 </script>
