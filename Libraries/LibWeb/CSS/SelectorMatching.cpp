@@ -438,7 +438,8 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_next_element_sibling);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_first_element_child);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_first_element_descendant);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_next_element_descendant);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_has_no_element_or_nonempty_text_children);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_element_child);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_nonempty_text_child);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_is_shadow_tree_slot);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_slotted_parent);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_part_parent);
@@ -970,22 +971,22 @@ extern "C" CSS::SelectorFFI::Element selector_ffi_next_element_descendant(void c
     return {};
 }
 
-extern "C" bool selector_ffi_has_no_element_or_nonempty_text_children(void const* element)
+extern "C" bool selector_ffi_element_has_element_child(void const* element)
 {
-    auto const& target = ffi_element(element);
-    if (!target.has_children())
-        return true;
-    if (target.first_child_of_type<DOM::Element>())
-        return false;
+    return ffi_element(element).first_child_of_type<DOM::Element>();
+}
+
+extern "C" bool selector_ffi_element_has_nonempty_text_child(void const* element)
+{
     bool has_nonempty_text_child = false;
-    target.for_each_child_of_type<DOM::Text>([&](auto const& text) {
+    ffi_element(element).for_each_child_of_type<DOM::Text>([&](auto const& text) {
         if (!text.data().is_empty()) {
             has_nonempty_text_child = true;
             return IterationDecision::Break;
         }
         return IterationDecision::Continue;
     });
-    return !has_nonempty_text_child;
+    return has_nonempty_text_child;
 }
 
 extern "C" bool selector_ffi_is_shadow_tree_slot(void const* element)

@@ -2191,7 +2191,8 @@ unsafe extern "C" {
     fn selector_ffi_first_element_child(element: *const c_void) -> FfiElement;
     fn selector_ffi_first_element_descendant(element: *const c_void) -> FfiElement;
     fn selector_ffi_next_element_descendant(element: *const c_void, root: *const c_void) -> FfiElement;
-    fn selector_ffi_has_no_element_or_nonempty_text_children(element: *const c_void) -> bool;
+    fn selector_ffi_element_has_element_child(element: *const c_void) -> bool;
+    fn selector_ffi_element_has_nonempty_text_child(element: *const c_void) -> bool;
 
     fn selector_ffi_is_shadow_tree_slot(element: *const c_void) -> bool;
     fn selector_ffi_slotted_parent(context: *mut c_void, element: *const c_void) -> FfiElementAndShadowHost;
@@ -2870,7 +2871,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn parent_element(&mut self, element: FfiNode<'a>, shadow_host: Option<FfiNode<'a>>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the input handles remain valid. The callback returns
         // either null or another live element borrowed for the same lifetime.
         unsafe {
@@ -2882,42 +2883,42 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn parent_element_in_light_tree(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_parent_element_in_light_tree(element.as_element_pointer())) }
     }
 
     fn previous_element_sibling(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_previous_element_sibling(element.as_element_pointer())) }
     }
 
     fn next_element_sibling(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_next_element_sibling(element.as_element_pointer())) }
     }
 
     fn first_element_child(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_first_element_child(element.as_element_pointer())) }
     }
 
     fn first_element_descendant(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_first_element_descendant(element.as_element_pointer())) }
     }
 
     fn next_element_descendant(&mut self, element: FfiNode<'a>, root: FfiNode<'a>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that both element handles remain valid for this call. The
         // callback returns either null or another live element borrowed for the same lifetime.
         unsafe {
@@ -2929,9 +2930,14 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn has_no_element_or_nonempty_text_children(&mut self, element: FfiNode<'a>) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
-        unsafe { selector_ffi_has_no_element_or_nonempty_text_children(element.as_element_pointer()) }
+        if unsafe { selector_ffi_element_has_element_child(element.as_element_pointer()) } {
+            return false;
+        }
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
+        !unsafe { selector_ffi_element_has_nonempty_text_child(element.as_element_pointer()) }
     }
 
     fn has_same_type(&mut self, first: FfiNode<'a>, second: FfiNode<'a>) -> bool {
@@ -2945,13 +2951,13 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn is_shadow_tree_slot(&mut self, element: FfiNode<'a>) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
         unsafe { selector_ffi_is_shadow_tree_slot(element.as_element_pointer()) }
     }
 
     fn slotted_parent(&mut self, element: FfiNode<'a>) -> Option<(FfiNode<'a>, Option<FfiNode<'a>>)> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the context and element remain valid. The callback
         // returns null or live elements borrowed for the same lifetime.
         unsafe { self.element_and_shadow_host(selector_ffi_slotted_parent(self.context, element.as_element_pointer())) }
@@ -2964,7 +2970,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         allow_same_shadow_root_scope: bool,
         shadow_host: Option<FfiNode<'a>>,
     ) -> Option<(FfiNode<'a>, Option<FfiNode<'a>>)> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         let identifiers = identifiers
             .iter()
             .map(|identifier| ffi_string_view(identifier))
