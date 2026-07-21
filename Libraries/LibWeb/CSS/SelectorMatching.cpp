@@ -713,6 +713,7 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_fullscreen);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_heading_level);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_popover_attribute);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_popover_is_showing);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_direction);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_focused);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_should_indicate_focus);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_focus_within);
@@ -724,7 +725,6 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_default_namespace);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_resolve_namespace);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_pseudo_class);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_language);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_direction);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_state);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_parent_element);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_parent_element_in_light_tree);
@@ -852,6 +852,17 @@ extern "C" bool selector_ffi_element_popover_is_showing(void const* element)
     auto const* html_element = as_if<HTML::HTMLElement>(ffi_element(element));
     return html_element
         && html_element->popover_visibility_state() == HTML::HTMLElement::PopoverVisibilityState::Showing;
+}
+
+extern "C" Direction selector_ffi_element_direction(void const* element)
+{
+    switch (ffi_element(element).directionality()) {
+    case DOM::Element::Directionality::Ltr:
+        return Direction::LeftToRight;
+    case DOM::Element::Directionality::Rtl:
+        return Direction::RightToLeft;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 extern "C" bool selector_ffi_element_is_focused(void const* element)
@@ -1005,17 +1016,6 @@ extern "C" bool selector_ffi_matches_language(void const* element, StringView la
     auto element_language = ffi_element(element).lang();
     return element_language.has_value()
         && language_range_matches_tag(ffi_string_view(language), *element_language);
-}
-
-extern "C" bool selector_ffi_matches_direction(void const* element, Direction direction)
-{
-    switch (ffi_element(element).directionality()) {
-    case DOM::Element::Directionality::Ltr:
-        return direction == Direction::LeftToRight;
-    case DOM::Element::Directionality::Rtl:
-        return direction == Direction::RightToLeft;
-    }
-    VERIFY_NOT_REACHED();
 }
 
 extern "C" bool selector_ffi_matches_state(void const* element, void const* cxx_simple_selector)

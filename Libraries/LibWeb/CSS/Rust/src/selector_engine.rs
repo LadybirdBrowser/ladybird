@@ -1646,6 +1646,16 @@ impl FfiElement {
         unsafe { selector_ffi_element_popover_is_showing(self.pointer) }
     }
 
+    fn direction(self) -> Direction {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        match unsafe { selector_ffi_element_direction(self.pointer) } {
+            FfiDirection::LeftToRight => Direction::LeftToRight,
+            FfiDirection::RightToLeft => Direction::RightToLeft,
+            FfiDirection::None | FfiDirection::Other => unreachable!(),
+        }
+    }
+
     fn is_focused(self) -> bool {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
@@ -1918,6 +1928,7 @@ unsafe extern "C" {
     fn selector_ffi_element_heading_level(element: *const c_void) -> i64;
     fn selector_ffi_element_has_popover_attribute(element: *const c_void) -> bool;
     fn selector_ffi_element_popover_is_showing(element: *const c_void) -> bool;
+    fn selector_ffi_element_direction(element: *const c_void) -> FfiDirection;
     fn selector_ffi_element_is_focused(element: *const c_void) -> bool;
     fn selector_ffi_element_should_indicate_focus(element: *const c_void) -> bool;
     fn selector_ffi_element_has_focus_within(element: *const c_void) -> bool;
@@ -1931,7 +1942,6 @@ unsafe extern "C" {
 
     fn selector_ffi_matches_pseudo_class(element: *const c_void, pseudo_class: u8) -> bool;
     fn selector_ffi_matches_language(element: *const c_void, language: FfiStringView) -> bool;
-    fn selector_ffi_matches_direction(element: *const c_void, direction: FfiDirection) -> bool;
     fn selector_ffi_matches_state(element: *const c_void, cxx_simple_selector: *const c_void) -> bool;
     fn selector_ffi_parent_element(element: *const c_void, shadow_host: *const c_void) -> FfiElement;
     fn selector_ffi_parent_element_in_light_tree(element: *const c_void) -> FfiElement;
@@ -2403,19 +2413,9 @@ impl<'a> SelectorDom for FfiDom<'a> {
                 // view is borrowed from `language` for this callback only.
                 unsafe { selector_ffi_matches_language(element.as_element_pointer(), ffi_string_view(language)) }
             }),
-            PseudoClassType::Dir => match pseudo_class.direction {
-                Some(Direction::LeftToRight) => {
-                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
-                    // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
-                    unsafe { selector_ffi_matches_direction(element.as_element_pointer(), FfiDirection::LeftToRight) }
-                }
-                Some(Direction::RightToLeft) => {
-                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
-                    // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
-                    unsafe { selector_ffi_matches_direction(element.as_element_pointer(), FfiDirection::RightToLeft) }
-                }
-                _ => false,
-            },
+            PseudoClassType::Dir => pseudo_class
+                .direction
+                .is_some_and(|direction| direction == element.as_element().direction()),
             PseudoClassType::State => {
                 pseudo_class.identifier.is_some() && {
                     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
