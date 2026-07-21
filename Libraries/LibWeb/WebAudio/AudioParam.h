@@ -88,7 +88,11 @@ private:
         double duration { 0 };
     };
 
-    using Parameterization = Variant<SetValue, LinearRamp, ExponentialRamp, SetTarget, SetValueCurve>;
+    struct Hold {
+        float value { 0 };
+    };
+
+    using Parameterization = Variant<SetValue, LinearRamp, ExponentialRamp, SetTarget, SetValueCurve, Hold>;
 
     struct AutomationEvent {
         double time { 0 };

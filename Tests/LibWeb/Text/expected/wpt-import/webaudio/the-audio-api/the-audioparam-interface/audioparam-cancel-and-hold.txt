@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 106 tests
 
-72 Pass
-34 Fail
+74 Pass
+32 Fail
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "cancelTime"
 Pass	Executing "linear"
@@ -24,10 +24,10 @@ Pass	Executing "cancel setValueCurve now"
 Pass	Executing "linear, cancel, linear, cancel, linear"
 Pass	Audit report
 Pass	> [cancelTime] Test Invalid Values
-Fail	X cancelAndHoldAtTime(-1) did not throw an exception.
+Pass	  cancelAndHoldAtTime(-1) threw RangeError: "cancelTime must not be negative".
 Pass	  cancelAndHoldAtTime(NaN) threw TypeError: "Expected cancelTime to be a finite floating-point number".
 Pass	  cancelAndHoldAtTime(Infinity) threw TypeError: "Expected cancelTime to be a finite floating-point number".
-Fail	< [cancelTime] 1 out of 3 assertions were failed.
+Pass	< [cancelTime] All assertions passed. (total 3 assertions)
 Pass	> [linear] Cancel linearRampToValueAtTime
 Pass	  linearRampToValueAtTime: linearRampToValue(0, 0.5) up to time 0.25 equals [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0...] with an element-wise tolerance of {"absoluteThreshold":0.000059605,"relativeThreshold":0}.
 Pass	  Cancelling linearRampToValueAtTime: linearRampToValue(0, 0.5) at time 0.25 contains only the constant 0.
@@ -133,4 +133,4 @@ Pass	  Cancelling 2nd linearRamp(2, 0.5) at time 0.375 contains only the constan
 Fail	X Expected value for cancelling 2nd linearRamp(2, 0.5) at time 0.375 is not close to 1.2551020383834839 within a relative error of 0 (RelErr=1). Got 0.
 Pass	  3rd linearRamp(0, 0.5) equals [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
 Fail	< [linear, cancel, linear, cancel, linear] 2 out of 7 assertions were failed.
-Fail	# AUDIT TASK RUNNER FINISHED: 16 out of 17 tasks were failed.
+Fail	# AUDIT TASK RUNNER FINISHED: 15 out of 17 tasks were failed.

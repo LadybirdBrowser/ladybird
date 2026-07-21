@@ -66,7 +66,7 @@ float AudioParam::intrinsic_value_at_time(double time) const
 
     auto const& event = m_automation_events[*cache.event_index];
     return event.parameterization.visit(
-        [](SetValue const& parameterization) {
+        [](OneOf<SetValue, Hold> auto const& parameterization) {
             return parameterization.value;
         },
         [&](LinearRamp const& linear_ramp) {
@@ -152,7 +152,7 @@ float AudioParam::event_value_at_time(size_t event_index, double time) const
         auto const& event = m_automation_events[current_event_index];
         auto evaluation_time = current_event_index == event_index ? time : m_automation_events[current_event_index + 1].time;
         value = event.parameterization.visit(
-            [](OneOf<SetValue, LinearRamp, ExponentialRamp> auto const& parameterization) {
+            [](OneOf<SetValue, LinearRamp, ExponentialRamp, Hold> auto const& parameterization) {
                 return parameterization.value;
             },
             [&](SetTarget const& set_target) -> float {
@@ -212,7 +212,7 @@ AudioParam::ParameterizationCache const& AudioParam::parameterization_cache_for_
     // to caching the preceding event below.
     if (event_index < m_automation_events.size()) {
         auto cache = m_automation_events[event_index].parameterization.visit(
-            [](OneOf<SetValue, SetTarget, SetValueCurve> auto const&) -> Optional<ParameterizationCache> {
+            [](OneOf<SetValue, SetTarget, SetValueCurve, Hold> auto const&) -> Optional<ParameterizationCache> {
                 return {};
             },
             [&](OneOf<LinearRamp, ExponentialRamp> auto const& ramp) -> Optional<ParameterizationCache> {
@@ -232,7 +232,9 @@ AudioParam::ParameterizationCache const& AudioParam::parameterization_cache_for_
                         });
                     starting_value = event_value_at_time(event_index - 1, minimum_time);
                 }
-                if (time < minimum_time)
+                // NB: A ramp rewritten by cancelAndHoldAtTime() can end before a preceding value curve's original end.
+                //     In that case, the curve owns the interval before the ramp endpoint.
+                if (time < minimum_time || minimum_time >= m_automation_events[event_index].time)
                     return {};
                 return ParameterizationCache {
                     .event_index = event_index,
@@ -276,16 +278,23 @@ WebIDL::ExceptionOr<void> AudioParam::insert_event(AutomationEvent event)
 {
     // If any automation method is called at a time contained in a SetValueCurve event, a NotSupportedError exception
     // MUST be thrown.
-    for (auto const& existing_event : m_automation_events) {
+    for (size_t event_index = 0; event_index < m_automation_events.size(); ++event_index) {
+        auto const& existing_event = m_automation_events[event_index];
         auto is_contained_in_curve = existing_event.parameterization.visit(
             [&](SetValueCurve const& set_value_curve) {
+                auto curve_end_time = existing_event.time + set_value_curve.duration;
+                if (event_index + 1 < m_automation_events.size()
+                    && m_automation_events[event_index + 1].parameterization.has<Hold>()) {
+                    curve_end_time = min(curve_end_time, m_automation_events[event_index + 1].time);
+                }
                 return event.time >= existing_event.time
-                    && event.time < existing_event.time + set_value_curve.duration;
+                    && event.time < curve_end_time;
             },
             [](auto const&) {
                 return false;
             });
-        if (is_contained_in_curve)
+        // NB: A hold event ends an active value curve without changing how the curve is sampled before the hold time.
+        if (is_contained_in_curve && !event.parameterization.has<Hold>())
             return WebIDL::NotSupportedError::create(realm(), "Cannot schedule an automation event during a value curve"_utf16);
     }
 
@@ -446,8 +455,56 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::cancel_scheduled_values(dou
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-cancelandholdattime
 WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::cancel_and_hold_at_time(double cancel_time)
 {
-    (void)cancel_time;
-    dbgln("FIXME: Implement AudioParam::cancel_and_hold_at_time");
+    // A RangeError exception MUST be thrown if cancelTime is negative.
+    if (cancel_time < 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "cancelTime must not be negative"_utf16 };
+
+    // If cancelTime is less than currentTime, it is clamped to currentTime.
+    cancel_time = max(cancel_time, context()->current_time());
+
+    auto value_to_hold = intrinsic_value_at_time(cancel_time);
+    auto event_index = first_event_index_after(cancel_time);
+    auto rewrote_ramp = false;
+
+    // If the next event is a ramp, rewrite it to end at cancelTime with the value from the original timeline.
+    if (event_index < m_automation_events.size()) {
+        auto& event = m_automation_events[event_index];
+        rewrote_ramp = event.parameterization.visit(
+            [&](OneOf<LinearRamp, ExponentialRamp> auto& ramp) {
+                event.time = cancel_time;
+                ramp.value = value_to_hold;
+                return true;
+            },
+            [](auto&) {
+                return false;
+            });
+    }
+
+    if (!rewrote_ramp && event_index > 0) {
+        auto const& previous_event = m_automation_events[event_index - 1];
+        auto needs_hold_event = previous_event.parameterization.visit(
+            [](SetTarget const&) {
+                return true;
+            },
+            [&](SetValueCurve const& set_value_curve) {
+                return cancel_time <= previous_event.time + set_value_curve.duration;
+            },
+            [](auto const&) {
+                return false;
+            });
+        if (needs_hold_event) {
+            TRY(insert_event({
+                .time = cancel_time,
+                .parameterization = Hold { value_to_hold },
+            }));
+        }
+    }
+
+    // Remove all events with times greater than cancelTime. The rewritten ramp or inserted hold remains at cancelTime.
+    auto first_event_to_remove = first_event_index_after(cancel_time);
+    if (first_event_to_remove < m_automation_events.size())
+        m_automation_events.remove(first_event_to_remove, m_automation_events.size() - first_event_to_remove);
+    m_parameterization_cache = {};
     return GC::Ref { *this };
 }
 
