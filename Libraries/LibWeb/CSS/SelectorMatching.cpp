@@ -658,24 +658,8 @@ static CSS::SelectorFFI::Element element_to_ffi(DOM::Element const* element)
     if (!element)
         return {};
 
-    // `Utf16FlyString` is its interned one-word representation. Rust borrows these words directly
-    // while matching; the DOM and selector trees pin their respective strings for the call.
-    static_assert(sizeof(Utf16FlyString) == sizeof(uintptr_t));
-    static_assert(alignof(Utf16FlyString) == alignof(uintptr_t));
-
-    auto const& classes = element->class_names();
     return {
         .pointer = element,
-        .local_name = reinterpret_cast<uintptr_t const*>(&element->local_name()),
-        .namespace_ = element->namespace_uri().has_value() ? reinterpret_cast<uintptr_t const*>(&element->namespace_uri().value()) : nullptr,
-        .id = element->id().has_value() ? reinterpret_cast<uintptr_t const*>(&element->id().value()) : nullptr,
-        .classes = reinterpret_cast<uintptr_t const*>(classes.data()),
-        .class_count = classes.size(),
-        .class_names_are_case_insensitive = element->document().in_quirks_mode(),
-        .namespace_is_null = !element->namespace_uri().has_value() || element->namespace_uri()->is_empty(),
-        .is_html_element_in_html_document = element->namespace_uri() == Namespace::HTML
-            && element->document().document_type() == DOM::Document::Type::HTML,
-        .is_document_root = is<HTML::HTMLHtmlElement>(*element),
     };
 }
 
@@ -816,6 +800,13 @@ using CSS::SelectorFFI::TagNameMatchingMode;
 #define DECLARE_SELECTOR_FFI_CALLBACK(function) \
     extern "C" decltype(CSS::SelectorFFI::function) function
 
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_qualified_name);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_id);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_classes);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_class_names_are_case_insensitive);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_namespace_is_null);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_html_element_in_html_document);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_document_root);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_universal);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_tag_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_class_quirks);
@@ -848,6 +839,57 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_has_cache_set);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_should_reject_has_argument);
 
 #undef DECLARE_SELECTOR_FFI_CALLBACK
+
+// `Utf16FlyString` is its interned one-word representation. The accessors below expose pointers
+// to live words only for the duration of the synchronous selector-matching call.
+static_assert(sizeof(Utf16FlyString) == sizeof(uintptr_t));
+static_assert(alignof(Utf16FlyString) == alignof(uintptr_t));
+
+extern "C" CSS::SelectorFFI::ElementQualifiedName selector_ffi_element_qualified_name(void const* element)
+{
+    auto const& target = ffi_element(element);
+    return {
+        .local_name = reinterpret_cast<uintptr_t const*>(&target.local_name()),
+        .namespace_ = target.namespace_uri().has_value() ? reinterpret_cast<uintptr_t const*>(&target.namespace_uri().value()) : nullptr,
+    };
+}
+
+extern "C" uintptr_t const* selector_ffi_element_id(void const* element)
+{
+    auto const& id = ffi_element(element).id();
+    return id.has_value() ? reinterpret_cast<uintptr_t const*>(&id.value()) : nullptr;
+}
+
+extern "C" CSS::SelectorFFI::InternedStringList selector_ffi_element_classes(void const* element)
+{
+    auto const& classes = ffi_element(element).class_names();
+    return {
+        .data = reinterpret_cast<uintptr_t const*>(classes.data()),
+        .count = classes.size(),
+    };
+}
+
+extern "C" bool selector_ffi_element_class_names_are_case_insensitive(void const* element)
+{
+    return ffi_element(element).document().in_quirks_mode();
+}
+
+extern "C" bool selector_ffi_element_namespace_is_null(void const* element)
+{
+    return is_in_null_namespace(ffi_element(element));
+}
+
+extern "C" bool selector_ffi_element_is_html_element_in_html_document(void const* element)
+{
+    auto const& target = ffi_element(element);
+    return target.namespace_uri() == Namespace::HTML
+        && target.document().document_type() == DOM::Document::Type::HTML;
+}
+
+extern "C" bool selector_ffi_element_is_document_root(void const* element)
+{
+    return is<HTML::HTMLHtmlElement>(ffi_element(element));
+}
 
 extern "C" bool selector_ffi_matches_universal(void* context, void const* element, void const* cxx_simple_selector)
 {

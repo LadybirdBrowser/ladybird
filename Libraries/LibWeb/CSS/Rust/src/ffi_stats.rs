@@ -53,6 +53,7 @@ define_ffi_ops! {
     StyleGroupCloneEntry => "styleGroupCloneEntries",
     StyleGroupFreeEntry => "styleGroupFreeEntries",
     // Callbacks: Rust -> C++.
+    SelectorDomReadCallback => "selectorDomReadCallbacks",
     SelectorSimpleSelectorCallback => "selectorSimpleSelectorCallbacks",
     SelectorTreeNavigationCallback => "selectorTreeNavigationCallbacks",
     SelectorMetadataCallback => "selectorMetadataCallbacks",

@@ -1568,21 +1568,12 @@ pub struct RustSelector {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
-/// A borrowed view of the element's current selector-relevant identifier data.
+/// A DOM element borrowed for one selector-matching call.
 ///
-/// C++ constructs this immediately before crossing the FFI and after every tree navigation. The
-/// pointers must not be retained beyond the matching call.
+/// This handle contains no DOM-derived state. All facts are read from C++ on demand so mutations
+/// observed by later matching calls cannot be hidden by retained data.
 pub struct FfiElement {
     pub pointer: *const c_void,
-    pub local_name: *const usize,
-    pub namespace_: *const usize,
-    pub id: *const usize,
-    pub classes: *const usize,
-    pub class_count: usize,
-    pub class_names_are_case_insensitive: bool,
-    pub namespace_is_null: bool,
-    pub is_html_element_in_html_document: bool,
-    pub is_document_root: bool,
 }
 
 impl FfiElement {
@@ -1590,31 +1581,82 @@ impl FfiElement {
         self.pointer.is_null()
     }
 
-    fn id(self) -> Option<usize> {
-        // SAFETY: The C++ wrapper points at the live element's `Utf16FlyString` storage, which is
-        // pinned for the duration of the matching call.
-        unsafe { self.id.as_ref().copied() }
+    fn qualified_name(self) -> FfiElementQualifiedName {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_qualified_name(self.pointer) }
     }
 
+    fn id(self) -> Option<usize> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element. A non-null result points at its
+        // current pinned `Utf16FlyString` storage for this matching call.
+        unsafe { selector_ffi_element_id(self.pointer).as_ref().copied() }
+    }
+
+    fn class_names_are_case_insensitive(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_class_names_are_case_insensitive(self.pointer) }
+    }
+
+    fn namespace_is_null(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_namespace_is_null(self.pointer) }
+    }
+
+    fn is_html_element_in_html_document(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_html_element_in_html_document(self.pointer) }
+    }
+
+    fn is_document_root(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_document_root(self.pointer) }
+    }
+
+    unsafe fn classes<'a>(self) -> &'a [usize] {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element. C++ returns its current class storage,
+        // borrowed for this matching call.
+        let classes = unsafe { selector_ffi_element_classes(self.pointer) };
+        if classes.count == 0 {
+            return &[];
+        }
+        assert!(!classes.data.is_null());
+        // SAFETY: C++ guarantees that `Utf16FlyString` has the size and alignment of `usize` and
+        // that the element's class vector cannot mutate during this matching call.
+        unsafe { std::slice::from_raw_parts(classes.data, classes.count) }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiElementQualifiedName {
+    pub local_name: *const usize,
+    pub namespace_: *const usize,
+}
+
+impl FfiElementQualifiedName {
     fn local_name(self) -> Option<usize> {
-        // SAFETY: The C++ wrapper points at the live element's pinned `Utf16FlyString` storage.
+        // SAFETY: C++ points at the live element's pinned `Utf16FlyString` storage.
         unsafe { self.local_name.as_ref().copied() }
     }
 
     fn namespace(self) -> Option<usize> {
-        // SAFETY: The C++ wrapper points at the live element's pinned `Utf16FlyString` storage.
+        // SAFETY: C++ points at the live element's pinned `Utf16FlyString` storage.
         unsafe { self.namespace_.as_ref().copied() }
     }
+}
 
-    unsafe fn classes<'a>(self) -> &'a [usize] {
-        if self.class_count == 0 {
-            return &[];
-        }
-        assert!(!self.classes.is_null());
-        // SAFETY: C++ guarantees that `Utf16FlyString` has the size and alignment of `usize` and
-        // that the element's class vector cannot mutate during this matching call.
-        unsafe { std::slice::from_raw_parts(self.classes, self.class_count) }
-    }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiInternedStringList {
+    pub data: *const usize,
+    pub count: usize,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1688,6 +1730,14 @@ pub struct FfiElementAndShadowHost {
 }
 
 unsafe extern "C" {
+    fn selector_ffi_element_qualified_name(element: *const c_void) -> FfiElementQualifiedName;
+    fn selector_ffi_element_id(element: *const c_void) -> *const usize;
+    fn selector_ffi_element_classes(element: *const c_void) -> FfiInternedStringList;
+    fn selector_ffi_element_class_names_are_case_insensitive(element: *const c_void) -> bool;
+    fn selector_ffi_element_namespace_is_null(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_html_element_in_html_document(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_document_root(element: *const c_void) -> bool;
+
     fn selector_ffi_matches_universal(
         context: *mut c_void,
         element: *const c_void,
@@ -1793,15 +1843,6 @@ impl<'a> FfiDom<'a> {
             kind,
             element: FfiElement {
                 pointer: std::ptr::null(),
-                local_name: std::ptr::null(),
-                namespace_: std::ptr::null(),
-                id: std::ptr::null(),
-                classes: std::ptr::null(),
-                class_count: 0,
-                class_names_are_case_insensitive: false,
-                namespace_is_null: true,
-                is_html_element_in_html_document: false,
-                is_document_root: false,
             },
             marker: PhantomData,
         })
@@ -1843,16 +1884,16 @@ impl<'a> SelectorDom for FfiDom<'a> {
         match name.namespace_type {
             NamespaceType::Default => match self.namespace_context.default_namespace_type {
                 FfiDefaultNamespaceType::Any => return true,
-                FfiDefaultNamespaceType::None => return element.as_element().namespace_is_null,
+                FfiDefaultNamespaceType::None => return element.as_element().namespace_is_null(),
                 FfiDefaultNamespaceType::Named => {
                     // SAFETY: C++ guarantees that the default namespace remains pinned for this
                     // matching call.
                     let default_namespace = unsafe { self.namespace_context.default_namespace.as_ref().copied() };
                     return default_namespace
-                        .is_some_and(|namespace| element.as_element().namespace() == Some(namespace));
+                        .is_some_and(|namespace| element.as_element().qualified_name().namespace() == Some(namespace));
                 }
             },
-            NamespaceType::None => return element.as_element().namespace_is_null,
+            NamespaceType::None => return element.as_element().namespace_is_null(),
             NamespaceType::Any => return true,
             NamespaceType::Named => {}
         }
@@ -1875,13 +1916,14 @@ impl<'a> SelectorDom for FfiDom<'a> {
         mode: TagNameMatchingMode,
     ) -> bool {
         let ffi_element = element.as_element();
-        if ffi_element.is_html_element_in_html_document || mode == TagNameMatchingMode::Fast {
-            let interned_name = if ffi_element.is_html_element_in_html_document {
+        let is_html_element_in_html_document = ffi_element.is_html_element_in_html_document();
+        if is_html_element_in_html_document || mode == TagNameMatchingMode::Fast {
+            let interned_name = if is_html_element_in_html_document {
                 name.interned_lowercase_name
             } else {
                 name.interned_name
             };
-            if interned_name.is_none_or(|name| ffi_element.local_name() != Some(name)) {
+            if interned_name.is_none_or(|name| ffi_element.qualified_name().local_name() != Some(name)) {
                 return false;
             }
             return self.matches_universal_selector(element, name);
@@ -1905,7 +1947,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
 
     fn matches_class_selector(&mut self, element: FfiNode<'a>, class_name: &NameSelector) -> bool {
         let ffi_element = element.as_element();
-        if ffi_element.class_names_are_case_insensitive {
+        if ffi_element.class_names_are_case_insensitive() {
             crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
             // SAFETY: `FfiDom` guarantees that the element and retained simple selector remain
             // valid for the duration of matching.
@@ -2053,13 +2095,13 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn has_same_type(&mut self, first: FfiNode<'a>, second: FfiNode<'a>) -> bool {
-        let first = first.as_element();
-        let second = second.as_element();
+        let first = first.as_element().qualified_name();
+        let second = second.as_element().qualified_name();
         first.local_name() == second.local_name() && first.namespace() == second.namespace()
     }
 
     fn is_document_root(&mut self, element: FfiNode<'a>) -> bool {
-        element.as_element().is_document_root
+        element.as_element().is_document_root()
     }
 
     fn is_shadow_tree_slot(&mut self, element: FfiNode<'a>) -> bool {
