@@ -3533,27 +3533,6 @@ CSSPixelRect FormattingContext::content_box_rect_in_ancestor_coordinate_space(La
     VERIFY_NOT_REACHED();
 }
 
-CSSPixelRect FormattingContext::margin_box_rect_in_ancestor_coordinate_space(LayoutState::UsedValues const& used_values, Box const& ancestor_box) const
-{
-    auto rect = margin_box_rect(used_values);
-    for (auto const* current = &used_values; current;) {
-        if (&current->node() == &ancestor_box)
-            return rect;
-        rect.translate_by(current->content_offset());
-        auto const* containing_block = current->node().containing_block();
-        if (!containing_block)
-            break;
-        current = &m_state.get(*containing_block);
-    }
-    // If we get here, ancestor_box was not a containing block ancestor of `box`!
-    VERIFY_NOT_REACHED();
-}
-
-CSSPixelRect FormattingContext::margin_box_rect_in_ancestor_coordinate_space(Box const& box, Box const& ancestor_box) const
-{
-    return margin_box_rect_in_ancestor_coordinate_space(m_state.get(box), ancestor_box);
-}
-
 bool FormattingContext::box_is_sized_as_replaced_element(Box const& box, AvailableSpace const& available_space, ContainingBlockConstraints const& containing_block_constraints) const
 {
     if (box.has_replaced_element_table_display_adjustment())
