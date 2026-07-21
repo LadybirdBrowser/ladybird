@@ -378,6 +378,8 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     if (scroll_target.node_id->document_id != expected_document_id)
         return {};
 
+    cancel_smooth_scroll_for_node(*scroll_target.node_id);
+
     Optional<Web::Compositor::AsyncScrollOperationID> operation_id;
     if (operation_tracking == Web::Compositor::AsyncScrollOperationTracking::Yes)
         operation_id = ++m_next_async_scroll_operation_id;
@@ -553,6 +555,8 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
             };
         return {};
     }
+
+    cancel_smooth_scroll_for_node(*scroll_target.node_id);
 
     auto async_scroll_viewport_rect = m_async_scrolling_viewport_rect;
     auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(*scroll_target.node_id, async_scroll_delta, m_scroll_state_snapshot);
@@ -897,12 +901,24 @@ void ContextState::store_pending_async_scroll_offsets(
         m_completed_async_scroll_operation_ids.append(*operation_id);
 }
 
+void ContextState::cancel_smooth_scroll_for_node(Web::Compositor::AsyncScrollNodeID node_id)
+{
+    for (auto const& smooth_scroll_animation : m_smooth_scroll_animations) {
+        auto animated_node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(smooth_scroll_animation.stable_node_id);
+        if (animated_node_id != node_id)
+            continue;
+        cancel_smooth_scroll(smooth_scroll_animation.stable_node_id);
+        return;
+    }
+}
+
 Optional<Gfx::IntRect> ContextState::apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const& drag)
 {
     auto scroll_delta = m_viewport_scrollbar_controller.scroll_delta_for_drag(m_async_scroll_tree, m_scroll_state_snapshot, drag);
     if (!scroll_delta.has_value())
         return {};
 
+    cancel_smooth_scroll_for_node(scroll_delta->scroll_node_id);
     auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(scroll_delta->scroll_node_id, scroll_delta->delta, m_scroll_state_snapshot);
     if (scroll_offsets.is_empty())
         return {};

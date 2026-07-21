@@ -168,6 +168,7 @@ private:
     Optional<VisualViewportScrollDelta> apply_visual_viewport_scroll_delta(Gfx::FloatPoint);
     Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&);
     void store_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&, Optional<Web::Compositor::AsyncScrollOperationID> = {});
+    void cancel_smooth_scroll_for_node(Web::Compositor::AsyncScrollNodeID);
     Optional<Gfx::IntRect> apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const&);
     void rebuild_wheel_hit_test_targets();
     bool is_present_blocked() const;
