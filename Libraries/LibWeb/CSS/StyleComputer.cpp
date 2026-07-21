@@ -3496,7 +3496,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         .font_metrics_depend_on_viewport_metrics = false,
         .explicitly_inherited_non_inherited_property = false,
     };
-    ComputedValuesFFI::rust_drive_property_computation(&callbacks, cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, new_font_size != nullptr, &driver_results);
+    ComputedValuesFFI::rust_drive_property_computation(&callbacks, cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, new_font_size != nullptr, device_pixels_per_css_pixel, &driver_results);
 
     // Apply the driver's bulk results.
     auto longhand_bit_is_set = [](Array<u64, longhand_bitmap_words> const& words, size_t index) {

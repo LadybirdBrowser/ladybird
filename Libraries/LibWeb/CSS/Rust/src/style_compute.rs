@@ -94,6 +94,11 @@ enum ViewportAxis {
     Max,
 }
 
+pub(crate) fn px_length_unit() -> u8 {
+    static PX: OnceLock<u8> = OnceLock::new();
+    *PX.get_or_init(|| LENGTH_UNIT_NAMES.iter().position(|&name| name == "px").unwrap() as u8)
+}
+
 fn length_unit_kinds() -> &'static [LengthUnitKind] {
     static KINDS: OnceLock<Vec<LengthUnitKind>> = OnceLock::new();
     KINDS.get_or_init(|| {
@@ -1485,7 +1490,11 @@ pub unsafe extern "C" fn rust_compute_font_style(absolutized_value: *const c_voi
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compute_letter_or_word_spacing(absolutized_value: *const c_void) -> FfiComputedNumber {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| match unsafe { &*(absolutized_value as *const StyleValueData) } {
+    abort_on_panic(|| compute_letter_or_word_spacing_value(unsafe { &*(absolutized_value as *const StyleValueData) }))
+}
+
+fn compute_letter_or_word_spacing_value(absolutized_value: &StyleValueData) -> FfiComputedNumber {
+    match absolutized_value {
         StyleValueData::Keyword { keyword } if *keyword == keyword::NORMAL => FfiComputedNumber {
             handled: true,
             unchanged: false,
@@ -1496,7 +1505,7 @@ pub unsafe extern "C" fn rust_compute_letter_or_word_spacing(absolutized_value: 
             unchanged: true,
             value: 0.0,
         },
-    })
+    }
 }
 
 // https://drafts.csswg.org/css-anchor-position/#position-area-computed
@@ -2034,6 +2043,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
     store: *const CascadedPropertyStore,
     parent_snapshot: *const FfiParentSnapshot,
     has_new_font_size: bool,
+    device_pixels_per_css_pixel: f64,
     results: *mut FfiLonghandDriverResults,
 ) {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandDriverEntry);
@@ -2200,15 +2210,15 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             if requires_computation {
                 // Plain length values of properties without a dedicated computed-value rule
                 // absolutize natively; everything else still computes through C++.
-                let mut computed_px = None;
-                let mut handled_natively = !property_has_dedicated_compute_rule(inherited_property_id)
-                    && absolutization_is_identity(value_data);
-                if !handled_natively
-                    && !property_has_dedicated_compute_rule(inherited_property_id)
-                    && let StyleValueData::Length {
-                        value: length_value,
-                        unit,
-                    } = value_data
+                // The specified value absolutized natively when the core can:
+                // Some(None) leaves the value unchanged, Some(Some(px)) resolves it to
+                // a pixel length, and None means C++ must handle it.
+                let absolutized: Option<Option<f64>> = if absolutization_is_identity(value_data) {
+                    Some(None)
+                } else if let StyleValueData::Length {
+                    value: length_value,
+                    unit,
+                } = value_data
                 {
                     let kind = computation_context_kind(inherited_property_id) as usize;
                     let resolution_context = cached_length_resolution_contexts[kind].get_or_insert_with(|| {
@@ -2230,12 +2240,79 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                                 results.font_metrics_depend_on_viewport_metrics = true;
                             }
                         }
-                        computed_px = result.changed.then_some(result.px);
-                        handled_natively = true;
+                        Some(result.changed.then_some(result.px))
+                    } else {
+                        None
                     }
-                }
+                } else {
+                    None
+                };
 
-                if handled_natively {
+                // The computed value: for properties without a dedicated rule the
+                // absolutized value is the computed value; the dedicated rules that
+                // have moved into the core run over the absolutized value here.
+                enum NativeValue {
+                    Unsupported,
+                    Unchanged,
+                    Px(f64),
+                }
+                use crate::property_metadata::property_id as prop;
+                let synthesized_px_length = |absolutized: Option<f64>| {
+                    absolutized.map(|px| StyleValueData::Length {
+                        value: px,
+                        unit: px_length_unit(),
+                    })
+                };
+                let native = match (absolutized, inherited_property_id) {
+                    (
+                        Some(absolutized),
+                        prop::BORDER_BOTTOM_WIDTH
+                        | prop::BORDER_LEFT_WIDTH
+                        | prop::BORDER_RIGHT_WIDTH
+                        | prop::BORDER_TOP_WIDTH
+                        | prop::OUTLINE_WIDTH,
+                    ) => {
+                        let synthesized = synthesized_px_length(absolutized);
+                        let result = compute_border_or_outline_width(
+                            synthesized.as_ref().unwrap_or(value_data),
+                            device_pixels_per_css_pixel,
+                        );
+                        if result.handled {
+                            NativeValue::Px(result.value)
+                        } else {
+                            NativeValue::Unsupported
+                        }
+                    }
+                    (Some(absolutized), prop::LETTER_SPACING | prop::WORD_SPACING) => {
+                        let synthesized = synthesized_px_length(absolutized);
+                        let result = compute_letter_or_word_spacing_value(synthesized.as_ref().unwrap_or(value_data));
+                        if result.handled {
+                            if result.unchanged {
+                                match absolutized {
+                                    Some(px) => NativeValue::Px(px),
+                                    None => NativeValue::Unchanged,
+                                }
+                            } else {
+                                NativeValue::Px(result.value)
+                            }
+                        } else {
+                            NativeValue::Unsupported
+                        }
+                    }
+                    (Some(absolutized), _) if !property_has_dedicated_compute_rule(inherited_property_id) => {
+                        match absolutized {
+                            Some(px) => NativeValue::Px(px),
+                            None => NativeValue::Unchanged,
+                        }
+                    }
+                    _ => NativeValue::Unsupported,
+                };
+
+                if !matches!(native, NativeValue::Unsupported) {
+                    let computed_px = match native {
+                        NativeValue::Px(px) => Some(px),
+                        _ => None,
+                    };
                     pending_stores.push(FfiComputedStoreEntry {
                         property_id,
                         inherited_property_id,
