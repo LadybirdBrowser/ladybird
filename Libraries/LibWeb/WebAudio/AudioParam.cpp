@@ -66,6 +66,14 @@ float AudioParam::intrinsic_value_at_time(double time) const
     return event.parameterization.visit(
         [](SetValue const& parameterization) {
             return parameterization.value;
+        },
+        [&](LinearRamp const& linear_ramp) {
+            if (time >= event.time)
+                return linear_ramp.value;
+
+            VERIFY(cache.minimum_time.has_value());
+            auto progress = static_cast<float>((time - *cache.minimum_time) / (event.time - *cache.minimum_time));
+            return cache.starting_value + (linear_ramp.value - cache.starting_value) * progress;
         });
 }
 
@@ -114,7 +122,7 @@ float AudioParam::event_value_at_time(size_t event_index, double) const
 {
     auto const& event = m_automation_events[event_index];
     return event.parameterization.visit(
-        [](SetValue const& parameterization) {
+        [](OneOf<SetValue, LinearRamp> auto const& parameterization) {
             return parameterization.value;
         });
 }
@@ -131,6 +139,28 @@ AudioParam::ParameterizationCache const& AudioParam::parameterization_cache_for_
             .starting_value = m_default_value,
         };
         return *m_parameterization_cache;
+    }
+
+    // A following ramp parameterization owns the interval before its event time. Other parameterizations fall through
+    // to caching the preceding event below.
+    if (event_index < m_automation_events.size()) {
+        auto cache = m_automation_events[event_index].parameterization.visit(
+            [](SetValue const&) -> Optional<ParameterizationCache> {
+                return {};
+            },
+            [&](LinearRamp const&) -> Optional<ParameterizationCache> {
+                auto const& previous_event = m_automation_events[event_index - 1];
+                return ParameterizationCache {
+                    .event_index = event_index,
+                    .minimum_time = previous_event.time,
+                    .maximum_time = m_automation_events[event_index].time,
+                    .starting_value = event_value_at_time(event_index - 1, previous_event.time),
+                };
+            });
+        if (cache.has_value()) {
+            m_parameterization_cache = cache.release_value();
+            return *m_parameterization_cache;
+        }
     }
 
     auto selected_event_index = event_index - 1;
@@ -158,9 +188,22 @@ void AudioParam::insert_event(AutomationEvent event)
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-linearramptovalueattime
 WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::linear_ramp_to_value_at_time(float value, double end_time)
 {
-    (void)value;
-    (void)end_time;
-    dbgln("FIXME: Implement AudioParam::linear_ramp_to_value_at_time");
+    // A RangeError exception MUST be thrown if endTime is negative or is not a finite number.
+    if (end_time < 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "endTime must not be negative"_utf16 };
+
+    // If endTime is less than currentTime, it is clamped to currentTime.
+    end_time = max(end_time, context()->current_time());
+
+    // If there is no event preceding this event, the linear ramp behaves as if setValueAtTime(value, currentTime) were
+    // called, where value is the current value of the attribute.
+    if (first_event_index_after(end_time) == 0)
+        MUST(set_value_at_time(m_current_value, context()->current_time()));
+
+    insert_event({
+        .time = end_time,
+        .parameterization = LinearRamp { value },
+    });
     return GC::Ref { *this };
 }
 
