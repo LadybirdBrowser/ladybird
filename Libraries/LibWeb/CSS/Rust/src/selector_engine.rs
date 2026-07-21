@@ -1690,6 +1690,60 @@ impl FfiElement {
         unsafe { selector_ffi_element_has_focus_within(self.pointer) }
     }
 
+    fn is_active(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_active(self.pointer) }
+    }
+
+    fn is_checked(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_checked(self.pointer) }
+    }
+
+    fn is_defined(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_defined(self.pointer) }
+    }
+
+    fn is_disabled(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_disabled(self.pointer) }
+    }
+
+    fn is_enabled(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_enabled(self.pointer) }
+    }
+
+    fn is_local_link(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_local_link(self.pointer) }
+    }
+
+    fn is_placeholder_shown(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_placeholder_shown(self.pointer) }
+    }
+
+    fn is_target(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_target(self.pointer) }
+    }
+
+    fn is_unchecked(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_unchecked(self.pointer) }
+    }
+
     unsafe fn local_name<'a>(self) -> DomStringView<'a> {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns a string view borrowed
@@ -1956,6 +2010,15 @@ unsafe extern "C" {
     fn selector_ffi_element_is_focused(element: *const c_void) -> bool;
     fn selector_ffi_element_should_indicate_focus(element: *const c_void) -> bool;
     fn selector_ffi_element_has_focus_within(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_active(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_checked(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_defined(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_disabled(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_enabled(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_local_link(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_placeholder_shown(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_target(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_unchecked(element: *const c_void) -> bool;
     fn selector_ffi_element_local_name(element: *const c_void) -> FfiDomStringView;
     fn selector_ffi_element_class_name(element: *const c_void, index: usize) -> FfiDomStringView;
     fn selector_ffi_element_attribute_count(element: *const c_void) -> usize;
@@ -2561,6 +2624,15 @@ impl<'a> SelectorDom for FfiDom<'a> {
     fn matches_pseudo_class_state(&mut self, element: FfiNode<'a>, pseudo_class: &PseudoClassSelector) -> bool {
         match pseudo_class.pseudo_class {
             PseudoClassType::AnyLink | PseudoClassType::Link => element.as_element().is_link(),
+            PseudoClassType::Active => element.as_element().is_active(),
+            PseudoClassType::Checked => element.as_element().is_checked(),
+            PseudoClassType::Defined => element.as_element().is_defined(),
+            PseudoClassType::Disabled => element.as_element().is_disabled(),
+            PseudoClassType::Enabled => element.as_element().is_enabled(),
+            PseudoClassType::LocalLink => element.as_element().is_local_link(),
+            PseudoClassType::PlaceholderShown => element.as_element().is_placeholder_shown(),
+            PseudoClassType::Target => element.as_element().is_target(),
+            PseudoClassType::Unchecked => element.as_element().is_unchecked(),
             PseudoClassType::Fullscreen => element.as_element().is_fullscreen(),
             PseudoClassType::Focus => element.as_element().is_focused(),
             PseudoClassType::FocusVisible => {

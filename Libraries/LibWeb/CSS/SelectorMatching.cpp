@@ -316,14 +316,10 @@ static bool matches_optimal_value_pseudo_class(DOM::Element const& element, HTML
 static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Element const& element)
 {
     switch (pseudo_class) {
-    case CSS::PseudoClass::Active:
-        return element.is_being_activated();
     case CSS::PseudoClass::Buffering:
         if (auto const* media_element = as_if<HTML::HTMLMediaElement>(element))
             return media_element->blocked();
         return false;
-    case CSS::PseudoClass::Checked:
-        return element.matches_checked_pseudo_class();
     case CSS::PseudoClass::Default: {
         // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-default
         if (auto const* form_associated_element = as_if<HTML::FormAssociatedElement>(element)) {
@@ -340,12 +336,6 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
         }
         return false;
     }
-    case CSS::PseudoClass::Defined:
-        return element.is_defined();
-    case CSS::PseudoClass::Disabled:
-        return element.matches_disabled_pseudo_class();
-    case CSS::PseudoClass::Enabled:
-        return element.matches_enabled_pseudo_class();
     case CSS::PseudoClass::EvenLessGoodValue:
         return matches_optimal_value_pseudo_class(element, HTML::HTMLMeterElement::ValueState::EvenLessGood);
     case CSS::PseudoClass::HighValue:
@@ -394,8 +384,6 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
         }
         return false;
     }
-    case CSS::PseudoClass::LocalLink:
-        return element.matches_local_link_pseudo_class();
     case CSS::PseudoClass::LowValue:
         if (auto const* meter = as_if<HTML::HTMLMeterElement>(element))
             return meter->value() < meter->low();
@@ -432,8 +420,6 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
         if (auto const* media_element = as_if<HTML::HTMLMediaElement>(element))
             return media_element->paused();
         return false;
-    case CSS::PseudoClass::PlaceholderShown:
-        return element.matches_placeholder_shown_pseudo_class();
     case CSS::PseudoClass::Playing:
         if (auto const* media_element = as_if<HTML::HTMLMediaElement>(element))
             return !media_element->paused();
@@ -461,10 +447,6 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
         return false;
     case CSS::PseudoClass::SuboptimalValue:
         return matches_optimal_value_pseudo_class(element, HTML::HTMLMeterElement::ValueState::Suboptimal);
-    case CSS::PseudoClass::Target:
-        return element.is_target();
-    case CSS::PseudoClass::Unchecked:
-        return element.matches_unchecked_pseudo_class();
     case CSS::PseudoClass::UserInvalid:
     case CSS::PseudoClass::UserValid: {
         // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-user-valid
@@ -527,10 +509,15 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
     case CSS::PseudoClass::Visited:
     case CSS::PseudoClass::VolumeLocked:
     case CSS::PseudoClass::__Count:
+    case CSS::PseudoClass::Active:
     case CSS::PseudoClass::AnyLink:
     case CSS::PseudoClass::Autofill:
+    case CSS::PseudoClass::Checked:
+    case CSS::PseudoClass::Defined:
     case CSS::PseudoClass::Dir:
+    case CSS::PseudoClass::Disabled:
     case CSS::PseudoClass::Empty:
+    case CSS::PseudoClass::Enabled:
     case CSS::PseudoClass::FirstChild:
     case CSS::PseudoClass::FirstOfType:
     case CSS::PseudoClass::Focus:
@@ -545,6 +532,7 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
     case CSS::PseudoClass::LastChild:
     case CSS::PseudoClass::LastOfType:
     case CSS::PseudoClass::Link:
+    case CSS::PseudoClass::LocalLink:
     case CSS::PseudoClass::Not:
     case CSS::PseudoClass::NthChild:
     case CSS::PseudoClass::NthLastChild:
@@ -552,10 +540,13 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
     case CSS::PseudoClass::NthOfType:
     case CSS::PseudoClass::OnlyChild:
     case CSS::PseudoClass::OnlyOfType:
+    case CSS::PseudoClass::PlaceholderShown:
     case CSS::PseudoClass::PopoverOpen:
     case CSS::PseudoClass::Root:
     case CSS::PseudoClass::Scope:
     case CSS::PseudoClass::State:
+    case CSS::PseudoClass::Target:
+    case CSS::PseudoClass::Unchecked:
     case CSS::PseudoClass::Where:
         VERIFY_NOT_REACHED();
     }
@@ -654,6 +645,15 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_language);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_focused);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_should_indicate_focus);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_focus_within);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_active);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_checked);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_defined);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_disabled);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_enabled);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_local_link);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_placeholder_shown);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_target);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_unchecked);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_local_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_class_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_attribute_count);
@@ -831,6 +831,51 @@ extern "C" bool selector_ffi_element_has_focus_within(void const* element)
     return ffi_element(element).matches_focus_within_pseudo_class();
 }
 
+extern "C" bool selector_ffi_element_is_active(void const* element)
+{
+    return ffi_element(element).is_being_activated();
+}
+
+extern "C" bool selector_ffi_element_is_checked(void const* element)
+{
+    return ffi_element(element).matches_checked_pseudo_class();
+}
+
+extern "C" bool selector_ffi_element_is_defined(void const* element)
+{
+    return ffi_element(element).is_defined();
+}
+
+extern "C" bool selector_ffi_element_is_disabled(void const* element)
+{
+    return ffi_element(element).matches_disabled_pseudo_class();
+}
+
+extern "C" bool selector_ffi_element_is_enabled(void const* element)
+{
+    return ffi_element(element).matches_enabled_pseudo_class();
+}
+
+extern "C" bool selector_ffi_element_is_local_link(void const* element)
+{
+    return ffi_element(element).matches_local_link_pseudo_class();
+}
+
+extern "C" bool selector_ffi_element_is_placeholder_shown(void const* element)
+{
+    return ffi_element(element).matches_placeholder_shown_pseudo_class();
+}
+
+extern "C" bool selector_ffi_element_is_target(void const* element)
+{
+    return ffi_element(element).is_target();
+}
+
+extern "C" bool selector_ffi_element_is_unchecked(void const* element)
+{
+    return ffi_element(element).matches_unchecked_pseudo_class();
+}
+
 extern "C" CSS::SelectorFFI::DomStringView selector_ffi_element_local_name(void const* element)
 {
     return dom_string_view(ffi_element(element).local_name());
@@ -920,9 +965,14 @@ static bool is_rust_matched_pseudo_class(CSS::PseudoClass pseudo_class)
 {
     return first_is_one_of(
         pseudo_class,
+        CSS::PseudoClass::Active,
         CSS::PseudoClass::AnyLink,
         CSS::PseudoClass::Autofill,
+        CSS::PseudoClass::Checked,
+        CSS::PseudoClass::Defined,
+        CSS::PseudoClass::Disabled,
         CSS::PseudoClass::Empty,
+        CSS::PseudoClass::Enabled,
         CSS::PseudoClass::FirstChild,
         CSS::PseudoClass::FirstOfType,
         CSS::PseudoClass::Focus,
@@ -935,6 +985,7 @@ static bool is_rust_matched_pseudo_class(CSS::PseudoClass pseudo_class)
         CSS::PseudoClass::LastChild,
         CSS::PseudoClass::LastOfType,
         CSS::PseudoClass::Link,
+        CSS::PseudoClass::LocalLink,
         CSS::PseudoClass::Not,
         CSS::PseudoClass::NthChild,
         CSS::PseudoClass::NthLastChild,
@@ -942,6 +993,7 @@ static bool is_rust_matched_pseudo_class(CSS::PseudoClass pseudo_class)
         CSS::PseudoClass::NthOfType,
         CSS::PseudoClass::OnlyChild,
         CSS::PseudoClass::OnlyOfType,
+        CSS::PseudoClass::PlaceholderShown,
         CSS::PseudoClass::PopoverOpen,
         CSS::PseudoClass::Root,
         CSS::PseudoClass::Scope,
@@ -950,6 +1002,8 @@ static bool is_rust_matched_pseudo_class(CSS::PseudoClass pseudo_class)
         CSS::PseudoClass::Heading,
         CSS::PseudoClass::Lang,
         CSS::PseudoClass::State,
+        CSS::PseudoClass::Target,
+        CSS::PseudoClass::Unchecked,
         CSS::PseudoClass::Visited,
         CSS::PseudoClass::VolumeLocked);
 }
