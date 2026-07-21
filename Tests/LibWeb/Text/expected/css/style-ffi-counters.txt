@@ -1,0 +1,4 @@
+has counters: true
+all zero after reset: true
+longhand driver ran: true
+longhand loop called back into C++: true

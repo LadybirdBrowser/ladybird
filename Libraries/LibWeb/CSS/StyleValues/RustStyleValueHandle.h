@@ -25,6 +25,7 @@ public:
         : m_value(value)
     {
         VERIFY(m_value);
+        StyleValueFFI::rust_style_ffi_note_style_value_created();
     }
 
     RustStyleValueHandle(RustStyleValueHandle&& other)

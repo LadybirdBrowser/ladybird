@@ -63,6 +63,7 @@
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -945,6 +946,26 @@ JS::Object* Internals::get_style_invalidation_counters()
 void Internals::reset_style_invalidation_counters()
 {
     window().associated_document().reset_style_invalidation_counters();
+}
+
+JS::Object* Internals::style_ffi_counters()
+{
+    auto object = JS::Object::create(realm(), nullptr);
+    auto const counter_count = CSS::StyleValueFFI::rust_style_ffi_counter_count();
+    for (size_t index = 0; index < counter_count; ++index) {
+        auto const* name = reinterpret_cast<char const*>(CSS::StyleValueFFI::rust_style_ffi_counter_name(index));
+        auto const value = CSS::StyleValueFFI::rust_style_ffi_counter_value(index);
+        object->define_direct_property(
+            Utf16FlyString::from_utf8(StringView { name, strlen(name) }),
+            JS::Value(static_cast<double>(value)),
+            JS::default_attributes);
+    }
+    return object;
+}
+
+void Internals::reset_style_ffi_counters()
+{
+    CSS::StyleValueFFI::rust_style_ffi_counters_reset();
 }
 
 JS::Object* Internals::style_group_sharing_info(DOM::Element& element)

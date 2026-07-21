@@ -454,6 +454,7 @@ pub unsafe extern "C" fn rust_numeric_type_operate(
     first: *const FfiNumericType,
     second: *const FfiNumericType,
 ) -> FfiNumericType {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
     crate::abort_on_panic(|| {
         let first = unsafe { &*first }.to_calc();
         let second = unsafe { &*second }.to_calc();
@@ -856,6 +857,7 @@ unsafe fn children_from_raw(children: *const *const CalcNode, count: usize) -> V
 /// order number, angle, flex, frequency, length, percentage, resolution, time.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_calc_node_create_numeric_dimension(kind: u8, value: f64, unit: u8) -> *const CalcNode {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         let numeric = match kind {
             0 => CalcNumericValue::Number {
@@ -877,6 +879,7 @@ pub extern "C" fn rust_calc_node_create_numeric_dimension(kind: u8, value: f64, 
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_calc_node_create_channel_keyword(channel: u8) -> *const CalcNode {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| handle(CalcNode::ChannelKeyword(channel)))
 }
 
@@ -891,6 +894,7 @@ pub unsafe extern "C" fn rust_calc_node_create_variadic(
     children: *const *const CalcNode,
     count: usize,
 ) -> *const CalcNode {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         let children = unsafe { children_from_raw(children, count) };
         let node = match kind {
@@ -913,6 +917,7 @@ pub unsafe extern "C" fn rust_calc_node_create_variadic(
 /// `child` must be a valid transferred handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_create_unary(kind: u8, child: *const CalcNode) -> *const CalcNode {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         let child = unsafe { Arc::from_raw(child) };
         let node = match kind {
@@ -945,6 +950,7 @@ pub unsafe extern "C" fn rust_calc_node_create_binary(
     first: *const CalcNode,
     second: *const CalcNode,
 ) -> *const CalcNode {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         let first = unsafe { Arc::from_raw(first) };
         let second = unsafe { Arc::from_raw(second) };
@@ -980,6 +986,7 @@ pub unsafe extern "C" fn rust_calc_node_create_clamp(
     center: *const CalcNode,
     max: *const CalcNode,
 ) -> *const CalcNode {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         handle(CalcNode::Clamp {
             min: unsafe { Arc::from_raw(min) },
@@ -998,6 +1005,7 @@ pub unsafe extern "C" fn rust_calc_node_create_progress(
     from: *const CalcNode,
     to: *const CalcNode,
 ) -> *const CalcNode {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         handle(CalcNode::Progress {
             no_clamp,
@@ -1016,6 +1024,7 @@ pub unsafe extern "C" fn rust_calc_node_create_round(
     value: *const CalcNode,
     interval: *const CalcNode,
 ) -> *const CalcNode {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         handle(CalcNode::Round {
             strategy,
@@ -1035,6 +1044,7 @@ pub unsafe extern "C" fn rust_calc_node_create_random(
     step: *const CalcNode,
     sharing: *const std::ffi::c_void,
 ) -> *const CalcNode {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         handle(CalcNode::Random {
             min: unsafe { Arc::from_raw(min) },
@@ -1056,6 +1066,7 @@ pub unsafe extern "C" fn rust_calc_node_create_non_math_function(
     value: *const std::ffi::c_void,
     numeric_type: *const FfiNumericType,
 ) -> *const CalcNode {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         handle(CalcNode::NonMathFunction {
             value: unsafe { RetainedStyleValue::from_shell_pointer(value) },
@@ -1068,6 +1079,7 @@ pub unsafe extern "C" fn rust_calc_node_create_non_math_function(
 /// `node` must be a valid transferred handle; this releases it.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeRetainReleaseEntry);
     crate::abort_on_panic(|| drop(unsafe { Arc::from_raw(node) }));
 }
 
@@ -1078,6 +1090,7 @@ pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
 /// `node` must be a valid calculation node pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_retain(node: *const CalcNode) {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeRetainReleaseEntry);
     crate::abort_on_panic(|| unsafe { Arc::increment_strong_count(node) });
 }
 
@@ -1095,6 +1108,7 @@ pub unsafe extern "C" fn rust_calc_node_determine_type(
     resolve_as_is_number: bool,
     resolve_as_base: u8,
 ) -> FfiNumericType {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
     crate::abort_on_panic(|| {
         let resolve_as = resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base);
         let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
@@ -1108,6 +1122,7 @@ pub unsafe extern "C" fn rust_calc_node_determine_type(
 /// `node` must be a valid calculation node pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_contains_percentage(node: *const CalcNode) -> bool {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
     crate::abort_on_panic(|| unsafe { &*node }.contains_percentage())
 }
 
@@ -2720,6 +2735,7 @@ pub unsafe extern "C" fn rust_calc_resolve(
     context: *const FfiCalcResolutionContext,
     apply_censoring_and_clamping: bool,
 ) -> FfiResolvedCalc {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
     use crate::style_value::StyleValueData;
     crate::abort_on_panic(|| {
         let StyleValueData::Calculated {
@@ -2824,11 +2840,13 @@ struct CalcSerializer<'a> {
 #[allow(dead_code)]
 impl CalcSerializer<'_> {
     fn literal(&self, text: &str) {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcSerializationCallback);
         unsafe { (self.callbacks.append_literal)(self.callbacks.context, text.as_ptr(), text.len()) };
     }
 
     fn leaf(&self, value: CalcNumericValue) {
         let (kind, raw, unit) = value.leaf_parts();
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcSerializationCallback);
         unsafe { (self.callbacks.append_numeric_leaf)(self.callbacks.context, kind, raw, unit, self.resolved_mode) };
     }
 
@@ -2960,6 +2978,7 @@ impl CalcSerializer<'_> {
         } = &**node
         {
             self.literal("random(");
+            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcSerializationCallback);
             let appended =
                 unsafe { (self.callbacks.append_style_value)(self.callbacks.context, sharing.shell_pointer()) };
             if appended {
@@ -3103,11 +3122,13 @@ impl CalcSerializer<'_> {
             //    rules for it and return the result.
             CalcNode::Numeric(value) => self.leaf(*value),
             CalcNode::NonMathFunction { value, .. } => {
+                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcSerializationCallback);
                 unsafe { (self.callbacks.append_style_value)(self.callbacks.context, value.shell_pointer()) };
             }
             // AD-HOC: ChannelKeyword nodes, used for relative-color syntax, serialize directly as
             //         the keyword name.
             CalcNode::ChannelKeyword(channel) => unsafe {
+                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcSerializationCallback);
                 (self.callbacks.append_channel_name)(self.callbacks.context, *channel);
             },
             // 4. If root is a Negate node, let s be a string initially containing "(-1 * ".
@@ -3223,6 +3244,7 @@ pub unsafe extern "C" fn rust_calc_serialize(
     callbacks: *const FfiCalcSerializationCallbacks,
     resolved_mode: bool,
 ) {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
     use crate::style_value::StyleValueData;
     crate::abort_on_panic(|| {
         let StyleValueData::Calculated {
@@ -3446,6 +3468,7 @@ pub unsafe extern "C" fn rust_calc_equals(
         b: *const std::ffi::c_void,
     ) -> bool,
 ) -> bool {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
     use crate::style_value::StyleValueData;
     crate::abort_on_panic(|| {
         let tree_of = |data: *const std::ffi::c_void| {
@@ -3504,6 +3527,7 @@ fn node_kind_code(node: &CalcNode) -> u8 {
 /// `node` must be a valid calculation node pointer for all read functions.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_kind(node: *const CalcNode) -> u8 {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
     crate::abort_on_panic(|| node_kind_code(unsafe { &*node }))
 }
 
@@ -3518,6 +3542,7 @@ pub unsafe extern "C" fn rust_calc_node_children(
     out_children: *mut *const CalcNode,
     capacity: usize,
 ) -> usize {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
     crate::abort_on_panic(|| {
         let mut count = 0;
         unsafe { &*node }.for_each_child(&mut |child| {
@@ -3541,6 +3566,7 @@ pub unsafe extern "C" fn rust_calc_node_numeric_leaf(
     out_value: *mut f64,
     out_unit: *mut u8,
 ) -> bool {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
     crate::abort_on_panic(|| {
         let CalcNode::Numeric(value) = (unsafe { &*node }) else {
             return false;
@@ -3562,6 +3588,7 @@ pub unsafe extern "C" fn rust_calc_node_numeric_leaf(
 /// `node` must be a valid calculation node pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_style_value(node: *const CalcNode) -> *const std::ffi::c_void {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
     crate::abort_on_panic(|| match unsafe { &*node } {
         CalcNode::Random { sharing, .. } => sharing.shell_pointer(),
         CalcNode::NonMathFunction { value, .. } => value.shell_pointer(),
@@ -3579,6 +3606,7 @@ pub unsafe extern "C" fn rust_calc_node_numeric_type(
     calculated: *const std::ffi::c_void,
     node: *const CalcNode,
 ) -> FfiNumericType {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
     use crate::style_value::StyleValueData;
     crate::abort_on_panic(|| {
         let StyleValueData::Calculated {
@@ -3619,6 +3647,7 @@ pub unsafe extern "C" fn rust_calc_simplify_tree(
     resolve_as_is_number: bool,
     resolve_as_base: u8,
 ) -> *const CalcNode {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
     crate::abort_on_panic(|| {
         let context = unsafe { &*context };
         unsafe { Arc::increment_strong_count(root) };
@@ -3652,6 +3681,7 @@ pub unsafe extern "C" fn rust_calc_absolutize(
     calculated: *const std::ffi::c_void,
     context: *const FfiCalcResolutionContext,
 ) -> FfiAbsolutizedCalc {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
     use crate::style_value::StyleValueData;
     crate::abort_on_panic(|| {
         let StyleValueData::Calculated {

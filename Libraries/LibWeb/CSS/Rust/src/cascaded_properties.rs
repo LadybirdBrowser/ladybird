@@ -294,6 +294,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_property(
     store: *const CascadedPropertyStore,
     property_id: u16,
 ) -> *const c_void {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadedStoreQueryEntry);
     abort_on_panic(|| match unsafe { &*store }.last_entry(property_id) {
         Some(entry) => entry.value.shell_pointer(),
         None => std::ptr::null(),
@@ -309,6 +310,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_source_slot(
     store: *const CascadedPropertyStore,
     property_id: u16,
 ) -> i64 {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadedStoreQueryEntry);
     abort_on_panic(|| match unsafe { &*store }.last_entry(property_id) {
         Some(entry) => entry.source_slot as i64,
         None => -1,
@@ -367,6 +369,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_apply_property_list(
     unset_data: *const c_void,
     callbacks: *const FfiCascadeApplicationCallbacks,
 ) {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeApplyDeclarationListEntry);
     abort_on_panic(|| {
         let store = unsafe { &mut *store };
         let callbacks = unsafe { &*callbacks };
@@ -387,6 +390,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_apply_property_list(
             let declared_value = unsafe { &*(declaration.data as *const StyleValueData) };
             let declared_is_unresolved = matches!(declared_value, StyleValueData::Unresolved { .. });
 
+            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadePropertyDisallowedCallback);
             if unsafe { (callbacks.is_property_disallowed)(context, declaration.property_id) }
                 && !declared_is_unresolved
             {
@@ -401,7 +405,9 @@ pub unsafe extern "C" fn rust_cascaded_properties_apply_property_list(
             let mut data = declaration.data;
 
             if declared_is_unresolved {
+                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeResolveUnresolvedCallback);
                 shell = unsafe { (callbacks.resolve_unresolved)(context, declaration.property_id, shell) };
+                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeDataOfCallback);
                 data = unsafe { (callbacks.data_of)(context, shell) };
             }
 
@@ -432,12 +438,19 @@ pub unsafe extern "C" fn rust_cascaded_properties_apply_property_list(
             );
 
             expand_shorthands_with(
-                &|shell| unsafe { (callbacks.data_of)(context, shell) },
-                &|shell| unsafe { (callbacks.create_pending_substitution)(context, shell) },
+                &|shell| {
+                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeDataOfCallback);
+                    unsafe { (callbacks.data_of)(context, shell) }
+                },
+                &|shell| {
+                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadePendingSubstitutionCallback);
+                    unsafe { (callbacks.create_pending_substitution)(context, shell) }
+                },
                 declaration.property_id,
                 shell,
                 data,
                 &mut |longhand_id, longhand_shell, longhand_data| {
+                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadePropertyDisallowedCallback);
                     if unsafe { (callbacks.is_property_disallowed)(context, longhand_id) } {
                         return;
                     }
@@ -486,6 +499,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_apply_property_list(
                             source_shadow_root_identity,
                         );
                         if slot >= 0 {
+                            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeSourceSlotCallback);
                             unsafe { (callbacks.assign_source_slot)(context, slot as u32) };
                         }
                     }

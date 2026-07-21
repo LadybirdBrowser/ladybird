@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The style FFI counters measure boundary crossings between C++ and the
+    // Rust style core. Exact values vary as boundaries move, so this test only
+    // checks that the surface works: counters exist, reset to zero, and the
+    // longhand driver counter advances once per recomputed element.
+    test(() => {
+        internals.updateStyle();
+        internals.resetStyleFfiCounters();
+        const afterReset = internals.styleFfiCounters();
+        const keys = Object.keys(afterReset);
+        println(`has counters: ${keys.length > 0}`);
+        println(`all zero after reset: ${keys.every(key => afterReset[key] === 0)}`);
+
+        const element = document.createElement("div");
+        document.body.appendChild(element);
+        internals.updateStyle();
+        const afterOneElement = internals.styleFfiCounters();
+        println(`longhand driver ran: ${afterOneElement.longhandDriverEntries >= 1}`);
+        println(`longhand loop called back into C++: ${afterOneElement.longhandComputeAndStoreCallbacks >= 100}`);
+    });
+</script>

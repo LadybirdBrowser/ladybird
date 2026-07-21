@@ -1731,6 +1731,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
     type Element = FfiNode<'a>;
 
     fn matches_universal_selector(&mut self, element: FfiNode<'a>, name: &QualifiedName) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
         // SAFETY: `FfiDom` guarantees that the context, element, and retained simple selector
         // remain valid for the duration of matching.
         unsafe {
@@ -1748,6 +1749,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         name: &QualifiedName,
         mode: TagNameMatchingMode,
     ) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
         // SAFETY: `FfiDom` guarantees that the context, element, and retained simple selector
         // remain valid for the duration of matching.
         unsafe {
@@ -1761,18 +1763,21 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn matches_id_selector(&mut self, element: FfiNode<'a>, id: &NameSelector) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
         // SAFETY: `FfiDom` guarantees that the element and retained simple selector remain valid
         // for the duration of matching.
         unsafe { selector_ffi_matches_id(element.as_element_pointer(), id.cxx_simple_selector.as_ptr()) }
     }
 
     fn matches_class_selector(&mut self, element: FfiNode<'a>, class_name: &NameSelector) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
         // SAFETY: `FfiDom` guarantees that the element and retained simple selector remain valid
         // for the duration of matching.
         unsafe { selector_ffi_matches_class(element.as_element_pointer(), class_name.cxx_simple_selector.as_ptr()) }
     }
 
     fn matches_attribute_selector(&mut self, element: FfiNode<'a>, attribute: &AttributeSelector) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
         // SAFETY: `FfiDom` guarantees that the context, element, and retained simple selector
         // remain valid for the duration of matching.
         unsafe {
@@ -1787,33 +1792,39 @@ impl<'a> SelectorDom for FfiDom<'a> {
     fn matches_pseudo_class_state(&mut self, element: FfiNode<'a>, pseudo_class: &PseudoClassSelector) -> bool {
         match pseudo_class.pseudo_class {
             PseudoClassType::Lang => pseudo_class.languages.iter().any(|language| {
+                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
                 // SAFETY: `FfiDom` guarantees that the element remains valid, and the string
                 // view is borrowed from `language` for this callback only.
                 unsafe { selector_ffi_matches_language(element.as_element_pointer(), ffi_string_view(language)) }
             }),
             PseudoClassType::Dir => match pseudo_class.direction {
-                // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
-                Some(Direction::LeftToRight) => unsafe {
-                    selector_ffi_matches_direction(element.as_element_pointer(), FfiDirection::LeftToRight)
-                },
-                // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
-                Some(Direction::RightToLeft) => unsafe {
-                    selector_ffi_matches_direction(element.as_element_pointer(), FfiDirection::RightToLeft)
-                },
+                Some(Direction::LeftToRight) => {
+                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
+                    // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
+                    unsafe { selector_ffi_matches_direction(element.as_element_pointer(), FfiDirection::LeftToRight) }
+                }
+                Some(Direction::RightToLeft) => {
+                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
+                    // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
+                    unsafe { selector_ffi_matches_direction(element.as_element_pointer(), FfiDirection::RightToLeft) }
+                }
                 _ => false,
             },
             PseudoClassType::State => {
-                pseudo_class.identifier.is_some()
+                pseudo_class.identifier.is_some() && {
+                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
                     // SAFETY: `FfiDom` guarantees that the element and retained simple selector
                     // remain valid for the duration of matching.
-                    && unsafe {
+                    unsafe {
                         selector_ffi_matches_state(
                             element.as_element_pointer(),
                             pseudo_class.cxx_simple_selector.as_ptr(),
                         )
                     }
+                }
             }
             PseudoClassType::Heading => {
+                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
                 // SAFETY: `FfiDom` guarantees that the element remains valid, and the levels array
                 // remains valid for this callback.
                 unsafe {
@@ -1825,6 +1836,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
                 }
             }
             _ => {
+                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
                 // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
                 unsafe {
                     selector_ffi_matches_pseudo_class(element.as_element_pointer(), pseudo_class.pseudo_class as u8)
@@ -1834,6 +1846,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn parent_element(&mut self, element: FfiNode<'a>, shadow_host: Option<FfiNode<'a>>) -> Option<FfiNode<'a>> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
         // SAFETY: `FfiDom` guarantees that the input handles remain valid. The callback returns
         // either null or another live element borrowed for the same lifetime.
         unsafe {
@@ -1845,36 +1858,42 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn parent_element_in_light_tree(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_parent_element_in_light_tree(element.as_element_pointer())) }
     }
 
     fn previous_element_sibling(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_previous_element_sibling(element.as_element_pointer())) }
     }
 
     fn next_element_sibling(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_next_element_sibling(element.as_element_pointer())) }
     }
 
     fn first_element_child(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_first_element_child(element.as_element_pointer())) }
     }
 
     fn first_element_descendant(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_first_element_descendant(element.as_element_pointer())) }
     }
 
     fn next_element_descendant(&mut self, element: FfiNode<'a>, root: FfiNode<'a>) -> Option<FfiNode<'a>> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
         // SAFETY: `FfiDom` guarantees that both element handles remain valid for this call. The
         // callback returns either null or another live element borrowed for the same lifetime.
         unsafe {
@@ -1886,26 +1905,31 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn has_no_element_or_nonempty_text_children(&mut self, element: FfiNode<'a>) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
         // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
         unsafe { selector_ffi_has_no_element_or_nonempty_text_children(element.as_element_pointer()) }
     }
 
     fn has_same_type(&mut self, first: FfiNode<'a>, second: FfiNode<'a>) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
         // SAFETY: `FfiDom` guarantees that both elements remain valid for matching.
         unsafe { selector_ffi_has_same_type(first.as_element_pointer(), second.as_element_pointer()) }
     }
 
     fn is_document_root(&mut self, element: FfiNode<'a>) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
         // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
         unsafe { selector_ffi_is_document_root(element.as_element_pointer()) }
     }
 
     fn is_shadow_tree_slot(&mut self, element: FfiNode<'a>) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
         // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
         unsafe { selector_ffi_is_shadow_tree_slot(element.as_element_pointer()) }
     }
 
     fn slotted_parent(&mut self, element: FfiNode<'a>) -> Option<(FfiNode<'a>, Option<FfiNode<'a>>)> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
         // SAFETY: `FfiDom` guarantees that the context and element remain valid. The callback
         // returns null or live elements borrowed for the same lifetime.
         unsafe { self.element_and_shadow_host(selector_ffi_slotted_parent(self.context, element.as_element_pointer())) }
@@ -1918,6 +1942,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         allow_same_shadow_root_scope: bool,
         shadow_host: Option<FfiNode<'a>>,
     ) -> Option<(FfiNode<'a>, Option<FfiNode<'a>>)> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
         let identifiers = identifiers
             .iter()
             .map(|identifier| ffi_string_view(identifier))
@@ -1941,6 +1966,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         if !self.collects_selector_involvement_metadata {
             return;
         }
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and element remain valid for matching.
         unsafe {
             selector_ffi_note_structural_pseudo_class(self.context, element.as_element_pointer(), pseudo_class as u8);
@@ -1951,6 +1977,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         if !self.collects_selector_involvement_metadata {
             return;
         }
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and element remain valid for matching.
         unsafe { selector_ffi_note_has_pseudo_class(self.context, element.as_element_pointer()) }
     }
@@ -1964,6 +1991,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         if !self.collects_selector_involvement_metadata {
             return;
         }
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and element remain valid for matching.
         unsafe {
             selector_ffi_note_sibling_combinator(
@@ -1979,6 +2007,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         if !self.collects_selector_involvement_metadata {
             return;
         }
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and anchor remain valid for matching.
         unsafe { selector_ffi_note_has_sibling_combinator_anchor(self.context, anchor.as_element_pointer()) }
     }
@@ -1987,6 +2016,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         if !self.collects_selector_involvement_metadata {
             return;
         }
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and element remain valid for matching.
         unsafe { selector_ffi_note_has_sibling_combinator_element(self.context, element.as_element_pointer()) }
     }
@@ -1995,6 +2025,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         if !self.collects_selector_involvement_metadata || !self.inside_has_argument {
             return;
         }
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and element remain valid for matching.
         unsafe { selector_ffi_note_has_scope_element(self.context, element.as_element_pointer()) }
     }
@@ -2004,6 +2035,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn enter_has_argument_matching(&mut self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
         let previous_value = self.inside_has_argument;
         self.inside_has_argument = true;
         // SAFETY: `FfiDom` guarantees that the context remains valid for matching.
@@ -2012,12 +2044,14 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn leave_has_argument_matching(&mut self, previous_value: bool) {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
         self.inside_has_argument = previous_value;
         // SAFETY: `FfiDom` guarantees that the context remains valid for matching.
         unsafe { selector_ffi_set_inside_has_argument(self.context, previous_value) }
     }
 
     fn has_cache_get(&mut self, selector_id: u64, anchor: FfiNode<'a>) -> Option<bool> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and anchor remain valid for matching.
         match unsafe { selector_ffi_has_cache_get(self.context, selector_id, anchor.as_element_pointer()) } {
             HasCacheResult::NotCached => None,
@@ -2027,11 +2061,13 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn has_cache_set(&mut self, selector_id: u64, anchor: FfiNode<'a>, result: bool) {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and anchor remain valid for matching.
         unsafe { selector_ffi_has_cache_set(self.context, selector_id, anchor.as_element_pointer(), result) }
     }
 
     fn should_reject_has_argument(&mut self, selector: &CompiledSelector, anchor: FfiNode<'a>) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context, retained selector, and anchor remain valid
         // for matching.
         unsafe {
@@ -2308,6 +2344,7 @@ pub unsafe extern "C" fn rust_selector_matches(
     collects_selector_involvement_metadata: bool,
     inside_has_argument: bool,
 ) -> bool {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMatchEntry);
     abort_on_panic(|| {
         assert!(!selector.is_null());
         assert!(!element.is_null());
@@ -2355,6 +2392,7 @@ pub unsafe extern "C" fn rust_selector_matches_originating_element(
     collects_selector_involvement_metadata: bool,
     inside_has_argument: bool,
 ) -> bool {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMatchEntry);
     abort_on_panic(|| {
         assert!(!selector.is_null());
         assert!(!element.is_null());

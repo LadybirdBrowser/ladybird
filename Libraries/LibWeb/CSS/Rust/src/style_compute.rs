@@ -264,6 +264,7 @@ pub unsafe extern "C" fn rust_absolutize_length(
     unit: u8,
     context: *const FfiLengthResolutionContext,
 ) -> FfiAbsolutizedLength {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| absolutize_length(value, unit as usize, unsafe { &*context }))
 }
 
@@ -427,6 +428,7 @@ fn compute_font_width(value: &StyleValueData) -> FfiComputedNumber {
 /// `absolutized_value` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compute_font_width(absolutized_value: *const c_void) -> FfiComputedNumber {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let value = unsafe { &*(absolutized_value as *const StyleValueData) };
         compute_font_width(value)
@@ -578,6 +580,7 @@ pub unsafe extern "C" fn rust_compute_font_size(
     inherited_math_depth: i32,
     default_font_size_raw: i32,
 ) -> FfiComputedNumber {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let value = unsafe { &*(absolutized_value as *const StyleValueData) };
         compute_font_size(
@@ -634,6 +637,7 @@ pub unsafe extern "C" fn rust_recascade_font_size_step(
     default_size_raw: i32,
     length_resolution_context: *const FfiLengthResolutionContext,
 ) -> FfiFontSizeRecascadeStep {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let value = unsafe { &*(value as *const StyleValueData) };
         let current_size = CssPixels::from_raw(current_size_raw);
@@ -707,6 +711,7 @@ pub unsafe extern "C" fn rust_recascade_font_size_step(
 /// styles must be computed even when no rules matched.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_pseudo_element_has_implicit_style(pseudo_element: u8) -> bool {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     use crate::selector_engine::PseudoElementType;
     abort_on_panic(|| {
         matches!(
@@ -729,6 +734,7 @@ pub extern "C" fn rust_pseudo_element_has_implicit_style(pseudo_element: u8) -> 
 /// `content_value` must be null or point at a valid StyleValueData.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_pseudo_element_content_bails(content_value: *const c_void, pseudo_element: u8) -> bool {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     use crate::selector_engine::PseudoElementType;
     abort_on_panic(|| {
         let content_is_normal = if content_value.is_null() {
@@ -1061,6 +1067,7 @@ pub unsafe extern "C" fn rust_style_value_is_computationally_independent(
     data_of: unsafe extern "C" fn(shell: *const c_void) -> *const c_void,
     decide_fallback: unsafe extern "C" fn(shell: *const c_void) -> bool,
 ) -> FfiIndependenceDecision {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StyleValueQueryEntry);
     abort_on_panic(|| {
         match value_is_computationally_independent(
             unsafe { &*(data as *const StyleValueData) },
@@ -1123,6 +1130,7 @@ pub unsafe extern "C" fn rust_compute_math_depth(
     inherited_math_depth: i32,
     inherited_math_style_is_compact: bool,
 ) -> FfiComputedNumber {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let value = unsafe { &*(absolutized_value as *const StyleValueData) };
         compute_math_depth(value, inherited_math_depth, inherited_math_style_is_compact)
@@ -1188,6 +1196,7 @@ pub unsafe extern "C" fn rust_compute_line_height(
     absolutized_value: *const c_void,
     computed_font_size_raw: i32,
 ) -> FfiComputedLineHeight {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let value = unsafe { &*(absolutized_value as *const StyleValueData) };
         compute_line_height(value, CssPixels::from_raw(computed_font_size_raw))
@@ -1257,6 +1266,7 @@ pub unsafe extern "C" fn rust_compute_border_or_outline_width(
     absolutized_value: *const c_void,
     device_pixels_per_css_pixel: f64,
 ) -> FfiComputedNumber {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let value = unsafe { &*(absolutized_value as *const StyleValueData) };
         compute_border_or_outline_width(value, device_pixels_per_css_pixel)
@@ -1305,6 +1315,7 @@ fn compute_corner_shape_parameter(value: &StyleValueData) -> FfiComputedNumber {
 /// `absolutized_value` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compute_corner_shape_parameter(absolutized_value: *const c_void) -> FfiComputedNumber {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let value = unsafe { &*(absolutized_value as *const StyleValueData) };
         compute_corner_shape_parameter(value)
@@ -1323,6 +1334,7 @@ pub unsafe extern "C" fn rust_font_family_is_monospace(
     data: *const c_void,
     data_of: unsafe extern "C" fn(shell: *const c_void) -> *const c_void,
 ) -> bool {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let StyleValueData::ValueList { values, .. } = (unsafe { &*(data as *const StyleValueData) }) else {
             return false;
@@ -1358,6 +1370,7 @@ pub unsafe extern "C" fn rust_font_feature_settings_computed_order(
     tag_less: unsafe extern "C" fn(*mut c_void, usize, usize) -> bool,
     out_indices: *mut u32,
 ) -> usize {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         // Keep the last occurrence of each tag; later declarations take precedence.
         let mut survivors: Vec<usize> = (0..count)
@@ -1405,6 +1418,7 @@ pub unsafe extern "C" fn rust_value_depends_on_inherited_info_for_property(
     value: *const c_void,
     property_id: u16,
 ) -> bool {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StyleValueQueryEntry);
     use crate::property_metadata::property_id as prop;
     abort_on_panic(|| {
         let value = unsafe { &*(value as *const StyleValueData) };
@@ -1441,6 +1455,7 @@ pub struct FfiFontStyleComputation {
 /// `absolutized_value` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compute_font_style(absolutized_value: *const c_void) -> FfiFontStyleComputation {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         if let StyleValueData::Keyword { keyword } = (unsafe { &*(absolutized_value as *const StyleValueData) })
             && let Some(font_style_keyword) = keyword_to_font_style_keyword(*keyword)
@@ -1464,6 +1479,7 @@ pub unsafe extern "C" fn rust_compute_font_style(absolutized_value: *const c_voi
 /// `absolutized_value` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compute_letter_or_word_spacing(absolutized_value: *const c_void) -> FfiComputedNumber {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| match unsafe { &*(absolutized_value as *const StyleValueData) } {
         StyleValueData::Keyword { keyword } if *keyword == keyword::NORMAL => FfiComputedNumber {
             handled: true,
@@ -1484,6 +1500,7 @@ pub unsafe extern "C" fn rust_compute_letter_or_word_spacing(absolutized_value: 
 // as equivalent. It serializes with the logical keywords in their short forms.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_position_area_short_keyword(keyword: u16) -> u16 {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     match keyword {
         keyword::BLOCK_START | keyword::INLINE_START => keyword::START,
         keyword::BLOCK_END | keyword::INLINE_END => keyword::END,
@@ -1512,6 +1529,7 @@ pub struct FfiPositionAreaRemap {
 /// https://drafts.csswg.org/css-anchor-position/#position-area-computed
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_position_area_span_all_remap(block_keyword: u16, inline_keyword: u16) -> FfiPositionAreaRemap {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     let remapped = |keyword| FfiPositionAreaRemap {
         remapped: true,
         keyword,
@@ -1745,6 +1763,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
     has_inheritance_parent: bool,
     has_new_font_size: bool,
 ) {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandDriverEntry);
     abort_on_panic(|| {
         let callbacks = unsafe { &*callbacks };
         let context = callbacks.context;
@@ -1764,6 +1783,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             let is_logical_alias = table_row_maps(&LOGICAL_ALIAS_TABLE, property_id);
             if is_logical_alias || table_row_maps(&PHYSICAL_TO_LOGICAL_TABLE, property_id) {
                 let (writing_mode, direction) = *cached_writing_mode_and_direction.get_or_insert_with(|| {
+                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandWritingModeCallback);
                     let packed = unsafe { (callbacks.writing_mode_and_direction)(context) };
                     ((packed & 0xff) as u8, (packed >> 8) as u8)
                 });
@@ -1783,6 +1803,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
 
             let mut value: *const c_void = std::ptr::null();
             if let Some((value_shell, value_data, important)) = store.winning_declaration(cascaded_property_id) {
+                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandCascadedValueCallback);
                 unsafe { (callbacks.on_cascaded_value)(context, property_id, value_shell, important) };
                 value = value_data;
             } else if property_id == crate::property_metadata::property_id::FONT_SIZE && has_new_font_size {
@@ -1801,6 +1822,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
 
             let inherit_fetch_attempted = decision.should_inherit && has_inheritance_parent;
             if inherit_fetch_attempted {
+                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandInheritedValueCallback);
                 value = unsafe {
                     (callbacks.fetch_inherited_value)(
                         context,
@@ -1817,9 +1839,11 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 decision.use_initial_without_inherit
             };
             if use_initial {
+                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandInitialValueCallback);
                 unsafe { (callbacks.use_initial_value)(context, property_id) };
             }
 
+            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandComputeAndStoreCallback);
             unsafe { (callbacks.compute_and_store)(context, property_id, inherited_property_id) };
         }
     });
@@ -1848,9 +1872,11 @@ pub struct FfiCascadeStageCallbacks {
 /// `callbacks` must point at a valid callback table.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_drive_cascade_origins(callbacks: *const FfiCascadeStageCallbacks) {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeOriginDriverEntry);
     abort_on_panic(|| {
         let callbacks = unsafe { &*callbacks };
         let context = callbacks.context;
+        crate::ffi_stats::bump_by(crate::ffi_stats::FfiOp::CascadeStageCallback, 7);
         unsafe {
             (callbacks.cascade_user_agent_rules)(context, false);
             (callbacks.cascade_user_rules)(context, false);
@@ -1976,13 +2002,20 @@ fn expand_shorthands(
 ) {
     let context = callbacks.context;
     expand_shorthands_with(
-        &|shell| unsafe { (callbacks.data_of)(context, shell) },
-        &|shell| unsafe { (callbacks.create_pending_substitution)(context, shell) },
+        &|shell| {
+            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeDataOfCallback);
+            unsafe { (callbacks.data_of)(context, shell) }
+        },
+        &|shell| {
+            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadePendingSubstitutionCallback);
+            unsafe { (callbacks.create_pending_substitution)(context, shell) }
+        },
         property_id,
         shell,
         data,
-        &mut |longhand_id, longhand_shell, _longhand_data| unsafe {
-            (callbacks.set_longhand_property)(context, longhand_id, longhand_shell);
+        &mut |longhand_id, longhand_shell, _longhand_data| {
+            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::ShorthandSetLonghandCallback);
+            unsafe { (callbacks.set_longhand_property)(context, longhand_id, longhand_shell) };
         },
     );
 }
@@ -2000,6 +2033,7 @@ pub unsafe extern "C" fn rust_for_each_property_expanding_shorthands(
     shell: *const c_void,
     data: *const c_void,
 ) {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::ShorthandExpansionEntry);
     abort_on_panic(|| expand_shorthands(unsafe { &*callbacks }, property_id, shell, data));
 }
 
@@ -2158,6 +2192,7 @@ fn required_box_type_transformation(input: &FfiBoxTypeTransformationInput) -> Bo
 pub unsafe extern "C" fn rust_transform_box_type(
     input: *const FfiBoxTypeTransformationInput,
 ) -> FfiBoxTypeTransformation {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let input = unsafe { &*input };
         let display = input.display;
@@ -2262,6 +2297,7 @@ pub struct FfiEffectiveOverflow {
 /// overflow-y is neither visible nor clip.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_resolve_effective_overflow_keywords(overflow_x: u16, overflow_y: u16) -> FfiEffectiveOverflow {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let is_visible_or_clip = |keyword: u16| keyword == keyword::VISIBLE || keyword == keyword::CLIP;
         let mut result = FfiEffectiveOverflow {
@@ -2311,6 +2347,7 @@ pub extern "C" fn rust_compute_text_align(
     parent_text_align: u16,
     parent_direction_is_ltr: bool,
 ) -> FfiTextAlignAdjustment {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let unchanged = FfiTextAlignAdjustment {
             changed: false,
@@ -2367,6 +2404,7 @@ pub unsafe extern "C" fn rust_compute_font_weight(
     absolutized_value: *const c_void,
     inherited_font_weight: f64,
 ) -> FfiComputedNumber {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let value = unsafe { &*(absolutized_value as *const StyleValueData) };
         compute_font_weight(value, inherited_font_weight)
