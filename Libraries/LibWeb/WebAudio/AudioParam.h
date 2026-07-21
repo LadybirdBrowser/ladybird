@@ -32,7 +32,7 @@ public:
     GC::Ref<BaseAudioContext> context() const { return m_context; }
 
     float value() const;
-    void set_value(float);
+    WebIDL::ExceptionOr<void> set_value(float);
 
     // https://webaudio.github.io/web-audio-api/#computedvalue
     float intrinsic_value_at_time(double) const;
@@ -117,7 +117,7 @@ private:
     ParameterizationCache const& parameterization_cache_for_time(double) const;
 
     // https://webaudio.github.io/web-audio-api/#dfn-automation-event
-    void insert_event(AutomationEvent);
+    WebIDL::ExceptionOr<void> insert_event(AutomationEvent);
 
     GC::Ref<BaseAudioContext> m_context;
 

@@ -45,12 +45,13 @@ float AudioParam::value() const
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-value
-void AudioParam::set_value(float value)
+WebIDL::ExceptionOr<void> AudioParam::set_value(float value)
 {
     // Setting this attribute has the effect of assigning the requested value to the [[current value]] slot, and calling
     // the setValueAtTime() method with the current AudioContext's currentTime and [[current value]].
     m_current_value = value;
-    MUST(set_value_at_time(m_current_value, context()->current_time()));
+    TRY(set_value_at_time(m_current_value, context()->current_time()));
+    return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#computedvalue
@@ -122,10 +123,10 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::set_value_at_time(float val
     // If startTime is less than currentTime, it is clamped to currentTime.
     start_time = max(start_time, context()->current_time());
 
-    insert_event({
+    TRY(insert_event({
         .time = start_time,
         .parameterization = SetValue { value },
-    });
+    }));
     return GC::Ref { *this };
 }
 
@@ -247,7 +248,7 @@ AudioParam::ParameterizationCache const& AudioParam::parameterization_cache_for_
 }
 
 // https://webaudio.github.io/web-audio-api/#dfn-automation-event
-void AudioParam::insert_event(AutomationEvent event)
+WebIDL::ExceptionOr<void> AudioParam::insert_event(AutomationEvent event)
 {
     // If an event is added at a time where there are already events, it is placed after them but before later events.
     event.id = m_next_event_id++;
@@ -256,6 +257,7 @@ void AudioParam::insert_event(AutomationEvent event)
         return event_time < existing_event.time;
     });
     m_parameterization_cache = {};
+    return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-linearramptovalueattime
@@ -275,10 +277,10 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::linear_ramp_to_value_at_tim
     if (event_index == 0)
         MUST(set_value_at_time(m_current_value, context()->current_time()));
 
-    insert_event({
+    TRY(insert_event({
         .time = end_time,
         .parameterization = LinearRamp { value, ramp_start },
-    });
+    }));
     return GC::Ref { *this };
 }
 
@@ -303,10 +305,10 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::exponential_ramp_to_value_a
     if (event_index == 0)
         MUST(set_value_at_time(m_current_value, context()->current_time()));
 
-    insert_event({
+    TRY(insert_event({
         .time = end_time,
         .parameterization = ExponentialRamp { value, ramp_start },
-    });
+    }));
     return GC::Ref { *this };
 }
 

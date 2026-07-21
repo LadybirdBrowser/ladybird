@@ -144,11 +144,11 @@ WebIDL::ExceptionOr<void> PannerNode::set_position(float x, float y, float z)
 {
     // This method is DEPRECATED. It is equivalent to setting positionX.value, positionY.value, and positionZ.value
     // attribute directly with the x, y and z parameters, respectively.
-    // FIXME: Consequently, if any of the positionX, positionY, and positionZ AudioParams have an automation curve
-    //        set using setValueCurveAtTime() at the time this method is called, a NotSupportedError MUST be thrown.
-    m_position_x->set_value(x);
-    m_position_y->set_value(y);
-    m_position_z->set_value(z);
+    // Consequently, if any of the positionX, positionY, and positionZ AudioParams have an automation curve set using
+    // setValueCurveAtTime() at the time this method is called, a NotSupportedError MUST be thrown.
+    TRY(m_position_x->set_value(x));
+    TRY(m_position_y->set_value(y));
+    TRY(m_position_z->set_value(z));
     return {};
 }
 
@@ -157,11 +157,11 @@ WebIDL::ExceptionOr<void> PannerNode::set_orientation(float x, float y, float z)
 {
     // This method is DEPRECATED. It is equivalent to setting orientationX.value, orientationY.value, and
     // orientationZ.value attribute directly, with the x, y and z parameters, respectively.
-    // FIXME: Consequently, if any of the orientationX, orientationY, and orientationZ AudioParams have an automation
-    //        curve set using setValueCurveAtTime() at the time this method is called, a NotSupportedError MUST be thrown.
-    m_orientation_x->set_value(x);
-    m_orientation_y->set_value(y);
-    m_orientation_z->set_value(z);
+    // Consequently, if any of the orientationX, orientationY, and orientationZ AudioParams have an automation curve set
+    // using setValueCurveAtTime() at the time this method is called, a NotSupportedError MUST be thrown.
+    TRY(m_orientation_x->set_value(x));
+    TRY(m_orientation_y->set_value(y));
+    TRY(m_orientation_z->set_value(z));
     return {};
 }
 

@@ -39,13 +39,13 @@ WebIDL::ExceptionOr<void> AudioListener::set_position(float x, float y, float z)
     // This method is DEPRECATED. It is equivalent to setting positionX.value, positionY.value, and
     // positionZ.value directly with the given x, y, and z values, respectively.
 
-    // FIXME: Consequently, any of the positionX, positionY, and positionZ AudioParams for this
-    //        AudioListener have an automation curve set using setValueCurveAtTime() at the time this
-    //        method is called, a NotSupportedError MUST be thrown.
+    // Consequently, if any of the positionX, positionY, and positionZ AudioParams for this AudioListener have an
+    // automation curve set using setValueCurveAtTime() at the time this method is called, a NotSupportedError MUST be
+    // thrown.
 
-    m_position_x->set_value(x);
-    m_position_y->set_value(y);
-    m_position_z->set_value(z);
+    TRY(m_position_x->set_value(x));
+    TRY(m_position_y->set_value(y));
+    TRY(m_position_z->set_value(z));
 
     return {};
 }
@@ -57,16 +57,15 @@ WebIDL::ExceptionOr<void> AudioListener::set_orientation(float x, float y, float
     // forwardZ.value, upX.value, upY.value, and upZ.value directly with the given x, y, z, xUp,
     // yUp, and zUp values, respectively.
 
-    // FIXME: Consequently, if any of the forwardX, forwardY, forwardZ, upX, upY and upZ
-    //        AudioParams have an automation curve set using setValueCurveAtTime() at the time this
-    //        method is called, a NotSupportedError MUST be thrown.
+    // Consequently, if any of the forwardX, forwardY, forwardZ, upX, upY and upZ AudioParams have an automation curve
+    // set using setValueCurveAtTime() at the time this method is called, a NotSupportedError MUST be thrown.
 
-    m_forward_x->set_value(x);
-    m_forward_y->set_value(y);
-    m_forward_z->set_value(z);
-    m_up_x->set_value(x_up);
-    m_up_y->set_value(y_up);
-    m_up_z->set_value(z_up);
+    TRY(m_forward_x->set_value(x));
+    TRY(m_forward_y->set_value(y));
+    TRY(m_forward_z->set_value(z));
+    TRY(m_up_x->set_value(x_up));
+    TRY(m_up_y->set_value(y_up));
+    TRY(m_up_z->set_value(z_up));
 
     return {};
 }
