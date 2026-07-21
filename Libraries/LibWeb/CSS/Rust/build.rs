@@ -565,8 +565,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("FfiElement", "Element"),
         ("FfiElementQualifiedName", "ElementQualifiedName"),
         ("FfiInternedStringList", "InternedStringList"),
-        ("FfiDefaultNamespaceType", "DefaultNamespaceType"),
-        ("FfiNamespaceContext", "NamespaceContext"),
+        ("FfiResolvedNamespaceType", "ResolvedNamespaceType"),
+        ("FfiResolvedNamespace", "ResolvedNamespace"),
         ("FfiElementAndShadowHost", "ElementAndShadowHost"),
     ] {
         selector_config

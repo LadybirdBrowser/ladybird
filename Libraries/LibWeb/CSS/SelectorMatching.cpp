@@ -663,28 +663,6 @@ static CSS::SelectorFFI::Element element_to_ffi(DOM::Element const* element)
     };
 }
 
-static CSS::SelectorFFI::NamespaceContext namespace_context_to_ffi(MatchContext const& context)
-{
-    if (!context.style_sheet_for_rule || !context.style_sheet_for_rule->default_namespace_rule()) {
-        return {
-            .default_namespace_type = CSS::SelectorFFI::DefaultNamespaceType::Any,
-            .default_namespace = nullptr,
-        };
-    }
-
-    auto const& default_namespace = context.style_sheet_for_rule->default_namespace_rule()->namespace_uri();
-    if (default_namespace.is_empty()) {
-        return {
-            .default_namespace_type = CSS::SelectorFFI::DefaultNamespaceType::None,
-            .default_namespace = nullptr,
-        };
-    }
-    return {
-        .default_namespace_type = CSS::SelectorFFI::DefaultNamespaceType::Named,
-        .default_namespace = reinterpret_cast<uintptr_t const*>(&default_namespace),
-    };
-}
-
 bool matches(CSS::Selector const& selector, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host,
     MatchContext& context, GC::Ptr<DOM::ParentNode const> scope)
 {
@@ -696,8 +674,7 @@ bool matches(CSS::Selector const& selector, DOM::AbstractElement const& target, 
         &context,
         scope.ptr(),
         context.collect_per_element_selector_involvement_metadata,
-        context.inside_has_argument_match,
-        namespace_context_to_ffi(context));
+        context.inside_has_argument_match);
 }
 
 bool matches_originating_element_for_pseudo_element(CSS::Selector const& selector, CSS::PseudoElement pseudo_element, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope)
@@ -712,8 +689,7 @@ bool matches_originating_element_for_pseudo_element(CSS::Selector const& selecto
         &context,
         scope.ptr(),
         context.collect_per_element_selector_involvement_metadata,
-        context.inside_has_argument_match,
-        namespace_context_to_ffi(context));
+        context.inside_has_argument_match);
 }
 
 static MatchContext& rust_match_context(void* context)
@@ -807,7 +783,8 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_class_names_are_case_insensit
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_namespace_is_null);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_html_element_in_html_document);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_document_root);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_universal);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_default_namespace);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_resolve_namespace);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_tag_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_class_quirks);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_attribute);
@@ -844,6 +821,13 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_should_reject_has_argument);
 // to live words only for the duration of the synchronous selector-matching call.
 static_assert(sizeof(Utf16FlyString) == sizeof(uintptr_t));
 static_assert(alignof(Utf16FlyString) == alignof(uintptr_t));
+
+static uintptr_t interned_string_identity(Utf16FlyString const& string)
+{
+    uintptr_t identity;
+    __builtin_memcpy(&identity, &string, sizeof(identity));
+    return identity;
+}
 
 extern "C" CSS::SelectorFFI::ElementQualifiedName selector_ffi_element_qualified_name(void const* element)
 {
@@ -891,11 +875,56 @@ extern "C" bool selector_ffi_element_is_document_root(void const* element)
     return is<HTML::HTMLHtmlElement>(ffi_element(element));
 }
 
-extern "C" bool selector_ffi_matches_universal(void* context, void const* element, void const* cxx_simple_selector)
+extern "C" CSS::SelectorFFI::ResolvedNamespace selector_ffi_default_namespace(void* context)
 {
     auto& match_context = rust_match_context(context);
-    auto const& qualified_name = ffi_simple_selector(cxx_simple_selector).qualified_name();
-    return matches_namespace(qualified_name, ffi_element(element), match_context.style_sheet_for_rule);
+    if (!match_context.style_sheet_for_rule || !match_context.style_sheet_for_rule->default_namespace_rule()) {
+        return {
+            .namespace_type = CSS::SelectorFFI::ResolvedNamespaceType::Missing,
+            .namespace_ = 0,
+        };
+    }
+
+    auto const& namespace_ = match_context.style_sheet_for_rule->default_namespace_rule()->namespace_uri();
+    if (namespace_.is_empty()) {
+        return {
+            .namespace_type = CSS::SelectorFFI::ResolvedNamespaceType::Null,
+            .namespace_ = 0,
+        };
+    }
+    return {
+        .namespace_type = CSS::SelectorFFI::ResolvedNamespaceType::Named,
+        .namespace_ = interned_string_identity(namespace_),
+    };
+}
+
+extern "C" CSS::SelectorFFI::ResolvedNamespace selector_ffi_resolve_namespace(void* context, StringView prefix)
+{
+    auto& match_context = rust_match_context(context);
+    if (!match_context.style_sheet_for_rule) {
+        return {
+            .namespace_type = CSS::SelectorFFI::ResolvedNamespaceType::Missing,
+            .namespace_ = 0,
+        };
+    }
+
+    auto namespace_ = match_context.style_sheet_for_rule->namespace_uri(ffi_string_view(prefix));
+    if (!namespace_.has_value()) {
+        return {
+            .namespace_type = CSS::SelectorFFI::ResolvedNamespaceType::Missing,
+            .namespace_ = 0,
+        };
+    }
+    if (namespace_->is_empty()) {
+        return {
+            .namespace_type = CSS::SelectorFFI::ResolvedNamespaceType::Null,
+            .namespace_ = 0,
+        };
+    }
+    return {
+        .namespace_type = CSS::SelectorFFI::ResolvedNamespaceType::Named,
+        .namespace_ = interned_string_identity(*namespace_),
+    };
 }
 
 extern "C" bool selector_ffi_matches_tag_name(void* context, void const* element, void const* cxx_simple_selector, TagNameMatchingMode matching_mode)

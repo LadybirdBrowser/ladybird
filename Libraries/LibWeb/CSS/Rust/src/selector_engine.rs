@@ -1663,17 +1663,23 @@ pub struct FfiInternedStringList {
 #[repr(u8)]
 // NB: Constructed by C++ through the FFI.
 #[allow(dead_code)]
-pub enum FfiDefaultNamespaceType {
-    Any,
-    None,
+pub enum FfiResolvedNamespaceType {
+    Missing,
+    Null,
     Named,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
-pub struct FfiNamespaceContext {
-    pub default_namespace_type: FfiDefaultNamespaceType,
-    pub default_namespace: *const usize,
+pub struct FfiResolvedNamespace {
+    pub namespace_type: FfiResolvedNamespaceType,
+    pub namespace_: usize,
+}
+
+impl FfiResolvedNamespace {
+    fn namespace(self) -> Option<usize> {
+        (self.namespace_type == FfiResolvedNamespaceType::Named).then_some(self.namespace_)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1738,11 +1744,9 @@ unsafe extern "C" {
     fn selector_ffi_element_is_html_element_in_html_document(element: *const c_void) -> bool;
     fn selector_ffi_element_is_document_root(element: *const c_void) -> bool;
 
-    fn selector_ffi_matches_universal(
-        context: *mut c_void,
-        element: *const c_void,
-        cxx_simple_selector: *const c_void,
-    ) -> bool;
+    fn selector_ffi_default_namespace(context: *mut c_void) -> FfiResolvedNamespace;
+    fn selector_ffi_resolve_namespace(context: *mut c_void, prefix: FfiStringView) -> FfiResolvedNamespace;
+
     fn selector_ffi_matches_tag_name(
         context: *mut c_void,
         element: *const c_void,
@@ -1813,7 +1817,6 @@ struct FfiCallScope;
 
 struct FfiDom<'a> {
     context: *mut c_void,
-    namespace_context: FfiNamespaceContext,
     marker: PhantomData<&'a mut FfiCallScope>,
     // NB: Both flags are mirrored here so that the hot matching loops can skip the note_*
     //     callbacks without crossing the FFI; the common case collects no metadata.
@@ -1827,11 +1830,9 @@ impl<'a> FfiDom<'a> {
         _call_scope: &'a mut FfiCallScope,
         collects_selector_involvement_metadata: bool,
         inside_has_argument: bool,
-        namespace_context: FfiNamespaceContext,
     ) -> Self {
         Self {
             context,
-            namespace_context,
             marker: PhantomData,
             collects_selector_involvement_metadata,
             inside_has_argument,
@@ -1875,6 +1876,29 @@ impl<'a> FfiDom<'a> {
             self.element(value.shadow_host)
         }))
     }
+
+    fn default_namespace(&self) -> FfiResolvedNamespace {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The matching context remains live for this matching call.
+        unsafe { selector_ffi_default_namespace(self.context) }
+    }
+
+    fn resolve_namespace(&self, prefix: &[u16]) -> FfiResolvedNamespace {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The matching context remains live, and the prefix view is borrowed for this
+        // accessor call only.
+        unsafe { selector_ffi_resolve_namespace(self.context, ffi_string_view(prefix)) }
+    }
+
+    fn matches_resolved_namespace(&self, element: FfiNode<'a>, namespace: FfiResolvedNamespace) -> bool {
+        match namespace.namespace_type {
+            FfiResolvedNamespaceType::Missing => false,
+            FfiResolvedNamespaceType::Null => element.as_element().namespace_is_null(),
+            FfiResolvedNamespaceType::Named => namespace
+                .namespace()
+                .is_some_and(|namespace| element.as_element().qualified_name().namespace() == Some(namespace)),
+        }
+    }
 }
 
 impl<'a> SelectorDom for FfiDom<'a> {
@@ -1882,30 +1906,17 @@ impl<'a> SelectorDom for FfiDom<'a> {
 
     fn matches_universal_selector(&mut self, element: FfiNode<'a>, name: &QualifiedName) -> bool {
         match name.namespace_type {
-            NamespaceType::Default => match self.namespace_context.default_namespace_type {
-                FfiDefaultNamespaceType::Any => return true,
-                FfiDefaultNamespaceType::None => return element.as_element().namespace_is_null(),
-                FfiDefaultNamespaceType::Named => {
-                    // SAFETY: C++ guarantees that the default namespace remains pinned for this
-                    // matching call.
-                    let default_namespace = unsafe { self.namespace_context.default_namespace.as_ref().copied() };
-                    return default_namespace
-                        .is_some_and(|namespace| element.as_element().qualified_name().namespace() == Some(namespace));
-                }
-            },
-            NamespaceType::None => return element.as_element().namespace_is_null(),
-            NamespaceType::Any => return true,
-            NamespaceType::Named => {}
-        }
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
-        // SAFETY: `FfiDom` guarantees that the context, element, and retained simple selector
-        // remain valid for the duration of matching.
-        unsafe {
-            selector_ffi_matches_universal(
-                self.context,
-                element.as_element_pointer(),
-                name.cxx_simple_selector.as_ptr(),
-            )
+            NamespaceType::Default => {
+                let namespace = self.default_namespace();
+                namespace.namespace_type == FfiResolvedNamespaceType::Missing
+                    || self.matches_resolved_namespace(element, namespace)
+            }
+            NamespaceType::None => element.as_element().namespace_is_null(),
+            NamespaceType::Any => true,
+            NamespaceType::Named => {
+                let namespace = self.resolve_namespace(&name.namespace);
+                self.matches_resolved_namespace(element, namespace)
+            }
         }
     }
 
@@ -2467,7 +2478,6 @@ unsafe fn with_ffi_dom<R>(
             &mut call_scope,
             configuration.collects_selector_involvement_metadata,
             configuration.inside_has_argument,
-            configuration.namespace_context,
         )
     };
     // SAFETY: The caller guarantees that `element` wraps a live DOM element.
@@ -2484,7 +2494,6 @@ struct FfiDomConfiguration {
     context: *mut c_void,
     collects_selector_involvement_metadata: bool,
     inside_has_argument: bool,
-    namespace_context: FfiNamespaceContext,
 }
 
 /// # Safety
@@ -2547,7 +2556,6 @@ pub unsafe extern "C" fn rust_selector_matches(
     scope: *const c_void,
     collects_selector_involvement_metadata: bool,
     inside_has_argument: bool,
-    namespace_context: FfiNamespaceContext,
 ) -> bool {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMatchEntry);
     abort_on_panic(|| {
@@ -2567,7 +2575,6 @@ pub unsafe extern "C" fn rust_selector_matches(
                     context,
                     collects_selector_involvement_metadata,
                     inside_has_argument,
-                    namespace_context,
                 },
                 |element, shadow_host, scope, dom| {
                     let target = MatchTarget {
@@ -2599,7 +2606,6 @@ pub unsafe extern "C" fn rust_selector_matches_originating_element(
     scope: *const c_void,
     collects_selector_involvement_metadata: bool,
     inside_has_argument: bool,
-    namespace_context: FfiNamespaceContext,
 ) -> bool {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMatchEntry);
     abort_on_panic(|| {
@@ -2619,7 +2625,6 @@ pub unsafe extern "C" fn rust_selector_matches_originating_element(
                     context,
                     collects_selector_involvement_metadata,
                     inside_has_argument,
-                    namespace_context,
                 },
                 |element, shadow_host, scope, dom| {
                     matches_originating_element_for_pseudo_element(
