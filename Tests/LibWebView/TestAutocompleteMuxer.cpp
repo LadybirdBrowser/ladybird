@@ -331,21 +331,52 @@ TEST_CASE(equivalent_origin_presentations_do_not_crowd_out_deep_pages)
     }));
 }
 
-TEST_CASE(origin_presentations_with_distinct_titles_are_not_coalesced)
+TEST_CASE(untitled_origin_presentation_does_not_bridge_distinct_titles)
 {
-    auto bare_host = history("https://example.com/"sv, 1000);
-    bare_host.title = "Bare host"_string;
-    auto www_host = history("https://www.example.com/"sv, 990);
-    www_host.title = "WWW host"_string;
+    auto first_titled = history("https://example.com/"sv, 1000);
+    first_titled.title = "First title"_string;
+    auto untitled = history("https://www.example.com/"sv, 1100);
+    auto second_titled = history("https://user@example.com/"sv, 900);
+    second_titled.title = "Second title"_string;
 
     auto results = WebView::mux_autocomplete_suggestions(
         "example"sv,
         {},
-        { move(bare_host), move(www_host) },
+        { move(first_titled), move(untitled), move(second_titled) },
         {},
         8);
 
     EXPECT_EQ(results.size(), 2u);
+    EXPECT(results.contains([](auto const& result) {
+        return result.text == "https://www.example.com/"sv;
+    }));
+    EXPECT(results.contains([](auto const& result) {
+        return result.text == "https://user@example.com/"sv;
+    }));
+}
+
+TEST_CASE(untitled_origin_group_adopts_a_later_title)
+{
+    auto untitled = history("https://www.example.com/"sv, 1100);
+    auto first_titled = history("https://example.com/"sv, 1000);
+    first_titled.title = "First title"_string;
+    auto second_titled = history("https://user@example.com/"sv, 900);
+    second_titled.title = "Second title"_string;
+
+    auto results = WebView::mux_autocomplete_suggestions(
+        "example"sv,
+        {},
+        { move(untitled), move(first_titled), move(second_titled) },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 2u);
+    EXPECT(results.contains([](auto const& result) {
+        return result.text == "https://www.example.com/"sv;
+    }));
+    EXPECT(results.contains([](auto const& result) {
+        return result.text == "https://user@example.com/"sv;
+    }));
 }
 
 TEST_CASE(a_scheme_does_not_disable_origin_diversity)

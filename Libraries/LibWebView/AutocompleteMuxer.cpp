@@ -118,8 +118,6 @@ static bool are_equivalent_origin_presentations(AutocompleteSuggestion const& le
         return false;
     if (!is_origin_navigation(left) || !is_origin_navigation(right))
         return false;
-    if (left.title.has_value() && right.title.has_value() && left.title != right.title)
-        return false;
 
     auto left_url = URL::Parser::basic_parse(left.text);
     auto right_url = URL::Parser::basic_parse(right.text);
@@ -136,15 +134,28 @@ static void coalesce_equivalent_origin_presentations(Vector<AutocompleteSuggesti
 {
     Vector<AutocompleteSuggestion> representatives;
     representatives.ensure_capacity(candidates.size());
+    Vector<Optional<String>> group_titles;
+    group_titles.ensure_capacity(candidates.size());
 
     for (auto& candidate : candidates) {
-        auto existing_index = representatives.find_first_index_if([&](auto const& existing) {
-            return are_equivalent_origin_presentations(existing, candidate);
-        });
+        Optional<size_t> existing_index;
+        for (size_t index = 0; index < representatives.size(); ++index) {
+            if (!are_equivalent_origin_presentations(representatives[index], candidate))
+                continue;
+            if (group_titles[index].has_value() && candidate.title.has_value() && group_titles[index] != candidate.title)
+                continue;
+            existing_index = index;
+            break;
+        }
+
         if (!existing_index.has_value()) {
+            group_titles.append(candidate.title);
             representatives.append(move(candidate));
             continue;
         }
+
+        if (!group_titles[*existing_index].has_value() && candidate.title.has_value())
+            group_titles[*existing_index] = candidate.title;
 
         auto& existing = representatives[*existing_index];
         if (suggestion_is_better(candidate, existing))
