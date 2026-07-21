@@ -675,6 +675,7 @@ static CSS::SelectorFFI::Element element_to_ffi(DOM::Element const* element)
         .namespace_is_null = !element->namespace_uri().has_value() || element->namespace_uri()->is_empty(),
         .is_html_element_in_html_document = element->namespace_uri() == Namespace::HTML
             && element->document().document_type() == DOM::Document::Type::HTML,
+        .is_document_root = is<HTML::HTMLHtmlElement>(*element),
     };
 }
 
@@ -833,7 +834,6 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_first_element_descendant);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_next_element_descendant);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_has_no_element_or_nonempty_text_children);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_has_same_type);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_is_document_root);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_is_shadow_tree_slot);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_slotted_parent);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_part_parent);
@@ -1160,11 +1160,6 @@ extern "C" bool selector_ffi_has_same_type(void const* first, void const* second
     auto const& second_element = ffi_element(second);
     return first_element.local_name() == second_element.local_name()
         && first_element.namespace_uri() == second_element.namespace_uri();
-}
-
-extern "C" bool selector_ffi_is_document_root(void const* element)
-{
-    return is<HTML::HTMLHtmlElement>(ffi_element(element));
 }
 
 extern "C" bool selector_ffi_is_shadow_tree_slot(void const* element)

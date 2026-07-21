@@ -1582,6 +1582,7 @@ pub struct FfiElement {
     pub class_names_are_case_insensitive: bool,
     pub namespace_is_null: bool,
     pub is_html_element_in_html_document: bool,
+    pub is_document_root: bool,
 }
 
 impl FfiElement {
@@ -1719,7 +1720,6 @@ unsafe extern "C" {
     fn selector_ffi_next_element_descendant(element: *const c_void, root: *const c_void) -> FfiElement;
     fn selector_ffi_has_no_element_or_nonempty_text_children(element: *const c_void) -> bool;
     fn selector_ffi_has_same_type(first: *const c_void, second: *const c_void) -> bool;
-    fn selector_ffi_is_document_root(element: *const c_void) -> bool;
 
     fn selector_ffi_is_shadow_tree_slot(element: *const c_void) -> bool;
     fn selector_ffi_slotted_parent(context: *mut c_void, element: *const c_void) -> FfiElementAndShadowHost;
@@ -1802,6 +1802,7 @@ impl<'a> FfiDom<'a> {
                 class_names_are_case_insensitive: false,
                 namespace_is_null: true,
                 is_html_element_in_html_document: false,
+                is_document_root: false,
             },
             marker: PhantomData,
         })
@@ -2059,9 +2060,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn is_document_root(&mut self, element: FfiNode<'a>) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
-        // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
-        unsafe { selector_ffi_is_document_root(element.as_element_pointer()) }
+        element.as_element().is_document_root
     }
 
     fn is_shadow_tree_slot(&mut self, element: FfiNode<'a>) -> bool {

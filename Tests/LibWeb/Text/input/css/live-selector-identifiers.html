@@ -43,5 +43,9 @@
         shadow_target.id = "shadow-new";
         shadow_target.className = "shadow-new-class";
         println(`shadow mutated match: ${shadow_target.matches("#shadow-new.shadow-new-class")}`);
+
+        const disconnected_html = document.createElement("html");
+        println(`document root: ${document.documentElement.matches(":root")}`);
+        println(`disconnected html root: ${disconnected_html.matches(":root")}`);
     });
 </script>
