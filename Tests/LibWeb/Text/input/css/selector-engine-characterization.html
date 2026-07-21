@@ -19,6 +19,8 @@
         println(`subsequent sibling: ${document.querySelector(".third").matches(".first ~ .third")}`);
         println(`attribute insensitive: ${outer.matches('[data-mode="mixed" i]')}`);
         println(`attribute sensitive: ${outer.matches('[data-mode="mixed" s]')}`);
+        outer.setAttribute("data-mode", "changed");
+        println(`attribute after mutation: ${outer.matches('[data-mode="changed"]')}/${outer.matches('[data-mode="mixed" i]')}`);
         println(`logical: ${second.matches(":is(.first, .second):not(.third)")}`);
         println(`positional: ${second.matches(":nth-child(2 of .item)")}`);
         println(`relative descendant: ${outer.matches(":has(.second .needle)")}`);
@@ -28,6 +30,7 @@
         println(`query selector all: ${outer.querySelectorAll(":scope > .item").length}`);
         const xml = document.implementation.createDocument("urn:example", "ex:root");
         const child = xml.createElementNS("urn:example", "ex:Child");
+        child.setAttribute("other", "no");
         child.setAttributeNS("urn:attributes", "attr:value", "yes");
         xml.documentElement.appendChild(child);
 

@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
 #include <LibWeb/CSS/AncestorFilter.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/PseudoClass.h>
@@ -36,17 +37,6 @@
 #include <LibWeb/SelectorRustFFI.h>
 
 namespace Web::SelectorMatching {
-
-static bool fly_string_equals_utf16(Utf16FlyString const& fly_string, Utf16View utf16_string)
-{
-    return utf16_string == fly_string.view();
-}
-
-template<typename... Names>
-static bool fly_string_is_one_of_utf16(Utf16View utf16_string, Names const&... names)
-{
-    return (fly_string_equals_utf16(names, utf16_string) || ...);
-}
 
 static u32 salted_tag_name_hash(Utf16FlyString const& tag_name)
 {
@@ -724,8 +714,6 @@ static bool is_in_null_namespace(DOM::Element const& element)
     return !element.namespace_uri().has_value() || element.namespace_uri()->is_empty();
 }
 
-using CSS::SelectorFFI::AttributeCaseType;
-using CSS::SelectorFFI::AttributeMatchType;
 using CSS::SelectorFFI::Combinator;
 using CSS::SelectorFFI::Direction;
 using CSS::SelectorFFI::HasCacheResult;
@@ -744,9 +732,10 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_html_element_in_html_docum
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_document_root);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_local_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_class_name);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_attribute_count);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_attribute);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_default_namespace);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_resolve_namespace);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_attribute);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_pseudo_class);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_language);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_direction);
@@ -864,6 +853,27 @@ extern "C" CSS::SelectorFFI::DomStringView selector_ffi_element_class_name(void 
     return dom_string_view(classes[index]);
 }
 
+extern "C" size_t selector_ffi_element_attribute_count(void const* element)
+{
+    auto count = ffi_element(element).attribute_list_size();
+    VERIFY(count <= NumericLimits<u32>::max());
+    return count;
+}
+
+extern "C" CSS::SelectorFFI::DomAttribute selector_ffi_element_attribute(void const* element, size_t index)
+{
+    auto const& target = ffi_element(element);
+    VERIFY(index < target.attribute_list_size());
+    auto const* attribute = target.attributes()->item(static_cast<u32>(index));
+    VERIFY(attribute);
+    return {
+        .local_name = interned_string_identity(attribute->local_name()),
+        .namespace_ = attribute->namespace_uri().has_value() ? interned_string_identity(*attribute->namespace_uri()) : 0,
+        .has_namespace = attribute->namespace_uri().has_value(),
+        .value = dom_string_view(attribute->value()),
+    };
+}
+
 extern "C" CSS::SelectorFFI::ResolvedNamespace selector_ffi_default_namespace(void* context)
 {
     auto& match_context = rust_match_context(context);
@@ -914,136 +924,6 @@ extern "C" CSS::SelectorFFI::ResolvedNamespace selector_ffi_resolve_namespace(vo
         .namespace_type = CSS::SelectorFFI::ResolvedNamespaceType::Named,
         .namespace_ = interned_string_identity(*namespace_),
     };
-}
-
-static bool matches_attribute_value(CSS::Selector::SimpleSelector::Attribute::MatchType match_type, Utf16View selector_value, Utf16View element_value, CaseSensitivity case_sensitivity)
-{
-    bool const case_insensitive = case_sensitivity == CaseSensitivity::CaseInsensitive;
-    auto values_equal = [&](Utf16View first, Utf16View second) {
-        return case_insensitive ? first.equals_ignoring_ascii_case(second) : first == second;
-    };
-
-    switch (match_type) {
-    case CSS::Selector::SimpleSelector::Attribute::MatchType::HasAttribute:
-        return true;
-    case CSS::Selector::SimpleSelector::Attribute::MatchType::ExactValueMatch:
-        return values_equal(element_value, selector_value);
-    case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsWord:
-        if (selector_value.is_empty())
-            return false;
-        return element_value.split_view(' ', SplitBehavior::Nothing).contains([&](auto value) { return values_equal(value, selector_value); });
-    case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsString:
-        return !selector_value.is_empty()
-            && (case_insensitive ? element_value.find_code_unit_offset_ignoring_case(selector_value).has_value() : element_value.contains(selector_value));
-    case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithSegment:
-        if (element_value.is_empty())
-            return selector_value.is_empty();
-        if (selector_value.is_empty() || element_value.length_in_code_units() < selector_value.length_in_code_units())
-            return false;
-        if (element_value.length_in_code_units() == selector_value.length_in_code_units())
-            return values_equal(element_value, selector_value);
-        return values_equal(element_value.substring_view(0, selector_value.length_in_code_units()), selector_value)
-            && element_value.code_unit_at(selector_value.length_in_code_units()) == '-';
-    case CSS::Selector::SimpleSelector::Attribute::MatchType::StartsWithString:
-        return !selector_value.is_empty()
-            && selector_value.length_in_code_units() <= element_value.length_in_code_units()
-            && values_equal(element_value.substring_view(0, selector_value.length_in_code_units()), selector_value);
-    case CSS::Selector::SimpleSelector::Attribute::MatchType::EndsWithString:
-        return !selector_value.is_empty()
-            && selector_value.length_in_code_units() <= element_value.length_in_code_units()
-            && values_equal(element_value.substring_view(element_value.length_in_code_units() - selector_value.length_in_code_units()), selector_value);
-    }
-    VERIFY_NOT_REACHED();
-}
-
-extern "C" bool selector_ffi_matches_attribute(void* context, void const* element, void const* cxx_simple_selector)
-{
-    auto& match_context = rust_match_context(context);
-    auto const& target = ffi_element(element);
-    auto const& attribute_selector = ffi_simple_selector(cxx_simple_selector).attribute();
-    auto const& qualified_name = attribute_selector.qualified_name;
-    auto const& attribute_name = qualified_name.name.name;
-    auto const& lowercase_attribute_name = qualified_name.name.lowercase_name;
-    auto const selector_value = attribute_selector.value.utf16_view();
-    auto const match_type = attribute_selector.match_type;
-
-    CaseSensitivity case_sensitivity;
-    switch (attribute_selector.case_type) {
-    case CSS::Selector::SimpleSelector::Attribute::CaseType::CaseSensitiveMatch:
-        case_sensitivity = CaseSensitivity::CaseSensitive;
-        break;
-    case CSS::Selector::SimpleSelector::Attribute::CaseType::CaseInsensitiveMatch:
-        case_sensitivity = CaseSensitivity::CaseInsensitive;
-        break;
-    case CSS::Selector::SimpleSelector::Attribute::CaseType::DefaultMatch:
-        case_sensitivity = target.document().is_html_document()
-                && target.namespace_uri() == Namespace::HTML
-                && qualified_name.namespace_type == CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Default
-                && fly_string_is_one_of_utf16(
-                    attribute_name,
-                    HTML::AttributeNames::accept, HTML::AttributeNames::accept_charset, HTML::AttributeNames::align,
-                    HTML::AttributeNames::alink, HTML::AttributeNames::axis, HTML::AttributeNames::bgcolor, HTML::AttributeNames::charset,
-                    HTML::AttributeNames::checked, HTML::AttributeNames::clear, HTML::AttributeNames::codetype, HTML::AttributeNames::color,
-                    HTML::AttributeNames::compact, HTML::AttributeNames::declare, HTML::AttributeNames::defer, HTML::AttributeNames::dir,
-                    HTML::AttributeNames::direction, HTML::AttributeNames::disabled, HTML::AttributeNames::enctype, HTML::AttributeNames::face,
-                    HTML::AttributeNames::frame, HTML::AttributeNames::hreflang, HTML::AttributeNames::http_equiv, HTML::AttributeNames::lang,
-                    HTML::AttributeNames::language, HTML::AttributeNames::link, HTML::AttributeNames::media, HTML::AttributeNames::method,
-                    HTML::AttributeNames::multiple, HTML::AttributeNames::nohref, HTML::AttributeNames::noresize, HTML::AttributeNames::noshade,
-                    HTML::AttributeNames::nowrap, HTML::AttributeNames::readonly, HTML::AttributeNames::rel, HTML::AttributeNames::rev,
-                    HTML::AttributeNames::rules, HTML::AttributeNames::scope, HTML::AttributeNames::scrolling, HTML::AttributeNames::selected,
-                    HTML::AttributeNames::shape, HTML::AttributeNames::target, HTML::AttributeNames::text, HTML::AttributeNames::type,
-                    HTML::AttributeNames::valign, HTML::AttributeNames::valuetype, HTML::AttributeNames::vlink)
-            ? CaseSensitivity::CaseInsensitive
-            : CaseSensitivity::CaseSensitive;
-        break;
-    }
-
-    auto attribute_matches = [&](DOM::Attr const& attribute) {
-        return matches_attribute_value(match_type, selector_value, attribute.value().utf16_view(), case_sensitivity);
-    };
-
-    switch (qualified_name.namespace_type) {
-    // "In keeping with the Namespaces in the XML recommendation, default namespaces do not apply to attributes,
-    //  therefore attribute selectors without a namespace component apply only to attributes that have no namespace (equivalent to "|attr")"
-    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Default:
-    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::None: {
-        auto const& name_to_match = target.document().is_html_document() && target.namespace_uri() == Namespace::HTML
-            ? lowercase_attribute_name
-            : attribute_name;
-        for (u32 i = 0; i < target.attributes()->length(); ++i) {
-            auto const* attribute = target.attributes()->item(i);
-            if (!attribute->namespace_uri().has_value() && attribute->local_name() == name_to_match)
-                return attribute_matches(*attribute);
-        }
-        return false;
-    }
-    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Any: {
-        bool const use_lowercase_name = target.document().is_html_document() && target.namespace_uri() == Namespace::HTML;
-        auto const& name_to_match = use_lowercase_name ? lowercase_attribute_name : attribute_name;
-        for (u32 i = 0; i < target.attributes()->length(); ++i) {
-            auto const* attribute = target.attributes()->item(i);
-            if (attribute->local_name() == name_to_match && attribute_matches(*attribute))
-                return true;
-        }
-        return false;
-    }
-    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Named: {
-        if (!match_context.style_sheet_for_rule)
-            return false;
-        auto selector_namespace = match_context.style_sheet_for_rule->namespace_uri(qualified_name.namespace_);
-        if (!selector_namespace.has_value())
-            return false;
-        for (u32 i = 0; i < target.attributes()->length(); ++i) {
-            auto const* attribute = target.attributes()->item(i);
-            if (attribute->namespace_uri().has_value()
-                && *selector_namespace == attribute->namespace_uri()->view()
-                && attribute->local_name() == attribute_name)
-                return attribute_matches(*attribute);
-        }
-        return false;
-    }
-    }
-    VERIFY_NOT_REACHED();
 }
 
 static bool is_rust_structural_or_functional_pseudo_class(CSS::PseudoClass pseudo_class)

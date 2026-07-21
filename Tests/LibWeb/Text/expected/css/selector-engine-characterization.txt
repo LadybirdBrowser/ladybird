@@ -4,6 +4,7 @@ adjacent sibling: true
 subsequent sibling: true
 attribute insensitive: true
 attribute sensitive: false
+attribute after mutation: true/false
 logical: true
 positional: true
 relative descendant: true

@@ -67,9 +67,6 @@ pub struct QualifiedName {
     pub lowercase_name: SelectorString,
     interned_name: Option<usize>,
     interned_lowercase_name: Option<usize>,
-    /// Pointer to the C++ simple selector this was compiled from, so that matching callbacks can
-    /// compare its interned strings without copying. Null in unit tests.
-    cxx_simple_selector: RetainedCxxPointer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -154,7 +151,7 @@ pub struct PseudoClassSelector {
     pub direction: Option<Direction>,
     pub identifier: Option<SelectorString>,
     pub levels: Box<[i64]>,
-    /// See [`QualifiedName::cxx_simple_selector`].
+    /// Pointer to the C++ simple selector used by the custom-state matching callback.
     cxx_simple_selector: RetainedCxxPointer,
 }
 
@@ -1638,6 +1635,23 @@ impl FfiElement {
         }
     }
 
+    fn attribute_count(self) -> usize {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_attribute_count(self.pointer) }
+    }
+
+    unsafe fn attribute<'a>(self, index: usize) -> DomAttribute<'a> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element and `index` identifies one of its
+        // current attributes. C++ returns its facts and a value view borrowed for matching.
+        DomAttribute {
+            // SAFETY: The caller guarantees that `index` is within the current attribute list.
+            attribute: unsafe { selector_ffi_element_attribute(self.pointer, index) },
+            marker: PhantomData,
+        }
+    }
+
     unsafe fn classes<'a>(self) -> &'a [usize] {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns its current class storage,
@@ -1685,6 +1699,38 @@ pub struct FfiDomStringView {
     pub data: *const c_void,
     pub length: usize,
     pub is_ascii: bool,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiDomAttribute {
+    pub local_name: usize,
+    pub namespace_: usize,
+    pub has_namespace: bool,
+    pub value: FfiDomStringView,
+}
+
+#[derive(Clone, Copy)]
+struct DomAttribute<'a> {
+    attribute: FfiDomAttribute,
+    marker: PhantomData<&'a FfiCallScope>,
+}
+
+impl<'a> DomAttribute<'a> {
+    fn local_name(self) -> usize {
+        self.attribute.local_name
+    }
+
+    fn namespace(self) -> Option<usize> {
+        self.attribute.has_namespace.then_some(self.attribute.namespace_)
+    }
+
+    fn value(self) -> DomStringView<'a> {
+        DomStringView {
+            view: self.attribute.value,
+            marker: PhantomData,
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -1789,6 +1835,16 @@ impl<'a> FfiNode<'a> {
         // current class-name storage. Callers obtain `index` from the same live class list.
         unsafe { self.as_element().class_name(index) }
     }
+
+    fn attribute_count(self) -> usize {
+        self.as_element().attribute_count()
+    }
+
+    fn attribute(self, index: usize) -> DomAttribute<'a> {
+        // SAFETY: `FfiNode` cannot outlive the call scope which pins the C++ element and its
+        // current attribute storage. Callers obtain `index` from the live attribute count.
+        unsafe { self.as_element().attribute(index) }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -1808,15 +1864,12 @@ unsafe extern "C" {
     fn selector_ffi_element_is_document_root(element: *const c_void) -> bool;
     fn selector_ffi_element_local_name(element: *const c_void) -> FfiDomStringView;
     fn selector_ffi_element_class_name(element: *const c_void, index: usize) -> FfiDomStringView;
+    fn selector_ffi_element_attribute_count(element: *const c_void) -> usize;
+    fn selector_ffi_element_attribute(element: *const c_void, index: usize) -> FfiDomAttribute;
 
     fn selector_ffi_default_namespace(context: *mut c_void) -> FfiResolvedNamespace;
     fn selector_ffi_resolve_namespace(context: *mut c_void, prefix: FfiStringView) -> FfiResolvedNamespace;
 
-    fn selector_ffi_matches_attribute(
-        context: *mut c_void,
-        element: *const c_void,
-        cxx_simple_selector: *const c_void,
-    ) -> bool;
     fn selector_ffi_matches_pseudo_class(element: *const c_void, pseudo_class: u8) -> bool;
     fn selector_ffi_matches_language(element: *const c_void, language: FfiStringView) -> bool;
     fn selector_ffi_matches_direction(element: *const c_void, direction: FfiDirection) -> bool;
@@ -1885,6 +1938,162 @@ fn utf16_equals_ignoring_ascii_case(first: DomStringView<'_>, second: &[u16]) ->
             .iter()
             .enumerate()
             .all(|(index, &second)| ascii_lowercase(first.code_unit_at(index)) == ascii_lowercase(second))
+}
+
+#[derive(Clone, Copy)]
+enum StringCaseSensitivity {
+    Sensitive,
+    AsciiInsensitive,
+}
+
+fn code_units_equal(first: u16, second: u16, case_sensitivity: StringCaseSensitivity) -> bool {
+    match case_sensitivity {
+        StringCaseSensitivity::Sensitive => first == second,
+        StringCaseSensitivity::AsciiInsensitive => ascii_lowercase(first) == ascii_lowercase(second),
+    }
+}
+
+fn dom_string_matches_at(
+    value: DomStringView<'_>,
+    start: usize,
+    selector_value: &[u16],
+    case_sensitivity: StringCaseSensitivity,
+) -> bool {
+    start
+        .checked_add(selector_value.len())
+        .is_some_and(|end| end <= value.len())
+        && selector_value
+            .iter()
+            .enumerate()
+            .all(|(index, &selector)| code_units_equal(value.code_unit_at(start + index), selector, case_sensitivity))
+}
+
+fn dom_string_equals(
+    value: DomStringView<'_>,
+    selector_value: &[u16],
+    case_sensitivity: StringCaseSensitivity,
+) -> bool {
+    value.len() == selector_value.len() && dom_string_matches_at(value, 0, selector_value, case_sensitivity)
+}
+
+fn matches_attribute_value(
+    match_type: AttributeMatchType,
+    selector_value: &[u16],
+    attribute_value: DomStringView<'_>,
+    case_sensitivity: StringCaseSensitivity,
+) -> bool {
+    match match_type {
+        AttributeMatchType::HasAttribute => true,
+        AttributeMatchType::ExactValue => dom_string_equals(attribute_value, selector_value, case_sensitivity),
+        AttributeMatchType::ContainsWord => {
+            if selector_value.is_empty()
+                || selector_value.contains(&u16::from(b' '))
+                || selector_value.len() > attribute_value.len()
+            {
+                return false;
+            }
+            (0..=attribute_value.len() - selector_value.len()).any(|start| {
+                (start == 0 || attribute_value.code_unit_at(start - 1) == u16::from(b' '))
+                    && (start + selector_value.len() == attribute_value.len()
+                        || attribute_value.code_unit_at(start + selector_value.len()) == u16::from(b' '))
+                    && dom_string_matches_at(attribute_value, start, selector_value, case_sensitivity)
+            })
+        }
+        AttributeMatchType::ContainsString => {
+            if selector_value.is_empty() || selector_value.len() > attribute_value.len() {
+                return false;
+            }
+            (0..=attribute_value.len() - selector_value.len())
+                .any(|start| dom_string_matches_at(attribute_value, start, selector_value, case_sensitivity))
+        }
+        AttributeMatchType::StartsWithSegment => {
+            if attribute_value.len() == 0 {
+                return selector_value.is_empty();
+            }
+            if selector_value.is_empty() || selector_value.len() > attribute_value.len() {
+                return false;
+            }
+            dom_string_matches_at(attribute_value, 0, selector_value, case_sensitivity)
+                && (selector_value.len() == attribute_value.len()
+                    || attribute_value.code_unit_at(selector_value.len()) == u16::from(b'-'))
+        }
+        AttributeMatchType::StartsWithString => {
+            !selector_value.is_empty() && dom_string_matches_at(attribute_value, 0, selector_value, case_sensitivity)
+        }
+        AttributeMatchType::EndsWithString => {
+            !selector_value.is_empty()
+                && selector_value.len() <= attribute_value.len()
+                && dom_string_matches_at(
+                    attribute_value,
+                    attribute_value.len() - selector_value.len(),
+                    selector_value,
+                    case_sensitivity,
+                )
+        }
+    }
+}
+
+fn utf16_equals_ascii(value: &[u16], ascii: &[u8]) -> bool {
+    value.len() == ascii.len()
+        && value
+            .iter()
+            .zip(ascii)
+            .all(|(&code_unit, &byte)| code_unit == u16::from(byte))
+}
+
+// https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
+// Attribute selectors on an HTML element in an HTML document must treat the values of attributes
+// with the following names as ASCII case-insensitive:
+fn is_ascii_case_insensitive_html_attribute(name: &[u16]) -> bool {
+    const NAMES: &[&[u8]] = &[
+        b"accept",
+        b"accept-charset",
+        b"align",
+        b"alink",
+        b"axis",
+        b"bgcolor",
+        b"charset",
+        b"checked",
+        b"clear",
+        b"codetype",
+        b"color",
+        b"compact",
+        b"declare",
+        b"defer",
+        b"dir",
+        b"direction",
+        b"disabled",
+        b"enctype",
+        b"face",
+        b"frame",
+        b"hreflang",
+        b"http-equiv",
+        b"lang",
+        b"language",
+        b"link",
+        b"media",
+        b"method",
+        b"multiple",
+        b"nohref",
+        b"noresize",
+        b"noshade",
+        b"nowrap",
+        b"readonly",
+        b"rel",
+        b"rev",
+        b"rules",
+        b"scope",
+        b"scrolling",
+        b"selected",
+        b"shape",
+        b"target",
+        b"text",
+        b"type",
+        b"valign",
+        b"valuetype",
+        b"vlink",
+    ];
+    NAMES.iter().any(|candidate| utf16_equals_ascii(name, candidate))
 }
 
 struct FfiCallScope;
@@ -2034,16 +2243,73 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn matches_attribute_selector(&mut self, element: FfiNode<'a>, attribute: &AttributeSelector) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
-        // SAFETY: `FfiDom` guarantees that the context, element, and retained simple selector
-        // remain valid for the duration of matching.
-        unsafe {
-            selector_ffi_matches_attribute(
-                self.context,
-                element.as_element_pointer(),
-                attribute.qualified_name.cxx_simple_selector.as_ptr(),
-            )
-        }
+        let qualified_name = &attribute.qualified_name;
+        let is_html_element_in_html_document = element.as_element().is_html_element_in_html_document();
+        let use_lowercase_name =
+            is_html_element_in_html_document && qualified_name.namespace_type != NamespaceType::Named;
+        let name_to_match = if use_lowercase_name {
+            qualified_name.interned_lowercase_name
+        } else {
+            qualified_name.interned_name
+        };
+        let Some(name_to_match) = name_to_match else {
+            return false;
+        };
+
+        let resolved_namespace = if qualified_name.namespace_type == NamespaceType::Named {
+            let namespace = self.resolve_namespace(&qualified_name.namespace);
+            if namespace.namespace_type == FfiResolvedNamespaceType::Missing {
+                return false;
+            }
+            Some(namespace)
+        } else {
+            None
+        };
+
+        let case_sensitivity = match attribute.case_type {
+            AttributeCaseType::Sensitive => StringCaseSensitivity::Sensitive,
+            AttributeCaseType::Insensitive => StringCaseSensitivity::AsciiInsensitive,
+            AttributeCaseType::Default => {
+                if is_html_element_in_html_document
+                    && qualified_name.namespace_type == NamespaceType::Default
+                    && is_ascii_case_insensitive_html_attribute(&qualified_name.name)
+                {
+                    StringCaseSensitivity::AsciiInsensitive
+                } else {
+                    StringCaseSensitivity::Sensitive
+                }
+            }
+        };
+
+        (0..element.attribute_count()).any(|index| {
+            let dom_attribute = element.attribute(index);
+            if dom_attribute.local_name() != name_to_match {
+                return false;
+            }
+            let namespace_matches = match qualified_name.namespace_type {
+                // https://www.w3.org/TR/selectors-4/#attrnmsp
+                // In keeping with the Namespaces in the XML recommendation, default namespaces do
+                // not apply to attributes, therefore attribute selectors without a namespace
+                // component apply only to attributes that have no namespace (equivalent to
+                // "|attr").
+                NamespaceType::Default | NamespaceType::None => dom_attribute.namespace().is_none(),
+                NamespaceType::Any => true,
+                NamespaceType::Named => match resolved_namespace.unwrap().namespace_type {
+                    FfiResolvedNamespaceType::Missing => false,
+                    FfiResolvedNamespaceType::Null => dom_attribute.namespace().is_none(),
+                    FfiResolvedNamespaceType::Named => {
+                        dom_attribute.namespace() == resolved_namespace.unwrap().namespace()
+                    }
+                },
+            };
+            namespace_matches
+                && matches_attribute_value(
+                    attribute.match_type,
+                    &attribute.value,
+                    dom_attribute.value(),
+                    case_sensitivity,
+                )
+        })
     }
 
     fn matches_pseudo_class_state(&mut self, element: FfiNode<'a>, pseudo_class: &PseudoClassSelector) -> bool {
@@ -2375,7 +2641,6 @@ unsafe fn qualified_name_from_ffi(selector: &FfiSimpleSelector) -> QualifiedName
         // SAFETY: The caller guarantees that a non-null pointer identifies retained C++ selector
         // data for the duration of selector compilation.
         interned_lowercase_name: unsafe { selector.interned_lowercase_name.as_ref().copied() },
-        cxx_simple_selector: RetainedCxxPointer::new(selector.cxx_simple_selector),
     }
 }
 
