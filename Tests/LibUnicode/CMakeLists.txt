@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestBidi.cpp
     TestDisplayNames.cpp
     TestIDNA.cpp
     TestLocale.cpp

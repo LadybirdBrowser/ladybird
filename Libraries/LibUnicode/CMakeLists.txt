@@ -1,4 +1,5 @@
 set(SOURCES
+    Bidi.cpp
     Calendar.cpp
     Calendars/AdjustedEraCalendar.cpp
     Calendars/ChineseDangiCalendar.cpp
