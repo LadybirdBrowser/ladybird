@@ -96,6 +96,13 @@ GC::Ptr<Element const> AbstractElement::parent_element() const
     return m_element->parent_element();
 }
 
+Element* AbstractElement::flat_tree_parent_element() const
+{
+    if (m_pseudo_element.has_value())
+        return m_element;
+    return m_element->flat_tree_parent_element();
+}
+
 Optional<AbstractElement> AbstractElement::element_to_inherit_style_from() const
 {
     if (m_inheritance_override)

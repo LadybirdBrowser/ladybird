@@ -758,7 +758,7 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
     // For each element, the query container to be queried is selected from among the element’s ancestor query
     // containers that are established as a valid query container for all the container features in the
     // <container-query>.
-    for (auto const* container = element.element().flat_tree_parent_element(); container; container = container->flat_tree_parent_element()) {
+    for (auto const* container = element.flat_tree_parent_element(); container; container = container->flat_tree_parent_element()) {
         // The <container-name> filters the set of query containers considered to just those with a matching query
         // container name.
         if (!container_name_matches(*container, container_name))

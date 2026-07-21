@@ -1,0 +1,34 @@
+<!doctype html>
+<style>
+    #target {
+        container-name: --target;
+        --state: target;
+    }
+
+    #target::before {
+        content: "";
+        --name-result: FAIL;
+        --style-result: FAIL;
+    }
+
+    @container --target {
+        #target::before {
+            --name-result: PASS;
+        }
+    }
+
+    @container style(--state: target) {
+        #target::before {
+            --style-result: PASS;
+        }
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let style = getComputedStyle(target, "::before");
+        println(style.getPropertyValue("--name-result").trim());
+        println(style.getPropertyValue("--style-result").trim());
+    });
+</script>
