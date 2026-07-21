@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <AK/Variant.h>
+#include <AK/Vector.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/AudioParam.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -31,6 +34,9 @@ public:
     float value() const;
     void set_value(float);
 
+    // https://webaudio.github.io/web-audio-api/#computedvalue
+    float intrinsic_value_at_time(double) const;
+
     Bindings::AutomationRate automation_rate() const;
     WebIDL::ExceptionOr<void> set_automation_rate(Bindings::AutomationRate);
 
@@ -52,7 +58,42 @@ public:
     WebIDL::ExceptionOr<GC::Ref<AudioParam>> cancel_and_hold_at_time(double cancel_time);
 
 private:
+    struct SetValue {
+        float value { 0 };
+    };
+
+    using Parameterization = Variant<SetValue>;
+
+    struct AutomationEvent {
+        double time { 0 };
+        Parameterization parameterization;
+    };
+
+    struct ParameterizationCache {
+        Optional<size_t> event_index {};
+        Optional<double> minimum_time {};
+        Optional<double> maximum_time {};
+        float starting_value { 0 };
+
+        bool contains(double time) const
+        {
+            return (!minimum_time.has_value() || time >= *minimum_time)
+                && (!maximum_time.has_value() || time < *maximum_time);
+        }
+    };
+
     AudioParam(JS::Realm&, GC::Ref<BaseAudioContext>, float default_value, float min_value, float max_value, Bindings::AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
+
+    // https://webaudio.github.io/web-audio-api/#dfn-automation-event
+    size_t first_event_index_after(double) const;
+
+    float event_value_at_time(size_t event_index, double time) const;
+
+    // https://webaudio.github.io/web-audio-api/#computedvalue
+    ParameterizationCache const& parameterization_cache_for_time(double) const;
+
+    // https://webaudio.github.io/web-audio-api/#dfn-automation-event
+    void insert_event(AutomationEvent);
 
     GC::Ref<BaseAudioContext> m_context;
 
@@ -67,6 +108,11 @@ private:
     Bindings::AutomationRate m_automation_rate {};
 
     FixedAutomationRate m_fixed_automation_rate { FixedAutomationRate::No };
+
+    // https://webaudio.github.io/web-audio-api/#dfn-automation-event
+    Vector<AutomationEvent> m_automation_events;
+
+    mutable Optional<ParameterizationCache> m_parameterization_cache;
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

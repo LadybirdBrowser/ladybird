@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BinarySearch.h>
 #include <LibWeb/Bindings/AudioParam.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioParam.h>
@@ -45,7 +46,27 @@ float AudioParam::value() const
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-value
 void AudioParam::set_value(float value)
 {
+    // Setting this attribute has the effect of assigning the requested value to the [[current value]] slot, and calling
+    // the setValueAtTime() method with the current AudioContext's currentTime and [[current value]].
     m_current_value = value;
+    MUST(set_value_at_time(m_current_value, context()->current_time()));
+}
+
+// https://webaudio.github.io/web-audio-api/#computedvalue
+float AudioParam::intrinsic_value_at_time(double time) const
+{
+    // paramIntrinsicValue will be calculated at each time, which is either the value set directly to the value
+    // attribute, or, if there are any automation events with times before or at this time, the value as calculated from
+    // these events.
+    auto const& cache = parameterization_cache_for_time(time);
+    if (!cache.event_index.has_value())
+        return cache.starting_value;
+
+    auto const& event = m_automation_events[*cache.event_index];
+    return event.parameterization.visit(
+        [](SetValue const& parameterization) {
+            return parameterization.value;
+        });
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-automationrate
@@ -67,10 +88,71 @@ WebIDL::ExceptionOr<void> AudioParam::set_automation_rate(Bindings::AutomationRa
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-setvalueattime
 WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::set_value_at_time(float value, double start_time)
 {
-    (void)value;
-    (void)start_time;
-    dbgln("FIXME: Implement AudioParam::set_value_at_time");
+    // A RangeError exception MUST be thrown if startTime is negative or is not a finite number.
+    if (start_time < 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "startTime must not be negative"_utf16 };
+
+    // If startTime is less than currentTime, it is clamped to currentTime.
+    start_time = max(start_time, context()->current_time());
+
+    insert_event({
+        .time = start_time,
+        .parameterization = SetValue { value },
+    });
     return GC::Ref { *this };
+}
+
+// https://webaudio.github.io/web-audio-api/#dfn-automation-event
+size_t AudioParam::first_event_index_after(double time) const
+{
+    return AK::lower_bound_index(m_automation_events, time, [](auto const& event, double time) {
+        return event.time <= time ? -1 : 1;
+    });
+}
+
+float AudioParam::event_value_at_time(size_t event_index, double) const
+{
+    auto const& event = m_automation_events[event_index];
+    return event.parameterization.visit(
+        [](SetValue const& parameterization) {
+            return parameterization.value;
+        });
+}
+
+AudioParam::ParameterizationCache const& AudioParam::parameterization_cache_for_time(double time) const
+{
+    if (m_parameterization_cache.has_value() && m_parameterization_cache->contains(time))
+        return *m_parameterization_cache;
+
+    auto event_index = first_event_index_after(time);
+    if (event_index == 0) {
+        m_parameterization_cache = {
+            .maximum_time = m_automation_events.is_empty() ? Optional<double> {} : m_automation_events.first().time,
+            .starting_value = m_default_value,
+        };
+        return *m_parameterization_cache;
+    }
+
+    auto selected_event_index = event_index - 1;
+    auto const& selected_event = m_automation_events[selected_event_index];
+    m_parameterization_cache = {
+        .event_index = selected_event_index,
+        .minimum_time = selected_event.time,
+        .maximum_time = event_index < m_automation_events.size() ? Optional<double> { m_automation_events[event_index].time } : Optional<double> {},
+        .starting_value = event_value_at_time(selected_event_index, selected_event.time),
+    };
+    return *m_parameterization_cache;
+}
+
+// https://webaudio.github.io/web-audio-api/#dfn-automation-event
+void AudioParam::insert_event(AutomationEvent event)
+{
+    // If an event is added at a time where there are already events, it is placed after them but before later events.
+    auto event_time = event.time;
+    m_automation_events.insert_before_matching(move(event), [event_time](auto const& existing_event) {
+        return event_time < existing_event.time;
+    });
+    m_parameterization_cache = {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-linearramptovalueattime
