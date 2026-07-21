@@ -21,6 +21,7 @@ set(TEST_SOURCES
     TestRefCountedTreeNode.cpp
     TestSecureContexts.cpp
     TestSessionHistoryEntry.cpp
+    TestSmoothScrollAnimation.cpp
     TestSourceHighlighter.cpp
     TestStructuredSerializeCorpus.cpp
     TestStructuredSerializeDurability.cpp

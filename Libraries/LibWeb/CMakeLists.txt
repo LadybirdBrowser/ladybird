@@ -33,6 +33,7 @@ set(SOURCES
     Compositor/AsyncScrollTree.cpp
     Compositor/AsyncScrollingState.cpp
     Compositor/CompositorHost.cpp
+    Compositor/SmoothScrollAnimation.cpp
     Compositor/Types.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
