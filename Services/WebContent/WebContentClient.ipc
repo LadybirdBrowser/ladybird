@@ -198,6 +198,10 @@ endpoint WebContentClient
     changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) =|
     nonchanging_navigable_history_state_updated(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id) =|
     did_reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEntryDescriptor active_entry) =|
+    did_request_capture_session_history_snapshot_for_testing(u64 page_id) => (bool captured)
+    did_request_restore_session_history_snapshot_for_testing(u64 page_id) => (bool restored)
+    did_request_register_session_store_tab_for_testing(u64 page_id) => (bool registered)
+    did_request_session_store_tab_state_for_testing(u64 page_id) => (String state)
 
     did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state) =|
     did_change_screen_wake_lock_state(u64 page_id, Web::ScreenWakeLockState wake_lock_state) =|

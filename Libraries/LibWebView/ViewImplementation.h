@@ -309,6 +309,10 @@ public:
     void did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);
     void did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id);
     void did_reset_session_history_for_testing(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor);
+    bool capture_session_history_snapshot_for_testing(Badge<WebContentClient>);
+    bool restore_captured_session_history_snapshot_for_testing(Badge<WebContentClient>);
+    bool register_session_store_tab_for_testing(Badge<WebContentClient>);
+    String session_store_tab_state_for_testing(Badge<WebContentClient>) const;
     void did_start_webdriver_navigation(Badge<WebContentClient>);
     String ui_process_session_history_for_testing(Badge<WebContentClient>) const;
     JsonValue webdriver_session_history() const;
@@ -687,6 +691,7 @@ protected:
 
     CanonicalTraversable m_top_level_traversable;
     Optional<SessionTabId> m_session_tab_id;
+    Optional<SessionHistorySnapshot> m_captured_session_history_snapshot_for_testing;
     struct PendingWebDriverNavigation {
         u64 id { 0 };
         WebDriverNavigationCompletionSource completion_source { WebDriverNavigationCompletionSource::Load };

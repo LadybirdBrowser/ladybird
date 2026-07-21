@@ -618,6 +618,10 @@ public:
     virtual void page_did_update_session_history_entry_document_state_navigable_target_name([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] Utf16String const& navigable_target_name) { }
     virtual void page_did_set_session_history_entry_document_state_reload_pending([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] bool reload_pending) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }
+    virtual bool page_did_request_capture_session_history_snapshot_for_testing() { return false; }
+    virtual bool page_did_request_restore_session_history_snapshot_for_testing() { return false; }
+    virtual bool page_did_request_register_session_store_tab_for_testing() { return false; }
+    virtual String page_did_request_session_store_tab_state_for_testing() { return "{}"_string; }
     virtual void page_did_request_history_operation([[maybe_unused]] u64 initiation_id, [[maybe_unused]] HistoryOperationParameters parameters) { }
     virtual void page_did_change_needs_beforeunload_check([[maybe_unused]] bool needs_beforeunload_check) { }
 

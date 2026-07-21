@@ -944,6 +944,26 @@ Utf16String Internals::dump_ui_process_session_history_without_update()
     return dump_string_to_utf16(window().associated_document().page().client().page_did_request_ui_process_session_history_for_testing());
 }
 
+bool Internals::capture_session_history_snapshot()
+{
+    return window().associated_document().page().client().page_did_request_capture_session_history_snapshot_for_testing();
+}
+
+bool Internals::restore_captured_session_history_snapshot()
+{
+    return window().associated_document().page().client().page_did_request_restore_session_history_snapshot_for_testing();
+}
+
+bool Internals::register_session_store_tab()
+{
+    return window().associated_document().page().client().page_did_request_register_session_store_tab_for_testing();
+}
+
+Utf16String Internals::dump_session_store_tab_state()
+{
+    return dump_string_to_utf16(window().associated_document().page().client().page_did_request_session_store_tab_state_for_testing());
+}
+
 Utf16String Internals::dump_site_isolation_process_tree()
 {
     return dump_string_to_utf16(window().associated_document().page().client().dump_site_isolation_process_tree_for_testing());

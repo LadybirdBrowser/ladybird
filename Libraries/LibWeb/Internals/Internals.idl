@@ -121,6 +121,10 @@ interface Internals {
     Utf16DOMString dumpSessionHistory();
     Utf16DOMString dumpUIProcessSessionHistory();
     Utf16DOMString dumpUIProcessSessionHistoryWithoutUpdate();
+    boolean captureSessionHistorySnapshot();
+    boolean restoreCapturedSessionHistorySnapshot();
+    boolean registerSessionStoreTab();
+    Utf16DOMString dumpSessionStoreTabState();
     Utf16DOMString dumpSiteIsolationProcessTree();
     Promise<undefined> flushSessionHistoryTraversalQueue();
 

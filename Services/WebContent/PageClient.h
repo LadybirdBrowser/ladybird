@@ -256,6 +256,10 @@ private:
     virtual void page_did_set_session_history_entry_document_state_reload_pending(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, bool reload_pending) override;
     virtual void page_did_request_history_operation(u64 initiation_id, Web::HistoryOperationParameters) override;
     virtual String page_did_request_ui_process_session_history_for_testing() override;
+    virtual bool page_did_request_capture_session_history_snapshot_for_testing() override;
+    virtual bool page_did_request_restore_session_history_snapshot_for_testing() override;
+    virtual bool page_did_request_register_session_store_tab_for_testing() override;
+    virtual String page_did_request_session_store_tab_state_for_testing() override;
     virtual void request_file(Web::FileRequest) override;
     virtual void page_did_request_color_picker(Color current_color) override;
     virtual void page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;

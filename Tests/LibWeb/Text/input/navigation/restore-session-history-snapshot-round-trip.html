@@ -1,0 +1,67 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    const phaseKey = "restore-session-history-snapshot-round-trip-phase";
+
+    function queryFromURL(url) {
+        return new URL(url).search || "(none)";
+    }
+
+    // The harness view carries earlier entries; track only this test's queries and the current marker.
+    function entryQueries(uiHistory) {
+        return uiHistory.entries
+            .map(entry => `${queryFromURL(entry.url)}${entry.current ? "*" : ""}`)
+            .filter(tag => tag.includes("?") || tag.endsWith("*"))
+            .join(",");
+    }
+
+    function uiHistoryWithoutUpdate() {
+        return JSON.parse(internals.dumpUIProcessSessionHistoryWithoutUpdate());
+    }
+
+    async function pollUIHistory(predicate) {
+        const deadline = performance.now() + 10000;
+        let uiHistory = uiHistoryWithoutUpdate();
+        while (!predicate(uiHistory) && performance.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, 16));
+            uiHistory = uiHistoryWithoutUpdate();
+        }
+        return uiHistory;
+    }
+
+    asyncTest(async done => {
+        if (!internals.registerSessionStoreTab()) {
+            println("FAIL: could not register the tab in the session store");
+            done();
+            return;
+        }
+
+        if (sessionStorage.getItem(phaseKey) === "restored") {
+            sessionStorage.removeItem(phaseKey);
+            const uiHistory = await pollUIHistory(history => entryQueries(history) === "?a,?b*");
+            println(`capture-returned=${sessionStorage.getItem("restore-round-trip-capture")}`);
+            println(`restore-returned=${sessionStorage.getItem("restore-round-trip-restore")}`);
+            println(`immediate-store-url=${sessionStorage.getItem("restore-round-trip-store-url")}`);
+            sessionStorage.removeItem("restore-round-trip-capture");
+            sessionStorage.removeItem("restore-round-trip-restore");
+            sessionStorage.removeItem("restore-round-trip-store-url");
+            println(`after-restore: location=${queryFromURL(location.href)}`);
+            println(`after-restore: ui-entries=${entryQueries(uiHistory)}`);
+            done();
+            return;
+        }
+
+        // One push at a time: two same-document finalizations in flight collapse into one entry.
+        history.pushState(null, "", "?a");
+        await pollUIHistory(history => entryQueries(history) === "?a*");
+        history.pushState(null, "", "?b");
+        await pollUIHistory(history => entryQueries(history) === "?a,?b*");
+        sessionStorage.setItem("restore-round-trip-capture", internals.captureSessionHistorySnapshot());
+
+        history.pushState(null, "", "?c");
+        await pollUIHistory(history => entryQueries(history) === "?a,?b,?c*");
+        sessionStorage.setItem(phaseKey, "restored");
+        sessionStorage.setItem("restore-round-trip-restore", internals.restoreCapturedSessionHistorySnapshot());
+        sessionStorage.setItem("restore-round-trip-store-url", queryFromURL(JSON.parse(internals.dumpSessionStoreTabState()).url));
+    });
+</script>

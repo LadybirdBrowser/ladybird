@@ -1,0 +1,3 @@
+navigation state reached the store: true
+scroll restoration before: auto
+scroll restoration after: manual
