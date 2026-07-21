@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 66 tests
 
-60 Pass
-6 Fail
+66 Pass
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "initialize"
 Pass	Executing "test value"
@@ -59,14 +58,14 @@ Pass	  gain.gain.linearRampToValueAtTime(1,-1) threw RangeError: "endTime must n
 Pass	  gain.gain.exponentialRampToValueAtTime(1,-1) threw RangeError: "endTime must not be negative".
 Pass	  gain.gain.setTargetAtTime(1,-1,1) threw RangeError: "startTime must not be negative".
 Pass	  gain.gain.setTargetAtTime(1,1,-1) threw RangeError: "timeConstant must not be negative".
-Fail	X gain.gain.setValueCurveAtTime([0,0,0],-1,1) did not throw an exception.
-Fail	X gain.gain.setValueCurveAtTime([0,0,0],1,-1) did not throw an exception.
-Fail	X gain.gain.setValueCurveAtTime(curve, 1, 0) did not throw an exception.
-Fail	X gain.gain.setValueCurveAtTime(curve, 1, -1) did not throw an exception.
-Fail	< [special cases 1] 4 out of 9 assertions were failed.
+Pass	  gain.gain.setValueCurveAtTime([0,0,0],-1,1) threw RangeError: "startTime must not be negative".
+Pass	  gain.gain.setValueCurveAtTime([0,0,0],1,-1) threw RangeError: "duration must be positive".
+Pass	  gain.gain.setValueCurveAtTime(curve, 1, 0) threw RangeError: "duration must be positive".
+Pass	  gain.gain.setValueCurveAtTime(curve, 1, -1) threw RangeError: "duration must be positive".
+Pass	< [special cases 1] All assertions passed. (total 9 assertions)
 Pass	> [special cases 2] Test special cases for expeonentialRamp
 Pass	  gain.gain.exponentialRampToValueAtTime(0,1) threw RangeError: "value must not be zero".
 Pass	  gain.gain.exponentialRampToValueAtTime(-1e-100,1) threw RangeError: "value must not be zero".
 Pass	  gain.gain.exponentialRampToValueAtTime(1e-100,1) threw RangeError: "value must not be zero".
 Pass	< [special cases 2] All assertions passed. (total 3 assertions)
-Fail	# AUDIT TASK RUNNER FINISHED: 1 out of 6 tasks were failed.
+Pass	# AUDIT TASK RUNNER FINISHED: 6 tasks ran successfully.

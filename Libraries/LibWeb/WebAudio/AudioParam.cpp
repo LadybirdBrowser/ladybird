@@ -94,6 +94,9 @@ float AudioParam::intrinsic_value_at_time(double time) const
             if (set_target.time_constant == 0)
                 return set_target.target;
             return set_target.target + (cache.starting_value - set_target.target) * static_cast<float>(exp(-(time - event.time) / set_target.time_constant));
+        },
+        [&](SetValueCurve const&) {
+            return event_value_at_time(*cache.event_index, time);
         });
 }
 
@@ -156,6 +159,18 @@ float AudioParam::event_value_at_time(size_t event_index, double time) const
                 if (set_target.time_constant == 0)
                     return set_target.target;
                 return set_target.target + (value - set_target.target) * static_cast<float>(exp(-(evaluation_time - event.time) / set_target.time_constant));
+            },
+            [&](SetValueCurve const& set_value_curve) {
+                if (evaluation_time >= event.time + set_value_curve.duration)
+                    return set_value_curve.values.last();
+
+                auto curve_position = (set_value_curve.values.size() - 1) * (evaluation_time - event.time) / set_value_curve.duration;
+                // NB: Floating-point rounding can push curve_position to size() - 1 even though evaluation_time is
+                //     still strictly less than the curve's end time, so value_index is clamped to keep value_index + 1 in bounds.
+                auto value_index = min(static_cast<size_t>(floor(curve_position)), set_value_curve.values.size() - 2);
+                auto interpolation_factor = static_cast<float>(curve_position - value_index);
+                return set_value_curve.values[value_index]
+                    + (set_value_curve.values[value_index + 1] - set_value_curve.values[value_index]) * interpolation_factor;
             });
     }
     return value;
@@ -197,16 +212,25 @@ AudioParam::ParameterizationCache const& AudioParam::parameterization_cache_for_
     // to caching the preceding event below.
     if (event_index < m_automation_events.size()) {
         auto cache = m_automation_events[event_index].parameterization.visit(
-            [](OneOf<SetValue, SetTarget> auto const&) -> Optional<ParameterizationCache> {
+            [](OneOf<SetValue, SetTarget, SetValueCurve> auto const&) -> Optional<ParameterizationCache> {
                 return {};
             },
             [&](OneOf<LinearRamp, ExponentialRamp> auto const& ramp) -> Optional<ParameterizationCache> {
                 auto const& previous_event = m_automation_events[event_index - 1];
-                auto minimum_time = previous_event.time;
-                auto starting_value = event_value_at_time(event_index - 1, minimum_time);
+                double minimum_time;
+                float starting_value;
                 if (ramp.start.has_value() && ramp.start->set_target_event_id == previous_event.id) {
                     minimum_time = ramp.start->time;
                     starting_value = ramp.start->value;
+                } else {
+                    minimum_time = previous_event.parameterization.visit(
+                        [&](SetValueCurve const& set_value_curve) {
+                            return previous_event.time + set_value_curve.duration;
+                        },
+                        [&](auto const&) {
+                            return previous_event.time;
+                        });
+                    starting_value = event_value_at_time(event_index - 1, minimum_time);
                 }
                 if (time < minimum_time)
                     return {};
@@ -250,6 +274,21 @@ AudioParam::ParameterizationCache const& AudioParam::parameterization_cache_for_
 // https://webaudio.github.io/web-audio-api/#dfn-automation-event
 WebIDL::ExceptionOr<void> AudioParam::insert_event(AutomationEvent event)
 {
+    // If any automation method is called at a time contained in a SetValueCurve event, a NotSupportedError exception
+    // MUST be thrown.
+    for (auto const& existing_event : m_automation_events) {
+        auto is_contained_in_curve = existing_event.parameterization.visit(
+            [&](SetValueCurve const& set_value_curve) {
+                return event.time >= existing_event.time
+                    && event.time < existing_event.time + set_value_curve.duration;
+            },
+            [](auto const&) {
+                return false;
+            });
+        if (is_contained_in_curve)
+            return WebIDL::NotSupportedError::create(realm(), "Cannot schedule an automation event during a value curve"_utf16);
+    }
+
     // If an event is added at a time where there are already events, it is placed after them but before later events.
     event.id = m_next_event_id++;
     auto event_time = event.time;
@@ -326,20 +365,42 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::set_target_at_time(float ta
     // If startTime is less than currentTime, it is clamped to currentTime.
     start_time = max(start_time, context()->current_time());
 
-    insert_event({
+    TRY(insert_event({
         .time = start_time,
         .parameterization = SetTarget { target, time_constant },
-    });
+    }));
     return GC::Ref { *this };
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-setvaluecurveattime
 WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::set_value_curve_at_time(Span<float> values, double start_time, double duration)
 {
-    (void)values;
-    (void)start_time;
-    (void)duration;
-    dbgln("FIXME: Implement AudioParam::set_value_curve_at_time");
+    // An InvalidStateError exception MUST be thrown if values has a length less than 2.
+    if (values.size() < 2)
+        return WebIDL::InvalidStateError::create(realm(), "values must contain at least two elements"_utf16);
+
+    // A RangeError exception MUST be thrown if startTime is negative or is not a finite number.
+    if (start_time < 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "startTime must not be negative"_utf16 };
+
+    // A RangeError exception MUST be thrown if duration is not strictly positive or is not a finite number.
+    if (duration <= 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "duration must be positive"_utf16 };
+
+    // If startTime is less than currentTime, it is clamped to currentTime.
+    start_time = max(start_time, context()->current_time());
+
+    // If there are any events with a time strictly greater than startTime but strictly less than startTime + duration,
+    // a NotSupportedError exception MUST be thrown.
+    for (auto const& event : m_automation_events) {
+        if (event.time > start_time && event.time < start_time + duration)
+            return WebIDL::NotSupportedError::create(realm(), "Cannot schedule a value curve containing an automation event"_utf16);
+    }
+
+    TRY(insert_event({
+        .time = start_time,
+        .parameterization = SetValueCurve { Vector<float> { values }, duration },
+    }));
     return GC::Ref { *this };
 }
 

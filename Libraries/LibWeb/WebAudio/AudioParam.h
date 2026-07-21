@@ -83,7 +83,12 @@ private:
         float time_constant { 0 };
     };
 
-    using Parameterization = Variant<SetValue, LinearRamp, ExponentialRamp, SetTarget>;
+    struct SetValueCurve {
+        Vector<float> values;
+        double duration { 0 };
+    };
+
+    using Parameterization = Variant<SetValue, LinearRamp, ExponentialRamp, SetTarget, SetValueCurve>;
 
     struct AutomationEvent {
         double time { 0 };

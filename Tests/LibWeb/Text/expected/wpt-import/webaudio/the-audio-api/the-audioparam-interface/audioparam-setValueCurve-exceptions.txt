@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 66 tests
 
-40 Pass
-26 Fail
+63 Pass
+3 Fail
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "setValueCurve"
 Pass	Executing "value setter"
@@ -15,31 +15,31 @@ Pass	Executing "curve lengths"
 Pass	Audit report
 Pass	> [setValueCurve] 
 Pass	  setValueCurveAtTime(curve, 0.0125, 0.0125) did not throw an exception.
-Fail	X setValueAtTime(1, 0.018750000000000003) did not throw an exception.
-Fail	X linearRampToValueAtTime(1, 0.018750000000000003) did not throw an exception.
-Fail	X exponentialRampToValueAtTime(1, 0.018750000000000003) did not throw an exception.
-Fail	X setTargetAtTime(1, 0.018750000000000003, 1) did not throw an exception.
+Pass	  setValueAtTime(1, 0.018750000000000003) threw NotSupportedError: "Cannot schedule an automation event during a value curve".
+Pass	  linearRampToValueAtTime(1, 0.018750000000000003) threw NotSupportedError: "Cannot schedule an automation event during a value curve".
+Pass	  exponentialRampToValueAtTime(1, 0.018750000000000003) threw NotSupportedError: "Cannot schedule an automation event during a value curve".
+Pass	  setTargetAtTime(1, 0.018750000000000003, 1) threw NotSupportedError: "Cannot schedule an automation event during a value curve".
 Pass	  setValueAtTime(1, 0.026250000000000002) did not throw an exception.
-Fail	< [setValueCurve] 4 out of 6 assertions were failed.
+Pass	< [setValueCurve] All assertions passed. (total 6 assertions)
 Pass	> [value setter] 
 Pass	  setValueCurveAtTime(curve, 0, 0.025) did not throw an exception.
-Fail	X value setter did not throw an exception.
-Fail	< [value setter] 1 out of 2 assertions were failed.
+Pass	  value setter threw NotSupportedError: "Cannot schedule an automation event during a value curve".
+Pass	< [value setter] All assertions passed. (total 2 assertions)
 Pass	> [automations] 
 Pass	  linearRampToValueAtTime(1, 0.0125) did not throw an exception.
 Pass	  exponentialRampToValueAtTime(1, 0.025) did not throw an exception.
 Pass	  setTargetAtTime(1, 0.037500000000000006, 0.1) did not throw an exception.
 Pass	  setValueCurveAtTime(curve, 0.05, 0.1) did not throw an exception.
-Fail	X setValueCurveAtTime(curve, 0.00625, 0.01) did not throw an exception.
-Fail	X setValueCurveAtTime(curve, 0.018750000000000003, 0.01) did not throw an exception.
-Fail	X setValueCurveAtTime(curve, 0.03125, 0.01) did not throw an exception.
-Fail	X setValueCurveAtTime(curve, 0.043750000000000004, 0.01) did not throw an exception.
+Pass	  setValueCurveAtTime(curve, 0.00625, 0.01) threw NotSupportedError: "Cannot schedule a value curve containing an automation event".
+Pass	  setValueCurveAtTime(curve, 0.018750000000000003, 0.01) threw NotSupportedError: "Cannot schedule a value curve containing an automation event".
+Pass	  setValueCurveAtTime(curve, 0.03125, 0.01) threw NotSupportedError: "Cannot schedule a value curve containing an automation event".
+Pass	  setValueCurveAtTime(curve, 0.043750000000000004, 0.01) threw NotSupportedError: "Cannot schedule a value curve containing an automation event".
 Pass	  setValueCurveAtTime([NaN, NaN], 0.043750000000000004, 0.01) threw TypeError: "Expected values to be a finite floating-point number".
 Pass	  setValueCurveAtTime([1, Infinity], 0.043750000000000004, 0.01) threw TypeError: "Expected values to be a finite floating-point number".
 Pass	  delayTime.setValueCurveAtTime([1, 5], 0.043750000000000004, 0.01) did not throw an exception.
 Pass	  delayTime.setValueCurveAtTime([1, 5, Infinity], 0.043750000000000004, 0.01) threw TypeError: "Expected values to be a finite floating-point number".
-Fail	X setValueCurveAtTime(curve, 0.031415926535897934, 0.01) did not throw an exception.
-Fail	< [automations] 5 out of 13 assertions were failed.
+Pass	  setValueCurveAtTime(curve, 0.031415926535897934, 0.01) threw NotSupportedError: "Cannot schedule a value curve containing an automation event".
+Pass	< [automations] All assertions passed. (total 13 assertions)
 Pass	> [catch-exception] 
 Fail	X Handled setValueCurve exception so output: Expected 1 for all values but found 6000 unexpected values: 
 	Index	Actual
@@ -62,17 +62,17 @@ Pass	  setTargetAtTime(1, 0.015000000000000001, 1) did not throw an exception.
 Pass	< [start-end] All assertions passed. (total 9 assertions)
 Pass	> [curve overlap] 
 Pass	  g.gain.setValueCurveAtTime([1,2,3], 5, 10) did not throw an exception.
-Fail	X second g.gain.setValueCurveAtTime([1,2,3], 5, 10) did not throw an exception.
-Fail	X g.gain.setValueCurveAtTime([1,2,3], 5, 5) did not throw an exception.
-Fail	X g.gain.setValueCurveAtTime([1,2,3], 2.5, 10) did not throw an exception.
-Fail	X g.gain.setValueCurveAtTime([1,2,3], 10, 10) did not throw an exception.
-Fail	X g.gain.setValueCurveAtTime([1,2,3], 6, 9) did not throw an exception.
-Fail	X g.gain.setValueCurveAtTime([1,2,3], 4, 11) did not throw an exception.
+Pass	  second g.gain.setValueCurveAtTime([1,2,3], 5, 10) threw NotSupportedError: "Cannot schedule an automation event during a value curve".
+Pass	  g.gain.setValueCurveAtTime([1,2,3], 5, 5) threw NotSupportedError: "Cannot schedule an automation event during a value curve".
+Pass	  g.gain.setValueCurveAtTime([1,2,3], 2.5, 10) threw NotSupportedError: "Cannot schedule a value curve containing an automation event".
+Pass	  g.gain.setValueCurveAtTime([1,2,3], 10, 10) threw NotSupportedError: "Cannot schedule an automation event during a value curve".
+Pass	  g.gain.setValueCurveAtTime([1,2,3], 6, 9) threw NotSupportedError: "Cannot schedule an automation event during a value curve".
+Pass	  g.gain.setValueCurveAtTime([1,2,3], 4, 11) threw NotSupportedError: "Cannot schedule a value curve containing an automation event".
 Pass	  g.gain.setValueAtTime(1.0, 15) did not throw an exception.
-Fail	< [curve overlap] 6 out of 8 assertions were failed.
+Pass	< [curve overlap] All assertions passed. (total 8 assertions)
 Pass	> [curve lengths] 
-Fail	X setValueCurveAtTime([], 0, 0.01) did not throw an exception.
-Fail	X setValueCurveAtTime([1], 0, 0.01) did not throw an exception.
+Pass	  setValueCurveAtTime([], 0, 0.01) threw InvalidStateError: "values must contain at least two elements".
+Pass	  setValueCurveAtTime([1], 0, 0.01) threw InvalidStateError: "values must contain at least two elements".
 Pass	  setValueCurveAtTime([1,2], 0, 0.01) did not throw an exception.
-Fail	< [curve lengths] 2 out of 3 assertions were failed.
-Fail	# AUDIT TASK RUNNER FINISHED: 6 out of 7 tasks were failed.
+Pass	< [curve lengths] All assertions passed. (total 3 assertions)
+Fail	# AUDIT TASK RUNNER FINISHED: 1 out of 7 tasks were failed.
