@@ -213,10 +213,25 @@ bool ComputedValues::adopt_identical_group_payloads(ComputedValues const& previo
     return all_shared;
 }
 
-NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context)
+NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent)
 {
     Builder builder;
     auto& computed_values = *builder.operator->();
+
+    // The inherited box group builds on the Rust side from the computed keyword
+    // values, sharing the parent's payload or the default payload when it can. A
+    // null result means a value the core cannot map, and the setters below apply.
+    auto* inherited_box_payload = ComputedValuesFFI::rust_build_inherited_box_group(
+        InheritedBoxValues::style_group_index,
+        computed_style.property(PropertyID::Visibility).rust_style_value_data(),
+        computed_style.property(PropertyID::Direction).rust_style_value_data(),
+        computed_style.property(PropertyID::WritingMode).rust_style_value_data(),
+        computed_style.property(PropertyID::ContentVisibility).rust_style_value_data(),
+        computed_style.property(PropertyID::ImageRendering).rust_style_value_data(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.box.operator->()) : nullptr);
+    bool const inherited_box_adopted = inherited_box_payload != nullptr;
+    if (inherited_box_adopted)
+        computed_values.adopt_inherited_box_group(const_cast<void*>(inherited_box_payload));
 
     auto custom_ident_list = [&](PropertyID property_id) {
         Vector<Utf16FlyString> names;
@@ -759,10 +774,12 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_clear(computed_style.clear());
     computed_values.set_overflow_x(computed_style.overflow_x());
     computed_values.set_overflow_y(computed_style.overflow_y());
-    computed_values.set_content_visibility(computed_style.content_visibility());
+    if (!inherited_box_adopted)
+        computed_values.set_content_visibility(computed_style.content_visibility());
     auto cursor = computed_style.cursor();
     computed_values.set_cursor(move(cursor));
-    computed_values.set_image_rendering(computed_style.image_rendering());
+    if (!inherited_box_adopted)
+        computed_values.set_image_rendering(computed_style.image_rendering());
     computed_values.set_pointer_events(computed_style.pointer_events());
     computed_values.set_text_decoration_line(computed_style.text_decoration_line());
     computed_values.set_text_decoration_skip_ink(computed_style.text_decoration_skip_ink());
@@ -801,7 +818,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_z_index(computed_style.z_index());
     computed_values.set_opacity(computed_style.opacity());
 
-    computed_values.set_visibility(computed_style.visibility());
+    if (!inherited_box_adopted)
+        computed_values.set_visibility(computed_style.visibility());
 
     computed_values.set_width(computed_style.size_value(CSS::PropertyID::Width));
     computed_values.set_min_width(computed_style.size_value(CSS::PropertyID::MinWidth));
@@ -1052,7 +1070,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
 
     computed_values.set_object_fit(computed_style.object_fit());
     computed_values.set_object_position(computed_style.object_position());
-    computed_values.set_direction(computed_style.direction());
+    if (!inherited_box_adopted)
+        computed_values.set_direction(computed_style.direction());
     computed_values.set_unicode_bidi(computed_style.unicode_bidi());
     computed_values.set_scroll_behavior(CSS::keyword_to_scroll_behavior(computed_style.property(CSS::PropertyID::ScrollBehavior).to_keyword()).release_value());
     computed_values.set_scrollbar_color(computed_style.scrollbar_color(color_resolution_context));
@@ -1079,7 +1098,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         apply_shape_outside_item(shape_outside_value);
     }
     computed_values.set_shape_outside(move(shape_outside));
-    computed_values.set_writing_mode(computed_style.writing_mode());
+    if (!inherited_box_adopted)
+        computed_values.set_writing_mode(computed_style.writing_mode());
     computed_values.set_user_select(computed_style.user_select());
     computed_values.set_isolation(computed_style.isolation());
     computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());

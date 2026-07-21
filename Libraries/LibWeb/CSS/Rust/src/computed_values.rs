@@ -68,11 +68,36 @@ pub struct StyleGroupVTable {
 unsafe impl Send for StyleGroupVTable {}
 unsafe impl Sync for StyleGroupVTable {}
 
-static REGISTRY: OnceLock<Box<[StyleGroupVTable]>> = OnceLock::new();
+struct Registry {
+    vtables: Box<[StyleGroupVTable]>,
+    /// The intentionally leaked per-group default payloads, for building
+    /// groups without allocating when every field holds its initial value.
+    defaults: Box<[*const c_void]>,
+}
+
+// SAFETY: The defaults are immortal, immutable payloads.
+unsafe impl Send for Registry {}
+unsafe impl Sync for Registry {}
+
+static REGISTRY: OnceLock<Registry> = OnceLock::new();
 
 fn vtable(group_index: usize) -> &'static StyleGroupVTable {
     let registry = REGISTRY.get().expect("style groups used before registration");
-    &registry[group_index]
+    &registry.vtables[group_index]
+}
+
+pub(crate) fn default_group_payload(group_index: usize) -> *const c_void {
+    REGISTRY.get().expect("style groups used before registration").defaults[group_index]
+}
+
+/// Retains one reference to a payload, mirroring StyleStructRef::ref():
+/// intentionally leaked payloads are never counted.
+pub(crate) fn retain_group_payload(group_index: usize, payload: *const c_void) {
+    let refcount = refcount_of(payload, vtable(group_index).align);
+    if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
+        return;
+    }
+    refcount.fetch_add(1, Ordering::Relaxed);
 }
 
 fn header_size(align: usize) -> usize {
@@ -121,13 +146,23 @@ pub unsafe extern "C" fn rust_style_group_registry_register(
 ) {
     abort_on_panic(|| unsafe {
         let tables: Box<[StyleGroupVTable]> = std::slice::from_raw_parts(vtables, count).into();
+        let mut defaults = Vec::with_capacity(count);
         for (index, table) in tables.iter().enumerate() {
             assert!(table.align.is_power_of_two());
             let payload = allocate_payload(table, STYLE_GROUP_STATIC_REFCOUNT);
             (table.default_construct)(payload);
             *out_default_payloads.add(index) = payload;
+            defaults.push(payload as *const c_void);
         }
-        assert!(REGISTRY.set(tables).is_ok(), "style group registry registered twice");
+        assert!(
+            REGISTRY
+                .set(Registry {
+                    vtables: tables,
+                    defaults: defaults.into_boxed_slice(),
+                })
+                .is_ok(),
+            "style group registry registered twice"
+        );
     });
 }
 
@@ -162,6 +197,68 @@ pub unsafe extern "C" fn rust_style_group_free(group_index: usize, payload: *mut
         let allocation = (payload as *mut u8).sub(header_size(table.align));
         dealloc(allocation, allocation_layout(table));
     });
+}
+
+/// Builds an inherited box group payload from the five computed keyword
+/// values, sharing instead of allocating whenever it can: the parent's
+/// payload when every field matches it, or the immortal default payload when
+/// every field holds its initial value. Returns null when any value is not a
+/// mappable keyword, in which case the C++ population path applies.
+///
+/// The returned payload carries one reference for the caller; fresh payloads
+/// start at one, shared payloads are retained, and default payloads are
+/// intentionally leaked and never counted.
+///
+/// # Safety
+/// The value pointers must be valid StyleValueData or null, and
+/// `parent_payload` a valid inherited box payload or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_build_inherited_box_group(
+    group_index: usize,
+    visibility: *const c_void,
+    direction: *const c_void,
+    writing_mode: *const c_void,
+    content_visibility: *const c_void,
+    image_rendering: *const c_void,
+    parent_payload: *const c_void,
+) -> *const c_void {
+    use crate::style_value::StyleValueData;
+
+    abort_on_panic(|| {
+        let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> Option<u8> {
+            match unsafe { (data as *const StyleValueData).as_ref() } {
+                Some(StyleValueData::Keyword { keyword }) => map(*keyword),
+                _ => None,
+            }
+        };
+        let built = InheritedBoxValues {
+            visibility: keyword_code(visibility, crate::style_compute::keyword_to_visibility)?,
+            direction: keyword_code(direction, crate::style_compute::keyword_to_direction)?,
+            writing_mode: keyword_code(writing_mode, crate::style_compute::keyword_to_writing_mode)?,
+            content_visibility: keyword_code(content_visibility, crate::style_compute::keyword_to_content_visibility)?,
+            image_rendering: keyword_code(image_rendering, crate::style_compute::keyword_to_image_rendering)?,
+        };
+
+        if !parent_payload.is_null() {
+            // SAFETY: The caller guarantees a valid inherited box payload.
+            if built == unsafe { *(parent_payload as *const InheritedBoxValues) } {
+                retain_group_payload(group_index, parent_payload);
+                return Some(parent_payload);
+            }
+        }
+
+        let default_payload = default_group_payload(group_index);
+        // SAFETY: The default payload is a valid inherited box payload.
+        if built == unsafe { *(default_payload as *const InheritedBoxValues) } {
+            return Some(default_payload);
+        }
+
+        let payload = allocate_payload(vtable(group_index), 1);
+        // SAFETY: The payload was allocated for this group's layout.
+        unsafe { *(payload as *mut InheritedBoxValues) = built };
+        Some(payload as *const c_void)
+    })
+    .unwrap_or(std::ptr::null())
 }
 
 /// Layout of the inherited table style value group.

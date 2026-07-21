@@ -960,7 +960,7 @@ public:
         Yes,
     };
 
-    static NonnullRefPtr<ComputedValues const> create(ComputedProperties const&, DOM::Document const&, StyleScope const&, ColorResolutionContext);
+    static NonnullRefPtr<ComputedValues const> create(ComputedProperties const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const* inherit_parent = nullptr);
 
     RefPtr<StyleValue const> computed_style_value(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     RefPtr<StyleValue const> computed_style_value_for_inheritance(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
@@ -1891,6 +1891,10 @@ public:
     void set_raw_cascaded_font_size(RefPtr<StyleValue const> value) { m_values.m_raw_cascaded_font_size = move(value); }
     void set_base_values(NonnullRefPtr<ComputedValues const> value) { m_values.m_base_values = move(value); }
     void set_animated_properties(AnimatedProperties const*);
+
+    // Adopts a Rust-built inherited box group payload, which arrives already
+    // carrying this reference.
+    void adopt_inherited_box_group(void* payload) { m_values.m_inherited.box.adopt(payload); }
 
     void set_aspect_ratio(AspectRatio aspect_ratio)
     {

@@ -2932,15 +2932,18 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_computed_values(Compute
         }
     };
 
+    auto const inherit_parent = abstract_element.element_to_inherit_style_from();
+    auto const* inherit_parent_values = inherit_parent.has_value() ? inherit_parent->computed_values() : nullptr;
+
     auto base_properties = computed_properties.copy_without_animations();
-    auto base_values = ComputedValues::create(*base_properties, document(), style_scope, color_resolution_context);
+    auto base_values = ComputedValues::create(*base_properties, document(), style_scope, color_resolution_context, inherit_parent_values);
     auto animated_properties = computed_properties.animated_properties_snapshot();
     if (!animated_properties || animated_properties->is_empty()) {
         adopt_group_payloads_from_parent(*base_values);
         return base_values;
     }
 
-    ComputedValues::Builder builder(*ComputedValues::create(computed_properties, document(), style_scope, move(color_resolution_context)));
+    ComputedValues::Builder builder(*ComputedValues::create(computed_properties, document(), style_scope, move(color_resolution_context), inherit_parent_values));
     builder->set_base_values(move(base_values));
     builder->set_animated_properties(animated_properties.ptr());
     auto style = move(builder).build();

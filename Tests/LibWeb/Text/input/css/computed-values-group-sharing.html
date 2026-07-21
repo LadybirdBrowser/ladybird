@@ -27,5 +27,21 @@
         info = internals.styleGroupSharingInfo(child);
         for (const group of ["inheritedList", "inheritedText", "font", "inheritedBox", "inheritedUI"])
             println(`unstyled-again child ${group} shared with parent: ${info[group].sharedWithParent}`);
+
+        // A non-default inherited box on the parent must end up shared with the
+        // child, which inherits every field unchanged.
+        const parent = document.getElementById("parent");
+        parent.style.writingMode = "vertical-rl";
+        parent.style.visibility = "hidden";
+        internals.updateStyle();
+        info = internals.styleGroupSharingInfo(child);
+        println(`writing-mode parent: child inheritedBox at default: ${info.inheritedBox.isDefault}`);
+        println(`writing-mode parent: child inheritedBox shared with parent: ${info.inheritedBox.sharedWithParent}`);
+
+        // A child that overrides one inherited box field must stop sharing.
+        child.style.visibility = "visible";
+        internals.updateStyle();
+        info = internals.styleGroupSharingInfo(child);
+        println(`visibility-overriding child inheritedBox shared with parent: ${info.inheritedBox.sharedWithParent}`);
     });
 </script>

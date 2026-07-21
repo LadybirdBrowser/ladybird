@@ -100,6 +100,14 @@ public:
         return *m_payload;
     }
 
+    // Takes ownership of a payload built on the Rust side; the payload
+    // arrives already carrying this reference.
+    void adopt(void* payload)
+    {
+        deref();
+        m_payload = static_cast<T*>(payload);
+    }
+
     bool ptr_equals(StyleStructRef const& other) const { return m_payload == other.m_payload; }
     bool is_default() const { return m_payload == default_payload(); }
 

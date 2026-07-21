@@ -18,3 +18,6 @@ unstyled-again child inheritedText shared with parent: true
 unstyled-again child font shared with parent: true
 unstyled-again child inheritedBox shared with parent: true
 unstyled-again child inheritedUI shared with parent: true
+writing-mode parent: child inheritedBox at default: false
+writing-mode parent: child inheritedBox shared with parent: true
+visibility-overriding child inheritedBox shared with parent: false
