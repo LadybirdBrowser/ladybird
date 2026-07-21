@@ -9,6 +9,7 @@
 
 #include <AK/QuickSort.h>
 #include <AK/TemporaryChange.h>
+#include <LibCore/Environment.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/ReplacedBox.h>
@@ -25,6 +26,68 @@
 #include <LibWeb/SVG/SVGMaskElement.h>
 
 namespace Web::Painting {
+
+static bool verify_display_list_cache_enabled()
+{
+    static bool enabled = Core::Environment::has("LADYBIRD_VERIFY_DISPLAY_LIST_CACHE"sv);
+    return enabled;
+}
+
+// Commands are compared through their dump() representations — the same canonical form the display list
+// dump tests diff — because raw payload bytes contain uninitialized struct padding. Compositor metadata is
+// dropped because the scratch context used for the fresh side has no async scrolling state, so the fresh
+// recording never emits it. Context indices are not part of the comparison: splice rewrites them.
+static Vector<String> dump_commands_for_cache_verification(ReadonlyBytes command_bytes)
+{
+    Vector<String> dumped_commands;
+    DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+        if (display_list_command_is_compositor_metadata(header.type))
+            return;
+        StringBuilder builder;
+        visit_display_list_command(header.type, payload, [&]<typename Command>(Command const& command) {
+            builder.appendff("{} payload_size={}", Command::command_name, header.payload_size);
+            command.dump(builder);
+        });
+        dumped_commands.append(MUST(builder.to_string()));
+    });
+    return dumped_commands;
+}
+
+static void verify_spliced_commands_match_fresh_recording(Paintable const& paintable, DisplayListRecordingContext& context, PaintPhase phase, DisplayListCommandRange spliced_range)
+{
+    auto& recorder = context.display_list_recorder();
+    auto const& visual_context_tree = recorder.visual_context_tree();
+
+    auto scratch_display_list = DisplayList::create(visual_context_tree);
+    DisplayListRecorder scratch_recorder(scratch_display_list, visual_context_tree, recorder.resource_storage());
+    auto scratch_context = context.clone(scratch_recorder);
+    scratch_recorder.set_accumulated_visual_context(recorder.accumulated_visual_context());
+    paintable.paint(scratch_context, phase);
+
+    auto spliced_bytes = recorder.display_list().command_bytes().slice(spliced_range.offset, spliced_range.size);
+    auto fresh_bytes = scratch_display_list->command_bytes();
+
+    // Commands that embed nested display list resources reference lists freshly minted per recording
+    // (e.g. pattern tile backgrounds), so their ids differ from the spliced ones by construction.
+    auto& resource_storage = recorder.resource_storage();
+    if (!resource_storage.collect_referenced_resources(spliced_bytes).display_lists.is_empty()
+        || !resource_storage.collect_referenced_resources(fresh_bytes).display_lists.is_empty())
+        return;
+
+    auto spliced_commands = dump_commands_for_cache_verification(spliced_bytes);
+    auto fresh_commands = dump_commands_for_cache_verification(fresh_bytes);
+
+    if (spliced_commands == fresh_commands)
+        return;
+
+    dbgln("Spliced display list cache mismatch for {} in paint phase {} ({} spliced commands, {} fresh commands)",
+        paintable.layout_node().debug_description(), to_underlying(phase), spliced_commands.size(), fresh_commands.size());
+    for (auto const& command : spliced_commands)
+        dbgln("  spliced: {}", command);
+    for (auto const& command : fresh_commands)
+        dbgln("  fresh:   {}", command);
+    VERIFY_NOT_REACHED();
+}
 
 static void paint_node(Paintable const& paintable, DisplayListRecordingContext& context, PaintPhase phase)
 {
@@ -52,6 +115,8 @@ static void paint_node(Paintable const& paintable, DisplayListRecordingContext& 
 
     if (cached_commands.has_value()) {
         auto destination_range = recorder.append_cached_command_range(*cache_source_display_list, cached_commands->range);
+        if (verify_display_list_cache_enabled()) [[unlikely]]
+            verify_spliced_commands_match_fresh_recording(paintable, context, phase, destination_range);
         if (cache_writes_enabled)
             paintable.set_cached_commands(phase, recorder.display_list().id(), destination_range, phase_context_index, phase_has_empty_effective_clip);
     } else {
