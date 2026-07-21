@@ -61,6 +61,9 @@ pub struct StyleGroupVTable {
     pub default_construct: unsafe extern "C" fn(payload: *mut c_void),
     pub copy_construct: unsafe extern "C" fn(payload: *mut c_void, source: *const c_void),
     pub destruct: unsafe extern "C" fn(payload: *mut c_void),
+    /// Field-wise payload equality; groups without a comparable layout
+    /// report false, which conservatively disables payload sharing.
+    pub equals: unsafe extern "C" fn(a: *const c_void, b: *const c_void) -> bool,
 }
 
 // SAFETY: The function pointers are stateless C++ callbacks and the plain
@@ -197,6 +200,205 @@ pub unsafe extern "C" fn rust_style_group_free(group_index: usize, payload: *mut
         let allocation = (payload as *mut u8).sub(header_size(table.align));
         dealloc(allocation, allocation_layout(table));
     });
+}
+
+/// One field of a style group the generic builder can populate or check: a
+/// pokeable simple field (an enum code mapped through a keyword table, a
+/// number, or a pixel length) or a constraint requiring a hard field's value
+/// to be a specific keyword so the constructor's initial value stands.
+#[repr(C)]
+pub struct FfiGroupFieldDescriptor {
+    pub group_index: u32,
+    pub property_id: u16,
+    pub offset: u32,
+    pub kind: u8,
+    /// For GROUP_FIELD_REQUIRE_KEYWORD: the required keyword.
+    pub keyword: u16,
+    /// For GROUP_FIELD_ENUM_KEYWORD: keyword code -> enum code, 255 invalid.
+    pub keyword_table: *const u8,
+    pub keyword_table_length: usize,
+}
+
+/// An enum stored as u8, mapped through the descriptor's keyword table.
+pub const GROUP_FIELD_ENUM_KEYWORD: u8 = 0;
+/// A number stored as f32.
+pub const GROUP_FIELD_F32: u8 = 1;
+/// A number stored as f64.
+pub const GROUP_FIELD_F64: u8 = 2;
+/// A pixel length stored as raw CSSPixels (i32).
+pub const GROUP_FIELD_CSS_PIXELS: u8 = 3;
+/// An integer stored as u64.
+pub const GROUP_FIELD_U64: u8 = 4;
+/// A constraint: the value must be this keyword; nothing is written.
+pub const GROUP_FIELD_REQUIRE_KEYWORD: u8 = 5;
+
+struct FieldDescriptors(Box<[FfiGroupFieldDescriptor]>);
+
+// SAFETY: The keyword tables are immortal C++ statics.
+unsafe impl Send for FieldDescriptors {}
+unsafe impl Sync for FieldDescriptors {}
+
+static FIELD_DESCRIPTORS: OnceLock<FieldDescriptors> = OnceLock::new();
+
+/// Installs the pokeable-field descriptors for every group in one flat array.
+///
+/// # Safety
+/// `descriptors` must point at `count` valid descriptors whose keyword tables
+/// stay alive for the process lifetime.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_group_register_field_descriptors(
+    descriptors: *const FfiGroupFieldDescriptor,
+    count: usize,
+) {
+    abort_on_panic(|| {
+        let slice = unsafe { std::slice::from_raw_parts(descriptors, count) };
+        let copied: Box<[FfiGroupFieldDescriptor]> = slice
+            .iter()
+            .map(|descriptor| FfiGroupFieldDescriptor { ..*descriptor })
+            .collect();
+        assert!(
+            FIELD_DESCRIPTORS.set(FieldDescriptors(copied)).is_ok(),
+            "field descriptors installed twice"
+        );
+    });
+}
+
+/// Builds a style group payload generically from its registered field
+/// descriptors: decodes every descriptor's value (returning null for the C++
+/// population path when any value cannot be decoded or a constraint fails),
+/// default-constructs a scratch payload, pokes the simple fields, and shares
+/// the parent or default payload when the result compares equal.
+///
+/// # Safety
+/// `values` must hold one valid (shell, data) entry per registered descriptor
+/// of the group, in registration order; `parent_payload` must be a valid
+/// payload of the group or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_build_style_group(
+    group_index: usize,
+    values: *const crate::style_compute::FfiShellAndData,
+    count: usize,
+    parent_payload: *const c_void,
+) -> *const c_void {
+    use crate::style_value::StyleValueData;
+
+    abort_on_panic(|| {
+        let all = &FIELD_DESCRIPTORS.get()?.0;
+        let descriptors: Vec<&FfiGroupFieldDescriptor> = all
+            .iter()
+            .filter(|descriptor| descriptor.group_index as usize == group_index)
+            .collect();
+        if descriptors.len() != count {
+            return None;
+        }
+        let values = unsafe { std::slice::from_raw_parts(values, count) };
+
+        enum Poke {
+            U8(u32, u8),
+            F32(u32, f32),
+            F64(u32, f64),
+            I32(u32, i32),
+            U64(u32, u64),
+        }
+        let mut pokes = Vec::with_capacity(count);
+        for (descriptor, value) in descriptors.iter().zip(values) {
+            let data = unsafe { (value.data as *const StyleValueData).as_ref() }?;
+            match descriptor.kind {
+                GROUP_FIELD_ENUM_KEYWORD => {
+                    let StyleValueData::Keyword { keyword } = data else {
+                        return None;
+                    };
+                    let table = unsafe {
+                        std::slice::from_raw_parts(descriptor.keyword_table, descriptor.keyword_table_length)
+                    };
+                    let code = *table.get(*keyword as usize)?;
+                    if code == 255 {
+                        return None;
+                    }
+                    pokes.push(Poke::U8(descriptor.offset, code));
+                }
+                GROUP_FIELD_F32 => {
+                    let StyleValueData::Number { value } = data else {
+                        return None;
+                    };
+                    pokes.push(Poke::F32(descriptor.offset, *value as f32));
+                }
+                GROUP_FIELD_F64 => {
+                    let StyleValueData::Number { value } = data else {
+                        return None;
+                    };
+                    pokes.push(Poke::F64(descriptor.offset, *value));
+                }
+                GROUP_FIELD_CSS_PIXELS => {
+                    let StyleValueData::Length { value, unit } = data else {
+                        return None;
+                    };
+                    if *unit != crate::style_compute::px_length_unit() {
+                        return None;
+                    }
+                    pokes.push(Poke::I32(
+                        descriptor.offset,
+                        crate::css_pixels::CssPixels::nearest_value_for(*value).raw_value(),
+                    ));
+                }
+                GROUP_FIELD_U64 => {
+                    let StyleValueData::Integer { value } = data else {
+                        return None;
+                    };
+                    if *value < 0 {
+                        return None;
+                    }
+                    pokes.push(Poke::U64(descriptor.offset, *value as u64));
+                }
+                GROUP_FIELD_REQUIRE_KEYWORD => {
+                    let StyleValueData::Keyword { keyword } = data else {
+                        return None;
+                    };
+                    if *keyword != descriptor.keyword {
+                        return None;
+                    }
+                }
+                _ => return None,
+            }
+        }
+
+        let table = vtable(group_index);
+        let scratch = allocate_payload(table, 1);
+        // SAFETY: The scratch payload was allocated for this group's layout,
+        // and every poke offset comes from offsetof on the C++ side.
+        unsafe {
+            (table.default_construct)(scratch);
+            for poke in &pokes {
+                let base = scratch as *mut u8;
+                match *poke {
+                    Poke::U8(offset, value) => *base.add(offset as usize) = value,
+                    Poke::F32(offset, value) => *(base.add(offset as usize) as *mut f32) = value,
+                    Poke::F64(offset, value) => *(base.add(offset as usize) as *mut f64) = value,
+                    Poke::I32(offset, value) => *(base.add(offset as usize) as *mut i32) = value,
+                    Poke::U64(offset, value) => *(base.add(offset as usize) as *mut u64) = value,
+                }
+            }
+        }
+
+        let free_scratch = || unsafe {
+            (table.destruct)(scratch);
+            let allocation = (scratch as *mut u8).sub(header_size(table.align));
+            dealloc(allocation, allocation_layout(table));
+        };
+
+        if !parent_payload.is_null() && unsafe { (table.equals)(scratch, parent_payload) } {
+            free_scratch();
+            retain_group_payload(group_index, parent_payload);
+            return Some(parent_payload);
+        }
+        let default_payload = default_group_payload(group_index);
+        if unsafe { (table.equals)(scratch, default_payload) } {
+            free_scratch();
+            return Some(default_payload);
+        }
+        Some(scratch as *const c_void)
+    })
+    .unwrap_or(std::ptr::null())
 }
 
 /// Builds an inherited box group payload from the five computed keyword
@@ -377,6 +579,9 @@ mod tests {
     unsafe extern "C" fn test_destruct(_payload: *mut c_void) {
         LIVE.fetch_sub(1, Ordering::Relaxed);
     }
+    unsafe extern "C" fn test_equals(a: *const c_void, b: *const c_void) -> bool {
+        unsafe { *(a as *const u64) == *(b as *const u64) }
+    }
 
     #[test]
     fn payload_lifecycle() {
@@ -386,6 +591,7 @@ mod tests {
             default_construct: test_default_construct,
             copy_construct: test_copy_construct,
             destruct: test_destruct,
+            equals: test_equals,
         }];
         let mut defaults = [std::ptr::null::<c_void>(); 1];
         unsafe {

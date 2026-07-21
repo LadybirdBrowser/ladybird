@@ -56,6 +56,11 @@ static consteval ComputedValuesFFI::StyleGroupVTable make_style_group_vtable()
                 new (payload) T(); },
         .copy_construct = [](void* payload, void const* source) { new (payload) T(*static_cast<T const*>(source)); },
         .destruct = [](void* payload) { static_cast<T*>(payload)->~T(); },
+        .equals = [](void const* a, void const* b) {
+            if constexpr (requires(T const& value) { value == value; })
+                return *static_cast<T const*>(a) == *static_cast<T const*>(b);
+            else
+                return false; },
     };
 }
 
