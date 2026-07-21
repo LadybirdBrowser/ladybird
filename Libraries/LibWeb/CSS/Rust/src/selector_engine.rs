@@ -1601,10 +1601,6 @@ pub struct FfiElement {
 }
 
 impl FfiElement {
-    fn is_null(self) -> bool {
-        self.pointer.is_null()
-    }
-
     fn qualified_name(self) -> FfiElementQualifiedName {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
@@ -2043,12 +2039,6 @@ pub struct FfiResolvedNamespace {
     pub namespace_: usize,
 }
 
-impl FfiResolvedNamespace {
-    fn namespace(self) -> Option<usize> {
-        (self.namespace_type == FfiResolvedNamespaceType::Named).then_some(self.namespace_)
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum FfiNodeKind {
     Element,
@@ -2063,7 +2053,6 @@ enum FfiNodeKind {
 struct FfiNode<'a> {
     pointer: *const c_void,
     kind: FfiNodeKind,
-    element: FfiElement,
     marker: PhantomData<&'a FfiCallScope>,
 }
 
@@ -2083,7 +2072,7 @@ impl FfiNode<'_> {
 
     fn as_element(self) -> FfiElement {
         assert_eq!(self.kind, FfiNodeKind::Element);
-        self.element
+        FfiElement { pointer: self.pointer }
     }
 }
 
@@ -2591,23 +2580,13 @@ impl<'a> FfiDom<'a> {
         (!pointer.is_null()).then_some(FfiNode {
             pointer,
             kind,
-            element: FfiElement {
-                pointer: std::ptr::null(),
-            },
             marker: PhantomData,
         })
     }
 
     unsafe fn element(&self, element: FfiElement) -> Option<FfiNode<'a>> {
-        if element.is_null() {
-            return None;
-        }
-        Some(FfiNode {
-            pointer: element.pointer,
-            kind: FfiNodeKind::Element,
-            element,
-            marker: PhantomData,
-        })
+        // SAFETY: The caller guarantees that a non-null pointer identifies a live DOM element.
+        unsafe { self.node(element.pointer, FfiNodeKind::Element) }
     }
 
     unsafe fn scope(&self, scope: *const c_void) -> Option<FfiNode<'a>> {
@@ -2643,9 +2622,9 @@ impl<'a> FfiDom<'a> {
         match namespace.namespace_type {
             FfiResolvedNamespaceType::Missing => false,
             FfiResolvedNamespaceType::Null => element.as_element().namespace_is_null(),
-            FfiResolvedNamespaceType::Named => namespace
-                .namespace()
-                .is_some_and(|namespace| element.as_element().qualified_name().namespace() == Some(namespace)),
+            FfiResolvedNamespaceType::Named => {
+                element.as_element().qualified_name().namespace() == Some(namespace.namespace_)
+            }
         }
     }
 }
@@ -2760,13 +2739,16 @@ impl<'a> SelectorDom for FfiDom<'a> {
                 // "|attr").
                 NamespaceType::Default | NamespaceType::None => dom_attribute.namespace().is_none(),
                 NamespaceType::Any => true,
-                NamespaceType::Named => match resolved_namespace.unwrap().namespace_type {
-                    FfiResolvedNamespaceType::Missing => false,
-                    FfiResolvedNamespaceType::Null => dom_attribute.namespace().is_none(),
-                    FfiResolvedNamespaceType::Named => {
-                        dom_attribute.namespace() == resolved_namespace.unwrap().namespace()
+                NamespaceType::Named => {
+                    let resolved_namespace = resolved_namespace.unwrap();
+                    match resolved_namespace.namespace_type {
+                        FfiResolvedNamespaceType::Missing => false,
+                        FfiResolvedNamespaceType::Null => dom_attribute.namespace().is_none(),
+                        FfiResolvedNamespaceType::Named => {
+                            dom_attribute.namespace() == Some(resolved_namespace.namespace_)
+                        }
                     }
-                },
+                }
             };
             namespace_matches
                 && matches_attribute_value(
@@ -3394,7 +3376,7 @@ pub unsafe extern "C" fn rust_selector_matches(
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMatchEntry);
     abort_on_panic(|| {
         assert!(!selector.is_null());
-        assert!(!element.is_null());
+        assert!(!element.pointer.is_null());
         assert!(!context.is_null());
         // SAFETY: The caller guarantees that the selector handle remains valid for this call.
         let selector = unsafe { &(*selector).selector };
@@ -3444,7 +3426,7 @@ pub unsafe extern "C" fn rust_selector_matches_originating_element(
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMatchEntry);
     abort_on_panic(|| {
         assert!(!selector.is_null());
-        assert!(!element.is_null());
+        assert!(!element.pointer.is_null());
         assert!(!context.is_null());
         // SAFETY: The caller guarantees that the selector handle remains valid for this call.
         let selector = unsafe { &(*selector).selector };
