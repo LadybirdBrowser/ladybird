@@ -407,8 +407,6 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
         return element.matches_enabled_pseudo_class();
     case CSS::PseudoClass::EvenLessGoodValue:
         return matches_optimal_value_pseudo_class(element, HTML::HTMLMeterElement::ValueState::EvenLessGood);
-    case CSS::PseudoClass::Fullscreen:
-        return element.is_fullscreen_element();
     case CSS::PseudoClass::HighValue:
         if (auto const* meter = as_if<HTML::HTMLMeterElement>(element))
             return meter->value() > meter->high();
@@ -604,6 +602,7 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
     case CSS::PseudoClass::Focus:
     case CSS::PseudoClass::FocusVisible:
     case CSS::PseudoClass::FocusWithin:
+    case CSS::PseudoClass::Fullscreen:
     case CSS::PseudoClass::Has:
     case CSS::PseudoClass::Heading:
     case CSS::PseudoClass::Host:
@@ -716,6 +715,7 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_namespace_is_null);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_html_element_in_html_document);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_document_root);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_link);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_fullscreen);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_focused);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_should_indicate_focus);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_focus_within);
@@ -835,6 +835,11 @@ extern "C" bool selector_ffi_element_is_link(void const* element)
     return ffi_element(element).matches_link_pseudo_class();
 }
 
+extern "C" bool selector_ffi_element_is_fullscreen(void const* element)
+{
+    return ffi_element(element).is_fullscreen_element();
+}
+
 extern "C" bool selector_ffi_element_is_focused(void const* element)
 {
     return ffi_element(element).is_focused();
@@ -947,6 +952,7 @@ static bool is_rust_matched_pseudo_class(CSS::PseudoClass pseudo_class)
         CSS::PseudoClass::Focus,
         CSS::PseudoClass::FocusVisible,
         CSS::PseudoClass::FocusWithin,
+        CSS::PseudoClass::Fullscreen,
         CSS::PseudoClass::Has,
         CSS::PseudoClass::Host,
         CSS::PseudoClass::Is,

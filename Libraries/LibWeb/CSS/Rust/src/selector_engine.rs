@@ -1619,6 +1619,12 @@ impl FfiElement {
         unsafe { selector_ffi_element_is_link(self.pointer) }
     }
 
+    fn is_fullscreen(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_fullscreen(self.pointer) }
+    }
+
     fn is_focused(self) -> bool {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
@@ -1887,6 +1893,7 @@ unsafe extern "C" {
     fn selector_ffi_element_is_html_element_in_html_document(element: *const c_void) -> bool;
     fn selector_ffi_element_is_document_root(element: *const c_void) -> bool;
     fn selector_ffi_element_is_link(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_fullscreen(element: *const c_void) -> bool;
     fn selector_ffi_element_is_focused(element: *const c_void) -> bool;
     fn selector_ffi_element_should_indicate_focus(element: *const c_void) -> bool;
     fn selector_ffi_element_has_focus_within(element: *const c_void) -> bool;
@@ -2343,6 +2350,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
     fn matches_pseudo_class_state(&mut self, element: FfiNode<'a>, pseudo_class: &PseudoClassSelector) -> bool {
         match pseudo_class.pseudo_class {
             PseudoClassType::AnyLink | PseudoClassType::Link => element.as_element().is_link(),
+            PseudoClassType::Fullscreen => element.as_element().is_fullscreen(),
             PseudoClassType::Focus => element.as_element().is_focused(),
             PseudoClassType::FocusVisible => {
                 element.as_element().is_focused() && element.as_element().should_indicate_focus()
