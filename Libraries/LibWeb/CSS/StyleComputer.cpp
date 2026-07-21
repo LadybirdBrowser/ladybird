@@ -876,131 +876,6 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     ComputedValuesFFI::rust_for_each_property_expanding_shorthands(&callbacks, to_underlying(property_id), &value, value.rust_style_value_data());
 }
 
-static bool property_is_disallowed_in_cascade(PropertyID property_id, DOM::AbstractElement const& abstract_element, StyleComputer::BypassPseudoElementPropertyWhitelist bypass_pseudo_element_property_whitelist)
-{
-    // NB: We bypass the pseudo-element property whitelist when applying inline style since inline style is used
-    //     internally to style element-reference pseudo-elements and sometimes contains disallowed properties (e.g.
-    //     input::placeholder has height set), authors can't set inline style on pseudo-elements so this doesn't
-    //     cause any spec compliance issues.
-    if (bypass_pseudo_element_property_whitelist == StyleComputer::BypassPseudoElementPropertyWhitelist::Yes)
-        return false;
-
-    return abstract_element.pseudo_element().has_value() && !pseudo_element_supports_property(*abstract_element.pseudo_element(), property_id);
-}
-
-void StyleComputer::apply_property_list_to_cascade(
-    CascadedProperties& cascaded_properties,
-    DOM::AbstractElement abstract_element,
-    ReadonlySpan<StyleProperty> properties,
-    CascadeOrigin cascade_origin,
-    Important important,
-    Optional<Utf16FlyString> layer_name,
-    GC::Ptr<CSSStyleDeclaration const> source,
-    GC::Ptr<DOM::ShadowRoot const> source_shadow_root,
-    BypassPseudoElementPropertyWhitelist bypass_pseudo_element_property_whitelist) const
-{
-    // The application loop lives in the Rust style computation core; this wrapper marshals
-    // the declaration list and provides the shell-level callbacks, pinning every value it
-    // creates until the application returns.
-    struct CascadeApplicationContext {
-        CascadedProperties& cascaded_properties;
-        DOM::AbstractElement& abstract_element;
-        GC::Ptr<CSSStyleDeclaration const> source;
-        GC::Ptr<DOM::ShadowRoot const> source_shadow_root;
-        BypassPseudoElementPropertyWhitelist bypass_pseudo_element_property_whitelist;
-        Vector<NonnullRefPtr<StyleValue const>> pinned_values;
-    } application_context {
-        .cascaded_properties = cascaded_properties,
-        .abstract_element = abstract_element,
-        .source = source,
-        .source_shadow_root = source_shadow_root,
-        .bypass_pseudo_element_property_whitelist = bypass_pseudo_element_property_whitelist,
-        .pinned_values = {},
-    };
-
-    Vector<ComputedValuesFFI::FfiCascadeDeclaration, 32> declarations;
-    declarations.ensure_capacity(properties.size());
-    for (auto const& property : properties) {
-        declarations.unchecked_append({
-            .property_id = to_underlying(property.property_id),
-            .important = property.important == Important::Yes,
-            .shell = property.value.ptr(),
-            .data = property.value->rust_style_value_data(),
-        });
-    }
-
-    auto unset_value = KeywordStyleValue::create(Keyword::Unset);
-
-    ComputedValuesFFI::FfiCascadeApplicationCallbacks const callbacks {
-        .context = &application_context,
-        .is_property_disallowed = [](void* context, u16 property_id) -> bool {
-            auto& application_context = *static_cast<CascadeApplicationContext*>(context);
-            return property_is_disallowed_in_cascade(static_cast<PropertyID>(property_id), application_context.abstract_element, application_context.bypass_pseudo_element_property_whitelist);
-        },
-        .resolve_unresolved = [](void* context, u16 property_id, void const* shell) -> void const* {
-            auto& application_context = *static_cast<CascadeApplicationContext*>(context);
-            auto resolved = Parser::Parser::resolve_unresolved_style_value(
-                Parser::ParsingParams { application_context.abstract_element.document() },
-                application_context.abstract_element,
-                {},
-                PropertyNameAndID::from_id(static_cast<PropertyID>(property_id)),
-                static_cast<StyleValue const*>(shell)->as_unresolved());
-            auto const* pointer = resolved.ptr();
-            application_context.pinned_values.append(move(resolved));
-            return pointer;
-        },
-        .data_of = [](void*, void const* shell) -> void const* {
-            return static_cast<StyleValue const*>(shell)->rust_style_value_data();
-        },
-        .create_pending_substitution = [](void* context, void const* shell) -> void const* {
-            auto& application_context = *static_cast<CascadeApplicationContext*>(context);
-            auto pending_substitution_value = PendingSubstitutionStyleValue::create(*static_cast<StyleValue const*>(shell));
-            auto const* pointer = pending_substitution_value.ptr();
-            application_context.pinned_values.append(move(pending_substitution_value));
-            return pointer;
-        },
-        .assign_source_slot = [](void* context, u32 slot) {
-            auto& application_context = *static_cast<CascadeApplicationContext*>(context);
-            application_context.cascaded_properties.assign_source_slot(slot, application_context.source, application_context.source_shadow_root); },
-    };
-
-    FlatPtr layer_name_raw = layer_name.has_value() ? layer_name->to_raw_leaked() : 0;
-    ComputedValuesFFI::rust_cascaded_properties_apply_property_list(
-        cascaded_properties.rust_store(),
-        declarations.data(),
-        declarations.size(),
-        important == Important::Yes,
-        static_cast<ComputedValuesFFI::CascadeOrigin>(to_underlying(cascade_origin)),
-        layer_name.has_value(),
-        layer_name_raw,
-        bit_cast<FlatPtr>(source_shadow_root.ptr()),
-        unset_value.ptr(),
-        unset_value->rust_style_value_data(),
-        &callbacks);
-    if (layer_name.has_value())
-        Utf16FlyString::unref_raw(layer_name_raw);
-}
-
-void StyleComputer::cascade_declarations(
-    CascadedProperties& cascaded_properties,
-    DOM::AbstractElement abstract_element,
-    Vector<ScopedMatchingRule> const& matching_rules,
-    CascadeOrigin cascade_origin,
-    Important important,
-    Optional<Utf16FlyString> layer_name,
-    bool include_inline_style) const
-{
-    for (auto const& match : matching_rules) {
-        auto const& declaration = match.rule->declaration();
-        apply_property_list_to_cascade(cascaded_properties, abstract_element, declaration.properties(), cascade_origin, important, layer_name, &declaration, match.shadow_root, BypassPseudoElementPropertyWhitelist::No);
-    }
-
-    if (include_inline_style && cascade_origin == CascadeOrigin::Author) {
-        if (auto const inline_style = abstract_element.inline_style())
-            apply_property_list_to_cascade(cascaded_properties, abstract_element, inline_style->properties(), cascade_origin, important, layer_name, inline_style, nullptr, BypassPseudoElementPropertyWhitelist::Yes);
-    }
-}
-
 static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vector<StyleComputer::ScopedMatchingRule> const& matching_rules, OrderedHashMap<Utf16FlyString, StyleProperty>& custom_properties, Important important, bool include_inline_style)
 {
     size_t needed_capacity = 0;
@@ -2360,84 +2235,179 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
 
     auto element_context_shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root());
 
-    // The cascade origin ordering lives in the Rust style computation core; the stages below
-    // apply one origin's declarations each.
-    struct CascadeStageContext {
-        GC::Ref<StyleComputer const> style_computer;
+    // The whole css-cascade-5 origin sequence runs in the Rust style computation core over
+    // one bulk description of the matched declaration blocks. Declarations, layer names and
+    // sources are collected and pinned here; the core derives the application order from
+    // the origin and the author context and layer indices.
+    struct BlockSource {
+        GC::Ptr<CSSStyleDeclaration const> source;
+        GC::Ptr<DOM::ShadowRoot const> source_shadow_root;
+    };
+    Vector<ComputedValuesFFI::FfiCascadeDeclaration> all_declarations;
+    struct PendingBlock {
+        ComputedValuesFFI::FfiCascadeBlock block;
+        size_t declarations_offset { 0 };
+    };
+    Vector<PendingBlock> pending_blocks;
+    Vector<BlockSource> block_sources;
+    Vector<FlatPtr> leaked_layer_names;
+
+    auto add_block = [&](ReadonlySpan<StyleProperty> properties, CascadeOrigin origin, u32 author_context_index, u32 layer_index, bool is_inline_style, bool bypass_pseudo_element_property_whitelist, Optional<Utf16FlyString> const& layer_name, GC::Ptr<CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root) {
+        auto declarations_offset = all_declarations.size();
+        all_declarations.ensure_capacity(all_declarations.size() + properties.size());
+        for (auto const& property : properties) {
+            all_declarations.unchecked_append({
+                .property_id = to_underlying(property.property_id),
+                .important = property.important == Important::Yes,
+                .shell = property.value.ptr(),
+                .data = property.value->rust_style_value_data(),
+            });
+        }
+        FlatPtr layer_name_raw = 0;
+        if (layer_name.has_value()) {
+            layer_name_raw = layer_name->to_raw_leaked();
+            leaked_layer_names.append(layer_name_raw);
+        }
+        pending_blocks.append({
+            .block = {
+                .origin = static_cast<ComputedValuesFFI::CascadeOrigin>(to_underlying(origin)),
+                .author_context_index = author_context_index,
+                .layer_index = layer_index,
+                .is_inline_style = is_inline_style,
+                .bypass_pseudo_element_property_whitelist = bypass_pseudo_element_property_whitelist,
+                .has_layer_name = layer_name.has_value(),
+                .layer_name_raw = layer_name_raw,
+                .source_shadow_root_identity = bit_cast<FlatPtr>(source_shadow_root.ptr()),
+                .source_id = static_cast<u32>(block_sources.size()),
+                .declarations = nullptr,
+                .declaration_count = properties.size(),
+            },
+            .declarations_offset = declarations_offset,
+        });
+        block_sources.append({ source, source_shadow_root });
+    };
+
+    for (auto const& match : matching_rule_set.user_agent_rules) {
+        auto const& declaration = match.rule->declaration();
+        add_block(declaration.properties(), CascadeOrigin::UserAgent, 0, 0, false, false, {}, &declaration, match.shadow_root);
+    }
+    for (auto const& match : matching_rule_set.user_rules) {
+        auto const& declaration = match.rule->declaration();
+        add_block(declaration.properties(), CascadeOrigin::User, 0, 0, false, false, {}, &declaration, match.shadow_root);
+    }
+
+    // Author presentational hints
+    // The spec calls this a special "Author presentational hint origin":
+    // "For the purpose of cascading this author presentational hint origin is treated as an independent origin;
+    // however for the purpose of the revert keyword (but not for the revert-layer keyword) it is considered
+    // part of the author origin."
+    // https://drafts.csswg.org/css-cascade-5/#author-presentational-hint-origin
+    Vector<StyleProperty> presentational_hint_properties;
+    if (!abstract_element.pseudo_element().has_value()) {
+        auto& element = abstract_element.element();
+        element.apply_presentational_hints(presentational_hint_properties);
+        if (element.supports_dimension_attributes()) {
+            auto const& dimension_source = is<HTML::HTMLImageElement>(element)
+                ? static_cast<HTML::HTMLImageElement const&>(element).dimension_attribute_source()
+                : element;
+            collect_dimension_attribute(presentational_hint_properties, dimension_source, HTML::AttributeNames::width, CSS::PropertyID::Width);
+            collect_dimension_attribute(presentational_hint_properties, dimension_source, HTML::AttributeNames::height, CSS::PropertyID::Height);
+        }
+        if (!presentational_hint_properties.is_empty())
+            add_block(presentational_hint_properties, CascadeOrigin::AuthorPresentationalHint, 0, 0, false, false, {}, nullptr, nullptr);
+    }
+
+    for (u32 context_index = 0; context_index < matching_rule_set.author_contexts.size(); ++context_index) {
+        auto const& author_context = matching_rule_set.author_contexts[context_index];
+        for (u32 layer_index = 0; layer_index < author_context.author_rules.size(); ++layer_index) {
+            auto const& layer = author_context.author_rules[layer_index];
+            for (auto const& match : layer.rules) {
+                auto const& declaration = match.rule->declaration();
+                Optional<Utf16FlyString> layer_name;
+                if (!layer.qualified_layer_name.is_empty())
+                    layer_name = layer.qualified_layer_name;
+                add_block(declaration.properties(), CascadeOrigin::Author, context_index, layer_index, false, false, layer_name, &declaration, match.shadow_root);
+            }
+        }
+        if (include_inline_style == IncludeInlineStyle::Yes && author_context.shadow_root == element_context_shadow_root) {
+            // NB: Inline style bypasses the pseudo-element property whitelist since inline style is used
+            //     internally to style element-reference pseudo-elements and sometimes contains disallowed
+            //     properties (e.g. input::placeholder has height set); authors can't set inline style on
+            //     pseudo-elements so this doesn't cause any spec compliance issues.
+            if (auto const inline_style = abstract_element.inline_style())
+                add_block(inline_style->properties(), CascadeOrigin::Author, context_index, 0, true, true, {}, inline_style, nullptr);
+        }
+    }
+
+    Vector<ComputedValuesFFI::FfiCascadeBlock> blocks;
+    blocks.ensure_capacity(pending_blocks.size());
+    for (auto& pending : pending_blocks) {
+        pending.block.declarations = all_declarations.data() + pending.declarations_offset;
+        blocks.unchecked_append(pending.block);
+    }
+
+    struct BulkCascadeContext {
         CascadedProperties& cascaded_properties;
         DOM::AbstractElement& abstract_element;
-        MatchingRuleSet const& matching_rule_set;
-        GC::Ptr<DOM::ShadowRoot const> element_context_shadow_root;
-        IncludeInlineStyle include_inline_style;
-    } stage_context {
-        .style_computer = *this,
+        Vector<BlockSource> const& block_sources;
+        Vector<NonnullRefPtr<StyleValue const>> pinned_values;
+    } bulk_context {
         .cascaded_properties = *cascaded_properties,
         .abstract_element = abstract_element,
-        .matching_rule_set = matching_rule_set,
-        .element_context_shadow_root = element_context_shadow_root,
-        .include_inline_style = include_inline_style,
+        .block_sources = block_sources,
+        .pinned_values = {},
     };
 
-    ComputedValuesFFI::FfiCascadeStageCallbacks const callbacks {
-        .context = &stage_context,
-        .cascade_user_agent_rules = [](void* context, bool important) {
-            auto& stage_context = *static_cast<CascadeStageContext*>(context);
-            stage_context.style_computer->cascade_declarations(stage_context.cascaded_properties, stage_context.abstract_element, stage_context.matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, important ? Important::Yes : Important::No, {}, false); },
-        .cascade_user_rules = [](void* context, bool important) {
-            auto& stage_context = *static_cast<CascadeStageContext*>(context);
-            stage_context.style_computer->cascade_declarations(stage_context.cascaded_properties, stage_context.abstract_element, stage_context.matching_rule_set.user_rules, CascadeOrigin::User, important ? Important::Yes : Important::No, {}, false); },
-        .cascade_presentational_hints = [](void* context) {
-            auto& stage_context = *static_cast<CascadeStageContext*>(context);
-            auto& abstract_element = stage_context.abstract_element;
+    auto unset_value = KeywordStyleValue::create(Keyword::Unset);
 
-            // Author presentational hints
-            // The spec calls this a special "Author presentational hint origin":
-            // "For the purpose of cascading this author presentational hint origin is treated as an independent origin;
-            // however for the purpose of the revert keyword (but not for the revert-layer keyword) it is considered
-            // part of the author origin."
-            // https://drafts.csswg.org/css-cascade-5/#author-presentational-hint-origin
-            if (abstract_element.pseudo_element().has_value())
-                return;
-            auto& element = abstract_element.element();
-            Vector<StyleProperty> presentational_hint_properties;
-            element.apply_presentational_hints(presentational_hint_properties);
-            if (element.supports_dimension_attributes()) {
-                auto const& dimension_source = is<HTML::HTMLImageElement>(element)
-                    ? static_cast<HTML::HTMLImageElement const&>(element).dimension_attribute_source()
-                    : element;
-                collect_dimension_attribute(presentational_hint_properties, dimension_source, HTML::AttributeNames::width, CSS::PropertyID::Width);
-                collect_dimension_attribute(presentational_hint_properties, dimension_source, HTML::AttributeNames::height, CSS::PropertyID::Height);
-            }
-            if (!presentational_hint_properties.is_empty()) {
-                stage_context.style_computer->apply_property_list_to_cascade(stage_context.cascaded_properties, abstract_element, presentational_hint_properties,
-                    CascadeOrigin::AuthorPresentationalHint, Important::No, {}, nullptr, nullptr, BypassPseudoElementPropertyWhitelist::No);
-            } },
-        .cascade_author_rules = [](void* context, bool important) {
-            auto& stage_context = *static_cast<CascadeStageContext*>(context);
-            auto cascade_inline_style = [&] {
-                if (stage_context.include_inline_style == IncludeInlineStyle::No)
-                    return;
-                stage_context.style_computer->cascade_declarations(stage_context.cascaded_properties, stage_context.abstract_element, {}, CascadeOrigin::Author, important ? Important::Yes : Important::No, {}, true);
-            };
-            if (!important) {
-                // Normal author declarations, with inner contexts first so outer contexts win.
-                for (auto const& author_context : stage_context.matching_rule_set.author_contexts.in_reverse()) {
-                    for (auto const& layer : author_context.author_rules)
-                        stage_context.style_computer->cascade_declarations(stage_context.cascaded_properties, stage_context.abstract_element, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name, false);
-                    if (author_context.shadow_root == stage_context.element_context_shadow_root)
-                        cascade_inline_style();
-                }
-            } else {
-                // Important author declarations, with outer contexts first so inner contexts win.
-                for (auto const& author_context : stage_context.matching_rule_set.author_contexts) {
-                    for (auto const& layer : author_context.author_rules.in_reverse())
-                        stage_context.style_computer->cascade_declarations(stage_context.cascaded_properties, stage_context.abstract_element, layer.rules, CascadeOrigin::Author, Important::Yes, {}, false);
-                    if (author_context.shadow_root == stage_context.element_context_shadow_root)
-                        cascade_inline_style();
-                }
+    ComputedValuesFFI::FfiBulkCascadeCallbacks const callbacks {
+        .context = &bulk_context,
+        .resolve_unresolved = [](void* context, u16 property_id, void const* shell) -> void const* {
+            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
+            auto resolved = Parser::Parser::resolve_unresolved_style_value(
+                Parser::ParsingParams { bulk_context.abstract_element.document() },
+                bulk_context.abstract_element,
+                {},
+                PropertyNameAndID::from_id(static_cast<PropertyID>(property_id)),
+                static_cast<StyleValue const*>(shell)->as_unresolved());
+            auto const* pointer = resolved.ptr();
+            bulk_context.pinned_values.append(move(resolved));
+            return pointer;
+        },
+        .data_of = [](void*, void const* shell) -> void const* {
+            return static_cast<StyleValue const*>(shell)->rust_style_value_data();
+        },
+        .create_pending_substitution = [](void* context, void const* shell) -> void const* {
+            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
+            auto pending_substitution_value = PendingSubstitutionStyleValue::create(*static_cast<StyleValue const*>(shell));
+            auto const* pointer = pending_substitution_value.ptr();
+            bulk_context.pinned_values.append(move(pending_substitution_value));
+            return pointer;
+        },
+        .pseudo_element_rejects_property = [](void* context, u16 property_id) -> bool {
+            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
+            return !pseudo_element_supports_property(*bulk_context.abstract_element.pseudo_element(), static_cast<PropertyID>(property_id));
+        },
+        .assign_source_slots = [](void* context, ComputedValuesFFI::FfiSourceSlotAssignment const* assignments, size_t count) {
+            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
+            for (size_t i = 0; i < count; ++i) {
+                auto const& source = bulk_context.block_sources[assignments[i].source_id];
+                bulk_context.cascaded_properties.assign_source_slot(assignments[i].slot, source.source, source.source_shadow_root);
             } },
     };
-    ComputedValuesFFI::rust_drive_cascade_origins(&callbacks);
+
+    ComputedValuesFFI::rust_cascade_matched_blocks(
+        cascaded_properties->rust_store(),
+        blocks.data(),
+        blocks.size(),
+        static_cast<u32>(matching_rule_set.author_contexts.size()),
+        abstract_element.pseudo_element().has_value(),
+        unset_value.ptr(),
+        unset_value->rust_style_value_data(),
+        &callbacks);
+
+    for (auto layer_name_raw : leaked_layer_names)
+        Utf16FlyString::unref_raw(layer_name_raw);
 
     // Transition declarations [css-transitions-1]
     // Note that we have to do these after finishing computing the style,

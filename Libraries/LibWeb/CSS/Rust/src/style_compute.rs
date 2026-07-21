@@ -2635,46 +2635,6 @@ fn property_affects_font_metrics(property_id: u16) -> bool {
         || property_id == crate::property_metadata::property_id::LINE_HEIGHT
 }
 
-/// Stage callbacks for the cascade origin sequence.
-#[repr(C)]
-pub struct FfiCascadeStageCallbacks {
-    pub context: *mut c_void,
-    pub cascade_user_agent_rules: unsafe extern "C" fn(context: *mut c_void, important: bool),
-    pub cascade_user_rules: unsafe extern "C" fn(context: *mut c_void, important: bool),
-    pub cascade_presentational_hints: unsafe extern "C" fn(context: *mut c_void),
-    pub cascade_author_rules: unsafe extern "C" fn(context: *mut c_void, important: bool),
-}
-
-/// Runs the cascade origin stages in css-cascade priority order.
-///
-/// https://drafts.csswg.org/css-cascade-5/#cascade-origin
-/// Declarations are applied lowest priority first, so that later stages
-/// overwrite earlier ones: normal user agent, normal user, author
-/// presentational hints (treated as an independent origin for cascading per
-/// css-cascade-5, but as part of the author origin for revert), normal author,
-/// important author, important user, and important user agent declarations.
-///
-/// # Safety
-/// `callbacks` must point at a valid callback table.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_drive_cascade_origins(callbacks: *const FfiCascadeStageCallbacks) {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeOriginDriverEntry);
-    abort_on_panic(|| {
-        let callbacks = unsafe { &*callbacks };
-        let context = callbacks.context;
-        crate::ffi_stats::bump_by(crate::ffi_stats::FfiOp::CascadeStageCallback, 7);
-        unsafe {
-            (callbacks.cascade_user_agent_rules)(context, false);
-            (callbacks.cascade_user_rules)(context, false);
-            (callbacks.cascade_presentational_hints)(context);
-            (callbacks.cascade_author_rules)(context, false);
-            (callbacks.cascade_author_rules)(context, true);
-            (callbacks.cascade_user_rules)(context, true);
-            (callbacks.cascade_user_agent_rules)(context, true);
-        }
-    });
-}
-
 /// Shell-level callbacks for the shorthand expansion recursion. Values cross
 /// as opaque C++ style value shells; the C++ side pins every value it creates
 /// until the expansion returns.

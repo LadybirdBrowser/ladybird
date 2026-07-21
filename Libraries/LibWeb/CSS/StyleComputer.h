@@ -158,11 +158,6 @@ public:
     static NonnullRefPtr<StyleValue const> compute_line_height(NonnullRefPtr<StyleValue const> const& absolutized_value, CSSPixels computed_font_size);
     static NonnullRefPtr<StyleValue const> compute_position_area(NonnullRefPtr<StyleValue const> const& absolutized_value);
 
-    enum class BypassPseudoElementPropertyWhitelist : u8 {
-        No,
-        Yes,
-    };
-
     [[nodiscard]] NonnullRefPtr<ComputedValues const> build_computed_values(ComputedProperties&, DOM::AbstractElement, StyleScope const&) const;
     [[nodiscard]] NonnullRefPtr<ComputedProperties> reconstruct_computed_properties(ComputedValues const&) const;
 
@@ -211,26 +206,6 @@ private:
     [[nodiscard]] Length::FontMetrics calculate_root_element_font_metrics(ComputedProperties const&) const;
 
     [[nodiscard]] Vector<ScopedMatchingRule> collect_matching_rules_from_context(DOM::AbstractElement, CascadeOrigin, GC::Ptr<DOM::ShadowRoot const>, Optional<Utf16FlyString const> qualified_layer_name = {}, u64* matching_pseudo_element_styles = nullptr) const;
-
-    void cascade_declarations(
-        CascadedProperties&,
-        DOM::AbstractElement,
-        Vector<ScopedMatchingRule> const&,
-        CascadeOrigin,
-        Important,
-        Optional<Utf16FlyString> layer_name,
-        bool include_inline_style) const;
-
-    void apply_property_list_to_cascade(
-        CascadedProperties&,
-        DOM::AbstractElement,
-        ReadonlySpan<StyleProperty>,
-        CascadeOrigin,
-        Important,
-        Optional<Utf16FlyString> layer_name,
-        GC::Ptr<CSSStyleDeclaration const> source,
-        GC::Ptr<DOM::ShadowRoot const> source_shadow_root,
-        BypassPseudoElementPropertyWhitelist) const;
 
     GC::Ref<DOM::Document> m_document;
 

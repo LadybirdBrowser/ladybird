@@ -317,8 +317,9 @@ pub unsafe extern "C" fn rust_cascaded_properties_source_slot(
     })
 }
 
-/// A declared property crossing into `rust_cascaded_properties_apply_property_list`: the
-/// property identifier, its importance, and the borrowed value shell with its Rust-owned data.
+/// A declared property in an `FfiCascadeBlock` crossing into `rust_cascade_matched_blocks`:
+/// the property identifier, its importance, and the borrowed value shell with its
+/// Rust-owned data.
 #[repr(C)]
 pub struct FfiCascadeDeclaration {
     pub property_id: u16,
@@ -327,39 +328,14 @@ pub struct FfiCascadeDeclaration {
     pub data: *const c_void,
 }
 
-/// Shell-level callbacks for applying a declaration list to the cascade. Values cross as
-/// opaque C++ style value shells; the C++ side pins every value it creates until the
-/// application returns.
-#[repr(C)]
-pub struct FfiCascadeApplicationCallbacks {
-    pub context: *mut c_void,
-    /// Whether the property may not be applied to the current element or pseudo-element.
-    pub is_property_disallowed: unsafe extern "C" fn(context: *mut c_void, property_id: u16) -> bool,
-    /// Resolves an unresolved (arbitrary-substitution) value; returns the pinned resolved shell.
-    pub resolve_unresolved:
-        unsafe extern "C" fn(context: *mut c_void, property_id: u16, shell: *const c_void) -> *const c_void,
-    /// Returns the Rust-owned data of a C++ style value shell.
-    pub data_of: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
-    /// Creates and pins a pending-substitution value wrapping the given value; returns its shell.
-    pub create_pending_substitution: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
-    /// Records the current declaration source pair at the given store slot.
-    pub assign_source_slot: unsafe extern "C" fn(context: *mut c_void, slot: u32),
-}
-
-/// Applies a declaration list to the cascade: filters by importance and applicability,
+/// Applies one declaration block to the cascade: filters by importance and applicability,
 /// resolves arbitrary-substitution values through the parser callback, downgrades
 /// invalid-at-computed-value-time declarations to unset, expands shorthands, and routes
 /// each longhand to the store as a set, revert, or revert-layer.
-///
-/// # Safety
-/// `store` must be a valid store, `declarations` must point to `declaration_count` valid
-/// entries, `callbacks` must be a valid callback table, `unset_shell`/`unset_data` must be
-/// a pinned unset keyword value, and `layer_name_raw` (borrowed) must be live for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascaded_properties_apply_property_list(
-    store: *mut CascadedPropertyStore,
-    declarations: *const FfiCascadeDeclaration,
-    declaration_count: usize,
+#[allow(clippy::too_many_arguments)]
+fn apply_declaration_block(
+    store: &mut CascadedPropertyStore,
+    declarations: &[FfiCascadeDeclaration],
     important: bool,
     origin: CascadeOrigin,
     has_layer_name: bool,
@@ -367,77 +343,274 @@ pub unsafe extern "C" fn rust_cascaded_properties_apply_property_list(
     source_shadow_root_identity: usize,
     unset_shell: *const c_void,
     unset_data: *const c_void,
-    callbacks: *const FfiCascadeApplicationCallbacks,
+    is_property_disallowed: &dyn Fn(u16) -> bool,
+    resolve_unresolved: &dyn Fn(u16, *const c_void) -> *const c_void,
+    data_of: &dyn Fn(*const c_void) -> *const c_void,
+    create_pending_substitution: &dyn Fn(*const c_void) -> *const c_void,
+    mut assign_source_slot: impl FnMut(u32),
 ) {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeApplyDeclarationListEntry);
+    let mut seen = [0u64; CONTAINED_BITMAP_WORDS];
+
+    for declaration in declarations {
+        if declaration.important != important {
+            continue;
+        }
+
+        let declared_value = unsafe { &*(declaration.data as *const StyleValueData) };
+        let declared_is_unresolved = matches!(declared_value, StyleValueData::Unresolved { .. });
+
+        if is_property_disallowed(declaration.property_id) && !declared_is_unresolved {
+            continue;
+        }
+
+        if matches!(declared_value, StyleValueData::PendingSubstitution { .. }) {
+            continue;
+        }
+
+        let mut shell = declaration.shell;
+        let mut data = declaration.data;
+
+        if declared_is_unresolved {
+            shell = resolve_unresolved(declaration.property_id, shell);
+            data = data_of(shell);
+        }
+
+        if matches!(
+            unsafe { &*(data as *const StyleValueData) },
+            StyleValueData::GuaranteedInvalid
+        ) {
+            // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
+            // When substitution results in a property's value containing the guaranteed-invalid value, this makes the
+            // declaration invalid at computed-value time. When this happens, the computed value is one of the
+            // following depending on the property's type:
+
+            // -> The property is a non-registered custom property
+            // -> The property is a registered custom property with universal syntax
+            // FIXME: Process custom properties here?
+            // The computed value is the guaranteed-invalid value.
+
+            // -> Otherwise
+            // Either the property's inherited value or its initial value depending on whether the property is
+            // inherited or not, respectively, as if the property's value had been specified as the unset keyword.
+            shell = unset_shell;
+            data = unset_data;
+        }
+
+        let value_is_pending_substitution = matches!(
+            unsafe { &*(data as *const StyleValueData) },
+            StyleValueData::PendingSubstitution { .. }
+        );
+
+        expand_shorthands_with(
+            &|shell| data_of(shell),
+            &|shell| create_pending_substitution(shell),
+            declaration.property_id,
+            shell,
+            data,
+            &mut |longhand_id, longhand_shell, longhand_data| {
+                if is_property_disallowed(longhand_id) {
+                    return;
+                }
+
+                // If we're a PSV that's already been seen, that should mean that our shorthand already got
+                // resolved and gave us a value, so we don't want to overwrite it with a PSV.
+                let seen_index = longhand_id as usize;
+                debug_assert!(seen_index <= LAST_LONGHAND_PROPERTY_ID as usize);
+                if seen[seen_index / 64] & (1 << (seen_index % 64)) != 0 && value_is_pending_substitution {
+                    return;
+                }
+                seen[seen_index / 64] |= 1 << (seen_index % 64);
+
+                let longhand_value = unsafe { &*(longhand_data as *const StyleValueData) };
+                let longhand_keyword = match longhand_value {
+                    StyleValueData::Keyword { keyword } => Some(*keyword),
+                    _ => None,
+                };
+                if longhand_keyword == Some(crate::style_compute::keyword::REVERT) {
+                    store.revert_property(longhand_id, important, origin);
+                } else if longhand_keyword == Some(crate::style_compute::keyword::REVERT_LAYER) {
+                    store.revert_layer_property(
+                        longhand_id,
+                        important,
+                        origin,
+                        has_layer_name,
+                        layer_name_raw,
+                        source_shadow_root_identity,
+                    );
+                } else {
+                    // Track the exact shadow-root scope that supplied this winning declaration. A constructable
+                    // stylesheet can be adopted into multiple scopes at once, so the declaration object alone is
+                    // not specific enough.
+                    let retained_value = unsafe { RetainedStyleValue::from_borrowed_shell_pointer(longhand_shell) };
+                    let layer_name = LayerName(
+                        has_layer_name.then(|| unsafe { RetainedUtf16FlyString::from_borrowed_raw(layer_name_raw) }),
+                    );
+                    let slot = store.set_property(
+                        longhand_id,
+                        retained_value,
+                        longhand_data,
+                        important,
+                        origin,
+                        layer_name,
+                        source_shadow_root_identity,
+                    );
+                    if slot >= 0 {
+                        assign_source_slot(slot as u32);
+                    }
+                }
+            },
+        );
+    }
+}
+
+/// One matched declaration block for the bulk cascade: its origin, position in
+/// the author context and layer structure, and its declaration list. Blocks
+/// arrive grouped by context and layer in collection order; the core derives
+/// the css-cascade-5 application sequence from the indices.
+#[repr(C)]
+pub struct FfiCascadeBlock {
+    pub origin: CascadeOrigin,
+    /// The author shadow context this block belongs to; author blocks only.
+    pub author_context_index: u32,
+    /// The layer within the context; author rule blocks only.
+    pub layer_index: u32,
+    pub is_inline_style: bool,
+    /// Inline style may carry properties the pseudo-element whitelist would
+    /// reject, since engines use it to style element-backed pseudo-elements.
+    pub bypass_pseudo_element_property_whitelist: bool,
+    pub has_layer_name: bool,
+    /// Borrowed; live for the call.
+    pub layer_name_raw: usize,
+    pub source_shadow_root_identity: usize,
+    /// Index into the C++ side's per-block source table.
+    pub source_id: u32,
+    pub declarations: *const FfiCascadeDeclaration,
+    pub declaration_count: usize,
+}
+
+/// One winning store slot and the block source that supplied it, reported in
+/// bulk after the cascade.
+#[repr(C)]
+pub struct FfiSourceSlotAssignment {
+    pub slot: u32,
+    pub source_id: u32,
+}
+
+/// Callbacks for the bulk cascade. Values cross as opaque C++ style value
+/// shells; the C++ side pins every value it creates until the cascade
+/// returns.
+#[repr(C)]
+pub struct FfiBulkCascadeCallbacks {
+    pub context: *mut c_void,
+    /// Resolves an unresolved (arbitrary-substitution) value; returns the pinned resolved shell.
+    pub resolve_unresolved:
+        unsafe extern "C" fn(context: *mut c_void, property_id: u16, shell: *const c_void) -> *const c_void,
+    /// Returns the Rust-owned data of a C++ style value shell.
+    pub data_of: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
+    /// Creates and pins a pending-substitution value wrapping the given value; returns its shell.
+    pub create_pending_substitution: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
+    /// Whether the element's pseudo-element rejects the property; only called
+    /// when the element has a pseudo-element.
+    pub pseudo_element_rejects_property: unsafe extern "C" fn(context: *mut c_void, property_id: u16) -> bool,
+    /// Receives every winning slot's source assignment in one batch.
+    pub assign_source_slots:
+        unsafe extern "C" fn(context: *mut c_void, assignments: *const FfiSourceSlotAssignment, count: usize),
+}
+
+/// Runs the whole cascade for one element in css-cascade-5 origin order over
+/// the matched declaration blocks:
+///
+/// https://drafts.csswg.org/css-cascade-5/#cascade-origin
+/// Declarations are applied lowest priority first, so that later
+/// applications overwrite earlier ones: normal user agent, normal user,
+/// author presentational hints (an
+/// independent origin for cascading, part of the author origin for revert),
+/// normal author with inner shadow contexts first and layers in declaration
+/// order, important author with outer contexts first and layers reversed,
+/// important user, and important user agent declarations. Inline style
+/// applies within its author context, after the context's layered rules.
+///
+/// # Safety
+/// `store` must be a valid store, `blocks` must point at `block_count` valid
+/// blocks whose declaration lists and layer names stay live for the call,
+/// and `callbacks` must be a valid callback table.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_cascade_matched_blocks(
+    store: *mut CascadedPropertyStore,
+    blocks: *const FfiCascadeBlock,
+    block_count: usize,
+    author_context_count: u32,
+    has_pseudo_element: bool,
+    unset_shell: *const c_void,
+    unset_data: *const c_void,
+    callbacks: *const FfiBulkCascadeCallbacks,
+) {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeBulkEntry);
     abort_on_panic(|| {
         let store = unsafe { &mut *store };
         let callbacks = unsafe { &*callbacks };
         let context = callbacks.context;
-        let declarations = if declaration_count == 0 {
+        let blocks = if block_count == 0 {
             &[]
         } else {
-            unsafe { std::slice::from_raw_parts(declarations, declaration_count) }
+            unsafe { std::slice::from_raw_parts(blocks, block_count) }
         };
 
-        let mut seen = [0u64; CONTAINED_BITMAP_WORDS];
-
-        for declaration in declarations {
-            if declaration.important != important {
-                continue;
+        // Partition the block indices by origin; author blocks group by
+        // context, layer-major in arrival order, with inline style separate.
+        let mut user_agent_blocks = Vec::new();
+        let mut user_blocks = Vec::new();
+        let mut presentational_hint_blocks = Vec::new();
+        let mut author_layer_blocks: Vec<Vec<usize>> = vec![Vec::new(); author_context_count as usize];
+        let mut author_inline_blocks: Vec<Option<usize>> = vec![None; author_context_count as usize];
+        for (index, block) in blocks.iter().enumerate() {
+            match block.origin {
+                CascadeOrigin::UserAgent => user_agent_blocks.push(index),
+                CascadeOrigin::User => user_blocks.push(index),
+                CascadeOrigin::AuthorPresentationalHint => presentational_hint_blocks.push(index),
+                CascadeOrigin::Author => {
+                    let context_index = block.author_context_index as usize;
+                    if block.is_inline_style {
+                        author_inline_blocks[context_index] = Some(index);
+                    } else {
+                        author_layer_blocks[context_index].push(index);
+                    }
+                }
+                _ => {}
             }
+        }
 
-            let declared_value = unsafe { &*(declaration.data as *const StyleValueData) };
-            let declared_is_unresolved = matches!(declared_value, StyleValueData::Unresolved { .. });
+        let mut source_slot_assignments: Vec<FfiSourceSlotAssignment> = Vec::new();
 
-            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadePropertyDisallowedCallback);
-            if unsafe { (callbacks.is_property_disallowed)(context, declaration.property_id) }
-                && !declared_is_unresolved
-            {
-                continue;
-            }
-
-            if matches!(declared_value, StyleValueData::PendingSubstitution { .. }) {
-                continue;
-            }
-
-            let mut shell = declaration.shell;
-            let mut data = declaration.data;
-
-            if declared_is_unresolved {
-                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeResolveUnresolvedCallback);
-                shell = unsafe { (callbacks.resolve_unresolved)(context, declaration.property_id, shell) };
-                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeDataOfCallback);
-                data = unsafe { (callbacks.data_of)(context, shell) };
-            }
-
-            if matches!(
-                unsafe { &*(data as *const StyleValueData) },
-                StyleValueData::GuaranteedInvalid
-            ) {
-                // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
-                // When substitution results in a property's value containing the guaranteed-invalid value, this makes the
-                // declaration invalid at computed-value time. When this happens, the computed value is one of the
-                // following depending on the property's type:
-
-                // -> The property is a non-registered custom property
-                // -> The property is a registered custom property with universal syntax
-                // FIXME: Process custom properties here?
-                // The computed value is the guaranteed-invalid value.
-
-                // -> Otherwise
-                // Either the property's inherited value or its initial value depending on whether the property is
-                // inherited or not, respectively, as if the property's value had been specified as the unset keyword.
-                shell = unset_shell;
-                data = unset_data;
-            }
-
-            let value_is_pending_substitution = matches!(
-                unsafe { &*(data as *const StyleValueData) },
-                StyleValueData::PendingSubstitution { .. }
-            );
-
-            expand_shorthands_with(
+        let mut apply = |block_index: usize, important: bool, use_layer_name: bool| {
+            let block = &blocks[block_index];
+            let declarations = if block.declaration_count == 0 {
+                &[]
+            } else {
+                unsafe { std::slice::from_raw_parts(block.declarations, block.declaration_count) }
+            };
+            let is_property_disallowed = |property_id: u16| -> bool {
+                if block.bypass_pseudo_element_property_whitelist || !has_pseudo_element {
+                    return false;
+                }
+                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadePropertyDisallowedCallback);
+                unsafe { (callbacks.pseudo_element_rejects_property)(context, property_id) }
+            };
+            apply_declaration_block(
+                store,
+                declarations,
+                important,
+                block.origin,
+                use_layer_name && block.has_layer_name,
+                block.layer_name_raw,
+                block.source_shadow_root_identity,
+                unset_shell,
+                unset_data,
+                &is_property_disallowed,
+                &|property_id, shell| {
+                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeResolveUnresolvedCallback);
+                    unsafe { (callbacks.resolve_unresolved)(context, property_id, shell) }
+                },
                 &|shell| {
                     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeDataOfCallback);
                     unsafe { (callbacks.data_of)(context, shell) }
@@ -446,65 +619,76 @@ pub unsafe extern "C" fn rust_cascaded_properties_apply_property_list(
                     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadePendingSubstitutionCallback);
                     unsafe { (callbacks.create_pending_substitution)(context, shell) }
                 },
-                declaration.property_id,
-                shell,
-                data,
-                &mut |longhand_id, longhand_shell, longhand_data| {
-                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadePropertyDisallowedCallback);
-                    if unsafe { (callbacks.is_property_disallowed)(context, longhand_id) } {
-                        return;
-                    }
-
-                    // If we're a PSV that's already been seen, that should mean that our shorthand already got
-                    // resolved and gave us a value, so we don't want to overwrite it with a PSV.
-                    let seen_index = longhand_id as usize;
-                    debug_assert!(seen_index <= LAST_LONGHAND_PROPERTY_ID as usize);
-                    if seen[seen_index / 64] & (1 << (seen_index % 64)) != 0 && value_is_pending_substitution {
-                        return;
-                    }
-                    seen[seen_index / 64] |= 1 << (seen_index % 64);
-
-                    let longhand_value = unsafe { &*(longhand_data as *const StyleValueData) };
-                    let longhand_keyword = match longhand_value {
-                        StyleValueData::Keyword { keyword } => Some(*keyword),
-                        _ => None,
-                    };
-                    if longhand_keyword == Some(crate::style_compute::keyword::REVERT) {
-                        store.revert_property(longhand_id, important, origin);
-                    } else if longhand_keyword == Some(crate::style_compute::keyword::REVERT_LAYER) {
-                        store.revert_layer_property(
-                            longhand_id,
-                            important,
-                            origin,
-                            has_layer_name,
-                            layer_name_raw,
-                            source_shadow_root_identity,
-                        );
-                    } else {
-                        // Track the exact shadow-root scope that supplied this winning declaration. A constructable
-                        // stylesheet can be adopted into multiple scopes at once, so the declaration object alone is
-                        // not specific enough.
-                        let retained_value = unsafe { RetainedStyleValue::from_borrowed_shell_pointer(longhand_shell) };
-                        let layer_name = LayerName(
-                            has_layer_name
-                                .then(|| unsafe { RetainedUtf16FlyString::from_borrowed_raw(layer_name_raw) }),
-                        );
-                        let slot = store.set_property(
-                            longhand_id,
-                            retained_value,
-                            longhand_data,
-                            important,
-                            origin,
-                            layer_name,
-                            source_shadow_root_identity,
-                        );
-                        if slot >= 0 {
-                            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeSourceSlotCallback);
-                            unsafe { (callbacks.assign_source_slot)(context, slot as u32) };
-                        }
-                    }
+                |slot| {
+                    source_slot_assignments.push(FfiSourceSlotAssignment {
+                        slot,
+                        source_id: block.source_id,
+                    });
                 },
             );
+        };
+
+        // Normal user agent, user, and presentational hint declarations.
+        for &index in &user_agent_blocks {
+            apply(index, false, false);
+        }
+        for &index in &user_blocks {
+            apply(index, false, false);
+        }
+        for &index in &presentational_hint_blocks {
+            apply(index, false, false);
+        }
+
+        // Normal author declarations, with inner contexts first so outer contexts win,
+        // layers in declaration order, and inline style after its context's layers.
+        for context_index in (0..author_context_count as usize).rev() {
+            for &index in &author_layer_blocks[context_index] {
+                apply(index, false, true);
+            }
+            if let Some(index) = author_inline_blocks[context_index] {
+                apply(index, false, false);
+            }
+        }
+
+        // Important author declarations, with outer contexts first so inner contexts
+        // win and layers reversed; layer names do not apply in the important pass.
+        for context_index in 0..author_context_count as usize {
+            let layer_blocks = &author_layer_blocks[context_index];
+            let mut boundaries: Vec<(u32, usize, usize)> = Vec::new();
+            for (position, &index) in layer_blocks.iter().enumerate() {
+                let layer = blocks[index].layer_index;
+                match boundaries.last_mut() {
+                    Some((last_layer, _, end)) if *last_layer == layer => *end = position + 1,
+                    _ => boundaries.push((layer, position, position + 1)),
+                }
+            }
+            for &(_, start, end) in boundaries.iter().rev() {
+                for &index in &layer_blocks[start..end] {
+                    apply(index, true, false);
+                }
+            }
+            if let Some(index) = author_inline_blocks[context_index] {
+                apply(index, true, false);
+            }
+        }
+
+        // Important user and user agent declarations.
+        for &index in &user_blocks {
+            apply(index, true, false);
+        }
+        for &index in &user_agent_blocks {
+            apply(index, true, false);
+        }
+
+        if !source_slot_assignments.is_empty() {
+            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeSourceSlotCallback);
+            unsafe {
+                (callbacks.assign_source_slots)(
+                    context,
+                    source_slot_assignments.as_ptr(),
+                    source_slot_assignments.len(),
+                );
+            };
         }
     });
 }

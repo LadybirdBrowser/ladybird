@@ -38,8 +38,7 @@ macro_rules! define_ffi_ops {
 define_ffi_ops! {
     // Entries: C++ -> Rust.
     SelectorMatchEntry => "selectorMatchEntries",
-    CascadeOriginDriverEntry => "cascadeOriginDriverEntries",
-    CascadeApplyDeclarationListEntry => "cascadeApplyDeclarationListEntries",
+    CascadeBulkEntry => "cascadeBulkEntries",
     CascadedStoreQueryEntry => "cascadedStoreQueryEntries",
     LonghandDriverEntry => "longhandDriverEntries",
     ShorthandExpansionEntry => "shorthandExpansionEntries",
@@ -57,7 +56,6 @@ define_ffi_ops! {
     SelectorSimpleSelectorCallback => "selectorSimpleSelectorCallbacks",
     SelectorTreeNavigationCallback => "selectorTreeNavigationCallbacks",
     SelectorMetadataCallback => "selectorMetadataCallbacks",
-    CascadeStageCallback => "cascadeStageCallbacks",
     CascadePropertyDisallowedCallback => "cascadePropertyDisallowedCallbacks",
     CascadeResolveUnresolvedCallback => "cascadeResolveUnresolvedCallbacks",
     CascadeDataOfCallback => "cascadeDataOfCallbacks",
@@ -81,11 +79,6 @@ static COUNTERS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_O
 #[inline]
 pub(crate) fn bump(op: FfiOp) {
     COUNTERS[op as usize].fetch_add(1, Ordering::Relaxed);
-}
-
-#[inline]
-pub(crate) fn bump_by(op: FfiOp, count: u64) {
-    COUNTERS[op as usize].fetch_add(count, Ordering::Relaxed);
 }
 
 /// Returns the number of FFI boundary counters.
