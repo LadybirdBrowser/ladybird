@@ -1,1 +1,2 @@
 @function --var-default(--x: var(--fallback)) { }
+@function --typed-var-default(--x <length>: var(--fallback)) { }

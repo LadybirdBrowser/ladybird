@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 89 tests
 
-79 Pass
-10 Fail
+83 Pass
+6 Fail
 Pass	Literal result
 Pass	Literal result, typed return
 Pass	Literal result, typed return, calc
@@ -33,7 +33,7 @@ Pass	Multiple parameters with defaults, typed
 Pass	Default referencing another parameter
 Pass	Default referencing another parameter, local interference
 Pass	Default referencing another defaulted parameter
-Fail	Typed default with reference
+Pass	Typed default with reference
 Pass	IACVT arguments are defaulted
 Pass	IACVT arguments are defaulted, typed
 Pass	Arguments are defaulted on type mismatch
@@ -74,13 +74,13 @@ Pass	Passing non-whole-value {} as argument
 Pass	Local variable with initial keyword
 Pass	Local variable with initial keyword, defaulted
 Pass	Local variable with initial keyword, no value via IACVT-capture
-Fail	Default with initial keyword
+Pass	Default with initial keyword
 Pass	initial appearing via fallback
 Pass	Local variable with inherit keyword
 Pass	Local variable with inherit keyword (nested)
 Pass	Inheriting an invalid value
-Fail	Default with inherit keyword
-Fail	Default with inherit keyword (nested)
+Pass	Default with inherit keyword
+Pass	Default with inherit keyword (nested)
 Pass	Local with the unset keyword
 Pass	Local with the revert keyword
 Pass	Local with the revert-layer keyword

@@ -1652,9 +1652,9 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
             parameter_tokens.discard_a_token(); // :
             parameter_tokens.discard_whitespace();
 
-            auto maybe_default_value = parse_declaration_value(parameter_tokens);
+            auto maybe_default_value = parse_css_value(PropertyID::Custom, parameter_tokens);
 
-            if (!maybe_default_value.has_value()) {
+            if (maybe_default_value.is_error()) {
                 ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
                     .rule_name = "@function"_utf16_fly_string,
                     .prelude = parameter_tokens.dump_string(),
@@ -1663,16 +1663,26 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
                 return {};
             }
 
+            auto unparsed_default_value = maybe_default_value.release_value();
+
+            VERIFY(unparsed_default_value->is_css_wide_keyword() || unparsed_default_value->is_unresolved());
+
             // If a default value and a parameter type are both provided, then the default value must parse successfully
             // according to that parameter type’s syntax. Otherwise, the @function rule is invalid.
-            // FIXME: Chrome allows ASFs regardless of the parameter's type
-            TokenStream default_value_token_stream { maybe_default_value.value() };
-            auto parsed_value = parse_according_to_syntax_node(default_value_token_stream, *type);
-            default_value_token_stream.discard_whitespace();
-            if (!parsed_value || !default_value_token_stream.is_empty())
-                return {};
 
-            default_value = parsed_value;
+            // NB: CSS-wide keywords and ASF containing productions are allowed for all syntaxes
+            if (unparsed_default_value->is_css_wide_keyword() || unparsed_default_value->as_unresolved().contains_arbitrary_substitution_function()) {
+                default_value = unparsed_default_value;
+            } else {
+                auto tokens = unparsed_default_value->as_unresolved().values();
+                TokenStream default_value_token_stream { tokens };
+                auto parsed_value = parse_according_to_syntax_node(default_value_token_stream, *type);
+                default_value_token_stream.discard_whitespace();
+                if (!parsed_value || !default_value_token_stream.is_empty())
+                    return {};
+
+                default_value = parsed_value;
+            }
         }
 
         parameter_tokens.discard_whitespace();
