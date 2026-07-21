@@ -3750,7 +3750,12 @@ void LocalNavigable::wait_for_async_scroll_operation(Compositor::AsyncScrollOper
         return;
     }
 
-    m_pending_async_scroll_operations.append({ .operation_id = operation_id, .promise = promise });
+    m_pending_async_scroll_operations.append({
+        .operation_id = operation_id,
+        .promise = promise,
+        .stable_node_id = {},
+        .initial_scroll_offset = {},
+    });
 }
 
 void LocalNavigable::resolve_async_scroll_operation(Compositor::AsyncScrollOperationID operation_id)
