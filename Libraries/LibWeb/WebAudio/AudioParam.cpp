@@ -64,24 +64,6 @@ WebIDL::ExceptionOr<void> AudioParam::set_automation_rate(Bindings::AutomationRa
     return {};
 }
 
-// https://webaudio.github.io/web-audio-api/#dom-audioparam-defaultvalue
-float AudioParam::default_value() const
-{
-    return m_default_value;
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-audioparam-minvalue
-float AudioParam::min_value() const
-{
-    return m_min_value;
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-audioparam-maxvalue
-float AudioParam::max_value() const
-{
-    return m_max_value;
-}
-
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-setvalueattime
 WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::set_value_at_time(float value, double start_time)
 {

@@ -34,9 +34,14 @@ public:
     Bindings::AutomationRate automation_rate() const;
     WebIDL::ExceptionOr<void> set_automation_rate(Bindings::AutomationRate);
 
-    float default_value() const;
-    float min_value() const;
-    float max_value() const;
+    // https://webaudio.github.io/web-audio-api/#dom-audioparam-defaultvalue
+    float default_value() const { return m_default_value; }
+
+    // https://webaudio.github.io/web-audio-api/#dom-audioparam-minvalue
+    float min_value() const { return m_min_value; }
+
+    // https://webaudio.github.io/web-audio-api/#dom-audioparam-maxvalue
+    float max_value() const { return m_max_value; }
 
     WebIDL::ExceptionOr<GC::Ref<AudioParam>> set_value_at_time(float value, double start_time);
     WebIDL::ExceptionOr<GC::Ref<AudioParam>> linear_ramp_to_value_at_time(float value, double end_time);
