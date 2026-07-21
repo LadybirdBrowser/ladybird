@@ -424,6 +424,24 @@ static constexpr Array box_group_properties {
     PropertyID::Resize,
 };
 
+// The properties feeding the surround group's descriptors, in registration
+// order. Everything registers as constraints until the core learns the
+// length box representation.
+static constexpr Array surround_group_properties {
+    PropertyID::Top,
+    PropertyID::Right,
+    PropertyID::Bottom,
+    PropertyID::Left,
+    PropertyID::MarginTop,
+    PropertyID::MarginRight,
+    PropertyID::MarginBottom,
+    PropertyID::MarginLeft,
+    PropertyID::PaddingTop,
+    PropertyID::PaddingRight,
+    PropertyID::PaddingBottom,
+    PropertyID::PaddingLeft,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -669,6 +687,13 @@ static void register_style_group_field_descriptors()
     add(box, PropertyID::WillChange, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
     add(box, PropertyID::Resize, offsetof(Box, resize), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_resize>());
 
+    constexpr auto surround = to_underlying(StyleGroupIndex::SurroundValues);
+    for (auto property : { PropertyID::Top, PropertyID::Right, PropertyID::Bottom, PropertyID::Left })
+        add(surround, property, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    for (auto property : { PropertyID::MarginTop, PropertyID::MarginRight, PropertyID::MarginBottom, PropertyID::MarginLeft,
+             PropertyID::PaddingTop, PropertyID::PaddingRight, PropertyID::PaddingBottom, PropertyID::PaddingLeft })
+        add(surround, property, 0, GROUP_FIELD_REQUIRE_PX, 0, nullptr, 0);
+
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
 
@@ -886,6 +911,17 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     bool const anchor_adopted = anchor_payload != nullptr;
     if (anchor_adopted)
         computed_values.adopt_anchor_group(const_cast<void*>(anchor_payload));
+
+    Array<ComputedValuesFFI::FfiGroupValueEntry, surround_group_properties.size()> surround_group_values;
+    gather_group_values(surround_group_properties, surround_group_values);
+    auto* surround_payload = ComputedValuesFFI::rust_build_style_group(
+        SurroundValues::style_group_index,
+        surround_group_values.data(),
+        surround_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.surround.operator->()) : nullptr);
+    bool const surround_adopted = surround_payload != nullptr;
+    if (surround_adopted)
+        computed_values.adopt_surround_group(const_cast<void*>(surround_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, box_group_properties.size()> box_group_values;
     gather_group_values(box_group_properties, box_group_values);
@@ -1845,14 +1881,19 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!sizing_adopted)
         computed_values.set_max_height(computed_style.size_value(CSS::PropertyID::MaxHeight));
 
-    computed_values.set_inset(computed_style.length_box(CSS::PropertyID::Left, CSS::PropertyID::Top, CSS::PropertyID::Right, CSS::PropertyID::Bottom, CSS::LengthPercentageOrAuto::make_auto()));
+    if (!surround_adopted)
+        computed_values.set_inset(computed_style.length_box(CSS::PropertyID::Left, CSS::PropertyID::Top, CSS::PropertyID::Right, CSS::PropertyID::Bottom, CSS::LengthPercentageOrAuto::make_auto()));
     for (auto property_id : { PropertyID::Top, PropertyID::Right, PropertyID::Bottom, PropertyID::Left }) {
+        if (surround_adopted)
+            break;
         auto const& inset = computed_style.property(property_id);
         if (inset.is_anchor())
             computed_values.set_anchor_inset(property_id, inset);
     }
-    computed_values.set_margin(computed_style.length_box(CSS::PropertyID::MarginLeft, CSS::PropertyID::MarginTop, CSS::PropertyID::MarginRight, CSS::PropertyID::MarginBottom, CSS::Length::make_px(0)));
-    computed_values.set_padding(computed_style.length_box(CSS::PropertyID::PaddingLeft, CSS::PropertyID::PaddingTop, CSS::PropertyID::PaddingRight, CSS::PropertyID::PaddingBottom, CSS::Length::make_px(0)));
+    if (!surround_adopted)
+        computed_values.set_margin(computed_style.length_box(CSS::PropertyID::MarginLeft, CSS::PropertyID::MarginTop, CSS::PropertyID::MarginRight, CSS::PropertyID::MarginBottom, CSS::Length::make_px(0)));
+    if (!surround_adopted)
+        computed_values.set_padding(computed_style.length_box(CSS::PropertyID::PaddingLeft, CSS::PropertyID::PaddingTop, CSS::PropertyID::PaddingRight, CSS::PropertyID::PaddingBottom, CSS::Length::make_px(0)));
     if (!misc_reset_adopted)
         computed_values.set_scroll_margin(computed_style.length_box(CSS::PropertyID::ScrollMarginLeft, CSS::PropertyID::ScrollMarginTop, CSS::PropertyID::ScrollMarginRight, CSS::PropertyID::ScrollMarginBottom, CSS::Length::make_px(0)));
     if (!misc_reset_adopted)
