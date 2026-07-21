@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #before {
+        width: 20px;
+        height: 20px;
+    }
+
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+
+    #content {
+        width: 500px;
+        height: 500px;
+    }
+</style>
+<div id="before"></div>
+<div id="scroller"><div id="content"></div></div>
+<script>
+    test(() => {
+        const initialState = internals.asyncScrollingState();
+        const initialNode = initialState.scrollNodes.find(node => !node.isViewport);
+
+        document.getElementById("before").style.transform = "translateX(0)";
+
+        const updatedState = internals.asyncScrollingState();
+        const updatedNode = updatedState.scrollNodes.find(node => !node.isViewport);
+
+        println(`scroll node index changed: ${initialNode.scrollNodeIndex !== updatedNode.scrollNodeIndex}`);
+    });
+</script>

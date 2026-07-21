@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/scrollbar-after-visual-context-change-ref.html">
+<style>
+    body {
+        margin: 0;
+    }
+
+    #before {
+        width: 20px;
+        height: 20px;
+    }
+
+    #scroller {
+        width: 200px;
+        height: 100px;
+        overflow-x: scroll;
+        overflow-y: hidden;
+    }
+
+    #content {
+        width: 600px;
+        height: 100px;
+        background: linear-gradient(to right, red 0 33%, green 33% 66%, blue 66%);
+    }
+</style>
+<div id="before"></div>
+<div id="scroller"><div id="content"></div></div>
+<script>
+    const before = document.getElementById("before");
+    const scroller = document.getElementById("scroller");
+    requestAnimationFrame(() => requestAnimationFrame(async () => {
+        before.style.transform = "translateX(0)";
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await scroller.scrollTo({ left: 200, behavior: "smooth" });
+        document.documentElement.classList.remove("reftest-wait");
+    }));
+</script>
+</html>
