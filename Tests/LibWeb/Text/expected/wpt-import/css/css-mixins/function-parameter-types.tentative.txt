@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 7 tests
 
-3 Pass
-4 Fail
+4 Pass
+3 Fail
 Pass	A parameter retains its type
 Pass	A parameter type acts as a local registration
 Fail	A parameter retains its type (parent stack frame)
 Fail	A parameter type acts as a local registration (parent stack frame)
 Pass	Universally typed parameter can shadow other parameters
-Fail	Invalid value for typed local becomes IACVT
+Pass	Invalid value for typed local becomes IACVT
 Fail	if() within @function can query registered custom property

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 89 tests
 
-83 Pass
-6 Fail
+85 Pass
+4 Fail
 Pass	Literal result
 Pass	Literal result, typed return
 Pass	Literal result, typed return, calc
@@ -61,8 +61,8 @@ Pass	Inner function call should see resolved outer locals (reverse)
 Pass	Parameter shadows custom property
 Pass	Local shadows parameter
 Pass	IACVT argument shadows outer scope
-Fail	IACVT argument shadows outer scope, typed
-Fail	IACVT argument shadows outer scope, type mismatch
+Pass	IACVT argument shadows outer scope, typed
+Pass	IACVT argument shadows outer scope, type mismatch
 Pass	Missing only argument
 Pass	Missing one argument of several
 Pass	Passing list as only argument
