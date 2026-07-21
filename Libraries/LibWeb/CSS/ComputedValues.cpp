@@ -101,6 +101,18 @@ static constexpr Array alignment_group_properties {
     PropertyID::RowGap,
 };
 
+// The properties feeding the text reset group's descriptors, in registration
+// order.
+static constexpr Array text_reset_group_properties {
+    PropertyID::TextDecorationLine,
+    PropertyID::TextDecorationThickness,
+    PropertyID::TextDecorationStyle,
+    PropertyID::TextDecorationColor,
+    PropertyID::TextOverflow,
+    PropertyID::UnicodeBidi,
+    PropertyID::WhiteSpaceTrim,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -137,6 +149,17 @@ static void register_style_group_field_descriptors()
     add(alignment, PropertyID::JustifySelf, offsetof(Alignment, justify_self), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_justify_self>());
     add(alignment, PropertyID::ColumnGap, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
     add(alignment, PropertyID::RowGap, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
+
+    static_assert(sizeof(Color) == sizeof(u32));
+    using TextReset = ComputedValues::TextResetValues;
+    constexpr auto text_reset = to_underlying(StyleGroupIndex::TextResetValues);
+    add(text_reset, PropertyID::TextDecorationLine, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(text_reset, PropertyID::TextDecorationThickness, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(text_reset, PropertyID::TextDecorationStyle, offsetof(TextReset, text_decoration_style), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_decoration_style>());
+    add(text_reset, PropertyID::TextDecorationColor, offsetof(TextReset, text_decoration_color), GROUP_FIELD_COLOR, 0, nullptr);
+    add(text_reset, PropertyID::TextOverflow, offsetof(TextReset, text_overflow), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_overflow>());
+    add(text_reset, PropertyID::UnicodeBidi, offsetof(TextReset, unicode_bidi), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_unicode_bidi>());
+    add(text_reset, PropertyID::WhiteSpaceTrim, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -327,11 +350,15 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (inherited_table_adopted)
         computed_values.adopt_inherited_table_group(const_cast<void*>(inherited_table_payload));
 
-    Array<ComputedValuesFFI::FfiShellAndData, alignment_group_properties.size()> alignment_group_values;
-    for (size_t i = 0; i < alignment_group_properties.size(); ++i) {
-        auto const& value = computed_style.property(alignment_group_properties[i]);
-        alignment_group_values[i] = { &value, value.rust_style_value_data() };
-    }
+    auto gather_group_values = [&]<size_t N>(Array<PropertyID, N> const& properties, Array<ComputedValuesFFI::FfiGroupValueEntry, N>& entries) {
+        for (size_t i = 0; i < N; ++i) {
+            auto const& value = computed_style.property(properties[i]);
+            entries[i] = { &value, value.rust_style_value_data(), 0, false };
+        }
+    };
+
+    Array<ComputedValuesFFI::FfiGroupValueEntry, alignment_group_properties.size()> alignment_group_values;
+    gather_group_values(alignment_group_properties, alignment_group_values);
     auto* alignment_payload = ComputedValuesFFI::rust_build_style_group(
         AlignmentValues::style_group_index,
         alignment_group_values.data(),
@@ -340,6 +367,25 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     bool const alignment_adopted = alignment_payload != nullptr;
     if (alignment_adopted)
         computed_values.adopt_alignment_group(const_cast<void*>(alignment_payload));
+
+    // The gather resolves color fields against the element's colors, since the
+    // builder core cannot; the resolved raw color travels with the entry.
+    Array<ComputedValuesFFI::FfiGroupValueEntry, text_reset_group_properties.size()> text_reset_group_values;
+    gather_group_values(text_reset_group_properties, text_reset_group_values);
+    for (size_t i = 0; i < text_reset_group_properties.size(); ++i) {
+        if (text_reset_group_properties[i] == PropertyID::TextDecorationColor) {
+            text_reset_group_values[i].resolved_color = computed_style.color(PropertyID::TextDecorationColor, color_resolution_context).value();
+            text_reset_group_values[i].has_resolved_color = true;
+        }
+    }
+    auto* text_reset_payload = ComputedValuesFFI::rust_build_style_group(
+        TextResetValues::style_group_index,
+        text_reset_group_values.data(),
+        text_reset_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.text_reset.operator->()) : nullptr);
+    bool const text_reset_adopted = text_reset_payload != nullptr;
+    if (text_reset_adopted)
+        computed_values.adopt_text_reset_group(const_cast<void*>(text_reset_payload));
 
     auto custom_ident_list = [&](PropertyID property_id) {
         Vector<Utf16FlyString> names;
@@ -853,7 +899,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_tab_size(computed_style.tab_size());
 
     computed_values.set_white_space_collapse(computed_style.white_space_collapse());
-    computed_values.set_white_space_trim(computed_style.white_space_trim());
+    if (!text_reset_adopted)
+        computed_values.set_white_space_trim(computed_style.white_space_trim());
     computed_values.set_word_break(computed_style.word_break());
     switch (computed_style.property(CSS::PropertyID::OverflowWrap).to_keyword()) {
     case CSS::Keyword::Normal:
@@ -904,9 +951,11 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!inherited_box_adopted)
         computed_values.set_image_rendering(computed_style.image_rendering());
     computed_values.set_pointer_events(computed_style.pointer_events());
-    computed_values.set_text_decoration_line(computed_style.text_decoration_line());
+    if (!text_reset_adopted)
+        computed_values.set_text_decoration_line(computed_style.text_decoration_line());
     computed_values.set_text_decoration_skip_ink(computed_style.text_decoration_skip_ink());
-    computed_values.set_text_decoration_style(computed_style.text_decoration_style());
+    if (!text_reset_adopted)
+        computed_values.set_text_decoration_style(computed_style.text_decoration_style());
     computed_values.set_text_transform(computed_style.text_transform());
 
     auto list_style_type = computed_style.list_style_type(style_scope);
@@ -928,8 +977,10 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (list_style_image.is_abstract_image())
         computed_values.set_list_style_image(list_style_image.as_abstract_image());
 
-    computed_values.set_text_decoration_color(computed_style.color(CSS::PropertyID::TextDecorationColor, color_resolution_context));
-    computed_values.set_text_decoration_thickness(computed_style.text_decoration_thickness());
+    if (!text_reset_adopted)
+        computed_values.set_text_decoration_color(computed_style.color(CSS::PropertyID::TextDecorationColor, color_resolution_context));
+    if (!text_reset_adopted)
+        computed_values.set_text_decoration_thickness(computed_style.text_decoration_thickness());
 
     auto const& webkit_text_fill_color = computed_style.property(CSS::PropertyID::WebkitTextFillColor);
     computed_values.set_webkit_text_fill_color(

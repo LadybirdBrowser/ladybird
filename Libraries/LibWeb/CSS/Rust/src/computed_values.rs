@@ -233,6 +233,19 @@ pub const GROUP_FIELD_U64: u8 = 4;
 pub const GROUP_FIELD_REQUIRE_KEYWORD: u8 = 5;
 /// An integer stored as i32.
 pub const GROUP_FIELD_I32: u8 = 6;
+/// A color stored as the C++ Color's raw 32-bit value, resolved by the C++
+/// gather loop, which owns the color resolution context.
+pub const GROUP_FIELD_COLOR: u8 = 7;
+
+/// One gathered value for the generic group builder: the computed value's
+/// shell and data, plus the resolved raw color for color-kind fields.
+#[repr(C)]
+pub struct FfiGroupValueEntry {
+    pub shell: *const c_void,
+    pub data: *const c_void,
+    pub resolved_color: u32,
+    pub has_resolved_color: bool,
+}
 
 struct FieldDescriptors(Box<[FfiGroupFieldDescriptor]>);
 
@@ -278,7 +291,7 @@ pub unsafe extern "C" fn rust_style_group_register_field_descriptors(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_build_style_group(
     group_index: usize,
-    values: *const crate::style_compute::FfiShellAndData,
+    values: *const FfiGroupValueEntry,
     count: usize,
     parent_payload: *const c_void,
 ) -> *const c_void {
@@ -301,6 +314,7 @@ pub unsafe extern "C" fn rust_build_style_group(
             F64(u32, f64),
             I32(u32, i32),
             U64(u32, u64),
+            U32(u32, u32),
         }
         let mut pokes = Vec::with_capacity(count);
         for (descriptor, value) in descriptors.iter().zip(values) {
@@ -366,6 +380,12 @@ pub unsafe extern "C" fn rust_build_style_group(
                     };
                     pokes.push(Poke::I32(descriptor.offset, *value));
                 }
+                GROUP_FIELD_COLOR => {
+                    if !value.has_resolved_color {
+                        return None;
+                    }
+                    pokes.push(Poke::U32(descriptor.offset, value.resolved_color));
+                }
                 _ => return None,
             }
         }
@@ -384,6 +404,7 @@ pub unsafe extern "C" fn rust_build_style_group(
                     Poke::F64(offset, value) => *(base.add(offset as usize) as *mut f64) = value,
                     Poke::I32(offset, value) => *(base.add(offset as usize) as *mut i32) = value,
                     Poke::U64(offset, value) => *(base.add(offset as usize) as *mut u64) = value,
+                    Poke::U32(offset, value) => *(base.add(offset as usize) as *mut u32) = value,
                 }
             }
         }

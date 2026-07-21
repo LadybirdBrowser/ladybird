@@ -1655,7 +1655,8 @@ public:
 
     struct TextResetValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::TextResetValues);
-        Vector<TextDecorationLine> text_decoration_line { InitialValues::text_decoration_line() };
+        // NB: A computed text-decoration-line of none is the empty list.
+        Vector<TextDecorationLine> text_decoration_line {};
         TextDecorationThickness text_decoration_thickness { TextDecorationThickness::Auto {} };
         TextDecorationStyle text_decoration_style { InitialValues::text_decoration_style() };
         Color text_decoration_color { InitialValues::color() };
@@ -1897,6 +1898,7 @@ public:
     void adopt_inherited_box_group(void* payload) { m_values.m_inherited.box.adopt(payload); }
     void adopt_inherited_table_group(void* payload) { m_values.m_inherited.table.adopt(payload); }
     void adopt_alignment_group(void* payload) { m_values.m_noninherited.alignment.adopt(payload); }
+    void adopt_text_reset_group(void* payload) { m_values.m_noninherited.text_reset.adopt(payload); }
 
     void set_aspect_ratio(AspectRatio aspect_ratio)
     {
