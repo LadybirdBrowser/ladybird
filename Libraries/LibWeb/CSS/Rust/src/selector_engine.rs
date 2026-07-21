@@ -1618,6 +1618,17 @@ impl FfiElement {
         unsafe { selector_ffi_element_is_document_root(self.pointer) }
     }
 
+    unsafe fn local_name<'a>(self) -> DomStringView<'a> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element. C++ returns a string view borrowed
+        // from its current local name for this matching call.
+        DomStringView {
+            // SAFETY: C++ guarantees that the returned string view remains valid for matching.
+            view: unsafe { selector_ffi_element_local_name(self.pointer) },
+            marker: PhantomData,
+        }
+    }
+
     unsafe fn classes<'a>(self) -> &'a [usize] {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns its current class storage,
@@ -1657,6 +1668,37 @@ impl FfiElementQualifiedName {
 pub struct FfiInternedStringList {
     pub data: *const usize,
     pub count: usize,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiDomStringView {
+    pub data: *const c_void,
+    pub length: usize,
+    pub is_ascii: bool,
+}
+
+#[derive(Clone, Copy)]
+struct DomStringView<'a> {
+    view: FfiDomStringView,
+    marker: PhantomData<&'a FfiCallScope>,
+}
+
+impl DomStringView<'_> {
+    fn len(self) -> usize {
+        self.view.length
+    }
+
+    fn code_unit_at(self, index: usize) -> u16 {
+        assert!(index < self.len());
+        assert!(!self.view.data.is_null());
+        if self.view.is_ascii {
+            // SAFETY: C++ guarantees that an ASCII view points at `length` bytes.
+            return u16::from(unsafe { *(self.view.data.cast::<u8>().add(index)) });
+        }
+        // SAFETY: C++ guarantees that a UTF-16 view points at `length` aligned code units.
+        unsafe { *(self.view.data.cast::<u16>().add(index)) }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1726,6 +1768,12 @@ impl<'a> FfiNode<'a> {
         // current class storage.
         unsafe { self.as_element().classes() }
     }
+
+    fn local_name(self) -> DomStringView<'a> {
+        // SAFETY: `FfiNode` cannot outlive the call scope which pins the C++ element and its
+        // current local-name storage.
+        unsafe { self.as_element().local_name() }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -1743,16 +1791,11 @@ unsafe extern "C" {
     fn selector_ffi_element_namespace_is_null(element: *const c_void) -> bool;
     fn selector_ffi_element_is_html_element_in_html_document(element: *const c_void) -> bool;
     fn selector_ffi_element_is_document_root(element: *const c_void) -> bool;
+    fn selector_ffi_element_local_name(element: *const c_void) -> FfiDomStringView;
 
     fn selector_ffi_default_namespace(context: *mut c_void) -> FfiResolvedNamespace;
     fn selector_ffi_resolve_namespace(context: *mut c_void, prefix: FfiStringView) -> FfiResolvedNamespace;
 
-    fn selector_ffi_matches_tag_name(
-        context: *mut c_void,
-        element: *const c_void,
-        cxx_simple_selector: *const c_void,
-        matching_mode: TagNameMatchingMode,
-    ) -> bool;
     fn selector_ffi_matches_class_quirks(element: *const c_void, cxx_simple_selector: *const c_void) -> bool;
     fn selector_ffi_matches_attribute(
         context: *mut c_void,
@@ -1811,6 +1854,22 @@ fn ffi_string_view(string: &[u16]) -> FfiStringView {
         data: string.as_ptr(),
         length: string.len(),
     }
+}
+
+fn ascii_lowercase(code_unit: u16) -> u16 {
+    if (u16::from(b'A')..=u16::from(b'Z')).contains(&code_unit) {
+        code_unit + u16::from(b'a' - b'A')
+    } else {
+        code_unit
+    }
+}
+
+fn utf16_equals_ignoring_ascii_case(first: DomStringView<'_>, second: &[u16]) -> bool {
+    first.len() == second.len()
+        && second
+            .iter()
+            .enumerate()
+            .all(|(index, &second)| ascii_lowercase(first.code_unit_at(index)) == ascii_lowercase(second))
 }
 
 struct FfiCallScope;
@@ -1928,28 +1987,20 @@ impl<'a> SelectorDom for FfiDom<'a> {
     ) -> bool {
         let ffi_element = element.as_element();
         let is_html_element_in_html_document = ffi_element.is_html_element_in_html_document();
-        if is_html_element_in_html_document || mode == TagNameMatchingMode::Fast {
+        let name_matches = if is_html_element_in_html_document || mode == TagNameMatchingMode::Fast {
             let interned_name = if is_html_element_in_html_document {
                 name.interned_lowercase_name
             } else {
                 name.interned_name
             };
-            if interned_name.is_none_or(|name| ffi_element.qualified_name().local_name() != Some(name)) {
-                return false;
-            }
-            return self.matches_universal_selector(element, name);
+            interned_name.is_some_and(|name| ffi_element.qualified_name().local_name() == Some(name))
+        } else {
+            utf16_equals_ignoring_ascii_case(element.local_name(), &name.name)
+        };
+        if !name_matches {
+            return false;
         }
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
-        // SAFETY: `FfiDom` guarantees that the context, element, and retained simple selector
-        // remain valid for the duration of matching.
-        unsafe {
-            selector_ffi_matches_tag_name(
-                self.context,
-                element.as_element_pointer(),
-                name.cxx_simple_selector.as_ptr(),
-                mode,
-            )
-        }
+        self.matches_universal_selector(element, name)
     }
 
     fn matches_id_selector(&mut self, element: FfiNode<'a>, id: &NameSelector) -> bool {

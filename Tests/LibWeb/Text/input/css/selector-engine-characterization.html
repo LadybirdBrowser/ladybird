@@ -32,6 +32,7 @@
         xml.documentElement.appendChild(child);
 
         println(`XML tag case: ${child.matches("Child")}/${child.matches("child")}`);
+        println(`XML slow tag case: ${child.matches("child:not(.missing)")}`);
         println(`XML namespace wildcard: ${child.matches("*|Child")}`);
         println(`XML attribute namespace wildcard: ${child.matches("[*|value]")}`);
         const host = document.createElement("div");

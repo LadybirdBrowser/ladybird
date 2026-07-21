@@ -565,6 +565,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("FfiElement", "Element"),
         ("FfiElementQualifiedName", "ElementQualifiedName"),
         ("FfiInternedStringList", "InternedStringList"),
+        ("FfiDomStringView", "DomStringView"),
         ("FfiResolvedNamespaceType", "ResolvedNamespaceType"),
         ("FfiResolvedNamespace", "ResolvedNamespace"),
         ("FfiElementAndShadowHost", "ElementAndShadowHost"),

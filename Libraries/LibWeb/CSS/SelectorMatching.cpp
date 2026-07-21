@@ -724,46 +724,6 @@ static bool is_in_null_namespace(DOM::Element const& element)
     return !element.namespace_uri().has_value() || element.namespace_uri()->is_empty();
 }
 
-static bool matches_namespace(CSS::Selector::SimpleSelector::QualifiedName const& qualified_name, DOM::Element const& element, GC::Ptr<CSS::CSSStyleSheet const> style_sheet_for_rule)
-{
-    switch (qualified_name.namespace_type) {
-    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Default:
-        // "if no default namespace has been declared for selectors, this is equivalent to *|E."
-        if (!style_sheet_for_rule || !style_sheet_for_rule->default_namespace_rule())
-            return true;
-        // "Otherwise it is equivalent to ns|E where ns is the default namespace."
-        if (style_sheet_for_rule->default_namespace_rule()->namespace_uri().is_empty())
-            return is_in_null_namespace(element);
-
-        return element.namespace_uri().has_value()
-            && style_sheet_for_rule->default_namespace_rule()->namespace_uri() == element.namespace_uri()->view();
-    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::None:
-        // "elements with name E without a namespace"
-        return is_in_null_namespace(element);
-    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Any:
-        // "elements with name E in any namespace, including those without a namespace"
-        return true;
-    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Named: {
-        // "elements with name E in namespace ns"
-        // Unrecognized namespace prefixes are invalid, so don't match.
-        // (We can't detect this at parse time, since a namespace rule may be inserted later.)
-        // So, if we don't have a context to look up namespaces from, we fail to match.
-        if (!style_sheet_for_rule)
-            return false;
-        auto selector_namespace = style_sheet_for_rule->namespace_uri(qualified_name.namespace_);
-        // https://www.w3.org/TR/css-namespaces-3/#terminology
-        // In CSS Namespaces a namespace name consisting of the empty string is taken to represent the null namespace
-        // or lack of a namespace.
-        if (selector_namespace.has_value() && selector_namespace->is_empty())
-            return is_in_null_namespace(element);
-        return selector_namespace.has_value()
-            && element.namespace_uri().has_value()
-            && *selector_namespace == element.namespace_uri()->view();
-    }
-    }
-    VERIFY_NOT_REACHED();
-}
-
 using CSS::SelectorFFI::AttributeCaseType;
 using CSS::SelectorFFI::AttributeMatchType;
 using CSS::SelectorFFI::Combinator;
@@ -771,7 +731,6 @@ using CSS::SelectorFFI::Direction;
 using CSS::SelectorFFI::HasCacheResult;
 using CSS::SelectorFFI::NamespaceType;
 using CSS::SelectorFFI::StringView;
-using CSS::SelectorFFI::TagNameMatchingMode;
 
 #define DECLARE_SELECTOR_FFI_CALLBACK(function) \
     extern "C" decltype(CSS::SelectorFFI::function) function
@@ -783,9 +742,9 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_class_names_are_case_insensit
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_namespace_is_null);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_html_element_in_html_document);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_document_root);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_local_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_default_namespace);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_resolve_namespace);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_tag_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_class_quirks);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_attribute);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_pseudo_class);
@@ -875,6 +834,25 @@ extern "C" bool selector_ffi_element_is_document_root(void const* element)
     return is<HTML::HTMLHtmlElement>(ffi_element(element));
 }
 
+extern "C" CSS::SelectorFFI::DomStringView selector_ffi_element_local_name(void const* element)
+{
+    auto local_name = ffi_element(element).local_name().view();
+    if (local_name.has_ascii_storage()) {
+        auto storage = local_name.ascii_span();
+        return {
+            .data = storage.data(),
+            .length = storage.size(),
+            .is_ascii = true,
+        };
+    }
+    auto storage = local_name.utf16_span();
+    return {
+        .data = storage.data(),
+        .length = storage.size(),
+        .is_ascii = false,
+    };
+}
+
 extern "C" CSS::SelectorFFI::ResolvedNamespace selector_ffi_default_namespace(void* context)
 {
     auto& match_context = rust_match_context(context);
@@ -925,23 +903,6 @@ extern "C" CSS::SelectorFFI::ResolvedNamespace selector_ffi_resolve_namespace(vo
         .namespace_type = CSS::SelectorFFI::ResolvedNamespaceType::Named,
         .namespace_ = interned_string_identity(*namespace_),
     };
-}
-
-extern "C" bool selector_ffi_matches_tag_name(void* context, void const* element, void const* cxx_simple_selector, TagNameMatchingMode matching_mode)
-{
-    auto& match_context = rust_match_context(context);
-    auto const& target = ffi_element(element);
-    auto const& qualified_name = ffi_simple_selector(cxx_simple_selector).qualified_name();
-    bool const is_html_element_in_html_document = target.namespace_uri() == Namespace::HTML
-        && target.document().document_type() == DOM::Document::Type::HTML;
-    auto const& name_to_match = is_html_element_in_html_document ? qualified_name.name.lowercase_name : qualified_name.name.name;
-    bool name_matches;
-    if (is_html_element_in_html_document || matching_mode == TagNameMatchingMode::Fast)
-        name_matches = target.local_name() == name_to_match;
-    else
-        name_matches = target.local_name().equals_ignoring_ascii_case(name_to_match);
-    return name_matches
-        && matches_namespace(qualified_name, target, match_context.style_sheet_for_rule);
 }
 
 extern "C" bool selector_ffi_matches_class_quirks(void const* element, void const* cxx_simple_selector)
