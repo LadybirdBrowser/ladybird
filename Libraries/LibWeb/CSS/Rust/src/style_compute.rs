@@ -1768,30 +1768,48 @@ pub extern "C" fn rust_map_physical_to_logical_alias(property_id: u16, writing_m
     map_physical_to_logical_alias(property_id, writing_mode, direction)
 }
 
+/// One deferred store operation for a longhand whose selected value needs no
+/// computation: the value shell and the flags driving the C++ side effects
+/// (animated-inheritance copy and inheritance-dependent bookkeeping).
+#[repr(C)]
+pub struct FfiComputedStoreEntry {
+    pub property_id: u16,
+    pub inherited_property_id: u16,
+    pub shell: *const c_void,
+    pub inheritance_dependent: bool,
+    pub inherited: bool,
+}
+
 /// The leaf callbacks the C++ side provides to the property computation
 /// driver. The driver selects each longhand's cascaded, inherited or initial
 /// value natively and calls back only to compute and store the result.
 #[repr(C)]
 pub struct FfiLonghandCallbacks {
     pub context: *mut c_void,
-    /// Computes the selected value if the property requires computation and
-    /// stores the result. `value_shell` stays alive for the duration of the
-    /// call: cascaded values are retained by the store, initial values are
-    /// immortal, and parent values are pinned by the snapshot or the fetch
-    /// below.
+    /// Computes the selected value and stores the result; only called for
+    /// properties that require computation. `value_shell` stays alive for
+    /// the duration of the call: cascaded values are retained by the store,
+    /// initial values are immortal, and parent values are pinned by the
+    /// snapshot or the fetch below.
     pub compute_and_store: unsafe extern "C" fn(
         context: *mut c_void,
         property_id: u16,
         inherited_property_id: u16,
         value_shell: *const c_void,
-        requires_computation: bool,
         inheritance_dependent: bool,
         inherited: bool,
     ),
+    /// Stores a batch of selected values that need no computation, applying
+    /// each entry's side effects in property order. The driver flushes the
+    /// batch before any callback that may read the stored values, so the
+    /// C++ side always observes the same store sequence as one call per
+    /// property would produce.
+    pub store_computed_batch:
+        unsafe extern "C" fn(context: *mut c_void, entries: *const FfiComputedStoreEntry, count: usize),
     /// Rare: fetches the parent's computed value for an explicit `inherit` of
     /// a non-inherited property, which the parent snapshot does not carry.
-    /// The C++ side pins the returned shell until the next fetch or the end
-    /// of the drive.
+    /// The C++ side pins the returned shell until the end of the drive, so
+    /// deferred store batches may hold it.
     pub fetch_non_inherited_parent_value:
         unsafe extern "C" fn(context: *mut c_void, inherited_property_id: u16) -> FfiShellAndData,
     /// Maps a nested value's shell pointer to its Rust-owned data while the
@@ -1903,6 +1921,24 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let inherited_words = unsafe { std::slice::from_raw_parts_mut(results.inherited_words, results.word_count) };
         let mut cached_writing_mode_and_direction: Option<(u8, u8)> = None;
 
+        // Store operations queued for properties that need no computation, flushed in one
+        // crossing before any callback that may read the stored values.
+        let mut pending_stores: Vec<FfiComputedStoreEntry> = Vec::new();
+        fn flush_pending_stores(
+            callbacks: &FfiLonghandCallbacks,
+            context: *mut c_void,
+            pending_stores: &mut Vec<FfiComputedStoreEntry>,
+        ) {
+            if pending_stores.is_empty() {
+                return;
+            }
+            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandStoreBatchCallback);
+            // SAFETY: The entries and their shells stay alive for the call; the callback
+            // table outlives the drive.
+            unsafe { (callbacks.store_computed_batch)(context, pending_stores.as_ptr(), pending_stores.len()) };
+            pending_stores.clear();
+        }
+
         for &property_id in crate::property_metadata::property_computation_order() {
             let mut cascaded_property_id = property_id;
             let mut inherited_property_id = property_id;
@@ -1915,6 +1951,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             // logical property group exactly when either mapping table maps it.
             let is_logical_alias = table_row_maps(&LOGICAL_ALIAS_TABLE, property_id);
             if is_logical_alias || table_row_maps(&PHYSICAL_TO_LOGICAL_TABLE, property_id) {
+                if cached_writing_mode_and_direction.is_none() {
+                    flush_pending_stores(callbacks, context, &mut pending_stores);
+                }
                 let (writing_mode, direction) = *cached_writing_mode_and_direction.get_or_insert_with(|| {
                     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandWritingModeCallback);
                     let packed = unsafe { (callbacks.writing_mode_and_direction)(context) };
@@ -2017,19 +2056,31 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     })
                     || value_depends_on_inherited_info_for_property(value_data, property_id);
 
-            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandComputeAndStoreCallback);
-            unsafe {
-                (callbacks.compute_and_store)(
-                    context,
+            if requires_computation {
+                flush_pending_stores(callbacks, context, &mut pending_stores);
+                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandComputeAndStoreCallback);
+                unsafe {
+                    (callbacks.compute_and_store)(
+                        context,
+                        property_id,
+                        inherited_property_id,
+                        value.shell,
+                        inheritance_dependent,
+                        inherit_fetch_attempted,
+                    );
+                }
+            } else {
+                pending_stores.push(FfiComputedStoreEntry {
                     property_id,
                     inherited_property_id,
-                    value.shell,
-                    requires_computation,
+                    shell: value.shell,
                     inheritance_dependent,
-                    inherit_fetch_attempted,
-                );
+                    inherited: inherit_fetch_attempted,
+                });
             }
         }
+
+        flush_pending_stores(callbacks, context, &mut pending_stores);
     });
 }
 

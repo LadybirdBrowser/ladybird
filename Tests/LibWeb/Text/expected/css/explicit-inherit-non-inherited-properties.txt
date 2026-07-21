@@ -1,0 +1,7 @@
+position: absolute
+float: none
+clear: both
+overflow-x: hidden
+text-decoration-line: underline
+grid-template-columns: [a] 100px [b] 200px
+grid-template-rows: [c] 50px

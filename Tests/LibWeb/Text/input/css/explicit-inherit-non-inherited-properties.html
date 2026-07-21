@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #parent {
+        position: absolute;
+        float: left;
+        clear: both;
+        overflow-x: hidden;
+        text-decoration-line: underline;
+        grid-template-columns: [a] 100px [b] 200px;
+        grid-template-rows: [c] 50px;
+    }
+    #child {
+        position: inherit;
+        float: inherit;
+        clear: inherit;
+        overflow-x: inherit;
+        text-decoration-line: inherit;
+        grid-template-columns: inherit;
+        grid-template-rows: inherit;
+    }
+</style>
+<div id="parent"><div id="child">x</div></div>
+<script>
+    // Several non-inherited properties explicitly inherited on one element: each
+    // fetches the parent's computed value through the driver's rare fetch path, and
+    // none of them requires computation, so their stores travel together in one
+    // deferred batch that must keep every fetched value alive. The grid track lists
+    // cover fetched values that are freshly built rather than shared singletons.
+    test(() => {
+        const child = getComputedStyle(document.getElementById("child"));
+        println(`position: ${child.position}`);
+        println(`float: ${child.float}`);
+        println(`clear: ${child.clear}`);
+        println(`overflow-x: ${child.overflowX}`);
+        println(`text-decoration-line: ${child.textDecorationLine}`);
+        println(`grid-template-columns: ${child.gridTemplateColumns}`);
+        println(`grid-template-rows: ${child.gridTemplateRows}`);
+    });
+</script>

@@ -3362,22 +3362,25 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     // Computes the value the driver selected for the longhand, when computation is
     // needed, and stores the result. The driver selects, pins and flags values
     // natively; this is the only per-longhand callback left.
-    auto compute_and_store = [&](PropertyID property_id, PropertyID inherited_property_id, StyleValue const& value, bool requires_computation, bool inheritance_dependent, bool inherited) {
-        // FIXME: Do we need to recompute animated inherited values?
-        if (inherited) {
-            if (auto const* animated_properties = computed_values_to_inherit_from->animated_properties(); animated_properties && animated_properties->has_property(inherited_property_id)) {
-                auto animated_value = animated_properties->values().get(inherited_property_id);
-                VERIFY(animated_value.has_value());
-                computed_style.set_animated_property(
-                    Badge<StyleComputer> {},
-                    property_id,
-                    *animated_value.value(),
-                    animated_properties->is_property_result_of_transition(inherited_property_id)
-                        ? AnimatedPropertyResultOfTransition::Yes
-                        : AnimatedPropertyResultOfTransition::No,
-                    ComputedProperties::Inherited::Yes);
-            }
+    // FIXME: Do we need to recompute animated inherited values?
+    auto copy_animated_inherited_value = [&](PropertyID property_id, PropertyID inherited_property_id) {
+        if (auto const* animated_properties = computed_values_to_inherit_from->animated_properties(); animated_properties && animated_properties->has_property(inherited_property_id)) {
+            auto animated_value = animated_properties->values().get(inherited_property_id);
+            VERIFY(animated_value.has_value());
+            computed_style.set_animated_property(
+                Badge<StyleComputer> {},
+                property_id,
+                *animated_value.value(),
+                animated_properties->is_property_result_of_transition(inherited_property_id)
+                    ? AnimatedPropertyResultOfTransition::Yes
+                    : AnimatedPropertyResultOfTransition::No,
+                ComputedProperties::Inherited::Yes);
         }
+    };
+
+    auto compute_and_store = [&](PropertyID property_id, PropertyID inherited_property_id, StyleValue const& value, bool inheritance_dependent, bool inherited) {
+        if (inherited)
+            copy_animated_inherited_value(property_id, inherited_property_id);
 
         // Store the resolved specified value for properties whose computation depends on inherited info, so they can
         // be re-resolved when an ancestor changes without keeping CascadedProperties alive on the element.
@@ -3387,9 +3390,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         // NB: We compute using the inherited (physical) property to avoid having to add cases for all the logical
         //     alias properties in `compute_value_of_property`
         bool depends_on_viewport_metrics = false;
-        auto computed_value = requires_computation
-            ? compute_property(inherited_property_id, value, depends_on_viewport_metrics)
-            : NonnullRefPtr<StyleValue const>(value);
+        auto computed_value = compute_property(inherited_property_id, value, depends_on_viewport_metrics);
         if (depends_on_viewport_metrics) {
             builder.set_depends_on_viewport_metrics();
             if (property_affects_font_metrics(inherited_property_id))
@@ -3398,33 +3399,54 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         builder.set_property_without_modifying_flags(property_id, move(computed_value));
     };
 
+    // Applies a batch of store operations the driver queued for properties that need no
+    // computation, in property order, replicating the per-property side effects.
+    auto store_computed_batch = [&](ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count) {
+        for (size_t i = 0; i < count; ++i) {
+            auto const& entry = entries[i];
+            auto property_id = static_cast<PropertyID>(entry.property_id);
+            auto inherited_property_id = static_cast<PropertyID>(entry.inherited_property_id);
+            auto const& value = *static_cast<StyleValue const*>(entry.shell);
+            if (entry.inherited)
+                copy_animated_inherited_value(property_id, inherited_property_id);
+            if (entry.inheritance_dependent)
+                builder.add_inheritance_dependent_specified_value(property_id, value);
+            builder.set_property_without_modifying_flags(property_id, value);
+        }
+    };
+
     // The property computation flow is driven from the Rust style computation core: it
     // iterates the longhands in computation order, resolves logical pairing through its
     // mapping tables, and selects the cascaded, inherited or initial value natively.
     struct LonghandLoopContext {
         decltype(compute_and_store)& compute_and_store_callback;
+        decltype(store_computed_batch)& store_computed_batch_callback;
         decltype(get_logical_alias_mapping_context)& get_logical_alias_mapping_context_callback;
         DOM::AbstractElement abstract_element;
-        // Pins the parent value handed out by the explicit-inherit fetch until the next
-        // fetch or the end of the drive.
-        RefPtr<StyleValue const> pinned_parent_value;
+        // Pins every parent value handed out by the explicit-inherit fetch until the end
+        // of the drive; the driver may queue the shells in deferred store batches.
+        Vector<NonnullRefPtr<StyleValue const>> pinned_parent_values;
     } loop_context {
         .compute_and_store_callback = compute_and_store,
+        .store_computed_batch_callback = store_computed_batch,
         .get_logical_alias_mapping_context_callback = get_logical_alias_mapping_context,
         .abstract_element = abstract_element,
-        .pinned_parent_value = nullptr,
+        .pinned_parent_values = {},
     };
 
     ComputedValuesFFI::FfiLonghandCallbacks const callbacks {
         .context = &loop_context,
-        .compute_and_store = [](void* context, u16 property_id, u16 inherited_property_id, void const* value_shell, bool requires_computation, bool inheritance_dependent, bool inherited) {
+        .compute_and_store = [](void* context, u16 property_id, u16 inherited_property_id, void const* value_shell, bool inheritance_dependent, bool inherited) {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
-            loop_context.compute_and_store_callback(static_cast<PropertyID>(property_id), static_cast<PropertyID>(inherited_property_id), *static_cast<StyleValue const*>(value_shell), requires_computation, inheritance_dependent, inherited); },
+            loop_context.compute_and_store_callback(static_cast<PropertyID>(property_id), static_cast<PropertyID>(inherited_property_id), *static_cast<StyleValue const*>(value_shell), inheritance_dependent, inherited); },
+        .store_computed_batch = [](void* context, ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count) {
+            auto& loop_context = *static_cast<LonghandLoopContext*>(context);
+            loop_context.store_computed_batch_callback(entries, count); },
         .fetch_non_inherited_parent_value = [](void* context, u16 inherited_property_id) -> ComputedValuesFFI::FfiShellAndData {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             auto value = get_non_animated_inherit_value(static_cast<PropertyID>(inherited_property_id), loop_context.abstract_element);
             ComputedValuesFFI::FfiShellAndData entry { value.ptr(), value->rust_style_value_data() };
-            loop_context.pinned_parent_value = move(value);
+            loop_context.pinned_parent_values.append(move(value));
             return entry;
         },
         .data_of = [](void const* shell) -> void const* { return static_cast<StyleValue const*>(shell)->rust_style_value_data(); },
