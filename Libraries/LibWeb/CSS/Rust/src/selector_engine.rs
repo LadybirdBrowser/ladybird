@@ -79,8 +79,6 @@ pub struct NameSelector {
     /// selectors compiled from C++ and allows the live DOM wrapper to compare interned names
     /// without crossing the FFI.
     interned_name: Option<usize>,
-    /// See [`QualifiedName::cxx_simple_selector`].
-    cxx_simple_selector: RetainedCxxPointer,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1629,6 +1627,17 @@ impl FfiElement {
         }
     }
 
+    unsafe fn class_name<'a>(self, index: usize) -> DomStringView<'a> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element and `index` identifies one of its
+        // current classes. C++ returns a view borrowed for this matching call.
+        DomStringView {
+            // SAFETY: The caller guarantees that `index` is within the current class list.
+            view: unsafe { selector_ffi_element_class_name(self.pointer, index) },
+            marker: PhantomData,
+        }
+    }
+
     unsafe fn classes<'a>(self) -> &'a [usize] {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns its current class storage,
@@ -1774,6 +1783,12 @@ impl<'a> FfiNode<'a> {
         // current local-name storage.
         unsafe { self.as_element().local_name() }
     }
+
+    fn class_name(self, index: usize) -> DomStringView<'a> {
+        // SAFETY: `FfiNode` cannot outlive the call scope which pins the C++ element and its
+        // current class-name storage. Callers obtain `index` from the same live class list.
+        unsafe { self.as_element().class_name(index) }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -1792,11 +1807,11 @@ unsafe extern "C" {
     fn selector_ffi_element_is_html_element_in_html_document(element: *const c_void) -> bool;
     fn selector_ffi_element_is_document_root(element: *const c_void) -> bool;
     fn selector_ffi_element_local_name(element: *const c_void) -> FfiDomStringView;
+    fn selector_ffi_element_class_name(element: *const c_void, index: usize) -> FfiDomStringView;
 
     fn selector_ffi_default_namespace(context: *mut c_void) -> FfiResolvedNamespace;
     fn selector_ffi_resolve_namespace(context: *mut c_void, prefix: FfiStringView) -> FfiResolvedNamespace;
 
-    fn selector_ffi_matches_class_quirks(element: *const c_void, cxx_simple_selector: *const c_void) -> bool;
     fn selector_ffi_matches_attribute(
         context: *mut c_void,
         element: *const c_void,
@@ -2010,12 +2025,8 @@ impl<'a> SelectorDom for FfiDom<'a> {
     fn matches_class_selector(&mut self, element: FfiNode<'a>, class_name: &NameSelector) -> bool {
         let ffi_element = element.as_element();
         if ffi_element.class_names_are_case_insensitive() {
-            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
-            // SAFETY: `FfiDom` guarantees that the element and retained simple selector remain
-            // valid for the duration of matching.
-            return unsafe {
-                selector_ffi_matches_class_quirks(element.as_element_pointer(), class_name.cxx_simple_selector.as_ptr())
-            };
+            return (0..element.classes().len())
+                .any(|index| utf16_equals_ignoring_ascii_case(element.class_name(index), &class_name.name));
         }
         class_name
             .interned_name
@@ -2389,14 +2400,12 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
             name: unsafe { string_from_ffi(selector.name) },
             // SAFETY: The caller guarantees that all retained C++ selector data is valid.
             interned_name: unsafe { interned_name_from_ffi(selector) },
-            cxx_simple_selector: RetainedCxxPointer::new(selector.cxx_simple_selector),
         }),
         FfiSimpleSelectorType::Class => SimpleSelector::Class(NameSelector {
             // SAFETY: The caller guarantees that every string view in `selector` is valid.
             name: unsafe { string_from_ffi(selector.name) },
             // SAFETY: The caller guarantees that all retained C++ selector data is valid.
             interned_name: unsafe { interned_name_from_ffi(selector) },
-            cxx_simple_selector: RetainedCxxPointer::new(selector.cxx_simple_selector),
         }),
         FfiSimpleSelectorType::Attribute => SimpleSelector::Attribute(AttributeSelector {
             match_type: selector.attribute_match_type,
@@ -2927,7 +2936,6 @@ mod tests {
         SimpleSelector::Class(NameSelector {
             name: name.encode_utf16().collect(),
             interned_name: None,
-            cxx_simple_selector: RetainedCxxPointer::default(),
         })
     }
 
@@ -2982,7 +2990,6 @@ mod tests {
                 simple_selectors: vec![SimpleSelector::Id(NameSelector {
                     name: Box::from([b'x' as u16]),
                     interned_name: None,
-                    cxx_simple_selector: RetainedCxxPointer::default(),
                 })]
                 .into_boxed_slice(),
             })

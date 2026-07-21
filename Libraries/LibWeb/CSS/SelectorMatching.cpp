@@ -743,9 +743,9 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_namespace_is_null);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_html_element_in_html_document);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_document_root);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_local_name);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_class_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_default_namespace);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_resolve_namespace);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_class_quirks);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_attribute);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_pseudo_class);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_language);
@@ -786,6 +786,24 @@ static uintptr_t interned_string_identity(Utf16FlyString const& string)
     uintptr_t identity;
     __builtin_memcpy(&identity, &string, sizeof(identity));
     return identity;
+}
+
+static CSS::SelectorFFI::DomStringView dom_string_view(Utf16View string)
+{
+    if (string.has_ascii_storage()) {
+        auto storage = string.ascii_span();
+        return {
+            .data = storage.data(),
+            .length = storage.size(),
+            .is_ascii = true,
+        };
+    }
+    auto storage = string.utf16_span();
+    return {
+        .data = storage.data(),
+        .length = storage.size(),
+        .is_ascii = false,
+    };
 }
 
 extern "C" CSS::SelectorFFI::ElementQualifiedName selector_ffi_element_qualified_name(void const* element)
@@ -836,21 +854,14 @@ extern "C" bool selector_ffi_element_is_document_root(void const* element)
 
 extern "C" CSS::SelectorFFI::DomStringView selector_ffi_element_local_name(void const* element)
 {
-    auto local_name = ffi_element(element).local_name().view();
-    if (local_name.has_ascii_storage()) {
-        auto storage = local_name.ascii_span();
-        return {
-            .data = storage.data(),
-            .length = storage.size(),
-            .is_ascii = true,
-        };
-    }
-    auto storage = local_name.utf16_span();
-    return {
-        .data = storage.data(),
-        .length = storage.size(),
-        .is_ascii = false,
-    };
+    return dom_string_view(ffi_element(element).local_name());
+}
+
+extern "C" CSS::SelectorFFI::DomStringView selector_ffi_element_class_name(void const* element, size_t index)
+{
+    auto const& classes = ffi_element(element).class_names();
+    VERIFY(index < classes.size());
+    return dom_string_view(classes[index]);
 }
 
 extern "C" CSS::SelectorFFI::ResolvedNamespace selector_ffi_default_namespace(void* context)
@@ -903,13 +914,6 @@ extern "C" CSS::SelectorFFI::ResolvedNamespace selector_ffi_resolve_namespace(vo
         .namespace_type = CSS::SelectorFFI::ResolvedNamespaceType::Named,
         .namespace_ = interned_string_identity(*namespace_),
     };
-}
-
-extern "C" bool selector_ffi_matches_class_quirks(void const* element, void const* cxx_simple_selector)
-{
-    auto const& target = ffi_element(element);
-    VERIFY(target.document().in_quirks_mode());
-    return target.has_class(ffi_simple_selector(cxx_simple_selector).class_name(), CaseSensitivity::CaseInsensitive);
 }
 
 static bool matches_attribute_value(CSS::Selector::SimpleSelector::Attribute::MatchType match_type, Utf16View selector_value, Utf16View element_value, CaseSensitivity case_sensitivity)
