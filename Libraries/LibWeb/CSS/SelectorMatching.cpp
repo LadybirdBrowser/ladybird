@@ -833,7 +833,6 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_first_element_child);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_first_element_descendant);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_next_element_descendant);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_has_no_element_or_nonempty_text_children);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_has_same_type);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_is_shadow_tree_slot);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_slotted_parent);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_part_parent);
@@ -1152,14 +1151,6 @@ extern "C" bool selector_ffi_has_no_element_or_nonempty_text_children(void const
         return IterationDecision::Continue;
     });
     return !has_nonempty_text_child;
-}
-
-extern "C" bool selector_ffi_has_same_type(void const* first, void const* second)
-{
-    auto const& first_element = ffi_element(first);
-    auto const& second_element = ffi_element(second);
-    return first_element.local_name() == second_element.local_name()
-        && first_element.namespace_uri() == second_element.namespace_uri();
 }
 
 extern "C" bool selector_ffi_is_shadow_tree_slot(void const* element)

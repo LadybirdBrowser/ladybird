@@ -1719,7 +1719,6 @@ unsafe extern "C" {
     fn selector_ffi_first_element_descendant(element: *const c_void) -> FfiElement;
     fn selector_ffi_next_element_descendant(element: *const c_void, root: *const c_void) -> FfiElement;
     fn selector_ffi_has_no_element_or_nonempty_text_children(element: *const c_void) -> bool;
-    fn selector_ffi_has_same_type(first: *const c_void, second: *const c_void) -> bool;
 
     fn selector_ffi_is_shadow_tree_slot(element: *const c_void) -> bool;
     fn selector_ffi_slotted_parent(context: *mut c_void, element: *const c_void) -> FfiElementAndShadowHost;
@@ -2054,9 +2053,9 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn has_same_type(&mut self, first: FfiNode<'a>, second: FfiNode<'a>) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorTreeNavigationCallback);
-        // SAFETY: `FfiDom` guarantees that both elements remain valid for matching.
-        unsafe { selector_ffi_has_same_type(first.as_element_pointer(), second.as_element_pointer()) }
+        let first = first.as_element();
+        let second = second.as_element();
+        first.local_name() == second.local_name() && first.namespace() == second.namespace()
     }
 
     fn is_document_root(&mut self, element: FfiNode<'a>) -> bool {
