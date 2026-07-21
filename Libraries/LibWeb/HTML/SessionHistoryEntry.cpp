@@ -38,18 +38,7 @@ SessionHistoryEntry::SessionHistoryEntry()
 {
 }
 
-static CrossProcessId document_state_id_for_descriptor(DocumentState& document_state, SessionHistoryEntryDescriptorCreationState& creation_state)
-{
-    if (auto id = document_state.cross_process_id(); id.has_value())
-        return *id;
-
-    auto id = creation_state.allocate_cross_process_id();
-    VERIFY(id.local_id != 0);
-    document_state.set_cross_process_id(id);
-    return id;
-}
-
-static SessionHistoryDocumentStateDescriptor create_session_history_document_state_descriptor(DocumentState& document_state, SessionHistoryEntryDescriptorCreationState& creation_state)
+static SessionHistoryDocumentStateDescriptor create_session_history_document_state_descriptor(DocumentState& document_state)
 {
     Vector<SessionHistoryNestedHistoryDescriptor> nested_history_descriptors;
     nested_history_descriptors.ensure_capacity(document_state.nested_histories().size());
@@ -61,7 +50,7 @@ static SessionHistoryDocumentStateDescriptor create_session_history_document_sta
             //     still "pending" has not been attached to the traversable's step graph yet.
             if (!nested_entry->step_value().has_value())
                 continue;
-            nested_entry_descriptors.unchecked_append(create_session_history_entry_descriptor(nested_entry, creation_state));
+            nested_entry_descriptors.unchecked_append(create_session_history_entry_descriptor(nested_entry));
         }
 
         // NB: Keep the nested-history descriptor even when every entry in it is still pending. The entries are not
@@ -74,7 +63,7 @@ static SessionHistoryDocumentStateDescriptor create_session_history_document_sta
     }
 
     return {
-        .id = document_state_id_for_descriptor(document_state, creation_state),
+        .id = document_state.cross_process_id(),
         .history_policy_container = document_state.history_policy_container(),
         .request_referrer = document_state.request_referrer(),
         .request_referrer_policy = document_state.request_referrer_policy(),
@@ -89,13 +78,13 @@ static SessionHistoryDocumentStateDescriptor create_session_history_document_sta
     };
 }
 
-SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHistoryEntry const& entry, SessionHistoryEntryDescriptorCreationState& creation_state)
+SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHistoryEntry const& entry)
 {
     auto entry_step = entry.step_value();
     VERIFY(entry_step.has_value());
     SessionHistoryDocumentStateDescriptor document_state_descriptor;
     if (auto document_state = entry.document_state())
-        document_state_descriptor = create_session_history_document_state_descriptor(*document_state, creation_state);
+        document_state_descriptor = create_session_history_document_state_descriptor(*document_state);
 
     return {
         .step = static_cast<i32>(*entry_step),

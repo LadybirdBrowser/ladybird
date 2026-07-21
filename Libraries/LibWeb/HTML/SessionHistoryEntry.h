@@ -175,16 +175,7 @@ private:
     // NOTE: This is where we could remember the state of form controls, for example.
 };
 
-struct SessionHistoryEntryDescriptorCreationState {
-    explicit SessionHistoryEntryDescriptorCreationState(Function<CrossProcessId()> allocate_cross_process_id)
-        : allocate_cross_process_id(move(allocate_cross_process_id))
-    {
-    }
-
-    Function<CrossProcessId()> allocate_cross_process_id;
-};
-
-WEB_API SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHistoryEntry const&, SessionHistoryEntryDescriptorCreationState&);
+WEB_API SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHistoryEntry const&);
 WEB_API bool session_history_entry_descriptors_match(SessionHistoryEntryDescriptor const&, SessionHistoryEntryDescriptor const&);
 enum class MatchNestedHistories {
     Yes,
