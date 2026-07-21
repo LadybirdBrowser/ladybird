@@ -64,6 +64,83 @@ static consteval ComputedValuesFFI::StyleGroupVTable make_style_group_vtable()
     };
 }
 
+// Builds the keyword-code table for one enum-typed group field: keyword code
+// to enum code, 255 for keywords the converter rejects. The generic Rust
+// group builder maps values through these tables.
+template<auto converter>
+static Array<u8, number_of_keywords> const& keyword_code_table()
+{
+    static auto const table = [] {
+        Array<u8, number_of_keywords> built;
+        built.fill(255);
+        for (size_t keyword = 0; keyword < number_of_keywords; ++keyword) {
+            if (auto value = converter(static_cast<Keyword>(keyword)); value.has_value())
+                built[keyword] = static_cast<u8>(to_underlying(*value));
+        }
+        return built;
+    }();
+    return table;
+}
+
+// The properties feeding the alignment group's descriptors, in registration
+// order; create() gathers their computed values in the same order.
+static constexpr Array alignment_group_properties {
+    PropertyID::FlexDirection,
+    PropertyID::FlexWrap,
+    PropertyID::FlexBasis,
+    PropertyID::FlexGrow,
+    PropertyID::FlexShrink,
+    PropertyID::Order,
+    PropertyID::AlignContent,
+    PropertyID::AlignItems,
+    PropertyID::AlignSelf,
+    PropertyID::JustifyContent,
+    PropertyID::JustifyItems,
+    PropertyID::JustifySelf,
+    PropertyID::ColumnGap,
+    PropertyID::RowGap,
+};
+
+static void register_style_group_field_descriptors()
+{
+    using namespace ComputedValuesFFI;
+    static_assert(sizeof(FlexDirection) == 1 && sizeof(FlexWrap) == 1 && sizeof(AlignContent) == 1
+        && sizeof(AlignItems) == 1 && sizeof(AlignSelf) == 1 && sizeof(JustifyContent) == 1
+        && sizeof(JustifyItems) == 1 && sizeof(JustifySelf) == 1);
+
+    Vector<FfiGroupFieldDescriptor> descriptors;
+    auto add = [&](size_t group_index, PropertyID property, u32 offset, u8 kind, u16 keyword, Array<u8, number_of_keywords> const* keyword_table) {
+        descriptors.append({
+            .group_index = static_cast<u32>(group_index),
+            .property_id = static_cast<u16>(to_underlying(property)),
+            .offset = offset,
+            .kind = kind,
+            .keyword = keyword,
+            .keyword_table = keyword_table ? keyword_table->data() : nullptr,
+            .keyword_table_length = keyword_table ? keyword_table->size() : 0,
+        });
+    };
+
+    using Alignment = ComputedValues::AlignmentValues;
+    constexpr auto alignment = to_underlying(StyleGroupIndex::AlignmentValues);
+    add(alignment, PropertyID::FlexDirection, offsetof(Alignment, flex_direction), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_flex_direction>());
+    add(alignment, PropertyID::FlexWrap, offsetof(Alignment, flex_wrap), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_flex_wrap>());
+    add(alignment, PropertyID::FlexBasis, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(alignment, PropertyID::FlexGrow, offsetof(Alignment, flex_grow), GROUP_FIELD_F64, 0, nullptr);
+    add(alignment, PropertyID::FlexShrink, offsetof(Alignment, flex_shrink), GROUP_FIELD_F64, 0, nullptr);
+    add(alignment, PropertyID::Order, offsetof(Alignment, order), GROUP_FIELD_I32, 0, nullptr);
+    add(alignment, PropertyID::AlignContent, offsetof(Alignment, align_content), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_align_content>());
+    add(alignment, PropertyID::AlignItems, offsetof(Alignment, align_items), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_align_items>());
+    add(alignment, PropertyID::AlignSelf, offsetof(Alignment, align_self), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_align_self>());
+    add(alignment, PropertyID::JustifyContent, offsetof(Alignment, justify_content), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_justify_content>());
+    add(alignment, PropertyID::JustifyItems, offsetof(Alignment, justify_items), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_justify_items>());
+    add(alignment, PropertyID::JustifySelf, offsetof(Alignment, justify_self), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_justify_self>());
+    add(alignment, PropertyID::ColumnGap, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
+    add(alignment, PropertyID::RowGap, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
+
+    rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
+}
+
 // Groups whose layout is defined in Rust must not change size or alignment when the C++
 // side layers initial values and accessors on top of the mirrored layout.
 static_assert(sizeof(ComputedValues::InheritedBoxValues) == sizeof(ComputedValuesFFI::InheritedBoxValues));
@@ -81,6 +158,7 @@ void const* style_group_default_payload(size_t group_index)
 #undef LIBWEB_STYLE_GROUP_VTABLE
         Array<void const*, group_count> payloads {};
         ComputedValuesFFI::rust_style_group_registry_register(vtables.data(), vtables.size(), payloads.data());
+        register_style_group_field_descriptors();
         return payloads;
     }();
     return default_payloads[group_index];
@@ -248,6 +326,20 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     bool const inherited_table_adopted = inherited_table_payload != nullptr;
     if (inherited_table_adopted)
         computed_values.adopt_inherited_table_group(const_cast<void*>(inherited_table_payload));
+
+    Array<ComputedValuesFFI::FfiShellAndData, alignment_group_properties.size()> alignment_group_values;
+    for (size_t i = 0; i < alignment_group_properties.size(); ++i) {
+        auto const& value = computed_style.property(alignment_group_properties[i]);
+        alignment_group_values[i] = { &value, value.rust_style_value_data() };
+    }
+    auto* alignment_payload = ComputedValuesFFI::rust_build_style_group(
+        AlignmentValues::style_group_index,
+        alignment_group_values.data(),
+        alignment_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.alignment.operator->()) : nullptr);
+    bool const alignment_adopted = alignment_payload != nullptr;
+    if (alignment_adopted)
+        computed_values.adopt_alignment_group(const_cast<void*>(alignment_payload));
 
     auto custom_ident_list = [&](PropertyID property_id) {
         Vector<Utf16FlyString> names;
@@ -510,12 +602,18 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_display(computed_style.display());
     computed_values.set_display_before_box_type_transformation(computed_style.display_before_box_type_transformation());
 
-    computed_values.set_flex_direction(computed_style.flex_direction());
-    computed_values.set_flex_wrap(computed_style.flex_wrap());
-    computed_values.set_flex_basis(computed_style.flex_basis());
-    computed_values.set_flex_grow(computed_style.flex_grow());
-    computed_values.set_flex_shrink(computed_style.flex_shrink());
-    computed_values.set_order(computed_style.order());
+    if (!alignment_adopted)
+        computed_values.set_flex_direction(computed_style.flex_direction());
+    if (!alignment_adopted)
+        computed_values.set_flex_wrap(computed_style.flex_wrap());
+    if (!alignment_adopted)
+        computed_values.set_flex_basis(computed_style.flex_basis());
+    if (!alignment_adopted)
+        computed_values.set_flex_grow(computed_style.flex_grow());
+    if (!alignment_adopted)
+        computed_values.set_flex_shrink(computed_style.flex_shrink());
+    if (!alignment_adopted)
+        computed_values.set_order(computed_style.order());
     computed_values.set_clip(computed_style.clip());
 
     computed_values.set_backdrop_filter(computed_style.backdrop_filter());
@@ -524,13 +622,19 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_flood_color(computed_style.color(CSS::PropertyID::FloodColor, color_resolution_context));
     computed_values.set_flood_opacity(computed_style.flood_opacity());
 
-    computed_values.set_justify_content(computed_style.justify_content());
-    computed_values.set_justify_items(computed_style.justify_items());
-    computed_values.set_justify_self(computed_style.justify_self());
+    if (!alignment_adopted)
+        computed_values.set_justify_content(computed_style.justify_content());
+    if (!alignment_adopted)
+        computed_values.set_justify_items(computed_style.justify_items());
+    if (!alignment_adopted)
+        computed_values.set_justify_self(computed_style.justify_self());
 
-    computed_values.set_align_content(computed_style.align_content());
-    computed_values.set_align_items(computed_style.align_items());
-    computed_values.set_align_self(computed_style.align_self());
+    if (!alignment_adopted)
+        computed_values.set_align_content(computed_style.align_content());
+    if (!alignment_adopted)
+        computed_values.set_align_items(computed_style.align_items());
+    if (!alignment_adopted)
+        computed_values.set_align_self(computed_style.align_self());
 
     computed_values.set_appearance(computed_style.appearance());
     computed_values.set_computed_appearance(keyword_to_appearance(computed_style.property(PropertyID::Appearance).to_keyword()).release_value());
@@ -1039,8 +1143,10 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_column_width(computed_style.size_value(CSS::PropertyID::ColumnWidth));
     computed_values.set_column_height(computed_style.size_value(CSS::PropertyID::ColumnHeight));
 
-    computed_values.set_column_gap(computed_style.gap_value(CSS::PropertyID::ColumnGap));
-    computed_values.set_row_gap(computed_style.gap_value(CSS::PropertyID::RowGap));
+    if (!alignment_adopted)
+        computed_values.set_column_gap(computed_style.gap_value(CSS::PropertyID::ColumnGap));
+    if (!alignment_adopted)
+        computed_values.set_row_gap(computed_style.gap_value(CSS::PropertyID::RowGap));
 
     if (!inherited_table_adopted)
         computed_values.set_border_collapse(computed_style.border_collapse());

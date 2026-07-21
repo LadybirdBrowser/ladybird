@@ -1896,6 +1896,7 @@ public:
     // reference.
     void adopt_inherited_box_group(void* payload) { m_values.m_inherited.box.adopt(payload); }
     void adopt_inherited_table_group(void* payload) { m_values.m_inherited.table.adopt(payload); }
+    void adopt_alignment_group(void* payload) { m_values.m_noninherited.alignment.adopt(payload); }
 
     void set_aspect_ratio(AspectRatio aspect_ratio)
     {

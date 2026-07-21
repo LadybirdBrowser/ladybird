@@ -231,6 +231,8 @@ pub const GROUP_FIELD_CSS_PIXELS: u8 = 3;
 pub const GROUP_FIELD_U64: u8 = 4;
 /// A constraint: the value must be this keyword; nothing is written.
 pub const GROUP_FIELD_REQUIRE_KEYWORD: u8 = 5;
+/// An integer stored as i32.
+pub const GROUP_FIELD_I32: u8 = 6;
 
 struct FieldDescriptors(Box<[FfiGroupFieldDescriptor]>);
 
@@ -357,6 +359,12 @@ pub unsafe extern "C" fn rust_build_style_group(
                     if *keyword != descriptor.keyword {
                         return None;
                     }
+                }
+                GROUP_FIELD_I32 => {
+                    let StyleValueData::Integer { value } = data else {
+                        return None;
+                    };
+                    pokes.push(Poke::I32(descriptor.offset, *value));
                 }
                 _ => return None,
             }
