@@ -367,6 +367,17 @@ Optional<float> SVGGraphicsElement::stroke_width() const
     return resolve_relative_to_viewport_size(unsafe_layout_node()->computed_values().stroke_width());
 }
 
+static Painting::SVGGraphicsPaintable::ComputedTransforms const* computed_svg_transforms_of(Painting::Paintable const& paintable)
+{
+    if (auto const* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(paintable))
+        return &svg_graphics_paintable->computed_transforms();
+    if (auto const* svg_foreign_object_paintable = as_if<Painting::SVGForeignObjectPaintable>(paintable))
+        return &svg_foreign_object_paintable->computed_transforms();
+    if (auto const* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(paintable))
+        return &svg_svg_paintable->computed_transforms();
+    return nullptr;
+}
+
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox
 WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Optional<Bindings::SVGBoundingBoxOptions> const&)
 {
@@ -385,11 +396,35 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Op
     document().update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::SVGGraphicsElementGetBBox);
     if (!layout_node())
         return Geometry::DOMRect::create(realm());
-    // Invert the SVG -> screen space transform.
-    auto owner_svg_element = this->owner_svg_element();
-    if (!owner_svg_element)
-        return Geometry::DOMRect::create(realm());
 
+    auto owner_svg_element = this->owner_svg_element();
+
+    // The outermost svg element has no ancestor svg element to measure against; per the bounding box
+    // algorithm its bounding box is the union of its children's bounding boxes in its own user
+    // coordinate system (i.e. with the viewBox transform undone, but each child's own transforms kept).
+    if (!owner_svg_element) {
+        if (!is<SVGSVGElement>(*this))
+            return Geometry::DOMRect::create(realm());
+        auto self_paintable = paintable_box();
+        if (!self_paintable)
+            return Geometry::DOMRect::create(realm());
+        auto viewport_origin = self_paintable->absolute_rect().location().to_type<float>();
+        Gfx::FloatRect united_rect;
+        self_paintable->for_each_child([&](Painting::Paintable const& child) {
+            auto child_rect = child.absolute_rect().to_type<float>().translated(-viewport_origin);
+            if (auto const* transforms = computed_svg_transforms_of(child)) {
+                if (auto inverse = transforms->svg_to_viewbox_transform().inverse(); inverse.has_value())
+                    child_rect = inverse->map(child_rect);
+            }
+            united_rect.unite(child_rect);
+            return IterationDecision::Continue;
+        });
+        if (united_rect.is_empty())
+            return Geometry::DOMRect::create(realm());
+        return Geometry::DOMRect::create(realm(), united_rect);
+    }
+
+    // Invert the SVG -> screen space transform.
     auto owner_paintable = owner_svg_element->paintable_box();
     auto self_paintable = paintable_box();
     if (!owner_paintable || !self_paintable)
@@ -397,17 +432,8 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Op
 
     auto svg_rect = owner_paintable->absolute_rect();
     auto rect = self_paintable->absolute_rect().to_type<float>().translated(-svg_rect.location().to_type<float>());
-    auto svg_to_css_pixels_transform = [&]() -> Optional<Gfx::AffineTransform> {
-        if (auto const* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(*self_paintable))
-            return svg_graphics_paintable->computed_transforms().svg_to_css_pixels_transform();
-        if (auto const* svg_foreign_object_paintable = as_if<Painting::SVGForeignObjectPaintable>(*self_paintable))
-            return svg_foreign_object_paintable->computed_transforms().svg_to_css_pixels_transform();
-        if (auto const* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(*self_paintable))
-            return svg_svg_paintable->computed_transforms().svg_to_css_pixels_transform();
-        return {};
-    }();
-    if (svg_to_css_pixels_transform.has_value()) {
-        auto inv = svg_to_css_pixels_transform->inverse();
+    if (auto const* transforms = computed_svg_transforms_of(*self_paintable)) {
+        auto inv = transforms->svg_to_css_pixels_transform().inverse();
         if (inv.has_value())
             rect = inv->map(rect);
     }

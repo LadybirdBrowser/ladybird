@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="plain" width="500" height="200">
+    <g transform="translate(50, 20)">
+        <rect x="10" y="10" width="100" height="40" />
+    </g>
+</svg>
+<svg id="with-viewbox" width="200" height="100" viewBox="0 0 100 50">
+    <rect x="10" y="10" width="30" height="20" />
+</svg>
+<svg id="multiple-children" width="300" height="300">
+    <rect x="20" y="30" width="40" height="50" />
+    <path d="M130,80 L170,80 L170,120 L130,120 Z" />
+</svg>
+<svg id="with-foreign-object" width="300" height="150">
+    <rect x="10" y="10" width="20" height="20" />
+    <foreignObject x="40" y="50" width="120" height="60"></foreignObject>
+</svg>
+<svg id="display-none" width="100" height="100" style="display: none">
+    <rect x="10" y="10" width="30" height="30" />
+</svg>
+<script>
+    test(() => {
+        for (const id of ["plain", "with-viewbox", "multiple-children", "with-foreign-object", "display-none"]) {
+            const box = document.getElementById(id).getBBox();
+            println(`${id}: x=${box.x} y=${box.y} width=${box.width} height=${box.height}`);
+        }
+    });
+</script>

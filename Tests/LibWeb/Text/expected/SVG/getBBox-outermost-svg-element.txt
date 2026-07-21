@@ -1,0 +1,5 @@
+plain: x=60 y=30 width=100 height=40
+with-viewbox: x=10 y=10 width=30 height=20
+multiple-children: x=20 y=30 width=150 height=90
+with-foreign-object: x=10 y=10 width=150 height=100
+display-none: x=0 y=0 width=0 height=0
