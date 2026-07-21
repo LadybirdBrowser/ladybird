@@ -118,6 +118,8 @@ public:
 
     void flush_dirty_state();
 
+    Optional<TabStateUpdate> cached_tab_state_for_testing(SessionTabId) const;
+
     // Fired when a flush completes a previously failed close.
     Function<void()> on_closed_units_changed;
 

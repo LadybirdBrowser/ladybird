@@ -273,6 +273,10 @@ private:
     virtual void changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) override;
     virtual void nonchanging_navigable_history_state_updated(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void did_reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEntryDescriptor) override;
+    virtual Messages::WebContentClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse did_request_capture_session_history_snapshot_for_testing(u64 page_id) override;
+    virtual Messages::WebContentClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse did_request_restore_session_history_snapshot_for_testing(u64 page_id) override;
+    virtual Messages::WebContentClient::DidRequestRegisterSessionStoreTabForTestingResponse did_request_register_session_store_tab_for_testing(u64 page_id) override;
+    virtual Messages::WebContentClient::DidRequestSessionStoreTabStateForTestingResponse did_request_session_store_tab_state_for_testing(u64 page_id) override;
     virtual Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(u64 page_id, Web::HTML::WorkerAgentStartRequest request) override;
     virtual void close_worker_agent(u64 page_id, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) override;
 

@@ -2242,6 +2242,70 @@ ErrorOr<void> ViewImplementation::restore_session_history_from_snapshot(SessionH
     return {};
 }
 
+bool ViewImplementation::capture_session_history_snapshot_for_testing(Badge<WebContentClient>)
+{
+    m_captured_session_history_snapshot_for_testing = session_history_snapshot();
+    return m_captured_session_history_snapshot_for_testing.has_value();
+}
+
+bool ViewImplementation::restore_captured_session_history_snapshot_for_testing(Badge<WebContentClient>)
+{
+    if (!m_captured_session_history_snapshot_for_testing.has_value())
+        return false;
+
+    auto result = restore_session_history_from_snapshot(m_captured_session_history_snapshot_for_testing.release_value());
+    return !result.is_error();
+}
+
+bool ViewImplementation::register_session_store_tab_for_testing(Badge<WebContentClient>)
+{
+    if (m_session_tab_id.has_value())
+        return true;
+
+    auto tab_id = Application::session_store(is_private()).tab_opened({ .window_id = {}, .initial_url = m_url, .insertion_index = {}, .is_active = SessionStore::IsActive::No });
+    if (tab_id.is_error())
+        return false;
+    set_session_tab_id(tab_id.value());
+    notify_session_history_changed();
+    return true;
+}
+
+static Optional<size_t> current_top_level_history_entry_index_for_step(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries, Optional<i32> current_step)
+{
+    if (!current_step.has_value())
+        return {};
+
+    Optional<size_t> current_entry_index;
+    for (size_t i = 0; i < entries.size(); ++i) {
+        if (entries[i].step > *current_step)
+            break;
+        current_entry_index = i;
+    }
+    return current_entry_index;
+}
+
+String ViewImplementation::session_store_tab_state_for_testing(Badge<WebContentClient>) const
+{
+    JsonObject serialized;
+    if (!m_session_tab_id.has_value())
+        return serialized.serialized();
+
+    auto cached_state = Application::session_store(is_private()).cached_tab_state_for_testing(*m_session_tab_id);
+    if (!cached_state.has_value())
+        return serialized.serialized();
+
+    serialized.set("url"sv, cached_state->url.serialize());
+    if (cached_state->history.has_value()) {
+        auto const& history = *cached_state->history;
+        Optional<i32> current_step;
+        if (history.current_used_step_index < history.used_steps.size())
+            current_step = history.used_steps[history.current_used_step_index];
+        serialized.set("entries"sv, history_json_entries(history.entries, current_top_level_history_entry_index_for_step(history.entries, current_step)));
+        serialized.set("usedSteps"sv, history_json_steps(history.used_steps, history.current_used_step_index));
+    }
+    return serialized.serialized();
+}
+
 void ViewImplementation::notify_session_history_changed()
 {
     if (!m_session_tab_id.has_value())

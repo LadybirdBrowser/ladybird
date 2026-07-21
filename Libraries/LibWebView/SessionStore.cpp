@@ -1774,6 +1774,14 @@ ErrorOr<Optional<ClosedSessionUnit>> SessionStore::take_most_recently_closed()
     return Optional<ClosedSessionUnit> { move(result) };
 }
 
+Optional<SessionStore::TabStateUpdate> SessionStore::cached_tab_state_for_testing(SessionTabId tab_id) const
+{
+    auto const* tab = m_transient_storage.find_tab(tab_id);
+    if (!tab)
+        return {};
+    return TabStateUpdate { .tab_id = tab_id, .history = tab->history, .url = tab->url };
+}
+
 ErrorOr<void> SessionStore::remove_entries_accessed_since(UnixDateTime since)
 {
     auto closed_units = m_transient_storage.remove_closed_units_since(since);

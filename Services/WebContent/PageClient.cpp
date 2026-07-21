@@ -1238,6 +1238,26 @@ String PageClient::dump_site_isolation_process_tree_for_testing()
     return client().did_request_site_isolation_process_tree_for_testing(m_id);
 }
 
+bool PageClient::page_did_request_capture_session_history_snapshot_for_testing()
+{
+    return client().did_request_capture_session_history_snapshot_for_testing(m_id);
+}
+
+bool PageClient::page_did_request_restore_session_history_snapshot_for_testing()
+{
+    return client().did_request_restore_session_history_snapshot_for_testing(m_id);
+}
+
+bool PageClient::page_did_request_register_session_store_tab_for_testing()
+{
+    return client().did_request_register_session_store_tab_for_testing(m_id);
+}
+
+String PageClient::page_did_request_session_store_tab_state_for_testing()
+{
+    return client().did_request_session_store_tab_state_for_testing(m_id);
+}
+
 void PageClient::request_webdriver_history_traversal(int delta, Function<void(WebDriverHistoryTraversalResult)> on_complete)
 {
     auto request_id = m_next_webdriver_history_traversal_request_id++;

@@ -1930,6 +1930,38 @@ void WebContentClient::nonchanging_navigable_history_state_updated(u64 page_id, 
         view->did_receive_nonchanging_navigable_history_state_updated({}, *this, page_id, operation_id, navigable_id);
 }
 
+Messages::WebContentClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse WebContentClient::did_request_capture_session_history_snapshot_for_testing(u64 page_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        return { view->capture_session_history_snapshot_for_testing({}) };
+
+    return { false };
+}
+
+Messages::WebContentClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse WebContentClient::did_request_restore_session_history_snapshot_for_testing(u64 page_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        return { view->restore_captured_session_history_snapshot_for_testing({}) };
+
+    return { false };
+}
+
+Messages::WebContentClient::DidRequestRegisterSessionStoreTabForTestingResponse WebContentClient::did_request_register_session_store_tab_for_testing(u64 page_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        return { view->register_session_store_tab_for_testing({}) };
+
+    return { false };
+}
+
+Messages::WebContentClient::DidRequestSessionStoreTabStateForTestingResponse WebContentClient::did_request_session_store_tab_state_for_testing(u64 page_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        return { view->session_store_tab_state_for_testing({}) };
+
+    return { "{}"_string };
+}
+
 void WebContentClient::did_present_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received {} backing stores for page {}", backing_stores.size(), page_id);

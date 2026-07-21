@@ -1,0 +1,5 @@
+capture-returned=true
+restore-returned=true
+immediate-store-url=?b
+after-restore: location=?b
+after-restore: ui-entries=?a,?b*

@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    function currentStoreEntry() {
+        return JSON.parse(internals.dumpSessionStoreTabState()).entries.find(entry => entry.current);
+    }
+
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            if (!internals.registerSessionStoreTab()) {
+                println("FAIL: could not register the tab in the session store");
+                done();
+                return;
+            }
+
+            const stateBytesBefore = currentStoreEntry().navigationApiStateByteCount;
+            navigation.updateCurrentEntry({ state: "targeted-state" });
+            const storeEntry = currentStoreEntry();
+            const uiEntry = JSON.parse(internals.dumpUIProcessSessionHistoryWithoutUpdate()).entries.find(entry => entry.current);
+            println(`navigation state reached the store: ${storeEntry.navigationApiStateByteCount !== stateBytesBefore && storeEntry.navigationApiStateByteCount === uiEntry.navigationApiStateByteCount}`);
+
+            println(`scroll restoration before: ${currentStoreEntry().scrollRestoration}`);
+            history.scrollRestoration = "manual";
+            println(`scroll restoration after: ${currentStoreEntry().scrollRestoration}`);
+            done();
+        });
+    });
+</script>
