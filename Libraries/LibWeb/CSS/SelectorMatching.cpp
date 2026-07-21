@@ -497,13 +497,6 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
         if (auto const* media_element = as_if<HTML::HTMLMediaElement>(element))
             return !media_element->paused();
         return false;
-    case CSS::PseudoClass::PopoverOpen:
-        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-popover-open
-        if (auto const* html_element = as_if<HTML::HTMLElement>(element);
-            html_element && html_element->has_attribute(HTML::AttributeNames::popover)) {
-            return html_element->popover_visibility_state() == HTML::HTMLElement::PopoverVisibilityState::Showing;
-        }
-        return false;
     case CSS::PseudoClass::ReadOnly:
         return !matches_read_write_pseudo_class(element);
     case CSS::PseudoClass::ReadWrite:
@@ -618,6 +611,7 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
     case CSS::PseudoClass::NthOfType:
     case CSS::PseudoClass::OnlyChild:
     case CSS::PseudoClass::OnlyOfType:
+    case CSS::PseudoClass::PopoverOpen:
     case CSS::PseudoClass::Root:
     case CSS::PseudoClass::Scope:
     case CSS::PseudoClass::State:
@@ -717,6 +711,8 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_document_root);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_link);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_fullscreen);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_heading_level);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_popover_attribute);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_popover_is_showing);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_focused);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_should_indicate_focus);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_focus_within);
@@ -846,6 +842,18 @@ extern "C" i64 selector_ffi_element_heading_level(void const* element)
     return heading ? heading->heading_level() : 0;
 }
 
+extern "C" bool selector_ffi_element_has_popover_attribute(void const* element)
+{
+    return ffi_element(element).has_attribute(HTML::AttributeNames::popover);
+}
+
+extern "C" bool selector_ffi_element_popover_is_showing(void const* element)
+{
+    auto const* html_element = as_if<HTML::HTMLElement>(ffi_element(element));
+    return html_element
+        && html_element->popover_visibility_state() == HTML::HTMLElement::PopoverVisibilityState::Showing;
+}
+
 extern "C" bool selector_ffi_element_is_focused(void const* element)
 {
     return ffi_element(element).is_focused();
@@ -972,6 +980,7 @@ static bool is_rust_matched_pseudo_class(CSS::PseudoClass pseudo_class)
         CSS::PseudoClass::NthOfType,
         CSS::PseudoClass::OnlyChild,
         CSS::PseudoClass::OnlyOfType,
+        CSS::PseudoClass::PopoverOpen,
         CSS::PseudoClass::Root,
         CSS::PseudoClass::Scope,
         CSS::PseudoClass::Where,

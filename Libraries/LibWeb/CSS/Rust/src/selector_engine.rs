@@ -1634,6 +1634,18 @@ impl FfiElement {
         }
     }
 
+    fn has_popover_attribute(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_has_popover_attribute(self.pointer) }
+    }
+
+    fn popover_is_showing(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_popover_is_showing(self.pointer) }
+    }
+
     fn is_focused(self) -> bool {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
@@ -1904,6 +1916,8 @@ unsafe extern "C" {
     fn selector_ffi_element_is_link(element: *const c_void) -> bool;
     fn selector_ffi_element_is_fullscreen(element: *const c_void) -> bool;
     fn selector_ffi_element_heading_level(element: *const c_void) -> i64;
+    fn selector_ffi_element_has_popover_attribute(element: *const c_void) -> bool;
+    fn selector_ffi_element_popover_is_showing(element: *const c_void) -> bool;
     fn selector_ffi_element_is_focused(element: *const c_void) -> bool;
     fn selector_ffi_element_should_indicate_focus(element: *const c_void) -> bool;
     fn selector_ffi_element_has_focus_within(element: *const c_void) -> bool;
@@ -2419,6 +2433,10 @@ impl<'a> SelectorDom for FfiDom<'a> {
                 .as_element()
                 .heading_level()
                 .is_some_and(|level| pseudo_class.levels.is_empty() || pseudo_class.levels.contains(&level)),
+            // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-popover-open
+            PseudoClassType::PopoverOpen => {
+                element.as_element().has_popover_attribute() && element.as_element().popover_is_showing()
+            }
             _ => {
                 crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
                 // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
