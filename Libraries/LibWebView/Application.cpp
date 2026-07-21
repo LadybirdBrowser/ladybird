@@ -1519,9 +1519,11 @@ static LexicalPath unique_download_path(ByteString const& downloads_directory, B
     auto title = lexical_file.title();
     auto extension = lexical_file.extension();
     for (u64 index = 1;; ++index) {
-        auto candidate_filename = extension.is_empty()
-            ? ByteString::formatted("{} ({})", title, index)
-            : ByteString::formatted("{} ({}).{}", title, index, extension);
+        auto suffix = extension.is_empty()
+            ? ByteString::formatted(" ({})", index)
+            : ByteString::formatted(" ({}).{}", index, extension);
+        auto truncated_title = Web::truncate_filename_to_byte_length(title, Web::maximum_filename_byte_length - min(suffix.length(), Web::maximum_filename_byte_length));
+        auto candidate_filename = ByteString::formatted("{}{}", truncated_title, suffix);
         auto candidate = LexicalPath::join(downloads_directory, candidate_filename.view());
         if (download_path_is_available(candidate))
             return candidate;
