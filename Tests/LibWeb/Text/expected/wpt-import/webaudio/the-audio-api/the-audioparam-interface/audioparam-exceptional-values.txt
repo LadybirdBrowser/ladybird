@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 66 tests
 
-58 Pass
-8 Fail
+60 Pass
+6 Fail
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "initialize"
 Pass	Executing "test value"
@@ -57,13 +57,13 @@ Pass	> [special cases 1] Test exceptions for finite values
 Pass	  gain.gain.setValueAtTime(1,-1) threw RangeError: "startTime must not be negative".
 Pass	  gain.gain.linearRampToValueAtTime(1,-1) threw RangeError: "endTime must not be negative".
 Pass	  gain.gain.exponentialRampToValueAtTime(1,-1) threw RangeError: "endTime must not be negative".
-Fail	X gain.gain.setTargetAtTime(1,-1,1) did not throw an exception.
-Fail	X gain.gain.setTargetAtTime(1,1,-1) did not throw an exception.
+Pass	  gain.gain.setTargetAtTime(1,-1,1) threw RangeError: "startTime must not be negative".
+Pass	  gain.gain.setTargetAtTime(1,1,-1) threw RangeError: "timeConstant must not be negative".
 Fail	X gain.gain.setValueCurveAtTime([0,0,0],-1,1) did not throw an exception.
 Fail	X gain.gain.setValueCurveAtTime([0,0,0],1,-1) did not throw an exception.
 Fail	X gain.gain.setValueCurveAtTime(curve, 1, 0) did not throw an exception.
 Fail	X gain.gain.setValueCurveAtTime(curve, 1, -1) did not throw an exception.
-Fail	< [special cases 1] 6 out of 9 assertions were failed.
+Fail	< [special cases 1] 4 out of 9 assertions were failed.
 Pass	> [special cases 2] Test special cases for expeonentialRamp
 Pass	  gain.gain.exponentialRampToValueAtTime(0,1) threw RangeError: "value must not be zero".
 Pass	  gain.gain.exponentialRampToValueAtTime(-1e-100,1) threw RangeError: "value must not be zero".

@@ -62,19 +62,33 @@ private:
         float value { 0 };
     };
 
+    struct RampStart {
+        size_t set_target_event_id { 0 };
+        double time { 0 };
+        float value { 0 };
+    };
+
     struct LinearRamp {
         float value { 0 };
+        Optional<RampStart> start;
     };
 
     struct ExponentialRamp {
         float value { 0 };
+        Optional<RampStart> start;
     };
 
-    using Parameterization = Variant<SetValue, LinearRamp, ExponentialRamp>;
+    struct SetTarget {
+        float target { 0 };
+        float time_constant { 0 };
+    };
+
+    using Parameterization = Variant<SetValue, LinearRamp, ExponentialRamp, SetTarget>;
 
     struct AutomationEvent {
         double time { 0 };
         Parameterization parameterization;
+        size_t id { 0 };
     };
 
     struct ParameterizationCache {
@@ -94,6 +108,8 @@ private:
 
     // https://webaudio.github.io/web-audio-api/#dfn-automation-event
     size_t first_event_index_after(double) const;
+
+    Optional<RampStart> ramp_start_for_insertion_index(size_t) const;
 
     float event_value_at_time(size_t event_index, double time) const;
 
@@ -119,6 +135,7 @@ private:
 
     // https://webaudio.github.io/web-audio-api/#dfn-automation-event
     Vector<AutomationEvent> m_automation_events;
+    size_t m_next_event_id { 0 };
 
     mutable Optional<ParameterizationCache> m_parameterization_cache;
 

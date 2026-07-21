@@ -88,6 +88,11 @@ float AudioParam::intrinsic_value_at_time(double time) const
             VERIFY(cache.minimum_time.has_value());
             auto progress = static_cast<float>((time - *cache.minimum_time) / (event.time - *cache.minimum_time));
             return cache.starting_value * static_cast<float>(pow(exponential_ramp.value / cache.starting_value, progress));
+        },
+        [&](SetTarget const& set_target) -> float {
+            if (set_target.time_constant == 0)
+                return set_target.target;
+            return set_target.target + (cache.starting_value - set_target.target) * static_cast<float>(exp(-(time - event.time) / set_target.time_constant));
         });
 }
 
@@ -132,13 +137,45 @@ size_t AudioParam::first_event_index_after(double time) const
     });
 }
 
-float AudioParam::event_value_at_time(size_t event_index, double) const
+float AudioParam::event_value_at_time(size_t event_index, double time) const
 {
-    auto const& event = m_automation_events[event_index];
-    return event.parameterization.visit(
-        [](OneOf<SetValue, LinearRamp, ExponentialRamp> auto const& parameterization) {
-            return parameterization.value;
-        });
+    auto first_event_index = event_index;
+    while (first_event_index > 0 && m_automation_events[first_event_index].parameterization.has<SetTarget>())
+        --first_event_index;
+
+    auto value = m_default_value;
+    for (auto current_event_index = first_event_index; current_event_index <= event_index; ++current_event_index) {
+        auto const& event = m_automation_events[current_event_index];
+        auto evaluation_time = current_event_index == event_index ? time : m_automation_events[current_event_index + 1].time;
+        value = event.parameterization.visit(
+            [](OneOf<SetValue, LinearRamp, ExponentialRamp> auto const& parameterization) {
+                return parameterization.value;
+            },
+            [&](SetTarget const& set_target) -> float {
+                if (set_target.time_constant == 0)
+                    return set_target.target;
+                return set_target.target + (value - set_target.target) * static_cast<float>(exp(-(evaluation_time - event.time) / set_target.time_constant));
+            });
+    }
+    return value;
+}
+
+// A ramp after an already-started SetTarget begins at currentTime using the target's value at that time.
+Optional<AudioParam::RampStart> AudioParam::ramp_start_for_insertion_index(size_t event_index) const
+{
+    if (event_index == 0)
+        return {};
+
+    auto const& previous_event = m_automation_events[event_index - 1];
+    auto current_time = context()->current_time();
+    if (previous_event.time >= current_time || !previous_event.parameterization.has<SetTarget>())
+        return {};
+
+    return RampStart {
+        .set_target_event_id = previous_event.id,
+        .time = current_time,
+        .value = event_value_at_time(event_index - 1, current_time),
+    };
 }
 
 AudioParam::ParameterizationCache const& AudioParam::parameterization_cache_for_time(double time) const
@@ -159,16 +196,24 @@ AudioParam::ParameterizationCache const& AudioParam::parameterization_cache_for_
     // to caching the preceding event below.
     if (event_index < m_automation_events.size()) {
         auto cache = m_automation_events[event_index].parameterization.visit(
-            [](SetValue const&) -> Optional<ParameterizationCache> {
+            [](OneOf<SetValue, SetTarget> auto const&) -> Optional<ParameterizationCache> {
                 return {};
             },
-            [&](OneOf<LinearRamp, ExponentialRamp> auto const&) -> Optional<ParameterizationCache> {
+            [&](OneOf<LinearRamp, ExponentialRamp> auto const& ramp) -> Optional<ParameterizationCache> {
                 auto const& previous_event = m_automation_events[event_index - 1];
+                auto minimum_time = previous_event.time;
+                auto starting_value = event_value_at_time(event_index - 1, minimum_time);
+                if (ramp.start.has_value() && ramp.start->set_target_event_id == previous_event.id) {
+                    minimum_time = ramp.start->time;
+                    starting_value = ramp.start->value;
+                }
+                if (time < minimum_time)
+                    return {};
                 return ParameterizationCache {
                     .event_index = event_index,
-                    .minimum_time = previous_event.time,
+                    .minimum_time = minimum_time,
                     .maximum_time = m_automation_events[event_index].time,
-                    .starting_value = event_value_at_time(event_index - 1, previous_event.time),
+                    .starting_value = starting_value,
                 };
             });
         if (cache.has_value()) {
@@ -179,10 +224,23 @@ AudioParam::ParameterizationCache const& AudioParam::parameterization_cache_for_
 
     auto selected_event_index = event_index - 1;
     auto const& selected_event = m_automation_events[selected_event_index];
+    Optional<double> maximum_time;
+    if (event_index < m_automation_events.size()) {
+        auto const& next_event = m_automation_events[event_index];
+        maximum_time = next_event.parameterization.visit(
+            [&](OneOf<LinearRamp, ExponentialRamp> auto const& ramp) {
+                if (ramp.start.has_value() && ramp.start->set_target_event_id == selected_event.id)
+                    return ramp.start->time;
+                return next_event.time;
+            },
+            [&](auto const&) {
+                return next_event.time;
+            });
+    }
     m_parameterization_cache = {
         .event_index = selected_event_index,
         .minimum_time = selected_event.time,
-        .maximum_time = event_index < m_automation_events.size() ? Optional<double> { m_automation_events[event_index].time } : Optional<double> {},
+        .maximum_time = maximum_time,
         .starting_value = event_value_at_time(selected_event_index, selected_event.time),
     };
     return *m_parameterization_cache;
@@ -192,6 +250,7 @@ AudioParam::ParameterizationCache const& AudioParam::parameterization_cache_for_
 void AudioParam::insert_event(AutomationEvent event)
 {
     // If an event is added at a time where there are already events, it is placed after them but before later events.
+    event.id = m_next_event_id++;
     auto event_time = event.time;
     m_automation_events.insert_before_matching(move(event), [event_time](auto const& existing_event) {
         return event_time < existing_event.time;
@@ -211,12 +270,14 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::linear_ramp_to_value_at_tim
 
     // If there is no event preceding this event, the linear ramp behaves as if setValueAtTime(value, currentTime) were
     // called, where value is the current value of the attribute.
-    if (first_event_index_after(end_time) == 0)
+    auto event_index = first_event_index_after(end_time);
+    auto ramp_start = ramp_start_for_insertion_index(event_index);
+    if (event_index == 0)
         MUST(set_value_at_time(m_current_value, context()->current_time()));
 
     insert_event({
         .time = end_time,
-        .parameterization = LinearRamp { value },
+        .parameterization = LinearRamp { value, ramp_start },
     });
     return GC::Ref { *this };
 }
@@ -237,12 +298,14 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::exponential_ramp_to_value_a
 
     // If there is no event preceding this event, the exponential ramp behaves as if setValueAtTime(value, currentTime)
     // were called, where value is the current value of the attribute.
-    if (first_event_index_after(end_time) == 0)
+    auto event_index = first_event_index_after(end_time);
+    auto ramp_start = ramp_start_for_insertion_index(event_index);
+    if (event_index == 0)
         MUST(set_value_at_time(m_current_value, context()->current_time()));
 
     insert_event({
         .time = end_time,
-        .parameterization = ExponentialRamp { value },
+        .parameterization = ExponentialRamp { value, ramp_start },
     });
     return GC::Ref { *this };
 }
@@ -250,10 +313,21 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::exponential_ramp_to_value_a
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-settargetattime
 WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::set_target_at_time(float target, double start_time, float time_constant)
 {
-    (void)target;
-    (void)start_time;
-    (void)time_constant;
-    dbgln("FIXME: Implement AudioParam::set_target_at_time");
+    // A RangeError exception MUST be thrown if startTime is negative or is not a finite number.
+    if (start_time < 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "startTime must not be negative"_utf16 };
+
+    // A RangeError exception MUST be thrown if timeConstant is negative or is not a finite number.
+    if (time_constant < 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "timeConstant must not be negative"_utf16 };
+
+    // If startTime is less than currentTime, it is clamped to currentTime.
+    start_time = max(start_time, context()->current_time());
+
+    insert_event({
+        .time = start_time,
+        .parameterization = SetTarget { target, time_constant },
+    });
     return GC::Ref { *this };
 }
 
