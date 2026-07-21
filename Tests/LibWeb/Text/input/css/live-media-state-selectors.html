@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video></video>
+<div></div>
+<script>
+    test(() => {
+        const video = document.querySelector("video");
+        const div = document.querySelector("div");
+
+        for (const pseudoClass of ["buffering", "muted", "paused", "playing", "seeking", "stalled"])
+            println(`video:${pseudoClass}: ${video.matches(`:${pseudoClass}`)}`);
+
+        video.muted = true;
+        println(`video:muted after mutation: ${video.matches(":muted")}`);
+
+        for (const pseudoClass of ["buffering", "muted", "paused", "playing", "seeking", "stalled"])
+            println(`div:${pseudoClass}: ${div.matches(`:${pseudoClass}`)}`);
+    });
+</script>

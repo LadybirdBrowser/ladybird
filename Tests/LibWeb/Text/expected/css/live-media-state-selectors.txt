@@ -1,0 +1,13 @@
+video:buffering: true
+video:muted: false
+video:paused: true
+video:playing: false
+video:seeking: false
+video:stalled: false
+video:muted after mutation: true
+div:buffering: false
+div:muted: false
+div:paused: false
+div:playing: false
+div:seeking: false
+div:stalled: false

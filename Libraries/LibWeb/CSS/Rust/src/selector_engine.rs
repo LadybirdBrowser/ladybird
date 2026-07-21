@@ -1744,6 +1744,42 @@ impl FfiElement {
         unsafe { selector_ffi_element_is_unchecked(self.pointer) }
     }
 
+    fn is_media_element(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_media_element(self.pointer) }
+    }
+
+    fn media_is_blocked(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_media_is_blocked(self.pointer) }
+    }
+
+    fn media_is_muted(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_media_is_muted(self.pointer) }
+    }
+
+    fn media_is_paused(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_media_is_paused(self.pointer) }
+    }
+
+    fn media_is_seeking(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_media_is_seeking(self.pointer) }
+    }
+
+    fn media_is_stalled(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_media_is_stalled(self.pointer) }
+    }
+
     unsafe fn local_name<'a>(self) -> DomStringView<'a> {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns a string view borrowed
@@ -2019,6 +2055,12 @@ unsafe extern "C" {
     fn selector_ffi_element_is_placeholder_shown(element: *const c_void) -> bool;
     fn selector_ffi_element_is_target(element: *const c_void) -> bool;
     fn selector_ffi_element_is_unchecked(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_media_element(element: *const c_void) -> bool;
+    fn selector_ffi_element_media_is_blocked(element: *const c_void) -> bool;
+    fn selector_ffi_element_media_is_muted(element: *const c_void) -> bool;
+    fn selector_ffi_element_media_is_paused(element: *const c_void) -> bool;
+    fn selector_ffi_element_media_is_seeking(element: *const c_void) -> bool;
+    fn selector_ffi_element_media_is_stalled(element: *const c_void) -> bool;
     fn selector_ffi_element_local_name(element: *const c_void) -> FfiDomStringView;
     fn selector_ffi_element_class_name(element: *const c_void, index: usize) -> FfiDomStringView;
     fn selector_ffi_element_attribute_count(element: *const c_void) -> usize;
@@ -2633,6 +2675,15 @@ impl<'a> SelectorDom for FfiDom<'a> {
             PseudoClassType::PlaceholderShown => element.as_element().is_placeholder_shown(),
             PseudoClassType::Target => element.as_element().is_target(),
             PseudoClassType::Unchecked => element.as_element().is_unchecked(),
+            PseudoClassType::Buffering => element.as_element().media_is_blocked(),
+            PseudoClassType::Muted => element.as_element().media_is_muted(),
+            PseudoClassType::Paused => element.as_element().media_is_paused(),
+            PseudoClassType::Playing => {
+                let element = element.as_element();
+                element.is_media_element() && !element.media_is_paused()
+            }
+            PseudoClassType::Seeking => element.as_element().media_is_seeking(),
+            PseudoClassType::Stalled => element.as_element().media_is_stalled(),
             PseudoClassType::Fullscreen => element.as_element().is_fullscreen(),
             PseudoClassType::Focus => element.as_element().is_focused(),
             PseudoClassType::FocusVisible => {
