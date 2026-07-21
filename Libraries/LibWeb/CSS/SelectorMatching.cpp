@@ -285,7 +285,7 @@ static bool matches_read_write_pseudo_class(DOM::Element const& element)
 }
 
 // https://drafts.csswg.org/selectors-4/#open-state
-static bool matches_open_state_pseudo_class(DOM::Element const& element, bool open)
+static bool matches_open_state_pseudo_class(DOM::Element const& element)
 {
     // The :open pseudo-class represents an element that has both “open” and “closed” states,
     // and which is currently in the “open” state.
@@ -295,13 +295,13 @@ static bool matches_open_state_pseudo_class(DOM::Element const& element, bool op
     // - details elements that have an open attribute
     // - dialog elements that have an open attribute
     if (is<HTML::HTMLDetailsElement>(element) || is<HTML::HTMLDialogElement>(element))
-        return open == element.has_attribute(HTML::AttributeNames::open);
+        return element.has_attribute(HTML::AttributeNames::open);
     // - select elements that are a drop-down box and whose drop-down boxes are open
     if (auto const* select = as_if<HTML::HTMLSelectElement>(element))
-        return open == select->is_open();
+        return select->is_open();
     // - input elements that support a picker and whose pickers are open
     if (auto const* input = as_if<HTML::HTMLInputElement>(element))
-        return open == (input->supports_a_picker() && input->is_open());
+        return input->supports_a_picker() && input->is_open();
 
     return false;
 }
@@ -781,7 +781,7 @@ extern "C" bool selector_ffi_element_is_modal(void const* element)
 
 extern "C" bool selector_ffi_element_is_open(void const* element)
 {
-    return matches_open_state_pseudo_class(ffi_element(element), true);
+    return matches_open_state_pseudo_class(ffi_element(element));
 }
 
 // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-optional
