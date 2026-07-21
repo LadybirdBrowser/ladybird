@@ -27,6 +27,7 @@
 #include <LibURL/InternalURLs.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/Loader/DownloadFilename.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWebView/Application.h>
@@ -1527,24 +1528,6 @@ static LexicalPath unique_download_path(ByteString const& downloads_directory, B
     }
 }
 
-static ByteString sanitize_suggested_download_filename(ByteString filename)
-{
-    filename = LexicalPath::basename(move(filename));
-
-    StringBuilder builder;
-    for (auto byte : filename.bytes()) {
-        if (byte == '\0' || byte == '/' || byte == '\\')
-            builder.append('_');
-        else
-            builder.append(static_cast<char>(byte));
-    }
-
-    auto sanitized = builder.to_byte_string();
-    if (sanitized.is_empty() || sanitized == "."sv || sanitized == ".."sv)
-        return "download";
-    return sanitized;
-}
-
 ErrorOr<LexicalPath> Application::default_path_for_downloaded_file(ByteString const& file) const
 {
     auto downloads_directory = Core::StandardPaths::downloads_directory();
@@ -1554,7 +1537,7 @@ ErrorOr<LexicalPath> Application::default_path_for_downloaded_file(ByteString co
         return Error::from_errno(ENOENT);
     }
 
-    return unique_download_path(downloads_directory, sanitize_suggested_download_filename(file));
+    return unique_download_path(downloads_directory, Web::sanitize_suggested_download_filename(file));
 }
 
 ErrorOr<LexicalPath> Application::path_for_downloaded_file(ByteString const& file) const
@@ -1562,7 +1545,7 @@ ErrorOr<LexicalPath> Application::path_for_downloaded_file(ByteString const& fil
     if (browser_options().headless_mode.has_value())
         return default_path_for_downloaded_file(file);
 
-    auto download_path = ask_user_for_download_path(sanitize_suggested_download_filename(file));
+    auto download_path = ask_user_for_download_path(Web::sanitize_suggested_download_filename(file));
     if (!download_path.has_value())
         return Error::from_errno(ECANCELED);
 

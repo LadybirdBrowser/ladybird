@@ -72,6 +72,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Loader/DownloadFilename.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListDamage.h>
@@ -326,24 +327,6 @@ static ContentDispositionInfo parse_content_disposition(HTTP::HeaderList const& 
 
     info.filename = extended_filename.has_value() ? move(extended_filename) : move(filename);
     return info;
-}
-
-static ByteString sanitize_suggested_download_filename(ByteString filename)
-{
-    filename = LexicalPath::basename(move(filename));
-
-    StringBuilder builder;
-    for (auto byte : filename.bytes()) {
-        if (byte == '\0' || byte == '/' || byte == '\\')
-            builder.append('_');
-        else
-            builder.append(static_cast<char>(byte));
-    }
-
-    auto sanitized = builder.to_byte_string();
-    if (sanitized.is_empty() || sanitized == "."sv || sanitized == ".."sv)
-        return "download";
-    return sanitized;
 }
 
 static ByteString suggested_download_filename(URL::URL const& url, HTTP::HeaderList const& headers)
