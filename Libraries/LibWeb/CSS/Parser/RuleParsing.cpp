@@ -1238,7 +1238,7 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
                     child_rules.append(*converted_rule);
             },
             [&](Vector<Declaration> const& declarations) {
-                child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
+                child_rules.append(NestedDeclarationsRule::create(realm(), *this, declarations));
             });
     }
 

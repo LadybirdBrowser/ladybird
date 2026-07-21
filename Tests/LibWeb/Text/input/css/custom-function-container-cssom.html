@@ -1,0 +1,14 @@
+<!doctype html>
+<style>
+    @function --foo() {
+        @container (width > 0px) {
+            result: 1px;
+        }
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(document.styleSheets[0].cssRules[0].cssRules[0].cssRules[0] instanceof CSSFunctionDeclarations);
+    });
+</script>
