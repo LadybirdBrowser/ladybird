@@ -12,6 +12,7 @@
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
+#include <LibWeb/Loader/DownloadFilename.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/FileDownloader.h>
@@ -53,7 +54,10 @@ FileDownloader::~FileDownloader() = default;
 
 static LexicalPath temporary_destination_for(LexicalPath const& destination, u64 download_id)
 {
-    return LexicalPath { ByteString::formatted("{}.{}.{}.download", destination.string(), download_id, generate_random_uuid()) };
+    auto suffix = ByteString::formatted(".{}.{}.download", download_id, generate_random_uuid());
+    auto truncated_basename = Web::truncate_filename_to_byte_length(destination.basename(), Web::maximum_filename_byte_length - suffix.length());
+    auto temporary_filename = ByteString::formatted("{}{}", truncated_basename, suffix);
+    return LexicalPath::join(destination.dirname(), temporary_filename.view());
 }
 
 static String status_to_error_string(Optional<Requests::NetworkError> const& network_error, Optional<u32> response_code, Optional<String> const& reason_phrase)
