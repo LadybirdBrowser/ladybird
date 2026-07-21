@@ -8,6 +8,8 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/CSSFunctionRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSConditionRule.h>
+#include <LibWeb/CSS/CSSContainerRule.h>
 #include <LibWeb/CSS/CSSFunctionDeclarations.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/HypotheticalElement.h>
@@ -205,6 +207,32 @@ Utf16String CSSFunctionRule::serialized() const
     return builder.to_string();
 }
 
+template<typename Callback>
+static void for_each_effective_function_declarations_rule(CSSRuleList const& rule_list, GC::Ptr<CSSContainerRule const> container_rule, Callback const& callback)
+{
+    for (auto const& rule : rule_list) {
+        switch (rule->type()) {
+        case CSSRule::Type::Container: {
+            auto const& nested_container_rule = as<CSSContainerRule>(*rule);
+            for_each_effective_function_declarations_rule(nested_container_rule.css_rules(), &nested_container_rule, callback);
+            break;
+        }
+        case CSSRule::Type::Media:
+        case CSSRule::Type::Supports: {
+            auto const& condition_rule = as<CSSConditionRule>(*rule);
+            if (condition_rule.condition_matches())
+                for_each_effective_function_declarations_rule(condition_rule.css_rules(), container_rule, callback);
+            break;
+        }
+        case CSSRule::Type::FunctionDeclarations:
+            callback(as<CSSFunctionDeclarations>(*rule), container_rule);
+            break;
+        default:
+            break;
+        }
+    }
+}
+
 // https://drafts.csswg.org/css-mixins/#evaluate-a-custom-function
 NonnullRefPtr<StyleValue const> CSSFunctionRule::evaluate_a_custom_function(Parser::GuardedSubstitutionContexts& guarded_contexts, Vector<Vector<Parser::ComponentValue>> const& arguments, CallingContext const& calling_context) const
 {
@@ -311,12 +339,17 @@ NonnullRefPtr<StyleValue const> CSSFunctionRule::evaluate_a_custom_function(Pars
     // 10. Let body rule be the function body of custom function, as a style rule.
     OrderedHashMap<Utf16FlyString, StyleProperty> body_rule;
 
-    // FIXME: Respect container rules here.
-    for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
-        if (auto const* declarations = as_if<CSSFunctionDeclarations>(rule)) {
-            for (auto const& descriptor : declarations->style()->descriptors())
-                body_rule.set(descriptor.descriptor_name_and_id.name(), { .important = Important::No, .property_id = PropertyID::Custom, .value = descriptor.value });
+    auto& root_element = calling_context.element.abstract_element();
+    for_each_effective_function_declarations_rule(css_rules(), nullptr, [&](CSSFunctionDeclarations const& declarations, GC::Ptr<CSSContainerRule const> container_rule) {
+        if (container_rule) {
+            container_rule->mark_element_style_dependencies(root_element);
+
+            if (!container_rule->matches(root_element))
+                return;
         }
+
+        for (auto const& descriptor : declarations.style()->descriptors())
+            body_rule.set(descriptor.descriptor_name_and_id.name(), { .important = Important::No, .property_id = PropertyID::Custom, .value = descriptor.value });
     });
 
     // 11. For each custom property registration of registrations except the registration with the name "result", set

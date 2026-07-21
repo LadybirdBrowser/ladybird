@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Custom Functions: @container can not query self
+1 Pass
+Pass	Custom Functions: @container can not query self

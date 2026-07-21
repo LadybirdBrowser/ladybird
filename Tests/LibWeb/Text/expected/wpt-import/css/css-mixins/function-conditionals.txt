@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 22 tests
 
-18 Pass
-4 Fail
+22 Pass
 Pass	Basic @supports
 Pass	Basic @supports (false)
 Pass	Nested @supports
@@ -18,11 +17,11 @@ Pass	Locals within @media
 Pass	@supports within @media
 Pass	@media within @supports
 Pass	Basic @container
-Fail	Basic @container (false)
-Fail	Nested @container
-Fail	Nested @container (false)
+Pass	Basic @container (false)
+Pass	Nested @container
+Pass	Nested @container (false)
 Pass	Locals within @container
 Pass	@supports within @container
-Fail	@container within @supports
+Pass	@container within @supports
 Pass	@container, @media, @supports
 Pass	@supports, @media, @container
