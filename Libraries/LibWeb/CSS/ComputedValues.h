@@ -1892,9 +1892,10 @@ public:
     void set_base_values(NonnullRefPtr<ComputedValues const> value) { m_values.m_base_values = move(value); }
     void set_animated_properties(AnimatedProperties const*);
 
-    // Adopts a Rust-built inherited box group payload, which arrives already
-    // carrying this reference.
+    // Adopts Rust-built group payloads, which arrive already carrying this
+    // reference.
     void adopt_inherited_box_group(void* payload) { m_values.m_inherited.box.adopt(payload); }
+    void adopt_inherited_table_group(void* payload) { m_values.m_inherited.table.adopt(payload); }
 
     void set_aspect_ratio(AspectRatio aspect_ratio)
     {

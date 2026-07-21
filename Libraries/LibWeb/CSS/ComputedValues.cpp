@@ -233,6 +233,17 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (inherited_box_adopted)
         computed_values.adopt_inherited_box_group(const_cast<void*>(inherited_box_payload));
 
+    auto* inherited_table_payload = ComputedValuesFFI::rust_build_inherited_table_group(
+        InheritedTableValues::style_group_index,
+        computed_style.property(PropertyID::BorderCollapse).rust_style_value_data(),
+        computed_style.property(PropertyID::CaptionSide).rust_style_value_data(),
+        computed_style.property(PropertyID::EmptyCells).rust_style_value_data(),
+        computed_style.property(PropertyID::BorderSpacing).rust_style_value_data(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.table.operator->()) : nullptr);
+    bool const inherited_table_adopted = inherited_table_payload != nullptr;
+    if (inherited_table_adopted)
+        computed_values.adopt_inherited_table_group(const_cast<void*>(inherited_table_payload));
+
     auto custom_ident_list = [&](PropertyID property_id) {
         Vector<Utf16FlyString> names;
         auto append_name = [&](StyleValue const& value) {
@@ -767,10 +778,13 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
 
     computed_values.set_float(computed_style.float_());
 
-    computed_values.set_border_spacing_horizontal(computed_style.border_spacing_horizontal());
-    computed_values.set_border_spacing_vertical(computed_style.border_spacing_vertical());
+    if (!inherited_table_adopted) {
+        computed_values.set_border_spacing_horizontal(computed_style.border_spacing_horizontal());
+        computed_values.set_border_spacing_vertical(computed_style.border_spacing_vertical());
+    }
 
-    computed_values.set_caption_side(computed_style.caption_side());
+    if (!inherited_table_adopted)
+        computed_values.set_caption_side(computed_style.caption_side());
     computed_values.set_clear(computed_style.clear());
     computed_values.set_overflow_x(computed_style.overflow_x());
     computed_values.set_overflow_y(computed_style.overflow_y());
@@ -1023,9 +1037,11 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_column_gap(computed_style.gap_value(CSS::PropertyID::ColumnGap));
     computed_values.set_row_gap(computed_style.gap_value(CSS::PropertyID::RowGap));
 
-    computed_values.set_border_collapse(computed_style.border_collapse());
+    if (!inherited_table_adopted)
+        computed_values.set_border_collapse(computed_style.border_collapse());
 
-    computed_values.set_empty_cells(computed_style.empty_cells());
+    if (!inherited_table_adopted)
+        computed_values.set_empty_cells(computed_style.empty_cells());
 
     computed_values.set_table_layout(computed_style.table_layout());
 

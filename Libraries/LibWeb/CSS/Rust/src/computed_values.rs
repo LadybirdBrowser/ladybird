@@ -261,6 +261,68 @@ pub unsafe extern "C" fn rust_build_inherited_box_group(
     .unwrap_or(std::ptr::null())
 }
 
+/// Builds an inherited table group payload from the computed values, with the
+/// same sharing rules as the inherited box builder. Border-spacing must be an
+/// absolute pixel length; two-value spacings and anything else fall back to
+/// the C++ population path by returning null.
+///
+/// # Safety
+/// The value pointers must be valid StyleValueData or null, and
+/// `parent_payload` a valid inherited table payload or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_build_inherited_table_group(
+    group_index: usize,
+    border_collapse: *const c_void,
+    caption_side: *const c_void,
+    empty_cells: *const c_void,
+    border_spacing: *const c_void,
+    parent_payload: *const c_void,
+) -> *const c_void {
+    use crate::style_value::StyleValueData;
+
+    abort_on_panic(|| {
+        let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> Option<u8> {
+            match unsafe { (data as *const StyleValueData).as_ref() } {
+                Some(StyleValueData::Keyword { keyword }) => map(*keyword),
+                _ => None,
+            }
+        };
+        let spacing = match unsafe { (border_spacing as *const StyleValueData).as_ref() } {
+            Some(StyleValueData::Length { value, unit }) if *unit == crate::style_compute::px_length_unit() => {
+                crate::css_pixels::CssPixels::nearest_value_for(*value).raw_value()
+            }
+            _ => return None,
+        };
+        let built = InheritedTableValues {
+            border_collapse: keyword_code(border_collapse, crate::style_compute::keyword_to_border_collapse)?,
+            caption_side: keyword_code(caption_side, crate::style_compute::keyword_to_caption_side)?,
+            empty_cells: keyword_code(empty_cells, crate::style_compute::keyword_to_empty_cells)?,
+            border_spacing_horizontal: spacing,
+            border_spacing_vertical: spacing,
+        };
+
+        if !parent_payload.is_null() {
+            // SAFETY: The caller guarantees a valid inherited table payload.
+            if built == unsafe { *(parent_payload as *const InheritedTableValues) } {
+                retain_group_payload(group_index, parent_payload);
+                return Some(parent_payload);
+            }
+        }
+
+        let default_payload = default_group_payload(group_index);
+        // SAFETY: The default payload is a valid inherited table payload.
+        if built == unsafe { *(default_payload as *const InheritedTableValues) } {
+            return Some(default_payload);
+        }
+
+        let payload = allocate_payload(vtable(group_index), 1);
+        // SAFETY: The payload was allocated for this group's layout.
+        unsafe { *(payload as *mut InheritedTableValues) = built };
+        Some(payload as *const c_void)
+    })
+    .unwrap_or(std::ptr::null())
+}
+
 /// Layout of the inherited table style value group.
 ///
 /// The enum fields follow the opaque-byte convention; the border spacings are
