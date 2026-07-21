@@ -305,6 +305,49 @@ TEST_CASE(www_and_bare_hosts_share_a_diversity_family)
     EXPECT_EQ(results[3].text, "https://third.example/example"sv);
 }
 
+TEST_CASE(equivalent_origin_presentations_do_not_crowd_out_deep_pages)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "frag"sv,
+        search("frag"sv, 900, true),
+        {
+            history("https://www.fragrantica.com/"sv, 1484),
+            history("https://fragnado.com/"sv, 1009),
+            history("https://fragonard.com/"sv, 1005),
+            history("https://fragrantica.com/"sv, 934),
+            history("https://www.fragrantica.com/perfume/Indult/Manakara-4345.html"sv, 746),
+        },
+        { search("fragrantica perfume"sv, 700) },
+        8);
+
+    EXPECT(results.contains([](auto const& result) {
+        return result.text == "https://www.fragrantica.com/"sv;
+    }));
+    EXPECT(results.contains([](auto const& result) {
+        return result.text == "https://www.fragrantica.com/perfume/Indult/Manakara-4345.html"sv;
+    }));
+    EXPECT(!results.contains([](auto const& result) {
+        return result.text == "https://fragrantica.com/"sv;
+    }));
+}
+
+TEST_CASE(origin_presentations_with_distinct_titles_are_not_coalesced)
+{
+    auto bare_host = history("https://example.com/"sv, 1000);
+    bare_host.title = "Bare host"_string;
+    auto www_host = history("https://www.example.com/"sv, 990);
+    www_host.title = "WWW host"_string;
+
+    auto results = WebView::mux_autocomplete_suggestions(
+        "example"sv,
+        {},
+        { move(bare_host), move(www_host) },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 2u);
+}
+
 TEST_CASE(a_scheme_does_not_disable_origin_diversity)
 {
     auto results = WebView::mux_autocomplete_suggestions(

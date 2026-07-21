@@ -112,6 +112,48 @@ static bool is_origin_navigation(AutocompleteSuggestion const& suggestion)
         && !url->query().has_value();
 }
 
+static bool are_equivalent_origin_presentations(AutocompleteSuggestion const& left, AutocompleteSuggestion const& right)
+{
+    if (left.source == AutocompleteSuggestionSource::Search || right.source == AutocompleteSuggestionSource::Search)
+        return false;
+    if (!is_origin_navigation(left) || !is_origin_navigation(right))
+        return false;
+    if (left.title.has_value() && right.title.has_value() && left.title != right.title)
+        return false;
+
+    auto left_url = URL::Parser::basic_parse(left.text);
+    auto right_url = URL::Parser::basic_parse(right.text);
+    VERIFY(left_url.has_value() && right_url.has_value());
+    if (!left_url->scheme().is_one_of("http"sv, "https"sv) || !right_url->scheme().is_one_of("http"sv, "https"sv))
+        return false;
+
+    return left_url->scheme() == right_url->scheme()
+        && left_url->port() == right_url->port()
+        && origin_family(left) == origin_family(right);
+}
+
+static void coalesce_equivalent_origin_presentations(Vector<AutocompleteSuggestion>& candidates)
+{
+    Vector<AutocompleteSuggestion> representatives;
+    representatives.ensure_capacity(candidates.size());
+
+    for (auto& candidate : candidates) {
+        auto existing_index = representatives.find_first_index_if([&](auto const& existing) {
+            return are_equivalent_origin_presentations(existing, candidate);
+        });
+        if (!existing_index.has_value()) {
+            representatives.append(move(candidate));
+            continue;
+        }
+
+        auto& existing = representatives[*existing_index];
+        if (suggestion_is_better(candidate, existing))
+            existing = move(candidate);
+    }
+
+    candidates = move(representatives);
+}
+
 static u8 short_query_origin_preference(AutocompleteSuggestion const& suggestion, size_t query_length)
 {
     if (suggestion.adaptive_relevance > 0 && suggestion.can_be_automatically_selected)
@@ -158,6 +200,9 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
     auto query_contains_path = query_contains_url_suffix(query);
     auto query_length = Utf8View { query }.length();
     auto is_short_host_query = !query_contains_path && query_length <= 2;
+
+    if (!query_contains_path)
+        coalesce_equivalent_origin_presentations(candidates);
 
     if (is_short_host_query) {
         Vector<AutocompleteSuggestion> representatives;
