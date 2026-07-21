@@ -407,8 +407,39 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::set_value_curve_at_time(Spa
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-cancelscheduledvalues
 WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::cancel_scheduled_values(double cancel_time)
 {
-    (void)cancel_time;
-    dbgln("FIXME: Implement AudioParam::cancel_scheduled_values");
+    // A RangeError exception MUST be thrown if cancelTime is negative.
+    if (cancel_time < 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "cancelTime must not be negative"_utf16 };
+
+    // If cancelTime is less than currentTime, it is clamped to currentTime.
+    cancel_time = max(cancel_time, context()->current_time());
+
+    // Cancel all scheduled parameter changes with times greater than or equal to cancelTime.
+    auto first_event_to_remove = AK::lower_bound_index(m_automation_events, cancel_time, [](auto const& event, double time) {
+        return event.time < time ? -1 : 1;
+    });
+
+    // Any active automations whose event time is less than cancelTime are also cancelled. A SetTarget remains active
+    // until the next event, while a SetValueCurve is active through the end of its duration.
+    if (first_event_to_remove > 0) {
+        auto const& previous_event = m_automation_events[first_event_to_remove - 1];
+        auto is_active_automation = previous_event.parameterization.visit(
+            [](SetTarget const&) {
+                return true;
+            },
+            [&](SetValueCurve const& set_value_curve) {
+                return cancel_time <= previous_event.time + set_value_curve.duration;
+            },
+            [](auto const&) {
+                return false;
+            });
+        if (is_active_automation)
+            --first_event_to_remove;
+    }
+
+    if (first_event_to_remove < m_automation_events.size())
+        m_automation_events.remove(first_event_to_remove, m_automation_events.size() - first_event_to_remove);
+    m_parameterization_cache = {};
     return GC::Ref { *this };
 }
 
