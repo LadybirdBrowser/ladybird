@@ -16,6 +16,9 @@
 
 include!(concat!(env!("OUT_DIR"), "/property_metadata_generated.rs"));
 
+pub(crate) const NUMBER_OF_LONGHAND_PROPERTIES: usize =
+    (LAST_LONGHAND_PROPERTY_ID - FIRST_LONGHAND_PROPERTY_ID + 1) as usize;
+
 /// How much of the computation a property needs, mirroring the C++
 /// requires-computation levels: 0 = never, 1 = with the cascaded value,
 /// 2 = with any non-inherited value, 3 = always.

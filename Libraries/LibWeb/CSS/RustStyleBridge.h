@@ -24,6 +24,7 @@ WEB_API u16 invoke_rust_map_physical_to_logical_alias(u16 property_id, u8 writin
 WEB_API bool invoke_rust_property_metadata_is_shorthand(u16 property_id);
 WEB_API u16 const* invoke_rust_property_metadata_longhands_for_shorthand(u16 property_id, size_t* length);
 WEB_API u8 invoke_rust_property_metadata_requires_computation_level(u16 property_id);
+WEB_API ComputedValuesFFI::FfiShellAndData invoke_rust_style_metadata_initial_value(u16 property_id);
 
 WEB_API ComputedValuesFFI::FfiAbsolutizedLength invoke_rust_absolutize_length(double value, u8 unit, ComputedValuesFFI::FfiLengthResolutionContext const* context);
 WEB_API i32 rust_css_pixels_multiply(i32 left, i32 right);

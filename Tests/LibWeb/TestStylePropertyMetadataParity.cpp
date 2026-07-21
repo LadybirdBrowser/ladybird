@@ -93,6 +93,17 @@ TEST_CASE(shorthand_expansions_match)
     }
 }
 
+TEST_CASE(initial_value_table_matches)
+{
+    StyleComputer::ensure_style_metadata_tables_installed();
+    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+        auto entry = invoke_rust_style_metadata_initial_value(i);
+        auto initial_value = property_initial_value(static_cast<PropertyID>(i));
+        EXPECT_EQ(entry.shell, static_cast<void const*>(initial_value.ptr()));
+        EXPECT_EQ(entry.data, static_cast<void const*>(initial_value->rust_style_value_data()));
+    }
+}
+
 TEST_CASE(requires_computation_levels_match)
 {
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {

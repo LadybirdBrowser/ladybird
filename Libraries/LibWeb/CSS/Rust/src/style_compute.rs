@@ -1567,6 +1567,70 @@ pub extern "C" fn rust_position_area_span_all_remap(block_keyword: u16, inline_k
     not_remapped
 }
 
+/// A style value crossing the FFI as its C++ shell pointer paired with its
+/// Rust-owned data pointer.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiShellAndData {
+    pub shell: *const c_void,
+    pub data: *const c_void,
+}
+
+impl FfiShellAndData {
+    pub const fn null() -> Self {
+        Self {
+            shell: std::ptr::null(),
+            data: std::ptr::null(),
+        }
+    }
+}
+
+/// The per-longhand initial values. The C++ side pins every entry for the
+/// process lifetime before installing the table, so lookups never cross the
+/// FFI and the pointers never dangle.
+struct InitialValueTable(Vec<FfiShellAndData>);
+
+// SAFETY: The entries reference immortal, immutable style values.
+unsafe impl Send for InitialValueTable {}
+unsafe impl Sync for InitialValueTable {}
+
+static INITIAL_VALUE_TABLE: std::sync::OnceLock<InitialValueTable> = std::sync::OnceLock::new();
+
+/// Installs the initial value table, one entry per longhand in property id
+/// order.
+///
+/// # Safety
+/// `entries` must point at `length` valid entries whose shells and data stay
+/// alive for the process lifetime.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_metadata_set_initial_value_table(entries: *const FfiShellAndData, length: usize) {
+    abort_on_panic(|| {
+        let entries = unsafe { std::slice::from_raw_parts(entries, length) }.to_vec();
+        assert_eq!(
+            length,
+            crate::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES,
+            "initial value table has one entry per longhand"
+        );
+        assert!(
+            INITIAL_VALUE_TABLE.set(InitialValueTable(entries)).is_ok(),
+            "initial value table installed twice"
+        );
+    });
+}
+
+/// Returns the initial value of a longhand property.
+pub(crate) fn initial_value(property_id: u16) -> FfiShellAndData {
+    use crate::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
+    let table = INITIAL_VALUE_TABLE.get().expect("initial value table not installed");
+    table.0[(property_id - FIRST_LONGHAND_PROPERTY_ID) as usize]
+}
+
+/// FFI accessor for the parity test on the C++ side.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_metadata_initial_value(property_id: u16) -> FfiShellAndData {
+    abort_on_panic(|| initial_value(property_id))
+}
+
 /// The inherit-or-initial decision for one longhand in the property
 /// computation loop.
 #[repr(C)]

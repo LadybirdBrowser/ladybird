@@ -59,6 +59,11 @@ u8 invoke_rust_property_metadata_requires_computation_level(u16 property_id)
     return ComputedValuesFFI::rust_property_metadata_requires_computation_level(property_id);
 }
 
+ComputedValuesFFI::FfiShellAndData invoke_rust_style_metadata_initial_value(u16 property_id)
+{
+    return ComputedValuesFFI::rust_style_metadata_initial_value(property_id);
+}
+
 ComputedValuesFFI::FfiAbsolutizedLength invoke_rust_absolutize_length(double value, u8 unit, ComputedValuesFFI::FfiLengthResolutionContext const* context)
 {
     return ComputedValuesFFI::rust_absolutize_length(value, unit, context);

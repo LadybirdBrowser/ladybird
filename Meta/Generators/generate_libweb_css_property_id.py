@@ -249,7 +249,7 @@ WEB_API Optional<PropertyID> property_id_from_string(Utf16View);
 [[nodiscard]] WEB_API Utf16FlyString const& string_from_property_id(PropertyID);
 [[nodiscard]] Utf16FlyString const& camel_case_string_from_property_id(PropertyID);
 WEB_API bool is_inherited_property(PropertyID);
-NonnullRefPtr<StyleValue const> property_initial_value(PropertyID);
+WEB_API NonnullRefPtr<StyleValue const> property_initial_value(PropertyID);
 
 enum class PropertyMultiplicity {{
     Single,

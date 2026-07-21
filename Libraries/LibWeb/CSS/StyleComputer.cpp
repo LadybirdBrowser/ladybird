@@ -3275,6 +3275,19 @@ void StyleComputer::ensure_style_metadata_tables_installed()
             }
         }
         ComputedValuesFFI::rust_style_metadata_set_physical_to_logical_table(reverse_table.data(), reverse_table.size());
+
+        // Pin every longhand's initial value for the process lifetime and hand the
+        // (shell, data) pointer pairs to the core, so initial-value selection never
+        // crosses the FFI.
+        static NeverDestroyed<Vector<NonnullRefPtr<StyleValue const>>> initial_value_pins;
+        Vector<ComputedValuesFFI::FfiShellAndData> initial_value_entries;
+        initial_value_entries.ensure_capacity(number_of_longhand_properties);
+        for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+            auto initial_value = property_initial_value(static_cast<PropertyID>(i));
+            initial_value_entries.unchecked_append({ initial_value.ptr(), initial_value->rust_style_value_data() });
+            initial_value_pins->append(move(initial_value));
+        }
+        ComputedValuesFFI::rust_style_metadata_set_initial_value_table(initial_value_entries.data(), initial_value_entries.size());
         return true;
     }();
     (void)installed;
