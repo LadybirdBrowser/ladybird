@@ -1625,6 +1625,15 @@ impl FfiElement {
         unsafe { selector_ffi_element_is_fullscreen(self.pointer) }
     }
 
+    fn heading_level(self) -> Option<i64> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        match unsafe { selector_ffi_element_heading_level(self.pointer) } {
+            0 => None,
+            level => Some(level),
+        }
+    }
+
     fn is_focused(self) -> bool {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
@@ -1894,6 +1903,7 @@ unsafe extern "C" {
     fn selector_ffi_element_is_document_root(element: *const c_void) -> bool;
     fn selector_ffi_element_is_link(element: *const c_void) -> bool;
     fn selector_ffi_element_is_fullscreen(element: *const c_void) -> bool;
+    fn selector_ffi_element_heading_level(element: *const c_void) -> i64;
     fn selector_ffi_element_is_focused(element: *const c_void) -> bool;
     fn selector_ffi_element_should_indicate_focus(element: *const c_void) -> bool;
     fn selector_ffi_element_has_focus_within(element: *const c_void) -> bool;
@@ -1909,8 +1919,6 @@ unsafe extern "C" {
     fn selector_ffi_matches_language(element: *const c_void, language: FfiStringView) -> bool;
     fn selector_ffi_matches_direction(element: *const c_void, direction: FfiDirection) -> bool;
     fn selector_ffi_matches_state(element: *const c_void, cxx_simple_selector: *const c_void) -> bool;
-    fn selector_ffi_matches_heading(element: *const c_void, levels: *const i64, level_count: usize) -> bool;
-
     fn selector_ffi_parent_element(element: *const c_void, shadow_host: *const c_void) -> FfiElement;
     fn selector_ffi_parent_element_in_light_tree(element: *const c_void) -> FfiElement;
     fn selector_ffi_previous_element_sibling(element: *const c_void) -> FfiElement;
@@ -2407,18 +2415,10 @@ impl<'a> SelectorDom for FfiDom<'a> {
                     }
                 }
             }
-            PseudoClassType::Heading => {
-                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
-                // SAFETY: `FfiDom` guarantees that the element remains valid, and the levels array
-                // remains valid for this callback.
-                unsafe {
-                    selector_ffi_matches_heading(
-                        element.as_element_pointer(),
-                        pseudo_class.levels.as_ptr(),
-                        pseudo_class.levels.len(),
-                    )
-                }
-            }
+            PseudoClassType::Heading => element
+                .as_element()
+                .heading_level()
+                .is_some_and(|level| pseudo_class.levels.is_empty() || pseudo_class.levels.contains(&level)),
             _ => {
                 crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
                 // SAFETY: `FfiDom` guarantees that the element remains valid for matching.

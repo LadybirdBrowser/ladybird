@@ -716,6 +716,7 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_html_element_in_html_docum
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_document_root);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_link);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_fullscreen);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_heading_level);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_focused);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_should_indicate_focus);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_focus_within);
@@ -729,7 +730,6 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_pseudo_class);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_language);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_direction);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_state);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_heading);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_parent_element);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_parent_element_in_light_tree);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_previous_element_sibling);
@@ -838,6 +838,12 @@ extern "C" bool selector_ffi_element_is_link(void const* element)
 extern "C" bool selector_ffi_element_is_fullscreen(void const* element)
 {
     return ffi_element(element).is_fullscreen_element();
+}
+
+extern "C" i64 selector_ffi_element_heading_level(void const* element)
+{
+    auto const* heading = as_if<HTML::HTMLHeadingElement>(ffi_element(element));
+    return heading ? heading->heading_level() : 0;
 }
 
 extern "C" bool selector_ffi_element_is_focused(void const* element)
@@ -1011,17 +1017,6 @@ extern "C" bool selector_ffi_matches_state(void const* element, void const* cxx_
     if (auto custom_state_set = target.custom_state_set())
         return custom_state_set->has_state(ffi_simple_selector(cxx_simple_selector).pseudo_class().ident->string_value);
     return false;
-}
-
-extern "C" bool selector_ffi_matches_heading(void const* element, i64 const* levels, size_t level_count)
-{
-    auto const* heading = as_if<HTML::HTMLHeadingElement>(ffi_element(element));
-    if (!heading)
-        return false;
-    if (level_count == 0)
-        return true;
-    VERIFY(levels);
-    return ReadonlySpan<i64> { levels, level_count }.contains_slow(heading->heading_level());
 }
 
 extern "C" CSS::SelectorFFI::Element selector_ffi_parent_element(void const* element, void const* shadow_host)
