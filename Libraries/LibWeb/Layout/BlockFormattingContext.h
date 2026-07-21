@@ -130,8 +130,6 @@ private:
 
     void layout_list_item_marker(ListItemBox const&, SpaceUsedByFloats const& inline_space_used_before_list_item_elements_formatted);
 
-    void measure_scrollable_overflow(Box const&, CSSPixels& bottom_edge, CSSPixels& right_edge) const;
-
     // https://drafts.csswg.org/css-multicol/#pseudo-algorithm
     Optional<int> determine_used_value_for_column_count(CSSPixels const& U) const;
     CSSPixels determine_used_value_for_column_width(CSSPixels const& U, int N) const;
