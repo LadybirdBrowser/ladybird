@@ -2544,24 +2544,32 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
             clamp_scroll_offset(const_cast<Painting::Paintable&>(*box_paintable));
     }
 
-    if (derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByAfterLayoutCommit)
-        return;
-
     bool any_overflow_changed = false;
     bool any_has_scrollable_overflow_flipped = false;
     for (auto const& [box, old_overflow_data] : old_overflow_data_by_box) {
         auto box_paintable = box->paintable_box();
         if (!box_paintable || !box_paintable->overflow_data().has_value())
             continue;
-        VERIFY(old_overflow_data.has_value());
+        // A box with no prior overflow data was just created or reset by the layout commit, so
+        // its paint cache is already clean.
+        if (!old_overflow_data.has_value())
+            continue;
         auto const& new_overflow_data = *box_paintable->overflow_data();
         bool rect_changed = old_overflow_data->scrollable_overflow_rect != new_overflow_data.scrollable_overflow_rect;
         bool has_scrollable_overflow_flipped = old_overflow_data->has_scrollable_overflow != new_overflow_data.has_scrollable_overflow;
-        any_overflow_changed |= rect_changed || has_scrollable_overflow_flipped;
+        if (!rect_changed && !has_scrollable_overflow_flipped)
+            continue;
+        // Cached paint commands and hit-test items capture scrollbar geometry and per-direction
+        // scrollability derived from the overflow rect, so they cannot be reused once it changes.
+        // This must also run for the after-layout-commit path: a subtree relayout re-measures a
+        // surviving ancestor's overflow without resetting the ancestor's paintable.
+        box_paintable->invalidate_paint_cache();
+        any_overflow_changed = true;
         any_has_scrollable_overflow_flipped |= has_scrollable_overflow_flipped;
-        if (any_has_scrollable_overflow_flipped)
-            break;
     }
+
+    if (derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByAfterLayoutCommit)
+        return;
 
     // Nothing derived from scrollable overflow needs updating. In particular, this keeps transform
     // changes that ride the accumulated-visual-context value-update path free of display list
