@@ -681,12 +681,6 @@ static Utf16View ffi_string_view(CSS::SelectorFFI::StringView string)
     return { reinterpret_cast<char16_t const*>(string.data), string.length };
 }
 
-static CSS::Selector::SimpleSelector const& ffi_simple_selector(void const* simple_selector)
-{
-    VERIFY(simple_selector);
-    return *static_cast<CSS::Selector::SimpleSelector const*>(simple_selector);
-}
-
 static bool is_in_null_namespace(DOM::Element const& element)
 {
     return !element.namespace_uri().has_value() || element.namespace_uri()->is_empty();
@@ -714,6 +708,7 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_heading_level);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_popover_attribute);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_popover_is_showing);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_direction);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_custom_state);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_focused);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_should_indicate_focus);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_focus_within);
@@ -725,7 +720,6 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_default_namespace);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_resolve_namespace);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_pseudo_class);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_language);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_state);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_parent_element);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_parent_element_in_light_tree);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_previous_element_sibling);
@@ -863,6 +857,16 @@ extern "C" Direction selector_ffi_element_direction(void const* element)
         return Direction::RightToLeft;
     }
     VERIFY_NOT_REACHED();
+}
+
+extern "C" bool selector_ffi_element_has_custom_state(void const* element, uintptr_t state)
+{
+    auto const& target = ffi_element(element);
+    if (!target.is_custom())
+        return false;
+    if (auto custom_state_set = target.custom_state_set())
+        return custom_state_set->has_state(*reinterpret_cast<Utf16FlyString const*>(&state));
+    return false;
 }
 
 extern "C" bool selector_ffi_element_is_focused(void const* element)
@@ -1016,16 +1020,6 @@ extern "C" bool selector_ffi_matches_language(void const* element, StringView la
     auto element_language = ffi_element(element).lang();
     return element_language.has_value()
         && language_range_matches_tag(ffi_string_view(language), *element_language);
-}
-
-extern "C" bool selector_ffi_matches_state(void const* element, void const* cxx_simple_selector)
-{
-    auto const& target = ffi_element(element);
-    if (!target.is_custom())
-        return false;
-    if (auto custom_state_set = target.custom_state_set())
-        return custom_state_set->has_state(ffi_simple_selector(cxx_simple_selector).pseudo_class().ident->string_value);
-    return false;
 }
 
 extern "C" CSS::SelectorFFI::Element selector_ffi_parent_element(void const* element, void const* shadow_host)

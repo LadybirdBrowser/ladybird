@@ -159,9 +159,6 @@ private:
     SelectorFFI::SimpleSelector compile_simple_selector(Selector::SimpleSelector const& simple_selector)
     {
         SelectorFFI::SimpleSelector output {};
-        // NB: The C++ simple selector outlives the compiled Rust selector, so matching callbacks
-        //     can use this pointer to compare interned strings without copying them.
-        output.cxx_simple_selector = &simple_selector;
 
         switch (simple_selector.type) {
         case Selector::SimpleSelector::Type::Universal:
@@ -234,6 +231,7 @@ private:
 
         if (pseudo_class.ident.has_value()) {
             output.identifier = store_string(pseudo_class.ident->string_value);
+            output.interned_name = reinterpret_cast<uintptr_t const*>(&pseudo_class.ident->string_value);
             if (pseudo_class.ident->keyword == Keyword::Ltr)
                 output.direction = SelectorFFI::Direction::LeftToRight;
             else if (pseudo_class.ident->keyword == Keyword::Rtl)

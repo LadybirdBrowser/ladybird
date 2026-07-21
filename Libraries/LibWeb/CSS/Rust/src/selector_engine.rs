@@ -150,9 +150,8 @@ pub struct PseudoClassSelector {
     pub languages: Box<[SelectorString]>,
     pub direction: Option<Direction>,
     pub identifier: Option<SelectorString>,
+    pub identifier_identity: Option<usize>,
     pub levels: Box<[i64]>,
-    /// Pointer to the C++ simple selector used by the custom-state matching callback.
-    cxx_simple_selector: RetainedCxxPointer,
 }
 
 impl PseudoClassSelector {
@@ -165,8 +164,8 @@ impl PseudoClassSelector {
             languages: Box::new([]),
             direction: None,
             identifier: None,
+            identifier_identity: None,
             levels: Box::new([]),
-            cxx_simple_selector: RetainedCxxPointer::default(),
         }
     }
 }
@@ -1512,7 +1511,6 @@ pub struct FfiStringView {
 #[repr(C)]
 pub struct FfiSimpleSelector {
     pub selector_type: FfiSimpleSelectorType,
-    pub cxx_simple_selector: *const c_void,
     pub interned_name: *const usize,
     pub interned_lowercase_name: *const usize,
     pub namespace_type: NamespaceType,
@@ -1654,6 +1652,13 @@ impl FfiElement {
             FfiDirection::RightToLeft => Direction::RightToLeft,
             FfiDirection::None | FfiDirection::Other => unreachable!(),
         }
+    }
+
+    fn has_custom_state(self, state: usize) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element and `state` is the copied identity of
+        // an interned selector identifier.
+        unsafe { selector_ffi_element_has_custom_state(self.pointer, state) }
     }
 
     fn is_focused(self) -> bool {
@@ -1929,6 +1934,7 @@ unsafe extern "C" {
     fn selector_ffi_element_has_popover_attribute(element: *const c_void) -> bool;
     fn selector_ffi_element_popover_is_showing(element: *const c_void) -> bool;
     fn selector_ffi_element_direction(element: *const c_void) -> FfiDirection;
+    fn selector_ffi_element_has_custom_state(element: *const c_void, state: usize) -> bool;
     fn selector_ffi_element_is_focused(element: *const c_void) -> bool;
     fn selector_ffi_element_should_indicate_focus(element: *const c_void) -> bool;
     fn selector_ffi_element_has_focus_within(element: *const c_void) -> bool;
@@ -1942,7 +1948,6 @@ unsafe extern "C" {
 
     fn selector_ffi_matches_pseudo_class(element: *const c_void, pseudo_class: u8) -> bool;
     fn selector_ffi_matches_language(element: *const c_void, language: FfiStringView) -> bool;
-    fn selector_ffi_matches_state(element: *const c_void, cxx_simple_selector: *const c_void) -> bool;
     fn selector_ffi_parent_element(element: *const c_void, shadow_host: *const c_void) -> FfiElement;
     fn selector_ffi_parent_element_in_light_tree(element: *const c_void) -> FfiElement;
     fn selector_ffi_previous_element_sibling(element: *const c_void) -> FfiElement;
@@ -2416,19 +2421,9 @@ impl<'a> SelectorDom for FfiDom<'a> {
             PseudoClassType::Dir => pseudo_class
                 .direction
                 .is_some_and(|direction| direction == element.as_element().direction()),
-            PseudoClassType::State => {
-                pseudo_class.identifier.is_some() && {
-                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
-                    // SAFETY: `FfiDom` guarantees that the element and retained simple selector
-                    // remain valid for the duration of matching.
-                    unsafe {
-                        selector_ffi_matches_state(
-                            element.as_element_pointer(),
-                            pseudo_class.cxx_simple_selector.as_ptr(),
-                        )
-                    }
-                }
-            }
+            PseudoClassType::State => pseudo_class
+                .identifier_identity
+                .is_some_and(|state| element.as_element().has_custom_state(state)),
             PseudoClassType::Heading => element
                 .as_element()
                 .heading_level()
@@ -2788,6 +2783,9 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
                 // SAFETY: The caller guarantees that every string view in `selector` is valid.
                 unsafe { string_from_ffi(selector.identifier) }
             });
+            // SAFETY: The caller guarantees that a non-null pointer identifies a live C++
+            // `Utf16FlyString` for the duration of selector compilation.
+            let identifier_identity = unsafe { interned_name_from_ffi(selector) };
             // SAFETY: The caller guarantees that the levels array is valid.
             let levels = unsafe { copy_ffi_slice(selector.levels, selector.level_count) };
 
@@ -2801,8 +2799,8 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
                 languages,
                 direction,
                 identifier,
+                identifier_identity,
                 levels,
-                cxx_simple_selector: RetainedCxxPointer::new(selector.cxx_simple_selector),
             })
         }
         FfiSimpleSelectorType::PseudoElement => {
@@ -2906,9 +2904,8 @@ struct FfiDomConfiguration {
 /// properly aligned and valid for reads for the duration of this call. Every enum field must
 /// contain a valid discriminant.
 ///
-/// `FfiSelector::cxx_selector` and every `FfiSimpleSelector::cxx_simple_selector` must remain valid
-/// until the returned handle is passed to `rust_selector_destroy`. The returned handle must be
-/// destroyed exactly once.
+/// `FfiSelector::cxx_selector` must remain valid until the returned handle is passed to
+/// `rust_selector_destroy`. The returned handle must be destroyed exactly once.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_create(selector: *const FfiSelector) -> *mut RustSelector {
     abort_on_panic(|| {
@@ -3493,8 +3490,8 @@ mod tests {
             languages: Box::new([]),
             direction: None,
             identifier: None,
+            identifier_identity: None,
             levels: Box::new([]),
-            cxx_simple_selector: RetainedCxxPointer::default(),
         });
         let selector = selector(vec![compound(Combinator::None, vec![class("anchor"), has])]);
         let mut dom = test_tree();
@@ -3535,8 +3532,8 @@ mod tests {
             languages: Box::new([]),
             direction: None,
             identifier: None,
+            identifier_identity: None,
             levels: Box::new([]),
-            cxx_simple_selector: RetainedCxxPointer::default(),
         });
         let selector = selector(vec![compound(Combinator::None, vec![nth_child])]);
         let mut dom = test_tree();
