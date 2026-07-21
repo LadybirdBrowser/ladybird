@@ -115,7 +115,7 @@ public:
         Gfx::FloatPoint delta,
         Gfx::IntRect viewport_rect,
         Web::Compositor::AsyncScrollOperationTracking);
-    AsyncScrollResult smooth_scroll_to(Web::Compositor::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::IntRect viewport_rect);
+    AsyncScrollResult smooth_scroll_to(Web::Compositor::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel);
     void cancel_smooth_scroll(Web::Compositor::AsyncScrollNodeStableID);
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
     bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }

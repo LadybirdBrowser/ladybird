@@ -4640,7 +4640,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
             static_cast<float>(position.y().to_double() * device_pixels_per_css_pixel),
         };
         auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
-        auto enqueue_result = compositor_context().smooth_scroll_to(stable_node_id, target_offset, viewport_rect);
+        auto enqueue_result = compositor_context().smooth_scroll_to(stable_node_id, target_offset, viewport_rect, device_pixels_per_css_pixel);
         if (enqueue_result.accepted) {
             VERIFY(enqueue_result.operation_id.has_value());
             m_pending_async_scroll_operations.append({
@@ -4672,7 +4672,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
     }
     m_main_thread_smooth_scrolls.append({
         .stable_node_id = stable_node_id,
-        .animation = Compositor::SmoothScrollAnimation { initial_scroll_offset->to_type<float>(), position.to_type<float>() },
+        .animation = Compositor::SmoothScrollAnimation { initial_scroll_offset->to_type<float>(), position.to_type<float>(), 1.0 },
         .last_tick = MonotonicTime::now(),
         .elapsed = AK::Duration::zero(),
         .initial_scroll_offset = *initial_scroll_offset,

@@ -19,7 +19,7 @@ public:
         bool complete { false };
     };
 
-    SmoothScrollAnimation(Gfx::FloatPoint start_offset, Gfx::FloatPoint destination_offset);
+    SmoothScrollAnimation(Gfx::FloatPoint start_offset, Gfx::FloatPoint destination_offset, double pixels_per_css_pixel);
 
     AK::Duration duration() const { return m_duration; }
     Sample sample(AK::Duration elapsed) const;

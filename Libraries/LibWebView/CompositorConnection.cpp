@@ -162,12 +162,12 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorConnection::async_scroll_by(
     return response->take_result();
 }
 
-Web::Compositor::AsyncScrollEnqueueResult CompositorConnection::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::IntRect viewport_rect)
+Web::Compositor::AsyncScrollEnqueueResult CompositorConnection::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel)
 {
     if (!can_send_message_to_compositor())
         return {};
 
-    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::SmoothScrollTo>(context_id, stable_node_id, offset, viewport_rect);
+    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::SmoothScrollTo>(context_id, stable_node_id, offset, viewport_rect, device_pixels_per_css_pixel);
     if (!response) {
         did_lose_compositor();
         return {};

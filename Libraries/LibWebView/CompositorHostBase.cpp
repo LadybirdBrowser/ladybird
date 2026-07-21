@@ -257,10 +257,10 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorHostBase::async_scroll_by(We
     return {};
 }
 
-Web::Compositor::AsyncScrollEnqueueResult CompositorHostBase::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::IntRect viewport_rect)
+Web::Compositor::AsyncScrollEnqueueResult CompositorHostBase::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel)
 {
     if (auto* connection = compositor_connection())
-        return connection->smooth_scroll_to(context_id, stable_node_id, offset_in_device_pixels, viewport_rect);
+        return connection->smooth_scroll_to(context_id, stable_node_id, offset_in_device_pixels, viewport_rect, device_pixels_per_css_pixel);
     return {};
 }
 

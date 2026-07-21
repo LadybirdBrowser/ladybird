@@ -14,12 +14,13 @@ namespace Web::Compositor {
 static constexpr double scroll_speed_in_pixels_per_second = 1000.0;
 static constexpr double maximum_scroll_duration_in_seconds = 0.2;
 
-SmoothScrollAnimation::SmoothScrollAnimation(Gfx::FloatPoint start_offset, Gfx::FloatPoint destination_offset)
+SmoothScrollAnimation::SmoothScrollAnimation(Gfx::FloatPoint start_offset, Gfx::FloatPoint destination_offset, double pixels_per_css_pixel)
     : m_start_offset(start_offset)
     , m_destination_offset(destination_offset)
 {
-    auto horizontal_distance = static_cast<double>(destination_offset.x() - start_offset.x());
-    auto vertical_distance = static_cast<double>(destination_offset.y() - start_offset.y());
+    VERIFY(pixels_per_css_pixel > 0);
+    auto horizontal_distance = static_cast<double>(destination_offset.x() - start_offset.x()) / pixels_per_css_pixel;
+    auto vertical_distance = static_cast<double>(destination_offset.y() - start_offset.y()) / pixels_per_css_pixel;
     auto distance = AK::sqrt(horizontal_distance * horizontal_distance + vertical_distance * vertical_distance);
     auto duration_in_seconds = min(distance / scroll_speed_in_pixels_per_second, maximum_scroll_duration_in_seconds);
     m_duration = AK::Duration::from_seconds_f64(duration_in_seconds);
