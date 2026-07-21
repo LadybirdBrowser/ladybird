@@ -477,6 +477,22 @@ static constexpr Array border_group_properties {
     PropertyID::BorderImageWidth,
 };
 
+// The properties feeding the background group's descriptors, in registration
+// order; the color feeds both the resolved color and the retained shell.
+static constexpr Array background_group_properties {
+    PropertyID::BackgroundColor,
+    PropertyID::BackgroundColor,
+    PropertyID::BackgroundImage,
+    PropertyID::BackgroundClip,
+    PropertyID::BackgroundAttachment,
+    PropertyID::BackgroundOrigin,
+    PropertyID::BackgroundPositionX,
+    PropertyID::BackgroundPositionY,
+    PropertyID::BackgroundRepeat,
+    PropertyID::BackgroundSize,
+    PropertyID::BackgroundBlendMode,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -763,6 +779,15 @@ static void register_style_group_field_descriptors()
     add(border, PropertyID::BorderImageRepeat, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(border, PropertyID::BorderImageSlice, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(border, PropertyID::BorderImageWidth, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+
+    using Background = ComputedValues::BackgroundValues;
+    constexpr auto background = to_underlying(StyleGroupIndex::BackgroundValues);
+    add(background, PropertyID::BackgroundColor, offsetof(Background, background_color), GROUP_FIELD_COLOR, 0, nullptr);
+    add(background, PropertyID::BackgroundColor, offsetof(Background, background_color_style_value), GROUP_FIELD_RETAINED_SHELL, 0, nullptr);
+    for (auto property : { PropertyID::BackgroundImage, PropertyID::BackgroundClip, PropertyID::BackgroundAttachment,
+             PropertyID::BackgroundOrigin, PropertyID::BackgroundPositionX, PropertyID::BackgroundPositionY,
+             PropertyID::BackgroundRepeat, PropertyID::BackgroundSize, PropertyID::BackgroundBlendMode })
+        add(background, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -1372,6 +1397,23 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             break;
         }
     }
+    Array<ComputedValuesFFI::FfiGroupValueEntry, background_group_properties.size()> background_group_values;
+    gather_group_values(background_group_properties, background_group_values);
+    for (size_t i = 0; i < background_group_properties.size(); ++i) {
+        if (background_group_properties[i] == PropertyID::BackgroundColor) {
+            background_group_values[i].resolved_color = computed_style.color(PropertyID::BackgroundColor, own_color_resolution_context).value();
+            background_group_values[i].has_resolved_color = true;
+        }
+    }
+    auto* background_payload = ComputedValuesFFI::rust_build_style_group(
+        BackgroundValues::style_group_index,
+        background_group_values.data(),
+        background_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.background.operator->()) : nullptr);
+    bool const background_adopted = background_payload != nullptr;
+    if (background_adopted)
+        computed_values.adopt_background_group(const_cast<void*>(background_payload));
+
     auto* border_payload = ComputedValuesFFI::rust_build_style_group(
         BorderValues::style_group_index,
         border_group_values.data(),
@@ -1470,8 +1512,10 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!box_adopted)
         computed_values.set_vertical_align(computed_style.vertical_align());
 
-    auto background_layers = computed_style.background_layers();
-    computed_values.set_background_layers(move(background_layers));
+    if (!background_adopted) {
+        auto background_layers = computed_style.background_layers();
+        computed_values.set_background_layers(move(background_layers));
+    }
 
     auto mask_layers = computed_style.mask_layers();
     if (!mask_adopted)
@@ -1532,9 +1576,12 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_computed_content(move(computed_content));
     }
 
-    computed_values.set_background_color(computed_style.color(CSS::PropertyID::BackgroundColor, color_resolution_context));
-    computed_values.set_background_color_style_value(computed_style.property(CSS::PropertyID::BackgroundColor));
-    computed_values.set_background_color_clip(computed_style.background_color_clip());
+    if (!background_adopted)
+        computed_values.set_background_color(computed_style.color(CSS::PropertyID::BackgroundColor, color_resolution_context));
+    if (!background_adopted)
+        computed_values.set_background_color_style_value(computed_style.property(CSS::PropertyID::BackgroundColor));
+    if (!background_adopted)
+        computed_values.set_background_color_clip(computed_style.background_color_clip());
 
     if (!box_adopted)
         computed_values.set_box_sizing(computed_style.box_sizing());
