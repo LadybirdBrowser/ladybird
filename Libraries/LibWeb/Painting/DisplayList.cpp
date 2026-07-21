@@ -84,7 +84,8 @@ u32 DisplayList::append_command_range_from(
     DisplayList const& source_display_list,
     DisplayListCommandRange source_range,
     AccumulatedVisualContextTree const& visual_context_tree,
-    VisualContextIndex context_index)
+    VisualContextIndex recorded_context_index,
+    VisualContextIndex current_context_index)
 {
     VERIFY(&source_display_list != this);
     VERIFY(visual_context_tree.version() == m_compatible_visual_context_tree_version);
@@ -98,7 +99,10 @@ u32 DisplayList::append_command_range_from(
         return static_cast<u32>(destination_offset);
 
     m_command_bytes.append(source_display_list.m_command_bytes.data() + source_range.offset, source_range.size);
-    set_command_sequence_visual_context(m_command_bytes.span().slice(destination_offset, source_range.size), context_index);
+    // The copied headers already carry the index the range was recorded under, so they only need rewriting
+    // when the paintable's context was assigned a different index since then.
+    if (recorded_context_index != current_context_index)
+        set_command_sequence_visual_context(m_command_bytes.span().slice(destination_offset, source_range.size), current_context_index);
     return static_cast<u32>(destination_offset);
 }
 

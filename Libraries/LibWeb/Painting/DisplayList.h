@@ -137,7 +137,7 @@ public:
         for_each_command_header(command_bytes(), move(callback));
     }
 
-    u32 append_command_range_from(DisplayList const& source_display_list, DisplayListCommandRange, AccumulatedVisualContextTree const&, VisualContextIndex);
+    u32 append_command_range_from(DisplayList const& source_display_list, DisplayListCommandRange, AccumulatedVisualContextTree const&, VisualContextIndex recorded_context_index, VisualContextIndex current_context_index);
     size_t command_byte_size() const { return m_command_bytes.size(); }
 
 private:

@@ -114,7 +114,7 @@ public:
     DisplayList const& display_list() const { return m_display_list; }
     AccumulatedVisualContextTree const& visual_context_tree() const { return m_visual_context_tree; }
 
-    DisplayListCommandRange append_cached_command_range(DisplayList const& source_display_list, DisplayListCommandRange);
+    DisplayListCommandRange append_cached_command_range(DisplayList const& source_display_list, DisplayListCommandRange, VisualContextIndex recorded_context_index);
 
     class CommandCapture {
         AK_MAKE_NONCOPYABLE(CommandCapture);

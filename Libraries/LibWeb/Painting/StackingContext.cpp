@@ -114,7 +114,7 @@ static void paint_node(Paintable const& paintable, DisplayListRecordingContext& 
         : Optional<Paintable::CachedCommandRange> {};
 
     if (cached_commands.has_value()) {
-        auto destination_range = recorder.append_cached_command_range(*cache_source_display_list, cached_commands->range);
+        auto destination_range = recorder.append_cached_command_range(*cache_source_display_list, cached_commands->range, cached_commands->recorded_context_index);
         if (verify_display_list_cache_enabled()) [[unlikely]]
             verify_spliced_commands_match_fresh_recording(paintable, context, phase, destination_range);
         if (cache_writes_enabled)
