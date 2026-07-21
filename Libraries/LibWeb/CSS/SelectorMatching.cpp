@@ -407,12 +407,6 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
         return element.matches_enabled_pseudo_class();
     case CSS::PseudoClass::EvenLessGoodValue:
         return matches_optimal_value_pseudo_class(element, HTML::HTMLMeterElement::ValueState::EvenLessGood);
-    case CSS::PseudoClass::Focus:
-        return element.is_focused();
-    case CSS::PseudoClass::FocusVisible:
-        return element.is_focused() && element.should_indicate_focus();
-    case CSS::PseudoClass::FocusWithin:
-        return element.matches_focus_within_pseudo_class();
     case CSS::PseudoClass::Fullscreen:
         return element.is_fullscreen_element();
     case CSS::PseudoClass::HighValue:
@@ -607,6 +601,9 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
     case CSS::PseudoClass::Empty:
     case CSS::PseudoClass::FirstChild:
     case CSS::PseudoClass::FirstOfType:
+    case CSS::PseudoClass::Focus:
+    case CSS::PseudoClass::FocusVisible:
+    case CSS::PseudoClass::FocusWithin:
     case CSS::PseudoClass::Has:
     case CSS::PseudoClass::Heading:
     case CSS::PseudoClass::Host:
@@ -719,6 +716,9 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_namespace_is_null);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_html_element_in_html_document);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_document_root);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_link);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_focused);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_should_indicate_focus);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_focus_within);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_local_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_class_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_attribute_count);
@@ -835,6 +835,21 @@ extern "C" bool selector_ffi_element_is_link(void const* element)
     return ffi_element(element).matches_link_pseudo_class();
 }
 
+extern "C" bool selector_ffi_element_is_focused(void const* element)
+{
+    return ffi_element(element).is_focused();
+}
+
+extern "C" bool selector_ffi_element_should_indicate_focus(void const* element)
+{
+    return ffi_element(element).should_indicate_focus();
+}
+
+extern "C" bool selector_ffi_element_has_focus_within(void const* element)
+{
+    return ffi_element(element).matches_focus_within_pseudo_class();
+}
+
 extern "C" CSS::SelectorFFI::DomStringView selector_ffi_element_local_name(void const* element)
 {
     return dom_string_view(ffi_element(element).local_name());
@@ -929,6 +944,9 @@ static bool is_rust_matched_pseudo_class(CSS::PseudoClass pseudo_class)
         CSS::PseudoClass::Empty,
         CSS::PseudoClass::FirstChild,
         CSS::PseudoClass::FirstOfType,
+        CSS::PseudoClass::Focus,
+        CSS::PseudoClass::FocusVisible,
+        CSS::PseudoClass::FocusWithin,
         CSS::PseudoClass::Has,
         CSS::PseudoClass::Host,
         CSS::PseudoClass::Is,

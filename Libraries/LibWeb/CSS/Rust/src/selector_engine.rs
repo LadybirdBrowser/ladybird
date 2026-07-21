@@ -1619,6 +1619,24 @@ impl FfiElement {
         unsafe { selector_ffi_element_is_link(self.pointer) }
     }
 
+    fn is_focused(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_focused(self.pointer) }
+    }
+
+    fn should_indicate_focus(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_should_indicate_focus(self.pointer) }
+    }
+
+    fn has_focus_within(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_has_focus_within(self.pointer) }
+    }
+
     unsafe fn local_name<'a>(self) -> DomStringView<'a> {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns a string view borrowed
@@ -1869,6 +1887,9 @@ unsafe extern "C" {
     fn selector_ffi_element_is_html_element_in_html_document(element: *const c_void) -> bool;
     fn selector_ffi_element_is_document_root(element: *const c_void) -> bool;
     fn selector_ffi_element_is_link(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_focused(element: *const c_void) -> bool;
+    fn selector_ffi_element_should_indicate_focus(element: *const c_void) -> bool;
+    fn selector_ffi_element_has_focus_within(element: *const c_void) -> bool;
     fn selector_ffi_element_local_name(element: *const c_void) -> FfiDomStringView;
     fn selector_ffi_element_class_name(element: *const c_void, index: usize) -> FfiDomStringView;
     fn selector_ffi_element_attribute_count(element: *const c_void) -> usize;
@@ -2322,6 +2343,11 @@ impl<'a> SelectorDom for FfiDom<'a> {
     fn matches_pseudo_class_state(&mut self, element: FfiNode<'a>, pseudo_class: &PseudoClassSelector) -> bool {
         match pseudo_class.pseudo_class {
             PseudoClassType::AnyLink | PseudoClassType::Link => element.as_element().is_link(),
+            PseudoClassType::Focus => element.as_element().is_focused(),
+            PseudoClassType::FocusVisible => {
+                element.as_element().is_focused() && element.as_element().should_indicate_focus()
+            }
+            PseudoClassType::FocusWithin => element.as_element().has_focus_within(),
             PseudoClassType::Autofill => {
                 // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
                 // FIXME: The :autofill and :-webkit-autofill pseudo-classes must match input
