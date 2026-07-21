@@ -306,235 +306,6 @@ static bool matches_open_state_pseudo_class(DOM::Element const& element, bool op
     return false;
 }
 
-static bool matches_optimal_value_pseudo_class(DOM::Element const& element, HTML::HTMLMeterElement::ValueState desired_state)
-{
-    if (auto* meter = as_if<HTML::HTMLMeterElement>(element))
-        return meter->value_state() == desired_state;
-    return false;
-}
-
-static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Element const& element)
-{
-    switch (pseudo_class) {
-    case CSS::PseudoClass::Default: {
-        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-default
-        if (auto const* form_associated_element = as_if<HTML::FormAssociatedElement>(element)) {
-            if (form_associated_element->is_submit_button() && form_associated_element->form() && form_associated_element->form()->default_button() == form_associated_element)
-                return true;
-            if (auto const* input_element = as_if<HTML::HTMLInputElement>(form_associated_element)) {
-                if (input_element->checked_applies() && input_element->has_attribute(HTML::AttributeNames::checked))
-                    return true;
-            }
-            if (auto const* option_element = as_if<HTML::HTMLOptionElement>(form_associated_element)) {
-                if (option_element->has_attribute(HTML::AttributeNames::selected))
-                    return true;
-            }
-        }
-        return false;
-    }
-    case CSS::PseudoClass::EvenLessGoodValue:
-        return matches_optimal_value_pseudo_class(element, HTML::HTMLMeterElement::ValueState::EvenLessGood);
-    case CSS::PseudoClass::HighValue:
-        if (auto const* meter = as_if<HTML::HTMLMeterElement>(element))
-            return meter->value() > meter->high();
-        return false;
-    case CSS::PseudoClass::Hover:
-        return matches_hover_pseudo_class(element);
-    case CSS::PseudoClass::Indeterminate:
-        return matches_indeterminate_pseudo_class(element);
-    case CSS::PseudoClass::Invalid: {
-        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-invalid
-        if (auto form_associated_element = as_if<HTML::FormAssociatedElement>(element)) {
-            if (form_associated_element->is_candidate_for_constraint_validation() && !form_associated_element->satisfies_its_constraints())
-                return true;
-        }
-
-        if (auto form_element = as_if<HTML::HTMLFormElement>(element)) {
-            bool has_invalid_elements = false;
-            element.for_each_in_subtree([&](auto& node) {
-                if (auto form_associated_element = as_if<HTML::FormAssociatedElement>(&node)) {
-                    if (form_associated_element->form() == form_element && form_associated_element->is_candidate_for_constraint_validation() && !form_associated_element->satisfies_its_constraints()) {
-                        has_invalid_elements = true;
-                        return TraversalDecision::Break;
-                    }
-                }
-                return TraversalDecision::Continue;
-            });
-            if (has_invalid_elements)
-                return true;
-        }
-
-        if (is<HTML::HTMLFieldSetElement>(element)) {
-            bool has_invalid_children = false;
-            element.for_each_in_subtree([&](auto& node) {
-                if (auto form_associated_element = as_if<HTML::FormAssociatedElement>(&node)) {
-                    if (form_associated_element->is_candidate_for_constraint_validation() && !form_associated_element->satisfies_its_constraints()) {
-                        has_invalid_children = true;
-                        return TraversalDecision::Break;
-                    }
-                }
-                return TraversalDecision::Continue;
-            });
-            if (has_invalid_children)
-                return true;
-        }
-        return false;
-    }
-    case CSS::PseudoClass::LowValue:
-        if (auto const* meter = as_if<HTML::HTMLMeterElement>(element))
-            return meter->value() < meter->low();
-        return false;
-    case CSS::PseudoClass::Modal:
-        // https://drafts.csswg.org/selectors/#modal-state
-        if (auto const* dialog_element = as_if<HTML::HTMLDialogElement>(element))
-            return dialog_element->is_modal();
-        // FIXME: fullscreen elements are also modal.
-        return false;
-    case CSS::PseudoClass::Open:
-        return matches_open_state_pseudo_class(element, true);
-    case CSS::PseudoClass::OptimalValue:
-        return matches_optimal_value_pseudo_class(element, HTML::HTMLMeterElement::ValueState::Optimal);
-    case CSS::PseudoClass::Optional:
-        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-optional
-        if (auto const* input_element = as_if<HTML::HTMLInputElement>(element)) {
-            if (input_element->required_applies() && !input_element->has_attribute(HTML::AttributeNames::required))
-                return true;
-            // AD-HOC: Chromium and Webkit also match for hidden inputs (and WPT expects this)
-            // See: https://github.com/whatwg/html/issues/11273
-            return input_element->type_state() == HTML::HTMLInputElement::TypeAttributeState::Hidden;
-        }
-        if (auto const* select_element = as_if<HTML::HTMLSelectElement>(element))
-            return !select_element->has_attribute(HTML::AttributeNames::required);
-        if (auto const* textarea_element = as_if<HTML::HTMLTextAreaElement>(element))
-            return !textarea_element->has_attribute(HTML::AttributeNames::required);
-        return false;
-    case CSS::PseudoClass::ReadOnly:
-        return !matches_read_write_pseudo_class(element);
-    case CSS::PseudoClass::ReadWrite:
-        return matches_read_write_pseudo_class(element);
-    case CSS::PseudoClass::Required:
-        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-required
-        if (auto const* input_element = as_if<HTML::HTMLInputElement>(element))
-            return input_element->required_applies() && input_element->has_attribute(HTML::AttributeNames::required);
-        if (auto const* select_element = as_if<HTML::HTMLSelectElement>(element))
-            return select_element->has_attribute(HTML::AttributeNames::required);
-        if (auto const* textarea_element = as_if<HTML::HTMLTextAreaElement>(element))
-            return textarea_element->has_attribute(HTML::AttributeNames::required);
-        return false;
-    case CSS::PseudoClass::SuboptimalValue:
-        return matches_optimal_value_pseudo_class(element, HTML::HTMLMeterElement::ValueState::Suboptimal);
-    case CSS::PseudoClass::UserInvalid:
-    case CSS::PseudoClass::UserValid: {
-        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-user-valid
-        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-user-invalid
-        bool user_validity = false;
-        if (auto const* input_element = as_if<HTML::HTMLInputElement>(element))
-            user_validity = input_element->user_validity();
-        else if (auto const* select_element = as_if<HTML::HTMLSelectElement>(element))
-            user_validity = select_element->user_validity();
-        else if (auto const* text_area_element = as_if<HTML::HTMLTextAreaElement>(element))
-            user_validity = text_area_element->user_validity();
-        if (!user_validity)
-            return false;
-
-        auto const& form_associated_element = as<HTML::FormAssociatedElement>(element);
-        if (!form_associated_element.is_candidate_for_constraint_validation())
-            return false;
-        return pseudo_class == CSS::PseudoClass::UserValid
-            ? form_associated_element.satisfies_its_constraints()
-            : !form_associated_element.satisfies_its_constraints();
-    }
-    case CSS::PseudoClass::Valid: {
-        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-valid
-        if (auto form_associated_element = as_if<HTML::FormAssociatedElement>(element)) {
-            if (form_associated_element->is_candidate_for_constraint_validation() && form_associated_element->satisfies_its_constraints())
-                return true;
-        }
-
-        if (auto form_element = as_if<HTML::HTMLFormElement>(element)) {
-            bool has_invalid_elements = false;
-            element.for_each_in_subtree([&](auto& node) {
-                if (auto form_associated_element = as_if<HTML::FormAssociatedElement>(&node)) {
-                    if (form_associated_element->form() == form_element && form_associated_element->is_candidate_for_constraint_validation() && !form_associated_element->satisfies_its_constraints()) {
-                        has_invalid_elements = true;
-                        return TraversalDecision::Break;
-                    }
-                }
-                return TraversalDecision::Continue;
-            });
-            if (!has_invalid_elements)
-                return true;
-        }
-
-        if (is<HTML::HTMLFieldSetElement>(element)) {
-            bool has_invalid_children = false;
-            element.for_each_in_subtree([&](auto& node) {
-                if (auto form_associated_element = as_if<HTML::FormAssociatedElement>(&node)) {
-                    if (form_associated_element->is_candidate_for_constraint_validation() && !form_associated_element->satisfies_its_constraints()) {
-                        has_invalid_children = true;
-                        return TraversalDecision::Break;
-                    }
-                }
-                return TraversalDecision::Continue;
-            });
-            if (!has_invalid_children)
-                return true;
-        }
-        return false;
-    }
-    case CSS::PseudoClass::Visited:
-    case CSS::PseudoClass::VolumeLocked:
-    case CSS::PseudoClass::__Count:
-    case CSS::PseudoClass::Active:
-    case CSS::PseudoClass::AnyLink:
-    case CSS::PseudoClass::Autofill:
-    case CSS::PseudoClass::Buffering:
-    case CSS::PseudoClass::Checked:
-    case CSS::PseudoClass::Defined:
-    case CSS::PseudoClass::Dir:
-    case CSS::PseudoClass::Disabled:
-    case CSS::PseudoClass::Empty:
-    case CSS::PseudoClass::Enabled:
-    case CSS::PseudoClass::FirstChild:
-    case CSS::PseudoClass::FirstOfType:
-    case CSS::PseudoClass::Focus:
-    case CSS::PseudoClass::FocusVisible:
-    case CSS::PseudoClass::FocusWithin:
-    case CSS::PseudoClass::Fullscreen:
-    case CSS::PseudoClass::Has:
-    case CSS::PseudoClass::Heading:
-    case CSS::PseudoClass::Host:
-    case CSS::PseudoClass::Is:
-    case CSS::PseudoClass::Lang:
-    case CSS::PseudoClass::LastChild:
-    case CSS::PseudoClass::LastOfType:
-    case CSS::PseudoClass::Link:
-    case CSS::PseudoClass::LocalLink:
-    case CSS::PseudoClass::Muted:
-    case CSS::PseudoClass::Not:
-    case CSS::PseudoClass::NthChild:
-    case CSS::PseudoClass::NthLastChild:
-    case CSS::PseudoClass::NthLastOfType:
-    case CSS::PseudoClass::NthOfType:
-    case CSS::PseudoClass::OnlyChild:
-    case CSS::PseudoClass::OnlyOfType:
-    case CSS::PseudoClass::Paused:
-    case CSS::PseudoClass::PlaceholderShown:
-    case CSS::PseudoClass::PopoverOpen:
-    case CSS::PseudoClass::Playing:
-    case CSS::PseudoClass::Root:
-    case CSS::PseudoClass::Scope:
-    case CSS::PseudoClass::Seeking:
-    case CSS::PseudoClass::State:
-    case CSS::PseudoClass::Stalled:
-    case CSS::PseudoClass::Target:
-    case CSS::PseudoClass::Unchecked:
-    case CSS::PseudoClass::Where:
-        VERIFY_NOT_REACHED();
-    }
-    VERIFY_NOT_REACHED();
-}
-
 static CSS::SelectorFFI::Element element_to_ffi(DOM::Element const* element)
 {
     if (!element)
@@ -642,13 +413,24 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_media_is_muted);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_media_is_paused);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_media_is_seeking);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_media_is_stalled);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_default);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_meter_value_state);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_meter_value_is_high);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_meter_value_is_low);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_hovered);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_indeterminate);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_validity_state);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_modal);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_open);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_required_state);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_read_write);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_user_validity_state);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_local_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_class_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_attribute_count);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_attribute);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_default_namespace);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_resolve_namespace);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_pseudo_class);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_parent_element);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_parent_element_in_light_tree);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_previous_element_sibling);
@@ -899,6 +681,160 @@ extern "C" bool selector_ffi_element_media_is_stalled(void const* element)
     return media_element && media_element->stalled();
 }
 
+// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-default
+extern "C" bool selector_ffi_element_is_default(void const* element)
+{
+    auto const& target = ffi_element(element);
+    auto const* form_associated_element = as_if<HTML::FormAssociatedElement>(target);
+    if (!form_associated_element)
+        return false;
+    if (form_associated_element->is_submit_button() && form_associated_element->form() && form_associated_element->form()->default_button() == form_associated_element)
+        return true;
+    if (auto const* input_element = as_if<HTML::HTMLInputElement>(form_associated_element))
+        return input_element->checked_applies() && input_element->has_attribute(HTML::AttributeNames::checked);
+    if (auto const* option_element = as_if<HTML::HTMLOptionElement>(form_associated_element))
+        return option_element->has_attribute(HTML::AttributeNames::selected);
+    return false;
+}
+
+extern "C" CSS::SelectorFFI::FfiMeterValueState selector_ffi_element_meter_value_state(void const* element)
+{
+    auto const* meter = as_if<HTML::HTMLMeterElement>(ffi_element(element));
+    if (!meter)
+        return CSS::SelectorFFI::FfiMeterValueState::NotMeter;
+    switch (meter->value_state()) {
+    case HTML::HTMLMeterElement::ValueState::EvenLessGood:
+        return CSS::SelectorFFI::FfiMeterValueState::EvenLessGood;
+    case HTML::HTMLMeterElement::ValueState::Suboptimal:
+        return CSS::SelectorFFI::FfiMeterValueState::Suboptimal;
+    case HTML::HTMLMeterElement::ValueState::Optimal:
+        return CSS::SelectorFFI::FfiMeterValueState::Optimal;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+extern "C" bool selector_ffi_element_meter_value_is_high(void const* element)
+{
+    auto const* meter = as_if<HTML::HTMLMeterElement>(ffi_element(element));
+    return meter && meter->value() > meter->high();
+}
+
+extern "C" bool selector_ffi_element_meter_value_is_low(void const* element)
+{
+    auto const* meter = as_if<HTML::HTMLMeterElement>(ffi_element(element));
+    return meter && meter->value() < meter->low();
+}
+
+extern "C" bool selector_ffi_element_is_hovered(void const* element)
+{
+    return matches_hover_pseudo_class(ffi_element(element));
+}
+
+extern "C" bool selector_ffi_element_is_indeterminate(void const* element)
+{
+    return matches_indeterminate_pseudo_class(ffi_element(element));
+}
+
+// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-invalid
+// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-valid
+extern "C" CSS::SelectorFFI::FfiValidityState selector_ffi_element_validity_state(void const* element)
+{
+    auto const& target = ffi_element(element);
+    if (auto const* form_associated_element = as_if<HTML::FormAssociatedElement>(target)) {
+        if (form_associated_element->is_candidate_for_constraint_validation()) {
+            return form_associated_element->satisfies_its_constraints()
+                ? CSS::SelectorFFI::FfiValidityState::Valid
+                : CSS::SelectorFFI::FfiValidityState::Invalid;
+        }
+    }
+
+    auto const* form_element = as_if<HTML::HTMLFormElement>(target);
+    if (!form_element && !is<HTML::HTMLFieldSetElement>(target))
+        return CSS::SelectorFFI::FfiValidityState::NotApplicable;
+
+    bool has_invalid_elements = false;
+    target.for_each_in_subtree([&](auto& node) {
+        auto const* form_associated_element = as_if<HTML::FormAssociatedElement>(&node);
+        if (!form_associated_element)
+            return TraversalDecision::Continue;
+        if (form_element && form_associated_element->form() != form_element)
+            return TraversalDecision::Continue;
+        if (form_associated_element->is_candidate_for_constraint_validation() && !form_associated_element->satisfies_its_constraints()) {
+            has_invalid_elements = true;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
+    return has_invalid_elements
+        ? CSS::SelectorFFI::FfiValidityState::Invalid
+        : CSS::SelectorFFI::FfiValidityState::Valid;
+}
+
+// https://drafts.csswg.org/selectors/#modal-state
+extern "C" bool selector_ffi_element_is_modal(void const* element)
+{
+    auto const* dialog_element = as_if<HTML::HTMLDialogElement>(ffi_element(element));
+    // FIXME: Fullscreen elements are also modal.
+    return dialog_element && dialog_element->is_modal();
+}
+
+extern "C" bool selector_ffi_element_is_open(void const* element)
+{
+    return matches_open_state_pseudo_class(ffi_element(element), true);
+}
+
+// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-optional
+// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-required
+extern "C" CSS::SelectorFFI::FfiRequiredState selector_ffi_element_required_state(void const* element)
+{
+    auto const& target = ffi_element(element);
+    if (auto const* input_element = as_if<HTML::HTMLInputElement>(target)) {
+        if (input_element->required_applies())
+            return input_element->has_attribute(HTML::AttributeNames::required)
+                ? CSS::SelectorFFI::FfiRequiredState::Required
+                : CSS::SelectorFFI::FfiRequiredState::Optional;
+        // AD-HOC: Chromium and WebKit also match :optional for hidden inputs.
+        return input_element->type_state() == HTML::HTMLInputElement::TypeAttributeState::Hidden
+            ? CSS::SelectorFFI::FfiRequiredState::Optional
+            : CSS::SelectorFFI::FfiRequiredState::NotApplicable;
+    }
+    if (is<HTML::HTMLSelectElement>(target) || is<HTML::HTMLTextAreaElement>(target))
+        return target.has_attribute(HTML::AttributeNames::required)
+            ? CSS::SelectorFFI::FfiRequiredState::Required
+            : CSS::SelectorFFI::FfiRequiredState::Optional;
+    return CSS::SelectorFFI::FfiRequiredState::NotApplicable;
+}
+
+extern "C" bool selector_ffi_element_is_read_write(void const* element)
+{
+    return matches_read_write_pseudo_class(ffi_element(element));
+}
+
+// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-user-valid
+// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-user-invalid
+extern "C" CSS::SelectorFFI::FfiValidityState selector_ffi_element_user_validity_state(void const* element)
+{
+    auto const& target = ffi_element(element);
+    bool user_validity = false;
+    if (auto const* input_element = as_if<HTML::HTMLInputElement>(target))
+        user_validity = input_element->user_validity();
+    else if (auto const* select_element = as_if<HTML::HTMLSelectElement>(target))
+        user_validity = select_element->user_validity();
+    else if (auto const* text_area_element = as_if<HTML::HTMLTextAreaElement>(target))
+        user_validity = text_area_element->user_validity();
+    else
+        return CSS::SelectorFFI::FfiValidityState::NotApplicable;
+    if (!user_validity)
+        return CSS::SelectorFFI::FfiValidityState::NotApplicable;
+
+    auto const& form_associated_element = as<HTML::FormAssociatedElement>(target);
+    if (!form_associated_element.is_candidate_for_constraint_validation())
+        return CSS::SelectorFFI::FfiValidityState::NotApplicable;
+    return form_associated_element.satisfies_its_constraints()
+        ? CSS::SelectorFFI::FfiValidityState::Valid
+        : CSS::SelectorFFI::FfiValidityState::Invalid;
+}
+
 extern "C" CSS::SelectorFFI::DomStringView selector_ffi_element_local_name(void const* element)
 {
     return dom_string_view(ffi_element(element).local_name());
@@ -982,67 +918,6 @@ extern "C" CSS::SelectorFFI::ResolvedNamespace selector_ffi_resolve_namespace(vo
         .namespace_type = CSS::SelectorFFI::ResolvedNamespaceType::Named,
         .namespace_ = interned_string_identity(*namespace_),
     };
-}
-
-static bool is_rust_matched_pseudo_class(CSS::PseudoClass pseudo_class)
-{
-    return first_is_one_of(
-        pseudo_class,
-        CSS::PseudoClass::Active,
-        CSS::PseudoClass::AnyLink,
-        CSS::PseudoClass::Autofill,
-        CSS::PseudoClass::Buffering,
-        CSS::PseudoClass::Checked,
-        CSS::PseudoClass::Defined,
-        CSS::PseudoClass::Disabled,
-        CSS::PseudoClass::Empty,
-        CSS::PseudoClass::Enabled,
-        CSS::PseudoClass::FirstChild,
-        CSS::PseudoClass::FirstOfType,
-        CSS::PseudoClass::Focus,
-        CSS::PseudoClass::FocusVisible,
-        CSS::PseudoClass::FocusWithin,
-        CSS::PseudoClass::Fullscreen,
-        CSS::PseudoClass::Has,
-        CSS::PseudoClass::Host,
-        CSS::PseudoClass::Is,
-        CSS::PseudoClass::LastChild,
-        CSS::PseudoClass::LastOfType,
-        CSS::PseudoClass::Link,
-        CSS::PseudoClass::LocalLink,
-        CSS::PseudoClass::Muted,
-        CSS::PseudoClass::Not,
-        CSS::PseudoClass::NthChild,
-        CSS::PseudoClass::NthLastChild,
-        CSS::PseudoClass::NthLastOfType,
-        CSS::PseudoClass::NthOfType,
-        CSS::PseudoClass::OnlyChild,
-        CSS::PseudoClass::OnlyOfType,
-        CSS::PseudoClass::Paused,
-        CSS::PseudoClass::PlaceholderShown,
-        CSS::PseudoClass::PopoverOpen,
-        CSS::PseudoClass::Playing,
-        CSS::PseudoClass::Root,
-        CSS::PseudoClass::Scope,
-        CSS::PseudoClass::Seeking,
-        CSS::PseudoClass::Where,
-        CSS::PseudoClass::Dir,
-        CSS::PseudoClass::Heading,
-        CSS::PseudoClass::Lang,
-        CSS::PseudoClass::State,
-        CSS::PseudoClass::Stalled,
-        CSS::PseudoClass::Target,
-        CSS::PseudoClass::Unchecked,
-        CSS::PseudoClass::Visited,
-        CSS::PseudoClass::VolumeLocked);
-}
-
-extern "C" bool selector_ffi_matches_pseudo_class(void const* element, u8 pseudo_class_value)
-{
-    auto pseudo_class = static_cast<CSS::PseudoClass>(pseudo_class_value);
-    VERIFY(pseudo_class < CSS::PseudoClass::__Count);
-    VERIFY(!is_rust_matched_pseudo_class(pseudo_class));
-    return matches_pseudo_class_state(pseudo_class, ffi_element(element));
 }
 
 extern "C" CSS::SelectorFFI::Element selector_ffi_parent_element(void const* element, void const* shadow_host)

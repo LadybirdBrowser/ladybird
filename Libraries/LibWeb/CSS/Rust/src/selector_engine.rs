@@ -1479,6 +1479,37 @@ pub enum FfiDirection {
     Other,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+// NB: Constructed by C++ through the FFI.
+#[allow(dead_code)]
+pub enum FfiMeterValueState {
+    NotMeter,
+    EvenLessGood,
+    Suboptimal,
+    Optimal,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+// NB: Constructed by C++ through the FFI.
+#[allow(dead_code)]
+pub enum FfiRequiredState {
+    NotApplicable,
+    Optional,
+    Required,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+// NB: Constructed by C++ through the FFI.
+#[allow(dead_code)]
+pub enum FfiValidityState {
+    NotApplicable,
+    Invalid,
+    Valid,
+}
+
 #[derive(Clone, Copy)]
 #[repr(u8)]
 // NB: Constructed by C++ through the FFI.
@@ -1780,6 +1811,78 @@ impl FfiElement {
         unsafe { selector_ffi_element_media_is_stalled(self.pointer) }
     }
 
+    fn is_default(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_default(self.pointer) }
+    }
+
+    fn meter_value_state(self) -> FfiMeterValueState {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_meter_value_state(self.pointer) }
+    }
+
+    fn meter_value_is_high(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_meter_value_is_high(self.pointer) }
+    }
+
+    fn meter_value_is_low(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_meter_value_is_low(self.pointer) }
+    }
+
+    fn is_hovered(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_hovered(self.pointer) }
+    }
+
+    fn is_indeterminate(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_indeterminate(self.pointer) }
+    }
+
+    fn validity_state(self) -> FfiValidityState {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_validity_state(self.pointer) }
+    }
+
+    fn is_modal(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_modal(self.pointer) }
+    }
+
+    fn is_open(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_open(self.pointer) }
+    }
+
+    fn required_state(self) -> FfiRequiredState {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_required_state(self.pointer) }
+    }
+
+    fn is_read_write(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_read_write(self.pointer) }
+    }
+
+    fn user_validity_state(self) -> FfiValidityState {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_user_validity_state(self.pointer) }
+    }
+
     unsafe fn local_name<'a>(self) -> DomStringView<'a> {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns a string view borrowed
@@ -2061,6 +2164,18 @@ unsafe extern "C" {
     fn selector_ffi_element_media_is_paused(element: *const c_void) -> bool;
     fn selector_ffi_element_media_is_seeking(element: *const c_void) -> bool;
     fn selector_ffi_element_media_is_stalled(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_default(element: *const c_void) -> bool;
+    fn selector_ffi_element_meter_value_state(element: *const c_void) -> FfiMeterValueState;
+    fn selector_ffi_element_meter_value_is_high(element: *const c_void) -> bool;
+    fn selector_ffi_element_meter_value_is_low(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_hovered(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_indeterminate(element: *const c_void) -> bool;
+    fn selector_ffi_element_validity_state(element: *const c_void) -> FfiValidityState;
+    fn selector_ffi_element_is_modal(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_open(element: *const c_void) -> bool;
+    fn selector_ffi_element_required_state(element: *const c_void) -> FfiRequiredState;
+    fn selector_ffi_element_is_read_write(element: *const c_void) -> bool;
+    fn selector_ffi_element_user_validity_state(element: *const c_void) -> FfiValidityState;
     fn selector_ffi_element_local_name(element: *const c_void) -> FfiDomStringView;
     fn selector_ffi_element_class_name(element: *const c_void, index: usize) -> FfiDomStringView;
     fn selector_ffi_element_attribute_count(element: *const c_void) -> usize;
@@ -2069,7 +2184,6 @@ unsafe extern "C" {
     fn selector_ffi_default_namespace(context: *mut c_void) -> FfiResolvedNamespace;
     fn selector_ffi_resolve_namespace(context: *mut c_void, prefix: FfiStringView) -> FfiResolvedNamespace;
 
-    fn selector_ffi_matches_pseudo_class(element: *const c_void, pseudo_class: u8) -> bool;
     fn selector_ffi_parent_element(element: *const c_void, shadow_host: *const c_void) -> FfiElement;
     fn selector_ffi_parent_element_in_light_tree(element: *const c_void) -> FfiElement;
     fn selector_ffi_previous_element_sibling(element: *const c_void) -> FfiElement;
@@ -2684,6 +2798,28 @@ impl<'a> SelectorDom for FfiDom<'a> {
             }
             PseudoClassType::Seeking => element.as_element().media_is_seeking(),
             PseudoClassType::Stalled => element.as_element().media_is_stalled(),
+            PseudoClassType::Default => element.as_element().is_default(),
+            PseudoClassType::EvenLessGoodValue => {
+                element.as_element().meter_value_state() == FfiMeterValueState::EvenLessGood
+            }
+            PseudoClassType::HighValue => element.as_element().meter_value_is_high(),
+            PseudoClassType::Hover => element.as_element().is_hovered(),
+            PseudoClassType::Indeterminate => element.as_element().is_indeterminate(),
+            PseudoClassType::Invalid => element.as_element().validity_state() == FfiValidityState::Invalid,
+            PseudoClassType::LowValue => element.as_element().meter_value_is_low(),
+            PseudoClassType::Modal => element.as_element().is_modal(),
+            PseudoClassType::Open => element.as_element().is_open(),
+            PseudoClassType::OptimalValue => element.as_element().meter_value_state() == FfiMeterValueState::Optimal,
+            PseudoClassType::Optional => element.as_element().required_state() == FfiRequiredState::Optional,
+            PseudoClassType::ReadOnly => !element.as_element().is_read_write(),
+            PseudoClassType::ReadWrite => element.as_element().is_read_write(),
+            PseudoClassType::Required => element.as_element().required_state() == FfiRequiredState::Required,
+            PseudoClassType::SuboptimalValue => {
+                element.as_element().meter_value_state() == FfiMeterValueState::Suboptimal
+            }
+            PseudoClassType::UserInvalid => element.as_element().user_validity_state() == FfiValidityState::Invalid,
+            PseudoClassType::UserValid => element.as_element().user_validity_state() == FfiValidityState::Valid,
+            PseudoClassType::Valid => element.as_element().validity_state() == FfiValidityState::Valid,
             PseudoClassType::Fullscreen => element.as_element().is_fullscreen(),
             PseudoClassType::Focus => element.as_element().is_focused(),
             PseudoClassType::FocusVisible => {
@@ -2729,13 +2865,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
             PseudoClassType::PopoverOpen => {
                 element.as_element().has_popover_attribute() && element.as_element().popover_is_showing()
             }
-            _ => {
-                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
-                // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
-                unsafe {
-                    selector_ffi_matches_pseudo_class(element.as_element_pointer(), pseudo_class.pseudo_class as u8)
-                }
-            }
+            _ => unreachable!("structural pseudo-class reached state matching"),
         }
     }
 
