@@ -349,7 +349,6 @@ struct LayoutState {
         }
 
         Layout::NodeWithStyle const* m_node { nullptr };
-        Optional<CSSPixelPoint> m_cumulative_offset;
 
         CSSPixels m_content_inline_size { 0 };
         CSSPixels m_content_block_size { 0 };
@@ -396,10 +395,6 @@ struct LayoutState {
     UsedValues* try_get_mutable(NodeWithStyle const&);
     UsedValues const* try_get(Node const&) const;
     UsedValues* try_get_mutable(Node const&);
-
-    // Offset from ICB (viewport) content edge to this box's content edge.
-    // For pre-populated nodes (partial relayout), returns the cached value from paintable absolute position.
-    [[nodiscard]] CSSPixelPoint cumulative_offset(UsedValues const&) const;
 
     bool has_subtree_root() const { return m_subtree_root != nullptr; }
 

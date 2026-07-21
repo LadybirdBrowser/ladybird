@@ -153,15 +153,6 @@ LayoutState::UsedValues* LayoutState::try_get_mutable(Node const& node)
     return try_get_mutable(*node_with_style);
 }
 
-CSSPixelPoint LayoutState::cumulative_offset(UsedValues const& used_values) const
-{
-    if (used_values.m_cumulative_offset.has_value())
-        return *used_values.m_cumulative_offset;
-    if (auto const* containing_block = used_values.node().containing_block())
-        return cumulative_offset(get(*containing_block)) + used_values.content_offset();
-    return used_values.content_offset();
-}
-
 struct InlineAncestorChainRelativeOffset {
     CSSPixelPoint offset;
     bool found_fragmented_inline_node { false };
@@ -482,7 +473,6 @@ LayoutState::UsedValues& LayoutState::UsedValues::operator=(UsedValues const& ot
     containing_line_box_fragment = other.containing_line_box_fragment;
 
     m_node = other.m_node;
-    m_cumulative_offset = other.m_cumulative_offset;
     m_content_inline_size = other.m_content_inline_size;
     m_content_block_size = other.m_content_block_size;
     m_has_definite_inline_size = other.m_has_definite_inline_size;
@@ -634,7 +624,6 @@ void LayoutState::UsedValues::materialize_from_paintable(Painting::Paintable con
     m_has_definite_block_size = true;
 
     m_content_offset = paintable.offset();
-    m_cumulative_offset = paintable.absolute_rect().location();
 
     margin_left = box_model.margin.left;
     margin_right = box_model.margin.right;
