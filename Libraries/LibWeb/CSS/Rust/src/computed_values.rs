@@ -244,6 +244,18 @@ pub const GROUP_FIELD_RESOLVED_F32: u8 = 8;
 /// A constraint: the value must be a pixel length equal to `required_px`;
 /// nothing is written.
 pub const GROUP_FIELD_REQUIRE_PX: u8 = 9;
+/// A color like GROUP_FIELD_COLOR, except that the descriptor's keyword
+/// leaves the constructor's initial value standing, for fields like
+/// outline-color whose auto keyword is not a resolvable color.
+pub const GROUP_FIELD_COLOR_OR_KEYWORD: u8 = 10;
+/// A constraint: the value must be the property's initial value, compared by
+/// data pointer identity, which holds exactly for untouched properties since
+/// the driver selects the initial table's entries directly.
+pub const GROUP_FIELD_REQUIRE_INITIAL_VALUE: u8 = 11;
+/// A pixel length stored as raw CSSPixels, clamped at zero.
+pub const GROUP_FIELD_CSS_PIXELS_NON_NEGATIVE: u8 = 12;
+/// A number stored as f64, resolved by the C++ gather loop.
+pub const GROUP_FIELD_RESOLVED_F64: u8 = 13;
 
 /// One gathered value for the generic group builder: the computed value's
 /// shell and data, plus the resolved raw color for color-kind fields.
@@ -409,6 +421,38 @@ pub unsafe extern "C" fn rust_build_style_group(
                     if *unit != crate::style_compute::px_length_unit() || *value != descriptor.required_px {
                         return None;
                     }
+                }
+                GROUP_FIELD_COLOR_OR_KEYWORD => match data {
+                    StyleValueData::Keyword { keyword } if *keyword == descriptor.keyword => {}
+                    _ => {
+                        if !value.has_resolved_color {
+                            return None;
+                        }
+                        pokes.push(Poke::U32(descriptor.offset, value.resolved_color));
+                    }
+                },
+                GROUP_FIELD_REQUIRE_INITIAL_VALUE => {
+                    if value.data != crate::style_compute::initial_value(descriptor.property_id).data {
+                        return None;
+                    }
+                }
+                GROUP_FIELD_CSS_PIXELS_NON_NEGATIVE => {
+                    let StyleValueData::Length { value, unit } = data else {
+                        return None;
+                    };
+                    if *unit != crate::style_compute::px_length_unit() {
+                        return None;
+                    }
+                    pokes.push(Poke::I32(
+                        descriptor.offset,
+                        crate::css_pixels::CssPixels::nearest_value_for(value.max(0.0)).raw_value(),
+                    ));
+                }
+                GROUP_FIELD_RESOLVED_F64 => {
+                    if !value.has_resolved_number {
+                        return None;
+                    }
+                    pokes.push(Poke::F64(descriptor.offset, value.resolved_number));
                 }
                 _ => return None,
             }

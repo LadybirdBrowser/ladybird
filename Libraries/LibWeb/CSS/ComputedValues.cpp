@@ -125,6 +125,72 @@ static constexpr Array effects_group_properties {
     PropertyID::Clip,
 };
 
+// The appearance keyword mapping with the compatibility keywords excluded:
+// they normalize to auto for the appearance field but stay raw for
+// computed_appearance, so their pages take the C++ population path.
+static Optional<Appearance> appearance_without_compat_from_keyword(Keyword keyword)
+{
+    auto appearance = keyword_to_appearance(keyword);
+    if (!appearance.has_value())
+        return {};
+    switch (*appearance) {
+    case Appearance::Searchfield:
+    case Appearance::Textarea:
+    case Appearance::PushButton:
+    case Appearance::SliderHorizontal:
+    case Appearance::Checkbox:
+    case Appearance::Radio:
+    case Appearance::SquareButton:
+    case Appearance::Menulist:
+    case Appearance::Listbox:
+    case Appearance::Meter:
+    case Appearance::ProgressBar:
+    case Appearance::Button:
+        return {};
+    default:
+        return appearance;
+    }
+}
+
+// The properties feeding the misc reset group's descriptors, in registration
+// order; Appearance appears twice, once per derived field.
+static constexpr Array misc_reset_group_properties {
+    PropertyID::ScrollMarginTop,
+    PropertyID::ScrollMarginRight,
+    PropertyID::ScrollMarginBottom,
+    PropertyID::ScrollMarginLeft,
+    PropertyID::ScrollPaddingTop,
+    PropertyID::ScrollPaddingRight,
+    PropertyID::ScrollPaddingBottom,
+    PropertyID::ScrollPaddingLeft,
+    PropertyID::OverflowClipMarginTop,
+    PropertyID::OverflowClipMarginRight,
+    PropertyID::OverflowClipMarginBottom,
+    PropertyID::OverflowClipMarginLeft,
+    PropertyID::ColumnSpan,
+    PropertyID::Appearance,
+    PropertyID::Appearance,
+    PropertyID::OutlineStyle,
+    PropertyID::ObjectFit,
+    PropertyID::ColumnCount,
+    PropertyID::ColumnWidth,
+    PropertyID::ColumnHeight,
+    PropertyID::OutlineColor,
+    PropertyID::OutlineOffset,
+    PropertyID::OutlineWidth,
+    PropertyID::TableLayout,
+    PropertyID::UserSelect,
+    PropertyID::ObjectPosition,
+    PropertyID::ViewTransitionName,
+    PropertyID::TouchAction,
+    PropertyID::ScrollBehavior,
+    PropertyID::ScrollbarGutter,
+    PropertyID::ScrollbarWidth,
+    PropertyID::ShapeImageThreshold,
+    PropertyID::ShapeMargin,
+    PropertyID::ShapeOutside,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -183,6 +249,37 @@ static void register_style_group_field_descriptors()
     add(effects, PropertyID::Isolation, offsetof(Effects, isolation), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_isolation>());
     add(effects, PropertyID::BoxShadow, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
     add(effects, PropertyID::Clip, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+
+    using MiscReset = ComputedValues::MiscResetValues;
+    constexpr auto misc_reset = to_underlying(StyleGroupIndex::MiscResetValues);
+    for (auto property : { PropertyID::ScrollMarginTop, PropertyID::ScrollMarginRight, PropertyID::ScrollMarginBottom, PropertyID::ScrollMarginLeft })
+        add(misc_reset, property, 0, GROUP_FIELD_REQUIRE_PX, 0, nullptr, 0);
+    for (auto property : { PropertyID::ScrollPaddingTop, PropertyID::ScrollPaddingRight, PropertyID::ScrollPaddingBottom, PropertyID::ScrollPaddingLeft })
+        add(misc_reset, property, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    for (auto property : { PropertyID::OverflowClipMarginTop, PropertyID::OverflowClipMarginRight, PropertyID::OverflowClipMarginBottom, PropertyID::OverflowClipMarginLeft })
+        add(misc_reset, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(misc_reset, PropertyID::ColumnSpan, offsetof(MiscReset, column_span), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_column_span>());
+    add(misc_reset, PropertyID::Appearance, offsetof(MiscReset, appearance), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<appearance_without_compat_from_keyword>());
+    add(misc_reset, PropertyID::Appearance, offsetof(MiscReset, computed_appearance), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_appearance>());
+    add(misc_reset, PropertyID::OutlineStyle, offsetof(MiscReset, outline_style), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_outline_style>());
+    add(misc_reset, PropertyID::ObjectFit, offsetof(MiscReset, object_fit), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_object_fit>());
+    add(misc_reset, PropertyID::ColumnCount, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(misc_reset, PropertyID::ColumnWidth, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(misc_reset, PropertyID::ColumnHeight, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(misc_reset, PropertyID::OutlineColor, offsetof(MiscReset, outline_color), GROUP_FIELD_COLOR_OR_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(misc_reset, PropertyID::OutlineOffset, 0, GROUP_FIELD_REQUIRE_PX, 0, nullptr, 0);
+    add(misc_reset, PropertyID::OutlineWidth, offsetof(MiscReset, outline_width), GROUP_FIELD_CSS_PIXELS_NON_NEGATIVE, 0, nullptr);
+    add(misc_reset, PropertyID::TableLayout, offsetof(MiscReset, table_layout), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_table_layout>());
+    add(misc_reset, PropertyID::UserSelect, offsetof(MiscReset, user_select), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_user_select>());
+    add(misc_reset, PropertyID::ObjectPosition, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(misc_reset, PropertyID::ViewTransitionName, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(misc_reset, PropertyID::TouchAction, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(misc_reset, PropertyID::ScrollBehavior, offsetof(MiscReset, scroll_behavior), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_scroll_behavior>());
+    add(misc_reset, PropertyID::ScrollbarGutter, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(misc_reset, PropertyID::ScrollbarWidth, offsetof(MiscReset, scrollbar_width), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_scrollbar_width>());
+    add(misc_reset, PropertyID::ShapeImageThreshold, offsetof(MiscReset, shape_image_threshold), GROUP_FIELD_RESOLVED_F64, 0, nullptr);
+    add(misc_reset, PropertyID::ShapeMargin, 0, GROUP_FIELD_REQUIRE_PX, 0, nullptr, 0);
+    add(misc_reset, PropertyID::ShapeOutside, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -594,6 +691,30 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (text_reset_adopted)
         computed_values.adopt_text_reset_group(const_cast<void*>(text_reset_payload));
 
+    Array<ComputedValuesFFI::FfiGroupValueEntry, misc_reset_group_properties.size()> misc_reset_group_values;
+    gather_group_values(misc_reset_group_properties, misc_reset_group_values);
+    for (size_t i = 0; i < misc_reset_group_properties.size(); ++i) {
+        if (misc_reset_group_properties[i] == PropertyID::OutlineColor) {
+            if (auto const& outline_color = computed_style.property(PropertyID::OutlineColor); outline_color.has_color()) {
+                if (auto resolved = outline_color.to_color(color_resolution_context); resolved.has_value()) {
+                    misc_reset_group_values[i].resolved_color = resolved->value();
+                    misc_reset_group_values[i].has_resolved_color = true;
+                }
+            }
+        } else if (misc_reset_group_properties[i] == PropertyID::ShapeImageThreshold) {
+            misc_reset_group_values[i].resolved_number = computed_style.property(PropertyID::ShapeImageThreshold).as_opacity_value().resolved();
+            misc_reset_group_values[i].has_resolved_number = true;
+        }
+    }
+    auto* misc_reset_payload = ComputedValuesFFI::rust_build_style_group(
+        MiscResetValues::style_group_index,
+        misc_reset_group_values.data(),
+        misc_reset_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.misc.operator->()) : nullptr);
+    bool const misc_reset_adopted = misc_reset_payload != nullptr;
+    if (misc_reset_adopted)
+        computed_values.adopt_misc_reset_group(const_cast<void*>(misc_reset_payload));
+
     auto const& accent_color_value = computed_style.property(CSS::PropertyID::AccentColor);
     CSS::ColorOrAuto accent_color;
     accent_color.used_value = computed_style.accent_color(color_resolution_context);
@@ -725,8 +846,10 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!alignment_adopted)
         computed_values.set_align_self(computed_style.align_self());
 
-    computed_values.set_appearance(computed_style.appearance());
-    computed_values.set_computed_appearance(keyword_to_appearance(computed_style.property(PropertyID::Appearance).to_keyword()).release_value());
+    if (!misc_reset_adopted)
+        computed_values.set_appearance(computed_style.appearance());
+    if (!misc_reset_adopted)
+        computed_values.set_computed_appearance(keyword_to_appearance(computed_style.property(PropertyID::Appearance).to_keyword()).release_value());
 
     computed_values.set_position(computed_style.position());
 
@@ -1055,9 +1178,11 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     }
     computed_values.set_margin(computed_style.length_box(CSS::PropertyID::MarginLeft, CSS::PropertyID::MarginTop, CSS::PropertyID::MarginRight, CSS::PropertyID::MarginBottom, CSS::Length::make_px(0)));
     computed_values.set_padding(computed_style.length_box(CSS::PropertyID::PaddingLeft, CSS::PropertyID::PaddingTop, CSS::PropertyID::PaddingRight, CSS::PropertyID::PaddingBottom, CSS::Length::make_px(0)));
-    computed_values.set_scroll_margin(computed_style.length_box(CSS::PropertyID::ScrollMarginLeft, CSS::PropertyID::ScrollMarginTop, CSS::PropertyID::ScrollMarginRight, CSS::PropertyID::ScrollMarginBottom, CSS::Length::make_px(0)));
-    computed_values.set_scroll_padding(computed_style.length_box(CSS::PropertyID::ScrollPaddingLeft, CSS::PropertyID::ScrollPaddingTop, CSS::PropertyID::ScrollPaddingRight, CSS::PropertyID::ScrollPaddingBottom, CSS::LengthPercentageOrAuto::make_auto()));
-    {
+    if (!misc_reset_adopted)
+        computed_values.set_scroll_margin(computed_style.length_box(CSS::PropertyID::ScrollMarginLeft, CSS::PropertyID::ScrollMarginTop, CSS::PropertyID::ScrollMarginRight, CSS::PropertyID::ScrollMarginBottom, CSS::Length::make_px(0)));
+    if (!misc_reset_adopted)
+        computed_values.set_scroll_padding(computed_style.length_box(CSS::PropertyID::ScrollPaddingLeft, CSS::PropertyID::ScrollPaddingTop, CSS::PropertyID::ScrollPaddingRight, CSS::PropertyID::ScrollPaddingBottom, CSS::LengthPercentageOrAuto::make_auto()));
+    if (!misc_reset_adopted) {
         auto extract_side = [&](CSS::PropertyID property_id) -> CSS::OverflowClipMarginSide {
             auto const& value = computed_style.property(property_id);
             if (value.is_overflow_clip_margin()) {
@@ -1130,18 +1255,22 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_border_right_color_style_value(computed_style.property(CSS::PropertyID::BorderRightColor));
     computed_values.set_border_bottom_color_style_value(computed_style.property(CSS::PropertyID::BorderBottomColor));
 
-    if (auto const& outline_color = computed_style.property(CSS::PropertyID::OutlineColor); outline_color.has_color())
+    if (auto const& outline_color = computed_style.property(CSS::PropertyID::OutlineColor); !misc_reset_adopted && outline_color.has_color())
         computed_values.set_outline_color(outline_color.to_color(color_resolution_context).value());
     auto const& outline_offset = computed_style.property(CSS::PropertyID::OutlineOffset);
     auto resolved_outline_offset = outline_offset.is_calculated()
         ? outline_offset.as_calculated().resolve_length(color_resolution_context.calculation_resolution_context).value()
         : outline_offset.as_length().length();
-    computed_values.set_outline_offset(resolved_outline_offset.absolute_length_to_px());
-    computed_values.set_outline_offset_style_value(outline_offset);
-    computed_values.set_outline_style(computed_style.outline_style());
+    if (!misc_reset_adopted)
+        computed_values.set_outline_offset(resolved_outline_offset.absolute_length_to_px());
+    if (!misc_reset_adopted)
+        computed_values.set_outline_offset_style_value(outline_offset);
+    if (!misc_reset_adopted)
+        computed_values.set_outline_style(computed_style.outline_style());
 
     // FIXME: Interpolation can cause negative values - we clamp here but should instead clamp as part of interpolation.
-    computed_values.set_outline_width(max(CSSPixels { 0 }, computed_style.length(CSS::PropertyID::OutlineWidth).absolute_length_to_px()));
+    if (!misc_reset_adopted)
+        computed_values.set_outline_width(max(CSSPixels { 0 }, computed_style.length(CSS::PropertyID::OutlineWidth).absolute_length_to_px()));
 
     computed_values.set_grid_auto_columns(computed_style.grid_auto_columns());
     computed_values.set_grid_auto_rows(computed_style.grid_auto_rows());
@@ -1231,13 +1360,16 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_text_anchor(computed_style.text_anchor());
     computed_values.set_dominant_baseline(computed_style.dominant_baseline());
 
-    if (auto const& column_count = computed_style.property(CSS::PropertyID::ColumnCount); column_count.to_keyword() != Keyword::Auto)
+    if (auto const& column_count = computed_style.property(CSS::PropertyID::ColumnCount); !misc_reset_adopted && column_count.to_keyword() != Keyword::Auto)
         computed_values.set_column_count(CSS::ColumnCount::make_integer(int_from_style_value(NonnullRefPtr<StyleValue const> { column_count })));
 
-    computed_values.set_column_span(computed_style.column_span());
+    if (!misc_reset_adopted)
+        computed_values.set_column_span(computed_style.column_span());
 
-    computed_values.set_column_width(computed_style.size_value(CSS::PropertyID::ColumnWidth));
-    computed_values.set_column_height(computed_style.size_value(CSS::PropertyID::ColumnHeight));
+    if (!misc_reset_adopted)
+        computed_values.set_column_width(computed_style.size_value(CSS::PropertyID::ColumnWidth));
+    if (!misc_reset_adopted)
+        computed_values.set_column_height(computed_style.size_value(CSS::PropertyID::ColumnHeight));
 
     if (!alignment_adopted)
         computed_values.set_column_gap(computed_style.gap_value(CSS::PropertyID::ColumnGap));
@@ -1250,7 +1382,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!inherited_table_adopted)
         computed_values.set_empty_cells(computed_style.empty_cells());
 
-    computed_values.set_table_layout(computed_style.table_layout());
+    if (!misc_reset_adopted)
+        computed_values.set_table_layout(computed_style.table_layout());
 
     auto const& aspect_ratio = computed_style.property(CSS::PropertyID::AspectRatio);
     if (aspect_ratio.is_value_list()) {
@@ -1275,7 +1408,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             computed_values.set_aspect_ratio({ false, aspect_ratio.as_ratio().resolved(), false, aspect_ratio.as_ratio().resolved() });
     }
 
-    computed_values.set_touch_action(computed_style.touch_action());
+    if (!misc_reset_adopted)
+        computed_values.set_touch_action(computed_style.touch_action());
 
     auto const& math_shift_value = computed_style.property(CSS::PropertyID::MathShift);
     if (auto math_shift = keyword_to_math_shift(math_shift_value.to_keyword()); math_shift.has_value())
@@ -1291,17 +1425,24 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_counter_reset(computed_style.counter_data(CSS::PropertyID::CounterReset));
     computed_values.set_counter_set(computed_style.counter_data(CSS::PropertyID::CounterSet));
 
-    computed_values.set_object_fit(computed_style.object_fit());
-    computed_values.set_object_position(computed_style.object_position());
+    if (!misc_reset_adopted)
+        computed_values.set_object_fit(computed_style.object_fit());
+    if (!misc_reset_adopted)
+        computed_values.set_object_position(computed_style.object_position());
     if (!inherited_box_adopted)
         computed_values.set_direction(computed_style.direction());
     computed_values.set_unicode_bidi(computed_style.unicode_bidi());
-    computed_values.set_scroll_behavior(CSS::keyword_to_scroll_behavior(computed_style.property(CSS::PropertyID::ScrollBehavior).to_keyword()).release_value());
+    if (!misc_reset_adopted)
+        computed_values.set_scroll_behavior(CSS::keyword_to_scroll_behavior(computed_style.property(CSS::PropertyID::ScrollBehavior).to_keyword()).release_value());
     computed_values.set_scrollbar_color(computed_style.scrollbar_color(color_resolution_context));
-    computed_values.set_scrollbar_gutter(computed_style.property(CSS::PropertyID::ScrollbarGutter).as_scrollbar_gutter().value());
-    computed_values.set_scrollbar_width(computed_style.scrollbar_width());
-    computed_values.set_shape_image_threshold(computed_style.property(CSS::PropertyID::ShapeImageThreshold).as_opacity_value().resolved());
-    computed_values.set_shape_margin(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::ShapeMargin)));
+    if (!misc_reset_adopted)
+        computed_values.set_scrollbar_gutter(computed_style.property(CSS::PropertyID::ScrollbarGutter).as_scrollbar_gutter().value());
+    if (!misc_reset_adopted)
+        computed_values.set_scrollbar_width(computed_style.scrollbar_width());
+    if (!misc_reset_adopted)
+        computed_values.set_shape_image_threshold(computed_style.property(CSS::PropertyID::ShapeImageThreshold).as_opacity_value().resolved());
+    if (!misc_reset_adopted)
+        computed_values.set_shape_margin(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::ShapeMargin)));
     CSS::ShapeOutsideData shape_outside;
     auto apply_shape_outside_item = [&](CSS::StyleValue const& item) {
         if (item.is_url())
@@ -1320,15 +1461,18 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     } else {
         apply_shape_outside_item(shape_outside_value);
     }
-    computed_values.set_shape_outside(move(shape_outside));
+    if (!misc_reset_adopted)
+        computed_values.set_shape_outside(move(shape_outside));
     if (!inherited_box_adopted)
         computed_values.set_writing_mode(computed_style.writing_mode());
-    computed_values.set_user_select(computed_style.user_select());
+    if (!misc_reset_adopted)
+        computed_values.set_user_select(computed_style.user_select());
     if (!effects_adopted)
         computed_values.set_isolation(computed_style.isolation());
     if (!effects_adopted)
         computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
-    computed_values.set_view_transition_name(computed_style.view_transition_name());
+    if (!misc_reset_adopted)
+        computed_values.set_view_transition_name(computed_style.view_transition_name());
     computed_values.set_contain(computed_style.contain());
     computed_values.set_container_name(computed_style.container_name());
     computed_values.set_container_type(computed_style.container_type());

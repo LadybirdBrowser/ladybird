@@ -1900,6 +1900,7 @@ public:
     void adopt_alignment_group(void* payload) { m_values.m_noninherited.alignment.adopt(payload); }
     void adopt_text_reset_group(void* payload) { m_values.m_noninherited.text_reset.adopt(payload); }
     void adopt_effects_group(void* payload) { m_values.m_noninherited.effects.adopt(payload); }
+    void adopt_misc_reset_group(void* payload) { m_values.m_noninherited.misc.adopt(payload); }
 
     void set_aspect_ratio(AspectRatio aspect_ratio)
     {
