@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<style>
+    div {
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="target"></div>
+<!-- Without the empty-editable caret target, the query resolves against this text's caret
+     line instead of the div, so the editable and non-editable answers differ. -->
+<p id="text-below">some text below the target</p>
+<script>
+    test(() => {
+        const { x, y, width, height } = target.getBoundingClientRect();
+        const cx = x + width / 2;
+        const cy = y + height / 2;
+        const caretNodeAtCenter = () => {
+            const position = document.caretPositionFromPoint(cx, cy);
+            return position ? `${position.offsetNode} @${position.offset}` : "null";
+        };
+
+        // Query once and then force a re-record, so the queries below run against
+        // steady-state recordings rather than the initial one.
+        caretNodeAtCenter();
+        document.body.style.outline = "1px solid transparent";
+
+        // NB: Results are buffered and printed at the end: println() itself mutates the DOM,
+        //     and any unrelated invalidation between a toggle and its query would rebuild the
+        //     hit-test display list and mask a missed invalidation from the toggle itself.
+        const results = [];
+        results.push(`caret before toggle: ${caretNodeAtCenter()}`);
+
+        target.setAttribute("contenteditable", "");
+        results.push(`caret with contenteditable: ${caretNodeAtCenter()}`);
+
+        target.removeAttribute("contenteditable");
+        results.push(`caret after removal: ${caretNodeAtCenter()}`);
+
+        // designMode has no attribute-change path, so recomputing the editable flags is the
+        // only invalidation these toggles get.
+        document.designMode = "on";
+        results.push(`caret with designMode: ${caretNodeAtCenter()}`);
+
+        document.designMode = "off";
+        results.push(`caret after designMode off: ${caretNodeAtCenter()}`);
+
+        for (const result of results)
+            println(result);
+    });
+</script>

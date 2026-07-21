@@ -1660,7 +1660,7 @@ void Node::set_document(Document& document)
     }
 }
 
-void Node::recompute_editable_subtree_flag()
+bool Node::recompute_editable_subtree_flag()
 {
     bool new_value;
     if (is_document()) {
@@ -1676,7 +1676,18 @@ void Node::recompute_editable_subtree_flag()
     } else {
         new_value = parent() && parent()->m_in_editable_subtree;
     }
-    m_in_editable_subtree = new_value;
+    return new_value != exchange(m_in_editable_subtree, new_value);
+}
+
+void Node::recompute_editable_subtree_flags_and_repaint()
+{
+    for_each_in_inclusive_subtree([](Node& node) {
+        // Editability determines each node's empty-editable caret target in the hit-test
+        // display list, so a flip must invalidate the recorded output.
+        if (node.recompute_editable_subtree_flag())
+            node.set_needs_repaint();
+        return TraversalDecision::Continue;
+    });
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#editable

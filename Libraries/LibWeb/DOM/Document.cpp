@@ -7355,10 +7355,7 @@ void Document::remove_form_associated_element_with_form_attribute(HTML::FormAsso
 void Document::set_design_mode_enabled_state(bool design_mode_enabled)
 {
     m_design_mode_enabled = design_mode_enabled;
-    for_each_in_inclusive_subtree([](Node& node) {
-        node.recompute_editable_subtree_flag();
-        return TraversalDecision::Continue;
-    });
+    recompute_editable_subtree_flags_and_repaint();
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#making-entire-documents-editable:-the-designmode-idl-attribute

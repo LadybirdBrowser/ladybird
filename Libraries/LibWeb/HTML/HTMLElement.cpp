@@ -760,10 +760,7 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
             // Having an invalid value maps to the "inherit" state.
             m_content_editable_state = ContentEditableState::Inherit;
         }
-        for_each_in_inclusive_subtree([](Node& node) {
-            node.recompute_editable_subtree_flag();
-            return TraversalDecision::Continue;
-        });
+        recompute_editable_subtree_flags_and_repaint();
     } else if (name == HTML::AttributeNames::inert) {
         // https://html.spec.whatwg.org/multipage/interaction.html#the-inert-attribute
         // The inert attribute is a boolean attribute that indicates, by its presence, that the element and all its flat tree descendants which don't otherwise escape inertness

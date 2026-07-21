@@ -185,7 +185,8 @@ public:
     CSS::UserSelect user_select_used_value() const;
 
     bool in_editable_subtree() const { return m_in_editable_subtree; }
-    void recompute_editable_subtree_flag();
+    bool recompute_editable_subtree_flag();
+    void recompute_editable_subtree_flags_and_repaint();
 
     virtual bool is_dom_node() const final { return true; }
     virtual bool is_html_element() const { return false; }
