@@ -1,0 +1,95 @@
+Harness status: OK
+
+Found 67 tests
+
+44 Pass
+23 Fail
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "Insert same event at same time"
+Pass	Executing "Linear + Expo"
+Pass	Executing "Expo + Linear"
+Pass	Executing "Linear + SetTarget"
+Pass	Executing "Multiple linear ramps at the same time"
+Pass	Executing "Multiple exponential ramps at the same time"
+Pass	Audit report
+Pass	> [Insert same event at same time] 
+Pass	  setValueAtTime(99, 0.0078125) did not throw an exception.
+Pass	  setValueAtTime(1, 0.0078125) did not throw an exception.
+Pass	  linearRampToValueAtTime(99, 0.015625) did not throw an exception.
+Pass	  linearRampToValueAtTime(2, 0.015625) did not throw an exception.
+Pass	  exponentialRampToValueAtTime(99, 0.0234375) did not throw an exception.
+Pass	  exponentialRampToValueAtTime(3, 0.0234375) did not throw an exception.
+Pass	  setValueCurveAtTime([3,4], 0.0234375, 0.0078125) did not throw an exception.
+Pass	  setValueAtTime(99, 0.03900146484375) did not throw an exception.
+Pass	  setValueAtTime(1, 0.03900146484375) did not throw an exception.
+Pass	  setValueAtTime(5, 0.03900146484375) did not throw an exception.
+Fail	X Output at frame 128 (time 0.0078125) is not equal to 1. Got 0.
+Fail	X Output at frame 256 (time 0.015625) is not equal to 2. Got 0.
+Fail	X Output at frame 384 (time 0.0234375) is not equal to 3. Got 0.
+Fail	X Output at frame 512 (time 0.03125) is not equal to 4. Got 0.
+Fail	X Output at frame 640 (time 0.0390625) is not equal to 5. Got 0.
+Fail	< [Insert same event at same time] 5 out of 15 assertions were failed.
+Pass	> [Linear + Expo] Different events at same time
+Pass	  Linear+Expo: Context length is long enough for the test is true.
+Pass	  Linear+Expo: linearRampToValueAtTime(2, 0.015625) did not throw an exception.
+Pass	  Linear+Expo: setValueAtTime(99, 0.015625) did not throw an exception.
+Pass	  Linear+Expo: exponentialRampToValueAtTime(3, 0.015625) did not throw an exception.
+Fail	X Linear+Expo: At time 0.01556396484375 (frame 255) output is not close to 1.99609375 within a relative error of 0 (RelErr=1). Got 0.
+Fail	X Linear+Expo: At time 0.015625 (frame 256) and later, output: Expected 3 for all values but found 256 unexpected values: 
+	Index	Actual
+	[0]	0
+	[1]	0
+	[2]	0
+	[3]	0
+	...and 252 more errors.
+Fail	< [Linear + Expo] 2 out of 6 assertions were failed.
+Pass	> [Expo + Linear] Different events at same time
+Pass	  Expo+Linear: Context length is long enough for the test is true.
+Pass	  Expo+Linear: exponentialRampToValueAtTime(3, 0.015625) did not throw an exception.
+Pass	  Expo+Linear: setValueAtTime(99, 0.015625) did not throw an exception.
+Pass	  Expo+Linear: linearRampToValueAtTime(2, 0.015625) did not throw an exception.
+Fail	X Expo+Linear: At time 0.01556396484375 (frame 255) output is not close to 2.9871532226369792 within a relative error of 0.0000042533 (RelErr=1). Got 0.
+Fail	X Expo+Linear: At time 0.015625 (frame 256) and later, output: Expected 2 for all values but found 256 unexpected values: 
+	Index	Actual
+	[0]	0
+	[1]	0
+	[2]	0
+	[3]	0
+	...and 252 more errors.
+Fail	< [Expo + Linear] 2 out of 6 assertions were failed.
+Pass	> [Linear + SetTarget] Different events at same time
+Pass	  Linear+SetTarget: Context length is long enough for the test is true.
+Pass	  Linear+SetTarget: linearRampToValueAtTime(3, 0.015625) did not throw an exception.
+Pass	  Linear+SetTarget: setValueAtTime(100, 0.015625) did not throw an exception.
+Pass	  Linear+SetTarget: setTargetAtTime(0, 0.015625, 0.1) did not throw an exception.
+Fail	X Linear+SetTarget: At time 0.01556396484375 (frame 255) output is not close to 2.9921875 within a relative error of 0 (RelErr=1). Got 0.
+Fail	X Linear+SetTarget: At time 0.015625 (frame 256) output is not equal to 100. Got 0.
+Fail	X Linear+SetTarget: At time 0.015625 (frame 256) and later does not equal [100,99.93898010253906,99.87800598144531,99.81706237792969,99.75615692138672,99.6952896118164,99.63446044921875,99.57366180419922,99.51290893554688,99.45218658447266,99.39151000976562,99.33086395263672,99.27025604248047,99.20968627929688,99.1491470336914,99.08865356445312...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":2.6694e-7}.
+	Index	Actual			Expected		AbsError		RelError		Test threshold
+	[0]	0.0000000000000000e+0	1.0000000000000000e+2	1.0000000000000000e+2	1.0000000000000000e+0	2.6693999999999999e-5
+	[1]	0.0000000000000000e+0	9.9938980102539063e+1	9.9938980102539063e+1	1.0000000000000000e+0	2.6677711348571775e-5
+	[2]	0.0000000000000000e+0	9.9878005981445313e+1	9.9878005981445313e+1	1.0000000000000000e+0	2.6661434916687009e-5
+	[3]	0.0000000000000000e+0	9.9817062377929688e+1	9.9817062377929688e+1	1.0000000000000000e+0	2.6645166631164548e-5
+	[4]	0.0000000000000000e+0	9.9756156921386719e+1	9.9756156921386719e+1	1.0000000000000000e+0	2.6628908528594970e-5
+	...and 251 more errors.
+	Max AbsError of 1.0000000000000000e+2 at index of 0.
+	Max RelError of 1.0000000000000000e+0 at index of 0.
+
+Fail	< [Linear + SetTarget] 3 out of 7 assertions were failed.
+Pass	> [Multiple linear ramps at the same time] Verify output
+Pass	  Multiple linear ramps: setValueAtTime(1, 0) did not throw an exception.
+Pass	  Multiple linear ramps: linearRampToValueAtTime(2, 0.00390625) did not throw an exception.
+Pass	  Multiple linear ramps: linearRampToValueAtTime(7, 0.00390625) did not throw an exception.
+Pass	  Multiple linear ramps: linearRampToValueAtTime(10, 0.00390625) did not throw an exception.
+Fail	X Multiple linear ramps: Output at frame 63 is not close to 1.984375 within a relative error of 0 (RelErr=1). Got 0.
+Fail	X Multiple linear ramps: Output at frame 64 (0.00390625 sec) is not equal to 10. Got 0.
+Fail	< [Multiple linear ramps at the same time] 2 out of 6 assertions were failed.
+Pass	> [Multiple exponential ramps at the same time] Verify output
+Pass	  Multiple exponential ramps: setValueAtTime(1, 0) did not throw an exception.
+Pass	  Multiple exponential ramps: exponentialRampToValueAtTime(2, 0.00390625) did not throw an exception.
+Pass	  Multiple exponential ramps: exponentialRampToValueAtTime(7, 0.00390625) did not throw an exception.
+Pass	  Multiple exponential ramps: exponentialRampToValueAtTime(10, 0.00390625) did not throw an exception.
+Fail	X Multiple exponential ramps: Output at frame 63 is not close to 1.978456026387951 within a relative error of 5.3924e-7 (RelErr=1). Got 0.
+Fail	X Multiple exponential ramps: Output at frame 64 (0.00390625 sec) is not equal to 10. Got 0.
+Fail	< [Multiple exponential ramps at the same time] 2 out of 6 assertions were failed.
+Fail	# AUDIT TASK RUNNER FINISHED: 6 out of 6 tasks were failed.

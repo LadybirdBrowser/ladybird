@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "linearRamp"
+Pass	Executing "exponentialRamp"
+Pass	Audit report
+Pass	> [linearRamp] 
+Pass	  linearRampToValue(0.1, 1e+300) successfully rendered
+Pass	< [linearRamp] All assertions passed. (total 1 assertions)
+Pass	> [exponentialRamp] 
+Pass	  exponentialRampToValue(0.1, 1e+300) successfully rendered
+Pass	< [exponentialRamp] All assertions passed. (total 1 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 2 tasks ran successfully.
