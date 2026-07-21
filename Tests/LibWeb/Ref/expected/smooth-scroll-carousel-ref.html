@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body {
+        margin: 0;
+        background: white;
+    }
+
+    .carousel {
+        display: flex;
+        gap: 16px;
+        width: 565px;
+        margin: 20px;
+        overflow-x: auto;
+    }
+
+    .card {
+        flex: 0 0 144px;
+        height: 120px;
+        color: white;
+        font: 24px sans-serif;
+        line-height: 120px;
+        text-align: center;
+    }
+
+    .card:nth-child(4n + 1) { background: #c33; }
+    .card:nth-child(4n + 2) { background: #3a6; }
+    .card:nth-child(4n + 3) { background: #36c; }
+    .card:nth-child(4n + 4) { background: #a63; }
+</style>
+<div class="carousel"></div>
+<div class="carousel"></div>
+<script>
+    const carousels = document.querySelectorAll(".carousel");
+    for (const carousel of carousels) {
+        for (let i = 1; i <= 20; ++i) {
+            const card = document.createElement("div");
+            card.className = "card";
+            card.textContent = i;
+            carousel.append(card);
+        }
+        carousel.scrollLeft = 640;
+    }
+
+    requestAnimationFrame(() => requestAnimationFrame(() =>
+        document.documentElement.classList.remove("reftest-wait")));
+</script>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="scroller" style="width: 100px; height: 100px; overflow: scroll">
+    <div style="position: relative; width: 600px; height: 400px">
+        <div id="target" style="position: absolute; left: 400px; top: 200px; width: 10px; height: 10px"></div>
+    </div>
+</div>
+<div style="height: 1200px"></div>
+<script>
+    asyncTest(async done => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        const scrollend = new Promise(resolve => scroller.addEventListener("scrollend", resolve, { once: true }));
+        const promise = scroller.scroll({ left: 400, top: 200, behavior: "smooth" });
+        println(`immediate: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        await Promise.all([promise, scrollend]);
+        println(`final: ${scroller.scrollLeft},${scroller.scrollTop}`);
+        println("scrollend: received");
+
+        scroller.style.scrollBehavior = "smooth";
+        await scroller.scroll({ left: 0, top: 0 });
+        println(`css behavior final: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        const aborted = scroller.scroll({ left: 400, behavior: "smooth" });
+        const replacement = scroller.scroll({ left: 200, behavior: "smooth" });
+        await aborted;
+        await replacement;
+        println(`replacement final: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        const interrupted = scroller.scroll({ left: 400, behavior: "smooth" });
+        await new Promise(resolve => scroller.addEventListener("scroll", resolve, { once: true }));
+        const instant = scroller.scroll({ left: 300, behavior: "instant" });
+        await Promise.all([interrupted, instant]);
+        println(`instant: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        scroller.style.scrollBehavior = "auto";
+        const interruptedBySetter = scroller.scroll({ left: 400, behavior: "smooth" });
+        await new Promise(resolve => scroller.addEventListener("scroll", resolve, { once: true }));
+        scroller.scrollLeft = 250;
+        await interruptedBySetter;
+        println(`setter interruption: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        scroller.scroll({ left: 0, behavior: "instant" });
+        const carouselButton = document.createElement("button");
+        const duplicateScrollPromises = [];
+        for (let i = 0; i < 3; ++i) {
+            carouselButton.addEventListener("click", event => {
+                event.stopPropagation();
+                duplicateScrollPromises.push(scroller.scrollBy({ left: 320, behavior: "smooth" }));
+            });
+        }
+        carouselButton.click();
+        await Promise.all(duplicateScrollPromises);
+        println(`duplicate carousel handlers: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        const viewport_scrollend = new Promise(resolve => document.addEventListener("scrollend", resolve, { once: true }));
+        const viewport_promise = window.scroll({ top: 300, behavior: "smooth" });
+        println(`viewport immediate: ${window.scrollY}`);
+        await Promise.all([viewport_promise, viewport_scrollend]);
+        println(`viewport final: ${window.scrollY}`);
+        println("viewport scrollend: received");
+
+        window.scroll({ top: 0, behavior: "instant" });
+        scroller.scroll({ left: 0, top: 0, behavior: "instant" });
+        const scroll_into_view_promise = document.getElementById("target").scrollIntoView({ behavior: "smooth" });
+        println(`scrollIntoView immediate: ${scroller.scrollLeft === 0}`);
+        const scroll_into_view_result = await scroll_into_view_promise;
+        println(`scrollIntoView final: ${scroller.scrollLeft},${scroller.scrollTop}`);
+        println(`scrollIntoView result: ${scroll_into_view_result}`);
+        done();
+    });
+</script>

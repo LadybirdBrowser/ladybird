@@ -1610,14 +1610,11 @@ GC::Ref<WebIDL::Promise> Window::scroll(Bindings::ScrollToOptions const& options
     // FIXME: 9. Let position be the scroll position the viewport would have by aligning the x-coordinate x of the viewport
     //           scrolling area with the left of the viewport and aligning the y-coordinate y of the viewport scrolling area
     //           with the top of the viewport.
-    auto position = Gfx::FloatPoint { x, y };
+    auto position = CSSPixelPoint { x, y };
 
     // 10. If position is the same as the viewport’s current scroll position, and the viewport does not have an ongoing
     //     smooth scroll, return a resolved Promise and abort the remaining steps.
-    if (position == viewport_rect.location()) {
-        TemporaryExecutionContext temporary_execution_context { realm() };
-        return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
-    }
+    // NB: perform a scroll checks this after aborting any ongoing smooth scroll.
 
     // 11. Let document be the viewport’s associated Document.
     // NB: document is already defined above.
@@ -1625,7 +1622,7 @@ GC::Ref<WebIDL::Promise> Window::scroll(Bindings::ScrollToOptions const& options
     // 12. Perform a scroll of the viewport to position, document’s root element as the associated element, if there is
     //     one, or null otherwise, and the scroll behavior being the value of the behavior dictionary member of options.
     //     Let scrollPromise be the Promise returned from this step.
-    auto scroll_promise = navigable->perform_a_scroll_of_the_viewport({ x, y });
+    auto scroll_promise = navigable->perform_a_scroll_of_the_viewport(position, options.behavior);
 
     // 13. Return scrollPromise.
     return scroll_promise;

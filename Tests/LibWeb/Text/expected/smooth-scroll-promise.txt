@@ -1,0 +1,14 @@
+immediate: 0,0
+final: 400,200
+scrollend: received
+css behavior final: 0,0
+replacement final: 200,0
+instant: 300,0
+setter interruption: 250,0
+duplicate carousel handlers: 320,0
+viewport immediate: 0
+viewport final: 300
+viewport scrollend: received
+scrollIntoView immediate: true
+scrollIntoView final: 310,200
+scrollIntoView result: undefined

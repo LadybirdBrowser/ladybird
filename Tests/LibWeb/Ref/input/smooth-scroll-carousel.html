@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/smooth-scroll-carousel-ref.html">
+<style>
+    body {
+        margin: 0;
+        background: white;
+    }
+
+    .carousel {
+        display: flex;
+        gap: 16px;
+        width: 565px;
+        margin: 20px;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+    }
+
+    .card {
+        flex: 0 0 144px;
+        height: 120px;
+        color: white;
+        font: 24px sans-serif;
+        line-height: 120px;
+        text-align: center;
+    }
+
+    .card:nth-child(4n + 1) { background: #c33; }
+    .card:nth-child(4n + 2) { background: #3a6; }
+    .card:nth-child(4n + 3) { background: #36c; }
+    .card:nth-child(4n + 4) { background: #a63; }
+</style>
+<div class="carousel"></div>
+<div class="carousel"></div>
+<script>
+    const carousels = document.querySelectorAll(".carousel");
+    const buttons = [];
+    const scrollPromises = [];
+    for (let carouselIndex = 0; carouselIndex < carousels.length; ++carouselIndex) {
+        const carousel = carousels[carouselIndex];
+        for (let i = 1; i <= 20; ++i) {
+            const card = document.createElement("div");
+            card.className = "card";
+            card.textContent = i;
+            carousel.append(card);
+        }
+
+        const button = document.createElement("button");
+        button.hidden = true;
+        for (let listenerIndex = 0; listenerIndex < carouselIndex + 2; ++listenerIndex) {
+            button.addEventListener("click", () =>
+                scrollPromises.push(carousel.scrollBy({ left: 320, behavior: "smooth" })));
+        }
+        buttons.push(button);
+    }
+
+    async function clickAllButtons() {
+        const firstNewPromise = scrollPromises.length;
+        for (const button of buttons)
+            button.click();
+        await Promise.all(scrollPromises.slice(firstNewPromise));
+    }
+
+    requestAnimationFrame(() => requestAnimationFrame(async () => {
+        await clickAllButtons();
+        await clickAllButtons();
+        document.documentElement.classList.remove("reftest-wait");
+    }));
+</script>
+</html>
