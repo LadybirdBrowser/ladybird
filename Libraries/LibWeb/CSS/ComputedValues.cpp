@@ -353,6 +353,28 @@ static constexpr Array svg_reset_group_properties {
     PropertyID::ShapeRendering,
 };
 
+// The properties feeding the inherited SVG group's descriptors, in
+// registration order.
+static constexpr Array inherited_svg_group_properties {
+    PropertyID::Fill,
+    PropertyID::Stroke,
+    PropertyID::FillRule,
+    PropertyID::ClipRule,
+    PropertyID::FillOpacity,
+    PropertyID::StrokeOpacity,
+    PropertyID::StrokeLinecap,
+    PropertyID::StrokeLinejoin,
+    PropertyID::StrokeDasharray,
+    PropertyID::StrokeDashoffset,
+    PropertyID::StrokeMiterlimit,
+    PropertyID::StrokeWidth,
+    PropertyID::ColorInterpolation,
+    PropertyID::ColorInterpolationFilters,
+    PropertyID::PaintOrder,
+    PropertyID::TextAnchor,
+    PropertyID::DominantBaseline,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -535,6 +557,26 @@ static void register_style_group_field_descriptors()
     add(svg_reset, PropertyID::FloodOpacity, offsetof(SVGReset, flood_opacity), GROUP_FIELD_RESOLVED_F32, 0, nullptr);
     add(svg_reset, PropertyID::VectorEffect, offsetof(SVGReset, vector_effect), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_vector_effect>());
     add(svg_reset, PropertyID::ShapeRendering, offsetof(SVGReset, shape_rendering), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_shape_rendering>());
+
+    using InheritedSVG = ComputedValues::InheritedSVGValues;
+    constexpr auto inherited_svg = to_underlying(StyleGroupIndex::InheritedSVGValues);
+    add(inherited_svg, PropertyID::Fill, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(inherited_svg, PropertyID::Stroke, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(inherited_svg, PropertyID::FillRule, offsetof(InheritedSVG, fill_rule), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_fill_rule>());
+    add(inherited_svg, PropertyID::ClipRule, offsetof(InheritedSVG, clip_rule), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_fill_rule>());
+    add(inherited_svg, PropertyID::FillOpacity, offsetof(InheritedSVG, fill_opacity), GROUP_FIELD_RESOLVED_F32, 0, nullptr);
+    add(inherited_svg, PropertyID::StrokeOpacity, offsetof(InheritedSVG, stroke_opacity), GROUP_FIELD_RESOLVED_F32, 0, nullptr);
+    add(inherited_svg, PropertyID::StrokeLinecap, offsetof(InheritedSVG, stroke_linecap), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_stroke_linecap>());
+    add(inherited_svg, PropertyID::StrokeLinejoin, offsetof(InheritedSVG, stroke_linejoin), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_stroke_linejoin>());
+    add(inherited_svg, PropertyID::StrokeDasharray, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(inherited_svg, PropertyID::StrokeDashoffset, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(inherited_svg, PropertyID::StrokeMiterlimit, offsetof(InheritedSVG, stroke_miterlimit), GROUP_FIELD_F64, 0, nullptr);
+    add(inherited_svg, PropertyID::StrokeWidth, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(inherited_svg, PropertyID::ColorInterpolation, offsetof(InheritedSVG, color_interpolation), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_color_interpolation>());
+    add(inherited_svg, PropertyID::ColorInterpolationFilters, offsetof(InheritedSVG, color_interpolation_filters), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_color_interpolation>());
+    add(inherited_svg, PropertyID::PaintOrder, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
+    add(inherited_svg, PropertyID::TextAnchor, offsetof(InheritedSVG, text_anchor), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_anchor>());
+    add(inherited_svg, PropertyID::DominantBaseline, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -1017,6 +1059,27 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             inherited_ui_group_values[i].has_resolved_number = true;
         }
     }
+    Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_svg_group_properties.size()> inherited_svg_group_values;
+    gather_group_values(inherited_svg_group_properties, inherited_svg_group_values);
+    for (size_t i = 0; i < inherited_svg_group_properties.size(); ++i) {
+        auto svg_property_id = inherited_svg_group_properties[i];
+        if (svg_property_id == PropertyID::FillOpacity) {
+            inherited_svg_group_values[i].resolved_number = computed_style.fill_opacity();
+            inherited_svg_group_values[i].has_resolved_number = true;
+        } else if (svg_property_id == PropertyID::StrokeOpacity) {
+            inherited_svg_group_values[i].resolved_number = computed_style.stroke_opacity();
+            inherited_svg_group_values[i].has_resolved_number = true;
+        }
+    }
+    auto* inherited_svg_payload = ComputedValuesFFI::rust_build_style_group(
+        InheritedSVGValues::style_group_index,
+        inherited_svg_group_values.data(),
+        inherited_svg_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.svg.operator->()) : nullptr);
+    bool const inherited_svg_adopted = inherited_svg_payload != nullptr;
+    if (inherited_svg_adopted)
+        computed_values.adopt_inherited_svg_group(const_cast<void*>(inherited_svg_payload));
+
     Array<ComputedValuesFFI::FfiGroupValueEntry, svg_reset_group_properties.size()> svg_reset_group_values;
     gather_group_values(svg_reset_group_properties, svg_reset_group_values);
     for (size_t i = 0; i < svg_reset_group_properties.size(); ++i) {
@@ -1770,8 +1833,10 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!svg_reset_adopted)
         computed_values.set_y(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Y)));
 
-    computed_values.set_fill(computed_style.fill(color_resolution_context));
-    computed_values.set_stroke(computed_style.stroke(color_resolution_context));
+    if (!inherited_svg_adopted)
+        computed_values.set_fill(computed_style.fill(color_resolution_context));
+    if (!inherited_svg_adopted)
+        computed_values.set_stroke(computed_style.stroke(color_resolution_context));
 
     if (!svg_reset_adopted)
         computed_values.set_stop_color(computed_style.color(CSS::PropertyID::StopColor, color_resolution_context));
@@ -1779,18 +1844,22 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     auto const& stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
-    if (stroke_width.is_number())
-        computed_values.set_stroke_width(CSS::Length::make_px(CSSPixels::nearest_value_for(stroke_width.as_number().number())));
-    else
-        computed_values.set_stroke_width(CSS::LengthPercentage::from_style_value(stroke_width));
+    if (!inherited_svg_adopted) {
+        if (stroke_width.is_number())
+            computed_values.set_stroke_width(CSS::Length::make_px(CSSPixels::nearest_value_for(stroke_width.as_number().number())));
+        else
+            computed_values.set_stroke_width(CSS::LengthPercentage::from_style_value(stroke_width));
+    }
     if (!svg_reset_adopted)
         computed_values.set_shape_rendering(computed_style.shape_rendering());
-    computed_values.set_paint_order(computed_style.paint_order());
-    auto const& paint_order = computed_style.property(PropertyID::PaintOrder);
-    computed_values.set_paint_order_serialization(
-        paint_order.is_value_list() ? paint_order.as_value_list().size() : paint_order.to_keyword() == Keyword::Normal ? 0
-                                                                                                                       : 1,
-        paint_order.to_keyword() == Keyword::Normal);
+    if (!inherited_svg_adopted) {
+        computed_values.set_paint_order(computed_style.paint_order());
+        auto const& paint_order = computed_style.property(PropertyID::PaintOrder);
+        computed_values.set_paint_order_serialization(
+            paint_order.is_value_list() ? paint_order.as_value_list().size() : paint_order.to_keyword() == Keyword::Normal ? 0
+                                                                                                                           : 1,
+            paint_order.to_keyword() == Keyword::Normal);
+    }
 
     // FIXME: Remove this once we support URL values in mask_layers and can therefore use it in
     //        `establishes_stacking_context()`
@@ -1821,32 +1890,44 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         else if (clip_path.is_basic_shape())
             computed_values.set_clip_path(clip_path.as_basic_shape());
     }
-    computed_values.set_clip_rule(computed_style.clip_rule());
-    computed_values.set_fill_rule(computed_style.fill_rule());
+    if (!inherited_svg_adopted)
+        computed_values.set_clip_rule(computed_style.clip_rule());
+    if (!inherited_svg_adopted)
+        computed_values.set_fill_rule(computed_style.fill_rule());
 
-    computed_values.set_fill_opacity(computed_style.fill_opacity());
-    computed_values.set_stroke_dasharray(computed_style.stroke_dasharray());
+    if (!inherited_svg_adopted)
+        computed_values.set_fill_opacity(computed_style.fill_opacity());
+    if (!inherited_svg_adopted)
+        computed_values.set_stroke_dasharray(computed_style.stroke_dasharray());
 
     auto const& stroke_dashoffset = computed_style.property(CSS::PropertyID::StrokeDashoffset);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
-    if (stroke_dashoffset.is_number())
-        computed_values.set_stroke_dashoffset(CSS::Length::make_px(CSSPixels::nearest_value_for(stroke_dashoffset.as_number().number())));
-    else
-        computed_values.set_stroke_dashoffset(CSS::LengthPercentage::from_style_value(stroke_dashoffset));
+    if (!inherited_svg_adopted) {
+        if (stroke_dashoffset.is_number())
+            computed_values.set_stroke_dashoffset(CSS::Length::make_px(CSSPixels::nearest_value_for(stroke_dashoffset.as_number().number())));
+        else
+            computed_values.set_stroke_dashoffset(CSS::LengthPercentage::from_style_value(stroke_dashoffset));
+    }
 
-    computed_values.set_stroke_linecap(computed_style.stroke_linecap());
-    computed_values.set_stroke_linejoin(computed_style.stroke_linejoin());
+    if (!inherited_svg_adopted)
+        computed_values.set_stroke_linecap(computed_style.stroke_linecap());
+    if (!inherited_svg_adopted)
+        computed_values.set_stroke_linejoin(computed_style.stroke_linejoin());
     if (!svg_reset_adopted)
         computed_values.set_vector_effect(computed_style.vector_effect());
-    computed_values.set_stroke_miterlimit(computed_style.stroke_miterlimit());
+    if (!inherited_svg_adopted)
+        computed_values.set_stroke_miterlimit(computed_style.stroke_miterlimit());
 
-    computed_values.set_stroke_opacity(computed_style.stroke_opacity());
+    if (!inherited_svg_adopted)
+        computed_values.set_stroke_opacity(computed_style.stroke_opacity());
     if (!svg_reset_adopted)
         computed_values.set_stop_opacity(computed_style.stop_opacity());
 
-    computed_values.set_text_anchor(computed_style.text_anchor());
-    computed_values.set_dominant_baseline(computed_style.dominant_baseline());
+    if (!inherited_svg_adopted)
+        computed_values.set_text_anchor(computed_style.text_anchor());
+    if (!inherited_svg_adopted)
+        computed_values.set_dominant_baseline(computed_style.dominant_baseline());
 
     if (auto const& column_count = computed_style.property(CSS::PropertyID::ColumnCount); !misc_reset_adopted && column_count.to_keyword() != Keyword::Auto)
         computed_values.set_column_count(CSS::ColumnCount::make_integer(int_from_style_value(NonnullRefPtr<StyleValue const> { column_count })));
@@ -1975,8 +2056,10 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             caret_color.computed_value = caret_color.used_value;
         computed_values.set_caret_color(move(caret_color));
     }
-    computed_values.set_color_interpolation(computed_style.color_interpolation());
-    computed_values.set_color_interpolation_filters(computed_style.color_interpolation_filters());
+    if (!inherited_svg_adopted)
+        computed_values.set_color_interpolation(computed_style.color_interpolation());
+    if (!inherited_svg_adopted)
+        computed_values.set_color_interpolation_filters(computed_style.color_interpolation_filters());
     computed_values.set_resize(computed_style.resize());
 
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
