@@ -1661,6 +1661,17 @@ impl FfiElement {
         unsafe { selector_ffi_element_has_custom_state(self.pointer, state) }
     }
 
+    unsafe fn language<'a>(self) -> Option<DomStringView<'a>> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element. C++ returns its current language with
+        // backing storage owned by the element for this matching call.
+        let view = unsafe { selector_ffi_element_language(self.pointer) };
+        (view.length != 0).then_some(DomStringView {
+            view,
+            marker: PhantomData,
+        })
+    }
+
     fn is_focused(self) -> bool {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
@@ -1911,6 +1922,12 @@ impl<'a> FfiNode<'a> {
         // current attribute storage. Callers obtain `index` from the live attribute count.
         unsafe { self.as_element().attribute(index) }
     }
+
+    fn language(self) -> Option<DomStringView<'a>> {
+        // SAFETY: `FfiNode` cannot outlive the call scope which pins the C++ element and its
+        // current language storage.
+        unsafe { self.as_element().language() }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -1935,6 +1952,7 @@ unsafe extern "C" {
     fn selector_ffi_element_popover_is_showing(element: *const c_void) -> bool;
     fn selector_ffi_element_direction(element: *const c_void) -> FfiDirection;
     fn selector_ffi_element_has_custom_state(element: *const c_void, state: usize) -> bool;
+    fn selector_ffi_element_language(element: *const c_void) -> FfiDomStringView;
     fn selector_ffi_element_is_focused(element: *const c_void) -> bool;
     fn selector_ffi_element_should_indicate_focus(element: *const c_void) -> bool;
     fn selector_ffi_element_has_focus_within(element: *const c_void) -> bool;
@@ -1947,7 +1965,6 @@ unsafe extern "C" {
     fn selector_ffi_resolve_namespace(context: *mut c_void, prefix: FfiStringView) -> FfiResolvedNamespace;
 
     fn selector_ffi_matches_pseudo_class(element: *const c_void, pseudo_class: u8) -> bool;
-    fn selector_ffi_matches_language(element: *const c_void, language: FfiStringView) -> bool;
     fn selector_ffi_parent_element(element: *const c_void, shadow_host: *const c_void) -> FfiElement;
     fn selector_ffi_parent_element_in_light_tree(element: *const c_void) -> FfiElement;
     fn selector_ffi_previous_element_sibling(element: *const c_void) -> FfiElement;
@@ -2010,6 +2027,163 @@ fn utf16_equals_ignoring_ascii_case(first: DomStringView<'_>, second: &[u16]) ->
             .iter()
             .enumerate()
             .all(|(index, &second)| ascii_lowercase(first.code_unit_at(index)) == ascii_lowercase(second))
+}
+
+struct SelectorSubtags<'a> {
+    value: &'a [u16],
+    position: usize,
+    finished: bool,
+}
+
+impl<'a> SelectorSubtags<'a> {
+    fn new(value: &'a [u16]) -> Self {
+        Self {
+            value,
+            position: 0,
+            finished: false,
+        }
+    }
+}
+
+impl Iterator for SelectorSubtags<'_> {
+    type Item = std::ops::Range<usize>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.finished {
+            return None;
+        }
+        let start = self.position;
+        while self.position < self.value.len() && self.value[self.position] != u16::from(b'-') {
+            self.position += 1;
+        }
+        let end = self.position;
+        if self.position < self.value.len() {
+            self.position += 1;
+        } else {
+            self.finished = true;
+        }
+        Some(start..end)
+    }
+}
+
+struct DomSubtags<'a> {
+    value: DomStringView<'a>,
+    position: usize,
+    finished: bool,
+}
+
+impl<'a> DomSubtags<'a> {
+    fn new(value: DomStringView<'a>) -> Self {
+        Self {
+            value,
+            position: 0,
+            finished: false,
+        }
+    }
+}
+
+impl Iterator for DomSubtags<'_> {
+    type Item = std::ops::Range<usize>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.finished {
+            return None;
+        }
+        let start = self.position;
+        while self.position < self.value.len() && self.value.code_unit_at(self.position) != u16::from(b'-') {
+            self.position += 1;
+        }
+        let end = self.position;
+        if self.position < self.value.len() {
+            self.position += 1;
+        } else {
+            self.finished = true;
+        }
+        Some(start..end)
+    }
+}
+
+fn language_subtags_match(
+    language_range: &[u16],
+    range_subtag: &std::ops::Range<usize>,
+    language_tag: DomStringView<'_>,
+    tag_subtag: &std::ops::Range<usize>,
+) -> bool {
+    if range_subtag.len() == 1 && language_range[range_subtag.start] == u16::from(b'*') {
+        return true;
+    }
+    range_subtag.len() == tag_subtag.len()
+        && (0..range_subtag.len()).all(|offset| {
+            ascii_lowercase(language_range[range_subtag.start + offset])
+                == ascii_lowercase(language_tag.code_unit_at(tag_subtag.start + offset))
+        })
+}
+
+fn is_ascii_alphanumeric(code_unit: u16) -> bool {
+    (u16::from(b'0')..=u16::from(b'9')).contains(&code_unit)
+        || (u16::from(b'A')..=u16::from(b'Z')).contains(&code_unit)
+        || (u16::from(b'a')..=u16::from(b'z')).contains(&code_unit)
+}
+
+// https://www.rfc-editor.org/rfc/rfc4647#section-3.3.2
+fn language_range_matches_tag(language_range: &[u16], language_tag: DomStringView<'_>) -> bool {
+    // 1. Split both the extended language range and the language tag being compared into a list
+    //    of subtags by dividing on the hyphen (%x2D) character.
+    let mut range_subtags = SelectorSubtags::new(language_range);
+    let mut tag_subtags = DomSubtags::new(language_tag);
+
+    //    Two subtags match if either they are the same when compared case-insensitively or the
+    //    language range's subtag is the wildcard '*'.
+
+    // 2. Begin with the first subtag in each list. If the first subtag in the range does not match
+    //    the first subtag in the tag, the overall match fails. Otherwise, move to the next subtag
+    //    in both the range and the tag.
+    let first_range_subtag = range_subtags.next().unwrap();
+    let first_tag_subtag = tag_subtags.next().unwrap();
+    if !language_subtags_match(language_range, &first_range_subtag, language_tag, &first_tag_subtag) {
+        return false;
+    }
+
+    let mut tag_subtag = tag_subtags.next();
+
+    // 3. While there are more subtags left in the language range's list:
+    for range_subtag in range_subtags {
+        // A. If the subtag currently being examined in the range is the wildcard ('*'), move to
+        //    the next subtag in the range and continue with the loop.
+        if range_subtag.len() == 1 && language_range[range_subtag.start] == u16::from(b'*') {
+            continue;
+        }
+
+        // B. Else, if there are no more subtags in the language tag's list, the match fails.
+        loop {
+            let Some(current_tag_subtag) = tag_subtag else {
+                return false;
+            };
+
+            // C. Else, if the current subtag in the range's list matches the current subtag in the
+            //    language tag's list, move to the next subtag in both lists and continue with the
+            //    loop.
+            if language_subtags_match(language_range, &range_subtag, language_tag, &current_tag_subtag) {
+                tag_subtag = tag_subtags.next();
+                break;
+            }
+
+            // D. Else, if the language tag's subtag is a "singleton" (a single letter or digit,
+            //    which includes the private-use subtag 'x') the match fails.
+            if current_tag_subtag.len() == 1
+                && is_ascii_alphanumeric(language_tag.code_unit_at(current_tag_subtag.start))
+            {
+                return false;
+            }
+
+            // E. Else, move to the next subtag in the language tag's list and continue with the
+            //    loop.
+            tag_subtag = tag_subtags.next();
+        }
+    }
+
+    // 4. When the language range's list has no more subtags, the match succeeds.
+    true
 }
 
 #[derive(Clone, Copy)]
@@ -2412,11 +2586,11 @@ impl<'a> SelectorDom for FfiDom<'a> {
                 //        is always false. Once we do, implement this!
                 false
             }
-            PseudoClassType::Lang => pseudo_class.languages.iter().any(|language| {
-                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
-                // SAFETY: `FfiDom` guarantees that the element remains valid, and the string
-                // view is borrowed from `language` for this callback only.
-                unsafe { selector_ffi_matches_language(element.as_element_pointer(), ffi_string_view(language)) }
+            PseudoClassType::Lang => element.language().is_some_and(|language_tag| {
+                pseudo_class
+                    .languages
+                    .iter()
+                    .any(|language_range| language_range_matches_tag(language_range, language_tag))
             }),
             PseudoClassType::Dir => pseudo_class
                 .direction

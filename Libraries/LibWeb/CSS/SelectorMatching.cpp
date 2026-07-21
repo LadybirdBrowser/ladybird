@@ -235,65 +235,6 @@ static bool should_reject_with_has_fast_reject_filter(CSS::Selector const& selec
     return false;
 }
 
-static bool language_range_matches_tag(Utf16View language_range, Utf16View language_tag)
-{
-    // 1. Split both the extended language range and the language tag being compared into a list of subtags by
-    //    dividing on the hyphen (%x2D) character.
-    auto range_subtags = language_range.split_view('-', SplitBehavior::KeepEmpty);
-    auto tag_subtags = language_tag.split_view('-', SplitBehavior::KeepEmpty);
-
-    //    Two subtags match if either they are the same when compared case-insensitively or the language range's subtag
-    //    is the wildcard '*'.
-    auto subtags_match = [](Utf16View language_range_subtag, Utf16View language_subtag) {
-        return language_range_subtag == u"*"sv
-            || language_range_subtag.equals_ignoring_ascii_case(language_subtag);
-    };
-
-    // 2. Begin with the first subtag in each list. If the first subtag in the range does not match the first
-    //    subtag in the tag, the overall match fails. Otherwise, move to the next subtag in both the range and the
-    //    tag.
-    auto tag_subtag = tag_subtags.begin();
-    auto range_subtag = range_subtags.begin();
-    if (!subtags_match(*range_subtag, *tag_subtag))
-        return false;
-    ++tag_subtag;
-    ++range_subtag;
-
-    // 3. While there are more subtags left in the language range's list:
-    while (!range_subtag.is_end()) {
-        // A. If the subtag currently being examined in the range is the wildcard ('*'), move to the next subtag in
-        //    the range and continue with the loop.
-        if (*range_subtag == u"*"sv) {
-            ++range_subtag;
-            continue;
-        }
-
-        // B. Else, if there are no more subtags in the language tag's list, the match fails.
-        if (tag_subtag.is_end())
-            return false;
-
-        // C. Else, if the current subtag in the range's list matches the current subtag in the language tag's
-        //    list, move to the next subtag in both lists and continue with the loop.
-        if (subtags_match(*range_subtag, *tag_subtag)) {
-            ++range_subtag;
-            ++tag_subtag;
-            continue;
-        }
-
-        // D. Else, if the language tag's subtag is a "singleton" (a single letter or digit, which includes the
-        //    private-use subtag 'x') the match fails.
-        if (tag_subtag->length_in_code_units() == 1 && is_ascii_alphanumeric(tag_subtag->code_unit_at(0))) {
-            return false;
-        }
-
-        // E. Else, move to the next subtag in the language tag's list and continue with the loop.
-        ++tag_subtag;
-    }
-
-    // 4. When the language range's list has no more subtags, the match succeeds.
-    return true;
-}
-
 static bool matches_hover_pseudo_class(DOM::Element const& element)
 {
     auto* hovered_node = element.document().hovered_node();
@@ -709,6 +650,7 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_popover_attribute);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_popover_is_showing);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_direction);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_custom_state);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_language);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_focused);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_should_indicate_focus);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_has_focus_within);
@@ -719,7 +661,6 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_attribute);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_default_namespace);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_resolve_namespace);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_pseudo_class);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_language);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_parent_element);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_parent_element_in_light_tree);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_previous_element_sibling);
@@ -869,6 +810,12 @@ extern "C" bool selector_ffi_element_has_custom_state(void const* element, uintp
     return false;
 }
 
+extern "C" CSS::SelectorFFI::DomStringView selector_ffi_element_language(void const* element)
+{
+    auto language = ffi_element(element).lang_view();
+    return language.has_value() ? dom_string_view(*language) : CSS::SelectorFFI::DomStringView {};
+}
+
 extern "C" bool selector_ffi_element_is_focused(void const* element)
 {
     return ffi_element(element).is_focused();
@@ -1013,13 +960,6 @@ extern "C" bool selector_ffi_matches_pseudo_class(void const* element, u8 pseudo
     VERIFY(pseudo_class < CSS::PseudoClass::__Count);
     VERIFY(!is_rust_matched_pseudo_class(pseudo_class));
     return matches_pseudo_class_state(pseudo_class, ffi_element(element));
-}
-
-extern "C" bool selector_ffi_matches_language(void const* element, StringView language)
-{
-    auto element_language = ffi_element(element).lang();
-    return element_language.has_value()
-        && language_range_matches_tag(ffi_string_view(language), *element_language);
 }
 
 extern "C" CSS::SelectorFFI::Element selector_ffi_parent_element(void const* element, void const* shadow_host)

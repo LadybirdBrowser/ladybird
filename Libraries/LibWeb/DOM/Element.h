@@ -146,6 +146,7 @@ public:
     void follow_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML::UserNavigationInvolvement = HTML::UserNavigationInvolvement::None);
 
     Optional<Utf16String> lang() const;
+    Optional<Utf16View> lang_view() const;
     void invalidate_lang_value();
 
     WebIDL::ExceptionOr<void> set_attribute_for_bindings(Utf16FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);

@@ -5123,6 +5123,15 @@ Optional<Utf16String> Element::lang() const
     return m_lang_value;
 }
 
+Optional<Utf16View> Element::lang_view() const
+{
+    if (!m_lang_value.has_value())
+        (void)lang();
+    if (m_lang_value->is_empty())
+        return {};
+    return m_lang_value->utf16_view();
+}
+
 void Element::invalidate_lang_value()
 {
     if (m_lang_value.has_value()) {
