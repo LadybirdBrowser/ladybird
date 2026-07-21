@@ -62,6 +62,14 @@ impl RetainedStyleValue {
     }
 }
 
+/// Retains one strong reference to a C++ StyleValue shell for a reference
+/// slot poked into a style group payload.
+pub(crate) fn retain_shell_pointer(pointer: *const c_void) {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StyleValueShellRetainCallback);
+    // SAFETY: The caller guarantees a live shell.
+    unsafe { ladybird_style_value_ref(pointer) };
+}
+
 impl Drop for RetainedStyleValue {
     fn drop(&mut self) {
         // A null pointer represents an absent optional reference.

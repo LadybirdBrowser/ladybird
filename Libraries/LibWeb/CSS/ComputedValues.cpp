@@ -191,6 +191,51 @@ static constexpr Array misc_reset_group_properties {
     PropertyID::ShapeOutside,
 };
 
+// overflow-wrap has no generated keyword converter; the mapping matches the
+// switch in create().
+static Optional<OverflowWrap> overflow_wrap_from_keyword(Keyword keyword)
+{
+    switch (keyword) {
+    case Keyword::Normal:
+        return OverflowWrap::Normal;
+    case Keyword::BreakWord:
+        return OverflowWrap::BreakWord;
+    case Keyword::Anywhere:
+        return OverflowWrap::Anywhere;
+    default:
+        return {};
+    }
+}
+
+// The properties feeding the inherited text group's descriptors, in
+// registration order; the doubled properties feed two fields each.
+static constexpr Array inherited_text_group_properties {
+    PropertyID::Color,
+    PropertyID::Color,
+    PropertyID::WebkitTextFillColor,
+    PropertyID::WebkitTextFillColor,
+    PropertyID::TextShadow,
+    PropertyID::TextAlign,
+    PropertyID::TextJustify,
+    PropertyID::TextTransform,
+    PropertyID::TextWrapMode,
+    PropertyID::TextWrapStyle,
+    PropertyID::TextDecorationSkipInk,
+    PropertyID::TextUnderlinePosition,
+    PropertyID::TextUnderlineOffset,
+    PropertyID::TextIndent,
+    PropertyID::TabSize,
+    PropertyID::WhiteSpaceCollapse,
+    PropertyID::WordBreak,
+    PropertyID::OverflowWrap,
+    PropertyID::WordSpacing,
+    PropertyID::WordSpacing,
+    PropertyID::LetterSpacing,
+    PropertyID::LetterSpacing,
+    PropertyID::Orphans,
+    PropertyID::Widows,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -280,6 +325,33 @@ static void register_style_group_field_descriptors()
     add(misc_reset, PropertyID::ShapeImageThreshold, offsetof(MiscReset, shape_image_threshold), GROUP_FIELD_RESOLVED_F64, 0, nullptr);
     add(misc_reset, PropertyID::ShapeMargin, 0, GROUP_FIELD_REQUIRE_PX, 0, nullptr, 0);
     add(misc_reset, PropertyID::ShapeOutside, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+
+    using InheritedText = ComputedValues::InheritedTextValues;
+    constexpr auto inherited_text = to_underlying(StyleGroupIndex::InheritedTextValues);
+    add(inherited_text, PropertyID::Color, offsetof(InheritedText, color), GROUP_FIELD_COLOR, 0, nullptr);
+    add(inherited_text, PropertyID::Color, offsetof(InheritedText, color_style_value), GROUP_FIELD_RETAINED_SHELL, 0, nullptr);
+    add(inherited_text, PropertyID::WebkitTextFillColor, offsetof(InheritedText, webkit_text_fill_color), GROUP_FIELD_COLOR, 0, nullptr);
+    add(inherited_text, PropertyID::WebkitTextFillColor, offsetof(InheritedText, webkit_text_fill_color_is_current_color), GROUP_FIELD_KEYWORD_EQUALS_BOOL, to_underlying(Keyword::Currentcolor), nullptr);
+    add(inherited_text, PropertyID::TextShadow, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(inherited_text, PropertyID::TextAlign, offsetof(InheritedText, text_align), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_align>());
+    add(inherited_text, PropertyID::TextJustify, offsetof(InheritedText, text_justify), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_justify>());
+    add(inherited_text, PropertyID::TextTransform, offsetof(InheritedText, text_transform), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_transform>());
+    add(inherited_text, PropertyID::TextWrapMode, offsetof(InheritedText, text_wrap_mode), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_wrap_mode>());
+    add(inherited_text, PropertyID::TextWrapStyle, offsetof(InheritedText, text_wrap_style), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_wrap_style>());
+    add(inherited_text, PropertyID::TextDecorationSkipInk, offsetof(InheritedText, text_decoration_skip_ink), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_decoration_skip_ink>());
+    add(inherited_text, PropertyID::TextUnderlinePosition, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(inherited_text, PropertyID::TextUnderlineOffset, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(inherited_text, PropertyID::TextIndent, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(inherited_text, PropertyID::TabSize, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(inherited_text, PropertyID::WhiteSpaceCollapse, offsetof(InheritedText, white_space_collapse), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_white_space_collapse>());
+    add(inherited_text, PropertyID::WordBreak, offsetof(InheritedText, word_break), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_word_break>());
+    add(inherited_text, PropertyID::OverflowWrap, offsetof(InheritedText, overflow_wrap), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<overflow_wrap_from_keyword>());
+    add(inherited_text, PropertyID::WordSpacing, offsetof(InheritedText, word_spacing), GROUP_FIELD_CSS_PIXELS, 0, nullptr);
+    add(inherited_text, PropertyID::WordSpacing, offsetof(InheritedText, word_spacing_style_value), GROUP_FIELD_RETAINED_SHELL, 0, nullptr);
+    add(inherited_text, PropertyID::LetterSpacing, offsetof(InheritedText, letter_spacing), GROUP_FIELD_CSS_PIXELS, 0, nullptr);
+    add(inherited_text, PropertyID::LetterSpacing, offsetof(InheritedText, letter_spacing_style_value), GROUP_FIELD_RETAINED_SHELL, 0, nullptr);
+    add(inherited_text, PropertyID::Orphans, offsetof(InheritedText, orphans), GROUP_FIELD_U64, 0, nullptr);
+    add(inherited_text, PropertyID::Widows, offsetof(InheritedText, widows), GROUP_FIELD_U64, 0, nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -665,8 +737,37 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     // NOTE: color must be set after color-scheme to ensure currentColor can be resolved in other properties (e.g. background-color).
     // NOTE: color must be set after font_size as `CalculatedStyleValue`s can rely on it being set for resolving lengths.
     auto color = computed_style.color(CSS::PropertyID::Color, color_resolution_context);
-    computed_values.set_color(color);
-    computed_values.set_color_style_value(&computed_style.property(CSS::PropertyID::Color));
+    // NB: The inherited text group resolves its color fields against the element's
+    //     own color, which reaches the shared resolution context only further down.
+    auto own_color_resolution_context = color_resolution_context;
+    own_color_resolution_context.current_color = color;
+    Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_text_group_properties.size()> inherited_text_group_values;
+    gather_group_values(inherited_text_group_properties, inherited_text_group_values);
+    for (size_t i = 0; i < inherited_text_group_properties.size(); ++i) {
+        auto gather_property_id = inherited_text_group_properties[i];
+        if (gather_property_id == PropertyID::Color) {
+            inherited_text_group_values[i].resolved_color = color.value();
+            inherited_text_group_values[i].has_resolved_color = true;
+        } else if (gather_property_id == PropertyID::WebkitTextFillColor) {
+            if (auto resolved = computed_style.property(PropertyID::WebkitTextFillColor).to_color(own_color_resolution_context); resolved.has_value()) {
+                inherited_text_group_values[i].resolved_color = resolved->value();
+                inherited_text_group_values[i].has_resolved_color = true;
+            }
+        }
+    }
+    auto* inherited_text_payload = ComputedValuesFFI::rust_build_style_group(
+        InheritedTextValues::style_group_index,
+        inherited_text_group_values.data(),
+        inherited_text_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.text.operator->()) : nullptr);
+    bool const inherited_text_adopted = inherited_text_payload != nullptr;
+    if (inherited_text_adopted)
+        computed_values.adopt_inherited_text_group(const_cast<void*>(inherited_text_payload));
+
+    if (!inherited_text_adopted)
+        computed_values.set_color(color);
+    if (!inherited_text_adopted)
+        computed_values.set_color_style_value(&computed_style.property(CSS::PropertyID::Color));
 
     // NOTE: This color resolution context must be created after we set color above so that currentColor resolves correctly
     // FIXME: We should resolve colors to their absolute forms at compute time (i.e. by implementing the relevant absolutized methods)
@@ -1048,38 +1149,50 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     });
     computed_values.set_transition_behaviors(move(transition_behaviors));
 
-    computed_values.set_text_align(computed_style.text_align());
-    computed_values.set_text_justify(computed_style.text_justify());
+    if (!inherited_text_adopted)
+        computed_values.set_text_align(computed_style.text_align());
+    if (!inherited_text_adopted)
+        computed_values.set_text_justify(computed_style.text_justify());
     computed_values.set_text_overflow(computed_style.text_overflow());
     auto const& text_underline_offset_value = computed_style.property(CSS::PropertyID::TextUnderlineOffset);
     CSS::TextUnderlineOffset text_underline_offset;
     text_underline_offset.used_value = computed_style.text_underline_offset();
     if (text_underline_offset_value.to_keyword() != CSS::Keyword::Auto)
         text_underline_offset.computed_value = CSS::LengthPercentage::from_style_value(text_underline_offset_value);
-    computed_values.set_text_underline_offset(move(text_underline_offset));
-    computed_values.set_text_underline_position(computed_style.text_underline_position());
+    if (!inherited_text_adopted)
+        computed_values.set_text_underline_offset(move(text_underline_offset));
+    if (!inherited_text_adopted)
+        computed_values.set_text_underline_position(computed_style.text_underline_position());
 
-    computed_values.set_text_indent(computed_style.text_indent());
-    computed_values.set_text_wrap_mode(computed_style.text_wrap_mode());
-    computed_values.set_text_wrap_style(CSS::keyword_to_text_wrap_style(computed_style.property(CSS::PropertyID::TextWrapStyle).to_keyword()).release_value());
-    computed_values.set_tab_size(computed_style.tab_size());
+    if (!inherited_text_adopted)
+        computed_values.set_text_indent(computed_style.text_indent());
+    if (!inherited_text_adopted)
+        computed_values.set_text_wrap_mode(computed_style.text_wrap_mode());
+    if (!inherited_text_adopted)
+        computed_values.set_text_wrap_style(CSS::keyword_to_text_wrap_style(computed_style.property(CSS::PropertyID::TextWrapStyle).to_keyword()).release_value());
+    if (!inherited_text_adopted)
+        computed_values.set_tab_size(computed_style.tab_size());
 
-    computed_values.set_white_space_collapse(computed_style.white_space_collapse());
+    if (!inherited_text_adopted)
+        computed_values.set_white_space_collapse(computed_style.white_space_collapse());
     if (!text_reset_adopted)
         computed_values.set_white_space_trim(computed_style.white_space_trim());
-    computed_values.set_word_break(computed_style.word_break());
-    switch (computed_style.property(CSS::PropertyID::OverflowWrap).to_keyword()) {
-    case CSS::Keyword::Normal:
-        computed_values.set_overflow_wrap(CSS::OverflowWrap::Normal);
-        break;
-    case CSS::Keyword::BreakWord:
-        computed_values.set_overflow_wrap(CSS::OverflowWrap::BreakWord);
-        break;
-    case CSS::Keyword::Anywhere:
-        computed_values.set_overflow_wrap(CSS::OverflowWrap::Anywhere);
-        break;
-    default:
-        VERIFY_NOT_REACHED();
+    if (!inherited_text_adopted)
+        computed_values.set_word_break(computed_style.word_break());
+    if (!inherited_text_adopted) {
+        switch (computed_style.property(CSS::PropertyID::OverflowWrap).to_keyword()) {
+        case CSS::Keyword::Normal:
+            computed_values.set_overflow_wrap(CSS::OverflowWrap::Normal);
+            break;
+        case CSS::Keyword::BreakWord:
+            computed_values.set_overflow_wrap(CSS::OverflowWrap::BreakWord);
+            break;
+        case CSS::Keyword::Anywhere:
+            computed_values.set_overflow_wrap(CSS::OverflowWrap::Anywhere);
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
     }
     auto integer_from_style_value = [](CSS::StyleValue const& value) -> u64 {
         i32 integer;
@@ -1090,13 +1203,19 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         VERIFY(integer >= 0);
         return integer;
     };
-    computed_values.set_orphans(integer_from_style_value(computed_style.property(CSS::PropertyID::Orphans)));
-    computed_values.set_widows(integer_from_style_value(computed_style.property(CSS::PropertyID::Widows)));
+    if (!inherited_text_adopted)
+        computed_values.set_orphans(integer_from_style_value(computed_style.property(CSS::PropertyID::Orphans)));
+    if (!inherited_text_adopted)
+        computed_values.set_widows(integer_from_style_value(computed_style.property(CSS::PropertyID::Widows)));
 
-    computed_values.set_word_spacing(computed_style.word_spacing());
-    computed_values.set_letter_spacing(computed_style.letter_spacing());
-    computed_values.set_word_spacing_style_value(computed_style.property(PropertyID::WordSpacing));
-    computed_values.set_letter_spacing_style_value(computed_style.property(PropertyID::LetterSpacing));
+    if (!inherited_text_adopted)
+        computed_values.set_word_spacing(computed_style.word_spacing());
+    if (!inherited_text_adopted)
+        computed_values.set_letter_spacing(computed_style.letter_spacing());
+    if (!inherited_text_adopted)
+        computed_values.set_word_spacing_style_value(computed_style.property(PropertyID::WordSpacing));
+    if (!inherited_text_adopted)
+        computed_values.set_letter_spacing_style_value(computed_style.property(PropertyID::LetterSpacing));
 
     computed_values.set_float(computed_style.float_());
 
@@ -1119,10 +1238,12 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_pointer_events(computed_style.pointer_events());
     if (!text_reset_adopted)
         computed_values.set_text_decoration_line(computed_style.text_decoration_line());
-    computed_values.set_text_decoration_skip_ink(computed_style.text_decoration_skip_ink());
+    if (!inherited_text_adopted)
+        computed_values.set_text_decoration_skip_ink(computed_style.text_decoration_skip_ink());
     if (!text_reset_adopted)
         computed_values.set_text_decoration_style(computed_style.text_decoration_style());
-    computed_values.set_text_transform(computed_style.text_transform());
+    if (!inherited_text_adopted)
+        computed_values.set_text_transform(computed_style.text_transform());
 
     auto list_style_type = computed_style.list_style_type(style_scope);
     auto const& list_style_type_value = computed_style.property(PropertyID::ListStyleType);
@@ -1148,12 +1269,15 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!text_reset_adopted)
         computed_values.set_text_decoration_thickness(computed_style.text_decoration_thickness());
 
-    auto const& webkit_text_fill_color = computed_style.property(CSS::PropertyID::WebkitTextFillColor);
-    computed_values.set_webkit_text_fill_color(
-        webkit_text_fill_color.to_color(color_resolution_context).value(),
-        webkit_text_fill_color.to_keyword() == Keyword::Currentcolor);
+    if (!inherited_text_adopted) {
+        auto const& webkit_text_fill_color = computed_style.property(CSS::PropertyID::WebkitTextFillColor);
+        computed_values.set_webkit_text_fill_color(
+            webkit_text_fill_color.to_color(color_resolution_context).value(),
+            webkit_text_fill_color.to_keyword() == Keyword::Currentcolor);
+    }
 
-    computed_values.set_text_shadow(computed_style.text_shadow(color_resolution_context));
+    if (!inherited_text_adopted)
+        computed_values.set_text_shadow(computed_style.text_shadow(color_resolution_context));
 
     computed_values.set_z_index(computed_style.z_index());
     if (!effects_adopted)

@@ -256,6 +256,11 @@ pub const GROUP_FIELD_REQUIRE_INITIAL_VALUE: u8 = 11;
 pub const GROUP_FIELD_CSS_PIXELS_NON_NEGATIVE: u8 = 12;
 /// A number stored as f64, resolved by the C++ gather loop.
 pub const GROUP_FIELD_RESOLVED_F64: u8 = 13;
+/// The value's shell stored into a single-pointer reference slot, retaining
+/// one reference; the slot's constructor default must be null.
+pub const GROUP_FIELD_RETAINED_SHELL: u8 = 14;
+/// A bool stored as one byte: whether the value is the descriptor's keyword.
+pub const GROUP_FIELD_KEYWORD_EQUALS_BOOL: u8 = 15;
 
 /// One gathered value for the generic group builder: the computed value's
 /// shell and data, plus the resolved raw color for color-kind fields.
@@ -337,6 +342,7 @@ pub unsafe extern "C" fn rust_build_style_group(
             I32(u32, i32),
             U64(u32, u64),
             U32(u32, u32),
+            Shell(u32, *const c_void),
         }
         let mut pokes = Vec::with_capacity(count);
         for (descriptor, value) in descriptors.iter().zip(values) {
@@ -454,6 +460,17 @@ pub unsafe extern "C" fn rust_build_style_group(
                     }
                     pokes.push(Poke::F64(descriptor.offset, value.resolved_number));
                 }
+                GROUP_FIELD_RETAINED_SHELL => {
+                    if value.shell.is_null() {
+                        return None;
+                    }
+                    pokes.push(Poke::Shell(descriptor.offset, value.shell));
+                }
+                GROUP_FIELD_KEYWORD_EQUALS_BOOL => {
+                    let is_keyword =
+                        matches!(data, StyleValueData::Keyword { keyword } if *keyword == descriptor.keyword);
+                    pokes.push(Poke::U8(descriptor.offset, is_keyword as u8));
+                }
                 _ => return None,
             }
         }
@@ -473,6 +490,11 @@ pub unsafe extern "C" fn rust_build_style_group(
                     Poke::I32(offset, value) => *(base.add(offset as usize) as *mut i32) = value,
                     Poke::U64(offset, value) => *(base.add(offset as usize) as *mut u64) = value,
                     Poke::U32(offset, value) => *(base.add(offset as usize) as *mut u32) = value,
+                    Poke::Shell(offset, shell) => {
+                        // The slot's constructor default is null, so nothing is released.
+                        crate::style_value::retain_shell_pointer(shell);
+                        *(base.add(offset as usize) as *mut *const c_void) = shell;
+                    }
                 }
             }
         }
