@@ -263,6 +263,20 @@ static constexpr Array sizing_group_properties {
     PropertyID::MaxHeight,
 };
 
+// The properties feeding the transform group's descriptors, in registration
+// order.
+static constexpr Array transform_group_properties {
+    PropertyID::Transform,
+    PropertyID::TransformBox,
+    PropertyID::TransformOrigin,
+    PropertyID::TransformStyle,
+    PropertyID::Rotate,
+    PropertyID::Translate,
+    PropertyID::Scale,
+    PropertyID::Perspective,
+    PropertyID::PerspectiveOrigin,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -399,6 +413,18 @@ static void register_style_group_field_descriptors()
     add(sizing, PropertyID::Height, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
     add(sizing, PropertyID::MinHeight, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
     add(sizing, PropertyID::MaxHeight, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+
+    using Transform = ComputedValues::TransformValues;
+    constexpr auto transform = to_underlying(StyleGroupIndex::TransformValues);
+    add(transform, PropertyID::Transform, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(transform, PropertyID::TransformBox, offsetof(Transform, transform_box), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_transform_box>());
+    add(transform, PropertyID::TransformOrigin, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(transform, PropertyID::TransformStyle, offsetof(Transform, transform_style), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_transform_style>());
+    add(transform, PropertyID::Rotate, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(transform, PropertyID::Translate, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(transform, PropertyID::Scale, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(transform, PropertyID::Perspective, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(transform, PropertyID::PerspectiveOrigin, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -617,6 +643,17 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     bool const sizing_adopted = sizing_payload != nullptr;
     if (sizing_adopted)
         computed_values.adopt_sizing_group(const_cast<void*>(sizing_payload));
+
+    Array<ComputedValuesFFI::FfiGroupValueEntry, transform_group_properties.size()> transform_group_values;
+    gather_group_values(transform_group_properties, transform_group_values);
+    auto* transform_payload = ComputedValuesFFI::rust_build_style_group(
+        TransformValues::style_group_index,
+        transform_group_values.data(),
+        transform_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.transform.operator->()) : nullptr);
+    bool const transform_adopted = transform_payload != nullptr;
+    if (transform_adopted)
+        computed_values.adopt_transform_group(const_cast<void*>(transform_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, effects_group_properties.size()> effects_group_values;
     gather_group_values(effects_group_properties, effects_group_values);
@@ -1428,15 +1465,24 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!effects_adopted)
         computed_values.set_box_shadow(computed_style.box_shadow(color_resolution_context));
 
-    computed_values.set_rotate(computed_style.rotate());
-    computed_values.set_translate(computed_style.translate());
-    computed_values.set_scale(computed_style.scale());
-    computed_values.set_transformations(computed_style.transformations());
-    computed_values.set_transform_box(computed_style.transform_box());
-    computed_values.set_transform_origin(computed_style.transform_origin());
-    computed_values.set_transform_style(computed_style.transform_style());
-    computed_values.set_perspective(computed_style.perspective());
-    computed_values.set_perspective_origin(computed_style.perspective_origin());
+    if (!transform_adopted)
+        computed_values.set_rotate(computed_style.rotate());
+    if (!transform_adopted)
+        computed_values.set_translate(computed_style.translate());
+    if (!transform_adopted)
+        computed_values.set_scale(computed_style.scale());
+    if (!transform_adopted)
+        computed_values.set_transformations(computed_style.transformations());
+    if (!transform_adopted)
+        computed_values.set_transform_box(computed_style.transform_box());
+    if (!transform_adopted)
+        computed_values.set_transform_origin(computed_style.transform_origin());
+    if (!transform_adopted)
+        computed_values.set_transform_style(computed_style.transform_style());
+    if (!transform_adopted)
+        computed_values.set_perspective(computed_style.perspective());
+    if (!transform_adopted)
+        computed_values.set_perspective_origin(computed_style.perspective_origin());
 
     struct NamedBorderAndWidth {
         CSS::BorderData border;

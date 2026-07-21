@@ -1904,6 +1904,7 @@ public:
     void adopt_inherited_text_group(void* payload) { m_values.m_inherited.text.adopt(payload); }
     void adopt_inherited_ui_group(void* payload) { m_values.m_inherited.ui.adopt(payload); }
     void adopt_sizing_group(void* payload) { m_values.m_noninherited.sizing.adopt(payload); }
+    void adopt_transform_group(void* payload) { m_values.m_noninherited.transform.adopt(payload); }
 
     void set_aspect_ratio(AspectRatio aspect_ratio)
     {
