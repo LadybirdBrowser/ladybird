@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 66 tests
 
-53 Pass
-13 Fail
+58 Pass
+8 Fail
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "initialize"
 Pass	Executing "test value"
@@ -56,17 +56,17 @@ Pass	< [test setValueCurve] All assertions passed. (total 5 assertions)
 Pass	> [special cases 1] Test exceptions for finite values
 Pass	  gain.gain.setValueAtTime(1,-1) threw RangeError: "startTime must not be negative".
 Pass	  gain.gain.linearRampToValueAtTime(1,-1) threw RangeError: "endTime must not be negative".
-Fail	X gain.gain.exponentialRampToValueAtTime(1,-1) did not throw an exception.
+Pass	  gain.gain.exponentialRampToValueAtTime(1,-1) threw RangeError: "endTime must not be negative".
 Fail	X gain.gain.setTargetAtTime(1,-1,1) did not throw an exception.
 Fail	X gain.gain.setTargetAtTime(1,1,-1) did not throw an exception.
 Fail	X gain.gain.setValueCurveAtTime([0,0,0],-1,1) did not throw an exception.
 Fail	X gain.gain.setValueCurveAtTime([0,0,0],1,-1) did not throw an exception.
 Fail	X gain.gain.setValueCurveAtTime(curve, 1, 0) did not throw an exception.
 Fail	X gain.gain.setValueCurveAtTime(curve, 1, -1) did not throw an exception.
-Fail	< [special cases 1] 7 out of 9 assertions were failed.
+Fail	< [special cases 1] 6 out of 9 assertions were failed.
 Pass	> [special cases 2] Test special cases for expeonentialRamp
-Fail	X gain.gain.exponentialRampToValueAtTime(0,1) did not throw an exception.
-Fail	X gain.gain.exponentialRampToValueAtTime(-1e-100,1) did not throw an exception.
-Fail	X gain.gain.exponentialRampToValueAtTime(1e-100,1) did not throw an exception.
-Fail	< [special cases 2] 3 out of 3 assertions were failed.
-Fail	# AUDIT TASK RUNNER FINISHED: 2 out of 6 tasks were failed.
+Pass	  gain.gain.exponentialRampToValueAtTime(0,1) threw RangeError: "value must not be zero".
+Pass	  gain.gain.exponentialRampToValueAtTime(-1e-100,1) threw RangeError: "value must not be zero".
+Pass	  gain.gain.exponentialRampToValueAtTime(1e-100,1) threw RangeError: "value must not be zero".
+Pass	< [special cases 2] All assertions passed. (total 3 assertions)
+Fail	# AUDIT TASK RUNNER FINISHED: 1 out of 6 tasks were failed.

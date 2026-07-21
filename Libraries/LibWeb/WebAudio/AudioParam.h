@@ -66,7 +66,11 @@ private:
         float value { 0 };
     };
 
-    using Parameterization = Variant<SetValue, LinearRamp>;
+    struct ExponentialRamp {
+        float value { 0 };
+    };
+
+    using Parameterization = Variant<SetValue, LinearRamp, ExponentialRamp>;
 
     struct AutomationEvent {
         double time { 0 };

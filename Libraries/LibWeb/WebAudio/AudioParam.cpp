@@ -5,6 +5,7 @@
  */
 
 #include <AK/BinarySearch.h>
+#include <AK/Math.h>
 #include <LibWeb/Bindings/AudioParam.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioParam.h>
@@ -74,6 +75,19 @@ float AudioParam::intrinsic_value_at_time(double time) const
             VERIFY(cache.minimum_time.has_value());
             auto progress = static_cast<float>((time - *cache.minimum_time) / (event.time - *cache.minimum_time));
             return cache.starting_value + (linear_ramp.value - cache.starting_value) * progress;
+        },
+        [&](ExponentialRamp const& exponential_ramp) {
+            if (time >= event.time)
+                return exponential_ramp.value;
+
+            if (cache.starting_value == 0
+                || (cache.starting_value < 0 && exponential_ramp.value > 0)
+                || (cache.starting_value > 0 && exponential_ramp.value < 0))
+                return cache.starting_value;
+
+            VERIFY(cache.minimum_time.has_value());
+            auto progress = static_cast<float>((time - *cache.minimum_time) / (event.time - *cache.minimum_time));
+            return cache.starting_value * static_cast<float>(pow(exponential_ramp.value / cache.starting_value, progress));
         });
 }
 
@@ -122,7 +136,7 @@ float AudioParam::event_value_at_time(size_t event_index, double) const
 {
     auto const& event = m_automation_events[event_index];
     return event.parameterization.visit(
-        [](OneOf<SetValue, LinearRamp> auto const& parameterization) {
+        [](OneOf<SetValue, LinearRamp, ExponentialRamp> auto const& parameterization) {
             return parameterization.value;
         });
 }
@@ -148,7 +162,7 @@ AudioParam::ParameterizationCache const& AudioParam::parameterization_cache_for_
             [](SetValue const&) -> Optional<ParameterizationCache> {
                 return {};
             },
-            [&](LinearRamp const&) -> Optional<ParameterizationCache> {
+            [&](OneOf<LinearRamp, ExponentialRamp> auto const&) -> Optional<ParameterizationCache> {
                 auto const& previous_event = m_automation_events[event_index - 1];
                 return ParameterizationCache {
                     .event_index = event_index,
@@ -210,9 +224,26 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::linear_ramp_to_value_at_tim
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-exponentialramptovalueattime
 WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::exponential_ramp_to_value_at_time(float value, double end_time)
 {
-    (void)value;
-    (void)end_time;
-    dbgln("FIXME: Implement AudioParam::exponential_ramp_to_value_at_time");
+    // A RangeError exception MUST be thrown if value is equal to 0.
+    if (value == 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "value must not be zero"_utf16 };
+
+    // A RangeError exception MUST be thrown if endTime is negative or is not a finite number.
+    if (end_time < 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "endTime must not be negative"_utf16 };
+
+    // If endTime is less than currentTime, it is clamped to currentTime.
+    end_time = max(end_time, context()->current_time());
+
+    // If there is no event preceding this event, the exponential ramp behaves as if setValueAtTime(value, currentTime)
+    // were called, where value is the current value of the attribute.
+    if (first_event_index_after(end_time) == 0)
+        MUST(set_value_at_time(m_current_value, context()->current_time()));
+
+    insert_event({
+        .time = end_time,
+        .parameterization = ExponentialRamp { value },
+    });
     return GC::Ref { *this };
 }
 
