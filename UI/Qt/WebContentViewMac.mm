@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <AK/Math.h>
+#include <AK/ScopeGuard.h>
 #include <LibGfx/SharedImageBuffer.h>
 #include <UI/Qt/WebContentView.h>
 
@@ -195,6 +196,7 @@ bool WebContentView::update_imported_iosurface_texture(Gfx::SharedImageBuffer co
 void WebContentView::initialize(QRhiCommandBuffer*)
 {
     release_metal_resources();
+    m_force_full_repaint = true;
 }
 
 void WebContentView::releaseResources()
@@ -204,9 +206,49 @@ void WebContentView::releaseResources()
 
 void WebContentView::render(QRhiCommandBuffer* command_buffer)
 {
+    auto repaint_entire_target = m_force_full_repaint;
+
+    Optional<Gfx::IntRect> damage_rect;
+    if (repaint_entire_target) {
+        auto target_size = colorTexture()->pixelSize();
+        damage_rect = Gfx::IntRect { 0, 0, target_size.width(), target_size.height() };
+    } else if (m_has_pending_frame_damage) {
+        damage_rect = m_pending_frame_damage;
+    } else {
+        return;
+    }
+
+    ArmedScopeGuard schedule_repaint_retry = [this] {
+        if (!m_repaint_retry_scheduled) {
+            m_repaint_retry_scheduled = true;
+            update();
+        }
+    };
+    auto consume_repaint_state = [&] {
+        schedule_repaint_retry.disarm();
+        m_force_full_repaint = false;
+        m_has_pending_frame_damage = false;
+        m_repaint_retry_scheduled = false;
+        m_pending_frame_damage = {};
+    };
+
+    auto render_target_size = colorTexture()->pixelSize();
+    damage_rect->intersect(Gfx::IntRect { 0, 0, render_target_size.width(), render_target_size.height() });
+    if (damage_rect->is_empty()) {
+        consume_repaint_state();
+        return;
+    }
+
     auto background_color = page_background_color();
     auto clear_color = QColor(background_color.red(), background_color.green(), background_color.blue());
 
+    auto* texture_render_target = static_cast<QRhiTextureRenderTarget*>(renderTarget());
+    auto render_target_flags = repaint_entire_target ? QRhiTextureRenderTarget::Flags {} : QRhiTextureRenderTarget::Flags { QRhiTextureRenderTarget::PreserveColorContents };
+    if (texture_render_target->flags() != render_target_flags) {
+        texture_render_target->setFlags(render_target_flags);
+        if (!texture_render_target->create())
+            return;
+    }
     command_buffer->beginPass(renderTarget(), clear_color, { 1.0f, 0 }, nullptr, QRhiCommandBuffer::ExternalContent);
 
     auto paintable = current_paintable();
@@ -244,17 +286,31 @@ void WebContentView::render(QRhiCommandBuffer* command_buffer)
     // directly into Qt's command buffer.
     command_buffer->beginExternal();
     auto const* command_buffer_native_handles = static_cast<QRhiMetalCommandBufferNativeHandles const*>(command_buffer->nativeHandles());
-    if (command_buffer_native_handles && command_buffer_native_handles->encoder) {
-        auto* encoder = command_buffer_native_handles->encoder;
-        [encoder setRenderPipelineState:(id<MTLRenderPipelineState>)m_metal_pipeline_state];
-        [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:0];
-        [encoder setFragmentTexture:(id<MTLTexture>)m_imported_iosurface_texture atIndex:0];
-        [encoder setFragmentSamplerState:(id<MTLSamplerState>)m_metal_sampler_state atIndex:0];
-        [encoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
+    if (!command_buffer_native_handles || !command_buffer_native_handles->encoder) {
+        command_buffer->endExternal();
+        command_buffer->endPass();
+        return;
     }
+
+    auto* encoder = command_buffer_native_handles->encoder;
+    if (!repaint_entire_target) {
+        MTLScissorRect scissor_rect {
+            static_cast<NSUInteger>(damage_rect->x()),
+            static_cast<NSUInteger>(damage_rect->y()),
+            static_cast<NSUInteger>(damage_rect->width()),
+            static_cast<NSUInteger>(damage_rect->height()),
+        };
+        [encoder setScissorRect:scissor_rect];
+    }
+    [encoder setRenderPipelineState:(id<MTLRenderPipelineState>)m_metal_pipeline_state];
+    [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:0];
+    [encoder setFragmentTexture:(id<MTLTexture>)m_imported_iosurface_texture atIndex:0];
+    [encoder setFragmentSamplerState:(id<MTLSamplerState>)m_metal_sampler_state atIndex:0];
+    [encoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
     command_buffer->endExternal();
 
     command_buffer->endPass();
+    consume_repaint_state();
 }
 
 }

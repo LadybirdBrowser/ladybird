@@ -121,6 +121,7 @@ private:
     virtual Web::DevicePixelSize viewport_size() const override;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override;
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override;
+    virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) override;
 
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
     // ^QRhiWidget
@@ -140,6 +141,9 @@ private:
     void update_cursor(Gfx::Cursor cursor);
     void apply_web_content_cursor(QCursor const&);
     void schedule_repaint();
+#ifdef LADYBIRD_QT_USE_RHI_WIDGET
+    void schedule_frame_damage_repaint();
+#endif
     void update_compositor_display_metadata();
 
     Web::DevicePixelPoint node_picker_position_for(QSinglePointEvent const&) const;
@@ -179,6 +183,11 @@ private:
     void* m_imported_iosurface_texture { nullptr };
     Gfx::SharedImageBuffer const* m_imported_shared_image_buffer { nullptr };
     unsigned long m_render_target_pixel_format { 0 };
+
+    bool m_force_full_repaint { true };
+    bool m_has_pending_frame_damage { false };
+    bool m_repaint_retry_scheduled { false };
+    Gfx::IntRect m_pending_frame_damage;
 #endif
 
 #ifdef LADYBIRD_QT_USE_VULKAN_WINDOW

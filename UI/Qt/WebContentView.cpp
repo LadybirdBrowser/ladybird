@@ -129,7 +129,11 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     initialize_client((parent_client == nullptr) ? CreateNewClient::Yes : CreateNewClient::No);
 
     on_ready_to_paint = [this]() {
+#ifdef LADYBIRD_QT_USE_RHI_WIDGET
+        schedule_frame_damage_repaint();
+#else
         schedule_repaint();
+#endif
     };
 
     on_cursor_change = [this](auto cursor) {
@@ -810,7 +814,45 @@ void WebContentView::schedule_repaint()
 #ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
     schedule_vulkan_window_update();
 #else
+#    ifdef LADYBIRD_QT_USE_RHI_WIDGET
+    m_force_full_repaint = true;
+#    endif
     update();
+#endif
+}
+
+#ifdef LADYBIRD_QT_USE_RHI_WIDGET
+void WebContentView::schedule_frame_damage_repaint()
+{
+    if (m_force_full_repaint) {
+        update();
+        return;
+    }
+
+    if (!m_has_pending_frame_damage || m_pending_frame_damage.is_empty()) {
+        m_has_pending_frame_damage = false;
+        m_pending_frame_damage = {};
+        return;
+    }
+
+    auto logical_left = static_cast<int>(floor(m_pending_frame_damage.x() / m_device_pixel_ratio));
+    auto logical_top = static_cast<int>(floor(m_pending_frame_damage.y() / m_device_pixel_ratio));
+    auto logical_right = static_cast<int>(ceil(m_pending_frame_damage.right() / m_device_pixel_ratio));
+    auto logical_bottom = static_cast<int>(ceil(m_pending_frame_damage.bottom() / m_device_pixel_ratio));
+    update(QRect(logical_left, logical_top, logical_right - logical_left, logical_bottom - logical_top).intersected(rect()));
+}
+#endif
+
+void WebContentView::did_accept_presented_backing_store(i32, Gfx::IntRect damage_rect)
+{
+#ifdef LADYBIRD_QT_USE_RHI_WIDGET
+    if (m_has_pending_frame_damage)
+        m_pending_frame_damage.unite(damage_rect);
+    else
+        m_pending_frame_damage = damage_rect;
+    m_has_pending_frame_damage = true;
+#else
+    (void)damage_rect;
 #endif
 }
 
@@ -883,6 +925,9 @@ Optional<QPixmap> WebContentView::tab_preview_pixmap(QSize const& maximum_size) 
 void WebContentView::resizeEvent(QResizeEvent* event)
 {
     WebContentViewBase::resizeEvent(event);
+#ifdef LADYBIRD_QT_USE_RHI_WIDGET
+    m_force_full_repaint = true;
+#endif
 #ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
     update_vulkan_window_geometry();
 #endif
