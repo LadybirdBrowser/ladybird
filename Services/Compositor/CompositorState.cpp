@@ -308,6 +308,11 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
     VERIFY(context);
     if (context->should_defer_main_thread_present_for_async_scroll()) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread deferred present while async scroll is pending");
+        // NB: The in-flight compositor frame may have been rasterized before the
+        //     main thread installed its new display list. Preserve the present as
+        //     a full repaint so that it uses both the new list and the latest
+        //     compositor scroll state once presentation is unblocked.
+        schedule_present_frame(context_id, *context, viewport_rect);
         return;
     }
     damage_rect.intersect({ {}, viewport_rect.size() });
