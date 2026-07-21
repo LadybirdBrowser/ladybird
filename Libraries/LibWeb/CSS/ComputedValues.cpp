@@ -250,6 +250,19 @@ static constexpr Array inherited_ui_group_properties {
     PropertyID::ColorScheme,
 };
 
+// The properties feeding the sizing group's descriptors, in registration
+// order. All six register as keyword constraints: the group adopts a shared
+// payload when every size is untouched and falls back to the setters
+// otherwise, until the core learns the size representation.
+static constexpr Array sizing_group_properties {
+    PropertyID::Width,
+    PropertyID::MinWidth,
+    PropertyID::MaxWidth,
+    PropertyID::Height,
+    PropertyID::MinHeight,
+    PropertyID::MaxHeight,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -378,6 +391,14 @@ static void register_style_group_field_descriptors()
     add(inherited_ui, PropertyID::ScrollbarColor, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
     add(inherited_ui, PropertyID::ColorScheme, offsetof(InheritedUI, color_scheme), GROUP_FIELD_RESOLVED_U8, 0, nullptr);
     add(inherited_ui, PropertyID::ColorScheme, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+
+    constexpr auto sizing = to_underlying(StyleGroupIndex::SizingValues);
+    add(sizing, PropertyID::Width, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(sizing, PropertyID::MinWidth, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(sizing, PropertyID::MaxWidth, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(sizing, PropertyID::Height, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(sizing, PropertyID::MinHeight, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(sizing, PropertyID::MaxHeight, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -585,6 +606,17 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     bool const alignment_adopted = alignment_payload != nullptr;
     if (alignment_adopted)
         computed_values.adopt_alignment_group(const_cast<void*>(alignment_payload));
+
+    Array<ComputedValuesFFI::FfiGroupValueEntry, sizing_group_properties.size()> sizing_group_values;
+    gather_group_values(sizing_group_properties, sizing_group_values);
+    auto* sizing_payload = ComputedValuesFFI::rust_build_style_group(
+        SizingValues::style_group_index,
+        sizing_group_values.data(),
+        sizing_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.sizing.operator->()) : nullptr);
+    bool const sizing_adopted = sizing_payload != nullptr;
+    if (sizing_adopted)
+        computed_values.adopt_sizing_group(const_cast<void*>(sizing_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, effects_group_properties.size()> effects_group_values;
     gather_group_values(effects_group_properties, effects_group_values);
@@ -1345,13 +1377,19 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!inherited_box_adopted)
         computed_values.set_visibility(computed_style.visibility());
 
-    computed_values.set_width(computed_style.size_value(CSS::PropertyID::Width));
-    computed_values.set_min_width(computed_style.size_value(CSS::PropertyID::MinWidth));
-    computed_values.set_max_width(computed_style.size_value(CSS::PropertyID::MaxWidth));
+    if (!sizing_adopted)
+        computed_values.set_width(computed_style.size_value(CSS::PropertyID::Width));
+    if (!sizing_adopted)
+        computed_values.set_min_width(computed_style.size_value(CSS::PropertyID::MinWidth));
+    if (!sizing_adopted)
+        computed_values.set_max_width(computed_style.size_value(CSS::PropertyID::MaxWidth));
 
-    computed_values.set_height(computed_style.size_value(CSS::PropertyID::Height));
-    computed_values.set_min_height(computed_style.size_value(CSS::PropertyID::MinHeight));
-    computed_values.set_max_height(computed_style.size_value(CSS::PropertyID::MaxHeight));
+    if (!sizing_adopted)
+        computed_values.set_height(computed_style.size_value(CSS::PropertyID::Height));
+    if (!sizing_adopted)
+        computed_values.set_min_height(computed_style.size_value(CSS::PropertyID::MinHeight));
+    if (!sizing_adopted)
+        computed_values.set_max_height(computed_style.size_value(CSS::PropertyID::MaxHeight));
 
     computed_values.set_inset(computed_style.length_box(CSS::PropertyID::Left, CSS::PropertyID::Top, CSS::PropertyID::Right, CSS::PropertyID::Bottom, CSS::LengthPercentageOrAuto::make_auto()));
     for (auto property_id : { PropertyID::Top, PropertyID::Right, PropertyID::Bottom, PropertyID::Left }) {
