@@ -849,8 +849,7 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
                 return point;
             },
             [&](ScrollCompensation const& compensation) -> Optional<Gfx::FloatPoint> {
-                auto offset = scroll_state.device_offset_for_index(compensation.scroll_node_index);
-                point.translate_by(compensation.negate ? offset : -offset);
+                point.translate_by(scroll_state.device_offset_for_index(compensation.scroll_node_index));
                 return point;
             },
             [&](AnchorScrollShift const& shift) -> Optional<Gfx::FloatPoint> {
@@ -916,8 +915,7 @@ Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualCo
                     rect.translate_by(scroll_state.device_offset_for_index(VisualContextIndex { i }));
                 },
                 [&](ScrollCompensation const& compensation) {
-                    auto offset = scroll_state.device_offset_for_index(compensation.scroll_node_index);
-                    rect.translate_by(compensation.negate ? -offset : offset);
+                    rect.translate_by(-scroll_state.device_offset_for_index(compensation.scroll_node_index));
                 },
                 [&](AnchorScrollShift const& shift) {
                     rect.translate_by(shift.masked_offset(scroll_state));
@@ -995,7 +993,7 @@ void AccumulatedVisualContextTree::dump(VisualContextIndex index, StringBuilder&
             builder.append("]"sv);
         },
         [&](ScrollCompensation const& compensation) {
-            builder.appendff("scroll_compensation(node_index={}{})", compensation.scroll_node_index.value(), compensation.negate ? ""sv : ", applies_offset"sv);
+            builder.appendff("scroll_compensation(node_index={})", compensation.scroll_node_index.value());
         },
         [&](AnchorScrollShift const& shift) {
             builder.appendff("anchor_scroll_shift(node_index={}{}{}{})", shift.scroll_node_index.value(),
@@ -1115,7 +1113,6 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Web::Painting::ScrollCompensation const& data)
 {
     TRY(encoder.encode(data.scroll_node_index));
-    TRY(encoder.encode(data.negate));
     return {};
 }
 
@@ -1124,7 +1121,6 @@ ErrorOr<Web::Painting::ScrollCompensation> decode(Decoder& decoder)
 {
     return Web::Painting::ScrollCompensation {
         .scroll_node_index = TRY(decoder.decode<Web::Painting::VisualContextIndex>()),
-        .negate = TRY(decoder.decode<bool>()),
     };
 }
 

@@ -154,7 +154,6 @@ static bool visual_context_data_is_equal(VisualContextIndex a_index, VisualConte
         [&](ScrollCompensation const& data) {
             auto const* other = b.get_pointer<ScrollCompensation>();
             return other
-                && data.negate == other->negate
                 && a_scroll_state.device_offset_for_index(data.scroll_node_index) == b_scroll_state.device_offset_for_index(other->scroll_node_index);
         },
         [&](AnchorScrollShift const& data) {

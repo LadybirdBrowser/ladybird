@@ -215,9 +215,7 @@ void DisplayListPlayer::execute_impl(
                 },
                 [&](ScrollCompensation const& compensation) {
                     play_command(Save {});
-                    auto offset = scroll_state.device_offset_for_index(compensation.scroll_node_index);
-                    if (compensation.negate)
-                        offset = -offset;
+                    auto offset = -scroll_state.device_offset_for_index(compensation.scroll_node_index);
                     if (!offset.is_zero())
                         play_command(Translate { .delta = offset.to_type<int>() });
                 },

@@ -83,13 +83,10 @@ struct EffectsData {
     }
 };
 
-// Translates by another scroll node's offset during display list replay. Negating keeps fixed backgrounds
-// stationary relative to the viewport regardless of scroll position; the non-negating form is appended when
-// inspector overlays copy a scroll node's context, since a copied ScrollData node would look its offset up
-// under the copy's own index.
+// Translates by another scroll node's negated offset during display list replay, keeping fixed
+// backgrounds stationary relative to the viewport regardless of scroll position.
 struct ScrollCompensation {
     VisualContextIndex scroll_node_index;
-    bool negate { true };
 };
 
 // One scroll node's contribution to the default scroll shift of an anchor-positioned box, masked to the axes in which
