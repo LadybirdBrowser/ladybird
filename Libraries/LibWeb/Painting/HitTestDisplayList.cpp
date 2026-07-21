@@ -201,6 +201,7 @@ CSSPixelRect HitTestDisplayList::caret_line_rect_for_item(Item const& item) cons
 
 void HitTestDisplayList::append_box(Paintable const& paintable_box, Paintable& target, CSSPixelRect rect, VisualContextIndex visual_context_index, BorderRadiiData border_radii)
 {
+    verify_no_item_appended_after_derived_structures_are_built();
     Optional<size_t> caret_line_index;
     Optional<CSSPixelRect> caret_line_rect;
     if (auto line_box_index = paintable_box.containing_line_box_index(); line_box_index.has_value()) {
@@ -208,7 +209,6 @@ void HitTestDisplayList::append_box(Paintable const& paintable_box, Paintable& t
         caret_line_rect = paintable_box.absolute_containing_line_box_rect();
     }
 
-    auto item_index = m_items.size();
     m_items.append({
         .kind = ItemKind::Box,
         .paintable = target,
@@ -222,13 +222,11 @@ void HitTestDisplayList::append_box(Paintable const& paintable_box, Paintable& t
         .visual_context_index = visual_context_index,
         .border_radii = border_radii,
     });
-    add_item_to_spatial_index(item_index);
-    add_item_to_caret_items(item_index);
 }
 
 void HitTestDisplayList::append_svg_path(Paintable& target, Gfx::Path path, Gfx::WindingRule winding_rule, CSSPixelRect bounding_box, VisualContextIndex visual_context_index)
 {
-    auto item_index = m_items.size();
+    verify_no_item_appended_after_derived_structures_are_built();
     m_items.append({
         .kind = ItemKind::SvgPath,
         .paintable = target,
@@ -244,7 +242,6 @@ void HitTestDisplayList::append_svg_path(Paintable& target, Gfx::Path path, Gfx:
         .path = move(path),
         .winding_rule = winding_rule,
     });
-    add_item_to_spatial_index(item_index);
 }
 
 static bool text_fragment_is_hit_testable(PaintableFragment const& fragment)
@@ -265,11 +262,11 @@ static bool text_fragment_is_hit_testable(PaintableFragment const& fragment)
 
 void HitTestDisplayList::append_text_fragment(PaintableFragment const& fragment, VisualContextIndex visual_context_index)
 {
+    verify_no_item_appended_after_derived_structures_are_built();
     if (!text_fragment_is_hit_testable(fragment))
         return;
 
     auto& fragment_paintable = const_cast<PaintableWithLines&>(fragment.paintable_with_lines());
-    auto item_index = m_items.size();
     m_items.append({
         .kind = ItemKind::TextFragment,
         .paintable = fragment_paintable,
@@ -283,17 +280,15 @@ void HitTestDisplayList::append_text_fragment(PaintableFragment const& fragment,
         .visual_context_index = visual_context_index,
         .border_radii = {},
     });
-    add_item_to_spatial_index(item_index);
-    add_item_to_caret_items(item_index);
 }
 
 void HitTestDisplayList::append_empty_line(PaintableFragment const& sibling_fragment, size_t caret_offset, size_t line_box_index, CSSPixelRect line_rect, VisualContextIndex visual_context_index)
 {
+    verify_no_item_appended_after_derived_structures_are_built();
     if (!text_fragment_is_hit_testable(sibling_fragment))
         return;
 
     auto& fragment_paintable = const_cast<PaintableWithLines&>(sibling_fragment.paintable_with_lines());
-    auto item_index = m_items.size();
     m_items.append({
         .kind = ItemKind::EmptyLine,
         .paintable = fragment_paintable,
@@ -311,12 +306,11 @@ void HitTestDisplayList::append_empty_line(PaintableFragment const& sibling_frag
         .visual_context_index = visual_context_index,
         .border_radii = {},
     });
-    add_item_to_caret_items(item_index);
 }
 
 void HitTestDisplayList::append_empty_line(PaintableWithLines const& paintable, DOM::Node const& caret_node, size_t caret_offset, CSSPixelRect line_rect, VisualContextIndex visual_context_index)
 {
-    auto item_index = m_items.size();
+    verify_no_item_appended_after_derived_structures_are_built();
     m_items.append({
         .kind = ItemKind::EmptyLine,
         .paintable = const_cast<PaintableWithLines&>(paintable),
@@ -332,12 +326,11 @@ void HitTestDisplayList::append_empty_line(PaintableWithLines const& paintable, 
         .visual_context_index = visual_context_index,
         .border_radii = {},
     });
-    add_item_to_caret_items(item_index);
 }
 
 void HitTestDisplayList::append_empty_editable(Paintable const& paintable, CSSPixelRect rect, VisualContextIndex visual_context_index)
 {
-    auto item_index = m_items.size();
+    verify_no_item_appended_after_derived_structures_are_built();
     m_items.append({
         .kind = ItemKind::EmptyEditable,
         .paintable = const_cast<Paintable&>(paintable),
@@ -351,13 +344,11 @@ void HitTestDisplayList::append_empty_editable(Paintable const& paintable, CSSPi
         .visual_context_index = visual_context_index,
         .border_radii = {},
     });
-    add_item_to_spatial_index(item_index);
-    add_item_to_caret_items(item_index);
 }
 
 void HitTestDisplayList::append_chrome_widget(Paintable const& paintable_box, ChromeWidget& chrome_widget, VisualContextIndex visual_context_index)
 {
-    auto item_index = m_items.size();
+    verify_no_item_appended_after_derived_structures_are_built();
     m_items.append({
         .kind = ItemKind::ChromeWidget,
         .paintable = const_cast<Paintable&>(paintable_box),
@@ -371,10 +362,23 @@ void HitTestDisplayList::append_chrome_widget(Paintable const& paintable_box, Ch
         .visual_context_index = visual_context_index,
         .border_radii = {},
     });
-    add_item_to_spatial_index(item_index);
 }
 
-HitTestDisplayList::SpatialIndex& HitTestDisplayList::spatial_index_for(VisualContextIndex visual_context_index)
+void HitTestDisplayList::build_derived_structures_if_needed() const
+{
+    if (m_derived_structures_built)
+        return;
+    m_derived_structures_built = true;
+
+    for (size_t item_index = 0; item_index < m_items.size(); ++item_index) {
+        bool item_is_caret_target_only = m_items[item_index].kind == ItemKind::EmptyLine;
+        if (!item_is_caret_target_only)
+            add_item_to_spatial_index(item_index);
+        add_item_to_caret_items(item_index);
+    }
+}
+
+HitTestDisplayList::SpatialIndex& HitTestDisplayList::spatial_index_for(VisualContextIndex visual_context_index) const
 {
     auto index = visual_context_index.value();
     if (m_spatial_indexes.size() <= index)
@@ -386,7 +390,7 @@ HitTestDisplayList::SpatialIndex& HitTestDisplayList::spatial_index_for(VisualCo
     return *m_spatial_indexes[index];
 }
 
-void HitTestDisplayList::add_item_to_spatial_index(size_t item_index)
+void HitTestDisplayList::add_item_to_spatial_index(size_t item_index) const
 {
     auto const& item = m_items[item_index];
     auto& spatial_index = spatial_index_for(item.visual_context_index);
@@ -442,7 +446,7 @@ bool HitTestDisplayList::item_can_produce_caret_position(Item const& item) const
     VERIFY_NOT_REACHED();
 }
 
-void HitTestDisplayList::add_item_to_caret_items(size_t item_index)
+void HitTestDisplayList::add_item_to_caret_items(size_t item_index) const
 {
     auto const& item = m_items[item_index];
     if (item.caret_rect.is_empty() || !item_can_produce_caret_position(item))
@@ -778,6 +782,8 @@ bool HitTestDisplayList::item_contains_caret_position(Item const& item, DOM::Nod
 
 Optional<CaretPosition> HitTestDisplayList::caret_position_at_line_edge(DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineEdge edge) const
 {
+    build_derived_structures_if_needed();
+
     auto line_index = caret_line_index_for_position(node, offset, affinity);
     if (!line_index.has_value())
         return {};
@@ -810,6 +816,8 @@ Optional<size_t> HitTestDisplayList::caret_line_index_for_position(DOM::Node con
 
 Optional<CaretPosition> HitTestDisplayList::caret_position_on_adjacent_line(DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineDirection direction, CSSPixels inline_coordinate, DOM::Node const& scope) const
 {
+    build_derived_structures_if_needed();
+
     auto current_line_index = caret_line_index_for_position(node, offset, affinity);
     if (!current_line_index.has_value())
         return {};
@@ -881,6 +889,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_on_adjacent_line(DOM:
 
 Optional<CSSPixels> HitTestDisplayList::caret_line_block_coordinate(DOM::Node const& node, size_t offset, TextAffinity affinity) const
 {
+    build_derived_structures_if_needed();
+
     auto line_index = caret_line_index_for_position(node, offset, affinity);
     if (!line_index.has_value())
         return {};
@@ -1016,6 +1026,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
 {
     if (m_visual_context_tree_version != viewport_paintable.visual_context_tree().version())
         return {};
+
+    build_derived_structures_if_needed();
 
     // First find both the topmost hit-test item and the topmost item that can directly produce a caret.
     // Non-caret items are still needed to keep later line fallback scoped to the hit content.
@@ -1268,6 +1280,8 @@ Optional<HitTestResult> HitTestDisplayList::hit_test(CSSPixelPoint point, HitTes
     if (m_visual_context_tree_version != viewport_paintable.visual_context_tree().version())
         return {};
 
+    build_derived_structures_if_needed();
+
     Optional<size_t> topmost_item_index;
     Optional<CSSPixelPoint> topmost_item_local_point;
 
@@ -1309,6 +1323,8 @@ TraversalDecision HitTestDisplayList::hit_test_all(CSSPixelPoint point, Viewport
 {
     if (m_visual_context_tree_version != viewport_paintable.visual_context_tree().version())
         return TraversalDecision::Continue;
+
+    build_derived_structures_if_needed();
 
     Vector<size_t> hit_item_indices;
     for (auto visual_context_index : m_used_visual_context_indices) {

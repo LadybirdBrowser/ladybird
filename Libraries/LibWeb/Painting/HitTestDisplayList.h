@@ -126,9 +126,11 @@ private:
         After,
     };
 
-    void add_item_to_spatial_index(size_t item_index);
-    void add_item_to_caret_items(size_t item_index);
-    SpatialIndex& spatial_index_for(VisualContextIndex);
+    void build_derived_structures_if_needed() const;
+    void verify_no_item_appended_after_derived_structures_are_built() const { VERIFY(!m_derived_structures_built); }
+    void add_item_to_spatial_index(size_t item_index) const;
+    void add_item_to_caret_items(size_t item_index) const;
+    SpatialIndex& spatial_index_for(VisualContextIndex) const;
 
     [[nodiscard]] Optional<CSSPixelPoint> local_point_for_visual_context(VisualContextIndex, CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior = AccumulatedVisualContextTree::ClipBehavior::Respect) const;
     [[nodiscard]] CSSPixelRect viewport_rect_for_item(Item const&, CSSPixelRect const&, ViewportPaintable const&, double device_pixels_per_css_pixel) const;
@@ -153,10 +155,11 @@ private:
 
     u64 m_visual_context_tree_version { 0 };
     Vector<Item> m_items;
-    Vector<size_t> m_caret_item_indices;
-    Vector<CaretLine> m_caret_lines;
-    Vector<OwnPtr<SpatialIndex>> m_spatial_indexes;
-    Vector<VisualContextIndex> m_used_visual_context_indices;
+    mutable bool m_derived_structures_built { false };
+    mutable Vector<size_t> m_caret_item_indices;
+    mutable Vector<CaretLine> m_caret_lines;
+    mutable Vector<OwnPtr<SpatialIndex>> m_spatial_indexes;
+    mutable Vector<VisualContextIndex> m_used_visual_context_indices;
 };
 
 }
