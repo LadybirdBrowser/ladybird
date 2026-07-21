@@ -1456,9 +1456,9 @@ RefPtr<CSS::CounterStyle const> StyleScope::get_registered_counter_style(Utf16Fl
         .value_or(nullptr);
 }
 
-GC::Ptr<CSSFunctionRule const> StyleScope::get_function_definition(Utf16FlyString const& name) const
+Optional<StyleScope::FunctionDefinitionAndScope> StyleScope::get_function_definition(Utf16FlyString const& name) const
 {
-    return dereference_global_tree_scoped_reference<CSSFunctionRule const*>([&](StyleScope const& scope) {
+    return dereference_global_tree_scoped_reference<FunctionDefinitionAndScope>([&](StyleScope const& scope) -> Optional<FunctionDefinitionAndScope> {
         auto const get_function_definition_for_cascade_origin = [&](CSS::CascadeOrigin cascade_origin) {
             CSSFunctionRule const* cascade_origin_result = nullptr;
 
@@ -1490,7 +1490,7 @@ GC::Ptr<CSSFunctionRule const> StyleScope::get_function_definition(Utf16FlyStrin
             return cascade_origin_result;
         };
 
-        Optional<CSSFunctionRule const*> result;
+        CSSFunctionRule const* result = nullptr;
 
         if (scope.m_node->is_document()) {
             if (auto const* user_agent_result = get_function_definition_for_cascade_origin(CSS::CascadeOrigin::UserAgent))
@@ -1503,9 +1503,11 @@ GC::Ptr<CSSFunctionRule const> StyleScope::get_function_definition(Utf16FlyStrin
         if (auto const* author_result = get_function_definition_for_cascade_origin(CSS::CascadeOrigin::Author))
             result = author_result;
 
-        return result;
-    })
-        .value_or(nullptr);
+        if (!result)
+            return OptionalNone {};
+
+        return FunctionDefinitionAndScope { .function = *result, .scope = scope };
+    });
 }
 
 template<typename T>

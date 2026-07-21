@@ -37,6 +37,7 @@ public:
     RefPtr<StyleValue const> get_custom_property(Utf16FlyString const& name) const;
     RefPtr<CustomPropertyData const> inheritable_custom_property_data() const;
     RefPtr<CustomPropertyData const> custom_property_data() const;
+    StyleScope const& style_scope() const;
 };
 
 // https://drafts.csswg.org/css-mixins/#using-custom-functions
@@ -44,6 +45,7 @@ struct HypotheticalElement {
     // NB: While this isn't technically part of the hypothetical element it shares the same scope and is needed to
     //     compute custom properties, so we store it here for convenience.
     HashMap<Utf16FlyString, CustomPropertyRegistration> custom_property_registry;
+    StyleScope const& style_scope;
 
     GC::Ref<CSSFunctionRule const> custom_function;
     DOM::AbstractElement root_element;

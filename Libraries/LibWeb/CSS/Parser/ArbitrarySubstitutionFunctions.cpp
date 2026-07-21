@@ -278,11 +278,13 @@ static Vector<ComponentValue> replace_a_dashed_function(AbstractOrHypotheticalEl
     // 1. Let function be the result of dereferencing the dashed function’s name as a tree-scoped reference. If no such
     //    name exists, return the guaranteed-invalid value.
 
-    // FIXME: For hypothetical elements (i.e. nested calls) should we use the abstract element's style scope or the
-    //        scope in which the current function was defined?
-    auto const& function = element.abstract_element().style_scope().get_function_definition(function_name);
+    // NB: For nested function calls we use the style scope in which the function was defined, not the style scope of
+    //     the real element.
+    // FIXME: For top-level calls we should use the style scope of the relevant CSS rule rather than the element's style
+    //        scope - see failing tests in function-shadow.html
+    auto const& function_and_scope = element.style_scope().get_function_definition(function_name);
 
-    if (!function)
+    if (!function_and_scope.has_value())
         return { ComponentValue { GuaranteedInvalidValue {} } };
 
     // 2. For each arg in arguments, substitute arbitrary substitution functions in arg, and replace arg with the
@@ -318,12 +320,13 @@ static Vector<ComponentValue> replace_a_dashed_function(AbstractOrHypotheticalEl
     CSSFunctionRule::CallingContext calling_context {
         .element = element,
         .property_or_descriptor_name = property_or_descriptor_name.release_value(),
-        .computed_style_for_custom_property_resolution = replacement_context.computed_style_for_custom_property_resolution
+        .computed_style_for_custom_property_resolution = replacement_context.computed_style_for_custom_property_resolution,
+        .style_scope = function_and_scope->scope
     };
 
     // 4. Evaluate a custom function, using function, arguments, and calling context, and return the equivalent token
     //    sequence of the value resulting from the evaluation.
-    return function->evaluate_a_custom_function(guarded_contexts, substituted_arguments, calling_context)->tokenize();
+    return function_and_scope->function->evaluate_a_custom_function(guarded_contexts, substituted_arguments, calling_context)->tokenize();
 }
 
 // https://drafts.csswg.org/css-env/#substitute-an-env

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 11 tests
 
-5 Pass
-6 Fail
+8 Pass
+3 Fail
 Pass	@function works inside shadow
 Pass	Looking up document-global function
 Pass	@function works inside nested shadow
@@ -12,6 +12,6 @@ Pass	Combining functions from various scopes
 Fail	::part() can not see inner functions
 Fail	::slotted() can see inner functions
 Fail	:host can see inner functions
-Fail	Outer functions can't see inner functions
-Fail	Outer functions can't see inner functions (local vars)
-Fail	Function with same name in different scopes
+Pass	Outer functions can't see inner functions
+Pass	Outer functions can't see inner functions (local vars)
+Pass	Function with same name in different scopes

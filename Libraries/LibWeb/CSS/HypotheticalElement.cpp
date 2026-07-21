@@ -93,4 +93,11 @@ RefPtr<CustomPropertyData const> AbstractOrHypotheticalElement::custom_property_
         [](HypotheticalElement* hypothetical_element) -> RefPtr<CustomPropertyData const> { return hypothetical_element->custom_property_data; });
 }
 
+StyleScope const& AbstractOrHypotheticalElement::style_scope() const
+{
+    return visit(
+        [](DOM::AbstractElement const& abstract_element) -> StyleScope const& { return abstract_element.style_scope(); },
+        [](HypotheticalElement* hypothetical_element) -> StyleScope const& { return hypothetical_element->style_scope; });
+}
+
 }

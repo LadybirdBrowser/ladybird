@@ -401,6 +401,7 @@ HashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> CSSFunctionRule::resolv
     //    only custom properties and the result descriptor apply to it.
     HypotheticalElement hypothetical_element {
         .custom_property_registry = registrations,
+        .style_scope = calling_context.style_scope,
         .custom_function = *this,
 
         // https://drafts.csswg.org/css-mixins/#calling-context-root-element
