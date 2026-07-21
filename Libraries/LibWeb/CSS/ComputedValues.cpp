@@ -384,6 +384,26 @@ static constexpr Array inherited_list_group_properties {
     PropertyID::Quotes,
 };
 
+// The properties feeding the content and anchor groups' descriptors, in
+// registration order. Everything registers as constraints: both groups adopt
+// shared payloads unless their properties are actually used.
+static constexpr Array content_group_properties {
+    PropertyID::Content,
+    PropertyID::CounterIncrement,
+    PropertyID::CounterReset,
+    PropertyID::CounterSet,
+};
+
+static constexpr Array anchor_group_properties {
+    PropertyID::AnchorName,
+    PropertyID::AnchorScope,
+    PropertyID::PositionAnchor,
+    PropertyID::PositionArea,
+    PropertyID::PositionTryFallbacks,
+    PropertyID::PositionTryOrder,
+    PropertyID::PositionVisibility,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -594,6 +614,21 @@ static void register_style_group_field_descriptors()
     add(inherited_list, PropertyID::ListStyleImage, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
     add(inherited_list, PropertyID::Quotes, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
 
+    constexpr auto content = to_underlying(StyleGroupIndex::ContentValues);
+    add(content, PropertyID::Content, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
+    add(content, PropertyID::CounterIncrement, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(content, PropertyID::CounterReset, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(content, PropertyID::CounterSet, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+
+    constexpr auto anchor = to_underlying(StyleGroupIndex::AnchorValues);
+    add(anchor, PropertyID::AnchorName, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(anchor, PropertyID::AnchorScope, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(anchor, PropertyID::PositionAnchor, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(anchor, PropertyID::PositionArea, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(anchor, PropertyID::PositionTryFallbacks, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(anchor, PropertyID::PositionTryOrder, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
+    add(anchor, PropertyID::PositionVisibility, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Always), nullptr);
+
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
 
@@ -790,6 +825,28 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         }
     };
 
+    Array<ComputedValuesFFI::FfiGroupValueEntry, content_group_properties.size()> content_group_values;
+    gather_group_values(content_group_properties, content_group_values);
+    auto* content_payload = ComputedValuesFFI::rust_build_style_group(
+        ContentValues::style_group_index,
+        content_group_values.data(),
+        content_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.content_data.operator->()) : nullptr);
+    bool const content_adopted = content_payload != nullptr;
+    if (content_adopted)
+        computed_values.adopt_content_group(const_cast<void*>(content_payload));
+
+    Array<ComputedValuesFFI::FfiGroupValueEntry, anchor_group_properties.size()> anchor_group_values;
+    gather_group_values(anchor_group_properties, anchor_group_values);
+    auto* anchor_payload = ComputedValuesFFI::rust_build_style_group(
+        AnchorValues::style_group_index,
+        anchor_group_values.data(),
+        anchor_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.anchor.operator->()) : nullptr);
+    bool const anchor_adopted = anchor_payload != nullptr;
+    if (anchor_adopted)
+        computed_values.adopt_anchor_group(const_cast<void*>(anchor_payload));
+
     Array<ComputedValuesFFI::FfiGroupValueEntry, alignment_group_properties.size()> alignment_group_values;
     gather_group_values(alignment_group_properties, alignment_group_values);
     auto* alignment_payload = ComputedValuesFFI::rust_build_style_group(
@@ -892,12 +949,15 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     auto color_scheme = computed_style.color_scheme(document.page().preferred_color_scheme(), document.supported_color_schemes());
     color_resolution_context.color_scheme = color_scheme;
 
-    computed_values.set_anchor_names(custom_ident_list(PropertyID::AnchorName));
+    if (!anchor_adopted)
+        computed_values.set_anchor_names(custom_ident_list(PropertyID::AnchorName));
     auto const& anchor_scope = computed_style.property(PropertyID::AnchorScope);
-    computed_values.set_anchor_scope(AnchorScopeData {
-        .all = anchor_scope.to_keyword() == Keyword::All,
-        .names = custom_ident_list(PropertyID::AnchorScope),
-    });
+    if (!anchor_adopted) {
+        computed_values.set_anchor_scope(AnchorScopeData {
+            .all = anchor_scope.to_keyword() == Keyword::All,
+            .names = custom_ident_list(PropertyID::AnchorScope),
+        });
+    }
 
     // NOTE: We have to be careful that font-related properties get set in the right order.
     //       m_font is used by Length::to_px() when resolving sizes against this layout node.
@@ -1075,6 +1135,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             inherited_ui_group_values[i].has_resolved_number = true;
         }
     }
+
     Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_list_group_properties.size()> inherited_list_group_values;
     gather_group_values(inherited_list_group_properties, inherited_list_group_values);
     auto* inherited_list_payload = ComputedValuesFFI::rust_build_style_group(
@@ -1239,44 +1300,46 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     auto border_image = computed_style.border_image();
     computed_values.set_border_image(move(border_image));
 
-    auto const& content = computed_style.property(CSS::PropertyID::Content);
-    ComputedContentData computed_content;
-    if (content.to_keyword() == Keyword::None) {
-        computed_content.type = ComputedContentData::Type::None;
-    } else if (content.is_content()) {
-        computed_content.type = ComputedContentData::Type::List;
-        auto append_item = [](StyleValue const& item, Vector<ComputedContentItem>& items) {
-            if (item.is_string()) {
-                items.append(item.as_string().string_value().to_utf16_string());
-            } else if (item.is_keyword()) {
-                items.append(item.to_keyword());
-            } else if (item.is_counter()) {
-                auto const& counter = item.as_counter();
-                ComputedContentCounter computed_counter {
-                    .function = counter.function_type() == CounterStyleValue::CounterFunction::Counters ? ComputedContentCounter::Function::Counters : ComputedContentCounter::Function::Counter,
-                    .name = counter.counter_name(),
-                    .join_string = counter.join_string(),
-                    .style = counter.counter_style()->as_counter_style().value().visit(
-                        [](Utf16FlyString const& name) -> Variant<Utf16FlyString, ComputedContentCounter::SymbolsFunction> { return name; },
-                        [](CounterStyleStyleValue::SymbolsFunction const& symbols) -> Variant<Utf16FlyString, ComputedContentCounter::SymbolsFunction> {
-                            return ComputedContentCounter::SymbolsFunction { .type = symbols.type, .symbols = symbols.symbols };
-                        }),
-                };
-                items.append(move(computed_counter));
-            } else {
-                VERIFY(item.is_abstract_image());
-                items.append(NonnullRefPtr<AbstractImageStyleValue const> { item.as_abstract_image() });
+    if (!content_adopted) {
+        auto const& content = computed_style.property(CSS::PropertyID::Content);
+        ComputedContentData computed_content;
+        if (content.to_keyword() == Keyword::None) {
+            computed_content.type = ComputedContentData::Type::None;
+        } else if (content.is_content()) {
+            computed_content.type = ComputedContentData::Type::List;
+            auto append_item = [](StyleValue const& item, Vector<ComputedContentItem>& items) {
+                if (item.is_string()) {
+                    items.append(item.as_string().string_value().to_utf16_string());
+                } else if (item.is_keyword()) {
+                    items.append(item.to_keyword());
+                } else if (item.is_counter()) {
+                    auto const& counter = item.as_counter();
+                    ComputedContentCounter computed_counter {
+                        .function = counter.function_type() == CounterStyleValue::CounterFunction::Counters ? ComputedContentCounter::Function::Counters : ComputedContentCounter::Function::Counter,
+                        .name = counter.counter_name(),
+                        .join_string = counter.join_string(),
+                        .style = counter.counter_style()->as_counter_style().value().visit(
+                            [](Utf16FlyString const& name) -> Variant<Utf16FlyString, ComputedContentCounter::SymbolsFunction> { return name; },
+                            [](CounterStyleStyleValue::SymbolsFunction const& symbols) -> Variant<Utf16FlyString, ComputedContentCounter::SymbolsFunction> {
+                                return ComputedContentCounter::SymbolsFunction { .type = symbols.type, .symbols = symbols.symbols };
+                            }),
+                    };
+                    items.append(move(computed_counter));
+                } else {
+                    VERIFY(item.is_abstract_image());
+                    items.append(NonnullRefPtr<AbstractImageStyleValue const> { item.as_abstract_image() });
+                }
+            };
+            auto const& content_style_value = content.as_content();
+            for (auto const& item : content_style_value.content().values())
+                append_item(item, computed_content.items);
+            if (auto const* alt_text = content_style_value.alt_text()) {
+                for (auto const& item : alt_text->values())
+                    append_item(item, computed_content.alt_text);
             }
-        };
-        auto const& content_style_value = content.as_content();
-        for (auto const& item : content_style_value.content().values())
-            append_item(item, computed_content.items);
-        if (auto const* alt_text = content_style_value.alt_text()) {
-            for (auto const& item : alt_text->values())
-                append_item(item, computed_content.alt_text);
         }
+        computed_values.set_computed_content(move(computed_content));
     }
-    computed_values.set_computed_content(move(computed_content));
 
     computed_values.set_background_color(computed_style.color(CSS::PropertyID::BackgroundColor, color_resolution_context));
     computed_values.set_background_color_style_value(computed_style.property(CSS::PropertyID::BackgroundColor));
@@ -1373,7 +1436,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             VERIFY_NOT_REACHED();
         }
     }
-    computed_values.set_position_anchor(move(position_anchor));
+    if (!anchor_adopted)
+        computed_values.set_position_anchor(move(position_anchor));
 
     auto position_area_from_style_value = [](CSS::StyleValue const& value) {
         CSS::PositionAreaData area;
@@ -1389,7 +1453,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         }
         return area;
     };
-    computed_values.set_position_area(position_area_from_style_value(computed_style.property(CSS::PropertyID::PositionArea)));
+    if (!anchor_adopted)
+        computed_values.set_position_area(position_area_from_style_value(computed_style.property(CSS::PropertyID::PositionArea)));
 
     Vector<CSS::PositionTryFallbackData> position_try_fallbacks;
     auto append_position_try_fallback = [&](CSS::StyleValue const& value) {
@@ -1427,12 +1492,15 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             append_position_try_fallback(position_try_fallbacks_value);
         }
     }
-    computed_values.set_position_try_fallbacks(move(position_try_fallbacks));
+    if (!anchor_adopted)
+        computed_values.set_position_try_fallbacks(move(position_try_fallbacks));
 
-    auto const& position_try_order = computed_style.property(CSS::PropertyID::PositionTryOrder);
-    computed_values.set_position_try_order(position_try_order.to_keyword() == CSS::Keyword::Normal
-            ? Optional<CSS::TryOrder> {}
-            : CSS::keyword_to_try_order(position_try_order.to_keyword()));
+    if (!anchor_adopted) {
+        auto const& position_try_order = computed_style.property(CSS::PropertyID::PositionTryOrder);
+        computed_values.set_position_try_order(position_try_order.to_keyword() == CSS::Keyword::Normal
+                ? Optional<CSS::TryOrder> {}
+                : CSS::keyword_to_try_order(position_try_order.to_keyword()));
+    }
 
     auto const& position_visibility = computed_style.property(CSS::PropertyID::PositionVisibility);
     CSS::PositionVisibilityData position_visibility_data {
@@ -1460,7 +1528,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     } else {
         apply_position_visibility_keyword(position_visibility.to_keyword());
     }
-    computed_values.set_position_visibility(position_visibility_data);
+    if (!anchor_adopted)
+        computed_values.set_position_visibility(position_visibility_data);
 
     auto timeline_names = [&](CSS::PropertyID property_id) {
         Vector<Optional<Utf16FlyString>> names;
@@ -2020,9 +2089,12 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_math_depth(computed_style.math_depth());
     if (!inherited_list_adopted)
         computed_values.set_quotes(computed_style.quotes());
-    computed_values.set_counter_increment(computed_style.counter_data(CSS::PropertyID::CounterIncrement));
-    computed_values.set_counter_reset(computed_style.counter_data(CSS::PropertyID::CounterReset));
-    computed_values.set_counter_set(computed_style.counter_data(CSS::PropertyID::CounterSet));
+    if (!content_adopted)
+        computed_values.set_counter_increment(computed_style.counter_data(CSS::PropertyID::CounterIncrement));
+    if (!content_adopted)
+        computed_values.set_counter_reset(computed_style.counter_data(CSS::PropertyID::CounterReset));
+    if (!content_adopted)
+        computed_values.set_counter_set(computed_style.counter_data(CSS::PropertyID::CounterSet));
 
     if (!misc_reset_adopted)
         computed_values.set_object_fit(computed_style.object_fit());

@@ -1911,6 +1911,8 @@ public:
     void adopt_svg_reset_group(void* payload) { m_values.m_noninherited.svg_reset.adopt(payload); }
     void adopt_inherited_svg_group(void* payload) { m_values.m_inherited.svg.adopt(payload); }
     void adopt_inherited_list_group(void* payload) { m_values.m_inherited.list.adopt(payload); }
+    void adopt_content_group(void* payload) { m_values.m_noninherited.content_data.adopt(payload); }
+    void adopt_anchor_group(void* payload) { m_values.m_noninherited.anchor.adopt(payload); }
 
     void set_aspect_ratio(AspectRatio aspect_ratio)
     {
