@@ -505,12 +505,27 @@ void Paintable::scroll_ancestor_to_offset_into_view(size_t offset)
 static bool g_paint_viewport_scrollbars = true;
 
 struct Paintable::CachedPaintData {
-    struct PhaseEntry {
+    struct PaintCommands {
         // Display list ids start at 1, so a default-constructed entry never matches a real source list.
         u64 source_display_list_id { 0 };
         DisplayListCommandRange range;
         VisualContextIndex recorded_context_index {};
         bool captured_under_empty_effective_clip { false };
+    };
+
+    struct HitTestItems {
+        // Hit-test display list ids start at 1, so a default-constructed entry never matches a real source list.
+        u64 source_hit_test_display_list_id { 0 };
+        HitTestItemRange range;
+        VisualContextIndex recorded_context_index {};
+        VisualContextIndex recorded_context_for_descendants_index {};
+    };
+
+    // Paint commands and hit-test items are stamped independently within a frame, so each setter
+    // must only ever assign its own sub-struct of the shared entry.
+    struct PhaseEntry {
+        PaintCommands paint_commands;
+        HitTestItems hit_test_items;
     };
 
     Array<PhaseEntry, paint_phase_count> phase_entries {};
@@ -987,7 +1002,7 @@ Optional<Paintable::CachedCommandRange> Paintable::valid_cached_commands(PaintPh
 {
     if (!m_cached_paint_data)
         return {};
-    auto const& entry = m_cached_paint_data->phase_entries[to_underlying(phase)];
+    auto const& entry = m_cached_paint_data->phase_entries[to_underlying(phase)].paint_commands;
     if (entry.source_display_list_id != source_display_list_id
         || entry.captured_under_empty_effective_clip != phase_has_empty_effective_clip)
         return {};
@@ -1004,11 +1019,36 @@ void Paintable::set_cached_commands(PaintPhase phase, u64 display_list_id, Displ
     if (!m_cached_paint_data)
         m_cached_paint_data = make<CachedPaintData>();
 
-    m_cached_paint_data->phase_entries[to_underlying(phase)] = {
+    m_cached_paint_data->phase_entries[to_underlying(phase)].paint_commands = {
         .source_display_list_id = display_list_id,
         .range = range,
         .recorded_context_index = recorded_context_index,
         .captured_under_empty_effective_clip = captured_under_empty_effective_clip,
+    };
+}
+
+Optional<Paintable::HitTestItemRange> Paintable::valid_cached_hit_test_items(PaintPhase phase, u64 source_hit_test_display_list_id) const
+{
+    if (!m_cached_paint_data)
+        return {};
+    auto const& entry = m_cached_paint_data->phase_entries[to_underlying(phase)].hit_test_items;
+    if (entry.source_hit_test_display_list_id != source_hit_test_display_list_id
+        || entry.recorded_context_index != accumulated_visual_context_index()
+        || entry.recorded_context_for_descendants_index != accumulated_visual_context_for_descendants_index())
+        return {};
+    return entry.range;
+}
+
+void Paintable::set_cached_hit_test_items(PaintPhase phase, u64 hit_test_display_list_id, HitTestItemRange range) const
+{
+    if (!m_cached_paint_data)
+        m_cached_paint_data = make<CachedPaintData>();
+
+    m_cached_paint_data->phase_entries[to_underlying(phase)].hit_test_items = {
+        .source_hit_test_display_list_id = hit_test_display_list_id,
+        .range = range,
+        .recorded_context_index = accumulated_visual_context_index(),
+        .recorded_context_for_descendants_index = accumulated_visual_context_for_descendants_index(),
     };
 }
 

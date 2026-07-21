@@ -17,6 +17,8 @@ struct WEB_API BorderRadiusData {
     CSSPixels horizontal_radius { 0 };
     CSSPixels vertical_radius { 0 };
 
+    bool operator==(BorderRadiusData const&) const = default;
+
     Gfx::CornerRadius as_corner(DevicePixelConverter const& device_pixel_converter) const;
 
     inline operator bool() const
@@ -38,6 +40,8 @@ struct BorderRadiiData {
     BorderRadiusData top_right;
     BorderRadiusData bottom_right;
     BorderRadiusData bottom_left;
+
+    bool operator==(BorderRadiiData const&) const = default;
 
     inline bool has_any_radius() const
     {

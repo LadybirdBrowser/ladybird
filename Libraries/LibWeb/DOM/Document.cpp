@@ -830,6 +830,9 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_previously_repainted_cursor_position);
     if (m_hit_test_display_list)
         m_hit_test_display_list->visit_edges(visitor);
+    // In the steady state the item cache source aliases the current list; avoid tracing it twice.
+    if (m_hit_test_display_list_used_as_item_cache_source && m_hit_test_display_list_used_as_item_cache_source != m_hit_test_display_list)
+        m_hit_test_display_list_used_as_item_cache_source->visit_edges(visitor);
     visitor.visit(m_editing_host_manager);
     visitor.visit(m_editing_history);
     visitor.visit(m_local_storage_holder);
@@ -1456,6 +1459,7 @@ void Document::tear_down_layout_tree()
     if (m_layout_root)
         m_layout_root->prepare_subtree_for_detach_from_layout_tree();
     m_hit_test_display_list = nullptr;
+    m_hit_test_display_list_used_as_item_cache_source = nullptr;
     m_layout_root = nullptr;
     m_paintable = nullptr;
     m_scrollable_overflow_contained_boxes_from_last_layout.clear();
@@ -8920,6 +8924,17 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     context.set_paint_command_cache_mode(cache_mode);
     if (!line_box_border_overlays_replace_cacheable_content)
         context.set_paint_command_cache_source_display_list(viewport_paintable.display_list_used_as_paint_command_cache_source());
+    // An incompatible visual context tree rebuild leaves the retained list's item context indices
+    // meaningless, so it only serves as a splice source while the tree version still matches.
+    if (auto const* hit_test_item_cache_source = m_hit_test_display_list_used_as_item_cache_source.ptr();
+        hit_test_item_cache_source && hit_test_item_cache_source->visual_context_tree_version() == viewport_paintable.visual_context_tree().version()) {
+        context.set_hit_test_item_cache_source(hit_test_item_cache_source);
+        // The new recording ends up with roughly as many items as the source it splices from.
+        hit_test_display_list->ensure_item_capacity(hit_test_item_cache_source->item_count());
+    } else {
+        // Versions only move forward, so a mismatched list can never be spliced from again.
+        m_hit_test_display_list_used_as_item_cache_source = nullptr;
+    }
     viewport_paintable.refresh_scroll_state();
     viewport_paintable.initialize_async_scrolling_metadata_recording(context);
 
@@ -8966,6 +8981,8 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         // Rotation can drop the last reference to the list the context's raw pointer still targets.
         context.set_paint_command_cache_source_display_list(nullptr);
         viewport_paintable.set_display_list_used_as_paint_command_cache_source(display_list, resource_storage.collect_referenced_resources(*display_list));
+        context.set_hit_test_item_cache_source(nullptr);
+        m_hit_test_display_list_used_as_item_cache_source = hit_test_display_list;
     }
 
     m_hit_test_display_list = move(hit_test_display_list);
@@ -8980,6 +8997,11 @@ void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
     m_caret_hit_test_debug_rect = rect;
     set_needs_repaint(InvalidateDisplayList::Yes);
     page().client().request_frame();
+}
+
+void Document::clear_hit_test_item_cache_source()
+{
+    m_hit_test_display_list_used_as_item_cache_source = nullptr;
 }
 
 Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()

@@ -49,6 +49,18 @@ class WEB_API HitTestDisplayList : public RefCounted<HitTestDisplayList> {
 public:
     static NonnullRefPtr<HitTestDisplayList> create(u64 visual_context_tree_version);
 
+    u64 id() const { return m_id; }
+    size_t item_count() const { return m_items.size(); }
+    void ensure_item_capacity(size_t capacity) { m_items.ensure_capacity(capacity); }
+
+    // Copies a validated range of items recorded by one (paintable, phase) from the retained previous
+    // list into this one, returning where it landed. Items are copied, never inspected: source ranges
+    // belonging to relaid-out paintables may hold dangling fragment pointers, but only ranges whose
+    // owners kept a valid cache entry (and therefore were not relaid out) are ever passed here.
+    Paintable::HitTestItemRange append_cached_items(HitTestDisplayList const& source, Paintable::HitTestItemRange);
+
+    void verify_cached_items_match_fresh_recording(Paintable::HitTestItemRange spliced_range, HitTestDisplayList const& fresh_recording, Paintable const&, PaintPhase) const;
+
     void append_box(Paintable const&, Paintable& target, CSSPixelRect, VisualContextIndex, BorderRadiiData);
     void append_svg_path(Paintable& target, Gfx::Path, Gfx::WindingRule, CSSPixelRect bounding_box, VisualContextIndex);
     void append_text_fragment(PaintableFragment const&, VisualContextIndex);
@@ -153,7 +165,11 @@ private:
     void find_topmost_caret_item_in_list(Vector<size_t> const&, CSSPixelPoint local_point, ChromeMetrics const&, Optional<size_t>& topmost_item_index) const;
     void find_items_in_list(Vector<size_t> const&, CSSPixelPoint local_point, ChromeMetrics const&, Vector<size_t>& hit_item_indices) const;
 
+    static bool items_equal_for_cache_verification(Item const&, Item const&);
+    static String dump_item_for_cache_verification(Item const&);
+
     u64 m_visual_context_tree_version { 0 };
+    u64 m_id { 0 };
     Vector<Item> m_items;
     mutable bool m_derived_structures_built { false };
     mutable Vector<size_t> m_caret_item_indices;

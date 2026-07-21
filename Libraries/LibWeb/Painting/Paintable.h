@@ -439,6 +439,16 @@ public:
     Optional<CachedCommandRange> valid_cached_commands(PaintPhase, u64 source_display_list_id, bool phase_has_empty_effective_clip) const;
     void set_cached_commands(PaintPhase, u64 display_list_id, DisplayListCommandRange, VisualContextIndex recorded_context_index, bool captured_under_empty_effective_clip) const;
 
+    // A capture may hold hit-test items recorded under both this paintable's own context index and its
+    // descendants' context index, so spliced items are not rewritten; instead a cached range is usable
+    // only while both indices still match what they were at capture time.
+    struct HitTestItemRange {
+        u32 start { 0 };
+        u32 count { 0 };
+    };
+    Optional<HitTestItemRange> valid_cached_hit_test_items(PaintPhase, u64 source_hit_test_display_list_id) const;
+    void set_cached_hit_test_items(PaintPhase, u64 hit_test_display_list_id, HitTestItemRange) const;
+
     void set_fixed_background_visual_context(VisualContextIndex index) { m_fixed_background_visual_context = index; }
     [[nodiscard]] Optional<VisualContextIndex> fixed_background_visual_context() const { return m_fixed_background_visual_context; }
 

@@ -59,6 +59,9 @@ public:
     Painting::DisplayList const* paint_command_cache_source_display_list() const { return m_paint_command_cache_source_display_list; }
     void set_paint_command_cache_source_display_list(Painting::DisplayList const* display_list) { m_paint_command_cache_source_display_list = display_list; }
 
+    Painting::HitTestDisplayList const* hit_test_item_cache_source() const { return m_hit_test_item_cache_source; }
+    void set_hit_test_item_cache_source(Painting::HitTestDisplayList const* hit_test_display_list) { m_hit_test_item_cache_source = hit_test_display_list; }
+
     DevicePixelRect device_viewport_rect() const { return m_device_viewport_rect; }
     void set_device_viewport_rect(DevicePixelRect const& rect) { m_device_viewport_rect = rect; }
 
@@ -95,9 +98,9 @@ public:
     DevicePixelSize enclosing_device_size(CSSPixelSize) const;
     DevicePixelSize rounded_device_size(CSSPixelSize) const;
 
-    DisplayListRecordingContext clone(Painting::DisplayListRecorder& painter) const
+    DisplayListRecordingContext clone(Painting::DisplayListRecorder& painter, Painting::HitTestDisplayList* hit_test_display_list = nullptr) const
     {
-        auto clone = DisplayListRecordingContext(painter, m_palette, m_device_pixel_converter.device_pixels_per_css_pixel(), m_chrome_metrics);
+        auto clone = DisplayListRecordingContext(painter, m_palette, m_device_pixel_converter.device_pixels_per_css_pixel(), m_chrome_metrics, hit_test_display_list);
         clone.m_device_viewport_rect = m_device_viewport_rect;
         clone.m_should_show_line_box_borders = m_should_show_line_box_borders;
         clone.m_should_paint_overlay = m_should_paint_overlay;
@@ -140,6 +143,7 @@ private:
     DevicePixelRect m_device_viewport_rect;
     Painting::PaintCommandCacheMode m_paint_command_cache_mode { Painting::PaintCommandCacheMode::ReadOnly };
     Painting::DisplayList const* m_paint_command_cache_source_display_list { nullptr };
+    Painting::HitTestDisplayList const* m_hit_test_item_cache_source { nullptr };
     bool m_should_show_line_box_borders { false };
     bool m_should_paint_overlay { true };
     bool m_draw_svg_geometry_for_clip_path { false };

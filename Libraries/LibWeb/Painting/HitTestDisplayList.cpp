@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/QuickSort.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
@@ -15,6 +16,8 @@
 #include <math.h>
 
 namespace Web::Painting {
+
+static Atomic<u64> s_next_id { 1 };
 
 static constexpr double spatial_index_cell_size = 128.0;
 static constexpr size_t max_bucketed_cells_per_item = 64;
@@ -174,7 +177,87 @@ void HitTestDisplayList::visit_edges(GC::Cell::Visitor& visitor)
 
 HitTestDisplayList::HitTestDisplayList(u64 visual_context_tree_version)
     : m_visual_context_tree_version(visual_context_tree_version)
+    , m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
 {
+}
+
+Paintable::HitTestItemRange HitTestDisplayList::append_cached_items(HitTestDisplayList const& source, Paintable::HitTestItemRange source_range)
+{
+    VERIFY(&source != this);
+    VERIFY(!m_derived_structures_built);
+    VERIFY(static_cast<size_t>(source_range.start) + source_range.count <= source.m_items.size());
+
+    auto destination_start = m_items.size();
+    VERIFY(destination_start + source_range.count <= NumericLimits<u32>::max());
+    m_items.append(source.m_items.data() + source_range.start, source_range.count);
+    return { static_cast<u32>(destination_start), source_range.count };
+}
+
+bool HitTestDisplayList::items_equal_for_cache_verification(Item const& a, Item const& b)
+{
+    return a.kind == b.kind
+        && a.paintable.ptr() == b.paintable.ptr()
+        && a.chrome_widget.ptr() == b.chrome_widget.ptr()
+        && a.text_fragment == b.text_fragment
+        && a.caret_node.ptr() == b.caret_node.ptr()
+        && a.caret_offset == b.caret_offset
+        && a.rect == b.rect
+        && a.caret_rect == b.caret_rect
+        && a.caret_line_index == b.caret_line_index
+        && a.caret_line_rect == b.caret_line_rect
+        && a.block_container_margin_rect == b.block_container_margin_rect
+        && a.visual_context_index == b.visual_context_index
+        && a.border_radii == b.border_radii
+        && a.path.has_value() == b.path.has_value()
+        && a.winding_rule == b.winding_rule;
+}
+
+String HitTestDisplayList::dump_item_for_cache_verification(Item const& item)
+{
+    return MUST(String::formatted("kind={} paintable={} chrome_widget={} text_fragment={} caret_node={} caret_offset={} rect={} caret_rect={} caret_line_index={} caret_line_rect={} block_container_margin_rect={} context_index={} border_radii=[{} {} {} {} {} {} {} {}] winding_rule={} has_path={}",
+        to_underlying(item.kind),
+        static_cast<void const*>(item.paintable.ptr()),
+        static_cast<void const*>(item.chrome_widget.ptr()),
+        static_cast<void const*>(item.text_fragment),
+        static_cast<void const*>(item.caret_node.ptr()),
+        item.caret_offset,
+        item.rect,
+        item.caret_rect,
+        item.caret_line_index,
+        item.caret_line_rect,
+        item.block_container_margin_rect,
+        item.visual_context_index.value(),
+        item.border_radii.top_left.horizontal_radius,
+        item.border_radii.top_left.vertical_radius,
+        item.border_radii.top_right.horizontal_radius,
+        item.border_radii.top_right.vertical_radius,
+        item.border_radii.bottom_right.horizontal_radius,
+        item.border_radii.bottom_right.vertical_radius,
+        item.border_radii.bottom_left.horizontal_radius,
+        item.border_radii.bottom_left.vertical_radius,
+        to_underlying(item.winding_rule),
+        item.path.has_value()));
+}
+
+void HitTestDisplayList::verify_cached_items_match_fresh_recording(Paintable::HitTestItemRange spliced_range, HitTestDisplayList const& fresh_recording, Paintable const& paintable, PaintPhase phase) const
+{
+    auto matches = spliced_range.count == fresh_recording.m_items.size();
+    for (u32 i = 0; matches && i < spliced_range.count; ++i) {
+        auto const& spliced_item = m_items[spliced_range.start + i];
+        // SVG subtrees are recorded outside per-paintable captures, so path-bearing items are never spliced.
+        VERIFY(!spliced_item.path.has_value());
+        matches = items_equal_for_cache_verification(spliced_item, fresh_recording.m_items[i]);
+    }
+    if (matches)
+        return;
+
+    dbgln("Spliced hit-test display list cache mismatch for {} in paint phase {} ({} spliced items, {} fresh items)",
+        paintable.layout_node().debug_description(), to_underlying(phase), spliced_range.count, fresh_recording.m_items.size());
+    for (u32 i = 0; i < spliced_range.count; ++i)
+        dbgln("  spliced: {}", dump_item_for_cache_verification(m_items[spliced_range.start + i]));
+    for (auto const& item : fresh_recording.m_items)
+        dbgln("  fresh:   {}", dump_item_for_cache_verification(item));
+    VERIFY_NOT_REACHED();
 }
 
 CSSPixelRect HitTestDisplayList::caret_line_rect_for_item(Item const& item) const

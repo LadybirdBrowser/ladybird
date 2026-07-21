@@ -1158,6 +1158,7 @@ public:
     RefPtr<Painting::DisplayList> record_display_list(HTML::PaintConfig, Painting::DisplayListResourceStorage&, Painting::PaintCommandCacheMode);
     Painting::HitTestDisplayList const* hit_test_display_list() const { return m_hit_test_display_list.ptr(); }
     Painting::HitTestDisplayList const* ensure_hit_test_display_list();
+    void clear_hit_test_item_cache_source();
     Optional<Painting::HitTestResult> hit_test(CSSPixelPoint, Painting::HitTestType);
     Optional<Painting::CaretPosition> caret_position_from_point(CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point_for_selection_start(CSSPixelPoint);
@@ -1731,6 +1732,9 @@ private:
     Vector<GC::Ref<Node>> m_style_scopes_with_pending_has_invalidations;
     CSS::SheetSetStyleCacheRegistry m_sheet_set_style_cache_registry;
     RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;
+    // The previous recording's list, retained so cached per-paintable item ranges can be spliced into
+    // the next recording. Rotated only by cache-read-write recordings; survives display list invalidation.
+    RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list_used_as_item_cache_source;
     Optional<CSSPixelRect> m_caret_hit_test_debug_rect;
 
     mutable StyleInvalidationCounters m_style_invalidation_counters;
