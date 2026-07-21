@@ -292,6 +292,22 @@ static constexpr Array mask_group_properties {
     PropertyID::MaskComposite,
 };
 
+// The properties feeding the grid group's descriptors, in registration
+// order. Every field registers as an initial-value constraint until the
+// core learns the grid representations.
+static constexpr Array grid_group_properties {
+    PropertyID::GridAutoColumns,
+    PropertyID::GridAutoRows,
+    PropertyID::GridTemplateColumns,
+    PropertyID::GridTemplateRows,
+    PropertyID::GridAutoFlow,
+    PropertyID::GridColumnEnd,
+    PropertyID::GridColumnStart,
+    PropertyID::GridRowEnd,
+    PropertyID::GridRowStart,
+    PropertyID::GridTemplateAreas,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -453,6 +469,10 @@ static void register_style_group_field_descriptors()
     add(mask, PropertyID::MaskOrigin, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(mask, PropertyID::MaskSize, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(mask, PropertyID::MaskComposite, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+
+    constexpr auto grid = to_underlying(StyleGroupIndex::GridValues);
+    for (auto property : grid_group_properties)
+        add(grid, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -671,6 +691,17 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     bool const sizing_adopted = sizing_payload != nullptr;
     if (sizing_adopted)
         computed_values.adopt_sizing_group(const_cast<void*>(sizing_payload));
+
+    Array<ComputedValuesFFI::FfiGroupValueEntry, grid_group_properties.size()> grid_group_values;
+    gather_group_values(grid_group_properties, grid_group_values);
+    auto* grid_payload = ComputedValuesFFI::rust_build_style_group(
+        GridValues::style_group_index,
+        grid_group_values.data(),
+        grid_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.grid.operator->()) : nullptr);
+    bool const grid_adopted = grid_payload != nullptr;
+    if (grid_adopted)
+        computed_values.adopt_grid_group(const_cast<void*>(grid_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, mask_group_properties.size()> mask_group_values;
     gather_group_values(mask_group_properties, mask_group_values);
@@ -1580,16 +1611,26 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!misc_reset_adopted)
         computed_values.set_outline_width(max(CSSPixels { 0 }, computed_style.length(CSS::PropertyID::OutlineWidth).absolute_length_to_px()));
 
-    computed_values.set_grid_auto_columns(computed_style.grid_auto_columns());
-    computed_values.set_grid_auto_rows(computed_style.grid_auto_rows());
-    computed_values.set_grid_template_columns(computed_style.grid_template_columns());
-    computed_values.set_grid_template_rows(computed_style.grid_template_rows());
-    computed_values.set_grid_column_end(computed_style.grid_column_end());
-    computed_values.set_grid_column_start(computed_style.grid_column_start());
-    computed_values.set_grid_row_end(computed_style.grid_row_end());
-    computed_values.set_grid_row_start(computed_style.grid_row_start());
-    computed_values.set_grid_template_areas(computed_style.grid_template_areas());
-    computed_values.set_grid_auto_flow(computed_style.grid_auto_flow());
+    if (!grid_adopted)
+        computed_values.set_grid_auto_columns(computed_style.grid_auto_columns());
+    if (!grid_adopted)
+        computed_values.set_grid_auto_rows(computed_style.grid_auto_rows());
+    if (!grid_adopted)
+        computed_values.set_grid_template_columns(computed_style.grid_template_columns());
+    if (!grid_adopted)
+        computed_values.set_grid_template_rows(computed_style.grid_template_rows());
+    if (!grid_adopted)
+        computed_values.set_grid_column_end(computed_style.grid_column_end());
+    if (!grid_adopted)
+        computed_values.set_grid_column_start(computed_style.grid_column_start());
+    if (!grid_adopted)
+        computed_values.set_grid_row_end(computed_style.grid_row_end());
+    if (!grid_adopted)
+        computed_values.set_grid_row_start(computed_style.grid_row_start());
+    if (!grid_adopted)
+        computed_values.set_grid_template_areas(computed_style.grid_template_areas());
+    if (!grid_adopted)
+        computed_values.set_grid_auto_flow(computed_style.grid_auto_flow());
 
     computed_values.set_cx(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Cx)));
     computed_values.set_cy(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Cy)));
