@@ -36,6 +36,7 @@ static Vector<DisplayListCommandReference> collect_display_list_command_referenc
 static bool display_list_commands_are_equal(DisplayListCommandReference const& a, DisplayListCommandReference const& b)
 {
     if (a.header.type != b.header.type
+        || a.header.context_geometry_only != b.header.context_geometry_only
         || a.header.has_bounding_rect != b.header.has_bounding_rect
         || a.header.is_clip != b.header.is_clip
         || a.header.bounding_rect != b.header.bounding_rect)

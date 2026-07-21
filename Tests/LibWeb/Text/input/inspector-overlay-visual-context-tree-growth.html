@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- Each display-list recording that paints an inspector overlay appends the highlighted element's transform/scroll
-     contexts onto the accumulated visual context tree. Those nodes are transient: the next recording must prune them
-     before appending its own — rather than letting them accumulate (and get shipped to the compositor) for the lifetime
-     of the tree. See #10368.
+<!-- Inspector overlays used to append transient copies of the highlighted element's transform/scroll contexts onto
+     the accumulated visual context tree on every recording, which had to be pruned again by the next recording to
+     avoid unbounded growth (see #10368). Overlay commands now reference the element's existing context and apply it
+     in geometry-only mode, so recording an overlay must not modify the tree at all.
 
      NB: The tree is only rebuilt from scratch when layout is invalidated. Mutating the DOM between measurements (e.g.,
-     via println) would dirty layout and force a rebuild — masking the growth. So, as in
+     via println) would dirty layout and force a rebuild — masking accidental growth. So, as in
      visual-context-value-only-updates.html, all measurements are taken first, and printed at the end. -->
 <style>
     #box {
@@ -22,7 +22,7 @@
         const box = document.getElementById("box");
 
         // dumpDisplayList() records a fresh display list; the count that follows is the resulting live visual context
-        // tree size (base nodes plus any inspector-overlay nodes appended).
+        // tree size.
         const recordAndCount = () => {
             internals.dumpDisplayList();
             return internals.visualContextTreeNodeCount();
@@ -38,18 +38,14 @@
         internals.setHighlightedNode(null);
         const clearedCount = recordAndCount();
 
-        const overlayAppended = highlightedCounts[0] > baseCount;
-        const stayedFlat = highlightedCounts.every(c => c === highlightedCounts[0]);
-        const returnedToBase = clearedCount === baseCount;
+        const untouchedWhileHighlighted = highlightedCounts.every(c => c === baseCount);
+        const untouchedAfterClearing = clearedCount === baseCount;
 
-        println(overlayAppended
-            ? "PASS: recording with an inspector highlight appends overlay context nodes"
-            : `FAIL: expected overlay nodes to be appended (base ${baseCount}, highlighted ${highlightedCounts[0]})`);
-        println(stayedFlat
-            ? "PASS: repeated recordings while highlighted do not grow the visual context tree"
-            : `FAIL: visual context tree grew across repeated recordings: ${highlightedCounts.join(", ")}`);
-        println(returnedToBase
-            ? "PASS: overlay context nodes are pruned once the highlight is cleared"
+        println(untouchedWhileHighlighted
+            ? "PASS: recording with an inspector highlight does not modify the visual context tree"
+            : `FAIL: visual context tree changed while highlighted: base ${baseCount}, got ${highlightedCounts.join(", ")}`);
+        println(untouchedAfterClearing
+            ? "PASS: visual context tree is unchanged after clearing the highlight"
             : `FAIL: expected ${baseCount} nodes after clearing the highlight, got ${clearedCount}`);
     });
 </script>

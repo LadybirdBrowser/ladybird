@@ -95,7 +95,7 @@ public:
     }
 
     template<DisplayListCommand Command>
-    bool append(Command const& command, AccumulatedVisualContextTree const& visual_context_tree, VisualContextIndex context_index, ReadonlyBytes inline_data = {})
+    bool append(Command const& command, AccumulatedVisualContextTree const& visual_context_tree, VisualContextIndex context_index, bool context_geometry_only, ReadonlyBytes inline_data = {})
     {
         return append_bytes(
             Command::command_type,
@@ -103,6 +103,7 @@ public:
             inline_data,
             visual_context_tree,
             context_index,
+            context_geometry_only,
             command_bounding_rectangle(command),
             command_is_clip(command));
     }
@@ -166,6 +167,7 @@ private:
         ReadonlyBytes inline_data,
         AccumulatedVisualContextTree const&,
         VisualContextIndex context_index,
+        bool context_geometry_only,
         Optional<Gfx::IntRect> bounding_rect,
         bool is_clip);
 

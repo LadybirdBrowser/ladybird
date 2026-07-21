@@ -37,7 +37,6 @@ public:
     void assign_accumulated_visual_contexts();
     bool update_accumulated_visual_context_values(Paintable&);
     void update_visual_viewport_accumulated_visual_context();
-    void prune_inspector_overlay_visual_contexts();
     bool visual_context_tree_needs_compositor_update() const { return m_visual_context_tree_needs_compositor_update; }
     void did_update_visual_context_tree_in_compositor() { m_visual_context_tree_needs_compositor_update = false; }
     void set_force_incompatible_visual_context_tree_rebuild_for_testing() { m_force_incompatible_visual_context_tree_rebuild_for_testing = true; }
@@ -100,7 +99,6 @@ private:
 
     Optional<AccumulatedVisualContextTree> m_visual_context_tree;
     u64 m_accumulated_visual_context_tree_build_count { 0 };
-    size_t m_visual_context_tree_node_count_without_inspector_overlays { 0 };
     bool m_visual_context_tree_needs_compositor_update { false };
     bool m_force_incompatible_visual_context_tree_rebuild_for_testing { false };
 };

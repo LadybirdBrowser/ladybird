@@ -725,14 +725,6 @@ VisualContextIndex AccumulatedVisualContextTree::append(VisualContextData data, 
     return index;
 }
 
-void AccumulatedVisualContextTree::shrink(size_t node_count)
-{
-    // The visual viewport root node must always remain.
-    VERIFY(node_count >= 1);
-    VERIFY(node_count <= m_nodes.size());
-    m_nodes.shrink(node_count, true);
-}
-
 void AccumulatedVisualContextTree::set_visual_viewport_transform(TransformData transform)
 {
     VERIFY(!m_nodes.is_empty());

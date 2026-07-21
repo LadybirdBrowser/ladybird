@@ -111,6 +111,14 @@ public:
     }
     VisualContextIndex accumulated_visual_context() const { return m_accumulated_visual_context_index; }
 
+    void set_context_geometry_only(bool context_geometry_only)
+    {
+        // A cached range is spliced with the context its commands were recorded under, so a capture
+        // must not span a change of context application mode either.
+        VERIFY(!m_is_capturing || context_geometry_only == m_context_geometry_only);
+        m_context_geometry_only = context_geometry_only;
+    }
+
     DisplayList const& display_list() const { return m_display_list; }
     AccumulatedVisualContextTree const& visual_context_tree() const { return m_visual_context_tree; }
 
@@ -188,10 +196,11 @@ private:
     void append_command(Command const& command, ReadonlyBytes inline_data = {})
     {
         m_save_nesting_level += display_list_command_nesting_level_change<Command>();
-        m_display_list.append(command, m_visual_context_tree, m_accumulated_visual_context_index, inline_data);
+        m_display_list.append(command, m_visual_context_tree, m_accumulated_visual_context_index, m_context_geometry_only, inline_data);
     }
 
     VisualContextIndex m_accumulated_visual_context_index { VISUAL_VIEWPORT_NODE_INDEX };
+    bool m_context_geometry_only { false };
     DisplayList& m_display_list;
     AccumulatedVisualContextTree const& m_visual_context_tree;
     DisplayListResourceStorage& m_resource_storage;

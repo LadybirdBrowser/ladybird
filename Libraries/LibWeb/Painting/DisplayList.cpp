@@ -49,11 +49,13 @@ bool DisplayList::append_bytes(
     ReadonlyBytes inline_data,
     AccumulatedVisualContextTree const& visual_context_tree,
     VisualContextIndex context_index,
+    bool context_geometry_only,
     Optional<Gfx::IntRect> bounding_rect,
     bool is_clip)
 {
     VERIFY(visual_context_tree.version() == m_compatible_visual_context_tree_version);
-    if (visual_context_tree.has_empty_effective_clip(context_index))
+    // Geometry-only commands ignore the chain's clips, so an empty effective clip doesn't make them invisible.
+    if (!context_geometry_only && visual_context_tree.has_empty_effective_clip(context_index))
         return false;
     VERIFY(m_command_bytes.size() % DisplayList::command_alignment == 0);
     VERIFY(payload.size() <= NumericLimits<u32>::max());
@@ -67,6 +69,7 @@ bool DisplayList::append_bytes(
         .type = type,
         .payload_size = static_cast<u32>(payload_size + trailing_padding),
         .context_index = context_index,
+        .context_geometry_only = context_geometry_only,
         .has_bounding_rect = bounding_rect.has_value(),
         .is_clip = is_clip,
         .bounding_rect = bounding_rect.value_or({}),
@@ -183,7 +186,13 @@ void DisplayListPlayer::execute_impl(
     };
 
     auto apply_accumulated_visual_context =
-        [&](VisualContextIndex node_index, AccumulatedVisualContextNode const& node) {
+        [&](VisualContextIndex node_index, AccumulatedVisualContextNode const& node, bool geometry_only) {
+            // Geometry-only application skips nodes that don't affect coordinates, but still pushes a
+            // save so the chain keeps one canvas save per node, which restore_to_depth relies on.
+            if (geometry_only && (node.data.has<ClipData>() || node.data.has<ClipPathData>() || node.data.has<EffectsData>())) {
+                play_command(Save {});
+                return;
+            }
             node.data.visit(
                 [&](EffectsData const& effects) {
                     play_command(ApplyEffects {
@@ -242,6 +251,7 @@ void DisplayListPlayer::execute_impl(
 
     VisualContextIndex applied_context_index;
     bool has_applied_context { false };
+    bool applied_context_geometry_only { false };
     size_t applied_depth = 0;
 
     // OPTIMIZATION: When walking down to apply effects (opacity, filters, blend modes), check culling before applying
@@ -251,9 +261,19 @@ void DisplayListPlayer::execute_impl(
         Switched,
         CulledByEffect,
     };
-    auto switch_to_context = [&](VisualContextIndex target_index, Optional<Gfx::IntRect> bounding_rect = {}) -> SwitchResult {
-        if (has_applied_context && applied_context_index == target_index)
+    auto switch_to_context = [&](VisualContextIndex target_index, bool geometry_only, Optional<Gfx::IntRect> bounding_rect = {}) -> SwitchResult {
+        if (has_applied_context && applied_context_index == target_index && applied_context_geometry_only == geometry_only)
             return SwitchResult::Switched;
+
+        // A chain applied in one mode can't be partially reused in the other: the modes disagree on what
+        // every shared ancestor contributes. Unwind fully and reapply from the root instead.
+        if (has_applied_context && applied_context_geometry_only != geometry_only) {
+            while (applied_depth > 0) {
+                play_command(Restore {});
+                --applied_depth;
+            }
+            has_applied_context = false;
+        }
 
         Optional<VisualContextIndex> common_ancestor_index;
         if (has_applied_context)
@@ -290,20 +310,21 @@ void DisplayListPlayer::execute_impl(
             common_ancestor_index,
             target_index,
             [&](VisualContextIndex node_index, AccumulatedVisualContextNode const& node) {
-                if (bounding_rect.has_value() && node.data.has<EffectsData>()) {
+                if (!geometry_only && bounding_rect.has_value() && node.data.has<EffectsData>()) {
                     auto can_cull_before_effect = !has_coordinate_changing_descendant(Optional<VisualContextIndex> { node_index });
                     if (bounding_rect->is_empty() || (can_cull_before_effect && would_be_fully_clipped_by_painter(*bounding_rect))) {
                         result = SwitchResult::CulledByEffect;
                         return IterationDecision::Break;
                     }
                 }
-                apply_accumulated_visual_context(node_index, node);
+                apply_accumulated_visual_context(node_index, node, geometry_only);
                 applied_depth++;
                 return IterationDecision::Continue;
             });
 
         if (result == SwitchResult::Switched) {
             applied_context_index = target_index;
+            applied_context_geometry_only = geometry_only;
             has_applied_context = true;
         } else {
             restore_to_depth(common_ancestor_depth);
@@ -319,7 +340,7 @@ void DisplayListPlayer::execute_impl(
             ? Optional<Gfx::IntRect>(header.bounding_rect)
             : Optional<Gfx::IntRect> {};
 
-        if (switch_to_context(header.context_index, bounding_rect) == SwitchResult::CulledByEffect)
+        if (switch_to_context(header.context_index, header.context_geometry_only, bounding_rect) == SwitchResult::CulledByEffect)
             return;
 
         if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))) {

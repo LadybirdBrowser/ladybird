@@ -140,7 +140,6 @@ public:
     u64 version() const { return m_version; }
 
     WEB_API VisualContextIndex append(VisualContextData data, VisualContextIndex parent_index);
-    WEB_API void shrink(size_t node_count);
     WEB_API void set_visual_viewport_transform(TransformData);
     WEB_API bool is_compatible_with(AccumulatedVisualContextTree const&) const;
     WEB_API void reuse_version_from(AccumulatedVisualContextTree const&);

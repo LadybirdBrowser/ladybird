@@ -179,45 +179,12 @@ void Paintable::paint_with_inspector_overlay_context(DisplayListRecordingContext
     auto& display_list_recorder = context.display_list_recorder();
     auto previous_visual_context_index = display_list_recorder.accumulated_visual_context();
 
-    auto viewport_paintable = document().paintable();
-    VERIFY(viewport_paintable);
-    auto& visual_context_tree = const_cast<ViewportPaintable&>(*viewport_paintable).visual_context_tree();
-    auto visual_context_index = accumulated_visual_context_index();
-
-    if (visual_context_index != VISUAL_VIEWPORT_NODE_INDEX) {
-        Vector<VisualContextIndex> relevant_indices;
-        for (auto i = visual_context_index; i != VISUAL_VIEWPORT_NODE_INDEX; i = visual_context_tree.node_at(i).parent_index) {
-            auto should_keep = visual_context_tree.node_at(i).data.visit(
-                [](ScrollData const&) { return true; },
-                [](ClipData const&) { return false; },
-                [](TransformData const&) { return true; },
-                [](PerspectiveData const&) { return true; },
-                [](ClipPathData const&) { return false; },
-                [](EffectsData const&) { return false; },
-                [](ScrollCompensation const&) { return true; },
-                [](AnchorScrollShift const&) { return true; });
-            if (should_keep)
-                relevant_indices.append(i);
-        }
-
-        // NB: These nodes are transient: they're only referenced by the display list being recorded right now — and the
-        //     next recording prunes them again (see ViewportPaintable::prune_inspector_overlay_visual_contexts).
-        auto overlay_visual_context_index = VISUAL_VIEWPORT_NODE_INDEX;
-        for (auto const& source_visual_context_index : relevant_indices.in_reverse()) {
-            auto const& source_node_data = visual_context_tree.node_at(source_visual_context_index).data;
-            // A copied ScrollData node would look its offset up under the copy's own index, so scroll
-            // nodes are copied as non-negating compensations referencing the original instead.
-            auto data_for_overlay = source_node_data.has<ScrollData>()
-                ? VisualContextData { ScrollCompensation { source_visual_context_index, false } }
-                : source_node_data;
-            overlay_visual_context_index = visual_context_tree.append(move(data_for_overlay), overlay_visual_context_index);
-        }
-
-        if (overlay_visual_context_index != VISUAL_VIEWPORT_NODE_INDEX)
-            display_list_recorder.set_accumulated_visual_context(overlay_visual_context_index);
-    }
-
+    // Overlays follow the highlighted element's transforms and scroll offsets, but must not be clipped
+    // or faded by its ancestors, so their commands apply the element's context in geometry-only mode.
+    display_list_recorder.set_accumulated_visual_context(accumulated_visual_context_index());
+    display_list_recorder.set_context_geometry_only(true);
     callback();
+    display_list_recorder.set_context_geometry_only(false);
     display_list_recorder.set_accumulated_visual_context(previous_visual_context_index);
 }
 

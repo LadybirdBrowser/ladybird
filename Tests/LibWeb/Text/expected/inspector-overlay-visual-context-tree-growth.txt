@@ -1,3 +1,2 @@
-PASS: recording with an inspector highlight appends overlay context nodes
-PASS: repeated recordings while highlighted do not grow the visual context tree
-PASS: overlay context nodes are pruned once the highlight is cleared
+PASS: recording with an inspector highlight does not modify the visual context tree
+PASS: visual context tree is unchanged after clearing the highlight
