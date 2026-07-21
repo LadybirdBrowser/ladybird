@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const image = new Image();
+        image.sizes = "120px";
+        image.srcset = "../../../Assets/120.png 120w 120h";
+        image.onload = () => {
+            println(`currentSrc: ${image.currentSrc.substring(image.currentSrc.lastIndexOf("/") + 1)}`);
+            done();
+        };
+        document.body.appendChild(image);
+    });
+</script>

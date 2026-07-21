@@ -162,6 +162,7 @@ splitting_loop:
                     // If current descriptor is not empty, append current descriptor to descriptors and let current descriptor be the empty string.
                     if (!current_descriptor.is_empty()) {
                         descriptors.append(current_descriptor.to_string());
+                        current_descriptor.clear();
                     }
                     // Set state to after descriptor.
                     state = State::AfterDescriptor;
