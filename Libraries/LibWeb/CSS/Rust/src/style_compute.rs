@@ -1818,12 +1818,21 @@ pub struct FfiComputedStoreEntry {
     pub shell: *const c_void,
     pub inheritance_dependent: bool,
     pub inherited: bool,
-    /// When set, the driver computed the value natively: the stored value is
-    /// a pixel length of `px` while `shell` remains the specified value for
-    /// the inheritance-dependence bookkeeping.
-    pub has_computed_px: bool,
-    pub px: f64,
+    /// How the natively computed value crosses: with COMPUTED_KIND_SHELL the
+    /// stored value is `shell` itself; the other kinds carry a replacement in
+    /// `value` while `shell` remains the specified value for the
+    /// inheritance-dependence bookkeeping.
+    pub computed_kind: u8,
+    pub value: f64,
 }
+
+pub const COMPUTED_KIND_SHELL: u8 = 0;
+/// A pixel length of `value`.
+pub const COMPUTED_KIND_PX_LENGTH: u8 = 1;
+/// An integer of `value`.
+pub const COMPUTED_KIND_INTEGER: u8 = 2;
+/// A superellipse with parameter `value`.
+pub const COMPUTED_KIND_SUPERELLIPSE: u8 = 3;
 
 /// The leaf callbacks the C++ side provides to the property computation
 /// driver. The driver selects each longhand's cascaded, inherited or initial
@@ -2255,6 +2264,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     Unsupported,
                     Unchanged,
                     Px(f64),
+                    Integer(i32),
+                    Superellipse(f64),
                 }
                 use crate::property_metadata::property_id as prop;
                 let synthesized_px_length = |absolutized: Option<f64>| {
@@ -2279,6 +2290,56 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         );
                         if result.handled {
                             NativeValue::Px(result.value)
+                        } else {
+                            NativeValue::Unsupported
+                        }
+                    }
+                    (
+                        Some(_),
+                        prop::CORNER_BOTTOM_LEFT_SHAPE
+                        | prop::CORNER_BOTTOM_RIGHT_SHAPE
+                        | prop::CORNER_TOP_LEFT_SHAPE
+                        | prop::CORNER_TOP_RIGHT_SHAPE,
+                    ) => {
+                        // Corner shape values are keywords or superellipses; only keywords
+                        // reach here since superellipse absolutization stays with C++.
+                        let result = compute_corner_shape_parameter(value_data);
+                        if result.handled && !result.unchanged {
+                            NativeValue::Superellipse(result.value)
+                        } else if result.handled {
+                            NativeValue::Unchanged
+                        } else {
+                            NativeValue::Unsupported
+                        }
+                    }
+                    (Some(_), prop::MATH_DEPTH) => {
+                        // The inherited math-depth and math-style come from the parent
+                        // snapshot; without an inheritance parent the initial values apply
+                        // (math-depth 0, math-style normal).
+                        let (inherited_math_depth, inherited_math_style_is_compact) = match snapshot {
+                            Some(snapshot) => {
+                                let entry_data = |property_id: u16| {
+                                    let index = (property_id - FIRST_INHERITED_PROPERTY_ID) as usize;
+                                    assert!(index < snapshot.entry_count);
+                                    // SAFETY: Snapshot entries are valid for the drive.
+                                    unsafe { (*snapshot.entries.add(index)).data as *const StyleValueData }
+                                };
+                                let math_depth = match unsafe { entry_data(prop::MATH_DEPTH).as_ref() } {
+                                    Some(StyleValueData::Integer { value }) => *value,
+                                    _ => 0,
+                                };
+                                let compact = matches!(
+                                    unsafe { entry_data(prop::MATH_STYLE).as_ref() },
+                                    Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::COMPACT
+                                );
+                                (math_depth, compact)
+                            }
+                            None => (0, false),
+                        };
+                        let result =
+                            compute_math_depth(value_data, inherited_math_depth, inherited_math_style_is_compact);
+                        if result.handled {
+                            NativeValue::Integer(result.value as i32)
                         } else {
                             NativeValue::Unsupported
                         }
@@ -2309,9 +2370,11 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 };
 
                 if !matches!(native, NativeValue::Unsupported) {
-                    let computed_px = match native {
-                        NativeValue::Px(px) => Some(px),
-                        _ => None,
+                    let (computed_kind, computed_value) = match native {
+                        NativeValue::Px(px) => (COMPUTED_KIND_PX_LENGTH, px),
+                        NativeValue::Integer(integer) => (COMPUTED_KIND_INTEGER, integer as f64),
+                        NativeValue::Superellipse(parameter) => (COMPUTED_KIND_SUPERELLIPSE, parameter),
+                        _ => (COMPUTED_KIND_SHELL, 0.0),
                     };
                     pending_stores.push(FfiComputedStoreEntry {
                         property_id,
@@ -2319,8 +2382,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         shell: value.shell,
                         inheritance_dependent,
                         inherited: inherit_fetch_attempted,
-                        has_computed_px: computed_px.is_some(),
-                        px: computed_px.unwrap_or(0.0),
+                        computed_kind,
+                        value: computed_value,
                     });
                 } else {
                     flush_pending_stores(callbacks, context, &mut pending_stores);
@@ -2343,8 +2406,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     shell: value.shell,
                     inheritance_dependent,
                     inherited: inherit_fetch_attempted,
-                    has_computed_px: false,
-                    px: 0.0,
+                    computed_kind: COMPUTED_KIND_SHELL,
+                    value: 0.0,
                 });
             }
         }

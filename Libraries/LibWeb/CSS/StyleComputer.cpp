@@ -3429,10 +3429,27 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
                 copy_animated_inherited_value(property_id, inherited_property_id);
             if (entry.inheritance_dependent)
                 builder.add_inheritance_dependent_specified_value(property_id, value);
-            if (entry.has_computed_px)
-                builder.set_property_without_modifying_flags(property_id, LengthStyleValue::create(Length::make_px(entry.px)));
-            else
+            switch (entry.computed_kind) {
+            case ComputedValuesFFI::COMPUTED_KIND_PX_LENGTH:
+                builder.set_property_without_modifying_flags(property_id, LengthStyleValue::create(Length::make_px(entry.value)));
+                break;
+            case ComputedValuesFFI::COMPUTED_KIND_INTEGER:
+                builder.set_property_without_modifying_flags(property_id, IntegerStyleValue::create(static_cast<i64>(entry.value)));
+                break;
+            case ComputedValuesFFI::COMPUTED_KIND_SUPERELLIPSE: {
+                // NB: The round value is cached since it is the initial value of the corner-*-shape properties.
+                if (entry.value == 1) {
+                    static auto const& cached_round_value = SuperellipseStyleValue::create(NumberStyleValue::create(1)).leak_ref();
+                    builder.set_property_without_modifying_flags(property_id, cached_round_value);
+                } else {
+                    builder.set_property_without_modifying_flags(property_id, SuperellipseStyleValue::create(NumberStyleValue::create(entry.value)));
+                }
+                break;
+            }
+            default:
                 builder.set_property_without_modifying_flags(property_id, value);
+                break;
+            }
         }
     };
 
