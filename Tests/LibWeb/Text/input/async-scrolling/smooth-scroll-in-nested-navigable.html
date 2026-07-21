@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame" srcdoc="
+    <div id='scroller' style='width: 100px; height: 100px; overflow: scroll'>
+        <div style='width: 600px; height: 100px'></div>
+    </div>
+"></iframe>
+<script>
+    promiseTest(async () => {
+        await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        await animationFrame();
+        await animationFrame();
+
+        const scroller = frame.contentDocument.getElementById("scroller");
+        const scrollPromise = scroller.scroll({ left: 300, behavior: "smooth" });
+        println(`immediate: ${scroller.scrollLeft}`);
+        await scrollPromise;
+        println(`final: ${scroller.scrollLeft}`);
+    });
+</script>

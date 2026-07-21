@@ -404,7 +404,8 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
     for (auto& context_entry : m_contexts) {
         auto context_id = context_entry.key;
         auto& context = *context_entry.value;
-        if (!context.has_pending_present_frame_scheduled_on(display_id))
+        auto has_active_smooth_scroll_animation_on_display = context.has_active_smooth_scroll_animations() && context.display_id() == display_id;
+        if (!context.has_pending_present_frame_scheduled_on(display_id) && !has_active_smooth_scroll_animation_on_display)
             continue;
 
         if (auto animation_frame = context.advance_smooth_scroll_animations(now); animation_frame.has_value())
@@ -415,7 +416,8 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
 
         auto pending_present_frame = context.take_pending_present_frame_if_unblocked();
         if (!pending_present_frame.has_value()) {
-            if (context.has_pending_present_frame_scheduled_on(display_id))
+            has_active_smooth_scroll_animation_on_display = context.has_active_smooth_scroll_animations() && context.display_id() == display_id;
+            if (context.has_pending_present_frame_scheduled_on(display_id) || has_active_smooth_scroll_animation_on_display)
                 vsync_scheduler_for_display(display_id).schedule(context.display_refresh_rate());
             continue;
         }
