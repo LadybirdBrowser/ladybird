@@ -236,6 +236,20 @@ static constexpr Array inherited_text_group_properties {
     PropertyID::Widows,
 };
 
+// The properties feeding the inherited UI group's descriptors, in
+// registration order; the doubled properties feed two fields each.
+static constexpr Array inherited_ui_group_properties {
+    PropertyID::CaretColor,
+    PropertyID::CaretColor,
+    PropertyID::AccentColor,
+    PropertyID::AccentColor,
+    PropertyID::Cursor,
+    PropertyID::PointerEvents,
+    PropertyID::ScrollbarColor,
+    PropertyID::ColorScheme,
+    PropertyID::ColorScheme,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -352,6 +366,18 @@ static void register_style_group_field_descriptors()
     add(inherited_text, PropertyID::LetterSpacing, offsetof(InheritedText, letter_spacing_style_value), GROUP_FIELD_RETAINED_SHELL, 0, nullptr);
     add(inherited_text, PropertyID::Orphans, offsetof(InheritedText, orphans), GROUP_FIELD_U64, 0, nullptr);
     add(inherited_text, PropertyID::Widows, offsetof(InheritedText, widows), GROUP_FIELD_U64, 0, nullptr);
+
+    using InheritedUI = ComputedValues::InheritedUIValues;
+    constexpr auto inherited_ui = to_underlying(StyleGroupIndex::InheritedUIValues);
+    add(inherited_ui, PropertyID::CaretColor, offsetof(InheritedUI, caret_color) + offsetof(ColorOrAuto, used_value), GROUP_FIELD_COLOR, 0, nullptr);
+    add(inherited_ui, PropertyID::CaretColor, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(inherited_ui, PropertyID::AccentColor, offsetof(InheritedUI, accent_color) + offsetof(ColorOrAuto, used_value), GROUP_FIELD_COLOR, 0, nullptr);
+    add(inherited_ui, PropertyID::AccentColor, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(inherited_ui, PropertyID::Cursor, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(inherited_ui, PropertyID::PointerEvents, offsetof(InheritedUI, pointer_events), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_pointer_events>());
+    add(inherited_ui, PropertyID::ScrollbarColor, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(inherited_ui, PropertyID::ColorScheme, offsetof(InheritedUI, color_scheme), GROUP_FIELD_RESOLVED_U8, 0, nullptr);
+    add(inherited_ui, PropertyID::ColorScheme, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -604,9 +630,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
 
     // NOTE: color-scheme must be set first to ensure system colors can be resolved correctly.
     auto const& color_scheme_style_value = computed_style.property(PropertyID::ColorScheme).as_color_scheme();
-    computed_values.set_color_schemes(color_scheme_style_value.schemes(), color_scheme_style_value.only());
     auto color_scheme = computed_style.color_scheme(document.page().preferred_color_scheme(), document.supported_color_schemes());
-    computed_values.set_color_scheme(color_scheme);
     color_resolution_context.color_scheme = color_scheme;
 
     computed_values.set_anchor_names(custom_ident_list(PropertyID::AnchorName));
@@ -755,6 +779,37 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             }
         }
     }
+    Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_ui_group_properties.size()> inherited_ui_group_values;
+    gather_group_values(inherited_ui_group_properties, inherited_ui_group_values);
+    for (size_t i = 0; i < inherited_ui_group_properties.size(); ++i) {
+        auto ui_property_id = inherited_ui_group_properties[i];
+        if (ui_property_id == PropertyID::CaretColor) {
+            inherited_ui_group_values[i].resolved_color = computed_style.caret_color(own_color_resolution_context).value();
+            inherited_ui_group_values[i].has_resolved_color = true;
+        } else if (ui_property_id == PropertyID::AccentColor) {
+            inherited_ui_group_values[i].resolved_color = computed_style.accent_color(own_color_resolution_context).value();
+            inherited_ui_group_values[i].has_resolved_color = true;
+        } else if (ui_property_id == PropertyID::ColorScheme) {
+            inherited_ui_group_values[i].resolved_number = static_cast<double>(to_underlying(color_scheme));
+            inherited_ui_group_values[i].has_resolved_number = true;
+        }
+    }
+    auto* inherited_ui_payload = ComputedValuesFFI::rust_build_style_group(
+        InheritedUIValues::style_group_index,
+        inherited_ui_group_values.data(),
+        inherited_ui_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.ui.operator->()) : nullptr);
+    bool const inherited_ui_adopted = inherited_ui_payload != nullptr;
+    if (inherited_ui_adopted) {
+        computed_values.adopt_inherited_ui_group(const_cast<void*>(inherited_ui_payload));
+    } else {
+        // NB: Nothing in this function reads the group's color-scheme fields; the
+        //     resolution context carries its own copy, so setting them here rather
+        //     than first is equivalent.
+        computed_values.set_color_schemes(color_scheme_style_value.schemes(), color_scheme_style_value.only());
+        computed_values.set_color_scheme(color_scheme);
+    }
+
     auto* inherited_text_payload = ComputedValuesFFI::rust_build_style_group(
         InheritedTextValues::style_group_index,
         inherited_text_group_values.data(),
@@ -816,12 +871,14 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (misc_reset_adopted)
         computed_values.adopt_misc_reset_group(const_cast<void*>(misc_reset_payload));
 
-    auto const& accent_color_value = computed_style.property(CSS::PropertyID::AccentColor);
-    CSS::ColorOrAuto accent_color;
-    accent_color.used_value = computed_style.accent_color(color_resolution_context);
-    if (accent_color_value.to_keyword() != CSS::Keyword::Auto)
-        accent_color.computed_value = accent_color.used_value;
-    computed_values.set_accent_color(move(accent_color));
+    if (!inherited_ui_adopted) {
+        auto const& accent_color_value = computed_style.property(CSS::PropertyID::AccentColor);
+        CSS::ColorOrAuto accent_color;
+        accent_color.used_value = computed_style.accent_color(color_resolution_context);
+        if (accent_color_value.to_keyword() != CSS::Keyword::Auto)
+            accent_color.computed_value = accent_color.used_value;
+        computed_values.set_accent_color(move(accent_color));
+    }
 
     computed_values.set_vertical_align(computed_style.vertical_align());
 
@@ -1232,10 +1289,12 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!inherited_box_adopted)
         computed_values.set_content_visibility(computed_style.content_visibility());
     auto cursor = computed_style.cursor();
-    computed_values.set_cursor(move(cursor));
+    if (!inherited_ui_adopted)
+        computed_values.set_cursor(move(cursor));
     if (!inherited_box_adopted)
         computed_values.set_image_rendering(computed_style.image_rendering());
-    computed_values.set_pointer_events(computed_style.pointer_events());
+    if (!inherited_ui_adopted)
+        computed_values.set_pointer_events(computed_style.pointer_events());
     if (!text_reset_adopted)
         computed_values.set_text_decoration_line(computed_style.text_decoration_line());
     if (!inherited_text_adopted)
@@ -1558,7 +1617,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_unicode_bidi(computed_style.unicode_bidi());
     if (!misc_reset_adopted)
         computed_values.set_scroll_behavior(CSS::keyword_to_scroll_behavior(computed_style.property(CSS::PropertyID::ScrollBehavior).to_keyword()).release_value());
-    computed_values.set_scrollbar_color(computed_style.scrollbar_color(color_resolution_context));
+    if (!inherited_ui_adopted)
+        computed_values.set_scrollbar_color(computed_style.scrollbar_color(color_resolution_context));
     if (!misc_reset_adopted)
         computed_values.set_scrollbar_gutter(computed_style.property(CSS::PropertyID::ScrollbarGutter).as_scrollbar_gutter().value());
     if (!misc_reset_adopted)
@@ -1602,12 +1662,14 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_container_type(computed_style.container_type());
     computed_values.set_will_change(computed_style.will_change());
 
-    auto const& caret_color_value = computed_style.property(CSS::PropertyID::CaretColor);
-    CSS::ColorOrAuto caret_color;
-    caret_color.used_value = computed_style.caret_color(color_resolution_context);
-    if (caret_color_value.to_keyword() != CSS::Keyword::Auto)
-        caret_color.computed_value = caret_color.used_value;
-    computed_values.set_caret_color(move(caret_color));
+    if (!inherited_ui_adopted) {
+        auto const& caret_color_value = computed_style.property(CSS::PropertyID::CaretColor);
+        CSS::ColorOrAuto caret_color;
+        caret_color.used_value = computed_style.caret_color(color_resolution_context);
+        if (caret_color_value.to_keyword() != CSS::Keyword::Auto)
+            caret_color.computed_value = caret_color.used_value;
+        computed_values.set_caret_color(move(caret_color));
+    }
     computed_values.set_color_interpolation(computed_style.color_interpolation());
     computed_values.set_color_interpolation_filters(computed_style.color_interpolation_filters());
     computed_values.set_resize(computed_style.resize());

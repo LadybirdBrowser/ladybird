@@ -261,6 +261,9 @@ pub const GROUP_FIELD_RESOLVED_F64: u8 = 13;
 pub const GROUP_FIELD_RETAINED_SHELL: u8 = 14;
 /// A bool stored as one byte: whether the value is the descriptor's keyword.
 pub const GROUP_FIELD_KEYWORD_EQUALS_BOOL: u8 = 15;
+/// A byte resolved by the C++ gather loop, carried in the resolved number,
+/// for derived enum fields like the used color-scheme.
+pub const GROUP_FIELD_RESOLVED_U8: u8 = 16;
 
 /// One gathered value for the generic group builder: the computed value's
 /// shell and data, plus the resolved raw color for color-kind fields.
@@ -470,6 +473,12 @@ pub unsafe extern "C" fn rust_build_style_group(
                     let is_keyword =
                         matches!(data, StyleValueData::Keyword { keyword } if *keyword == descriptor.keyword);
                     pokes.push(Poke::U8(descriptor.offset, is_keyword as u8));
+                }
+                GROUP_FIELD_RESOLVED_U8 => {
+                    if !value.has_resolved_number {
+                        return None;
+                    }
+                    pokes.push(Poke::U8(descriptor.offset, value.resolved_number as u8));
                 }
                 _ => return None,
             }
