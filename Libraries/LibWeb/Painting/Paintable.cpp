@@ -475,73 +475,15 @@ void Paintable::scroll_ancestor_to_offset_into_view(size_t offset)
 static bool g_paint_viewport_scrollbars = true;
 
 struct Paintable::CachedPaintData {
-    bool has(PaintPhase phase) const
-    {
-        return m_present_phases[to_underlying(phase)];
-    }
-
-    ReadonlyBytes bytes_for(PaintPhase phase) const
-    {
-        auto const& span = m_phase_spans[to_underlying(phase)];
-        return m_command_bytes.span().slice(span.offset, span.size);
-    }
-
-    void set(PaintPhase phase, ReadonlyBytes command_bytes)
-    {
-        auto const phase_index = to_underlying(phase);
-        if (m_present_phases[phase_index]) {
-            replace(phase, command_bytes);
-            return;
-        }
-
-        m_phase_spans[phase_index] = append_to(m_command_bytes, command_bytes);
-        m_present_phases[phase_index] = true;
-    }
-
-    template<typename Callback>
-    void for_each_present_phase(Callback callback) const
-    {
-        for (size_t phase_index = 0; phase_index < paint_phase_count; ++phase_index) {
-            if (!m_present_phases[phase_index])
-                continue;
-            auto phase = static_cast<PaintPhase>(phase_index);
-            callback(phase, bytes_for(phase));
-        }
-    }
-
-private:
-    struct Span {
-        u32 offset { 0 };
-        u32 size { 0 };
+    struct PhaseEntry {
+        // Display list ids start at 1, so a default-constructed entry never matches a real source list.
+        u64 source_display_list_id { 0 };
+        DisplayListCommandRange range;
+        VisualContextIndex recorded_context_index {};
+        bool captured_under_empty_effective_clip { false };
     };
 
-    static Span append_to(ByteBuffer& command_buffer, ReadonlyBytes command_bytes)
-    {
-        auto const offset = command_buffer.size();
-        command_buffer.append(command_bytes);
-        return { static_cast<u32>(offset), static_cast<u32>(command_bytes.size()) };
-    }
-
-    void replace(PaintPhase phase, ReadonlyBytes replacement_bytes)
-    {
-        ByteBuffer command_buffer;
-        Array<Span, paint_phase_count> phase_spans {};
-
-        for (size_t phase_index = 0; phase_index < paint_phase_count; ++phase_index) {
-            if (!m_present_phases[phase_index])
-                continue;
-            auto present_phase = static_cast<PaintPhase>(phase_index);
-            auto command_bytes = present_phase == phase ? replacement_bytes : bytes_for(present_phase);
-            phase_spans[phase_index] = append_to(command_buffer, command_bytes);
-        }
-
-        m_command_bytes = move(command_buffer);
-        m_phase_spans = phase_spans;
-    }
-
-    ByteBuffer m_command_bytes;
-    Array<bool, paint_phase_count> m_present_phases {};
-    Array<Span, paint_phase_count> m_phase_spans {};
+    Array<PhaseEntry, paint_phase_count> phase_entries {};
 };
 
 static bool content_size_change_affects_container_queries(Paintable const& paintable_box, CSSPixelSize old_size, CSSPixelSize new_size)
@@ -976,11 +918,7 @@ Paintable::Paintable(Layout::Box const& layout_box)
 {
 }
 
-Paintable::~Paintable()
-{
-    if (has_layout_node())
-        invalidate_paint_cache();
-}
+Paintable::~Paintable() = default;
 
 void Paintable::detach_from_layout_node(Badge<Layout::Node>)
 {
@@ -1010,56 +948,33 @@ bool Paintable::has_css_transform() const
     return layout_node().has_css_transform();
 }
 
-void Paintable::acquire_cache_references_for_cached_commands(ReadonlyBytes command_bytes) const
+Optional<Paintable::CachedCommandRange> Paintable::valid_cached_commands(PaintPhase phase, u64 source_display_list_id, bool phase_has_empty_effective_clip) const
 {
-    auto& resource_storage = navigable()->display_list_resource_storage();
-    auto referenced_resources = resource_storage.collect_referenced_resources(command_bytes);
-    if (referenced_resources.is_empty())
-        return;
-    resource_storage.acquire_cache_references(referenced_resources);
-}
-
-void Paintable::release_cache_references_for_cached_commands(ReadonlyBytes command_bytes) const
-{
-    auto& resource_storage = navigable()->display_list_resource_storage();
-    auto referenced_resources = resource_storage.collect_referenced_resources(command_bytes);
-    if (referenced_resources.is_empty())
-        return;
-    resource_storage.release_cache_references(referenced_resources);
-}
-
-bool Paintable::has_cached_commands(PaintPhase phase) const
-{
-    return m_cached_paint_data && m_cached_paint_data->has(phase);
-}
-
-ReadonlyBytes Paintable::cached_commands(PaintPhase phase) const
-{
-    return m_cached_paint_data->bytes_for(phase);
+    if (!m_cached_paint_data)
+        return {};
+    auto const& entry = m_cached_paint_data->phase_entries[to_underlying(phase)];
+    if (entry.source_display_list_id != source_display_list_id
+        || entry.captured_under_empty_effective_clip != phase_has_empty_effective_clip)
+        return {};
+    return CachedCommandRange { entry.range, entry.recorded_context_index };
 }
 
 void Paintable::invalidate_paint_cache() const
 {
-    if (!m_cached_paint_data)
-        return;
-
-    m_cached_paint_data->for_each_present_phase([&](PaintPhase, ReadonlyBytes command_bytes) {
-        release_cache_references_for_cached_commands(command_bytes);
-    });
     m_cached_paint_data = nullptr;
 }
 
-void Paintable::set_cached_commands(PaintPhase phase, ByteBuffer const& commands) const
+void Paintable::set_cached_commands(PaintPhase phase, u64 display_list_id, DisplayListCommandRange range, VisualContextIndex recorded_context_index, bool captured_under_empty_effective_clip) const
 {
     if (!m_cached_paint_data)
         m_cached_paint_data = make<CachedPaintData>();
 
-    if (m_cached_paint_data->has(phase))
-        release_cache_references_for_cached_commands(m_cached_paint_data->bytes_for(phase));
-
-    auto command_bytes = commands.span();
-    acquire_cache_references_for_cached_commands(command_bytes);
-    m_cached_paint_data->set(phase, command_bytes);
+    m_cached_paint_data->phase_entries[to_underlying(phase)] = {
+        .source_display_list_id = display_list_id,
+        .range = range,
+        .recorded_context_index = recorded_context_index,
+        .captured_under_empty_effective_clip = captured_under_empty_effective_clip,
+    };
 }
 
 void Paintable::reset_for_relayout()

@@ -103,10 +103,18 @@ public:
 
     void translate(Gfx::IntPoint delta);
 
-    void set_accumulated_visual_context(VisualContextIndex index) { m_accumulated_visual_context_index = index; }
+    void set_accumulated_visual_context(VisualContextIndex index)
+    {
+        // A cached range stores a single recorded context index, so a capture must not span a context switch.
+        VERIFY(!m_is_capturing || index == m_capture_accumulated_visual_context_index);
+        m_accumulated_visual_context_index = index;
+    }
     VisualContextIndex accumulated_visual_context() const { return m_accumulated_visual_context_index; }
 
-    void replay_cached_commands(ReadonlyBytes commands);
+    DisplayList const& display_list() const { return m_display_list; }
+    AccumulatedVisualContextTree const& visual_context_tree() const { return m_visual_context_tree; }
+
+    DisplayListCommandRange append_cached_command_range(DisplayList const& source_display_list, DisplayListCommandRange);
 
     class CommandCapture {
         AK_MAKE_NONCOPYABLE(CommandCapture);
@@ -117,7 +125,7 @@ public:
         {
         }
         ~CommandCapture();
-        ByteBuffer take();
+        DisplayListCommandRange take();
 
     private:
         friend class DisplayListRecorder;
@@ -189,6 +197,7 @@ private:
     DisplayListResourceStorage& m_resource_storage;
     bool m_is_capturing { false };
     size_t m_capture_start_command_offset { 0 };
+    VisualContextIndex m_capture_accumulated_visual_context_index { VISUAL_VIEWPORT_NODE_INDEX };
 };
 
 class DisplayListRecorderStateSaver {

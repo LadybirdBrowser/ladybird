@@ -75,6 +75,7 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListDamage.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -4298,14 +4299,20 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     Painting::DisplayListResourceTransaction resource_transaction;
     Optional<Painting::AccumulatedVisualContextTree> visual_context_tree;
     if (should_record_display_list) {
-        display_list = document->record_display_list(paint_config, m_display_list_resource_storage);
+        display_list = document->record_display_list(paint_config, m_display_list_resource_storage, Painting::PaintCommandCacheMode::ReadWrite);
         if (!display_list)
             return false;
         auto recorded_document_paintable = document->paintable();
         VERIFY(recorded_document_paintable);
         visual_context_tree = recorded_document_paintable->visual_context_tree();
-        display_list_resources = m_display_list_resource_storage.collect_referenced_resources(*display_list);
-        display_list_resources.include(m_display_list_resource_storage.cache_referenced_resources());
+        if (recorded_document_paintable->display_list_used_as_paint_command_cache_source() == display_list.ptr()) {
+            display_list_resources.include(recorded_document_paintable->paint_command_cache_source_referenced_resources());
+        } else {
+            // A recording downgraded to cache-read-only leaves the retained source and the cached ranges
+            // into it live, so the resources they reference must survive the pruning below.
+            display_list_resources = m_display_list_resource_storage.collect_referenced_resources(*display_list);
+            recorded_document_paintable->append_paint_command_cache_source_resources(display_list_resources);
+        }
         resource_transaction = m_display_list_resource_storage.create_transaction(
             m_compositor_display_list_resources,
             display_list_resources);

@@ -24,6 +24,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
+#include <LibWeb/Painting/DisplayListCommandRange.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ScrollState.h>
 
@@ -136,8 +137,7 @@ public:
         for_each_command_header(command_bytes(), move(callback));
     }
 
-    void append_command_sequence(ReadonlyBytes, AccumulatedVisualContextTree const&, VisualContextIndex);
-    ByteBuffer copy_command_bytes_from(size_t command_start_offset) const;
+    u32 append_command_range_from(DisplayList const& source_display_list, DisplayListCommandRange, AccumulatedVisualContextTree const&, VisualContextIndex);
     size_t command_byte_size() const { return m_command_bytes.size(); }
 
 private:

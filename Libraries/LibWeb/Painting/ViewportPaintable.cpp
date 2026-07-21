@@ -113,6 +113,8 @@ void ViewportPaintable::reset_for_relayout()
 {
     PaintableWithLines::reset_for_relayout();
     clear_scroll_state();
+    m_display_list_used_as_paint_command_cache_source = nullptr;
+    m_paint_command_cache_source_referenced_resources = {};
     m_paintable_boxes_with_auto_content_visibility.clear();
     m_visual_context_tree.clear();
     m_visual_context_tree_node_count_without_inspector_overlays = 0;
@@ -287,6 +289,11 @@ void ViewportPaintable::prune_inspector_overlay_visual_contexts()
     if (!m_visual_context_tree.has_value())
         return;
     m_visual_context_tree->shrink(m_visual_context_tree_node_count_without_inspector_overlays);
+}
+
+void ViewportPaintable::append_paint_command_cache_source_resources(DisplayListResourceSet& retained_resources) const
+{
+    retained_resources.include(m_paint_command_cache_source_referenced_resources);
 }
 
 void ViewportPaintable::invalidate_all_cached_paint()

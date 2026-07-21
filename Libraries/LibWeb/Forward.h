@@ -61,6 +61,8 @@ class DisplayList;
 class DisplayListPlayerSkia;
 class DisplayListRecorder;
 class DisplayListResourceStorage;
+struct DisplayListResourceSet;
+enum class PaintCommandCacheMode : u8;
 struct GradientPaintStyle;
 struct PatternPaintStyle;
 class ScrollStateSnapshot;

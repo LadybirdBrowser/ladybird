@@ -39,19 +39,30 @@ static void paint_node(Paintable const& paintable, DisplayListRecordingContext& 
 
     paintable.record_hit_test_items(context, phase);
 
-    bool const skip_cache = context.should_show_line_box_borders() || paintable.fixed_background_visual_context().has_value();
-    if (!skip_cache && paintable.has_cached_commands(phase)) {
-        context.display_list_recorder().replay_cached_commands(paintable.cached_commands(phase));
-    } else if (!skip_cache) {
-        auto capture = context.display_list_recorder().begin_command_capture();
-        if (phase == PaintPhase::Background)
-            paintable.record_async_scrolling_metadata(context);
-        paintable.paint(context, phase);
-        paintable.set_cached_commands(phase, capture.take());
+    auto& recorder = context.display_list_recorder();
+    bool const skip_cache = paintable.fixed_background_visual_context().has_value();
+    bool const cache_writes_enabled = context.paint_command_cache_mode() == PaintCommandCacheMode::ReadWrite;
+    auto const* cache_source_display_list = context.paint_command_cache_source_display_list();
+    auto const phase_context_index = recorder.accumulated_visual_context();
+    bool const phase_has_empty_effective_clip = recorder.visual_context_tree().has_empty_effective_clip(phase_context_index);
+
+    auto cached_commands = !skip_cache && cache_source_display_list
+        ? paintable.valid_cached_commands(phase, cache_source_display_list->id(), phase_has_empty_effective_clip)
+        : Optional<Paintable::CachedCommandRange> {};
+
+    if (cached_commands.has_value()) {
+        auto destination_range = recorder.append_cached_command_range(*cache_source_display_list, cached_commands->range);
+        if (cache_writes_enabled)
+            paintable.set_cached_commands(phase, recorder.display_list().id(), destination_range, phase_context_index, phase_has_empty_effective_clip);
     } else {
+        auto capture = !skip_cache && cache_writes_enabled
+            ? Optional<DisplayListRecorder::CommandCapture>(recorder.begin_command_capture())
+            : Optional<DisplayListRecorder::CommandCapture> {};
         if (phase == PaintPhase::Background)
             paintable.record_async_scrolling_metadata(context);
         paintable.paint(context, phase);
+        if (capture.has_value())
+            paintable.set_cached_commands(phase, recorder.display_list().id(), capture->take(), phase_context_index, phase_has_empty_effective_clip);
     }
 
     context.display_list_recorder().set_accumulated_visual_context(VISUAL_VIEWPORT_NODE_INDEX);

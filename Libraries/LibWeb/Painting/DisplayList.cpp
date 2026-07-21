@@ -80,29 +80,26 @@ bool DisplayList::append_bytes(
     return true;
 }
 
-void DisplayList::append_command_sequence(
-    ReadonlyBytes command_sequence,
+u32 DisplayList::append_command_range_from(
+    DisplayList const& source_display_list,
+    DisplayListCommandRange source_range,
     AccumulatedVisualContextTree const& visual_context_tree,
     VisualContextIndex context_index)
 {
+    VERIFY(&source_display_list != this);
     VERIFY(visual_context_tree.version() == m_compatible_visual_context_tree_version);
-
-    auto command_bytes = MUST(ByteBuffer::copy(command_sequence));
-
-    set_command_sequence_visual_context(command_bytes.span(), context_index);
     VERIFY(m_command_bytes.size() % DisplayList::command_alignment == 0);
-    VERIFY(command_bytes.size() % DisplayList::command_alignment == 0);
+    VERIFY(source_range.size % DisplayList::command_alignment == 0);
+    VERIFY(static_cast<size_t>(source_range.offset) + source_range.size <= source_display_list.m_command_bytes.size());
 
-    if (!command_bytes.is_empty())
-        m_command_bytes.append(command_bytes.data(), command_bytes.size());
-}
+    auto destination_offset = m_command_bytes.size();
+    VERIFY(destination_offset + source_range.size <= NumericLimits<u32>::max());
+    if (source_range.is_empty())
+        return static_cast<u32>(destination_offset);
 
-ByteBuffer DisplayList::copy_command_bytes_from(size_t command_start_offset) const
-{
-    VERIFY(command_start_offset <= m_command_bytes.size());
-    return MUST(m_command_bytes.slice(
-        command_start_offset,
-        m_command_bytes.size() - command_start_offset));
+    m_command_bytes.append(source_display_list.m_command_bytes.data() + source_range.offset, source_range.size);
+    set_command_sequence_visual_context(m_command_bytes.span().slice(destination_offset, source_range.size), context_index);
+    return static_cast<u32>(destination_offset);
 }
 
 void DisplayListPlayer::execute(

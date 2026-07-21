@@ -59,6 +59,7 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -1058,7 +1059,7 @@ static Optional<AsyncScrollingStateSnapshot> capture_async_scrolling_state(DOM::
     auto document_paintable = document.paintable();
     if (!navigable || !document_paintable)
         return {};
-    auto display_list = document.record_display_list(HTML::PaintConfig {}, navigable->display_list_resource_storage());
+    auto display_list = document.record_display_list(HTML::PaintConfig {}, navigable->display_list_resource_storage(), Painting::PaintCommandCacheMode::ReadWrite);
     if (!display_list)
         return {};
     return AsyncScrollingStateSnapshot {

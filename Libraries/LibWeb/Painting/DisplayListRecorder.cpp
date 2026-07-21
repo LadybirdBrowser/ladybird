@@ -32,14 +32,19 @@ DisplayListRecorder::CommandCapture::~CommandCapture()
         m_recorder->end_capture();
 }
 
-ByteBuffer DisplayListRecorder::CommandCapture::take()
+DisplayListCommandRange DisplayListRecorder::CommandCapture::take()
 {
     VERIFY(m_recorder);
-    auto commands = m_recorder->m_display_list.copy_command_bytes_from(
-        m_recorder->m_capture_start_command_offset);
+    auto capture_start_offset = m_recorder->m_capture_start_command_offset;
+    auto capture_end_offset = m_recorder->m_display_list.command_byte_size();
     m_recorder->m_is_capturing = false;
     m_recorder = nullptr;
-    return commands;
+    VERIFY(capture_end_offset >= capture_start_offset);
+    VERIFY(capture_end_offset <= NumericLimits<u32>::max());
+    return {
+        static_cast<u32>(capture_start_offset),
+        static_cast<u32>(capture_end_offset - capture_start_offset),
+    };
 }
 
 DisplayListRecorder::CommandCapture DisplayListRecorder::begin_command_capture()
@@ -47,6 +52,7 @@ DisplayListRecorder::CommandCapture DisplayListRecorder::begin_command_capture()
     VERIFY(!m_is_capturing);
     m_is_capturing = true;
     m_capture_start_command_offset = m_display_list.command_byte_size();
+    m_capture_accumulated_visual_context_index = m_accumulated_visual_context_index;
     return CommandCapture(*this);
 }
 
@@ -291,15 +297,15 @@ static DisplayListDataSpan append_filter_data(
     return payload_builder.append_data(filter_data, alignof(u32));
 }
 
-void DisplayListRecorder::replay_cached_commands(ReadonlyBytes command_bytes)
+// Captures are save/restore balanced (verified at capture end), so splicing never shifts the save nesting level.
+DisplayListCommandRange DisplayListRecorder::append_cached_command_range(DisplayList const& source_display_list, DisplayListCommandRange source_range)
 {
-    if (command_bytes.is_empty())
-        return;
-
-    DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes) {
-        m_save_nesting_level += display_list_command_nesting_level_change(header.type);
-    });
-    m_display_list.append_command_sequence(command_bytes, m_visual_context_tree, m_accumulated_visual_context_index);
+    auto destination_offset = m_display_list.append_command_range_from(
+        source_display_list,
+        source_range,
+        m_visual_context_tree,
+        m_accumulated_visual_context_index);
+    return { destination_offset, source_range.size };
 }
 
 void DisplayListRecorder::paint_nested_display_list(DisplayListResource const& display_list, Gfx::IntRect rect)

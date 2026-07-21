@@ -202,6 +202,7 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/StackingContext.h>
@@ -8790,10 +8791,14 @@ void Document::set_needs_to_record_display_list()
         navigable->set_needs_to_record_display_list();
 }
 
-RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig config, Painting::DisplayListResourceStorage& resource_storage)
+RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig config, Painting::DisplayListResourceStorage& resource_storage, Painting::PaintCommandCacheMode cache_mode)
 {
     update_paint_and_hit_testing_properties_if_needed();
     VERIFY(paintable());
+
+    bool const line_box_border_overlays_replace_cacheable_content = config.should_show_line_box_borders;
+    if (line_box_border_overlays_replace_cacheable_content)
+        cache_mode = Painting::PaintCommandCacheMode::ReadOnly;
 
     // Drop the inspector-overlay context nodes appended by the previous recording; this appends its own. Safe because
     // the pruned tree only reaches the compositor together with (or after) the display list recorded against it here.
@@ -8843,6 +8848,9 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     context.set_should_paint_overlay(config.paint_overlay);
 
     auto& viewport_paintable = *paintable();
+    context.set_paint_command_cache_mode(cache_mode);
+    if (!line_box_border_overlays_replace_cacheable_content)
+        context.set_paint_command_cache_source_display_list(viewport_paintable.display_list_used_as_paint_command_cache_source());
     viewport_paintable.refresh_scroll_state();
     viewport_paintable.initialize_async_scrolling_metadata_recording(context);
 
@@ -8885,6 +8893,12 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         display_list_recorder.draw_line({ caret_x - 4, caret_bottom }, { caret_x + 4, caret_bottom }, marker_color, 2);
     }
 
+    if (cache_mode == Painting::PaintCommandCacheMode::ReadWrite) {
+        // Rotation can drop the last reference to the list the context's raw pointer still targets.
+        context.set_paint_command_cache_source_display_list(nullptr);
+        viewport_paintable.set_display_list_used_as_paint_command_cache_source(display_list, resource_storage.collect_referenced_resources(*display_list));
+    }
+
     m_hit_test_display_list = move(hit_test_display_list);
     return display_list;
 }
@@ -8913,11 +8927,11 @@ Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
         if (auto navigable = this->navigable()) {
             if (navigable->record_display_list_and_scroll_state(paint_config))
                 return;
-            (void)record_display_list(paint_config, navigable->display_list_resource_storage());
+            (void)record_display_list(paint_config, navigable->display_list_resource_storage(), Painting::PaintCommandCacheMode::ReadWrite);
             return;
         }
-        Painting::DisplayListResourceStorage resource_storage;
-        (void)record_display_list(paint_config, resource_storage);
+        Painting::DisplayListResourceStorage throwaway_resource_storage_for_hit_test_only_recording;
+        (void)record_display_list(paint_config, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
     };
 
     if (!m_hit_test_display_list || m_hit_test_display_list->visual_context_tree_version() != viewport_paintable->visual_context_tree().version())
@@ -9367,7 +9381,7 @@ Utf16String Document::dump_display_list()
         return "No paintable"_utf16;
 
     auto& resource_storage = navigable()->display_list_resource_storage();
-    auto display_list = record_display_list(HTML::PaintConfig {}, resource_storage);
+    auto display_list = record_display_list(HTML::PaintConfig {}, resource_storage, Painting::PaintCommandCacheMode::ReadOnly);
     if (!display_list)
         return "No display list"_utf16;
 

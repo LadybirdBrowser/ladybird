@@ -101,9 +101,6 @@ public:
     DisplayListResourceTransaction create_transaction(DisplayListResourceSet const& previous, DisplayListResourceSet const& current) const;
     DisplayListResourceSet collect_referenced_resources(DisplayList const&) const;
     DisplayListResourceSet collect_referenced_resources(ReadonlyBytes command_bytes) const;
-    void acquire_cache_references(DisplayListResourceSet const&);
-    void release_cache_references(DisplayListResourceSet const&);
-    DisplayListResourceSet cache_referenced_resources() const;
     void retain_only(DisplayListResourceSet const&);
     void update_video_frame(VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
     void clear_video_frame(VideoFrameResourceId);
@@ -131,11 +128,6 @@ private:
     HashMap<u64, DisplayListResource> m_display_lists;
     mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedSkiaImageResource>> m_display_list_cached_skia_images;
     mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedNestedRasterResource>> m_display_list_cached_nested_rasters;
-
-    HashMap<u64, size_t> m_font_cache_reference_counts;
-    HashMap<u64, size_t> m_image_frame_cache_reference_counts;
-    HashMap<u64, size_t> m_video_frame_cache_reference_counts;
-    HashMap<u64, size_t> m_display_list_cache_reference_counts;
 };
 
 }

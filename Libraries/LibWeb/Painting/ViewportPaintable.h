@@ -9,6 +9,7 @@
 
 #include <AK/Optional.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/ScrollState.h>
 
@@ -64,6 +65,18 @@ public:
     AccumulatedVisualContextTree const& visual_context_tree() const;
     AccumulatedVisualContextTree& visual_context_tree();
 
+    void set_display_list_used_as_paint_command_cache_source(RefPtr<DisplayList const> display_list, DisplayListResourceSet referenced_resources)
+    {
+        m_display_list_used_as_paint_command_cache_source = move(display_list);
+        m_paint_command_cache_source_referenced_resources = move(referenced_resources);
+    }
+    DisplayList const* display_list_used_as_paint_command_cache_source() const { return m_display_list_used_as_paint_command_cache_source.ptr(); }
+    DisplayListResourceSet const& paint_command_cache_source_referenced_resources() const { return m_paint_command_cache_source_referenced_resources; }
+
+    // Cached command ranges keep pointing into the retained source until it rotates, so pruning the
+    // backing resource storage must keep everything the source references alive.
+    void append_paint_command_cache_source_resources(DisplayListResourceSet&) const;
+
 private:
     friend void update_visual_viewport_accumulated_visual_context(ViewportPaintable&);
 
@@ -81,6 +94,9 @@ private:
     bool m_needs_to_refresh_scroll_state { true };
 
     Vector<WeakPtr<Paintable>> m_paintable_boxes_with_auto_content_visibility;
+
+    RefPtr<DisplayList const> m_display_list_used_as_paint_command_cache_source;
+    DisplayListResourceSet m_paint_command_cache_source_referenced_resources;
 
     Optional<AccumulatedVisualContextTree> m_visual_context_tree;
     u64 m_accumulated_visual_context_tree_build_count { 0 };

@@ -49,6 +49,7 @@ private:
     RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
     void prune_cached_display_list_resources() const;
     void append_cached_display_list_resources(Painting::DisplayListResourceSet&) const;
+    void append_paint_command_cache_source_resources(Painting::DisplayListResourceSet&) const;
     void did_request_frame();
     void invalidate_cached_rendering();
 

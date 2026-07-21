@@ -410,9 +410,14 @@ public:
 
     void invalidate_paint_cache() const;
 
-    bool has_cached_commands(PaintPhase) const;
-    ReadonlyBytes cached_commands(PaintPhase) const;
-    void set_cached_commands(PaintPhase phase, ByteBuffer const& commands) const;
+    // Commands recorded under an empty effective clip are dropped at append time, so a cached range is
+    // usable only while the emptiness of the phase's effective clip matches what it was at capture time.
+    struct CachedCommandRange {
+        DisplayListCommandRange range;
+        VisualContextIndex recorded_context_index {};
+    };
+    Optional<CachedCommandRange> valid_cached_commands(PaintPhase, u64 source_display_list_id, bool phase_has_empty_effective_clip) const;
+    void set_cached_commands(PaintPhase, u64 display_list_id, DisplayListCommandRange, VisualContextIndex recorded_context_index, bool captured_under_empty_effective_clip) const;
 
     void set_fixed_background_visual_context(VisualContextIndex index) { m_fixed_background_visual_context = index; }
     [[nodiscard]] Optional<VisualContextIndex> fixed_background_visual_context() const { return m_fixed_background_visual_context; }
@@ -469,8 +474,6 @@ private:
     void set_containing_block(Paintable* containing_block);
 
     void paint_middle_button_scroll_indicator(DisplayListRecordingContext&) const;
-    void acquire_cache_references_for_cached_commands(ReadonlyBytes) const;
-    void release_cache_references_for_cached_commands(ReadonlyBytes) const;
     void invalidate_absolute_geometry_cache(InvalidateDescendantGeometry);
 
     GC::Weak<DOM::Node> m_dom_node;

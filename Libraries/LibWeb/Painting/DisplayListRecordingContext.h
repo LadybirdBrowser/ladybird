@@ -20,8 +20,14 @@
 namespace Web::Painting {
 
 class AccumulatedVisualContextTree;
+class DisplayList;
 class HitTestDisplayList;
 class ScrollState;
+
+enum class PaintCommandCacheMode : u8 {
+    ReadOnly,
+    ReadWrite,
+};
 
 }
 
@@ -40,6 +46,12 @@ public:
 
     bool should_paint_overlay() const { return m_should_paint_overlay; }
     void set_should_paint_overlay(bool should_paint_overlay) { m_should_paint_overlay = should_paint_overlay; }
+
+    Painting::PaintCommandCacheMode paint_command_cache_mode() const { return m_paint_command_cache_mode; }
+    void set_paint_command_cache_mode(Painting::PaintCommandCacheMode mode) { m_paint_command_cache_mode = mode; }
+
+    Painting::DisplayList const* paint_command_cache_source_display_list() const { return m_paint_command_cache_source_display_list; }
+    void set_paint_command_cache_source_display_list(Painting::DisplayList const* display_list) { m_paint_command_cache_source_display_list = display_list; }
 
     DevicePixelRect device_viewport_rect() const { return m_device_viewport_rect; }
     void set_device_viewport_rect(DevicePixelRect const& rect) { m_device_viewport_rect = rect; }
@@ -117,6 +129,8 @@ private:
     Painting::DevicePixelConverter m_device_pixel_converter;
     ChromeMetrics m_chrome_metrics;
     DevicePixelRect m_device_viewport_rect;
+    Painting::PaintCommandCacheMode m_paint_command_cache_mode { Painting::PaintCommandCacheMode::ReadOnly };
+    Painting::DisplayList const* m_paint_command_cache_source_display_list { nullptr };
     bool m_should_show_line_box_borders { false };
     bool m_should_paint_overlay { true };
     bool m_draw_svg_geometry_for_clip_path { false };

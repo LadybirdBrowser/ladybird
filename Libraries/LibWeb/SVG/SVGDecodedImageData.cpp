@@ -207,6 +207,14 @@ void SVGDecodedImageData::append_cached_display_list_resources(Painting::Display
         retained_resources.include(cached_display_list.value.referenced_resources);
 }
 
+void SVGDecodedImageData::append_paint_command_cache_source_resources(Painting::DisplayListResourceSet& retained_resources) const
+{
+    auto document_paintable = m_document->unsafe_paintable();
+    if (!document_paintable)
+        return;
+    document_paintable->append_paint_command_cache_source_resources(retained_resources);
+}
+
 Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list(Gfx::IntSize size, Painting::DisplayListResourceStorage& destination_resource_storage) const
 {
     ScopedSVGImageDocument scoped_document { *m_page_client, *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage, const_cast<SVGDecodedImageData&>(*this) };
@@ -241,14 +249,15 @@ Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list
 
     navigable.set_viewport_size(size.to_type<CSSPixels>());
     m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
-    auto display_list = m_document->record_display_list({}, resource_storage);
+    auto display_list = m_document->record_display_list({}, resource_storage, Painting::PaintCommandCacheMode::ReadWrite);
     if (!display_list)
         return {};
 
-    auto referenced_resources = resource_storage.collect_referenced_resources(*display_list);
-    copy_referenced_resources_to(destination_resource_storage, resource_storage, referenced_resources);
     auto document_paintable = m_document->paintable();
     VERIFY(document_paintable);
+    VERIFY(document_paintable->display_list_used_as_paint_command_cache_source() == display_list.ptr());
+    auto referenced_resources = document_paintable->paint_command_cache_source_referenced_resources();
+    copy_referenced_resources_to(destination_resource_storage, resource_storage, referenced_resources);
     auto visual_context_tree = document_paintable->visual_context_tree();
     auto display_list_resource = Painting::DisplayListResource { *display_list, visual_context_tree };
     m_cached_display_lists.set(size, CachedDisplayList { NonnullRefPtr<Painting::DisplayList> { *display_list }, move(visual_context_tree), move(referenced_resources) });
@@ -382,8 +391,10 @@ void SVGDecodedImageData::SVGPageClient::prune_cached_display_list_resources() c
 void SVGDecodedImageData::SVGPageClient::prune_cached_display_list_resources_now() const
 {
     Painting::DisplayListResourceSet retained_resources;
-    for (auto& svg_image_data : m_svg_image_data)
+    for (auto& svg_image_data : m_svg_image_data) {
         svg_image_data.append_cached_display_list_resources(retained_resources);
+        svg_image_data.append_paint_command_cache_source_resources(retained_resources);
+    }
 
     m_svg_page->top_level_traversable()->display_list_resource_storage().retain_only(retained_resources);
 }
