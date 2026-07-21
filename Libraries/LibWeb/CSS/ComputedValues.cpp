@@ -442,6 +442,41 @@ static constexpr Array surround_group_properties {
     PropertyID::PaddingLeft,
 };
 
+// The properties feeding the border group's descriptors, in registration
+// order; each side's color feeds both the resolved color and the retained
+// shell.
+static constexpr Array border_group_properties {
+    PropertyID::BorderLeftColor,
+    PropertyID::BorderLeftColor,
+    PropertyID::BorderLeftStyle,
+    PropertyID::BorderLeftWidth,
+    PropertyID::BorderTopColor,
+    PropertyID::BorderTopColor,
+    PropertyID::BorderTopStyle,
+    PropertyID::BorderTopWidth,
+    PropertyID::BorderRightColor,
+    PropertyID::BorderRightColor,
+    PropertyID::BorderRightStyle,
+    PropertyID::BorderRightWidth,
+    PropertyID::BorderBottomColor,
+    PropertyID::BorderBottomColor,
+    PropertyID::BorderBottomStyle,
+    PropertyID::BorderBottomWidth,
+    PropertyID::BorderBottomLeftRadius,
+    PropertyID::BorderBottomRightRadius,
+    PropertyID::BorderTopLeftRadius,
+    PropertyID::BorderTopRightRadius,
+    PropertyID::CornerBottomLeftShape,
+    PropertyID::CornerBottomRightShape,
+    PropertyID::CornerTopLeftShape,
+    PropertyID::CornerTopRightShape,
+    PropertyID::BorderImageSource,
+    PropertyID::BorderImageOutset,
+    PropertyID::BorderImageRepeat,
+    PropertyID::BorderImageSlice,
+    PropertyID::BorderImageWidth,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -693,6 +728,41 @@ static void register_style_group_field_descriptors()
     for (auto property : { PropertyID::MarginTop, PropertyID::MarginRight, PropertyID::MarginBottom, PropertyID::MarginLeft,
              PropertyID::PaddingTop, PropertyID::PaddingRight, PropertyID::PaddingBottom, PropertyID::PaddingLeft })
         add(surround, property, 0, GROUP_FIELD_REQUIRE_PX, 0, nullptr, 0);
+
+    using Border = ComputedValues::BorderValues;
+    constexpr auto border = to_underlying(StyleGroupIndex::BorderValues);
+    struct BorderSide {
+        PropertyID color;
+        PropertyID style;
+        PropertyID width;
+        u32 data_offset;
+        u32 shell_offset;
+        u32 computed_width_offset;
+    };
+    for (auto const& side : {
+             BorderSide { PropertyID::BorderLeftColor, PropertyID::BorderLeftStyle, PropertyID::BorderLeftWidth, offsetof(Border, border_left), offsetof(Border, border_left_color_style_value), offsetof(Border, border_left_computed_width) },
+             BorderSide { PropertyID::BorderTopColor, PropertyID::BorderTopStyle, PropertyID::BorderTopWidth, offsetof(Border, border_top), offsetof(Border, border_top_color_style_value), offsetof(Border, border_top_computed_width) },
+             BorderSide { PropertyID::BorderRightColor, PropertyID::BorderRightStyle, PropertyID::BorderRightWidth, offsetof(Border, border_right), offsetof(Border, border_right_color_style_value), offsetof(Border, border_right_computed_width) },
+             BorderSide { PropertyID::BorderBottomColor, PropertyID::BorderBottomStyle, PropertyID::BorderBottomWidth, offsetof(Border, border_bottom), offsetof(Border, border_bottom_color_style_value), offsetof(Border, border_bottom_computed_width) },
+         }) {
+        add(border, side.color, side.data_offset + offsetof(BorderData, color), GROUP_FIELD_COLOR, 0, nullptr);
+        add(border, side.color, side.shell_offset, GROUP_FIELD_RETAINED_SHELL, 0, nullptr);
+        // NB: A none border-style keeps BorderData's width at the constructor's zero,
+        //     matching the used-width rule; styled borders take the C++ path.
+        add(border, side.style, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+        add(border, side.width, side.computed_width_offset, GROUP_FIELD_CSS_PIXELS_NON_NEGATIVE, 0, nullptr);
+    }
+    for (auto property : { PropertyID::BorderBottomLeftRadius, PropertyID::BorderBottomRightRadius, PropertyID::BorderTopLeftRadius, PropertyID::BorderTopRightRadius })
+        add(border, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(border, PropertyID::CornerBottomLeftShape, offsetof(Border, corner_bottom_left_shape), GROUP_FIELD_RESOLVED_F64, 0, nullptr);
+    add(border, PropertyID::CornerBottomRightShape, offsetof(Border, corner_bottom_right_shape), GROUP_FIELD_RESOLVED_F64, 0, nullptr);
+    add(border, PropertyID::CornerTopLeftShape, offsetof(Border, corner_top_left_shape), GROUP_FIELD_RESOLVED_F64, 0, nullptr);
+    add(border, PropertyID::CornerTopRightShape, offsetof(Border, corner_top_right_shape), GROUP_FIELD_RESOLVED_F64, 0, nullptr);
+    add(border, PropertyID::BorderImageSource, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(border, PropertyID::BorderImageOutset, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(border, PropertyID::BorderImageRepeat, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(border, PropertyID::BorderImageSlice, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(border, PropertyID::BorderImageWidth, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -1279,6 +1349,38 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (svg_reset_adopted)
         computed_values.adopt_svg_reset_group(const_cast<void*>(svg_reset_payload));
 
+    Array<ComputedValuesFFI::FfiGroupValueEntry, border_group_properties.size()> border_group_values;
+    gather_group_values(border_group_properties, border_group_values);
+    for (size_t i = 0; i < border_group_properties.size(); ++i) {
+        auto border_property_id = border_group_properties[i];
+        switch (border_property_id) {
+        case PropertyID::BorderLeftColor:
+        case PropertyID::BorderTopColor:
+        case PropertyID::BorderRightColor:
+        case PropertyID::BorderBottomColor:
+            border_group_values[i].resolved_color = computed_style.color(border_property_id, own_color_resolution_context).value();
+            border_group_values[i].has_resolved_color = true;
+            break;
+        case PropertyID::CornerBottomLeftShape:
+        case PropertyID::CornerBottomRightShape:
+        case PropertyID::CornerTopLeftShape:
+        case PropertyID::CornerTopRightShape:
+            border_group_values[i].resolved_number = computed_style.property(border_property_id).as_superellipse().parameter();
+            border_group_values[i].has_resolved_number = true;
+            break;
+        default:
+            break;
+        }
+    }
+    auto* border_payload = ComputedValuesFFI::rust_build_style_group(
+        BorderValues::style_group_index,
+        border_group_values.data(),
+        border_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.border.operator->()) : nullptr);
+    bool const border_adopted = border_payload != nullptr;
+    if (border_adopted)
+        computed_values.adopt_border_group(const_cast<void*>(border_payload));
+
     auto* inherited_ui_payload = ComputedValuesFFI::rust_build_style_group(
         InheritedUIValues::style_group_index,
         inherited_ui_group_values.data(),
@@ -1386,7 +1488,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_mask_positions(move(mask_positions));
 
     auto border_image = computed_style.border_image();
-    computed_values.set_border_image(move(border_image));
+    if (!border_adopted)
+        computed_values.set_border_image(move(border_image));
 
     if (!content_adopted) {
         auto const& content = computed_style.property(CSS::PropertyID::Content);
@@ -1447,14 +1550,22 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         };
     };
 
-    computed_values.set_border_bottom_left_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderBottomLeftRadius)));
-    computed_values.set_border_bottom_right_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderBottomRightRadius)));
-    computed_values.set_border_top_left_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderTopLeftRadius)));
-    computed_values.set_border_top_right_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderTopRightRadius)));
-    computed_values.set_corner_bottom_left_shape(computed_style.property(CSS::PropertyID::CornerBottomLeftShape).as_superellipse().parameter());
-    computed_values.set_corner_bottom_right_shape(computed_style.property(CSS::PropertyID::CornerBottomRightShape).as_superellipse().parameter());
-    computed_values.set_corner_top_left_shape(computed_style.property(CSS::PropertyID::CornerTopLeftShape).as_superellipse().parameter());
-    computed_values.set_corner_top_right_shape(computed_style.property(CSS::PropertyID::CornerTopRightShape).as_superellipse().parameter());
+    if (!border_adopted)
+        computed_values.set_border_bottom_left_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderBottomLeftRadius)));
+    if (!border_adopted)
+        computed_values.set_border_bottom_right_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderBottomRightRadius)));
+    if (!border_adopted)
+        computed_values.set_border_top_left_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderTopLeftRadius)));
+    if (!border_adopted)
+        computed_values.set_border_top_right_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderTopRightRadius)));
+    if (!border_adopted)
+        computed_values.set_corner_bottom_left_shape(computed_style.property(CSS::PropertyID::CornerBottomLeftShape).as_superellipse().parameter());
+    if (!border_adopted)
+        computed_values.set_corner_bottom_right_shape(computed_style.property(CSS::PropertyID::CornerBottomRightShape).as_superellipse().parameter());
+    if (!border_adopted)
+        computed_values.set_corner_top_left_shape(computed_style.property(CSS::PropertyID::CornerTopLeftShape).as_superellipse().parameter());
+    if (!border_adopted)
+        computed_values.set_corner_top_right_shape(computed_style.property(CSS::PropertyID::CornerTopRightShape).as_superellipse().parameter());
     if (!box_adopted)
         computed_values.set_display(computed_style.display());
     if (!box_adopted)
@@ -1964,21 +2075,33 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     };
 
     auto left_border = do_border_style({}, CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor, CSS::PropertyID::BorderLeftStyle);
-    computed_values.set_border_left(left_border.border);
-    computed_values.set_border_left_computed_width(left_border.computed_width);
+    if (!border_adopted)
+        computed_values.set_border_left(left_border.border);
+    if (!border_adopted)
+        computed_values.set_border_left_computed_width(left_border.computed_width);
     auto top_border = do_border_style({}, CSS::PropertyID::BorderTopWidth, CSS::PropertyID::BorderTopColor, CSS::PropertyID::BorderTopStyle);
-    computed_values.set_border_top(top_border.border);
-    computed_values.set_border_top_computed_width(top_border.computed_width);
+    if (!border_adopted)
+        computed_values.set_border_top(top_border.border);
+    if (!border_adopted)
+        computed_values.set_border_top_computed_width(top_border.computed_width);
     auto right_border = do_border_style({}, CSS::PropertyID::BorderRightWidth, CSS::PropertyID::BorderRightColor, CSS::PropertyID::BorderRightStyle);
-    computed_values.set_border_right(right_border.border);
-    computed_values.set_border_right_computed_width(right_border.computed_width);
+    if (!border_adopted)
+        computed_values.set_border_right(right_border.border);
+    if (!border_adopted)
+        computed_values.set_border_right_computed_width(right_border.computed_width);
     auto bottom_border = do_border_style({}, CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor, CSS::PropertyID::BorderBottomStyle);
-    computed_values.set_border_bottom(bottom_border.border);
-    computed_values.set_border_bottom_computed_width(bottom_border.computed_width);
-    computed_values.set_border_left_color_style_value(computed_style.property(CSS::PropertyID::BorderLeftColor));
-    computed_values.set_border_top_color_style_value(computed_style.property(CSS::PropertyID::BorderTopColor));
-    computed_values.set_border_right_color_style_value(computed_style.property(CSS::PropertyID::BorderRightColor));
-    computed_values.set_border_bottom_color_style_value(computed_style.property(CSS::PropertyID::BorderBottomColor));
+    if (!border_adopted)
+        computed_values.set_border_bottom(bottom_border.border);
+    if (!border_adopted)
+        computed_values.set_border_bottom_computed_width(bottom_border.computed_width);
+    if (!border_adopted)
+        computed_values.set_border_left_color_style_value(computed_style.property(CSS::PropertyID::BorderLeftColor));
+    if (!border_adopted)
+        computed_values.set_border_top_color_style_value(computed_style.property(CSS::PropertyID::BorderTopColor));
+    if (!border_adopted)
+        computed_values.set_border_right_color_style_value(computed_style.property(CSS::PropertyID::BorderRightColor));
+    if (!border_adopted)
+        computed_values.set_border_bottom_color_style_value(computed_style.property(CSS::PropertyID::BorderBottomColor));
 
     if (auto const& outline_color = computed_style.property(CSS::PropertyID::OutlineColor); !misc_reset_adopted && outline_color.has_color())
         computed_values.set_outline_color(outline_color.to_color(color_resolution_context).value());

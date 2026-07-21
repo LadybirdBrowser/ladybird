@@ -1915,6 +1915,7 @@ public:
     void adopt_anchor_group(void* payload) { m_values.m_noninherited.anchor.adopt(payload); }
     void adopt_box_group(void* payload) { m_values.m_noninherited.box.adopt(payload); }
     void adopt_surround_group(void* payload) { m_values.m_noninherited.surround.adopt(payload); }
+    void adopt_border_group(void* payload) { m_values.m_noninherited.border.adopt(payload); }
 
     void set_aspect_ratio(AspectRatio aspect_ratio)
     {
