@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="harness.js"></script>
+<script>
+    // Targeted single-element restyle: style a 100-element tree first, then
+    // measure only the restyle caused by one class flip.
+    test(() => {
+        const style = document.createElement("style");
+        style.textContent = ".hot { color: crimson; background-color: lavender; }";
+        document.head.appendChild(style);
+
+        const root = document.createElement("div");
+        let target = null;
+        for (let i = 0; i < 100; ++i) {
+            const child = document.createElement("div");
+            child.textContent = "x";
+            root.appendChild(child);
+            if (i === 50)
+                target = child;
+        }
+        document.body.appendChild(root);
+        internals.updateStyle();
+
+        internals.resetStyleFfiCounters();
+        target.className = "hot";
+        internals.updateStyle();
+        const counters = internals.styleFfiCounters();
+        for (const key of Object.keys(counters))
+            println(`${key}: ${counters[key]}`);
+    });
+</script>

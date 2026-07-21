@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="harness.js"></script>
+<script>
+    // Custom-property-heavy DOM: 50 custom properties on the root, 100
+    // descendants consuming them through var().
+    runFfiBaselineWorkload(() => {
+        let rootCss = ":root {";
+        for (let i = 0; i < 50; ++i)
+            rootCss += `--v${i}: ${i}px;`;
+        rootCss += "}\n";
+        for (let i = 0; i < 10; ++i)
+            rootCss += `.u${i} { margin-left: var(--v${i}); padding-left: var(--v${i + 10}, 3px); }\n`;
+        const style = document.createElement("style");
+        style.textContent = rootCss;
+        document.head.appendChild(style);
+
+        const root = document.createElement("div");
+        for (let i = 0; i < 100; ++i) {
+            const child = document.createElement("div");
+            child.className = `u${i % 10}`;
+            child.textContent = "x";
+            root.appendChild(child);
+        }
+        document.body.appendChild(root);
+    });
+</script>

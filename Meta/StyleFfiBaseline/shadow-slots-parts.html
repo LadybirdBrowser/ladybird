@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="harness.js"></script>
+<script>
+    // Shadow DOM with slots and parts: 25 components, slotted light-dom
+    // children, ::part styling from the outer tree.
+    runFfiBaselineWorkload(() => {
+        const style = document.createElement("style");
+        style.textContent = ".component::part(inner) { color: teal; } .component { display: block; }";
+        document.head.appendChild(style);
+
+        const root = document.createElement("div");
+        for (let i = 0; i < 25; ++i) {
+            const host = document.createElement("div");
+            host.className = "component";
+            const shadow = host.attachShadow({ mode: "open" });
+            const shadowStyle = document.createElement("style");
+            shadowStyle.textContent = "::slotted(span) { font-weight: bold; } .inner { margin: 1px; }";
+            shadow.appendChild(shadowStyle);
+            const inner = document.createElement("div");
+            inner.className = "inner";
+            inner.setAttribute("part", "inner");
+            inner.appendChild(document.createElement("slot"));
+            shadow.appendChild(inner);
+            const slotted = document.createElement("span");
+            slotted.textContent = "s";
+            host.appendChild(slotted);
+            root.appendChild(host);
+        }
+        document.body.appendChild(root);
+    });
+</script>

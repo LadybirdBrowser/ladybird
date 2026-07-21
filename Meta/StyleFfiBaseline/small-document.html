@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="harness.js"></script>
+<script>
+    // Initial style of a small document: 20 plain elements, no author rules.
+    runFfiBaselineWorkload(() => {
+        const root = document.createElement("div");
+        for (let i = 0; i < 19; ++i) {
+            const child = document.createElement("div");
+            child.textContent = "x";
+            root.appendChild(child);
+        }
+        document.body.appendChild(root);
+    });
+</script>

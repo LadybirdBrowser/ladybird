@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="harness.js"></script>
+<script>
+    // Inheritance-heavy DOM: a 200-deep chain inheriting from a styled root.
+    runFfiBaselineWorkload(() => {
+        const root = document.createElement("div");
+        root.style.color = "rebeccapurple";
+        root.style.fontSize = "13px";
+        root.style.letterSpacing = "1px";
+        root.style.lineHeight = "1.5";
+        let current = root;
+        for (let i = 0; i < 200; ++i) {
+            const child = document.createElement("div");
+            current.appendChild(child);
+            current = child;
+        }
+        current.textContent = "leaf";
+        document.body.appendChild(root);
+    });
+</script>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="harness.js"></script>
+<script>
+    // Animation and transition updates: 20 paused-animation elements plus 20
+    // elements whose transitioned property flips once.
+    test(() => {
+        const style = document.createElement("style");
+        style.textContent = `
+            @keyframes spin { from { transform: rotate(0deg); opacity: 0.2; } to { transform: rotate(360deg); opacity: 0.8; } }
+            .animated { animation: spin 10s linear infinite paused; }
+            .transitioned { transition: margin-left 10s linear; margin-left: 0px; }
+            .moved { margin-left: 100px; }`;
+        document.head.appendChild(style);
+
+        const root = document.createElement("div");
+        const transitioned = [];
+        for (let i = 0; i < 20; ++i) {
+            const animated = document.createElement("div");
+            animated.className = "animated";
+            root.appendChild(animated);
+            const element = document.createElement("div");
+            element.className = "transitioned";
+            root.appendChild(element);
+            transitioned.push(element);
+        }
+        document.body.appendChild(root);
+        internals.updateStyle();
+
+        internals.resetStyleFfiCounters();
+        for (const element of transitioned)
+            element.classList.add("moved");
+        internals.updateStyle();
+        const counters = internals.styleFfiCounters();
+        for (const key of Object.keys(counters))
+            println(`${key}: ${counters[key]}`);
+    });
+</script>

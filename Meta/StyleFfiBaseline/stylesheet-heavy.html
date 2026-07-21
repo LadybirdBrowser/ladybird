@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="harness.js"></script>
+<script>
+    // Stylesheet-heavy document: 500 class rules, 100 elements matching some of them.
+    runFfiBaselineWorkload(() => {
+        let css = "";
+        for (let i = 0; i < 500; ++i)
+            css += `.c${i} { color: rgb(${i % 256}, 0, 0); margin-left: ${i % 7}px; }\n`;
+        const style = document.createElement("style");
+        style.textContent = css;
+        document.head.appendChild(style);
+
+        const root = document.createElement("div");
+        for (let i = 0; i < 100; ++i) {
+            const child = document.createElement("div");
+            child.className = `c${i * 5} other${i}`;
+            child.textContent = "x";
+            root.appendChild(child);
+        }
+        document.body.appendChild(root);
+    });
+</script>
