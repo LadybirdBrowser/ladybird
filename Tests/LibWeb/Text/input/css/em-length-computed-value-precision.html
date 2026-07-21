@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        font-size: 16px;
+        margin-left: 0.1em;
+        padding-left: 0.3em;
+        outline-offset: 0.1em;
+        letter-spacing: 0.1em;
+    }
+</style>
+<div id="target">x</div>
+<script>
+    // Font-relative lengths absolutize to unquantized pixel values: 0.1em at
+    // 16px is exactly 1.6px, which is not representable in 1/64 CSSPixels, so
+    // any quantization during computation would show up here.
+    test(() => {
+        const style = getComputedStyle(document.getElementById("target"));
+        println(`margin-left: ${style.marginLeft}`);
+        println(`padding-left: ${style.paddingLeft}`);
+        println(`outline-offset: ${style.outlineOffset}`);
+        println(`letter-spacing: ${style.letterSpacing}`);
+    });
+</script>

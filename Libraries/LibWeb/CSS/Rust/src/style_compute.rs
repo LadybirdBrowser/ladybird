@@ -1636,6 +1636,35 @@ pub extern "C" fn rust_style_metadata_initial_value(property_id: u16) -> FfiShel
     abort_on_panic(|| initial_value(property_id))
 }
 
+/// One bit per keyword marking the color keywords, installed once from the
+/// C++ side's KeywordStyleValue::is_color classification.
+static COLOR_KEYWORD_BITMAP: std::sync::OnceLock<Vec<u64>> = std::sync::OnceLock::new();
+
+/// Installs the color keyword bitmap.
+///
+/// # Safety
+/// `words` must point at `length` valid words.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_metadata_set_color_keyword_bitmap(words: *const u64, length: usize) {
+    abort_on_panic(|| {
+        let words = unsafe { std::slice::from_raw_parts(words, length) }.to_vec();
+        assert!(
+            COLOR_KEYWORD_BITMAP.set(words).is_ok(),
+            "color keyword bitmap installed twice"
+        );
+    });
+}
+
+pub(crate) fn keyword_is_color(keyword: u16) -> bool {
+    let Some(bitmap) = COLOR_KEYWORD_BITMAP.get() else {
+        return false;
+    };
+    let index = keyword as usize;
+    bitmap
+        .get(index / 64)
+        .is_some_and(|word| word & (1 << (index % 64)) != 0)
+}
+
 /// The inherit-or-initial decision for one longhand in the property
 /// computation loop.
 #[repr(C)]
@@ -1775,9 +1804,16 @@ pub extern "C" fn rust_map_physical_to_logical_alias(property_id: u16, writing_m
 pub struct FfiComputedStoreEntry {
     pub property_id: u16,
     pub inherited_property_id: u16,
+    /// The selected specified value; also the stored value unless a computed
+    /// pixel length replaces it.
     pub shell: *const c_void,
     pub inheritance_dependent: bool,
     pub inherited: bool,
+    /// When set, the driver computed the value natively: the stored value is
+    /// a pixel length of `px` while `shell` remains the specified value for
+    /// the inheritance-dependence bookkeeping.
+    pub has_computed_px: bool,
+    pub px: f64,
 }
 
 /// The leaf callbacks the C++ side provides to the property computation
@@ -1821,6 +1857,107 @@ pub struct FfiLonghandCallbacks {
     /// Returns the element's computed writing mode and direction, packed as
     /// writing_mode | direction << 8.
     pub writing_mode_and_direction: unsafe extern "C" fn(context: *mut c_void) -> u16,
+    /// Fetches the length resolution context the property's computation would
+    /// use; the driver caches one per context kind and flushes pending stores
+    /// first, since building a context reads stored values.
+    pub length_resolution_context:
+        unsafe extern "C" fn(context: *mut c_void, property_id: u16, out: *mut FfiLengthResolutionContext),
+}
+
+/// The computation-context kind a property's lengths resolve against,
+/// mirroring StyleComputer::get_computation_context_for_property until the
+/// context construction moves into the core.
+#[derive(Clone, Copy, PartialEq)]
+enum ComputationContextKind {
+    Font,
+    LineHeight,
+    Generic,
+}
+
+fn computation_context_kind(property_id: u16) -> ComputationContextKind {
+    use crate::property_metadata::property_id as prop;
+    match property_id {
+        prop::COLOR_SCHEME
+        | prop::FONT_FAMILY
+        | prop::FONT_FEATURE_SETTINGS
+        | prop::FONT_KERNING
+        | prop::FONT_OPTICAL_SIZING
+        | prop::FONT_SIZE
+        | prop::FONT_STYLE
+        | prop::FONT_VARIANT_ALTERNATES
+        | prop::FONT_VARIANT_CAPS
+        | prop::FONT_VARIANT_EAST_ASIAN
+        | prop::FONT_VARIANT_EMOJI
+        | prop::FONT_VARIANT_LIGATURES
+        | prop::FONT_VARIANT_NUMERIC
+        | prop::FONT_VARIANT_POSITION
+        | prop::FONT_VARIATION_SETTINGS
+        | prop::FONT_WEIGHT
+        | prop::FONT_WIDTH
+        | prop::MATH_DEPTH
+        | prop::TEXT_RENDERING => ComputationContextKind::Font,
+        prop::LINE_HEIGHT => ComputationContextKind::LineHeight,
+        _ => ComputationContextKind::Generic,
+    }
+}
+
+/// Whether a value's absolutization is the identity, so the specified value
+/// is already the computed value. Mirrors the value types that fall through
+/// to the default arm of StyleValue::absolutized, plus keywords that resolve
+/// to themselves: the currentcolor keyword computes to itself, and only
+/// color keywords resolve to something else at computed-value time.
+fn absolutization_is_identity(value: &StyleValueData) -> bool {
+    match value {
+        StyleValueData::Keyword { keyword } => *keyword == keyword::CURRENTCOLOR || !keyword_is_color(*keyword),
+        StyleValueData::Number { .. }
+        | StyleValueData::Integer { .. }
+        | StyleValueData::String { .. }
+        | StyleValueData::CustomIdent { .. }
+        | StyleValueData::Percentage { .. }
+        | StyleValueData::Flex { .. }
+        | StyleValueData::UnicodeRange { .. }
+        | StyleValueData::Url { .. } => true,
+        _ => false,
+    }
+}
+
+/// Properties with a dedicated computed-value rule in the C++ dispatcher
+/// (StyleComputer::compute_value_of_property); everything else computes as
+/// plain absolutization. Mirrors the C++ switch until the dispatch moves
+/// into the core.
+fn property_has_dedicated_compute_rule(property_id: u16) -> bool {
+    use crate::property_metadata::property_id as prop;
+    matches!(
+        property_id,
+        prop::ANIMATION_NAME
+            | prop::BACKGROUND_ATTACHMENT
+            | prop::BACKGROUND_CLIP
+            | prop::BACKGROUND_ORIGIN
+            | prop::BACKGROUND_POSITION_X
+            | prop::BACKGROUND_POSITION_Y
+            | prop::BACKGROUND_REPEAT
+            | prop::BACKGROUND_SIZE
+            | prop::BORDER_BOTTOM_WIDTH
+            | prop::BORDER_LEFT_WIDTH
+            | prop::BORDER_RIGHT_WIDTH
+            | prop::BORDER_TOP_WIDTH
+            | prop::OUTLINE_WIDTH
+            | prop::CORNER_BOTTOM_LEFT_SHAPE
+            | prop::CORNER_BOTTOM_RIGHT_SHAPE
+            | prop::CORNER_TOP_LEFT_SHAPE
+            | prop::CORNER_TOP_RIGHT_SHAPE
+            | prop::FONT_SIZE
+            | prop::FONT_STYLE
+            | prop::FONT_WEIGHT
+            | prop::FONT_WIDTH
+            | prop::FONT_FEATURE_SETTINGS
+            | prop::FONT_VARIATION_SETTINGS
+            | prop::LETTER_SPACING
+            | prop::WORD_SPACING
+            | prop::LINE_HEIGHT
+            | prop::MATH_DEPTH
+            | prop::POSITION_AREA
+    )
 }
 
 /// The parent's inheritable computed values, prepared once per element: one
@@ -1845,6 +1982,7 @@ pub struct FfiLonghandDriverResults {
     /// The raw winning cascaded font-size value, or null; borrowed from the
     /// cascaded property store.
     pub raw_cascaded_font_size_shell: *const c_void,
+    pub depends_on_viewport_metrics: bool,
     pub font_metrics_depend_on_viewport_metrics: bool,
     pub explicitly_inherited_non_inherited_property: bool,
 }
@@ -1924,6 +2062,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         // Store operations queued for properties that need no computation, flushed in one
         // crossing before any callback that may read the stored values.
         let mut pending_stores: Vec<FfiComputedStoreEntry> = Vec::new();
+        // Length resolution contexts fetched from C++ on first use, one per kind, like
+        // the C++ side's per-element computation context caches.
+        let mut cached_length_resolution_contexts: [Option<FfiLengthResolutionContext>; 3] = [None; 3];
         fn flush_pending_stores(
             callbacks: &FfiLonghandCallbacks,
             context: *mut c_void,
@@ -2057,17 +2198,66 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     || value_depends_on_inherited_info_for_property(value_data, property_id);
 
             if requires_computation {
-                flush_pending_stores(callbacks, context, &mut pending_stores);
-                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandComputeAndStoreCallback);
-                unsafe {
-                    (callbacks.compute_and_store)(
-                        context,
+                // Plain length values of properties without a dedicated computed-value rule
+                // absolutize natively; everything else still computes through C++.
+                let mut computed_px = None;
+                let mut handled_natively = !property_has_dedicated_compute_rule(inherited_property_id)
+                    && absolutization_is_identity(value_data);
+                if !handled_natively
+                    && !property_has_dedicated_compute_rule(inherited_property_id)
+                    && let StyleValueData::Length {
+                        value: length_value,
+                        unit,
+                    } = value_data
+                {
+                    let kind = computation_context_kind(inherited_property_id) as usize;
+                    let resolution_context = cached_length_resolution_contexts[kind].get_or_insert_with(|| {
+                        // Building a context on the C++ side reads stored values.
+                        flush_pending_stores(callbacks, context, &mut pending_stores);
+                        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandContextFetchCallback);
+                        let mut fetched = std::mem::MaybeUninit::<FfiLengthResolutionContext>::uninit();
+                        // SAFETY: The callback fills the context before returning.
+                        unsafe {
+                            (callbacks.length_resolution_context)(context, inherited_property_id, fetched.as_mut_ptr());
+                            fetched.assume_init()
+                        }
+                    });
+                    let result = absolutize_length(*length_value, *unit as usize, resolution_context);
+                    if result.handled {
+                        if result.resolved_viewport_relative_length {
+                            results.depends_on_viewport_metrics = true;
+                            if property_affects_font_metrics(inherited_property_id) {
+                                results.font_metrics_depend_on_viewport_metrics = true;
+                            }
+                        }
+                        computed_px = result.changed.then_some(result.px);
+                        handled_natively = true;
+                    }
+                }
+
+                if handled_natively {
+                    pending_stores.push(FfiComputedStoreEntry {
                         property_id,
                         inherited_property_id,
-                        value.shell,
+                        shell: value.shell,
                         inheritance_dependent,
-                        inherit_fetch_attempted,
-                    );
+                        inherited: inherit_fetch_attempted,
+                        has_computed_px: computed_px.is_some(),
+                        px: computed_px.unwrap_or(0.0),
+                    });
+                } else {
+                    flush_pending_stores(callbacks, context, &mut pending_stores);
+                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandComputeAndStoreCallback);
+                    unsafe {
+                        (callbacks.compute_and_store)(
+                            context,
+                            property_id,
+                            inherited_property_id,
+                            value.shell,
+                            inheritance_dependent,
+                            inherit_fetch_attempted,
+                        );
+                    }
                 }
             } else {
                 pending_stores.push(FfiComputedStoreEntry {
@@ -2076,6 +2266,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     shell: value.shell,
                     inheritance_dependent,
                     inherited: inherit_fetch_attempted,
+                    has_computed_px: false,
+                    px: 0.0,
                 });
             }
         }

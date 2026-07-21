@@ -1,0 +1,4 @@
+margin-left: 1.59375px
+padding-left: 4.796875px
+outline-offset: 1.6px
+letter-spacing: 1.6px

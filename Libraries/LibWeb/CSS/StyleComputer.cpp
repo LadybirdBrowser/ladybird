@@ -3289,6 +3289,16 @@ void StyleComputer::ensure_style_metadata_tables_installed()
             initial_value_pins->append(move(initial_value));
         }
         ComputedValuesFFI::rust_style_metadata_set_initial_value_table(initial_value_entries.data(), initial_value_entries.size());
+
+        // Mark the color keywords, so the core knows which keyword values resolve to
+        // something other than themselves at computed-value time.
+        Vector<u64> color_keyword_words;
+        color_keyword_words.resize((number_of_keywords + 63) / 64);
+        for (size_t keyword = 0; keyword < number_of_keywords; ++keyword) {
+            if (KeywordStyleValue::is_color(static_cast<Keyword>(keyword)))
+                color_keyword_words[keyword / 64] |= 1ull << (keyword % 64);
+        }
+        ComputedValuesFFI::rust_style_metadata_set_color_keyword_bitmap(color_keyword_words.data(), color_keyword_words.size());
         return true;
     }();
     (void)installed;
@@ -3399,6 +3409,14 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         builder.set_property_without_modifying_flags(property_id, move(computed_value));
     };
 
+    // Hands the driver the length resolution context a property's computation would
+    // use, so plain lengths can absolutize natively; the driver caches one per
+    // context kind, like get_computation_context_for_property does here.
+    auto fetch_length_resolution_context = [&](PropertyID property_id) {
+        auto const& computation_context = get_computation_context_for_property(property_id, computed_style, abstract_element);
+        return to_ffi_length_resolution_context(computation_context.length_resolution_context);
+    };
+
     // Applies a batch of store operations the driver queued for properties that need no
     // computation, in property order, replicating the per-property side effects.
     auto store_computed_batch = [&](ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count) {
@@ -3411,7 +3429,10 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
                 copy_animated_inherited_value(property_id, inherited_property_id);
             if (entry.inheritance_dependent)
                 builder.add_inheritance_dependent_specified_value(property_id, value);
-            builder.set_property_without_modifying_flags(property_id, value);
+            if (entry.has_computed_px)
+                builder.set_property_without_modifying_flags(property_id, LengthStyleValue::create(Length::make_px(entry.px)));
+            else
+                builder.set_property_without_modifying_flags(property_id, value);
         }
     };
 
@@ -3421,6 +3442,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     struct LonghandLoopContext {
         decltype(compute_and_store)& compute_and_store_callback;
         decltype(store_computed_batch)& store_computed_batch_callback;
+        decltype(fetch_length_resolution_context)& fetch_length_resolution_context_callback;
         decltype(get_logical_alias_mapping_context)& get_logical_alias_mapping_context_callback;
         DOM::AbstractElement abstract_element;
         // Pins every parent value handed out by the explicit-inherit fetch until the end
@@ -3429,6 +3451,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     } loop_context {
         .compute_and_store_callback = compute_and_store,
         .store_computed_batch_callback = store_computed_batch,
+        .fetch_length_resolution_context_callback = fetch_length_resolution_context,
         .get_logical_alias_mapping_context_callback = get_logical_alias_mapping_context,
         .abstract_element = abstract_element,
         .pinned_parent_values = {},
@@ -3456,6 +3479,9 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             auto mapping_context = loop_context.get_logical_alias_mapping_context_callback();
             return static_cast<u16>(to_underlying(mapping_context.writing_mode)) | static_cast<u16>(to_underlying(mapping_context.direction)) << 8;
         },
+        .length_resolution_context = [](void* context, u16 property_id, ComputedValuesFFI::FfiLengthResolutionContext* out) {
+            auto& loop_context = *static_cast<LonghandLoopContext*>(context);
+            *out = loop_context.fetch_length_resolution_context_callback(static_cast<PropertyID>(property_id)); },
     };
 
     constexpr size_t longhand_bitmap_words = (number_of_longhand_properties + 63) / 64;
@@ -3466,6 +3492,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         .inherited_words = inherited_words.data(),
         .word_count = longhand_bitmap_words,
         .raw_cascaded_font_size_shell = nullptr,
+        .depends_on_viewport_metrics = false,
         .font_metrics_depend_on_viewport_metrics = false,
         .explicitly_inherited_non_inherited_property = false,
     };
@@ -3487,6 +3514,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     // See the recascade_font_size_if_needed() function for further details.
     if (driver_results.raw_cascaded_font_size_shell)
         builder.set_raw_cascaded_font_size(*static_cast<StyleValue const*>(driver_results.raw_cascaded_font_size_shell));
+    if (driver_results.depends_on_viewport_metrics)
+        builder.set_depends_on_viewport_metrics();
     if (driver_results.font_metrics_depend_on_viewport_metrics)
         builder.set_font_metrics_depend_on_viewport_metrics();
     if (driver_results.explicitly_inherited_non_inherited_property) {

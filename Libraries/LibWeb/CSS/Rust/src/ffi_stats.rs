@@ -66,6 +66,7 @@ define_ffi_ops! {
     ShorthandSetLonghandCallback => "shorthandSetLonghandCallbacks",
     LonghandComputeAndStoreCallback => "longhandComputeAndStoreCallbacks",
     LonghandStoreBatchCallback => "longhandStoreBatchCallbacks",
+    LonghandContextFetchCallback => "longhandContextFetchCallbacks",
     LonghandParentValueFetchCallback => "longhandParentValueFetchCallbacks",
     LonghandIndependenceFallbackCallback => "longhandIndependenceFallbackCallbacks",
     LonghandWritingModeCallback => "longhandWritingModeCallbacks",
