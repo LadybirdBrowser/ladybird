@@ -9,6 +9,8 @@
 #include <LibWeb/Bindings/CSSKeyframeRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSRuleList.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Dump.h>
 
 namespace Web::CSS {
@@ -26,6 +28,14 @@ CSSKeyframeRule::CSSKeyframeRule(JS::Realm& realm, Percentage key, CSSStylePrope
     , m_declarations(declarations)
 {
     m_declarations->set_parent_rule(*this);
+}
+
+void CSSKeyframeRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
+{
+    Base::set_parent_style_sheet(parent_style_sheet);
+
+    for (auto const& property : m_declarations->properties())
+        const_cast<StyleValue&>(*property.value).set_style_sheet(parent_style_sheet);
 }
 
 void CSSKeyframeRule::visit_edges(Visitor& visitor)

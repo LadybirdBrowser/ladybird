@@ -30,6 +30,14 @@ CSSKeyframesRule::CSSKeyframesRule(JS::Realm& realm, Utf16FlyString name, GC::Re
         rule->set_parent_rule(this);
 }
 
+void CSSKeyframesRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
+{
+    Base::set_parent_style_sheet(parent_style_sheet);
+
+    for (auto& rule : *m_rules)
+        rule->set_parent_style_sheet(parent_style_sheet);
+}
+
 void CSSKeyframesRule::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);

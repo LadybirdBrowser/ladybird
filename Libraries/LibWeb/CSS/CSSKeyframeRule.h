@@ -40,6 +40,8 @@ public:
         dbgln("FIXME: CSSKeyframeRule::set_key_text is not implemented");
     }
 
+    virtual void set_parent_style_sheet(CSSStyleSheet*) override;
+
 private:
     CSSKeyframeRule(JS::Realm&, CSS::Percentage, CSSStyleProperties&);
 
