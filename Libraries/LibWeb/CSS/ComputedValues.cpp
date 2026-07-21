@@ -308,6 +308,33 @@ static constexpr Array grid_group_properties {
     PropertyID::GridTemplateAreas,
 };
 
+// The properties feeding the animation group's descriptors, in registration
+// order. Every field registers as an initial-value constraint: elements
+// without animations, timelines or transitions adopt a shared payload.
+static constexpr Array animation_group_properties {
+    PropertyID::AnimationName,
+    PropertyID::AnimationComposition,
+    PropertyID::AnimationDelay,
+    PropertyID::AnimationDirection,
+    PropertyID::AnimationDuration,
+    PropertyID::AnimationFillMode,
+    PropertyID::AnimationIterationCount,
+    PropertyID::AnimationPlayState,
+    PropertyID::AnimationTimeline,
+    PropertyID::AnimationTimingFunction,
+    PropertyID::ScrollTimelineName,
+    PropertyID::ScrollTimelineAxis,
+    PropertyID::TimelineScope,
+    PropertyID::ViewTimelineName,
+    PropertyID::ViewTimelineAxis,
+    PropertyID::ViewTimelineInset,
+    PropertyID::TransitionProperty,
+    PropertyID::TransitionDuration,
+    PropertyID::TransitionTimingFunction,
+    PropertyID::TransitionDelay,
+    PropertyID::TransitionBehavior,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -473,6 +500,10 @@ static void register_style_group_field_descriptors()
     constexpr auto grid = to_underlying(StyleGroupIndex::GridValues);
     for (auto property : grid_group_properties)
         add(grid, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+
+    constexpr auto animation = to_underlying(StyleGroupIndex::AnimationValues);
+    for (auto property : animation_group_properties)
+        add(animation, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -812,6 +843,17 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_line_height(computed_style.line_height_data(document.font_computer()));
     computed_values.set_font_variant_emoji(computed_style.font_variant_emoji());
 
+    Array<ComputedValuesFFI::FfiGroupValueEntry, animation_group_properties.size()> animation_group_values;
+    gather_group_values(animation_group_properties, animation_group_values);
+    auto* animation_payload = ComputedValuesFFI::rust_build_style_group(
+        AnimationValues::style_group_index,
+        animation_group_values.data(),
+        animation_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.animation.operator->()) : nullptr);
+    bool const animation_adopted = animation_payload != nullptr;
+    if (animation_adopted)
+        computed_values.adopt_animation_group(const_cast<void*>(animation_payload));
+
     Vector<ComputedAnimationName> animation_names;
     for (auto const& name : computed_style.property(PropertyID::AnimationName).as_value_list().values()) {
         if (name->to_keyword() == Keyword::None) {
@@ -823,32 +865,40 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             });
         }
     }
-    computed_values.set_animation_names(move(animation_names));
+    if (!animation_adopted)
+        computed_values.set_animation_names(move(animation_names));
     Vector<AnimationComposition> animation_compositions;
     for_each_comma_separated_value(PropertyID::AnimationComposition, [&](StyleValue const& value) { animation_compositions.append(keyword_to_animation_composition(value.to_keyword()).release_value()); });
-    computed_values.set_animation_compositions(move(animation_compositions));
+    if (!animation_adopted)
+        computed_values.set_animation_compositions(move(animation_compositions));
     Vector<Time> animation_delays;
     for_each_comma_separated_value(PropertyID::AnimationDelay, [&](StyleValue const& value) { animation_delays.append(Time::from_style_value(NonnullRefPtr<StyleValue const> { value }, {})); });
-    computed_values.set_animation_delays(move(animation_delays));
+    if (!animation_adopted)
+        computed_values.set_animation_delays(move(animation_delays));
     Vector<AnimationDirection> animation_directions;
     for_each_comma_separated_value(PropertyID::AnimationDirection, [&](StyleValue const& value) { animation_directions.append(keyword_to_animation_direction(value.to_keyword()).release_value()); });
-    computed_values.set_animation_directions(move(animation_directions));
+    if (!animation_adopted)
+        computed_values.set_animation_directions(move(animation_directions));
     Vector<Optional<Time>> animation_durations;
     for_each_comma_separated_value(PropertyID::AnimationDuration, [&](StyleValue const& value) {
         animation_durations.append(value.to_keyword() == Keyword::Auto ? Optional<Time> {} : Time::from_style_value(NonnullRefPtr<StyleValue const> { value }, {}));
     });
-    computed_values.set_animation_durations(move(animation_durations));
+    if (!animation_adopted)
+        computed_values.set_animation_durations(move(animation_durations));
     Vector<AnimationFillMode> animation_fill_modes;
     for_each_comma_separated_value(PropertyID::AnimationFillMode, [&](StyleValue const& value) { animation_fill_modes.append(keyword_to_animation_fill_mode(value.to_keyword()).release_value()); });
-    computed_values.set_animation_fill_modes(move(animation_fill_modes));
+    if (!animation_adopted)
+        computed_values.set_animation_fill_modes(move(animation_fill_modes));
     Vector<double> animation_iteration_counts;
     for_each_comma_separated_value(PropertyID::AnimationIterationCount, [&](StyleValue const& value) {
         animation_iteration_counts.append(value.to_keyword() == Keyword::Infinite ? AK::Infinity<double> : number_from_style_value(value, {}));
     });
-    computed_values.set_animation_iteration_counts(move(animation_iteration_counts));
+    if (!animation_adopted)
+        computed_values.set_animation_iteration_counts(move(animation_iteration_counts));
     Vector<AnimationPlayState> animation_play_states;
     for_each_comma_separated_value(PropertyID::AnimationPlayState, [&](StyleValue const& value) { animation_play_states.append(keyword_to_animation_play_state(value.to_keyword()).release_value()); });
-    computed_values.set_animation_play_states(move(animation_play_states));
+    if (!animation_adopted)
+        computed_values.set_animation_play_states(move(animation_play_states));
     Vector<AnimationTimelineData> animation_timelines;
     for_each_comma_separated_value(PropertyID::AnimationTimeline, [&](StyleValue const& value) {
         AnimationTimelineData timeline;
@@ -887,15 +937,18 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         }
         animation_timelines.append(move(timeline));
     });
-    computed_values.set_animation_timelines(move(animation_timelines));
+    if (!animation_adopted)
+        computed_values.set_animation_timelines(move(animation_timelines));
     Vector<EasingFunction> animation_timing_functions;
     StyleValueVector animation_timing_function_style_values;
     for_each_comma_separated_value(PropertyID::AnimationTimingFunction, [&](StyleValue const& value) {
         animation_timing_functions.append(EasingFunction::from_style_value(value));
         animation_timing_function_style_values.append(value);
     });
-    computed_values.set_animation_timing_functions(move(animation_timing_functions));
-    computed_values.set_animation_timing_function_style_values(move(animation_timing_function_style_values));
+    if (!animation_adopted)
+        computed_values.set_animation_timing_functions(move(animation_timing_functions));
+    if (!animation_adopted)
+        computed_values.set_animation_timing_function_style_values(move(animation_timing_function_style_values));
 
     // NOTE: color must be set after color-scheme to ensure currentColor can be resolved in other properties (e.g. background-color).
     // NOTE: color must be set after font_size as `CalculatedStyleValue`s can rely on it being set for resolving lengths.
@@ -1288,16 +1341,22 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         }
         return axes;
     };
-    computed_values.set_scroll_timeline_names(timeline_names(CSS::PropertyID::ScrollTimelineName));
-    computed_values.set_scroll_timeline_axes(timeline_axes(CSS::PropertyID::ScrollTimelineAxis));
-    computed_values.set_view_timeline_names(timeline_names(CSS::PropertyID::ViewTimelineName));
-    computed_values.set_view_timeline_axes(timeline_axes(CSS::PropertyID::ViewTimelineAxis));
+    if (!animation_adopted)
+        computed_values.set_scroll_timeline_names(timeline_names(CSS::PropertyID::ScrollTimelineName));
+    if (!animation_adopted)
+        computed_values.set_scroll_timeline_axes(timeline_axes(CSS::PropertyID::ScrollTimelineAxis));
+    if (!animation_adopted)
+        computed_values.set_view_timeline_names(timeline_names(CSS::PropertyID::ViewTimelineName));
+    if (!animation_adopted)
+        computed_values.set_view_timeline_axes(timeline_axes(CSS::PropertyID::ViewTimelineAxis));
 
-    auto const& timeline_scope = computed_style.property(CSS::PropertyID::TimelineScope);
-    computed_values.set_timeline_scope(CSS::TimelineScopeData {
-        .all = timeline_scope.to_keyword() == CSS::Keyword::All,
-        .names = custom_ident_list(CSS::PropertyID::TimelineScope),
-    });
+    if (!animation_adopted) {
+        auto const& timeline_scope = computed_style.property(CSS::PropertyID::TimelineScope);
+        computed_values.set_timeline_scope(CSS::TimelineScopeData {
+            .all = timeline_scope.to_keyword() == CSS::Keyword::All,
+            .names = custom_ident_list(CSS::PropertyID::TimelineScope),
+        });
+    }
 
     Vector<CSS::ViewTimelineInsetData> view_timeline_insets;
     auto append_view_timeline_inset = [&](CSS::StyleValue const& value) {
@@ -1316,36 +1375,43 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     } else {
         append_view_timeline_inset(view_timeline_inset);
     }
-    computed_values.set_view_timeline_insets(move(view_timeline_insets));
+    if (!animation_adopted)
+        computed_values.set_view_timeline_insets(move(view_timeline_insets));
 
     Vector<Optional<Utf16FlyString>> transition_properties;
     for_each_comma_separated_value(CSS::PropertyID::TransitionProperty, [&](CSS::StyleValue const& value) {
         transition_properties.append(value.is_custom_ident() ? Optional<Utf16FlyString> { value.as_custom_ident().custom_ident() } : Optional<Utf16FlyString> {});
     });
-    computed_values.set_transition_properties(move(transition_properties));
+    if (!animation_adopted)
+        computed_values.set_transition_properties(move(transition_properties));
     Vector<CSS::Time> transition_durations;
     for_each_comma_separated_value(CSS::PropertyID::TransitionDuration, [&](CSS::StyleValue const& value) {
         transition_durations.append(CSS::Time::from_style_value(NonnullRefPtr<CSS::StyleValue const> { value }, {}));
     });
-    computed_values.set_transition_durations(move(transition_durations));
+    if (!animation_adopted)
+        computed_values.set_transition_durations(move(transition_durations));
     Vector<CSS::EasingFunction> transition_timing_functions;
     CSS::StyleValueVector transition_timing_function_style_values;
     for_each_comma_separated_value(CSS::PropertyID::TransitionTimingFunction, [&](CSS::StyleValue const& value) {
         transition_timing_functions.append(CSS::EasingFunction::from_style_value(value));
         transition_timing_function_style_values.append(value);
     });
-    computed_values.set_transition_timing_functions(move(transition_timing_functions));
-    computed_values.set_transition_timing_function_style_values(move(transition_timing_function_style_values));
+    if (!animation_adopted)
+        computed_values.set_transition_timing_functions(move(transition_timing_functions));
+    if (!animation_adopted)
+        computed_values.set_transition_timing_function_style_values(move(transition_timing_function_style_values));
     Vector<CSS::Time> transition_delays;
     for_each_comma_separated_value(CSS::PropertyID::TransitionDelay, [&](CSS::StyleValue const& value) {
         transition_delays.append(CSS::Time::from_style_value(NonnullRefPtr<CSS::StyleValue const> { value }, {}));
     });
-    computed_values.set_transition_delays(move(transition_delays));
+    if (!animation_adopted)
+        computed_values.set_transition_delays(move(transition_delays));
     Vector<CSS::TransitionBehavior> transition_behaviors;
     for_each_comma_separated_value(CSS::PropertyID::TransitionBehavior, [&](CSS::StyleValue const& value) {
         transition_behaviors.append(CSS::keyword_to_transition_behavior(value.to_keyword()).release_value());
     });
-    computed_values.set_transition_behaviors(move(transition_behaviors));
+    if (!animation_adopted)
+        computed_values.set_transition_behaviors(move(transition_behaviors));
 
     if (!inherited_text_adopted)
         computed_values.set_text_align(computed_style.text_align());

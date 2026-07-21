@@ -1907,6 +1907,7 @@ public:
     void adopt_transform_group(void* payload) { m_values.m_noninherited.transform.adopt(payload); }
     void adopt_mask_group(void* payload) { m_values.m_noninherited.mask_data.adopt(payload); }
     void adopt_grid_group(void* payload) { m_values.m_noninherited.grid.adopt(payload); }
+    void adopt_animation_group(void* payload) { m_values.m_noninherited.animation.adopt(payload); }
 
     void set_aspect_ratio(AspectRatio aspect_ratio)
     {
