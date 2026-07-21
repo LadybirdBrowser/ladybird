@@ -18,6 +18,8 @@
 #include <QtGlobal>
 
 #if defined(AK_OS_MACOS)
+#    include <QColorSpace>
+#    include <QSurfaceFormat>
 #    include <UI/AppKit/Utilities/ApplicationIcon.h>
 #    include <UI/Qt/MacWindow.h>
 #endif
@@ -50,6 +52,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // The web content view is a native QRhiWidget child. Keep it from forcing
     // every sibling in the tab UI to become native as well.
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
+
+    auto surface_format = QSurfaceFormat::defaultFormat();
+    surface_format.setColorSpace(QColorSpace::SRgb);
+    QSurfaceFormat::setDefaultFormat(surface_format);
 #endif
 
     auto app = TRY(Ladybird::Application::create(arguments));

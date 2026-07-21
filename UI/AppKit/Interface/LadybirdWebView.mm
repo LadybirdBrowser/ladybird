@@ -1079,6 +1079,8 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
     CAMetalLayer* layer = [CAMetalLayer layer];
     layer.device = m_metal_device;
     layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    static auto* color_space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+    layer.colorspace = color_space;
     layer.framebufferOnly = YES;
     layer.displaySyncEnabled = YES;
     layer.contentsGravity = kCAGravityTopLeft;
