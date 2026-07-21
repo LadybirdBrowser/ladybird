@@ -375,6 +375,15 @@ static constexpr Array inherited_svg_group_properties {
     PropertyID::DominantBaseline,
 };
 
+// The properties feeding the inherited list group's descriptors, in
+// registration order.
+static constexpr Array inherited_list_group_properties {
+    PropertyID::ListStyleType,
+    PropertyID::ListStylePosition,
+    PropertyID::ListStyleImage,
+    PropertyID::Quotes,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -577,6 +586,13 @@ static void register_style_group_field_descriptors()
     add(inherited_svg, PropertyID::PaintOrder, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
     add(inherited_svg, PropertyID::TextAnchor, offsetof(InheritedSVG, text_anchor), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_anchor>());
     add(inherited_svg, PropertyID::DominantBaseline, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+
+    using InheritedList = ComputedValues::InheritedListValues;
+    constexpr auto inherited_list = to_underlying(StyleGroupIndex::InheritedListValues);
+    add(inherited_list, PropertyID::ListStyleType, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(inherited_list, PropertyID::ListStylePosition, offsetof(InheritedList, list_style_position), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_list_style_position>());
+    add(inherited_list, PropertyID::ListStyleImage, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(inherited_list, PropertyID::Quotes, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -1059,6 +1075,17 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             inherited_ui_group_values[i].has_resolved_number = true;
         }
     }
+    Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_list_group_properties.size()> inherited_list_group_values;
+    gather_group_values(inherited_list_group_properties, inherited_list_group_values);
+    auto* inherited_list_payload = ComputedValuesFFI::rust_build_style_group(
+        InheritedListValues::style_group_index,
+        inherited_list_group_values.data(),
+        inherited_list_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.list.operator->()) : nullptr);
+    bool const inherited_list_adopted = inherited_list_payload != nullptr;
+    if (inherited_list_adopted)
+        computed_values.adopt_inherited_list_group(const_cast<void*>(inherited_list_payload));
+
     Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_svg_group_properties.size()> inherited_svg_group_values;
     gather_group_values(inherited_svg_group_properties, inherited_svg_group_values);
     for (size_t i = 0; i < inherited_svg_group_properties.size(); ++i) {
@@ -1644,10 +1671,12 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             .symbols = symbols.symbols,
         };
     }
-    computed_values.set_list_style_type(move(list_style_type));
-    computed_values.set_list_style_position(computed_style.list_style_position());
+    if (!inherited_list_adopted)
+        computed_values.set_list_style_type(move(list_style_type));
+    if (!inherited_list_adopted)
+        computed_values.set_list_style_position(computed_style.list_style_position());
     auto const& list_style_image = computed_style.property(PropertyID::ListStyleImage);
-    if (list_style_image.is_abstract_image())
+    if (!inherited_list_adopted && list_style_image.is_abstract_image())
         computed_values.set_list_style_image(list_style_image.as_abstract_image());
 
     if (!text_reset_adopted)
@@ -1989,7 +2018,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_math_style(math_style.value());
 
     computed_values.set_math_depth(computed_style.math_depth());
-    computed_values.set_quotes(computed_style.quotes());
+    if (!inherited_list_adopted)
+        computed_values.set_quotes(computed_style.quotes());
     computed_values.set_counter_increment(computed_style.counter_data(CSS::PropertyID::CounterIncrement));
     computed_values.set_counter_reset(computed_style.counter_data(CSS::PropertyID::CounterReset));
     computed_values.set_counter_set(computed_style.counter_data(CSS::PropertyID::CounterSet));
