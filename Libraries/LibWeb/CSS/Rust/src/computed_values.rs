@@ -214,6 +214,8 @@ pub struct FfiGroupFieldDescriptor {
     pub kind: u8,
     /// For GROUP_FIELD_REQUIRE_KEYWORD: the required keyword.
     pub keyword: u16,
+    /// For GROUP_FIELD_REQUIRE_PX: the required pixel value.
+    pub required_px: f64,
     /// For GROUP_FIELD_ENUM_KEYWORD: keyword code -> enum code, 255 invalid.
     pub keyword_table: *const u8,
     pub keyword_table_length: usize,
@@ -236,6 +238,12 @@ pub const GROUP_FIELD_I32: u8 = 6;
 /// A color stored as the C++ Color's raw 32-bit value, resolved by the C++
 /// gather loop, which owns the color resolution context.
 pub const GROUP_FIELD_COLOR: u8 = 7;
+/// A number stored as f32, resolved by the C++ gather loop for values whose
+/// normalization has not moved into the core, like opacity.
+pub const GROUP_FIELD_RESOLVED_F32: u8 = 8;
+/// A constraint: the value must be a pixel length equal to `required_px`;
+/// nothing is written.
+pub const GROUP_FIELD_REQUIRE_PX: u8 = 9;
 
 /// One gathered value for the generic group builder: the computed value's
 /// shell and data, plus the resolved raw color for color-kind fields.
@@ -245,6 +253,8 @@ pub struct FfiGroupValueEntry {
     pub data: *const c_void,
     pub resolved_color: u32,
     pub has_resolved_color: bool,
+    pub resolved_number: f64,
+    pub has_resolved_number: bool,
 }
 
 struct FieldDescriptors(Box<[FfiGroupFieldDescriptor]>);
@@ -385,6 +395,20 @@ pub unsafe extern "C" fn rust_build_style_group(
                         return None;
                     }
                     pokes.push(Poke::U32(descriptor.offset, value.resolved_color));
+                }
+                GROUP_FIELD_RESOLVED_F32 => {
+                    if !value.has_resolved_number {
+                        return None;
+                    }
+                    pokes.push(Poke::F32(descriptor.offset, value.resolved_number as f32));
+                }
+                GROUP_FIELD_REQUIRE_PX => {
+                    let StyleValueData::Length { value, unit } = data else {
+                        return None;
+                    };
+                    if *unit != crate::style_compute::px_length_unit() || *value != descriptor.required_px {
+                        return None;
+                    }
                 }
                 _ => return None,
             }

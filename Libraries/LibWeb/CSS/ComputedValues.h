@@ -1899,6 +1899,7 @@ public:
     void adopt_inherited_table_group(void* payload) { m_values.m_inherited.table.adopt(payload); }
     void adopt_alignment_group(void* payload) { m_values.m_noninherited.alignment.adopt(payload); }
     void adopt_text_reset_group(void* payload) { m_values.m_noninherited.text_reset.adopt(payload); }
+    void adopt_effects_group(void* payload) { m_values.m_noninherited.effects.adopt(payload); }
 
     void set_aspect_ratio(AspectRatio aspect_ratio)
     {

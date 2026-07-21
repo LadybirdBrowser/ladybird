@@ -113,6 +113,18 @@ static constexpr Array text_reset_group_properties {
     PropertyID::WhiteSpaceTrim,
 };
 
+// The properties feeding the effects group's descriptors, in registration
+// order.
+static constexpr Array effects_group_properties {
+    PropertyID::Opacity,
+    PropertyID::Filter,
+    PropertyID::BackdropFilter,
+    PropertyID::MixBlendMode,
+    PropertyID::Isolation,
+    PropertyID::BoxShadow,
+    PropertyID::Clip,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -121,13 +133,14 @@ static void register_style_group_field_descriptors()
         && sizeof(JustifyItems) == 1 && sizeof(JustifySelf) == 1);
 
     Vector<FfiGroupFieldDescriptor> descriptors;
-    auto add = [&](size_t group_index, PropertyID property, u32 offset, u8 kind, u16 keyword, Array<u8, number_of_keywords> const* keyword_table) {
+    auto add = [&](size_t group_index, PropertyID property, u32 offset, u8 kind, u16 keyword, Array<u8, number_of_keywords> const* keyword_table, double required_px = 0) {
         descriptors.append({
             .group_index = static_cast<u32>(group_index),
             .property_id = static_cast<u16>(to_underlying(property)),
             .offset = offset,
             .kind = kind,
             .keyword = keyword,
+            .required_px = required_px,
             .keyword_table = keyword_table ? keyword_table->data() : nullptr,
             .keyword_table_length = keyword_table ? keyword_table->size() : 0,
         });
@@ -160,6 +173,16 @@ static void register_style_group_field_descriptors()
     add(text_reset, PropertyID::TextOverflow, offsetof(TextReset, text_overflow), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_overflow>());
     add(text_reset, PropertyID::UnicodeBidi, offsetof(TextReset, unicode_bidi), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_unicode_bidi>());
     add(text_reset, PropertyID::WhiteSpaceTrim, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+
+    using Effects = ComputedValues::EffectsValues;
+    constexpr auto effects = to_underlying(StyleGroupIndex::EffectsValues);
+    add(effects, PropertyID::Opacity, offsetof(Effects, opacity), GROUP_FIELD_RESOLVED_F32, 0, nullptr);
+    add(effects, PropertyID::Filter, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(effects, PropertyID::BackdropFilter, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(effects, PropertyID::MixBlendMode, offsetof(Effects, mix_blend_mode), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_mix_blend_mode>());
+    add(effects, PropertyID::Isolation, offsetof(Effects, isolation), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_isolation>());
+    add(effects, PropertyID::BoxShadow, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(effects, PropertyID::Clip, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -353,7 +376,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     auto gather_group_values = [&]<size_t N>(Array<PropertyID, N> const& properties, Array<ComputedValuesFFI::FfiGroupValueEntry, N>& entries) {
         for (size_t i = 0; i < N; ++i) {
             auto const& value = computed_style.property(properties[i]);
-            entries[i] = { &value, value.rust_style_value_data(), 0, false };
+            entries[i] = { &value, value.rust_style_value_data(), 0, false, 0, false };
         }
     };
 
@@ -368,24 +391,22 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (alignment_adopted)
         computed_values.adopt_alignment_group(const_cast<void*>(alignment_payload));
 
-    // The gather resolves color fields against the element's colors, since the
-    // builder core cannot; the resolved raw color travels with the entry.
-    Array<ComputedValuesFFI::FfiGroupValueEntry, text_reset_group_properties.size()> text_reset_group_values;
-    gather_group_values(text_reset_group_properties, text_reset_group_values);
-    for (size_t i = 0; i < text_reset_group_properties.size(); ++i) {
-        if (text_reset_group_properties[i] == PropertyID::TextDecorationColor) {
-            text_reset_group_values[i].resolved_color = computed_style.color(PropertyID::TextDecorationColor, color_resolution_context).value();
-            text_reset_group_values[i].has_resolved_color = true;
+    Array<ComputedValuesFFI::FfiGroupValueEntry, effects_group_properties.size()> effects_group_values;
+    gather_group_values(effects_group_properties, effects_group_values);
+    for (size_t i = 0; i < effects_group_properties.size(); ++i) {
+        if (effects_group_properties[i] == PropertyID::Opacity) {
+            effects_group_values[i].resolved_number = computed_style.opacity();
+            effects_group_values[i].has_resolved_number = true;
         }
     }
-    auto* text_reset_payload = ComputedValuesFFI::rust_build_style_group(
-        TextResetValues::style_group_index,
-        text_reset_group_values.data(),
-        text_reset_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.text_reset.operator->()) : nullptr);
-    bool const text_reset_adopted = text_reset_payload != nullptr;
-    if (text_reset_adopted)
-        computed_values.adopt_text_reset_group(const_cast<void*>(text_reset_payload));
+    auto* effects_payload = ComputedValuesFFI::rust_build_style_group(
+        EffectsValues::style_group_index,
+        effects_group_values.data(),
+        effects_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.effects.operator->()) : nullptr);
+    bool const effects_adopted = effects_payload != nullptr;
+    if (effects_adopted)
+        computed_values.adopt_effects_group(const_cast<void*>(effects_payload));
 
     auto custom_ident_list = [&](PropertyID property_id) {
         Vector<Utf16FlyString> names;
@@ -554,6 +575,25 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     // FIXME: We should resolve colors to their absolute forms at compute time (i.e. by implementing the relevant absolutized methods)
     color_resolution_context.current_color = color;
 
+    // NB: The text reset group builds only after the element's color lands in the
+    //     resolution context above, since text-decoration-color may be currentcolor.
+    Array<ComputedValuesFFI::FfiGroupValueEntry, text_reset_group_properties.size()> text_reset_group_values;
+    gather_group_values(text_reset_group_properties, text_reset_group_values);
+    for (size_t i = 0; i < text_reset_group_properties.size(); ++i) {
+        if (text_reset_group_properties[i] == PropertyID::TextDecorationColor) {
+            text_reset_group_values[i].resolved_color = computed_style.color(PropertyID::TextDecorationColor, color_resolution_context).value();
+            text_reset_group_values[i].has_resolved_color = true;
+        }
+    }
+    auto* text_reset_payload = ComputedValuesFFI::rust_build_style_group(
+        TextResetValues::style_group_index,
+        text_reset_group_values.data(),
+        text_reset_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.text_reset.operator->()) : nullptr);
+    bool const text_reset_adopted = text_reset_payload != nullptr;
+    if (text_reset_adopted)
+        computed_values.adopt_text_reset_group(const_cast<void*>(text_reset_payload));
+
     auto const& accent_color_value = computed_style.property(CSS::PropertyID::AccentColor);
     CSS::ColorOrAuto accent_color;
     accent_color.used_value = computed_style.accent_color(color_resolution_context);
@@ -660,10 +700,13 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_flex_shrink(computed_style.flex_shrink());
     if (!alignment_adopted)
         computed_values.set_order(computed_style.order());
-    computed_values.set_clip(computed_style.clip());
+    if (!effects_adopted)
+        computed_values.set_clip(computed_style.clip());
 
-    computed_values.set_backdrop_filter(computed_style.backdrop_filter());
-    computed_values.set_filter(computed_style.filter());
+    if (!effects_adopted)
+        computed_values.set_backdrop_filter(computed_style.backdrop_filter());
+    if (!effects_adopted)
+        computed_values.set_filter(computed_style.filter());
 
     computed_values.set_flood_color(computed_style.color(CSS::PropertyID::FloodColor, color_resolution_context));
     computed_values.set_flood_opacity(computed_style.flood_opacity());
@@ -990,7 +1033,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_text_shadow(computed_style.text_shadow(color_resolution_context));
 
     computed_values.set_z_index(computed_style.z_index());
-    computed_values.set_opacity(computed_style.opacity());
+    if (!effects_adopted)
+        computed_values.set_opacity(computed_style.opacity());
 
     if (!inherited_box_adopted)
         computed_values.set_visibility(computed_style.visibility());
@@ -1035,7 +1079,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_overflow_clip_margin(data);
     }
 
-    computed_values.set_box_shadow(computed_style.box_shadow(color_resolution_context));
+    if (!effects_adopted)
+        computed_values.set_box_shadow(computed_style.box_shadow(color_resolution_context));
 
     computed_values.set_rotate(computed_style.rotate());
     computed_values.set_translate(computed_style.translate());
@@ -1279,8 +1324,10 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!inherited_box_adopted)
         computed_values.set_writing_mode(computed_style.writing_mode());
     computed_values.set_user_select(computed_style.user_select());
-    computed_values.set_isolation(computed_style.isolation());
-    computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
+    if (!effects_adopted)
+        computed_values.set_isolation(computed_style.isolation());
+    if (!effects_adopted)
+        computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
     computed_values.set_view_transition_name(computed_style.view_transition_name());
     computed_values.set_contain(computed_style.contain());
     computed_values.set_container_name(computed_style.container_name());
