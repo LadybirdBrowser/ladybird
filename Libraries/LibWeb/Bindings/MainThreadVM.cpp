@@ -833,6 +833,8 @@ public:
     static GC::Ref<HeadlessPageClient> create(JS::VM& vm) { return vm.heap().allocate<HeadlessPageClient>(); }
 
     virtual u64 id() const override { return 0; }
+    // This page never talks to a UI process, so its ids only need to be unique within it.
+    virtual HTML::CrossProcessId allocate_cross_process_id() override { return m_cross_process_id_allocator.allocate(); }
     virtual Page& page() override { return *m_page; }
     virtual Page const& page() const override { return *m_page; }
     virtual bool is_connection_open() const override { return false; }
@@ -868,6 +870,7 @@ private:
 
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
     Queue<QueuedInputEvent> m_input_event_queue;
+    HTML::CrossProcessIdAllocator m_cross_process_id_allocator { .namespace_id = NumericLimits<u64>::max() };
 };
 
 GC_DEFINE_ALLOCATOR(HeadlessPageClient);

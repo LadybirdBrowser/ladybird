@@ -25,7 +25,12 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-2
 class WEB_API DocumentState final : public RefCounted<DocumentState> {
 public:
-    static NonnullRefPtr<DocumentState> create() { return adopt_ref(*new DocumentState()); }
+    static NonnullRefPtr<DocumentState> create(CrossProcessId cross_process_id)
+    {
+        auto document_state = adopt_ref(*new DocumentState());
+        document_state->m_cross_process_id = cross_process_id;
+        return document_state;
+    }
     ~DocumentState();
 
     struct NestedHistory {
@@ -40,8 +45,13 @@ public:
     [[nodiscard]] Optional<UniqueNodeID> document_id() const { return m_document_id; }
     void set_document_id(Optional<UniqueNodeID> document_id) { m_document_id = document_id; }
 
-    [[nodiscard]] Optional<CrossProcessId> cross_process_id() const { return m_cross_process_id; }
-    void set_cross_process_id(Optional<CrossProcessId> id) { m_cross_process_id = id; }
+    [[nodiscard]] CrossProcessId cross_process_id() const { return m_cross_process_id; }
+
+    // Reconstructing from the UI process adopts the canonical id the UI already tracks for this state, so later reports
+    // and acknowledgements name the identity the UI expects.
+    // FIXME: Remove this API. It is only needed because the UI process can mint its own ids for provisional entries and
+    //        seed them back onto live local states. Remove once ids are only ever allocated in WebContent.
+    void adopt_cross_process_id_from_ui_process(CrossProcessId id) { m_cross_process_id = id; }
 
     [[nodiscard]] Variant<SerializedPolicyContainer, Client> const& history_policy_container() const { return m_history_policy_container; }
     void set_history_policy_container(Variant<SerializedPolicyContainer, Client> history_policy_container) { m_history_policy_container = move(history_policy_container); }
@@ -86,7 +96,7 @@ private:
 
     // AD-HOC: Stable identity used by the UI-process session history mirror to preserve shared document states
     //         across IPC and WebContent process swaps.
-    Optional<CrossProcessId> m_cross_process_id;
+    CrossProcessId m_cross_process_id;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-history-policy-container
     Variant<SerializedPolicyContainer, Client> m_history_policy_container { Client::Tag };

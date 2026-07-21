@@ -26,7 +26,8 @@ TEST_CASE(post_load_seed_match_allows_ui_owned_nested_histories)
 {
     auto vm = JS::VM::create();
 
-    auto live_document_state = Web::HTML::DocumentState::create();
+    Web::HTML::CrossProcessIdAllocator cross_process_id_allocator { .namespace_id = 3 };
+    auto live_document_state = Web::HTML::DocumentState::create(cross_process_id_allocator.allocate());
     live_document_state->set_ever_populated(true);
     live_document_state->set_navigable_target_name(Utf16String::from_utf8("main"sv));
 
@@ -35,11 +36,7 @@ TEST_CASE(post_load_seed_match_allows_ui_owned_nested_histories)
     live_entry->set_url(parse_url("https://a.example/"sv));
     live_entry->set_document_state(live_document_state);
 
-    Web::HTML::CrossProcessIdAllocator cross_process_id_allocator { .namespace_id = 3 };
-    Web::HTML::SessionHistoryEntryDescriptorCreationState creation_state { [&] {
-        return cross_process_id_allocator.allocate();
-    } };
-    auto seed_descriptor = Web::HTML::create_session_history_entry_descriptor(*live_entry, creation_state);
+    auto seed_descriptor = Web::HTML::create_session_history_entry_descriptor(*live_entry);
 
     Web::HTML::SessionHistoryEntryDescriptor nested_entry;
     nested_entry.step = 1;
@@ -57,11 +54,12 @@ TEST_CASE(descriptor_creation_preserves_nested_history_with_only_pending_entries
 {
     auto vm = JS::VM::create();
 
-    auto top_level_document_state = Web::HTML::DocumentState::create();
+    Web::HTML::CrossProcessIdAllocator cross_process_id_allocator { .namespace_id = 3 };
+    auto top_level_document_state = Web::HTML::DocumentState::create(cross_process_id_allocator.allocate());
 
     auto pending_child_entry = Web::HTML::SessionHistoryEntry::create();
     pending_child_entry->set_url(parse_url("https://frame.example/pending"sv));
-    pending_child_entry->set_document_state(Web::HTML::DocumentState::create());
+    pending_child_entry->set_document_state(Web::HTML::DocumentState::create(cross_process_id_allocator.allocate()));
 
     top_level_document_state->nested_histories().append({
         .id = frame_1_id(),
@@ -73,11 +71,7 @@ TEST_CASE(descriptor_creation_preserves_nested_history_with_only_pending_entries
     top_level_entry->set_url(parse_url("https://a.example/"sv));
     top_level_entry->set_document_state(top_level_document_state);
 
-    Web::HTML::CrossProcessIdAllocator cross_process_id_allocator { .namespace_id = 3 };
-    Web::HTML::SessionHistoryEntryDescriptorCreationState creation_state { [&] {
-        return cross_process_id_allocator.allocate();
-    } };
-    auto descriptor = Web::HTML::create_session_history_entry_descriptor(top_level_entry, creation_state);
+    auto descriptor = Web::HTML::create_session_history_entry_descriptor(top_level_entry);
 
     EXPECT_EQ(descriptor.document_state.nested_histories.size(), 1u);
     EXPECT_EQ(descriptor.document_state.nested_histories[0].id, frame_1_id());

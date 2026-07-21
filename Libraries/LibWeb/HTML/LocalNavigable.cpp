@@ -1812,7 +1812,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         // resource: oldDocState's resource
         // ever populated: oldDocState's ever populated
         // navigable target name: oldDocState's navigable target name
-        auto new_doc_state = DocumentState::create();
+        auto new_doc_state = DocumentState::create(state_holder->navigable->page().client().allocate_cross_process_id());
         new_doc_state->set_history_policy_container(state_holder->history_policy_container);
         new_doc_state->set_request_referrer(state_holder->request_referrer);
         new_doc_state->set_request_referrer_policy(state_holder->request_referrer_policy);
@@ -2855,7 +2855,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                 //    initiator origin: initiatorOriginSnapshot
                 //    resource: documentResource
                 //    navigable target name: navigable's target name
-                auto document_state = DocumentState::create();
+                auto document_state = DocumentState::create(page().client().allocate_cross_process_id());
                 document_state->set_request_referrer_policy(referrer_policy);
                 document_state->set_initiator_origin(initiator_origin_snapshot);
                 document_state->set_resource(document_resource);
@@ -3302,7 +3302,7 @@ void LocalNavigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHa
     //     resource: null
     //     ever populated: true
     //     navigable target name: oldDocState's navigable target name
-    auto document_state = DocumentState::create();
+    auto document_state = DocumentState::create(page().client().allocate_cross_process_id());
     document_state->set_history_policy_container(old_doc_state->history_policy_container());
     document_state->set_request_referrer(old_doc_state->request_referrer());
     document_state->set_request_referrer_policy(old_doc_state->request_referrer_policy());

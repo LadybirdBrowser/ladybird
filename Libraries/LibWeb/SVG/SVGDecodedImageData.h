@@ -95,6 +95,7 @@ public:
     GC::Ptr<Page> m_svg_page;
 
     virtual u64 id() const override { VERIFY_NOT_REACHED(); }
+    virtual HTML::CrossProcessId allocate_cross_process_id() override { return m_host_page->client().allocate_cross_process_id(); }
     virtual HTML::CrossProcessId allocate_navigable_id() override { return m_host_page->client().allocate_navigable_id(); }
     virtual Page& page() override { return *m_svg_page; }
     virtual Page const& page() const override { return *m_svg_page; }
