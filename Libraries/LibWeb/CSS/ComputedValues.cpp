@@ -277,6 +277,21 @@ static constexpr Array transform_group_properties {
     PropertyID::PerspectiveOrigin,
 };
 
+// The properties feeding the mask group's descriptors, in registration
+// order.
+static constexpr Array mask_group_properties {
+    PropertyID::MaskImage,
+    PropertyID::MaskType,
+    PropertyID::ClipPath,
+    PropertyID::MaskMode,
+    PropertyID::MaskRepeat,
+    PropertyID::MaskPosition,
+    PropertyID::MaskClip,
+    PropertyID::MaskOrigin,
+    PropertyID::MaskSize,
+    PropertyID::MaskComposite,
+};
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -425,6 +440,19 @@ static void register_style_group_field_descriptors()
     add(transform, PropertyID::Scale, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
     add(transform, PropertyID::Perspective, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
     add(transform, PropertyID::PerspectiveOrigin, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+
+    using Mask = ComputedValues::MaskValues;
+    constexpr auto mask = to_underlying(StyleGroupIndex::MaskValues);
+    add(mask, PropertyID::MaskImage, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(mask, PropertyID::MaskType, offsetof(Mask, mask_type), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_mask_type>());
+    add(mask, PropertyID::ClipPath, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(mask, PropertyID::MaskMode, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(mask, PropertyID::MaskRepeat, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(mask, PropertyID::MaskPosition, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(mask, PropertyID::MaskClip, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(mask, PropertyID::MaskOrigin, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(mask, PropertyID::MaskSize, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(mask, PropertyID::MaskComposite, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }
@@ -643,6 +671,17 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     bool const sizing_adopted = sizing_payload != nullptr;
     if (sizing_adopted)
         computed_values.adopt_sizing_group(const_cast<void*>(sizing_payload));
+
+    Array<ComputedValuesFFI::FfiGroupValueEntry, mask_group_properties.size()> mask_group_values;
+    gather_group_values(mask_group_properties, mask_group_values);
+    auto* mask_payload = ComputedValuesFFI::rust_build_style_group(
+        MaskValues::style_group_index,
+        mask_group_values.data(),
+        mask_group_values.size(),
+        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.mask_data.operator->()) : nullptr);
+    bool const mask_adopted = mask_payload != nullptr;
+    if (mask_adopted)
+        computed_values.adopt_mask_group(const_cast<void*>(mask_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, transform_group_properties.size()> transform_group_values;
     gather_group_values(transform_group_properties, transform_group_values);
@@ -955,7 +994,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_background_layers(move(background_layers));
 
     auto mask_layers = computed_style.mask_layers();
-    computed_values.set_mask_layers(move(mask_layers));
+    if (!mask_adopted)
+        computed_values.set_mask_layers(move(mask_layers));
     Vector<CSS::Position> mask_positions;
     for_each_comma_separated_value(CSS::PropertyID::MaskPosition, [&](CSS::StyleValue const& value) {
         auto const& position = value.as_position();
@@ -964,7 +1004,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             .offset_y = CSS::LengthPercentage::from_style_value(position.edge_y()->as_edge().offset()),
         });
     });
-    computed_values.set_mask_positions(move(mask_positions));
+    if (!mask_adopted)
+        computed_values.set_mask_positions(move(mask_positions));
 
     auto border_image = computed_style.border_image();
     computed_values.set_border_image(move(border_image));
@@ -1588,20 +1629,25 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
 
         return value;
     }();
-    if (mask_image.is_url()) {
-        computed_values.set_mask(mask_image.as_url().url());
-    } else if (mask_image.is_abstract_image()) {
-        auto const& abstract_image = mask_image.as_abstract_image();
-        computed_values.set_mask_image(abstract_image);
+    if (!mask_adopted) {
+        if (mask_image.is_url()) {
+            computed_values.set_mask(mask_image.as_url().url());
+        } else if (mask_image.is_abstract_image()) {
+            auto const& abstract_image = mask_image.as_abstract_image();
+            computed_values.set_mask_image(abstract_image);
+        }
     }
 
-    computed_values.set_mask_type(computed_style.mask_type());
+    if (!mask_adopted)
+        computed_values.set_mask_type(computed_style.mask_type());
 
     auto const& clip_path = computed_style.property(CSS::PropertyID::ClipPath);
-    if (clip_path.is_url())
-        computed_values.set_clip_path(clip_path.as_url().url());
-    else if (clip_path.is_basic_shape())
-        computed_values.set_clip_path(clip_path.as_basic_shape());
+    if (!mask_adopted) {
+        if (clip_path.is_url())
+            computed_values.set_clip_path(clip_path.as_url().url());
+        else if (clip_path.is_basic_shape())
+            computed_values.set_clip_path(clip_path.as_basic_shape());
+    }
     computed_values.set_clip_rule(computed_style.clip_rule());
     computed_values.set_fill_rule(computed_style.fill_rule());
 
