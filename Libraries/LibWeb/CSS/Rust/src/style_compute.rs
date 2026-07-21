@@ -1413,27 +1413,32 @@ fn value_contains_percentage(value: &StyleValueData) -> bool {
 ///
 /// # Safety
 /// `value` must point at a valid StyleValueData.
+pub(crate) fn value_depends_on_inherited_info_for_property(value: &StyleValueData, property_id: u16) -> bool {
+    use crate::property_metadata::property_id as prop;
+    match property_id {
+        prop::FONT_WEIGHT => {
+            matches!(value, StyleValueData::Keyword { keyword } if matches!(*keyword, keyword::BOLDER | keyword::LIGHTER))
+        }
+        prop::FONT_SIZE => {
+            value_contains_percentage(value)
+                || matches!(value, StyleValueData::Keyword { keyword }
+                    if matches!(*keyword, keyword::LARGER | keyword::SMALLER | keyword::MATH))
+        }
+        prop::LINE_HEIGHT => value_contains_percentage(value),
+        _ => false,
+    }
+}
+
+/// # Safety
+/// `value` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_value_depends_on_inherited_info_for_property(
     value: *const c_void,
     property_id: u16,
 ) -> bool {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StyleValueQueryEntry);
-    use crate::property_metadata::property_id as prop;
     abort_on_panic(|| {
-        let value = unsafe { &*(value as *const StyleValueData) };
-        match property_id {
-            prop::FONT_WEIGHT => {
-                matches!(value, StyleValueData::Keyword { keyword } if matches!(*keyword, keyword::BOLDER | keyword::LIGHTER))
-            }
-            prop::FONT_SIZE => {
-                value_contains_percentage(value)
-                    || matches!(value, StyleValueData::Keyword { keyword }
-                        if matches!(*keyword, keyword::LARGER | keyword::SMALLER | keyword::MATH))
-            }
-            prop::LINE_HEIGHT => value_contains_percentage(value),
-            _ => false,
-        }
+        value_depends_on_inherited_info_for_property(unsafe { &*(value as *const StyleValueData) }, property_id)
     })
 }
 
@@ -1763,30 +1768,67 @@ pub extern "C" fn rust_map_physical_to_logical_alias(property_id: u16, writing_m
     map_physical_to_logical_alias(property_id, writing_mode, direction)
 }
 
-/// The per-longhand leaf callbacks the C++ side provides to the property
-/// computation driver. Every value pointer returned by a callback is pinned by
-/// the C++ flow state until the next callback for the same longhand.
+/// The leaf callbacks the C++ side provides to the property computation
+/// driver. The driver selects each longhand's cascaded, inherited or initial
+/// value natively and calls back only to compute and store the result.
 #[repr(C)]
 pub struct FfiLonghandCallbacks {
     pub context: *mut c_void,
-    /// Pins the winning cascaded value into the flow state and applies its
-    /// side effects. Only called when a winning declaration exists; the
-    /// driver reads the cascaded property store natively.
-    pub on_cascaded_value:
-        unsafe extern "C" fn(context: *mut c_void, property_id: u16, value_shell: *const c_void, important: bool),
-    /// Fetches the inherited value, applying its side effects; returns the
-    /// fetched data or null.
-    pub fetch_inherited_value: unsafe extern "C" fn(
+    /// Computes the selected value if the property requires computation and
+    /// stores the result. `value_shell` stays alive for the duration of the
+    /// call: cascaded values are retained by the store, initial values are
+    /// immortal, and parent values are pinned by the snapshot or the fetch
+    /// below.
+    pub compute_and_store: unsafe extern "C" fn(
         context: *mut c_void,
         property_id: u16,
         inherited_property_id: u16,
-        explicitly_inherits_non_inherited_property: bool,
-    ) -> *const c_void,
-    pub use_initial_value: unsafe extern "C" fn(context: *mut c_void, property_id: u16),
-    pub compute_and_store: unsafe extern "C" fn(context: *mut c_void, property_id: u16, inherited_property_id: u16),
+        value_shell: *const c_void,
+        requires_computation: bool,
+        inheritance_dependent: bool,
+        inherited: bool,
+    ),
+    /// Rare: fetches the parent's computed value for an explicit `inherit` of
+    /// a non-inherited property, which the parent snapshot does not carry.
+    /// The C++ side pins the returned shell until the next fetch or the end
+    /// of the drive.
+    pub fetch_non_inherited_parent_value:
+        unsafe extern "C" fn(context: *mut c_void, inherited_property_id: u16) -> FfiShellAndData,
+    /// Maps a nested value's shell pointer to its Rust-owned data while the
+    /// driver decides inheritance dependence.
+    pub data_of: unsafe extern "C" fn(shell: *const c_void) -> *const c_void,
+    /// Decides computational independence for value kinds whose rule still
+    /// lives with their C++ shells.
+    pub computational_independence_fallback: unsafe extern "C" fn(shell: *const c_void) -> bool,
     /// Returns the element's computed writing mode and direction, packed as
     /// writing_mode | direction << 8.
     pub writing_mode_and_direction: unsafe extern "C" fn(context: *mut c_void) -> u16,
+}
+
+/// The parent's inheritable computed values, prepared once per element: one
+/// (shell, data) entry per inherited-by-default longhand in property id
+/// order. Null entries mark values the parent could not provide. The C++ side
+/// pins every entry for the duration of the drive.
+#[repr(C)]
+pub struct FfiParentSnapshot {
+    pub entries: *const FfiShellAndData,
+    pub entry_count: usize,
+    pub font_metrics_depend_on_viewport_metrics: bool,
+}
+
+/// Bulk results of one longhand drive, applied by C++ after the loop instead
+/// of once per longhand. The bitmap storage is provided by the caller, one
+/// bit per longhand in property id order.
+#[repr(C)]
+pub struct FfiLonghandDriverResults {
+    pub important_words: *mut u64,
+    pub inherited_words: *mut u64,
+    pub word_count: usize,
+    /// The raw winning cascaded font-size value, or null; borrowed from the
+    /// cascaded property store.
+    pub raw_cascaded_font_size_shell: *const c_void,
+    pub font_metrics_depend_on_viewport_metrics: bool,
+    pub explicitly_inherited_non_inherited_property: bool,
 }
 
 fn table_row_maps(table: &std::sync::OnceLock<Vec<u16>>, property_id: u16) -> bool {
@@ -1810,28 +1852,55 @@ fn value_is_initial_or_unset(value: *const c_void) -> bool {
     }
 }
 
+fn set_longhand_bit(words: &mut [u64], property_id: u16) {
+    use crate::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
+    let index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
+    words[index / 64] |= 1 << (index % 64);
+}
+
 /// Drives the property computation loop: iterates every longhand in
 /// computation order, resolves logical pairing, reads the winning cascaded
-/// declarations straight from the store, decides between the cascaded,
-/// inherited and initial values, and calls back into C++ for the flow stages
-/// that have not moved into the core yet.
+/// declarations straight from the store, selects between the cascaded,
+/// inherited and initial values, decides inheritance dependence, and calls
+/// back into C++ once per longhand to compute and store the result. The
+/// importance and inheritance flags and the other per-element side effects
+/// accumulate in `results` for bulk application after the loop.
 ///
 /// # Safety
-/// `callbacks` must point at a valid callback table and `store` at a valid
-/// cascaded property store; the callbacks must not mutate the store for the
-/// duration of the call.
+/// `callbacks` must point at a valid callback table, `store` at a valid
+/// cascaded property store, `parent_snapshot` at a valid snapshot or null,
+/// and `results` at a results block whose bitmap storage covers every
+/// longhand; the callbacks must not mutate the store for the duration of the
+/// call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_drive_property_computation(
     callbacks: *const FfiLonghandCallbacks,
     store: *const CascadedPropertyStore,
-    has_inheritance_parent: bool,
+    parent_snapshot: *const FfiParentSnapshot,
     has_new_font_size: bool,
+    results: *mut FfiLonghandDriverResults,
 ) {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandDriverEntry);
     abort_on_panic(|| {
+        use crate::property_metadata::{
+            FIRST_INHERITED_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES, REQUIRES_COMPUTATION_ALWAYS,
+            REQUIRES_COMPUTATION_CASCADED, REQUIRES_COMPUTATION_NON_INHERITED, property_is_inherited,
+            property_requires_computation_level,
+        };
+
         let callbacks = unsafe { &*callbacks };
         let context = callbacks.context;
         let store = unsafe { &*store };
+        let snapshot = if parent_snapshot.is_null() {
+            None
+        } else {
+            Some(unsafe { &*parent_snapshot })
+        };
+        let has_inheritance_parent = snapshot.is_some();
+        let results = unsafe { &mut *results };
+        assert!(results.word_count * 64 >= NUMBER_OF_LONGHAND_PROPERTIES);
+        let important_words = unsafe { std::slice::from_raw_parts_mut(results.important_words, results.word_count) };
+        let inherited_words = unsafe { std::slice::from_raw_parts_mut(results.inherited_words, results.word_count) };
         let mut cached_writing_mode_and_direction: Option<(u8, u8)> = None;
 
         for &property_id in crate::property_metadata::property_computation_order() {
@@ -1865,52 +1934,108 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 cascaded_property_id = store.property_with_higher_priority(property_id, counterpart_property_id);
             }
 
-            let mut value: *const c_void = std::ptr::null();
+            let mut value = FfiShellAndData::null();
             if let Some((value_shell, value_data, important)) = store.winning_declaration(cascaded_property_id) {
-                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandCascadedValueCallback);
-                unsafe { (callbacks.on_cascaded_value)(context, property_id, value_shell, important) };
-                value = value_data;
+                value = FfiShellAndData {
+                    shell: value_shell,
+                    data: value_data,
+                };
+                if important {
+                    set_longhand_bit(important_words, property_id);
+                }
+                // Keep the raw winning cascaded font-size for the monospace font-size
+                // recascade (see recascade_font_size_if_needed on the C++ side).
+                if property_id == crate::property_metadata::property_id::FONT_SIZE {
+                    results.raw_cascaded_font_size_shell = value_shell;
+                }
             } else if property_id == crate::property_metadata::property_id::FONT_SIZE && has_new_font_size {
                 // NOTE: The recascaded font-size has already been stored before the loop.
                 continue;
             }
 
             let decision = longhand_decision(
-                if value.is_null() {
+                if value.data.is_null() {
                     None
                 } else {
-                    Some(unsafe { &*(value as *const StyleValueData) })
+                    Some(unsafe { &*(value.data as *const StyleValueData) })
                 },
                 property_id,
             );
 
+            // The computation-need level to compare against depends on which source wins;
+            // cascaded is the baseline and is overridden by the inherit and initial paths.
+            let mut required_level = REQUIRES_COMPUTATION_CASCADED;
+
             let inherit_fetch_attempted = decision.should_inherit && has_inheritance_parent;
             if inherit_fetch_attempted {
-                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandInheritedValueCallback);
-                value = unsafe {
-                    (callbacks.fetch_inherited_value)(
-                        context,
-                        property_id,
-                        inherited_property_id,
-                        decision.explicitly_inherits_non_inherited_property,
-                    )
+                let snapshot = snapshot.unwrap();
+                set_longhand_bit(inherited_words, property_id);
+                if decision.explicitly_inherits_non_inherited_property {
+                    results.explicitly_inherited_non_inherited_property = true;
+                }
+                value = if property_is_inherited(inherited_property_id) {
+                    let index = (inherited_property_id - FIRST_INHERITED_PROPERTY_ID) as usize;
+                    assert!(index < snapshot.entry_count);
+                    unsafe { *snapshot.entries.add(index) }
+                } else {
+                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandParentValueFetchCallback);
+                    unsafe { (callbacks.fetch_non_inherited_parent_value)(context, inherited_property_id) }
                 };
+                if property_affects_font_metrics(inherited_property_id)
+                    && snapshot.font_metrics_depend_on_viewport_metrics
+                {
+                    results.font_metrics_depend_on_viewport_metrics = true;
+                }
+                required_level = REQUIRES_COMPUTATION_ALWAYS;
             }
 
             let use_initial = if inherit_fetch_attempted {
-                value.is_null() || value_is_initial_or_unset(value)
+                value.data.is_null() || value_is_initial_or_unset(value.data)
             } else {
                 decision.use_initial_without_inherit
             };
             if use_initial {
-                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandInitialValueCallback);
-                unsafe { (callbacks.use_initial_value)(context, property_id) };
+                value = initial_value(property_id);
+                required_level = REQUIRES_COMPUTATION_NON_INHERITED;
             }
 
+            let requires_computation = property_requires_computation_level(property_id) >= required_level;
+
+            // Whether the computed value depends on inherited information, so the specified
+            // value must be kept for re-resolution when an ancestor changes.
+            let value_data = unsafe { &*(value.data as *const StyleValueData) };
+            let inheritance_dependent =
+                crate::style_value::value_depends_on_current_color(value_data, callbacks.data_of)
+                    || !value_is_computationally_independent(
+                        value_data,
+                        callbacks.data_of,
+                        callbacks.computational_independence_fallback,
+                    )
+                    .unwrap_or_else(|| {
+                        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandIndependenceFallbackCallback);
+                        unsafe { (callbacks.computational_independence_fallback)(value.shell) }
+                    })
+                    || value_depends_on_inherited_info_for_property(value_data, property_id);
+
             crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandComputeAndStoreCallback);
-            unsafe { (callbacks.compute_and_store)(context, property_id, inherited_property_id) };
+            unsafe {
+                (callbacks.compute_and_store)(
+                    context,
+                    property_id,
+                    inherited_property_id,
+                    value.shell,
+                    requires_computation,
+                    inheritance_dependent,
+                    inherit_fetch_attempted,
+                );
+            }
         }
     });
+}
+
+fn property_affects_font_metrics(property_id: u16) -> bool {
+    property_id == crate::property_metadata::property_id::FONT_SIZE
+        || property_id == crate::property_metadata::property_id::LINE_HEIGHT
 }
 
 /// Stage callbacks for the cascade origin sequence.

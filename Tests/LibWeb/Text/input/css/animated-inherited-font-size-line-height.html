@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes grow {
+        from {
+            font-size: 10px;
+        }
+        to {
+            font-size: 30px;
+        }
+    }
+    #parent {
+        animation: grow 10s linear paused;
+        animation-delay: -5s;
+    }
+    #child {
+        line-height: 200%;
+    }
+</style>
+<div id="parent"><div id="child">x</div></div>
+<script>
+    // The child inherits the parent's animated font-size, and its percentage
+    // line-height must resolve against that animated value while the child's
+    // style is computed, not against the parent's non-animated base value.
+    test(() => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        println(`parent font-size: ${getComputedStyle(parent).fontSize}`);
+        println(`child font-size: ${getComputedStyle(child).fontSize}`);
+        println(`child line-height: ${getComputedStyle(child).lineHeight}`);
+    });
+</script>

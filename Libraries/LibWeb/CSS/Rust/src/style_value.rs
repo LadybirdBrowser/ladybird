@@ -2222,7 +2222,7 @@ pub unsafe extern "C" fn rust_style_value_destroy(value: *mut StyleValueData) {
 /// currentcolor keyword itself, or a color function, color-mix(), contrast-color() or
 /// light-dark() whose nested colors do. `data_of` maps a nested value's shell pointer to
 /// its Rust-owned data.
-fn value_depends_on_current_color(
+pub(crate) fn value_depends_on_current_color(
     value: &StyleValueData,
     data_of: unsafe extern "C" fn(*const c_void) -> *const c_void,
 ) -> bool {
