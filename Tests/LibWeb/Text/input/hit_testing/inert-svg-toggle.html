@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="container" style="width: 100px; height: 100px"><svg id="art" width="100" height="100"></svg></div>
+<script>
+    test(() => {
+        const elementAtCenter = () => {
+            const element = document.elementFromPoint(50, 50);
+            return element ? element.id || element.localName : "null";
+        };
+
+        // Query once and then force a re-record, so the queries below run against
+        // steady-state recordings rather than the initial one.
+        elementAtCenter();
+        document.body.style.outline = "1px solid transparent";
+
+        // NB: Results are buffered and printed at the end: println() itself mutates the DOM,
+        //     and any unrelated invalidation between a toggle and its query would rebuild the
+        //     hit-test display list and mask a missed invalidation from the toggle itself.
+        const results = [];
+        results.push(`hit before inert: ${elementAtCenter()}`);
+
+        container.inert = true;
+        results.push(`hit with inert: ${elementAtCenter()}`);
+
+        container.inert = false;
+        results.push(`hit after inert removed: ${elementAtCenter()}`);
+
+        for (const result of results)
+            println(result);
+    });
+</script>

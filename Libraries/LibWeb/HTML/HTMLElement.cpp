@@ -816,11 +816,18 @@ void HTMLElement::set_subtree_inertness(bool is_inert)
     };
 
     update_inertness(*this);
-    for_each_in_subtree_of_type<HTMLElement>([&](auto& html_element) {
-        if (html_element.has_attribute(HTML::AttributeNames::inert))
+    for_each_in_subtree_of_type<Element>([&](auto& element) {
+        auto* html_element = as_if<HTMLElement>(element);
+        if (!html_element) {
+            // Non-HTML elements (SVG, MathML) carry no inert flag and resolve is_inert() through
+            // their nearest HTML ancestor, so their recorded hit-test output must be repainted here.
+            element.set_needs_repaint();
+            return TraversalDecision::Continue;
+        }
+        if (html_element->has_attribute(HTML::AttributeNames::inert))
             return TraversalDecision::SkipChildrenAndContinue;
         // FIXME: Exclude elements that should escape inertness.
-        update_inertness(html_element);
+        update_inertness(*html_element);
         return TraversalDecision::Continue;
     });
 }
