@@ -71,6 +71,16 @@ AsyncScrollEnqueueResult CompositorContextHandle::async_scroll_by(UniqueNodeID e
     return m_host.async_scroll_by(m_context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, operation_tracking);
 }
 
+AsyncScrollEnqueueResult CompositorContextHandle::smooth_scroll_to(AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::IntRect viewport_rect)
+{
+    return m_host.smooth_scroll_to(m_context_id, stable_node_id, offset_in_device_pixels, viewport_rect);
+}
+
+void CompositorContextHandle::cancel_smooth_scroll(AsyncScrollNodeStableID stable_node_id)
+{
+    m_host.cancel_smooth_scroll(m_context_id, stable_node_id);
+}
+
 PendingAsyncScrollUpdates CompositorContextHandle::take_pending_async_scroll_updates()
 {
     return m_host.take_pending_async_scroll_updates(m_context_id);

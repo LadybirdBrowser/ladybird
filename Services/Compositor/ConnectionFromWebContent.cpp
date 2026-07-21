@@ -238,6 +238,23 @@ Messages::CompositorWebContentServer::AsyncScrollByResponse ConnectionFromWebCon
     return result;
 }
 
+Messages::CompositorWebContentServer::SmoothScrollToResponse ConnectionFromWebContent::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::IntRect viewport_rect)
+{
+    if (!context_is_owned_by_this_connection(context_id))
+        return Web::Compositor::AsyncScrollEnqueueResult {};
+    auto result = m_compositor_state->smooth_scroll_to(context_id, stable_node_id, offset, viewport_rect);
+    if (result.accepted)
+        async_request_rendering_update();
+    return result;
+}
+
+void ConnectionFromWebContent::cancel_smooth_scroll(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id)
+{
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
+    m_compositor_state->cancel_smooth_scroll(context_id, stable_node_id);
+}
+
 Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse ConnectionFromWebContent::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id)
 {
     if (!context_is_owned_by_this_connection(context_id))

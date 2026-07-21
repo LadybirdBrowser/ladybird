@@ -50,6 +50,8 @@ endpoint CompositorWebContentServer
 
     invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation) =|
     async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::AsyncScrollOperationTracking operation_tracking) => (Web::Compositor::AsyncScrollEnqueueResult result)
+    smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::IntRect viewport_rect) => (Web::Compositor::AsyncScrollEnqueueResult result)
+    cancel_smooth_scroll(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id) =|
     take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id) => (Web::Compositor::PendingAsyncScrollUpdates updates)
 
     viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress) =|

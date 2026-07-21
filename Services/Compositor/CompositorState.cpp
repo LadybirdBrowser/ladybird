@@ -234,6 +234,28 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::
     return result.enqueue_result;
 }
 
+Web::Compositor::AsyncScrollEnqueueResult CompositorState::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::IntRect viewport_rect)
+{
+    if (!m_async_scrolling_enabled)
+        return {};
+
+    auto* context = context_if_present(context_id);
+    VERIFY(context);
+
+    auto result = context->smooth_scroll_to(stable_node_id, offset, viewport_rect);
+    if (result.frame_to_present.has_value())
+        schedule_present_frame(context_id, *context, *result.frame_to_present);
+    return result.enqueue_result;
+}
+
+void CompositorState::cancel_smooth_scroll(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return;
+    context->cancel_smooth_scroll(stable_node_id);
+}
+
 bool CompositorState::async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta)
 {
     if (!m_async_scrolling_enabled)
@@ -373,11 +395,18 @@ VSyncScheduler& CompositorState::vsync_scheduler_for_display(Optional<u64> displ
 
 void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
 {
+    auto now = MonotonicTime::now();
     for (auto& context_entry : m_contexts) {
         auto context_id = context_entry.key;
         auto& context = *context_entry.value;
         if (!context.has_pending_present_frame_scheduled_on(display_id))
             continue;
+
+        if (auto animation_frame = context.advance_smooth_scroll_animations(now); animation_frame.has_value())
+            context.queue_present_frame({
+                .viewport_rect = *animation_frame,
+                .damage_rect = { {}, animation_frame->size() },
+            });
 
         auto pending_present_frame = context.take_pending_present_frame_if_unblocked();
         if (!pending_present_frame.has_value()) {
@@ -385,6 +414,8 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
                 vsync_scheduler_for_display(display_id).schedule(context.display_refresh_rate());
             continue;
         }
+        if (context.has_active_smooth_scroll_animations())
+            schedule_present_frame(context_id, context, pending_present_frame->viewport_rect);
         present_frame(context_id, context, *pending_present_frame);
     }
 }

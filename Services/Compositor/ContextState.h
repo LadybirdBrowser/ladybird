@@ -22,6 +22,7 @@
 #include <LibGfx/Size.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
+#include <LibWeb/Compositor/SmoothScrollAnimation.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
@@ -114,6 +115,10 @@ public:
         Gfx::FloatPoint delta,
         Gfx::IntRect viewport_rect,
         Web::Compositor::AsyncScrollOperationTracking);
+    AsyncScrollResult smooth_scroll_to(Web::Compositor::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::IntRect viewport_rect);
+    void cancel_smooth_scroll(Web::Compositor::AsyncScrollNodeStableID);
+    Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
+    bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }
     ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta);
     bool should_defer_main_thread_present_for_async_scroll() const;
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
@@ -144,6 +149,13 @@ public:
     void did_finish_gpu_present(i32 bitmap_id);
 
 private:
+    struct ActiveSmoothScrollAnimation {
+        Web::Compositor::AsyncScrollNodeStableID stable_node_id;
+        Web::Compositor::AsyncScrollOperationID operation_id;
+        Web::Compositor::SmoothScrollAnimation animation;
+        MonotonicTime started_at;
+    };
+
     struct VisualViewportScrollDelta {
         Web::Compositor::AsyncScrollOffset scroll_offset;
         Gfx::FloatPoint consumed_delta;
@@ -185,6 +197,7 @@ private:
 
     Vector<Web::Compositor::AsyncScrollOffset> m_pending_async_scroll_offsets;
     Vector<Web::Compositor::AsyncScrollOperationID> m_completed_async_scroll_operation_ids;
+    Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;
     Web::Compositor::AsyncScrollOperationID m_next_async_scroll_operation_id { 0 };
     Gfx::IntRect m_async_scrolling_viewport_rect;
     bool m_has_async_scrolling_state { false };

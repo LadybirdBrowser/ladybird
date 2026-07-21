@@ -401,6 +401,116 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     return { .enqueue_result = { true, operation_id }, .frame_to_present = async_scroll_viewport_rect };
 }
 
+ContextState::AsyncScrollResult ContextState::smooth_scroll_to(Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint destination_offset, Gfx::IntRect viewport_rect)
+{
+    if (!m_has_async_scrolling_state)
+        return {};
+
+    auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(stable_node_id);
+    if (!node_id.has_value())
+        return {};
+    auto current_offset = m_async_scroll_tree.scroll_offset_for_node(*node_id, m_scroll_state_snapshot);
+    if (!current_offset.has_value())
+        return {};
+
+    cancel_smooth_scroll(stable_node_id);
+
+    auto operation_id = ++m_next_async_scroll_operation_id;
+    Web::Compositor::SmoothScrollAnimation animation { *current_offset, destination_offset };
+    if (animation.duration().is_zero()) {
+        m_completed_async_scroll_operation_ids.append(operation_id);
+        request_rendering_update();
+        return {
+            .enqueue_result = { true, operation_id },
+            .frame_to_present = {},
+        };
+    }
+
+    m_smooth_scroll_animations.append({
+        .stable_node_id = stable_node_id,
+        .operation_id = operation_id,
+        .animation = move(animation),
+        .started_at = MonotonicTime::now(),
+    });
+    m_async_scrolling_viewport_rect = viewport_rect;
+    return {
+        .enqueue_result = { true, operation_id },
+        .frame_to_present = viewport_rect,
+    };
+}
+
+void ContextState::cancel_smooth_scroll(Web::Compositor::AsyncScrollNodeStableID stable_node_id)
+{
+    for (size_t index = 0; index < m_smooth_scroll_animations.size(); ++index) {
+        auto const& smooth_scroll_animation = m_smooth_scroll_animations[index];
+        if (smooth_scroll_animation.stable_node_id != stable_node_id)
+            continue;
+        m_completed_async_scroll_operation_ids.append(smooth_scroll_animation.operation_id);
+        m_smooth_scroll_animations.remove(index);
+        request_rendering_update();
+        return;
+    }
+}
+
+Optional<Gfx::IntRect> ContextState::advance_smooth_scroll_animations(MonotonicTime now)
+{
+    Vector<Web::Compositor::AsyncScrollOffset> scroll_offsets;
+    bool changed_scroll_offset = false;
+    bool completed_operation = false;
+
+    for (size_t index = 0; index < m_smooth_scroll_animations.size();) {
+        auto& active_animation = m_smooth_scroll_animations[index];
+        auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(active_animation.stable_node_id);
+        if (!node_id.has_value()) {
+            m_completed_async_scroll_operation_ids.append(active_animation.operation_id);
+            completed_operation = true;
+            m_smooth_scroll_animations.remove(index);
+            continue;
+        }
+
+        auto old_offset = m_async_scroll_tree.scroll_offset_for_node(*node_id, m_scroll_state_snapshot);
+        if (!old_offset.has_value()) {
+            m_completed_async_scroll_operation_ids.append(active_animation.operation_id);
+            completed_operation = true;
+            m_smooth_scroll_animations.remove(index);
+            continue;
+        }
+
+        auto sample = active_animation.animation.sample(now - active_animation.started_at);
+        auto new_offset = m_async_scroll_tree.set_scroll_offset(*node_id, sample.offset, m_scroll_state_snapshot);
+        VERIFY(new_offset.has_value());
+        auto scroll_delta = *new_offset - *old_offset;
+        if (!scroll_delta.is_zero()) {
+            scroll_offsets.append({
+                .stable_node_id = active_animation.stable_node_id,
+                .compositor_scroll_offset = *new_offset,
+                .unadopted_scroll_delta = scroll_delta,
+            });
+            changed_scroll_offset = true;
+            if (m_async_scroll_tree.scroll_node_is_viewport(*node_id))
+                m_async_scrolling_viewport_rect.set_location(new_offset->to_type<int>());
+        }
+
+        if (sample.complete) {
+            m_completed_async_scroll_operation_ids.append(active_animation.operation_id);
+            completed_operation = true;
+            m_smooth_scroll_animations.remove(index);
+        } else {
+            ++index;
+        }
+    }
+
+    if (!scroll_offsets.is_empty()) {
+        rebuild_wheel_hit_test_targets();
+        store_pending_async_scroll_offsets(scroll_offsets);
+    }
+    if (changed_scroll_offset || completed_operation)
+        request_rendering_update();
+    if (changed_scroll_offset)
+        return m_async_scrolling_viewport_rect;
+    return {};
+}
+
 ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta)
 {
     if (!presents_to_client())

@@ -257,6 +257,19 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorHostBase::async_scroll_by(We
     return {};
 }
 
+Web::Compositor::AsyncScrollEnqueueResult CompositorHostBase::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::IntRect viewport_rect)
+{
+    if (auto* connection = compositor_connection())
+        return connection->smooth_scroll_to(context_id, stable_node_id, offset_in_device_pixels, viewport_rect);
+    return {};
+}
+
+void CompositorHostBase::cancel_smooth_scroll(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id)
+{
+    if (auto* connection = compositor_connection())
+        connection->cancel_smooth_scroll(context_id, stable_node_id);
+}
+
 Web::Compositor::PendingAsyncScrollUpdates CompositorHostBase::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id)
 {
     if (auto* connection = compositor_connection())
