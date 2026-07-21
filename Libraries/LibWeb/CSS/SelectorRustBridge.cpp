@@ -152,6 +152,8 @@ private:
         output.namespace_ = store_string(qualified_name.namespace_);
         output.name = store_string(qualified_name.name.name);
         output.lowercase_name = store_string(qualified_name.name.lowercase_name);
+        output.interned_name = reinterpret_cast<uintptr_t const*>(&qualified_name.name.name);
+        output.interned_lowercase_name = reinterpret_cast<uintptr_t const*>(&qualified_name.name.lowercase_name);
     }
 
     SelectorFFI::SimpleSelector compile_simple_selector(Selector::SimpleSelector const& simple_selector)

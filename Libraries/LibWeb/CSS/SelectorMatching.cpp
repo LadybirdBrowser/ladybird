@@ -666,10 +666,37 @@ static CSS::SelectorFFI::Element element_to_ffi(DOM::Element const* element)
     auto const& classes = element->class_names();
     return {
         .pointer = element,
+        .local_name = reinterpret_cast<uintptr_t const*>(&element->local_name()),
+        .namespace_ = element->namespace_uri().has_value() ? reinterpret_cast<uintptr_t const*>(&element->namespace_uri().value()) : nullptr,
         .id = element->id().has_value() ? reinterpret_cast<uintptr_t const*>(&element->id().value()) : nullptr,
         .classes = reinterpret_cast<uintptr_t const*>(classes.data()),
         .class_count = classes.size(),
         .class_names_are_case_insensitive = element->document().in_quirks_mode(),
+        .namespace_is_null = !element->namespace_uri().has_value() || element->namespace_uri()->is_empty(),
+        .is_html_element_in_html_document = element->namespace_uri() == Namespace::HTML
+            && element->document().document_type() == DOM::Document::Type::HTML,
+    };
+}
+
+static CSS::SelectorFFI::NamespaceContext namespace_context_to_ffi(MatchContext const& context)
+{
+    if (!context.style_sheet_for_rule || !context.style_sheet_for_rule->default_namespace_rule()) {
+        return {
+            .default_namespace_type = CSS::SelectorFFI::DefaultNamespaceType::Any,
+            .default_namespace = nullptr,
+        };
+    }
+
+    auto const& default_namespace = context.style_sheet_for_rule->default_namespace_rule()->namespace_uri();
+    if (default_namespace.is_empty()) {
+        return {
+            .default_namespace_type = CSS::SelectorFFI::DefaultNamespaceType::None,
+            .default_namespace = nullptr,
+        };
+    }
+    return {
+        .default_namespace_type = CSS::SelectorFFI::DefaultNamespaceType::Named,
+        .default_namespace = reinterpret_cast<uintptr_t const*>(&default_namespace),
     };
 }
 
@@ -684,7 +711,8 @@ bool matches(CSS::Selector const& selector, DOM::AbstractElement const& target, 
         &context,
         scope.ptr(),
         context.collect_per_element_selector_involvement_metadata,
-        context.inside_has_argument_match);
+        context.inside_has_argument_match,
+        namespace_context_to_ffi(context));
 }
 
 bool matches_originating_element_for_pseudo_element(CSS::Selector const& selector, CSS::PseudoElement pseudo_element, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope)
@@ -699,7 +727,8 @@ bool matches_originating_element_for_pseudo_element(CSS::Selector const& selecto
         &context,
         scope.ptr(),
         context.collect_per_element_selector_involvement_metadata,
-        context.inside_has_argument_match);
+        context.inside_has_argument_match,
+        namespace_context_to_ffi(context));
 }
 
 static MatchContext& rust_match_context(void* context)

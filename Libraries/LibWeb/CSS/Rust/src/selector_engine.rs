@@ -65,6 +65,8 @@ pub struct QualifiedName {
     pub namespace: SelectorString,
     pub name: SelectorString,
     pub lowercase_name: SelectorString,
+    interned_name: Option<usize>,
+    interned_lowercase_name: Option<usize>,
     /// Pointer to the C++ simple selector this was compiled from, so that matching callbacks can
     /// compare its interned strings without copying. Null in unit tests.
     cxx_simple_selector: RetainedCxxPointer,
@@ -1517,6 +1519,7 @@ pub struct FfiSimpleSelector {
     pub selector_type: FfiSimpleSelectorType,
     pub cxx_simple_selector: *const c_void,
     pub interned_name: *const usize,
+    pub interned_lowercase_name: *const usize,
     pub namespace_type: NamespaceType,
     pub namespace: FfiStringView,
     pub name: FfiStringView,
@@ -1571,10 +1574,14 @@ pub struct RustSelector {
 /// pointers must not be retained beyond the matching call.
 pub struct FfiElement {
     pub pointer: *const c_void,
+    pub local_name: *const usize,
+    pub namespace_: *const usize,
     pub id: *const usize,
     pub classes: *const usize,
     pub class_count: usize,
     pub class_names_are_case_insensitive: bool,
+    pub namespace_is_null: bool,
+    pub is_html_element_in_html_document: bool,
 }
 
 impl FfiElement {
@@ -1588,6 +1595,16 @@ impl FfiElement {
         unsafe { self.id.as_ref().copied() }
     }
 
+    fn local_name(self) -> Option<usize> {
+        // SAFETY: The C++ wrapper points at the live element's pinned `Utf16FlyString` storage.
+        unsafe { self.local_name.as_ref().copied() }
+    }
+
+    fn namespace(self) -> Option<usize> {
+        // SAFETY: The C++ wrapper points at the live element's pinned `Utf16FlyString` storage.
+        unsafe { self.namespace_.as_ref().copied() }
+    }
+
     unsafe fn classes<'a>(self) -> &'a [usize] {
         if self.class_count == 0 {
             return &[];
@@ -1597,6 +1614,23 @@ impl FfiElement {
         // that the element's class vector cannot mutate during this matching call.
         unsafe { std::slice::from_raw_parts(self.classes, self.class_count) }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+// NB: Constructed by C++ through the FFI.
+#[allow(dead_code)]
+pub enum FfiDefaultNamespaceType {
+    Any,
+    None,
+    Named,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiNamespaceContext {
+    pub default_namespace_type: FfiDefaultNamespaceType,
+    pub default_namespace: *const usize,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1730,6 +1764,7 @@ struct FfiCallScope;
 
 struct FfiDom<'a> {
     context: *mut c_void,
+    namespace_context: FfiNamespaceContext,
     marker: PhantomData<&'a mut FfiCallScope>,
     // NB: Both flags are mirrored here so that the hot matching loops can skip the note_*
     //     callbacks without crossing the FFI; the common case collects no metadata.
@@ -1743,9 +1778,11 @@ impl<'a> FfiDom<'a> {
         _call_scope: &'a mut FfiCallScope,
         collects_selector_involvement_metadata: bool,
         inside_has_argument: bool,
+        namespace_context: FfiNamespaceContext,
     ) -> Self {
         Self {
             context,
+            namespace_context,
             marker: PhantomData,
             collects_selector_involvement_metadata,
             inside_has_argument,
@@ -1757,10 +1794,14 @@ impl<'a> FfiDom<'a> {
             kind,
             element: FfiElement {
                 pointer: std::ptr::null(),
+                local_name: std::ptr::null(),
+                namespace_: std::ptr::null(),
                 id: std::ptr::null(),
                 classes: std::ptr::null(),
                 class_count: 0,
                 class_names_are_case_insensitive: false,
+                namespace_is_null: true,
+                is_html_element_in_html_document: false,
             },
             marker: PhantomData,
         })
@@ -1799,6 +1840,22 @@ impl<'a> SelectorDom for FfiDom<'a> {
     type Element = FfiNode<'a>;
 
     fn matches_universal_selector(&mut self, element: FfiNode<'a>, name: &QualifiedName) -> bool {
+        match name.namespace_type {
+            NamespaceType::Default => match self.namespace_context.default_namespace_type {
+                FfiDefaultNamespaceType::Any => return true,
+                FfiDefaultNamespaceType::None => return element.as_element().namespace_is_null,
+                FfiDefaultNamespaceType::Named => {
+                    // SAFETY: C++ guarantees that the default namespace remains pinned for this
+                    // matching call.
+                    let default_namespace = unsafe { self.namespace_context.default_namespace.as_ref().copied() };
+                    return default_namespace
+                        .is_some_and(|namespace| element.as_element().namespace() == Some(namespace));
+                }
+            },
+            NamespaceType::None => return element.as_element().namespace_is_null,
+            NamespaceType::Any => return true,
+            NamespaceType::Named => {}
+        }
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
         // SAFETY: `FfiDom` guarantees that the context, element, and retained simple selector
         // remain valid for the duration of matching.
@@ -1817,6 +1874,18 @@ impl<'a> SelectorDom for FfiDom<'a> {
         name: &QualifiedName,
         mode: TagNameMatchingMode,
     ) -> bool {
+        let ffi_element = element.as_element();
+        if ffi_element.is_html_element_in_html_document || mode == TagNameMatchingMode::Fast {
+            let interned_name = if ffi_element.is_html_element_in_html_document {
+                name.interned_lowercase_name
+            } else {
+                name.interned_name
+            };
+            if interned_name.is_none_or(|name| ffi_element.local_name() != Some(name)) {
+                return false;
+            }
+            return self.matches_universal_selector(element, name);
+        }
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
         // SAFETY: `FfiDom` guarantees that the context, element, and retained simple selector
         // remain valid for the duration of matching.
@@ -2188,6 +2257,11 @@ unsafe fn qualified_name_from_ffi(selector: &FfiSimpleSelector) -> QualifiedName
         name: unsafe { string_from_ffi(selector.name) },
         // SAFETY: The caller guarantees that every string view in `selector` is valid.
         lowercase_name: unsafe { string_from_ffi(selector.lowercase_name) },
+        // SAFETY: The caller guarantees that all retained C++ selector data is valid.
+        interned_name: unsafe { interned_name_from_ffi(selector) },
+        // SAFETY: The caller guarantees that a non-null pointer identifies retained C++ selector
+        // data for the duration of selector compilation.
+        interned_lowercase_name: unsafe { selector.interned_lowercase_name.as_ref().copied() },
         cxx_simple_selector: RetainedCxxPointer::new(selector.cxx_simple_selector),
     }
 }
@@ -2340,10 +2414,8 @@ unsafe fn compiled_selector_from_ffi(selector: &FfiSelector) -> Rc<CompiledSelec
 unsafe fn with_ffi_dom<R>(
     element: FfiElement,
     shadow_host: FfiElement,
-    context: *mut c_void,
     scope: *const c_void,
-    collects_selector_involvement_metadata: bool,
-    inside_has_argument: bool,
+    configuration: FfiDomConfiguration,
     callback: impl for<'a> FnOnce(FfiNode<'a>, Option<FfiNode<'a>>, Option<FfiNode<'a>>, &mut FfiDom<'a>) -> R,
 ) -> R {
     let mut call_scope = FfiCallScope;
@@ -2351,10 +2423,11 @@ unsafe fn with_ffi_dom<R>(
     // callback. Borrowing `call_scope` prevents the DOM wrapper and its nodes from escaping it.
     let mut dom = unsafe {
         FfiDom::new(
-            context,
+            configuration.context,
             &mut call_scope,
-            collects_selector_involvement_metadata,
-            inside_has_argument,
+            configuration.collects_selector_involvement_metadata,
+            configuration.inside_has_argument,
+            configuration.namespace_context,
         )
     };
     // SAFETY: The caller guarantees that `element` wraps a live DOM element.
@@ -2364,6 +2437,14 @@ unsafe fn with_ffi_dom<R>(
     // SAFETY: The caller guarantees that a non-null `scope` points to a DOM parent node.
     let scope = unsafe { dom.scope(scope) };
     callback(element, shadow_host, scope, &mut dom)
+}
+
+#[derive(Clone, Copy)]
+struct FfiDomConfiguration {
+    context: *mut c_void,
+    collects_selector_involvement_metadata: bool,
+    inside_has_argument: bool,
+    namespace_context: FfiNamespaceContext,
 }
 
 /// # Safety
@@ -2426,6 +2507,7 @@ pub unsafe extern "C" fn rust_selector_matches(
     scope: *const c_void,
     collects_selector_involvement_metadata: bool,
     inside_has_argument: bool,
+    namespace_context: FfiNamespaceContext,
 ) -> bool {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMatchEntry);
     abort_on_panic(|| {
@@ -2440,10 +2522,13 @@ pub unsafe extern "C" fn rust_selector_matches(
             with_ffi_dom(
                 element,
                 shadow_host,
-                context,
                 scope,
-                collects_selector_involvement_metadata,
-                inside_has_argument,
+                FfiDomConfiguration {
+                    context,
+                    collects_selector_involvement_metadata,
+                    inside_has_argument,
+                    namespace_context,
+                },
                 |element, shadow_host, scope, dom| {
                     let target = MatchTarget {
                         element,
@@ -2474,6 +2559,7 @@ pub unsafe extern "C" fn rust_selector_matches_originating_element(
     scope: *const c_void,
     collects_selector_involvement_metadata: bool,
     inside_has_argument: bool,
+    namespace_context: FfiNamespaceContext,
 ) -> bool {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMatchEntry);
     abort_on_panic(|| {
@@ -2488,10 +2574,13 @@ pub unsafe extern "C" fn rust_selector_matches_originating_element(
             with_ffi_dom(
                 element,
                 shadow_host,
-                context,
                 scope,
-                collects_selector_involvement_metadata,
-                inside_has_argument,
+                FfiDomConfiguration {
+                    context,
+                    collects_selector_involvement_metadata,
+                    inside_has_argument,
+                    namespace_context,
+                },
                 |element, shadow_host, scope, dom| {
                     matches_originating_element_for_pseudo_element(
                         selector,

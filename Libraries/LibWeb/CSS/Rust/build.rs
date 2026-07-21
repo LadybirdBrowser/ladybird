@@ -563,6 +563,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("FfiCompoundSelector", "CompoundSelector"),
         ("FfiSelector", "Selector"),
         ("FfiElement", "Element"),
+        ("FfiDefaultNamespaceType", "DefaultNamespaceType"),
+        ("FfiNamespaceContext", "NamespaceContext"),
         ("FfiElementAndShadowHost", "ElementAndShadowHost"),
     ] {
         selector_config
