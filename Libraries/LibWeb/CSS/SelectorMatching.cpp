@@ -653,14 +653,34 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
     VERIFY_NOT_REACHED();
 }
 
+static CSS::SelectorFFI::Element element_to_ffi(DOM::Element const* element)
+{
+    if (!element)
+        return {};
+
+    // `Utf16FlyString` is its interned one-word representation. Rust borrows these words directly
+    // while matching; the DOM and selector trees pin their respective strings for the call.
+    static_assert(sizeof(Utf16FlyString) == sizeof(uintptr_t));
+    static_assert(alignof(Utf16FlyString) == alignof(uintptr_t));
+
+    auto const& classes = element->class_names();
+    return {
+        .pointer = element,
+        .id = element->id().has_value() ? reinterpret_cast<uintptr_t const*>(&element->id().value()) : nullptr,
+        .classes = reinterpret_cast<uintptr_t const*>(classes.data()),
+        .class_count = classes.size(),
+        .class_names_are_case_insensitive = element->document().in_quirks_mode(),
+    };
+}
+
 bool matches(CSS::Selector const& selector, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host,
     MatchContext& context, GC::Ptr<DOM::ParentNode const> scope)
 {
     return CSS::SelectorFFI::rust_selector_matches(
         &selector.rust_selector(),
-        &target.element(),
+        element_to_ffi(&target.element()),
         CSS::pseudo_element_to_ffi(target.pseudo_element()),
-        shadow_host.ptr(),
+        element_to_ffi(shadow_host.ptr()),
         &context,
         scope.ptr(),
         context.collect_per_element_selector_involvement_metadata,
@@ -674,8 +694,8 @@ bool matches_originating_element_for_pseudo_element(CSS::Selector const& selecto
     return CSS::SelectorFFI::rust_selector_matches_originating_element(
         &selector.rust_selector(),
         CSS::pseudo_element_to_ffi(pseudo_element),
-        &target.element(),
-        shadow_host.ptr(),
+        element_to_ffi(&target.element()),
+        element_to_ffi(shadow_host.ptr()),
         &context,
         scope.ptr(),
         context.collect_per_element_selector_involvement_metadata,
@@ -768,8 +788,7 @@ using CSS::SelectorFFI::TagNameMatchingMode;
 
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_universal);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_tag_name);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_id);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_class);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_class_quirks);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_attribute);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_pseudo_class);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_matches_language);
@@ -826,16 +845,11 @@ extern "C" bool selector_ffi_matches_tag_name(void* context, void const* element
         && matches_namespace(qualified_name, target, match_context.style_sheet_for_rule);
 }
 
-extern "C" bool selector_ffi_matches_id(void const* element, void const* cxx_simple_selector)
-{
-    return ffi_element(element).id() == ffi_simple_selector(cxx_simple_selector).id_name();
-}
-
-extern "C" bool selector_ffi_matches_class(void const* element, void const* cxx_simple_selector)
+extern "C" bool selector_ffi_matches_class_quirks(void const* element, void const* cxx_simple_selector)
 {
     auto const& target = ffi_element(element);
-    auto case_sensitivity = target.document().in_quirks_mode() ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive;
-    return target.has_class(ffi_simple_selector(cxx_simple_selector).class_name(), case_sensitivity);
+    VERIFY(target.document().in_quirks_mode());
+    return target.has_class(ffi_simple_selector(cxx_simple_selector).class_name(), CaseSensitivity::CaseInsensitive);
 }
 
 static bool matches_attribute_value(CSS::Selector::SimpleSelector::Attribute::MatchType match_type, Utf16View selector_value, Utf16View element_value, CaseSensitivity case_sensitivity)
@@ -1043,54 +1057,54 @@ extern "C" bool selector_ffi_matches_heading(void const* element, i64 const* lev
     return ReadonlySpan<i64> { levels, level_count }.contains_slow(heading->heading_level());
 }
 
-extern "C" void const* selector_ffi_parent_element(void const* element, void const* shadow_host)
+extern "C" CSS::SelectorFFI::Element selector_ffi_parent_element(void const* element, void const* shadow_host)
 {
     auto const& target = ffi_element(element);
     if (!shadow_host)
-        return target.parent_element();
+        return element_to_ffi(target.parent_element());
     if (element == shadow_host)
-        return nullptr;
-    return target.parent_or_shadow_host_element();
+        return {};
+    return element_to_ffi(target.parent_or_shadow_host_element());
 }
 
-extern "C" void const* selector_ffi_parent_element_in_light_tree(void const* element)
+extern "C" CSS::SelectorFFI::Element selector_ffi_parent_element_in_light_tree(void const* element)
 {
-    return ffi_element(element).parent_element();
+    return element_to_ffi(ffi_element(element).parent_element());
 }
 
-extern "C" void const* selector_ffi_previous_element_sibling(void const* element)
+extern "C" CSS::SelectorFFI::Element selector_ffi_previous_element_sibling(void const* element)
 {
-    return ffi_element(element).previous_element_sibling();
+    return element_to_ffi(ffi_element(element).previous_element_sibling());
 }
 
-extern "C" void const* selector_ffi_next_element_sibling(void const* element)
+extern "C" CSS::SelectorFFI::Element selector_ffi_next_element_sibling(void const* element)
 {
-    return ffi_element(element).next_element_sibling();
+    return element_to_ffi(ffi_element(element).next_element_sibling());
 }
 
-extern "C" void const* selector_ffi_first_element_child(void const* element)
+extern "C" CSS::SelectorFFI::Element selector_ffi_first_element_child(void const* element)
 {
-    return ffi_element(element).first_child_of_type<DOM::Element>();
+    return element_to_ffi(ffi_element(element).first_child_of_type<DOM::Element>());
 }
 
-extern "C" void const* selector_ffi_first_element_descendant(void const* element)
+extern "C" CSS::SelectorFFI::Element selector_ffi_first_element_descendant(void const* element)
 {
     auto const& root = ffi_element(element);
     for (auto const* node = root.first_child(); node; node = node->next_in_pre_order(&root)) {
         if (node->is_element())
-            return static_cast<DOM::Element const*>(node);
+            return element_to_ffi(static_cast<DOM::Element const*>(node));
     }
-    return nullptr;
+    return {};
 }
 
-extern "C" void const* selector_ffi_next_element_descendant(void const* element, void const* root)
+extern "C" CSS::SelectorFFI::Element selector_ffi_next_element_descendant(void const* element, void const* root)
 {
     auto const& root_element = ffi_element(root);
     for (auto const* node = static_cast<DOM::Node const*>(&ffi_element(element))->next_in_pre_order(&root_element); node; node = node->next_in_pre_order(&root_element)) {
         if (node->is_element())
-            return static_cast<DOM::Element const*>(node);
+            return element_to_ffi(static_cast<DOM::Element const*>(node));
     }
-    return nullptr;
+    return {};
 }
 
 extern "C" bool selector_ffi_has_no_element_or_nonempty_text_children(void const* element)
@@ -1139,8 +1153,8 @@ extern "C" CSS::SelectorFFI::ElementAndShadowHost selector_ffi_slotted_parent(vo
         if (slot_shadow_root != match_context.rule_shadow_root)
             continue;
         return {
-            .element = slot,
-            .shadow_host = slot_shadow_root ? slot_shadow_root->host() : nullptr,
+            .element = element_to_ffi(slot),
+            .shadow_host = element_to_ffi(slot_shadow_root ? slot_shadow_root->host() : nullptr),
         };
     }
     return {};
@@ -1182,7 +1196,7 @@ extern "C" CSS::SelectorFFI::ElementAndShadowHost selector_ffi_part_parent(void*
             else
                 next_shadow_host = nullptr;
         }
-        return { .element = &host, .shadow_host = next_shadow_host };
+        return { .element = element_to_ffi(&host), .shadow_host = element_to_ffi(next_shadow_host) };
     }
     return {};
 }

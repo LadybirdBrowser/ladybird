@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #old-parent.old-parent-class #target.old-target-class {
+        color: rgb(1, 2, 3);
+    }
+
+    #new-parent.new-parent-class #target.new-target-class {
+        color: rgb(4, 5, 6);
+    }
+</style>
+<div id="old-parent" class="old-parent-class">
+    <span id="target" class="old-target-class"></span>
+</div>
+<div id="host"></div>
+<script>
+    test(() => {
+        const target = document.querySelector("span");
+        const parent = target.parentElement;
+
+        println(`initial match: ${target.matches("#target.old-target-class")}`);
+        println(`initial color: ${getComputedStyle(target).color}`);
+
+        parent.id = "new-parent";
+        parent.className = "new-parent-class";
+        target.className = "new-target-class";
+
+        println(`mutated match: ${target.matches("#target.new-target-class")}`);
+        println(`stale match: ${target.matches("#target.old-target-class")}`);
+        println(`mutated color: ${getComputedStyle(target).color}`);
+
+        const disconnected = document.createElement("div");
+        disconnected.id = "a-long-disconnected-identifier";
+        disconnected.className = "short a-long-disconnected-class-name";
+        println(`disconnected match: ${disconnected.matches("#a-long-disconnected-identifier.a-long-disconnected-class-name")}`);
+
+        const shadow_root = document.querySelector("#host").attachShadow({ mode: "open" });
+        const shadow_target = document.createElement("span");
+        shadow_target.id = "shadow-old";
+        shadow_target.className = "shadow-old-class";
+        shadow_root.appendChild(shadow_target);
+        println(`shadow initial match: ${shadow_target.matches("#shadow-old.shadow-old-class")}`);
+        shadow_target.id = "shadow-new";
+        shadow_target.className = "shadow-new-class";
+        println(`shadow mutated match: ${shadow_target.matches("#shadow-new.shadow-new-class")}`);
+    });
+</script>

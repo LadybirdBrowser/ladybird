@@ -173,10 +173,12 @@ private:
         case Selector::SimpleSelector::Type::Id:
             output.selector_type = SelectorFFI::SimpleSelectorType::Id;
             output.name = store_string(simple_selector.id_name());
+            output.interned_name = reinterpret_cast<uintptr_t const*>(&simple_selector.id_name());
             break;
         case Selector::SimpleSelector::Type::Class:
             output.selector_type = SelectorFFI::SimpleSelectorType::Class;
             output.name = store_string(simple_selector.class_name());
+            output.interned_name = reinterpret_cast<uintptr_t const*>(&simple_selector.class_name());
             break;
         case Selector::SimpleSelector::Type::Attribute: {
             output.selector_type = SelectorFFI::SimpleSelectorType::Attribute;

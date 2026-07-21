@@ -73,6 +73,10 @@ pub struct QualifiedName {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NameSelector {
     pub name: SelectorString,
+    /// The one-word identity of the C++ `Utf16FlyString` backing `name`. This is present for
+    /// selectors compiled from C++ and allows the live DOM wrapper to compare interned names
+    /// without crossing the FFI.
+    interned_name: Option<usize>,
     /// See [`QualifiedName::cxx_simple_selector`].
     cxx_simple_selector: RetainedCxxPointer,
 }
@@ -1512,6 +1516,7 @@ pub struct FfiStringView {
 pub struct FfiSimpleSelector {
     pub selector_type: FfiSimpleSelectorType,
     pub cxx_simple_selector: *const c_void,
+    pub interned_name: *const usize,
     pub namespace_type: NamespaceType,
     pub namespace: FfiStringView,
     pub name: FfiStringView,
@@ -1559,6 +1564,42 @@ pub struct RustSelector {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+/// A borrowed view of the element's current selector-relevant identifier data.
+///
+/// C++ constructs this immediately before crossing the FFI and after every tree navigation. The
+/// pointers must not be retained beyond the matching call.
+pub struct FfiElement {
+    pub pointer: *const c_void,
+    pub id: *const usize,
+    pub classes: *const usize,
+    pub class_count: usize,
+    pub class_names_are_case_insensitive: bool,
+}
+
+impl FfiElement {
+    fn is_null(self) -> bool {
+        self.pointer.is_null()
+    }
+
+    fn id(self) -> Option<usize> {
+        // SAFETY: The C++ wrapper points at the live element's `Utf16FlyString` storage, which is
+        // pinned for the duration of the matching call.
+        unsafe { self.id.as_ref().copied() }
+    }
+
+    unsafe fn classes<'a>(self) -> &'a [usize] {
+        if self.class_count == 0 {
+            return &[];
+        }
+        assert!(!self.classes.is_null());
+        // SAFETY: C++ guarantees that `Utf16FlyString` has the size and alignment of `usize` and
+        // that the element's class vector cannot mutate during this matching call.
+        unsafe { std::slice::from_raw_parts(self.classes, self.class_count) }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum FfiNodeKind {
     Element,
     Scope,
@@ -1572,6 +1613,7 @@ enum FfiNodeKind {
 struct FfiNode<'a> {
     pointer: *const c_void,
     kind: FfiNodeKind,
+    element: FfiElement,
     marker: PhantomData<&'a FfiCallScope>,
 }
 
@@ -1588,13 +1630,26 @@ impl FfiNode<'_> {
         assert_eq!(self.kind, FfiNodeKind::Element);
         self.pointer
     }
+
+    fn as_element(self) -> FfiElement {
+        assert_eq!(self.kind, FfiNodeKind::Element);
+        self.element
+    }
+}
+
+impl<'a> FfiNode<'a> {
+    fn classes(self) -> &'a [usize] {
+        // SAFETY: `FfiNode` cannot outlive the call scope which pins the C++ element and its
+        // current class storage.
+        unsafe { self.as_element().classes() }
+    }
 }
 
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiElementAndShadowHost {
-    pub element: *const c_void,
-    pub shadow_host: *const c_void,
+    pub element: FfiElement,
+    pub shadow_host: FfiElement,
 }
 
 unsafe extern "C" {
@@ -1609,8 +1664,7 @@ unsafe extern "C" {
         cxx_simple_selector: *const c_void,
         matching_mode: TagNameMatchingMode,
     ) -> bool;
-    fn selector_ffi_matches_id(element: *const c_void, cxx_simple_selector: *const c_void) -> bool;
-    fn selector_ffi_matches_class(element: *const c_void, cxx_simple_selector: *const c_void) -> bool;
+    fn selector_ffi_matches_class_quirks(element: *const c_void, cxx_simple_selector: *const c_void) -> bool;
     fn selector_ffi_matches_attribute(
         context: *mut c_void,
         element: *const c_void,
@@ -1622,13 +1676,13 @@ unsafe extern "C" {
     fn selector_ffi_matches_state(element: *const c_void, cxx_simple_selector: *const c_void) -> bool;
     fn selector_ffi_matches_heading(element: *const c_void, levels: *const i64, level_count: usize) -> bool;
 
-    fn selector_ffi_parent_element(element: *const c_void, shadow_host: *const c_void) -> *const c_void;
-    fn selector_ffi_parent_element_in_light_tree(element: *const c_void) -> *const c_void;
-    fn selector_ffi_previous_element_sibling(element: *const c_void) -> *const c_void;
-    fn selector_ffi_next_element_sibling(element: *const c_void) -> *const c_void;
-    fn selector_ffi_first_element_child(element: *const c_void) -> *const c_void;
-    fn selector_ffi_first_element_descendant(element: *const c_void) -> *const c_void;
-    fn selector_ffi_next_element_descendant(element: *const c_void, root: *const c_void) -> *const c_void;
+    fn selector_ffi_parent_element(element: *const c_void, shadow_host: *const c_void) -> FfiElement;
+    fn selector_ffi_parent_element_in_light_tree(element: *const c_void) -> FfiElement;
+    fn selector_ffi_previous_element_sibling(element: *const c_void) -> FfiElement;
+    fn selector_ffi_next_element_sibling(element: *const c_void) -> FfiElement;
+    fn selector_ffi_first_element_child(element: *const c_void) -> FfiElement;
+    fn selector_ffi_first_element_descendant(element: *const c_void) -> FfiElement;
+    fn selector_ffi_next_element_descendant(element: *const c_void, root: *const c_void) -> FfiElement;
     fn selector_ffi_has_no_element_or_nonempty_text_children(element: *const c_void) -> bool;
     fn selector_ffi_has_same_type(first: *const c_void, second: *const c_void) -> bool;
     fn selector_ffi_is_document_root(element: *const c_void) -> bool;
@@ -1701,13 +1755,27 @@ impl<'a> FfiDom<'a> {
         (!pointer.is_null()).then_some(FfiNode {
             pointer,
             kind,
+            element: FfiElement {
+                pointer: std::ptr::null(),
+                id: std::ptr::null(),
+                classes: std::ptr::null(),
+                class_count: 0,
+                class_names_are_case_insensitive: false,
+            },
             marker: PhantomData,
         })
     }
 
-    unsafe fn element(&self, element: *const c_void) -> Option<FfiNode<'a>> {
-        // SAFETY: The caller guarantees that a non-null pointer identifies a live DOM element.
-        unsafe { self.node(element, FfiNodeKind::Element) }
+    unsafe fn element(&self, element: FfiElement) -> Option<FfiNode<'a>> {
+        if element.is_null() {
+            return None;
+        }
+        Some(FfiNode {
+            pointer: element.pointer,
+            kind: FfiNodeKind::Element,
+            element,
+            marker: PhantomData,
+        })
     }
 
     unsafe fn scope(&self, scope: *const c_void) -> Option<FfiNode<'a>> {
@@ -1763,17 +1831,22 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn matches_id_selector(&mut self, element: FfiNode<'a>, id: &NameSelector) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
-        // SAFETY: `FfiDom` guarantees that the element and retained simple selector remain valid
-        // for the duration of matching.
-        unsafe { selector_ffi_matches_id(element.as_element_pointer(), id.cxx_simple_selector.as_ptr()) }
+        id.interned_name.is_some_and(|id| element.as_element().id() == Some(id))
     }
 
     fn matches_class_selector(&mut self, element: FfiNode<'a>, class_name: &NameSelector) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
-        // SAFETY: `FfiDom` guarantees that the element and retained simple selector remain valid
-        // for the duration of matching.
-        unsafe { selector_ffi_matches_class(element.as_element_pointer(), class_name.cxx_simple_selector.as_ptr()) }
+        let ffi_element = element.as_element();
+        if ffi_element.class_names_are_case_insensitive {
+            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
+            // SAFETY: `FfiDom` guarantees that the element and retained simple selector remain
+            // valid for the duration of matching.
+            return unsafe {
+                selector_ffi_matches_class_quirks(element.as_element_pointer(), class_name.cxx_simple_selector.as_ptr())
+            };
+        }
+        class_name
+            .interned_name
+            .is_some_and(|class_name| element.classes().contains(&class_name))
     }
 
     fn matches_attribute_selector(&mut self, element: FfiNode<'a>, attribute: &AttributeSelector) -> bool {
@@ -2100,6 +2173,12 @@ unsafe fn string_from_ffi(value: FfiStringView) -> SelectorString {
     unsafe { copy_ffi_slice(value.data, value.length) }
 }
 
+unsafe fn interned_name_from_ffi(selector: &FfiSimpleSelector) -> Option<usize> {
+    // SAFETY: The caller guarantees that a non-null pointer identifies the one-word storage of a
+    // live C++ `Utf16FlyString` for the duration of selector compilation.
+    unsafe { selector.interned_name.as_ref().copied() }
+}
+
 unsafe fn qualified_name_from_ffi(selector: &FfiSimpleSelector) -> QualifiedName {
     QualifiedName {
         namespace_type: selector.namespace_type,
@@ -2132,11 +2211,15 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
         FfiSimpleSelectorType::Id => SimpleSelector::Id(NameSelector {
             // SAFETY: The caller guarantees that every string view in `selector` is valid.
             name: unsafe { string_from_ffi(selector.name) },
+            // SAFETY: The caller guarantees that all retained C++ selector data is valid.
+            interned_name: unsafe { interned_name_from_ffi(selector) },
             cxx_simple_selector: RetainedCxxPointer::new(selector.cxx_simple_selector),
         }),
         FfiSimpleSelectorType::Class => SimpleSelector::Class(NameSelector {
             // SAFETY: The caller guarantees that every string view in `selector` is valid.
             name: unsafe { string_from_ffi(selector.name) },
+            // SAFETY: The caller guarantees that all retained C++ selector data is valid.
+            interned_name: unsafe { interned_name_from_ffi(selector) },
             cxx_simple_selector: RetainedCxxPointer::new(selector.cxx_simple_selector),
         }),
         FfiSimpleSelectorType::Attribute => SimpleSelector::Attribute(AttributeSelector {
@@ -2255,8 +2338,8 @@ unsafe fn compiled_selector_from_ffi(selector: &FfiSelector) -> Rc<CompiledSelec
 }
 
 unsafe fn with_ffi_dom<R>(
-    element: *const c_void,
-    shadow_host: *const c_void,
+    element: FfiElement,
+    shadow_host: FfiElement,
     context: *mut c_void,
     scope: *const c_void,
     collects_selector_involvement_metadata: bool,
@@ -2274,9 +2357,9 @@ unsafe fn with_ffi_dom<R>(
             inside_has_argument,
         )
     };
-    // SAFETY: The caller guarantees that `element` points to a DOM element.
+    // SAFETY: The caller guarantees that `element` wraps a live DOM element.
     let element = unsafe { dom.element(element) }.unwrap();
-    // SAFETY: The caller guarantees that a non-null `shadow_host` points to a DOM element.
+    // SAFETY: The caller guarantees that a non-null `shadow_host` wraps a live DOM element.
     let shadow_host = unsafe { dom.element(shadow_host) };
     // SAFETY: The caller guarantees that a non-null `scope` points to a DOM parent node.
     let scope = unsafe { dom.scope(scope) };
@@ -2330,15 +2413,15 @@ pub unsafe extern "C" fn rust_selector_target_pseudo_element(selector: *const Ru
 
 /// # Safety
 /// The `selector` handle must have been returned by `rust_selector_create`. `element` and a
-/// non-null `shadow_host` must point to C++ DOM elements, a non-null `scope` must point to a C++
+/// non-null `shadow_host` must wrap live C++ DOM elements, a non-null `scope` must point to a C++
 /// DOM parent node, and `context` must point to a C++ Rust matching context. All referenced objects
 /// must remain valid for this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_matches(
     selector: *const RustSelector,
-    element: *const c_void,
+    element: FfiElement,
     pseudo_element: u8,
-    shadow_host: *const c_void,
+    shadow_host: FfiElement,
     context: *mut c_void,
     scope: *const c_void,
     collects_selector_involvement_metadata: bool,
@@ -2378,15 +2461,15 @@ pub unsafe extern "C" fn rust_selector_matches(
 
 /// # Safety
 /// The `selector` handle must have been returned by `rust_selector_create`. `element` and a
-/// non-null `shadow_host` must point to C++ DOM elements, a non-null `scope` must point to a C++
+/// non-null `shadow_host` must wrap live C++ DOM elements, a non-null `scope` must point to a C++
 /// DOM parent node, and `context` must point to a C++ Rust matching context. All referenced objects
 /// must remain valid for this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_matches_originating_element(
     selector: *const RustSelector,
     pseudo_element: u8,
-    element: *const c_void,
-    shadow_host: *const c_void,
+    element: FfiElement,
+    shadow_host: FfiElement,
     context: *mut c_void,
     scope: *const c_void,
     collects_selector_involvement_metadata: bool,
@@ -2658,6 +2741,7 @@ mod tests {
     fn class(name: &str) -> SimpleSelector {
         SimpleSelector::Class(NameSelector {
             name: name.encode_utf16().collect(),
+            interned_name: None,
             cxx_simple_selector: RetainedCxxPointer::default(),
         })
     }
@@ -2712,6 +2796,7 @@ mod tests {
                 combinator: *combinator,
                 simple_selectors: vec![SimpleSelector::Id(NameSelector {
                     name: Box::from([b'x' as u16]),
+                    interned_name: None,
                     cxx_simple_selector: RetainedCxxPointer::default(),
                 })]
                 .into_boxed_slice(),

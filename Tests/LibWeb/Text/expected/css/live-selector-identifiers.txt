@@ -1,0 +1,8 @@
+initial match: true
+initial color: rgb(1, 2, 3)
+mutated match: true
+stale match: false
+mutated color: rgb(4, 5, 6)
+disconnected match: true
+shadow initial match: true
+shadow mutated match: true
