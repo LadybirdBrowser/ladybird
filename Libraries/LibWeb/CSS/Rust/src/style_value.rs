@@ -553,7 +553,6 @@ pub struct RetainedNumericRangeByType {
     max: f64,
 }
 
-#[allow(dead_code)]
 impl RetainedNumericRangeByType {
     pub(crate) fn value_type(&self) -> u8 {
         self.value_type
@@ -573,7 +572,6 @@ pub struct RetainedNumericRangeList {
 
 retained_list!(RetainedNumericRangeList, RetainedNumericRangeByType);
 
-#[allow(dead_code)]
 impl RetainedNumericRangeList {
     pub(crate) fn as_slice(&self) -> &[RetainedNumericRangeByType] {
         if self.pointer.is_null() {
