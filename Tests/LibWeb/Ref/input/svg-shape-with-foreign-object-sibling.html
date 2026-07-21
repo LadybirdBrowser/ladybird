@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-shape-with-foreign-object-sibling-ref.html" />
+<style>
+    body { margin: 0; }
+    svg { display: block; }
+</style>
+<svg width="200" height="120">
+    <rect x="10" y="10" width="80" height="40" fill="#36c" />
+    <foreignObject x="10" y="60" width="80" height="40">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="width: 100%; height: 100%; background: #6c3;"></div>
+    </foreignObject>
+</svg>

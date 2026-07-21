@@ -133,6 +133,11 @@ static Layout::Node& insertion_parent_for_inline_node(Layout::NodeWithStyle& lay
     if (layout_parent.is_svg_foreign_object_box())
         return last_child_creating_anonymous_wrapper_if_needed(layout_parent);
 
+    // SVG layout ignores the inline/block distinction, and an anonymous wrapper would only hide
+    // the child from SVGFormattingContext (e.g. a shape with a foreignObject sibling).
+    if (layout_parent.is_svg_box() || layout_parent.is_svg_svg_box())
+        return layout_parent;
+
     if (layout_parent.display().is_inline_outside() && layout_parent.display().is_flow_inside())
         return layout_parent;
 
@@ -151,6 +156,11 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
     // Inline is fine for in-flow block children (interrupting blocks) and for out-of-flow children;
     // the inline formatting context emits items for both.
     if (!layout_node.is_anonymous() && layout_parent.is_inline() && layout_parent.display().is_flow_inside())
+        return layout_parent;
+
+    // SVG layout ignores the inline/block distinction; wrapping existing inline-level siblings
+    // (e.g. shapes next to a foreignObject) would only hide them from SVGFormattingContext.
+    if (layout_parent.is_svg_box() || layout_parent.is_svg_svg_box())
         return layout_parent;
 
     // Make sure we're not inserting into an inline node, since those do not support block nodes.
