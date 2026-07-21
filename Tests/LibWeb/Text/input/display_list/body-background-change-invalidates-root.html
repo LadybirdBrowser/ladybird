@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+
+        // The root element paints the body's propagated background, so changing the body's background must
+        // invalidate the root's cached background commands even though the body itself paints nothing.
+        document.body.style.backgroundColor = "rgb(1, 2, 3)";
+        // Two frames: the requestAnimationFrame continuation resumes before this frame's display list is
+        // recorded, and the stale color must actually get recorded and cached before it changes.
+        await nextFrame();
+        await nextFrame();
+
+        document.body.style.backgroundColor = "rgb(4, 5, 6)";
+        await nextFrame();
+
+        const dump = internals.dumpDisplayList();
+        println(`stale propagated background painted: ${dump.includes("rgb(1, 2, 3)")}`);
+        println(`fresh propagated background painted: ${dump.includes("rgb(4, 5, 6)")}`);
+        done();
+    });
+</script>

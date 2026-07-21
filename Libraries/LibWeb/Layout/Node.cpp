@@ -615,19 +615,6 @@ void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleV
 
     if (auto paintable = m_owner->paintable())
         paintable->set_needs_repaint();
-
-    // The body's background propagates to the root element's paintable, which holds the cached draw commands.
-    if (m_owner->is_body()) {
-        auto* html_element = m_owner->document().html_element();
-        if (html_element) {
-            if (auto html_layout_node = html_element->unsafe_layout_node()) {
-                if (html_element->should_use_body_background_properties()) {
-                    if (auto paintable = html_layout_node->paintable())
-                        paintable->set_needs_repaint();
-                }
-            }
-        }
-    }
 }
 
 NodeWithStyle::~NodeWithStyle()

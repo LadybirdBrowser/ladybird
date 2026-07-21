@@ -679,8 +679,11 @@ static void record_wheel_hit_test_target(Paintable const& paintable_box, Display
 
 bool body_background_is_propagated_to_root(Layout::NodeWithStyle const& layout_node)
 {
+    if (!layout_node.is_body())
+        return false;
+    // Reachable at invalidation time, when the root element's layout node may already be detached.
     auto const* html_element = layout_node.document().html_element();
-    return layout_node.is_body() && html_element && html_element->should_use_body_background_properties();
+    return html_element && html_element->unsafe_layout_node() && html_element->should_use_body_background_properties();
 }
 
 static bool is_canvas_background_source(Layout::NodeWithStyle const& layout_node)
@@ -2633,6 +2636,21 @@ void Paintable::set_needs_repaint(InvalidateDisplayList should_invalidate_displa
                 child.set_needs_repaint(should_invalidate_display_list);
             return IterationDecision::Continue;
         });
+
+        // The root element paints the body's propagated background, so a body repaint must also refresh the
+        // root's cached background. A root repaint can conversely flip whether propagation applies, changing
+        // what the body itself paints.
+        if (body_background_is_propagated_to_root(layout_node())) {
+            if (auto const* document_element = document().document_element()) {
+                if (auto document_element_paintable = document_element->unsafe_paintable())
+                    document_element_paintable->invalidate_paint_cache();
+            }
+        } else if (layout_node().is_root_element()) {
+            if (auto const* body = document().body()) {
+                if (auto body_paintable = body->unsafe_paintable())
+                    body_paintable->invalidate_paint_cache();
+            }
+        }
     }
     document().set_needs_repaint(Badge<Painting::Paintable> {}, should_invalidate_display_list);
 }
