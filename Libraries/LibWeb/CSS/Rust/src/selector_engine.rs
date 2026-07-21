@@ -1613,6 +1613,12 @@ impl FfiElement {
         unsafe { selector_ffi_element_is_document_root(self.pointer) }
     }
 
+    fn is_link(self) -> bool {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element for the duration of matching.
+        unsafe { selector_ffi_element_is_link(self.pointer) }
+    }
+
     unsafe fn local_name<'a>(self) -> DomStringView<'a> {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns a string view borrowed
@@ -1862,6 +1868,7 @@ unsafe extern "C" {
     fn selector_ffi_element_namespace_is_null(element: *const c_void) -> bool;
     fn selector_ffi_element_is_html_element_in_html_document(element: *const c_void) -> bool;
     fn selector_ffi_element_is_document_root(element: *const c_void) -> bool;
+    fn selector_ffi_element_is_link(element: *const c_void) -> bool;
     fn selector_ffi_element_local_name(element: *const c_void) -> FfiDomStringView;
     fn selector_ffi_element_class_name(element: *const c_void, index: usize) -> FfiDomStringView;
     fn selector_ffi_element_attribute_count(element: *const c_void) -> usize;
@@ -2314,6 +2321,26 @@ impl<'a> SelectorDom for FfiDom<'a> {
 
     fn matches_pseudo_class_state(&mut self, element: FfiNode<'a>, pseudo_class: &PseudoClassSelector) -> bool {
         match pseudo_class.pseudo_class {
+            PseudoClassType::AnyLink | PseudoClassType::Link => element.as_element().is_link(),
+            PseudoClassType::Autofill => {
+                // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
+                // FIXME: The :autofill and :-webkit-autofill pseudo-classes must match input
+                //        elements which have been autofilled by user agent. These pseudo-classes
+                //        must stop matching if the user edits the autofilled field.
+                // NB: We don't support autofilling inputs yet, so this is always false.
+                false
+            }
+            PseudoClassType::Visited => {
+                // https://drafts.csswg.org/selectors/#visited-pseudo
+                // FIXME: For simplicity we currently have :visited never match. We may want to
+                //        rethink this in the future.
+                false
+            }
+            PseudoClassType::VolumeLocked => {
+                // FIXME: Currently we don't allow the user to specify an override volume, so this
+                //        is always false. Once we do, implement this!
+                false
+            }
             PseudoClassType::Lang => pseudo_class.languages.iter().any(|language| {
                 crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorSimpleSelectorCallback);
                 // SAFETY: `FfiDom` guarantees that the element remains valid, and the string

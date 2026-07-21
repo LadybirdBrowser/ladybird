@@ -377,17 +377,6 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
     switch (pseudo_class) {
     case CSS::PseudoClass::Active:
         return element.is_being_activated();
-    case CSS::PseudoClass::AnyLink:
-    case CSS::PseudoClass::Link:
-        // NOTE: AnyLink should match whether the link is visited or not, so if we ever start matching
-        //       :visited, we'll need to handle these differently.
-        return element.matches_link_pseudo_class();
-    case CSS::PseudoClass::Autofill:
-        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
-        // FIXME: The :autofill and :-webkit-autofill pseudo-classes must match input elements which have been autofilled by
-        //        user agent. These pseudo-classes must stop matching if the user edits the autofilled field.
-        // NB: We don't support autofilling inputs yet, so this is always false.
-        return false;
     case CSS::PseudoClass::Buffering:
         if (auto const* media_element = as_if<HTML::HTMLMediaElement>(element))
             return media_element->blocked();
@@ -610,12 +599,10 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
         return false;
     }
     case CSS::PseudoClass::Visited:
-        return element.matches_visited_pseudo_class();
     case CSS::PseudoClass::VolumeLocked:
-        // FIXME: Currently we don't allow the user to specify an override volume, so this is always false.
-        //        Once we do, implement this!
-        return false;
     case CSS::PseudoClass::__Count:
+    case CSS::PseudoClass::AnyLink:
+    case CSS::PseudoClass::Autofill:
     case CSS::PseudoClass::Dir:
     case CSS::PseudoClass::Empty:
     case CSS::PseudoClass::FirstChild:
@@ -627,6 +614,7 @@ static bool matches_pseudo_class_state(CSS::PseudoClass pseudo_class, DOM::Eleme
     case CSS::PseudoClass::Lang:
     case CSS::PseudoClass::LastChild:
     case CSS::PseudoClass::LastOfType:
+    case CSS::PseudoClass::Link:
     case CSS::PseudoClass::Not:
     case CSS::PseudoClass::NthChild:
     case CSS::PseudoClass::NthLastChild:
@@ -730,6 +718,7 @@ DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_class_names_are_case_insensit
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_namespace_is_null);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_html_element_in_html_document);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_document_root);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_link);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_local_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_class_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_attribute_count);
@@ -841,6 +830,11 @@ extern "C" bool selector_ffi_element_is_document_root(void const* element)
     return is<HTML::HTMLHtmlElement>(ffi_element(element));
 }
 
+extern "C" bool selector_ffi_element_is_link(void const* element)
+{
+    return ffi_element(element).matches_link_pseudo_class();
+}
+
 extern "C" CSS::SelectorFFI::DomStringView selector_ffi_element_local_name(void const* element)
 {
     return dom_string_view(ffi_element(element).local_name());
@@ -926,10 +920,12 @@ extern "C" CSS::SelectorFFI::ResolvedNamespace selector_ffi_resolve_namespace(vo
     };
 }
 
-static bool is_rust_structural_or_functional_pseudo_class(CSS::PseudoClass pseudo_class)
+static bool is_rust_matched_pseudo_class(CSS::PseudoClass pseudo_class)
 {
     return first_is_one_of(
         pseudo_class,
+        CSS::PseudoClass::AnyLink,
+        CSS::PseudoClass::Autofill,
         CSS::PseudoClass::Empty,
         CSS::PseudoClass::FirstChild,
         CSS::PseudoClass::FirstOfType,
@@ -938,6 +934,7 @@ static bool is_rust_structural_or_functional_pseudo_class(CSS::PseudoClass pseud
         CSS::PseudoClass::Is,
         CSS::PseudoClass::LastChild,
         CSS::PseudoClass::LastOfType,
+        CSS::PseudoClass::Link,
         CSS::PseudoClass::Not,
         CSS::PseudoClass::NthChild,
         CSS::PseudoClass::NthLastChild,
@@ -951,14 +948,16 @@ static bool is_rust_structural_or_functional_pseudo_class(CSS::PseudoClass pseud
         CSS::PseudoClass::Dir,
         CSS::PseudoClass::Heading,
         CSS::PseudoClass::Lang,
-        CSS::PseudoClass::State);
+        CSS::PseudoClass::State,
+        CSS::PseudoClass::Visited,
+        CSS::PseudoClass::VolumeLocked);
 }
 
 extern "C" bool selector_ffi_matches_pseudo_class(void const* element, u8 pseudo_class_value)
 {
     auto pseudo_class = static_cast<CSS::PseudoClass>(pseudo_class_value);
     VERIFY(pseudo_class < CSS::PseudoClass::__Count);
-    VERIFY(!is_rust_structural_or_functional_pseudo_class(pseudo_class));
+    VERIFY(!is_rust_matched_pseudo_class(pseudo_class));
     return matches_pseudo_class_state(pseudo_class, ffi_element(element));
 }
 
