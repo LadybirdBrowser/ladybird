@@ -2,3 +2,4 @@
 ✅ Pass: Selector match for SVG element clipPath.
 ✅ Pass: Selector match for SVG element foreignObject.
 ✅ Pass: Selector match for SVG element radialGradient.
+✅ Pass: Selector matching for SVG element linearGradient is case-sensitive.

@@ -2238,6 +2238,14 @@ fn utf16_equals_ignoring_ascii_case(first: DomStringView<'_>, second: &[u16]) ->
             .all(|(index, &second)| ascii_lowercase(first.code_unit_at(index)) == ascii_lowercase(second))
 }
 
+fn utf16_equals(first: DomStringView<'_>, second: &[u16]) -> bool {
+    first.len() == second.len()
+        && second
+            .iter()
+            .enumerate()
+            .all(|(index, &second)| first.code_unit_at(index) == second)
+}
+
 struct SelectorSubtags<'a> {
     value: &'a [u16],
     position: usize,
@@ -2654,6 +2662,10 @@ impl<'a> SelectorDom for FfiDom<'a> {
         name: &QualifiedName,
         mode: TagNameMatchingMode,
     ) -> bool {
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
+        // The same selector when compared to other elements must be compared according to its
+        // original case. In both cases, to match, the values must be identical to each other (and
+        // therefore the comparison is case sensitive).
         let ffi_element = element.as_element();
         let is_html_element_in_html_document = ffi_element.is_html_element_in_html_document();
         let name_matches = if is_html_element_in_html_document || mode == TagNameMatchingMode::Fast {
@@ -2664,7 +2676,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
             };
             interned_name.is_some_and(|name| ffi_element.qualified_name().local_name() == Some(name))
         } else {
-            utf16_equals_ignoring_ascii_case(element.local_name(), &name.name)
+            utf16_equals(element.local_name(), &name.name)
         };
         if !name_matches {
             return false;
