@@ -1140,14 +1140,19 @@ impl StyleValueData {
             presence_if,
             presence_inherit,
             presence_var,
+            contains_attr_tainted_values,
             ..
         } = self
         else {
             return None;
         };
-        let has_unsupported_substitution_function =
-            *presence_attr || *presence_dashed_function || *presence_env || *presence_if || *presence_inherit;
-        if has_unsupported_substitution_function {
+        let cannot_resolve_natively = *presence_attr
+            || *presence_dashed_function
+            || *presence_env
+            || *presence_if
+            || *presence_inherit
+            || *contains_attr_tainted_values;
+        if cannot_resolve_natively {
             return None;
         }
         Some((self.unresolved_token_source().unwrap_or_default(), *presence_var))

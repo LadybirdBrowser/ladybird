@@ -1,1 +1,2 @@
-none
+direct: none
+inherited: none
