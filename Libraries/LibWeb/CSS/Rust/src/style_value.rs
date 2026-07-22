@@ -96,6 +96,10 @@ impl RetainedStyleValueData {
         unsafe { &*self.pointer.cast::<StyleValueData>() }
     }
 
+    pub(crate) fn optional_data(&self) -> Option<&StyleValueData> {
+        unsafe { self.pointer.cast::<StyleValueData>().as_ref() }
+    }
+
     /// Assumes ownership of one strong reference to Rust-owned style value data.
     ///
     /// # Safety
@@ -111,6 +115,51 @@ impl RetainedStyleValueData {
 impl Drop for RetainedStyleValueData {
     fn drop(&mut self) {
         unsafe { rust_style_value_release(self.pointer.cast()) };
+    }
+}
+
+/// A retained, Rust-owned array of shared style value data references.
+#[repr(C)]
+pub struct RetainedStyleValueDataList {
+    pointer: *mut RetainedStyleValueData,
+    length: usize,
+}
+
+impl RetainedStyleValueDataList {
+    pub(crate) fn as_slice(&self) -> &[RetainedStyleValueData] {
+        if self.pointer.is_null() {
+            return &[];
+        }
+        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+    }
+
+    /// Takes ownership of one strong reference to each value.
+    ///
+    /// # Safety
+    /// `values` must point to `length` strong references returned by `rust_style_value_retain`.
+    unsafe fn from_retained_pointers(values: *const *const StyleValueData, length: usize) -> Self {
+        let slice: Box<[RetainedStyleValueData]> = (0..length)
+            .map(|i| unsafe { RetainedStyleValueData::from_retained_pointer(*values.add(i)) })
+            .collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedStyleValueData;
+        Self { pointer, length }
+    }
+
+    /// Takes ownership of one strong reference to each non-null value.
+    ///
+    /// # Safety
+    /// Every non-null entry in `values` must be a strong reference returned by
+    /// `rust_style_value_retain`.
+    unsafe fn from_retained_optional_pointers(values: *const *const StyleValueData, length: usize) -> Self {
+        let slice: Box<[RetainedStyleValueData]> = (0..length)
+            .map(|i| RetainedStyleValueData {
+                pointer: unsafe { *values.add(i) }.cast(),
+            })
+            .collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedStyleValueData;
+        Self { pointer, length }
     }
 }
 
@@ -165,6 +214,8 @@ macro_rules! retained_list_drop {
         }
     };
 }
+
+retained_list_drop!(RetainedStyleValueDataList);
 
 /// Implements the shared behavior for a `Retained*List` struct whose `from_raw` input is an
 /// array of its own element type: `from_raw` copies `length` elements into a Rust-owned boxed
@@ -1050,12 +1101,12 @@ pub enum StyleValueData {
     /// A list of style values. The separator and collapsible flag come from the C++
     /// StyleValueList enums, opaque to Rust.
     ValueList {
-        values: RetainedStyleValueList,
+        values: RetainedStyleValueDataList,
         separator: u8,
         collapsible: bool,
     },
     /// A tuple of optional style values (null entries represent absent optionals).
-    Tuple { values: RetainedStyleValueList },
+    Tuple { values: RetainedStyleValueDataList },
     /// A display value: the raw bytes of the C++ Display value type (a tag plus a union of
     /// packed u8 enums), opaque to Rust.
     Display { raw: u32 },
@@ -1115,7 +1166,7 @@ pub enum StyleValueData {
     Transformation {
         property: u16,
         transform_function: u8,
-        values: RetainedStyleValueList,
+        values: RetainedStyleValueDataList,
     },
     /// A shorthand property value: the shorthand id, its longhand ids (both C++
     /// `enum class PropertyID : u16`, opaque to Rust) and their values.
@@ -1780,14 +1831,14 @@ pub extern "C" fn rust_style_value_create_color_interpolation_method(
 /// Takes ownership of one strong reference to each of the `length` values.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_value_list(
-    values: *const *const c_void,
+    values: *const *const StyleValueData,
     length: usize,
     separator: u8,
     collapsible: bool,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::ValueList {
-            values: unsafe { RetainedStyleValueList::from_raw(values, length) },
+            values: unsafe { RetainedStyleValueDataList::from_retained_pointers(values, length) },
             separator,
             collapsible,
         }))
@@ -1797,12 +1848,12 @@ pub unsafe extern "C" fn rust_style_value_create_value_list(
 /// Takes ownership of one strong reference to each non-null value.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_tuple(
-    values: *const *const c_void,
+    values: *const *const StyleValueData,
     length: usize,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Tuple {
-            values: unsafe { RetainedStyleValueList::from_raw(values, length) },
+            values: unsafe { RetainedStyleValueDataList::from_retained_optional_pointers(values, length) },
         }))
     })
 }
@@ -1812,14 +1863,14 @@ pub unsafe extern "C" fn rust_style_value_create_tuple(
 pub unsafe extern "C" fn rust_style_value_create_transformation(
     property: u16,
     transform_function: u8,
-    values: *const *const c_void,
+    values: *const *const StyleValueData,
     length: usize,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Transformation {
             property,
             transform_function,
-            values: unsafe { RetainedStyleValueList::from_raw(values, length) },
+            values: unsafe { RetainedStyleValueDataList::from_retained_pointers(values, length) },
         }))
     })
 }

@@ -171,6 +171,12 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
         return adopt_ref(*new (nothrow) OpacityValueStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Ratio:
         return adopt_ref(*new (nothrow) RatioStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Transformation:
+        return adopt_ref(*new (nothrow) TransformationStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::ValueList:
+        return adopt_ref(*new (nothrow) StyleValueList(data));
+    case StyleValueFFI::StyleValueData::Tag::Tuple:
+        return adopt_ref(*new (nothrow) TupleStyleValue(data));
     default:
         VERIFY_NOT_REACHED();
     }

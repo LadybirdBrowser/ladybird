@@ -20,12 +20,7 @@ public:
 
     StyleValueTuple tuple() const
     {
-        auto const& list = m_value->tuple.values;
-        StyleValueTuple tuple;
-        tuple.ensure_capacity(list.length);
-        for (size_t i = 0; i < list.length; ++i)
-            tuple.unchecked_append(static_cast<StyleValue const*>(list.pointer[i].pointer));
-        return tuple;
+        return m_values;
     }
 
     void serialize(StringBuilder&, SerializationMode) const;
@@ -69,17 +64,42 @@ public:
     };
 
 private:
+    friend class StyleValue;
+
+    explicit TupleStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::Tuple, data)
+    {
+        auto const& values = data->tuple.values;
+        m_values.ensure_capacity(values.length);
+        for (size_t i = 0; i < values.length; ++i) {
+            auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
+            if (child_data)
+                m_values.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
+            else
+                m_values.unchecked_append(nullptr);
+        }
+    }
+
     explicit TupleStyleValue(StyleValueTuple values)
-        : StyleValueWithDefaultOperators(Type::Tuple, make_tuple_data(move(values)))
+        : StyleValueWithDefaultOperators(Type::Tuple, make_tuple_data(values))
+        , m_values(move(values))
     {
     }
 
-    static StyleValueFFI::StyleValueData const* make_tuple_data(StyleValueTuple&& values)
+    static StyleValueFFI::StyleValueData const* make_tuple_data(StyleValueTuple const& values)
     {
-        // The Rust allocation takes ownership of one strong reference to each non-null value.
-        auto pointers = leak_style_value_pointers_for_rust(values);
+        Vector<StyleValueFFI::StyleValueData const*> pointers;
+        pointers.ensure_capacity(values.size());
+        for (auto const& value : values) {
+            if (value)
+                pointers.unchecked_append(StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()));
+            else
+                pointers.unchecked_append(nullptr);
+        }
         return StyleValueFFI::rust_style_value_create_tuple(pointers.data(), pointers.size());
     }
+
+    StyleValueTuple m_values;
 };
 
 }

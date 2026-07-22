@@ -28,15 +28,10 @@ public:
         return adopt_ref(*new (nothrow) StyleValueList(move(values), separator, collapsible));
     }
 
-    size_t size() const { return m_value->value_list.values.length; }
+    size_t size() const { return m_values.size(); }
     StyleValueVector values() const
     {
-        auto const& list = m_value->value_list.values;
-        StyleValueVector values;
-        values.ensure_capacity(list.length);
-        for (size_t i = 0; i < list.length; ++i)
-            values.unchecked_append(*static_cast<StyleValue const*>(list.pointer[i].pointer));
-        return values;
+        return m_values;
     }
     ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i, bool allow_loop) const
     {
@@ -68,24 +63,42 @@ public:
     void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 
 private:
+    friend class StyleValue;
+
+    explicit StyleValueList(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::ValueList, data)
+    {
+        auto const& values = data->value_list.values;
+        m_values.ensure_capacity(values.length);
+        for (size_t i = 0; i < values.length; ++i) {
+            auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
+            m_values.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
+        }
+    }
+
     StyleValueList(StyleValueVector&& values, Separator separator, Collapsible collapsible = Collapsible::Yes)
-        : StyleValueWithDefaultOperators(Type::ValueList, make_value_list_data(move(values), separator, collapsible))
+        : StyleValueWithDefaultOperators(Type::ValueList, make_value_list_data(values, separator, collapsible))
+        , m_values(move(values))
     {
     }
 
     ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i) const
     {
-        return *static_cast<StyleValue const*>(m_value->value_list.values.pointer[i].pointer);
+        return m_values[i];
     }
 
-    static StyleValueFFI::StyleValueData const* make_value_list_data(StyleValueVector&& values, Separator separator, Collapsible collapsible)
+    static StyleValueFFI::StyleValueData const* make_value_list_data(StyleValueVector const& values, Separator separator, Collapsible collapsible)
     {
-        // The Rust allocation takes ownership of one strong reference to each value.
-        auto pointers = leak_style_value_pointers_for_rust(values);
+        Vector<StyleValueFFI::StyleValueData const*> pointers;
+        pointers.ensure_capacity(values.size());
+        for (auto const& value : values)
+            pointers.unchecked_append(StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()));
         return StyleValueFFI::rust_style_value_create_value_list(pointers.data(), pointers.size(), to_underlying(separator), collapsible == Collapsible::Yes);
     }
 
     Collapsible collapsible() const { return m_value->value_list.collapsible ? Collapsible::Yes : Collapsible::No; }
+
+    StyleValueVector m_values;
 };
 
 }
