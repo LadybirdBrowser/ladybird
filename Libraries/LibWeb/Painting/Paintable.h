@@ -371,6 +371,7 @@ public:
     BorderRadiiData border_radii_data() const;
 
     Optional<BordersData> outline_data() const;
+    Optional<BordersData> outline_data(CSS::ComputedValues const&) const;
     CSSPixels outline_offset() const;
 
     void set_filter(ResolvedCSSFilter filter) { m_filter = move(filter); }
@@ -483,6 +484,7 @@ protected:
     void paint_background_within(DisplayListRecordingContext&, CSSPixelRect const& background_rect, BorderRadiiData const&) const;
     void paint_box_shadow(DisplayListRecordingContext&, CSSPixelRect const& border_box_rect, CSSPixelRect const& padding_box_rect, BorderRadiiData const&) const;
     void paint_outline(DisplayListRecordingContext&, CSSPixelRect const& border_box_rect, BorderRadiiData const&) const;
+    void paint_focused_area_outline(DisplayListRecordingContext&) const;
 
     virtual void paint_inspector_overlay_internal(DisplayListRecordingContext&) const;
 
