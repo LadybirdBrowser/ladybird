@@ -1,0 +1,9 @@
+<!DOCTYPE quirks>
+<script src="include.js"></script>
+<div id="tEsT"></div>
+<script>
+    test(() => {
+        let divElement = document.querySelector("#test");
+        println(`ParentNode.querySelector matches ID selectors case-insensitively in quirks mode: ${divElement instanceof Element}`);
+    });
+</script>

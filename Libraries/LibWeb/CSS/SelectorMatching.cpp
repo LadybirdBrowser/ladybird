@@ -382,8 +382,9 @@ using CSS::SelectorFFI::StringView;
 
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_qualified_name);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_id);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_id_value);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_classes);
-DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_class_names_are_case_insensitive);
+DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_id_and_class_names_are_case_insensitive);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_namespace_is_null);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_html_element_in_html_document);
 DECLARE_SELECTOR_FFI_CALLBACK(selector_ffi_element_is_document_root);
@@ -501,6 +502,12 @@ extern "C" uintptr_t const* selector_ffi_element_id(void const* element)
     return id.has_value() ? reinterpret_cast<uintptr_t const*>(&id.value()) : nullptr;
 }
 
+extern "C" CSS::SelectorFFI::DomStringView selector_ffi_element_id_value(void const* element)
+{
+    auto const& id = ffi_element(element).id();
+    return id.has_value() ? dom_string_view(id.value()) : CSS::SelectorFFI::DomStringView {};
+}
+
 extern "C" CSS::SelectorFFI::InternedStringList selector_ffi_element_classes(void const* element)
 {
     auto const& classes = ffi_element(element).class_names();
@@ -510,7 +517,7 @@ extern "C" CSS::SelectorFFI::InternedStringList selector_ffi_element_classes(voi
     };
 }
 
-extern "C" bool selector_ffi_element_class_names_are_case_insensitive(void const* element)
+extern "C" bool selector_ffi_element_id_and_class_names_are_case_insensitive(void const* element)
 {
     return ffi_element(element).document().in_quirks_mode();
 }

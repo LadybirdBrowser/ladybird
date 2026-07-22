@@ -1614,10 +1614,21 @@ impl FfiElement {
         unsafe { selector_ffi_element_id(self.pointer).as_ref().copied() }
     }
 
-    fn class_names_are_case_insensitive(self) -> bool {
+    unsafe fn id_value<'a>(self) -> DomStringView<'a> {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        // SAFETY: The handle identifies a live DOM element. C++ returns its current ID with
+        // backing storage owned by the element for this matching call.
+        DomStringView {
+            // SAFETY: C++ guarantees that the returned string view remains valid for matching.
+            view: unsafe { selector_ffi_element_id_value(self.pointer) },
+            marker: PhantomData,
+        }
+    }
+
+    fn id_and_class_names_are_case_insensitive(self) -> bool {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
-        unsafe { selector_ffi_element_class_names_are_case_insensitive(self.pointer) }
+        unsafe { selector_ffi_element_id_and_class_names_are_case_insensitive(self.pointer) }
     }
 
     fn namespace_is_null(self) -> bool {
@@ -2077,6 +2088,12 @@ impl FfiNode<'_> {
 }
 
 impl<'a> FfiNode<'a> {
+    fn id_value(self) -> DomStringView<'a> {
+        // SAFETY: `FfiNode` cannot outlive the call scope which pins the C++ element and its
+        // current ID storage.
+        unsafe { self.as_element().id_value() }
+    }
+
     fn classes(self) -> &'a [usize] {
         // SAFETY: `FfiNode` cannot outlive the call scope which pins the C++ element and its
         // current class storage.
@@ -2122,8 +2139,9 @@ pub struct FfiElementAndShadowHost {
 unsafe extern "C" {
     fn selector_ffi_element_qualified_name(element: *const c_void) -> FfiElementQualifiedName;
     fn selector_ffi_element_id(element: *const c_void) -> *const usize;
+    fn selector_ffi_element_id_value(element: *const c_void) -> FfiDomStringView;
     fn selector_ffi_element_classes(element: *const c_void) -> FfiInternedStringList;
-    fn selector_ffi_element_class_names_are_case_insensitive(element: *const c_void) -> bool;
+    fn selector_ffi_element_id_and_class_names_are_case_insensitive(element: *const c_void) -> bool;
     fn selector_ffi_element_namespace_is_null(element: *const c_void) -> bool;
     fn selector_ffi_element_is_html_element_in_html_document(element: *const c_void) -> bool;
     fn selector_ffi_element_is_document_root(element: *const c_void) -> bool;
@@ -2685,12 +2703,16 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn matches_id_selector(&mut self, element: FfiNode<'a>, id: &NameSelector) -> bool {
-        id.interned_name.is_some_and(|id| element.as_element().id() == Some(id))
+        let ffi_element = element.as_element();
+        if ffi_element.id_and_class_names_are_case_insensitive() {
+            return utf16_equals_ignoring_ascii_case(element.id_value(), &id.name);
+        }
+        id.interned_name.is_some_and(|id| ffi_element.id() == Some(id))
     }
 
     fn matches_class_selector(&mut self, element: FfiNode<'a>, class_name: &NameSelector) -> bool {
         let ffi_element = element.as_element();
-        if ffi_element.class_names_are_case_insensitive() {
+        if ffi_element.id_and_class_names_are_case_insensitive() {
             return (0..element.classes().len())
                 .any(|index| utf16_equals_ignoring_ascii_case(element.class_name(index), &class_name.name));
         }
