@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Window.h>
@@ -40,6 +41,9 @@ void HTMLAreaElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
         if (m_rel_list)
             m_rel_list->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
     }
+
+    if (is_focused() && name.is_one_of(HTML::AttributeNames::coords, HTML::AttributeNames::shape))
+        repaint_associated_images();
 }
 
 bool HTMLAreaElement::has_activation_behavior() const
@@ -216,6 +220,28 @@ bool HTMLAreaElement::is_focusable() const
     //     associated image element instead.
     auto const* map_element = first_ancestor_of_type<HTMLMapElement>();
     return map_element && map_element->first_image_with_focusable_shapes();
+}
+
+void HTMLAreaElement::did_receive_focus()
+{
+    repaint_associated_images();
+}
+
+void HTMLAreaElement::did_lose_focus()
+{
+    repaint_associated_images();
+}
+
+void HTMLAreaElement::repaint_associated_images()
+{
+    auto const* map_element = first_ancestor_of_type<HTMLMapElement>();
+    if (!map_element)
+        return;
+
+    map_element->for_each_associated_image([](HTMLImageElement& image_element) {
+        image_element.set_needs_repaint();
+        return TraversalDecision::Continue;
+    });
 }
 
 Optional<ARIA::Role> HTMLAreaElement::default_role() const
