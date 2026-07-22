@@ -2450,7 +2450,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         static_cast<u32>(matching_rule_set.author_contexts.size()),
         abstract_element.pseudo_element().has_value(),
         cascade_custom_properties,
-        abstract_element.document().custom_property_registration_generation() == 0,
+        abstract_element.document().rust_custom_property_registry(),
         unset_value.ptr(),
         unset_value->rust_style_value_data(),
         &callbacks);

@@ -357,7 +357,7 @@ fn apply_declaration_block(
     resolve_unresolved: &dyn Fn(u16, *const c_void) -> *const c_void,
     parse_substituted: &dyn Fn(u16, &[u8]) -> *const c_void,
     custom_property_store: *const c_void,
-    allow_native_var_resolution: bool,
+    custom_property_registry: *const c_void,
     data_of: &dyn Fn(*const c_void) -> *const c_void,
     create_pending_substitution: &dyn Fn(*const c_void) -> *const c_void,
     mut assign_source_slot: impl FnMut(u32),
@@ -384,10 +384,8 @@ fn apply_declaration_block(
         let mut data = declaration.data;
 
         if declared_is_unresolved {
-            let native_resolution = if allow_native_var_resolution {
-                unsafe { crate::custom_properties::resolve_vars(custom_property_store, data) }
-            } else {
-                crate::custom_properties::NativeVarResolution::NotHandled
+            let native_resolution = unsafe {
+                crate::custom_properties::resolve_vars(custom_property_store, custom_property_registry, data)
             };
             match native_resolution {
                 crate::custom_properties::NativeVarResolution::Resolved(source) => {
@@ -595,7 +593,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
     author_context_count: u32,
     has_pseudo_element: bool,
     cascade_custom_properties: bool,
-    allow_native_var_resolution: bool,
+    custom_property_registry: *const c_void,
     unset_shell: *const c_void,
     unset_data: *const c_void,
     callbacks: *const FfiBulkCascadeCallbacks,
@@ -765,7 +763,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                     unsafe { (callbacks.parse_substituted)(context, property_id, source.as_ptr(), source.len()) }
                 },
                 custom_property_store,
-                allow_native_var_resolution,
+                custom_property_registry,
                 &|shell| {
                     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeDataOfCallback);
                     unsafe { (callbacks.data_of)(context, shell) }

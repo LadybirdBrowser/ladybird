@@ -1288,6 +1288,7 @@ public:
     HashMap<Utf16FlyString, CSS::CustomPropertyRegistration>& registered_property_set();
     Optional<CSS::CustomPropertyRegistration const&> get_registered_custom_property(Utf16FlyString const& name) const;
     size_t custom_property_registration_generation() const { return m_custom_property_registration_generation; }
+    void const* rust_custom_property_registry() const { return m_rust_custom_property_registry; }
     void did_change_custom_property_registrations();
 
     CSS::StyleScope const& style_scope() const { return m_style_scope; }
@@ -1385,6 +1386,7 @@ private:
     void run_csp_initialization() const;
 
     void build_registered_properties_cache();
+    void sync_custom_property_registrations_to_rust();
     void build_counter_style_cache();
 
     void ensure_cookie_version_index(URL::URL const& new_url, URL::URL const& old_url = {});
@@ -1831,6 +1833,7 @@ private:
     HashMap<Utf16FlyString, CSS::CustomPropertyRegistration> m_cached_registered_properties_from_css_property_rules;
     bool m_needs_registered_properties_cache_update { true };
     size_t m_custom_property_registration_generation { 0 };
+    void* m_rust_custom_property_registry { nullptr };
 
     CSS::StyleScope m_style_scope;
 

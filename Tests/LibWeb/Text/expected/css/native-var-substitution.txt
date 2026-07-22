@@ -4,4 +4,7 @@ cycle fallback: 3px
 native parse callback used: true
 C++ resolver unused: true
 registered width: 9px
+unregistered height: 11px
+registered universal initial: 13px
 registered value used C++ resolver: true
+unregistered value used native parser: true

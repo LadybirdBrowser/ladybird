@@ -76,6 +76,7 @@
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/TransitionEvent.h>
 #include <LibWeb/CSS/VisualViewport.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
@@ -577,6 +578,8 @@ Document::Document(JS::Realm& realm, URL::URL const& url)
     , m_style_invalidator(realm.heap().allocate<CSS::Invalidation::StyleInvalidator>())
     , m_style_scope(*this)
 {
+    m_rust_custom_property_registry = CSS::ComputedValuesFFI::rust_custom_property_registry_create();
+
     m_legacy_platform_object_flags = PlatformObject::LegacyPlatformObjectFlags {
         .supports_named_properties = true,
         .has_legacy_override_built_ins_interface_extended_attribute = true,
@@ -663,6 +666,7 @@ void Document::record_full_style_invalidation() const
 
 void Document::finalize()
 {
+    CSS::ComputedValuesFFI::rust_custom_property_registry_destroy(m_rust_custom_property_registry);
     Base::finalize();
     HTML::main_thread_event_loop().unregister_document({}, *this);
 }
@@ -9573,11 +9577,48 @@ Optional<CSS::CustomPropertyRegistration const&> Document::get_registered_custom
 void Document::did_change_custom_property_registrations()
 {
     ++m_custom_property_registration_generation;
+    sync_custom_property_registrations_to_rust();
 
     // Custom property registration changes can alter inheritance and initial values even when no selector matching
     // changes. Registrations only move when a stylesheet containing an @property rule is added/removed or when
     // CSS.registerProperty() is called, so a full document restyle is cheap enough in practice.
     invalidate_style(DOM::StyleInvalidationReason::CustomPropertyRegistrationChange);
+}
+
+void Document::sync_custom_property_registrations_to_rust()
+{
+    HashMap<Utf16FlyString, CSS::CustomPropertyRegistration const*> effective_registrations;
+    effective_registrations.ensure_capacity(m_registered_property_set.size() + m_cached_registered_properties_from_css_property_rules.size());
+    for (auto const& [name, registration] : m_cached_registered_properties_from_css_property_rules)
+        effective_registrations.set(name, &registration);
+    for (auto const& [name, registration] : m_registered_property_set)
+        effective_registrations.set(name, &registration);
+
+    Vector<String> names;
+    Vector<Optional<String>> initial_values;
+    Vector<CSS::ComputedValuesFFI::FfiCustomPropertyRegistration> registrations;
+    names.ensure_capacity(effective_registrations.size());
+    initial_values.ensure_capacity(effective_registrations.size());
+    registrations.ensure_capacity(effective_registrations.size());
+    for (auto const& [name, registration] : effective_registrations) {
+        names.unchecked_append(MUST(name.view().to_utf8()));
+        initial_values.unchecked_append(registration->initial_value
+                ? Optional<String> { registration->initial_value->to_string(CSS::SerializationMode::Normal) }
+                : Optional<String> {});
+        auto const& name_utf8 = names.last();
+        auto const& initial_value = initial_values.last();
+        registrations.unchecked_append({
+            .name = name_utf8.bytes().data(),
+            .name_length = name_utf8.bytes().size(),
+            .syntax_is_universal = registration->syntax->type() == CSS::Parser::SyntaxNode::NodeType::Universal,
+            .inherits = registration->inherit,
+            .has_initial_value = initial_value.has_value(),
+            .initial_value = initial_value.has_value() ? initial_value->bytes().data() : nullptr,
+            .initial_value_length = initial_value.has_value() ? initial_value->bytes().size() : 0,
+        });
+    }
+    CSS::ComputedValuesFFI::rust_custom_property_registry_update(
+        m_rust_custom_property_registry, registrations.data(), registrations.size());
 }
 
 void Document::build_registered_properties_cache()
@@ -9598,10 +9639,10 @@ void Document::build_registered_properties_cache()
         });
     });
 
-    if (cached_registered_properties_from_css_property_rules != m_cached_registered_properties_from_css_property_rules)
-        did_change_custom_property_registrations();
-
+    auto registrations_changed = cached_registered_properties_from_css_property_rules != m_cached_registered_properties_from_css_property_rules;
     m_cached_registered_properties_from_css_property_rules = move(cached_registered_properties_from_css_property_rules);
+    if (registrations_changed)
+        did_change_custom_property_registrations();
 }
 
 void Document::ensure_cookie_version_index(URL::URL const& new_url, URL::URL const& old_url)

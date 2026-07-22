@@ -43,6 +43,27 @@ pub struct CustomPropertyStore {
     parent: Option<Rc<CustomPropertyStore>>,
 }
 
+pub struct CustomPropertyRegistry {
+    registrations: HashMap<String, RegisteredCustomProperty>,
+}
+
+struct RegisteredCustomProperty {
+    syntax_is_universal: bool,
+    _inherits: bool,
+    initial_source: Option<Vec<u8>>,
+}
+
+#[repr(C)]
+pub struct FfiCustomPropertyRegistration {
+    pub name: *const u8,
+    pub name_length: usize,
+    pub syntax_is_universal: bool,
+    pub inherits: bool,
+    pub has_initial_value: bool,
+    pub initial_value: *const u8,
+    pub initial_value_length: usize,
+}
+
 impl CustomPropertyStore {
     fn get(&self, name_raw: usize) -> Option<&CustomPropertyEntry> {
         self.own_values
@@ -145,23 +166,37 @@ fn is_single_css_wide_keyword(tokens: &[OwnedToken]) -> bool {
 
 fn resolve_custom_property(
     store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
     name: &str,
     guarded_names: &mut HashSet<String>,
 ) -> TokenResolution {
+    let registration = registry.and_then(|registry| registry.registrations.get(name));
+    if registration.is_some_and(|registration| !registration.syntax_is_universal) {
+        return TokenResolution::NotHandled;
+    }
     let Some(entry) = store.and_then(|store| store.get_by_name(name)) else {
-        return TokenResolution::Invalid;
+        return registration
+            .and_then(|registration| registration.initial_source.as_ref())
+            .map_or(TokenResolution::Invalid, |source| {
+                TokenResolution::Resolved(tokenize_owned(source))
+            });
     };
     let data = unsafe { &*entry.data.cast::<StyleValueData>() };
     if matches!(data, StyleValueData::GuaranteedInvalid) {
         return TokenResolution::Invalid;
     }
-    let Some((source, _includes_var)) = data.unresolved_var_source() else {
+    let Some((source, includes_var)) = data.unresolved_var_source() else {
         return TokenResolution::NotHandled;
     };
+    if registration.is_some() && includes_var {
+        // NB: Cycles involving registered properties affect the registered property's computed
+        // value and fallback behavior. Keep those on the registered-property computation path.
+        return TokenResolution::NotHandled;
+    }
     if !guarded_names.insert(name.to_owned()) {
         return TokenResolution::Invalid;
     }
-    let result = substitute_tokens(store, &tokenize_owned(source), guarded_names);
+    let result = substitute_tokens(store, registry, &tokenize_owned(source), guarded_names);
     guarded_names.remove(name);
     if let TokenResolution::Resolved(tokens) = &result
         && is_single_css_wide_keyword(tokens)
@@ -175,6 +210,7 @@ fn resolve_custom_property(
 
 fn replace_var_function(
     store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
     arguments: &[OwnedToken],
     guarded_names: &mut HashSet<String>,
 ) -> TokenResolution {
@@ -200,7 +236,7 @@ fn replace_var_function(
     // 2. Substitute arbitrary substitution functions in first arg, then parse it as a <custom-property-name>.
     //    If parsing returned a <custom-property-name>, let result be the computed value of the corresponding custom
     //    property on el. Otherwise, let result be the guaranteed-invalid value.
-    let result = resolve_custom_property(store, name, guarded_names);
+    let result = resolve_custom_property(store, registry, name, guarded_names);
     if !matches!(result, TokenResolution::Invalid) {
         return result;
     }
@@ -209,11 +245,12 @@ fn replace_var_function(
     };
     // 4. If result contains the guaranteed-invalid value, and second arg was provided, set result to the result of
     //    substitute arbitrary substitution functions on second arg.
-    substitute_tokens(store, &arguments[comma + 1..], guarded_names)
+    substitute_tokens(store, registry, &arguments[comma + 1..], guarded_names)
 }
 
 fn substitute_tokens(
     store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
     tokens: &[OwnedToken],
     guarded_names: &mut HashSet<String>,
 ) -> TokenResolution {
@@ -230,9 +267,9 @@ fn substitute_tokens(
         let contents = &tokens[index + 1..close_index];
         let resolved = match &tokens[index].kind {
             OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("var") => {
-                replace_var_function(store, contents, guarded_names)
+                replace_var_function(store, registry, contents, guarded_names)
             }
-            _ => substitute_tokens(store, contents, guarded_names),
+            _ => substitute_tokens(store, registry, contents, guarded_names),
         };
         let resolved = match resolved {
             TokenResolution::Resolved(resolved) => resolved,
@@ -311,11 +348,20 @@ fn serialize_tokens(tokens: &[OwnedToken]) -> Vec<u8> {
     output
 }
 
-pub(crate) unsafe fn resolve_vars(store: *const c_void, value_data: *const c_void) -> NativeVarResolution {
+pub(crate) unsafe fn resolve_vars(
+    store: *const c_void,
+    registry: *const c_void,
+    value_data: *const c_void,
+) -> NativeVarResolution {
     let store = if store.is_null() {
         None
     } else {
         Some(unsafe { &*store.cast::<CustomPropertyStore>() })
+    };
+    let registry = if registry.is_null() {
+        None
+    } else {
+        Some(unsafe { &*registry.cast::<CustomPropertyRegistry>() })
     };
     let value_data = unsafe { &*value_data.cast::<StyleValueData>() };
     let Some((source, includes_var)) = value_data.unresolved_var_source() else {
@@ -324,7 +370,7 @@ pub(crate) unsafe fn resolve_vars(store: *const c_void, value_data: *const c_voi
     if !includes_var {
         return NativeVarResolution::NotHandled;
     }
-    match substitute_tokens(store, &tokenize_owned(source), &mut HashSet::new()) {
+    match substitute_tokens(store, registry, &tokenize_owned(source), &mut HashSet::new()) {
         TokenResolution::Resolved(tokens) => NativeVarResolution::Resolved(serialize_tokens(&tokens)),
         TokenResolution::Invalid => NativeVarResolution::Invalid,
         TokenResolution::NotHandled => NativeVarResolution::NotHandled,
@@ -336,7 +382,7 @@ mod tests {
     use super::*;
 
     fn substitute_without_custom_properties(source: &str) -> TokenResolution {
-        substitute_tokens(None, &tokenize_owned(source.as_bytes()), &mut HashSet::new())
+        substitute_tokens(None, None, &tokenize_owned(source.as_bytes()), &mut HashSet::new())
     }
 
     #[test]
@@ -377,6 +423,69 @@ mod tests {
         assert!(is_single_css_wide_keyword(&tokenize_owned(b"  inherit ")));
         assert!(!is_single_css_wide_keyword(&tokenize_owned(b"inherit green")));
     }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_custom_property_registry_create() -> *mut c_void {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(CustomPropertyRegistry {
+            registrations: HashMap::new(),
+        }))
+        .cast()
+    })
+}
+
+/// Replaces the effective registered custom-property names for one document.
+///
+/// # Safety
+/// `registry` must be a live pointer returned by `rust_custom_property_registry_create`, and
+/// `registrations` must point at `registration_count` valid entries.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_custom_property_registry_update(
+    registry: *mut c_void,
+    registrations: *const FfiCustomPropertyRegistration,
+    registration_count: usize,
+) {
+    abort_on_panic(|| {
+        let registrations = if registration_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(registrations, registration_count) }
+        };
+        let registry = unsafe { &mut *registry.cast::<CustomPropertyRegistry>() };
+        registry.registrations.clear();
+        registry.registrations.reserve(registrations.len());
+        for registration in registrations {
+            let name = unsafe { crate::bytes_from_raw(registration.name, registration.name_length) }
+                .and_then(|name| std::str::from_utf8(name).ok())
+                .expect("invalid registered custom property name");
+            let initial_source = if registration.has_initial_value {
+                Some(
+                    unsafe { crate::bytes_from_raw(registration.initial_value, registration.initial_value_length) }
+                        .expect("invalid registered custom property initial value")
+                        .to_vec(),
+                )
+            } else {
+                None
+            };
+            registry.registrations.insert(
+                name.to_owned(),
+                RegisteredCustomProperty {
+                    syntax_is_universal: registration.syntax_is_universal,
+                    _inherits: registration.inherits,
+                    initial_source,
+                },
+            );
+        }
+    });
+}
+
+/// # Safety
+/// `registry` must be a pointer returned by `rust_custom_property_registry_create` that has not
+/// already been destroyed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_custom_property_registry_destroy(registry: *mut c_void) {
+    abort_on_panic(|| drop(unsafe { Box::from_raw(registry.cast::<CustomPropertyRegistry>()) }));
 }
 
 /// Creates one Rust store node. Each entry name transfers one leaked fly-string reference;

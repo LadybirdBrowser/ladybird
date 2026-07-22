@@ -33,17 +33,29 @@
             inherits: false,
             initialValue: "1px",
         });
+        CSS.registerProperty({
+            name: "--registered-universal-native",
+            syntax: "*",
+            inherits: false,
+            initialValue: "13px",
+        });
         internals.resetStyleFfiCounters();
 
         const registered = document.createElement("div");
         registered.style.cssText = `
             --registered-native-fallback: 9px;
+            --unregistered-native-after-registration: 11px;
             width: var(--registered-native-fallback);
+            height: var(--unregistered-native-after-registration);
+            margin-left: var(--registered-universal-native);
         `;
         document.body.appendChild(registered);
         println(`registered width: ${getComputedStyle(registered).width}`);
+        println(`unregistered height: ${getComputedStyle(registered).height}`);
+        println(`registered universal initial: ${getComputedStyle(registered).marginLeft}`);
 
         const registeredCounters = internals.styleFfiCounters();
         println(`registered value used C++ resolver: ${registeredCounters.cascadeResolveUnresolvedCallbacks >= 1}`);
+        println(`unregistered value used native parser: ${registeredCounters.cascadeParseSubstitutedCallbacks >= 1}`);
     });
 </script>
