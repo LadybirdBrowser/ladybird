@@ -406,25 +406,32 @@ void MediaControls::set_up_event_listeners()
         constexpr double arrow_time_step = 5.0;
         constexpr double arrow_volume_step = 0.1;
 
-        auto key = event.key();
-
-        if (key == u" "sv) {
+        switch (event.key_code()) {
+        case UIEvents::KeyCode::Key_Space:
             toggle_playback();
-        } else if (key == u"Home"sv) {
+            break;
+        case UIEvents::KeyCode::Key_Home:
             set_current_time(0);
-        } else if (key == u"End"sv) {
+            break;
+        case UIEvents::KeyCode::Key_End:
             set_current_time(m_media_element->duration());
-        } else if (key == u"ArrowLeft"sv) {
-            set_current_time(m_media_element->current_time() - arrow_time_step);
-        } else if (key == u"ArrowRight"sv) {
+            break;
+        case UIEvents::KeyCode::Key_Right:
             set_current_time(m_media_element->current_time() + arrow_time_step);
-        } else if (key == u"ArrowUp"sv) {
+            break;
+        case UIEvents::KeyCode::Key_Left:
+            set_current_time(m_media_element->current_time() - arrow_time_step);
+            break;
+        case UIEvents::KeyCode::Key_Up:
             set_volume(m_media_element->volume() + arrow_volume_step);
-        } else if (key == u"ArrowDown"sv) {
+            break;
+        case UIEvents::KeyCode::Key_Down:
             set_volume(m_media_element->volume() - arrow_volume_step);
-        } else if (key == u"m"sv || key == u"M"sv) {
+            break;
+        case UIEvents::KeyCode::Key_M:
             toggle_mute();
-        } else {
+            break;
+        default:
             return false;
         }
 
