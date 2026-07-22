@@ -208,13 +208,7 @@ def run_candidate(args, test_web_binary, test_root, candidate, level, deadline, 
 
 
 def format_levels(report, repeat):
-    parts = []
-    for result in report.levels:
-        if result.failures == 0:
-            parts.append(f"-j{result.level}: {repeat}/{repeat} passed")
-        else:
-            parts.append(f"-j{result.level}: {result.failures}/{repeat} failed")
-    return "; ".join(parts)
+    return "; ".join(f"-j{result.level}: {result.failures}/{repeat} failed" for result in report.levels)
 
 
 def write_summary(reports, skipped, levels, repeat):
