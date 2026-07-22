@@ -995,7 +995,33 @@ Optional<TableFormattingContext::MeasuredCellContent> TableFormattingContext::me
 
     LayoutState throwaway_state(cell_box, LayoutState::Purpose::Measurement);
     auto& throwaway_cell_used_values = throwaway_state.create(cell_box, {}, {});
-    throwaway_cell_used_values = cell_used_values;
+
+    // The table formatting context owns the cell's outer geometry. Seed the inputs
+    // needed to lay out its contents without copying placement or layout outputs.
+    throwaway_cell_used_values.inline_size_constraint = cell_used_values.inline_size_constraint;
+    throwaway_cell_used_values.block_size_constraint = cell_used_values.block_size_constraint;
+    throwaway_cell_used_values.set_content_inline_size(cell_used_values.content_inline_size());
+    throwaway_cell_used_values.set_content_block_size(cell_used_values.content_block_size());
+    throwaway_cell_used_values.set_has_definite_inline_size(cell_used_values.has_definite_inline_size());
+    throwaway_cell_used_values.set_has_definite_block_size(cell_used_values.has_definite_block_size());
+
+    throwaway_cell_used_values.margin_left = cell_used_values.margin_left;
+    throwaway_cell_used_values.margin_right = cell_used_values.margin_right;
+    throwaway_cell_used_values.margin_top = cell_used_values.margin_top;
+    throwaway_cell_used_values.margin_bottom = cell_used_values.margin_bottom;
+
+    throwaway_cell_used_values.border_left = cell_used_values.border_left;
+    throwaway_cell_used_values.border_right = cell_used_values.border_right;
+    throwaway_cell_used_values.border_top = cell_used_values.border_top;
+    throwaway_cell_used_values.border_bottom = cell_used_values.border_bottom;
+
+    throwaway_cell_used_values.padding_left = cell_used_values.padding_left;
+    throwaway_cell_used_values.padding_right = cell_used_values.padding_right;
+    throwaway_cell_used_values.padding_top = cell_used_values.padding_top;
+    throwaway_cell_used_values.padding_bottom = cell_used_values.padding_bottom;
+
+    if (auto const& override_borders_data = cell_used_values.override_borders_data(); override_borders_data.has_value())
+        throwaway_cell_used_values.set_override_borders_data(override_borders_data.value());
 
     auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, cell_box, this);
     if (!measuring_context)

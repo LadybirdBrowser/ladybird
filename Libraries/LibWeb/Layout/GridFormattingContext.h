@@ -36,6 +36,15 @@ struct GridItem {
     Optional<int> column;
     Optional<size_t> column_span;
 
+    // Accumulated while projecting a nested subgrid item into an ancestor's track
+    // sizing without modifying the UsedValues owned by the nested grid context.
+    struct SubgridExtraMargins {
+        CSSPixels top { 0 };
+        CSSPixels right { 0 };
+        CSSPixels bottom { 0 };
+        CSSPixels left { 0 };
+    } subgrid_extra_margins;
+
     [[nodiscard]] size_t span(GridDimension dimension) const
     {
         return dimension == GridDimension::Column ? column_span.value() : row_span.value();
@@ -49,8 +58,8 @@ struct GridItem {
     [[nodiscard]] CSSPixels add_margin_box_sizes(CSSPixels content_size, GridDimension dimension) const
     {
         if (dimension == GridDimension::Column)
-            return used_values.margin_box_left() + content_size + used_values.margin_box_right();
-        return used_values.margin_box_top() + content_size + used_values.margin_box_bottom();
+            return used_values.margin_box_left() + subgrid_extra_margins.left + content_size + used_values.margin_box_right() + subgrid_extra_margins.right;
+        return used_values.margin_box_top() + subgrid_extra_margins.top + content_size + used_values.margin_box_bottom() + subgrid_extra_margins.bottom;
     }
 
     [[nodiscard]] int gap_adjusted_position(GridDimension dimension) const
@@ -93,22 +102,30 @@ struct GridItem {
 
     CSSPixels used_margin_box_start(GridDimension dimension) const
     {
-        return dimension == GridDimension::Column ? used_values.margin_box_left() : used_values.margin_box_top();
+        if (dimension == GridDimension::Column)
+            return used_values.margin_box_left() + subgrid_extra_margins.left;
+        return used_values.margin_box_top() + subgrid_extra_margins.top;
     }
 
     CSSPixels used_margin_box_end(GridDimension dimension) const
     {
-        return dimension == GridDimension::Column ? used_values.margin_box_right() : used_values.margin_box_bottom();
+        if (dimension == GridDimension::Column)
+            return used_values.margin_box_right() + subgrid_extra_margins.right;
+        return used_values.margin_box_bottom() + subgrid_extra_margins.bottom;
     }
 
     CSSPixels used_margin_start(GridDimension dimension) const
     {
-        return dimension == GridDimension::Column ? used_values.margin_left : used_values.margin_top;
+        if (dimension == GridDimension::Column)
+            return used_values.margin_left + subgrid_extra_margins.left;
+        return used_values.margin_top + subgrid_extra_margins.top;
     }
 
     CSSPixels used_margin_end(GridDimension dimension) const
     {
-        return dimension == GridDimension::Column ? used_values.margin_right : used_values.margin_bottom;
+        if (dimension == GridDimension::Column)
+            return used_values.margin_right + subgrid_extra_margins.right;
+        return used_values.margin_bottom + subgrid_extra_margins.bottom;
     }
 
     AvailableSpace available_space() const

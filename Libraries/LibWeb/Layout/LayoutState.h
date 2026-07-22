@@ -109,11 +109,6 @@ struct LayoutState {
     AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Layout);
 
     struct UsedValues {
-        UsedValues() = default;
-        UsedValues(UsedValues&&) = default;
-        UsedValues& operator=(UsedValues&&) = default;
-        UsedValues& operator=(UsedValues const& other);
-
         NodeWithStyle const& node() const { return *m_node; }
         NodeWithStyle& node() { return const_cast<NodeWithStyle&>(*m_node); }
         void set_node(NodeWithStyle const&, Optional<CSSPixels> percentage_basis_inline_size = {}, Optional<CSSPixels> percentage_basis_block_size = {});
@@ -311,23 +306,6 @@ struct LayoutState {
 
         struct RareData {
             AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Layout);
-
-            RareData() = default;
-            RareData(RareData const& other)
-                : lowest_floating_descendant_bottom_margin_edge(other.lowest_floating_descendant_bottom_margin_edge)
-                , table_cell_coordinates(other.table_cell_coordinates)
-                , computed_svg_path(other.computed_svg_path)
-                , grid_template_columns(other.grid_template_columns)
-                , grid_template_rows(other.grid_template_rows)
-                , override_borders_data(other.override_borders_data)
-                , computed_svg_transforms(other.computed_svg_transforms)
-                , abspos_layout_inputs(other.abspos_layout_inputs)
-            {
-                if (other.grid_layout_data)
-                    grid_layout_data = make<GridLayoutData>(*other.grid_layout_data);
-                if (other.flex_layout_data)
-                    flex_layout_data = make<FlexLayoutData>(*other.flex_layout_data);
-            }
 
             Optional<CSSPixels> lowest_floating_descendant_bottom_margin_edge;
             Optional<Painting::Paintable::TableCellCoordinates> table_cell_coordinates;

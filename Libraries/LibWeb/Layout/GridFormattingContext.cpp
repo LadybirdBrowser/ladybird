@@ -415,16 +415,14 @@ void GridFormattingContext::for_each_subgrid_item_contributing_to_track_sizing(G
     subgrid_context.resolve_items_box_metrics(dimension);
 
     subgrid_context.for_each_item_contributing_to_track_sizing(dimension, [&](GridItem const& item) {
-        LayoutState::UsedValues used_values_in_parent_grid;
-        used_values_in_parent_grid = item.used_values;
-
         GridItem item_in_parent_grid {
             .box = item.box,
-            .used_values = used_values_in_parent_grid,
+            .used_values = item.used_values,
             .row = item.row,
             .row_span = item.row_span,
             .column = item.column,
             .column_span = item.column_span,
+            .subgrid_extra_margins = item.subgrid_extra_margins,
         };
         subgrid_context.apply_subgrid_edge_extra_margins(item_in_parent_grid, dimension);
 
@@ -508,16 +506,16 @@ void GridFormattingContext::apply_subgrid_edge_extra_margins(GridItem& item, Gri
 
     if (item_start == 0) {
         if (dimension == GridDimension::Column)
-            item.used_values.margin_left += start_extra_margin;
+            item.subgrid_extra_margins.left += start_extra_margin;
         else
-            item.used_values.margin_top += start_extra_margin;
+            item.subgrid_extra_margins.top += start_extra_margin;
     }
 
     if (item_end == static_cast<int>(track_count)) {
         if (dimension == GridDimension::Column)
-            item.used_values.margin_right += end_extra_margin;
+            item.subgrid_extra_margins.right += end_extra_margin;
         else
-            item.used_values.margin_bottom += end_extra_margin;
+            item.subgrid_extra_margins.bottom += end_extra_margin;
     }
 }
 
@@ -785,7 +783,8 @@ void GridFormattingContext::place_item_with_row_and_column_position(Box const& c
         .row = row_start,
         .row_span = row_span,
         .column = column_start,
-        .column_span = column_span });
+        .column_span = column_span,
+        .subgrid_extra_margins = {} });
 }
 
 void GridFormattingContext::place_item_with_row_position(Box const& child_box)
@@ -815,7 +814,8 @@ void GridFormattingContext::place_item_with_row_position(Box const& child_box)
         .row = row_start,
         .row_span = row_span,
         .column = column_start,
-        .column_span = column_span });
+        .column_span = column_span,
+        .subgrid_extra_margins = {} });
 }
 
 void GridFormattingContext::place_item_with_column_position(Box const& child_box, int& auto_placement_cursor_row)
@@ -851,7 +851,8 @@ void GridFormattingContext::place_item_with_column_position(Box const& child_box
         .row = auto_placement_cursor_row,
         .row_span = row_span,
         .column = column_start,
-        .column_span = column_span });
+        .column_span = column_span,
+        .subgrid_extra_margins = {} });
 }
 
 void GridFormattingContext::place_item_with_no_declared_position(Box const& child_box, int& auto_placement_cursor_column, int& auto_placement_cursor_row)
@@ -891,7 +892,8 @@ void GridFormattingContext::place_item_with_no_declared_position(Box const& chil
         .row = row_start,
         .row_span = row_span,
         .column = column_start,
-        .column_span = column_span });
+        .column_span = column_span,
+        .subgrid_extra_margins = {} });
 }
 
 void GridFormattingContext::clamp_grid_area_to_subgrid(GridDimension dimension, int& start, size_t& span) const
@@ -3011,7 +3013,7 @@ AbsposContainingBlockInfo GridFormattingContext::resolve_abspos_containing_block
 
     auto grid_area = [&] -> LogicalRect {
         auto const& computed_values = box.computed_values();
-        GridItem item { box, abspos_box_state, {}, {}, {}, {} };
+        GridItem item { box, abspos_box_state, {}, {}, {}, {}, {} };
         auto row_placement_position = resolve_grid_position(box, GridDimension::Row);
         auto column_placement_position = resolve_grid_position(box, GridDimension::Column);
         if (!is_auto_positioned_track(computed_values.grid_row_start(), computed_values.grid_row_end())) {

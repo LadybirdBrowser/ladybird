@@ -442,50 +442,6 @@ void LayoutState::commit_used_values_and_build_paint_tree(Box& root, RefPtr<Pain
     resolve_relative_positions_and_assign_inline_box_geometry();
 }
 
-LayoutState::UsedValues& LayoutState::UsedValues::operator=(UsedValues const& other)
-{
-    if (this == &other)
-        return *this;
-
-    m_content_offset = other.m_content_offset;
-    inline_size_constraint = other.inline_size_constraint;
-    block_size_constraint = other.block_size_constraint;
-    margin_left = other.margin_left;
-    margin_right = other.margin_right;
-    margin_top = other.margin_top;
-    margin_bottom = other.margin_bottom;
-    border_left = other.border_left;
-    border_right = other.border_right;
-    border_top = other.border_top;
-    border_bottom = other.border_bottom;
-    padding_left = other.padding_left;
-    padding_right = other.padding_right;
-    padding_top = other.padding_top;
-    padding_bottom = other.padding_bottom;
-    inset_left = other.inset_left;
-    inset_right = other.inset_right;
-    inset_top = other.inset_top;
-    inset_bottom = other.inset_bottom;
-    line_boxes = other.line_boxes;
-    inline_box_pieces = other.inline_box_pieces;
-    first_baseline = other.first_baseline;
-    last_baseline = other.last_baseline;
-    containing_line_box_fragment = other.containing_line_box_fragment;
-
-    m_node = other.m_node;
-    m_content_inline_size = other.m_content_inline_size;
-    m_content_block_size = other.m_content_block_size;
-    m_has_definite_inline_size = other.m_has_definite_inline_size;
-    m_has_definite_block_size = other.m_has_definite_block_size;
-    m_materialized_from_paintable = other.m_materialized_from_paintable;
-    if (other.m_rare)
-        m_rare = make<RareData>(*other.m_rare);
-    else
-        m_rare = nullptr;
-
-    return *this;
-}
-
 void LayoutState::UsedValues::set_node(NodeWithStyle const& node, Optional<CSSPixels> percentage_basis_inline_size, Optional<CSSPixels> percentage_basis_block_size)
 {
     m_node = &node;
