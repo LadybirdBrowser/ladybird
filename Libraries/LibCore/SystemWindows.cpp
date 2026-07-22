@@ -269,7 +269,10 @@ ErrorOr<Array<int, 2>> pipe2(int flags)
 
 ErrorOr<bool> isatty(int handle)
 {
-    return GetFileType(to_handle(handle)) == FILE_TYPE_CHAR;
+    // GetFileType() cannot answer this: it reports FILE_TYPE_CHAR for every character device, including NUL.
+    // Only real consoles have a console mode.
+    DWORD mode = 0;
+    return GetConsoleMode(to_handle(handle), &mode) != 0;
 }
 
 ErrorOr<TerminalSize> terminal_size(int fd)
