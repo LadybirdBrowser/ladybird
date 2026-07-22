@@ -45,6 +45,28 @@ static void mark_as_attr_tainted(Vector<Parser::ComponentValue>& values)
         value.set_attr_tainted();
 }
 
+static StyleValueFFI::StyleValueData* create_rust_style_value(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values)
+{
+    auto source_text_bytes = source_text.bytes();
+    auto value_comparison_text_bytes = value_comparison_text.bytes();
+    auto source_text_raw = source_text.to_raw_leaked();
+    auto value_comparison_text_raw = value_comparison_text.to_raw_leaked();
+    return StyleValueFFI::rust_style_value_create_unresolved(
+        source_text_raw,
+        source_text_bytes.data(),
+        source_text_bytes.size(),
+        value_comparison_text_raw,
+        value_comparison_text_bytes.data(),
+        value_comparison_text_bytes.size(),
+        substitution_presence.attr,
+        substitution_presence.dashed_function,
+        substitution_presence.env,
+        substitution_presence.if_,
+        substitution_presence.inherit,
+        substitution_presence.var,
+        contains_attr_tainted_values);
+}
+
 String UnresolvedStyleValue::comparison_text() const
 {
     auto value_comparison_text = this->value_comparison_text();
@@ -76,7 +98,7 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
 }
 
 UnresolvedStyleValue::UnresolvedStyleValue(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values)
-    : StyleValue(Type::Unresolved, StyleValueFFI::rust_style_value_create_unresolved(source_text.to_raw_leaked(), value_comparison_text.to_raw_leaked(), substitution_presence.attr, substitution_presence.dashed_function, substitution_presence.env, substitution_presence.if_, substitution_presence.inherit, substitution_presence.var, contains_attr_tainted_values))
+    : StyleValue(Type::Unresolved, create_rust_style_value(move(source_text), move(value_comparison_text), substitution_presence, contains_attr_tainted_values))
 {
 }
 

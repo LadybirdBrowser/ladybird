@@ -221,6 +221,53 @@ impl Drop for RetainedString {
     }
 }
 
+/// A retained AK::String accompanied by a Rust-owned copy of its UTF-8 bytes. This is used when
+/// Rust needs to inspect the string instead of only preserving it for C++ access.
+#[repr(C)]
+pub struct RetainedReadableString {
+    raw: usize,
+    bytes: *mut u8,
+    length: usize,
+}
+
+impl RetainedReadableString {
+    /// Takes ownership of a leaked AK::String reference and copies its bytes.
+    ///
+    /// # Safety
+    /// `bytes` must point at `length` readable bytes.
+    unsafe fn from_raw(raw: usize, bytes: *const u8, length: usize) -> Self {
+        let source = unsafe { crate::bytes_from_raw(bytes, length) }.expect("invalid readable string bytes");
+        if source.is_empty() {
+            return Self {
+                raw,
+                bytes: std::ptr::null_mut(),
+                length: 0,
+            };
+        }
+        let owned = source.to_vec().into_boxed_slice();
+        let length = owned.len();
+        let bytes = Box::into_raw(owned).cast::<u8>();
+        Self { raw, bytes, length }
+    }
+
+    pub(crate) fn as_bytes(&self) -> &[u8] {
+        if self.bytes.is_null() {
+            return &[];
+        }
+        unsafe { std::slice::from_raw_parts(self.bytes, self.length) }
+    }
+}
+
+impl Drop for RetainedReadableString {
+    fn drop(&mut self) {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StringRetainReleaseCallback);
+        unsafe { ladybird_string_unref(self.raw) };
+        if !self.bytes.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.bytes, self.length)) });
+        }
+    }
+}
+
 /// A retained CSS request URL modifier: the modifier type and either an enum value or a retained
 /// string value (raw 0 when the value is an enum). All enums are C++ `enum class ... : u8`
 /// values, opaque to Rust.
@@ -978,8 +1025,8 @@ pub enum StyleValueData {
     /// source text, an optional normalized comparison text (empty when absent), the presence
     /// flags of each substitution function and the attr-taint flag.
     Unresolved {
-        source_text: RetainedString,
-        value_comparison_text: RetainedString,
+        source_text: RetainedReadableString,
+        value_comparison_text: RetainedReadableString,
         presence_attr: bool,
         presence_dashed_function: bool,
         presence_env: bool,
@@ -1056,6 +1103,24 @@ pub enum StyleValueData {
         color_operation: u8,
         value: RetainedStyleValue,
     },
+}
+
+impl StyleValueData {
+    pub(crate) fn unresolved_token_source(&self) -> Option<&[u8]> {
+        let Self::Unresolved {
+            source_text,
+            value_comparison_text,
+            ..
+        } = self
+        else {
+            return None;
+        };
+        if value_comparison_text.as_bytes().is_empty() {
+            Some(source_text.as_bytes())
+        } else {
+            Some(value_comparison_text.as_bytes())
+        }
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -1799,7 +1864,11 @@ pub unsafe extern "C" fn rust_style_value_create_color_scheme(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_unresolved(
     source_text: usize,
+    source_text_bytes: *const u8,
+    source_text_length: usize,
     value_comparison_text: usize,
+    value_comparison_text_bytes: *const u8,
+    value_comparison_text_length: usize,
     presence_attr: bool,
     presence_dashed_function: bool,
     presence_env: bool,
@@ -1810,9 +1879,15 @@ pub unsafe extern "C" fn rust_style_value_create_unresolved(
 ) -> *mut StyleValueData {
     abort_on_panic(|| {
         Box::into_raw(Box::new(StyleValueData::Unresolved {
-            source_text: RetainedString { raw: source_text },
-            value_comparison_text: RetainedString {
-                raw: value_comparison_text,
+            source_text: unsafe {
+                RetainedReadableString::from_raw(source_text, source_text_bytes, source_text_length)
+            },
+            value_comparison_text: unsafe {
+                RetainedReadableString::from_raw(
+                    value_comparison_text,
+                    value_comparison_text_bytes,
+                    value_comparison_text_length,
+                )
             },
             presence_attr,
             presence_dashed_function,

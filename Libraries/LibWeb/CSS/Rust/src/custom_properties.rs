@@ -14,6 +14,7 @@ use std::rc::Rc;
 use crate::abort_on_panic;
 use crate::style_value::RetainedStyleValue;
 use crate::style_value::RetainedUtf16FlyString;
+use crate::style_value::StyleValueData;
 
 #[repr(C)]
 pub struct FfiCustomPropertyStoreEntry {
@@ -104,6 +105,8 @@ pub struct FfiCustomPropertyStoreValue {
     pub important: bool,
     pub shell: *const c_void,
     pub data: *const c_void,
+    pub token_source: *const u8,
+    pub token_source_length: usize,
 }
 
 /// Looks up a custom property through the structurally shared parent chain.
@@ -124,13 +127,20 @@ pub unsafe extern "C" fn rust_custom_property_store_get(
                 important: false,
                 shell: std::ptr::null(),
                 data: std::ptr::null(),
+                token_source: std::ptr::null(),
+                token_source_length: 0,
             };
         };
+        let token_source = unsafe { &*entry.data.cast::<StyleValueData>() }
+            .unresolved_token_source()
+            .unwrap_or_default();
         FfiCustomPropertyStoreValue {
             found: true,
             important: entry.important,
             shell: entry._value.shell_pointer(),
             data: entry.data,
+            token_source: token_source.as_ptr(),
+            token_source_length: token_source.len(),
         }
     })
 }
