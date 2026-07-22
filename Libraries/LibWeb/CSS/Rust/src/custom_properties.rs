@@ -80,6 +80,7 @@ impl CustomPropertyStore {
 }
 
 const MAX_SUBSTITUTED_TOKEN_COUNT: usize = 16384;
+const MAX_SUBSTITUTION_RECURSION_DEPTH: u32 = 64;
 
 pub(crate) enum NativeVarResolution {
     Resolved(Vec<u8>),
@@ -90,7 +91,14 @@ pub(crate) enum NativeVarResolution {
 enum TokenResolution {
     Resolved(Vec<OwnedToken>),
     Invalid,
+    Cyclic,
     NotHandled,
+}
+
+#[derive(Default)]
+struct VarResolutionContext {
+    active_names: Vec<String>,
+    cyclic_names: HashSet<String>,
 }
 
 fn matching_close(kind: &OwnedTokenKind) -> Option<OwnedTokenKind> {
@@ -168,7 +176,8 @@ fn resolve_custom_property(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     name: &str,
-    guarded_names: &mut HashSet<String>,
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
 ) -> TokenResolution {
     let registration = registry.and_then(|registry| registry.registrations.get(name));
     if registration.is_some_and(|registration| !registration.syntax_is_universal) {
@@ -193,11 +202,22 @@ fn resolve_custom_property(
         // value and fallback behavior. Keep those on the registered-property computation path.
         return TokenResolution::NotHandled;
     }
-    if !guarded_names.insert(name.to_owned()) {
+    if context.cyclic_names.contains(name) {
         return TokenResolution::Invalid;
     }
-    let result = substitute_tokens(store, registry, &tokenize_owned(source), guarded_names);
-    guarded_names.remove(name);
+    if let Some(cycle_start) = context.active_names.iter().position(|active_name| active_name == name) {
+        // https://drafts.csswg.org/css-variables-1/#cycles
+        // If there is a cycle in the dependency graph, all the custom properties in the cycle
+        // are invalid at computed-value time.
+        context
+            .cyclic_names
+            .extend(context.active_names[cycle_start..].iter().cloned());
+        return TokenResolution::Cyclic;
+    }
+    context.active_names.push(name.to_owned());
+    let result = substitute_tokens(store, registry, &tokenize_owned(source), context, recursion_depth + 1);
+    let active_name = context.active_names.pop().expect("active custom property");
+    debug_assert_eq!(active_name, name);
     if let TokenResolution::Resolved(tokens) = &result
         && is_single_css_wide_keyword(tokens)
     {
@@ -212,7 +232,8 @@ fn replace_var_function(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     arguments: &[OwnedToken],
-    guarded_names: &mut HashSet<String>,
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
 ) -> TokenResolution {
     // https://drafts.csswg.org/css-variables-1/#replace-a-var-function
     // 1. Let el be the element that the style containing the var() function is being applied to.
@@ -236,24 +257,38 @@ fn replace_var_function(
     // 2. Substitute arbitrary substitution functions in first arg, then parse it as a <custom-property-name>.
     //    If parsing returned a <custom-property-name>, let result be the computed value of the corresponding custom
     //    property on el. Otherwise, let result be the guaranteed-invalid value.
-    let result = resolve_custom_property(store, registry, name, guarded_names);
-    if !matches!(result, TokenResolution::Invalid) {
-        return result;
+    match resolve_custom_property(store, registry, name, context, recursion_depth) {
+        TokenResolution::Invalid => {}
+        TokenResolution::Cyclic
+            if context
+                .active_names
+                .last()
+                .is_some_and(|active_name| context.cyclic_names.contains(active_name)) =>
+        {
+            return TokenResolution::Cyclic;
+        }
+        TokenResolution::Cyclic => {}
+        result => return result,
     }
     let Some(comma) = comma else {
         return TokenResolution::Invalid;
     };
     // 4. If result contains the guaranteed-invalid value, and second arg was provided, set result to the result of
     //    substitute arbitrary substitution functions on second arg.
-    substitute_tokens(store, registry, &arguments[comma + 1..], guarded_names)
+    substitute_tokens(store, registry, &arguments[comma + 1..], context, recursion_depth + 1)
 }
 
 fn substitute_tokens(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     tokens: &[OwnedToken],
-    guarded_names: &mut HashSet<String>,
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
 ) -> TokenResolution {
+    if recursion_depth > MAX_SUBSTITUTION_RECURSION_DEPTH {
+        return TokenResolution::Invalid;
+    }
+
     let mut output = Vec::new();
     let mut index = 0;
     while index < tokens.len() {
@@ -267,13 +302,14 @@ fn substitute_tokens(
         let contents = &tokens[index + 1..close_index];
         let resolved = match &tokens[index].kind {
             OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("var") => {
-                replace_var_function(store, registry, contents, guarded_names)
+                replace_var_function(store, registry, contents, context, recursion_depth)
             }
-            _ => substitute_tokens(store, registry, contents, guarded_names),
+            _ => substitute_tokens(store, registry, contents, context, recursion_depth + 1),
         };
         let resolved = match resolved {
             TokenResolution::Resolved(resolved) => resolved,
             TokenResolution::Invalid => return TokenResolution::Invalid,
+            TokenResolution::Cyclic => return TokenResolution::Cyclic,
             TokenResolution::NotHandled => return TokenResolution::NotHandled,
         };
 
@@ -370,9 +406,15 @@ pub(crate) unsafe fn resolve_vars(
     if !includes_var {
         return NativeVarResolution::NotHandled;
     }
-    match substitute_tokens(store, registry, &tokenize_owned(source), &mut HashSet::new()) {
+    match substitute_tokens(
+        store,
+        registry,
+        &tokenize_owned(source),
+        &mut VarResolutionContext::default(),
+        0,
+    ) {
         TokenResolution::Resolved(tokens) => NativeVarResolution::Resolved(serialize_tokens(&tokens)),
-        TokenResolution::Invalid => NativeVarResolution::Invalid,
+        TokenResolution::Invalid | TokenResolution::Cyclic => NativeVarResolution::Invalid,
         TokenResolution::NotHandled => NativeVarResolution::NotHandled,
     }
 }
@@ -382,7 +424,13 @@ mod tests {
     use super::*;
 
     fn substitute_without_custom_properties(source: &str) -> TokenResolution {
-        substitute_tokens(None, None, &tokenize_owned(source.as_bytes()), &mut HashSet::new())
+        substitute_tokens(
+            None,
+            None,
+            &tokenize_owned(source.as_bytes()),
+            &mut VarResolutionContext::default(),
+            0,
+        )
     }
 
     #[test]
@@ -422,6 +470,20 @@ mod tests {
     fn recognizes_substituted_css_wide_keywords() {
         assert!(is_single_css_wide_keyword(&tokenize_owned(b"  inherit ")));
         assert!(!is_single_css_wide_keyword(&tokenize_owned(b"inherit green")));
+    }
+
+    #[test]
+    fn deeply_nested_functions_are_invalid() {
+        let nesting = MAX_SUBSTITUTION_RECURSION_DEPTH + 1;
+        let source = format!(
+            "{}var(--missing, 1px){}",
+            "calc(".repeat(nesting as usize),
+            ")".repeat(nesting as usize)
+        );
+        assert!(matches!(
+            substitute_without_custom_properties(&source),
+            TokenResolution::Invalid
+        ));
     }
 }
 

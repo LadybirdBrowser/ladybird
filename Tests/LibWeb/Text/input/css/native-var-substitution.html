@@ -11,10 +11,15 @@
             --nested: calc(var(--base) * 2);
             --cycle-a: var(--cycle-b);
             --cycle-b: var(--cycle-a);
+            --cycle-fallback-a: var(--cycle-fallback-b, green);
+            --cycle-fallback-b: var(--cycle-fallback-a);
+            --cycle-dependent: var(--cycle-fallback-a, blue);
             --\\78: 7px;
             width: var(--nested);
             height: var(--\\78);
             margin-left: var(--cycle-a, 3px);
+            color: var(--cycle-fallback-a, red);
+            background-color: var(--cycle-dependent, black);
         `;
         document.body.appendChild(element);
 
@@ -22,6 +27,8 @@
         println(`width: ${computed.width}`);
         println(`height: ${computed.height}`);
         println(`cycle fallback: ${computed.marginLeft}`);
+        println(`fallback inside cycle ignored: ${computed.color}`);
+        println(`fallback outside cycle used: ${computed.backgroundColor}`);
 
         const nativeCounters = internals.styleFfiCounters();
         println(`native parse callback used: ${nativeCounters.cascadeParseSubstitutedCallbacks >= 3}`);
