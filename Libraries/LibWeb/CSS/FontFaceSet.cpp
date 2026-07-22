@@ -443,6 +443,7 @@ void FontFaceSet::switch_to_loaded()
     m_status = Bindings::FontFaceSetLoadStatus::Loaded;
 
     // 4. Fulfill font face set’s [[ReadyPromise]] attribute’s value with font face set.
+    HTML::TemporaryExecutionContext execution_context { realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
     WebIDL::resolve_promise(realm(), m_ready_promise, this);
 
     // 5. Queue a task to perform the following steps synchronously:

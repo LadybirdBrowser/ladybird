@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+        const fontURL = await server.createEcho("GET", `/font-face-media-query-change-during-rendering-${token}.woff`, {
+            status: 404,
+            headers: { "Content-Type": "font/woff" },
+            wait_for_unblock: token,
+        });
+
+        const iframe = document.createElement("iframe");
+        iframe.style.width = "300px";
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                @media (max-width: 400px) {
+                    @font-face {
+                        font-family: PendingFont;
+                        src: url("${fontURL}");
+                    }
+                }
+            </style>
+            <body>Trigger font load</body>
+        `;
+
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const fontFace = [...iframe.contentDocument.fonts][0];
+        const loadPromise = fontFace.load().catch(() => {});
+        println(`Initial media query matches: ${iframe.contentWindow.matchMedia("(max-width: 400px)").matches}`);
+        println(`Initial font face status: ${fontFace.status}`);
+
+        iframe.style.width = "500px";
+        await animationFrame();
+        println(`Final media query matches: ${iframe.contentWindow.matchMedia("(max-width: 400px)").matches}`);
+        println(`Font face remains connected: ${iframe.contentDocument.fonts.has(fontFace)}`);
+        println("PASS: Media query changed while a CSS font was loading");
+
+        await fetch(`${server.baseURL}/unblock/${token}`);
+        await loadPromise;
+    });
+</script>

@@ -1,0 +1,5 @@
+Initial media query matches: true
+Initial font face status: loading
+Final media query matches: false
+Font face remains connected: false
+PASS: Media query changed while a CSS font was loading
