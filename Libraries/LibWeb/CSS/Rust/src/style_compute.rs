@@ -1873,8 +1873,10 @@ pub struct FfiLonghandCallbacks {
         overflow_x_before: u16,
         overflow_y_before: u16,
         text_align_before: u16,
+        position_before: u16,
         transformation: *const FfiBoxTypeTransformation,
-    ),
+        element_adjustment: *const FfiElementStyleAdjustment,
+    ) -> bool,
     /// Rare: fetches the parent's computed value for an explicit `inherit` of
     /// a non-inherited property, which the parent snapshot does not carry.
     /// The C++ side pins the returned shell until the end of the drive, so
@@ -2166,6 +2168,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let mut computed_direction: Option<u8> = None;
         let mut computed_overflow_x: Option<u16> = None;
         let mut computed_overflow_y: Option<u16> = None;
+        let mut computed_text_align_before_adjustment: Option<u16> = None;
         let mut computed_text_align: Option<u16> = None;
         let mut computed_display: Option<FfiDisplay> = None;
         let mut computed_float: Option<u16> = None;
@@ -2683,7 +2686,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             } else if property_id == prop::TEXT_ALIGN
                 && let StyleValueData::Keyword { keyword: text_align } = value_data
             {
-                computed_text_align = Some(*text_align);
+                computed_text_align_before_adjustment = Some(*text_align);
                 let (has_parent_with_computed_values, parent_text_align, parent_direction_is_ltr) =
                     if let Some(snapshot) = snapshot {
                         let parent_text_align = match snapshot_entry_data(snapshot, prop::TEXT_ALIGN) {
@@ -2719,6 +2722,11 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         set_longhand_bit(inherited_words, property_id);
                     }
                 }
+                computed_text_align = Some(if adjustment.changed {
+                    adjustment.keyword
+                } else {
+                    *text_align
+                });
             }
 
             match (property_id, value_data) {
@@ -2743,6 +2751,14 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         box_type_input.float_value = float_before;
         box_type_input.position = computed_position.expect("position must be computed by the longhand driver");
         let transformation = transform_box_type(&box_type_input);
+        let display_after_box_type_transformation = if transformation.changed_display {
+            transformation.display
+        } else {
+            display_before
+        };
+        let text_align = computed_text_align.expect("text-align must be computed by the longhand driver");
+        let element_adjustment =
+            adjust_element_style(&box_type_input, display_after_box_type_transformation, text_align);
         if transformation.set_float_none {
             clear_longhand_bit(important_words, prop::FLOAT);
             clear_longhand_bit(inherited_words, prop::FLOAT);
@@ -2751,16 +2767,34 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             clear_longhand_bit(important_words, prop::DISPLAY);
             clear_longhand_bit(inherited_words, prop::DISPLAY);
         }
-        unsafe {
+        if element_adjustment.changed_display {
+            clear_longhand_bit(important_words, prop::DISPLAY);
+            clear_longhand_bit(inherited_words, prop::DISPLAY);
+        }
+        if element_adjustment.set_position_static {
+            clear_longhand_bit(important_words, prop::POSITION);
+            clear_longhand_bit(inherited_words, prop::POSITION);
+        }
+        if element_adjustment.changed_text_align {
+            clear_longhand_bit(important_words, prop::TEXT_ALIGN);
+            clear_longhand_bit(inherited_words, prop::TEXT_ALIGN);
+        }
+        let line_height_changed = unsafe {
             (callbacks.store_box_type_transformation)(
                 context,
                 &raw const display_before,
                 float_before,
                 computed_overflow_x.expect("overflow-x must be computed by the longhand driver"),
                 computed_overflow_y.expect("overflow-y must be computed by the longhand driver"),
-                computed_text_align.expect("text-align must be computed by the longhand driver"),
+                computed_text_align_before_adjustment.expect("text-align must be computed by the longhand driver"),
+                box_type_input.position,
                 &raw const transformation,
-            );
+                &raw const element_adjustment,
+            )
+        };
+        if line_height_changed {
+            clear_longhand_bit(important_words, prop::LINE_HEIGHT);
+            clear_longhand_bit(inherited_words, prop::LINE_HEIGHT);
         }
     });
 }
@@ -2981,6 +3015,29 @@ impl FfiDisplay {
         Self::outside_and_inside(display_outside::BLOCK, display_inside::FLOW, false)
     }
 
+    fn inline() -> Self {
+        Self::outside_and_inside(display_outside::INLINE, display_inside::FLOW, false)
+    }
+
+    fn inline_block() -> Self {
+        Self::outside_and_inside(display_outside::INLINE, display_inside::FLOW_ROOT, false)
+    }
+
+    fn flow_root() -> Self {
+        Self::outside_and_inside(display_outside::BLOCK, display_inside::FLOW_ROOT, false)
+    }
+
+    fn none() -> Self {
+        Self {
+            tag: DISPLAY_TAG_BOX,
+            outside: 0,
+            inside: 0,
+            list_item: false,
+            internal: 0,
+            box_value: display_box::NONE,
+        }
+    }
+
     fn is_outside_and_inside(&self) -> bool {
         self.tag == DISPLAY_TAG_OUTSIDE_AND_INSIDE
     }
@@ -3039,6 +3096,16 @@ pub struct FfiBoxTypeTransformationInput {
     pub is_mathml_mtd: bool,
     pub has_parent_display: bool,
     pub parent_display: FfiDisplay,
+    pub is_wbr_element: bool,
+    pub disallow_display_contents: bool,
+    pub rewrite_inline_flow: bool,
+    pub is_button_element: bool,
+    pub force_line_height_normal: bool,
+    pub check_input_line_height: bool,
+    pub hide_audio_without_controls: bool,
+    pub is_table_element: bool,
+    pub force_position_static: bool,
+    pub force_symbol_display_inline: bool,
 }
 
 /// Result of the box type transformation: whether float must be reset to none,
@@ -3049,6 +3116,82 @@ pub struct FfiBoxTypeTransformation {
     pub set_float_none: bool,
     pub changed_display: bool,
     pub display: FfiDisplay,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiElementStyleAdjustment {
+    pub changed_display: bool,
+    pub display: FfiDisplay,
+    pub set_line_height_normal: bool,
+    pub check_input_line_height: bool,
+    pub set_position_static: bool,
+    pub changed_text_align: bool,
+    pub text_align: u16,
+}
+
+fn adjust_element_style(
+    input: &FfiBoxTypeTransformationInput,
+    display: FfiDisplay,
+    text_align: u16,
+) -> FfiElementStyleAdjustment {
+    let mut new_display = display;
+    if input.is_wbr_element && display.is_contents() {
+        new_display = FfiDisplay::none();
+    }
+    if input.disallow_display_contents && new_display.is_contents() {
+        new_display = FfiDisplay::none();
+    }
+    if input.rewrite_inline_flow && new_display.is_inline_outside() && new_display.inside == display_inside::FLOW {
+        new_display = FfiDisplay::inline_block();
+    }
+    if input.is_button_element
+        && !(new_display.is_flex_inside()
+            || new_display.is_grid_inside()
+            || new_display.is_none()
+            || new_display.is_contents())
+    {
+        new_display = if new_display.is_inline_outside() {
+            FfiDisplay::inline_block()
+        } else {
+            FfiDisplay::flow_root()
+        };
+    }
+    if input.is_br_element {
+        new_display = if new_display.is_contents() {
+            FfiDisplay::none()
+        } else if new_display.is_none() {
+            new_display
+        } else {
+            FfiDisplay::inline()
+        };
+    }
+    if input.hide_audio_without_controls {
+        new_display = FfiDisplay::none();
+    }
+    if input.force_symbol_display_inline {
+        new_display = FfiDisplay::inline();
+    }
+
+    let new_text_align = if input.is_table_element
+        && matches!(
+            text_align,
+            keyword::_LIBWEB_LEFT | keyword::_LIBWEB_CENTER | keyword::_LIBWEB_RIGHT
+        ) {
+        keyword::START
+    } else {
+        text_align
+    };
+
+    FfiElementStyleAdjustment {
+        changed_display: new_display != display,
+        display: new_display,
+        set_line_height_normal: input.force_line_height_normal,
+        check_input_line_height: input.check_input_line_height,
+        set_position_static: input.force_position_static,
+        changed_text_align: new_text_align != text_align,
+        text_align: new_text_align,
+    }
 }
 
 // NB: css-display-3 also defines inlinification, but nothing triggers it yet (the only
@@ -3404,6 +3547,61 @@ mod tests {
 
         let none = FfiDisplay::from_raw(u32::from_ne_bytes([DISPLAY_TAG_BOX, display_box::NONE, 0, 0]));
         assert!(none.is_none());
+    }
+
+    fn element_adjustment_input() -> FfiBoxTypeTransformationInput {
+        FfiBoxTypeTransformationInput {
+            display: FfiDisplay::inline(),
+            position: keyword::STATIC,
+            float_value: keyword::NONE,
+            is_br_element: false,
+            is_document_element: false,
+            is_mathml_element: false,
+            is_mathml_mtable: false,
+            is_mathml_mtr: false,
+            is_mathml_mtd: false,
+            has_parent_display: false,
+            parent_display: FfiDisplay::block(),
+            is_wbr_element: false,
+            disallow_display_contents: false,
+            rewrite_inline_flow: false,
+            is_button_element: false,
+            force_line_height_normal: false,
+            check_input_line_height: false,
+            hide_audio_without_controls: false,
+            is_table_element: false,
+            force_position_static: false,
+            force_symbol_display_inline: false,
+        }
+    }
+
+    #[test]
+    fn element_styles_adjust_from_marshaled_facts() {
+        let mut input = element_adjustment_input();
+        input.disallow_display_contents = true;
+        let contents = FfiDisplay {
+            tag: DISPLAY_TAG_BOX,
+            outside: 0,
+            inside: 0,
+            list_item: false,
+            internal: 0,
+            box_value: display_box::CONTENTS,
+        };
+        let adjustment = adjust_element_style(&input, contents, keyword::LEFT);
+        assert!(adjustment.changed_display);
+        assert!(adjustment.display.is_none());
+
+        input = element_adjustment_input();
+        input.is_button_element = true;
+        let adjustment = adjust_element_style(&input, FfiDisplay::inline(), keyword::LEFT);
+        assert!(adjustment.changed_display);
+        assert!(adjustment.display.is_inline_block());
+
+        input = element_adjustment_input();
+        input.is_table_element = true;
+        let adjustment = adjust_element_style(&input, FfiDisplay::block(), keyword::_LIBWEB_CENTER);
+        assert!(adjustment.changed_text_align);
+        assert_eq!(adjustment.text_align, keyword::START);
     }
 
     fn test_context() -> FfiLengthResolutionContext {

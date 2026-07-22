@@ -96,6 +96,7 @@
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Layout/Node.h>
@@ -2818,6 +2819,49 @@ static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transforma
         parent = parent->element_to_inherit_style_from();
 
     bool has_parent_display = parent.has_value() && parent->computed_values();
+    bool is_html_element = element.namespace_uri() == Namespace::HTML;
+    bool should_adjust_element = !abstract_element.pseudo_element().has_value();
+    auto local_name = element.local_name();
+
+    bool input_allows_adjustment = false;
+    bool input_is_single_line = false;
+    if (is<HTML::HTMLInputElement>(element)) {
+        auto const& input = static_cast<HTML::HTMLInputElement const&>(element);
+        input_allows_adjustment = !first_is_one_of(
+            input.type_state(),
+            HTML::HTMLInputElement::TypeAttributeState::Hidden,
+            HTML::HTMLInputElement::TypeAttributeState::SubmitButton,
+            HTML::HTMLInputElement::TypeAttributeState::Button,
+            HTML::HTMLInputElement::TypeAttributeState::ResetButton,
+            HTML::HTMLInputElement::TypeAttributeState::ImageButton,
+            HTML::HTMLInputElement::TypeAttributeState::Checkbox,
+            HTML::HTMLInputElement::TypeAttributeState::RadioButton);
+        input_is_single_line = input_allows_adjustment && input.is_single_line();
+    }
+
+    bool force_position_static = false;
+    if (element.namespace_uri() == Namespace::SVG) {
+        force_position_static = true;
+        if (local_name == "svg"sv) {
+            force_position_static = false;
+            for (auto ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (ancestor->namespace_uri() == Namespace::SVG && ancestor->local_name() == "foreignObject"sv)
+                    break;
+                if (ancestor->namespace_uri() == Namespace::SVG && ancestor->local_name() == "svg"sv) {
+                    force_position_static = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    bool force_symbol_display_inline = false;
+    if (element.namespace_uri() == Namespace::SVG && local_name == "symbol"sv) {
+        if (auto* shadow_root = as_if<DOM::ShadowRoot>(element.parent())) {
+            auto* host = shadow_root->host();
+            force_symbol_display_inline = host->namespace_uri() == Namespace::SVG && host->local_name() == "use"sv;
+        }
+    }
 
     return {
         .display = to_ffi_display(display),
@@ -2831,6 +2875,16 @@ static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transforma
         .is_mathml_mtd = element.tag_name().equals_ignoring_ascii_case("mtd"sv),
         .has_parent_display = has_parent_display,
         .parent_display = has_parent_display ? to_ffi_display(parent->computed_values()->display()) : ComputedValuesFFI::FfiDisplay {},
+        .is_wbr_element = should_adjust_element && is_html_element && local_name == HTML::TagNames::wbr,
+        .disallow_display_contents = should_adjust_element && (input_allows_adjustment || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::canvas, HTML::TagNames::object, HTML::TagNames::iframe, HTML::TagNames::progress, HTML::TagNames::embed, HTML::TagNames::frame, HTML::TagNames::meter, HTML::TagNames::frameset, HTML::TagNames::img))),
+        .rewrite_inline_flow = should_adjust_element && (input_allows_adjustment || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::select))),
+        .is_button_element = should_adjust_element && is_html_element && local_name == HTML::TagNames::button,
+        .force_line_height_normal = should_adjust_element && is_html_element && local_name == HTML::TagNames::select,
+        .check_input_line_height = should_adjust_element && input_is_single_line,
+        .hide_audio_without_controls = should_adjust_element && is_html_element && local_name == HTML::TagNames::audio && !element.has_attribute(HTML::AttributeNames::controls),
+        .is_table_element = should_adjust_element && is_html_element && local_name == HTML::TagNames::table,
+        .force_position_static = should_adjust_element && force_position_static,
+        .force_symbol_display_inline = should_adjust_element && force_symbol_display_inline,
     };
 }
 
@@ -2841,6 +2895,30 @@ static void apply_box_type_transformation(ComputedProperties::Builder& builder, 
         builder.set_property(PropertyID::Float, KeywordStyleValue::create(Keyword::None));
     if (transformation.changed_display)
         builder.set_property(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(transformation.display)));
+}
+
+static bool apply_element_style_adjustment(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element, ComputedValuesFFI::FfiElementStyleAdjustment const& adjustment)
+{
+    bool line_height_changed = false;
+    if (adjustment.changed_display)
+        builder.set_property(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(adjustment.display)));
+    if (adjustment.set_line_height_normal) {
+        builder.set_property(PropertyID::LineHeight, KeywordStyleValue::create(Keyword::Normal));
+        line_height_changed = true;
+    }
+    if (adjustment.check_input_line_height) {
+        auto current_line_height = builder.line_height(abstract_element.element().document().font_computer()).to_double();
+        auto minimum_line_height = ComputedProperties::normal_line_height(builder.first_available_computed_font(abstract_element.element().document().font_computer())->pixel_metrics()).to_double();
+        if (current_line_height < minimum_line_height) {
+            builder.set_property(PropertyID::LineHeight, KeywordStyleValue::create(Keyword::Normal));
+            line_height_changed = true;
+        }
+    }
+    if (adjustment.set_position_static)
+        builder.set_property(PropertyID::Position, KeywordStyleValue::create(Keyword::Static));
+    if (adjustment.changed_text_align)
+        builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(static_cast<Keyword>(adjustment.text_align)));
+    return line_height_changed;
 }
 
 // https://drafts.csswg.org/css-display/#transformations
@@ -3449,6 +3527,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         Optional<Keyword> overflow_x_before_adjustments;
         Optional<Keyword> overflow_y_before_adjustments;
         Optional<Keyword> text_align_before_adjustments;
+        Optional<Keyword> position_before_adjustments;
+        RefPtr<StyleValue const> line_height_before_adjustments;
         // Pins every parent value handed out by the explicit-inherit fetch until the end
         // of the drive; the driver may queue the shells in deferred store batches.
         Vector<NonnullRefPtr<StyleValue const>> pinned_parent_values;
@@ -3463,6 +3543,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         .overflow_x_before_adjustments = {},
         .overflow_y_before_adjustments = {},
         .text_align_before_adjustments = {},
+        .position_before_adjustments = {},
+        .line_height_before_adjustments = {},
         .pinned_parent_values = {},
     };
 
@@ -3471,14 +3553,17 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         .store_computed_batch = [](void* context, ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count) {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             loop_context.store_computed_batch_callback(entries, count); },
-        .store_box_type_transformation = [](void* context, ComputedValuesFFI::FfiDisplay const* display_before, u16 float_before, u16 overflow_x_before, u16 overflow_y_before, u16 text_align_before, ComputedValuesFFI::FfiBoxTypeTransformation const* transformation) {
+        .store_box_type_transformation = [](void* context, ComputedValuesFFI::FfiDisplay const* display_before, u16 float_before, u16 overflow_x_before, u16 overflow_y_before, u16 text_align_before, u16 position_before, ComputedValuesFFI::FfiBoxTypeTransformation const* transformation, ComputedValuesFFI::FfiElementStyleAdjustment const* element_adjustment) -> bool {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             loop_context.display_before_adjustments = *display_before;
             loop_context.float_before_adjustments = static_cast<Keyword>(float_before);
             loop_context.overflow_x_before_adjustments = static_cast<Keyword>(overflow_x_before);
             loop_context.overflow_y_before_adjustments = static_cast<Keyword>(overflow_y_before);
             loop_context.text_align_before_adjustments = static_cast<Keyword>(text_align_before);
-            apply_box_type_transformation(loop_context.builder, *display_before, *transformation); },
+            loop_context.position_before_adjustments = static_cast<Keyword>(position_before);
+            loop_context.line_height_before_adjustments = loop_context.builder.style().property(PropertyID::LineHeight);
+            apply_box_type_transformation(loop_context.builder, *display_before, *transformation);
+            return apply_element_style_adjustment(loop_context.builder, loop_context.abstract_element, *element_adjustment); },
         .fetch_non_inherited_parent_value = [](void* context, u16 inherited_property_id) -> ComputedValuesFFI::FfiShellAndData {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             auto value = get_non_animated_inherit_value(static_cast<PropertyID>(inherited_property_id), loop_context.abstract_element);
@@ -3569,11 +3654,15 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
                         VERIFY(loop_context.overflow_x_before_adjustments.has_value());
                         VERIFY(loop_context.overflow_y_before_adjustments.has_value());
                         VERIFY(loop_context.text_align_before_adjustments.has_value());
+                        VERIFY(loop_context.position_before_adjustments.has_value());
+                        VERIFY(loop_context.line_height_before_adjustments);
                         builder.set_property_without_modifying_flags(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(*loop_context.display_before_adjustments)));
                         builder.set_property_without_modifying_flags(PropertyID::Float, KeywordStyleValue::create(*loop_context.float_before_adjustments));
                         builder.set_property_without_modifying_flags(PropertyID::OverflowX, KeywordStyleValue::create(*loop_context.overflow_x_before_adjustments));
                         builder.set_property_without_modifying_flags(PropertyID::OverflowY, KeywordStyleValue::create(*loop_context.overflow_y_before_adjustments));
                         builder.set_property_without_modifying_flags(PropertyID::TextAlign, KeywordStyleValue::create(*loop_context.text_align_before_adjustments));
+                        builder.set_property_without_modifying_flags(PropertyID::Position, KeywordStyleValue::create(*loop_context.position_before_adjustments));
+                        builder.set_property_without_modifying_flags(PropertyID::LineHeight, *loop_context.line_height_before_adjustments);
                     }
                     animation_values_applied = true;
                     collect_animation_into(abstract_element, keyframe_effect, builder);
@@ -3593,7 +3682,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         compute_text_align(builder, abstract_element);
 
     // Let the element adjust computed style
-    if (!abstract_element.pseudo_element().has_value())
+    if (animation_values_applied && !abstract_element.pseudo_element().has_value())
         abstract_element.element().adjust_computed_style(builder);
 
     bool parent_style_in_display_none_subtree = false;
