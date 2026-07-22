@@ -261,6 +261,9 @@ static Vector<ComponentValue> replace_an_attr_function(AbstractOrHypotheticalEle
     auto substituted_values = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unsubstituted_values,
         SubstitutionContext { AttributeSubstitutionContextDependency { attribute_name.to_utf16_string() } });
 
+    if (contains_guaranteed_invalid_value(substituted_values))
+        return failure();
+
     auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, substituted_values, *syntax.get<NonnullRefPtr<SyntaxNode>>());
     if (parsed_value->is_guaranteed_invalid())
         return failure();
