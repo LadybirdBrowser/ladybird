@@ -222,7 +222,57 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     }
 
     let mut levels = vec![0u8; (last_longhand - first_longhand + 1) as usize];
+    let mut animation_types = vec![0u8; levels.len()];
+    let mut numeric_range_rows = vec![String::new(); levels.len()];
+    let value_types = [
+        "anchor",
+        "anchor-size",
+        "angle",
+        "angle-percentage",
+        "background-position",
+        "basic-shape",
+        "color",
+        "corner-shape",
+        "counter",
+        "counter-style",
+        "custom-ident",
+        "dashed-ident",
+        "easing-function",
+        "filter-value-list",
+        "fit-content",
+        "flex",
+        "font-style",
+        "font-variant-alternates",
+        "font-variant-east-asian",
+        "font-variant-ligatures",
+        "font-variant-numeric",
+        "frequency",
+        "frequency-percentage",
+        "image",
+        "integer",
+        "length",
+        "length-percentage",
+        "number",
+        "opacity-value",
+        "opentype-tag",
+        "paint",
+        "percentage",
+        "position",
+        "ratio",
+        "rect",
+        "resolution",
+        "scroll-function",
+        "string",
+        "time",
+        "time-percentage",
+        "transform-function",
+        "transform-list",
+        "url",
+        "view-function",
+        "view-timeline-inset",
+    ];
     for name in inherited_longhands.iter().chain(&noninherited_longhands) {
+        let index = (ids[name] - first_longhand) as usize;
         let requires_computation = property_field(name, "requires-computation").unwrap();
         let level = match requires_computation.as_str().unwrap() {
             "never" => 0u8,
@@ -231,7 +281,53 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
             "always" => 3,
             other => return Err(format!("unknown requires-computation '{other}' for {name}").into()),
         };
-        levels[(ids[name] - first_longhand) as usize] = level;
+        levels[index] = level;
+
+        animation_types[index] = match property_field(name, "animation-type").unwrap().as_str().unwrap() {
+            "discrete" => 0,
+            "by-computed-value" => 1,
+            "repeatable-list" => 2,
+            "custom" => 3,
+            "none" => 4,
+            other => return Err(format!("unknown animation-type '{other}' for {name}").into()),
+        };
+
+        let mut ranges = Vec::new();
+        if let Some(valid_types) = property_field(name, "valid-types").and_then(|value| value.as_array().cloned()) {
+            for valid_type in valid_types {
+                let valid_type = valid_type.as_str().unwrap();
+                let Some((type_name, range)) = valid_type.split_once(' ') else {
+                    continue;
+                };
+                if !range.starts_with('[') || !range.ends_with(']') || !range.contains(',') {
+                    continue;
+                }
+                if type_name == "custom-ident" {
+                    continue;
+                }
+                let value_type = value_types
+                    .iter()
+                    .position(|candidate| *candidate == type_name)
+                    .ok_or_else(|| format!("unknown ranged value type '{type_name}' for {name}"))?;
+                let (min, max) = range[1..range.len() - 1]
+                    .split_once(',')
+                    .ok_or_else(|| format!("bad numeric range '{range}' for {name}"))?;
+                let format_bound = |bound: &str| match (type_name, bound) {
+                    ("integer", "-∞") => "i32::MIN as f64".to_string(),
+                    ("integer", "∞") => "i32::MAX as f64".to_string(),
+                    (_, "-∞") => "f32::MIN as f64".to_string(),
+                    (_, "∞") => "f32::MAX as f64".to_string(),
+                    _ if bound.contains('.') => bound.to_string(),
+                    _ => format!("{bound}.0"),
+                };
+                ranges.push(format!(
+                    "FfiPropertyNumericRange {{ value_type: {value_type}, min: {}, max: {} }}",
+                    format_bound(min),
+                    format_bound(max)
+                ));
+            }
+        }
+        numeric_range_rows[index] = ranges.join(", ");
     }
 
     let mut output = String::new();
@@ -309,6 +405,20 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         "pub(crate) static REQUIRES_COMPUTATION_LEVELS: [u8; {}] = {:?};\n",
         levels.len(),
         levels
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_ANIMATION_TYPES: [u8; {}] = {:?};\n",
+        animation_types.len(),
+        animation_types
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_NUMERIC_RANGES: [&[FfiPropertyNumericRange]; {}] = [\n{}\n];\n",
+        numeric_range_rows.len(),
+        numeric_range_rows
+            .iter()
+            .map(|ranges| format!("    &[{ranges}],"))
+            .collect::<Vec<_>>()
+            .join("\n")
     ));
     std::fs::write(out_dir.join("property_metadata_generated.rs"), output)?;
     Ok(())
@@ -599,6 +709,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         style_value_config,
         &[
             manifest_dir.join("src/style_value.rs"),
+            manifest_dir.join("src/animation.rs"),
             manifest_dir.join("src/calc.rs"),
             manifest_dir.join("src/ffi_stats.rs"),
         ],

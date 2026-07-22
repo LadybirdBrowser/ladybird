@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData* FontSourceStyleValue::make_font_source_data(Source const& source, Optional<Utf16FlyString> const& format, Vector<FontTech> const& tech)
+StyleValueFFI::StyleValueData const* FontSourceStyleValue::make_font_source_data(Source const& source, Optional<Utf16FlyString> const& format, Vector<FontTech> const& tech)
 {
     // The Rust allocation takes ownership of one strong reference to the local name, or one
     // leaked reference to each retained string.

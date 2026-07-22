@@ -21,7 +21,7 @@
 
 namespace Web::CSS {
 
-static StyleValueFFI::StyleValueData* make_counter_data(CounterStyleValue::CounterFunction function, Utf16FlyString const& counter_name, ValueComparingNonnullRefPtr<StyleValue const> const& counter_style, Utf16FlyString const& join_string)
+static StyleValueFFI::StyleValueData const* make_counter_data(CounterStyleValue::CounterFunction function, Utf16FlyString const& counter_name, ValueComparingNonnullRefPtr<StyleValue const> const& counter_style, Utf16FlyString const& join_string)
 {
     // The Rust allocation takes ownership of one strong reference to the counter style.
     counter_style->ref();

@@ -60,7 +60,7 @@ static Vector<StyleValueFFI::GridTrackEntryInput> const& build_grid_track_entry_
     return arena.entry_arrays.last();
 }
 
-StyleValueFFI::StyleValueData* GridTrackSizeListStyleValue::make_grid_track_size_list_data(CSS::GridTrackSizeList const& list)
+StyleValueFFI::StyleValueData const* GridTrackSizeListStyleValue::make_grid_track_size_list_data(CSS::GridTrackSizeList const& list)
 {
     // The Rust allocation takes ownership of one strong reference to each value and one leaked
     // reference to each line name.

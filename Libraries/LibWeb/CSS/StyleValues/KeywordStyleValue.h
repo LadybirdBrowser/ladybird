@@ -47,6 +47,13 @@ public:
     bool properties_equal(KeywordStyleValue const& other) const { return keyword() == other.keyword(); }
 
 private:
+    friend class StyleValue;
+
+    explicit KeywordStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::Keyword, data)
+    {
+    }
+
     explicit KeywordStyleValue(Keyword keyword)
         : StyleValueWithDefaultOperators(Type::Keyword, StyleValueFFI::rust_style_value_create_keyword(to_underlying(keyword)))
     {

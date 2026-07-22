@@ -19,7 +19,7 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData* ImageSetStyleValue::make_image_set_data(Vector<Option> const& options)
+StyleValueFFI::StyleValueData const* ImageSetStyleValue::make_image_set_data(Vector<Option> const& options)
 {
     // The Rust allocation takes ownership of one strong reference to each value and one leaked
     // reference to each type string.

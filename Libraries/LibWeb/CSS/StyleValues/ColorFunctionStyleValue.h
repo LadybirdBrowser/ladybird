@@ -92,7 +92,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_color_function_data(Optional<ColorType> color_type, ColorSyntax color_syntax, NonnullRefPtr<StyleValue const> const& c1, NonnullRefPtr<StyleValue const> const& c2, NonnullRefPtr<StyleValue const> const& c3, RefPtr<StyleValue const> const& alpha, Optional<Utf16FlyString> const& name, RefPtr<StyleValue const> const& origin_color)
+    static StyleValueFFI::StyleValueData const* make_color_function_data(Optional<ColorType> color_type, ColorSyntax color_syntax, NonnullRefPtr<StyleValue const> const& c1, NonnullRefPtr<StyleValue const> const& c2, NonnullRefPtr<StyleValue const> const& c3, RefPtr<StyleValue const> const& alpha, Optional<Utf16FlyString> const& name, RefPtr<StyleValue const> const& origin_color)
     {
         // The Rust allocation takes ownership of one strong reference to each non-null value
         // and one leaked reference to the name when present.

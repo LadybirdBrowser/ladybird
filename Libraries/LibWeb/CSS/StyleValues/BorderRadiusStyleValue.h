@@ -47,7 +47,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_border_radius_data(ValueComparingNonnullRefPtr<StyleValue const> const& horizontal_radius, ValueComparingNonnullRefPtr<StyleValue const> const& vertical_radius)
+    static StyleValueFFI::StyleValueData const* make_border_radius_data(ValueComparingNonnullRefPtr<StyleValue const> const& horizontal_radius, ValueComparingNonnullRefPtr<StyleValue const> const& vertical_radius)
     {
         // The Rust allocation takes ownership of one strong reference to each radius.
         return StyleValueFFI::rust_style_value_create_border_radius(

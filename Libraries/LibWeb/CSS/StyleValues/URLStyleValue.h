@@ -76,7 +76,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_url_data(URL const& url)
+    static StyleValueFFI::StyleValueData const* make_url_data(URL const& url)
     {
         // The Rust allocation takes ownership of one leaked reference to each retained string.
         auto modifiers = retain_url_modifiers_for_rust(url);

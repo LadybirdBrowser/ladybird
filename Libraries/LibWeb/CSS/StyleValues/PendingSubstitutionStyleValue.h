@@ -38,7 +38,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_pending_substitution_data(StyleValue const& original_shorthand_value)
+    static StyleValueFFI::StyleValueData const* make_pending_substitution_data(StyleValue const& original_shorthand_value)
     {
         // The Rust allocation takes ownership of one strong reference.
         original_shorthand_value.ref();

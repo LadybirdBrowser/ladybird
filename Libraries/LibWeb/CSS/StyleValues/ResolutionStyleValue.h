@@ -31,6 +31,13 @@ public:
     bool equals(StyleValue const& other) const;
 
 private:
+    friend class StyleValue;
+
+    explicit ResolutionStyleValue(StyleValueFFI::StyleValueData const* data)
+        : DimensionStyleValue(Type::Resolution, data)
+    {
+    }
+
     explicit ResolutionStyleValue(Resolution resolution)
         : DimensionStyleValue(Type::Resolution, StyleValueFFI::rust_style_value_create_resolution(resolution.raw_value(), to_underlying(resolution.unit())))
     {

@@ -17,7 +17,7 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData* EasingStyleValue::make_easing_data(Function const& function)
+StyleValueFFI::StyleValueData const* EasingStyleValue::make_easing_data(Function const& function)
 {
     // The Rust allocation takes ownership of one strong reference to each non-null value.
     return function.visit(

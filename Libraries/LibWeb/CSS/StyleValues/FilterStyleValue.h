@@ -34,12 +34,12 @@ public:
     static ValueComparingNonnullRefPtr<FilterStyleValue const> initial_value_for(FilterStyleValue const&, bool use_transparent_drop_shadow_color);
 
 protected:
-    explicit FilterStyleValue(StyleValueFFI::StyleValueData* data)
+    explicit FilterStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValue(Type::Filter, data)
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_filter_data(Kind kind, u8 color_operation, StyleValue const* value)
+    static StyleValueFFI::StyleValueData const* make_filter_data(Kind kind, u8 color_operation, StyleValue const* value)
     {
         // The Rust allocation takes ownership of one strong reference to the value.
         return StyleValueFFI::rust_style_value_create_filter(to_underlying(kind), color_operation, retain_style_value_for_rust(value));

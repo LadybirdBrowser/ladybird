@@ -104,6 +104,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWeb/StyleValueRustFFI.h>
 #include <math.h>
 
 namespace Web::CSS {
@@ -914,6 +915,8 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
 
 void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties, ComputedProperties::Builder* builder) const
 {
+    StyleValueFFI::rust_style_ffi_note_animation_evaluation();
+
     auto animation = effect->associated_animation();
     if (!animation)
         return;
@@ -1237,6 +1240,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
     }
 
     clear_computation_context_caches();
+    StyleValueFFI::rust_style_ffi_note_animation_result_batch();
 }
 
 void StyleComputer::process_animation_definitions(ComputedProperties const& computed_properties, CascadedProperties const& cascaded_properties, DOM::AbstractElement& abstract_element) const
@@ -1435,6 +1439,8 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
 // https://drafts.csswg.org/css-transitions/#starting
 void StyleComputer::start_needed_transitions(ComputedValues const& previous_style, ComputedProperties::Builder& new_style_builder, DOM::AbstractElement abstract_element) const
 {
+    StyleValueFFI::rust_style_ffi_note_transition_decision();
+
     auto& new_style = new_style_builder.style();
 
     // https://drafts.csswg.org/css-transitions/#transition-combined-duration
@@ -1661,6 +1667,8 @@ void StyleComputer::start_needed_transitions(ComputedValues const& previous_styl
         else
             element.remove_transition(pseudo_element, property_id);
     }
+
+    StyleValueFFI::rust_style_ffi_note_transition_action_batch();
 }
 
 StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::AbstractElement abstract_element, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode) const

@@ -31,7 +31,7 @@ public:
 private:
     ColorMixStyleValue(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component);
 
-    static StyleValueFFI::StyleValueData* make_color_mix_data(RefPtr<StyleValue const> const& color_interpolation_method, ColorMixComponent const& first_component, ColorMixComponent const& second_component)
+    static StyleValueFFI::StyleValueData const* make_color_mix_data(RefPtr<StyleValue const> const& color_interpolation_method, ColorMixComponent const& first_component, ColorMixComponent const& second_component)
     {
         // The Rust allocation takes ownership of one strong reference to each non-null value.
         return StyleValueFFI::rust_style_value_create_color_mix(

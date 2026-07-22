@@ -15,7 +15,7 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData* RadialGradientStyleValue::make_radial_gradient_data(EndingShape ending_shape, NonnullRefPtr<StyleValue const> const& size, NonnullRefPtr<PositionStyleValue const> const& position, Vector<ColorStopListElement> const& color_stop_list, GradientRepeating repeating, RefPtr<StyleValue const> const& color_interpolation_method, ColorSyntax color_syntax)
+StyleValueFFI::StyleValueData const* RadialGradientStyleValue::make_radial_gradient_data(EndingShape ending_shape, NonnullRefPtr<StyleValue const> const& size, NonnullRefPtr<PositionStyleValue const> const& position, Vector<ColorStopListElement> const& color_stop_list, GradientRepeating repeating, RefPtr<StyleValue const> const& color_interpolation_method, ColorSyntax color_syntax)
 {
     // The Rust allocation takes ownership of one strong reference to each non-null value.
     auto stops = retain_color_stops_for_rust(color_stop_list);

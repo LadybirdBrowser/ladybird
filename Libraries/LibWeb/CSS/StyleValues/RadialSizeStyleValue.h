@@ -55,7 +55,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_radial_size_data(Vector<Component> const& components)
+    static StyleValueFFI::StyleValueData const* make_radial_size_data(Vector<Component> const& components)
     {
         // The Rust allocation takes ownership of one strong reference to each component value.
         auto is_extent = [](Component const& component) { return component.has<RadialExtent>(); };

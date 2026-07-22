@@ -70,7 +70,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_shadow_data(ShadowType shadow_type, ValueComparingRefPtr<StyleValue const> const& color, ValueComparingNonnullRefPtr<StyleValue const> const& offset_x, ValueComparingNonnullRefPtr<StyleValue const> const& offset_y, ValueComparingRefPtr<StyleValue const> const& blur_radius, ValueComparingRefPtr<StyleValue const> const& spread_distance, ShadowPlacement placement)
+    static StyleValueFFI::StyleValueData const* make_shadow_data(ShadowType shadow_type, ValueComparingRefPtr<StyleValue const> const& color, ValueComparingNonnullRefPtr<StyleValue const> const& offset_x, ValueComparingNonnullRefPtr<StyleValue const> const& offset_y, ValueComparingRefPtr<StyleValue const> const& blur_radius, ValueComparingRefPtr<StyleValue const> const& spread_distance, ShadowPlacement placement)
     {
         // The Rust allocation takes ownership of one strong reference to each non-null value.
         offset_x->ref();

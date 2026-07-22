@@ -54,6 +54,8 @@ define_ffi_ops! {
     StyleValueQueryEntry => "styleValueQueryEntries",
     StyleGroupCloneEntry => "styleGroupCloneEntries",
     StyleGroupFreeEntry => "styleGroupFreeEntries",
+    AnimationEvaluationEntry => "animationEvaluationEntries",
+    TransitionDecisionEntry => "transitionDecisionEntries",
     // Callbacks: Rust -> C++.
     SelectorDomReadCallback => "selectorDomReadCallbacks",
     SelectorMetadataCallback => "selectorMetadataCallbacks",
@@ -75,6 +77,9 @@ define_ffi_ops! {
     StyleValueShellRetainCallback => "styleValueShellRetainCallbacks",
     StyleValueShellReleaseCallback => "styleValueShellReleaseCallbacks",
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
+    AnimationResultBatchCallback => "animationResultBatchCallbacks",
+    AnimationCppInterpolationFallback => "animationCppInterpolationFallbacks",
+    TransitionActionBatchCallback => "transitionActionBatchCallbacks",
 }
 
 static COUNTERS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_OP_COUNT];
@@ -115,4 +120,29 @@ pub extern "C" fn rust_style_ffi_counters_reset() {
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_ffi_note_style_value_created() {
     bump(FfiOp::StyleValueCreateEntry);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_ffi_note_animation_evaluation() {
+    bump(FfiOp::AnimationEvaluationEntry);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_ffi_note_animation_result_batch() {
+    bump(FfiOp::AnimationResultBatchCallback);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_ffi_note_animation_cpp_interpolation_fallback() {
+    bump(FfiOp::AnimationCppInterpolationFallback);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_ffi_note_transition_decision() {
+    bump(FfiOp::TransitionDecisionEntry);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_ffi_note_transition_action_batch() {
+    bump(FfiOp::TransitionActionBatchCallback);
 }

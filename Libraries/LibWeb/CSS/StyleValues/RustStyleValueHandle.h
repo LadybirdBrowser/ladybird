@@ -13,19 +13,28 @@
 
 namespace Web::CSS {
 
-// Uniquely-owned handle to a Rust-allocated, immutable StyleValueData. Every StyleValue subclass
-// keeps its data in a Rust-owned allocation, with this handle as the single owner on the C++
-// side. The StyleValueData layout is exposed through cbindgen, so reading through the handle is
-// an inline field access with no FFI call.
+// Shared handle to a Rust-allocated, immutable StyleValueData. The StyleValueData layout is
+// exposed through cbindgen, so reading through the handle is an inline field access with no FFI
+// call.
 class RustStyleValueHandle {
-    AK_MAKE_NONCOPYABLE(RustStyleValueHandle);
-
 public:
-    explicit RustStyleValueHandle(StyleValueFFI::StyleValueData* value)
+    explicit RustStyleValueHandle(StyleValueFFI::StyleValueData const* value)
         : m_value(value)
     {
         VERIFY(m_value);
         StyleValueFFI::rust_style_ffi_note_style_value_created();
+    }
+
+    RustStyleValueHandle(RustStyleValueHandle const& other)
+        : m_value(StyleValueFFI::rust_style_value_retain(other.m_value))
+    {
+    }
+
+    RustStyleValueHandle& operator=(RustStyleValueHandle const& other)
+    {
+        RustStyleValueHandle copy(other);
+        swap(m_value, copy.m_value);
+        return *this;
     }
 
     RustStyleValueHandle(RustStyleValueHandle&& other)
@@ -43,14 +52,14 @@ public:
     ~RustStyleValueHandle()
     {
         if (m_value)
-            StyleValueFFI::rust_style_value_destroy(m_value);
+            StyleValueFFI::rust_style_value_release(m_value);
     }
 
     StyleValueFFI::StyleValueData const& operator*() const { return *m_value; }
     StyleValueFFI::StyleValueData const* operator->() const { return m_value; }
 
 private:
-    StyleValueFFI::StyleValueData* m_value { nullptr };
+    StyleValueFFI::StyleValueData const* m_value { nullptr };
 };
 
 }

@@ -70,7 +70,7 @@ private:
         return options;
     }
 
-    static StyleValueFFI::StyleValueData* make_image_set_data(Vector<Option> const&);
+    static StyleValueFFI::StyleValueData const* make_image_set_data(Vector<Option> const&);
 
     mutable AbstractImageStyleValue const* m_selected_image { nullptr };
     mutable double m_selected_resolution { 1 };

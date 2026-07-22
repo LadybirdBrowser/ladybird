@@ -21,7 +21,7 @@ public:
         // Zero and one dominate real-world number values (opacity, alpha, flex factors), so
         // those two are interned.
         if (value == 0 && !signbit(value)) {
-            static auto const& zero_instance = adopt_ref(*new (nothrow) NumberStyleValue(0)).leak_ref();
+            static auto const& zero_instance = adopt_ref(*new (nothrow) NumberStyleValue(0.0)).leak_ref();
             return zero_instance;
         }
         if (value == 1) {
@@ -46,6 +46,13 @@ public:
     }
 
 private:
+    friend class StyleValue;
+
+    explicit NumberStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValue(Type::Number, data)
+    {
+    }
+
     explicit NumberStyleValue(double value)
         : StyleValue(Type::Number, StyleValueFFI::rust_style_value_create_number(value))
     {

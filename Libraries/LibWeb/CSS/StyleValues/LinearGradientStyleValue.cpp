@@ -15,7 +15,7 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData* LinearGradientStyleValue::make_linear_gradient_data(GradientDirection const& direction, Vector<ColorStopListElement> const& color_stop_list, GradientType type, GradientRepeating repeating, RefPtr<StyleValue const> const& color_interpolation_method, ColorSyntax color_syntax)
+StyleValueFFI::StyleValueData const* LinearGradientStyleValue::make_linear_gradient_data(GradientDirection const& direction, Vector<ColorStopListElement> const& color_stop_list, GradientType type, GradientRepeating repeating, RefPtr<StyleValue const> const& color_interpolation_method, ColorSyntax color_syntax)
 {
     // The Rust allocation takes ownership of one strong reference to each non-null value.
     auto stops = retain_color_stops_for_rust(color_stop_list);

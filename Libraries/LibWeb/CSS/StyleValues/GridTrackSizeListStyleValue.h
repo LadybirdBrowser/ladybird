@@ -41,7 +41,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_grid_track_size_list_data(CSS::GridTrackSizeList const&);
+    static StyleValueFFI::StyleValueData const* make_grid_track_size_list_data(CSS::GridTrackSizeList const&);
 };
 
 }

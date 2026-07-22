@@ -59,6 +59,16 @@ u8 invoke_rust_property_metadata_requires_computation_level(u16 property_id)
     return ComputedValuesFFI::rust_property_metadata_requires_computation_level(property_id);
 }
 
+u8 invoke_rust_property_metadata_animation_type(u16 property_id)
+{
+    return ComputedValuesFFI::rust_property_metadata_animation_type(property_id);
+}
+
+ComputedValuesFFI::FfiPropertyNumericRange const* invoke_rust_property_metadata_numeric_ranges(u16 property_id, size_t* length)
+{
+    return ComputedValuesFFI::rust_property_metadata_numeric_ranges(property_id, length);
+}
+
 ComputedValuesFFI::FfiShellAndData invoke_rust_style_metadata_initial_value(u16 property_id)
 {
     return ComputedValuesFFI::rust_style_metadata_initial_value(property_id);

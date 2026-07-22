@@ -46,7 +46,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_grid_track_placement_data(GridTrackPlacement const& placement)
+    static StyleValueFFI::StyleValueData const* make_grid_track_placement_data(GridTrackPlacement const& placement)
     {
         // The Rust allocation takes ownership of one strong reference to the value and one
         // leaked reference to the name when they are present.

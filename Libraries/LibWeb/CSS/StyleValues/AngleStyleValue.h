@@ -33,6 +33,13 @@ public:
     bool equals(StyleValue const& other) const;
 
 private:
+    friend class StyleValue;
+
+    explicit AngleStyleValue(StyleValueFFI::StyleValueData const* data)
+        : DimensionStyleValue(Type::Angle, data)
+    {
+    }
+
     explicit AngleStyleValue(Angle angle);
 };
 

@@ -27,7 +27,7 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData* ImageStyleValue::make_image_url_data(URL const& url)
+StyleValueFFI::StyleValueData const* ImageStyleValue::make_image_url_data(URL const& url)
 {
     // The Rust allocation takes ownership of one leaked reference to each retained string.
     auto modifiers = retain_url_modifiers_for_rust(url);

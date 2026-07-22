@@ -74,7 +74,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_tuple_data(StyleValueTuple&& values)
+    static StyleValueFFI::StyleValueData const* make_tuple_data(StyleValueTuple&& values)
     {
         // The Rust allocation takes ownership of one strong reference to each non-null value.
         auto pointers = leak_style_value_pointers_for_rust(values);

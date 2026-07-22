@@ -61,7 +61,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_transformation_data(PropertyID property, TransformFunction transform_function, StyleValueVector&& values)
+    static StyleValueFFI::StyleValueData const* make_transformation_data(PropertyID property, TransformFunction transform_function, StyleValueVector&& values)
     {
         // The Rust allocation takes ownership of one strong reference to each value.
         auto pointers = leak_style_value_pointers_for_rust(values);

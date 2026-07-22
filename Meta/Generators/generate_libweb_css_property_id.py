@@ -239,7 +239,7 @@ enum class AnimationType {{
     Custom,
     None,
 }};
-AnimationType animation_type_from_longhand_property(PropertyID);
+WEB_API AnimationType animation_type_from_longhand_property(PropertyID);
 bool is_animatable_property(PropertyID);
 
 Optional<PropertyID> property_id_from_camel_case_string(StringView);
@@ -261,7 +261,7 @@ bool property_is_single_valued(PropertyID);
 bool property_is_list_valued(PropertyID);
 
 bool property_accepts_type(PropertyID, ValueType);
-NumericRangesByValueType property_accepted_ranges_by_value_type(PropertyID);
+WEB_API NumericRangesByValueType property_accepted_ranges_by_value_type(PropertyID);
 bool property_accepts_keyword(PropertyID, Keyword);
 Optional<Keyword> resolve_legacy_value_alias(PropertyID, Keyword);
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID);

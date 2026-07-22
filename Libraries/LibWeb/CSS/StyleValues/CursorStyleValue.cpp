@@ -21,7 +21,7 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData* CursorStyleValue::make_cursor_data(NonnullRefPtr<AbstractImageStyleValue const> const& image, RefPtr<StyleValue const> const& x, RefPtr<StyleValue const> const& y)
+StyleValueFFI::StyleValueData const* CursorStyleValue::make_cursor_data(NonnullRefPtr<AbstractImageStyleValue const> const& image, RefPtr<StyleValue const> const& x, RefPtr<StyleValue const> const& y)
 {
     // The Rust allocation takes ownership of one strong reference to the image and to each
     // non-null coordinate.

@@ -122,7 +122,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_easing_data(Function const&);
+    static StyleValueFFI::StyleValueData const* make_easing_data(Function const&);
 
     // NB: The materialized function is a cache of the Rust-owned value data; it also carries the
     //     cubic-bezier sample cache. The Rust allocation stays authoritative.
