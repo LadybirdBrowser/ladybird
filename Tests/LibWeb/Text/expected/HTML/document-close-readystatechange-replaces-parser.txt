@@ -1,0 +1,5 @@
+Replaced parser during interactive readystatechange event
+Ready state after close: loading
+Ready state in first task: loading
+Ready state in second task: loading
+Replacement iframe load event fired after close

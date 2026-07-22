@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setTestTimeout(15000);
+        const httpServer = httpTestServer();
+        const testID = crypto.randomUUID();
+        const imageToken = `document-open-cancels-parser-completion-${testID}`;
+        const imageURL = await httpServer.createEcho("GET", `/document-open-cancels-parser-completion-${testID}.svg`, {
+            status: 200,
+            headers: {
+                "Content-Type": "image/svg+xml",
+                "Cache-Control": "no-store",
+            },
+            body: '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>',
+            wait_for_unblock: imageToken,
+        });
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+
+        const iframeDocument = iframe.contentDocument;
+        iframeDocument.open().write("<body>First document</body>");
+        iframeDocument.close();
+
+        // Keep the replacement document's load event delayed until its parser end state is
+        // waiting for the image. A cancelled callback must not clear that replacement state.
+        iframeDocument.open().write(`<body><img src="${imageURL}"></body>`);
+        iframeDocument.addEventListener("DOMContentLoaded", () => {
+            println("Replacement DOMContentLoaded event fired");
+            window.postMessage(imageToken, "*");
+        });
+        iframe.onload = () => {
+            println("Replacement iframe load event fired");
+            iframe.remove();
+            done();
+        };
+        iframeDocument.close();
+
+        window.addEventListener("message", async event => {
+            if (event.data !== imageToken)
+                return;
+            await fetch(new URL(`/unblock/${imageToken}`, imageURL));
+        });
+    });
+</script>

@@ -1,1 +1,5 @@
-Onload event fired
+Ready state changed to interactive
+DOMContentLoaded event fired
+Ready state changed to complete
+Body onload event fired with ready state complete
+Iframe onload event fired

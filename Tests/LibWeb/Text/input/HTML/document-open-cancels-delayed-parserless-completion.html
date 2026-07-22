@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const popup = window.open();
+        const popupDocument = popup.document;
+
+        popupDocument.open();
+        popupDocument.write("<body>Replacement document</body>");
+
+        let loadCount = 0;
+        let pageshowCount = 0;
+        popup.addEventListener("load", () => ++loadCount);
+        popup.addEventListener("pageshow", () => ++pageshowCount);
+        const replacementLoad = new Promise(resolve => popup.addEventListener("load", resolve, { once: true }));
+        popupDocument.close();
+        await replacementLoad;
+
+        let taskNumber = 0;
+        const nextTask = () => new Promise(resolve => {
+            const message = `document-open-parserless-completion-${++taskNumber}`;
+            const listener = event => {
+                if (event.data !== message)
+                    return;
+                window.removeEventListener("message", listener);
+                resolve();
+            };
+            window.addEventListener("message", listener);
+            window.postMessage(message, "*");
+        });
+        for (let i = 0; i < 5; ++i)
+            await nextTask();
+
+        println(`Ready state after stale parserless completion: ${popupDocument.readyState}`);
+        println(`Replacement load events: ${loadCount}`);
+        println(`Replacement pageshow events: ${pageshowCount}`);
+        popup.close();
+        done();
+    });
+</script>

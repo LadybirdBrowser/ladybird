@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+
+        const iframeDocument = iframe.contentDocument;
+        let loadCount = 0;
+        iframe.addEventListener("load", () => {
+            ++loadCount;
+            println(`Iframe load ${loadCount} fired with ready state ${iframeDocument.readyState}`);
+            if (loadCount === 1) {
+                window.postMessage("replace-completed-script-created-parser", "*");
+                return;
+            }
+
+            iframe.remove();
+            done();
+        });
+
+        window.addEventListener("message", event => {
+            if (event.data !== "replace-completed-script-created-parser")
+                return;
+            iframeDocument.open().write("<body>Second document</body>");
+            iframeDocument.close();
+        });
+
+        iframeDocument.open().write("<body>First document</body>");
+        iframeDocument.close();
+    });
+</script>

@@ -107,7 +107,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
         TRY(document->populate_with_html_head_and_body());
         if (navigation_params.navigable && navigation_params.navigable->is_top_level_traversable())
             document->set_supported_color_schemes({ "light"_utf16_fly_string, "dark"_utf16_fly_string });
-        HTML::HTMLParser::the_end(document);
+        HTML::HTMLParser::the_end(document, HTML::HTMLParser::parserless_completion_token(document));
     }
 
     // AD-HOC: For about:srcdoc, the body bytes are always immediately available in the response source (the srcdoc
@@ -403,9 +403,10 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     //        However, if we don't, then we get stuck in HTMLParser::the_end() waiting for the media file to load, which
     //        never happens.
     auto& realm = document->realm();
+    auto completion_token = HTML::HTMLParser::parserless_completion_token(document);
     navigation_params.response->body()->fully_read(
         realm,
-        GC::create_function(document->heap(), [document](ByteBuffer) { HTML::HTMLParser::the_end(document); }),
+        GC::create_function(document->heap(), [document, completion_token](ByteBuffer) { HTML::HTMLParser::the_end(document, completion_token); }),
         GC::create_function(document->heap(), [](JS::Value) {}),
         GC::Ref { realm.global_object() });
 

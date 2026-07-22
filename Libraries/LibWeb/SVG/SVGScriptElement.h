@@ -29,6 +29,7 @@ public:
 
     bool is_ready_to_be_parser_executed() const { return m_ready_to_be_parser_executed; }
     void execute_pending_parser_blocking_script(Badge<HTML::HTMLParser>);
+    void stop_delaying_document_load_event(Badge<DOM::Document>) { m_document_load_event_delayer.clear(); }
 
     void set_source_line_number(Badge<HTML::HTMLParser>, size_t source_line_number) { m_source_line_number = source_line_number; }
 

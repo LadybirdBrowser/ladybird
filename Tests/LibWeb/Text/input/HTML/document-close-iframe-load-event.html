@@ -4,12 +4,24 @@
     asyncTest(done => {
         const iframe = document.createElement('iframe');
         document.body.appendChild(iframe);
-        iframe.contentDocument.open();
+
+        const iframeDocument = iframe.contentDocument;
+        iframeDocument.open().write('<body onload="window.onBodyLoaded(document)"></body>');
+        iframeDocument.addEventListener("readystatechange", () => {
+            println(`Ready state changed to ${iframeDocument.readyState}`);
+        });
+        iframeDocument.addEventListener("DOMContentLoaded", () => {
+            println("DOMContentLoaded event fired");
+        });
+        iframe.contentWindow.onBodyLoaded = document => {
+            println(`Body onload event fired with ready state ${document.readyState}`);
+        };
         iframe.onload = () => {
-            println("Onload event fired");
+            println("Iframe onload event fired");
             iframe.remove();
             done();
         };
-        iframe.contentDocument.close();
+        iframeDocument.close();
+        iframeDocument.close();
     });
 </script>

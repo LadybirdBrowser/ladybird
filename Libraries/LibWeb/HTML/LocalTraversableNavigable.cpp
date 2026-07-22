@@ -159,9 +159,11 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top
     //         Skip the initial navigation as well. This matches the behavior of the window open steps.
 
     if (url_matches_about_blank(initial_navigation_url)) {
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(traversable->heap(), [traversable, initial_navigation_url] {
+        auto document = GC::Ref(*traversable->active_document());
+        auto completion_token = HTML::HTMLParser::parserless_completion_token(document);
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(traversable->heap(), [document, completion_token, initial_navigation_url] {
             // FIXME: We do this other places too when creating a new about:blank document. Perhaps it's worth a spec issue?
-            HTML::HTMLParser::the_end(*traversable->active_document());
+            HTML::HTMLParser::the_end(document, completion_token);
 
             // FIXME: If we perform the URL and history update steps here, we start hanging tests and the UI process will
             //        try to load() the initial URLs passed on the command line before we finish processing the events here.

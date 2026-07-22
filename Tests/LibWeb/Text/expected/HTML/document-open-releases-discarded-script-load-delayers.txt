@@ -1,0 +1,4 @@
+Replacement loaded before discarded parsing-blocking script response
+Discarded parsing-blocking script ran: false
+Replacement loaded before discarded deferred script response
+Discarded deferred script ran: false

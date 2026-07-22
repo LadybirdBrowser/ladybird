@@ -437,7 +437,27 @@ void HTMLParser::run_until_completion(HTMLTokenizer::StopAtInsertionPoint stop_a
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#the-end
+HTMLParser::ParserlessCompletionToken HTMLParser::parserless_completion_token(DOM::Document const& document)
+{
+    return { document.parser_generation() };
+}
+
+void HTMLParser::the_end(GC::Ref<DOM::Document> document, ParserlessCompletionToken token)
+{
+    the_end(document, nullptr, token.parser_generation);
+}
+
 void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> parser)
+{
+    the_end(document, parser, document->parser_generation());
+}
+
+static bool parser_was_replaced(DOM::Document const& document, GC::Ptr<HTMLParser> parser, u64 parser_generation)
+{
+    return document.parser_generation() != parser_generation || document.parser() != parser;
+}
+
+void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> parser, u64 parser_generation)
 {
     // Once the user agent stops parsing the document, the user agent must run the following steps:
 
@@ -470,6 +490,12 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
     if (parser && parser->m_parsing_fragment)
         return;
 
+    // INTEROP: Blink and WebKit keep a parser object associated with media documents, so parser identity prevents stale
+    //          completion after document.open(). Ladybird's media documents are parserless, so also compare a generation
+    //          that changes whenever a replacement parser is associated with the Document.
+    if (parser_was_replaced(document, parser, parser_generation))
+        return;
+
     // 1. If the active speculative HTML parser is not null, then stop the speculative HTML parser and return.
     if (parser && parser->m_active_speculative_html_parser) {
         parser->stop_the_speculative_html_parser();
@@ -482,6 +508,10 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
 
     // 3. Update the current document readiness to "interactive".
     document->update_readiness(HTML::DocumentReadyState::Interactive);
+
+    // INTEROP: Step 3 can run a readystatechange event handler which calls document.open(), so recheck after it returns.
+    if (parser_was_replaced(document, parser, parser_generation))
+        return;
 
     // 4. Pop all the nodes off the stack of open elements.
     if (parser)
@@ -497,7 +527,7 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
     }
 
     // Steps 5-11 are handled by the HTMLParserEndState state machine.
-    auto state = HTMLParserEndState::create(document, parser);
+    auto state = HTMLParserEndState::create(document, parser, parser_generation);
     document->set_html_parser_end_state(state);
     state->schedule_progress_check();
 }
@@ -520,16 +550,17 @@ static void perform_pre_progress_microtask_checkpoint()
     vm.restore_execution_context_stack();
 }
 
-GC::Ref<HTMLParserEndState> HTMLParserEndState::create(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> parser)
+GC::Ref<HTMLParserEndState> HTMLParserEndState::create(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> parser, u64 parser_generation)
 {
-    return document->heap().allocate<HTMLParserEndState>(document, parser);
+    return document->heap().allocate<HTMLParserEndState>(document, parser, parser_generation);
 }
 
-HTMLParserEndState::HTMLParserEndState(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> parser)
+HTMLParserEndState::HTMLParserEndState(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> parser, u64 parser_generation)
     : m_document(document)
     , m_parser(parser)
+    , m_parser_generation(parser_generation)
     , m_timeout(Platform::Timer::create_single_shot(heap(), THE_END_TIMEOUT_MS, GC::create_function(heap(), [this] {
-        if (m_phase != Phase::Completed)
+        if (m_phase != Phase::Completed && m_phase != Phase::Cancelled)
             dbgln("HTMLParserEndState: timed out in phase {}", to_underlying(m_phase));
     })))
 {
@@ -544,9 +575,15 @@ void HTMLParserEndState::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_timeout);
 }
 
+void HTMLParserEndState::cancel()
+{
+    m_phase = Phase::Cancelled;
+    m_timeout->stop();
+}
+
 void HTMLParserEndState::schedule_progress_check()
 {
-    if (m_phase == Phase::Completed)
+    if (m_phase == Phase::Completed || m_phase == Phase::Cancelled)
         return;
     if (m_check_pending)
         return;
@@ -560,6 +597,9 @@ void HTMLParserEndState::schedule_progress_check()
 
 void HTMLParserEndState::check_progress()
 {
+    if (m_phase == Phase::Cancelled)
+        return;
+
     // AD-HOC: Bail out if the document is no longer fully active (e.g. navigated away from).
     if (!m_document->is_fully_active()) {
         complete();
@@ -579,6 +619,11 @@ void HTMLParserEndState::check_progress()
 
             // 2. Execute the first script in the list of scripts that will execute when the document has finished parsing.
             first_script.execute_script();
+
+            // INTEROP: The script may have called document.open(), cancelling this parser's completion and clearing
+            //          its list of deferred scripts. Blink, WebKit, and Gecko detach or terminate the old parser here.
+            if (m_phase == Phase::Cancelled)
+                return;
 
             // 3. Remove the first script element from the list of scripts that will execute when the document has finished parsing (i.e. shift out the first entry in the list).
             (void)m_document->scripts_to_execute_when_parsing_has_finished().take_first();
@@ -612,6 +657,8 @@ void HTMLParserEndState::check_progress()
     case Phase::Completed:
         complete();
         return;
+    case Phase::Cancelled:
+        return;
     }
 }
 
@@ -630,6 +677,9 @@ void HTMLParserEndState::advance_to_dom_content_loaded_phase()
 
     // 6. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following substeps:
     queue_global_task(HTML::Task::Source::DOMManipulation, *m_document, GC::create_function(m_document->heap(), [state = GC::Ref(*this), document = m_document] {
+        if (state->m_phase != Phase::WaitingForDOMContentLoaded)
+            return;
+
         // 1. Set the Document's load timing info's DOM content loaded event start time to the current high resolution time given the Document's relevant global object.
         document->load_timing_info().dom_content_loaded_event_start_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*document));
 
@@ -659,11 +709,29 @@ void HTMLParserEndState::advance_to_dom_content_loaded_phase()
 void HTMLParserEndState::complete()
 {
     m_phase = Phase::Completed;
-    m_timeout->stop();
-    m_document->set_html_parser_end_state(nullptr);
 
     // 9. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following steps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, *m_document, GC::create_function(m_document->heap(), [document = m_document, parser = m_parser] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, *m_document, GC::create_function(m_document->heap(), [state = GC::Ref(*this), document = m_document, parser = m_parser, parser_generation = m_parser_generation] {
+        if (state->m_phase != Phase::Completed)
+            return;
+
+        // INTEROP: document.open() may have replaced the parser while this task was queued.
+        if (parser_was_replaced(document, parser, parser_generation))
+            return;
+
+        // NB: Step 8 can stop spinning and queue this task before an already-queued task reopens a descendant document.
+        //     Recheck its condition here and resume waiting using the same parser end state.
+        // INTEROP: Blink and WebKit recheck descendant completeness at their final load-completion gate. Gecko's
+        //          document loader likewise remains busy while a child loader is waiting to complete.
+        if (document->is_fully_active() && document->anything_is_delaying_the_load_event()) {
+            state->m_phase = Phase::WaitingForLoadEventDelay;
+            state->schedule_progress_check();
+            return;
+        }
+
+        state->m_timeout->stop();
+        document->set_html_parser_end_state(nullptr);
+
         // 11. The Document is now ready for post-load tasks.
         // NB: The spec sets this synchronously after queueing this task, and relies on "spin the event loop"
         //     continuations being queued tasks to keep an ancestor document's load event behind this document's own
@@ -675,6 +743,10 @@ void HTMLParserEndState::complete()
 
         // 1. Update the current document readiness to "complete".
         document->update_readiness(HTML::DocumentReadyState::Complete);
+
+        // INTEROP: Step 1 can run a readystatechange event handler which calls document.open(), so recheck after it returns.
+        if (parser_was_replaced(document, parser, parser_generation))
+            return;
 
         // AD-HOC: We need to wait until the document ready state is complete before detaching the parser, otherwise the DOM complete time will not be set correctly.
         if (parser)
@@ -695,6 +767,11 @@ void HTMLParserEndState::complete()
         //        We should reorganize this so that the flag appears explicitly here instead.
         window.dispatch_event(DOM::Event::create(document->realm(), HTML::EventNames::load));
 
+        // INTEROP: A load event handler can call document.open(), which associates a replacement parser after the old
+        //          parser was detached above. Do not let this completion continue into the replacement document.
+        if (document->parser_generation() != parser_generation)
+            return;
+
         // FIXME: 6. Invoke WebDriver BiDi load complete with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's navigation id, status is "complete", and url is the Document object's URL.
 
         // FIXME: 7. Set the Document object's navigation id to null.
@@ -710,6 +787,11 @@ void HTMLParserEndState::complete()
 
         // 11. Fire a page transition event named pageshow at window with false.
         window.fire_a_page_transition_event(HTML::EventNames::pageshow, false);
+
+        // INTEROP: Step 11 can run a pageshow event handler which calls document.open(). As with the load event above,
+        //          do not let this completion continue into the replacement document contents.
+        if (document->parser_generation() != parser_generation)
+            return;
 
         // 12. Completely finish loading the Document.
         document->completely_finish_loading();
@@ -861,6 +943,11 @@ void HTMLParser::resume_after_parser_blocking_script()
     if (!m_parser_pause_flag)
         return;
     if (m_aborted || m_stop_parsing)
+        return;
+
+    // INTEROP: Blink and WebKit detach a parser when document.open() replaces it. Do not let resume work from the
+    //          detached parser consume a parsing-blocking script owned by the replacement parser.
+    if (m_document->parser() != this)
         return;
 
     auto pending = document().pending_parsing_blocking_script();

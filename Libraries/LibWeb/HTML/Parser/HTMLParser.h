@@ -54,7 +54,12 @@ public:
     void run_until_completion(HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
     void pop_all_open_elements();
 
-    static void the_end(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser> = nullptr);
+    struct ParserlessCompletionToken {
+        u64 parser_generation;
+    };
+    static ParserlessCompletionToken parserless_completion_token(DOM::Document const&);
+    static void the_end(GC::Ref<DOM::Document>, ParserlessCompletionToken);
+    static void the_end(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser>);
 
     DOM::Document& document();
     enum class AllowDeclarativeShadowRoots {
@@ -125,6 +130,7 @@ private:
 
     void resume_after_parser_blocking_script();
     void invoke_post_parse_action();
+    static void the_end(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser>, u64 parser_generation);
 
     HTMLTokenizer m_tokenizer;
     RustFfiHtmlParserHandle* m_rust_parser { nullptr };
@@ -165,8 +171,9 @@ class HTMLParserEndState final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(HTMLParserEndState);
 
 public:
-    static GC::Ref<HTMLParserEndState> create(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser>);
+    static GC::Ref<HTMLParserEndState> create(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser>, u64 parser_generation);
 
+    void cancel();
     void schedule_progress_check();
 
 private:
@@ -176,9 +183,10 @@ private:
         WaitingForASAPScripts,
         WaitingForLoadEventDelay,
         Completed,
+        Cancelled,
     };
 
-    HTMLParserEndState(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser>);
+    HTMLParserEndState(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser>, u64 parser_generation);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -191,6 +199,7 @@ private:
 
     GC::Ref<DOM::Document> m_document;
     GC::Ptr<HTMLParser> m_parser;
+    u64 m_parser_generation { 0 };
     GC::Ref<Platform::Timer> m_timeout;
 };
 

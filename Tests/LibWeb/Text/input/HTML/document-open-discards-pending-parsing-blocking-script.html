@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        window.staleScriptRan = false;
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+
+        const iframeDocument = iframe.contentDocument;
+        iframeDocument.open().write(`
+            <script src="data:text/javascript,parent.staleScriptRan%20%3D%20true"><\/script>
+            <body>First document</body>
+        `);
+
+        iframeDocument.open().write("<body>Replacement document</body>");
+        iframeDocument.addEventListener("readystatechange", () => {
+            if (iframeDocument.readyState !== "complete")
+                return;
+            println(`Stale script ran: ${window.staleScriptRan}`);
+            iframe.remove();
+            delete window.staleScriptRan;
+            done();
+        });
+        iframeDocument.close();
+    });
+</script>

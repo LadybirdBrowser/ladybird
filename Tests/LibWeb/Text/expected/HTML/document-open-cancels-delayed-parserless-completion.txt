@@ -1,0 +1,3 @@
+Ready state after stale parserless completion: complete
+Replacement load events: 1
+Replacement pageshow events: 1

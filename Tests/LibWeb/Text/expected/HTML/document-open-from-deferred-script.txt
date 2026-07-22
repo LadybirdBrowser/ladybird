@@ -1,0 +1,3 @@
+Deferred script ran: true
+Replacement ready state: complete
+Replacement text: Replacement document

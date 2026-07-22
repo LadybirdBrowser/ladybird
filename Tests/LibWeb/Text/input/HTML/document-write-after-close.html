@@ -14,5 +14,6 @@
         let reopened = frameDocument.getElementById("closed") === null
             && frameDocument.getElementById("after") !== null;
         println(`document.write after document.close reopens document: ${reopened}`);
+        frameDocument.close();
     });
 </script>

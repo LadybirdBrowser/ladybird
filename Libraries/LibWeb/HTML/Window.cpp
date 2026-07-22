@@ -310,7 +310,8 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Utf
         if (url_matches_about_blank(url_record.value())) {
             // AD-HOC: Mark the initial about:blank for the new window as load complete
             // FIXME: We do this other places too when creating a new about:blank document. Perhaps it's worth a spec issue?
-            HTML::HTMLParser::the_end(*target_navigable->active_document());
+            auto document = GC::Ref(*target_navigable->active_document());
+            HTML::HTMLParser::the_end(document, HTML::HTMLParser::parserless_completion_token(document));
 
             perform_url_and_history_update_steps(*target_navigable->active_document(), url_record.release_value());
         }

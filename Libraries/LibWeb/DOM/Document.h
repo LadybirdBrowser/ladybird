@@ -705,6 +705,7 @@ public:
     void set_parser(Badge<HTML::HTMLParser>, HTML::HTMLParser&);
     void detach_parser();
     GC::Ptr<HTML::HTMLParser> parser() const { return m_parser; }
+    u64 parser_generation() const { return m_parser_generation; }
 
     void set_temporary_document_for_fragment_parsing(Badge<HTML::HTMLParser>);
     [[nodiscard]] bool is_temporary_document_for_fragment_parsing() const { return m_temporary_document_for_fragment_parsing; }
@@ -1435,6 +1436,7 @@ private:
     Optional<Vector<Utf16FlyString>> m_supported_color_schemes;
 
     GC::Ptr<HTML::HTMLParser> m_parser;
+    u64 m_parser_generation { 0 };
     bool m_active_parser_was_aborted { false };
 
     bool m_has_been_destroyed { false };

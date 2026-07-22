@@ -1,0 +1,3 @@
+Replaced parser during complete readystatechange event
+Replacement ready state before close: loading
+Iframe load event fired with replacement ready state complete

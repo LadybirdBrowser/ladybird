@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const parentIframe = document.createElement("iframe");
+        const initialParentLoad = new Promise(resolve => parentIframe.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(parentIframe);
+        await initialParentLoad;
+
+        let parentLoadCount = 0;
+        parentIframe.addEventListener("load", () => ++parentLoadCount);
+
+        const parentDocument = parentIframe.contentDocument;
+        parentDocument.open().write('<iframe id="child" srcdoc="Initial child document"></iframe>');
+        const childIframe = parentDocument.querySelector("#child");
+        const initialChildLoad = new Promise(resolve => childIframe.addEventListener("load", resolve, { once: true }));
+        await initialChildLoad;
+
+        const childDocument = childIframe.contentDocument;
+        const firstChildLoad = new Promise(resolve => childIframe.addEventListener("load", resolve, { once: true }));
+        childDocument.open().write("<body>First child document</body>");
+        childDocument.close();
+        await firstChildLoad;
+
+        childDocument.open().write("<body>Replacement child document</body>");
+
+        const firstMessage = "reopened-child-parent-load-step-1";
+        const secondMessage = "reopened-child-parent-load-step-2";
+        const checkParent = "reopened-child-parent-load-check";
+        parentDocument.addEventListener("DOMContentLoaded", () => window.postMessage(firstMessage, "*"));
+        window.addEventListener("message", event => {
+            if (event.data === firstMessage) {
+                window.postMessage(secondMessage, "*");
+                return;
+            }
+            if (event.data === secondMessage) {
+                window.postMessage(checkParent, "*");
+                return;
+            }
+            if (event.data !== checkParent)
+                return;
+
+            println(`Parent load events before replacement close: ${parentLoadCount}`);
+            childDocument.addEventListener("readystatechange", () => {
+                if (childDocument.readyState !== "complete")
+                    return;
+                println("Replacement child reached complete ready state");
+                parentIframe.remove();
+                done();
+            });
+            childDocument.close();
+        });
+        parentDocument.close();
+    });
+</script>

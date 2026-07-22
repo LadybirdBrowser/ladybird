@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+
+        const iframeDocument = iframe.contentDocument;
+        iframeDocument.open().write("<body>First document</body>");
+
+        const checkReplacement = "check-complete-readystatechange-replacement";
+        let didReplaceParser = false;
+        iframeDocument.addEventListener("readystatechange", () => {
+            if (didReplaceParser || iframeDocument.readyState !== "complete")
+                return;
+            didReplaceParser = true;
+            iframeDocument.open().write("<body>Replacement document</body>");
+            println("Replaced parser during complete readystatechange event");
+            window.postMessage(checkReplacement, "*");
+        });
+
+        window.addEventListener("message", event => {
+            if (event.data !== checkReplacement)
+                return;
+            println(`Replacement ready state before close: ${iframeDocument.readyState}`);
+            iframe.onload = () => {
+                println(`Iframe load event fired with replacement ready state ${iframeDocument.readyState}`);
+                iframe.remove();
+                done();
+            };
+            iframeDocument.close();
+        });
+
+        iframeDocument.close();
+    });
+</script>

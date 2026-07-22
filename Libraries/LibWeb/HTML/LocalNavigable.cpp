@@ -2145,8 +2145,8 @@ void LocalNavigable::populate_session_history_entry_document(
                     // FIXME: Directly calling parser->the_end results in a deadlock, because it waits for the warning image to load.
                     //        However the response is never processed when parser->the_end is called.
                     //        Queuing a global task is a workaround for now.
-                    queue_a_task(Task::Source::Unspecified, HTML::main_thread_event_loop(), document, GC::create_function(heap(), [&document]() {
-                        HTMLParser::the_end(document);
+                    queue_a_task(Task::Source::Unspecified, HTML::main_thread_event_loop(), document, GC::create_function(heap(), [&document, parser] {
+                        HTMLParser::the_end(document, parser);
                     }));
                 });
 

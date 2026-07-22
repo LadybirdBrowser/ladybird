@@ -39,6 +39,7 @@ public:
     void prepare_script(Badge<XMLDocumentBuilder, HTMLParser>) { prepare_script(); }
 
     void execute_script();
+    void stop_delaying_document_load_event(Badge<DOM::Document>) { m_document_load_event_delayer.clear(); }
 
     bool is_parser_inserted() const { return !!m_parser_document; }
 
