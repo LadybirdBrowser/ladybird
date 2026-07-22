@@ -91,6 +91,9 @@ public:
     virtual Vector<ByteRange> available_byte_ranges() const = 0;
 
     virtual Optional<u64> expected_size() const = 0;
+
+    // The observer is invoked under the stream's lock, so it must be cheap and must not call back into the stream.
+    virtual void set_available_ranges_change_observer(Function<void()>) { }
 };
 
 }

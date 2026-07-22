@@ -35,6 +35,13 @@ enum class DemuxerSeekResult : u8 {
     KeptCurrentPosition,
 };
 
+struct DemuxerScanState {
+    TimeRanges buffered_ranges;
+    AK::Duration duration;
+
+    bool operator==(DemuxerScanState const&) const = default;
+};
+
 class Demuxer : public AtomicRefCounted<Demuxer> {
 public:
     virtual ~Demuxer() = default;
@@ -61,7 +68,8 @@ public:
     // Returns the timeline offset if the media resource provides one.
     virtual Optional<AK::UnixDateTime> start_time_realtime() const { return {}; }
 
-    virtual TimeRanges buffered_time_ranges() const = 0;
+    virtual DemuxerScanState const& scan_state() const LIFETIME_BOUND = 0;
+    virtual void set_scan_state_change_handler(Function<void()>) = 0;
 
     virtual void set_blocking_reads_aborted_for_track(Track const&) = 0;
     virtual void reset_blocking_reads_aborted_for_track(Track const&) = 0;

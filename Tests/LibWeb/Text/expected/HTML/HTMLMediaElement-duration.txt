@@ -1,1 +1,1 @@
-duration=12.043
+duration=12.0545

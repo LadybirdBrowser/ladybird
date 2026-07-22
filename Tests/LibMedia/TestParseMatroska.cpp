@@ -5,7 +5,10 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <AK/ScopeGuard.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
+#include <LibCore/Timer.h>
 #include <LibMedia/Containers/Matroska/ElementIDs.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
@@ -13,6 +16,8 @@
 #include <LibTest/TestCase.h>
 
 #include <LibMedia/Containers/Matroska/Reader.h>
+
+#include "TestMediaCommon.h"
 
 static Media::Matroska::Streamer streamer_from_bytes(ReadonlyBytes bytes)
 {
@@ -709,13 +714,29 @@ static auto create_incremental_demuxer(ByteBuffer const& file_data, NonnullRefPt
     return MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
 }
 
+// Wait until the scan has caught up with the stream; the change handler's dispatch wakes the pump.
+template<typename Condition>
+static Media::TimeRanges wait_for_buffered_ranges(Core::EventLoop& loop, Media::Demuxer& demuxer, Condition condition)
+{
+    demuxer.set_scan_state_change_handler([] { });
+    ScopeGuard remove_handler = [&] { demuxer.set_scan_state_change_handler(nullptr); };
+
+    bool deadline_expired = false;
+    auto deadline_timer = Core::Timer::create_single_shot(1'000, [&] { deadline_expired = true; });
+    deadline_timer->start();
+
+    loop.spin_until([&] { return condition(demuxer.scan_state().buffered_ranges) || deadline_expired; });
+    return demuxer.scan_state().buffered_ranges;
+}
+
 TEST_CASE(buffered_time_ranges_full_file)
 {
+    auto& loop = never_destroyed_event_loop();
     auto file_data = load_test_file_data("./vp9_in_webm.webm"sv);
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(file_data);
     auto demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
 
-    auto ranges = demuxer->buffered_time_ranges();
+    auto ranges = wait_for_buffered_ranges(loop, *demuxer, [](auto const& ranges) { return !ranges.is_empty(); });
     EXPECT_EQ(ranges.size(), 1u);
     EXPECT_EQ(ranges[0].start, AK::Duration::from_microseconds(500));
     EXPECT_EQ(ranges[0].end, AK::Duration::from_microseconds(1021500));
@@ -728,18 +749,19 @@ TEST_CASE(buffered_time_ranges_incremental_thirds)
     size_t one_third = file_data.size() / 3;
     size_t two_thirds = one_third * 2;
 
+    auto& loop = never_destroyed_event_loop();
     NonnullRefPtr<Media::IncrementallyPopulatedStream> stream = Media::IncrementallyPopulatedStream::create_empty();
     auto demuxer = create_incremental_demuxer(file_data, stream, one_third);
 
     // Stage 1: first third.
-    auto ranges_1 = demuxer->buffered_time_ranges();
+    auto ranges_1 = wait_for_buffered_ranges(loop, *demuxer, [](auto const& ranges) { return !ranges.is_empty(); });
     EXPECT_EQ(ranges_1.size(), 1u);
     EXPECT_EQ(ranges_1[0].start, start);
     EXPECT_EQ(ranges_1[0].end, AK::Duration::from_microseconds(91000));
 
     // Stage 2: extend to two thirds.
     stream->add_chunk_at(one_third, file_data.bytes().slice(one_third, two_thirds - one_third));
-    auto ranges_2 = demuxer->buffered_time_ranges();
+    auto ranges_2 = wait_for_buffered_ranges(loop, *demuxer, [&](auto const& ranges) { return ranges != ranges_1; });
     EXPECT_EQ(ranges_2.size(), 1u);
     EXPECT_EQ(ranges_2[0].start, start);
     EXPECT(ranges_2[0].end > ranges_1[0].end);
@@ -748,7 +770,7 @@ TEST_CASE(buffered_time_ranges_incremental_thirds)
     // Stage 3: complete the file.
     stream->add_chunk_at(two_thirds, file_data.bytes().slice(two_thirds, CUES_START - two_thirds));
     stream->close();
-    auto ranges_3 = demuxer->buffered_time_ranges();
+    auto ranges_3 = wait_for_buffered_ranges(loop, *demuxer, [&](auto const& ranges) { return ranges != ranges_2; });
     EXPECT_EQ(ranges_3.size(), 1u);
     EXPECT_EQ(ranges_3[0].start, start);
     EXPECT(ranges_3[0].end > ranges_2[0].end);
@@ -783,16 +805,17 @@ TEST_CASE(buffered_time_ranges_gap_then_fill)
     stream->add_chunk_at(BBB_CUES_START, file_data.bytes().slice(BBB_CUES_START));
     stream->close();
     stream->add_chunk_at(second_chunk_start, file_data.bytes().slice(second_chunk_start, BBB_CUES_START - second_chunk_start));
+    auto& loop = never_destroyed_event_loop();
     auto demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
 
-    auto ranges_gap = demuxer->buffered_time_ranges();
+    auto ranges_gap = wait_for_buffered_ranges(loop, *demuxer, [](auto const& ranges) { return ranges.size() == 2; });
     EXPECT_EQ(ranges_gap.size(), 2u);
     EXPECT_EQ(ranges_gap[0].start, AK::Duration::zero());
     EXPECT_EQ(ranges_gap[1].start, AK::Duration::from_milliseconds(3500));
 
     // Fill the gap with clusters 4-6.
     stream->add_chunk_at(first_chunk_end, file_data.bytes().slice(first_chunk_end, second_chunk_start - first_chunk_end));
-    auto ranges_filled = demuxer->buffered_time_ranges();
+    auto ranges_filled = wait_for_buffered_ranges(loop, *demuxer, [](auto const& ranges) { return ranges.size() == 1; });
     EXPECT_EQ(ranges_filled.size(), 1u);
     EXPECT_EQ(ranges_filled[0].start, AK::Duration::zero());
     EXPECT_EQ(ranges_filled[0].end, AK::Duration::from_nanoseconds(4999666666));
@@ -810,33 +833,20 @@ TEST_CASE(buffered_time_ranges_reverse_order_chunks)
     stream->add_chunk_at(0, file_data.bytes().slice(0, first_chunk_end));
     stream->add_chunk_at(second_chunk_start, file_data.bytes().slice(second_chunk_start));
     stream->close();
+    auto& loop = never_destroyed_event_loop();
     auto demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
 
-    auto ranges_1 = demuxer->buffered_time_ranges();
+    auto ranges_1 = wait_for_buffered_ranges(loop, *demuxer, [](auto const& ranges) { return ranges.size() == 2; });
     EXPECT_EQ(ranges_1.size(), 2u);
     EXPECT_EQ(ranges_1[0].start, AK::Duration::zero());
     EXPECT_EQ(ranges_1[1].start, AK::Duration::from_milliseconds(3500));
 
     // Fill the gap with clusters 3-6.
     stream->add_chunk_at(first_chunk_end, file_data.bytes().slice(first_chunk_end, second_chunk_start - first_chunk_end));
-    auto ranges_2 = demuxer->buffered_time_ranges();
+    auto ranges_2 = wait_for_buffered_ranges(loop, *demuxer, [](auto const& ranges) { return ranges.size() == 1; });
     EXPECT_EQ(ranges_2.size(), 1u);
     EXPECT_EQ(ranges_2[0].start, AK::Duration::zero());
     EXPECT(ranges_2[0].end > AK::Duration::from_milliseconds(4900));
-}
-
-TEST_CASE(buffered_time_ranges_repeated_query)
-{
-    auto file_data = load_test_file_data("./vp9_in_webm.webm"sv);
-    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(file_data);
-    auto demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
-
-    // Query multiple times — results should be identical and stable.
-    auto ranges_1 = demuxer->buffered_time_ranges();
-    auto ranges_2 = demuxer->buffered_time_ranges();
-    auto ranges_3 = demuxer->buffered_time_ranges();
-    EXPECT_EQ(ranges_1, ranges_2);
-    EXPECT_EQ(ranges_2, ranges_3);
 }
 
 TEST_CASE(buffered_time_ranges_evicted_start)

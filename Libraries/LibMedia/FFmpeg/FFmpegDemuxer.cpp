@@ -37,6 +37,22 @@ FFmpegDemuxer::~FFmpegDemuxer()
         if (context->format_context != nullptr)
             avformat_close_input(&context->format_context);
     }
+
+    if (m_buffered_scan_thread != nullptr)
+        m_buffered_scan_thread->shutdown();
+}
+
+void FFmpegDemuxer::start_buffered_scan_thread(NonnullOwnPtr<ContainerNavigator> navigator)
+{
+    DemuxerScanState initial_state;
+    initial_state.duration = m_total_duration;
+    m_buffered_scan_thread = DemuxerScanThread<BufferedScanPayload>::start(m_stream, move(initial_state),
+        BufferedScanPayload { move(navigator), m_total_duration },
+        [](MediaStream& stream, BufferedScanPayload& payload) {
+            auto ranges = payload.navigator->buffered_time_ranges(stream.available_byte_ranges());
+            auto duration = max(payload.initial_duration, ranges.highest_end_time());
+            return DemuxerScanState { move(ranges), duration };
+        });
 }
 
 static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_context, AVIOContext& io_context)
@@ -186,7 +202,13 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
             demuxer->m_preferred_track_for_type[type_index] = static_cast<int>(i);
     }
 
-    demuxer->m_container_navigator = create_container_navigator(*format_context, demuxer->m_total_duration, stream);
+    if (auto navigator = create_container_navigator(*format_context, demuxer->m_total_duration, stream)) {
+        demuxer->start_buffered_scan_thread(navigator.release_nonnull());
+    } else {
+        if (!demuxer->m_total_duration.is_zero())
+            demuxer->m_fallback_scan_state.buffered_ranges.add_range(AK::Duration::zero(), demuxer->m_total_duration);
+        demuxer->m_fallback_scan_state.duration = demuxer->m_total_duration;
+    }
 
     avformat_close_input(&format_context);
     return demuxer;
@@ -368,17 +390,18 @@ Optional<AK::UnixDateTime> FFmpegDemuxer::start_time_realtime() const
     return m_start_time_realtime;
 }
 
-TimeRanges FFmpegDemuxer::buffered_time_ranges() const
+DemuxerScanState const& FFmpegDemuxer::scan_state() const
 {
-    if (!m_container_navigator) {
-        TimeRanges ranges;
-        if (!m_total_duration.is_zero())
-            ranges.add_range(AK::Duration::zero(), m_total_duration);
-        return ranges;
-    }
+    if (m_buffered_scan_thread == nullptr)
+        return m_fallback_scan_state;
+    return m_buffered_scan_thread->main_thread_state();
+}
 
-    auto byte_ranges = m_stream->available_byte_ranges();
-    return m_container_navigator->buffered_time_ranges(byte_ranges);
+void FFmpegDemuxer::set_scan_state_change_handler(Function<void()> handler)
+{
+    if (m_buffered_scan_thread == nullptr)
+        return;
+    m_buffered_scan_thread->set_change_handler(move(handler));
 }
 
 DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track(Track const& track)
@@ -437,8 +460,8 @@ DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Tr
     format_context.pb->eof_reached = 0;
     format_context.pb->error = 0;
 
-    if (m_container_navigator) {
-        auto seek_result = TRY(m_container_navigator->seek_to_timestamp(timestamp));
+    if (m_buffered_scan_thread != nullptr) {
+        auto seek_result = TRY(m_buffered_scan_thread->payload().navigator->seek_to_timestamp(timestamp));
         if (seek_result.has<SeekSkipped>()) {
             return DemuxerSeekResult::KeptCurrentPosition;
         }

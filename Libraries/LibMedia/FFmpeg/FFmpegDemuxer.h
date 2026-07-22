@@ -13,7 +13,9 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <LibMedia/CodecID.h>
+#include <LibMedia/Containers/ContainerNavigator.h>
 #include <LibMedia/Demuxer.h>
+#include <LibMedia/DemuxerScanThread.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/FFmpeg/FFmpegForward.h>
 #include <LibMedia/FFmpeg/FFmpegIOContext.h>
@@ -39,7 +41,8 @@ public:
     virtual DecoderErrorOr<AK::Duration> total_duration() override;
     virtual Optional<AK::UnixDateTime> start_time_realtime() const override;
 
-    virtual TimeRanges buffered_time_ranges() const override;
+    virtual DemuxerScanState const& scan_state() const LIFETIME_BOUND override;
+    virtual void set_scan_state_change_handler(Function<void()>) override;
 
     virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const&) override;
 
@@ -80,10 +83,17 @@ private:
         AK::Duration timestamp_offset;
     };
 
+    struct BufferedScanPayload {
+        NonnullOwnPtr<ContainerNavigator> navigator;
+        AK::Duration initial_duration;
+    };
+
     FFmpegDemuxer(NonnullRefPtr<MediaStream> const&);
 
     static OwnPtr<ContainerNavigator> create_container_navigator(AVFormatContext&, AK::Duration, NonnullRefPtr<MediaStream> const&);
     static OwnPtr<ContainerNavigator> create_container_navigator_from_index(AVFormatContext&);
+
+    void start_buffered_scan_thread(NonnullOwnPtr<ContainerNavigator>);
 
     StreamInfo const& get_track_info(Track const&) const;
     TrackContext& get_track_context(Track const&);
@@ -92,7 +102,8 @@ private:
     AK::Duration m_total_duration;
     Optional<AK::UnixDateTime> m_start_time_realtime;
     Vector<StreamInfo> m_stream_info;
-    OwnPtr<ContainerNavigator> m_container_navigator;
+    RefPtr<DemuxerScanThread<BufferedScanPayload>> m_buffered_scan_thread;
+    DemuxerScanState m_fallback_scan_state;
     Array<int, to_underlying(TrackType::Unknown)> m_preferred_track_for_type;
 
     HashMap<Track, NonnullOwnPtr<TrackContext>> m_track_contexts;

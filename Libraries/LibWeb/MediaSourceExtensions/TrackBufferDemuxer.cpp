@@ -5,6 +5,7 @@
  */
 
 #include <AK/BinarySearch.h>
+#include <LibCore/EventLoop.h>
 #include <LibWeb/MediaSourceExtensions/TrackBufferDemuxer.h>
 
 namespace Web::MediaSourceExtensions {
@@ -57,6 +58,7 @@ void TrackBufferDemuxer::add_coded_frame(Media::CodedFrame frame)
         m_read_position++;
 
     m_data_changed.broadcast();
+    queue_scan_state_change_dispatch_while_locked();
 }
 
 void TrackBufferDemuxer::remove_coded_frames_and_dependants_in_range(AK::Duration start, AK::Duration end)
@@ -105,6 +107,8 @@ void TrackBufferDemuxer::remove_coded_frames_and_dependants_in_range(AK::Duratio
 
         m_last_returned_timestamp.clear();
     }
+
+    queue_scan_state_change_dispatch_while_locked();
 }
 
 size_t TrackBufferDemuxer::total_bytes() const
@@ -144,6 +148,7 @@ size_t TrackBufferDemuxer::take_earliest_frame()
     m_total_bytes -= bytes;
     if (m_read_position > 0)
         m_read_position--;
+    queue_scan_state_change_dispatch_while_locked();
     return bytes;
 }
 
@@ -165,6 +170,7 @@ size_t TrackBufferDemuxer::take_latest_frame()
     m_track_buffer_ranges.remove_range(frame.timestamp(), frame.timestamp() + frame.duration());
     auto bytes = frame.data().size();
     m_total_bytes -= bytes;
+    queue_scan_state_change_dispatch_while_locked();
     return bytes;
 }
 
@@ -173,12 +179,14 @@ void TrackBufferDemuxer::set_reached_end_of_stream()
     Sync::MutexLocker locker { m_mutex };
     m_reached_end_of_stream = true;
     m_data_changed.broadcast();
+    queue_scan_state_change_dispatch_while_locked();
 }
 
 void TrackBufferDemuxer::clear_reached_end_of_stream()
 {
     Sync::MutexLocker locker { m_mutex };
     m_reached_end_of_stream = false;
+    queue_scan_state_change_dispatch_while_locked();
 }
 
 Media::DecoderErrorOr<void> TrackBufferDemuxer::create_context_for_track(Media::Track const&)
@@ -358,9 +366,36 @@ Media::DecoderErrorOr<AK::Duration> TrackBufferDemuxer::total_duration()
     return AK::Duration::zero();
 }
 
-Media::TimeRanges TrackBufferDemuxer::buffered_time_ranges() const
+Media::DemuxerScanState const& TrackBufferDemuxer::scan_state() const
 {
-    return track_buffer_ranges();
+    return m_scan_state;
+}
+
+void TrackBufferDemuxer::set_scan_state_change_handler(Function<void()> handler)
+{
+    m_scan_state_change_handler = move(handler);
+    Sync::MutexLocker locker { m_mutex };
+    m_scan_state_change_handler_event_loop = &Core::EventLoop::current();
+    // Deliver any state that was built up before a home event loop existed.
+    queue_scan_state_change_dispatch_while_locked();
+}
+
+void TrackBufferDemuxer::queue_scan_state_change_dispatch_while_locked()
+{
+    if (m_scan_state_change_dispatch_pending)
+        return;
+    if (m_scan_state_change_handler_event_loop == nullptr)
+        return;
+    m_scan_state_change_dispatch_pending = true;
+    m_scan_state_change_handler_event_loop->deferred_invoke([self = NonnullRefPtr(*this)] {
+        {
+            Sync::MutexLocker locker { self->m_mutex };
+            self->m_scan_state_change_dispatch_pending = false;
+        }
+        self->m_scan_state = { self->track_buffer_ranges(), AK::Duration::zero() };
+        if (self->m_scan_state_change_handler)
+            self->m_scan_state_change_handler();
+    });
 }
 
 void TrackBufferDemuxer::set_blocking_reads_aborted_for_track(Media::Track const&)

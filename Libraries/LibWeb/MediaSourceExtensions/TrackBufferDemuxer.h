@@ -9,6 +9,7 @@
 #include <AK/Atomic.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Vector.h>
+#include <LibCore/Forward.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/Demuxer.h>
@@ -55,7 +56,8 @@ public:
     virtual Media::DecoderErrorOr<AK::Duration> duration_of_track(Media::Track const&) override;
     virtual Media::DecoderErrorOr<AK::Duration> total_duration() override;
 
-    virtual Media::TimeRanges buffered_time_ranges() const override;
+    virtual Media::DemuxerScanState const& scan_state() const LIFETIME_BOUND override;
+    virtual void set_scan_state_change_handler(Function<void()>) override;
 
     virtual void set_blocking_reads_aborted_for_track(Media::Track const&) override;
     virtual void reset_blocking_reads_aborted_for_track(Media::Track const&) override;
@@ -65,6 +67,7 @@ private:
     AK::Duration maximum_time_range_gap() const;
     bool next_frame_is_in_gap_while_locked() const;
     bool is_frame_evictable_while_locked(Media::CodedFrame const&, AK::Duration current_time) const;
+    void queue_scan_state_change_dispatch_while_locked();
 
     Media::Track m_track;
     Media::CodecID m_codec_id;
@@ -84,6 +87,13 @@ private:
     size_t m_total_bytes { 0 };
     Atomic<bool> m_aborted { false };
     Media::ReadBlockedChangeHandler m_read_blocked_change_handler;
+
+    // Owned by the thread that installed the change handler; mutated only via its event loop.
+    Media::DemuxerScanState m_scan_state;
+    Function<void()> m_scan_state_change_handler;
+    // Guarded by m_mutex, so that track buffer mutations may move off the main thread.
+    Core::EventLoop* m_scan_state_change_handler_event_loop { nullptr };
+    bool m_scan_state_change_dispatch_pending { false };
 };
 
 }

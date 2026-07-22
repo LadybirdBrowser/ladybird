@@ -720,7 +720,7 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
 
 TimeRanges DecodedVideoProducer::ThreadData::buffered_time_ranges() const
 {
-    return m_demuxer->buffered_time_ranges();
+    return m_demuxer->scan_state().buffered_ranges;
 }
 
 }
