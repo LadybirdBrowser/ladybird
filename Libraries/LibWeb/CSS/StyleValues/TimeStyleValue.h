@@ -33,6 +33,13 @@ public:
     bool equals(StyleValue const& other) const;
 
 private:
+    friend class StyleValue;
+
+    explicit TimeStyleValue(StyleValueFFI::StyleValueData const* data)
+        : DimensionStyleValue(Type::Time, data)
+    {
+    }
+
     explicit TimeStyleValue(Time time)
         : DimensionStyleValue(Type::Time, StyleValueFFI::rust_style_value_create_time(time.raw_value(), to_underlying(time.unit())))
     {

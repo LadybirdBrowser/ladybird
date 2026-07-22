@@ -15,7 +15,7 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData* ConicGradientStyleValue::make_conic_gradient_data(RefPtr<StyleValue const> const& from_angle, NonnullRefPtr<PositionStyleValue const> const& position, Vector<ColorStopListElement> const& color_stop_list, GradientRepeating repeating, RefPtr<StyleValue const> const& color_interpolation_method, ColorSyntax color_syntax)
+StyleValueFFI::StyleValueData const* ConicGradientStyleValue::make_conic_gradient_data(RefPtr<StyleValue const> const& from_angle, NonnullRefPtr<PositionStyleValue const> const& position, Vector<ColorStopListElement> const& color_stop_list, GradientRepeating repeating, RefPtr<StyleValue const> const& color_interpolation_method, ColorSyntax color_syntax)
 {
     // The Rust allocation takes ownership of one strong reference to each non-null value.
     auto stops = retain_color_stops_for_rust(color_stop_list);

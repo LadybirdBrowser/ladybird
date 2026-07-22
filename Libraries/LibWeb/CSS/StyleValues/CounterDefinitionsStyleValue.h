@@ -56,7 +56,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_counter_definitions_data(Vector<CounterDefinition> const& counter_definitions)
+    static StyleValueFFI::StyleValueData const* make_counter_definitions_data(Vector<CounterDefinition> const& counter_definitions)
     {
         // The Rust allocation takes ownership of one leaked reference to each name and one
         // strong reference to each non-null value.

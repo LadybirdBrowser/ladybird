@@ -58,7 +58,7 @@ static StyleValueFFI::FfiNumericType to_ffi_numeric_type(Optional<NumericType> c
 
 // Builds the Rust mirror of a calculation tree, transferring ownership of the
 // returned handle to the caller. The child orders follow each node's members.
-StyleValueFFI::StyleValueData* CalculatedStyleValue::make_calculated_data_from_rust_root(StyleValueFFI::CalcNode const* rust_root, NumericType const& resolved_type, CalculationContext const& context)
+StyleValueFFI::StyleValueData const* CalculatedStyleValue::make_calculated_data_from_rust_root(StyleValueFFI::CalcNode const* rust_root, NumericType const& resolved_type, CalculationContext const& context)
 {
     static_assert(IsTriviallyCopyable<NumericType>);
     auto resolved_type_bytes = bit_cast<Array<u8, sizeof(NumericType)>>(resolved_type);

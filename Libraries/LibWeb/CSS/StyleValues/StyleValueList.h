@@ -78,7 +78,7 @@ private:
         return *static_cast<StyleValue const*>(m_value->value_list.values.pointer[i].pointer);
     }
 
-    static StyleValueFFI::StyleValueData* make_value_list_data(StyleValueVector&& values, Separator separator, Collapsible collapsible)
+    static StyleValueFFI::StyleValueData const* make_value_list_data(StyleValueVector&& values, Separator separator, Collapsible collapsible)
     {
         // The Rust allocation takes ownership of one strong reference to each value.
         auto pointers = leak_style_value_pointers_for_rust(values);

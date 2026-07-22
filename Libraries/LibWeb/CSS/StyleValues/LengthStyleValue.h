@@ -31,6 +31,13 @@ public:
     bool equals(StyleValue const& other) const;
 
 private:
+    friend class StyleValue;
+
+    explicit LengthStyleValue(StyleValueFFI::StyleValueData const* data)
+        : DimensionStyleValue(Type::Length, data)
+    {
+    }
+
     explicit LengthStyleValue(Length const& length)
         : DimensionStyleValue(Type::Length, StyleValueFFI::rust_style_value_create_length(length.raw_value(), to_underlying(length.unit())))
     {

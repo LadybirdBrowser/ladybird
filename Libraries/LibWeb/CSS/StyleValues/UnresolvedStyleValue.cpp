@@ -45,7 +45,7 @@ static void mark_as_attr_tainted(Vector<Parser::ComponentValue>& values)
         value.set_attr_tainted();
 }
 
-static StyleValueFFI::StyleValueData* create_rust_style_value(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values)
+static StyleValueFFI::StyleValueData const* create_rust_style_value(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values)
 {
     auto source_text_bytes = source_text.bytes();
     auto value_comparison_text_bytes = value_comparison_text.bytes();

@@ -40,6 +40,22 @@ pub fn property_requires_computation_level(property_id: u16) -> u8 {
     REQUIRES_COMPUTATION_LEVELS[longhand_index(property_id)]
 }
 
+pub fn property_animation_type(property_id: u16) -> u8 {
+    PROPERTY_ANIMATION_TYPES[longhand_index(property_id)]
+}
+
+/// An accepted numeric range for one CSS value type.
+#[repr(C)]
+pub struct FfiPropertyNumericRange {
+    pub value_type: u8,
+    pub min: f64,
+    pub max: f64,
+}
+
+pub fn property_numeric_ranges(property_id: u16) -> &'static [FfiPropertyNumericRange] {
+    PROPERTY_NUMERIC_RANGES[longhand_index(property_id)]
+}
+
 /// Returns the longhand property identifiers in computation order.
 pub fn property_computation_order() -> &'static [u16] {
     &PROPERTY_COMPUTATION_ORDER
@@ -63,6 +79,23 @@ pub extern "C" fn rust_property_metadata_is_inherited(property_id: u16) -> bool 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_property_metadata_requires_computation_level(property_id: u16) -> u8 {
     property_requires_computation_level(property_id)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_property_metadata_animation_type(property_id: u16) -> u8 {
+    property_animation_type(property_id)
+}
+
+/// # Safety
+/// `out_length` must be a valid pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_property_metadata_numeric_ranges(
+    property_id: u16,
+    out_length: *mut usize,
+) -> *const FfiPropertyNumericRange {
+    let ranges = property_numeric_ranges(property_id);
+    unsafe { *out_length = ranges.len() };
+    ranges.as_ptr()
 }
 
 /// # Safety

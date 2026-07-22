@@ -48,6 +48,13 @@ public:
     }
 
 private:
+    friend class StyleValue;
+
+    explicit IntegerStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValue(Type::Integer, data)
+    {
+    }
+
     explicit IntegerStyleValue(i32 value)
         : StyleValue(Type::Integer, StyleValueFFI::rust_style_value_create_integer(value))
     {

@@ -49,7 +49,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_color_interpolation_method_data(ColorInterpolationMethod const& color_interpolation_method)
+    static StyleValueFFI::StyleValueData const* make_color_interpolation_method_data(ColorInterpolationMethod const& color_interpolation_method)
     {
         return color_interpolation_method.visit(
             [](RectangularColorSpace const& color_space) {

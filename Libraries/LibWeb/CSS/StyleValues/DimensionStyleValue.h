@@ -23,7 +23,7 @@ public:
     GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
 
 protected:
-    DimensionStyleValue(Type type, StyleValueFFI::StyleValueData* value)
+    DimensionStyleValue(Type type, StyleValueFFI::StyleValueData const* value)
         : StyleValue(type, value)
     {
     }

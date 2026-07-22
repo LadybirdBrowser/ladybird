@@ -129,7 +129,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_basic_shape_data(BasicShape const&);
+    static StyleValueFFI::StyleValueData const* make_basic_shape_data(BasicShape const&);
 
     // NB: Eagerly materialized copy of the Rust-owned data (rebuilding a path shape would
     //     re-parse its serialized path data); the Rust allocation stays authoritative, and the

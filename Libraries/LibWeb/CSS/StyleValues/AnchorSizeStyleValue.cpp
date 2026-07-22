@@ -10,7 +10,7 @@
 
 namespace Web::CSS {
 
-static StyleValueFFI::StyleValueData* make_anchor_size_data(Optional<Utf16FlyString> const& anchor_name, Optional<AnchorSize> const& anchor_size, ValueComparingRefPtr<StyleValue const> const& fallback_value)
+static StyleValueFFI::StyleValueData const* make_anchor_size_data(Optional<Utf16FlyString> const& anchor_name, Optional<AnchorSize> const& anchor_size, ValueComparingRefPtr<StyleValue const> const& fallback_value)
 {
     // The Rust allocation takes ownership of one strong reference to the fallback value.
     if (fallback_value)

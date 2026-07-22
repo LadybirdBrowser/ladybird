@@ -50,6 +50,13 @@ public:
     }
 
 private:
+    friend class StyleValue;
+
+    explicit PercentageStyleValue(StyleValueFFI::StyleValueData const* data)
+        : DimensionStyleValue(Type::Percentage, data)
+    {
+    }
+
     PercentageStyleValue(Percentage&& percentage)
         : DimensionStyleValue(Type::Percentage, StyleValueFFI::rust_style_value_create_percentage(percentage.value()))
     {

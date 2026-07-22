@@ -43,7 +43,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_cursor_data(NonnullRefPtr<AbstractImageStyleValue const> const&, RefPtr<StyleValue const> const&, RefPtr<StyleValue const> const&);
+    static StyleValueFFI::StyleValueData const* make_cursor_data(NonnullRefPtr<AbstractImageStyleValue const> const&, RefPtr<StyleValue const> const&, RefPtr<StyleValue const> const&);
 
     StyleValue const& image_as_style_value() const { return *static_cast<StyleValue const*>(m_value->cursor.image.pointer); }
 

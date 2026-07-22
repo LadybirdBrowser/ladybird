@@ -12,7 +12,7 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData* ContentStyleValue::make_content_data(ValueComparingNonnullRefPtr<StyleValueList const> content, ValueComparingRefPtr<StyleValueList const> const& alt_text)
+StyleValueFFI::StyleValueData const* ContentStyleValue::make_content_data(ValueComparingNonnullRefPtr<StyleValueList const> content, ValueComparingRefPtr<StyleValueList const> const& alt_text)
 {
     // The Rust allocation takes ownership of one strong reference to each non-null list.
     if (alt_text)

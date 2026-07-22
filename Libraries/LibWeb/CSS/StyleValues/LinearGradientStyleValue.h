@@ -90,7 +90,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_linear_gradient_data(GradientDirection const&, Vector<ColorStopListElement> const&, GradientType, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
+    static StyleValueFFI::StyleValueData const* make_linear_gradient_data(GradientDirection const&, Vector<ColorStopListElement> const&, GradientType, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
 
     ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return static_cast<StyleValue const*>(m_value->linear_gradient.color_interpolation_method.pointer); }
     GradientType gradient_type() const { return static_cast<GradientType>(m_value->linear_gradient.gradient_type); }

@@ -36,7 +36,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_edge_data(Optional<PositionEdge> edge, RefPtr<StyleValue const> const& offset)
+    static StyleValueFFI::StyleValueData const* make_edge_data(Optional<PositionEdge> edge, RefPtr<StyleValue const> const& offset)
     {
         // The Rust allocation takes ownership of one strong reference to the offset.
         if (offset)

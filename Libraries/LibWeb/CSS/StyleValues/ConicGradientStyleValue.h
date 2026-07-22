@@ -66,7 +66,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_conic_gradient_data(RefPtr<StyleValue const> const&, NonnullRefPtr<PositionStyleValue const> const&, Vector<ColorStopListElement> const&, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
+    static StyleValueFFI::StyleValueData const* make_conic_gradient_data(RefPtr<StyleValue const> const&, NonnullRefPtr<PositionStyleValue const> const&, Vector<ColorStopListElement> const&, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
 
     ValueComparingRefPtr<StyleValue const> from_angle_value() const { return static_cast<StyleValue const*>(m_value->conic_gradient.from_angle.pointer); }
     ColorSyntax gradient_color_syntax() const { return static_cast<ColorSyntax>(m_value->conic_gradient.color_syntax); }

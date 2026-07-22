@@ -34,6 +34,13 @@ public:
     }
 
 private:
+    friend class StyleValue;
+
+    explicit FlexStyleValue(StyleValueFFI::StyleValueData const* data)
+        : DimensionStyleValue(Type::Flex, data)
+    {
+    }
+
     FlexStyleValue(Flex&& flex)
         : DimensionStyleValue(Type::Flex, StyleValueFFI::rust_style_value_create_flex(flex.raw_value(), to_underlying(flex.unit())))
     {

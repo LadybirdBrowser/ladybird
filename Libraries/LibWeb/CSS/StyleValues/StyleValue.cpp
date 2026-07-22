@@ -137,10 +137,43 @@ ColorResolutionContext ColorResolutionContext::for_layout_node_with_style(Layout
     };
 }
 
-StyleValue::StyleValue(Type type, StyleValueFFI::StyleValueData* value)
+StyleValue::StyleValue(Type type, StyleValueFFI::StyleValueData const* value)
     : m_value(value)
     , m_type(type)
 {
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value_data(StyleValueFFI::StyleValueData const* data)
+{
+    VERIFY(data);
+    switch (data->tag) {
+    case StyleValueFFI::StyleValueData::Tag::Keyword:
+        return adopt_ref(*new (nothrow) KeywordStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Number:
+        return adopt_ref(*new (nothrow) NumberStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Integer:
+        return adopt_ref(*new (nothrow) IntegerStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Angle:
+        return adopt_ref(*new (nothrow) AngleStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Flex:
+        return adopt_ref(*new (nothrow) FlexStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Frequency:
+        return adopt_ref(*new (nothrow) FrequencyStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Length:
+        return adopt_ref(*new (nothrow) LengthStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Percentage:
+        return adopt_ref(*new (nothrow) PercentageStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Resolution:
+        return adopt_ref(*new (nothrow) ResolutionStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Time:
+        return adopt_ref(*new (nothrow) TimeStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::OpacityValue:
+        return adopt_ref(*new (nothrow) OpacityValueStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Ratio:
+        return adopt_ref(*new (nothrow) RatioStyleValue(data));
+    default:
+        VERIFY_NOT_REACHED();
+    }
 }
 
 void StyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)

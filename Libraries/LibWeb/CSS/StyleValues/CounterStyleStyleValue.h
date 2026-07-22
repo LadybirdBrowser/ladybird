@@ -51,7 +51,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_counter_style_data(Variant<Utf16FlyString, SymbolsFunction> const& value)
+    static StyleValueFFI::StyleValueData const* make_counter_style_data(Variant<Utf16FlyString, SymbolsFunction> const& value)
     {
         // The Rust allocation takes ownership of one leaked reference to each retained string.
         return value.visit(

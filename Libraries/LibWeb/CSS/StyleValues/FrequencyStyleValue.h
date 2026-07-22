@@ -33,6 +33,13 @@ public:
     bool equals(StyleValue const& other) const;
 
 private:
+    friend class StyleValue;
+
+    explicit FrequencyStyleValue(StyleValueFFI::StyleValueData const* data)
+        : DimensionStyleValue(Type::Frequency, data)
+    {
+    }
+
     explicit FrequencyStyleValue(Frequency frequency)
         : DimensionStyleValue(Type::Frequency, StyleValueFFI::rust_style_value_create_frequency(frequency.raw_value(), to_underlying(frequency.unit())))
     {

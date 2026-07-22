@@ -36,7 +36,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_content_data(ValueComparingNonnullRefPtr<StyleValueList const>, ValueComparingRefPtr<StyleValueList const> const&);
+    static StyleValueFFI::StyleValueData const* make_content_data(ValueComparingNonnullRefPtr<StyleValueList const>, ValueComparingRefPtr<StyleValueList const> const&);
 };
 
 }

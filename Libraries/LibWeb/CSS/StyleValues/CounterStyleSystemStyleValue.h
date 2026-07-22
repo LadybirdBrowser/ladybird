@@ -69,7 +69,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_counter_style_system_data(Value const& value)
+    static StyleValueFFI::StyleValueData const* make_counter_style_system_data(Value const& value)
     {
         // The Rust allocation takes ownership of one strong reference to the first symbol and
         // one leaked reference to the name when they are present.

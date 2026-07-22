@@ -68,7 +68,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_radial_gradient_data(EndingShape, NonnullRefPtr<StyleValue const> const&, NonnullRefPtr<PositionStyleValue const> const&, Vector<ColorStopListElement> const&, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
+    static StyleValueFFI::StyleValueData const* make_radial_gradient_data(EndingShape, NonnullRefPtr<StyleValue const> const&, NonnullRefPtr<PositionStyleValue const> const&, Vector<ColorStopListElement> const&, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
 
     ValueComparingNonnullRefPtr<StyleValue const> size_value() const { return *static_cast<StyleValue const*>(m_value->radial_gradient.size.pointer); }
     ValueComparingNonnullRefPtr<PositionStyleValue const> position_value() const { return *static_cast<PositionStyleValue const*>(m_value->radial_gradient.position.pointer); }

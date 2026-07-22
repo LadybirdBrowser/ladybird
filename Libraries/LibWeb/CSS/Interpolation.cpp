@@ -48,6 +48,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
 
@@ -596,6 +597,15 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
 {
     auto from = with_keyword_values_resolved(element, property_id, a_from);
     auto to = with_keyword_values_resolved(element, property_id, a_to);
+
+    auto rust_result = StyleValueFFI::rust_interpolate_scalar_style_value(to_underlying(property_id), from->rust_style_value_data(), to->rust_style_value_data(), delta);
+    if (rust_result.handled) {
+        if (!rust_result.value)
+            return {};
+        return StyleValue::adopt_rust_style_value_data(rust_result.value);
+    }
+
+    StyleValueFFI::rust_style_ffi_note_animation_cpp_interpolation_fallback();
 
     auto calculation_context = CalculationContext::for_property(PropertyNameAndID::from_id(property_id));
 

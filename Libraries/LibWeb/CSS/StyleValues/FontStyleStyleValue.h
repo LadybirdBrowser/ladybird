@@ -40,7 +40,7 @@ public:
 private:
     FontStyleStyleValue(FontStyleKeyword, ValueComparingRefPtr<StyleValue const> angle_value);
 
-    static StyleValueFFI::StyleValueData* make_font_style_data(FontStyleKeyword font_style, ValueComparingRefPtr<StyleValue const> const& angle_value)
+    static StyleValueFFI::StyleValueData const* make_font_style_data(FontStyleKeyword font_style, ValueComparingRefPtr<StyleValue const> const& angle_value)
     {
         // The Rust allocation takes ownership of one strong reference to the angle value.
         if (angle_value)

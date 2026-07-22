@@ -20,7 +20,7 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData* BasicShapeStyleValue::make_basic_shape_data(BasicShape const& basic_shape)
+StyleValueFFI::StyleValueData const* BasicShapeStyleValue::make_basic_shape_data(BasicShape const& basic_shape)
 {
     // The Rust allocation takes ownership of one strong reference to each non-null value.
     return basic_shape.visit(

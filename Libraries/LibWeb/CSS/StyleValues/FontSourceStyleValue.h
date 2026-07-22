@@ -49,7 +49,7 @@ public:
 private:
     FontSourceStyleValue(Source source, Optional<Utf16FlyString> format, Vector<FontTech> tech);
 
-    static StyleValueFFI::StyleValueData* make_font_source_data(Source const&, Optional<Utf16FlyString> const&, Vector<FontTech> const&);
+    static StyleValueFFI::StyleValueData const* make_font_source_data(Source const&, Optional<Utf16FlyString> const&, Vector<FontTech> const&);
 };
 
 }

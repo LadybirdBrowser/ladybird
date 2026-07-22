@@ -55,7 +55,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_random_value_sharing_data(RefPtr<StyleValue const> const& fixed_value, bool is_auto, Optional<Utf16FlyString> const& name, bool element_shared)
+    static StyleValueFFI::StyleValueData const* make_random_value_sharing_data(RefPtr<StyleValue const> const& fixed_value, bool is_auto, Optional<Utf16FlyString> const& name, bool element_shared)
     {
         // The Rust allocation takes ownership of one strong reference to the fixed value.
         if (fixed_value)

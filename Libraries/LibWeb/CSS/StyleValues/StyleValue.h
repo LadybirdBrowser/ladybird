@@ -179,6 +179,9 @@ public:
     // The Rust-owned data of this value, for handing to the Rust style computation core.
     StyleValueFFI::StyleValueData const* rust_style_value_data() const { return m_value.operator->(); }
 
+    // Wrap a transferred strong Rust reference in its corresponding typed C++ facade.
+    static ValueComparingNonnullRefPtr<StyleValue const> adopt_rust_style_value_data(StyleValueFFI::StyleValueData const*);
+
     String to_string(SerializationMode) const;
     Utf16String to_utf16_string(SerializationMode) const;
     void serialize(StringBuilder&, SerializationMode) const;
@@ -207,9 +210,9 @@ public:
     bool decide_computational_independence_fallback() const;
 
 protected:
-    StyleValue(Type, StyleValueFFI::StyleValueData*);
+    StyleValue(Type, StyleValueFFI::StyleValueData const*);
 
-    // The single Rust-owned allocation holding this value's data.
+    // The shared Rust-owned allocation holding this value's data.
     RustStyleValueHandle m_value;
 
 private:

@@ -819,6 +819,14 @@ fn value_is_computationally_independent(
         }
         Some(independent)
     };
+    let all_data = |children: &[&crate::style_value::RetainedStyleValueData]| -> Option<bool> {
+        let mut independent = true;
+        for retained in children {
+            independent =
+                independent && value_is_computationally_independent(retained.data(), data_of, decide_fallback)?;
+        }
+        Some(independent)
+    };
     match value {
         StyleValueData::Keyword { keyword } => {
             if value_is_css_wide_keyword(value) {
@@ -883,10 +891,10 @@ fn value_is_computationally_independent(
         }
         StyleValueData::Ratio {
             numerator, denominator, ..
-        } => all_of(&[numerator, denominator]),
+        } => all_data(&[numerator, denominator]),
         StyleValueData::Edge { offset, .. } => child(offset),
         StyleValueData::Function { value, .. } => child(value),
-        StyleValueData::OpacityValue { value } => child(value),
+        StyleValueData::OpacityValue { value } => all_data(&[value]),
         // Auto placements carry no value; spans and lines recurse into theirs.
         StyleValueData::GridTrackPlacement { value, .. } => child(value),
         // FIXME: Consider sub-values once we support <custom-color-space> values

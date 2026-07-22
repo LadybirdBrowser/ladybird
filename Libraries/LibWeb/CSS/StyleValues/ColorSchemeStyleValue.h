@@ -43,7 +43,7 @@ private:
     {
     }
 
-    static StyleValueFFI::StyleValueData* make_color_scheme_data(Vector<Utf16FlyString> const& schemes, bool only)
+    static StyleValueFFI::StyleValueData const* make_color_scheme_data(Vector<Utf16FlyString> const& schemes, bool only)
     {
         // The Rust allocation takes ownership of one leaked reference to each scheme name.
         Vector<size_t> raws;

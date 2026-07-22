@@ -61,7 +61,7 @@ private:
     friend class StyleValue;
     void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 
-    static StyleValueFFI::StyleValueData* make_shorthand_data(PropertyID shorthand, Vector<PropertyID> const& sub_properties, Vector<ValueComparingNonnullRefPtr<StyleValue const>>&& values)
+    static StyleValueFFI::StyleValueData const* make_shorthand_data(PropertyID shorthand, Vector<PropertyID> const& sub_properties, Vector<ValueComparingNonnullRefPtr<StyleValue const>>&& values)
     {
         // The Rust allocation takes ownership of one strong reference to each value.
         auto pointers = leak_style_value_pointers_for_rust(values);
