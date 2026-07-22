@@ -2,3 +2,5 @@ overflow-x: visible
 overflow-y: visible
 display: inline
 position: static
+parent text-align: right
+match-parent text-align: right

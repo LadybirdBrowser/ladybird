@@ -3705,6 +3705,18 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         }
     }
 
+    bool parent_text_align_input_is_animated = false;
+    if (computed_values_to_inherit_from) {
+        if (auto const* animated_properties = computed_values_to_inherit_from->animated_properties()) {
+            parent_text_align_input_is_animated = animated_properties->has_property(PropertyID::TextAlign)
+                || animated_properties->has_property(PropertyID::Direction);
+        }
+    }
+    if (parent_text_align_input_is_animated && !animation_values_applied) {
+        VERIFY(loop_context.text_align_before_adjustments.has_value());
+        builder.set_property_without_modifying_flags(PropertyID::TextAlign, KeywordStyleValue::create(*loop_context.text_align_before_adjustments));
+    }
+
     // Run automatic box type transformations again after animations have been applied.
     if (animation_values_applied)
         transform_box_type_if_needed(builder, abstract_element);
@@ -3712,7 +3724,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     // Apply any property-specific computed value logic
     if (animation_values_applied)
         resolve_effective_overflow_values(builder);
-    if (animation_values_applied)
+    if (animation_values_applied || parent_text_align_input_is_animated)
         compute_text_align(builder, abstract_element);
 
     // Let the element adjust computed style

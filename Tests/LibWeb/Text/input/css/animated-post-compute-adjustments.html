@@ -2,13 +2,17 @@
 <script src="../include.js"></script>
 <div id="overflow" style="overflow-x: visible; overflow-y: auto"></div>
 <div id="position" style="display: inline; position: absolute"></div>
+<div id="text-align-parent" style="text-align: left">
+    <div id="text-align-child" style="text-align: match-parent"></div>
+</div>
 <script>
-    test(() => {
+    promiseTest(async () => {
         const overflowAnimation = overflow.animate(
             [{ overflowY: "visible" }, { overflowY: "visible" }],
             { duration: 1000, fill: "forwards" });
         overflowAnimation.pause();
         overflowAnimation.currentTime = 500;
+        await overflowAnimation.ready;
 
         const overflowStyle = getComputedStyle(overflow);
         println(`overflow-x: ${overflowStyle.overflowX}`);
@@ -19,9 +23,24 @@
             { duration: 1000, fill: "forwards" });
         positionAnimation.pause();
         positionAnimation.currentTime = 500;
+        await positionAnimation.ready;
 
         const positionStyle = getComputedStyle(position);
         println(`display: ${positionStyle.display}`);
         println(`position: ${positionStyle.position}`);
+
+        const textAlignParent = document.getElementById("text-align-parent");
+        const textAlignChild = document.getElementById("text-align-child");
+        const textAlignAnimation = textAlignParent.animate(
+            [{ textAlign: "right" }, { textAlign: "right" }],
+            { duration: 1000, fill: "forwards" });
+        textAlignAnimation.pause();
+        textAlignAnimation.currentTime = 500;
+        await textAlignAnimation.ready;
+        await animationFrame();
+
+        println(`parent text-align: ${getComputedStyle(textAlignParent).textAlign}`);
+        await animationFrame();
+        println(`match-parent text-align: ${getComputedStyle(textAlignChild).textAlign}`);
     });
 </script>
