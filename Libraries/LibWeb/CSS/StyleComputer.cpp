@@ -3492,7 +3492,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         .font_metrics_depend_on_viewport_metrics = false,
         .explicitly_inherited_non_inherited_property = false,
     };
-    ComputedValuesFFI::rust_drive_property_computation(&callbacks, cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, new_font_size != nullptr, device_pixels_per_css_pixel, InitialValues::font_size().raw_value(), default_user_font_size().raw_value(), &driver_results);
+    ComputedValuesFFI::rust_drive_property_computation(&callbacks, cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, abstract_element.element().local_name() == HTML::TagNames::th, new_font_size != nullptr, device_pixels_per_css_pixel, InitialValues::font_size().raw_value(), default_user_font_size().raw_value(), &driver_results);
 
     // Apply the driver's bulk results.
     auto longhand_bit_is_set = [](Array<u64, longhand_bitmap_words> const& words, size_t index) {
@@ -3557,7 +3557,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     // Apply any property-specific computed value logic
     if (animation_values_applied)
         resolve_effective_overflow_values(builder);
-    compute_text_align(builder, abstract_element);
+    if (animation_values_applied)
+        compute_text_align(builder, abstract_element);
 
     // Let the element adjust computed style
     if (!abstract_element.pseudo_element().has_value())

@@ -2055,6 +2055,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
     callbacks: *const FfiLonghandCallbacks,
     store: *const CascadedPropertyStore,
     parent_snapshot: *const FfiParentSnapshot,
+    is_th_element: bool,
     has_new_font_size: bool,
     device_pixels_per_css_pixel: f64,
     initial_font_size_raw: i32,
@@ -2651,6 +2652,42 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         break;
                     }
                 }
+            } else if property_id == prop::TEXT_ALIGN
+                && let StyleValueData::Keyword { keyword: text_align } = value_data
+            {
+                let (has_parent_with_computed_values, parent_text_align, parent_direction_is_ltr) =
+                    if let Some(snapshot) = snapshot {
+                        let parent_text_align = match snapshot_entry_data(snapshot, prop::TEXT_ALIGN) {
+                            Some(StyleValueData::Keyword { keyword }) => *keyword,
+                            _ => unreachable!("parent text-align must be a keyword"),
+                        };
+                        let parent_direction_is_ltr = match snapshot_entry_data(snapshot, prop::DIRECTION) {
+                            Some(StyleValueData::Keyword {
+                                keyword: parent_direction,
+                            }) => *parent_direction == keyword::LTR,
+                            _ => unreachable!("parent direction must be a keyword"),
+                        };
+                        (true, parent_text_align, parent_direction_is_ltr)
+                    } else {
+                        (false, 0, true)
+                    };
+                let adjustment = compute_text_align_adjustment(
+                    *text_align,
+                    is_th_element,
+                    has_parent_with_computed_values,
+                    parent_text_align,
+                    parent_direction_is_ltr,
+                );
+                if adjustment.changed {
+                    let entry = pending_stores.last_mut().unwrap();
+                    debug_assert_eq!(entry.property_id, prop::TEXT_ALIGN);
+                    debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_SHELL);
+                    entry.computed_kind = COMPUTED_KIND_KEYWORD;
+                    entry.value = adjustment.keyword as f64;
+                    if adjustment.inherited {
+                        set_longhand_bit(inherited_words, property_id);
+                    }
+                }
             }
         }
 
@@ -3115,6 +3152,58 @@ pub struct FfiTextAlignAdjustment {
 
 /// Decides the text-align adjustments applied after computation. The parent
 /// arguments are only read when `has_parent_with_computed_values` is set.
+fn compute_text_align_adjustment(
+    text_align: u16,
+    is_th_element: bool,
+    has_parent_with_computed_values: bool,
+    parent_text_align: u16,
+    parent_direction_is_ltr: bool,
+) -> FfiTextAlignAdjustment {
+    let unchanged = FfiTextAlignAdjustment {
+        changed: false,
+        keyword: text_align,
+        inherited: false,
+    };
+    let replace = |keyword: u16| FfiTextAlignAdjustment {
+        changed: true,
+        keyword,
+        inherited: false,
+    };
+
+    // https://drafts.csswg.org/css-text-4/#valdef-text-align-match-parent
+    // This value behaves the same as inherit (computes to its parent's computed value) except that an inherited
+    // value of start or end is interpreted against the parent's direction value and results in a computed value of
+    // either left or right. Computes to start when specified on the root element.
+    if text_align == keyword::MATCH_PARENT {
+        if !has_parent_with_computed_values {
+            return replace(keyword::START);
+        }
+        return match parent_text_align {
+            keyword::START if parent_direction_is_ltr => replace(keyword::LEFT),
+            keyword::START => replace(keyword::RIGHT),
+            keyword::END if parent_direction_is_ltr => replace(keyword::RIGHT),
+            keyword::END => replace(keyword::LEFT),
+            _ => replace(parent_text_align),
+        };
+    }
+
+    // AD-HOC: The -libweb-inherit-or-center style defaults to centering, unless the parent element has a
+    //         non-initial computed text-align value. This is used to support the ad-hoc default <th>
+    //         text-align behavior.
+    if text_align == keyword::_LIBWEB_INHERIT_OR_CENTER && is_th_element {
+        if has_parent_with_computed_values && parent_text_align != keyword::START {
+            return FfiTextAlignAdjustment {
+                changed: true,
+                keyword: parent_text_align,
+                inherited: true,
+            };
+        }
+        return replace(keyword::CENTER);
+    }
+
+    unchanged
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_compute_text_align(
     text_align: u16,
@@ -3125,49 +3214,13 @@ pub extern "C" fn rust_compute_text_align(
 ) -> FfiTextAlignAdjustment {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
-        let unchanged = FfiTextAlignAdjustment {
-            changed: false,
-            keyword: text_align,
-            inherited: false,
-        };
-        let replace = |keyword: u16| FfiTextAlignAdjustment {
-            changed: true,
-            keyword,
-            inherited: false,
-        };
-
-        // https://drafts.csswg.org/css-text-4/#valdef-text-align-match-parent
-        // This value behaves the same as inherit (computes to its parent's computed value) except that an inherited
-        // value of start or end is interpreted against the parent's direction value and results in a computed value of
-        // either left or right. Computes to start when specified on the root element.
-        if text_align == keyword::MATCH_PARENT {
-            if !has_parent_with_computed_values {
-                return replace(keyword::START);
-            }
-            return match parent_text_align {
-                keyword::START if parent_direction_is_ltr => replace(keyword::LEFT),
-                keyword::START => replace(keyword::RIGHT),
-                keyword::END if parent_direction_is_ltr => replace(keyword::RIGHT),
-                keyword::END => replace(keyword::LEFT),
-                _ => replace(parent_text_align),
-            };
-        }
-
-        // AD-HOC: The -libweb-inherit-or-center style defaults to centering, unless the parent element has a
-        //         non-initial computed text-align value. This is used to support the ad-hoc default <th>
-        //         text-align behavior.
-        if text_align == keyword::_LIBWEB_INHERIT_OR_CENTER && is_th_element {
-            if has_parent_with_computed_values && parent_text_align != keyword::START {
-                return FfiTextAlignAdjustment {
-                    changed: true,
-                    keyword: parent_text_align,
-                    inherited: true,
-                };
-            }
-            return replace(keyword::CENTER);
-        }
-
-        unchanged
+        compute_text_align_adjustment(
+            text_align,
+            is_th_element,
+            has_parent_with_computed_values,
+            parent_text_align,
+            parent_direction_is_ltr,
+        )
     })
 }
 
@@ -3231,6 +3284,25 @@ mod tests {
         let result = resolve_effective_overflow_keywords(keyword::VISIBLE, keyword::CLIP);
         assert!(!result.changed_x);
         assert!(!result.changed_y);
+    }
+
+    #[test]
+    fn text_align_adjusts_match_parent_and_table_header_defaults() {
+        let result = compute_text_align_adjustment(keyword::MATCH_PARENT, false, true, keyword::START, false);
+        assert!(result.changed);
+        assert_eq!(result.keyword, keyword::RIGHT);
+        assert!(!result.inherited);
+
+        let result =
+            compute_text_align_adjustment(keyword::_LIBWEB_INHERIT_OR_CENTER, true, true, keyword::JUSTIFY, true);
+        assert!(result.changed);
+        assert_eq!(result.keyword, keyword::JUSTIFY);
+        assert!(result.inherited);
+
+        let result = compute_text_align_adjustment(keyword::_LIBWEB_INHERIT_OR_CENTER, true, false, 0, true);
+        assert!(result.changed);
+        assert_eq!(result.keyword, keyword::CENTER);
+        assert!(!result.inherited);
     }
 
     fn test_context() -> FfiLengthResolutionContext {
