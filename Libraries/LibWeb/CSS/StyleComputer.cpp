@@ -2806,6 +2806,29 @@ static Display from_ffi_display(ComputedValuesFFI::FfiDisplay const& display)
     VERIFY_NOT_REACHED();
 }
 
+static ComputedValuesFFI::FfiDisplay decode_ffi_display(u32 encoded)
+{
+    ComputedValuesFFI::FfiDisplay display {};
+    display.tag = encoded & 0xff;
+    auto first = static_cast<u8>((encoded >> 8) & 0xff);
+    auto second = static_cast<u8>((encoded >> 16) & 0xff);
+    auto third = static_cast<u8>((encoded >> 24) & 0xff);
+    switch (static_cast<Display::Type>(display.tag)) {
+    case Display::Type::OutsideAndInside:
+        display.outside = first;
+        display.inside = second;
+        display.list_item = third != 0;
+        break;
+    case Display::Type::Internal:
+        display.internal = first;
+        break;
+    case Display::Type::Box:
+        display.box_value = first;
+        break;
+    }
+    return display;
+}
+
 static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transformation_input(
     DOM::AbstractElement abstract_element, Display display, Keyword position, Keyword float_value)
 {
@@ -2897,21 +2920,13 @@ static void apply_box_type_transformation(ComputedProperties::Builder& builder, 
         builder.set_property(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(transformation.display)));
 }
 
-static ComputedValuesFFI::FfiInputLineHeightMetrics apply_element_style_adjustment(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element, ComputedValuesFFI::FfiElementStyleAdjustment const& adjustment)
+static ComputedValuesFFI::FfiInputLineHeightMetrics input_line_height_metrics(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element, bool should_measure)
 {
-    if (adjustment.changed_display)
-        builder.set_property(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(adjustment.display)));
-    if (adjustment.set_line_height_normal)
-        builder.set_property(PropertyID::LineHeight, KeywordStyleValue::create(Keyword::Normal));
     ComputedValuesFFI::FfiInputLineHeightMetrics line_height_metrics {};
-    if (adjustment.check_input_line_height) {
+    if (should_measure) {
         line_height_metrics.current_line_height = builder.line_height(abstract_element.element().document().font_computer()).to_double();
         line_height_metrics.minimum_line_height = ComputedProperties::normal_line_height(builder.first_available_computed_font(abstract_element.element().document().font_computer())->pixel_metrics()).to_double();
     }
-    if (adjustment.set_position_static)
-        builder.set_property(PropertyID::Position, KeywordStyleValue::create(Keyword::Static));
-    if (adjustment.changed_text_align)
-        builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(static_cast<Keyword>(adjustment.text_align)));
     return line_height_metrics;
 }
 
@@ -3505,6 +3520,9 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             case ComputedValuesFFI::COMPUTED_KIND_KEYWORD:
                 builder.set_property_without_modifying_flags(property_id, KeywordStyleValue::create(static_cast<Keyword>(static_cast<u16>(entry.value))));
                 break;
+            case ComputedValuesFFI::COMPUTED_KIND_DISPLAY:
+                builder.set_property_without_modifying_flags(property_id, DisplayStyleValue::create(from_ffi_display(decode_ffi_display(static_cast<u32>(entry.value)))));
+                break;
             case ComputedValuesFFI::COMPUTED_KIND_SUPERELLIPSE: {
                 // NB: The round value is cached since it is the initial value of the corner-*-shape properties.
                 if (entry.value == 1) {
@@ -3569,7 +3587,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         .store_effective_color_scheme = [](void* context, u8 color_scheme) {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             loop_context.builder.set_effective_color_scheme(static_cast<PreferredColorScheme>(color_scheme)); },
-        .store_box_type_transformation = [](void* context, ComputedValuesFFI::FfiDisplay const* display_before, u16 float_before, u16 overflow_x_before, u16 overflow_y_before, u16 text_align_before, u16 position_before, ComputedValuesFFI::FfiBoxTypeTransformation const* transformation, ComputedValuesFFI::FfiElementStyleAdjustment const* element_adjustment) -> ComputedValuesFFI::FfiInputLineHeightMetrics {
+        .prepare_post_compute_adjustments = [](void* context, ComputedValuesFFI::FfiDisplay const* display_before, u16 float_before, u16 overflow_x_before, u16 overflow_y_before, u16 text_align_before, u16 position_before, bool check_input_line_height) -> ComputedValuesFFI::FfiInputLineHeightMetrics {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             loop_context.display_before_adjustments = *display_before;
             loop_context.float_before_adjustments = static_cast<Keyword>(float_before);
@@ -3578,8 +3596,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             loop_context.text_align_before_adjustments = static_cast<Keyword>(text_align_before);
             loop_context.position_before_adjustments = static_cast<Keyword>(position_before);
             loop_context.line_height_before_adjustments = loop_context.builder.style().property(PropertyID::LineHeight);
-            apply_box_type_transformation(loop_context.builder, *display_before, *transformation);
-            return apply_element_style_adjustment(loop_context.builder, loop_context.abstract_element, *element_adjustment); },
+            loop_context.builder.set_display_before_box_type_transformation(from_ffi_display(*display_before));
+            return input_line_height_metrics(loop_context.builder, loop_context.abstract_element, check_input_line_height); },
         .fetch_non_inherited_parent_value = [](void* context, u16 inherited_property_id) -> ComputedValuesFFI::FfiShellAndData {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             auto value = get_non_animated_inherit_value(static_cast<PropertyID>(inherited_property_id), loop_context.abstract_element);

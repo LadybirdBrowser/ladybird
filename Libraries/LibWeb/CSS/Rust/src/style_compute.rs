@@ -1846,6 +1846,8 @@ pub const COMPUTED_KIND_FONT_STYLE: u8 = 6;
 pub const COMPUTED_KIND_COMPUTE_IN_CPP: u8 = 7;
 /// A keyword whose numeric code is carried in `value`.
 pub const COMPUTED_KIND_KEYWORD: u8 = 8;
+/// A display value encoded as tag | first << 8 | second << 16 | third << 24.
+pub const COMPUTED_KIND_DISPLAY: u8 = 9;
 
 /// The leaf callbacks the C++ side provides to the property computation
 /// driver. The driver selects each longhand's cascaded, inherited or initial
@@ -1867,10 +1869,10 @@ pub struct FfiLonghandCallbacks {
     /// Stores the used color scheme resolved from the computed color-scheme
     /// value and document preferences.
     pub store_effective_color_scheme: unsafe extern "C" fn(context: *mut c_void, color_scheme: u8),
-    /// Stores the original adjusted properties, applies the post-computation
-    /// changes after the ordinary longhand batch has been flushed, and returns
-    /// the font measurements needed for the input line-height decision.
-    pub store_box_type_transformation: unsafe extern "C" fn(
+    /// Stores the original adjusted properties for possible animation
+    /// restoration, records the pre-transformation display, and returns the
+    /// font measurements needed for the input line-height decision.
+    pub prepare_post_compute_adjustments: unsafe extern "C" fn(
         context: *mut c_void,
         display_before: *const FfiDisplay,
         float_before: u16,
@@ -1878,8 +1880,7 @@ pub struct FfiLonghandCallbacks {
         overflow_y_before: u16,
         text_align_before: u16,
         position_before: u16,
-        transformation: *const FfiBoxTypeTransformation,
-        element_adjustment: *const FfiElementStyleAdjustment,
+        check_input_line_height: bool,
     ) -> FfiInputLineHeightMetrics,
     /// Rare: fetches the parent's computed value for an explicit `inherit` of
     /// a non-inherited property, which the parent snapshot does not carry.
@@ -2826,7 +2827,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             clear_longhand_bit(inherited_words, prop::TEXT_ALIGN);
         }
         let input_line_height_metrics = unsafe {
-            (callbacks.store_box_type_transformation)(
+            (callbacks.prepare_post_compute_adjustments)(
                 context,
                 &raw const display_before,
                 float_before,
@@ -2834,26 +2835,62 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 computed_overflow_y.expect("overflow-y must be computed by the longhand driver"),
                 computed_text_align_before_adjustment.expect("text-align must be computed by the longhand driver"),
                 box_type_input.position,
-                &raw const transformation,
-                &raw const element_adjustment,
+                element_adjustment.check_input_line_height,
             )
         };
         let clamp_input_line_height = should_clamp_input_line_height(&element_adjustment, &input_line_height_metrics);
-        if clamp_input_line_height {
-            let normal = initial_value(prop::LINE_HEIGHT);
-            let entry = FfiComputedStoreEntry {
-                property_id: prop::LINE_HEIGHT,
-                inherited_property_id: prop::LINE_HEIGHT,
-                shell: normal.shell,
-                inheritance_dependent: false,
-                inherited: false,
-                computed_kind: COMPUTED_KIND_KEYWORD,
-                value: keyword::NORMAL as f64,
-            };
-            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandStoreBatchCallback);
-            unsafe { (callbacks.store_computed_batch)(context, &raw const entry, 1) };
+
+        let adjusted_display = if element_adjustment.changed_display {
+            element_adjustment.display
+        } else {
+            display_after_box_type_transformation
+        };
+        let adjusted_entry = |property_id, computed_kind, value| FfiComputedStoreEntry {
+            property_id,
+            inherited_property_id: property_id,
+            shell: initial_value(property_id).shell,
+            inheritance_dependent: false,
+            inherited: false,
+            computed_kind,
+            value,
+        };
+        let mut adjustments = Vec::new();
+        if transformation.set_float_none {
+            adjustments.push(adjusted_entry(prop::FLOAT, COMPUTED_KIND_KEYWORD, keyword::NONE as f64));
+        }
+        if adjusted_display != display_before {
+            adjustments.push(adjusted_entry(
+                prop::DISPLAY,
+                COMPUTED_KIND_DISPLAY,
+                adjusted_display.encoded() as f64,
+            ));
         }
         let line_height_changed = element_adjustment.set_line_height_normal || clamp_input_line_height;
+        if line_height_changed {
+            adjustments.push(adjusted_entry(
+                prop::LINE_HEIGHT,
+                COMPUTED_KIND_KEYWORD,
+                keyword::NORMAL as f64,
+            ));
+        }
+        if element_adjustment.set_position_static {
+            adjustments.push(adjusted_entry(
+                prop::POSITION,
+                COMPUTED_KIND_KEYWORD,
+                keyword::STATIC as f64,
+            ));
+        }
+        if element_adjustment.changed_text_align {
+            adjustments.push(adjusted_entry(
+                prop::TEXT_ALIGN,
+                COMPUTED_KIND_KEYWORD,
+                element_adjustment.text_align as f64,
+            ));
+        }
+        if !adjustments.is_empty() {
+            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandStoreBatchCallback);
+            unsafe { (callbacks.store_computed_batch)(context, adjustments.as_ptr(), adjustments.len()) };
+        }
         if line_height_changed {
             clear_longhand_bit(important_words, prop::LINE_HEIGHT);
             clear_longhand_bit(inherited_words, prop::LINE_HEIGHT);
@@ -3087,6 +3124,16 @@ impl FfiDisplay {
 
     fn flow_root() -> Self {
         Self::outside_and_inside(display_outside::BLOCK, display_inside::FLOW_ROOT, false)
+    }
+
+    fn encoded(&self) -> u32 {
+        let (first, second, third) = match self.tag {
+            DISPLAY_TAG_OUTSIDE_AND_INSIDE => (self.outside, self.inside, self.list_item as u8),
+            DISPLAY_TAG_INTERNAL => (self.internal, 0, 0),
+            DISPLAY_TAG_BOX => (self.box_value, 0, 0),
+            _ => unreachable!("invalid display tag"),
+        };
+        self.tag as u32 | (first as u32) << 8 | (second as u32) << 16 | (third as u32) << 24
     }
 
     fn none() -> Self {
@@ -3701,6 +3748,27 @@ mod tests {
 
         let none = FfiDisplay::from_raw(u32::from_ne_bytes([DISPLAY_TAG_BOX, display_box::NONE, 0, 0]));
         assert!(none.is_none());
+    }
+
+    #[test]
+    fn display_encodes_for_adjustment_store() {
+        let list_item = FfiDisplay::outside_and_inside(display_outside::BLOCK, display_inside::FLOW, true);
+        assert_eq!(
+            list_item.encoded(),
+            DISPLAY_TAG_OUTSIDE_AND_INSIDE as u32
+                | (display_outside::BLOCK as u32) << 8
+                | (display_inside::FLOW as u32) << 16
+                | 1 << 24
+        );
+
+        assert_eq!(
+            FfiDisplay::internal(display_internal::TABLE_ROW).encoded(),
+            DISPLAY_TAG_INTERNAL as u32 | (display_internal::TABLE_ROW as u32) << 8
+        );
+        assert_eq!(
+            FfiDisplay::none().encoded(),
+            DISPLAY_TAG_BOX as u32 | (display_box::NONE as u32) << 8
+        );
     }
 
     fn element_adjustment_input() -> FfiBoxTypeTransformationInput {
