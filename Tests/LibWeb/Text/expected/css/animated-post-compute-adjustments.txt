@@ -4,3 +4,7 @@ display: inline
 position: static
 parent text-align: right
 match-parent text-align: right
+inherited overflow-x: scroll
+adjusted overflow-y: auto
+inherited display: block
+inherited position: absolute

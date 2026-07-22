@@ -3446,6 +3446,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         };
     }
 
+    bool animation_values_applied = false;
+
     // Copies the parent's animated value when a longhand inherits, as its store is
     // applied, so later properties' computation contexts observe the animated value.
     // FIXME: Do we need to recompute animated inherited values?
@@ -3461,6 +3463,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
                     ? AnimatedPropertyResultOfTransition::Yes
                     : AnimatedPropertyResultOfTransition::No,
                 ComputedProperties::Inherited::Yes);
+            animation_values_applied = true;
         }
     };
 
@@ -3671,7 +3674,25 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     // Add or modify CSS-defined animations
     process_animation_definitions(computed_style, cascaded_properties, abstract_element);
 
-    bool animation_values_applied = false;
+    auto restore_values_before_post_compute_adjustments = [&] {
+        VERIFY(loop_context.display_before_adjustments.has_value());
+        VERIFY(loop_context.float_before_adjustments.has_value());
+        VERIFY(loop_context.overflow_x_before_adjustments.has_value());
+        VERIFY(loop_context.overflow_y_before_adjustments.has_value());
+        VERIFY(loop_context.text_align_before_adjustments.has_value());
+        VERIFY(loop_context.position_before_adjustments.has_value());
+        VERIFY(loop_context.line_height_before_adjustments);
+        builder.set_property_without_modifying_flags(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(*loop_context.display_before_adjustments)));
+        builder.set_property_without_modifying_flags(PropertyID::Float, KeywordStyleValue::create(*loop_context.float_before_adjustments));
+        builder.set_property_without_modifying_flags(PropertyID::OverflowX, KeywordStyleValue::create(*loop_context.overflow_x_before_adjustments));
+        builder.set_property_without_modifying_flags(PropertyID::OverflowY, KeywordStyleValue::create(*loop_context.overflow_y_before_adjustments));
+        builder.set_property_without_modifying_flags(PropertyID::TextAlign, KeywordStyleValue::create(*loop_context.text_align_before_adjustments));
+        builder.set_property_without_modifying_flags(PropertyID::Position, KeywordStyleValue::create(*loop_context.position_before_adjustments));
+        builder.set_property_without_modifying_flags(PropertyID::LineHeight, *loop_context.line_height_before_adjustments);
+    };
+    if (animation_values_applied)
+        restore_values_before_post_compute_adjustments();
+
     auto animations = abstract_element.element().get_animations_internal(
         Animations::Animatable::GetAnimationsSorted::Yes,
         Bindings::GetAnimationsOptions { .subtree = false });
@@ -3682,22 +3703,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             if (auto effect = animation->effect(); effect && effect->is_keyframe_effect()) {
                 auto& keyframe_effect = *static_cast<Animations::KeyframeEffect*>(effect.ptr());
                 if (keyframe_effect.pseudo_element_type() == abstract_element.pseudo_element()) {
-                    if (!animation_values_applied) {
-                        VERIFY(loop_context.display_before_adjustments.has_value());
-                        VERIFY(loop_context.float_before_adjustments.has_value());
-                        VERIFY(loop_context.overflow_x_before_adjustments.has_value());
-                        VERIFY(loop_context.overflow_y_before_adjustments.has_value());
-                        VERIFY(loop_context.text_align_before_adjustments.has_value());
-                        VERIFY(loop_context.position_before_adjustments.has_value());
-                        VERIFY(loop_context.line_height_before_adjustments);
-                        builder.set_property_without_modifying_flags(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(*loop_context.display_before_adjustments)));
-                        builder.set_property_without_modifying_flags(PropertyID::Float, KeywordStyleValue::create(*loop_context.float_before_adjustments));
-                        builder.set_property_without_modifying_flags(PropertyID::OverflowX, KeywordStyleValue::create(*loop_context.overflow_x_before_adjustments));
-                        builder.set_property_without_modifying_flags(PropertyID::OverflowY, KeywordStyleValue::create(*loop_context.overflow_y_before_adjustments));
-                        builder.set_property_without_modifying_flags(PropertyID::TextAlign, KeywordStyleValue::create(*loop_context.text_align_before_adjustments));
-                        builder.set_property_without_modifying_flags(PropertyID::Position, KeywordStyleValue::create(*loop_context.position_before_adjustments));
-                        builder.set_property_without_modifying_flags(PropertyID::LineHeight, *loop_context.line_height_before_adjustments);
-                    }
+                    if (!animation_values_applied)
+                        restore_values_before_post_compute_adjustments();
                     animation_values_applied = true;
                     collect_animation_into(abstract_element, keyframe_effect, builder);
                 }

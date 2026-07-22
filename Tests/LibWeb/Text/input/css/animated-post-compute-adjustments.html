@@ -5,6 +5,12 @@
 <div id="text-align-parent" style="text-align: left">
     <div id="text-align-child" style="text-align: match-parent"></div>
 </div>
+<div id="inherited-overflow-parent" style="overflow-x: visible">
+    <div id="inherited-overflow-child" style="overflow-x: inherit; overflow-y: visible"></div>
+</div>
+<div id="inherited-position-parent" style="position: static">
+    <div id="inherited-position-child" style="display: inline; position: inherit"></div>
+</div>
 <script>
     promiseTest(async () => {
         const overflowAnimation = overflow.animate(
@@ -42,5 +48,31 @@
         println(`parent text-align: ${getComputedStyle(textAlignParent).textAlign}`);
         await animationFrame();
         println(`match-parent text-align: ${getComputedStyle(textAlignChild).textAlign}`);
+
+        const inheritedOverflowParent = document.getElementById("inherited-overflow-parent");
+        const inheritedOverflowChild = document.getElementById("inherited-overflow-child");
+        const inheritedOverflowAnimation = inheritedOverflowParent.animate(
+            [{ overflowX: "scroll" }, { overflowX: "scroll" }],
+            { duration: 1000, fill: "forwards" });
+        inheritedOverflowAnimation.pause();
+        inheritedOverflowAnimation.currentTime = 500;
+        await inheritedOverflowAnimation.ready;
+
+        const inheritedOverflowStyle = getComputedStyle(inheritedOverflowChild);
+        println(`inherited overflow-x: ${inheritedOverflowStyle.overflowX}`);
+        println(`adjusted overflow-y: ${inheritedOverflowStyle.overflowY}`);
+
+        const inheritedPositionParent = document.getElementById("inherited-position-parent");
+        const inheritedPositionChild = document.getElementById("inherited-position-child");
+        const inheritedPositionAnimation = inheritedPositionParent.animate(
+            [{ position: "absolute" }, { position: "absolute" }],
+            { duration: 1000, fill: "forwards" });
+        inheritedPositionAnimation.pause();
+        inheritedPositionAnimation.currentTime = 500;
+        await inheritedPositionAnimation.ready;
+
+        const inheritedPositionStyle = getComputedStyle(inheritedPositionChild);
+        println(`inherited display: ${inheritedPositionStyle.display}`);
+        println(`inherited position: ${inheritedPositionStyle.position}`);
     });
 </script>

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 560 tests
 
-280 Pass
-280 Fail
+291 Pass
+269 Fail
 Pass	background-color color(rgba) / values
 Fail	background-color color(rgba) / events
 Pass	background-position-x length(pt) / values
@@ -429,27 +429,27 @@ Fail	font-weight font-weight(keyword) / events
 Pass	font-weight font-weight(numeric) / values
 Fail	font-weight font-weight(numeric) / events
 Pass	line-height number(integer) / values
-Fail	line-height number(integer) / events
+Pass	line-height number(integer) / events
 Pass	line-height number(decimal) / values
-Fail	line-height number(decimal) / events
+Pass	line-height number(decimal) / events
 Pass	line-height length(pt) / values
-Fail	line-height length(pt) / events
+Pass	line-height length(pt) / events
 Pass	line-height length(pc) / values
-Fail	line-height length(pc) / events
+Pass	line-height length(pc) / events
 Pass	line-height length(px) / values
-Fail	line-height length(px) / events
+Pass	line-height length(px) / events
 Pass	line-height length(em) / values
-Fail	line-height length(em) / events
+Pass	line-height length(em) / events
 Pass	line-height length(ex) / values
-Fail	line-height length(ex) / events
+Pass	line-height length(ex) / events
 Pass	line-height length(mm) / values
-Fail	line-height length(mm) / events
+Pass	line-height length(mm) / events
 Pass	line-height length(cm) / values
-Fail	line-height length(cm) / events
+Pass	line-height length(cm) / events
 Pass	line-height length(in) / values
-Fail	line-height length(in) / events
+Pass	line-height length(in) / events
 Pass	line-height percentage(%) / values
-Fail	line-height percentage(%) / events
+Pass	line-height percentage(%) / events
 Pass	letter-spacing length(pt) / values
 Fail	letter-spacing length(pt) / events
 Pass	letter-spacing length(pc) / values
