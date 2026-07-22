@@ -26,6 +26,7 @@ public:
     };
 
     static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<String> original_source_text = {}, SourceTextMode = SourceTextMode::Trim, bool contains_attr_tainted_values = false);
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_attr_tainted_with_parsed_value(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<String> original_source_text, SourceTextMode, NonnullRefPtr<StyleValue const> parsed_value);
     virtual ~UnresolvedStyleValue() override = default;
 
     void serialize(StringBuilder&, SerializationMode) const;
@@ -42,18 +43,23 @@ public:
     bool includes_inherit_function() const { return m_value->unresolved.presence_inherit; }
     bool includes_if_function() const { return m_value->unresolved.presence_if; }
     bool includes_var_function() const { return m_value->unresolved.presence_var; }
+    RefPtr<StyleValue const> parsed_value() const { return m_parsed_value; }
 
     bool equals(StyleValue const& other) const;
 
     GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
 
 private:
-    UnresolvedStyleValue(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence, bool contains_attr_tainted_values);
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_internal(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<String> original_source_text, SourceTextMode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
+
+    UnresolvedStyleValue(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
 
     String comparison_text() const;
 
     String source_text() const { return String::from_raw(m_value->unresolved.source_text.raw); }
     String value_comparison_text() const { return String::from_raw(m_value->unresolved.value_comparison_text.raw); }
+
+    RefPtr<StyleValue const> m_parsed_value;
 };
 
 }

@@ -4176,8 +4176,10 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
         return compute_registered_custom_property_value(registration.value(), move(parsed_value), get_computation_context_for_property(PropertyID::Custom, *computed_style_for_custom_property_resolution, element.abstract_element()));
     }();
 
-    if (resolved_value_contains_attr_tainted_values)
-        return UnresolvedStyleValue::create(computed_value->tokenize(), {}, {}, UnresolvedStyleValue::SourceTextMode::Trim, true);
+    if (resolved_value_contains_attr_tainted_values) {
+        VERIFY(!computed_value->is_unresolved());
+        return UnresolvedStyleValue::create_attr_tainted_with_parsed_value(computed_value->tokenize(), {}, {}, UnresolvedStyleValue::SourceTextMode::Trim, computed_value);
+    }
 
     return computed_value;
 }

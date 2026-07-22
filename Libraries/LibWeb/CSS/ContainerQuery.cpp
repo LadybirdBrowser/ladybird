@@ -434,13 +434,11 @@ static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeatu
             auto registration = document.get_registered_custom_property(property.name());
             RefPtr<StyleValue const> comparable_value = computed_value;
             if (registration.has_value() && computed_value->is_unresolved() && computed_value->as_unresolved().contains_attr_tainted_values()) {
-                // Registered custom properties with attr-tainted values are wrapped as unresolved values so tokenize()
-                // preserves the taint. Reparse that wrapper here so style queries can still compare the typed value.
-                // FIXME: Store the attr-tainted flag in a more sensible way so we don't have to do this!
-                auto parsed_computed_value = Parser::parse_with_a_syntax(Parser::ParsingParams { document }, computed_tokens, registration->syntax);
-                if (parsed_computed_value->is_guaranteed_invalid())
-                    return {};
-                comparable_value = compute_registered_custom_property_value(registration.value(), move(parsed_computed_value), computation_context);
+                if (auto cached_parsed_value = computed_value->as_unresolved().parsed_value()) {
+                    comparable_value = compute_registered_custom_property_value(registration.value(), cached_parsed_value.release_nonnull(), computation_context);
+                } else {
+                    VERIFY(registration->syntax->type() == Parser::SyntaxNode::NodeType::Universal);
+                }
             } else if (!registration.has_value() || computed_value->is_unresolved()) {
                 comparable_value = parse_style_range_literal_value(document, computed_tokens);
                 if (!comparable_value)
@@ -553,12 +551,11 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     auto color_resolution_context = fallback_color_resolution_context_for_style_query(element, computation_context);
     auto comparable_computed_value = computed_value;
     if (registration.has_value() && computed_value->is_unresolved() && computed_value->as_unresolved().contains_attr_tainted_values()) {
-        // Registered custom properties with attr-tainted values are wrapped as unresolved values so tokenize()
-        // preserves the taint. Reparse that wrapper here so style queries can still compare the typed value.
-        // FIXME: Store the attr-tainted flag in a more sensible way so we don't have to do this!
-        auto parsed_computed_value = Parser::parse_with_a_syntax(Parser::ParsingParams { document }, computed_tokens, registration->syntax);
-        if (!parsed_computed_value->is_guaranteed_invalid())
-            comparable_computed_value = compute_registered_custom_property_value(registration.value(), move(parsed_computed_value), computation_context);
+        if (auto cached_parsed_value = computed_value->as_unresolved().parsed_value()) {
+            comparable_computed_value = compute_registered_custom_property_value(registration.value(), cached_parsed_value.release_nonnull(), computation_context);
+        } else {
+            VERIFY(registration->syntax->type() == Parser::SyntaxNode::NodeType::Universal);
+        }
     }
 
     // A <style-feature-plain> evaluates to true if the computed value of the given property on the query container
