@@ -1,0 +1,31 @@
+<!doctype html>
+<canvas id="canvas" width="100" height="100"></canvas>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+        const canvasContentGeneration = () => {
+            const match = internals.dumpDisplayList().match(/DrawCanvas@\d+ .*content_generation=(\d+)/);
+            return Number(match[1]);
+        };
+
+        const context = canvas.getContext("2d");
+        context.fillStyle = "red";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        await nextFrame();
+        await nextFrame();
+        const generationBeforeDraw = canvasContentGeneration();
+
+        context.fillStyle = "green";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Trigger an unrelated display list recording in the same rendering update. It must not
+        // reuse the DrawCanvas command cached before the canvas content update.
+        document.body.style.backgroundColor = "white";
+        await nextFrame();
+
+        const generationAfterDraw = canvasContentGeneration();
+        println("cached command has new generation: " + (generationAfterDraw > generationBeforeDraw));
+        done();
+    });
+</script>

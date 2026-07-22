@@ -17,6 +17,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::HTML {
 
@@ -56,6 +57,12 @@ GC::Ref<HTMLCanvasElement> CanvasRenderingContext2D::canvas_for_binding() const
 void CanvasRenderingContext2D::did_draw_hook()
 {
     m_element->set_canvas_content_dirty();
+
+    // NB: Invalidate the cached DrawCanvas command so that if another change causes the display list to be recorded, it
+    // contains the new content generation and damages the canvas. Don't request a display list recording here: the new
+    // content reaches the compositor through the canvas surface registry when the canvas is presented.
+    if (auto paintable = m_element->unsafe_paintable())
+        paintable->invalidate_paint_cache();
     m_element->set_needs_repaint(InvalidateDisplayList::No);
 }
 
