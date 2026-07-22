@@ -21,46 +21,6 @@ DisplayListRecorder::DisplayListRecorder(DisplayList& command_list, AccumulatedV
 
 DisplayListRecorder::~DisplayListRecorder() = default;
 
-DisplayListRecorder::CommandCapture::CommandCapture(DisplayListRecorder& recorder)
-    : m_recorder(&recorder)
-{
-}
-
-DisplayListRecorder::CommandCapture::~CommandCapture()
-{
-    if (m_recorder)
-        m_recorder->end_capture();
-}
-
-DisplayListCommandRange DisplayListRecorder::CommandCapture::take()
-{
-    VERIFY(m_recorder);
-    auto capture_start_offset = m_recorder->m_capture_start_command_offset;
-    auto capture_end_offset = m_recorder->m_display_list.command_byte_size();
-    m_recorder->m_is_capturing = false;
-    m_recorder = nullptr;
-    VERIFY(capture_end_offset >= capture_start_offset);
-    VERIFY(capture_end_offset <= NumericLimits<u32>::max());
-    return {
-        static_cast<u32>(capture_start_offset),
-        static_cast<u32>(capture_end_offset - capture_start_offset),
-    };
-}
-
-DisplayListRecorder::CommandCapture DisplayListRecorder::begin_command_capture()
-{
-    VERIFY(!m_is_capturing);
-    m_is_capturing = true;
-    m_capture_start_command_offset = m_display_list.command_byte_size();
-    m_capture_accumulated_visual_context_index = m_accumulated_visual_context_index;
-    return CommandCapture(*this);
-}
-
-void DisplayListRecorder::end_capture()
-{
-    m_is_capturing = false;
-}
-
 template<DisplayListCommand Command>
 class CommandPayloadBuilder {
 public:

@@ -103,45 +103,15 @@ public:
 
     void translate(Gfx::IntPoint delta);
 
-    void set_accumulated_visual_context(VisualContextIndex index)
-    {
-        // A cached range stores a single recorded context index, so a capture must not span a context switch.
-        VERIFY(!m_is_capturing || index == m_capture_accumulated_visual_context_index);
-        m_accumulated_visual_context_index = index;
-    }
+    void set_accumulated_visual_context(VisualContextIndex index) { m_accumulated_visual_context_index = index; }
     VisualContextIndex accumulated_visual_context() const { return m_accumulated_visual_context_index; }
 
-    void set_context_geometry_only(bool context_geometry_only)
-    {
-        // A cached range is spliced with the context its commands were recorded under, so a capture
-        // must not span a change of context application mode either.
-        VERIFY(!m_is_capturing || context_geometry_only == m_context_geometry_only);
-        m_context_geometry_only = context_geometry_only;
-    }
+    void set_context_geometry_only(bool context_geometry_only) { m_context_geometry_only = context_geometry_only; }
 
     DisplayList const& display_list() const { return m_display_list; }
     AccumulatedVisualContextTree const& visual_context_tree() const { return m_visual_context_tree; }
 
     DisplayListCommandRange append_cached_command_range(DisplayList const& source_display_list, DisplayListCommandRange, VisualContextIndex recorded_context_index);
-
-    class CommandCapture {
-        AK_MAKE_NONCOPYABLE(CommandCapture);
-
-    public:
-        CommandCapture(CommandCapture&& other)
-            : m_recorder(exchange(other.m_recorder, nullptr))
-        {
-        }
-        ~CommandCapture();
-        DisplayListCommandRange take();
-
-    private:
-        friend class DisplayListRecorder;
-        explicit CommandCapture(DisplayListRecorder&);
-        DisplayListRecorder* m_recorder { nullptr };
-    };
-
-    CommandCapture begin_command_capture();
 
     void save();
     void save_layer();
@@ -190,8 +160,6 @@ public:
     int m_save_nesting_level { 0 };
 
 private:
-    void end_capture();
-
     template<DisplayListCommand Command>
     void append_command(Command const& command, ReadonlyBytes inline_data = {})
     {
@@ -204,9 +172,6 @@ private:
     DisplayList& m_display_list;
     AccumulatedVisualContextTree const& m_visual_context_tree;
     DisplayListResourceStorage& m_resource_storage;
-    bool m_is_capturing { false };
-    size_t m_capture_start_command_offset { 0 };
-    VisualContextIndex m_capture_accumulated_visual_context_index { VISUAL_VIEWPORT_NODE_INDEX };
 };
 
 class DisplayListRecorderStateSaver {

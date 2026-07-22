@@ -120,14 +120,18 @@ static void paint_node(Paintable const& paintable, DisplayListRecordingContext& 
         if (cache_writes_enabled)
             paintable.set_cached_commands(phase, recorder.display_list().id(), destination_range, phase_context_index, phase_has_empty_effective_clip);
     } else {
-        auto capture = !skip_cache && cache_writes_enabled
-            ? Optional<DisplayListRecorder::CommandCapture>(recorder.begin_command_capture())
-            : Optional<DisplayListRecorder::CommandCapture> {};
+        auto const command_range_start = recorder.display_list().command_byte_size();
         if (phase == PaintPhase::Background)
             paintable.record_async_scrolling_metadata(context);
         paintable.paint(context, phase);
-        if (capture.has_value())
-            paintable.set_cached_commands(phase, recorder.display_list().id(), capture->take(), phase_context_index, phase_has_empty_effective_clip);
+        if (!skip_cache && cache_writes_enabled) {
+            auto const command_range_end = recorder.display_list().command_byte_size();
+            DisplayListCommandRange command_range {
+                static_cast<u32>(command_range_start),
+                static_cast<u32>(command_range_end - command_range_start),
+            };
+            paintable.set_cached_commands(phase, recorder.display_list().id(), command_range, phase_context_index, phase_has_empty_effective_clip);
+        }
     }
 
     context.display_list_recorder().set_accumulated_visual_context(VISUAL_VIEWPORT_NODE_INDEX);
