@@ -354,8 +354,8 @@ fn apply_declaration_block(
     unset_shell: *const c_void,
     unset_data: *const c_void,
     is_property_disallowed: &dyn Fn(u16) -> bool,
-    resolve_unresolved: &dyn Fn(u16, *const c_void) -> *const c_void,
-    parse_substituted: &dyn Fn(u16, &[u8]) -> *const c_void,
+    resolve_unresolved: &dyn Fn(u16, *const c_void) -> FfiResolvedStyleValue,
+    parse_substituted: &dyn Fn(u16, &[u8]) -> FfiResolvedStyleValue,
     custom_property_store: *const c_void,
     custom_property_registry: *const c_void,
     data_of: &dyn Fn(*const c_void) -> *const c_void,
@@ -389,16 +389,19 @@ fn apply_declaration_block(
             };
             match native_resolution {
                 crate::custom_properties::NativeVarResolution::Resolved(source) => {
-                    shell = parse_substituted(declaration.property_id, &source);
-                    data = data_of(shell);
+                    let resolved = parse_substituted(declaration.property_id, &source);
+                    shell = resolved.shell;
+                    data = resolved.data;
                 }
                 crate::custom_properties::NativeVarResolution::Invalid => {
-                    shell = parse_substituted(declaration.property_id, &[]);
-                    data = data_of(shell);
+                    let resolved = parse_substituted(declaration.property_id, &[]);
+                    shell = resolved.shell;
+                    data = resolved.data;
                 }
                 crate::custom_properties::NativeVarResolution::NotHandled => {
-                    shell = resolve_unresolved(declaration.property_id, shell);
-                    data = data_of(shell);
+                    let resolved = resolve_unresolved(declaration.property_id, shell);
+                    shell = resolved.shell;
+                    data = resolved.data;
                 }
             }
         }
@@ -540,16 +543,16 @@ pub struct FfiCascadedCustomProperty {
 #[repr(C)]
 pub struct FfiBulkCascadeCallbacks {
     pub context: *mut c_void,
-    /// Resolves an unresolved (arbitrary-substitution) value; returns the pinned resolved shell.
+    /// Resolves an unresolved value and returns its pinned shell and Rust-owned data.
     pub resolve_unresolved:
-        unsafe extern "C" fn(context: *mut c_void, property_id: u16, shell: *const c_void) -> *const c_void,
-    /// Parses a Rust-substituted UTF-8 token stream as the target property.
+        unsafe extern "C" fn(context: *mut c_void, property_id: u16, shell: *const c_void) -> FfiResolvedStyleValue,
+    /// Parses a substituted token stream and returns its pinned shell and Rust-owned data.
     pub parse_substituted: unsafe extern "C" fn(
         context: *mut c_void,
         property_id: u16,
         source: *const u8,
         source_length: usize,
-    ) -> *const c_void,
+    ) -> FfiResolvedStyleValue,
     /// Returns the Rust-owned data of a C++ style value shell.
     pub data_of: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
     /// Creates and pins a pending-substitution value wrapping the given value; returns its shell.
@@ -566,6 +569,12 @@ pub struct FfiBulkCascadeCallbacks {
         properties: *const FfiCascadedCustomProperty,
         count: usize,
     ) -> *const c_void,
+}
+
+#[repr(C)]
+pub struct FfiResolvedStyleValue {
+    pub shell: *const c_void,
+    pub data: *const c_void,
 }
 
 /// Runs the whole cascade for one element in css-cascade-5 origin order over
