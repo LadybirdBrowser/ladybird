@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<map name="m">
+    <area shape="poly" coords="20,20,180,20,100,80" href="#target" alt="target">
+</map>
+<map name="n">
+    <area shape="poly" coords="20,20,180,20,100,80" href="#other" alt="other">
+</map>
+<img usemap="#m" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" width="200" height="100" alt="first image map">
+<img usemap="#n" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" width="200" height="100" alt="second image map">
+<script>
+    document.querySelector("area").focus();
+</script>

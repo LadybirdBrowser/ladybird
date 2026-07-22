@@ -9,6 +9,7 @@
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLMapElement.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::HTML {
 
@@ -64,6 +65,13 @@ GC::Ptr<HTMLImageElement> HTMLMapElement::first_image_with_focusable_shapes() co
         // The shapes of area elements in an image map associated with an img element that is being rendered and is
         // not inert.
         return image_element.meets_focusable_area_rendering_requirements() && !image_element.is_inert();
+    });
+}
+
+GC::Ptr<HTMLImageElement> HTMLMapElement::first_painted_image_with_focusable_shapes() const
+{
+    return first_associated_image_matching([](HTMLImageElement& image_element) {
+        return image_element.paintable_box() && !image_element.is_inert();
     });
 }
 

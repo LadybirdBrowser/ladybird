@@ -371,6 +371,7 @@ public:
     BorderRadiiData border_radii_data() const;
 
     Optional<BordersData> outline_data() const;
+    Optional<BordersData> outline_data(CSS::ComputedValues const&) const;
     CSSPixels outline_offset() const;
 
     void set_filter(ResolvedCSSFilter filter) { m_filter = move(filter); }
