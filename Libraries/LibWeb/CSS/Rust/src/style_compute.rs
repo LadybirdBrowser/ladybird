@@ -1814,7 +1814,7 @@ pub struct FfiComputedStoreEntry {
     pub property_id: u16,
     pub inherited_property_id: u16,
     /// The selected specified value; also the stored value unless a computed
-    /// pixel length replaces it.
+    /// pixel length or keyword replaces it.
     pub shell: *const c_void,
     pub inheritance_dependent: bool,
     pub inherited: bool,
@@ -1844,6 +1844,8 @@ pub const COMPUTED_KIND_FONT_STYLE: u8 = 6;
 /// the reads later computations make, since those reads only happen inside
 /// callbacks the driver invokes after flushing.
 pub const COMPUTED_KIND_COMPUTE_IN_CPP: u8 = 7;
+/// A keyword whose numeric code is carried in `value`.
+pub const COMPUTED_KIND_KEYWORD: u8 = 8;
 
 /// The leaf callbacks the C++ side provides to the property computation
 /// driver. The driver selects each longhand's cascaded, inherited or initial
@@ -2063,8 +2065,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
     abort_on_panic(|| {
         use crate::property_metadata::{
             FIRST_INHERITED_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES, REQUIRES_COMPUTATION_ALWAYS,
-            REQUIRES_COMPUTATION_CASCADED, REQUIRES_COMPUTATION_NON_INHERITED, property_is_inherited,
-            property_requires_computation_level,
+            REQUIRES_COMPUTATION_CASCADED, REQUIRES_COMPUTATION_NON_INHERITED, property_id as prop,
+            property_is_inherited, property_requires_computation_level,
         };
 
         let callbacks = unsafe { &*callbacks };
@@ -2143,6 +2145,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         // both properties only take keywords, whose computed value is the specified one.
         let mut computed_writing_mode: Option<u8> = None;
         let mut computed_direction: Option<u8> = None;
+        let mut computed_overflow_x: Option<u16> = None;
 
         for &property_id in crate::property_metadata::property_computation_order() {
             let mut cascaded_property_id = property_id;
@@ -2624,6 +2627,31 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     value: 0.0,
                 });
             }
+
+            if property_id == prop::OVERFLOW_X {
+                if let StyleValueData::Keyword { keyword } = value_data {
+                    computed_overflow_x = Some(*keyword);
+                }
+            } else if property_id == prop::OVERFLOW_Y
+                && let (Some(overflow_x), StyleValueData::Keyword { keyword: overflow_y }) =
+                    (computed_overflow_x, value_data)
+            {
+                let effective_overflow = resolve_effective_overflow_keywords(overflow_x, *overflow_y);
+                for entry in pending_stores.iter_mut().rev() {
+                    if entry.property_id == prop::OVERFLOW_X && effective_overflow.changed_x {
+                        debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_SHELL);
+                        entry.computed_kind = COMPUTED_KIND_KEYWORD;
+                        entry.value = effective_overflow.x_keyword as f64;
+                    } else if entry.property_id == prop::OVERFLOW_Y && effective_overflow.changed_y {
+                        debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_SHELL);
+                        entry.computed_kind = COMPUTED_KIND_KEYWORD;
+                        entry.value = effective_overflow.y_keyword as f64;
+                    }
+                    if entry.property_id == prop::OVERFLOW_X {
+                        break;
+                    }
+                }
+            }
         }
 
         flush_pending_stores(callbacks, context, &mut pending_stores);
@@ -3041,37 +3069,39 @@ pub struct FfiEffectiveOverflow {
 /// https://www.w3.org/TR/css-overflow-3/#overflow-control
 /// The visible/clip values of overflow compute to auto/hidden (respectively) if one of overflow-x or
 /// overflow-y is neither visible nor clip.
+fn resolve_effective_overflow_keywords(overflow_x: u16, overflow_y: u16) -> FfiEffectiveOverflow {
+    let is_visible_or_clip = |keyword: u16| keyword == keyword::VISIBLE || keyword == keyword::CLIP;
+    let mut result = FfiEffectiveOverflow {
+        changed_x: false,
+        x_keyword: overflow_x,
+        changed_y: false,
+        y_keyword: overflow_y,
+    };
+    if !is_visible_or_clip(overflow_x) || !is_visible_or_clip(overflow_y) {
+        if overflow_x == keyword::VISIBLE {
+            result.changed_x = true;
+            result.x_keyword = keyword::AUTO;
+        }
+        if overflow_x == keyword::CLIP {
+            result.changed_x = true;
+            result.x_keyword = keyword::HIDDEN;
+        }
+        if overflow_y == keyword::VISIBLE {
+            result.changed_y = true;
+            result.y_keyword = keyword::AUTO;
+        }
+        if overflow_y == keyword::CLIP {
+            result.changed_y = true;
+            result.y_keyword = keyword::HIDDEN;
+        }
+    }
+    result
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_resolve_effective_overflow_keywords(overflow_x: u16, overflow_y: u16) -> FfiEffectiveOverflow {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        let is_visible_or_clip = |keyword: u16| keyword == keyword::VISIBLE || keyword == keyword::CLIP;
-        let mut result = FfiEffectiveOverflow {
-            changed_x: false,
-            x_keyword: overflow_x,
-            changed_y: false,
-            y_keyword: overflow_y,
-        };
-        if !is_visible_or_clip(overflow_x) || !is_visible_or_clip(overflow_y) {
-            if overflow_x == keyword::VISIBLE {
-                result.changed_x = true;
-                result.x_keyword = keyword::AUTO;
-            }
-            if overflow_x == keyword::CLIP {
-                result.changed_x = true;
-                result.x_keyword = keyword::HIDDEN;
-            }
-            if overflow_y == keyword::VISIBLE {
-                result.changed_y = true;
-                result.y_keyword = keyword::AUTO;
-            }
-            if overflow_y == keyword::CLIP {
-                result.changed_y = true;
-                result.y_keyword = keyword::HIDDEN;
-            }
-        }
-        result
-    })
+    abort_on_panic(|| resolve_effective_overflow_keywords(overflow_x, overflow_y))
 }
 
 /// Result of the text-align adjustment: the replacement keyword and whether it
@@ -3183,6 +3213,25 @@ mod ffi_test_stubs {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn effective_overflow_keywords_compute_together() {
+        let result = resolve_effective_overflow_keywords(keyword::VISIBLE, keyword::AUTO);
+        assert!(result.changed_x);
+        assert_eq!(result.x_keyword, keyword::AUTO);
+        assert!(!result.changed_y);
+        assert_eq!(result.y_keyword, keyword::AUTO);
+
+        let result = resolve_effective_overflow_keywords(keyword::CLIP, keyword::SCROLL);
+        assert!(result.changed_x);
+        assert_eq!(result.x_keyword, keyword::HIDDEN);
+        assert!(!result.changed_y);
+        assert_eq!(result.y_keyword, keyword::SCROLL);
+
+        let result = resolve_effective_overflow_keywords(keyword::VISIBLE, keyword::CLIP);
+        assert!(!result.changed_x);
+        assert!(!result.changed_y);
+    }
 
     fn test_context() -> FfiLengthResolutionContext {
         FfiLengthResolutionContext {

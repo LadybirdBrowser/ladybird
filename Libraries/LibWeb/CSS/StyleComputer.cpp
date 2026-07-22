@@ -3417,6 +3417,9 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             case ComputedValuesFFI::COMPUTED_KIND_FONT_STYLE:
                 builder.set_property_without_modifying_flags(property_id, FontStyleStyleValue::create(static_cast<FontStyleKeyword>(entry.value)));
                 break;
+            case ComputedValuesFFI::COMPUTED_KIND_KEYWORD:
+                builder.set_property_without_modifying_flags(property_id, KeywordStyleValue::create(static_cast<Keyword>(static_cast<u16>(entry.value))));
+                break;
             case ComputedValuesFFI::COMPUTED_KIND_SUPERELLIPSE: {
                 // NB: The round value is cached since it is the initial value of the corner-*-shape properties.
                 if (entry.value == 1) {
@@ -3529,17 +3532,21 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     // Add or modify CSS-defined animations
     process_animation_definitions(computed_style, cascaded_properties, abstract_element);
 
+    bool animation_values_applied = false;
     auto animations = abstract_element.element().get_animations_internal(
         Animations::Animatable::GetAnimationsSorted::Yes,
         Bindings::GetAnimationsOptions { .subtree = false });
     if (animations.is_exception()) {
+        animation_values_applied = true;
         dbgln("Error getting animations for element {}", abstract_element.debug_description());
     } else {
         for (auto& animation : animations.value()) {
             if (auto effect = animation->effect(); effect && effect->is_keyframe_effect()) {
                 auto& keyframe_effect = *static_cast<Animations::KeyframeEffect*>(effect.ptr());
-                if (keyframe_effect.pseudo_element_type() == abstract_element.pseudo_element())
+                if (keyframe_effect.pseudo_element_type() == abstract_element.pseudo_element()) {
+                    animation_values_applied = true;
                     collect_animation_into(abstract_element, keyframe_effect, builder);
+                }
             }
         }
     }
@@ -3548,7 +3555,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     transform_box_type_if_needed(builder, abstract_element);
 
     // Apply any property-specific computed value logic
-    resolve_effective_overflow_values(builder);
+    if (animation_values_applied)
+        resolve_effective_overflow_values(builder);
     compute_text_align(builder, abstract_element);
 
     // Let the element adjust computed style
