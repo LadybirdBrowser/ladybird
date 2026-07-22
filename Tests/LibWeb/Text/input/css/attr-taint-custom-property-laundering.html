@@ -1,0 +1,47 @@
+<!doctype html>
+<style>
+    @property --length {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: 0px;
+    }
+
+    /* #parent's value is untainted, and computes to the same text as #child's tainted one. */
+    #parent {
+        --length: 10px;
+    }
+
+    #child {
+        --length: attr(data-length type(<length>));
+    }
+
+    #grandchild {
+        background-color: red;
+        color: red;
+    }
+
+    @container style(--length: 10px) {
+        #grandchild {
+            background-color: green;
+        }
+    }
+
+    @container style(--length > 5px) {
+        #grandchild {
+            color: green;
+        }
+    }
+</style>
+<div id="parent">
+    <div id="child" data-length="10px">
+        <div id="grandchild"></div>
+    </div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(child).getPropertyValue("--length"));
+        println(getComputedStyle(grandchild).backgroundColor);
+        println(getComputedStyle(grandchild).color);
+    });
+</script>

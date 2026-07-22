@@ -129,7 +129,8 @@ bool UnresolvedStyleValue::equals(StyleValue const& other) const
         return false;
 
     auto const& other_unresolved = other.as_unresolved();
-    return comparison_text() == other_unresolved.comparison_text();
+    return contains_attr_tainted_values() == other_unresolved.contains_attr_tainted_values()
+        && comparison_text() == other_unresolved.comparison_text();
 }
 
 static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm&, ReadonlySpan<Parser::ComponentValue>);
