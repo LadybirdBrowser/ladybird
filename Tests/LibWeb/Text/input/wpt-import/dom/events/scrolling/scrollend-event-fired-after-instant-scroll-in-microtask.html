@@ -1,0 +1,51 @@
+<!DOCTYPE HTML>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<title>Scrollend should fire after scroll instant scrolling triggered in promise microtask</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#document-pending-scroll-events">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=2015089">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="scroll_support.js"></script>
+<style>
+html {
+  height: 300vh;
+  width: 100%;
+}
+</style>
+<body style="margin:0">
+<script>
+promise_test(async (t) => {
+  await waitForCompositorCommit();
+
+  let scrolling = false;
+  window.addEventListener("scroll", _ => {
+    scrolling = true;
+  });
+  window.addEventListener("scrollend", _ => {
+    scrolling = false;
+  });
+
+  let promiseScroll = () => {
+    return new Promise(resolve => {
+      window.addEventListener("scroll", resolve, { once: true });
+    });
+  };
+
+  let scrollPromise = promiseScroll();
+  document.scrollingElement.scrollTop = 100;
+  await scrollPromise;
+
+  scrollPromise = promiseScroll();
+  document.scrollingElement.scrollTop = 200;
+  await scrollPromise;
+
+  await new Promise((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(resolve);
+    });
+  });
+
+  assert_equals(scrolling, false);
+}, "scrolling state is false at the end of the test");
+</script>
+</body>
