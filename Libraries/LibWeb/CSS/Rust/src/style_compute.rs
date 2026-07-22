@@ -1867,8 +1867,9 @@ pub struct FfiLonghandCallbacks {
     /// Stores the used color scheme resolved from the computed color-scheme
     /// value and document preferences.
     pub store_effective_color_scheme: unsafe extern "C" fn(context: *mut c_void, color_scheme: u8),
-    /// Stores the original display and applies the box type transformation
-    /// after the ordinary longhand batch has been flushed.
+    /// Stores the original adjusted properties, applies the post-computation
+    /// changes after the ordinary longhand batch has been flushed, and returns
+    /// the font measurements needed for the input line-height decision.
     pub store_box_type_transformation: unsafe extern "C" fn(
         context: *mut c_void,
         display_before: *const FfiDisplay,
@@ -1879,7 +1880,7 @@ pub struct FfiLonghandCallbacks {
         position_before: u16,
         transformation: *const FfiBoxTypeTransformation,
         element_adjustment: *const FfiElementStyleAdjustment,
-    ) -> bool,
+    ) -> FfiInputLineHeightMetrics,
     /// Rare: fetches the parent's computed value for an explicit `inherit` of
     /// a non-inherited property, which the parent snapshot does not carry.
     /// The C++ side pins the returned shell until the end of the drive, so
@@ -2824,7 +2825,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             clear_longhand_bit(important_words, prop::TEXT_ALIGN);
             clear_longhand_bit(inherited_words, prop::TEXT_ALIGN);
         }
-        let line_height_changed = unsafe {
+        let input_line_height_metrics = unsafe {
             (callbacks.store_box_type_transformation)(
                 context,
                 &raw const display_before,
@@ -2837,6 +2838,22 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 &raw const element_adjustment,
             )
         };
+        let clamp_input_line_height = should_clamp_input_line_height(&element_adjustment, &input_line_height_metrics);
+        if clamp_input_line_height {
+            let normal = initial_value(prop::LINE_HEIGHT);
+            let entry = FfiComputedStoreEntry {
+                property_id: prop::LINE_HEIGHT,
+                inherited_property_id: prop::LINE_HEIGHT,
+                shell: normal.shell,
+                inheritance_dependent: false,
+                inherited: false,
+                computed_kind: COMPUTED_KIND_KEYWORD,
+                value: keyword::NORMAL as f64,
+            };
+            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandStoreBatchCallback);
+            unsafe { (callbacks.store_computed_batch)(context, &raw const entry, 1) };
+        }
+        let line_height_changed = element_adjustment.set_line_height_normal || clamp_input_line_height;
         if line_height_changed {
             clear_longhand_bit(important_words, prop::LINE_HEIGHT);
             clear_longhand_bit(inherited_words, prop::LINE_HEIGHT);
@@ -3173,6 +3190,16 @@ pub struct FfiElementStyleAdjustment {
     pub set_position_static: bool,
     pub changed_text_align: bool,
     pub text_align: u16,
+}
+
+#[repr(C)]
+pub struct FfiInputLineHeightMetrics {
+    pub current_line_height: f64,
+    pub minimum_line_height: f64,
+}
+
+fn should_clamp_input_line_height(adjustment: &FfiElementStyleAdjustment, metrics: &FfiInputLineHeightMetrics) -> bool {
+    adjustment.check_input_line_height && metrics.current_line_height < metrics.minimum_line_height
 }
 
 fn adjust_element_style(
@@ -3729,6 +3756,24 @@ mod tests {
         let adjustment = adjust_element_style(&input, FfiDisplay::block(), keyword::_LIBWEB_CENTER);
         assert!(adjustment.changed_text_align);
         assert_eq!(adjustment.text_align, keyword::START);
+
+        input = element_adjustment_input();
+        input.check_input_line_height = true;
+        let adjustment = adjust_element_style(&input, FfiDisplay::inline(), keyword::LEFT);
+        assert!(should_clamp_input_line_height(
+            &adjustment,
+            &FfiInputLineHeightMetrics {
+                current_line_height: 12.0,
+                minimum_line_height: 16.0,
+            }
+        ));
+        assert!(!should_clamp_input_line_height(
+            &adjustment,
+            &FfiInputLineHeightMetrics {
+                current_line_height: 18.0,
+                minimum_line_height: 16.0,
+            }
+        ));
     }
 
     fn test_context() -> FfiLengthResolutionContext {

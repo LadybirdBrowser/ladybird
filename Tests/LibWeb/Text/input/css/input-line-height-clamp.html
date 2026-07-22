@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="small" style="font-size: 20px; line-height: 1px">
+<input id="large" style="font-size: 20px; line-height: 40px">
+<input id="variable" style="--height: 1px; font-size: 20px; line-height: var(--height)">
+<input id="checkbox" type="checkbox" style="font-size: 20px; line-height: 1px">
+<script>
+    test(() => {
+        for (const id of ["small", "large", "variable", "checkbox"])
+            println(`${id}: ${getComputedStyle(document.getElementById(id)).lineHeight}`);
+
+    });
+</script>

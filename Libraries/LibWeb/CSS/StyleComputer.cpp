@@ -2897,28 +2897,22 @@ static void apply_box_type_transformation(ComputedProperties::Builder& builder, 
         builder.set_property(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(transformation.display)));
 }
 
-static bool apply_element_style_adjustment(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element, ComputedValuesFFI::FfiElementStyleAdjustment const& adjustment)
+static ComputedValuesFFI::FfiInputLineHeightMetrics apply_element_style_adjustment(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element, ComputedValuesFFI::FfiElementStyleAdjustment const& adjustment)
 {
-    bool line_height_changed = false;
     if (adjustment.changed_display)
         builder.set_property(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(adjustment.display)));
-    if (adjustment.set_line_height_normal) {
+    if (adjustment.set_line_height_normal)
         builder.set_property(PropertyID::LineHeight, KeywordStyleValue::create(Keyword::Normal));
-        line_height_changed = true;
-    }
+    ComputedValuesFFI::FfiInputLineHeightMetrics line_height_metrics {};
     if (adjustment.check_input_line_height) {
-        auto current_line_height = builder.line_height(abstract_element.element().document().font_computer()).to_double();
-        auto minimum_line_height = ComputedProperties::normal_line_height(builder.first_available_computed_font(abstract_element.element().document().font_computer())->pixel_metrics()).to_double();
-        if (current_line_height < minimum_line_height) {
-            builder.set_property(PropertyID::LineHeight, KeywordStyleValue::create(Keyword::Normal));
-            line_height_changed = true;
-        }
+        line_height_metrics.current_line_height = builder.line_height(abstract_element.element().document().font_computer()).to_double();
+        line_height_metrics.minimum_line_height = ComputedProperties::normal_line_height(builder.first_available_computed_font(abstract_element.element().document().font_computer())->pixel_metrics()).to_double();
     }
     if (adjustment.set_position_static)
         builder.set_property(PropertyID::Position, KeywordStyleValue::create(Keyword::Static));
     if (adjustment.changed_text_align)
         builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(static_cast<Keyword>(adjustment.text_align)));
-    return line_height_changed;
+    return line_height_metrics;
 }
 
 // https://drafts.csswg.org/css-display/#transformations
@@ -3575,7 +3569,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         .store_effective_color_scheme = [](void* context, u8 color_scheme) {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             loop_context.builder.set_effective_color_scheme(static_cast<PreferredColorScheme>(color_scheme)); },
-        .store_box_type_transformation = [](void* context, ComputedValuesFFI::FfiDisplay const* display_before, u16 float_before, u16 overflow_x_before, u16 overflow_y_before, u16 text_align_before, u16 position_before, ComputedValuesFFI::FfiBoxTypeTransformation const* transformation, ComputedValuesFFI::FfiElementStyleAdjustment const* element_adjustment) -> bool {
+        .store_box_type_transformation = [](void* context, ComputedValuesFFI::FfiDisplay const* display_before, u16 float_before, u16 overflow_x_before, u16 overflow_y_before, u16 text_align_before, u16 position_before, ComputedValuesFFI::FfiBoxTypeTransformation const* transformation, ComputedValuesFFI::FfiElementStyleAdjustment const* element_adjustment) -> ComputedValuesFFI::FfiInputLineHeightMetrics {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             loop_context.display_before_adjustments = *display_before;
             loop_context.float_before_adjustments = static_cast<Keyword>(float_before);
