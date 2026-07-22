@@ -3384,6 +3384,21 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
 
     auto const device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel();
 
+    Vector<u8> document_supported_color_scheme_codes;
+    auto document_supported_color_schemes = document().supported_color_schemes();
+    if (document_supported_color_schemes.has_value()) {
+        document_supported_color_scheme_codes.ensure_capacity(document_supported_color_schemes->size());
+        for (auto const& scheme : *document_supported_color_schemes)
+            document_supported_color_scheme_codes.unchecked_append(to_underlying(preferred_color_scheme_from_string(scheme)));
+    }
+    ComputedValuesFFI::FfiEffectiveColorSchemeInput const effective_color_scheme_input {
+        .preferred_color_scheme = static_cast<u8>(to_underlying(document().page().preferred_color_scheme())),
+        .has_document_supported_schemes = document_supported_color_schemes.has_value(),
+        .document_supported_scheme_codes = document_supported_color_scheme_codes.data(),
+        .document_supported_scheme_count = document_supported_color_scheme_codes.size(),
+    };
+    builder.clear_effective_color_scheme();
+
     auto const compute_property = [&](PropertyID property_id, NonnullRefPtr<StyleValue const> const& style_value, bool& depends_on_viewport_metrics) {
         auto const& computation_context = get_computation_context_for_property(property_id, computed_style, abstract_element);
         computation_context.reset_viewport_metric_dependency_tracking();
@@ -3510,6 +3525,10 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
                 builder.set_property_without_modifying_flags(property_id, value);
                 break;
             }
+            if (property_id == PropertyID::ColorScheme && !builder.has_effective_color_scheme()) {
+                auto effective_color_scheme = ComputedValuesFFI::rust_resolve_effective_color_scheme(builder.property(PropertyID::ColorScheme).rust_style_value_data(), &effective_color_scheme_input);
+                builder.set_effective_color_scheme(static_cast<PreferredColorScheme>(effective_color_scheme));
+            }
         }
     };
 
@@ -3553,6 +3572,9 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         .store_computed_batch = [](void* context, ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count) {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             loop_context.store_computed_batch_callback(entries, count); },
+        .store_effective_color_scheme = [](void* context, u8 color_scheme) {
+            auto& loop_context = *static_cast<LonghandLoopContext*>(context);
+            loop_context.builder.set_effective_color_scheme(static_cast<PreferredColorScheme>(color_scheme)); },
         .store_box_type_transformation = [](void* context, ComputedValuesFFI::FfiDisplay const* display_before, u16 float_before, u16 overflow_x_before, u16 overflow_y_before, u16 text_align_before, u16 position_before, ComputedValuesFFI::FfiBoxTypeTransformation const* transformation, ComputedValuesFFI::FfiElementStyleAdjustment const* element_adjustment) -> bool {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             loop_context.display_before_adjustments = *display_before;
@@ -3597,7 +3619,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     };
     auto box_type_input = make_box_type_transformation_input(
         abstract_element, InitialValues::display(), Keyword::Static, Keyword::None);
-    ComputedValuesFFI::rust_drive_property_computation(&callbacks, cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, &box_type_input, abstract_element.element().local_name() == HTML::TagNames::th, new_font_size != nullptr, device_pixels_per_css_pixel, InitialValues::font_size().raw_value(), default_user_font_size().raw_value(), &driver_results);
+    ComputedValuesFFI::rust_drive_property_computation(&callbacks, cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, &box_type_input, &effective_color_scheme_input, abstract_element.element().local_name() == HTML::TagNames::th, new_font_size != nullptr, device_pixels_per_css_pixel, InitialValues::font_size().raw_value(), default_user_font_size().raw_value(), &driver_results);
 
     // Apply the driver's bulk results.
     auto longhand_bit_is_set = [](Array<u64, longhand_bitmap_words> const& words, size_t index) {

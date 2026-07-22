@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta name="color-scheme" content="dark light">
+<script src="../include.js"></script>
+<style>
+    div {
+        color: CanvasText;
+    }
+
+    #preferred {
+        color-scheme: light dark;
+    }
+
+    #first-supported {
+        color-scheme: custom light;
+    }
+
+    #variable {
+        --scheme: dark;
+        color-scheme: var(--scheme);
+    }
+
+    #animated {
+        color-scheme: light;
+        animation: scheme 1s -1s paused both;
+    }
+
+    @keyframes scheme {
+        from, to {
+            color-scheme: dark;
+        }
+    }
+</style>
+<div id="preferred"></div>
+<div id="first-supported"></div>
+<div id="normal"></div>
+<div id="variable"></div>
+<div id="animated"></div>
+<script>
+    test(() => {
+        internals.setPreferredColorScheme("dark");
+        internals.updateStyle();
+
+        for (const id of ["preferred", "first-supported", "normal", "variable", "animated"]) {
+            const style = getComputedStyle(document.getElementById(id));
+            println(`${id}: ${style.colorScheme} / ${style.color}`);
+        }
+    });
+</script>

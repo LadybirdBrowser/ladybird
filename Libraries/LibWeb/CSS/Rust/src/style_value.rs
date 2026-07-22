@@ -322,6 +322,15 @@ impl RetainedUtf16FlyStringList {
 
 retained_list_drop!(RetainedUtf16FlyStringList);
 
+impl RetainedByteList {
+    pub(crate) fn as_slice(&self) -> &[u8] {
+        if self.pointer.is_null() {
+            return &[];
+        }
+        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+    }
+}
+
 /// A retained counter definition: the counter name, the reversed flag and an optional retained
 /// value (null when absent).
 #[repr(C)]
@@ -1019,6 +1028,7 @@ pub enum StyleValueData {
     /// color-scheme with its retained scheme names and the only keyword flag.
     ColorScheme {
         schemes: RetainedUtf16FlyStringList,
+        scheme_codes: RetainedByteList,
         only: bool,
     },
     /// An unresolved value containing arbitrary substitution functions, kept as its retained
@@ -1870,12 +1880,14 @@ pub unsafe extern "C" fn rust_style_value_create_font_source(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_color_scheme(
     schemes: *const usize,
+    scheme_codes: *const u8,
     scheme_count: usize,
     only: bool,
 ) -> *mut StyleValueData {
     abort_on_panic(|| {
         Box::into_raw(Box::new(StyleValueData::ColorScheme {
             schemes: unsafe { RetainedUtf16FlyStringList::from_raw(schemes, scheme_count) },
+            scheme_codes: unsafe { RetainedByteList::from_raw(scheme_codes, scheme_count) },
             only,
         }))
     })

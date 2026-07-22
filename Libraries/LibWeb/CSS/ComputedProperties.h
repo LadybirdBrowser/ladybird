@@ -107,6 +107,10 @@ public:
 
         void set_display_before_box_type_transformation(Display);
 
+        bool has_effective_color_scheme() const { return m_data->effective_color_scheme.has_value(); }
+        void set_effective_color_scheme(PreferredColorScheme color_scheme) { m_data->effective_color_scheme = color_scheme; }
+        void clear_effective_color_scheme() { m_data->effective_color_scheme.clear(); }
+
         HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& inheritance_dependent_specified_values() const { return m_data->inheritance_dependent_specified_values; }
         void add_inheritance_dependent_specified_value(PropertyID property_id, NonnullRefPtr<StyleValue const> value) { m_data->inheritance_dependent_specified_values.set(property_id, move(value)); }
 
@@ -362,6 +366,7 @@ private:
         u64 pseudo_element_styles { 0 };
 
         Optional<CSSPixels> line_height;
+        Optional<PreferredColorScheme> effective_color_scheme;
 
         HashMap<PropertyID, NonnullRefPtr<StyleValue const>> inheritance_dependent_specified_values;
         RefPtr<StyleValue const> raw_cascaded_font_size;

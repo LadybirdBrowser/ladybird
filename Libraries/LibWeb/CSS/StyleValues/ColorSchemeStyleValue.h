@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -46,10 +47,14 @@ private:
     {
         // The Rust allocation takes ownership of one leaked reference to each scheme name.
         Vector<size_t> raws;
+        Vector<u8> scheme_codes;
         raws.ensure_capacity(schemes.size());
-        for (auto const& scheme : schemes)
+        scheme_codes.ensure_capacity(schemes.size());
+        for (auto const& scheme : schemes) {
             raws.unchecked_append(scheme.to_raw_leaked());
-        return StyleValueFFI::rust_style_value_create_color_scheme(raws.data(), raws.size(), only);
+            scheme_codes.unchecked_append(to_underlying(preferred_color_scheme_from_string(scheme)));
+        }
+        return StyleValueFFI::rust_style_value_create_color_scheme(raws.data(), scheme_codes.data(), raws.size(), only);
     }
 };
 

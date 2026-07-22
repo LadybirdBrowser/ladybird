@@ -1669,6 +1669,7 @@ ComputedProperties::Builder::Builder(ComputedProperties const& style)
     m_data->display_before_box_type_transformation = style.data().display_before_box_type_transformation;
     m_data->pseudo_element_styles = style.data().pseudo_element_styles;
     m_data->line_height = style.data().line_height;
+    m_data->effective_color_scheme = style.data().effective_color_scheme;
     m_data->inheritance_dependent_specified_values = style.data().inheritance_dependent_specified_values;
     m_data->raw_cascaded_font_size = style.data().raw_cascaded_font_size;
     m_depends_on_viewport_metrics = style.depends_on_viewport_metrics();
@@ -2128,6 +2129,11 @@ ColorInterpolation ComputedProperties::color_interpolation_filters() const
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
 PreferredColorScheme ComputedProperties::color_scheme(PreferredColorScheme preferred_scheme, Optional<Vector<Utf16FlyString> const&> document_supported_schemes) const
 {
+    if (!has_animated_property(PropertyID::ColorScheme) && m_data->effective_color_scheme.has_value())
+        return *m_data->effective_color_scheme;
+
+    // NB: Animated color-scheme values keep using this path until animations move
+    //     into the Rust driver.
     // To determine the used color scheme of an element:
     auto const& scheme_value = property(PropertyID::ColorScheme).as_color_scheme();
     auto schemes = scheme_value.schemes();

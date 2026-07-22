@@ -1864,6 +1864,9 @@ pub struct FfiLonghandCallbacks {
     /// are pinned by the snapshot or the fetch below.
     pub store_computed_batch:
         unsafe extern "C" fn(context: *mut c_void, entries: *const FfiComputedStoreEntry, count: usize),
+    /// Stores the used color scheme resolved from the computed color-scheme
+    /// value and document preferences.
+    pub store_effective_color_scheme: unsafe extern "C" fn(context: *mut c_void, color_scheme: u8),
     /// Stores the original display and applies the box type transformation
     /// after the ordinary longhand batch has been flushed.
     pub store_box_type_transformation: unsafe extern "C" fn(
@@ -1897,6 +1900,36 @@ pub struct FfiLonghandCallbacks {
     /// first, since building a context reads stored values.
     pub length_resolution_context:
         unsafe extern "C" fn(context: *mut c_void, property_id: u16, out: *mut FfiLengthResolutionContext),
+}
+
+/// Document-level inputs to used color-scheme resolution. Scheme values use
+/// the C++ PreferredColorScheme discriminants: auto, dark, and light.
+#[repr(C)]
+pub struct FfiEffectiveColorSchemeInput {
+    pub preferred_color_scheme: u8,
+    pub has_document_supported_schemes: bool,
+    pub document_supported_scheme_codes: *const u8,
+    pub document_supported_scheme_count: usize,
+}
+
+impl FfiEffectiveColorSchemeInput {
+    /// # Safety
+    /// The document-supported scheme storage must be valid for the returned
+    /// slice's lifetime.
+    unsafe fn document_supported_schemes(&self) -> Option<&[u8]> {
+        self.has_document_supported_schemes.then(|| {
+            if self.document_supported_scheme_count == 0 {
+                &[][..]
+            } else {
+                unsafe {
+                    std::slice::from_raw_parts(
+                        self.document_supported_scheme_codes,
+                        self.document_supported_scheme_count,
+                    )
+                }
+            }
+        })
+    }
 }
 
 /// The computation-context kind a property's lengths resolve against,
@@ -2066,15 +2099,17 @@ fn clear_longhand_bit(words: &mut [u64], property_id: u16) {
 /// # Safety
 /// `callbacks` must point at a valid callback table, `store` at a valid
 /// cascaded property store, `parent_snapshot` at a valid snapshot or null,
-/// `box_type_input` at valid element facts, and `results` at a results block
-/// whose bitmap storage covers every longhand; the callbacks must not mutate
-/// the store for the duration of the call.
+/// `box_type_input` and `color_scheme_input` at valid element and document
+/// facts, and `results` at a results block whose bitmap storage covers every
+/// longhand; the callbacks must not mutate the store for the duration of the
+/// call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_drive_property_computation(
     callbacks: *const FfiLonghandCallbacks,
     store: *const CascadedPropertyStore,
     parent_snapshot: *const FfiParentSnapshot,
     box_type_input: *const FfiBoxTypeTransformationInput,
+    color_scheme_input: *const FfiEffectiveColorSchemeInput,
     is_th_element: bool,
     has_new_font_size: bool,
     device_pixels_per_css_pixel: f64,
@@ -2099,6 +2134,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             Some(unsafe { &*parent_snapshot })
         };
         let has_inheritance_parent = snapshot.is_some();
+        let color_scheme_input = unsafe { &*color_scheme_input };
         let results = unsafe { &mut *results };
         assert!(results.word_count * 64 >= NUMBER_OF_LONGHAND_PROPERTIES);
         let important_words = unsafe { std::slice::from_raw_parts_mut(results.important_words, results.word_count) };
@@ -2727,6 +2763,15 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 } else {
                     *text_align
                 });
+            } else if property_id == prop::COLOR_SCHEME
+                && let StyleValueData::ColorScheme { scheme_codes, .. } = value_data
+            {
+                let color_scheme = resolve_effective_color_scheme(
+                    scheme_codes.as_slice(),
+                    color_scheme_input.preferred_color_scheme,
+                    unsafe { color_scheme_input.document_supported_schemes() },
+                );
+                unsafe { (callbacks.store_effective_color_scheme)(context, color_scheme) };
             }
 
             match (property_id, value_data) {
@@ -3370,6 +3415,71 @@ pub extern "C" fn rust_resolve_effective_overflow_keywords(overflow_x: u16, over
     abort_on_panic(|| resolve_effective_overflow_keywords(overflow_x, overflow_y))
 }
 
+// https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
+fn resolve_effective_color_scheme(
+    schemes: &[u8],
+    preferred_scheme: u8,
+    document_supported_schemes: Option<&[u8]>,
+) -> u8 {
+    const AUTO: u8 = 0;
+    const LIGHT: u8 = 2;
+
+    // To determine the used color scheme of an element:
+
+    // 1. If the user’s preferred color scheme, as indicated by the prefers-color-scheme media feature,
+    //    is present among the listed color schemes, and is supported by the user agent,
+    //    that’s the element’s used color scheme.
+    if preferred_scheme != AUTO && schemes.contains(&preferred_scheme) {
+        return preferred_scheme;
+    }
+
+    // 2. Otherwise, if the user has indicated an overriding preference for their chosen color scheme,
+    //    and the only keyword is not present in color-scheme for the element,
+    //    the user agent must override the color scheme with the user’s preferred color scheme.
+    //    See § 2.3 Overriding the Color Scheme.
+    // FIXME: We don't currently support setting an "overriding preference" for color schemes.
+
+    // 3. Otherwise, if the user agent supports at least one of the listed color schemes,
+    //    the used color scheme is the first supported color scheme in the list.
+    if let Some(first_supported) = schemes.iter().find(|scheme| **scheme != AUTO) {
+        return *first_supported;
+    }
+
+    // 4. Otherwise, the used color scheme is the browser default. (Same as normal.)
+    // `normal` indicates that the element supports the page’s supported color schemes, if they are set
+    if let Some(document_supported_schemes) = document_supported_schemes {
+        if preferred_scheme != AUTO && document_supported_schemes.contains(&preferred_scheme) {
+            return preferred_scheme;
+        }
+        if let Some(first_supported) = document_supported_schemes.iter().find(|scheme| **scheme != AUTO) {
+            return *first_supported;
+        }
+    }
+
+    LIGHT
+}
+
+/// Resolves the used color scheme for a value that required C++ computation.
+///
+/// # Safety
+/// `value` must point at valid ColorScheme StyleValueData and `input` at valid
+/// document inputs for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_resolve_effective_color_scheme(
+    value: *const c_void,
+    input: *const FfiEffectiveColorSchemeInput,
+) -> u8 {
+    abort_on_panic(|| {
+        let StyleValueData::ColorScheme { scheme_codes, .. } = (unsafe { &*(value as *const StyleValueData) }) else {
+            unreachable!("computed color-scheme must have color-scheme data");
+        };
+        let input = unsafe { &*input };
+        resolve_effective_color_scheme(scheme_codes.as_slice(), input.preferred_color_scheme, unsafe {
+            input.document_supported_schemes()
+        })
+    })
+}
+
 /// Result of the text-align adjustment: the replacement keyword and whether it
 /// counts as inherited.
 #[repr(C)]
@@ -3513,6 +3623,23 @@ mod tests {
         let result = resolve_effective_overflow_keywords(keyword::VISIBLE, keyword::CLIP);
         assert!(!result.changed_x);
         assert!(!result.changed_y);
+    }
+
+    #[test]
+    fn effective_color_scheme_follows_element_and_document_preferences() {
+        const AUTO: u8 = 0;
+        const DARK: u8 = 1;
+        const LIGHT: u8 = 2;
+
+        assert_eq!(resolve_effective_color_scheme(&[LIGHT, DARK], DARK, None), DARK);
+        assert_eq!(resolve_effective_color_scheme(&[DARK, LIGHT], LIGHT, None), LIGHT);
+        assert_eq!(resolve_effective_color_scheme(&[DARK, LIGHT], AUTO, None), DARK);
+        assert_eq!(
+            resolve_effective_color_scheme(&[AUTO], DARK, Some(&[LIGHT, DARK])),
+            DARK
+        );
+        assert_eq!(resolve_effective_color_scheme(&[], AUTO, Some(&[DARK])), DARK);
+        assert_eq!(resolve_effective_color_scheme(&[], AUTO, None), LIGHT);
     }
 
     #[test]
