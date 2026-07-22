@@ -4306,6 +4306,8 @@ bool Document::is_completely_loaded() const
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#completely-finish-loading
 void Document::completely_finish_loading()
 {
+    m_ongoing_navigation_fetch_controller = nullptr;
+
     // 2. Set document's completely loaded time to the current time.
     // AD-HOC: Set this unconditionally, even if the document has no navigable yet.
     //         In the async state machine, documents created during populate may complete
@@ -5636,6 +5638,7 @@ void Document::abort()
         m_ongoing_navigation_fetch_controller->stop_fetch();
         canceled_fetch = true;
     }
+    m_ongoing_navigation_fetch_controller = nullptr;
 
     for (auto& fetch_record : relevant_settings_object().fetch_group()) {
         auto controller = fetch_record.fetch_controller();
