@@ -1,0 +1,7 @@
+width: 10px
+height: 7px
+cycle fallback: 3px
+native parse callback used: true
+C++ resolver unused: true
+registered width: 9px
+registered value used C++ resolver: true

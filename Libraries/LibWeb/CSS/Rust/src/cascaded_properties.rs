@@ -355,6 +355,9 @@ fn apply_declaration_block(
     unset_data: *const c_void,
     is_property_disallowed: &dyn Fn(u16) -> bool,
     resolve_unresolved: &dyn Fn(u16, *const c_void) -> *const c_void,
+    parse_substituted: &dyn Fn(u16, &[u8]) -> *const c_void,
+    custom_property_store: *const c_void,
+    allow_native_var_resolution: bool,
     data_of: &dyn Fn(*const c_void) -> *const c_void,
     create_pending_substitution: &dyn Fn(*const c_void) -> *const c_void,
     mut assign_source_slot: impl FnMut(u32),
@@ -381,8 +384,25 @@ fn apply_declaration_block(
         let mut data = declaration.data;
 
         if declared_is_unresolved {
-            shell = resolve_unresolved(declaration.property_id, shell);
-            data = data_of(shell);
+            let native_resolution = if allow_native_var_resolution {
+                unsafe { crate::custom_properties::resolve_vars(custom_property_store, data) }
+            } else {
+                crate::custom_properties::NativeVarResolution::NotHandled
+            };
+            match native_resolution {
+                crate::custom_properties::NativeVarResolution::Resolved(source) => {
+                    shell = parse_substituted(declaration.property_id, &source);
+                    data = data_of(shell);
+                }
+                crate::custom_properties::NativeVarResolution::Invalid => {
+                    shell = parse_substituted(declaration.property_id, &[]);
+                    data = data_of(shell);
+                }
+                crate::custom_properties::NativeVarResolution::NotHandled => {
+                    shell = resolve_unresolved(declaration.property_id, shell);
+                    data = data_of(shell);
+                }
+            }
         }
 
         if matches!(
@@ -525,6 +545,13 @@ pub struct FfiBulkCascadeCallbacks {
     /// Resolves an unresolved (arbitrary-substitution) value; returns the pinned resolved shell.
     pub resolve_unresolved:
         unsafe extern "C" fn(context: *mut c_void, property_id: u16, shell: *const c_void) -> *const c_void,
+    /// Parses a Rust-substituted UTF-8 token stream as the target property.
+    pub parse_substituted: unsafe extern "C" fn(
+        context: *mut c_void,
+        property_id: u16,
+        source: *const u8,
+        source_length: usize,
+    ) -> *const c_void,
     /// Returns the Rust-owned data of a C++ style value shell.
     pub data_of: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
     /// Creates and pins a pending-substitution value wrapping the given value; returns its shell.
@@ -536,8 +563,11 @@ pub struct FfiBulkCascadeCallbacks {
     pub assign_source_slots:
         unsafe extern "C" fn(context: *mut c_void, assignments: *const FfiSourceSlotAssignment, count: usize),
     /// Installs the complete custom-property cascade before unresolved longhands are resolved.
-    pub set_custom_properties:
-        unsafe extern "C" fn(context: *mut c_void, properties: *const FfiCascadedCustomProperty, count: usize),
+    pub set_custom_properties: unsafe extern "C" fn(
+        context: *mut c_void,
+        properties: *const FfiCascadedCustomProperty,
+        count: usize,
+    ) -> *const c_void,
 }
 
 /// Runs the whole cascade for one element in css-cascade-5 origin order over
@@ -565,6 +595,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
     author_context_count: u32,
     has_pseudo_element: bool,
     cascade_custom_properties: bool,
+    allow_native_var_resolution: bool,
     unset_shell: *const c_void,
     unset_data: *const c_void,
     callbacks: *const FfiBulkCascadeCallbacks,
@@ -658,6 +689,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
             application_order.push((index, true, false));
         }
 
+        let mut custom_property_store = std::ptr::null();
         if cascade_custom_properties {
             let mut custom_property_indices = HashMap::new();
             let mut custom_properties: Vec<FfiCascadedCustomProperty> = Vec::new();
@@ -692,7 +724,8 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
             }
             crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeCustomPropertyBatchCallback);
             unsafe {
-                (callbacks.set_custom_properties)(context, custom_properties.as_ptr(), custom_properties.len());
+                custom_property_store =
+                    (callbacks.set_custom_properties)(context, custom_properties.as_ptr(), custom_properties.len());
             }
         }
 
@@ -727,6 +760,12 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeResolveUnresolvedCallback);
                     unsafe { (callbacks.resolve_unresolved)(context, property_id, shell) }
                 },
+                &|property_id, source| {
+                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeParseSubstitutedCallback);
+                    unsafe { (callbacks.parse_substituted)(context, property_id, source.as_ptr(), source.len()) }
+                },
+                custom_property_store,
+                allow_native_var_resolution,
                 &|shell| {
                     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeDataOfCallback);
                     unsafe { (callbacks.data_of)(context, shell) }

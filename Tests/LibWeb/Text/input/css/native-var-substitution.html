@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        internals.updateStyle();
+        internals.resetStyleFfiCounters();
+
+        const element = document.createElement("div");
+        element.style.cssText = `
+            --base: 5px;
+            --nested: calc(var(--base) * 2);
+            --cycle-a: var(--cycle-b);
+            --cycle-b: var(--cycle-a);
+            --\\78: 7px;
+            width: var(--nested);
+            height: var(--\\78);
+            margin-left: var(--cycle-a, 3px);
+        `;
+        document.body.appendChild(element);
+
+        const computed = getComputedStyle(element);
+        println(`width: ${computed.width}`);
+        println(`height: ${computed.height}`);
+        println(`cycle fallback: ${computed.marginLeft}`);
+
+        const nativeCounters = internals.styleFfiCounters();
+        println(`native parse callback used: ${nativeCounters.cascadeParseSubstitutedCallbacks >= 3}`);
+        println(`C++ resolver unused: ${nativeCounters.cascadeResolveUnresolvedCallbacks === 0}`);
+
+        CSS.registerProperty({
+            name: "--registered-native-fallback",
+            syntax: "<length>",
+            inherits: false,
+            initialValue: "1px",
+        });
+        internals.resetStyleFfiCounters();
+
+        const registered = document.createElement("div");
+        registered.style.cssText = `
+            --registered-native-fallback: 9px;
+            width: var(--registered-native-fallback);
+        `;
+        document.body.appendChild(registered);
+        println(`registered width: ${getComputedStyle(registered).width}`);
+
+        const registeredCounters = internals.styleFfiCounters();
+        println(`registered value used C++ resolver: ${registeredCounters.cascadeResolveUnresolvedCallbacks >= 1}`);
+    });
+</script>

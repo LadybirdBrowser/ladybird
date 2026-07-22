@@ -1121,6 +1121,27 @@ impl StyleValueData {
             Some(value_comparison_text.as_bytes())
         }
     }
+
+    pub(crate) fn unresolved_var_source(&self) -> Option<(&[u8], bool)> {
+        let Self::Unresolved {
+            presence_attr,
+            presence_dashed_function,
+            presence_env,
+            presence_if,
+            presence_inherit,
+            presence_var,
+            ..
+        } = self
+        else {
+            return None;
+        };
+        let has_unsupported_substitution_function =
+            *presence_attr || *presence_dashed_function || *presence_env || *presence_if || *presence_inherit;
+        if has_unsupported_substitution_function {
+            return None;
+        }
+        Some((self.unresolved_token_source().unwrap_or_default(), *presence_var))
+    }
 }
 
 #[unsafe(no_mangle)]

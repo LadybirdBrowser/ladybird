@@ -20,11 +20,17 @@ CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StylePrope
     , m_parent(move(parent))
     , m_ancestor_count(ancestor_count)
 {
+    Vector<String> names;
+    names.ensure_capacity(m_own_values.size());
     Vector<ComputedValuesFFI::FfiCustomPropertyStoreEntry> entries;
     entries.ensure_capacity(m_own_values.size());
     for (auto const& [name, property] : m_own_values) {
+        names.unchecked_append(MUST(name.view().to_utf8()));
+        auto const& name_utf8 = names.last();
         entries.unchecked_append({
             .name_raw = name.to_raw_leaked(),
+            .name_utf8 = name_utf8.bytes().data(),
+            .name_utf8_length = name_utf8.bytes().size(),
             .important = property.important == Important::Yes,
             .shell = property.value.ptr(),
             .data = property.value->rust_style_value_data(),

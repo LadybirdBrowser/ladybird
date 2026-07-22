@@ -2362,6 +2362,20 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             bulk_context.pinned_values.append(move(resolved));
             return pointer;
         },
+        .parse_substituted = [](void* context, u16 property_id, u8 const* source, size_t source_length) -> void const* {
+            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
+            bulk_context.abstract_element.element().set_style_uses_var_css_function();
+            auto parsed = parse_css_value(
+                Parser::ParsingParams { bulk_context.abstract_element.document() },
+                StringView { reinterpret_cast<char const*>(source), source_length },
+                static_cast<PropertyID>(property_id));
+            NonnullRefPtr<StyleValue const> resolved = parsed
+                ? parsed.release_nonnull()
+                : GuaranteedInvalidStyleValue::create();
+            auto const* pointer = resolved.ptr();
+            bulk_context.pinned_values.append(move(resolved));
+            return pointer;
+        },
         .data_of = [](void*, void const* shell) -> void const* {
             return static_cast<StyleValue const*>(shell)->rust_style_value_data();
         },
@@ -2382,7 +2396,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                 auto const& source = bulk_context.block_sources[assignments[i].source_id];
                 bulk_context.cascaded_properties.assign_source_slot(assignments[i].slot, source.source, source.source_shadow_root);
             } },
-        .set_custom_properties = [](void* context, ComputedValuesFFI::FfiCascadedCustomProperty const* properties, size_t count) {
+        .set_custom_properties = [](void* context, ComputedValuesFFI::FfiCascadedCustomProperty const* properties, size_t count) -> void const* {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
             OrderedHashMap<Utf16FlyString, StyleProperty> cascaded_all;
             cascaded_all.ensure_capacity(count);
@@ -2419,7 +2433,11 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             } else {
                 bulk_context.abstract_element.set_custom_property_data(
                     CustomPropertyData::create(move(cascaded_own), move(parent_data)));
-            } },
+            }
+
+            auto custom_property_data = bulk_context.abstract_element.custom_property_data();
+            return custom_property_data ? custom_property_data->rust_store() : nullptr;
+        },
     };
 
     auto cascade_custom_properties = !abstract_element.pseudo_element().has_value()
@@ -2432,6 +2450,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         static_cast<u32>(matching_rule_set.author_contexts.size()),
         abstract_element.pseudo_element().has_value(),
         cascade_custom_properties,
+        abstract_element.document().custom_property_registration_generation() == 0,
         unset_value.ptr(),
         unset_value->rust_style_value_data(),
         &callbacks);

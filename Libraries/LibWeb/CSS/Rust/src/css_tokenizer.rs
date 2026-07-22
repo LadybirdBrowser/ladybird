@@ -122,6 +122,72 @@ pub(crate) struct Token {
     range: Range<Position>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum OwnedTokenKind {
+    Ident(String),
+    Function(String),
+    AtKeyword,
+    Hash,
+    Url,
+    BadUrl,
+    Number,
+    Percentage,
+    Dimension,
+    Cdc,
+    Delim(u32),
+    Whitespace,
+    Comma,
+    OpenSquare,
+    CloseSquare,
+    OpenParen,
+    CloseParen,
+    OpenCurly,
+    CloseCurly,
+    Other,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct OwnedToken {
+    pub kind: OwnedTokenKind,
+    pub source: Vec<u8>,
+}
+
+pub(crate) fn tokenize_owned(input: &[u8]) -> Vec<OwnedToken> {
+    let mut tokens = Vec::new();
+    tokenize(input, |token, filtered_input| {
+        if matches!(token.token_type, TokenType::EndOfFile) {
+            return;
+        }
+        let kind = match &token.token_type {
+            TokenType::Ident { value } => OwnedTokenKind::Ident(value.clone()),
+            TokenType::Function { name } => OwnedTokenKind::Function(name.clone()),
+            TokenType::AtKeyword { .. } => OwnedTokenKind::AtKeyword,
+            TokenType::Hash { .. } => OwnedTokenKind::Hash,
+            TokenType::Url { .. } => OwnedTokenKind::Url,
+            TokenType::BadUrl => OwnedTokenKind::BadUrl,
+            TokenType::Number { .. } => OwnedTokenKind::Number,
+            TokenType::Percentage { .. } => OwnedTokenKind::Percentage,
+            TokenType::Dimension { .. } => OwnedTokenKind::Dimension,
+            TokenType::Cdc => OwnedTokenKind::Cdc,
+            TokenType::Delim { value } => OwnedTokenKind::Delim(*value),
+            TokenType::Whitespace => OwnedTokenKind::Whitespace,
+            TokenType::Comma => OwnedTokenKind::Comma,
+            TokenType::OpenSquare => OwnedTokenKind::OpenSquare,
+            TokenType::CloseSquare => OwnedTokenKind::CloseSquare,
+            TokenType::OpenParen => OwnedTokenKind::OpenParen,
+            TokenType::CloseParen => OwnedTokenKind::CloseParen,
+            TokenType::OpenCurly => OwnedTokenKind::OpenCurly,
+            TokenType::CloseCurly => OwnedTokenKind::CloseCurly,
+            _ => OwnedTokenKind::Other,
+        };
+        tokens.push(OwnedToken {
+            kind,
+            source: filtered_input.as_bytes()[token.original_source_range.clone()].to_vec(),
+        });
+    });
+    tokens
+}
+
 enum TokenType {
     EndOfFile,
     Ident { value: String },
