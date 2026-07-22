@@ -60,6 +60,7 @@ define_ffi_ops! {
     CascadeDataOfCallback => "cascadeDataOfCallbacks",
     CascadePendingSubstitutionCallback => "cascadePendingSubstitutionCallbacks",
     CascadeSourceSlotCallback => "cascadeSourceSlotCallbacks",
+    CascadeCustomPropertyBatchCallback => "cascadeCustomPropertyBatchCallbacks",
     ShorthandSetLonghandCallback => "shorthandSetLonghandCallbacks",
     LonghandStoreBatchCallback => "longhandStoreBatchCallbacks",
     LonghandCppComputeFallback => "longhandCppComputeFallbacks",

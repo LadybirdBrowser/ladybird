@@ -194,7 +194,7 @@ private:
     [[nodiscard]] MatchingRuleSet build_matching_rule_set(DOM::AbstractElement, bool& did_match_any_pseudo_element_rules, ComputeStyleMode) const;
 
     [[nodiscard]] RefPtr<ComputedProperties> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties, StyleScope const&, IncludeInlineStyle) const;
-    [[nodiscard]] NonnullRefPtr<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, bool did_match_any_pseudo_element_rules, ComputeStyleMode, MatchingRuleSet const&, IncludeInlineStyle) const;
+    [[nodiscard]] NonnullRefPtr<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, MatchingRuleSet const&, IncludeInlineStyle) const;
     void collect_animation_into(DOM::AbstractElement, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties&, ComputedProperties::Builder*) const;
     void compute_custom_properties(ComputedProperties&, DOM::AbstractElement) const;
     void start_needed_transitions(ComputedValues const& old_style, ComputedProperties::Builder& new_style, DOM::AbstractElement) const;

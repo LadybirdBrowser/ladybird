@@ -876,39 +876,6 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     ComputedValuesFFI::rust_for_each_property_expanding_shorthands(&callbacks, to_underlying(property_id), &value, value.rust_style_value_data());
 }
 
-static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vector<StyleComputer::ScopedMatchingRule> const& matching_rules, OrderedHashMap<Utf16FlyString, StyleProperty>& custom_properties, Important important, bool include_inline_style)
-{
-    size_t needed_capacity = 0;
-    for (auto const& matching_rule : matching_rules)
-        needed_capacity += matching_rule.rule->declaration().custom_properties().size();
-
-    auto const inline_style = abstract_element.inline_style();
-    if (include_inline_style && inline_style)
-        needed_capacity += inline_style->custom_properties().size();
-
-    custom_properties.ensure_capacity(custom_properties.size() + needed_capacity);
-
-    for (auto const& matching_rule : matching_rules) {
-        for (auto const& it : matching_rule.rule->declaration().custom_properties()) {
-            if (it.value.important != important)
-                continue;
-            auto style_value = it.value.value;
-            if (style_value->is_revert_layer())
-                continue;
-
-            custom_properties.set(it.key, it.value);
-        }
-    }
-
-    if (include_inline_style && inline_style) {
-        for (auto const& it : inline_style->custom_properties()) {
-            if (it.value.important != important)
-                continue;
-            custom_properties.set(it.key, it.value);
-        }
-    }
-}
-
 static RefPtr<CustomPropertyData const> inheritable_custom_property_data(DOM::AbstractElement abstract_element)
 {
     auto data = abstract_element.custom_property_data();
@@ -2228,13 +2195,9 @@ JsonArray StyleComputer::collect_devtools_applied_style_rules(DOM::AbstractEleme
 
 // https://www.w3.org/TR/css-cascade/#cascading
 // https://drafts.csswg.org/css-cascade-5/#layering
-NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::AbstractElement abstract_element, bool did_match_any_pseudo_element_rules, ComputeStyleMode mode, MatchingRuleSet const& matching_rule_set, IncludeInlineStyle include_inline_style) const
+NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::AbstractElement abstract_element, MatchingRuleSet const& matching_rule_set, IncludeInlineStyle include_inline_style) const
 {
     auto cascaded_properties = CascadedProperties::create();
-    if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
-        if (!did_match_any_pseudo_element_rules)
-            return cascaded_properties;
-    }
 
     auto element_context_shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root());
 
@@ -2247,15 +2210,18 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         GC::Ptr<DOM::ShadowRoot const> source_shadow_root;
     };
     Vector<ComputedValuesFFI::FfiCascadeDeclaration> all_declarations;
+    Vector<ComputedValuesFFI::FfiCustomPropertyDeclaration> all_custom_property_declarations;
     struct PendingBlock {
         ComputedValuesFFI::FfiCascadeBlock block;
         size_t declarations_offset { 0 };
+        size_t custom_property_declarations_offset { 0 };
     };
     Vector<PendingBlock> pending_blocks;
     Vector<BlockSource> block_sources;
     Vector<FlatPtr> leaked_layer_names;
+    Vector<FlatPtr> leaked_custom_property_names;
 
-    auto add_block = [&](ReadonlySpan<StyleProperty> properties, CascadeOrigin origin, u32 author_context_index, u32 layer_index, bool is_inline_style, bool bypass_pseudo_element_property_whitelist, Optional<Utf16FlyString> const& layer_name, GC::Ptr<CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root) {
+    auto add_block = [&](ReadonlySpan<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> const* custom_properties, CascadeOrigin origin, u32 author_context_index, u32 layer_index, bool is_inline_style, bool bypass_pseudo_element_property_whitelist, Optional<Utf16FlyString> const& layer_name, GC::Ptr<CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root) {
         auto declarations_offset = all_declarations.size();
         all_declarations.ensure_capacity(all_declarations.size() + properties.size());
         for (auto const& property : properties) {
@@ -2265,6 +2231,20 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                 .shell = property.value.ptr(),
                 .data = property.value->rust_style_value_data(),
             });
+        }
+        auto custom_property_declarations_offset = all_custom_property_declarations.size();
+        if (custom_properties) {
+            all_custom_property_declarations.ensure_capacity(all_custom_property_declarations.size() + custom_properties->size());
+            for (auto const& [name, property] : *custom_properties) {
+                auto name_raw = name.to_raw_leaked();
+                leaked_custom_property_names.append(name_raw);
+                all_custom_property_declarations.unchecked_append({
+                    .name_raw = name_raw,
+                    .important = property.important == Important::Yes,
+                    .is_revert_layer = property.value->is_revert_layer(),
+                    .shell = property.value.ptr(),
+                });
+            }
         }
         FlatPtr layer_name_raw = 0;
         if (layer_name.has_value()) {
@@ -2284,19 +2264,22 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                 .source_id = static_cast<u32>(block_sources.size()),
                 .declarations = nullptr,
                 .declaration_count = properties.size(),
+                .custom_property_declarations = nullptr,
+                .custom_property_declaration_count = custom_properties ? custom_properties->size() : 0,
             },
             .declarations_offset = declarations_offset,
+            .custom_property_declarations_offset = custom_property_declarations_offset,
         });
         block_sources.append({ source, source_shadow_root });
     };
 
     for (auto const& match : matching_rule_set.user_agent_rules) {
         auto const& declaration = match.rule->declaration();
-        add_block(declaration.properties(), CascadeOrigin::UserAgent, 0, 0, false, false, {}, &declaration, match.shadow_root);
+        add_block(declaration.properties(), nullptr, CascadeOrigin::UserAgent, 0, 0, false, false, {}, &declaration, match.shadow_root);
     }
     for (auto const& match : matching_rule_set.user_rules) {
         auto const& declaration = match.rule->declaration();
-        add_block(declaration.properties(), CascadeOrigin::User, 0, 0, false, false, {}, &declaration, match.shadow_root);
+        add_block(declaration.properties(), nullptr, CascadeOrigin::User, 0, 0, false, false, {}, &declaration, match.shadow_root);
     }
 
     // Author presentational hints
@@ -2317,7 +2300,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             collect_dimension_attribute(presentational_hint_properties, dimension_source, HTML::AttributeNames::height, CSS::PropertyID::Height);
         }
         if (!presentational_hint_properties.is_empty())
-            add_block(presentational_hint_properties, CascadeOrigin::AuthorPresentationalHint, 0, 0, false, false, {}, nullptr, nullptr);
+            add_block(presentational_hint_properties, nullptr, CascadeOrigin::AuthorPresentationalHint, 0, 0, false, false, {}, nullptr, nullptr);
     }
 
     for (u32 context_index = 0; context_index < matching_rule_set.author_contexts.size(); ++context_index) {
@@ -2329,7 +2312,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                 Optional<Utf16FlyString> layer_name;
                 if (!layer.qualified_layer_name.is_empty())
                     layer_name = layer.qualified_layer_name;
-                add_block(declaration.properties(), CascadeOrigin::Author, context_index, layer_index, false, false, layer_name, &declaration, match.shadow_root);
+                add_block(declaration.properties(), &declaration.custom_properties(), CascadeOrigin::Author, context_index, layer_index, false, false, layer_name, &declaration, match.shadow_root);
             }
         }
         if (include_inline_style == IncludeInlineStyle::Yes && author_context.shadow_root == element_context_shadow_root) {
@@ -2338,7 +2321,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             //     properties (e.g. input::placeholder has height set); authors can't set inline style on
             //     pseudo-elements so this doesn't cause any spec compliance issues.
             if (auto const inline_style = abstract_element.inline_style())
-                add_block(inline_style->properties(), CascadeOrigin::Author, context_index, 0, true, true, {}, inline_style, nullptr);
+                add_block(inline_style->properties(), &inline_style->custom_properties(), CascadeOrigin::Author, context_index, 0, true, true, {}, inline_style, nullptr);
         }
     }
 
@@ -2346,6 +2329,8 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     blocks.ensure_capacity(pending_blocks.size());
     for (auto& pending : pending_blocks) {
         pending.block.declarations = all_declarations.data() + pending.declarations_offset;
+        if (pending.block.custom_property_declaration_count > 0)
+            pending.block.custom_property_declarations = all_custom_property_declarations.data() + pending.custom_property_declarations_offset;
         blocks.unchecked_append(pending.block);
     }
 
@@ -2397,7 +2382,48 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                 auto const& source = bulk_context.block_sources[assignments[i].source_id];
                 bulk_context.cascaded_properties.assign_source_slot(assignments[i].slot, source.source, source.source_shadow_root);
             } },
+        .set_custom_properties = [](void* context, ComputedValuesFFI::FfiCascadedCustomProperty const* properties, size_t count) {
+            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
+            OrderedHashMap<Utf16FlyString, StyleProperty> cascaded_all;
+            cascaded_all.ensure_capacity(count);
+            for (size_t i = 0; i < count; ++i) {
+                auto const& property = properties[i];
+                cascaded_all.set(
+                    Utf16FlyString::from_raw(property.name_raw),
+                    StyleProperty {
+                        .important = property.important ? Important::Yes : Important::No,
+                        .property_id = PropertyID::Custom,
+                        .value = *static_cast<StyleValue const*>(property.shell),
+                    });
+            }
+
+            RefPtr<CustomPropertyData const> parent_data;
+            auto inherit_from = bulk_context.abstract_element.element_to_inherit_style_from();
+            if (inherit_from.has_value())
+                parent_data = inheritable_custom_property_data(*inherit_from);
+
+            OrderedHashMap<Utf16FlyString, StyleProperty> cascaded_own;
+            for (auto& [name, property] : cascaded_all) {
+                if (parent_data) {
+                    auto const* parent_property = parent_data->get(name);
+                    if (parent_property && parent_property->value.ptr() == property.value.ptr())
+                        continue;
+                }
+                cascaded_own.set(name, move(property));
+            }
+
+            if (cascaded_own.is_empty() && parent_data) {
+                bulk_context.abstract_element.set_custom_property_data(parent_data);
+            } else if (cascaded_own.is_empty()) {
+                bulk_context.abstract_element.set_custom_property_data(nullptr);
+            } else {
+                bulk_context.abstract_element.set_custom_property_data(
+                    CustomPropertyData::create(move(cascaded_own), move(parent_data)));
+            } },
     };
+
+    auto cascade_custom_properties = !abstract_element.pseudo_element().has_value()
+        || pseudo_element_supports_property(*abstract_element.pseudo_element(), PropertyID::Custom);
 
     ComputedValuesFFI::rust_cascade_matched_blocks(
         cascaded_properties->rust_store(),
@@ -2405,12 +2431,15 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         blocks.size(),
         static_cast<u32>(matching_rule_set.author_contexts.size()),
         abstract_element.pseudo_element().has_value(),
+        cascade_custom_properties,
         unset_value.ptr(),
         unset_value->rust_style_value_data(),
         &callbacks);
 
     for (auto layer_name_raw : leaked_layer_names)
         Utf16FlyString::unref_raw(layer_name_raw);
+    for (auto custom_property_name_raw : leaked_custom_property_names)
+        Utf16FlyString::unref_raw(custom_property_name_raw);
 
     // Transition declarations [css-transitions-1]
     // Note that we have to do these after finishing computing the style,
@@ -3019,60 +3048,7 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
 
     auto old_custom_property_data = abstract_element.custom_property_data();
 
-    // Resolve all the CSS custom properties ("variables") for this element:
-    if (!abstract_element.pseudo_element().has_value() || pseudo_element_supports_property(*abstract_element.pseudo_element(), PropertyID::Custom)) {
-        OrderedHashMap<Utf16FlyString, StyleProperty> cascaded_all;
-
-        auto element_context_shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root());
-        auto cascade_inline_style = [&](Important important) {
-            if (include_inline_style == IncludeInlineStyle::No)
-                return;
-            cascade_custom_properties(abstract_element, {}, cascaded_all, important, true);
-        };
-
-        for (auto const& context : matching_rule_set.author_contexts.in_reverse()) {
-            for (auto const& layer : context.author_rules)
-                cascade_custom_properties(abstract_element, layer.rules, cascaded_all, Important::No, false);
-            if (context.shadow_root == element_context_shadow_root)
-                cascade_inline_style(Important::No);
-        }
-
-        for (auto const& context : matching_rule_set.author_contexts) {
-            for (auto const& layer : context.author_rules.in_reverse())
-                cascade_custom_properties(abstract_element, layer.rules, cascaded_all, Important::Yes, false);
-            if (context.shadow_root == element_context_shadow_root)
-                cascade_inline_style(Important::Yes);
-        }
-
-        RefPtr<CustomPropertyData const> parent_data;
-        auto inherit_from = abstract_element.element_to_inherit_style_from();
-        if (inherit_from.has_value())
-            parent_data = inheritable_custom_property_data(*inherit_from);
-
-        // Build own_values with only properties that differ from the parent.
-        // We build a fresh map instead of removing from cascaded_all,
-        // because removing entries doesn't shrink the bucket array.
-        OrderedHashMap<Utf16FlyString, StyleProperty> cascaded_own;
-        for (auto& [name, property] : cascaded_all) {
-            if (parent_data) {
-                auto const* parent_property = parent_data->get(name);
-                if (parent_property && parent_property->value.ptr() == property.value.ptr())
-                    continue;
-            }
-            cascaded_own.set(name, move(property));
-        }
-
-        if (cascaded_own.is_empty() && parent_data) {
-            abstract_element.set_custom_property_data(parent_data);
-        } else if (cascaded_own.is_empty() && !parent_data) {
-            abstract_element.set_custom_property_data(nullptr);
-        } else {
-            abstract_element.set_custom_property_data(
-                CustomPropertyData::create(move(cascaded_own), move(parent_data)));
-        }
-    }
-
-    auto cascaded_properties = compute_cascaded_values(abstract_element, did_match_any_pseudo_element_rules, mode, matching_rule_set, include_inline_style);
+    auto cascaded_properties = compute_cascaded_values(abstract_element, matching_rule_set, include_inline_style);
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         // Bail if no pseudo-element would be generated due to...

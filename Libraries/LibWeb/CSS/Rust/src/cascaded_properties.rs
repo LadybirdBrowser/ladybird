@@ -328,6 +328,16 @@ pub struct FfiCascadeDeclaration {
     pub data: *const c_void,
 }
 
+/// A custom-property declaration in an `FfiCascadeBlock`. Names cross as retained raw
+/// `Utf16FlyString` identities, which are also sufficient for string equality.
+#[repr(C)]
+pub struct FfiCustomPropertyDeclaration {
+    pub name_raw: usize,
+    pub important: bool,
+    pub is_revert_layer: bool,
+    pub shell: *const c_void,
+}
+
 /// Applies one declaration block to the cascade: filters by importance and applicability,
 /// resolves arbitrary-substitution values through the parser callback, downgrades
 /// invalid-at-computed-value-time declarations to unset, expands shorthands, and routes
@@ -486,6 +496,8 @@ pub struct FfiCascadeBlock {
     pub source_id: u32,
     pub declarations: *const FfiCascadeDeclaration,
     pub declaration_count: usize,
+    pub custom_property_declarations: *const FfiCustomPropertyDeclaration,
+    pub custom_property_declaration_count: usize,
 }
 
 /// One winning store slot and the block source that supplied it, reported in
@@ -494,6 +506,14 @@ pub struct FfiCascadeBlock {
 pub struct FfiSourceSlotAssignment {
     pub slot: u32,
     pub source_id: u32,
+}
+
+/// One winning custom-property declaration, reported in first-declaration order.
+#[repr(C)]
+pub struct FfiCascadedCustomProperty {
+    pub name_raw: usize,
+    pub important: bool,
+    pub shell: *const c_void,
 }
 
 /// Callbacks for the bulk cascade. Values cross as opaque C++ style value
@@ -515,6 +535,9 @@ pub struct FfiBulkCascadeCallbacks {
     /// Receives every winning slot's source assignment in one batch.
     pub assign_source_slots:
         unsafe extern "C" fn(context: *mut c_void, assignments: *const FfiSourceSlotAssignment, count: usize),
+    /// Installs the complete custom-property cascade before unresolved longhands are resolved.
+    pub set_custom_properties:
+        unsafe extern "C" fn(context: *mut c_void, properties: *const FfiCascadedCustomProperty, count: usize),
 }
 
 /// Runs the whole cascade for one element in css-cascade-5 origin order over
@@ -541,6 +564,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
     block_count: usize,
     author_context_count: u32,
     has_pseudo_element: bool,
+    cascade_custom_properties: bool,
     unset_shell: *const c_void,
     unset_data: *const c_void,
     callbacks: *const FfiBulkCascadeCallbacks,
@@ -577,6 +601,98 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                     }
                 }
                 _ => {}
+            }
+        }
+
+        let mut application_order: Vec<(usize, bool, bool)> = Vec::new();
+
+        // Normal user agent, user, and presentational hint declarations.
+        for &index in &user_agent_blocks {
+            application_order.push((index, false, false));
+        }
+        for &index in &user_blocks {
+            application_order.push((index, false, false));
+        }
+        for &index in &presentational_hint_blocks {
+            application_order.push((index, false, false));
+        }
+
+        // Normal author declarations, with inner contexts first so outer contexts win,
+        // layers in declaration order, and inline style after its context's layers.
+        for context_index in (0..author_context_count as usize).rev() {
+            for &index in &author_layer_blocks[context_index] {
+                application_order.push((index, false, true));
+            }
+            if let Some(index) = author_inline_blocks[context_index] {
+                application_order.push((index, false, false));
+            }
+        }
+
+        // Important author declarations, with outer contexts first so inner contexts
+        // win and layers reversed; layer names do not apply in the important pass.
+        for context_index in 0..author_context_count as usize {
+            let layer_blocks = &author_layer_blocks[context_index];
+            let mut boundaries: Vec<(u32, usize, usize)> = Vec::new();
+            for (position, &index) in layer_blocks.iter().enumerate() {
+                let layer = blocks[index].layer_index;
+                match boundaries.last_mut() {
+                    Some((last_layer, _, end)) if *last_layer == layer => *end = position + 1,
+                    _ => boundaries.push((layer, position, position + 1)),
+                }
+            }
+            for &(_, start, end) in boundaries.iter().rev() {
+                for &index in &layer_blocks[start..end] {
+                    application_order.push((index, true, false));
+                }
+            }
+            if let Some(index) = author_inline_blocks[context_index] {
+                application_order.push((index, true, false));
+            }
+        }
+
+        // Important user and user agent declarations.
+        for &index in &user_blocks {
+            application_order.push((index, true, false));
+        }
+        for &index in &user_agent_blocks {
+            application_order.push((index, true, false));
+        }
+
+        if cascade_custom_properties {
+            let mut custom_property_indices = HashMap::new();
+            let mut custom_properties: Vec<FfiCascadedCustomProperty> = Vec::new();
+            for &(block_index, important, _) in &application_order {
+                let block = &blocks[block_index];
+                let declarations = if block.custom_property_declaration_count == 0 {
+                    &[]
+                } else {
+                    unsafe {
+                        std::slice::from_raw_parts(
+                            block.custom_property_declarations,
+                            block.custom_property_declaration_count,
+                        )
+                    }
+                };
+                for declaration in declarations {
+                    if declaration.important != important || declaration.is_revert_layer {
+                        continue;
+                    }
+                    let property = FfiCascadedCustomProperty {
+                        name_raw: declaration.name_raw,
+                        important,
+                        shell: declaration.shell,
+                    };
+                    if let Some(index) = custom_property_indices.get(&declaration.name_raw) {
+                        custom_properties[*index] = property;
+                    } else {
+                        custom_property_indices.insert(declaration.name_raw, custom_properties.len());
+                        custom_properties.push(property);
+                    }
+                }
+            }
+            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeCustomPropertyBatchCallback);
+            unsafe {
+                (callbacks.set_custom_properties)(context, custom_properties.as_ptr(), custom_properties.len());
             }
         }
 
@@ -628,56 +744,8 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
             );
         };
 
-        // Normal user agent, user, and presentational hint declarations.
-        for &index in &user_agent_blocks {
-            apply(index, false, false);
-        }
-        for &index in &user_blocks {
-            apply(index, false, false);
-        }
-        for &index in &presentational_hint_blocks {
-            apply(index, false, false);
-        }
-
-        // Normal author declarations, with inner contexts first so outer contexts win,
-        // layers in declaration order, and inline style after its context's layers.
-        for context_index in (0..author_context_count as usize).rev() {
-            for &index in &author_layer_blocks[context_index] {
-                apply(index, false, true);
-            }
-            if let Some(index) = author_inline_blocks[context_index] {
-                apply(index, false, false);
-            }
-        }
-
-        // Important author declarations, with outer contexts first so inner contexts
-        // win and layers reversed; layer names do not apply in the important pass.
-        for context_index in 0..author_context_count as usize {
-            let layer_blocks = &author_layer_blocks[context_index];
-            let mut boundaries: Vec<(u32, usize, usize)> = Vec::new();
-            for (position, &index) in layer_blocks.iter().enumerate() {
-                let layer = blocks[index].layer_index;
-                match boundaries.last_mut() {
-                    Some((last_layer, _, end)) if *last_layer == layer => *end = position + 1,
-                    _ => boundaries.push((layer, position, position + 1)),
-                }
-            }
-            for &(_, start, end) in boundaries.iter().rev() {
-                for &index in &layer_blocks[start..end] {
-                    apply(index, true, false);
-                }
-            }
-            if let Some(index) = author_inline_blocks[context_index] {
-                apply(index, true, false);
-            }
-        }
-
-        // Important user and user agent declarations.
-        for &index in &user_blocks {
-            apply(index, true, false);
-        }
-        for &index in &user_agent_blocks {
-            apply(index, true, false);
+        for &(block_index, important, use_layer_name) in &application_order {
+            apply(block_index, important, use_layer_name);
         }
 
         if !source_slot_assignments.is_empty() {

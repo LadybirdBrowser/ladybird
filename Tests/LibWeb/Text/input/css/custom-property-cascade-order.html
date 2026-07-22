@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @layer first, second;
+
+    @layer first {
+        #target, #layer-target {
+            --important: rgb(0, 128, 0) !important;
+            --reverted: 10px;
+        }
+    }
+
+    @layer second {
+        #target, #layer-target {
+            --important: rgb(0, 0, 255) !important;
+            --reverted: revert-layer;
+        }
+    }
+
+    #target {
+        --normal: 1px;
+        --normal: 2px;
+        --source-order: 4px;
+        --source-order: 5px;
+        --important: rgb(255, 0, 0) !important;
+        margin-left: var(--normal);
+        margin-right: var(--reverted);
+        padding-left: var(--source-order);
+        color: var(--important);
+    }
+
+    #layer-target {
+        color: var(--important);
+    }
+
+    shadow-cascade-order {
+        --normal-context: rgb(0, 128, 0);
+        --important-context: rgb(255, 0, 0) !important;
+        color: var(--normal-context);
+        background-color: var(--important-context);
+    }
+</style>
+<div id="target" style="--normal: 3px; --important: rgb(255, 0, 255) !important"></div>
+<div id="layer-target"></div>
+<script>
+    test(() => {
+        const style = getComputedStyle(target);
+        println(`normal inline: ${style.marginLeft}`);
+        println(`normal source order: ${style.paddingLeft}`);
+        println(`important inline: ${style.color}`);
+        println(`important layer order: ${getComputedStyle(document.getElementById("layer-target")).color}`);
+        println(`revert-layer: ${style.marginRight}`);
+
+        customElements.define("shadow-cascade-order", class extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: "open" }).innerHTML = `
+                    <style>
+                        :host {
+                            --normal-context: rgb(255, 0, 0);
+                            --important-context: rgb(0, 0, 255) !important;
+                        }
+                    </style>
+                `;
+            }
+        });
+
+        const host = document.createElement("shadow-cascade-order");
+        document.body.appendChild(host);
+        const hostStyle = getComputedStyle(host);
+        println(`normal outer context: ${hostStyle.color}`);
+        println(`important inner context: ${hostStyle.backgroundColor}`);
+    });
+</script>
