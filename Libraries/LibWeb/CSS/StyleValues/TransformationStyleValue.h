@@ -28,12 +28,7 @@ public:
     TransformFunction transform_function() const { return static_cast<TransformFunction>(m_value->transformation.transform_function); }
     StyleValueVector values() const
     {
-        auto const& list = m_value->transformation.values;
-        StyleValueVector values;
-        values.ensure_capacity(list.length);
-        for (size_t i = 0; i < list.length; ++i)
-            values.unchecked_append(*static_cast<StyleValue const*>(list.pointer[i].pointer));
-        return values;
+        return m_values;
     }
 
     bool can_be_converted_to_matrix_without_reference_box() const;
@@ -56,26 +51,41 @@ public:
     }
 
 private:
+    friend class StyleValue;
+
+    explicit TransformationStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::Transformation, data)
+    {
+        auto const& values = data->transformation.values;
+        m_values.ensure_capacity(values.length);
+        for (size_t i = 0; i < values.length; ++i) {
+            auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
+            m_values.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
+        }
+    }
+
     TransformationStyleValue(PropertyID property, TransformFunction transform_function, StyleValueVector&& values)
-        : StyleValueWithDefaultOperators(Type::Transformation, make_transformation_data(property, transform_function, move(values)))
+        : StyleValueWithDefaultOperators(Type::Transformation, make_transformation_data(property, transform_function, values))
+        , m_values(move(values))
     {
     }
 
-    static StyleValueFFI::StyleValueData const* make_transformation_data(PropertyID property, TransformFunction transform_function, StyleValueVector&& values)
+    static StyleValueFFI::StyleValueData const* make_transformation_data(PropertyID property, TransformFunction transform_function, StyleValueVector const& values)
     {
-        // The Rust allocation takes ownership of one strong reference to each value.
-        auto pointers = leak_style_value_pointers_for_rust(values);
+        Vector<StyleValueFFI::StyleValueData const*> pointers;
+        pointers.ensure_capacity(values.size());
+        for (auto const& value : values)
+            pointers.unchecked_append(StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()));
         return StyleValueFFI::rust_style_value_create_transformation(to_underlying(property), static_cast<u8>(to_underlying(transform_function)), pointers.data(), pointers.size());
     }
 
-    size_t size() const { return m_value->transformation.values.length; }
+    size_t size() const { return m_values.size(); }
 
-    ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i) const
-    {
-        return *static_cast<StyleValue const*>(m_value->transformation.values.pointer[i].pointer);
-    }
+    ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i) const { return m_values[i]; }
 
     PropertyID property() const { return static_cast<PropertyID>(m_value->transformation.property); }
+
+    StyleValueVector m_values;
 };
 
 }

@@ -5,6 +5,7 @@
  */
 
 #include <LibTest/TestCase.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -16,6 +17,9 @@
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TupleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 
 // These tests build separately-allocated style values with equal (or deliberately unequal)
@@ -45,6 +49,70 @@ TEST_CASE(rust_scalar_handles_create_typed_wrappers)
     EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_percentage(1))->is_percentage());
     EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_resolution(1, 0))->is_resolution());
     EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_time(1, 0))->is_time());
+}
+
+TEST_CASE(rust_transformation_handles_retain_child_data)
+{
+    auto data = [] {
+        auto original = TransformationStyleValue::create(
+            PropertyID::Transform,
+            TransformFunction::ScaleX,
+            { NumberStyleValue::create(2) });
+        return StyleValueFFI::rust_style_value_retain(original->rust_style_value_data());
+    }();
+
+    auto child = [&] {
+        auto transformation = StyleValue::adopt_rust_style_value_data(data);
+        EXPECT(transformation->is_transformation());
+        auto values = transformation->as_transformation().values();
+        EXPECT_EQ(values.size(), 1u);
+        return values[0];
+    }();
+
+    EXPECT(child->is_number());
+    EXPECT_EQ(child->as_number().number(), 2);
+}
+
+TEST_CASE(rust_value_list_handles_retain_child_data)
+{
+    auto data = [] {
+        auto original = StyleValueList::create(
+            { NumberStyleValue::create(3) },
+            StyleValueList::Separator::Space);
+        return StyleValueFFI::rust_style_value_retain(original->rust_style_value_data());
+    }();
+
+    auto child = [&] {
+        auto list = StyleValue::adopt_rust_style_value_data(data);
+        EXPECT(list->is_value_list());
+        auto values = list->as_value_list().values();
+        EXPECT_EQ(values.size(), 1u);
+        return values[0];
+    }();
+
+    EXPECT(child->is_number());
+    EXPECT_EQ(child->as_number().number(), 3);
+}
+
+TEST_CASE(rust_tuple_handles_retain_optional_child_data)
+{
+    auto data = [] {
+        auto original = TupleStyleValue::create({ NumberStyleValue::create(4), nullptr });
+        return StyleValueFFI::rust_style_value_retain(original->rust_style_value_data());
+    }();
+
+    auto child = [&] {
+        auto tuple = StyleValue::adopt_rust_style_value_data(data);
+        EXPECT(tuple->is_tuple());
+        auto values = tuple->as_tuple().tuple();
+        EXPECT_EQ(values.size(), 2u);
+        EXPECT(!values[1]);
+        return values[0];
+    }();
+
+    EXPECT(child);
+    EXPECT(child->is_number());
+    EXPECT_EQ(child->as_number().number(), 4);
 }
 
 TEST_CASE(counter_definitions_equality_is_deep)

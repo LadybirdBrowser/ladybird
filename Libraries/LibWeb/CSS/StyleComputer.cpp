@@ -3193,9 +3193,7 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
 
 static bool is_monospace(StyleValue const& value)
 {
-    return ComputedValuesFFI::rust_font_family_is_monospace(
-        value.rust_style_value_data(),
-        [](void const* shell) -> void const* { return static_cast<StyleValue const*>(shell)->rust_style_value_data(); });
+    return ComputedValuesFFI::rust_font_family_is_monospace(value.rust_style_value_data());
 }
 
 // HACK: This function implements time-travelling inheritance for the font-size property

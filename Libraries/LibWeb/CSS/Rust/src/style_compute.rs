@@ -819,6 +819,15 @@ fn value_is_computationally_independent(
         }
         Some(independent)
     };
+    let all_data_in_list = |list: &crate::style_value::RetainedStyleValueDataList| -> Option<bool> {
+        let mut independent = true;
+        for retained in list.as_slice() {
+            if let Some(data) = retained.optional_data() {
+                independent = independent && value_is_computationally_independent(data, data_of, decide_fallback)?;
+            }
+        }
+        Some(independent)
+    };
     let all_data = |children: &[&crate::style_value::RetainedStyleValueData]| -> Option<bool> {
         let mut independent = true;
         for retained in children {
@@ -1052,10 +1061,10 @@ fn value_is_computationally_independent(
             second_color,
             second_percentage,
         ]),
+        StyleValueData::Shorthand { values, .. } => all_in_list(values),
         StyleValueData::ValueList { values, .. }
         | StyleValueData::Tuple { values }
-        | StyleValueData::Transformation { values, .. }
-        | StyleValueData::Shorthand { values, .. } => all_in_list(values),
+        | StyleValueData::Transformation { values, .. } => all_data_in_list(values),
         StyleValueData::BorderRadiusRect {
             top_left,
             top_right,
@@ -1338,16 +1347,12 @@ pub unsafe extern "C" fn rust_compute_corner_shape_parameter(absolutized_value: 
 
 /// Whether a font-family value is a single monospace keyword, which triggers
 /// the monospace font-size recascade. The list entry's keyword is read through
-/// the nested value's shell pointer.
+/// the nested value's shared Rust data handle.
 ///
 /// # Safety
-/// `data` must point at a valid StyleValueData and `data_of` map a nested
-/// value's shell pointer to its Rust-owned data.
+/// `data` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_font_family_is_monospace(
-    data: *const c_void,
-    data_of: unsafe extern "C" fn(shell: *const c_void) -> *const c_void,
-) -> bool {
+pub unsafe extern "C" fn rust_font_family_is_monospace(data: *const c_void) -> bool {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let StyleValueData::ValueList { values, .. } = (unsafe { &*(data as *const StyleValueData) }) else {
@@ -1357,9 +1362,8 @@ pub unsafe extern "C" fn rust_font_family_is_monospace(
         if values.len() != 1 {
             return false;
         }
-        let entry_data = unsafe { data_of(values[0].shell_pointer()) };
         matches!(
-            unsafe { &*(entry_data as *const StyleValueData) },
+            values[0].data(),
             StyleValueData::Keyword { keyword } if *keyword == keyword::MONOSPACE
         )
     })
