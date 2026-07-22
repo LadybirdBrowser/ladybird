@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="overflow" style="overflow-x: visible; overflow-y: auto"></div>
+<div id="position" style="display: inline; position: absolute"></div>
+<script>
+    test(() => {
+        const overflowAnimation = overflow.animate(
+            [{ overflowY: "visible" }, { overflowY: "visible" }],
+            { duration: 1000, fill: "forwards" });
+        overflowAnimation.pause();
+        overflowAnimation.currentTime = 500;
+
+        const overflowStyle = getComputedStyle(overflow);
+        println(`overflow-x: ${overflowStyle.overflowX}`);
+        println(`overflow-y: ${overflowStyle.overflowY}`);
+
+        const positionAnimation = position.animate(
+            [{ position: "static" }, { position: "static" }],
+            { duration: 1000, fill: "forwards" });
+        positionAnimation.pause();
+        positionAnimation.currentTime = 500;
+
+        const positionStyle = getComputedStyle(position);
+        println(`display: ${positionStyle.display}`);
+        println(`position: ${positionStyle.position}`);
+    });
+</script>

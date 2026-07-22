@@ -1864,6 +1864,17 @@ pub struct FfiLonghandCallbacks {
     /// are pinned by the snapshot or the fetch below.
     pub store_computed_batch:
         unsafe extern "C" fn(context: *mut c_void, entries: *const FfiComputedStoreEntry, count: usize),
+    /// Stores the original display and applies the box type transformation
+    /// after the ordinary longhand batch has been flushed.
+    pub store_box_type_transformation: unsafe extern "C" fn(
+        context: *mut c_void,
+        display_before: *const FfiDisplay,
+        float_before: u16,
+        overflow_x_before: u16,
+        overflow_y_before: u16,
+        text_align_before: u16,
+        transformation: *const FfiBoxTypeTransformation,
+    ),
     /// Rare: fetches the parent's computed value for an explicit `inherit` of
     /// a non-inherited property, which the parent snapshot does not carry.
     /// The C++ side pins the returned shell until the end of the drive, so
@@ -2036,6 +2047,12 @@ fn set_longhand_bit(words: &mut [u64], property_id: u16) {
     words[index / 64] |= 1 << (index % 64);
 }
 
+fn clear_longhand_bit(words: &mut [u64], property_id: u16) {
+    use crate::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
+    let index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
+    words[index / 64] &= !(1 << (index % 64));
+}
+
 /// Drives the property computation loop: iterates every longhand in
 /// computation order, resolves logical pairing, reads the winning cascaded
 /// declarations straight from the store, selects between the cascaded,
@@ -2047,14 +2064,15 @@ fn set_longhand_bit(words: &mut [u64], property_id: u16) {
 /// # Safety
 /// `callbacks` must point at a valid callback table, `store` at a valid
 /// cascaded property store, `parent_snapshot` at a valid snapshot or null,
-/// and `results` at a results block whose bitmap storage covers every
-/// longhand; the callbacks must not mutate the store for the duration of the
-/// call.
+/// `box_type_input` at valid element facts, and `results` at a results block
+/// whose bitmap storage covers every longhand; the callbacks must not mutate
+/// the store for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_drive_property_computation(
     callbacks: *const FfiLonghandCallbacks,
     store: *const CascadedPropertyStore,
     parent_snapshot: *const FfiParentSnapshot,
+    box_type_input: *const FfiBoxTypeTransformationInput,
     is_th_element: bool,
     has_new_font_size: bool,
     device_pixels_per_css_pixel: f64,
@@ -2147,6 +2165,11 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let mut computed_writing_mode: Option<u8> = None;
         let mut computed_direction: Option<u8> = None;
         let mut computed_overflow_x: Option<u16> = None;
+        let mut computed_overflow_y: Option<u16> = None;
+        let mut computed_text_align: Option<u16> = None;
+        let mut computed_display: Option<FfiDisplay> = None;
+        let mut computed_float: Option<u16> = None;
+        let mut computed_position: Option<u16> = None;
 
         for &property_id in crate::property_metadata::property_computation_order() {
             let mut cascaded_property_id = property_id;
@@ -2637,16 +2660,21 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 && let (Some(overflow_x), StyleValueData::Keyword { keyword: overflow_y }) =
                     (computed_overflow_x, value_data)
             {
+                computed_overflow_y = Some(*overflow_y);
                 let effective_overflow = resolve_effective_overflow_keywords(overflow_x, *overflow_y);
                 for entry in pending_stores.iter_mut().rev() {
                     if entry.property_id == prop::OVERFLOW_X && effective_overflow.changed_x {
                         debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_SHELL);
                         entry.computed_kind = COMPUTED_KIND_KEYWORD;
                         entry.value = effective_overflow.x_keyword as f64;
+                        clear_longhand_bit(important_words, prop::OVERFLOW_X);
+                        clear_longhand_bit(inherited_words, prop::OVERFLOW_X);
                     } else if entry.property_id == prop::OVERFLOW_Y && effective_overflow.changed_y {
                         debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_SHELL);
                         entry.computed_kind = COMPUTED_KIND_KEYWORD;
                         entry.value = effective_overflow.y_keyword as f64;
+                        clear_longhand_bit(important_words, prop::OVERFLOW_Y);
+                        clear_longhand_bit(inherited_words, prop::OVERFLOW_Y);
                     }
                     if entry.property_id == prop::OVERFLOW_X {
                         break;
@@ -2655,6 +2683,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             } else if property_id == prop::TEXT_ALIGN
                 && let StyleValueData::Keyword { keyword: text_align } = value_data
             {
+                computed_text_align = Some(*text_align);
                 let (has_parent_with_computed_values, parent_text_align, parent_direction_is_ltr) =
                     if let Some(snapshot) = snapshot {
                         let parent_text_align = match snapshot_entry_data(snapshot, prop::TEXT_ALIGN) {
@@ -2684,14 +2713,55 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_SHELL);
                     entry.computed_kind = COMPUTED_KIND_KEYWORD;
                     entry.value = adjustment.keyword as f64;
+                    clear_longhand_bit(important_words, property_id);
+                    clear_longhand_bit(inherited_words, property_id);
                     if adjustment.inherited {
                         set_longhand_bit(inherited_words, property_id);
                     }
                 }
             }
+
+            match (property_id, value_data) {
+                (prop::DISPLAY, StyleValueData::Display { raw }) => {
+                    computed_display = Some(FfiDisplay::from_raw(*raw));
+                }
+                (prop::FLOAT, StyleValueData::Keyword { keyword }) => {
+                    computed_float = Some(*keyword);
+                }
+                (prop::POSITION, StyleValueData::Keyword { keyword }) => {
+                    computed_position = Some(*keyword);
+                }
+                _ => {}
+            }
         }
 
         flush_pending_stores(callbacks, context, &mut pending_stores);
+        let display_before = computed_display.expect("display must be computed by the longhand driver");
+        let mut box_type_input = unsafe { *box_type_input };
+        box_type_input.display = display_before;
+        let float_before = computed_float.expect("float must be computed by the longhand driver");
+        box_type_input.float_value = float_before;
+        box_type_input.position = computed_position.expect("position must be computed by the longhand driver");
+        let transformation = transform_box_type(&box_type_input);
+        if transformation.set_float_none {
+            clear_longhand_bit(important_words, prop::FLOAT);
+            clear_longhand_bit(inherited_words, prop::FLOAT);
+        }
+        if transformation.changed_display {
+            clear_longhand_bit(important_words, prop::DISPLAY);
+            clear_longhand_bit(inherited_words, prop::DISPLAY);
+        }
+        unsafe {
+            (callbacks.store_box_type_transformation)(
+                context,
+                &raw const display_before,
+                float_before,
+                computed_overflow_x.expect("overflow-x must be computed by the longhand driver"),
+                computed_overflow_y.expect("overflow-y must be computed by the longhand driver"),
+                computed_text_align.expect("text-align must be computed by the longhand driver"),
+                &raw const transformation,
+            );
+        }
     });
 }
 
@@ -2868,6 +2938,23 @@ const DISPLAY_TAG_INTERNAL: u8 = 1;
 const DISPLAY_TAG_BOX: u8 = 2;
 
 impl FfiDisplay {
+    fn from_raw(raw: u32) -> Self {
+        let [tag, first, second, third] = raw.to_ne_bytes();
+        match tag {
+            DISPLAY_TAG_OUTSIDE_AND_INSIDE => Self::outside_and_inside(first, second, third != 0),
+            DISPLAY_TAG_INTERNAL => Self::internal(first),
+            DISPLAY_TAG_BOX => Self {
+                tag,
+                outside: 0,
+                inside: 0,
+                list_item: false,
+                internal: 0,
+                box_value: first,
+            },
+            _ => unreachable!("invalid display tag"),
+        }
+    }
+
     fn outside_and_inside(outside: u8, inside: u8, list_item: bool) -> Self {
         Self {
             tag: DISPLAY_TAG_OUTSIDE_AND_INSIDE,
@@ -2938,6 +3025,7 @@ impl FfiDisplay {
 /// The element facts the box type transformation needs, marshalled by the C++
 /// side. The parent display is the first non-`display: contents` ancestor's.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct FfiBoxTypeTransformationInput {
     pub display: FfiDisplay,
     /// Computed position and float keywords.
@@ -2956,6 +3044,7 @@ pub struct FfiBoxTypeTransformationInput {
 /// Result of the box type transformation: whether float must be reset to none,
 /// and the possibly replaced display.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct FfiBoxTypeTransformation {
     pub set_float_none: bool,
     pub changed_display: bool,
@@ -2996,7 +3085,90 @@ fn required_box_type_transformation(input: &FfiBoxTypeTransformationInput) -> Bo
 
 /// https://drafts.csswg.org/css-display/#transformations
 /// 2.7. Automatic Box Type Transformations
-///
+fn transform_box_type(input: &FfiBoxTypeTransformationInput) -> FfiBoxTypeTransformation {
+    let display = input.display;
+    let unchanged = |set_float_none: bool| FfiBoxTypeTransformation {
+        set_float_none,
+        changed_display: false,
+        display,
+    };
+
+    // Some layout effects require blockification or inlinification of the box type,
+    // which sets the box's computed outer display type to block or inline (respectively).
+    // (This has no effect on display types that generate no box at all, such as none or contents.)
+    if display.is_none() || (display.is_contents() && !input.is_document_element) {
+        return unchanged(false);
+    }
+
+    // https://drafts.csswg.org/css-display/#root
+    // The root element's display type is always blockified, and its principal box always establishes an independent formatting context.
+    if input.is_document_element && !display.is_block_outside() {
+        return FfiBoxTypeTransformation {
+            set_float_none: false,
+            changed_display: true,
+            display: FfiDisplay::block(),
+        };
+    }
+
+    let mut new_display = display;
+
+    if display.is_math_inside() {
+        // https://w3c.github.io/mathml-core/#new-display-math-value
+        // For elements that are not MathML elements, if the specified value of display is inline math or block math
+        // then the computed value is block flow and inline flow respectively.
+        if !input.is_mathml_element {
+            new_display = FfiDisplay::outside_and_inside(display.outside, display_inside::FLOW, display.list_item);
+        }
+        // For the mtable element the computed value is block table and inline table respectively.
+        else if input.is_mathml_mtable {
+            new_display = FfiDisplay::outside_and_inside(display.outside, display_inside::TABLE, display.list_item);
+        }
+        // For the mtr element, the computed value is table-row.
+        else if input.is_mathml_mtr {
+            new_display = FfiDisplay::internal(display_internal::TABLE_ROW);
+        }
+        // For the mtd element, the computed value is table-cell.
+        else if input.is_mathml_mtd {
+            new_display = FfiDisplay::internal(display_internal::TABLE_CELL);
+        }
+    }
+
+    // https://www.w3.org/TR/CSS2/visuren.html#dis-pos-flo
+    // If 'position' has the value 'absolute' or 'fixed', [...] 'float' is set to 'none'
+    let set_float_none = input.position == keyword::ABSOLUTE || input.position == keyword::FIXED;
+
+    match required_box_type_transformation(input) {
+        BoxTypeTransformation::None => {}
+        BoxTypeTransformation::Blockify => {
+            if display.is_block_outside() {
+                return unchanged(set_float_none);
+            }
+            // If a layout-internal box is blockified, its inner display type converts to flow so that it becomes a block container.
+            if display.is_internal() {
+                new_display = FfiDisplay::block();
+            } else {
+                assert!(display.is_outside_and_inside());
+
+                // For legacy reasons, if an inline block box (inline flow-root) is blockified, it becomes a block box (losing its flow-root nature).
+                // For consistency, a run-in flow-root box also blockifies to a block box.
+                if display.is_inline_block() {
+                    new_display =
+                        FfiDisplay::outside_and_inside(display_outside::BLOCK, display_inside::FLOW, display.list_item);
+                } else {
+                    new_display =
+                        FfiDisplay::outside_and_inside(display_outside::BLOCK, display.inside, display.list_item);
+                }
+            }
+        }
+    }
+
+    FfiBoxTypeTransformation {
+        set_float_none,
+        changed_display: new_display != display,
+        display: new_display,
+    }
+}
+
 /// # Safety
 /// `input` must be a valid pointer.
 #[unsafe(no_mangle)]
@@ -3004,93 +3176,7 @@ pub unsafe extern "C" fn rust_transform_box_type(
     input: *const FfiBoxTypeTransformationInput,
 ) -> FfiBoxTypeTransformation {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        let input = unsafe { &*input };
-        let display = input.display;
-        let unchanged = |set_float_none: bool| FfiBoxTypeTransformation {
-            set_float_none,
-            changed_display: false,
-            display,
-        };
-
-        // Some layout effects require blockification or inlinification of the box type,
-        // which sets the box's computed outer display type to block or inline (respectively).
-        // (This has no effect on display types that generate no box at all, such as none or contents.)
-        if display.is_none() || (display.is_contents() && !input.is_document_element) {
-            return unchanged(false);
-        }
-
-        // https://drafts.csswg.org/css-display/#root
-        // The root element's display type is always blockified, and its principal box always establishes an independent formatting context.
-        if input.is_document_element && !display.is_block_outside() {
-            return FfiBoxTypeTransformation {
-                set_float_none: false,
-                changed_display: true,
-                display: FfiDisplay::block(),
-            };
-        }
-
-        let mut new_display = display;
-
-        if display.is_math_inside() {
-            // https://w3c.github.io/mathml-core/#new-display-math-value
-            // For elements that are not MathML elements, if the specified value of display is inline math or block math
-            // then the computed value is block flow and inline flow respectively.
-            if !input.is_mathml_element {
-                new_display = FfiDisplay::outside_and_inside(display.outside, display_inside::FLOW, display.list_item);
-            }
-            // For the mtable element the computed value is block table and inline table respectively.
-            else if input.is_mathml_mtable {
-                new_display = FfiDisplay::outside_and_inside(display.outside, display_inside::TABLE, display.list_item);
-            }
-            // For the mtr element, the computed value is table-row.
-            else if input.is_mathml_mtr {
-                new_display = FfiDisplay::internal(display_internal::TABLE_ROW);
-            }
-            // For the mtd element, the computed value is table-cell.
-            else if input.is_mathml_mtd {
-                new_display = FfiDisplay::internal(display_internal::TABLE_CELL);
-            }
-        }
-
-        // https://www.w3.org/TR/CSS2/visuren.html#dis-pos-flo
-        // If 'position' has the value 'absolute' or 'fixed', [...] 'float' is set to 'none'
-        let set_float_none = input.position == keyword::ABSOLUTE || input.position == keyword::FIXED;
-
-        match required_box_type_transformation(input) {
-            BoxTypeTransformation::None => {}
-            BoxTypeTransformation::Blockify => {
-                if display.is_block_outside() {
-                    return unchanged(set_float_none);
-                }
-                // If a layout-internal box is blockified, its inner display type converts to flow so that it becomes a block container.
-                if display.is_internal() {
-                    new_display = FfiDisplay::block();
-                } else {
-                    assert!(display.is_outside_and_inside());
-
-                    // For legacy reasons, if an inline block box (inline flow-root) is blockified, it becomes a block box (losing its flow-root nature).
-                    // For consistency, a run-in flow-root box also blockifies to a block box.
-                    if display.is_inline_block() {
-                        new_display = FfiDisplay::outside_and_inside(
-                            display_outside::BLOCK,
-                            display_inside::FLOW,
-                            display.list_item,
-                        );
-                    } else {
-                        new_display =
-                            FfiDisplay::outside_and_inside(display_outside::BLOCK, display.inside, display.list_item);
-                    }
-                }
-            }
-        }
-
-        FfiBoxTypeTransformation {
-            set_float_none,
-            changed_display: new_display != display,
-            display: new_display,
-        }
-    })
+    abort_on_panic(|| transform_box_type(unsafe { &*input }))
 }
 
 /// Result of resolving the effective overflow pair: each axis' possibly
@@ -3303,6 +3389,21 @@ mod tests {
         assert!(result.changed);
         assert_eq!(result.keyword, keyword::CENTER);
         assert!(!result.inherited);
+    }
+
+    #[test]
+    fn display_raw_value_decodes_for_box_type_transformation() {
+        let inline_flex = FfiDisplay::from_raw(u32::from_ne_bytes([
+            DISPLAY_TAG_OUTSIDE_AND_INSIDE,
+            display_outside::INLINE,
+            display_inside::FLEX,
+            0,
+        ]));
+        assert!(inline_flex.is_inline_outside());
+        assert!(inline_flex.is_flex_inside());
+
+        let none = FfiDisplay::from_raw(u32::from_ne_bytes([DISPLAY_TAG_BOX, display_box::NONE, 0, 0]));
+        assert!(none.is_none());
     }
 
     fn test_context() -> FfiLengthResolutionContext {

@@ -2800,33 +2800,15 @@ static Display from_ffi_display(ComputedValuesFFI::FfiDisplay const& display)
     case Display::Type::Internal:
         return Display { static_cast<DisplayInternal>(display.internal) };
     case Display::Type::Box:
-    default:
-        // The transformation never produces a box-type display.
-        VERIFY_NOT_REACHED();
+        return Display { static_cast<DisplayBox>(display.box_value) };
     }
+    VERIFY_NOT_REACHED();
 }
 
-// https://drafts.csswg.org/css-display/#transformations
-void StyleComputer::transform_box_type_if_needed(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element) const
+static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transformation_input(
+    DOM::AbstractElement abstract_element, Display display, Keyword position, Keyword float_value)
 {
-    auto& style = builder.style();
-    auto display = style.display();
-
-    builder.set_display_before_box_type_transformation(display);
-
-    // The css-display-3 transformation rules live in the Rust style computation core; this
-    // wrapper marshals the element facts they depend on and applies the result.
     auto& element = abstract_element.element();
-    bool is_mathml_element = false;
-    bool is_mathml_mtable = false;
-    bool is_mathml_mtr = false;
-    bool is_mathml_mtd = false;
-    if (display.is_math_inside()) {
-        is_mathml_element = element.namespace_uri() == Namespace::MathML;
-        is_mathml_mtable = element.tag_name().equals_ignoring_ascii_case("mtable"sv);
-        is_mathml_mtr = element.tag_name().equals_ignoring_ascii_case("mtr"sv);
-        is_mathml_mtd = element.tag_name().equals_ignoring_ascii_case("mtd"sv);
-    }
 
     // NOTE: If we're computing style for a pseudo-element, the effective parent will be the originating element itself, not its parent.
     auto parent = abstract_element.element_to_inherit_style_from();
@@ -2837,25 +2819,41 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties::Builder& bu
 
     bool has_parent_display = parent.has_value() && parent->computed_values();
 
-    ComputedValuesFFI::FfiBoxTypeTransformationInput const input {
+    return {
         .display = to_ffi_display(display),
-        .position = to_underlying(style.property(PropertyID::Position).to_keyword()),
-        .float_value = to_underlying(style.property(PropertyID::Float).to_keyword()),
+        .position = to_underlying(position),
+        .float_value = to_underlying(float_value),
         .is_br_element = !abstract_element.pseudo_element().has_value() && is<HTML::HTMLBRElement>(element),
         .is_document_element = element.is_document_element(),
-        .is_mathml_element = is_mathml_element,
-        .is_mathml_mtable = is_mathml_mtable,
-        .is_mathml_mtr = is_mathml_mtr,
-        .is_mathml_mtd = is_mathml_mtd,
+        .is_mathml_element = element.namespace_uri() == Namespace::MathML,
+        .is_mathml_mtable = element.tag_name().equals_ignoring_ascii_case("mtable"sv),
+        .is_mathml_mtr = element.tag_name().equals_ignoring_ascii_case("mtr"sv),
+        .is_mathml_mtd = element.tag_name().equals_ignoring_ascii_case("mtd"sv),
         .has_parent_display = has_parent_display,
         .parent_display = has_parent_display ? to_ffi_display(parent->computed_values()->display()) : ComputedValuesFFI::FfiDisplay {},
     };
+}
 
-    auto transformation = ComputedValuesFFI::rust_transform_box_type(&input);
+static void apply_box_type_transformation(ComputedProperties::Builder& builder, ComputedValuesFFI::FfiDisplay const& display_before, ComputedValuesFFI::FfiBoxTypeTransformation const& transformation)
+{
+    builder.set_display_before_box_type_transformation(from_ffi_display(display_before));
     if (transformation.set_float_none)
         builder.set_property(PropertyID::Float, KeywordStyleValue::create(Keyword::None));
     if (transformation.changed_display)
         builder.set_property(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(transformation.display)));
+}
+
+// https://drafts.csswg.org/css-display/#transformations
+void StyleComputer::transform_box_type_if_needed(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element) const
+{
+    auto& style = builder.style();
+    auto input = make_box_type_transformation_input(
+        abstract_element,
+        style.display(),
+        style.property(PropertyID::Position).to_keyword(),
+        style.property(PropertyID::Float).to_keyword());
+    auto transformation = ComputedValuesFFI::rust_transform_box_type(&input);
+    apply_box_type_transformation(builder, input.display, transformation);
 }
 
 NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const
@@ -3441,18 +3439,30 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     // iterates the longhands in computation order, resolves logical pairing through its
     // mapping tables, and selects the cascaded, inherited or initial value natively.
     struct LonghandLoopContext {
+        ComputedProperties::Builder& builder;
         decltype(store_computed_batch)& store_computed_batch_callback;
         decltype(fetch_length_resolution_context)& fetch_length_resolution_context_callback;
         decltype(get_logical_alias_mapping_context)& get_logical_alias_mapping_context_callback;
         DOM::AbstractElement abstract_element;
+        Optional<ComputedValuesFFI::FfiDisplay> display_before_adjustments;
+        Optional<Keyword> float_before_adjustments;
+        Optional<Keyword> overflow_x_before_adjustments;
+        Optional<Keyword> overflow_y_before_adjustments;
+        Optional<Keyword> text_align_before_adjustments;
         // Pins every parent value handed out by the explicit-inherit fetch until the end
         // of the drive; the driver may queue the shells in deferred store batches.
         Vector<NonnullRefPtr<StyleValue const>> pinned_parent_values;
     } loop_context {
+        .builder = builder,
         .store_computed_batch_callback = store_computed_batch,
         .fetch_length_resolution_context_callback = fetch_length_resolution_context,
         .get_logical_alias_mapping_context_callback = get_logical_alias_mapping_context,
         .abstract_element = abstract_element,
+        .display_before_adjustments = {},
+        .float_before_adjustments = {},
+        .overflow_x_before_adjustments = {},
+        .overflow_y_before_adjustments = {},
+        .text_align_before_adjustments = {},
         .pinned_parent_values = {},
     };
 
@@ -3461,6 +3471,14 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         .store_computed_batch = [](void* context, ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count) {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             loop_context.store_computed_batch_callback(entries, count); },
+        .store_box_type_transformation = [](void* context, ComputedValuesFFI::FfiDisplay const* display_before, u16 float_before, u16 overflow_x_before, u16 overflow_y_before, u16 text_align_before, ComputedValuesFFI::FfiBoxTypeTransformation const* transformation) {
+            auto& loop_context = *static_cast<LonghandLoopContext*>(context);
+            loop_context.display_before_adjustments = *display_before;
+            loop_context.float_before_adjustments = static_cast<Keyword>(float_before);
+            loop_context.overflow_x_before_adjustments = static_cast<Keyword>(overflow_x_before);
+            loop_context.overflow_y_before_adjustments = static_cast<Keyword>(overflow_y_before);
+            loop_context.text_align_before_adjustments = static_cast<Keyword>(text_align_before);
+            apply_box_type_transformation(loop_context.builder, *display_before, *transformation); },
         .fetch_non_inherited_parent_value = [](void* context, u16 inherited_property_id) -> ComputedValuesFFI::FfiShellAndData {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             auto value = get_non_animated_inherit_value(static_cast<PropertyID>(inherited_property_id), loop_context.abstract_element);
@@ -3492,7 +3510,9 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         .font_metrics_depend_on_viewport_metrics = false,
         .explicitly_inherited_non_inherited_property = false,
     };
-    ComputedValuesFFI::rust_drive_property_computation(&callbacks, cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, abstract_element.element().local_name() == HTML::TagNames::th, new_font_size != nullptr, device_pixels_per_css_pixel, InitialValues::font_size().raw_value(), default_user_font_size().raw_value(), &driver_results);
+    auto box_type_input = make_box_type_transformation_input(
+        abstract_element, InitialValues::display(), Keyword::Static, Keyword::None);
+    ComputedValuesFFI::rust_drive_property_computation(&callbacks, cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, &box_type_input, abstract_element.element().local_name() == HTML::TagNames::th, new_font_size != nullptr, device_pixels_per_css_pixel, InitialValues::font_size().raw_value(), default_user_font_size().raw_value(), &driver_results);
 
     // Apply the driver's bulk results.
     auto longhand_bit_is_set = [](Array<u64, longhand_bitmap_words> const& words, size_t index) {
@@ -3537,13 +3557,24 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         Animations::Animatable::GetAnimationsSorted::Yes,
         Bindings::GetAnimationsOptions { .subtree = false });
     if (animations.is_exception()) {
-        animation_values_applied = true;
         dbgln("Error getting animations for element {}", abstract_element.debug_description());
     } else {
         for (auto& animation : animations.value()) {
             if (auto effect = animation->effect(); effect && effect->is_keyframe_effect()) {
                 auto& keyframe_effect = *static_cast<Animations::KeyframeEffect*>(effect.ptr());
                 if (keyframe_effect.pseudo_element_type() == abstract_element.pseudo_element()) {
+                    if (!animation_values_applied) {
+                        VERIFY(loop_context.display_before_adjustments.has_value());
+                        VERIFY(loop_context.float_before_adjustments.has_value());
+                        VERIFY(loop_context.overflow_x_before_adjustments.has_value());
+                        VERIFY(loop_context.overflow_y_before_adjustments.has_value());
+                        VERIFY(loop_context.text_align_before_adjustments.has_value());
+                        builder.set_property_without_modifying_flags(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(*loop_context.display_before_adjustments)));
+                        builder.set_property_without_modifying_flags(PropertyID::Float, KeywordStyleValue::create(*loop_context.float_before_adjustments));
+                        builder.set_property_without_modifying_flags(PropertyID::OverflowX, KeywordStyleValue::create(*loop_context.overflow_x_before_adjustments));
+                        builder.set_property_without_modifying_flags(PropertyID::OverflowY, KeywordStyleValue::create(*loop_context.overflow_y_before_adjustments));
+                        builder.set_property_without_modifying_flags(PropertyID::TextAlign, KeywordStyleValue::create(*loop_context.text_align_before_adjustments));
+                    }
                     animation_values_applied = true;
                     collect_animation_into(abstract_element, keyframe_effect, builder);
                 }
@@ -3551,8 +3582,9 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         }
     }
 
-    // Run automatic box type transformations
-    transform_box_type_if_needed(builder, abstract_element);
+    // Run automatic box type transformations again after animations have been applied.
+    if (animation_values_applied)
+        transform_box_type_if_needed(builder, abstract_element);
 
     // Apply any property-specific computed value logic
     if (animation_values_applied)
