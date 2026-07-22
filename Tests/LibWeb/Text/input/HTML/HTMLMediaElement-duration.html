@@ -7,8 +7,10 @@
 
     asyncTest(async done => {
         video.addEventListener("loadedmetadata", () => {
-            println(`duration=${video.duration}`);
-            done();
+            video.addEventListener("durationchange", () => {
+                println(`duration=${video.duration}`);
+                done();
+            });
         });
         video.src = "../../../Assets/test-webm.webm";
     });

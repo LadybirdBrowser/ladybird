@@ -46,6 +46,8 @@ public:
 
     virtual Vector<ByteRange> available_byte_ranges() const override;
 
+    virtual void set_available_ranges_change_observer(Function<void()>) override;
+
     u64 size();
     void set_expected_size(u64);
     virtual Optional<u64> expected_size() const override;
@@ -115,6 +117,7 @@ private:
     void begin_new_request_while_locked(u64 position);
     bool check_if_data_is_available_or_begin_request_while_locked(Cursor&, u64 position, u64 length);
     size_t read_from_chunks_while_locked(u64 position, Bytes& bytes) const;
+    void notify_available_ranges_changed_while_locked();
 
     mutable Sync::Mutex m_mutex;
     Vector<Cursor&> m_cursors;
@@ -123,6 +126,8 @@ private:
     Chunks m_chunks;
     Optional<u64> m_expected_size;
     bool m_closed { false };
+
+    Function<void()> m_available_ranges_change_observer;
 
     RefPtr<Core::WeakEventLoopReference> m_callback_event_loop;
     DataRequestCallback m_data_request_callback;

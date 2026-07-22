@@ -93,7 +93,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
     auto duration = demuxer->total_duration().value_or(AK::Duration::zero());
     auto start_time_realtime = demuxer->start_time_realtime();
 
-    main_thread_event_loop.deferred_invoke([self, video_tracks = move(supported_video_tracks), video_track_datas = move(supported_video_track_datas), preferred_video_track, audio_tracks = move(supported_audio_tracks), audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration, start_time_realtime] mutable {
+    main_thread_event_loop.deferred_invoke([self, demuxer, video_tracks = move(supported_video_tracks), video_track_datas = move(supported_video_track_datas), preferred_video_track, audio_tracks = move(supported_audio_tracks), audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration, start_time_realtime] mutable {
         if (!self)
             return;
 
@@ -125,6 +125,16 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
 
         self->m_start_time_realtime = start_time_realtime;
         self->check_for_duration_change(duration);
+
+        self->m_demuxers.append(demuxer);
+        demuxer->set_scan_state_change_handler([self] {
+            if (!self)
+                return;
+            self->update_duration_from_scan_states();
+            if (self->on_buffered_ranges_change)
+                self->on_buffered_ranges_change();
+        });
+        self->update_duration_from_scan_states();
 
         self->set_up_producers();
 
@@ -340,6 +350,14 @@ void PlaybackManager::reset_pipeline_state()
         track_data.sink_status = PipelineStatus::Pending;
     }
     m_audio_sink_status = m_audio_sink != nullptr ? PipelineStatus::Pending : PipelineStatus::HaveData;
+}
+
+void PlaybackManager::update_duration_from_scan_states()
+{
+    auto duration = AK::Duration::zero();
+    for (auto const& demuxer : m_demuxers)
+        duration = max(duration, demuxer->scan_state().duration);
+    check_for_duration_change(duration);
 }
 
 void PlaybackManager::check_for_duration_change(AK::Duration duration)

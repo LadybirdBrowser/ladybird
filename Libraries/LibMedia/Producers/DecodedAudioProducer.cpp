@@ -635,7 +635,7 @@ void DecodedAudioProducer::ThreadData::push_data_and_decode_a_block()
 
 TimeRanges DecodedAudioProducer::ThreadData::buffered_time_ranges() const
 {
-    return m_demuxer->buffered_time_ranges();
+    return m_demuxer->scan_state().buffered_ranges;
 }
 
 }

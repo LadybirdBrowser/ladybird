@@ -4,10 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
+#include <LibCore/Timer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibTest/TestCase.h>
+
+#include "TestMediaCommon.h"
 
 struct SplitPoint {
     size_t byte;
@@ -61,6 +66,21 @@ static NonnullRefPtr<Media::IncrementallyPopulatedStream> create_disjoint_stream
     return stream;
 }
 
+// Wait until the scan has caught up with the stream; the change handler's dispatch wakes the pump.
+template<typename Condition>
+static Media::TimeRanges wait_for_buffered_ranges(Core::EventLoop& loop, Media::Demuxer& demuxer, Condition condition)
+{
+    demuxer.set_scan_state_change_handler([] { });
+    ScopeGuard remove_handler = [&] { demuxer.set_scan_state_change_handler(nullptr); };
+
+    bool deadline_expired = false;
+    auto deadline_timer = Core::Timer::create_single_shot(1'000, [&] { deadline_expired = true; });
+    deadline_timer->start();
+
+    loop.spin_until([&] { return condition(demuxer.scan_state().buffered_ranges) || deadline_expired; });
+    return demuxer.scan_state().buffered_ranges;
+}
+
 static void expect_valid_ranges(Media::TimeRanges const& ranges)
 {
     EXPECT(!ranges.is_empty());
@@ -83,10 +103,11 @@ static void expect_complete_file_is_fully_buffered(Fixture const& fixture)
 {
     dbgln("-- '{}' fully buffered --", fixture.path);
 
+    auto& loop = never_destroyed_event_loop();
     auto data = read_fixture(fixture.path);
     auto demuxer = create_demuxer(create_complete_stream(data));
     auto duration = MUST(demuxer->total_duration());
-    auto ranges = demuxer->buffered_time_ranges();
+    auto ranges = wait_for_buffered_ranges(loop, demuxer, [](auto const& ranges) { return !ranges.is_empty(); });
 
     expect_valid_ranges(ranges);
     EXPECT_EQ(ranges.size(), 1u);
@@ -98,9 +119,10 @@ static void expect_disjoint_byte_ranges_produce_disjoint_time_ranges(Fixture con
 {
     dbgln("-- '{}' disjointed --", fixture.path);
 
+    auto& loop = never_destroyed_event_loop();
     auto data = read_fixture(fixture.path);
     auto demuxer = create_demuxer(create_disjoint_stream(data, fixture.first_split, fixture.second_split));
-    auto ranges = demuxer->buffered_time_ranges();
+    auto ranges = wait_for_buffered_ranges(loop, demuxer, [](auto const& ranges) { return ranges.size() == 2; });
 
     expect_valid_ranges(ranges);
     EXPECT_EQ(ranges.size(), 2u);
@@ -114,12 +136,13 @@ static void expect_removing_inside_of_complete_file_produces_disjoint_time_range
 {
     dbgln("-- '{}' removed inside --", fixture.path);
 
+    auto& loop = never_destroyed_event_loop();
     auto data = read_fixture(fixture.path);
     auto stream = create_complete_stream(data);
     auto demuxer = create_demuxer(stream);
-    (void)demuxer->buffered_time_ranges();
+    (void)wait_for_buffered_ranges(loop, demuxer, [](auto const& ranges) { return !ranges.is_empty(); });
     stream->remove_byte_range(fixture.first_split.byte, fixture.second_split.byte);
-    auto ranges = demuxer->buffered_time_ranges();
+    auto ranges = wait_for_buffered_ranges(loop, demuxer, [](auto const& ranges) { return ranges.size() == 2; });
 
     expect_valid_ranges(ranges);
     EXPECT_EQ(ranges.size(), 2u);
@@ -133,13 +156,16 @@ static void expect_removing_ends_of_complete_file_produces_middle_time_range(Fix
 {
     dbgln("-- '{}' removed ends --", fixture.path);
 
+    auto& loop = never_destroyed_event_loop();
     auto data = read_fixture(fixture.path);
     auto stream = create_complete_stream(data);
     auto demuxer = create_demuxer(stream);
-    (void)demuxer->buffered_time_ranges();
+    (void)wait_for_buffered_ranges(loop, demuxer, [](auto const& ranges) { return !ranges.is_empty(); });
     stream->remove_byte_range(fixture.second_split.byte, data.size());
     stream->remove_byte_range(0, fixture.first_split.byte);
-    auto ranges = demuxer->buffered_time_ranges();
+    auto ranges = wait_for_buffered_ranges(loop, demuxer, [](auto const& ranges) {
+        return ranges.size() == 1 && ranges[0].start != AK::Duration::zero();
+    });
 
     expect_valid_ranges(ranges);
     EXPECT_EQ(ranges.size(), 1u);
@@ -202,4 +228,20 @@ TEST_CASE(removing_ends_of_complete_file_produces_middle_time_range)
 {
     for (auto const& fixture : fixtures)
         expect_removing_ends_of_complete_file_produces_middle_time_range(fixture);
+}
+
+TEST_CASE(scan_state_change_handler_fires_when_available_data_changes)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto const& fixture = fixtures[0];
+    auto data = read_fixture(fixture.path);
+    auto stream = create_complete_stream(data);
+    auto demuxer = create_demuxer(stream);
+    (void)wait_for_buffered_ranges(loop, demuxer, [](auto const& ranges) { return !ranges.is_empty(); });
+
+    // Reaching the expected state at all proves the change handler fired for the removal.
+    stream->remove_byte_range(fixture.first_split.byte, fixture.second_split.byte);
+    auto ranges = wait_for_buffered_ranges(loop, demuxer, [](auto const& ranges) { return ranges.size() == 2; });
+    EXPECT_EQ(ranges.size(), 2u);
 }

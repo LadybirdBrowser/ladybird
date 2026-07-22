@@ -2087,6 +2087,12 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
     m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
         self.on_playback_manager_state_change();
     });
+
+    m_playback_manager->on_buffered_ranges_change = GC::weak_callback(*this, [](auto& self) {
+        self.queue_a_media_element_task([](HTMLMediaElement& self) {
+            self.update_ready_state();
+        });
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
@@ -2148,6 +2154,12 @@ void HTMLMediaElement::set_up_playback_manager_for_local()
 
     m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
         self.on_playback_manager_state_change();
+    });
+
+    m_playback_manager->on_buffered_ranges_change = GC::weak_callback(*this, [](auto& self) {
+        self.queue_a_media_element_task([](HTMLMediaElement& self) {
+            self.update_ready_state();
+        });
     });
 }
 

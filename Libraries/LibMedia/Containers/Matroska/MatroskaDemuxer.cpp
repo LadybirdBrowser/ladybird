@@ -20,18 +20,41 @@ namespace Media::Matroska {
 DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_stream(NonnullRefPtr<MediaStream> const& stream)
 {
     auto cursor = stream->create_cursor();
-    return make_ref_counted<MatroskaDemuxer>(stream, TRY(Reader::from_stream(cursor)));
+    auto demuxer = make_ref_counted<MatroskaDemuxer>(stream, TRY(Reader::from_stream(cursor)));
+    demuxer->start_buffered_scan_thread(TRY(Reader::from_stream(stream->create_cursor())));
+    return demuxer;
 }
 
 MatroskaDemuxer::MatroskaDemuxer(NonnullRefPtr<MediaStream> const& stream, Reader&& reader)
     : m_stream(stream)
-    , m_buffered_scan_cursor(stream->create_cursor())
     , m_reader(move(reader))
 {
-    m_buffered_scan_cursor->set_is_blocking(false);
 }
 
-MatroskaDemuxer::~MatroskaDemuxer() = default;
+MatroskaDemuxer::~MatroskaDemuxer()
+{
+    if (m_buffered_scan_thread != nullptr)
+        m_buffered_scan_thread->shutdown();
+}
+
+void MatroskaDemuxer::start_buffered_scan_thread(Reader&& scan_reader)
+{
+    auto scan_cursor = m_stream->create_cursor();
+    scan_cursor->set_is_blocking(false);
+
+    DemuxerScanState initial_state;
+    initial_state.duration = m_reader.duration().value_or(AK::Duration::zero());
+    m_buffered_scan_thread = DemuxerScanThread<BufferedScanPayload>::start(m_stream, move(initial_state),
+        BufferedScanPayload { move(scan_reader), move(scan_cursor) },
+        [](MediaStream& stream, BufferedScanPayload& payload) {
+            auto byte_ranges = stream.available_byte_ranges();
+            TimeRanges ranges;
+            if (!byte_ranges.is_empty())
+                ranges = payload.reader.buffered_time_ranges(payload.scan_cursor, byte_ranges);
+            auto duration = max(payload.reader.duration().value_or(AK::Duration::zero()), ranges.highest_end_time());
+            return DemuxerScanState { move(ranges), duration };
+        });
+}
 
 static TrackEntry::TrackType matroska_track_type_from_track_type(TrackType type)
 {
@@ -181,12 +204,14 @@ DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()
     return duration.value_or(AK::Duration::zero());
 }
 
-TimeRanges MatroskaDemuxer::buffered_time_ranges() const
+DemuxerScanState const& MatroskaDemuxer::scan_state() const
 {
-    auto byte_ranges = m_stream->available_byte_ranges();
-    if (byte_ranges.is_empty())
-        return {};
-    return m_reader.buffered_time_ranges(m_buffered_scan_cursor, byte_ranges);
+    return m_buffered_scan_thread->main_thread_state();
+}
+
+void MatroskaDemuxer::set_scan_state_change_handler(Function<void()> handler)
+{
+    m_buffered_scan_thread->set_change_handler(move(handler));
 }
 
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::duration_of_track(Track const&)

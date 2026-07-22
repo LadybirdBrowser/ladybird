@@ -94,6 +94,7 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
     if (chunk.end() != new_chunk_end)
         begin_new_request_while_locked(chunk.end());
     m_state_changed.broadcast();
+    notify_available_ranges_changed_while_locked();
 }
 
 void IncrementallyPopulatedStream::remove_byte_range(u64 start, u64 end)
@@ -123,6 +124,7 @@ void IncrementallyPopulatedStream::remove_byte_range(u64 start, u64 end)
     }
 
     m_state_changed.broadcast();
+    notify_available_ranges_changed_while_locked();
 }
 
 Vector<MediaStream::ByteRange> IncrementallyPopulatedStream::available_byte_ranges() const
@@ -140,6 +142,19 @@ void IncrementallyPopulatedStream::close()
     m_expected_size = m_last_chunk_end;
     m_closed = true;
     m_state_changed.broadcast();
+    notify_available_ranges_changed_while_locked();
+}
+
+void IncrementallyPopulatedStream::set_available_ranges_change_observer(Function<void()> observer)
+{
+    Sync::MutexLocker locker { m_mutex };
+    m_available_ranges_change_observer = move(observer);
+}
+
+void IncrementallyPopulatedStream::notify_available_ranges_changed_while_locked()
+{
+    if (m_available_ranges_change_observer)
+        m_available_ranges_change_observer();
 }
 
 u64 IncrementallyPopulatedStream::size()

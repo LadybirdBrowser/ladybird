@@ -96,6 +96,7 @@ public:
     Function<void(Track const&)> on_track_added;
     Function<void()> on_playback_state_change;
     Function<void(AK::Duration)> on_duration_change;
+    Function<void()> on_buffered_ranges_change;
     Function<void(DecoderError&&)> on_error;
 
     void add_media_source(NonnullRefPtr<MediaStream> const&);
@@ -131,6 +132,7 @@ private:
     void attach_video_sink(VideoTrackData&, NonnullRefPtr<VideoSink>);
     void on_audio_sink_state_changed(PipelineStatus);
     void on_video_sink_state_changed(Track const&, PipelineStatus);
+    void update_duration_from_scan_states();
     void update_pipeline_state();
     void reset_pipeline_state();
     PipelineStatus combined_pipeline_status() const;
@@ -190,6 +192,8 @@ private:
     float m_playback_rate { 1.0f };
 
     bool m_audio_output_disabled { false };
+
+    Vector<NonnullRefPtr<Demuxer>> m_demuxers;
 
     VideoTracks m_video_tracks;
     VideoTrackDatas m_video_track_datas;

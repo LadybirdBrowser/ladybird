@@ -8,6 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <LibMedia/Demuxer.h>
+#include <LibMedia/DemuxerScanThread.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
@@ -35,7 +36,8 @@ public:
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) override;
     virtual DecoderErrorOr<AK::Duration> total_duration() override;
 
-    virtual TimeRanges buffered_time_ranges() const override;
+    virtual DemuxerScanState const& scan_state() const LIFETIME_BOUND override;
+    virtual void set_scan_state_change_handler(Function<void()>) override;
 
     virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const&) override;
 
@@ -48,6 +50,13 @@ public:
     virtual void set_read_blocked_change_handler_for_track(Track const&, ReadBlockedChangeHandler) override;
 
 private:
+    struct BufferedScanPayload {
+        Reader reader;
+        NonnullRefPtr<MediaStreamCursor> scan_cursor;
+    };
+
+    void start_buffered_scan_thread(Reader&& scan_reader);
+
     struct TrackStatus {
         SampleIterator iterator;
         Optional<Block> block;
@@ -63,8 +72,8 @@ private:
     TrackStatus& get_track_status(Track const&);
 
     NonnullRefPtr<MediaStream> m_stream;
-    NonnullRefPtr<MediaStreamCursor> m_buffered_scan_cursor;
     Reader m_reader;
+    RefPtr<DemuxerScanThread<BufferedScanPayload>> m_buffered_scan_thread;
 
     mutable Sync::Mutex m_track_statuses_mutex;
     HashMap<Track, TrackStatus> m_track_statuses;
