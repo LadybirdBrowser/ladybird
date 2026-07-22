@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/HashTable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
@@ -68,6 +69,8 @@ private:
     DecoderErrorOr<void> parse_initial_data(Streamer&);
 
     DecoderErrorOr<Optional<size_t>> find_first_top_level_element_with_id(Streamer&, StringView element_name, u32 element_id);
+    DecoderErrorOr<void> parse_seek_head(Streamer&, HashTable<size_t>& parsed_seek_heads);
+    DecoderErrorOr<void> parse_seek_head_at_position(Streamer&, size_t seek_head_position, HashTable<size_t>& parsed_seek_heads);
 
     DecoderErrorOr<void> parse_segment_information(Streamer&);
 

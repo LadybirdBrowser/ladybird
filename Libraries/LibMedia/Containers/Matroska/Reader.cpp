@@ -24,6 +24,8 @@
 
 namespace Media::Matroska {
 
+static constexpr size_t MAX_SEEK_HEADS_TO_PARSE = 8;
+
 DecoderErrorOr<Reader> Reader::from_stream(NonnullRefPtr<MediaStreamCursor> const& stream_cursor)
 {
     Reader reader;
@@ -179,7 +181,7 @@ DecoderErrorOr<void> Reader::parse_initial_data(Streamer& streamer)
     return {};
 }
 
-static DecoderErrorOr<void> parse_seek_head(Streamer& streamer, size_t base_position, HashMap<u32, size_t>& table)
+DecoderErrorOr<void> Reader::parse_seek_head(Streamer& streamer, HashTable<size_t>& parsed_seek_heads)
 {
     TRY(Reader::parse_master_element(streamer, "SeekHead"sv, [&](u64 seek_head_child_id) -> DecoderErrorOr<ElementIterationDecision> {
         if (seek_head_child_id == SEEK_ELEMENT_ID) {
@@ -209,21 +211,57 @@ static DecoderErrorOr<void> parse_seek_head(Streamer& streamer, size_t base_posi
             if (seek_id.value() > NumericLimits<u32>::max())
                 return DecoderError::corrupted("Seek entry's element ID is too large"sv);
 
-            dbgln_if(MATROSKA_TRACE_DEBUG, "Seek entry found with ID {:#010x} and position {} offset from SeekHead at {}", seek_id.value(), seek_position.value(), base_position);
-            // FIXME: SeekHead can reference another SeekHead, we should recursively parse all SeekHeads.
+            auto element_position = m_segment_contents_position + seek_position.value();
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Seek entry found with ID {:#010x} and position {} offset from Segment contents at {}", seek_id.value(), seek_position.value(), m_segment_contents_position);
 
-            if (table.contains(seek_id.value())) {
-                dbgln_if(MATROSKA_DEBUG, "Warning: Duplicate seek entry with ID {:#010x} at position {}", seek_id.value(), seek_position.value());
+            if (seek_id.value() == SEEK_HEAD_ELEMENT_ID) {
+                auto position_after_seek_entry = streamer.position();
+                TRY(parse_seek_head_at_position(streamer, element_position, parsed_seek_heads));
+                TRY(streamer.seek_to_position(position_after_seek_entry));
                 return ElementIterationDecision::Continue;
             }
 
-            DECODER_TRY_ALLOC(table.try_set(seek_id.release_value(), base_position + seek_position.release_value()));
+            auto insertion_result = DECODER_TRY_ALLOC(m_seek_entries.try_set(static_cast<u32>(seek_id.value()), element_position, AK::HashSetExistingEntryBehavior::Keep));
+            if (insertion_result == AK::HashSetResult::KeptExistingEntry)
+                dbgln_if(MATROSKA_DEBUG, "Duplicate seek entry with ID {:#010x} at position {}", seek_id.value(), seek_position.value());
         } else {
             dbgln_if(MATROSKA_TRACE_DEBUG, "Unknown SeekHead child element ID {:#010x}", seek_head_child_id);
         }
 
         return ElementIterationDecision::Continue;
     }));
+    return {};
+}
+
+DecoderErrorOr<void> Reader::parse_seek_head_at_position(Streamer& streamer, size_t seek_head_position, HashTable<size_t>& parsed_seek_heads)
+{
+    if (parsed_seek_heads.contains(seek_head_position))
+        return {};
+
+    if (parsed_seek_heads.size() >= MAX_SEEK_HEADS_TO_PARSE) {
+        dbgln_if(MATROSKA_DEBUG, "SeekHead chain is longer than {}, ignoring SeekHead at position {}", MAX_SEEK_HEADS_TO_PARSE, seek_head_position);
+        return {};
+    }
+
+    DECODER_TRY_ALLOC(parsed_seek_heads.try_set(seek_head_position));
+
+    auto seek_result = streamer.seek_to_position(seek_head_position);
+    if (seek_result.is_error())
+        return {};
+
+    auto element_id = streamer.read_element_id();
+    if (element_id.is_error())
+        return {};
+    if (element_id.value() != SEEK_HEAD_ELEMENT_ID)
+        return {};
+
+    auto parse_result = parse_seek_head(streamer, parsed_seek_heads);
+    if (parse_result.is_error()) {
+        if (parse_result.error().category() == DecoderErrorCategory::Memory)
+            return parse_result.release_error();
+        return {};
+    }
+
     return {};
 }
 
@@ -253,8 +291,9 @@ DecoderErrorOr<Optional<size_t>> Reader::find_first_top_level_element_with_id(St
 
         if (found_element_id == SEEK_HEAD_ELEMENT_ID) {
             dbgln_if(MATROSKA_TRACE_DEBUG, "Found SeekHead, parsing it into the lookup table.");
-            m_seek_entries.clear();
-            TRY(parse_seek_head(streamer, found_element_position, m_seek_entries));
+            HashTable<size_t> parsed_seek_heads;
+            DECODER_TRY_ALLOC(parsed_seek_heads.try_set(found_element_position));
+            TRY(parse_seek_head(streamer, parsed_seek_heads));
             m_last_top_level_element_position = 0;
             if (m_seek_entries.contains(element_id)) {
                 dbgln_if(MATROSKA_TRACE_DEBUG, "SeekHead hit!");
