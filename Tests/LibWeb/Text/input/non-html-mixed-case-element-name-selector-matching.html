@@ -26,6 +26,10 @@
             println("✅ Pass: Selector match for SVG element radialGradient.");
         else
             println("❌ Fail: No selector match for SVG element radialGradient.");
+        if (document.querySelector("linearGradient:not(.missing)"))
+            println("✅ Pass: Exact-case selector match for SVG element linearGradient.");
+        else
+            println("❌ Fail: No exact-case selector match for SVG element linearGradient.");
         if (!document.querySelector("lineargradient:not(.missing)"))
             println("✅ Pass: Selector matching for SVG element linearGradient is case-sensitive.");
         else
