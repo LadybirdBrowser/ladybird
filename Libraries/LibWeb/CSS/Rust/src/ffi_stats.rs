@@ -40,6 +40,8 @@ define_ffi_ops! {
     SelectorMatchEntry => "selectorMatchEntries",
     CascadeBulkEntry => "cascadeBulkEntries",
     CascadedStoreQueryEntry => "cascadedStoreQueryEntries",
+    CustomPropertyStoreLifecycleEntry => "customPropertyStoreLifecycleEntries",
+    CustomPropertyStoreQueryEntry => "customPropertyStoreQueryEntries",
     LonghandDriverEntry => "longhandDriverEntries",
     ShorthandExpansionEntry => "shorthandExpansionEntries",
     NestedPropertyComputeEntry => "nestedPropertyComputeEntries",

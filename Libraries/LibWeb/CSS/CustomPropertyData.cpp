@@ -7,6 +7,7 @@
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/DOM/Document.h>
 
 namespace Web::CSS {
@@ -19,6 +20,23 @@ CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StylePrope
     , m_parent(move(parent))
     , m_ancestor_count(ancestor_count)
 {
+    Vector<ComputedValuesFFI::FfiCustomPropertyStoreEntry> entries;
+    entries.ensure_capacity(m_own_values.size());
+    for (auto const& [name, property] : m_own_values) {
+        entries.unchecked_append({
+            .name_raw = name.to_raw_leaked(),
+            .important = property.important == Important::Yes,
+            .shell = property.value.ptr(),
+            .data = property.value->rust_style_value_data(),
+        });
+    }
+    m_rust_store = ComputedValuesFFI::rust_custom_property_store_create(
+        entries.data(), entries.size(), m_parent ? m_parent->rust_store() : nullptr);
+}
+
+CustomPropertyData::~CustomPropertyData()
+{
+    ComputedValuesFFI::rust_custom_property_store_destroy(m_rust_store);
 }
 
 NonnullRefPtr<CustomPropertyData> CustomPropertyData::create(

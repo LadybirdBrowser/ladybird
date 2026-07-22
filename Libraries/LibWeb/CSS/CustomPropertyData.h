@@ -31,6 +31,7 @@ public:
         OrderedHashMap<Utf16FlyString, StyleProperty> own_values,
         RefPtr<CustomPropertyData const> parent,
         AllowParentOwnValueAbsorption allow_parent_own_value_absorption = AllowParentOwnValueAbsorption::Yes);
+    ~CustomPropertyData();
 
     StyleProperty const* get(Utf16FlyString const& name) const;
     RefPtr<CustomPropertyData const> inheritable_impl(RefPtr<CustomPropertyData const> inheritable_parent, AK::Function<Optional<CustomPropertyRegistration const&>(Utf16FlyString const&)> get_custom_property_registration) const;
@@ -44,6 +45,8 @@ public:
 
     bool is_empty() const;
 
+    void const* rust_store() const { return m_rust_store; }
+
 private:
     CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, u8 ancestor_count);
 
@@ -54,6 +57,7 @@ private:
     mutable size_t m_cached_inheritable_generation { NumericLimits<size_t>::max() };
     mutable RefPtr<CustomPropertyData const> m_cached_inheritable_data;
     mutable bool m_cached_inheritable_is_self { false };
+    void const* m_rust_store { nullptr };
 };
 
 }

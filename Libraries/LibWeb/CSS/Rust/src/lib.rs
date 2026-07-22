@@ -13,6 +13,7 @@ pub mod cascaded_properties;
 pub mod computed_values;
 pub mod css_pixels;
 mod css_tokenizer;
+pub mod custom_properties;
 pub mod ffi_stats;
 pub mod property_metadata;
 mod selector_engine;

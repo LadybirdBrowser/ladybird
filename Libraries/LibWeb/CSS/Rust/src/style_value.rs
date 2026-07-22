@@ -95,6 +95,11 @@ impl RetainedUtf16FlyString {
         self.raw
     }
 
+    /// Assumes ownership of one leaked reference to the underlying string data.
+    pub(crate) unsafe fn from_leaked_raw(raw: usize) -> Self {
+        Self { raw }
+    }
+
     /// Retains a new reference to the underlying string data.
     ///
     /// # Safety
