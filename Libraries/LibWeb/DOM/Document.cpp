@@ -1418,6 +1418,12 @@ void Document::tear_down_layout_tree()
     m_needs_full_layout_tree_update = true;
 }
 
+void Document::tear_down_layout_tree_for_svg_image_document(Badge<SVG::SVGDecodedImageData>)
+{
+    clear_layout_and_paintable_nodes_for_inactive_document();
+    tear_down_layout_tree();
+}
+
 void Document::clear_layout_and_paintable_nodes_for_inactive_document()
 {
     for_each_in_inclusive_subtree([&](auto& node) {

@@ -150,6 +150,12 @@ SVGDecodedImageData::SVGDecodedImageData(GC::Ref<Page> page, GC::Ref<SVGPageClie
 
 SVGDecodedImageData::~SVGDecodedImageData() = default;
 
+void SVGDecodedImageData::finalize()
+{
+    Base::finalize();
+    m_document->tear_down_layout_tree_for_svg_image_document({});
+}
+
 void SVGDecodedImageData::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

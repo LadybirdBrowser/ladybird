@@ -22,6 +22,8 @@ class SVGDecodedImageData final : public HTML::DecodedImageData {
     GC_DECLARE_ALLOCATOR(SVGDecodedImageData);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     class SVGPageClient;
     static ErrorOr<GC::Ref<SVGDecodedImageData>> create(JS::Realm&, GC::Ref<Page>, URL::URL const&, ReadonlyBytes encoded_svg);
     virtual ~SVGDecodedImageData() override;
@@ -39,6 +41,7 @@ public:
     DOM::Document const& svg_document() const { return *m_document; }
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
+    virtual void finalize() override;
     virtual size_t external_memory_size() const override;
 
     virtual void paint(DisplayListRecordingContext&, Gfx::IntRect dst_rect, CSS::ImageRendering) const override;

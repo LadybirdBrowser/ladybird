@@ -455,6 +455,8 @@ public:
     void invalidate_layout_tree(InvalidateLayoutTreeReason);
     void invalidate_stacking_context_tree();
 
+    void tear_down_layout_tree_for_svg_image_document(Badge<SVG::SVGDecodedImageData>);
+
     virtual bool is_child_allowed(Node const&) const override;
 
     Layout::Viewport const* layout_node() const;
