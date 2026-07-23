@@ -25,6 +25,7 @@
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
@@ -452,7 +453,19 @@ void SVGDecodedImageData::did_request_frame()
         return;
 
     invalidate_cached_rendering();
-    notify_clients_did_update();
+
+    // NB: Frame requests arrive synchronously from the SVG document, possibly while a client document is in
+    //     the middle of layout or paint; for example, a natural size query during intrinsic size measurement
+    //     flushes style in the SVG document, and applying the resulting invalidation requests a frame.
+    //     Clients respond to the notification by invalidating their own style and layout, which must never
+    //     happen during their layout, so defer (and coalesce) notifications until the event loop spins again.
+    if (m_has_pending_client_notification)
+        return;
+    m_has_pending_client_notification = true;
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [self = GC::Ref { *this }] {
+        self->m_has_pending_client_notification = false;
+        self->notify_clients_did_update();
+    }));
 }
 
 void SVGDecodedImageData::invalidate_cached_rendering()

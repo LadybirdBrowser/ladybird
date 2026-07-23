@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../../Text/input/include.js"></script>
+<style>
+    .case {
+        position: absolute;
+    }
+
+    .min-inline {
+        width: min-content;
+    }
+
+    .max-inline {
+        width: max-content;
+    }
+
+    .min-block {
+        display: flex;
+        height: min-content;
+    }
+
+    .max-block {
+        display: flex;
+        height: max-content;
+    }
+
+    /* The SVG images load asynchronously, so their guest documents get their first style
+       flush from the natural-size query inside the intrinsic measurement layout of the
+       absolutely positioned boxes above. The <use> elements matter: their shadow-tree
+       clones lack the insertion-time needs-layout-tree-update marking, so first-time
+       style application on them fires layout tree invalidation in the guest document,
+       which used to escape into the host document mid-measurement. */
+    .min-inline::before {
+        content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cstyle%3Esvg%7Bwidth:11px;height:11px%7D%3C/style%3E%3Cdefs%3E%3Cpath id='a' d='M0 0h8v8z'/%3E%3C/defs%3E%3Cuse href='%23a'/%3E%3C/svg%3E");
+    }
+
+    .max-inline::before {
+        content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cstyle%3Esvg%7Bwidth:12px;height:12px%7D%3C/style%3E%3Cdefs%3E%3Cpath id='a' d='M0 0h8v8z'/%3E%3C/defs%3E%3Cuse href='%23a'/%3E%3C/svg%3E");
+    }
+
+    .min-block::before {
+        content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cstyle%3Esvg%7Bwidth:13px;height:13px%7D%3C/style%3E%3Cdefs%3E%3Cpath id='a' d='M0 0h8v8z'/%3E%3C/defs%3E%3Cuse href='%23a'/%3E%3C/svg%3E");
+    }
+
+    .max-block::before {
+        content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cstyle%3Esvg%7Bwidth:14px;height:14px%7D%3C/style%3E%3Cdefs%3E%3Cpath id='a' d='M0 0h8v8z'/%3E%3C/defs%3E%3Cuse href='%23a'/%3E%3C/svg%3E");
+    }
+</style>
+<div class="case min-inline"></div>
+<div class="case max-inline"></div>
+<div class="case min-block"></div>
+<div class="case max-block"></div>
+<script>
+    asyncTest(done => {
+        let remainingFrames = 8;
+        function pump() {
+            document.body.offsetHeight;
+            if (--remainingFrames > 0)
+                requestAnimationFrame(pump);
+            else
+                done();
+        }
+        requestAnimationFrame(pump);
+    });
+</script>

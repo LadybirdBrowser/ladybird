@@ -76,6 +76,7 @@ private:
     GC::Ref<SVG::SVGSVGElement> m_root_element;
 
     mutable bool m_is_recording_display_list { false };
+    bool m_has_pending_client_notification { false };
 };
 
 class SVGDecodedImageData::SVGPageClient final : public PageClient {
