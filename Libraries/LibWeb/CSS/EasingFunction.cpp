@@ -19,195 +19,58 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-easing/#linear-easing-function-output
 double LinearEasingFunction::evaluate_at(double input_progress, bool before_flag) const
 {
-    // To calculate linear easing output progress for a given linear easing function func,
-    // an input progress value inputProgress, and an optional before flag (defaulting to false),
-    // perform the following:
-
-    // 1. Let points be func’s control points.
-
-    // 2. If points holds only a single item, return the output progress value of that item.
-    if (control_points.size() == 1)
-        return control_points[0].output;
-
-    // 3. If inputProgress matches the input progress value of the first point in points,
-    // and the before flag is true, return the first point’s output progress value.
-    if (input_progress == control_points[0].input.value() && before_flag)
-        return control_points[0].output;
-
-    // 4. If inputProgress matches the input progress value of at least one point in points,
-    // return the output progress value of the last such point.
-    auto maybe_match = control_points.last_matching([&](auto& stop) { return input_progress == stop.input; });
-    if (maybe_match.has_value())
-        return maybe_match->output;
-
-    // 5. Otherwise, find two control points in points, A and B, which will be used for interpolation:
-    ControlPoint A;
-    ControlPoint B;
-
-    if (input_progress < control_points[0].input.value()) {
-        // 1. If inputProgress is smaller than any input progress value in points,
-        // let A and B be the first two items in points.
-        // If A and B have the same input progress value, return A’s output progress value.
-        A = control_points[0];
-        B = control_points[1];
-        if (A.input == B.input.value())
-            return A.output;
-    } else if (input_progress > control_points.last().input.value()) {
-        // 2. If inputProgress is larger than any input progress value in points,
-        // let A and B be the last two items in points.
-        // If A and B have the same input progress value, return B’s output progress value.
-        A = control_points[control_points.size() - 2];
-        B = control_points[control_points.size() - 1];
-        if (A.input == B.input.value())
-            return B.output;
-    } else {
-        // 3. Otherwise, let A be the last control point whose input progress value is smaller than inputProgress,
-        // and let B be the first control point whose input progress value is larger than inputProgress.
-        A = control_points.last_matching([&](ControlPoint const& stop) { return stop.input.value() < input_progress; }).value();
-        B = control_points.first_matching([&](ControlPoint const& stop) { return stop.input.value() > input_progress; }).value();
+    Vector<StyleValueFFI::FfiLinearEasingPoint> points;
+    points.ensure_capacity(control_points.size());
+    for (auto const& point : control_points) {
+        VERIFY(point.input.has_value());
+        points.unchecked_append({ .input = *point.input, .output = point.output });
     }
-
-    // 6. Linearly interpolate (or extrapolate) inputProgress along the line defined by A and B, and return the result.
-    auto factor = (input_progress - A.input.value()) / (B.input.value() - A.input.value());
-    return A.output + factor * (B.output - A.output);
+    StyleValueFFI::FfiEasingDescriptor descriptor {
+        .kind = StyleValueFFI::FfiEasingKind::Linear,
+        .linear_points = points.data(),
+        .linear_point_count = points.size(),
+        .x1 = 0,
+        .y1 = 0,
+        .x2 = 0,
+        .y2 = 0,
+        .interval_count = 0,
+        .step_position = 0,
+    };
+    return StyleValueFFI::rust_evaluate_easing(&descriptor, input_progress, before_flag);
 }
 
 // https://www.w3.org/TR/css-easing-1/#cubic-bezier-algo
-double CubicBezierEasingFunction::evaluate_at(double input_progress, bool) const
+double CubicBezierEasingFunction::evaluate_at(double input_progress, bool before_flag) const
 {
-    constexpr static auto cubic_bezier_at = [](double x1, double x2, double t) {
-        auto a = 1.0 - 3.0 * x2 + 3.0 * x1;
-        auto b = 3.0 * x2 - 6.0 * x1;
-        auto c = 3.0 * x1;
-
-        auto t2 = t * t;
-        auto t3 = t2 * t;
-
-        return (a * t3) + (b * t2) + (c * t);
+    StyleValueFFI::FfiEasingDescriptor descriptor {
+        .kind = StyleValueFFI::FfiEasingKind::CubicBezier,
+        .linear_points = nullptr,
+        .linear_point_count = 0,
+        .x1 = x1,
+        .y1 = y1,
+        .x2 = x2,
+        .y2 = y2,
+        .interval_count = 0,
+        .step_position = 0,
     };
-
-    // For input progress values outside the range [0, 1], the curve is extended infinitely using tangent of the curve
-    // at the closest endpoint as follows:
-
-    // - For input progress values less than zero,
-    if (input_progress < 0.0) {
-        // 1. If the x value of P1 is greater than zero, use a straight line that passes through P1 and P0 as the
-        //    tangent.
-        if (x1 > 0.0)
-            return y1 / x1 * input_progress;
-
-        // 2. Otherwise, if the x value of P2 is greater than zero, use a straight line that passes through P2 and P0 as
-        //    the tangent.
-        if (x2 > 0.0)
-            return y2 / x2 * input_progress;
-
-        // 3. Otherwise, let the output progress value be zero for all input progress values in the range [-∞, 0).
-        return 0.0;
-    }
-
-    // - For input progress values greater than one,
-    if (input_progress > 1.0) {
-        // 1. If the x value of P2 is less than one, use a straight line that passes through P2 and P3 as the tangent.
-        if (x2 < 1.0)
-            return (1.0 - y2) / (1.0 - x2) * (input_progress - 1.0) + 1.0;
-
-        // 2. Otherwise, if the x value of P1 is less than one, use a straight line that passes through P1 and P3 as the
-        //    tangent.
-        if (x1 < 1.0)
-            return (1.0 - y1) / (1.0 - x1) * (input_progress - 1.0) + 1.0;
-
-        // 3. Otherwise, let the output progress value be one for all input progress values in the range (1, ∞].
-        return 1.0;
-    }
-
-    // Note: The spec does not specify the precise algorithm for calculating values in the range [0, 1]:
-    //       "The evaluation of this curve is covered in many sources such as [FUND-COMP-GRAPHICS]."
-
-    // We use Newton-Raphson iteration to solve for the parameter t where x(t) = input_progress,
-    // then return y(t). Falls back to bisection when Newton-Raphson doesn't converge.
-
-    constexpr static auto cubic_bezier_derivative_at = [](double x1, double x2, double t) {
-        auto a = 1.0 - 3.0 * x2 + 3.0 * x1;
-        auto b = 3.0 * x2 - 6.0 * x1;
-        auto c = 3.0 * x1;
-        return 3.0 * a * t * t + 2.0 * b * t + c;
-    };
-
-    constexpr double epsilon = 1e-7;
-    auto x = input_progress;
-
-    // Newton-Raphson iteration.
-    auto t = x;
-    for (int i = 0; i < 8; ++i) {
-        auto x_at_t = cubic_bezier_at(x1, x2, t) - x;
-        if (AK::fabs(x_at_t) < epsilon)
-            return cubic_bezier_at(y1, y2, t);
-        auto dx = cubic_bezier_derivative_at(x1, x2, t);
-        if (AK::fabs(dx) < 1e-12)
-            break;
-        t -= x_at_t / dx;
-    }
-
-    // Bisection fallback.
-    double lo = 0.0;
-    double hi = 1.0;
-    t = x;
-    for (int i = 0; i < 64; ++i) {
-        auto x_at_t = cubic_bezier_at(x1, x2, t);
-        if (AK::fabs(x_at_t - x) < epsilon)
-            return cubic_bezier_at(y1, y2, t);
-        if (x > x_at_t)
-            lo = t;
-        else
-            hi = t;
-        t = (lo + hi) / 2.0;
-    }
-
-    return cubic_bezier_at(y1, y2, t);
+    return StyleValueFFI::rust_evaluate_easing(&descriptor, input_progress, before_flag);
 }
 
 // https://www.w3.org/TR/css-easing-1/#step-easing-algo
 double StepsEasingFunction::evaluate_at(double input_progress, bool before_flag) const
 {
-    auto current_step = floor(input_progress * interval_count);
-
-    // 2. If the step position property is one of:
-    //    - jump-start,
-    //    - jump-both,
-    //    increment current step by one.
-    if (position == StepPosition::JumpStart || position == StepPosition::Start || position == StepPosition::JumpBoth)
-        current_step += 1;
-
-    // 3. If both of the following conditions are true:
-    //    - the before flag is set, and
-    //    - input progress value × steps mod 1 equals zero (that is, if input progress value × steps is integral), then
-    //    decrement current step by one.
-    auto step_progress = input_progress * interval_count;
-    if (before_flag && trunc(step_progress) == step_progress)
-        current_step -= 1;
-
-    // 4. If input progress value ≥ 0 and current step < 0, let current step be zero.
-    if (input_progress >= 0.0 && current_step < 0.0)
-        current_step = 0.0;
-
-    // 5. Calculate jumps based on the step position as follows:
-
-    //    jump-start or jump-end -> steps
-    //    jump-none -> steps - 1
-    //    jump-both -> steps + 1
-    auto jumps = interval_count;
-    if (position == StepPosition::JumpNone) {
-        jumps--;
-    } else if (position == StepPosition::JumpBoth) {
-        jumps++;
-    }
-
-    // 6. If input progress value ≤ 1 and current step > jumps, let current step be jumps.
-    if (input_progress <= 1.0 && current_step > jumps)
-        current_step = jumps;
-
-    // 7. The output progress value is current step / jumps.
-    return current_step / jumps;
+    StyleValueFFI::FfiEasingDescriptor descriptor {
+        .kind = StyleValueFFI::FfiEasingKind::Steps,
+        .linear_points = nullptr,
+        .linear_point_count = 0,
+        .x1 = 0,
+        .y1 = 0,
+        .x2 = 0,
+        .y2 = 0,
+        .interval_count = interval_count,
+        .step_position = to_underlying(position),
+    };
+    return StyleValueFFI::rust_evaluate_easing(&descriptor, input_progress, before_flag);
 }
 
 // https://drafts.csswg.org/css-easing/#linear-canonicalization
