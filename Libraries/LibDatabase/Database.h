@@ -13,6 +13,7 @@
 #include <AK/Error.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/LexicalPath.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
@@ -166,6 +167,44 @@ public:
         if (!result.has_value())
             return Error::from_string_literal("Statement returned no rows");
         return result.release_value();
+    }
+
+    // https://www.sqlite.org/lang_returning.html
+    // DML RETURNING performs every change and buffers all output during the first step,
+    // so a result-row budget cannot bound its work.
+    template<typename BindCallback>
+    ErrorOr<void> try_execute_bound_statement(StatementID statement_id, size_t maximum_rows, BindCallback&& bind_all, OnResultRow on_result)
+    {
+        size_t row_count = 0;
+        return try_execute_bound_statement(statement_id, forward<BindCallback>(bind_all), [&](ResultRow& row) -> ErrorOr<void> {
+            if (row_count == maximum_rows)
+                return Error::from_string_literal("Statement returned more rows than the caller allowed");
+            ++row_count;
+            return on_result(row);
+        });
+    }
+
+    template<typename T, typename BindCallback, typename ReadCallback>
+    ErrorOr<Vector<T>> try_collect_bound_statement(StatementID statement_id, size_t maximum_rows, BindCallback&& bind_all, ReadCallback&& read_row)
+    {
+        Vector<T> rows;
+        TRY(try_execute_bound_statement(statement_id, maximum_rows, forward<BindCallback>(bind_all), [&](ResultRow& row) -> ErrorOr<void> {
+            TRY(rows.try_append(TRY(read_row(row))));
+            return {};
+        }));
+        return rows;
+    }
+
+    // The budget counts result rows, not distinct values.
+    template<typename T, typename BindCallback, typename ReadCallback>
+    ErrorOr<HashTable<T>> try_collect_bound_statement_set(StatementID statement_id, size_t maximum_rows, BindCallback&& bind_all, ReadCallback&& read_row)
+    {
+        HashTable<T> values;
+        TRY(try_execute_bound_statement(statement_id, maximum_rows, forward<BindCallback>(bind_all), [&](ResultRow& row) -> ErrorOr<void> {
+            TRY(values.try_set(TRY(read_row(row))));
+            return {};
+        }));
+        return values;
     }
 
     ErrorOr<int> result_column_index(StatementID, StringView name);
