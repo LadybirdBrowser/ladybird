@@ -22,7 +22,6 @@ SaveLayer@0
           FillPath@1 path_bounding_rect=[1,50 55x55]
           ApplyEffects@1 opacity=1 has_filter=false
             PaintNestedDisplayList@1 rect=[4,10 55x55]
-              Translate@0 delta=[-4,-10]
               FillPath@0 path_bounding_rect=[4,10 55x56]
           Restore@1
         Restore@1

@@ -652,11 +652,6 @@ void DisplayListRecorder::add_clip_rect(Gfx::IntRect const& rect)
     append_command(AddClipRect { rect });
 }
 
-void DisplayListRecorder::translate(Gfx::IntPoint delta)
-{
-    append_command(Translate { delta });
-}
-
 void DisplayListRecorder::save()
 {
     append_command(Save {});

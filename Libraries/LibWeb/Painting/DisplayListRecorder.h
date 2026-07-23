@@ -101,8 +101,6 @@ public:
 
     void add_clip_rect(Gfx::IntRect const& rect);
 
-    void translate(Gfx::IntPoint delta);
-
     void set_accumulated_visual_context(VisualContextIndex index) { m_accumulated_visual_context_index = index; }
     VisualContextIndex accumulated_visual_context() const { return m_accumulated_visual_context_index; }
 

@@ -100,9 +100,9 @@ static void build_nested_svg_visual_context_tree_for_subtree(AccumulatedVisualCo
     });
 }
 
-static AccumulatedVisualContextTree build_nested_svg_visual_context_tree(Paintable& root_paintable)
+static AccumulatedVisualContextTree build_nested_svg_visual_context_tree(Paintable& root_paintable, Gfx::IntPoint content_offset)
 {
-    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto visual_context_tree = AccumulatedVisualContextTree::create_with_content_offset(content_offset);
     auto pixel_ratio = root_paintable.document().page().client().device_pixels_per_css_pixel();
     build_nested_svg_visual_context_tree_for_subtree(visual_context_tree, root_paintable, {}, pixel_ratio);
 
@@ -125,10 +125,9 @@ static Optional<DisplayListResource> paint_mask_or_clip_to_display_list(
     bool is_clip_path)
 {
     auto mask_rect = context.enclosing_device_rect(area);
-    auto visual_context_tree = build_nested_svg_visual_context_tree(const_cast<Paintable&>(paintable));
+    auto visual_context_tree = build_nested_svg_visual_context_tree(const_cast<Paintable&>(paintable), -mask_rect.location().to_type<int>());
     auto display_list = DisplayList::create(visual_context_tree);
     DisplayListRecorder display_list_recorder(*display_list, visual_context_tree, context.display_list_recorder().resource_storage());
-    display_list_recorder.translate(-mask_rect.location().to_type<int>());
     auto paint_context = context.clone(display_list_recorder);
     auto const& mask_element = as<SVG::SVGGraphicsElement const>(*paintable.dom_node());
     // Layout computes transforms only within the mask/clip subtree, so prepend the target's accumulated transform here.

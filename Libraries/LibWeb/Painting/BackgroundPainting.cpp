@@ -398,10 +398,9 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
             if (tile_device_rect.height() == 0)
                 tile_device_rect.set_height(1);
 
-            auto visual_context_tree = AccumulatedVisualContextTree::create();
+            auto visual_context_tree = AccumulatedVisualContextTree::create_with_content_offset(-tile_device_rect.location().to_type<int>());
             auto tile_display_list = DisplayList::create(visual_context_tree);
             DisplayListRecorder tile_recorder(*tile_display_list, visual_context_tree, display_list_recorder.resource_storage());
-            tile_recorder.translate(-tile_device_rect.location().to_type<int>());
             auto tile_context = context.clone(tile_recorder);
             image.paint(tile_context, document, tile_device_rect, image_rendering);
 

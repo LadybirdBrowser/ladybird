@@ -127,6 +127,10 @@ public:
 
     static WEB_API AccumulatedVisualContextTree create();
     static WEB_API AccumulatedVisualContextTree create(TransformData visual_viewport_transform);
+    // For nested display list trees (masks, patterns, background tiles) whose content is recorded
+    // in outer coordinates but replayed into a list-local surface: the offset becomes the root
+    // transform, keeping the tree the single source of coordinate truth for the list.
+    static WEB_API AccumulatedVisualContextTree create_with_content_offset(Gfx::IntPoint content_offset);
 
     AccumulatedVisualContextTree(AccumulatedVisualContextTree const&) = default;
     AccumulatedVisualContextTree& operator=(AccumulatedVisualContextTree const&) = default;

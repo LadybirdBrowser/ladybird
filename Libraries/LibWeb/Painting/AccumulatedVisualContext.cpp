@@ -72,12 +72,21 @@ AccumulatedVisualContextTree AccumulatedVisualContextTree::create()
 AccumulatedVisualContextTree AccumulatedVisualContextTree::create(TransformData visual_viewport_transform)
 {
     Vector<AccumulatedVisualContextNode> nodes;
-    // Visual viewport transform root. This is identity for trees that are not attached to a document viewport.
+    // Whole-tree transform root: the visual viewport transform for document trees, the content
+    // offset for nested display list trees, identity otherwise.
     nodes.append({ move(visual_viewport_transform), {}, 0, false });
     return AccumulatedVisualContextTree {
         s_next_accumulated_visual_context_tree_version.fetch_add(1, AK::MemoryOrder::memory_order_relaxed),
         move(nodes)
     };
+}
+
+AccumulatedVisualContextTree AccumulatedVisualContextTree::create_with_content_offset(Gfx::IntPoint content_offset)
+{
+    return create(TransformData {
+        Gfx::translation_matrix(Vector3<float>(static_cast<float>(content_offset.x()), static_cast<float>(content_offset.y()), 0)),
+        {},
+    });
 }
 
 static CSSPixelRect effective_css_clip_rect(CSSPixelRect const& css_clip)
