@@ -752,32 +752,6 @@ RefPtr<NodeWithStyle> TreeBuilder::create_content_replacement_if_needed(DOM::Ele
     return create_content_image_box(element.document(), element, move(computed_values), const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
 }
 
-static bool is_ignorable_whitespace(Layout::Node const& node)
-{
-    if (auto* text_node = as_if<TextNode>(node); text_node && text_node->text_for_rendering().is_ascii_whitespace())
-        return true;
-
-    if (node.is_anonymous() && node.is_block_container() && node.children_are_inline()) {
-        bool contains_only_white_space = true;
-        node.for_each_in_inclusive_subtree([&contains_only_white_space](auto& descendant) {
-            if (auto* text_node = as_if<TextNode>(descendant)) {
-                if (!text_node->text_for_rendering().is_ascii_whitespace()) {
-                    contains_only_white_space = false;
-                    return TraversalDecision::Break;
-                }
-            } else if (descendant.is_out_of_flow() || !descendant.is_anonymous()) {
-                contains_only_white_space = false;
-                return TraversalDecision::Break;
-            }
-            return TraversalDecision::Continue;
-        });
-        if (contains_only_white_space)
-            return true;
-    }
-
-    return false;
-}
-
 static bool is_svg_resource_box(Node const& layout_node)
 {
     return is<SVGPatternBox>(layout_node) || is<SVGMaskBox>(layout_node) || is<SVGClipBox>(layout_node);
@@ -1564,428 +1538,222 @@ RefPtr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)
     return m_layout_root;
 }
 
-template<CSS::DisplayInternal internal, typename Callback>
-void TreeBuilder::for_each_in_tree_with_internal_display(NodeWithStyle& root, Callback callback)
+static RustFFI::FfiTableDisplay ffi_table_display(CSS::Display display)
 {
-    root.for_each_in_inclusive_subtree_of_type<Box>([&](auto& box) {
-        auto const display = box.display();
-        if (display.is_internal() && display.internal() == internal)
-            callback(box);
-        return TraversalDecision::Continue;
-    });
+    if (display.is_table_inside())
+        return RustFFI::FfiTableDisplay::TableRoot;
+    if (display.is_table_row_group())
+        return RustFFI::FfiTableDisplay::TableRowGroup;
+    if (display.is_table_header_group())
+        return RustFFI::FfiTableDisplay::TableHeaderGroup;
+    if (display.is_table_footer_group())
+        return RustFFI::FfiTableDisplay::TableFooterGroup;
+    if (display.is_table_column_group())
+        return RustFFI::FfiTableDisplay::TableColumnGroup;
+    if (display.is_table_column())
+        return RustFFI::FfiTableDisplay::TableColumn;
+    if (display.is_table_row())
+        return RustFFI::FfiTableDisplay::TableRow;
+    if (display.is_table_cell())
+        return RustFFI::FfiTableDisplay::TableCell;
+    if (display.is_table_caption())
+        return RustFFI::FfiTableDisplay::TableCaption;
+    return RustFFI::FfiTableDisplay::Other;
 }
 
-template<CSS::DisplayInside inside, typename Callback>
-void TreeBuilder::for_each_in_tree_with_inside_display(NodeWithStyle& root, Callback callback)
+static RustFFI::FfiLayoutNodeFacts ffi_layout_node_facts(void*, void* node_pointer)
 {
-    root.for_each_in_inclusive_subtree_of_type<Box>([&](auto& box) {
-        auto const display = box.display();
-        if (display.is_outside_and_inside() && display.inside() == inside)
-            callback(box);
-        return TraversalDecision::Continue;
-    });
-}
-
-// https://drafts.csswg.org/css-tables-3/#fixup-algorithm
-void TreeBuilder::fixup_tables(NodeWithStyle& root)
-{
-    remove_irrelevant_boxes(root);
-    generate_missing_child_wrappers(root);
-    auto table_root_boxes = generate_missing_parents(root);
-    missing_cells_fixup(table_root_boxes);
-}
-
-static bool is_first_or_last_child_with_table_non_root_sibling_if_any(Node const& node)
-{
-    auto is_table_non_root_box = [](Node const& node) {
-        auto const* node_with_style = as_if<NodeWithStyle>(node);
-        if (!node_with_style)
-            return false;
-        auto const display = node_with_style->display();
-        return display.is_table_row()
-            || display.is_table_column()
-            || display.is_table_row_group()
-            || display.is_table_header_group()
-            || display.is_table_footer_group()
-            || display.is_table_column_group()
-            || display.is_table_cell()
-            || display.is_table_caption();
+    VERIFY(node_pointer);
+    auto& node = *static_cast<Node*>(node_pointer);
+    auto const* node_with_style = as_if<NodeWithStyle>(node);
+    auto const* text_node = as_if<TextNode>(node);
+    return {
+        .current_display = node_with_style ? ffi_table_display(node_with_style->display()) : RustFFI::FfiTableDisplay::Other,
+        .display_before_box_type_transformation = node_with_style ? ffi_table_display(node_with_style->display_before_box_type_transformation()) : RustFFI::FfiTableDisplay::Other,
+        .is_box = is<Box>(node),
+        .has_style = node.has_style(),
+        .is_anonymous = node.is_anonymous(),
+        .is_block_container = node.is_block_container(),
+        .children_are_inline = node.children_are_inline(),
+        .is_out_of_flow = node.is_out_of_flow(),
+        .is_text = text_node != nullptr,
+        .text_is_ascii_whitespace = text_node && text_node->text_for_rendering().is_ascii_whitespace(),
+        .is_inline_outside = node_with_style && node_with_style->display().is_inline_outside(),
+        .is_table_wrapper = node.is_table_wrapper(),
+        .has_been_wrapped_in_table_wrapper = node.has_been_wrapped_in_table_wrapper(),
+        .has_replaced_element_table_display_adjustment = node_with_style && node_with_style->has_replaced_element_table_display_adjustment(),
     };
-
-    auto previous_sibling = node.previous_sibling();
-    auto next_sibling = node.next_sibling();
-    if (previous_sibling && next_sibling)
-        return false;
-
-    if (previous_sibling && !is_table_non_root_box(*previous_sibling))
-        return false;
-
-    if (next_sibling && !is_table_non_root_box(*next_sibling))
-        return false;
-
-    return true;
 }
 
-// https://drafts.csswg.org/css-tables-3/#tabular-container
-static bool is_tabular_container(Node const& node)
+static void* ffi_layout_node_parent(void*, void* node_pointer)
 {
-    auto const* node_with_style = as_if<NodeWithStyle>(node);
-    if (!node_with_style)
-        return false;
-    auto const& display = node_with_style->display();
-    return display.is_table_inside()
-        || display.is_table_row()
-        || display.is_table_row_group()
-        || display.is_table_header_group()
-        || display.is_table_footer_group();
+    VERIFY(node_pointer);
+    return static_cast<Node*>(node_pointer)->parent();
 }
 
-// https://drafts.csswg.org/css-tables-3/#fixup-algorithm
-// 1. Remove irrelevant boxes:
-void TreeBuilder::remove_irrelevant_boxes(NodeWithStyle& root)
+static void* ffi_layout_node_first_child(void*, void* node_pointer)
 {
-    // The following boxes are discarded as if they were display:none:
-
-    Vector<NonnullRefPtr<Node>> to_remove;
-
-    // 1. Children of a table-column.
-    for_each_in_tree_with_internal_display<CSS::DisplayInternal::TableColumn>(root, [&](Box& table_column) {
-        table_column.for_each_child([&](auto& child) {
-            to_remove.append(child);
-            return IterationDecision::Continue;
-        });
-    });
-
-    // 2. Children of a table-column-group which are not a table-column.
-    for_each_in_tree_with_internal_display<CSS::DisplayInternal::TableColumnGroup>(root, [&](Box& table_column_group) {
-        table_column_group.for_each_child([&](auto& child) {
-            auto const* child_with_style = as_if<NodeWithStyle>(child);
-            if (!child_with_style || !child_with_style->display().is_table_column())
-                to_remove.append(child);
-            return IterationDecision::Continue;
-        });
-    });
-
-    // FIXME: 3. Anonymous inline boxes which contain only white space and are between two immediate siblings each of
-    //           which is a table-non-root box.
-
-    // 4. Anonymous inline boxes which meet all of the following criteria:
-    //    - they contain only white space
-    //    - they are the first and/or last child of a tabular container
-    //    - whose immediate sibling, if any, is a table-non-root box
-    root.for_each_in_inclusive_subtree_of_type<Box>([&](auto& box) {
-        auto* parent = box.parent();
-        if (!parent
-            || !is_tabular_container(*parent)
-            || !is_first_or_last_child_with_table_non_root_sibling_if_any(box)) {
-            return TraversalDecision::Continue;
-        }
-
-        if (is_ignorable_whitespace(box)) {
-            to_remove.append(box);
-            return TraversalDecision::SkipChildrenAndContinue;
-        }
-        return TraversalDecision::Continue;
-    });
-
-    for (auto& box : to_remove)
-        box->parent()->remove_child(*box);
+    VERIFY(node_pointer);
+    return static_cast<Node*>(node_pointer)->first_child().ptr();
 }
 
-static bool is_table_track(CSS::Display display)
+static void* ffi_layout_node_next_sibling(void*, void* node_pointer)
 {
-    return display.is_table_row() || display.is_table_column();
+    VERIFY(node_pointer);
+    return static_cast<Node*>(node_pointer)->next_sibling().ptr();
 }
 
-static bool is_table_track_group(CSS::Display display)
+static void* ffi_layout_node_previous_sibling(void*, void* node_pointer)
 {
-    // Unless explicitly mentioned otherwise, mentions of table-row-groups in this spec also encompass the specialized
-    // table-header-groups and table-footer-groups.
-    return display.is_table_row_group()
-        || display.is_table_header_group()
-        || display.is_table_footer_group()
-        || display.is_table_column_group();
+    VERIFY(node_pointer);
+    return static_cast<Node*>(node_pointer)->previous_sibling().ptr();
 }
 
-static CSS::Display display_for_table_fixup(NodeWithStyle const& node)
+static Vector<NonnullRefPtr<Node>> retain_ffi_layout_nodes(void* const* node_pointers, size_t node_count)
 {
-    // https://drafts.csswg.org/css-tables-3/#fixup-algorithm
-    // For the purposes of these rules, out-of-flow elements are represented as inline elements of zero width and
-    // height. Their containing blocks are chosen accordingly.
-    //
-    // AD-HOC: Table-internal boxes can be blockified before fixup. Use the pre-transformation display for authored
-    // boxes so an out-of-flow table-header-group is still recognized as a proper table child during fixup.
-    if (node.has_replaced_element_table_display_adjustment())
-        return node.display();
-    if (!node.is_anonymous())
-        return node.display_before_box_type_transformation();
-    return node.display();
-}
-
-static bool is_proper_table_child(NodeWithStyle const& node)
-{
-    auto const display = display_for_table_fixup(node);
-    return is_table_track_group(display) || is_table_track(display) || display.is_table_caption();
-}
-
-static bool is_not_proper_table_child(Node const& node)
-{
-    auto const* node_with_style = as_if<NodeWithStyle>(node);
-    if (!node_with_style)
-        return true;
-    return !is_proper_table_child(*node_with_style);
-}
-
-static bool is_not_table_row(Node const& node)
-{
-    auto const* node_with_style = as_if<NodeWithStyle>(node);
-    if (!node_with_style)
-        return true;
-    return !TableGrid::is_table_row(*node_with_style);
-}
-
-static bool is_table_column(Node const& node)
-{
-    auto const* node_with_style = as_if<NodeWithStyle>(node);
-    return node_with_style && node_with_style->display().is_table_column();
-}
-
-static bool is_table_cell(Node const& node)
-{
-    auto const* node_with_style = as_if<NodeWithStyle>(node);
-    return node_with_style && node_with_style->display().is_table_cell();
-}
-
-static bool is_not_table_cell(Node const& node)
-{
-    if (!node.has_style())
-        return true;
-    return !is_table_cell(node);
-}
-
-static bool is_table_row_group_column_group_or_caption(Node const& node)
-{
-    auto const* node_with_style = as_if<NodeWithStyle>(node);
-    if (!node_with_style)
-        return false;
-    auto const display = display_for_table_fixup(*node_with_style);
-    return is_table_track_group(display) || display.is_table_caption();
-}
-
-template<typename Matcher, typename Callback>
-static void for_each_sequence_of_consecutive_children_matching(NodeWithStyle& parent, Matcher matcher, Callback callback)
-{
-    Vector<NonnullRefPtr<Node>> sequence;
-
-    auto sequence_is_all_ignorable_whitespace = [&]() -> bool {
-        for (auto& node : sequence) {
-            if (!is_ignorable_whitespace(*node))
-                return false;
-        }
-        return true;
-    };
-
-    for (auto child = parent.first_child(); child; child = child->next_sibling()) {
-        if (matcher(*child) || (!sequence.is_empty() && is_ignorable_whitespace(*child))) {
-            sequence.append(*child);
-        } else {
-            if (!sequence.is_empty()) {
-                if (!sequence_is_all_ignorable_whitespace())
-                    callback(sequence, child);
-                sequence.clear();
-            }
-        }
+    Vector<NonnullRefPtr<Node>> nodes;
+    nodes.ensure_capacity(node_count);
+    for (size_t index = 0; index < node_count; ++index) {
+        VERIFY(node_pointers[index]);
+        nodes.unchecked_append(*static_cast<Node*>(node_pointers[index]));
     }
-    if (!sequence.is_empty() && !sequence_is_all_ignorable_whitespace())
-        callback(sequence, nullptr);
+    return nodes;
 }
 
-template<typename WrapperBoxType>
-static void wrap_in_anonymous(Vector<NonnullRefPtr<Node>>& sequence, Node* nearest_sibling, CSS::Display display)
+static void ffi_remove_layout_nodes(void*, void* const* node_pointers, size_t node_count)
 {
-    VERIFY(!sequence.is_empty());
+    auto nodes = retain_ffi_layout_nodes(node_pointers, node_count);
+    for (auto& node : nodes) {
+        VERIFY(node->parent());
+        node->parent()->remove_child(*node);
+    }
+}
+
+static void ffi_wrap_in_anonymous_table_box(void*, void* const* node_pointers, size_t node_count, void* nearest_sibling_pointer, RustFFI::FfiAnonymousTableBoxKind kind)
+{
+    VERIFY(node_count > 0);
+    auto sequence = retain_ffi_layout_nodes(node_pointers, node_count);
     auto& parent = *sequence.first()->parent();
     auto builder = CSS::ComputedValues::Builder::create_inheriting_from(parent.computed_values());
-    builder->set_display(display);
-    auto wrapper = make_ref_counted<WrapperBoxType>(parent.document(), nullptr, move(builder).build());
+    switch (kind) {
+    case RustFFI::FfiAnonymousTableBoxKind::TableRow:
+        builder->set_display(CSS::Display { CSS::DisplayInternal::TableRow });
+        break;
+    case RustFFI::FfiAnonymousTableBoxKind::TableCell:
+        builder->set_display(CSS::Display { CSS::DisplayInternal::TableCell });
+        break;
+    case RustFFI::FfiAnonymousTableBoxKind::Table:
+        builder->set_display(CSS::Display::from_short(CSS::Display::Short::Table));
+        break;
+    case RustFFI::FfiAnonymousTableBoxKind::InlineTable:
+        builder->set_display(CSS::Display::from_short(CSS::Display::Short::InlineTable));
+        break;
+    }
+
+    auto wrapper = [&]() -> NonnullRefPtr<NodeWithStyle> {
+        if (kind == RustFFI::FfiAnonymousTableBoxKind::TableCell)
+            return make_ref_counted<BlockContainer>(parent.document(), nullptr, move(builder).build());
+        return make_ref_counted<Box>(parent.document(), nullptr, move(builder).build());
+    }();
     for (auto& child : sequence) {
         parent.remove_child(*child);
         wrapper->append_child(*child);
     }
     wrapper->set_children_are_inline(parent.children_are_inline());
-    if (nearest_sibling)
-        parent.insert_before(*wrapper, *nearest_sibling);
+    if (nearest_sibling_pointer)
+        parent.insert_before(*wrapper, *static_cast<Node*>(nearest_sibling_pointer));
     else
         parent.append_child(*wrapper);
 }
 
-// https://drafts.csswg.org/css-tables-3/#fixup-algorithm
-// 2. Generate missing child wrappers:
-void TreeBuilder::generate_missing_child_wrappers(NodeWithStyle& root)
+static NonnullRefPtr<CSS::ComputedValues const> table_wrapper_computed_values(Box& table_box)
 {
-    // 1. An anonymous table-row box must be generated around each sequence of consecutive children of a table-root box
-    //    which are not proper table child boxes.
-    for_each_in_tree_with_inside_display<CSS::DisplayInside::Table>(root, [&](auto& parent) {
-        for_each_sequence_of_consecutive_children_matching(parent, is_not_proper_table_child, [&](auto sequence, auto nearest_sibling) {
-            wrap_in_anonymous<Box>(sequence, nearest_sibling, CSS::Display { CSS::DisplayInternal::TableRow });
-        });
-    });
+    auto builder = CSS::ComputedValues::Builder::create_inheriting_from(table_box.computed_values());
+    table_box.transfer_table_box_computed_values_to_wrapper_computed_values(builder);
+    return move(builder).build();
+}
 
-    // 2. An anonymous table-row box must be generated around each sequence of consecutive children of a table-row-group
-    //    box which are not table-row boxes.
-    for_each_in_tree_with_internal_display<CSS::DisplayInternal::TableRowGroup>(root, [&](auto& parent) {
-        for_each_sequence_of_consecutive_children_matching(parent, is_not_table_row, [&](auto& sequence, auto nearest_sibling) {
-            wrap_in_anonymous<Box>(sequence, nearest_sibling, CSS::Display { CSS::DisplayInternal::TableRow });
-        });
-    });
-    // Unless explicitly mentioned otherwise, mentions of table-row-groups in this spec also encompass the specialized
-    // table-header-groups and table-footer-groups.
-    for_each_in_tree_with_internal_display<CSS::DisplayInternal::TableHeaderGroup>(root, [&](auto& parent) {
-        for_each_sequence_of_consecutive_children_matching(parent, is_not_table_row, [&](auto& sequence, auto nearest_sibling) {
-            wrap_in_anonymous<Box>(sequence, nearest_sibling, CSS::Display { CSS::DisplayInternal::TableRow });
-        });
-    });
-    for_each_in_tree_with_internal_display<CSS::DisplayInternal::TableFooterGroup>(root, [&](auto& parent) {
-        for_each_sequence_of_consecutive_children_matching(parent, is_not_table_row, [&](auto& sequence, auto nearest_sibling) {
-            wrap_in_anonymous<Box>(sequence, nearest_sibling, CSS::Display { CSS::DisplayInternal::TableRow });
-        });
-    });
+static void ffi_update_existing_table_wrapper(void*, void* table_root_pointer, void* wrapper_pointer)
+{
+    VERIFY(table_root_pointer);
+    VERIFY(wrapper_pointer);
+    auto& table_box = as<Box>(*static_cast<Node*>(table_root_pointer));
+    auto& wrapper = as<TableWrapper>(*static_cast<Node*>(wrapper_pointer));
+    wrapper.set_computed_values(table_wrapper_computed_values(table_box));
+}
 
-    // 3. An anonymous table-cell box must be generated around each sequence of consecutive children of a table-row box
-    //    which are not table-cell boxes.
-    for_each_in_tree_with_internal_display<CSS::DisplayInternal::TableRow>(root, [&](auto& parent) {
-        for_each_sequence_of_consecutive_children_matching(parent, is_not_table_cell, [&](auto& sequence, auto nearest_sibling) {
-            wrap_in_anonymous<BlockContainer>(sequence, nearest_sibling, CSS::Display { CSS::DisplayInternal::TableCell });
-        });
-    });
+static void ffi_wrap_table_root(void*, void* table_root_pointer, void* nearest_sibling_pointer)
+{
+    VERIFY(table_root_pointer);
+    NonnullRefPtr table_box = as<Box>(*static_cast<Node*>(table_root_pointer));
+    auto parent = table_box->parent();
+    VERIFY(parent);
+    auto wrapper = make_ref_counted<TableWrapper>(parent->document(), nullptr, table_wrapper_computed_values(*table_box));
+    parent->remove_child(*table_box);
+    wrapper->append_child(*table_box);
+    if (nearest_sibling_pointer)
+        parent->insert_before(*wrapper, *static_cast<Node*>(nearest_sibling_pointer));
+    else
+        parent->append_child(*wrapper);
+    table_box->set_has_been_wrapped_in_table_wrapper(true);
+}
+
+static void* ffi_create_table_grid(void*, void* table_root_pointer)
+{
+    VERIFY(table_root_pointer);
+    auto& table_box = as<Box>(*static_cast<Node*>(table_root_pointer));
+    return new TableGrid(TableGrid::calculate_row_column_grid(table_box));
+}
+
+static void ffi_destroy_table_grid(void*, void* table_grid_pointer)
+{
+    delete static_cast<TableGrid*>(table_grid_pointer);
+}
+
+static size_t ffi_table_grid_column_count(void*, void* table_grid_pointer)
+{
+    VERIFY(table_grid_pointer);
+    return static_cast<TableGrid*>(table_grid_pointer)->column_count();
+}
+
+static bool ffi_table_grid_is_occupied(void*, void* table_grid_pointer, size_t column_index, size_t row_index)
+{
+    VERIFY(table_grid_pointer);
+    return static_cast<TableGrid*>(table_grid_pointer)->occupancy_grid().contains({ column_index, row_index });
+}
+
+static void ffi_append_missing_table_cell(void*, void* row_pointer)
+{
+    VERIFY(row_pointer);
+    auto& row_box = as<Box>(*static_cast<Node*>(row_pointer));
+    auto builder = CSS::ComputedValues::Builder::create_inheriting_from(row_box.computed_values());
+    builder->set_display(CSS::Display { CSS::DisplayInternal::TableCell });
+    // Ensure that the cell (with zero content height) will have the same height as the row by setting vertical-align to middle.
+    builder->set_vertical_align(CSS::VerticalAlign::Middle);
+    row_box.append_child(make_ref_counted<BlockContainer>(row_box.document(), nullptr, move(builder).build()));
 }
 
 // https://drafts.csswg.org/css-tables-3/#fixup-algorithm
-// 3. Generate missing parents:
-Vector<NonnullRefPtr<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& root)
+void TreeBuilder::fixup_tables(NodeWithStyle& root)
 {
-    Vector<NonnullRefPtr<Box>> table_roots_to_wrap;
-    root.for_each_in_inclusive_subtree_of_type<NodeWithStyle>([&](auto& parent) {
-        // 1. An anonymous table-row box must be generated around each sequence of consecutive table-cell boxes whose
-        //    parent is not a table-row.
-        if (is_not_table_row(parent)) {
-            for_each_sequence_of_consecutive_children_matching(parent, is_table_cell, [&](auto& sequence, auto nearest_sibling) {
-                wrap_in_anonymous<Box>(sequence, nearest_sibling, CSS::Display { CSS::DisplayInternal::TableRow });
-            });
-        }
-
-        // 2. An anonymous table or inline-table box must be generated around each sequence of consecutive proper table
-        //    child boxes which are misparented.
-        {
-            // If the box’s parent is an inline, run-in, or ruby box (or any box that would perform inlinification of
-            // its children), then an inline-table box must be generated; otherwise it must be a table box.
-            // FIXME: run-in and ruby boxes
-            auto display = CSS::Display::from_short(parent.display().is_inline_outside() ? CSS::Display::Short::InlineTable : CSS::Display::Short::Table);
-
-            // A table-row is misparented if its parent is neither a table-row-group nor a table-root box.
-            if (!TableGrid::is_table_row_group(parent) && !parent.display().is_table_inside()) {
-                for_each_sequence_of_consecutive_children_matching(parent, TableGrid::is_table_row, [&](auto& sequence, auto nearest_sibling) {
-                    wrap_in_anonymous<Box>(sequence, nearest_sibling, display);
-                });
-            }
-
-            // A table-column box is misparented if its parent is neither a table-column-group box nor a table-root box.
-            if (!TableGrid::is_table_column_group(parent) && !parent.display().is_table_inside()) {
-                for_each_sequence_of_consecutive_children_matching(parent, is_table_column, [&](auto& sequence, auto nearest_sibling) {
-                    wrap_in_anonymous<Box>(sequence, nearest_sibling, display);
-                });
-            }
-
-            // A table-row-group, table-column-group, or table-caption box is misparented if its parent is not a table-root box.
-            if (!parent.display().is_table_inside()) {
-                for_each_sequence_of_consecutive_children_matching(parent, is_table_row_group_column_group_or_caption, [&](auto& sequence, auto nearest_sibling) {
-                    wrap_in_anonymous<Box>(sequence, nearest_sibling, display);
-                });
-            }
-        }
-
-        // 3. An anonymous table-wrapper box must be generated around each table-root.
-        if (auto* box = as_if<Box>(parent); box && box->display().is_table_inside()) {
-            if (box->has_been_wrapped_in_table_wrapper()) {
-                VERIFY(parent.parent());
-                VERIFY(parent.parent()->is_table_wrapper());
-                return TraversalDecision::Continue;
-            }
-
-            table_roots_to_wrap.append(*box);
-        }
-
-        return TraversalDecision::Continue;
-    });
-
-    for (auto& table_box : table_roots_to_wrap) {
-        auto nearest_sibling = table_box->next_sibling();
-        auto& parent = *table_box->parent();
-
-        auto builder = CSS::ComputedValues::Builder::create_inheriting_from(table_box->computed_values());
-        table_box->transfer_table_box_computed_values_to_wrapper_computed_values(builder);
-        auto wrapper_computed_values = move(builder).build();
-
-        if (parent.is_table_wrapper()) {
-            auto& existing_wrapper = static_cast<TableWrapper&>(parent);
-            existing_wrapper.set_computed_values(move(wrapper_computed_values));
-            continue;
-        }
-
-        auto wrapper = make_ref_counted<TableWrapper>(parent.document(), nullptr, move(wrapper_computed_values));
-
-        parent.remove_child(*table_box);
-        wrapper->append_child(*table_box);
-
-        if (nearest_sibling)
-            parent.insert_before(*wrapper, *nearest_sibling);
-        else
-            parent.append_child(*wrapper);
-
-        table_box->set_has_been_wrapped_in_table_wrapper(true);
-    }
-
-    return table_roots_to_wrap;
-}
-
-static void fixup_row(Box& row_box, TableGrid const& table_grid, size_t row_index)
-{
-    for (size_t column_index = 0; column_index < table_grid.column_count(); ++column_index) {
-        if (table_grid.occupancy_grid().contains({ column_index, row_index }))
-            continue;
-
-        auto builder = CSS::ComputedValues::Builder::create_inheriting_from(row_box.computed_values());
-        builder->set_display(Web::CSS::Display { CSS::DisplayInternal::TableCell });
-        // Ensure that the cell (with zero content height) will have the same height as the row by setting vertical-align to middle.
-        builder->set_vertical_align(CSS::VerticalAlign::Middle);
-        auto cell_box = make_ref_counted<BlockContainer>(row_box.document(), nullptr, move(builder).build());
-        row_box.append_child(cell_box);
-    }
-}
-
-// https://drafts.csswg.org/css-tables-3/#missing-cells-fixup
-void TreeBuilder::missing_cells_fixup(Vector<NonnullRefPtr<Box>> const& table_root_boxes)
-{
-    // Once the amount of columns in a table is known, any table-row box must be modified such that it owns enough
-    // cells to fill all the columns of the table, when taking spans into account. New table-cell anonymous boxes must
-    // be appended to its rows content until this condition is met.
-    for (auto& table_box : table_root_boxes) {
-        auto table_grid = TableGrid::calculate_row_column_grid(*table_box);
-        size_t row_index = 0;
-        TableGrid::for_each_child_box_matching(*table_box, TableGrid::is_table_row_group, [&](auto& row_group_box) {
-            TableGrid::for_each_child_box_matching(row_group_box, TableGrid::is_table_row, [&](auto& row_box) {
-                fixup_row(row_box, table_grid, row_index);
-                ++row_index;
-                return IterationDecision::Continue;
-            });
-        });
-
-        TableGrid::for_each_child_box_matching(*table_box, TableGrid::is_table_row, [&](auto& row_box) {
-            fixup_row(row_box, table_grid, row_index);
-            ++row_index;
-            return IterationDecision::Continue;
-        });
-    }
+    RustFFI::FfiTreeBuilderCallbacks callbacks {
+        .context = nullptr,
+        .layout_node_facts = ffi_layout_node_facts,
+        .parent = ffi_layout_node_parent,
+        .first_child = ffi_layout_node_first_child,
+        .next_sibling = ffi_layout_node_next_sibling,
+        .previous_sibling = ffi_layout_node_previous_sibling,
+        .remove_nodes = ffi_remove_layout_nodes,
+        .wrap_in_anonymous = ffi_wrap_in_anonymous_table_box,
+        .update_existing_table_wrapper = ffi_update_existing_table_wrapper,
+        .wrap_table_root = ffi_wrap_table_root,
+        .create_table_grid = ffi_create_table_grid,
+        .destroy_table_grid = ffi_destroy_table_grid,
+        .table_grid_column_count = ffi_table_grid_column_count,
+        .table_grid_is_occupied = ffi_table_grid_is_occupied,
+        .append_missing_table_cell = ffi_append_missing_table_cell,
+    };
+    RustFFI::rust_fixup_tables(&callbacks, &root);
 }
 
 }

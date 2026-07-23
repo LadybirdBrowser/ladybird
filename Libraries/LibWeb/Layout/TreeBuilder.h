@@ -62,17 +62,7 @@ private:
     void push_parent(Layout::NodeWithStyle& node) { m_ancestor_stack.append(&node); }
     void pop_parent() { m_ancestor_stack.take_last(); }
 
-    template<CSS::DisplayInternal, typename Callback>
-    void for_each_in_tree_with_internal_display(NodeWithStyle& root, Callback);
-
-    template<CSS::DisplayInside, typename Callback>
-    void for_each_in_tree_with_inside_display(NodeWithStyle& root, Callback);
-
     void fixup_tables(NodeWithStyle& root);
-    void remove_irrelevant_boxes(NodeWithStyle& root);
-    void generate_missing_child_wrappers(NodeWithStyle& root);
-    Vector<NonnullRefPtr<Box>> generate_missing_parents(NodeWithStyle& root);
-    void missing_cells_fixup(Vector<NonnullRefPtr<Box>> const&);
 
     void insert_node_into_inline_or_block_ancestor(Layout::Node&, CSS::Display, AppendOrPrepend);
     RefPtr<Layout::Node> create_layout_node_for_element(DOM::Element&, Context&) const;
