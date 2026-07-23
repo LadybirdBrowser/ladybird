@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div style="height: 300vh"></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        let scrollCount = 0;
+        document.addEventListener("scroll", () => ++scrollCount);
+        let scrollendCount = 0;
+        const scrollend = new Promise(resolve => document.addEventListener("scrollend", event => {
+            ++scrollendCount;
+            resolve(event);
+        }));
+
+        internals.sendKey(document.body, "PageDown");
+        internals.sendKey(document.body, "PageDown");
+        const event = await scrollend;
+        println(`scroll events received: ${scrollCount >= 1}`);
+        println(`scrollend fired at document: ${event.target === document}`);
+        println(`scrollend count: ${scrollendCount}`);
+        println(`window scrolled: ${window.scrollY > 0}`);
+
+        document.documentElement.style.scrollBehavior = "smooth";
+        const smoothScrollend = new Promise(resolve => document.addEventListener("scrollend", resolve, { once: true }));
+        const scrollYBeforeSmoothScroll = window.scrollY;
+        internals.sendKey(document.body, "PageDown");
+        await smoothScrollend;
+        println(`smooth keyboard scroll moved: ${window.scrollY > scrollYBeforeSmoothScroll}`);
+        println("smooth keyboard scrollend: received");
+    });
+</script>

@@ -1301,6 +1301,44 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     auto arrow_key_scroll_distance = 100;
     auto page_scroll_distance = document->window()->inner_height() - (document->window()->outer_height() - document->window()->inner_height());
 
+    // The held key keeps the scroll gesture in progress until it is released.
+    auto hold_scroll_gesture_until_key_release = [&] {
+        m_held_scroll_key = key;
+        if (!m_scroll_key_gesture_hold)
+            m_scroll_key_gesture_hold = make<HTML::UserScrollGestureHold>(*m_navigable);
+    };
+    auto scroll_container_of_focused_area_by = [&](double delta_x, double delta_y) -> bool {
+        auto focused_area = document->focused_area();
+        if (!focused_area)
+            return false;
+        document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleKeyDown);
+        RefPtr<Painting::Paintable> containing_block = focused_area->paintable();
+        while (containing_block) {
+            if (containing_block->handle_mousewheel({}, {}, 0, 0, delta_x, delta_y))
+                return true;
+            containing_block = containing_block->containing_block();
+        }
+        return false;
+    };
+    auto scroll_by_for_key_input = [&](CSSPixels delta_x, CSSPixels delta_y) {
+        hold_scroll_gesture_until_key_release();
+        if (scroll_container_of_focused_area_by(delta_x.to_double(), delta_y.to_double()))
+            return;
+        m_navigable->scroll_viewport_by_delta({ delta_x, delta_y }, Bindings::ScrollBehavior::Auto);
+    };
+    auto scroll_to_the_beginning_for_key_input = [&] {
+        hold_scroll_gesture_until_key_release();
+        if (scroll_container_of_focused_area_by(0, -CSSPixels::max().to_double()))
+            return;
+        m_navigable->perform_a_scroll_of_the_viewport({ 0, 0 }, Bindings::ScrollBehavior::Auto, HTML::LocalNavigable::ScrollTrigger::UserInput);
+    };
+    auto scroll_to_the_end_for_key_input = [&] {
+        hold_scroll_gesture_until_key_release();
+        if (scroll_container_of_focused_area_by(0, CSSPixels::max().to_double()))
+            return;
+        m_navigable->scroll_viewport_by_delta({ 0, CSSPixels::max() }, Bindings::ScrollBehavior::Auto);
+    };
+
     auto const modifiers_without_keypad = modifiers & ~UIEvents::Mod_Keypad;
     switch (key) {
     case UIEvents::KeyCode::Key_Up:
@@ -1308,12 +1346,13 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (modifiers_without_keypad && modifiers_without_keypad != UIEvents::KeyModifier::Mod_PlatformCtrl)
             break;
         if (modifiers_without_keypad) {
-            if (key == UIEvents::KeyCode::Key_Up)
-                document->scroll_to_the_beginning_of_the_document();
-            else
-                document->window()->scroll_by(0, INT64_MAX);
+            if (key == UIEvents::KeyCode::Key_Up) {
+                scroll_to_the_beginning_for_key_input();
+            } else {
+                scroll_to_the_end_for_key_input();
+            }
         } else {
-            document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance);
+            scroll_by_for_key_input(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance);
         }
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Left:
@@ -1324,22 +1363,23 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (modifiers_without_keypad && modifiers_without_keypad != UIEvents::KeyModifier::Mod_Alt)
 #endif
             break;
-        if (modifiers_without_keypad)
+        if (modifiers_without_keypad) {
             document->page().traverse_the_history_by_delta(key == UIEvents::KeyCode::Key_Left ? -1 : 1);
-        else
-            document->window()->scroll_by(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0);
+        } else {
+            scroll_by_for_key_input(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0);
+        }
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_PageUp:
     case UIEvents::KeyCode::Key_PageDown:
         if (modifiers_without_keypad != UIEvents::KeyModifier::Mod_None)
             break;
-        document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance);
+        scroll_by_for_key_input(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance);
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Home:
-        document->scroll_to_the_beginning_of_the_document();
+        scroll_to_the_beginning_for_key_input();
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_End:
-        document->window()->scroll_by(0, INT64_MAX);
+        scroll_to_the_end_for_key_input();
         return EventResult::Handled;
     default:
         break;
@@ -1354,6 +1394,11 @@ EventResult EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32
     // See: https://w3c.github.io/uievents/#events-keyboard-event-order
     if (repeat)
         return EventResult::Dropped;
+
+    if (m_held_scroll_key == key) {
+        m_held_scroll_key.clear();
+        m_scroll_key_gesture_hold = nullptr;
+    }
 
     return fire_keyboard_event(UIEvents::EventNames::keyup, m_navigable, key, modifiers, code_point, false);
 }

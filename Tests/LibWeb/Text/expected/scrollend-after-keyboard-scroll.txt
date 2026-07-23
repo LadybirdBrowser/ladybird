@@ -1,0 +1,6 @@
+scroll events received: true
+scrollend fired at document: true
+scrollend count: 1
+window scrolled: true
+smooth keyboard scroll moved: true
+smooth keyboard scrollend: received

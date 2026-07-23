@@ -210,6 +210,9 @@ private:
     OwnPtr<AutoScrollHandler> m_auto_scroll_handler;
     OwnPtr<MiddleButtonScrollHandler> m_middle_button_scroll_handler;
     NonnullOwnPtr<DragAndDropEventHandler> m_drag_and_drop_event_handler;
+
+    Optional<UIEvents::KeyCode> m_held_scroll_key;
+    OwnPtr<HTML::UserScrollGestureHold> m_scroll_key_gesture_hold;
 };
 
 }

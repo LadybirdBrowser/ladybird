@@ -113,6 +113,7 @@ enum class InvalidateLayoutTreeReason {
     X(ElementSetScrollTop)                   \
     X(EventHandlerDispatchChromeWidgetEvent) \
     X(EventHandlerHandleDragAndDrop)         \
+    X(EventHandlerHandleKeyDown)             \
     X(EventHandlerHandleMouseDown)           \
     X(EventHandlerHandleMouseMove)           \
     X(EventHandlerHandleMouseUp)             \

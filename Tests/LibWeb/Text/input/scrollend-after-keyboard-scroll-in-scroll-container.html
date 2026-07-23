@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="scroller" tabindex="0" style="width: 100px; height: 100px; overflow: scroll">
+    <div style="width: 400px; height: 400px"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        let documentScrollendCount = 0;
+        document.addEventListener("scrollend", () => ++documentScrollendCount);
+
+        const scrollend = new Promise(resolve => scroller.addEventListener("scrollend", resolve, { once: true }));
+        internals.sendKey(scroller, "PageDown");
+        const event = await scrollend;
+        println(`scrollend target: ${event.target.id}`);
+        println(`scroller scrolled down: ${scroller.scrollTop > 0}`);
+        println(`document scrollend count: ${documentScrollendCount}`);
+    });
+</script>

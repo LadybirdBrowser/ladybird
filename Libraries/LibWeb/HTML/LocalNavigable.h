@@ -314,7 +314,7 @@ public:
         UserInput,
     };
 
-    GC::Ref<WebIDL::Promise> scroll_viewport_by_delta(CSSPixelPoint delta);
+    GC::Ref<WebIDL::Promise> scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Instant);
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto, ScrollTrigger = ScrollTrigger::Programmatic);
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_an_element(DOM::Element&, CSSPixelPoint position, Bindings::ScrollBehavior);
     void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>);
@@ -362,6 +362,8 @@ private:
     bool set_scroll_offset_for(Compositor::AsyncScrollNodeStableID, CSSPixelPoint);
     void queue_scrollend_event(Compositor::AsyncScrollNodeStableID, ScrollTrigger);
     void queue_scrollend_event(DOM::Document&, GC::Ref<DOM::EventTarget>, ScrollTrigger);
+    void queue_scrollend_event_for_finished_scroll(Compositor::AsyncScrollNodeStableID, ScrollTrigger);
+    bool has_in_flight_user_scroll_operation() const;
     void user_scroll_did_settle();
     void cancel_user_scroll_settlement();
     void schedule_hover_update_after_async_scroll();
@@ -437,6 +439,7 @@ private:
         GC::Ref<WebIDL::Promise> promise;
         Optional<Compositor::AsyncScrollNodeStableID> stable_node_id;
         Optional<CSSPixelPoint> initial_scroll_offset;
+        ScrollTrigger trigger { ScrollTrigger::Programmatic };
     };
     Vector<PendingAsyncScrollOperation> m_pending_async_scroll_operations;
 
@@ -447,6 +450,7 @@ private:
         AK::Duration elapsed;
         CSSPixelPoint initial_scroll_offset;
         GC::Ref<WebIDL::Promise> promise;
+        ScrollTrigger trigger { ScrollTrigger::Programmatic };
     };
     Vector<MainThreadSmoothScroll> m_main_thread_smooth_scrolls;
 };

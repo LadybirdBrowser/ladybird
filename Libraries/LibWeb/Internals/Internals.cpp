@@ -334,6 +334,7 @@ void Internals::send_key(HTML::HTMLElement& target, Utf16String const& key_name,
     target.focus();
 
     page().handle_keydown(key_code, modifiers, 0, false, false);
+    page().handle_keyup(key_code, modifiers, 0, false);
 }
 
 void Internals::paste(HTML::HTMLElement& target, Utf16String const& text)
