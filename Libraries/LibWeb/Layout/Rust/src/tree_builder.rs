@@ -50,9 +50,7 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub clear_stale_assigned_slottables: unsafe extern "C" fn(*mut c_void),
     pub principal_descendant_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiPrincipalDescendantFacts,
-    pub create_first_letter_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
-    pub wrap_fieldset_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub wrap_button_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
+    pub create_first_letter_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiFirstLetterTarget),
     pub clear_stale_descendants: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub ensure_replaced_children_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> *mut c_void,
     pub top_layer_element_count: unsafe extern "C" fn(*mut c_void) -> usize,
@@ -95,8 +93,8 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub clear_stale_inclusive_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub reset_style_ancestor_filter: unsafe extern "C" fn(*mut c_void),
     pub document_layout_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
-    pub fixup_tables: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub layout_root: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub layout: FfiTreeBuilderCallbacks,
 }
 
 #[derive(Clone, Copy)]
@@ -134,6 +132,7 @@ pub struct FfiPrincipalDescendantFacts {
     pub is_svg_switch_element: bool,
     pub is_document: bool,
     pub has_style_containment: bool,
+    pub uses_button_layout: bool,
     pub dom_children_parent: *mut c_void,
     pub shadow_root: *mut c_void,
     pub slot_element: *mut c_void,
@@ -536,6 +535,12 @@ impl DomTreeBuilderHost<'_> {
     fn next_sibling(&self, node: *mut c_void) -> *mut c_void {
         // SAFETY: Callers only pass live DOM nodes.
         unsafe { (self.callbacks.next_sibling)(node) }
+    }
+
+    fn layout(&self) -> TreeBuilderHost<'_> {
+        TreeBuilderHost {
+            callbacks: &self.callbacks.layout,
+        }
     }
 }
 
@@ -1109,18 +1114,19 @@ unsafe fn update_principal_node_descendants(
                 assert!(state.ancestor_stack.pop().is_some());
 
                 if facts.layout_node_is_block_container && facts.has_first_letter_style {
-                    // SAFETY: `dom_node` is an Element and `layout_node` is a BlockContainer when these facts are set.
-                    unsafe {
-                        (host.callbacks.create_first_letter_wrapper)(host.callbacks.builder, dom_node, layout_node);
+                    let target = find_first_letter_in_block(&host.layout(), layout_node);
+                    if target.found {
+                        // SAFETY: `dom_node` is an Element and `target` identifies a live descendant text node.
+                        unsafe {
+                            (host.callbacks.create_first_letter_wrapper)(host.callbacks.builder, dom_node, target);
+                        }
                     }
                 }
             }
 
-            // SAFETY: All pointers remain live throughout the calls.
-            unsafe {
-                (host.callbacks.wrap_fieldset_layout)(host.callbacks.builder, layout_node);
-                (host.callbacks.wrap_button_layout)(host.callbacks.builder, dom_node, layout_node);
-            }
+            let layout_host = host.layout();
+            wrap_fieldset_contents_if_needed(&layout_host, layout_node);
+            wrap_button_contents_if_needed(&layout_host, layout_node, facts.uses_button_layout);
         }
 
         // https://www.w3.org/TR/css-contain-2/#containment-style
@@ -1447,8 +1453,7 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         // SAFETY: The document remains live and any attached layout root is owned by it and the builder.
         let document_layout_node = unsafe { (host.callbacks.document_layout_node)(document) };
         if !document_layout_node.is_null() {
-            // SAFETY: The builder and layout root remain live throughout table fixup.
-            unsafe { (host.callbacks.fixup_tables)(host.callbacks.builder, document_layout_node) };
+            fixup_tables(&host.layout(), document_layout_node);
         }
 
         // SAFETY: The builder remains live and owns the returned root.
@@ -2420,137 +2425,77 @@ fn find_first_letter_in_block(host: &TreeBuilderHost<'_>, block: LayoutNode) -> 
     FfiFirstLetterTarget::not_found()
 }
 
-/// Finds the text range claimed by a block's `::first-letter` pseudo-element.
-///
-/// # Safety
-///
-/// `callbacks` must remain valid for the duration of the call and `block` must be a live BlockContainer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_find_first_letter_in_block(
-    callbacks: *const FfiTreeBuilderCallbacks,
-    block: *mut c_void,
-) -> FfiFirstLetterTarget {
-    abort_on_panic(|| {
-        assert!(!callbacks.is_null());
-        assert!(!block.is_null());
-        // SAFETY: The caller guarantees that `callbacks` remains valid for the duration of this call.
-        let host = TreeBuilderHost {
-            callbacks: unsafe { &*callbacks },
-        };
-        find_first_letter_in_block(&host, block)
-    })
-}
+fn wrap_button_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: *mut c_void, uses_button_layout: bool) {
+    assert!(!layout_node.is_null());
+    if !uses_button_layout {
+        return;
+    }
 
-/// Creates the anonymous layout structure required for button rendering.
-///
-/// # Safety
-///
-/// `callbacks` must remain valid for the call and `layout_node` must be a live NodeWithStyle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_wrap_button_contents_if_needed(
-    callbacks: *const FfiTreeBuilderCallbacks,
-    layout_node: *mut c_void,
-    uses_button_layout: bool,
-) {
-    abort_on_panic(|| {
-        assert!(!callbacks.is_null());
-        assert!(!layout_node.is_null());
-        // SAFETY: Guaranteed by the entry point's contract.
-        let host = TreeBuilderHost {
-            callbacks: unsafe { &*callbacks },
-        };
-        if !uses_button_layout {
-            return;
+    // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
+    // If the element is an input element, or if it is a button element and its computed value for 'display' is not
+    // 'inline-grid', 'grid', 'inline-flex', or 'flex', then the element's box has a child anonymous button content
+    // box with the following behaviors:
+    let facts = host.facts(layout_node);
+    if !facts.display_is_grid_inside && !facts.display_is_flex_inside {
+        let mut children = Vec::new();
+        let mut child = host.first_child(layout_node);
+        while !child.is_null() {
+            children.push(child);
+            child = host.next_sibling(child);
         }
 
-        // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
-        // If the element is an input element, or if it is a button element and its computed value for 'display' is not
-        // 'inline-grid', 'grid', 'inline-flex', or 'flex', then the element's box has a child anonymous button content
-        // box with the following behaviors:
-        let facts = host.facts(layout_node);
-        if !facts.display_is_grid_inside && !facts.display_is_flex_inside {
-            let mut children = Vec::new();
-            let mut child = host.first_child(layout_node);
-            while !child.is_null() {
+        // SAFETY: `layout_node` remains live and owns the returned content wrapper through its flex wrapper.
+        let content_wrapper =
+            unsafe { (host.callbacks.create_button_content_wrapper)(host.callbacks.context, layout_node) };
+        assert!(!content_wrapper.is_null());
+        // SAFETY: The parent and content wrapper remain live, and the callback retains all nodes while moving them.
+        unsafe {
+            (host.callbacks.set_children_are_inline)(
+                host.callbacks.context,
+                content_wrapper,
+                facts.children_are_inline,
+            );
+            (host.callbacks.move_nodes_to_parent)(
+                host.callbacks.context,
+                content_wrapper,
+                children.as_ptr(),
+                children.len(),
+            );
+            (host.callbacks.set_children_are_inline)(host.callbacks.context, layout_node, false);
+        }
+    }
+}
+
+fn wrap_fieldset_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: *mut c_void) {
+    assert!(!layout_node.is_null());
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
+    // The anonymous fieldset content box is expected to appear after the rendered legend and is expected to contain
+    // the content (including the '::before' and '::after' pseudo-elements) of the fieldset element except for the
+    // rendered legend, if there is one.
+    let facts = host.facts(layout_node);
+    if facts.is_field_set_box && facts.has_rendered_legend {
+        // SAFETY: `layout_node` is a live FieldSetBox with a rendered legend.
+        let legend = unsafe { (host.callbacks.rendered_legend)(host.callbacks.context, layout_node) };
+        assert!(!legend.is_null());
+
+        let mut children = Vec::new();
+        let mut child = host.first_child(layout_node);
+        while !child.is_null() {
+            if child != legend {
                 children.push(child);
-                child = host.next_sibling(child);
             }
-
-            // SAFETY: `layout_node` remains live and owns the returned content wrapper through its flex wrapper.
-            let content_wrapper =
-                unsafe { (host.callbacks.create_button_content_wrapper)(host.callbacks.context, layout_node) };
-            assert!(!content_wrapper.is_null());
-            // SAFETY: The parent and content wrapper remain live, and the callback retains all nodes while moving them.
-            unsafe {
-                (host.callbacks.set_children_are_inline)(
-                    host.callbacks.context,
-                    content_wrapper,
-                    facts.children_are_inline,
-                );
-                (host.callbacks.move_nodes_to_parent)(
-                    host.callbacks.context,
-                    content_wrapper,
-                    children.as_ptr(),
-                    children.len(),
-                );
-                (host.callbacks.set_children_are_inline)(host.callbacks.context, layout_node, false);
-            }
+            child = host.next_sibling(child);
         }
-    });
-}
 
-/// Creates the anonymous fieldset content box around non-legend children.
-///
-/// # Safety
-///
-/// `callbacks` must remain valid for the call and `layout_node` must be a live layout node.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_wrap_fieldset_contents_if_needed(
-    callbacks: *const FfiTreeBuilderCallbacks,
-    layout_node: *mut c_void,
-) {
-    abort_on_panic(|| {
-        assert!(!callbacks.is_null());
-        assert!(!layout_node.is_null());
-        // SAFETY: Guaranteed by the entry point's contract.
-        let host = TreeBuilderHost {
-            callbacks: unsafe { &*callbacks },
-        };
-
-        // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
-        // The anonymous fieldset content box is expected to appear after the rendered legend and is expected to contain
-        // the content (including the '::before' and '::after' pseudo-elements) of the fieldset element except for the
-        // rendered legend, if there is one.
-        let facts = host.facts(layout_node);
-        if facts.is_field_set_box && facts.has_rendered_legend {
-            // SAFETY: `layout_node` is a live FieldSetBox with a rendered legend.
-            let legend = unsafe { (host.callbacks.rendered_legend)(host.callbacks.context, layout_node) };
-            assert!(!legend.is_null());
-
-            let mut children = Vec::new();
-            let mut child = host.first_child(layout_node);
-            while !child.is_null() {
-                if child != legend {
-                    children.push(child);
-                }
-                child = host.next_sibling(child);
-            }
-
-            // SAFETY: The fieldset remains live and owns the returned wrapper.
-            let wrapper =
-                unsafe { (host.callbacks.create_fieldset_content_wrapper)(host.callbacks.context, layout_node) };
-            assert!(!wrapper.is_null());
-            // SAFETY: The wrapper remains attached and the callback retains all nodes while moving them.
-            unsafe {
-                (host.callbacks.move_nodes_to_parent)(
-                    host.callbacks.context,
-                    wrapper,
-                    children.as_ptr(),
-                    children.len(),
-                );
-            }
+        // SAFETY: The fieldset remains live and owns the returned wrapper.
+        let wrapper = unsafe { (host.callbacks.create_fieldset_content_wrapper)(host.callbacks.context, layout_node) };
+        assert!(!wrapper.is_null());
+        // SAFETY: The wrapper remains attached and the callback retains all nodes while moving them.
+        unsafe {
+            (host.callbacks.move_nodes_to_parent)(host.callbacks.context, wrapper, children.as_ptr(), children.len());
         }
-    });
+    }
 }
 
 fn is_table_track(display: FfiTableDisplay) -> bool {
@@ -2987,26 +2932,12 @@ fn missing_cells_fixup(host: &TreeBuilderHost<'_>, table_roots: &[LayoutNode]) {
     }
 }
 
-/// Runs the CSS table-model fixup over an already constructed layout subtree.
-///
-/// # Safety
-///
-/// `callbacks` must point to a valid callback table for the duration of the call. `root` must be a live
-/// NodeWithStyle, and every callback-returned node must remain live for as long as it stays attached to that root.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_fixup_tables(callbacks: *const FfiTreeBuilderCallbacks, root: *mut c_void) {
-    abort_on_panic(|| {
-        assert!(!callbacks.is_null());
-        assert!(!root.is_null());
-        // SAFETY: Guaranteed by the entry point's contract and checked for null above.
-        let host = TreeBuilderHost {
-            callbacks: unsafe { &*callbacks },
-        };
-        remove_irrelevant_boxes(&host, root);
-        generate_missing_child_wrappers(&host, root);
-        let table_roots = generate_missing_parents(&host, root);
-        missing_cells_fixup(&host, &table_roots);
-    });
+fn fixup_tables(host: &TreeBuilderHost<'_>, root: *mut c_void) {
+    assert!(!root.is_null());
+    remove_irrelevant_boxes(host, root);
+    generate_missing_child_wrappers(host, root);
+    let table_roots = generate_missing_parents(host, root);
+    missing_cells_fixup(host, &table_roots);
 }
 
 #[cfg(test)]
