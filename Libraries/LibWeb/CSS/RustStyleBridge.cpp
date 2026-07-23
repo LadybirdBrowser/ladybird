@@ -69,9 +69,9 @@ ComputedValuesFFI::FfiPropertyNumericRange const* invoke_rust_property_metadata_
     return ComputedValuesFFI::rust_property_metadata_numeric_ranges(property_id, length);
 }
 
-ComputedValuesFFI::FfiShellAndData invoke_rust_style_metadata_initial_value(u16 property_id)
+StyleValueFFI::StyleValueData const* invoke_rust_style_metadata_initial_value(u16 property_id)
 {
-    return ComputedValuesFFI::rust_style_metadata_initial_value(property_id);
+    return static_cast<StyleValueFFI::StyleValueData const*>(ComputedValuesFFI::rust_style_metadata_initial_value(property_id));
 }
 
 ComputedValuesFFI::FfiAbsolutizedLength invoke_rust_absolutize_length(double value, u8 unit, ComputedValuesFFI::FfiLengthResolutionContext const* context)

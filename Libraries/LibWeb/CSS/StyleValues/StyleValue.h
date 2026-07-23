@@ -235,31 +235,6 @@ struct StyleValueWithDefaultOperators : public StyleValue {
     }
 };
 
-// Retains one strong reference to the value (if non-null) and returns its pointer, for
-// transferring ownership into a Rust-owned style value allocation.
-inline void const* retain_style_value_for_rust(StyleValue const* value)
-{
-    if (value)
-        value->ref();
-    return value;
-}
-
-// Leaks one strong reference per (possibly null) value and returns the raw pointers, for
-// transferring ownership into a Rust-owned style value allocation.
-template<typename T>
-Vector<void const*> leak_style_value_pointers_for_rust(Vector<T>& values)
-{
-    Vector<void const*> pointers;
-    pointers.ensure_capacity(values.size());
-    for (auto& value : values) {
-        if constexpr (IsPointer<decltype(value.leak_ref())>)
-            pointers.unchecked_append(value.leak_ref());
-        else
-            pointers.unchecked_append(&value.leak_ref());
-    }
-    return pointers;
-}
-
 i32 int_from_style_value(NonnullRefPtr<StyleValue const> const& style_value);
 double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<double> percentage_basis);
 Utf16FlyString string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value);

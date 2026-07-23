@@ -25,7 +25,7 @@ use crate::display::FfiDisplay;
 use crate::property_metadata::longhands_for_shorthand;
 use crate::property_metadata::property_is_inherited;
 use crate::property_metadata::property_is_shorthand;
-use crate::style_value::StyleValueData;
+use crate::style_value::{RetainedStyleValueData, StyleValueData};
 
 pub use crate::css_enums::*;
 
@@ -1663,28 +1663,8 @@ pub extern "C" fn rust_position_area_span_all_remap(block_keyword: u16, inline_k
     not_remapped
 }
 
-/// A style value crossing the FFI as its C++ shell pointer paired with its
-/// Rust-owned data pointer.
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct FfiShellAndData {
-    pub shell: *const c_void,
-    pub data: *const c_void,
-}
-
-impl FfiShellAndData {
-    pub const fn null() -> Self {
-        Self {
-            shell: std::ptr::null(),
-            data: std::ptr::null(),
-        }
-    }
-}
-
-/// The per-longhand initial values. The C++ side pins every entry for the
-/// process lifetime before installing the table, so lookups never cross the
-/// FFI and the pointers never dangle.
-struct InitialValueTable(Vec<FfiShellAndData>);
+/// The per-longhand initial values as shared Rust value identities.
+struct InitialValueTable(Vec<crate::style_value::RetainedStyleValueData>);
 
 // SAFETY: The entries reference immortal, immutable style values.
 unsafe impl Send for InitialValueTable {}
@@ -1696,12 +1676,18 @@ static INITIAL_VALUE_TABLE: std::sync::OnceLock<InitialValueTable> = std::sync::
 /// order.
 ///
 /// # Safety
-/// `entries` must point at `length` valid entries whose shells and data stay
-/// alive for the process lifetime.
+/// `entries` must point at `length` transferred strong references.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_metadata_set_initial_value_table(entries: *const FfiShellAndData, length: usize) {
+pub unsafe extern "C" fn rust_style_metadata_set_initial_value_table(entries: *const *const c_void, length: usize) {
     abort_on_panic(|| {
-        let entries = unsafe { std::slice::from_raw_parts(entries, length) }.to_vec();
+        let entries = unsafe { std::slice::from_raw_parts(entries, length) }
+            .iter()
+            .map(|entry| unsafe {
+                crate::style_value::RetainedStyleValueData::from_retained_pointer(
+                    (*entry).cast::<crate::style_value::StyleValueData>(),
+                )
+            })
+            .collect();
         assert_eq!(
             length,
             crate::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES,
@@ -1714,17 +1700,17 @@ pub unsafe extern "C" fn rust_style_metadata_set_initial_value_table(entries: *c
     });
 }
 
-/// Returns the initial value of a longhand property.
-pub(crate) fn initial_value(property_id: u16) -> FfiShellAndData {
+/// Returns the initial value data of a longhand property.
+pub(crate) fn initial_value_data(property_id: u16) -> *const crate::style_value::StyleValueData {
     use crate::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
     let table = INITIAL_VALUE_TABLE.get().expect("initial value table not installed");
-    table.0[(property_id - FIRST_LONGHAND_PROPERTY_ID) as usize]
+    table.0[(property_id - FIRST_LONGHAND_PROPERTY_ID) as usize].pointer()
 }
 
 /// FFI accessor for the parity test on the C++ side.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_style_metadata_initial_value(property_id: u16) -> FfiShellAndData {
-    abort_on_panic(|| initial_value(property_id))
+pub extern "C" fn rust_style_metadata_initial_value(property_id: u16) -> *const c_void {
+    abort_on_panic(|| initial_value_data(property_id).cast())
 }
 
 /// One bit per keyword marking the color keywords, installed once from the
@@ -1896,9 +1882,7 @@ pub struct FfiComputedStoreEntry {
     pub property_id: u16,
     pub inherited_property_id: u16,
     /// The selected specified value; also the stored value unless a computed
-    /// pixel length or keyword replaces it. `shell` is null for values owned
-    /// by the cascaded property store; `data` is always present.
-    pub shell: *const c_void,
+    /// pixel length or keyword replaces it.
     pub data: *const c_void,
     /// The C++ declaration-source slot for a cascaded value, or -1.
     pub source_slot: i64,
@@ -1906,15 +1890,15 @@ pub struct FfiComputedStoreEntry {
     pub has_style_sheet_context: bool,
     pub inheritance_dependent: bool,
     pub inherited: bool,
-    /// How the natively computed value crosses: with COMPUTED_KIND_SHELL the
-    /// stored value is `shell` itself; the other kinds carry a replacement in
-    /// `value` while `shell` remains the specified value for the
+    /// How the natively computed value crosses: with COMPUTED_KIND_UNCHANGED
+    /// the stored value is `data` itself; the other kinds carry a replacement
+    /// in `value` while `data` remains the specified value for the
     /// inheritance-dependence bookkeeping.
     pub computed_kind: u8,
     pub value: f64,
 }
 
-pub const COMPUTED_KIND_SHELL: u8 = 0;
+pub const COMPUTED_KIND_UNCHANGED: u8 = 0;
 /// A pixel length of `value`.
 pub const COMPUTED_KIND_PX_LENGTH: u8 = 1;
 /// An integer of `value`.
@@ -1972,15 +1956,13 @@ pub struct FfiLonghandCallbacks {
     ) -> FfiInputLineHeightMetrics,
     /// Rare: fetches the parent's computed value for an explicit `inherit` of
     /// a non-inherited property, which the parent snapshot does not carry.
-    /// The C++ side pins the returned shell until the end of the drive, so
-    /// deferred store batches may hold it.
+    /// The C++ side pins the facade owning the returned data until the end of
+    /// the drive, so deferred store batches may borrow it.
     pub fetch_non_inherited_parent_value:
-        unsafe extern "C" fn(context: *mut c_void, inherited_property_id: u16) -> FfiShellAndData,
+        unsafe extern "C" fn(context: *mut c_void, inherited_property_id: u16) -> *const c_void,
     /// Decides computational independence for value kinds whose rule still
-    /// lives with their C++ shells.
-    pub computational_independence_fallback: unsafe extern "C" fn(shell: *const c_void) -> bool,
-    /// Decides computational independence for a root value owned by Rust.
-    pub computational_independence_data_fallback: unsafe extern "C" fn(data: *const c_void) -> bool,
+    /// requires a temporary C++ facade.
+    pub computational_independence_fallback: unsafe extern "C" fn(data: *const c_void) -> bool,
     /// Returns the element's computed writing mode and direction, packed as
     /// writing_mode | direction << 8.
     pub writing_mode_and_direction: unsafe extern "C" fn(context: *mut c_void) -> u16,
@@ -2118,12 +2100,12 @@ fn property_has_dedicated_compute_rule(property_id: u16) -> bool {
 }
 
 /// The parent's inheritable computed values, prepared once per element: one
-/// (shell, data) entry per inherited-by-default longhand in property id
+/// shared Rust data identity per inherited-by-default longhand in property id
 /// order. Null entries mark values the parent could not provide. The C++ side
-/// pins every entry for the duration of the drive.
+/// pins every owning facade for the duration of the drive.
 #[repr(C)]
 pub struct FfiParentSnapshot {
-    pub entries: *const FfiShellAndData,
+    pub entries: *const *const c_void,
     pub entry_count: usize,
     pub font_metrics_depend_on_viewport_metrics: bool,
 }
@@ -2279,7 +2261,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             let index = (property_id - FIRST_INHERITED_PROPERTY_ID) as usize;
             assert!(index < snapshot.entry_count);
             // SAFETY: Snapshot entries are valid for the drive.
-            unsafe { ((*snapshot.entries.add(index)).data as *const StyleValueData).as_ref() }
+            unsafe { ((*snapshot.entries.add(index)) as *const StyleValueData).as_ref() }
         }
 
         // The computed math-depth, remembered for the font-size rule; None when C++
@@ -2337,16 +2319,13 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 cascaded_property_id = store.property_with_higher_priority(property_id, counterpart_property_id);
             }
 
-            let mut value = FfiShellAndData::null();
+            let mut value = std::ptr::null();
             let mut source_slot = -1;
             let mut has_style_sheet_context = false;
             if let Some((value_data, important, cascaded_source_slot, cascaded_has_style_sheet_context)) =
                 store.winning_declaration(cascaded_property_id)
             {
-                value = FfiShellAndData {
-                    shell: std::ptr::null(),
-                    data: value_data,
-                };
+                value = value_data;
                 source_slot = i64::from(cascaded_source_slot);
                 has_style_sheet_context = cascaded_has_style_sheet_context;
                 if important {
@@ -2363,10 +2342,10 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             }
 
             let decision = longhand_decision(
-                if value.data.is_null() {
+                if value.is_null() {
                     None
                 } else {
-                    Some(unsafe { &*(value.data as *const StyleValueData) })
+                    Some(unsafe { &*(value as *const StyleValueData) })
                 },
                 property_id,
             );
@@ -2401,14 +2380,14 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             }
 
             let use_initial = if inherit_fetch_attempted {
-                value.data.is_null() || value_is_initial_or_unset(value.data)
+                value.is_null() || value_is_initial_or_unset(value)
             } else {
                 decision.use_initial_without_inherit
             };
             if use_initial {
                 source_slot = -1;
                 has_style_sheet_context = false;
-                value = initial_value(property_id);
+                value = initial_value_data(property_id).cast();
                 required_level = REQUIRES_COMPUTATION_NON_INHERITED;
             }
 
@@ -2416,7 +2395,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
 
             // Whether the computed value depends on inherited information, so the specified
             // value must be kept for re-resolution when an ancestor changes.
-            let value_data = unsafe { &*(value.data as *const StyleValueData) };
+            let value_data = unsafe { &*(value as *const StyleValueData) };
 
             if inherited_property_id == crate::property_metadata::property_id::BACKGROUND_IMAGE
                 && let StyleValueData::ValueList { values, .. } = value_data
@@ -2433,11 +2412,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             let inheritance_dependent = crate::style_value::value_depends_on_current_color(value_data)
                 || !value_is_computationally_independent(value_data).unwrap_or_else(|| {
                     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandIndependenceFallbackCallback);
-                    if value.shell.is_null() {
-                        unsafe { (callbacks.computational_independence_data_fallback)(value.data) }
-                    } else {
-                        unsafe { (callbacks.computational_independence_fallback)(value.shell) }
-                    }
+                    unsafe { (callbacks.computational_independence_fallback)(value) }
                 })
                 || value_depends_on_inherited_info_for_property(value_data, property_id);
 
@@ -2761,7 +2736,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     NativeValue::Number(number) => (COMPUTED_KIND_NUMBER, number),
                     NativeValue::Percentage(percentage) => (COMPUTED_KIND_PERCENTAGE, percentage),
                     NativeValue::FontStyle(font_style_keyword) => (COMPUTED_KIND_FONT_STYLE, font_style_keyword as f64),
-                    NativeValue::Unchanged => (COMPUTED_KIND_SHELL, 0.0),
+                    NativeValue::Unchanged => (COMPUTED_KIND_UNCHANGED, 0.0),
                     NativeValue::Unsupported => {
                         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandCppComputeFallback);
                         (COMPUTED_KIND_COMPUTE_IN_CPP, 0.0)
@@ -2770,8 +2745,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 pending_stores.push(FfiComputedStoreEntry {
                     property_id,
                     inherited_property_id,
-                    shell: value.shell,
-                    data: value.data,
+                    data: value,
                     source_slot,
                     has_style_sheet_context,
                     inheritance_dependent,
@@ -2783,13 +2757,12 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 pending_stores.push(FfiComputedStoreEntry {
                     property_id,
                     inherited_property_id,
-                    shell: value.shell,
-                    data: value.data,
+                    data: value,
                     source_slot,
                     has_style_sheet_context,
                     inheritance_dependent,
                     inherited: inherit_fetch_attempted,
-                    computed_kind: COMPUTED_KIND_SHELL,
+                    computed_kind: COMPUTED_KIND_UNCHANGED,
                     value: 0.0,
                 });
             }
@@ -2806,13 +2779,13 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 let effective_overflow = resolve_effective_overflow_keywords(overflow_x, *overflow_y);
                 for entry in pending_stores.iter_mut().rev() {
                     if entry.property_id == prop::OVERFLOW_X && effective_overflow.changed_x {
-                        debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_SHELL);
+                        debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
                         entry.computed_kind = COMPUTED_KIND_KEYWORD;
                         entry.value = effective_overflow.x_keyword as f64;
                         clear_longhand_bit(important_words, prop::OVERFLOW_X);
                         clear_longhand_bit(inherited_words, prop::OVERFLOW_X);
                     } else if entry.property_id == prop::OVERFLOW_Y && effective_overflow.changed_y {
-                        debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_SHELL);
+                        debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
                         entry.computed_kind = COMPUTED_KIND_KEYWORD;
                         entry.value = effective_overflow.y_keyword as f64;
                         clear_longhand_bit(important_words, prop::OVERFLOW_Y);
@@ -2852,7 +2825,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 if adjustment.changed {
                     let entry = pending_stores.last_mut().unwrap();
                     debug_assert_eq!(entry.property_id, prop::TEXT_ALIGN);
-                    debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_SHELL);
+                    debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
                     entry.computed_kind = COMPUTED_KIND_KEYWORD;
                     entry.value = adjustment.keyword as f64;
                     clear_longhand_bit(important_words, property_id);
@@ -2949,8 +2922,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let adjusted_entry = |property_id, computed_kind, value| FfiComputedStoreEntry {
             property_id,
             inherited_property_id: property_id,
-            shell: initial_value(property_id).shell,
-            data: initial_value(property_id).data,
+            data: initial_value_data(property_id).cast(),
             source_slot: -1,
             has_style_sheet_context: false,
             inheritance_dependent: false,
@@ -3007,20 +2979,12 @@ fn property_affects_font_metrics(property_id: u16) -> bool {
         || property_id == crate::property_metadata::property_id::LINE_HEIGHT
 }
 
-/// Callbacks for the shorthand expansion recursion. Boundary values carry a
-/// borrowed C++ facade while nested shorthand values carry only Rust data.
-/// The C++ side pins every facade it creates until expansion returns.
+/// Callback for each longhand produced by shorthand expansion. Values are
+/// borrowed shared Rust data handles valid for the duration of the call.
 #[repr(C)]
 pub struct FfiShorthandExpansionCallbacks {
     pub context: *mut c_void,
-    /// Returns the Rust-owned data of a C++ style value shell.
-    pub data_of: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
-    /// Creates and pins a pending-substitution value wrapping the given value;
-    /// returns its shell. `shell` is null for a nested Rust-owned value.
-    pub create_pending_substitution:
-        unsafe extern "C" fn(context: *mut c_void, shell: *const c_void, data: *const c_void) -> *const c_void,
-    pub set_longhand_property:
-        unsafe extern "C" fn(context: *mut c_void, property_id: u16, shell: *const c_void, data: *const c_void),
+    pub set_longhand_property: unsafe extern "C" fn(context: *mut c_void, property_id: u16, data: *const c_void),
 }
 
 pub(crate) fn value_is_css_wide_keyword(value: &StyleValueData) -> bool {
@@ -3033,20 +2997,16 @@ pub(crate) fn value_is_css_wide_keyword(value: &StyleValueData) -> bool {
     }
 }
 
-/// The expansion recursion over `(shell, data)` value pairs. `data_of` returns the Rust-owned
-/// data of a shell, `create_pending_substitution` wraps a value in a pinned
-/// pending-substitution facade, and `sink` receives each `(longhand id, shell, data)` result.
-pub(crate) fn expand_shorthands_with<DataOf, CreatePendingSubstitution, Sink>(
-    data_of: &DataOf,
-    create_pending_substitution: &CreatePendingSubstitution,
+/// The expansion recursion over shared Rust value data. `has_style_sheet_context`
+/// follows boundary values through CSS-wide propagation, while nested shorthand
+/// values have no facade-local resource context.
+pub(crate) fn expand_shorthands_with<Sink>(
     property_id: u16,
-    shell: *const c_void,
     data: *const c_void,
+    has_style_sheet_context: bool,
     sink: &mut Sink,
 ) where
-    DataOf: Fn(*const c_void) -> *const c_void,
-    CreatePendingSubstitution: Fn(*const c_void, *const c_void) -> *const c_void,
-    Sink: FnMut(u16, *const c_void, *const c_void),
+    Sink: FnMut(u16, *const c_void, bool),
 {
     let value = unsafe { &*(data as *const StyleValueData) };
     let is_shorthand = property_is_shorthand(property_id);
@@ -3064,18 +3024,12 @@ pub(crate) fn expand_shorthands_with<DataOf, CreatePendingSubstitution, Sink>(
         // determined until after substituted.
         // https://drafts.csswg.org/css-values-5/#pending-substitution-value
         // Ensure we keep the longhand around until it can be resolved.
-        sink(property_id, shell, data);
-        let pending = create_pending_substitution(shell, data);
-        let pending_data = data_of(pending);
+        sink(property_id, data, has_style_sheet_context);
+        let retained_data = unsafe { crate::style_value::rust_style_value_retain(data.cast::<StyleValueData>()) };
+        let pending_data = unsafe { crate::style_value::rust_style_value_create_pending_substitution(retained_data) };
+        let pending = unsafe { RetainedStyleValueData::from_retained_pointer(pending_data) };
         for &longhand in longhands_for_shorthand(property_id) {
-            expand_shorthands_with(
-                data_of,
-                create_pending_substitution,
-                longhand,
-                pending,
-                pending_data,
-                sink,
-            );
+            expand_shorthands_with(longhand, pending.pointer().cast(), has_style_sheet_context, sink);
         }
         return;
     }
@@ -3085,16 +3039,8 @@ pub(crate) fn expand_shorthands_with<DataOf, CreatePendingSubstitution, Sink>(
     } = value
     {
         for (&sub_property, sub_value) in sub_properties.as_slice().iter().zip(values.as_slice()) {
-            let sub_shell = std::ptr::null();
             let sub_data = sub_value.pointer().cast();
-            expand_shorthands_with(
-                data_of,
-                create_pending_substitution,
-                sub_property,
-                sub_shell,
-                sub_data,
-                sink,
-            );
+            expand_shorthands_with(sub_property, sub_data, false, sink);
         }
         return;
     }
@@ -3106,55 +3052,36 @@ pub(crate) fn expand_shorthands_with<DataOf, CreatePendingSubstitution, Sink>(
         // because the longhands might have longhands of their own.
         assert!(value_is_css_wide_keyword(value) || matches!(value, StyleValueData::GuaranteedInvalid));
         for &longhand in longhands_for_shorthand(property_id) {
-            expand_shorthands_with(data_of, create_pending_substitution, longhand, shell, data, sink);
+            expand_shorthands_with(longhand, data, has_style_sheet_context, sink);
         }
         return;
     }
 
-    sink(property_id, shell, data);
+    sink(property_id, data, has_style_sheet_context);
 }
 
-fn expand_shorthands(
-    callbacks: &FfiShorthandExpansionCallbacks,
-    property_id: u16,
-    shell: *const c_void,
-    data: *const c_void,
-) {
+fn expand_shorthands(callbacks: &FfiShorthandExpansionCallbacks, property_id: u16, data: *const c_void) {
     let context = callbacks.context;
-    expand_shorthands_with(
-        &|shell| {
-            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeDataOfCallback);
-            unsafe { (callbacks.data_of)(context, shell) }
-        },
-        &|shell, data| {
-            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadePendingSubstitutionCallback);
-            unsafe { (callbacks.create_pending_substitution)(context, shell, data) }
-        },
-        property_id,
-        shell,
-        data,
-        &mut |longhand_id, longhand_shell, longhand_data| {
-            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::ShorthandSetLonghandCallback);
-            unsafe { (callbacks.set_longhand_property)(context, longhand_id, longhand_shell, longhand_data) };
-        },
-    );
+    expand_shorthands_with(property_id, data, false, &mut |longhand_id, longhand_data, _| {
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::ShorthandSetLonghandCallback);
+        unsafe { (callbacks.set_longhand_property)(context, longhand_id, longhand_data) };
+    });
 }
 
 /// Expands a declared property into longhand assignments, recursing through
 /// shorthand and pending-substitution values.
 ///
 /// # Safety
-/// `callbacks` must be a valid callback table and `shell`/`data` a valid
-/// C++ style value and its Rust-owned data.
+/// `callbacks` must be a valid callback table and `data` valid Rust-owned
+/// style value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_for_each_property_expanding_shorthands(
     callbacks: *const FfiShorthandExpansionCallbacks,
     property_id: u16,
-    shell: *const c_void,
     data: *const c_void,
 ) {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::ShorthandExpansionEntry);
-    abort_on_panic(|| expand_shorthands(unsafe { &*callbacks }, property_id, shell, data));
+    abort_on_panic(|| expand_shorthands(unsafe { &*callbacks }, property_id, data));
 }
 
 pub(crate) fn display_is_none(raw: u32) -> bool {

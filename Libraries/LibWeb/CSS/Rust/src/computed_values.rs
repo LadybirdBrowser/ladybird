@@ -397,6 +397,13 @@ pub unsafe extern "C" fn rust_build_style_group(
                     pokes.push(Poke::U64(descriptor.offset, *value as u64));
                 }
                 GROUP_FIELD_REQUIRE_KEYWORD => {
+                    // NB: Repeatable-list properties keep even a single computed item in a value list.
+                    let data = match data {
+                        StyleValueData::ValueList { values, .. } if values.as_slice().len() == 1 => {
+                            values.as_slice()[0].data()
+                        }
+                        data => data,
+                    };
                     let StyleValueData::Keyword { keyword } = data else {
                         return None;
                     };
@@ -440,7 +447,7 @@ pub unsafe extern "C" fn rust_build_style_group(
                     }
                 },
                 GROUP_FIELD_REQUIRE_INITIAL_VALUE => {
-                    if value.data != crate::style_compute::initial_value(descriptor.property_id).data {
+                    if value.data != crate::style_compute::initial_value_data(descriptor.property_id).cast() {
                         return None;
                     }
                 }

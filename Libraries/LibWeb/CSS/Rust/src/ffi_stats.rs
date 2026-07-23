@@ -62,8 +62,6 @@ define_ffi_ops! {
     CascadePropertyDisallowedCallback => "cascadePropertyDisallowedCallbacks",
     CascadeResolveUnresolvedCallback => "cascadeResolveUnresolvedCallbacks",
     CascadeParseSubstitutedCallback => "cascadeParseSubstitutedCallbacks",
-    CascadeDataOfCallback => "cascadeDataOfCallbacks",
-    CascadePendingSubstitutionCallback => "cascadePendingSubstitutionCallbacks",
     CascadeSourceSlotCallback => "cascadeSourceSlotCallbacks",
     CascadeCustomPropertyBatchCallback => "cascadeCustomPropertyBatchCallbacks",
     ShorthandSetLonghandCallback => "shorthandSetLonghandCallbacks",

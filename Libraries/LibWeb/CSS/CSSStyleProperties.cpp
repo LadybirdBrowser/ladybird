@@ -525,7 +525,7 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAn
                 auto const& original_shorthand_value = list.first()->as_pending_substitution().original_shorthand_value();
                 auto all_from_same_original = all_of(list, [&](auto const& value) {
                     return value->is_pending_substitution()
-                        && &value->as_pending_substitution().original_shorthand_value() == &original_shorthand_value;
+                        && value->as_pending_substitution().original_shorthand_value().rust_style_value_data() == original_shorthand_value.rust_style_value_data();
                 });
                 if (all_from_same_original) {
                     return StyleProperty {
