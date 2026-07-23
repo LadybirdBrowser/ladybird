@@ -710,6 +710,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &[
             manifest_dir.join("src/style_value.rs"),
             manifest_dir.join("src/animation.rs"),
+            manifest_dir.join("src/transition.rs"),
             manifest_dir.join("src/calc.rs"),
             manifest_dir.join("src/ffi_stats.rs"),
         ],

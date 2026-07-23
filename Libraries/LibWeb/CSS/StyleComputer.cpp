@@ -931,18 +931,14 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
 
 void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedProperties::Builder& builder) const
 {
-    StyleValueFFI::rust_style_ffi_note_animation_evaluation();
     for (auto effect : effects)
         collect_animation_effect_into(abstract_element, effect, builder.style(), &builder);
-    StyleValueFFI::rust_style_ffi_note_animation_result_batch();
 }
 
 void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedProperties& computed_properties) const
 {
-    StyleValueFFI::rust_style_ffi_note_animation_evaluation();
     for (auto effect : effects)
         collect_animation_effect_into(abstract_element, effect, computed_properties, nullptr);
-    StyleValueFFI::rust_style_ffi_note_animation_result_batch();
 }
 
 void StyleComputer::collect_animation_effect_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties, ComputedProperties::Builder* builder) const
@@ -1007,7 +1003,7 @@ void StyleComputer::collect_animation_effect_into(DOM::AbstractElement abstract_
     // Apply the per-keyframe easing to the interval progress. The easing on a keyframe applies to the
     // interval from that keyframe to the next. If the keyframe doesn't specify an easing, use the
     // animation's default easing (from the animation-timing-function property).
-    auto apply_keyframe_easing = [&](auto const& keyframe_easing, double interval_progress) {
+    auto resolve_interval_easing = [&](auto const& keyframe_easing) {
         auto resolved_easing = keyframe_easing.visit(
             [](Empty) -> Optional<CSS::EasingFunction> { return {}; },
             [](CSS::EasingFunction const& easing) -> Optional<CSS::EasingFunction> { return easing; },
@@ -1015,10 +1011,10 @@ void StyleComputer::collect_animation_effect_into(DOM::AbstractElement abstract_
                 return resolve_keyframe_easing(*value, abstract_element);
             });
         if (resolved_easing.has_value())
-            return resolved_easing->evaluate_at(interval_progress, false);
+            return resolved_easing.release_value();
         if (animation->is_css_animation())
-            return static_cast<CSSAnimation const&>(*animation).default_easing().evaluate_at(interval_progress, false);
-        return interval_progress;
+            return static_cast<CSSAnimation const&>(*animation).default_easing();
+        return CSS::EasingFunction::linear();
     };
 
     // FIXME: Follow https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes in whatever the right place is.
@@ -1203,45 +1199,33 @@ void StyleComputer::collect_animation_effect_into(DOM::AbstractElement abstract_
     };
     color_resolution_context.current_color = computed_properties.color(PropertyID::Color, color_resolution_context);
 
+    struct PreparedKeyframeValue {
+        i64 key { 0 };
+        RefPtr<StyleValue const> value;
+        CSS::EasingFunction easing;
+        Bindings::CompositeOperation composite_operation;
+    };
+    struct PreparedAnimationValue {
+        PropertyID property_id;
+        NonnullRefPtr<StyleValue const> underlying;
+        Vector<PreparedKeyframeValue> keyframes;
+        float eased_progress { 0 };
+        size_t start_index { 0 };
+        size_t end_index { 0 };
+        bool handled_by_rust { false };
+    };
+    Vector<PreparedAnimationValue> prepared_values;
+
     for (auto const& [property_id, specifying_keyframes] : keyframes_specifying_property) {
         // A property is usually specified by at least the initial and final keyframes, but a value that stays
         // unresolved may leave a property with only one specifying keyframe. Such a property cannot be interpolated, so skip it.
         if (specifying_keyframes.size() < 2)
             continue;
 
-        auto start_keyframe = specifying_keyframes[0];
-        auto end_keyframe = specifying_keyframes[1];
-        for (size_t next = 2; next < specifying_keyframes.size(); ++next) {
-            if (current_key < ordered_keyframes[end_keyframe].key)
-                break;
-            start_keyframe = end_keyframe;
-            end_keyframe = specifying_keyframes[next];
-        }
-
-        auto start_key = ordered_keyframes[start_keyframe].key;
-        auto end_key = ordered_keyframes[end_keyframe].key;
-        double interval_progress = (static_cast<double>(current_key) - start_key) / static_cast<double>(end_key - start_key);
-        interval_progress = apply_keyframe_easing(ordered_keyframes[start_keyframe].frame->easing, interval_progress);
-
-        RefPtr<StyleValue const> resolved_start_property = computed_values_for_keyframe(start_keyframe).get(property_id).value_or(nullptr);
-        RefPtr<StyleValue const> resolved_end_property = computed_values_for_keyframe(end_keyframe).get(property_id).value_or(nullptr);
-
-        if (!resolved_end_property) {
-            if (resolved_start_property) {
-                computed_properties.set_animated_property(Badge<StyleComputer> {}, property_id, *resolved_start_property, is_result_of_transition);
-                dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "No end property for property {}, using {}", string_from_property_id(property_id), resolved_start_property->to_string(SerializationMode::Normal));
-            }
+        // An unresolved shorthand cannot be expanded while building the property index. Computing its keyframe
+        // values either resolves it into physical longhands or leaves no value, so it is never itself animatable.
+        if (property_id < first_longhand_property_id || property_id > last_longhand_property_id)
             continue;
-        }
-
-        if (resolved_end_property && !resolved_start_property)
-            resolved_start_property = property_initial_value(property_id);
-
-        if (!resolved_start_property || !resolved_end_property)
-            continue;
-
-        auto start = resolved_start_property.release_nonnull();
-        auto end = resolved_end_property.release_nonnull();
 
         // OPTIMIZATION: Values resulting from animations other than CSS transitions are overridden by important
         //               properties so there's no need to calculate them
@@ -1249,22 +1233,181 @@ void StyleComputer::collect_animation_effect_into(DOM::AbstractElement abstract_
             continue;
         }
 
-        auto const& underlying_value = computed_properties.property(property_id);
-        auto start_composite_operation = to_composite_operation(ordered_keyframes[start_keyframe].frame->composite);
-        auto end_composite_operation = to_composite_operation(ordered_keyframes[end_keyframe].frame->composite);
+        PreparedAnimationValue prepared_value {
+            .property_id = property_id,
+            .underlying = computed_properties.property(property_id),
+            .keyframes = {},
+        };
+        prepared_value.keyframes.ensure_capacity(specifying_keyframes.size());
+        for (auto keyframe_index : specifying_keyframes) {
+            prepared_value.keyframes.unchecked_append({
+                .key = ordered_keyframes[keyframe_index].key,
+                .value = computed_values_for_keyframe(keyframe_index).get(property_id).value_or(nullptr),
+                .easing = resolve_interval_easing(ordered_keyframes[keyframe_index].frame->easing),
+                .composite_operation = to_composite_operation(ordered_keyframes[keyframe_index].frame->composite),
+            });
+        }
+        prepared_values.append(move(prepared_value));
+    }
 
-        if (auto composited_start_value = composite_value(property_id, underlying_value, start, start_composite_operation, color_resolution_context))
+    auto ffi_composite_operation = [](Bindings::CompositeOperation operation) {
+        switch (operation) {
+        case Bindings::CompositeOperation::Replace:
+            return StyleValueFFI::FfiCompositeOperation::Replace;
+        case Bindings::CompositeOperation::Add:
+            return StyleValueFFI::FfiCompositeOperation::Add;
+        case Bindings::CompositeOperation::Accumulate:
+            return StyleValueFFI::FfiCompositeOperation::Accumulate;
+        }
+        VERIFY_NOT_REACHED();
+    };
+    Vector<StyleValueFFI::FfiAnimationValueInput> ffi_values;
+    Vector<Vector<StyleValueFFI::FfiAnimationKeyframeValue>> ffi_keyframes;
+    Vector<Vector<Vector<StyleValueFFI::FfiLinearEasingPoint>>> linear_easing_points;
+    ffi_keyframes.resize(prepared_values.size());
+    linear_easing_points.resize(prepared_values.size());
+    ffi_values.ensure_capacity(prepared_values.size());
+    for (size_t index = 0; index < prepared_values.size(); ++index) {
+        auto const& value = prepared_values[index];
+        auto& keyframes = ffi_keyframes[index];
+        auto& property_linear_easing_points = linear_easing_points[index];
+        keyframes.ensure_capacity(value.keyframes.size());
+        property_linear_easing_points.resize(value.keyframes.size());
+        for (size_t keyframe_index = 0; keyframe_index < value.keyframes.size(); ++keyframe_index) {
+            auto const& keyframe = value.keyframes[keyframe_index];
+            auto easing = keyframe.easing.visit(
+                [&](LinearEasingFunction const& linear) {
+                    auto& points = property_linear_easing_points[keyframe_index];
+                    points.ensure_capacity(linear.control_points.size());
+                    for (auto const& point : linear.control_points) {
+                        VERIFY(point.input.has_value());
+                        points.unchecked_append({ .input = *point.input, .output = point.output });
+                    }
+                    return StyleValueFFI::FfiEasingDescriptor {
+                        .kind = StyleValueFFI::FfiEasingKind::Linear,
+                        .linear_points = points.data(),
+                        .linear_point_count = points.size(),
+                        .x1 = 0,
+                        .y1 = 0,
+                        .x2 = 0,
+                        .y2 = 0,
+                        .interval_count = 0,
+                        .step_position = 0,
+                    };
+                },
+                [](CubicBezierEasingFunction const& cubic_bezier) {
+                    return StyleValueFFI::FfiEasingDescriptor {
+                        .kind = StyleValueFFI::FfiEasingKind::CubicBezier,
+                        .linear_points = nullptr,
+                        .linear_point_count = 0,
+                        .x1 = cubic_bezier.x1,
+                        .y1 = cubic_bezier.y1,
+                        .x2 = cubic_bezier.x2,
+                        .y2 = cubic_bezier.y2,
+                        .interval_count = 0,
+                        .step_position = 0,
+                    };
+                },
+                [](StepsEasingFunction const& steps) {
+                    return StyleValueFFI::FfiEasingDescriptor {
+                        .kind = StyleValueFFI::FfiEasingKind::Steps,
+                        .linear_points = nullptr,
+                        .linear_point_count = 0,
+                        .x1 = 0,
+                        .y1 = 0,
+                        .x2 = 0,
+                        .y2 = 0,
+                        .interval_count = steps.interval_count,
+                        .step_position = to_underlying(steps.position),
+                    };
+                });
+            keyframes.unchecked_append({
+                .key = keyframe.key,
+                .value = keyframe.value ? keyframe.value->rust_style_value_data() : nullptr,
+                .easing = easing,
+                .composite = ffi_composite_operation(keyframe.composite_operation),
+            });
+        }
+        ffi_values.unchecked_append({
+            .property_id = to_underlying(value.property_id),
+            .underlying = value.underlying->rust_style_value_data(),
+            .current_key = current_key,
+            .keyframes = keyframes.data(),
+            .keyframe_count = keyframes.size(),
+        });
+    }
+
+    StyleValueFFI::FfiAnimationContext animation_context {
+        .allow_discrete = true,
+        .has_transform_reference_box = false,
+        .transform_reference_box_width = 0,
+        .transform_reference_box_height = 0,
+    };
+    if (auto paintable = effect->target()->unsafe_paintable(); paintable) {
+        auto reference_box = paintable->transform_reference_box();
+        animation_context.has_transform_reference_box = true;
+        animation_context.transform_reference_box_width = reference_box.width().to_double();
+        animation_context.transform_reference_box_height = reference_box.height().to_double();
+    }
+    StyleValueFFI::FfiAnimationBatch batch {
+        .context = animation_context,
+        .values = ffi_values.data(),
+        .value_count = ffi_values.size(),
+    };
+    struct AnimationOverlayContext {
+        Vector<PreparedAnimationValue>& prepared_values;
+        ComputedProperties& computed_properties;
+        AnimatedPropertyResultOfTransition is_result_of_transition;
+    } overlay_context { prepared_values, computed_properties, is_result_of_transition };
+    StyleValueFFI::FfiAnimationCallbacks callbacks {
+        .context = &overlay_context,
+        .apply_overlay = [](void* context, StyleValueFFI::FfiAnimatedProperty const* values, size_t count) {
+            auto& overlay_context = *static_cast<AnimationOverlayContext*>(context);
+            VERIFY(count == overlay_context.prepared_values.size());
+            for (size_t index = 0; index < count; ++index) {
+                auto const& value = values[index];
+                auto& prepared_value = overlay_context.prepared_values[index];
+                VERIFY(value.property_id == to_underlying(prepared_value.property_id));
+                prepared_value.eased_progress = value.progress;
+                prepared_value.start_index = value.start_index;
+                prepared_value.end_index = value.end_index;
+                prepared_value.handled_by_rust = value.handled;
+                if (!value.handled)
+                    continue;
+                if (value.value) {
+                    auto style_value = StyleValue::adopt_rust_style_value_data(value.value);
+                    overlay_context.computed_properties.set_animated_property(Badge<StyleComputer> {}, prepared_value.property_id, style_value, overlay_context.is_result_of_transition);
+                } else {
+                    // NB: If interpolation fails, the element should not be rendered.
+                    overlay_context.computed_properties.set_animated_property(Badge<StyleComputer> {}, PropertyID::Visibility, KeywordStyleValue::create(Keyword::Hidden), overlay_context.is_result_of_transition);
+                }
+            }
+        },
+    };
+    StyleValueFFI::rust_evaluate_animations(&batch, &callbacks);
+
+    for (auto const& value : prepared_values) {
+        if (value.handled_by_rust)
+            continue;
+        auto const& start_keyframe = value.keyframes[value.start_index];
+        auto const& end_keyframe = value.keyframes[value.end_index];
+        auto start = start_keyframe.value;
+        auto end = end_keyframe.value;
+        if (!end) {
+            if (start)
+                computed_properties.set_animated_property(Badge<StyleComputer> {}, value.property_id, *start, is_result_of_transition);
+            continue;
+        }
+        if (!start)
+            start = property_initial_value(value.property_id);
+        if (auto composited_start_value = composite_value(value.property_id, value.underlying, *start, start_keyframe.composite_operation, color_resolution_context))
             start = *composited_start_value;
-
-        if (auto composited_end_value = composite_value(property_id, underlying_value, end, end_composite_operation, color_resolution_context))
+        if (auto composited_end_value = composite_value(value.property_id, value.underlying, *end, end_keyframe.composite_operation, color_resolution_context))
             end = *composited_end_value;
-
-        if (auto next_value = interpolate_property(*effect->target(), property_id, *start, *end, interval_progress, AllowDiscrete::Yes, &color_resolution_context)) {
-            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} = {}", string_from_property_id(property_id), interval_progress, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal), next_value->to_string(SerializationMode::Normal));
-            computed_properties.set_animated_property(Badge<StyleComputer> {}, property_id, *next_value, is_result_of_transition);
+        if (auto next_value = interpolate_property(*effect->target(), value.property_id, *start, *end, value.eased_progress, AllowDiscrete::Yes, &color_resolution_context)) {
+            computed_properties.set_animated_property(Badge<StyleComputer> {}, value.property_id, *next_value, is_result_of_transition);
         } else {
-            // If interpolate_property() fails, the element should not be rendered
-            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(property_id), interval_progress, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal));
+            // NB: If interpolation fails, the element should not be rendered.
             computed_properties.set_animated_property(Badge<StyleComputer> {}, PropertyID::Visibility, KeywordStyleValue::create(Keyword::Hidden), is_result_of_transition);
         }
     }
@@ -1468,17 +1611,8 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
 // https://drafts.csswg.org/css-transitions/#starting
 void StyleComputer::start_needed_transitions(ComputedValues const& previous_style, ComputedProperties::Builder& new_style_builder, DOM::AbstractElement abstract_element) const
 {
-    StyleValueFFI::rust_style_ffi_note_transition_decision();
-
     auto& new_style = new_style_builder.style();
 
-    // https://drafts.csswg.org/css-transitions/#transition-combined-duration
-    auto combined_duration = [](Animations::Animatable::TransitionAttributes const& transition_attributes) {
-        // Define the combined duration of the transition as the sum of max(matching transition duration, 0s) and the matching transition delay.
-        return max(transition_attributes.duration, 0) + transition_attributes.delay;
-    };
-
-    // For each element and property, the implementation must act as follows:
     // NB: We know that a DocumentTimeline's current time is always in milliseconds
     auto current_time = m_document->timeline()->current_time();
     if (!current_time.has_value())
@@ -1492,212 +1626,181 @@ void StyleComputer::start_needed_transitions(ComputedValues const& previous_styl
     auto& element = abstract_element.element();
     auto pseudo_element = abstract_element.pseudo_element();
 
-    // OPTIMIZATION: Instead of iterating over all properties we split the logic into two loops, one for the properties
-    //               which appear in transition-property and one for those which have existing transitions
-    for (auto property_id : element.property_ids_with_matching_transition_property_entry(pseudo_element)) {
-        auto matching_transition_properties = element.property_transition_attributes(pseudo_element, property_id).value();
-        auto before_change_style_value = previous_style.computed_style_value(property_id, ComputedValues::WithAnimationsApplied::Yes);
-        auto after_change_style_value = after_change_style->computed_style_value(property_id, ComputedValues::WithAnimationsApplied::No);
-        VERIFY(before_change_style_value);
-        VERIFY(after_change_style_value);
-        auto const& before_change_value = *before_change_style_value;
-        auto const& after_change_value = *after_change_style_value;
-        auto originates_from_current_color = [](ComputedValues const& style, PropertyID property_id) {
-            auto value = style.inheritance_dependent_specified_values().get(property_id);
-            return value.has_value() && value.value()->to_keyword() == Keyword::Currentcolor;
-        };
-        bool before_change_style_is_different = !before_change_value.equals(after_change_value);
-        if (originates_from_current_color(previous_style, property_id) && originates_from_current_color(*after_change_style, property_id))
-            before_change_style_is_different = false;
+    struct PreparedTransition {
+        PropertyID property_id;
+        RefPtr<StyleValue const> before_change_value;
+        RefPtr<StyleValue const> after_change_value;
+        RefPtr<StyleValue const> current_value;
+        GC::Ptr<CSSTransition> existing_transition;
+        StyleValueFFI::FfiTransitionAction action;
+    };
+    Vector<PreparedTransition> prepared_transitions;
+    Vector<StyleValueFFI::FfiTransitionPropertyInput> ffi_properties;
 
+    enum class HasMatchingTransition {
+        No,
+        Yes,
+    };
+    auto append_transition_input = [&](PropertyID property_id, HasMatchingTransition has_matching_transition) {
         auto existing_transition = element.property_transition(pseudo_element, property_id);
         bool has_running_transition = existing_transition && !existing_transition->is_finished() && !existing_transition->is_idle();
-        bool has_completed_transition = existing_transition && (existing_transition->is_finished() || existing_transition->is_idle());
+        bool has_completed_transition = existing_transition && !has_running_transition;
+        RefPtr<StyleValue const> before_change_value;
+        RefPtr<StyleValue const> after_change_value;
+        RefPtr<StyleValue const> current_value;
+        bool before_change_value_differs = false;
+        bool before_after_transitionable = false;
+        bool existing_end_value_differs = false;
+        bool current_value_equals_after = false;
+        bool current_after_transitionable = false;
+        bool reversing_start_value_equals_after = false;
+        double delay = 0;
+        double duration = 0;
+        double old_timing_function_output = 0;
+        double old_reversing_shortening_factor = 1;
 
-        auto start_a_transition = [&](auto delay, auto start_time, auto end_time, auto const& start_value, auto const& end_value, auto const& reversing_adjusted_start_value, auto reversing_shortening_factor) {
+        if (has_matching_transition == HasMatchingTransition::Yes) {
+            auto transition_attributes = element.property_transition_attributes(pseudo_element, property_id).value();
+            delay = transition_attributes.delay;
+            duration = transition_attributes.duration;
+            before_change_value = previous_style.computed_style_value(property_id, ComputedValues::WithAnimationsApplied::Yes);
+            after_change_value = after_change_style->computed_style_value(property_id, ComputedValues::WithAnimationsApplied::No);
+            VERIFY(before_change_value);
+            VERIFY(after_change_value);
+
+            auto originates_from_current_color = [](ComputedValues const& style, PropertyID property_id) {
+                auto value = style.inheritance_dependent_specified_values().get(property_id);
+                return value.has_value() && value.value()->to_keyword() == Keyword::Currentcolor;
+            };
+            before_change_value_differs = !before_change_value->equals(*after_change_value);
+            if (originates_from_current_color(previous_style, property_id) && originates_from_current_color(*after_change_style, property_id))
+                before_change_value_differs = false;
+            if (before_change_value_differs)
+                before_after_transitionable = property_values_are_transitionable(property_id, *before_change_value, *after_change_value, element, transition_attributes.transition_behavior);
+
+            if (existing_transition) {
+                existing_end_value_differs = !existing_transition->transition_end_value()->equals(*after_change_value);
+                reversing_start_value_equals_after = existing_transition->reversing_adjusted_start_value()->equals(*after_change_value);
+            }
+            if (has_running_transition && existing_end_value_differs) {
+                current_value = after_change_style->computed_style_value(property_id, ComputedValues::WithAnimationsApplied::Yes);
+                VERIFY(current_value);
+                current_value_equals_after = current_value->equals(*after_change_value);
+                current_after_transitionable = current_value_equals_after
+                    || property_values_are_transitionable(property_id, *current_value, *after_change_value, element, transition_attributes.transition_behavior);
+                if (!current_value_equals_after && current_after_transitionable && max(duration, 0) + delay > 0 && reversing_start_value_equals_after) {
+                    old_timing_function_output = existing_transition->timing_function_output_at_time(style_change_event_time);
+                    old_reversing_shortening_factor = existing_transition->reversing_shortening_factor();
+                }
+            }
+        }
+
+        prepared_transitions.append({
+            .property_id = property_id,
+            .before_change_value = move(before_change_value),
+            .after_change_value = move(after_change_value),
+            .current_value = move(current_value),
+            .existing_transition = existing_transition,
+            .action = {},
+        });
+        ffi_properties.append({
+            .property_id = to_underlying(property_id),
+            .has_matching_transition = has_matching_transition == HasMatchingTransition::Yes,
+            .before_change_value_differs = before_change_value_differs,
+            .before_after_transitionable = before_after_transitionable,
+            .has_running_transition = has_running_transition,
+            .has_completed_transition = has_completed_transition,
+            .existing_end_value_differs = existing_end_value_differs,
+            .current_value_equals_after = current_value_equals_after,
+            .current_after_transitionable = current_after_transitionable,
+            .reversing_start_value_equals_after = reversing_start_value_equals_after,
+            .delay = delay,
+            .duration = duration,
+            .old_timing_function_output = old_timing_function_output,
+            .old_reversing_shortening_factor = old_reversing_shortening_factor,
+        });
+    };
+
+    // OPTIMIZATION: Instead of iterating over all properties we collect properties which appear in
+    //               transition-property, followed by existing transitions without a matching entry.
+    for (auto property_id : element.property_ids_with_matching_transition_property_entry(pseudo_element))
+        append_transition_input(property_id, HasMatchingTransition::Yes);
+    for (auto property_id : element.property_ids_with_existing_transitions(pseudo_element)) {
+        if (!element.property_transition_attributes(pseudo_element, property_id).has_value())
+            append_transition_input(property_id, HasMatchingTransition::No);
+    }
+
+    StyleValueFFI::FfiTransitionInput input {
+        .properties = ffi_properties.data(),
+        .property_count = ffi_properties.size(),
+    };
+    StyleValueFFI::FfiTransitionCallbacks callbacks {
+        .context = &prepared_transitions,
+        .apply_actions = [](void* context, StyleValueFFI::FfiTransitionAction const* actions, size_t count) {
+            auto& prepared_transitions = *static_cast<Vector<PreparedTransition>*>(context);
+            VERIFY(count == prepared_transitions.size());
+            for (size_t index = 0; index < count; ++index) {
+                VERIFY(actions[index].property_id == to_underlying(prepared_transitions[index].property_id));
+                prepared_transitions[index].action = actions[index];
+            }
+        },
+    };
+    StyleValueFFI::rust_decide_transitions(&input, &callbacks);
+
+    for (auto const& prepared_transition : prepared_transitions) {
+        auto property_id = prepared_transition.property_id;
+        auto const& action = prepared_transition.action;
+        auto existing_transition = prepared_transition.existing_transition;
+        auto remove_existing_transition = [&] {
+            element.remove_transition(pseudo_element, property_id);
+        };
+        auto cancel_and_remove_existing_transition = [&] {
+            VERIFY(existing_transition);
+            existing_transition->cancel();
+            // AD-HOC: Remove the cancelled transition, otherwise it breaks the invariant that there is only one
+            // running or completed transition for a property at once.
+            remove_existing_transition();
+        };
+        auto start_a_transition = [&](StyleValue const& start_value, StyleValue const& end_value, StyleValue const& reversing_adjusted_start_value) {
             dbgln_if(CSS_TRANSITIONS_DEBUG, "Starting a transition of {} from {} to {}", string_from_property_id(property_id), start_value.to_string(SerializationMode::Normal), end_value.to_string(SerializationMode::Normal));
-
+            auto start_time = style_change_event_time;
+            auto end_time = start_time + action.active_duration;
             auto transition = CSSTransition::start_a_transition(abstract_element, property_id,
-                document().transition_generation(), delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
+                document().transition_generation(), action.delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, action.reversing_shortening_factor);
             // Immediately set the property's value to the transition's current value, to prevent single-frame jumps.
             collect_animation_into(abstract_element, as<Animations::KeyframeEffect>(*transition->effect()), new_style_builder);
         };
 
-        // 1. If all of the following are true:
-        if (
-            // - the element does not have a running transition for the property,
-            (!has_running_transition) &&
-            // - there is a matching transition-property value, and
-            // NOTE: We only iterate over properties for which this is true
-            // - the before-change style is different from the after-change style for that property, and the values for the property are transitionable,
-            (before_change_style_is_different && property_values_are_transitionable(property_id, before_change_value, after_change_value, element, matching_transition_properties.transition_behavior)) &&
-            // - the element does not have a completed transition for the property
-            //   or the end value of the completed transition is different from the after-change style for the property,
-            (!has_completed_transition || !existing_transition->transition_end_value()->equals(after_change_value)) &&
-            // - the combined duration is greater than 0s,
-            (combined_duration(matching_transition_properties) > 0)) {
-
-            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 1.");
-
-            // then implementations must remove the completed transition (if present) from the set of completed transitions
-            if (has_completed_transition)
-                element.remove_transition(pseudo_element, property_id);
-            // and start a transition whose:
-
-            // AD-HOC: We pass delay to the constructor separately so we can use it to construct the contained KeyframeEffect
-            auto delay = matching_transition_properties.delay;
-
-            // - start time is the time of the style change event plus the matching transition delay,
-            auto start_time = style_change_event_time;
-
-            // - end time is the start time plus the matching transition duration,
-            auto end_time = start_time + matching_transition_properties.duration;
-
-            // - start value is the value of the transitioning property in the before-change style,
-            auto const& start_value = before_change_value;
-
-            // - end value is the value of the transitioning property in the after-change style,
-            auto const& end_value = after_change_value;
-
-            // - reversing-adjusted start value is the same as the start value, and
-            auto const& reversing_adjusted_start_value = start_value;
-
-            // - reversing shortening factor is 1.
-            double reversing_shortening_factor = 1;
-
-            start_a_transition(delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
-        }
-
-        // 2. Otherwise, if the element has a completed transition for the property
-        //    and the end value of the completed transition is different from the after-change style for the property,
-        //    then implementations must remove the completed transition from the set of completed transitions.
-        else if (has_completed_transition && !existing_transition->transition_end_value()->equals(after_change_value)) {
-            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 2.");
-            element.remove_transition(pseudo_element, property_id);
-        }
-
-        // NOTE: Step 3 is handled in a separate loop below for performance reasons
-
-        // 4. If the element has a running transition for the property,
-        //    there is a matching transition-property value,
-        //    and the end value of the running transition is not equal to the value of the property in the after-change style, then:
-        if (has_running_transition && !existing_transition->transition_end_value()->equals(after_change_value)) {
-            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4. existing end value = {}, after change value = {}", existing_transition->transition_end_value()->to_string(SerializationMode::Normal), after_change_value.to_string(SerializationMode::Normal));
-            // 1. If the current value of the property in the running transition is equal to the value of the property in the after-change style,
-            //    or if these two values are not transitionable,
-            //    then implementations must cancel the running transition.
-            auto current_style_value = after_change_style->computed_style_value(property_id, ComputedValues::WithAnimationsApplied::Yes);
-            VERIFY(current_style_value);
-            auto const& current_value = *current_style_value;
-            if (current_value.equals(after_change_value) || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties.transition_behavior)) {
-                dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.1");
-                existing_transition->cancel();
-            }
-
-            // 2. Otherwise, if the combined duration is less than or equal to 0s,
-            //    or if the current value of the property in the running transition is not transitionable with the value of the property in the after-change style,
-            //    then implementations must cancel the running transition.
-            else if ((combined_duration(matching_transition_properties) <= 0)
-                || !property_values_are_transitionable(property_id, current_value, after_change_value, element, matching_transition_properties.transition_behavior)) {
-                dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.2");
-                existing_transition->cancel();
-            }
-
-            // 3. Otherwise, if the reversing-adjusted start value of the running transition is the same as the value of the property in the after-change style
-            //    (see the section on reversing of transitions for why these case exists),
-            else if (existing_transition->reversing_adjusted_start_value()->equals(after_change_value)) {
-                dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.3");
-                // implementations must cancel the running transition and start a new transition whose:
-                existing_transition->cancel();
-                // AD-HOC: Remove the cancelled transition, otherwise it breaks the invariant that there is only one
-                // running or completed transition for a property at once.
-                element.remove_transition(pseudo_element, property_id);
-
-                // - reversing-adjusted start value is the end value of the running transition,
-                auto reversing_adjusted_start_value = existing_transition->transition_end_value();
-
-                // - reversing shortening factor is the absolute value, clamped to the range [0, 1], of the sum of:
-                //   1. the output of the timing function of the old transition at the time of the style change event,
-                //      times the reversing shortening factor of the old transition
-                auto term_1 = existing_transition->timing_function_output_at_time(style_change_event_time) * existing_transition->reversing_shortening_factor();
-                //   2. 1 minus the reversing shortening factor of the old transition.
-                auto term_2 = 1 - existing_transition->reversing_shortening_factor();
-                double reversing_shortening_factor = clamp(abs(term_1 + term_2), 0.0, 1.0);
-
-                // AD-HOC: We pass delay to the constructor separately so we can use it to construct the contained KeyframeEffect
-                auto delay = (matching_transition_properties.delay >= 0
-                        ? (matching_transition_properties.delay)
-                        : (reversing_shortening_factor * matching_transition_properties.delay));
-
-                // - start time is the time of the style change event plus:
-                //   1. if the matching transition delay is nonnegative, the matching transition delay, or
-                //   2. if the matching transition delay is negative, the product of the new transition’s reversing shortening factor and the matching transition delay,
-                auto start_time = style_change_event_time;
-
-                // - end time is the start time plus the product of the matching transition duration and the new transition’s reversing shortening factor,
-                auto end_time = start_time + (matching_transition_properties.duration * reversing_shortening_factor);
-
-                // - start value is the current value of the property in the running transition,
-                auto const& start_value = current_value;
-
-                // - end value is the value of the property in the after-change style,
-                auto const& end_value = after_change_value;
-
-                start_a_transition(delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
-            }
-
-            // 4. Otherwise,
-            else {
-                dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.4");
-                // implementations must cancel the running transition and start a new transition whose:
-                existing_transition->cancel();
-                // AD-HOC: Remove the cancelled transition, otherwise it breaks the invariant that there is only one
-                // running or completed transition for a property at once.
-                element.remove_transition(pseudo_element, property_id);
-
-                // AD-HOC: We pass delay to the constructor separately so we can use it to construct the contained KeyframeEffect
-                auto delay = matching_transition_properties.delay;
-
-                // - start time is the time of the style change event plus the matching transition delay,
-                auto start_time = style_change_event_time;
-
-                // - end time is the start time plus the matching transition duration,
-                auto end_time = start_time + matching_transition_properties.duration;
-
-                // - start value is the current value of the property in the running transition,
-                auto const& start_value = current_value;
-
-                // - end value is the value of the property in the after-change style,
-                auto const& end_value = after_change_value;
-
-                // - reversing-adjusted start value is the same as the start value, and
-                auto const& reversing_adjusted_start_value = start_value;
-
-                // - reversing shortening factor is 1.
-                double reversing_shortening_factor = 1;
-
-                start_a_transition(delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
-            }
-        }
-    }
-
-    for (auto property_id : element.property_ids_with_existing_transitions(pseudo_element)) {
-        // 3. If the element has a running transition or completed transition for the property, and there is not a
-        //    matching transition-property value, then implementations must cancel the running transition or remove the
-        //    completed transition from the set of completed transitions.
-        if (element.property_transition_attributes(pseudo_element, property_id).has_value())
-            continue;
-
-        auto const& existing_transition = element.property_transition(pseudo_element, property_id);
-
-        dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 3.");
-        if (!existing_transition->is_finished() && !existing_transition->is_idle())
+        switch (action.kind) {
+        case StyleValueFFI::FfiTransitionActionKind::None:
+            break;
+        case StyleValueFFI::FfiTransitionActionKind::Remove:
+            remove_existing_transition();
+            break;
+        case StyleValueFFI::FfiTransitionActionKind::Cancel:
+            VERIFY(existing_transition);
             existing_transition->cancel();
-        else
-            element.remove_transition(pseudo_element, property_id);
+            break;
+        case StyleValueFFI::FfiTransitionActionKind::Start:
+            start_a_transition(*prepared_transition.before_change_value, *prepared_transition.after_change_value, *prepared_transition.before_change_value);
+            break;
+        case StyleValueFFI::FfiTransitionActionKind::RemoveAndStart:
+            remove_existing_transition();
+            start_a_transition(*prepared_transition.before_change_value, *prepared_transition.after_change_value, *prepared_transition.before_change_value);
+            break;
+        case StyleValueFFI::FfiTransitionActionKind::CancelRemoveAndStartReversing: {
+            VERIFY(existing_transition);
+            auto reversing_adjusted_start_value = existing_transition->transition_end_value();
+            cancel_and_remove_existing_transition();
+            start_a_transition(*prepared_transition.current_value, *prepared_transition.after_change_value, *reversing_adjusted_start_value);
+            break;
+        }
+        case StyleValueFFI::FfiTransitionActionKind::CancelRemoveAndStartInterrupted:
+            cancel_and_remove_existing_transition();
+            start_a_transition(*prepared_transition.current_value, *prepared_transition.after_change_value, *prepared_transition.current_value);
+            break;
+        }
     }
-
-    StyleValueFFI::rust_style_ffi_note_transition_action_batch();
 }
 
 StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::AbstractElement abstract_element, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode) const

@@ -23,6 +23,7 @@ pub mod property_metadata;
 mod selector_engine;
 pub mod style_compute;
 mod style_value;
+pub mod transition;
 
 use std::panic::AssertUnwindSafe;
 use std::panic::catch_unwind;
