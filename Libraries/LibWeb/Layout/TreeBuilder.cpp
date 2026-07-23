@@ -897,7 +897,8 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             auto& element = static_cast<DOM::Element&>(dom_node);
             computed_values = element.computed_values();
             display = computed_values->display();
-            if (display.is_contents()) {
+            auto box_generation = RustFFI::rust_principal_box_generation_decision(true, false, display.is_contents());
+            if (box_generation == RustFFI::FfiPrincipalBoxGenerationDecision::DisplayContents) {
                 should_clear_stale_layout_subtree_if_no_layout_node = false;
                 update_layout_tree_for_display_contents(element, context, must_create_subtree, should_create_layout_node);
                 return;
@@ -920,9 +921,10 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             update_style_if_needed_for_layout_tree_bypass_path(element);
             computed_values = element.computed_values();
             display = computed_values->display();
-            if (display.is_none())
+            auto box_generation = RustFFI::rust_principal_box_generation_decision(true, display.is_none(), display.is_contents());
+            if (box_generation == RustFFI::FfiPrincipalBoxGenerationDecision::Suppress)
                 return;
-            if (display.is_contents()) {
+            if (box_generation == RustFFI::FfiPrincipalBoxGenerationDecision::DisplayContents) {
                 should_clear_stale_layout_subtree_if_no_layout_node = false;
                 update_layout_tree_for_display_contents(element, context, must_create_subtree, should_create_layout_node);
                 return;
@@ -952,49 +954,53 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         }
     }
 
-    // Decide whether to replace an existing node (partial tree update) or insert a new one appropriately.
-    bool const may_replace_existing_layout_node = must_create_subtree == MustCreateSubtree::No
-        && old_layout_node
-        && old_layout_node->parent()
-        && old_layout_node != layout_node;
+    auto* dom_element = as_if<DOM::Element>(dom_node);
+    auto placement_decision = RustFFI::rust_principal_box_placement_decision({
+        .must_create_subtree = must_create_subtree == MustCreateSubtree::Yes,
+        .should_create_layout_node = should_create_layout_node,
+        .has_old_layout_node = old_layout_node != nullptr,
+        .old_layout_node_is_attached = old_layout_node && old_layout_node->parent(),
+        .old_and_new_layout_nodes_are_same = old_layout_node == layout_node,
+        .has_current_rebuild_root = m_current_rebuild_root != nullptr,
+        .is_document = dom_node.is_document(),
+        .is_element = dom_element != nullptr,
+        .rendered_in_top_layer = dom_element && dom_element->rendered_in_top_layer(),
+        .context_layout_top_layer = context.layout_top_layer,
+        .layout_node_is_svg_box = layout_node->is_svg_box(),
+    });
+
     Optional<TemporaryChange<Layout::Node*>> current_rebuild_root_change;
-    if (may_replace_existing_layout_node && !m_current_rebuild_root) {
+    if (placement_decision.start_rebuild_root) {
         current_rebuild_root_change.emplace(m_current_rebuild_root, layout_node.ptr());
         m_rebuilt_subtree_roots.append(layout_node.ptr());
-    } else if (should_create_layout_node && !old_layout_node && !m_current_rebuild_root && !dom_node.is_document()) {
+    } else if (placement_decision.mark_update_escaped_rebuild_roots) {
         // A fresh subtree that replaces no box in place (a ShadowRoot direct child, or a
         // top-layer element revealed from display:none) belongs to no rebuild root, so nothing
         // would lay its new boxes out on the partial path.
         m_layout_tree_update_escaped_rebuild_roots = true;
     }
 
-    if (dom_node.is_element() && should_create_layout_node) {
-        auto& element = static_cast<DOM::Element&>(dom_node);
-        if (element.rendered_in_top_layer() && context.layout_top_layer)
-            create_backdrop_for_top_layer_element_if_needed(element, old_layout_node, may_replace_existing_layout_node);
-    }
+    if (placement_decision.create_backdrop)
+        create_backdrop_for_top_layer_element_if_needed(*dom_element, old_layout_node, placement_decision.may_replace_existing_layout_node);
 
     // A top layer member nested inside this member must be skipped at its normal position
     // like anywhere else in the walk, so its own turn of the pass builds its viewport box.
     Optional<TemporaryChange<bool>> layout_top_layer_cleared_for_member_descendants;
-    if (auto* element = as_if<DOM::Element>(dom_node); element && element->rendered_in_top_layer() && context.layout_top_layer)
+    if (placement_decision.clear_layout_top_layer_for_descendants)
         layout_top_layer_cleared_for_member_descendants.emplace(context.layout_top_layer, false);
 
-    if (dom_node.is_document()) {
+    if (placement_decision.placement == RustFFI::FfiPrincipalBoxPlacement::DocumentRoot) {
         m_layout_root = layout_node;
-    } else if (should_create_layout_node) {
-        if (may_replace_existing_layout_node) {
-            transfer_saved_layout_state_to_replacement_box(*old_layout_node, *layout_node);
-            old_layout_node->prepare_subtree_for_detach_from_layout_tree();
-            old_layout_node->parent()->replace_child(*layout_node, *old_layout_node);
-        } else if (layout_node->is_svg_box()) {
-            current_parent().append_child(*layout_node);
-        } else {
-            insert_node_into_inline_or_block_ancestor(*layout_node, display, AppendOrPrepend::Append);
-        }
+    } else if (placement_decision.placement == RustFFI::FfiPrincipalBoxPlacement::ReplaceExisting) {
+        transfer_saved_layout_state_to_replacement_box(*old_layout_node, *layout_node);
+        old_layout_node->prepare_subtree_for_detach_from_layout_tree();
+        old_layout_node->parent()->replace_child(*layout_node, *old_layout_node);
+    } else if (placement_decision.placement == RustFFI::FfiPrincipalBoxPlacement::AppendSvg) {
+        current_parent().append_child(*layout_node);
+    } else if (placement_decision.placement == RustFFI::FfiPrincipalBoxPlacement::NormalInsertion) {
+        insert_node_into_inline_or_block_ancestor(*layout_node, display, AppendOrPrepend::Append);
     }
 
-    auto* dom_element = as_if<DOM::Element>(dom_node);
     auto shadow_root = dom_element ? dom_element->shadow_root() : nullptr;
 
     auto element_has_content_visibility_hidden = [&dom_node]() {

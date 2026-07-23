@@ -172,6 +172,108 @@ pub struct FfiPrincipalNodeEntryDecision {
     pub svg: FfiSvgEntryDecision,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiPrincipalBoxGenerationDecision {
+    Suppress,
+    DisplayContents,
+    PrincipalBox,
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_principal_box_generation_decision(
+    is_element: bool,
+    display_is_none: bool,
+    display_is_contents: bool,
+) -> FfiPrincipalBoxGenerationDecision {
+    abort_on_panic(|| {
+        if is_element && display_is_none {
+            FfiPrincipalBoxGenerationDecision::Suppress
+        } else if is_element && display_is_contents {
+            FfiPrincipalBoxGenerationDecision::DisplayContents
+        } else {
+            FfiPrincipalBoxGenerationDecision::PrincipalBox
+        }
+    })
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiPrincipalBoxPlacementFacts {
+    pub must_create_subtree: bool,
+    pub should_create_layout_node: bool,
+    pub has_old_layout_node: bool,
+    pub old_layout_node_is_attached: bool,
+    pub old_and_new_layout_nodes_are_same: bool,
+    pub has_current_rebuild_root: bool,
+    pub is_document: bool,
+    pub is_element: bool,
+    pub rendered_in_top_layer: bool,
+    pub context_layout_top_layer: bool,
+    pub layout_node_is_svg_box: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiPrincipalBoxPlacement {
+    None,
+    DocumentRoot,
+    ReplaceExisting,
+    AppendSvg,
+    NormalInsertion,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiPrincipalBoxPlacementDecision {
+    pub placement: FfiPrincipalBoxPlacement,
+    pub may_replace_existing_layout_node: bool,
+    pub start_rebuild_root: bool,
+    pub mark_update_escaped_rebuild_roots: bool,
+    pub create_backdrop: bool,
+    pub clear_layout_top_layer_for_descendants: bool,
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_principal_box_placement_decision(
+    facts: FfiPrincipalBoxPlacementFacts,
+) -> FfiPrincipalBoxPlacementDecision {
+    abort_on_panic(|| {
+        let may_replace_existing_layout_node = !facts.must_create_subtree
+            && facts.has_old_layout_node
+            && facts.old_layout_node_is_attached
+            && !facts.old_and_new_layout_nodes_are_same;
+        let start_rebuild_root = may_replace_existing_layout_node && !facts.has_current_rebuild_root;
+        let mark_update_escaped_rebuild_roots = facts.should_create_layout_node
+            && !facts.has_old_layout_node
+            && !facts.has_current_rebuild_root
+            && !facts.is_document;
+
+        let placement = if facts.is_document {
+            FfiPrincipalBoxPlacement::DocumentRoot
+        } else if !facts.should_create_layout_node {
+            FfiPrincipalBoxPlacement::None
+        } else if may_replace_existing_layout_node {
+            FfiPrincipalBoxPlacement::ReplaceExisting
+        } else if facts.layout_node_is_svg_box {
+            FfiPrincipalBoxPlacement::AppendSvg
+        } else {
+            FfiPrincipalBoxPlacement::NormalInsertion
+        };
+
+        let is_active_top_layer_member =
+            facts.is_element && facts.rendered_in_top_layer && facts.context_layout_top_layer;
+        FfiPrincipalBoxPlacementDecision {
+            placement,
+            may_replace_existing_layout_node,
+            start_rebuild_root,
+            mark_update_escaped_rebuild_roots,
+            create_backdrop: facts.should_create_layout_node && is_active_top_layer_member,
+            clear_layout_top_layer_for_descendants: is_active_top_layer_member,
+        }
+    })
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_principal_node_entry_decision(
     facts: FfiPrincipalNodeEntryFacts,
@@ -1870,11 +1972,13 @@ pub unsafe extern "C" fn rust_fixup_tables(callbacks: *const FfiTreeBuilderCallb
 #[cfg(test)]
 mod tests {
     use super::{
-        FfiComputedContentType, FfiFirstLetterCodePointFacts, FfiFirstLetterTextCallbacks, FfiPrincipalNodeEntryFacts,
-        FfiPseudoElement, FfiPseudoElementDecision, FfiPseudoElementFacts, FfiReplacedElementDisplayAdjustment,
-        FfiSvgEntryDecision, FfiTopLayerEntryDecision, FirstLetterTextHost, find_first_letter_in_text,
-        rust_adjusted_table_display_for_replaced_element, rust_principal_node_entry_decision,
-        rust_pseudo_element_decision,
+        FfiComputedContentType, FfiFirstLetterCodePointFacts, FfiFirstLetterTextCallbacks,
+        FfiPrincipalBoxGenerationDecision, FfiPrincipalBoxPlacement, FfiPrincipalBoxPlacementFacts,
+        FfiPrincipalNodeEntryFacts, FfiPseudoElement, FfiPseudoElementDecision, FfiPseudoElementFacts,
+        FfiReplacedElementDisplayAdjustment, FfiSvgEntryDecision, FfiTopLayerEntryDecision, FirstLetterTextHost,
+        find_first_letter_in_text, rust_adjusted_table_display_for_replaced_element,
+        rust_principal_box_generation_decision, rust_principal_box_placement_decision,
+        rust_principal_node_entry_decision, rust_pseudo_element_decision,
     };
     use std::ffi::c_void;
 
@@ -2105,5 +2209,47 @@ mod tests {
         let decision = rust_principal_node_entry_decision(facts);
         assert!(decision.should_create_layout_node);
         assert_eq!(decision.svg, FfiSvgEntryDecision::EnterSvgRoot);
+    }
+
+    #[test]
+    fn principal_box_generation_and_placement_decisions() {
+        assert_eq!(
+            rust_principal_box_generation_decision(true, true, false),
+            FfiPrincipalBoxGenerationDecision::Suppress
+        );
+        assert_eq!(
+            rust_principal_box_generation_decision(true, false, true),
+            FfiPrincipalBoxGenerationDecision::DisplayContents
+        );
+        assert_eq!(
+            rust_principal_box_generation_decision(false, false, false),
+            FfiPrincipalBoxGenerationDecision::PrincipalBox
+        );
+
+        let mut facts = FfiPrincipalBoxPlacementFacts {
+            must_create_subtree: false,
+            should_create_layout_node: true,
+            has_old_layout_node: true,
+            old_layout_node_is_attached: true,
+            old_and_new_layout_nodes_are_same: false,
+            has_current_rebuild_root: false,
+            is_document: false,
+            is_element: true,
+            rendered_in_top_layer: true,
+            context_layout_top_layer: true,
+            layout_node_is_svg_box: false,
+        };
+        let decision = rust_principal_box_placement_decision(facts);
+        assert_eq!(decision.placement, FfiPrincipalBoxPlacement::ReplaceExisting);
+        assert!(decision.start_rebuild_root);
+        assert!(decision.create_backdrop);
+        assert!(decision.clear_layout_top_layer_for_descendants);
+
+        facts.has_old_layout_node = false;
+        facts.old_layout_node_is_attached = false;
+        facts.layout_node_is_svg_box = true;
+        let decision = rust_principal_box_placement_decision(facts);
+        assert_eq!(decision.placement, FfiPrincipalBoxPlacement::AppendSvg);
+        assert!(decision.mark_update_escaped_rebuild_roots);
     }
 }
