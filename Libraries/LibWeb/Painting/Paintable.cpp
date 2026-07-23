@@ -823,6 +823,47 @@ CSSPixelPoint Paintable::scroll_offset() const
     return {};
 }
 
+static Optional<CompositorScrollNodeKind> scroll_node_kind_for(Paintable const& paintable_box)
+{
+    if (paintable_box.is_viewport_paintable())
+        return CompositorScrollNodeKind::Viewport;
+    if (paintable_box.layout_node().generated_for_pseudo_element().has_value())
+        return CompositorScrollNodeKind::PseudoElement;
+    if (paintable_box.dom_node() && is<DOM::Element>(*paintable_box.dom_node()))
+        return CompositorScrollNodeKind::Element;
+    return {};
+}
+
+static UniqueNodeID scrollable_node_id_for(Paintable const& paintable_box)
+{
+    if (paintable_box.is_viewport_paintable())
+        return paintable_box.document().unique_id();
+    if (paintable_box.layout_node().generated_for_pseudo_element().has_value())
+        return paintable_box.layout_node().pseudo_element_generator()->unique_id();
+    return paintable_box.dom_node()->unique_id();
+}
+
+static u8 pseudo_element_type_for(Paintable const& paintable_box)
+{
+    auto pseudo_element = paintable_box.layout_node().generated_for_pseudo_element();
+    if (!pseudo_element.has_value())
+        return 0;
+    return static_cast<u8>(to_underlying(*pseudo_element));
+}
+
+Optional<Compositor::AsyncScrollNodeStableID> Paintable::async_scroll_node_stable_id() const
+{
+    auto scroll_node_kind = scroll_node_kind_for(*this);
+    if (!scroll_node_kind.has_value())
+        return {};
+
+    return Compositor::AsyncScrollNodeStableID {
+        .node_id = scrollable_node_id_for(*this),
+        .kind = Compositor::async_scroll_node_kind_for(*scroll_node_kind),
+        .pseudo_element_type = pseudo_element_type_for(*this),
+    };
+}
+
 CSSPixelPoint Paintable::minimum_scroll_offset() const
 {
     auto scrollable_overflow_rect = this->scrollable_overflow_rect();
@@ -950,7 +991,7 @@ Paintable::ScrollHandled Paintable::set_scroll_offset_from_user_input(CSSPixelPo
 
     if (scroll_handled == ScrollHandled::Yes) {
         if (auto event_target = scroll_event_target())
-            navigable->queue_scrollend_event_after_user_scroll(*event_target);
+            navigable->queue_scrollend_event_after_user_scroll(*event_target, async_scroll_node_stable_id());
     } else {
         // User input keeps the scroll gesture in progress even when it does not move the scrolling box.
         navigable->defer_user_scroll_settlement();

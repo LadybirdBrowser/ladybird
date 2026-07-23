@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/GridTrackSize.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -359,6 +360,8 @@ public:
     ScrollHandled set_scroll_offset_from_user_input(CSSPixelPoint);
     ScrollHandled scroll_by(double delta_x, double delta_y);
     void scroll_into_view(CSSPixelRect);
+
+    Optional<Compositor::AsyncScrollNodeStableID> async_scroll_node_stable_id() const;
 
     CSSPixelSize content_size() const;
     CSSPixels content_width() const { return content_size().width(); }
