@@ -1,0 +1,3 @@
+normal
+center
+C++ interpolation fallbacks: 0

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+    #target {
+        object-position: 0% 20%;
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const animation = target.animate({ objectPosition: ["0% 20%", "100% 60%"] }, 100);
+        animation.pause();
+        animation.currentTime = 50;
+
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+        println(getComputedStyle(target).objectPosition);
+        println(`C++ interpolation fallbacks: ${internals.styleFfiCounters().animationCppInterpolationFallbacks}`);
+    });
+</script>

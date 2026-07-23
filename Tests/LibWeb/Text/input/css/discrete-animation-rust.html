@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<style>
+    #target {
+        display: grid;
+        align-content: normal;
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const animation = target.animate({ alignContent: ["normal", "center"] }, 100);
+        animation.pause();
+
+        internals.resetStyleFfiCounters();
+        animation.currentTime = 25;
+        println(getComputedStyle(target).alignContent);
+
+        animation.currentTime = 75;
+        println(getComputedStyle(target).alignContent);
+        println(`C++ interpolation fallbacks: ${internals.styleFfiCounters().animationCppInterpolationFallbacks}`);
+    });
+</script>
