@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+    #target {
+        color: rgb(20, 40, 60);
+        font-size: 4px;
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        internals.resetStyleFfiCounters();
+
+        const boxShadowAnimation = target.animate(
+            { boxShadow: ["inset 0 0 0 0 black", "inset 8px 12px 4px calc(max(10em, 20px) / 2) white"] },
+            100
+        );
+        boxShadowAnimation.pause();
+        boxShadowAnimation.currentTime = 50;
+        println(getComputedStyle(target).boxShadow);
+        boxShadowAnimation.cancel();
+
+        const textShadowAnimation = target.animate(
+            { textShadow: ["currentcolor 0 0", "rgb(220, 140, 100) 8px 12px 4px"] },
+            100
+        );
+        textShadowAnimation.pause();
+        textShadowAnimation.currentTime = 50;
+        println(getComputedStyle(target).textShadow);
+        textShadowAnimation.cancel();
+
+        println(`C++ interpolation fallbacks: ${internals.styleFfiCounters().animationCppInterpolationFallbacks}`);
+    });
+</script>

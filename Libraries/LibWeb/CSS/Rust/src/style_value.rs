@@ -323,6 +323,13 @@ pub struct RetainedUtf16FlyStringList {
 }
 
 impl RetainedUtf16FlyStringList {
+    pub(crate) fn from_retained_strings(strings: Vec<RetainedUtf16FlyString>) -> Self {
+        let slice = strings.into_boxed_slice();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedUtf16FlyString;
+        Self { pointer, length }
+    }
+
     /// Takes ownership of one leaked reference to each string.
     ///
     /// # Safety
@@ -336,6 +343,22 @@ impl RetainedUtf16FlyStringList {
         let length = slice.len();
         let pointer = Box::into_raw(slice) as *mut RetainedUtf16FlyString;
         Self { pointer, length }
+    }
+
+    pub(crate) fn clone_retained(&self) -> Self {
+        Self::from_retained_strings(
+            self.as_slice()
+                .iter()
+                .map(|string| unsafe { RetainedUtf16FlyString::from_borrowed_raw(string.raw()) })
+                .collect(),
+        )
+    }
+
+    pub(crate) fn as_slice(&self) -> &[RetainedUtf16FlyString] {
+        if self.pointer.is_null() {
+            return &[];
+        }
+        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
     }
 }
 
@@ -445,8 +468,21 @@ impl RetainedShapePoint {
     pub(crate) fn values(&self) -> [&RetainedStyleValueData; 2] {
         [&self.x, &self.y]
     }
+
+    pub(crate) fn from_retained_values(x: RetainedStyleValueData, y: RetainedStyleValueData) -> Self {
+        Self { x, y }
+    }
 }
 retained_list_as_slice!(RetainedShapePointList, RetainedShapePoint);
+
+impl RetainedShapePointList {
+    pub(crate) fn from_retained_points(points: Vec<RetainedShapePoint>) -> Self {
+        let slice = points.into_boxed_slice();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedShapePoint;
+        Self { pointer, length }
+    }
+}
 
 impl RetainedColorStop {
     /// The stop's retained values, absent ones as null retained references.
@@ -533,17 +569,17 @@ pub struct RetainedGridTrackEntryList {
 /// A retained, Rust-owned grid track list entry (see [`GridTrackEntryInput`] for the kinds).
 #[repr(C)]
 pub struct RetainedGridTrackEntry {
-    kind: u8,
-    names: RetainedUtf16FlyStringList,
-    size_value: RetainedStyleValueData,
-    min_value: RetainedStyleValueData,
-    max_value: RetainedStyleValueData,
-    repeat_type: u8,
-    repeat_count: RetainedStyleValueData,
-    repeat_is_subgrid: bool,
-    repeat_preserve_line_name_sets: bool,
-    repeat_entries_pointer: *mut RetainedGridTrackEntry,
-    repeat_entries_length: usize,
+    pub(crate) kind: u8,
+    pub(crate) names: RetainedUtf16FlyStringList,
+    pub(crate) size_value: RetainedStyleValueData,
+    pub(crate) min_value: RetainedStyleValueData,
+    pub(crate) max_value: RetainedStyleValueData,
+    pub(crate) repeat_type: u8,
+    pub(crate) repeat_count: RetainedStyleValueData,
+    pub(crate) repeat_is_subgrid: bool,
+    pub(crate) repeat_preserve_line_name_sets: bool,
+    pub(crate) repeat_entries_pointer: *mut RetainedGridTrackEntry,
+    pub(crate) repeat_entries_length: usize,
 }
 
 impl Drop for RetainedGridTrackEntry {
@@ -560,6 +596,20 @@ impl Drop for RetainedGridTrackEntry {
 }
 
 impl RetainedGridTrackEntryList {
+    pub(crate) fn as_slice(&self) -> &[RetainedGridTrackEntry] {
+        if self.pointer.is_null() {
+            return &[];
+        }
+        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+    }
+
+    pub(crate) fn from_retained_entries(entries: Vec<RetainedGridTrackEntry>) -> Self {
+        let slice = entries.into_boxed_slice();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedGridTrackEntry;
+        Self { pointer, length }
+    }
+
     /// Takes ownership of the entries' retained values and names, recursively for nested
     /// repeat lists.
     ///
@@ -664,9 +714,9 @@ impl RetainedNumericRangeList {
 /// which color variant it has.
 #[repr(C)]
 pub struct ColorBase {
-    has_color_type: bool,
-    color_type: u8,
-    color_syntax: u8,
+    pub(crate) has_color_type: bool,
+    pub(crate) color_type: u8,
+    pub(crate) color_syntax: u8,
 }
 
 /// The data of a single immutable CSS style value.

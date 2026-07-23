@@ -1337,8 +1337,28 @@ void StyleComputer::collect_animation_effect_into(DOM::AbstractElement abstract_
         });
     }
 
+    auto animation_font_metrics = [](Length::FontMetrics const& metrics) {
+        return StyleValueFFI::FfiAnimationFontMetrics {
+            .font_size = metrics.font_size.to_double(),
+            .x_height = metrics.x_height.to_double(),
+            .cap_height = metrics.cap_height.to_double(),
+            .zero_advance = metrics.zero_advance.to_double(),
+            .line_height = metrics.line_height.to_double(),
+        };
+    };
+    auto const& resolution_context = color_computation_context.length_resolution_context;
     StyleValueFFI::FfiAnimationContext animation_context {
         .allow_discrete = true,
+        .current_color = computed_properties.property(PropertyID::Color).rust_style_value_data(),
+        .has_length_resolution_context = true,
+        .length_resolution_context = {
+            .viewport_width = resolution_context.viewport_rect.width().to_double(),
+            .viewport_height = resolution_context.viewport_rect.height().to_double(),
+            .font_metrics = animation_font_metrics(resolution_context.font_metrics),
+            .root_font_metrics = animation_font_metrics(resolution_context.root_font_metrics),
+            .font_metrics_depend_on_viewport_metrics = resolution_context.font_metrics_depend_on_viewport_metrics,
+            .root_font_metrics_depend_on_viewport_metrics = resolution_context.root_font_metrics_depend_on_viewport_metrics,
+        },
         .has_transform_reference_box = false,
         .transform_reference_box_width = 0,
         .transform_reference_box_height = 0,

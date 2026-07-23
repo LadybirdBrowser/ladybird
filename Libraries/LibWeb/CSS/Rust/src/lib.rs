@@ -11,6 +11,7 @@ mod rust_allocator;
 pub mod animation;
 pub mod calc;
 pub mod cascaded_properties;
+mod color_conversion;
 pub mod computed_values;
 pub mod css_enums;
 pub mod css_pixels;

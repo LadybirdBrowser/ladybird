@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 364 tests
 
-354 Pass
-10 Fail
+364 Pass
 Pass	Compositing CSS Animations: property <backdrop-filter> underlying [blur(10px)] from add [blur(40px)] to add [blur(90px)] at (-0.5) should be [blur(10px) blur(15px)]
 Pass	Compositing CSS Animations: property <backdrop-filter> underlying [blur(10px)] from add [blur(40px)] to add [blur(90px)] at (0) should be [blur(10px) blur(40px)]
 Pass	Compositing CSS Animations: property <backdrop-filter> underlying [blur(10px)] from add [blur(40px)] to add [blur(90px)] at (0.25) should be [blur(10px) blur(52.5px)]
@@ -60,18 +59,18 @@ Pass	Compositing Web Animations: property <backdrop-filter> underlying [invert(0
 Pass	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [saturate(2)] to add [saturate(3)] at (0.75) should be [invert(0.5) saturate(2.75)]
 Pass	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [saturate(2)] to add [saturate(3)] at (1) should be [invert(0.5) saturate(3)]
 Pass	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [saturate(2)] to add [saturate(3)] at (1.5) should be [invert(0.5) saturate(3.5)]
-Fail	Compositing CSS Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (-0.5) should be [invert(0.25) saturate(0)]
-Fail	Compositing CSS Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0) should be [invert(0.5) saturate(1)]
-Fail	Compositing CSS Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0.25) should be [invert(0.625) saturate(1.5)]
-Fail	Compositing CSS Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0.5) should be [invert(0.75) saturate(2)]
-Fail	Compositing CSS Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0.75) should be [invert(0.875) saturate(2.5)]
+Pass	Compositing CSS Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (-0.5) should be [invert(0.25) saturate(0)]
+Pass	Compositing CSS Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0) should be [invert(0.5) saturate(1)]
+Pass	Compositing CSS Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0.25) should be [invert(0.625) saturate(1.5)]
+Pass	Compositing CSS Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0.5) should be [invert(0.75) saturate(2)]
+Pass	Compositing CSS Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0.75) should be [invert(0.875) saturate(2.5)]
 Pass	Compositing CSS Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (1) should be [invert(1) saturate(3)]
 Pass	Compositing CSS Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (1.5) should be [invert(1.25) saturate(4)]
-Fail	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (-0.5) should be [invert(0.25) saturate(0)]
-Fail	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0) should be [invert(0.5) saturate(1)]
-Fail	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0.25) should be [invert(0.625) saturate(1.5)]
-Fail	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0.5) should be [invert(0.75) saturate(2)]
-Fail	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0.75) should be [invert(0.875) saturate(2.5)]
+Pass	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (-0.5) should be [invert(0.25) saturate(0)]
+Pass	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0) should be [invert(0.5) saturate(1)]
+Pass	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0.25) should be [invert(0.625) saturate(1.5)]
+Pass	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0.5) should be [invert(0.75) saturate(2)]
+Pass	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (0.75) should be [invert(0.875) saturate(2.5)]
 Pass	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (1) should be [invert(1) saturate(3)]
 Pass	Compositing Web Animations: property <backdrop-filter> underlying [invert(0.5)] from add [none] to replace [invert(1) saturate(3)] at (1.5) should be [invert(1.25) saturate(4)]
 Pass	Compositing CSS Animations: property <backdrop-filter> underlying [grayscale(25%) blur(10px)] from add [brightness(0)] to add [brightness(1)] at (-0.5) should be [grayscale(25%) blur(10px) brightness(0)]

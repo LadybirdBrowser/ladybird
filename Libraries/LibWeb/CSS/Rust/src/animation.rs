@@ -13,8 +13,9 @@ use std::sync::Arc;
 
 use crate::property_metadata::{property_animation_type, property_numeric_ranges};
 use crate::style_value::{
-    RetainedNumericRangeList, RetainedStyleValueData, RetainedStyleValueDataList, RetainedUtf16FlyString,
-    StyleValueData,
+    ColorBase, RetainedGridTrackEntry, RetainedGridTrackEntryList, RetainedNumericRangeList, RetainedShapePoint,
+    RetainedShapePointList, RetainedStyleValueData, RetainedStyleValueDataList, RetainedUtf16FlyString,
+    RetainedUtf16FlyStringList, StyleValueData,
 };
 
 const ANIMATION_TYPE_BY_COMPUTED_VALUE: u8 = 1;
@@ -58,6 +59,33 @@ const STEP_POSITION_JUMP_START: u8 = 0;
 const STEP_POSITION_JUMP_NONE: u8 = 2;
 const STEP_POSITION_JUMP_BOTH: u8 = 3;
 const STEP_POSITION_START: u8 = 4;
+const GRID_TRACK_ENTRY_LINE_NAMES: u8 = 0;
+const GRID_TRACK_ENTRY_SIZE: u8 = 1;
+const GRID_TRACK_ENTRY_MINMAX: u8 = 2;
+const GRID_TRACK_ENTRY_REPEAT: u8 = 3;
+const GRID_REPEAT_FIXED: u8 = 2;
+const BASIC_SHAPE_INSET: u8 = 0;
+const BASIC_SHAPE_CIRCLE: u8 = 3;
+const BASIC_SHAPE_ELLIPSE: u8 = 4;
+const BASIC_SHAPE_POLYGON: u8 = 5;
+const COLOR_TYPE_RGB: u8 = 0;
+const COLOR_TYPE_A98_RGB: u8 = 1;
+const COLOR_TYPE_DISPLAY_P3: u8 = 2;
+const COLOR_TYPE_DISPLAY_P3_LINEAR: u8 = 3;
+const COLOR_TYPE_HSL: u8 = 4;
+const COLOR_TYPE_HWB: u8 = 5;
+const COLOR_TYPE_LAB: u8 = 6;
+const COLOR_TYPE_LCH: u8 = 7;
+const COLOR_TYPE_OKLAB: u8 = 8;
+const COLOR_TYPE_OKLCH: u8 = 9;
+const COLOR_TYPE_SRGB: u8 = 10;
+const COLOR_TYPE_SRGB_LINEAR: u8 = 11;
+const COLOR_TYPE_PROPHOTO_RGB: u8 = 12;
+const COLOR_TYPE_REC2020: u8 = 13;
+const COLOR_TYPE_XYZ_D50: u8 = 14;
+const COLOR_TYPE_XYZ_D65: u8 = 15;
+const COLOR_SYNTAX_LEGACY: u8 = 0;
+const COLOR_SYNTAX_MODERN: u8 = 1;
 
 #[derive(Clone, Copy)]
 struct NumericRangeOverride {
@@ -78,6 +106,18 @@ const BORDER_RADIUS_RECT_RANGES: &[NumericRangeOverride] = &[
         max: f32::MAX as f64,
     },
 ];
+
+const RADIAL_SIZE_RANGES: &[NumericRangeOverride] = &[NumericRangeOverride {
+    value_type: VALUE_TYPE_LENGTH,
+    min: 0.0,
+    max: f32::MAX as f64,
+}];
+
+const NONNEGATIVE_LENGTH_RANGE: &[NumericRangeOverride] = &[NumericRangeOverride {
+    value_type: VALUE_TYPE_LENGTH,
+    min: 0.0,
+    max: f32::MAX as f64,
+}];
 
 #[repr(C)]
 pub struct FfiAnimationValueResult {
@@ -350,8 +390,30 @@ fn evaluate_easing_descriptor(descriptor: &FfiEasingDescriptor, input_progress: 
 }
 
 #[repr(C)]
+pub struct FfiAnimationFontMetrics {
+    pub font_size: f64,
+    pub x_height: f64,
+    pub cap_height: f64,
+    pub zero_advance: f64,
+    pub line_height: f64,
+}
+
+#[repr(C)]
+pub struct FfiAnimationLengthResolutionContext {
+    pub viewport_width: f64,
+    pub viewport_height: f64,
+    pub font_metrics: FfiAnimationFontMetrics,
+    pub root_font_metrics: FfiAnimationFontMetrics,
+    pub font_metrics_depend_on_viewport_metrics: bool,
+    pub root_font_metrics_depend_on_viewport_metrics: bool,
+}
+
+#[repr(C)]
 pub struct FfiAnimationContext {
     pub allow_discrete: bool,
+    pub current_color: *const StyleValueData,
+    pub has_length_resolution_context: bool,
+    pub length_resolution_context: FfiAnimationLengthResolutionContext,
     pub has_transform_reference_box: bool,
     pub transform_reference_box_width: f64,
     pub transform_reference_box_height: f64,
@@ -786,6 +848,35 @@ fn length_percentage_calculation_node(value: &StyleValueData) -> Option<Arc<crat
     }
 }
 
+fn retained_length_percentage_calculation(
+    calculation: Arc<crate::calc::CalcNode>,
+    resolved_type: crate::calc::FfiNumericType,
+) -> RetainedStyleValueData {
+    let value = match &*calculation {
+        crate::calc::CalcNode::Numeric(crate::calc::CalcNumericValue::Length { value, unit }) => {
+            StyleValueData::Length {
+                value: *value,
+                unit: *unit,
+            }
+        }
+        crate::calc::CalcNode::Numeric(crate::calc::CalcNumericValue::Percentage(value)) => {
+            StyleValueData::Percentage { value: *value }
+        }
+        _ => StyleValueData::Calculated {
+            rust_calculation: crate::calc::CalcNodeHandle::from_arc(calculation),
+            resolve_as_is_number: false,
+            resolve_as_base: 0,
+            resolved_type,
+            has_percentages_resolve_as: true,
+            percentages_resolve_as: VALUE_TYPE_LENGTH,
+            resolve_numbers_as_integers: false,
+            accepted_ranges: RetainedNumericRangeList::empty(),
+        },
+    };
+    let value = Arc::into_raw(Arc::new(value));
+    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+}
+
 fn interpolate_translate_component(
     property_id: u16,
     from: &StyleValueData,
@@ -820,29 +911,7 @@ fn interpolate_translate_component(
     let from = length_percentage_calculation_node(from)?;
     let to = length_percentage_calculation_node(to)?;
     let (calculation, resolved_type) = crate::calc::interpolate_length_percentage_calculations(from, to, delta)?;
-    let value = match &*calculation {
-        crate::calc::CalcNode::Numeric(crate::calc::CalcNumericValue::Length { value, unit }) => {
-            StyleValueData::Length {
-                value: *value,
-                unit: *unit,
-            }
-        }
-        crate::calc::CalcNode::Numeric(crate::calc::CalcNumericValue::Percentage(value)) => {
-            StyleValueData::Percentage { value: *value }
-        }
-        _ => StyleValueData::Calculated {
-            rust_calculation: crate::calc::CalcNodeHandle::from_arc(calculation),
-            resolve_as_is_number: false,
-            resolve_as_base: 0,
-            resolved_type,
-            has_percentages_resolve_as: true,
-            percentages_resolve_as: VALUE_TYPE_LENGTH,
-            resolve_numbers_as_integers: false,
-            accepted_ranges: RetainedNumericRangeList::empty(),
-        },
-    };
-    let value = Arc::into_raw(Arc::new(value));
-    Some(unsafe { RetainedStyleValueData::from_retained_pointer(value) })
+    Some(retained_length_percentage_calculation(calculation, resolved_type))
 }
 
 fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32) -> FfiAnimationValueResult {
@@ -1077,6 +1146,1185 @@ fn radius_components_equal(first: &StyleValueData, second: &StyleValueData) -> b
     }
 }
 
+struct ExpandedGridTrack<'a> {
+    track: &'a RetainedGridTrackEntry,
+    line_names: Option<&'a RetainedUtf16FlyStringList>,
+}
+
+fn empty_retained_style_value() -> RetainedStyleValueData {
+    unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) }
+}
+
+fn empty_grid_line_names() -> RetainedUtf16FlyStringList {
+    RetainedUtf16FlyStringList::from_retained_strings(Vec::new())
+}
+
+fn grid_nested_entries(entry: &RetainedGridTrackEntry) -> &[RetainedGridTrackEntry] {
+    if entry.repeat_entries_pointer.is_null() {
+        return &[];
+    }
+    unsafe { std::slice::from_raw_parts(entry.repeat_entries_pointer, entry.repeat_entries_length) }
+}
+
+fn grid_entries_into_raw_parts(entries: Vec<RetainedGridTrackEntry>) -> (*mut RetainedGridTrackEntry, usize) {
+    let entries = entries.into_boxed_slice();
+    let length = entries.len();
+    (Box::into_raw(entries) as *mut RetainedGridTrackEntry, length)
+}
+
+fn clone_grid_track_entry(entry: &RetainedGridTrackEntry) -> RetainedGridTrackEntry {
+    let (repeat_entries_pointer, repeat_entries_length) =
+        grid_entries_into_raw_parts(grid_nested_entries(entry).iter().map(clone_grid_track_entry).collect());
+    RetainedGridTrackEntry {
+        kind: entry.kind,
+        names: entry.names.clone_retained(),
+        size_value: entry.size_value.clone_retained(),
+        min_value: entry.min_value.clone_retained(),
+        max_value: entry.max_value.clone_retained(),
+        repeat_type: entry.repeat_type,
+        repeat_count: entry.repeat_count.clone_retained(),
+        repeat_is_subgrid: entry.repeat_is_subgrid,
+        repeat_preserve_line_name_sets: entry.repeat_preserve_line_name_sets,
+        repeat_entries_pointer,
+        repeat_entries_length,
+    }
+}
+
+fn grid_line_names_entry(names: &RetainedUtf16FlyStringList) -> RetainedGridTrackEntry {
+    RetainedGridTrackEntry {
+        kind: GRID_TRACK_ENTRY_LINE_NAMES,
+        names: names.clone_retained(),
+        size_value: empty_retained_style_value(),
+        min_value: empty_retained_style_value(),
+        max_value: empty_retained_style_value(),
+        repeat_type: 0,
+        repeat_count: empty_retained_style_value(),
+        repeat_is_subgrid: false,
+        repeat_preserve_line_name_sets: false,
+        repeat_entries_pointer: std::ptr::null_mut(),
+        repeat_entries_length: 0,
+    }
+}
+
+fn expand_grid_tracks_and_lines(entries: &[RetainedGridTrackEntry]) -> Option<Vec<ExpandedGridTrack<'_>>> {
+    let mut result = Vec::new();
+    let mut current_track = None;
+    let mut current_line_names = None;
+
+    for entry in entries {
+        if entry.kind == GRID_TRACK_ENTRY_LINE_NAMES {
+            if current_line_names.is_some() {
+                return None;
+            }
+            current_line_names = Some(&entry.names);
+        } else if matches!(
+            entry.kind,
+            GRID_TRACK_ENTRY_SIZE | GRID_TRACK_ENTRY_MINMAX | GRID_TRACK_ENTRY_REPEAT
+        ) {
+            if let Some(track) = current_track.take() {
+                result.push(ExpandedGridTrack {
+                    track,
+                    line_names: current_line_names.take(),
+                });
+            }
+            current_track = Some(entry);
+        } else {
+            return None;
+        }
+
+        if current_track.is_some() && current_line_names.is_some() {
+            result.push(ExpandedGridTrack {
+                track: current_track.take().expect("checked above"),
+                line_names: current_line_names.take(),
+            });
+        }
+    }
+    if let Some(track) = current_track {
+        result.push(ExpandedGridTrack {
+            track,
+            line_names: current_line_names,
+        });
+    }
+    Some(result)
+}
+
+fn append_grid_track_with_line_names(
+    result: &mut Vec<RetainedGridTrackEntry>,
+    track: RetainedGridTrackEntry,
+    line_names: Option<&RetainedUtf16FlyStringList>,
+) {
+    result.push(track);
+    if let Some(line_names) = line_names {
+        result.push(grid_line_names_entry(line_names));
+    }
+}
+
+fn interpolate_grid_component(
+    property_id: u16,
+    from: &RetainedStyleValueData,
+    to: &RetainedStyleValueData,
+    delta: f32,
+) -> RetainedStyleValueData {
+    if let Some(value) = interpolate_translate_component(property_id, from.data(), to.data(), delta) {
+        return value;
+    }
+    if delta < 0.5 {
+        from.clone_retained()
+    } else {
+        to.clone_retained()
+    }
+}
+
+fn interpolate_grid_track_entries(
+    property_id: u16,
+    from_is_subgrid: bool,
+    from_entries: &[RetainedGridTrackEntry],
+    to_is_subgrid: bool,
+    to_entries: &[RetainedGridTrackEntry],
+    delta: f32,
+) -> Option<Vec<RetainedGridTrackEntry>> {
+    // https://drafts.csswg.org/css-grid-2/#track-sizing
+    // Animation type: if the list lengths match, by computed value type per item in the computed track list;
+    // discrete otherwise.
+    //
+    // https://drafts.csswg.org/css-grid-2/#computed-track-list-subgrid
+    // The computed track list of a subgrid axis is the subgrid keyword followed by a list of line names.
+    if from_is_subgrid || to_is_subgrid {
+        return None;
+    }
+
+    let expanded_from = expand_grid_tracks_and_lines(from_entries)?;
+    let expanded_to = expand_grid_tracks_and_lines(to_entries)?;
+    if expanded_from.len() != expanded_to.len() {
+        return None;
+    }
+
+    let mut result = Vec::new();
+    for (from, to) in expanded_from.iter().zip(&expanded_to) {
+        let line_names = if delta < 0.5 { from.line_names } else { to.line_names };
+        let track = match (from.track.kind, to.track.kind) {
+            (GRID_TRACK_ENTRY_REPEAT, GRID_TRACK_ENTRY_REPEAT) => {
+                // https://drafts.csswg.org/css-grid/#repeat-interpolation
+                if from.track.repeat_type != GRID_REPEAT_FIXED || to.track.repeat_type != GRID_REPEAT_FIXED {
+                    return None;
+                }
+                let (StyleValueData::Integer { value: from_count }, StyleValueData::Integer { value: to_count }) =
+                    (from.track.repeat_count.data(), to.track.repeat_count.data())
+                else {
+                    return None;
+                };
+                if from_count != to_count {
+                    return None;
+                }
+                let nested = interpolate_grid_track_entries(
+                    property_id,
+                    from.track.repeat_is_subgrid,
+                    grid_nested_entries(from.track),
+                    to.track.repeat_is_subgrid,
+                    grid_nested_entries(to.track),
+                    delta,
+                )?;
+                let (repeat_entries_pointer, repeat_entries_length) = grid_entries_into_raw_parts(nested);
+                RetainedGridTrackEntry {
+                    kind: GRID_TRACK_ENTRY_REPEAT,
+                    names: empty_grid_line_names(),
+                    size_value: empty_retained_style_value(),
+                    min_value: empty_retained_style_value(),
+                    max_value: empty_retained_style_value(),
+                    repeat_type: from.track.repeat_type,
+                    repeat_count: from.track.repeat_count.clone_retained(),
+                    repeat_is_subgrid: false,
+                    repeat_preserve_line_name_sets: false,
+                    repeat_entries_pointer,
+                    repeat_entries_length,
+                }
+            }
+            (GRID_TRACK_ENTRY_REPEAT, _) | (_, GRID_TRACK_ENTRY_REPEAT) => return None,
+            (GRID_TRACK_ENTRY_MINMAX, GRID_TRACK_ENTRY_MINMAX) => RetainedGridTrackEntry {
+                kind: GRID_TRACK_ENTRY_MINMAX,
+                names: empty_grid_line_names(),
+                size_value: empty_retained_style_value(),
+                min_value: interpolate_grid_component(property_id, &from.track.min_value, &to.track.min_value, delta),
+                max_value: interpolate_grid_component(property_id, &from.track.max_value, &to.track.max_value, delta),
+                repeat_type: 0,
+                repeat_count: empty_retained_style_value(),
+                repeat_is_subgrid: false,
+                repeat_preserve_line_name_sets: false,
+                repeat_entries_pointer: std::ptr::null_mut(),
+                repeat_entries_length: 0,
+            },
+            (GRID_TRACK_ENTRY_SIZE, GRID_TRACK_ENTRY_SIZE) => RetainedGridTrackEntry {
+                kind: GRID_TRACK_ENTRY_SIZE,
+                names: empty_grid_line_names(),
+                size_value: interpolate_grid_component(
+                    property_id,
+                    &from.track.size_value,
+                    &to.track.size_value,
+                    delta,
+                ),
+                min_value: empty_retained_style_value(),
+                max_value: empty_retained_style_value(),
+                repeat_type: 0,
+                repeat_count: empty_retained_style_value(),
+                repeat_is_subgrid: false,
+                repeat_preserve_line_name_sets: false,
+                repeat_entries_pointer: std::ptr::null_mut(),
+                repeat_entries_length: 0,
+            },
+            _ => {
+                if delta < 0.5 {
+                    clone_grid_track_entry(from.track)
+                } else {
+                    clone_grid_track_entry(to.track)
+                }
+            }
+        };
+        append_grid_track_with_line_names(&mut result, track, line_names);
+    }
+    Some(result)
+}
+
+fn composite_grid_component(
+    underlying: &RetainedStyleValueData,
+    animated: &RetainedStyleValueData,
+    operation: FfiCompositeOperation,
+) -> RetainedStyleValueData {
+    let result = composite_scalar_value(underlying.data(), animated.data(), operation);
+    if result.handled && !result.value.is_null() {
+        return unsafe { RetainedStyleValueData::from_retained_pointer(result.value) };
+    }
+
+    if let (Some(underlying), Some(animated)) = (
+        length_percentage_calculation_node(underlying.data()),
+        length_percentage_calculation_node(animated.data()),
+    ) && let Some((calculation, resolved_type)) =
+        crate::calc::add_length_percentage_calculations(underlying, animated)
+    {
+        // https://drafts.csswg.org/css-values-4/#combine-mixed
+        // Addition of <percentage> is defined the same as interpolation except by adding each component rather than interpolating it.
+        return retained_length_percentage_calculation(calculation, resolved_type);
+    }
+
+    animated.clone_retained()
+}
+
+fn composite_grid_track_entries(
+    underlying_is_subgrid: bool,
+    underlying_entries: &[RetainedGridTrackEntry],
+    animated_is_subgrid: bool,
+    animated_entries: &[RetainedGridTrackEntry],
+    operation: FfiCompositeOperation,
+) -> Option<Vec<RetainedGridTrackEntry>> {
+    // https://drafts.csswg.org/css-grid-2/#track-sizing
+    // Animation type: if the list lengths match, by computed value type per item in the computed track list;
+    // discrete otherwise.
+    //
+    // https://drafts.csswg.org/css-grid-2/#computed-track-list-subgrid
+    // The computed track list of a subgrid axis is the subgrid keyword followed by a list of line names.
+    if underlying_is_subgrid || animated_is_subgrid {
+        return None;
+    }
+
+    let expanded_underlying = expand_grid_tracks_and_lines(underlying_entries)?;
+    let expanded_animated = expand_grid_tracks_and_lines(animated_entries)?;
+    if expanded_underlying.len() != expanded_animated.len() {
+        return None;
+    }
+
+    let mut result = Vec::new();
+    for (underlying, animated) in expanded_underlying.iter().zip(&expanded_animated) {
+        let track = match (underlying.track.kind, animated.track.kind) {
+            (GRID_TRACK_ENTRY_REPEAT, GRID_TRACK_ENTRY_REPEAT) => {
+                if underlying.track.repeat_type != GRID_REPEAT_FIXED || animated.track.repeat_type != GRID_REPEAT_FIXED
+                {
+                    return None;
+                }
+                let (
+                    StyleValueData::Integer {
+                        value: underlying_count,
+                    },
+                    StyleValueData::Integer { value: animated_count },
+                ) = (underlying.track.repeat_count.data(), animated.track.repeat_count.data())
+                else {
+                    return None;
+                };
+                if underlying_count != animated_count {
+                    return None;
+                }
+                let nested = composite_grid_track_entries(
+                    underlying.track.repeat_is_subgrid,
+                    grid_nested_entries(underlying.track),
+                    animated.track.repeat_is_subgrid,
+                    grid_nested_entries(animated.track),
+                    operation,
+                )?;
+                let (repeat_entries_pointer, repeat_entries_length) = grid_entries_into_raw_parts(nested);
+                RetainedGridTrackEntry {
+                    kind: GRID_TRACK_ENTRY_REPEAT,
+                    names: empty_grid_line_names(),
+                    size_value: empty_retained_style_value(),
+                    min_value: empty_retained_style_value(),
+                    max_value: empty_retained_style_value(),
+                    repeat_type: underlying.track.repeat_type,
+                    repeat_count: underlying.track.repeat_count.clone_retained(),
+                    repeat_is_subgrid: false,
+                    repeat_preserve_line_name_sets: false,
+                    repeat_entries_pointer,
+                    repeat_entries_length,
+                }
+            }
+            (GRID_TRACK_ENTRY_REPEAT, _) | (_, GRID_TRACK_ENTRY_REPEAT) => return None,
+            (GRID_TRACK_ENTRY_MINMAX, GRID_TRACK_ENTRY_MINMAX) => RetainedGridTrackEntry {
+                kind: GRID_TRACK_ENTRY_MINMAX,
+                names: empty_grid_line_names(),
+                size_value: empty_retained_style_value(),
+                min_value: composite_grid_component(&underlying.track.min_value, &animated.track.min_value, operation),
+                max_value: composite_grid_component(&underlying.track.max_value, &animated.track.max_value, operation),
+                repeat_type: 0,
+                repeat_count: empty_retained_style_value(),
+                repeat_is_subgrid: false,
+                repeat_preserve_line_name_sets: false,
+                repeat_entries_pointer: std::ptr::null_mut(),
+                repeat_entries_length: 0,
+            },
+            (GRID_TRACK_ENTRY_SIZE, GRID_TRACK_ENTRY_SIZE) => RetainedGridTrackEntry {
+                kind: GRID_TRACK_ENTRY_SIZE,
+                names: empty_grid_line_names(),
+                size_value: composite_grid_component(
+                    &underlying.track.size_value,
+                    &animated.track.size_value,
+                    operation,
+                ),
+                min_value: empty_retained_style_value(),
+                max_value: empty_retained_style_value(),
+                repeat_type: 0,
+                repeat_count: empty_retained_style_value(),
+                repeat_is_subgrid: false,
+                repeat_preserve_line_name_sets: false,
+                repeat_entries_pointer: std::ptr::null_mut(),
+                repeat_entries_length: 0,
+            },
+            _ => clone_grid_track_entry(animated.track),
+        };
+        append_grid_track_with_line_names(&mut result, track, animated.line_names);
+    }
+    Some(result)
+}
+
+fn retained_animation_result(result: FfiAnimationValueResult) -> Option<RetainedStyleValueData> {
+    if !result.handled || result.value.is_null() {
+        return None;
+    }
+    Some(unsafe { RetainedStyleValueData::from_retained_pointer(result.value) })
+}
+
+fn retained_percentage(value: f64) -> RetainedStyleValueData {
+    let value = Arc::into_raw(Arc::new(StyleValueData::Percentage { value }));
+    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+}
+
+fn retained_computed_center_position() -> RetainedStyleValueData {
+    let edge = || {
+        let edge = Arc::into_raw(Arc::new(StyleValueData::Edge {
+            has_edge: false,
+            edge: 0,
+            offset: retained_percentage(50.0),
+        }));
+        unsafe { RetainedStyleValueData::from_retained_pointer(edge) }
+    };
+    let position = Arc::into_raw(Arc::new(StyleValueData::Position {
+        edge_x: edge(),
+        edge_y: edge(),
+    }));
+    unsafe { RetainedStyleValueData::from_retained_pointer(position) }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ColorComponentCategory {
+    Red,
+    Green,
+    Blue,
+    Lightness,
+    OpponentA,
+    OpponentB,
+    Colorfulness,
+    Hue,
+    NotAnalogous,
+}
+
+#[derive(Clone, Copy)]
+struct NativeColor {
+    color_type: u8,
+    components: [f32; 4],
+    missing: [bool; 4],
+}
+
+fn resolve_color_component(value: &StyleValueData, reference_value: f32) -> Option<(f32, bool)> {
+    match value {
+        StyleValueData::Number { value } => Some((*value as f32, false)),
+        StyleValueData::Percentage { value } => Some((*value as f32 / 100.0 * reference_value, false)),
+        StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => Some((0.0, true)),
+        _ => None,
+    }
+}
+
+fn native_color_components(value: &StyleValueData) -> Option<NativeColor> {
+    let StyleValueData::ColorFunction {
+        color_base,
+        channel_0,
+        channel_1,
+        channel_2,
+        alpha,
+        origin_color,
+        ..
+    } = value
+    else {
+        return None;
+    };
+    if !color_base.has_color_type || origin_color.optional_data().is_some() {
+        return None;
+    }
+
+    let resolve_hue = |value: &StyleValueData| match value {
+        StyleValueData::Number { value } => Some((*value as f32, false)),
+        StyleValueData::Angle { value, unit } => angle_to_degrees(*value, *unit).map(|value| (value as f32, false)),
+        StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => Some((0.0, true)),
+        _ => None,
+    };
+    let resolve = |value: &RetainedStyleValueData, reference: f32| resolve_color_component(value.data(), reference);
+    let resolve_fraction = |value: &RetainedStyleValueData| {
+        let (value, missing) = resolve(value, 100.0)?;
+        Some((value / 100.0, missing))
+    };
+    let ((first, first_missing), (second, second_missing), (third, third_missing)) = match color_base.color_type {
+        COLOR_TYPE_RGB => (
+            resolve(channel_0, 255.0)?,
+            resolve(channel_1, 255.0)?,
+            resolve(channel_2, 255.0)?,
+        ),
+        COLOR_TYPE_HSL | COLOR_TYPE_HWB => (
+            resolve_hue(channel_0.data())?,
+            resolve_fraction(channel_1)?,
+            resolve_fraction(channel_2)?,
+        ),
+        COLOR_TYPE_LAB => (
+            resolve(channel_0, 100.0)?,
+            resolve(channel_1, 125.0)?,
+            resolve(channel_2, 125.0)?,
+        ),
+        COLOR_TYPE_OKLAB => (
+            resolve(channel_0, 1.0)?,
+            resolve(channel_1, 0.4)?,
+            resolve(channel_2, 0.4)?,
+        ),
+        COLOR_TYPE_LCH => (
+            resolve(channel_0, 100.0)?,
+            resolve(channel_1, 150.0)?,
+            resolve_hue(channel_2.data())?,
+        ),
+        COLOR_TYPE_OKLCH => (
+            resolve(channel_0, 1.0)?,
+            resolve(channel_1, 0.4)?,
+            resolve_hue(channel_2.data())?,
+        ),
+        _ => (
+            resolve(channel_0, 1.0)?,
+            resolve(channel_1, 1.0)?,
+            resolve(channel_2, 1.0)?,
+        ),
+    };
+    let (alpha, alpha_missing) = match alpha.optional_data() {
+        Some(value) => resolve_color_component(value, 1.0)?,
+        None => (1.0, false),
+    };
+    let mut components = [first, second, third, alpha.clamp(0.0, 1.0)];
+    if color_base.color_type == COLOR_TYPE_RGB {
+        components[0] = components[0].clamp(0.0, 255.0) / 255.0;
+        components[1] = components[1].clamp(0.0, 255.0) / 255.0;
+        components[2] = components[2].clamp(0.0, 255.0) / 255.0;
+    }
+    Some(NativeColor {
+        color_type: color_base.color_type,
+        components,
+        missing: [first_missing, second_missing, third_missing, alpha_missing],
+    })
+}
+
+fn color_component_categories(color_type: u8) -> [ColorComponentCategory; 3] {
+    use ColorComponentCategory::*;
+    match color_type {
+        COLOR_TYPE_HSL => [Hue, Colorfulness, Lightness],
+        COLOR_TYPE_HWB => [Hue, NotAnalogous, NotAnalogous],
+        COLOR_TYPE_LAB | COLOR_TYPE_OKLAB => [Lightness, OpponentA, OpponentB],
+        COLOR_TYPE_LCH | COLOR_TYPE_OKLCH => [Lightness, Colorfulness, Hue],
+        COLOR_TYPE_RGB
+        | COLOR_TYPE_A98_RGB
+        | COLOR_TYPE_DISPLAY_P3
+        | COLOR_TYPE_DISPLAY_P3_LINEAR
+        | COLOR_TYPE_SRGB
+        | COLOR_TYPE_SRGB_LINEAR
+        | COLOR_TYPE_PROPHOTO_RGB
+        | COLOR_TYPE_REC2020
+        | COLOR_TYPE_XYZ_D50
+        | COLOR_TYPE_XYZ_D65 => [Red, Green, Blue],
+        _ => [NotAnalogous, NotAnalogous, NotAnalogous],
+    }
+}
+
+// https://drafts.csswg.org/css-color-4/#interpolation-missing
+// Carry forward missing components from the input color space to the interpolation color space.
+// A missing component is carried forward if it has an analogous component in the target space.
+// Additionally, if ALL components of an analogous set are missing, they are all carried forward.
+fn carry_forward_missing_components(
+    source_missing: [bool; 4],
+    source_categories: [ColorComponentCategory; 3],
+    target_categories: [ColorComponentCategory; 3],
+) -> [bool; 4] {
+    let mut result = [false; 4];
+
+    // Same-space: all components map to themselves, including NotAnalogous ones (e.g. HWB W/B).
+    if source_categories == target_categories {
+        result = source_missing;
+        return result;
+    }
+
+    // Carry forward individual analogous components
+    for target_index in 0..3 {
+        if target_categories[target_index] == ColorComponentCategory::NotAnalogous {
+            continue;
+        }
+        for source_index in 0..3 {
+            if source_missing[source_index] && source_categories[source_index] == target_categories[target_index] {
+                result[target_index] = true;
+                break;
+            }
+        }
+    }
+
+    // If every component of an analogous set is missing in the source, carry forward as a set.
+    // The analogous set consists of the components that remain after removing individually analogous ones.
+    let mut all_non_analogous_missing = true;
+    let mut has_non_analogous = false;
+    for source_index in 0..3 {
+        let is_individually_analogous = source_categories[source_index] != ColorComponentCategory::NotAnalogous
+            && target_categories.contains(&source_categories[source_index]);
+        if !is_individually_analogous {
+            has_non_analogous = true;
+            if !source_missing[source_index] {
+                all_non_analogous_missing = false;
+            }
+        }
+    }
+    if has_non_analogous && all_non_analogous_missing {
+        for target_index in 0..3 {
+            let is_individually_analogous = target_categories[target_index] != ColorComponentCategory::NotAnalogous
+                && source_categories.contains(&target_categories[target_index]);
+            if !is_individually_analogous {
+                result[target_index] = true;
+            }
+        }
+    }
+
+    // Alpha is always analogous to itself.
+    result[3] = source_missing[3];
+    result
+}
+
+fn substitute_missing_components(
+    from_components: &mut [f32; 4],
+    to_components: &mut [f32; 4],
+    from_missing: [bool; 4],
+    to_missing: [bool; 4],
+) {
+    for index in 0..3 {
+        if from_missing[index] && !to_missing[index] {
+            from_components[index] = to_components[index];
+        } else if to_missing[index] && !from_missing[index] {
+            to_components[index] = from_components[index];
+        }
+    }
+
+    if from_missing[3] && !to_missing[3] {
+        from_components[3] = to_components[3];
+    } else if to_missing[3] && !from_missing[3] {
+        to_components[3] = from_components[3];
+    } else if from_missing[3] && to_missing[3] {
+        from_components[3] = 1.0;
+        to_components[3] = 1.0;
+    }
+}
+
+fn legacy_srgb_components(value: &StyleValueData) -> Option<([f32; 4], [bool; 4])> {
+    let color = native_color_components(value)?;
+    let components = crate::color_conversion::legacy_color_to_srgb(color.color_type, color.components)?;
+    let missing = carry_forward_missing_components(
+        color.missing,
+        color_component_categories(color.color_type),
+        [
+            ColorComponentCategory::Red,
+            ColorComponentCategory::Green,
+            ColorComponentCategory::Blue,
+        ],
+    );
+    Some((components, missing))
+}
+
+fn interpolate_modern_color(from: &StyleValueData, to: &StyleValueData, delta: f32) -> Option<StyleValueData> {
+    // https://drafts.csswg.org/css-color-4/#interpolation
+    // 1. checking the two colors for analogous components and analogous sets which will be carried forward
+    let from = native_color_components(from)?;
+    let to = native_color_components(to)?;
+
+    // 2. prepare both colors for conversion. this changes any powerless components to missing values
+    // NB: Every color handled here has native components, so step 2 does not mark additional components missing.
+
+    // 3. converting them both to a given color space which will be referred to as the interpolation color space
+    //    below.
+    let mut from_components = crate::color_conversion::to_oklab(from.color_type, from.components)?;
+    let mut to_components = crate::color_conversion::to_oklab(to.color_type, to.components)?;
+    let target_categories = color_component_categories(COLOR_TYPE_OKLAB);
+    let from_missing = carry_forward_missing_components(
+        from.missing,
+        color_component_categories(from.color_type),
+        target_categories,
+    );
+    let to_missing =
+        carry_forward_missing_components(to.missing, color_component_categories(to.color_type), target_categories);
+
+    // 4. (if required) re-inserting carried forward values in the converted colors
+    substitute_missing_components(&mut from_components, &mut to_components, from_missing, to_missing);
+    let interpolate = |from: f32, to: f32| from + (to - from) * delta;
+    let interpolated_alpha = interpolate(from_components[3], to_components[3]).clamp(0.0, 1.0);
+
+    // https://drafts.csswg.org/css-color-4/#interpolation
+    let result = if interpolated_alpha == 0.0 {
+        // OPTIMIZATION: Fully transparent results can skip the premultiply/interpolate/unpremultiply cycle.
+        [0.0, 0.0, 0.0, 0.0]
+    } else {
+        // 6. changing the color components to premultiplied form
+        // https://drafts.csswg.org/css-color-4/#interpolation-alpha
+        // For rectangular orthogonal color coordinate systems, all component values are multiplied by the alpha value.
+        let from_premultiplied = [
+            from_components[0] * from_components[3],
+            from_components[1] * from_components[3],
+            from_components[2] * from_components[3],
+        ];
+        let to_premultiplied = [
+            to_components[0] * to_components[3],
+            to_components[1] * to_components[3],
+            to_components[2] * to_components[3],
+        ];
+
+        // 7. linearly interpolating each component of the computed value of the color separately
+        let premultiplied = [
+            interpolate(from_premultiplied[0], to_premultiplied[0]),
+            interpolate(from_premultiplied[1], to_premultiplied[1]),
+            interpolate(from_premultiplied[2], to_premultiplied[2]),
+        ];
+
+        // 8. undoing premultiplication
+        [
+            premultiplied[0] / interpolated_alpha,
+            premultiplied[1] / interpolated_alpha,
+            premultiplied[2] / interpolated_alpha,
+            interpolated_alpha,
+        ]
+    };
+
+    // https://drafts.csswg.org/css-color-4/#interpolation-space
+    // If the host syntax does not define what color space interpolation should take place in, it defaults to Oklab.
+    let result_missing = [
+        from_missing[0] && to_missing[0],
+        from_missing[1] && to_missing[1],
+        from_missing[2] && to_missing[2],
+        from_missing[3] && to_missing[3],
+    ];
+    let number_or_none = |value: f32, is_missing: bool| {
+        if is_missing {
+            retained_none_keyword()
+        } else {
+            retained_number(value as f64)
+        }
+    };
+    Some(StyleValueData::ColorFunction {
+        color_base: ColorBase {
+            has_color_type: true,
+            color_type: COLOR_TYPE_OKLAB,
+            color_syntax: COLOR_SYNTAX_MODERN,
+        },
+        channel_0: number_or_none(result[0], result_missing[0]),
+        channel_1: number_or_none(result[1], result_missing[1]),
+        channel_2: number_or_none(result[2], result_missing[2]),
+        alpha: number_or_none(result[3], result_missing[3]),
+        has_name: false,
+        name: empty_retained_fly_string(),
+        origin_color: empty_retained_style_value(),
+    })
+}
+
+fn interpolate_legacy_rgb(from: &StyleValueData, to: &StyleValueData, delta: f32) -> Option<StyleValueData> {
+    // https://drafts.csswg.org/css-color-4/#interpolation-space
+    // If the host syntax does not define what color space interpolation should take place in, it defaults to Oklab.
+    // However, user agents must handle interpolation between legacy sRGB color formats (hex colors, named colors,
+    // rgb(), hsl() or hwb() and the equivalent alpha-including forms) in gamma-encoded sRGB space.
+    let (mut from, from_missing) = legacy_srgb_components(from)?;
+    let (mut to, to_missing) = legacy_srgb_components(to)?;
+    substitute_missing_components(&mut from, &mut to, from_missing, to_missing);
+    let interpolate = |from: f32, to: f32| from + (to - from) * delta;
+    let interpolated_alpha = interpolate(from[3], to[3]).clamp(0.0, 1.0);
+
+    // https://drafts.csswg.org/css-color-4/#interpolation
+    let result = if interpolated_alpha == 0.0 {
+        // OPTIMIZATION: Fully transparent results can skip the premultiply/interpolate/unpremultiply cycle.
+        [0.0, 0.0, 0.0, 0.0]
+    } else {
+        // 6. changing the color components to premultiplied form
+        // https://drafts.csswg.org/css-color-4/#interpolation-alpha
+        // For rectangular orthogonal color coordinate systems, all component values are multiplied by the alpha value.
+        let from_premultiplied = [from[0] * from[3], from[1] * from[3], from[2] * from[3]];
+        let to_premultiplied = [to[0] * to[3], to[1] * to[3], to[2] * to[3]];
+
+        // 7. linearly interpolating each component of the computed value of the color separately
+        let premultiplied = [
+            interpolate(from_premultiplied[0], to_premultiplied[0]),
+            interpolate(from_premultiplied[1], to_premultiplied[1]),
+            interpolate(from_premultiplied[2], to_premultiplied[2]),
+        ];
+
+        // 8. undoing premultiplication
+        [
+            premultiplied[0] / interpolated_alpha,
+            premultiplied[1] / interpolated_alpha,
+            premultiplied[2] / interpolated_alpha,
+            interpolated_alpha,
+        ]
+    };
+
+    // https://drafts.csswg.org/css-color-4/#interpolation-space
+    // NB: Legacy sRGB content interpolates in sRGB and produces a legacy rgb() result.
+    let to_byte = |value: f32| (value * 255.0).round().clamp(0.0, 255.0) as u8;
+    let alpha = to_byte(result[3]);
+    Some(StyleValueData::ColorFunction {
+        color_base: ColorBase {
+            has_color_type: true,
+            color_type: COLOR_TYPE_RGB,
+            color_syntax: COLOR_SYNTAX_LEGACY,
+        },
+        channel_0: retained_number(to_byte(result[0]) as f64),
+        channel_1: retained_number(to_byte(result[1]) as f64),
+        channel_2: retained_number(to_byte(result[2]) as f64),
+        alpha: retained_number(alpha as f64 / 255.0),
+        has_name: false,
+        name: empty_retained_fly_string(),
+        origin_color: empty_retained_style_value(),
+    })
+}
+
+fn empty_shape_points() -> RetainedShapePointList {
+    RetainedShapePointList::from_retained_points(Vec::new())
+}
+
+fn empty_retained_fly_string() -> RetainedUtf16FlyString {
+    unsafe { RetainedUtf16FlyString::from_leaked_raw(0) }
+}
+
+fn interpolate_basic_shape_component(
+    property_id: u16,
+    from: &RetainedStyleValueData,
+    to: &RetainedStyleValueData,
+    delta: f32,
+) -> RetainedStyleValueData {
+    interpolate_translate_component(property_id, from.data(), to.data(), delta).unwrap_or_else(|| {
+        if delta < 0.5 {
+            from.clone_retained()
+        } else {
+            to.clone_retained()
+        }
+    })
+}
+
+struct RadialSizeComponents<'a> {
+    component_count: u8,
+    is_extent_0: bool,
+    value_0: &'a RetainedStyleValueData,
+    is_extent_1: bool,
+    value_1: &'a RetainedStyleValueData,
+}
+
+fn interpolate_radial_size(
+    property_id: u16,
+    from: RadialSizeComponents<'_>,
+    to: RadialSizeComponents<'_>,
+    delta: f32,
+) -> Option<StyleValueData> {
+    // https://drafts.csswg.org/css-images-4/#interpolating-gradients
+    // https://drafts.csswg.org/css-shapes-1/#basic-shape-interpolation
+    // FIXME: Radial extents should disallow interpolation for basic-shape values but should be converted into their
+    //        equivalent length-percentage values for radial gradients
+    if from.is_extent_0
+        || (from.component_count == 2 && from.is_extent_1)
+        || to.is_extent_0
+        || (to.component_count == 2 && to.is_extent_1)
+    {
+        return None;
+    }
+
+    let interpolate = |from: &RetainedStyleValueData, to: &RetainedStyleValueData| {
+        let direct = interpolate_scalar_value(property_id, from.data(), to.data(), delta, RADIAL_SIZE_RANGES);
+        if let Some(value) = retained_animation_result(direct) {
+            return Some(value);
+        }
+        interpolate_translate_component(property_id, from.data(), to.data(), delta)
+    };
+    if from.component_count == 1 && to.component_count == 1 {
+        return Some(StyleValueData::RadialSize {
+            component_count: 1,
+            is_extent_0: false,
+            extent_0: 0,
+            value_0: interpolate(from.value_0, to.value_0)?,
+            is_extent_1: false,
+            extent_1: 0,
+            value_1: empty_retained_style_value(),
+        });
+    }
+
+    let from_vertical = if from.component_count == 2 {
+        from.value_1
+    } else {
+        from.value_0
+    };
+    let to_vertical = if to.component_count == 2 {
+        to.value_1
+    } else {
+        to.value_0
+    };
+    Some(StyleValueData::RadialSize {
+        component_count: 2,
+        is_extent_0: false,
+        extent_0: 0,
+        value_0: interpolate(from.value_0, to.value_0)?,
+        is_extent_1: false,
+        extent_1: 0,
+        value_1: interpolate(from_vertical, to_vertical)?,
+    })
+}
+
+fn interpolate_basic_shape(
+    property_id: u16,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> Option<StyleValueData> {
+    let (
+        StyleValueData::BasicShape {
+            kind: from_kind,
+            v0: from_v0,
+            v1: from_v1,
+            v2: from_v2,
+            v3: from_v3,
+            v4: from_v4,
+            fill_rule: from_fill_rule,
+            points: from_points,
+            ..
+        },
+        StyleValueData::BasicShape {
+            kind: to_kind,
+            v0: to_v0,
+            v1: to_v1,
+            v2: to_v2,
+            v3: to_v3,
+            v4: to_v4,
+            fill_rule: to_fill_rule,
+            points: to_points,
+            ..
+        },
+    ) = (from, to)
+    else {
+        return None;
+    };
+
+    // https://drafts.csswg.org/css-shapes-1/#basic-shape-interpolation
+    if from_kind != to_kind {
+        return None;
+    }
+
+    let empty = empty_retained_style_value;
+    match *from_kind {
+        BASIC_SHAPE_INSET => {
+            // If both shapes are of type inset(), interpolate between each value in the shape functions.
+            Some(StyleValueData::BasicShape {
+                kind: *from_kind,
+                v0: interpolate_basic_shape_component(property_id, from_v0, to_v0, delta),
+                v1: interpolate_basic_shape_component(property_id, from_v1, to_v1, delta),
+                v2: interpolate_basic_shape_component(property_id, from_v2, to_v2, delta),
+                v3: interpolate_basic_shape_component(property_id, from_v3, to_v3, delta),
+                v4: interpolate_basic_shape_component(property_id, from_v4, to_v4, delta),
+                fill_rule: 0,
+                points: empty_shape_points(),
+                path_string: empty_retained_fly_string(),
+            })
+        }
+        BASIC_SHAPE_CIRCLE | BASIC_SHAPE_ELLIPSE => {
+            // If both shapes are the same type, that type is ellipse() or circle(), and the radiuses are specified
+            // as <length-percentage> (rather than keywords), interpolate between each value in the shape functions.
+            let radius = retained_animation_result(interpolate_scalar_value(
+                property_id,
+                from_v0.data(),
+                to_v0.data(),
+                delta,
+                &[],
+            ))?;
+            let position = match (from_v1.optional_data(), to_v1.optional_data()) {
+                (None, None) => empty(),
+                _ => {
+                    let from_default;
+                    let to_default;
+                    let from = if from_v1.optional_data().is_some() {
+                        from_v1
+                    } else {
+                        from_default = retained_computed_center_position();
+                        &from_default
+                    };
+                    let to = if to_v1.optional_data().is_some() {
+                        to_v1
+                    } else {
+                        to_default = retained_computed_center_position();
+                        &to_default
+                    };
+                    retained_animation_result(interpolate_scalar_value(
+                        property_id,
+                        from.data(),
+                        to.data(),
+                        delta,
+                        &[],
+                    ))?
+                }
+            };
+            Some(StyleValueData::BasicShape {
+                kind: *from_kind,
+                v0: radius,
+                v1: position,
+                v2: empty(),
+                v3: empty(),
+                v4: empty(),
+                fill_rule: 0,
+                points: empty_shape_points(),
+                path_string: empty_retained_fly_string(),
+            })
+        }
+        BASIC_SHAPE_POLYGON => {
+            // If both shapes are of type polygon(), both polygons have the same number of vertices, and use the
+            // same <'fill-rule'>, interpolate between each value in the shape functions.
+            if from_fill_rule != to_fill_rule || from_points.as_slice().len() != to_points.as_slice().len() {
+                return None;
+            }
+            let points = from_points
+                .as_slice()
+                .iter()
+                .zip(to_points.as_slice())
+                .map(|(from, to)| {
+                    let [from_x, from_y] = from.values();
+                    let [to_x, to_y] = to.values();
+                    RetainedShapePoint::from_retained_values(
+                        interpolate_basic_shape_component(property_id, from_x, to_x, delta),
+                        interpolate_basic_shape_component(property_id, from_y, to_y, delta),
+                    )
+                })
+                .collect();
+            Some(StyleValueData::BasicShape {
+                kind: *from_kind,
+                v0: empty(),
+                v1: empty(),
+                v2: empty(),
+                v3: empty(),
+                v4: empty(),
+                fill_rule: *from_fill_rule,
+                points: RetainedShapePointList::from_retained_points(points),
+                path_string: empty_retained_fly_string(),
+            })
+        }
+        _ => None,
+    }
+}
+
+fn composite_retained_value(
+    underlying: &RetainedStyleValueData,
+    animated: &RetainedStyleValueData,
+    operation: FfiCompositeOperation,
+) -> Option<RetainedStyleValueData> {
+    retained_animation_result(composite_scalar_value(underlying.data(), animated.data(), operation))
+}
+
+fn composite_radial_size(
+    underlying: RadialSizeComponents<'_>,
+    animated: RadialSizeComponents<'_>,
+    operation: FfiCompositeOperation,
+) -> Option<StyleValueData> {
+    // https://drafts.csswg.org/css-images-4/#interpolating-gradients
+    // https://drafts.csswg.org/css-shapes-1/#basic-shape-interpolation
+    // FIXME: Radial extents should disallow composition for basic-shape values but should be converted into their
+    //        equivalent length-percentage values for radial gradients
+    if underlying.is_extent_0
+        || (underlying.component_count == 2 && underlying.is_extent_1)
+        || animated.is_extent_0
+        || (animated.component_count == 2 && animated.is_extent_1)
+    {
+        return None;
+    }
+
+    let composite = |underlying: &RetainedStyleValueData, animated: &RetainedStyleValueData| {
+        composite_retained_value(underlying, animated, operation)
+    };
+    if underlying.component_count == 1 && animated.component_count == 1 {
+        return Some(StyleValueData::RadialSize {
+            component_count: 1,
+            is_extent_0: false,
+            extent_0: 0,
+            value_0: composite(underlying.value_0, animated.value_0)?,
+            is_extent_1: false,
+            extent_1: 0,
+            value_1: empty_retained_style_value(),
+        });
+    }
+
+    let underlying_vertical = if underlying.component_count == 2 {
+        underlying.value_1
+    } else {
+        underlying.value_0
+    };
+    let animated_vertical = if animated.component_count == 2 {
+        animated.value_1
+    } else {
+        animated.value_0
+    };
+    Some(StyleValueData::RadialSize {
+        component_count: 2,
+        is_extent_0: false,
+        extent_0: 0,
+        value_0: composite(underlying.value_0, animated.value_0)?,
+        is_extent_1: false,
+        extent_1: 0,
+        value_1: composite(underlying_vertical, animated_vertical)?,
+    })
+}
+
+fn composite_basic_shape(
+    underlying: &StyleValueData,
+    animated: &StyleValueData,
+    operation: FfiCompositeOperation,
+) -> Option<StyleValueData> {
+    let (
+        StyleValueData::BasicShape {
+            kind: underlying_kind,
+            v0: underlying_v0,
+            v1: underlying_v1,
+            v2: underlying_v2,
+            v3: underlying_v3,
+            v4: underlying_v4,
+            fill_rule: underlying_fill_rule,
+            points: underlying_points,
+            ..
+        },
+        StyleValueData::BasicShape {
+            kind: animated_kind,
+            v0: animated_v0,
+            v1: animated_v1,
+            v2: animated_v2,
+            v3: animated_v3,
+            v4: animated_v4,
+            fill_rule: animated_fill_rule,
+            points: animated_points,
+            ..
+        },
+    ) = (underlying, animated)
+    else {
+        return None;
+    };
+    if underlying_kind != animated_kind {
+        return None;
+    }
+
+    let empty = empty_retained_style_value;
+    match *underlying_kind {
+        BASIC_SHAPE_INSET => Some(StyleValueData::BasicShape {
+            kind: *underlying_kind,
+            v0: composite_retained_value(underlying_v0, animated_v0, operation)?,
+            v1: composite_retained_value(underlying_v1, animated_v1, operation)?,
+            v2: composite_retained_value(underlying_v2, animated_v2, operation)?,
+            v3: composite_retained_value(underlying_v3, animated_v3, operation)?,
+            v4: composite_retained_value(underlying_v4, animated_v4, operation)?,
+            fill_rule: 0,
+            points: empty_shape_points(),
+            path_string: empty_retained_fly_string(),
+        }),
+        BASIC_SHAPE_CIRCLE | BASIC_SHAPE_ELLIPSE => {
+            let position = match (underlying_v1.optional_data(), animated_v1.optional_data()) {
+                (None, None) => empty(),
+                _ => {
+                    let underlying_default;
+                    let animated_default;
+                    let underlying = if underlying_v1.optional_data().is_some() {
+                        underlying_v1
+                    } else {
+                        underlying_default = retained_computed_center_position();
+                        &underlying_default
+                    };
+                    let animated = if animated_v1.optional_data().is_some() {
+                        animated_v1
+                    } else {
+                        animated_default = retained_computed_center_position();
+                        &animated_default
+                    };
+                    composite_retained_value(underlying, animated, operation)?
+                }
+            };
+            Some(StyleValueData::BasicShape {
+                kind: *underlying_kind,
+                v0: composite_retained_value(underlying_v0, animated_v0, operation)?,
+                v1: position,
+                v2: empty(),
+                v3: empty(),
+                v4: empty(),
+                fill_rule: 0,
+                points: empty_shape_points(),
+                path_string: empty_retained_fly_string(),
+            })
+        }
+        BASIC_SHAPE_POLYGON => {
+            if underlying_fill_rule != animated_fill_rule
+                || underlying_points.as_slice().len() != animated_points.as_slice().len()
+            {
+                return None;
+            }
+            let points = underlying_points
+                .as_slice()
+                .iter()
+                .zip(animated_points.as_slice())
+                .map(|(underlying, animated)| {
+                    let [underlying_x, underlying_y] = underlying.values();
+                    let [animated_x, animated_y] = animated.values();
+                    Some(RetainedShapePoint::from_retained_values(
+                        composite_retained_value(underlying_x, animated_x, operation)?,
+                        composite_retained_value(underlying_y, animated_y, operation)?,
+                    ))
+                })
+                .collect::<Option<Vec<_>>>()?;
+            Some(StyleValueData::BasicShape {
+                kind: *underlying_kind,
+                v0: empty(),
+                v1: empty(),
+                v2: empty(),
+                v3: empty(),
+                v4: empty(),
+                fill_rule: *underlying_fill_rule,
+                points: RetainedShapePointList::from_retained_points(points),
+                path_string: empty_retained_fly_string(),
+            })
+        }
+        _ => None,
+    }
+}
+
 fn composite_scalar_value(
     underlying: &StyleValueData,
     animated: &StyleValueData,
@@ -1087,6 +2335,48 @@ fn composite_scalar_value(
     }
 
     match (underlying, animated) {
+        (StyleValueData::ColorFunction { .. }, StyleValueData::ColorFunction { .. }) => {
+            // FIXME: Implement color addition and accumulation.
+            handled_without_value()
+        }
+        (StyleValueData::BasicShape { .. }, StyleValueData::BasicShape { .. }) => {
+            composite_basic_shape(underlying, animated, operation).map_or_else(handled_without_value, owned)
+        }
+        (
+            StyleValueData::RadialSize {
+                component_count: underlying_component_count,
+                is_extent_0: underlying_is_extent_0,
+                value_0: underlying_value_0,
+                is_extent_1: underlying_is_extent_1,
+                value_1: underlying_value_1,
+                ..
+            },
+            StyleValueData::RadialSize {
+                component_count: animated_component_count,
+                is_extent_0: animated_is_extent_0,
+                value_0: animated_value_0,
+                is_extent_1: animated_is_extent_1,
+                value_1: animated_value_1,
+                ..
+            },
+        ) => composite_radial_size(
+            RadialSizeComponents {
+                component_count: *underlying_component_count,
+                is_extent_0: *underlying_is_extent_0,
+                value_0: underlying_value_0,
+                is_extent_1: *underlying_is_extent_1,
+                value_1: underlying_value_1,
+            },
+            RadialSizeComponents {
+                component_count: *animated_component_count,
+                is_extent_0: *animated_is_extent_0,
+                value_0: animated_value_0,
+                is_extent_1: *animated_is_extent_1,
+                value_1: animated_value_1,
+            },
+            operation,
+        )
+        .map_or_else(handled_without_value, owned),
         (StyleValueData::Number { value: underlying }, StyleValueData::Number { value: animated }) => {
             // https://drafts.csswg.org/css-values-4/#combine-numbers
             // Addition of <number> is defined as Vresult = VA + VB.
@@ -1599,6 +2889,33 @@ fn composite_scalar_value(
                 collapsible: *collapsible,
             })
         }
+        (
+            StyleValueData::GridTrackSizeList {
+                is_subgrid: underlying_is_subgrid,
+                entries: underlying_entries,
+                ..
+            },
+            StyleValueData::GridTrackSizeList {
+                is_subgrid: animated_is_subgrid,
+                entries: animated_entries,
+                ..
+            },
+        ) => {
+            let Some(entries) = composite_grid_track_entries(
+                *underlying_is_subgrid,
+                underlying_entries.as_slice(),
+                *animated_is_subgrid,
+                animated_entries.as_slice(),
+                operation,
+            ) else {
+                return handled_without_value();
+            };
+            owned(StyleValueData::GridTrackSizeList {
+                is_subgrid: false,
+                preserve_line_name_sets: false,
+                entries: RetainedGridTrackEntryList::from_retained_entries(entries),
+            })
+        }
         _ => not_handled(),
     }
 }
@@ -1611,6 +2928,50 @@ fn interpolate_scalar_value(
     range_overrides: &[NumericRangeOverride],
 ) -> FfiAnimationValueResult {
     match (from, to) {
+        (StyleValueData::ColorFunction { .. }, StyleValueData::ColorFunction { .. }) => {
+            interpolate_legacy_rgb(from, to, delta)
+                .or_else(|| interpolate_modern_color(from, to, delta))
+                .map_or_else(not_handled, owned)
+        }
+        (StyleValueData::BasicShape { .. }, StyleValueData::BasicShape { .. }) => {
+            interpolate_basic_shape(property_id, from, to, delta).map_or_else(handled_without_value, owned)
+        }
+        (
+            StyleValueData::RadialSize {
+                component_count: from_component_count,
+                is_extent_0: from_is_extent_0,
+                value_0: from_value_0,
+                is_extent_1: from_is_extent_1,
+                value_1: from_value_1,
+                ..
+            },
+            StyleValueData::RadialSize {
+                component_count: to_component_count,
+                is_extent_0: to_is_extent_0,
+                value_0: to_value_0,
+                is_extent_1: to_is_extent_1,
+                value_1: to_value_1,
+                ..
+            },
+        ) => interpolate_radial_size(
+            property_id,
+            RadialSizeComponents {
+                component_count: *from_component_count,
+                is_extent_0: *from_is_extent_0,
+                value_0: from_value_0,
+                is_extent_1: *from_is_extent_1,
+                value_1: from_value_1,
+            },
+            RadialSizeComponents {
+                component_count: *to_component_count,
+                is_extent_0: *to_is_extent_0,
+                value_0: to_value_0,
+                is_extent_1: *to_is_extent_1,
+                value_1: to_value_1,
+            },
+            delta,
+        )
+        .map_or_else(handled_without_value, owned),
         (from_value @ StyleValueData::Keyword { keyword: from }, StyleValueData::Keyword { keyword: to })
             if from == to =>
         {
@@ -1821,17 +3182,13 @@ fn interpolate_scalar_value(
             let (Some(from), Some(to)) = (from.optional_data(), to.optional_data()) else {
                 return not_handled();
             };
-            let result = interpolate_scalar_value(property_id, from, to, delta, range_overrides);
-            if !result.handled {
-                return not_handled();
-            }
-            if result.value.is_null() {
+            let Some(offset) = interpolate_translate_component(property_id, from, to, delta) else {
                 return handled_without_value();
-            }
+            };
             owned(StyleValueData::Edge {
                 has_edge: false,
                 edge: 0,
-                offset: unsafe { RetainedStyleValueData::from_retained_pointer(result.value) },
+                offset,
             })
         }
         (
@@ -2423,6 +3780,11 @@ fn retained_zero_px() -> RetainedStyleValueData {
         value: 0.0,
         unit: crate::style_compute::px_length_unit(),
     }));
+    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+}
+
+fn retained_length(value: f64, unit: u8) -> RetainedStyleValueData {
+    let value = Arc::into_raw(Arc::new(StyleValueData::Length { value, unit }));
     unsafe { RetainedStyleValueData::from_retained_pointer(value) }
 }
 
@@ -3445,6 +4807,821 @@ fn interpolate_transform_list(
     }))
 }
 
+fn retained_legacy_color(red: u8, green: u8, blue: u8, alpha: u8) -> RetainedStyleValueData {
+    let value = Arc::into_raw(Arc::new(StyleValueData::ColorFunction {
+        color_base: ColorBase {
+            has_color_type: true,
+            color_type: COLOR_TYPE_RGB,
+            color_syntax: COLOR_SYNTAX_LEGACY,
+        },
+        channel_0: retained_number(red as f64),
+        channel_1: retained_number(green as f64),
+        channel_2: retained_number(blue as f64),
+        alpha: retained_number(alpha as f64 / 255.0),
+        has_name: false,
+        name: empty_retained_fly_string(),
+        origin_color: empty_retained_style_value(),
+    }));
+    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+}
+
+fn retained_transparent_legacy_color() -> RetainedStyleValueData {
+    retained_legacy_color(0, 0, 0, 0)
+}
+
+fn animation_length_resolution_context(
+    context: Option<&FfiAnimationContext>,
+) -> Option<crate::style_compute::FfiLengthResolutionContext> {
+    let animation_context = &context
+        .filter(|context| context.has_length_resolution_context)?
+        .length_resolution_context;
+    let font_metrics = |metrics: &FfiAnimationFontMetrics| crate::style_compute::FfiFontMetrics {
+        font_size: metrics.font_size,
+        x_height: metrics.x_height,
+        cap_height: metrics.cap_height,
+        zero_advance: metrics.zero_advance,
+        line_height: metrics.line_height,
+    };
+    Some(crate::style_compute::FfiLengthResolutionContext {
+        viewport_width: animation_context.viewport_width,
+        viewport_height: animation_context.viewport_height,
+        font_metrics: font_metrics(&animation_context.font_metrics),
+        root_font_metrics: font_metrics(&animation_context.root_font_metrics),
+        font_metrics_depend_on_viewport_metrics: animation_context.font_metrics_depend_on_viewport_metrics,
+        root_font_metrics_depend_on_viewport_metrics: animation_context.root_font_metrics_depend_on_viewport_metrics,
+    })
+}
+
+fn resolve_animation_length(context: Option<&FfiAnimationContext>, value: &StyleValueData) -> Option<f64> {
+    match value {
+        StyleValueData::Length { value, unit } => crate::style_compute::absolute_length_to_px(*value, *unit),
+        StyleValueData::Calculated { .. } => {
+            crate::calc::resolve_calculated_length_with_context(value, &animation_length_resolution_context(context)?)
+        }
+        _ => None,
+    }
+}
+
+fn interpolate_animation_length(
+    context: Option<&FfiAnimationContext>,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+    range: Option<(f64, f64)>,
+) -> Option<RetainedStyleValueData> {
+    Some(retained_length(
+        interpolate_f64(
+            resolve_animation_length(context, from)?,
+            resolve_animation_length(context, to)?,
+            delta,
+            range,
+        ),
+        crate::style_compute::px_length_unit(),
+    ))
+}
+
+fn resolve_animation_angle(context: Option<&FfiAnimationContext>, value: &StyleValueData) -> Option<f64> {
+    match value {
+        StyleValueData::Angle { value, unit } => angle_to_degrees(*value, *unit),
+        StyleValueData::Calculated { .. } => animation_length_resolution_context(context)
+            .and_then(|context| crate::calc::resolve_calculated_angle_with_context(value, &context))
+            .or_else(|| crate::calc::resolve_calculated_angle_without_context(value)),
+        _ => None,
+    }
+}
+
+fn resolve_animation_number(context: Option<&FfiAnimationContext>, value: &StyleValueData) -> Option<f64> {
+    match value {
+        StyleValueData::Number { value } => Some(*value),
+        StyleValueData::Calculated { .. } => animation_length_resolution_context(context)
+            .and_then(|context| crate::calc::resolve_calculated_number_with_context(value, &context))
+            .or_else(|| crate::calc::resolve_calculated_number_without_context(value)),
+        _ => None,
+    }
+}
+
+fn resolve_animation_color(
+    context: Option<&FfiAnimationContext>,
+    color: &RetainedStyleValueData,
+) -> Option<RetainedStyleValueData> {
+    let use_current_color = match color.optional_data() {
+        None => true,
+        Some(StyleValueData::Keyword { keyword }) => *keyword == crate::style_compute::current_color_keyword(),
+        Some(_) => false,
+    };
+    if !use_current_color {
+        return Some(color.clone_retained());
+    }
+    let current_color = context?.current_color;
+    if current_color.is_null() {
+        return None;
+    }
+    let retained = unsafe { crate::style_value::rust_style_value_retain(current_color) };
+    Some(unsafe { RetainedStyleValueData::from_retained_pointer(retained) })
+}
+
+fn blank_shadow(other: &StyleValueData) -> Option<RetainedStyleValueData> {
+    let StyleValueData::Shadow {
+        shadow_type, placement, ..
+    } = other
+    else {
+        return None;
+    };
+    let value = Arc::into_raw(Arc::new(StyleValueData::Shadow {
+        shadow_type: *shadow_type,
+        color: retained_transparent_legacy_color(),
+        offset_x: retained_zero_px(),
+        offset_y: retained_zero_px(),
+        blur_radius: retained_zero_px(),
+        spread_distance: retained_zero_px(),
+        placement: *placement,
+    }));
+    Some(unsafe { RetainedStyleValueData::from_retained_pointer(value) })
+}
+
+fn interpolate_shadow(
+    context: Option<&FfiAnimationContext>,
+    property_id: u16,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> Option<StyleValueData> {
+    let (
+        StyleValueData::Shadow {
+            shadow_type: from_shadow_type,
+            color: from_color,
+            offset_x: from_offset_x,
+            offset_y: from_offset_y,
+            blur_radius: from_blur_radius,
+            spread_distance: from_spread_distance,
+            placement: from_placement,
+        },
+        StyleValueData::Shadow {
+            shadow_type: to_shadow_type,
+            color: to_color,
+            offset_x: to_offset_x,
+            offset_y: to_offset_y,
+            blur_radius: to_blur_radius,
+            spread_distance: to_spread_distance,
+            placement: to_placement,
+        },
+    ) = (from, to)
+    else {
+        return None;
+    };
+    if from_shadow_type != to_shadow_type {
+        return None;
+    }
+
+    let from_blur_default = retained_zero_px();
+    let to_blur_default = retained_zero_px();
+    let from_spread_default = retained_zero_px();
+    let to_spread_default = retained_zero_px();
+    let from_blur_radius = if from_blur_radius.optional_data().is_some() {
+        from_blur_radius
+    } else {
+        &from_blur_default
+    };
+    let to_blur_radius = if to_blur_radius.optional_data().is_some() {
+        to_blur_radius
+    } else {
+        &to_blur_default
+    };
+    let from_spread_distance = if from_spread_distance.optional_data().is_some() {
+        from_spread_distance
+    } else {
+        &from_spread_default
+    };
+    let to_spread_distance = if to_spread_distance.optional_data().is_some() {
+        to_spread_distance
+    } else {
+        &to_spread_default
+    };
+    let from_color = resolve_animation_color(context, from_color)?;
+    let to_color = resolve_animation_color(context, to_color)?;
+
+    let interpolate = |from: &RetainedStyleValueData, to: &RetainedStyleValueData, ranges: &[NumericRangeOverride]| {
+        retained_animation_result(interpolate_scalar_value(
+            property_id,
+            from.data(),
+            to.data(),
+            delta,
+            ranges,
+        ))
+    };
+    let color = interpolate(&from_color, &to_color, &[])?;
+    let offset_x = interpolate_animation_length(context, from_offset_x.data(), to_offset_x.data(), delta, None)
+        .or_else(|| interpolate(from_offset_x, to_offset_x, &[]))?;
+    let offset_y = interpolate_animation_length(context, from_offset_y.data(), to_offset_y.data(), delta, None)
+        .or_else(|| interpolate(from_offset_y, to_offset_y, &[]))?;
+    let blur_radius = interpolate_animation_length(
+        context,
+        from_blur_radius.data(),
+        to_blur_radius.data(),
+        delta,
+        Some((0.0, f64::INFINITY)),
+    )
+    .or_else(|| interpolate(from_blur_radius, to_blur_radius, NONNEGATIVE_LENGTH_RANGE))?;
+    let spread_distance = interpolate_animation_length(
+        context,
+        from_spread_distance.data(),
+        to_spread_distance.data(),
+        delta,
+        None,
+    )
+    .or_else(|| interpolate(from_spread_distance, to_spread_distance, &[]))?;
+
+    Some(StyleValueData::Shadow {
+        shadow_type: *from_shadow_type,
+        color,
+        offset_x,
+        offset_y,
+        blur_radius,
+        spread_distance,
+        placement: if delta >= 0.5 { *to_placement } else { *from_placement },
+    })
+}
+
+fn interpolate_shadow_list(
+    context: Option<&FfiAnimationContext>,
+    property_id: u16,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> FfiAnimationValueResult {
+    // https://drafts.csswg.org/css-backgrounds/#box-shadow
+    // Animation type: by computed value, treating none as a zero-item list and appending blank shadows
+    //                 (transparent 0 0 0 0) with a corresponding inset keyword as needed to match the longer list if
+    //                 the shorter list is otherwise compatible with the longer one
+    let list = |value: &StyleValueData| -> Option<(Vec<RetainedStyleValueData>, u8, bool)> {
+        match value {
+            StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => {
+                Some((Vec::new(), 0, false))
+            }
+            StyleValueData::ValueList {
+                values,
+                separator,
+                collapsible,
+            } => Some((
+                values
+                    .as_slice()
+                    .iter()
+                    .map(RetainedStyleValueData::clone_retained)
+                    .collect(),
+                *separator,
+                *collapsible,
+            )),
+            _ => None,
+        }
+    };
+    let Some((mut from_shadows, from_separator, from_collapsible)) = list(from) else {
+        return not_handled();
+    };
+    let Some((mut to_shadows, to_separator, to_collapsible)) = list(to) else {
+        return not_handled();
+    };
+    let from_was_empty = from_shadows.is_empty();
+
+    while from_shadows.len() < to_shadows.len() {
+        let Some(shadow) = blank_shadow(to_shadows[from_shadows.len()].data()) else {
+            return not_handled();
+        };
+        from_shadows.push(shadow);
+    }
+    while to_shadows.len() < from_shadows.len() {
+        let Some(shadow) = blank_shadow(from_shadows[to_shadows.len()].data()) else {
+            return not_handled();
+        };
+        to_shadows.push(shadow);
+    }
+
+    let mut shadows = Vec::with_capacity(from_shadows.len());
+    for (from_shadow, to_shadow) in from_shadows.iter().zip(&to_shadows) {
+        let Some(shadow) = interpolate_shadow(context, property_id, from_shadow.data(), to_shadow.data(), delta) else {
+            return discrete_value(context, from, to, delta);
+        };
+        let shadow = Arc::into_raw(Arc::new(shadow));
+        shadows.push(unsafe { RetainedStyleValueData::from_retained_pointer(shadow) });
+    }
+
+    let use_to_metadata = from_was_empty && !to_shadows.is_empty();
+    owned(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(shadows),
+        separator: if use_to_metadata { to_separator } else { from_separator },
+        collapsible: if use_to_metadata {
+            to_collapsible
+        } else {
+            from_collapsible
+        },
+    })
+}
+
+const FILTER_KIND_BLUR: u8 = 0;
+const FILTER_KIND_DROP_SHADOW: u8 = 1;
+const FILTER_KIND_HUE_ROTATE: u8 = 2;
+const FILTER_KIND_COLOR: u8 = 3;
+
+fn retained_filter(kind: u8, color_operation: u8, value: RetainedStyleValueData) -> RetainedStyleValueData {
+    let value = Arc::into_raw(Arc::new(StyleValueData::Filter {
+        kind,
+        color_operation,
+        value,
+    }));
+    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+}
+
+fn initial_filter_value(
+    value: &StyleValueData,
+    use_transparent_drop_shadow_color: bool,
+) -> Option<RetainedStyleValueData> {
+    let StyleValueData::Filter {
+        kind,
+        color_operation,
+        value,
+    } = value
+    else {
+        return None;
+    };
+    let initial = match *kind {
+        FILTER_KIND_BLUR => retained_zero_px(),
+        FILTER_KIND_DROP_SHADOW => {
+            let StyleValueData::Shadow {
+                shadow_type, placement, ..
+            } = value.data()
+            else {
+                return None;
+            };
+            let shadow = Arc::into_raw(Arc::new(StyleValueData::Shadow {
+                shadow_type: *shadow_type,
+                color: if use_transparent_drop_shadow_color {
+                    retained_transparent_legacy_color()
+                } else {
+                    empty_retained_style_value()
+                },
+                offset_x: retained_zero_px(),
+                offset_y: retained_zero_px(),
+                blur_radius: retained_zero_px(),
+                spread_distance: empty_retained_style_value(),
+                placement: *placement,
+            }));
+            unsafe { RetainedStyleValueData::from_retained_pointer(shadow) }
+        }
+        FILTER_KIND_HUE_ROTATE => {
+            let angle = Arc::into_raw(Arc::new(StyleValueData::Angle { value: 0.0, unit: 0 }));
+            unsafe { RetainedStyleValueData::from_retained_pointer(angle) }
+        }
+        FILTER_KIND_COLOR => retained_number(if matches!(*color_operation, 2 | 3 | 6) {
+            0.0
+        } else {
+            1.0
+        }),
+        _ => return None,
+    };
+    Some(retained_filter(*kind, *color_operation, initial))
+}
+
+// https://drafts.fxtf.org/filter-effects/#interpolation-of-filter-functions
+fn interpolate_filter_function(
+    context: Option<&FfiAnimationContext>,
+    property_id: u16,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> Option<RetainedStyleValueData> {
+    let (
+        StyleValueData::Filter {
+            kind: from_kind,
+            color_operation: from_color_operation,
+            value: from_value,
+        },
+        StyleValueData::Filter {
+            kind: to_kind,
+            color_operation: to_color_operation,
+            value: to_value,
+        },
+    ) = (from, to)
+    else {
+        return None;
+    };
+    if from_kind != to_kind {
+        return None;
+    }
+
+    let value = match *from_kind {
+        FILTER_KIND_BLUR => interpolate_animation_length(
+            context,
+            from_value.data(),
+            to_value.data(),
+            delta,
+            Some((0.0, f32::MAX as f64)),
+        )
+        .or_else(|| {
+            retained_animation_result(interpolate_scalar_value(
+                property_id,
+                from_value.data(),
+                to_value.data(),
+                delta,
+                NONNEGATIVE_LENGTH_RANGE,
+            ))
+        })?,
+        FILTER_KIND_DROP_SHADOW => {
+            let mut shadow = interpolate_shadow(context, property_id, from_value.data(), to_value.data(), delta)?;
+            let (
+                StyleValueData::Shadow {
+                    blur_radius: from_blur_radius,
+                    ..
+                },
+                StyleValueData::Shadow {
+                    blur_radius: to_blur_radius,
+                    ..
+                },
+                StyleValueData::Shadow {
+                    blur_radius,
+                    spread_distance,
+                    ..
+                },
+            ) = (from_value.data(), to_value.data(), &mut shadow)
+            else {
+                return None;
+            };
+            let selected_blur_radius = if delta >= 0.5 { to_blur_radius } else { from_blur_radius };
+            if selected_blur_radius.optional_data().is_none() {
+                *blur_radius = empty_retained_style_value();
+            }
+            *spread_distance = empty_retained_style_value();
+            let shadow = Arc::into_raw(Arc::new(shadow));
+            unsafe { RetainedStyleValueData::from_retained_pointer(shadow) }
+        }
+        FILTER_KIND_HUE_ROTATE => {
+            let from = resolve_animation_angle(context, from_value.data())?;
+            let to = resolve_animation_angle(context, to_value.data())?;
+            let angle = Arc::into_raw(Arc::new(StyleValueData::Angle {
+                value: interpolate_f64(from, to, delta, None),
+                unit: 0,
+            }));
+            unsafe { RetainedStyleValueData::from_retained_pointer(angle) }
+        }
+        FILTER_KIND_COLOR if from_color_operation == to_color_operation => {
+            let ranges = if matches!(*from_color_operation, 2 | 3 | 4 | 6) {
+                &[NumericRangeOverride {
+                    value_type: VALUE_TYPE_NUMBER,
+                    min: 0.0,
+                    max: 1.0,
+                }][..]
+            } else {
+                &[NumericRangeOverride {
+                    value_type: VALUE_TYPE_NUMBER,
+                    min: 0.0,
+                    max: f32::MAX as f64,
+                }][..]
+            };
+            retained_animation_result(interpolate_scalar_value(
+                property_id,
+                from_value.data(),
+                to_value.data(),
+                delta,
+                ranges,
+            ))?
+        }
+        _ => return None,
+    };
+    Some(retained_filter(*from_kind, *from_color_operation, value))
+}
+
+fn accumulate_filter_function(
+    context: &FfiAnimationContext,
+    underlying: &StyleValueData,
+    animated: &StyleValueData,
+) -> Option<RetainedStyleValueData> {
+    let (
+        StyleValueData::Filter {
+            kind: underlying_kind,
+            color_operation: underlying_color_operation,
+            value: underlying_value,
+        },
+        StyleValueData::Filter {
+            kind: animated_kind,
+            color_operation: animated_color_operation,
+            value: animated_value,
+        },
+    ) = (underlying, animated)
+    else {
+        return None;
+    };
+    if underlying_kind != animated_kind {
+        return None;
+    }
+
+    let value = match *underlying_kind {
+        FILTER_KIND_BLUR => retained_length(
+            resolve_animation_length(Some(context), underlying_value.data())?
+                + resolve_animation_length(Some(context), animated_value.data())?,
+            crate::style_compute::px_length_unit(),
+        ),
+        FILTER_KIND_HUE_ROTATE => {
+            let angle = Arc::into_raw(Arc::new(StyleValueData::Angle {
+                value: resolve_animation_angle(Some(context), underlying_value.data())?
+                    + resolve_animation_angle(Some(context), animated_value.data())?,
+                unit: 0,
+            }));
+            unsafe { RetainedStyleValueData::from_retained_pointer(angle) }
+        }
+        FILTER_KIND_COLOR if underlying_color_operation == animated_color_operation => {
+            let underlying = resolve_animation_number(Some(context), underlying_value.data())?;
+            let animated = resolve_animation_number(Some(context), animated_value.data())?;
+            retained_number(if matches!(*underlying_color_operation, 0 | 1 | 4 | 5) {
+                underlying + animated - 1.0
+            } else {
+                underlying + animated
+            })
+        }
+        FILTER_KIND_DROP_SHADOW => {
+            let (
+                StyleValueData::Shadow {
+                    shadow_type,
+                    color: underlying_color,
+                    offset_x: underlying_offset_x,
+                    offset_y: underlying_offset_y,
+                    blur_radius: underlying_blur_radius,
+                    placement,
+                    ..
+                },
+                StyleValueData::Shadow {
+                    color: animated_color,
+                    offset_x: animated_offset_x,
+                    offset_y: animated_offset_y,
+                    blur_radius: animated_blur_radius,
+                    ..
+                },
+            ) = (underlying_value.data(), animated_value.data())
+            else {
+                return None;
+            };
+            let add_lengths = |underlying: &RetainedStyleValueData, animated: &RetainedStyleValueData| {
+                Some(retained_length(
+                    resolve_animation_length(Some(context), underlying.data())?
+                        + resolve_animation_length(Some(context), animated.data())?,
+                    crate::style_compute::px_length_unit(),
+                ))
+            };
+            let offset_x = add_lengths(underlying_offset_x, animated_offset_x)?;
+            let offset_y = add_lengths(underlying_offset_y, animated_offset_y)?;
+            let blur_radius =
+                if underlying_blur_radius.optional_data().is_some() || animated_blur_radius.optional_data().is_some() {
+                    let underlying = match underlying_blur_radius.optional_data() {
+                        Some(value) => resolve_animation_length(Some(context), value)?,
+                        None => 0.0,
+                    };
+                    let animated = match animated_blur_radius.optional_data() {
+                        Some(value) => resolve_animation_length(Some(context), value)?,
+                        None => 0.0,
+                    };
+                    retained_length(underlying + animated, crate::style_compute::px_length_unit())
+                } else {
+                    empty_retained_style_value()
+                };
+            let color_bytes = |color: &RetainedStyleValueData| {
+                let color = resolve_animation_color(Some(context), color)?;
+                let (components, _) = legacy_srgb_components(color.data())?;
+                let byte = |value: f32| (value * 255.0).round().clamp(0.0, 255.0) as u8;
+                Some([
+                    byte(components[0]),
+                    byte(components[1]),
+                    byte(components[2]),
+                    byte(components[3]),
+                ])
+            };
+            let underlying_color = color_bytes(underlying_color)?;
+            let animated_color = color_bytes(animated_color)?;
+            let add_color_component =
+                |underlying: u8, animated: u8| u16::from(underlying).saturating_add(u16::from(animated)).min(255) as u8;
+            let color = retained_legacy_color(
+                add_color_component(underlying_color[0], animated_color[0]),
+                add_color_component(underlying_color[1], animated_color[1]),
+                add_color_component(underlying_color[2], animated_color[2]),
+                add_color_component(underlying_color[3], animated_color[3]),
+            );
+            let shadow = Arc::into_raw(Arc::new(StyleValueData::Shadow {
+                shadow_type: *shadow_type,
+                color,
+                offset_x,
+                offset_y,
+                blur_radius,
+                spread_distance: empty_retained_style_value(),
+                placement: *placement,
+            }));
+            unsafe { RetainedStyleValueData::from_retained_pointer(shadow) }
+        }
+        _ => return None,
+    };
+    Some(retained_filter(*underlying_kind, *underlying_color_operation, value))
+}
+
+fn composite_filter_list(
+    context: &FfiAnimationContext,
+    underlying: &StyleValueData,
+    animated: &StyleValueData,
+    operation: FfiCompositeOperation,
+) -> FfiAnimationValueResult {
+    if matches!(operation, FfiCompositeOperation::Replace) {
+        return handled_without_value();
+    }
+    let list = |value: &StyleValueData| -> Option<(Vec<RetainedStyleValueData>, u8, bool)> {
+        match value {
+            StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => {
+                Some((Vec::new(), 0, false))
+            }
+            StyleValueData::ValueList {
+                values,
+                separator,
+                collapsible,
+            } => Some((
+                values
+                    .as_slice()
+                    .iter()
+                    .map(RetainedStyleValueData::clone_retained)
+                    .collect(),
+                *separator,
+                *collapsible,
+            )),
+            _ => None,
+        }
+    };
+    let Some((mut underlying_filters, underlying_separator, underlying_collapsible)) = list(underlying) else {
+        return not_handled();
+    };
+    let Some((mut animated_filters, animated_separator, animated_collapsible)) = list(animated) else {
+        return not_handled();
+    };
+    let underlying_was_empty = underlying_filters.is_empty();
+
+    // https://drafts.fxtf.org/filter-effects/#addition
+    // Given two filter values representing an base value (base filter list) and a value to add (added filter list),
+    // returns the concatenation of the the two lists: ‘base filter list added filter list’.
+    if matches!(operation, FfiCompositeOperation::Add) {
+        if underlying_filters.is_empty() && animated_filters.is_empty() {
+            return handled_without_value();
+        }
+        let use_animated_metadata = underlying_was_empty;
+        underlying_filters.append(&mut animated_filters);
+        return owned(StyleValueData::ValueList {
+            values: RetainedStyleValueDataList::from_retained_values(underlying_filters),
+            separator: if use_animated_metadata {
+                animated_separator
+            } else {
+                underlying_separator
+            },
+            collapsible: if use_animated_metadata {
+                animated_collapsible
+            } else {
+                underlying_collapsible
+            },
+        });
+    }
+
+    // https://drafts.fxtf.org/filter-effects/#accumulation
+    // Accumulation of <filter-value-list>s follows the same matching and extending rules as interpolation, falling
+    // back to replace behavior if the lists do not match. However instead of interpolating the matching
+    // <filter-function> pairs, their arguments are arithmetically added together - except in the case of
+    // <filter-function>s whose initial value for interpolation is 1, which combine using one-based addition:
+    // Vresult = Va + Vb - 1
+    if !underlying_filters
+        .iter()
+        .chain(&animated_filters)
+        .all(|value| matches!(value.data(), StyleValueData::Filter { .. }))
+    {
+        return handled_without_value();
+    }
+    while underlying_filters.len() < animated_filters.len() {
+        let Some(value) = initial_filter_value(animated_filters[underlying_filters.len()].data(), false) else {
+            return handled_without_value();
+        };
+        underlying_filters.push(value);
+    }
+    while animated_filters.len() < underlying_filters.len() {
+        let Some(value) = initial_filter_value(underlying_filters[animated_filters.len()].data(), false) else {
+            return handled_without_value();
+        };
+        animated_filters.push(value);
+    }
+    if underlying_filters.is_empty() {
+        return handled_without_value();
+    }
+
+    let mut filters = Vec::with_capacity(underlying_filters.len());
+    for (underlying, animated) in underlying_filters.iter().zip(&animated_filters) {
+        let Some(filter) = accumulate_filter_function(context, underlying.data(), animated.data()) else {
+            return handled_without_value();
+        };
+        filters.push(filter);
+    }
+    owned(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(filters),
+        separator: if underlying_was_empty {
+            animated_separator
+        } else {
+            underlying_separator
+        },
+        collapsible: if underlying_was_empty {
+            animated_collapsible
+        } else {
+            underlying_collapsible
+        },
+    })
+}
+
+fn interpolate_filter_list(
+    context: Option<&FfiAnimationContext>,
+    property_id: u16,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> FfiAnimationValueResult {
+    let list = |value: &StyleValueData| -> Option<(Vec<RetainedStyleValueData>, u8, bool)> {
+        match value {
+            StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => {
+                Some((Vec::new(), 0, false))
+            }
+            StyleValueData::ValueList {
+                values,
+                separator,
+                collapsible,
+            } if values
+                .as_slice()
+                .iter()
+                .all(|value| matches!(value.data(), StyleValueData::Filter { .. })) =>
+            {
+                Some((
+                    values
+                        .as_slice()
+                        .iter()
+                        .map(RetainedStyleValueData::clone_retained)
+                        .collect(),
+                    *separator,
+                    *collapsible,
+                ))
+            }
+            _ => None,
+        }
+    };
+    let Some((mut from_filters, from_separator, from_collapsible)) = list(from) else {
+        return discrete_value(context, from, to, delta);
+    };
+    let Some((mut to_filters, to_separator, to_collapsible)) = list(to) else {
+        return discrete_value(context, from, to, delta);
+    };
+    if from_filters.is_empty() && to_filters.is_empty() {
+        return discrete_value(context, from, to, delta);
+    }
+    let from_was_empty = from_filters.is_empty();
+
+    // https://drafts.fxtf.org/filter-effects/#interpolation-of-filters
+    // If both filters have a <filter-value-list> of same length without <url> and for each <filter-function> for which there is a corresponding item in each list
+    // Interpolate each <filter-function> pair following the rules in section Interpolation of Filter Functions.
+
+    // If both filters have a <filter-value-list> of different length without <url> and for each <filter-function> for which there is a corresponding item in each list
+
+    // 1. Append the missing equivalent <filter-function>s from the longer list to the end of the shorter list. The new added <filter-function>s must be initialized to their initial values for interpolation.
+    while from_filters.len() < to_filters.len() {
+        let Some(value) = initial_filter_value(to_filters[from_filters.len()].data(), true) else {
+            return discrete_value(context, from, to, delta);
+        };
+        from_filters.push(value);
+    }
+    while to_filters.len() < from_filters.len() {
+        let Some(value) = initial_filter_value(from_filters[to_filters.len()].data(), true) else {
+            return discrete_value(context, from, to, delta);
+        };
+        to_filters.push(value);
+    }
+
+    // If one filter is none and the other is a <filter-value-list> without <url>
+    //
+    // 1. Replace none with the corresponding <filter-value-list> of the other filter. The new <filter-function>s must be initialized to their initial values for interpolation.
+
+    // 2. Interpolate each <filter-function> pair following the rules in section Interpolation of Filter Functions.
+    let mut filters = Vec::with_capacity(from_filters.len());
+    for (from_filter, to_filter) in from_filters.iter().zip(&to_filters) {
+        let Some(filter) =
+            interpolate_filter_function(context, property_id, from_filter.data(), to_filter.data(), delta)
+        else {
+            return discrete_value(context, from, to, delta);
+        };
+        filters.push(filter);
+    }
+
+    let use_to_metadata = from_was_empty && !to_filters.is_empty();
+    owned(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(filters),
+        separator: if use_to_metadata { to_separator } else { from_separator },
+        collapsible: if use_to_metadata {
+            to_collapsible
+        } else {
+            from_collapsible
+        },
+    })
+}
+
 fn interpolate_value(
     context: Option<&FfiAnimationContext>,
     property_id: u16,
@@ -3453,6 +5630,22 @@ fn interpolate_value(
     delta: f32,
 ) -> FfiAnimationValueResult {
     let animation_type = property_animation_type(property_id);
+    if animation_type == ANIMATION_TYPE_CUSTOM
+        && matches!(
+            property_id,
+            crate::property_metadata::property_id::FILTER | crate::property_metadata::property_id::BACKDROP_FILTER
+        )
+    {
+        return interpolate_filter_list(context, property_id, from, to, delta);
+    }
+    if animation_type == ANIMATION_TYPE_CUSTOM
+        && matches!(
+            property_id,
+            crate::property_metadata::property_id::BOX_SHADOW | crate::property_metadata::property_id::TEXT_SHADOW
+        )
+    {
+        return interpolate_shadow_list(context, property_id, from, to, delta);
+    }
     let is_stroke_dasharray = animation_type == ANIMATION_TYPE_CUSTOM
         && property_id == crate::property_metadata::property_id::STROKE_DASHARRAY;
     if is_stroke_dasharray
@@ -3617,6 +5810,41 @@ fn interpolate_value(
             owned,
         );
     }
+    if animation_type == ANIMATION_TYPE_CUSTOM
+        && matches!(
+            property_id,
+            crate::property_metadata::property_id::GRID_TEMPLATE_COLUMNS
+                | crate::property_metadata::property_id::GRID_TEMPLATE_ROWS
+        )
+        && let (
+            StyleValueData::GridTrackSizeList {
+                is_subgrid: from_is_subgrid,
+                entries: from_entries,
+                ..
+            },
+            StyleValueData::GridTrackSizeList {
+                is_subgrid: to_is_subgrid,
+                entries: to_entries,
+                ..
+            },
+        ) = (from, to)
+    {
+        let Some(entries) = interpolate_grid_track_entries(
+            property_id,
+            *from_is_subgrid,
+            from_entries.as_slice(),
+            *to_is_subgrid,
+            to_entries.as_slice(),
+            delta,
+        ) else {
+            return discrete_value(context, from, to, delta);
+        };
+        return owned(StyleValueData::GridTrackSizeList {
+            is_subgrid: false,
+            preserve_line_name_sets: false,
+            entries: RetainedGridTrackEntryList::from_retained_entries(entries),
+        });
+    }
     if animation_type != ANIMATION_TYPE_BY_COMPUTED_VALUE {
         return not_handled();
     }
@@ -3642,11 +5870,20 @@ impl BatchAnimationValue<'_> {
 }
 
 fn composite_batch_value<'a>(
+    context: &FfiAnimationContext,
+    property_id: u16,
     underlying: &'a StyleValueData,
     animated: &'a StyleValueData,
     operation: FfiCompositeOperation,
 ) -> Option<BatchAnimationValue<'a>> {
-    let result = composite_scalar_value(underlying, animated, operation);
+    let result = if matches!(
+        property_id,
+        crate::property_metadata::property_id::FILTER | crate::property_metadata::property_id::BACKDROP_FILTER
+    ) {
+        composite_filter_list(context, underlying, animated, operation)
+    } else {
+        composite_scalar_value(underlying, animated, operation)
+    };
     if !result.handled {
         return None;
     }
@@ -3698,8 +5935,8 @@ fn evaluate_animation_value(context: &FfiAnimationContext, input: &FfiAnimationV
     let start = unsafe { &*start_keyframe.value };
     let end = unsafe { &*end_keyframe.value };
     let (Some(start), Some(end)) = (
-        composite_batch_value(underlying, start, start_keyframe.composite),
-        composite_batch_value(underlying, end, end_keyframe.composite),
+        composite_batch_value(context, input.property_id, underlying, start, start_keyframe.composite),
+        composite_batch_value(context, input.property_id, underlying, end, end_keyframe.composite),
     ) else {
         return unhandled();
     };
@@ -3862,6 +6099,28 @@ mod tests {
         let result = evaluate_animation_value(
             &FfiAnimationContext {
                 allow_discrete: true,
+                current_color: std::ptr::null(),
+                has_length_resolution_context: false,
+                length_resolution_context: FfiAnimationLengthResolutionContext {
+                    viewport_width: 0.0,
+                    viewport_height: 0.0,
+                    font_metrics: FfiAnimationFontMetrics {
+                        font_size: 0.0,
+                        x_height: 0.0,
+                        cap_height: 0.0,
+                        zero_advance: 0.0,
+                        line_height: 0.0,
+                    },
+                    root_font_metrics: FfiAnimationFontMetrics {
+                        font_size: 0.0,
+                        x_height: 0.0,
+                        cap_height: 0.0,
+                        zero_advance: 0.0,
+                        line_height: 0.0,
+                    },
+                    font_metrics_depend_on_viewport_metrics: false,
+                    root_font_metrics_depend_on_viewport_metrics: false,
+                },
                 has_transform_reference_box: false,
                 transform_reference_box_width: 0.0,
                 transform_reference_box_height: 0.0,
