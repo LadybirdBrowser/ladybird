@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <LibWeb/Forward.h>
 
@@ -54,18 +55,7 @@ public:
     static void detach_top_layer_element_layout_subtree(DOM::Element&);
 
 private:
-    struct Context {
-        bool has_svg_root = false;
-        bool layout_top_layer = false;
-        bool layout_svg_mask_or_clip_path = false;
-        bool layout_svg_pattern = false;
-    };
-
-    enum class MustCreateSubtree {
-        No,
-        Yes,
-    };
-    void update_layout_tree(DOM::Node&, Context&, MustCreateSubtree);
+    struct PrincipalNodeFrameStorage;
     static void clear_stale_layout_nodes_for_assigned_slottables(HTML::HTMLSlotElement&);
     static TraversalDecision clear_stale_layout_and_paint_node(DOM::Node&, DOM::Node const* cleared_subtree_root = nullptr);
 
@@ -86,6 +76,7 @@ private:
 
     RefPtr<Layout::Node> m_layout_root;
     void* m_rust_state { nullptr };
+    OwnPtr<PrincipalNodeFrameStorage> m_principal_frames;
 
     // The root of the in-place subtree replacement currently being built, if any.
     Layout::Node* m_current_rebuild_root { nullptr };
