@@ -1,3 +1,4 @@
 normal
 center
-C++ interpolation fallbacks: 0
+auto
+10

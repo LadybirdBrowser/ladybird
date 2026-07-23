@@ -58,7 +58,7 @@ GC::Ref<Animation> Animation::construct_impl(JS::Realm& realm, GC::Ptr<Animation
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-set-the-associated-effect-of-an-animation
-void Animation::set_effect(GC::Ptr<AnimationEffect> new_effect)
+void Animation::set_effect(GC::Ptr<AnimationEffect> new_effect, ShouldInvalidate should_invalidate)
 {
     // Setting this attribute updates the object’s associated effect using the procedure to set the associated effect of
     // an animation.
@@ -106,7 +106,7 @@ void Animation::set_effect(GC::Ptr<AnimationEffect> new_effect)
 
     // 7. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //    and the synchronously notify flag set to false.
-    update_finished_state(DidSeek::No, SynchronouslyNotify::No);
+    update_finished_state(DidSeek::No, SynchronouslyNotify::No, should_invalidate);
 }
 
 GC::Ptr<AnimationTimeline> Animation::timeline_for_bindings() const
@@ -809,16 +809,16 @@ WebIDL::ExceptionOr<void> Animation::finish()
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-play
-WebIDL::ExceptionOr<void> Animation::play()
+WebIDL::ExceptionOr<void> Animation::play(ShouldInvalidate should_invalidate)
 {
     // Begins or resumes playback of the animation by running the procedure to play an animation passing true as the
     // value of the auto-rewind flag.
-    return play_an_animation(AutoRewind::Yes);
+    return play_an_animation(AutoRewind::Yes, should_invalidate);
 }
 
 // https://drafts.csswg.org/web-animations-1/#playing-an-animation-section
 // https://drafts.csswg.org/web-animations-2/#play-an-animation
-WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
+WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind, ShouldInvalidate should_invalidate)
 {
     // 1. Let aborted pause be a boolean flag that is true if animation has a pending pause task, and false otherwise.
     auto aborted_pause = m_pending_pause_task == TaskState::Scheduled;
@@ -921,7 +921,7 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
 
     // 13. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //     and the synchronously notify flag set to false.
-    update_finished_state(DidSeek::No, SynchronouslyNotify::No);
+    update_finished_state(DidSeek::No, SynchronouslyNotify::No, should_invalidate);
 
     return {};
 }
@@ -1284,7 +1284,7 @@ WebIDL::ExceptionOr<void> Animation::silently_set_current_time(Optional<TimeValu
 }
 
 // https://www.w3.org/TR/web-animations-1/#update-an-animations-finished-state
-void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify synchronously_notify)
+void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify synchronously_notify, ShouldInvalidate should_invalidate)
 {
     auto& realm = this->realm();
 
@@ -1442,7 +1442,8 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
         m_is_finished = false;
     }
 
-    invalidate_effect();
+    if (should_invalidate == ShouldInvalidate::Yes)
+        invalidate_effect();
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-reset-an-animations-pending-tasks

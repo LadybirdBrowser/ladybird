@@ -801,31 +801,68 @@ pub(crate) fn interpolate_length_percentage_calculations(
     to: Arc<CalcNode>,
     delta: f32,
 ) -> Option<(Arc<CalcNode>, FfiNumericType)> {
-    combine_length_percentage_calculations(from, to, 1.0 - delta as f64, delta as f64)
+    combine_calculations(from, to, 1.0 - delta as f64, delta as f64, Some(ResolveAs::Base(0)))
 }
 
 pub(crate) fn add_length_percentage_calculations(
     underlying: Arc<CalcNode>,
     animated: Arc<CalcNode>,
 ) -> Option<(Arc<CalcNode>, FfiNumericType)> {
-    combine_length_percentage_calculations(underlying, animated, 1.0, 1.0)
+    combine_calculations(underlying, animated, 1.0, 1.0, Some(ResolveAs::Base(0)))
 }
 
-fn combine_length_percentage_calculations(
+/// https://drafts.csswg.org/css-values-4/#combine-math
+/// Interpolation of math functions, with each other or with numeric values and other numeric-valued functions, is
+/// defined as Vresult = calc((1 - p) * VA + p * VB).
+pub(crate) fn interpolate_calculations(
+    from: Arc<CalcNode>,
+    to: Arc<CalcNode>,
+    delta: f32,
+    has_percentages_resolve_as: bool,
+    resolve_as_is_number: bool,
+    resolve_as_base: u8,
+) -> Option<(Arc<CalcNode>, FfiNumericType)> {
+    combine_calculations(
+        from,
+        to,
+        1.0 - delta as f64,
+        delta as f64,
+        resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base),
+    )
+}
+
+pub(crate) fn add_calculations(
+    underlying: Arc<CalcNode>,
+    animated: Arc<CalcNode>,
+    has_percentages_resolve_as: bool,
+    resolve_as_is_number: bool,
+    resolve_as_base: u8,
+) -> Option<(Arc<CalcNode>, FfiNumericType)> {
+    combine_calculations(
+        underlying,
+        animated,
+        1.0,
+        1.0,
+        resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base),
+    )
+}
+
+fn combine_calculations(
     from: Arc<CalcNode>,
     to: Arc<CalcNode>,
     from_multiplier: f64,
     to_multiplier: f64,
+    resolve_as: Option<ResolveAs>,
 ) -> Option<(Arc<CalcNode>, FfiNumericType)> {
     let number = |value| shared(CalcNode::Numeric(CalcNumericValue::Number { value, number_type: 0 }));
     let from_contribution = shared(CalcNode::Product(vec![from, number(from_multiplier)]));
     let to_contribution = shared(CalcNode::Product(vec![to, number(to_multiplier)]));
     let root = shared(CalcNode::Sum(vec![from_contribution, to_contribution]));
 
-    let percentage_leaf_type = percentage_leaf_type_for(Some(ResolveAs::Base(0)));
+    let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
     let evaluation_context = CalcEvaluationContext {
         percentage_leaf_type: &percentage_leaf_type,
-        resolve_as: Some(ResolveAs::Base(0)),
+        resolve_as,
         percentage_basis: None,
         length_resolution: LengthResolution::default(),
         random_base_value: None,

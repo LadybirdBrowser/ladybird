@@ -7,7 +7,6 @@
 #include <AK/IntegralMath.h>
 #include <LibGfx/ColorConversion.h>
 #include <LibWeb/CSS/ColorInterpolation.h>
-#include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>

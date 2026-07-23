@@ -10,7 +10,6 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSTransition.h>
-#include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -118,7 +117,9 @@ CSSTransition::CSSTransition(
     // that have been disassociated from their owning element but are still idle do not have a defined composite order.
 
     // Construct a KeyframesEffect for our animation
-    m_keyframe_effect->set_target(abstract_element);
+    // NB: The current style computation collects this effect before publishing its result, so scheduling a second
+    //     animated style update here would evaluate the same transition twice.
+    m_keyframe_effect->set_target(abstract_element, Animations::KeyframeEffect::InvalidateEffect::No);
     m_keyframe_effect->set_specified_start_delay(delay);
     m_keyframe_effect->set_specified_iteration_duration(end_time - start_time);
     // AD-HOC: CSS Transitions require the start value to apply during transition-delay. A default KeyframeEffect does
@@ -144,11 +145,11 @@ CSSTransition::CSSTransition(
     m_keyframe_effect->set_key_frame_set(key_frame_set);
     set_timeline(abstract_element.document().timeline());
     set_owning_element(abstract_element);
-    set_effect(m_keyframe_effect);
+    set_effect(m_keyframe_effect, Animations::Animation::ShouldInvalidate::No);
     abstract_element.element().set_transition(abstract_element.pseudo_element(), m_transition_property, *this);
 
     HTML::TemporaryExecutionContext context(realm);
-    play().release_value_but_fixme_should_propagate_errors();
+    play(Animations::Animation::ShouldInvalidate::No).release_value_but_fixme_should_propagate_errors();
 }
 
 void CSSTransition::initialize(JS::Realm& realm)

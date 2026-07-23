@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 128 tests
 
-118 Pass
-10 Fail
+128 Pass
 Pass	Compositing CSS Animations: property <clip-path> underlying [circle(100px at 25px 25%)] from add [circle(10px at 25px 75%)] to add [circle(50px at 50px center)] at (-0.3) should be [circle(98px at 42.5px 107.5%)]
 Pass	Compositing CSS Animations: property <clip-path> underlying [circle(100px at 25px 25%)] from add [circle(10px at 25px 75%)] to add [circle(50px at 50px center)] at (0) should be [circle(110px at 50px 100%)]
 Pass	Compositing CSS Animations: property <clip-path> underlying [circle(100px at 25px 25%)] from add [circle(10px at 25px 75%)] to add [circle(50px at 50px center)] at (0.3) should be [circle(122px at 57.5px 92.5%)]
@@ -64,18 +63,18 @@ Pass	Compositing CSS Animations: property <clip-path> underlying [ellipse(25px 7
 Pass	Compositing CSS Animations: property <clip-path> underlying [ellipse(25px 75%)] from add [ellipse()] to add [ellipse(closest-side farthest-side)] at (0.75) should be [ellipse(closest-side farthest-side)]
 Pass	Compositing Web Animations: property <clip-path> underlying [ellipse(25px 75%)] from add [ellipse()] to add [ellipse(closest-side farthest-side)] at (0.25) should be [ellipse()]
 Pass	Compositing Web Animations: property <clip-path> underlying [ellipse(25px 75%)] from add [ellipse()] to add [ellipse(closest-side farthest-side)] at (0.75) should be [ellipse(closest-side farthest-side)]
-Fail	Compositing CSS Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (-0.3) should be [inset(calc(46px + -12%))]
+Pass	Compositing CSS Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (-0.3) should be [inset(calc(46px + -12%))]
 Pass	Compositing CSS Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (0) should be [inset(calc(40px + 0%))]
-Fail	Compositing CSS Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (0.3) should be [inset(calc(34px + 12%))]
-Fail	Compositing CSS Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (0.6) should be [inset(calc(28px + 24%))]
-Fail	Compositing CSS Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (1) should be [inset(calc(20px + 40%))]
-Fail	Compositing CSS Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (1.5) should be [inset(calc(10px + 60%))]
-Fail	Compositing Web Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (-0.3) should be [inset(calc(46px + -12%))]
+Pass	Compositing CSS Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (0.3) should be [inset(calc(34px + 12%))]
+Pass	Compositing CSS Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (0.6) should be [inset(calc(28px + 24%))]
+Pass	Compositing CSS Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (1) should be [inset(calc(20px + 40%))]
+Pass	Compositing CSS Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (1.5) should be [inset(calc(10px + 60%))]
+Pass	Compositing Web Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (-0.3) should be [inset(calc(46px + -12%))]
 Pass	Compositing Web Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (0) should be [inset(calc(40px + 0%))]
-Fail	Compositing Web Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (0.3) should be [inset(calc(34px + 12%))]
-Fail	Compositing Web Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (0.6) should be [inset(calc(28px + 24%))]
-Fail	Compositing Web Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (1) should be [inset(calc(20px + 40%))]
-Fail	Compositing Web Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (1.5) should be [inset(calc(10px + 60%))]
+Pass	Compositing Web Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (0.3) should be [inset(calc(34px + 12%))]
+Pass	Compositing Web Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (0.6) should be [inset(calc(28px + 24%))]
+Pass	Compositing Web Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (1) should be [inset(calc(20px + 40%))]
+Pass	Compositing Web Animations: property <clip-path> underlying [inset(20px)] from add [inset(20px)] to add [inset(40%)] at (1.5) should be [inset(calc(10px + 60%))]
 Pass	Compositing CSS Animations: property <clip-path> underlying [inset(1px 2px 3px 4px round 10px 20px 30px 40px / 50px 60px 70px 80px)] from add [inset(1px 2px 3px 4px round 10px 20px 30px 40px / 50px 60px 70px 80px)] to replace [inset(102px 104px 106px 108px round 120px 140px 160px 180px / 200px 220px 240px 260px)] at (-0.3) should be [inset(-28px -26px -24px -22px round 0px 10px 30px 50px / 70px 90px 110px 130px)]
 Pass	Compositing CSS Animations: property <clip-path> underlying [inset(1px 2px 3px 4px round 10px 20px 30px 40px / 50px 60px 70px 80px)] from add [inset(1px 2px 3px 4px round 10px 20px 30px 40px / 50px 60px 70px 80px)] to replace [inset(102px 104px 106px 108px round 120px 140px 160px 180px / 200px 220px 240px 260px)] at (0) should be [inset(2px 4px 6px 8px round 20px 40px 60px 80px / 100px 120px 140px 160px)]
 Pass	Compositing CSS Animations: property <clip-path> underlying [inset(1px 2px 3px 4px round 10px 20px 30px 40px / 50px 60px 70px 80px)] from add [inset(1px 2px 3px 4px round 10px 20px 30px 40px / 50px 60px 70px 80px)] to replace [inset(102px 104px 106px 108px round 120px 140px 160px 180px / 200px 220px 240px 260px)] at (0.25) should be [inset(27px 29px 31px 33px round 45px 65px 85px 105px / 125px 145px 165px 185px)]

@@ -84,5 +84,6 @@ Optional<InterpolatedColor> perform_color_interpolation(
     ColorResolutionContext const& color_resolution_context);
 
 RefPtr<StyleValue const> style_value_for_interpolated_color(InterpolatedColor const&);
+RefPtr<StyleValue const> interpolate_color(StyleValue const& from, StyleValue const& to, float delta, Optional<ColorInterpolationMethodStyleValue::ColorInterpolationMethod>, ColorResolutionContext const&);
 
 }

@@ -30,6 +30,11 @@ class Animation : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(Animation);
 
 public:
+    enum class ShouldInvalidate {
+        Yes,
+        No,
+    };
+
     static constexpr bool OVERRIDES_FINALIZE = true;
 
     static GC::Ref<Animation> create(JS::Realm&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
@@ -39,7 +44,7 @@ public:
     void set_id(Utf16FlyString value) { m_id = move(value); }
 
     GC::Ptr<AnimationEffect> effect() const { return m_effect; }
-    void set_effect(GC::Ptr<AnimationEffect>);
+    void set_effect(GC::Ptr<AnimationEffect>, ShouldInvalidate = ShouldInvalidate::Yes);
 
     GC::Ptr<AnimationTimeline> timeline() const { return m_timeline; }
     void set_timeline(GC::Ptr<AnimationTimeline>);
@@ -97,14 +102,10 @@ public:
         Yes,
         No,
     };
-    enum class ShouldInvalidate {
-        Yes,
-        No,
-    };
     void cancel(ShouldInvalidate = ShouldInvalidate::Yes);
     WebIDL::ExceptionOr<void> finish();
-    WebIDL::ExceptionOr<void> play();
-    WebIDL::ExceptionOr<void> play_an_animation(AutoRewind);
+    WebIDL::ExceptionOr<void> play(ShouldInvalidate = ShouldInvalidate::Yes);
+    WebIDL::ExceptionOr<void> play_an_animation(AutoRewind, ShouldInvalidate = ShouldInvalidate::Yes);
     WebIDL::ExceptionOr<void> pause();
     WebIDL::ExceptionOr<void> update_playback_rate(double);
     WebIDL::ExceptionOr<void> reverse();
@@ -163,7 +164,7 @@ private:
 
     void apply_any_pending_playback_rate();
     WebIDL::ExceptionOr<void> silently_set_current_time(Optional<TimeValue>);
-    void update_finished_state(DidSeek, SynchronouslyNotify);
+    void update_finished_state(DidSeek, SynchronouslyNotify, ShouldInvalidate = ShouldInvalidate::Yes);
     void reset_an_animations_pending_tasks();
 
     bool is_ready() const;

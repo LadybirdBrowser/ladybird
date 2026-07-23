@@ -707,6 +707,22 @@ impl RetainedNumericRangeList {
         }
         unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
     }
+
+    pub(crate) fn clone_owned(&self) -> Self {
+        let ranges = self
+            .as_slice()
+            .iter()
+            .map(|range| RetainedNumericRangeByType {
+                value_type: range.value_type,
+                min: range.min,
+                max: range.max,
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        let length = ranges.len();
+        let pointer = Box::into_raw(ranges) as *mut RetainedNumericRangeByType;
+        Self { pointer, length }
+    }
 }
 
 /// The shared leading fields of every color variant payload: the optional color type and the
