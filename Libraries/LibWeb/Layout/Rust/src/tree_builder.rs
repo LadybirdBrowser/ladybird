@@ -97,6 +97,187 @@ pub extern "C" fn rust_tree_builder_set_quote_nesting_level(state: *mut c_void, 
     });
 }
 
+#[repr(C)]
+pub struct FfiDomTreeBuilderCallbacks {
+    pub builder: *mut c_void,
+    pub first_child: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub next_sibling: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub update_layout_tree: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool),
+    pub clear_update_flags: unsafe extern "C" fn(*mut c_void),
+    pub needs_layout_tree_update: unsafe extern "C" fn(*mut c_void) -> bool,
+    pub assigned_node_count: unsafe extern "C" fn(*mut c_void) -> usize,
+    pub assigned_node_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
+    pub is_svg_element: unsafe extern "C" fn(*mut c_void) -> bool,
+    pub clear_stale_layout_and_paint_node: unsafe extern "C" fn(*mut c_void, *mut c_void),
+}
+
+struct DomTreeBuilderHost<'a> {
+    callbacks: &'a FfiDomTreeBuilderCallbacks,
+}
+
+impl DomTreeBuilderHost<'_> {
+    fn first_child(&self, parent: *mut c_void) -> *mut c_void {
+        // SAFETY: Entry points guarantee that `parent` is a live ParentNode.
+        unsafe { (self.callbacks.first_child)(parent) }
+    }
+
+    fn next_sibling(&self, node: *mut c_void) -> *mut c_void {
+        // SAFETY: Callers only pass live DOM nodes.
+        unsafe { (self.callbacks.next_sibling)(node) }
+    }
+
+    fn update_layout_tree(&self, node: *mut c_void, context: *mut c_void, must_create_subtree: bool) {
+        // SAFETY: The builder, DOM node, and traversal context remain live throughout recursive construction.
+        unsafe {
+            (self.callbacks.update_layout_tree)(self.callbacks.builder, node, context, must_create_subtree);
+        }
+    }
+}
+
+unsafe fn dom_tree_builder_host<'a>(callbacks: *const FfiDomTreeBuilderCallbacks) -> DomTreeBuilderHost<'a> {
+    assert!(!callbacks.is_null());
+    // SAFETY: Each exported entry point requires the callback table to remain live for the duration of its call.
+    DomTreeBuilderHost {
+        callbacks: unsafe { &*callbacks },
+    }
+}
+
+/// Updates every direct DOM child in tree order.
+///
+/// # Safety
+///
+/// The callback table, parent, and context must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_update_layout_tree_for_dom_children(
+    callbacks: *const FfiDomTreeBuilderCallbacks,
+    parent: *mut c_void,
+    context: *mut c_void,
+    must_create_subtree: bool,
+) {
+    abort_on_panic(|| {
+        assert!(!parent.is_null());
+        assert!(!context.is_null());
+        // SAFETY: Guaranteed by the entry point's contract.
+        let host = unsafe { dom_tree_builder_host(callbacks) };
+        let mut node = host.first_child(parent);
+        while !node.is_null() {
+            host.update_layout_tree(node, context, must_create_subtree);
+            node = host.next_sibling(node);
+        }
+    });
+}
+
+/// Updates every shadow-root child in tree order and clears the root's update flags.
+///
+/// # Safety
+///
+/// The callback table, shadow root, and context must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_update_layout_tree_for_shadow_root_children(
+    callbacks: *const FfiDomTreeBuilderCallbacks,
+    shadow_root: *mut c_void,
+    context: *mut c_void,
+    must_create_subtree: bool,
+) {
+    abort_on_panic(|| {
+        assert!(!shadow_root.is_null());
+        assert!(!context.is_null());
+        // SAFETY: Guaranteed by the entry point's contract.
+        let host = unsafe { dom_tree_builder_host(callbacks) };
+        let mut node = host.first_child(shadow_root);
+        while !node.is_null() {
+            host.update_layout_tree(node, context, must_create_subtree);
+            node = host.next_sibling(node);
+        }
+        // SAFETY: `shadow_root` remains live throughout the call.
+        unsafe { (host.callbacks.clear_update_flags)(shadow_root) };
+    });
+}
+
+/// Updates a slot's assigned nodes in flat-tree order.
+///
+/// # Safety
+///
+/// The callback table, slot element, and context must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_update_layout_tree_for_assigned_slottables(
+    callbacks: *const FfiDomTreeBuilderCallbacks,
+    slot_element: *mut c_void,
+    context: *mut c_void,
+    must_create_subtree: bool,
+) {
+    abort_on_panic(|| {
+        assert!(!slot_element.is_null());
+        assert!(!context.is_null());
+        // SAFETY: Guaranteed by the entry point's contract.
+        let host = unsafe { dom_tree_builder_host(callbacks) };
+        // SAFETY: `slot_element` remains live throughout the call.
+        let slot_needs_layout_tree_update = unsafe { (host.callbacks.needs_layout_tree_update)(slot_element) };
+        let must_create_subtree = must_create_subtree || slot_needs_layout_tree_update;
+        // SAFETY: `slot_element` remains live throughout the call.
+        let assigned_node_count = unsafe { (host.callbacks.assigned_node_count)(slot_element) };
+        for index in 0..assigned_node_count {
+            // SAFETY: `index` is below the count reported for this unchanged assigned-node list.
+            let node = unsafe { (host.callbacks.assigned_node_at)(slot_element, index) };
+            assert!(!node.is_null());
+            host.update_layout_tree(node, context, must_create_subtree);
+        }
+    });
+}
+
+/// Applies SVG `<switch>` child selection and updates its rendered child.
+///
+/// # Safety
+///
+/// The callback table, switch element, and context must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_update_layout_tree_for_svg_switch_children(
+    callbacks: *const FfiDomTreeBuilderCallbacks,
+    switch_element: *mut c_void,
+    context: *mut c_void,
+    must_create_subtree: bool,
+) {
+    abort_on_panic(|| {
+        assert!(!switch_element.is_null());
+        assert!(!context.is_null());
+        // SAFETY: Guaranteed by the entry point's contract.
+        let host = unsafe { dom_tree_builder_host(callbacks) };
+
+        // https://svgwg.org/svg2-draft/struct.html#SwitchElement
+        // The ‘switch’ element evaluates the ‘requiredExtensions’ and ‘systemLanguage’ attributes on its direct child
+        // elements in order, and then processes and renders the first child for which these attributes evaluate to
+        // true. All others will be bypassed and therefore not rendered. If the child element is a container element
+        // such as a ‘g’, then the entire subtree is either processed/rendered or bypassed/not rendered.
+        let mut rendered_child = std::ptr::null_mut();
+        let mut child = host.first_child(switch_element);
+        while !child.is_null() {
+            // FIXME: Evaluate the requiredExtensions and systemLanguage attributes.
+            // SAFETY: `child` is a live DOM node.
+            if unsafe { (host.callbacks.is_svg_element)(child) } {
+                rendered_child = child;
+                break;
+            }
+            child = host.next_sibling(child);
+        }
+
+        // NB: Clean up any stale children that should no longer be rendered.
+        let mut child = host.first_child(switch_element);
+        while !child.is_null() {
+            if child != rendered_child {
+                // SAFETY: The builder and `child` remain live throughout the call.
+                unsafe {
+                    (host.callbacks.clear_stale_layout_and_paint_node)(host.callbacks.builder, child);
+                }
+            }
+            child = host.next_sibling(child);
+        }
+
+        if !rendered_child.is_null() {
+            host.update_layout_tree(rendered_child, context, must_create_subtree);
+        }
+    });
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiReplacedElementDisplayAdjustment {

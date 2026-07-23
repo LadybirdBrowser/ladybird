@@ -603,28 +603,83 @@ static bool element_has_an_unrendered_flat_tree_ancestor(DOM::Element const& ele
     return false;
 }
 
+RustFFI::FfiDomTreeBuilderCallbacks TreeBuilder::make_ffi_dom_tree_builder_callbacks()
+{
+    return {
+        .builder = this,
+        .first_child = [](void* parent_pointer) -> void* {
+            VERIFY(parent_pointer);
+            return static_cast<DOM::ParentNode*>(parent_pointer)->first_child();
+        },
+        .next_sibling = [](void* node_pointer) -> void* {
+            VERIFY(node_pointer);
+            return static_cast<DOM::Node*>(node_pointer)->next_sibling();
+        },
+        .update_layout_tree = [](void* builder_pointer, void* node_pointer, void* context_pointer, bool must_create_subtree) {
+            VERIFY(builder_pointer);
+            VERIFY(node_pointer);
+            VERIFY(context_pointer);
+            static_cast<TreeBuilder*>(builder_pointer)->update_layout_tree(
+                *static_cast<DOM::Node*>(node_pointer),
+                *static_cast<Context*>(context_pointer),
+                must_create_subtree ? MustCreateSubtree::Yes : MustCreateSubtree::No); },
+        .clear_update_flags = [](void* node_pointer) {
+            VERIFY(node_pointer);
+            auto& node = *static_cast<DOM::ParentNode*>(node_pointer);
+            node.set_child_needs_layout_tree_update(false);
+            node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None); },
+        .needs_layout_tree_update = [](void* node_pointer) {
+            VERIFY(node_pointer);
+            return static_cast<DOM::Node*>(node_pointer)->needs_layout_tree_update(); },
+        .assigned_node_count = [](void* slot_element_pointer) {
+            VERIFY(slot_element_pointer);
+            return static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)->assigned_nodes_internal().size(); },
+        .assigned_node_at = [](void* slot_element_pointer, size_t index) -> void* {
+            VERIFY(slot_element_pointer);
+            auto assigned_nodes = static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)->assigned_nodes_internal();
+            VERIFY(index < assigned_nodes.size());
+            DOM::Node* node = nullptr;
+            assigned_nodes[index].visit([&](auto& assigned_node) { node = assigned_node.ptr(); });
+            return node;
+        },
+        .is_svg_element = [](void* node_pointer) {
+            VERIFY(node_pointer);
+            return is<SVG::SVGElement>(*static_cast<DOM::Node*>(node_pointer)); },
+        .clear_stale_layout_and_paint_node = [](void* builder_pointer, void* node_pointer) {
+            VERIFY(builder_pointer);
+            VERIFY(node_pointer);
+            (void)static_cast<TreeBuilder*>(builder_pointer)->clear_stale_layout_and_paint_node(*static_cast<DOM::Node*>(node_pointer)); },
+    };
+}
+
 void TreeBuilder::update_layout_tree_for_shadow_root_children(DOM::ShadowRoot& shadow_root, Context& context, MustCreateSubtree must_create_subtree)
 {
-    for (auto* node = shadow_root.first_child(); node; node = node->next_sibling())
-        update_layout_tree(*node, context, must_create_subtree);
-    shadow_root.set_child_needs_layout_tree_update(false);
-    shadow_root.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
+    auto callbacks = make_ffi_dom_tree_builder_callbacks();
+    RustFFI::rust_update_layout_tree_for_shadow_root_children(
+        &callbacks,
+        static_cast<DOM::ParentNode*>(&shadow_root),
+        &context,
+        must_create_subtree == MustCreateSubtree::Yes);
 }
 
 void TreeBuilder::update_layout_tree_for_dom_children(DOM::ParentNode& parent, Context& context, MustCreateSubtree must_create_subtree)
 {
-    for (auto* node = parent.first_child(); node; node = node->next_sibling())
-        update_layout_tree(*node, context, must_create_subtree);
+    auto callbacks = make_ffi_dom_tree_builder_callbacks();
+    RustFFI::rust_update_layout_tree_for_dom_children(
+        &callbacks,
+        &parent,
+        &context,
+        must_create_subtree == MustCreateSubtree::Yes);
 }
 
 void TreeBuilder::update_layout_tree_for_assigned_slottables(HTML::HTMLSlotElement& slot_element, Context& context, MustCreateSubtree must_create_subtree)
 {
-    auto must_create_subtree_for_slottable = must_create_subtree;
-    if (slot_element.needs_layout_tree_update())
-        must_create_subtree_for_slottable = MustCreateSubtree::Yes;
-
-    for (auto const& slottable : slot_element.assigned_nodes_internal())
-        slottable.visit([&](auto& node) { update_layout_tree(node, context, must_create_subtree_for_slottable); });
+    auto callbacks = make_ffi_dom_tree_builder_callbacks();
+    RustFFI::rust_update_layout_tree_for_assigned_slottables(
+        &callbacks,
+        &slot_element,
+        &context,
+        must_create_subtree == MustCreateSubtree::Yes);
 }
 
 void TreeBuilder::clear_stale_layout_nodes_for_assigned_slottables(HTML::HTMLSlotElement& slot_element)
@@ -1038,29 +1093,12 @@ void TreeBuilder::update_layout_tree_for_display_contents(DOM::Element& element,
 
 void TreeBuilder::update_layout_tree_for_svg_switch_children(SVG::SVGSwitchElement& switch_element, Context& context, MustCreateSubtree must_create_subtree)
 {
-    // https://svgwg.org/svg2-draft/struct.html#SwitchElement
-    // The ‘switch’ element evaluates the ‘requiredExtensions’ and ‘systemLanguage’ attributes on its direct child
-    // elements in order, and then processes and renders the first child for which these attributes evaluate to true.
-    // All others will be bypassed and therefore not rendered. If the child element is a container element such as a
-    // ‘g’, then the entire subtree is either processed/rendered or bypassed/not rendered.
-
-    auto* rendered_child = [&] -> DOM::Node* {
-        for (auto* node = switch_element.first_child_of_type<SVG::SVGElement>(); node; node = node->next_sibling_of_type<SVG::SVGElement>()) {
-            // FIXME: Evaluate the requiredExtensions and systemLanguage attributes.
-            return node;
-        }
-        return nullptr;
-    }();
-
-    // NB: Clean up any stale children that should no longer be rendered.
-    switch_element.for_each_child([&](DOM::Node& child_node) {
-        if (&child_node != rendered_child)
-            clear_stale_layout_and_paint_node(child_node);
-        return IterationDecision::Continue;
-    });
-
-    if (rendered_child)
-        update_layout_tree(*rendered_child, context, must_create_subtree);
+    auto callbacks = make_ffi_dom_tree_builder_callbacks();
+    RustFFI::rust_update_layout_tree_for_svg_switch_children(
+        &callbacks,
+        static_cast<DOM::ParentNode*>(&switch_element),
+        &context,
+        must_create_subtree == MustCreateSubtree::Yes);
 }
 
 // A full-height flex column that centers the button contents vertically.

@@ -12,6 +12,12 @@
 
 namespace Web::Layout {
 
+namespace RustFFI {
+
+struct FfiDomTreeBuilderCallbacks;
+
+}
+
 class TreeBuilder {
 public:
     TreeBuilder();
@@ -70,6 +76,7 @@ private:
     Layout::NodeWithStyle& ancestor_at(size_t) const;
     u32 quote_nesting_level() const;
     void set_quote_nesting_level(u32);
+    RustFFI::FfiDomTreeBuilderCallbacks make_ffi_dom_tree_builder_callbacks();
 
     void fixup_tables(NodeWithStyle& root);
 
