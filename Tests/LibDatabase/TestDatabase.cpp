@@ -653,3 +653,83 @@ TEST_CASE(one_row_execution_reads_a_returning_clause)
     auto second = database->try_execute_bound_statement_one<i64>(insert, [](auto& bind) -> ErrorOr<void> { return bind("v"sv, static_cast<i64>(20)); }, read_id);
     EXPECT_EQ(TRY_OR_FAIL(move(second)), 2);
 }
+
+TEST_CASE(bounded_execution_stops_before_the_callback_past_the_budget)
+{
+    auto database = TRY_OR_FAIL(DB::create_memory_backed());
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER);"sv));
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO t (id, v) VALUES (1, 10), (2, 20), (3, 30);"sv));
+
+    auto select_all = TRY_OR_FAIL(database->prepare_statement("SELECT v FROM t;"sv));
+    size_t callback_invocations = 0;
+    auto result = database->try_execute_bound_statement(
+        select_all,
+        2uz,
+        [](auto&) -> ErrorOr<void> { return {}; },
+        [&](Database::ResultRow&) -> ErrorOr<void> {
+            ++callback_invocations;
+            return {};
+        });
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().string_literal(), "Statement returned more rows than the caller allowed"sv);
+    EXPECT_EQ(callback_invocations, 2uz);
+}
+
+TEST_CASE(collect_bounded_statement_maps_rows_under_the_budget)
+{
+    auto database = TRY_OR_FAIL(DB::create_memory_backed());
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER);"sv));
+
+    auto select_all = TRY_OR_FAIL(database->prepare_statement("SELECT v FROM t;"sv));
+    auto no_binds = [](auto&) -> ErrorOr<void> { return {}; };
+    auto read_v = [](Database::ResultRow& row) -> ErrorOr<i64> {
+        return row.read_integer<i64>("v"sv);
+    };
+
+    auto empty = TRY_OR_FAIL(database->try_collect_bound_statement<i64>(select_all, 0uz, no_binds, read_v));
+    EXPECT(empty.is_empty());
+
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO t (id, v) VALUES (1, 10), (2, 20);"sv));
+    auto zero_budget = database->try_collect_bound_statement<i64>(select_all, 0uz, no_binds, read_v);
+    EXPECT(zero_budget.is_error());
+    EXPECT_EQ(zero_budget.error().string_literal(), "Statement returned more rows than the caller allowed"sv);
+
+    auto at_limit = TRY_OR_FAIL(database->try_collect_bound_statement<i64>(select_all, 2uz, no_binds, read_v));
+    EXPECT_EQ(at_limit.size(), 2uz);
+    EXPECT_EQ(at_limit[0], 10);
+    EXPECT_EQ(at_limit[1], 20);
+
+    auto past_limit = database->try_collect_bound_statement<i64>(select_all, 1uz, no_binds, read_v);
+    EXPECT(past_limit.is_error());
+    EXPECT_EQ(past_limit.error().string_literal(), "Statement returned more rows than the caller allowed"sv);
+
+    auto mapper_failure = database->try_collect_bound_statement<i64>(select_all, 2uz, no_binds,
+        [](Database::ResultRow&) -> ErrorOr<i64> { return Error::from_string_literal("mapper failed"); });
+    EXPECT(mapper_failure.is_error());
+    EXPECT_EQ(mapper_failure.error().string_literal(), "mapper failed"sv);
+
+    auto again = TRY_OR_FAIL(database->try_collect_bound_statement<i64>(select_all, 2uz, no_binds, read_v));
+    EXPECT_EQ(again.size(), 2uz);
+}
+
+TEST_CASE(collect_set_deduplicates_but_budget_counts_rows)
+{
+    auto database = TRY_OR_FAIL(DB::create_memory_backed());
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER);"sv));
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO t (id, v) VALUES (1, 5), (2, 5), (3, 7);"sv));
+
+    auto select_all = TRY_OR_FAIL(database->prepare_statement("SELECT v FROM t;"sv));
+    auto no_binds = [](auto&) -> ErrorOr<void> { return {}; };
+    auto read_v = [](Database::ResultRow& row) -> ErrorOr<i64> {
+        return row.read_integer<i64>("v"sv);
+    };
+
+    auto values = TRY_OR_FAIL(database->try_collect_bound_statement_set<i64>(select_all, 3uz, no_binds, read_v));
+    EXPECT_EQ(values.size(), 2uz);
+    EXPECT(values.contains(5));
+    EXPECT(values.contains(7));
+
+    auto over_budget = database->try_collect_bound_statement_set<i64>(select_all, 2uz, no_binds, read_v);
+    EXPECT(over_budget.is_error());
+    EXPECT_EQ(over_budget.error().string_literal(), "Statement returned more rows than the caller allowed"sv);
+}
