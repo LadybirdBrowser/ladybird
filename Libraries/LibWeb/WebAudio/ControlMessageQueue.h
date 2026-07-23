@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/Vector.h>
 #include <LibSync/Mutex.h>
 #include <LibWeb/Export.h>
@@ -14,8 +15,7 @@
 namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#control-message-queue
-class WEB_API ControlMessageQueue {
-
+class WEB_API ControlMessageQueue : public AtomicRefCounted<ControlMessageQueue> {
 public:
     void enqueue(ControlMessage);   // Called by the control thread.
     Vector<ControlMessage> drain(); // Called by the rendering thread.

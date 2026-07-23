@@ -35,7 +35,7 @@ namespace Web::WebAudio::Rendering {
 // https://webaudio.github.io/web-audio-api/#OfflineAudioContext
 class WEB_API OfflineAudioRenderer final : public AtomicRefCounted<OfflineAudioRenderer> {
 public:
-    static NonnullRefPtr<OfflineAudioRenderer> create(ControlMessageQueue&, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size);
+    static NonnullRefPtr<OfflineAudioRenderer> create(NonnullRefPtr<ControlMessageQueue>, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size);
 
     // The callbacks below are set on the control thread before rendering starts and are always invoked on the control
     // thread. They are cleared once rendering completes to break the reference cycle with the context.
@@ -61,14 +61,12 @@ public:
     Vector<Vector<float>> const& rendered_channels() const { return m_rendered_channels; }
 
 private:
-    OfflineAudioRenderer(ControlMessageQueue&, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size);
+    OfflineAudioRenderer(NonnullRefPtr<ControlMessageQueue>, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size);
 
     intptr_t render_thread_main();
     void post_to_control_thread(Function<void(OfflineAudioRenderer&)>);
 
-    // The control message queue is owned by the BaseAudioContext, which is kept alive for the duration of the
-    // rendering by the GC roots captured in the callbacks above.
-    ControlMessageQueue& m_control_message_queue;
+    NonnullRefPtr<ControlMessageQueue> m_control_message_queue;
     NodeID m_destination_node_id;
     size_t m_number_of_channels { 0 };
     size_t m_length { 0 };

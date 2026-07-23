@@ -10,13 +10,13 @@
 
 namespace Web::WebAudio::Rendering {
 
-NonnullRefPtr<OfflineAudioRenderer> OfflineAudioRenderer::create(ControlMessageQueue& control_message_queue, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size)
+NonnullRefPtr<OfflineAudioRenderer> OfflineAudioRenderer::create(NonnullRefPtr<ControlMessageQueue> control_message_queue, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size)
 {
-    return adopt_ref(*new OfflineAudioRenderer(control_message_queue, destination_node_id, number_of_channels, length, sample_rate, quantum_size));
+    return adopt_ref(*new OfflineAudioRenderer(move(control_message_queue), destination_node_id, number_of_channels, length, sample_rate, quantum_size));
 }
 
-OfflineAudioRenderer::OfflineAudioRenderer(ControlMessageQueue& control_message_queue, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size)
-    : m_control_message_queue(control_message_queue)
+OfflineAudioRenderer::OfflineAudioRenderer(NonnullRefPtr<ControlMessageQueue> control_message_queue, NodeID destination_node_id, size_t number_of_channels, size_t length, float sample_rate, size_t quantum_size)
+    : m_control_message_queue(move(control_message_queue))
     , m_destination_node_id(destination_node_id)
     , m_number_of_channels(number_of_channels)
     , m_length(length)
@@ -118,7 +118,7 @@ intptr_t OfflineAudioRenderer::render_thread_main()
             }
         }
 
-        m_graph.apply_control_messages(m_control_message_queue.drain());
+        m_graph.apply_control_messages(m_control_message_queue->drain());
 
         RenderContext context {
             .sample_rate = m_sample_rate,

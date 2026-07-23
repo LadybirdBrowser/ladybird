@@ -20,6 +20,7 @@
 #include <LibWeb/WebAudio/ChannelSplitterNode.h>
 #include <LibWeb/WebAudio/ConstantSourceNode.h>
 #include <LibWeb/WebAudio/ControlMessage.h>
+#include <LibWeb/WebAudio/ControlMessageQueue.h>
 #include <LibWeb/WebAudio/DelayNode.h>
 #include <LibWeb/WebAudio/PeriodicWave.h>
 #include <LibWeb/WebAudio/ScriptProcessorNode.h>
@@ -30,7 +31,6 @@
 namespace Web::WebAudio {
 
 class AudioDestinationNode;
-class ControlMessageQueue;
 
 // https://webaudio.github.io/web-audio-api/#BaseAudioContext
 class BaseAudioContext : public DOM::EventTarget {
@@ -93,7 +93,7 @@ public:
     GC::Ref<WebIDL::Promise> decode_audio_data(GC::Ref<JS::ArrayBuffer>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
 
     void queue_control_message(ControlMessage);
-    ControlMessageQueue& control_message_queue() { return *m_control_message_queue; }
+    NonnullRefPtr<ControlMessageQueue> control_message_queue() const { return m_control_message_queue; }
 
     void add_playing_source(GC::Ref<AudioNode>);
     void handle_ended_sources(ReadonlySpan<NodeID>);
@@ -137,7 +137,7 @@ private:
 
     GC::Ptr<DOM::DocumentObserver> m_document_observer;
 
-    NonnullOwnPtr<ControlMessageQueue> m_control_message_queue;
+    NonnullRefPtr<ControlMessageQueue> m_control_message_queue;
 
     HashMap<NodeID, GC::Ref<AudioNode>> m_playing_sources;
 };
