@@ -56,43 +56,12 @@ namespace Web::Layout {
 
 TreeBuilder::TreeBuilder() = default;
 
+static RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks(TreeBuilder*);
+
 void TreeBuilder::note_tree_restructuring_at(Layout::Node const& node)
 {
     if (m_current_rebuild_root && !m_current_rebuild_root->is_inclusive_ancestor_of(node))
         m_layout_tree_update_escaped_rebuild_roots = true;
-}
-
-static bool has_inline_or_in_flow_block_children(Layout::Node const& layout_node)
-{
-    for (auto child = layout_node.first_child(); child; child = child->next_sibling()) {
-        if (child->is_inline() || child->is_in_flow())
-            return true;
-    }
-    return false;
-}
-
-static bool has_in_flow_block_children(Layout::Node const& layout_node)
-{
-    if (layout_node.children_are_inline())
-        return false;
-    for (auto child = layout_node.first_child(); child; child = child->next_sibling()) {
-        if (child->is_inline())
-            continue;
-        if (child->is_in_flow())
-            return true;
-    }
-    return false;
-}
-
-static bool is_out_of_flow_table_internal_child_of_table_root(Layout::NodeWithStyle const& parent, Layout::Node const& child)
-{
-    auto const* child_with_style = as_if<Layout::NodeWithStyle>(child);
-    return parent.display().is_table_inside()
-        && child_with_style
-        && !child.is_anonymous()
-        && child_with_style->is_out_of_flow()
-        && !child_with_style->has_replaced_element_table_display_adjustment()
-        && child_with_style->display_before_box_type_transformation().is_internal_table();
 }
 
 static Optional<CSS::Display> adjusted_table_display_for_replaced_element(CSS::Display display)
@@ -109,140 +78,15 @@ static Optional<CSS::Display> adjusted_table_display_for_replaced_element(CSS::D
     return {};
 }
 
-// The insertion_parent_for_*() functions maintain the invariant that the in-flow children of
-// block-level boxes must be either all block-level or all inline-level.
-
-static Layout::Node& insertion_parent_for_inline_node(Layout::NodeWithStyle& layout_parent)
-{
-    auto last_child_creating_anonymous_wrapper_if_needed = [](auto& layout_parent) -> Layout::Node& {
-        if (!layout_parent.last_child()
-            || !layout_parent.last_child()->is_anonymous()
-            || !layout_parent.last_child()->children_are_inline()
-            || layout_parent.last_child()->is_generated_for_pseudo_element()) {
-            layout_parent.append_child(layout_parent.create_anonymous_wrapper());
-        }
-        return *layout_parent.last_child();
-    };
-
-    if (is<FieldSetBox>(layout_parent))
-        return last_child_creating_anonymous_wrapper_if_needed(layout_parent);
-
-    if (layout_parent.is_svg_foreign_object_box())
-        return last_child_creating_anonymous_wrapper_if_needed(layout_parent);
-
-    // SVG layout ignores the inline/block distinction, and an anonymous wrapper would only hide
-    // the child from SVGFormattingContext (e.g. a shape with a foreignObject sibling).
-    if (layout_parent.is_svg_box() || layout_parent.is_svg_svg_box())
-        return layout_parent;
-
-    if (layout_parent.display().is_inline_outside() && layout_parent.display().is_flow_inside())
-        return layout_parent;
-
-    if (layout_parent.display().is_flex_inside() || layout_parent.display().is_grid_inside())
-        return last_child_creating_anonymous_wrapper_if_needed(layout_parent);
-
-    if (!has_in_flow_block_children(layout_parent) || layout_parent.children_are_inline())
-        return layout_parent;
-
-    // Parent has block-level children, insert into an anonymous wrapper block (and create it first if needed)
-    return last_child_creating_anonymous_wrapper_if_needed(layout_parent);
-}
-
-static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layout_parent, Layout::Node& layout_node, TreeBuilder::AppendOrPrepend mode, TreeBuilder& tree_builder)
-{
-    // Inline is fine for in-flow block children (interrupting blocks) and for out-of-flow children;
-    // the inline formatting context emits items for both.
-    if (!layout_node.is_anonymous() && layout_parent.is_inline() && layout_parent.display().is_flow_inside())
-        return layout_parent;
-
-    // SVG layout ignores the inline/block distinction; wrapping existing inline-level siblings
-    // (e.g. shapes next to a foreignObject) would only hide them from SVGFormattingContext.
-    if (layout_parent.is_svg_box() || layout_parent.is_svg_svg_box())
-        return layout_parent;
-
-    // Make sure we're not inserting into an inline node, since those do not support block nodes.
-    auto* new_parent = &layout_parent;
-    while (is<InlineNode>(new_parent))
-        new_parent = new_parent->parent();
-
-    // If the parent block has no children, insert this block into parent.
-    if (!has_inline_or_in_flow_block_children(*new_parent))
-        return *new_parent;
-
-    // Table-internal boxes may have been blockified before insertion, but table fixup still needs to see them as
-    // direct table children instead of grouping them with neighboring table whitespace.
-    if (is_out_of_flow_table_internal_child_of_table_root(*new_parent, layout_node))
-        return *new_parent;
-
-    // If the block is out-of-flow,
-    if (layout_node.is_out_of_flow()) {
-        // And we're appending while the parent's last child is an anonymous block, join that
-        // anonymous block. Prepended boxes (e.g. an absolutely positioned ::before) belong at the
-        // very start of the parent, not at the start of its trailing inline run.
-        if (mode == TreeBuilder::AppendOrPrepend::Append
-            && !new_parent->display().is_flex_inside()
-            && !new_parent->display().is_grid_inside()
-            && !new_parent->last_child()->is_generated_for_pseudo_element()
-            && new_parent->last_child()->is_anonymous()
-            && new_parent->last_child()->children_are_inline()) {
-            return *new_parent->last_child();
-        }
-
-        // Otherwise, insert this block into parent.
-        return *new_parent;
-    }
-
-    // If the parent block has block-level children, insert this block into parent.
-    if (!new_parent->children_are_inline())
-        return *new_parent;
-
-    // Parent block has inline-level children (our siblings); wrap these siblings into an anonymous wrapper block.
-    tree_builder.note_tree_restructuring_at(*new_parent);
-    auto wrapper = new_parent->create_anonymous_wrapper();
-    wrapper->set_children_are_inline(true);
-
-    for (auto child = new_parent->first_child(); child;) {
-        auto next_child = child->next_sibling();
-        if (is_out_of_flow_table_internal_child_of_table_root(*new_parent, *child)) {
-            child = next_child;
-            continue;
-        }
-        new_parent->remove_child(*child);
-        wrapper->append_child(*child);
-        child = next_child;
-    }
-
-    new_parent->set_children_are_inline(false);
-    new_parent->append_child(wrapper);
-
-    // Then it's safe to insert this block into parent.
-    return *new_parent;
-}
-
 void TreeBuilder::insert_node_into_inline_or_block_ancestor(Layout::Node& node, CSS::Display display, AppendOrPrepend mode)
 {
-    auto& nearest_insertion_ancestor = *m_ancestor_stack.last();
-
-    auto& insertion_point = display.is_inline_outside() ? insertion_parent_for_inline_node(nearest_insertion_ancestor)
-                                                        : insertion_parent_for_block_node(nearest_insertion_ancestor, node, mode, *this);
-
-    // Insertion parents can be above the subtree being rebuilt in place: inline ancestors are
-    // skipped, and out-of-flow boxes can join a trailing anonymous sibling.
-    note_tree_restructuring_at(insertion_point);
-
-    if (mode == AppendOrPrepend::Prepend)
-        insertion_point.prepend_child(node);
-    else
-        insertion_point.append_child(node);
-
-    if (display.is_inline_outside()) {
-        // After inserting an inline-level box into a parent, mark the parent as having inline children.
-        insertion_point.set_children_are_inline(true);
-    } else if (node.is_in_flow()) {
-        // Inline-flow parents keep their inline children flag; their IFC may contain interrupting blocks.
-        if (!as<NodeWithStyle>(insertion_point).display().is_inline_outside() || !as<NodeWithStyle>(insertion_point).display().is_flow_inside())
-            insertion_point.set_children_are_inline(false);
-    }
+    auto callbacks = make_ffi_tree_builder_callbacks(this);
+    RustFFI::rust_insert_node_into_inline_or_block_ancestor(
+        &callbacks,
+        m_ancestor_stack.last(),
+        &node,
+        display.is_inline_outside(),
+        mode == AppendOrPrepend::Append ? RustFFI::FfiInsertionMode::Append : RustFFI::FfiInsertionMode::Prepend);
 }
 
 class GeneratedContentImageProvider final
@@ -1582,6 +1426,17 @@ static RustFFI::FfiLayoutNodeFacts ffi_layout_node_facts(void*, void* node_point
         .is_table_wrapper = node.is_table_wrapper(),
         .has_been_wrapped_in_table_wrapper = node.has_been_wrapped_in_table_wrapper(),
         .has_replaced_element_table_display_adjustment = node_with_style && node_with_style->has_replaced_element_table_display_adjustment(),
+        .is_inline = node.is_inline(),
+        .is_in_flow = node.is_in_flow(),
+        .is_inline_node = is<InlineNode>(node),
+        .is_field_set_box = is<FieldSetBox>(node),
+        .is_svg_foreign_object_box = node.is_svg_foreign_object_box(),
+        .is_svg_box = node.is_svg_box(),
+        .is_svg_svg_box = node.is_svg_svg_box(),
+        .is_generated_for_pseudo_element = node.is_generated_for_pseudo_element(),
+        .display_is_flow_inside = node_with_style && node_with_style->display().is_flow_inside(),
+        .display_is_flex_inside = node_with_style && node_with_style->display().is_flex_inside(),
+        .display_is_grid_inside = node_with_style && node_with_style->display().is_grid_inside(),
     };
 }
 
@@ -1607,6 +1462,12 @@ static void* ffi_layout_node_previous_sibling(void*, void* node_pointer)
 {
     VERIFY(node_pointer);
     return static_cast<Node*>(node_pointer)->previous_sibling().ptr();
+}
+
+static void* ffi_layout_node_last_child(void*, void* node_pointer)
+{
+    VERIFY(node_pointer);
+    return static_cast<Node*>(node_pointer)->last_child().ptr();
 }
 
 static Vector<NonnullRefPtr<Node>> retain_ffi_layout_nodes(void* const* node_pointers, size_t node_count)
@@ -1733,16 +1594,65 @@ static void ffi_append_missing_table_cell(void*, void* row_pointer)
     row_box.append_child(make_ref_counted<BlockContainer>(row_box.document(), nullptr, move(builder).build()));
 }
 
-// https://drafts.csswg.org/css-tables-3/#fixup-algorithm
-void TreeBuilder::fixup_tables(NodeWithStyle& root)
+static void* ffi_create_and_append_anonymous_wrapper(void*, void* parent_pointer)
 {
-    RustFFI::FfiTreeBuilderCallbacks callbacks {
-        .context = nullptr,
+    VERIFY(parent_pointer);
+    auto& parent = as<NodeWithStyle>(*static_cast<Node*>(parent_pointer));
+    auto wrapper = parent.create_anonymous_wrapper();
+    parent.append_child(*wrapper);
+    return wrapper.ptr();
+}
+
+static void ffi_wrap_children_in_anonymous(void*, void* parent_pointer, void* const* child_pointers, size_t child_count)
+{
+    VERIFY(parent_pointer);
+    auto& parent = as<NodeWithStyle>(*static_cast<Node*>(parent_pointer));
+    auto children = retain_ffi_layout_nodes(child_pointers, child_count);
+    auto wrapper = parent.create_anonymous_wrapper();
+    wrapper->set_children_are_inline(true);
+    for (auto& child : children) {
+        parent.remove_child(*child);
+        wrapper->append_child(*child);
+    }
+    parent.set_children_are_inline(false);
+    parent.append_child(*wrapper);
+}
+
+static void ffi_insert_child(void*, void* parent_pointer, void* child_pointer, RustFFI::FfiInsertionMode mode)
+{
+    VERIFY(parent_pointer);
+    VERIFY(child_pointer);
+    auto& parent = *static_cast<Node*>(parent_pointer);
+    NonnullRefPtr child = *static_cast<Node*>(child_pointer);
+    if (mode == RustFFI::FfiInsertionMode::Prepend)
+        parent.prepend_child(*child);
+    else
+        parent.append_child(*child);
+}
+
+static void ffi_set_children_are_inline(void*, void* node_pointer, bool children_are_inline)
+{
+    VERIFY(node_pointer);
+    static_cast<Node*>(node_pointer)->set_children_are_inline(children_are_inline);
+}
+
+static void ffi_note_tree_restructuring(void* context, void* node_pointer)
+{
+    VERIFY(context);
+    VERIFY(node_pointer);
+    static_cast<TreeBuilder*>(context)->note_tree_restructuring_at(*static_cast<Node*>(node_pointer));
+}
+
+static RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks(TreeBuilder* tree_builder)
+{
+    return {
+        .context = tree_builder,
         .layout_node_facts = ffi_layout_node_facts,
         .parent = ffi_layout_node_parent,
         .first_child = ffi_layout_node_first_child,
         .next_sibling = ffi_layout_node_next_sibling,
         .previous_sibling = ffi_layout_node_previous_sibling,
+        .last_child = ffi_layout_node_last_child,
         .remove_nodes = ffi_remove_layout_nodes,
         .wrap_in_anonymous = ffi_wrap_in_anonymous_table_box,
         .update_existing_table_wrapper = ffi_update_existing_table_wrapper,
@@ -1752,7 +1662,18 @@ void TreeBuilder::fixup_tables(NodeWithStyle& root)
         .table_grid_column_count = ffi_table_grid_column_count,
         .table_grid_is_occupied = ffi_table_grid_is_occupied,
         .append_missing_table_cell = ffi_append_missing_table_cell,
+        .create_and_append_anonymous_wrapper = ffi_create_and_append_anonymous_wrapper,
+        .wrap_children_in_anonymous = ffi_wrap_children_in_anonymous,
+        .insert_child = ffi_insert_child,
+        .set_children_are_inline = ffi_set_children_are_inline,
+        .note_tree_restructuring = ffi_note_tree_restructuring,
     };
+}
+
+// https://drafts.csswg.org/css-tables-3/#fixup-algorithm
+void TreeBuilder::fixup_tables(NodeWithStyle& root)
+{
+    auto callbacks = make_ffi_tree_builder_callbacks(this);
     RustFFI::rust_fixup_tables(&callbacks, &root);
 }
 

@@ -76,6 +76,17 @@ pub struct FfiLayoutNodeFacts {
     pub is_table_wrapper: bool,
     pub has_been_wrapped_in_table_wrapper: bool,
     pub has_replaced_element_table_display_adjustment: bool,
+    pub is_inline: bool,
+    pub is_in_flow: bool,
+    pub is_inline_node: bool,
+    pub is_field_set_box: bool,
+    pub is_svg_foreign_object_box: bool,
+    pub is_svg_box: bool,
+    pub is_svg_svg_box: bool,
+    pub is_generated_for_pseudo_element: bool,
+    pub display_is_flow_inside: bool,
+    pub display_is_flex_inside: bool,
+    pub display_is_grid_inside: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -87,6 +98,15 @@ pub enum FfiAnonymousTableBoxKind {
     InlineTable,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+// NB: `Prepend` is constructed by C++ through the FFI.
+#[allow(dead_code)]
+pub enum FfiInsertionMode {
+    Append,
+    Prepend,
+}
+
 #[repr(C)]
 pub struct FfiTreeBuilderCallbacks {
     pub context: *mut c_void,
@@ -95,6 +115,7 @@ pub struct FfiTreeBuilderCallbacks {
     pub first_child: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
     pub next_sibling: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
     pub previous_sibling: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
+    pub last_child: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
     pub remove_nodes: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize),
     pub wrap_in_anonymous:
         unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize, *mut c_void, FfiAnonymousTableBoxKind),
@@ -105,6 +126,11 @@ pub struct FfiTreeBuilderCallbacks {
     pub table_grid_column_count: unsafe extern "C" fn(*mut c_void, *mut c_void) -> usize,
     pub table_grid_is_occupied: unsafe extern "C" fn(*mut c_void, *mut c_void, usize, usize) -> bool,
     pub append_missing_table_cell: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub create_and_append_anonymous_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
+    pub wrap_children_in_anonymous: unsafe extern "C" fn(*mut c_void, *mut c_void, *const *mut c_void, usize),
+    pub insert_child: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiInsertionMode),
+    pub set_children_are_inline: unsafe extern "C" fn(*mut c_void, *mut c_void, bool),
+    pub note_tree_restructuring: unsafe extern "C" fn(*mut c_void, *mut c_void),
 }
 
 type LayoutNode = *mut c_void;
@@ -145,6 +171,11 @@ impl TreeBuilderHost<'_> {
     fn previous_sibling(&self, node: LayoutNode) -> LayoutNode {
         // SAFETY: The entry point's callback contract guarantees that `node` is live.
         unsafe { (self.callbacks.previous_sibling)(self.callbacks.context, node) }
+    }
+
+    fn last_child(&self, node: LayoutNode) -> LayoutNode {
+        // SAFETY: The entry point's callback contract guarantees that `node` is live.
+        unsafe { (self.callbacks.last_child)(self.callbacks.context, node) }
     }
 
     fn for_each_in_inclusive_subtree(
@@ -207,6 +238,241 @@ impl TreeBuilderHost<'_> {
     }
 }
 
+fn has_inline_or_in_flow_block_children(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
+    let mut child = host.first_child(node);
+    while !child.is_null() {
+        let facts = host.facts(child);
+        if facts.is_inline || facts.is_in_flow {
+            return true;
+        }
+        child = host.next_sibling(child);
+    }
+    false
+}
+
+fn has_in_flow_block_children(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
+    if host.facts(node).children_are_inline {
+        return false;
+    }
+    let mut child = host.first_child(node);
+    while !child.is_null() {
+        let facts = host.facts(child);
+        if !facts.is_inline && facts.is_in_flow {
+            return true;
+        }
+        child = host.next_sibling(child);
+    }
+    false
+}
+
+fn is_out_of_flow_table_internal_child_of_table_root(
+    host: &TreeBuilderHost<'_>,
+    parent: LayoutNode,
+    child: LayoutNode,
+) -> bool {
+    let parent_facts = host.facts(parent);
+    let child_facts = host.facts(child);
+    parent_facts.current_display == FfiTableDisplay::TableRoot
+        && child_facts.has_style
+        && !child_facts.is_anonymous
+        && child_facts.is_out_of_flow
+        && !child_facts.has_replaced_element_table_display_adjustment
+        && is_table_non_root_box_with_display(child_facts.display_before_box_type_transformation)
+}
+
+fn create_anonymous_wrapper(host: &TreeBuilderHost<'_>, parent: LayoutNode) -> LayoutNode {
+    // SAFETY: `parent` is a live NodeWithStyle. The callback appends and returns a live anonymous wrapper.
+    let wrapper = unsafe { (host.callbacks.create_and_append_anonymous_wrapper)(host.callbacks.context, parent) };
+    assert!(!wrapper.is_null());
+    wrapper
+}
+
+fn last_child_creating_anonymous_wrapper_if_needed(host: &TreeBuilderHost<'_>, parent: LayoutNode) -> LayoutNode {
+    let last_child = host.last_child(parent);
+    if last_child.is_null() {
+        return create_anonymous_wrapper(host, parent);
+    }
+    let facts = host.facts(last_child);
+    if !facts.is_anonymous || !facts.children_are_inline || facts.is_generated_for_pseudo_element {
+        return create_anonymous_wrapper(host, parent);
+    }
+    last_child
+}
+
+// The insertion_parent_for_*() functions maintain the invariant that the in-flow children of
+// block-level boxes must be either all block-level or all inline-level.
+fn insertion_parent_for_inline_node(host: &TreeBuilderHost<'_>, parent: LayoutNode) -> LayoutNode {
+    let facts = host.facts(parent);
+    if facts.is_field_set_box || facts.is_svg_foreign_object_box {
+        return last_child_creating_anonymous_wrapper_if_needed(host, parent);
+    }
+
+    // SVG layout ignores the inline/block distinction, and an anonymous wrapper would only hide
+    // the child from SVGFormattingContext (e.g. a shape with a foreignObject sibling).
+    if facts.is_svg_box || facts.is_svg_svg_box {
+        return parent;
+    }
+
+    if facts.is_inline && facts.display_is_flow_inside {
+        return parent;
+    }
+
+    if facts.display_is_flex_inside || facts.display_is_grid_inside {
+        return last_child_creating_anonymous_wrapper_if_needed(host, parent);
+    }
+
+    if !has_in_flow_block_children(host, parent) || facts.children_are_inline {
+        return parent;
+    }
+
+    // Parent has block-level children, insert into an anonymous wrapper block (and create it first if needed)
+    last_child_creating_anonymous_wrapper_if_needed(host, parent)
+}
+
+fn insertion_parent_for_block_node(
+    host: &TreeBuilderHost<'_>,
+    parent: LayoutNode,
+    node: LayoutNode,
+    mode: FfiInsertionMode,
+) -> LayoutNode {
+    let parent_facts = host.facts(parent);
+
+    // Inline is fine for in-flow block children (interrupting blocks) and for out-of-flow children;
+    // the inline formatting context emits items for both.
+    if !host.facts(node).is_anonymous && parent_facts.is_inline && parent_facts.display_is_flow_inside {
+        return parent;
+    }
+
+    // SVG layout ignores the inline/block distinction; wrapping existing inline-level siblings
+    // (e.g. shapes next to a foreignObject) would only hide them from SVGFormattingContext.
+    if parent_facts.is_svg_box || parent_facts.is_svg_svg_box {
+        return parent;
+    }
+
+    // Make sure we're not inserting into an inline node, since those do not support block nodes.
+    let mut new_parent = parent;
+    while host.facts(new_parent).is_inline_node {
+        new_parent = host.parent(new_parent);
+        assert!(!new_parent.is_null());
+    }
+
+    // If the parent block has no children, insert this block into parent.
+    if !has_inline_or_in_flow_block_children(host, new_parent) {
+        return new_parent;
+    }
+
+    // Table-internal boxes may have been blockified before insertion, but table fixup still needs to see them as
+    // direct table children instead of grouping them with neighboring table whitespace.
+    if is_out_of_flow_table_internal_child_of_table_root(host, new_parent, node) {
+        return new_parent;
+    }
+
+    let node_facts = host.facts(node);
+    let new_parent_facts = host.facts(new_parent);
+
+    // If the block is out-of-flow,
+    if node_facts.is_out_of_flow {
+        let last_child = host.last_child(new_parent);
+        assert!(!last_child.is_null());
+        let last_child_facts = host.facts(last_child);
+
+        // And we're appending while the parent's last child is an anonymous block, join that
+        // anonymous block. Prepended boxes (e.g. an absolutely positioned ::before) belong at the
+        // very start of the parent, not at the start of its trailing inline run.
+        if mode == FfiInsertionMode::Append
+            && !new_parent_facts.display_is_flex_inside
+            && !new_parent_facts.display_is_grid_inside
+            && !last_child_facts.is_generated_for_pseudo_element
+            && last_child_facts.is_anonymous
+            && last_child_facts.children_are_inline
+        {
+            return last_child;
+        }
+
+        // Otherwise, insert this block into parent.
+        return new_parent;
+    }
+
+    // If the parent block has block-level children, insert this block into parent.
+    if !new_parent_facts.children_are_inline {
+        return new_parent;
+    }
+
+    // Parent block has inline-level children (our siblings); wrap these siblings into an anonymous wrapper block.
+    // SAFETY: `new_parent` is live for the duration of this call.
+    unsafe { (host.callbacks.note_tree_restructuring)(host.callbacks.context, new_parent) };
+    let mut children_to_wrap = Vec::new();
+    let mut child = host.first_child(new_parent);
+    while !child.is_null() {
+        if !is_out_of_flow_table_internal_child_of_table_root(host, new_parent, child) {
+            children_to_wrap.push(child);
+        }
+        child = host.next_sibling(child);
+    }
+    // SAFETY: The callback retains the children before moving them and leaves `new_parent` live.
+    unsafe {
+        (host.callbacks.wrap_children_in_anonymous)(
+            host.callbacks.context,
+            new_parent,
+            children_to_wrap.as_ptr(),
+            children_to_wrap.len(),
+        );
+    };
+
+    // Then it's safe to insert this block into parent.
+    new_parent
+}
+
+/// Inserts a layout node while maintaining the inline/block child invariant.
+///
+/// # Safety
+///
+/// `callbacks`, `nearest_insertion_ancestor`, and `node` must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_insert_node_into_inline_or_block_ancestor(
+    callbacks: *const FfiTreeBuilderCallbacks,
+    nearest_insertion_ancestor: *mut c_void,
+    node: *mut c_void,
+    is_inline_outside: bool,
+    mode: FfiInsertionMode,
+) {
+    abort_on_panic(|| {
+        assert!(!callbacks.is_null());
+        assert!(!nearest_insertion_ancestor.is_null());
+        assert!(!node.is_null());
+        // SAFETY: The caller guarantees that `callbacks` remains valid for the duration of this call.
+        let host = TreeBuilderHost {
+            callbacks: unsafe { &*callbacks },
+        };
+
+        let insertion_point = if is_inline_outside {
+            insertion_parent_for_inline_node(&host, nearest_insertion_ancestor)
+        } else {
+            insertion_parent_for_block_node(&host, nearest_insertion_ancestor, node, mode)
+        };
+
+        // Insertion parents can be above the subtree being rebuilt in place: inline ancestors are
+        // skipped, and out-of-flow boxes can join a trailing anonymous sibling.
+        // SAFETY: `insertion_point` is live for the duration of this call.
+        unsafe { (host.callbacks.note_tree_restructuring)(host.callbacks.context, insertion_point) };
+        // SAFETY: The callback retains `node` while inserting it into the live insertion point.
+        unsafe { (host.callbacks.insert_child)(host.callbacks.context, insertion_point, node, mode) };
+
+        if is_inline_outside {
+            // After inserting an inline-level box into a parent, mark the parent as having inline children.
+            // SAFETY: `insertion_point` remains live and attached.
+            unsafe { (host.callbacks.set_children_are_inline)(host.callbacks.context, insertion_point, true) };
+        } else if host.facts(node).is_in_flow {
+            let insertion_point_facts = host.facts(insertion_point);
+            // Inline-flow parents keep their inline children flag; their IFC may contain interrupting blocks.
+            if !insertion_point_facts.is_inline || !insertion_point_facts.display_is_flow_inside {
+                // SAFETY: `insertion_point` remains live and attached.
+                unsafe { (host.callbacks.set_children_are_inline)(host.callbacks.context, insertion_point, false) };
+            }
+        }
+    });
+}
+
 fn is_table_track(display: FfiTableDisplay) -> bool {
     matches!(display, FfiTableDisplay::TableRow | FfiTableDisplay::TableColumn)
 }
@@ -242,9 +508,9 @@ fn is_proper_table_child(facts: FfiLayoutNodeFacts) -> bool {
     is_table_track_group(display) || is_table_track(display) || display == FfiTableDisplay::TableCaption
 }
 
-fn is_table_non_root_box(facts: FfiLayoutNodeFacts) -> bool {
+fn is_table_non_root_box_with_display(display: FfiTableDisplay) -> bool {
     matches!(
-        facts.current_display,
+        display,
         FfiTableDisplay::TableRow
             | FfiTableDisplay::TableColumn
             | FfiTableDisplay::TableRowGroup
@@ -254,6 +520,10 @@ fn is_table_non_root_box(facts: FfiLayoutNodeFacts) -> bool {
             | FfiTableDisplay::TableCell
             | FfiTableDisplay::TableCaption
     )
+}
+
+fn is_table_non_root_box(facts: FfiLayoutNodeFacts) -> bool {
+    is_table_non_root_box_with_display(facts.current_display)
 }
 
 fn is_tabular_container(facts: FfiLayoutNodeFacts) -> bool {
