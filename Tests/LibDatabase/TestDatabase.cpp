@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
 #include <AK/StringBuilder.h>
 #include <LibTest/TestCase.h>
 #include <Libraries/LibDatabase/Database.h>
@@ -732,4 +733,29 @@ TEST_CASE(collect_set_deduplicates_but_budget_counts_rows)
     auto over_budget = database->try_collect_bound_statement_set<i64>(select_all, 2uz, no_binds, read_v);
     EXPECT(over_budget.is_error());
     EXPECT_EQ(over_budget.error().string_literal(), "Statement returned more rows than the caller allowed"sv);
+}
+
+TEST_CASE(integral_binds_widen_to_64_bit)
+{
+    auto database = TRY_OR_FAIL(DB::create_memory_backed());
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER);"sv));
+
+    auto insert = TRY_OR_FAIL(database->prepare_statement("INSERT INTO t (id, v) VALUES (?, ?);"sv));
+    auto select_by_id = TRY_OR_FAIL(database->prepare_statement("SELECT v FROM t WHERE id = ?;"sv));
+    auto stored_value = [&](i64 id) {
+        Optional<i64> value;
+        database->execute_statement(select_by_id, [&](auto statement_id) -> ErrorOr<void> {
+            value = database->result_column<i64>(statement_id, 0);
+            return {}; }, id);
+        return value;
+    };
+
+    TRY_OR_FAIL(database->try_execute_statement(insert, {}, static_cast<i64>(1), NumericLimits<u32>::max()));
+    EXPECT_EQ(stored_value(1), Optional<i64> { 4294967295 });
+
+    TRY_OR_FAIL(database->try_execute_statement(insert, {}, static_cast<i64>(2), NumericLimits<i64>::min()));
+    EXPECT_EQ(stored_value(2), Optional<i64> { NumericLimits<i64>::min() });
+
+    TRY_OR_FAIL(database->try_execute_statement(insert, {}, static_cast<i64>(3), NumericLimits<i64>::max()));
+    EXPECT_EQ(stored_value(3), Optional<i64> { NumericLimits<i64>::max() });
 }

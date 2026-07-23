@@ -40,6 +40,23 @@ struct Migration {
     Function<ErrorOr<void>(Database&)> backfill {};
 };
 
+namespace Detail {
+
+// Reject unsigned long on all platforms to keep binding behavior portable.
+template<typename ValueType>
+constexpr bool is_unsupported_unsigned_sql_integer = IsUnsigned<RemoveCVReference<ValueType>> && !IsOneOf<RemoveCVReference<ValueType>, bool, u8, u16, u32>;
+static_assert(is_unsupported_unsigned_sql_integer<u64> && is_unsupported_unsigned_sql_integer<unsigned long> && is_unsupported_unsigned_sql_integer<unsigned long long>);
+static_assert(!is_unsupported_unsigned_sql_integer<u32> && !is_unsupported_unsigned_sql_integer<i64> && !is_unsupported_unsigned_sql_integer<bool>);
+
+template<typename ValueType>
+consteval void assert_supported_placeholder()
+{
+    static_assert(!is_unsupported_unsigned_sql_integer<ValueType>,
+        "SQLite INTEGER is signed; bind a validated u32/i64 or an explicitly encoded value");
+}
+
+}
+
 class ResultRow;
 
 class DATABASE_API Database : public RefCounted<Database> {
@@ -103,6 +120,7 @@ public:
     template<typename... PlaceholderValues>
     void execute_statement(StatementID statement_id, OnResult on_result, PlaceholderValues&&... placeholder_values)
     {
+        (Detail::assert_supported_placeholder<PlaceholderValues>(), ...);
         int index = 1;
         (apply_placeholder(statement_id, index++, forward<PlaceholderValues>(placeholder_values)), ...);
 
@@ -115,6 +133,7 @@ public:
     template<typename... PlaceholderValues>
     StatementExecutionOutcome execute_interruptible_statement(StatementID statement_id, OnResult on_result, PlaceholderValues&&... placeholder_values)
     {
+        (Detail::assert_supported_placeholder<PlaceholderValues>(), ...);
         int index = 1;
         (apply_placeholder(statement_id, index++, forward<PlaceholderValues>(placeholder_values)), ...);
 
@@ -127,6 +146,7 @@ public:
     void interrupt();
 
     template<typename ValueType>
+    requires(!Detail::is_unsupported_unsigned_sql_integer<ValueType>)
     ValueType result_column(StatementID, int column);
 
     // Checked reads reject SQLite coercions; bounded reads also reject oversized cells before copying.
@@ -148,6 +168,7 @@ public:
     {
         ScopeGuard clear_on_exit = [&] { clear_bound_parameters(statement_id); };
         auto bind = [&](StringView name, auto const& value) -> ErrorOr<void> {
+            Detail::assert_supported_placeholder<decltype(value)>();
             return bind_parameter(statement_id, name, value);
         };
         TRY(bind_all(bind));
@@ -219,6 +240,7 @@ public:
     template<typename... PlaceholderValues>
     ErrorOr<void> try_execute_statement(StatementID statement_id, OnResult on_result, PlaceholderValues&&... placeholder_values)
     {
+        (Detail::assert_supported_placeholder<PlaceholderValues>(), ...);
         if constexpr (sizeof...(PlaceholderValues) > 0) {
             int index = 1;
             Optional<Error> bind_error;

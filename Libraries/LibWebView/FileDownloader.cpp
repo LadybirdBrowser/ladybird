@@ -1207,7 +1207,7 @@ void FileDownloader::adopt_download_store(Badge<Application>, DownloadStore& dow
 {
     m_download_store = &download_store;
 
-    m_next_download_id = max(m_next_download_id, download_store.maximum_download_id() + 1);
+    m_next_download_id = max(m_next_download_id, static_cast<u64>(download_store.maximum_download_id()) + 1);
 
     restore_persisted_downloads();
 }
@@ -1229,6 +1229,8 @@ void FileDownloader::persist_download_snapshot(u64 id, PersistUrgency urgency)
 
     if (!download->can_resume || !download->total_size.has_value() || !status_is_active(download->status))
         return;
+    if (download->id > static_cast<u64>(NumericLimits<i64>::max()) || *download->total_size > static_cast<u64>(NumericLimits<i64>::max()))
+        return;
 
     if (urgency == PersistUrgency::Throttled && active->persist_timer.is_valid() && active->persist_timer.elapsed_milliseconds() < persist_interval_ms)
         return;
@@ -1236,12 +1238,12 @@ void FileDownloader::persist_download_snapshot(u64 id, PersistUrgency urgency)
     active->persist_timer.start();
 
     DownloadRecord record {
-        .id = download->id,
+        .id = static_cast<i64>(download->id),
         .url = active->effective_url.serialize(),
         .display_url = download->url.serialize(),
         .destination = String::from_byte_string(download->destination.string()).release_value_but_fixme_should_propagate_errors(),
         .temporary_destination = String::from_byte_string(active->temporary_destination.string()).release_value_but_fixme_should_propagate_errors(),
-        .total_size = *download->total_size,
+        .total_size = static_cast<i64>(*download->total_size),
         .etag = active->range_support.validator.etag,
         .last_modified = active->range_support.validator.last_modified,
         .segments = {},
@@ -1260,8 +1262,9 @@ void FileDownloader::persist_download_snapshot(u64 id, PersistUrgency urgency)
 
 void FileDownloader::forget_persisted_download(u64 id)
 {
-    if (m_download_store)
-        m_download_store->remove_download(id);
+    if (!m_download_store || id > static_cast<u64>(NumericLimits<i64>::max()))
+        return;
+    m_download_store->remove_download(static_cast<i64>(id));
 }
 
 void FileDownloader::restore_persisted_downloads()
@@ -1291,10 +1294,13 @@ void FileDownloader::restore_persisted_downloads()
 
 bool FileDownloader::restore_persisted_download(DownloadRecord& record)
 {
-    if (record.total_size == 0 || record.segments.is_empty())
+    if (record.id < 0 || record.total_size <= 0 || record.segments.is_empty())
         return false;
 
-    if (record.segments.last().end_offset + 1 != record.total_size)
+    auto id = static_cast<u64>(record.id);
+    auto total_size = static_cast<u64>(record.total_size);
+
+    if (record.segments.last().end_offset + 1 != total_size)
         return false;
 
     // The persisted segments must tile [0, total_size) in order, with each segment's resume point inside its own range.
@@ -1303,7 +1309,7 @@ bool FileDownloader::restore_persisted_download(DownloadRecord& record)
     for (auto const& segment : record.segments) {
         if (segment.start_offset != expected_start_offset)
             return false;
-        if (segment.end_offset < segment.start_offset || segment.end_offset >= record.total_size)
+        if (segment.end_offset < segment.start_offset || segment.end_offset >= total_size)
             return false;
         if (segment.next_offset < segment.start_offset || segment.next_offset > segment.end_offset + 1)
             return false;
@@ -1324,12 +1330,12 @@ bool FileDownloader::restore_persisted_download(DownloadRecord& record)
         return false;
 
     m_downloads.append(Download {
-        .id = record.id,
+        .id = id,
         .is_private = IsPrivate::No,
         .url = url.release_value(),
         .destination = LexicalPath { record.destination.to_byte_string() },
         .status = DownloadStatus::Paused,
-        .total_size = record.total_size,
+        .total_size = total_size,
         .error = {},
         .can_resume = true,
         .bytes_per_second = {},
@@ -1343,7 +1349,7 @@ bool FileDownloader::restore_persisted_download(DownloadRecord& record)
     active->created_time = record.created_time;
     active->restored_from_disk = true;
     active->range_support.supports_ranges = true;
-    active->range_support.total_size = record.total_size;
+    active->range_support.total_size = total_size;
     active->range_support.validator.etag = move(record.etag);
     active->range_support.validator.last_modified = move(record.last_modified);
 
@@ -1360,7 +1366,7 @@ bool FileDownloader::restore_persisted_download(DownloadRecord& record)
     auto& download = m_downloads.last();
     refresh_download_progress(download, *active);
 
-    m_active_downloads.set(record.id, move(active));
+    m_active_downloads.set(id, move(active));
     notify_download_added(download);
 
     return true;
