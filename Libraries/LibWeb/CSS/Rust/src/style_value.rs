@@ -869,20 +869,20 @@ pub enum StyleValueData {
     /// An unrecognized CSS function, kept as its name and argument value.
     Function {
         name: RetainedUtf16FlyString,
-        value: RetainedStyleValue,
+        value: RetainedStyleValueData,
     },
     /// An OpenType tag with its value, from font-feature-settings or font-variation-settings.
     /// The mode is the C++ OpenTypeTaggedStyleValue::Mode, opaque to Rust.
     OpenTypeTagged {
         mode: u8,
         tag: RetainedUtf16FlyString,
-        value: RetainedStyleValue,
+        value: RetainedStyleValueData,
     },
     /// font-style: a keyword (the C++ `enum class FontStyleKeyword : u8`, opaque to Rust) and
     /// an optional oblique angle style value (null when absent).
     FontStyle {
         font_style: u8,
-        angle_value: RetainedStyleValue,
+        angle_value: RetainedStyleValueData,
     },
     /// text-indent: a length-percentage style value plus the hanging and each-line flags.
     TextIndent {
@@ -1540,43 +1540,46 @@ pub extern "C" fn rust_style_value_create_custom_ident(custom_ident: usize) -> *
     })
 }
 
-/// Takes ownership of one leaked reference to the name and one strong reference to the value.
+/// Takes ownership of one leaked reference to the name and one strong reference to the value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_function(name: usize, value: *const c_void) -> *const StyleValueData {
+pub unsafe extern "C" fn rust_style_value_create_function(
+    name: usize,
+    value: *const StyleValueData,
+) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Function {
             name: RetainedUtf16FlyString { raw: name },
-            value: RetainedStyleValue { pointer: value },
+            value: unsafe { RetainedStyleValueData::from_retained_pointer(value) },
         }))
     })
 }
 
-/// Takes ownership of one leaked reference to the tag and one strong reference to the value.
+/// Takes ownership of one leaked reference to the tag and one strong reference to the value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_open_type_tagged(
     mode: u8,
     tag: usize,
-    value: *const c_void,
+    value: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::OpenTypeTagged {
             mode,
             tag: RetainedUtf16FlyString { raw: tag },
-            value: RetainedStyleValue { pointer: value },
+            value: unsafe { RetainedStyleValueData::from_retained_pointer(value) },
         }))
     })
 }
 
-/// Takes ownership of one strong reference to the angle value if it is non-null.
+/// Takes ownership of one strong reference to the angle value data if it is non-null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_font_style(
     font_style: u8,
-    angle_value: *const c_void,
+    angle_value: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::FontStyle {
             font_style,
-            angle_value: RetainedStyleValue { pointer: angle_value },
+            angle_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(angle_value) },
         }))
     })
 }

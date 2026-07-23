@@ -14,12 +14,15 @@
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LightDarkStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
@@ -459,6 +462,188 @@ TEST_CASE(rust_border_radius_handles_retain_radius_data)
     auto radius = StyleValue::adopt_rust_style_value_data(data);
     EXPECT(radius->is_border_radius());
     EXPECT_EQ(radius->to_string(SerializationMode::Normal), "4px 8px"sv);
+}
+
+TEST_CASE(rust_open_type_tagged_handles_retain_setting_data)
+{
+    auto data = [] {
+        auto value = NumberStyleValue::create(400);
+        auto setting = OpenTypeTaggedStyleValue::create(
+            OpenTypeTaggedStyleValue::Mode::FontVariationSettings,
+            Utf16FlyString::from_utf8("wght"sv), value);
+        return StyleValueFFI::rust_style_value_retain(setting->rust_style_value_data());
+    }();
+
+    auto setting = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(setting->is_open_type_tagged());
+    auto value = setting->as_open_type_tagged().value();
+    setting = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(value->to_string(SerializationMode::Normal), "400"sv);
+}
+
+TEST_CASE(rust_function_handles_retain_argument_data)
+{
+    auto data = [] {
+        auto value = NumberStyleValue::create(2);
+        return StyleValueFFI::rust_style_value_create_function(
+            Utf16FlyString::from_utf8("foo"sv).to_raw_leaked(),
+            StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()));
+    }();
+
+    auto function = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(function->is_function());
+    auto value = function->as_function().value();
+    function = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(value->to_string(SerializationMode::Normal), "2"sv);
+}
+
+TEST_CASE(rust_font_style_handles_retain_angle_data)
+{
+    auto data = [] {
+        auto angle = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_angle(20, 0));
+        return StyleValueFFI::rust_style_value_create_font_style(
+            to_underlying(FontStyleKeyword::Oblique),
+            StyleValueFFI::rust_style_value_retain(angle->rust_style_value_data()));
+    }();
+
+    auto font_style = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(font_style->is_font_style());
+    auto angle = font_style->as_font_style().angle();
+    font_style = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(angle->to_string(SerializationMode::Normal), "20deg"sv);
+}
+
+TEST_CASE(rust_interpolates_font_style_values)
+{
+    auto normal = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_create_font_style(to_underlying(FontStyleKeyword::Normal), nullptr));
+    auto oblique = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_font_style(
+        to_underlying(FontStyleKeyword::Oblique), StyleValueFFI::rust_style_value_create_angle(20, 0)));
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::FontStyle),
+        normal->rust_style_value_data(),
+        oblique->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "oblique 10deg"sv);
+
+    auto italic = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_create_font_style(to_underlying(FontStyleKeyword::Italic), nullptr));
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::FontStyle),
+        italic->rust_style_value_data(),
+        oblique->rust_style_value_data(),
+        0.25f);
+    EXPECT(result.handled);
+    EXPECT_EQ(result.value, nullptr);
+
+    StyleValueFFI::FfiAnimationContext context {
+        .allow_discrete = true,
+        .has_transform_reference_box = false,
+        .transform_reference_box_width = 0,
+        .transform_reference_box_height = 0,
+    };
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        &context,
+        to_underlying(PropertyID::FontStyle),
+        italic->rust_style_value_data(),
+        oblique->rust_style_value_data(),
+        0.25f);
+    EXPECT(result.handled);
+    interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "italic"sv);
+}
+
+TEST_CASE(cpp_function_facades_retain_argument_wrappers)
+{
+    auto function = FunctionStyleValue::create(
+        "foo"_utf16_fly_string,
+        NumberStyleValue::create(2));
+    auto value = function->value();
+    function = FunctionStyleValue::create(
+        "bar"_utf16_fly_string,
+        NumberStyleValue::create(3));
+    EXPECT_EQ(value->to_string(SerializationMode::Normal), "2"sv);
+}
+
+TEST_CASE(rust_interpolates_and_composites_function_values)
+{
+    auto make_function = [](StringView name, double value) {
+        return FunctionStyleValue::create(
+            Utf16FlyString::from_utf8(name),
+            NumberStyleValue::create(value));
+    };
+    auto from = make_function("foo"sv, 100);
+    auto to = make_function("foo"sv, 300);
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::FontWeight),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "foo(200)"sv);
+
+    result = StyleValueFFI::rust_composite_scalar_style_value(
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        StyleValueFFI::FfiCompositeOperation::Add);
+    EXPECT(result.handled);
+    auto composited = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(composited->to_string(SerializationMode::Normal), "foo(400)"sv);
+
+    auto mismatched_name = make_function("bar"sv, 300);
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::FontWeight),
+        from->rust_style_value_data(),
+        mismatched_name->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    EXPECT_EQ(result.value, nullptr);
+}
+
+TEST_CASE(rust_interpolates_and_composites_open_type_settings)
+{
+    auto make_setting = [](StringView tag, double value) {
+        return OpenTypeTaggedStyleValue::create(
+            OpenTypeTaggedStyleValue::Mode::FontVariationSettings,
+            Utf16FlyString::from_utf8(tag),
+            NumberStyleValue::create(value));
+    };
+    auto from = make_setting("wght"sv, 100);
+    auto to = make_setting("wght"sv, 300);
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::FontWeight),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "\"wght\" 200"sv);
+
+    result = StyleValueFFI::rust_composite_scalar_style_value(
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        StyleValueFFI::FfiCompositeOperation::Add);
+    EXPECT(result.handled);
+    auto composited = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(composited->to_string(SerializationMode::Normal), "\"wght\" 400"sv);
+
+    auto mismatched_tag = make_setting("slnt"sv, 300);
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::FontWeight),
+        from->rust_style_value_data(),
+        mismatched_tag->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    EXPECT_EQ(result.value, nullptr);
 }
 
 TEST_CASE(rust_border_image_slice_handles_retain_offset_data)

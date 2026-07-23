@@ -917,7 +917,7 @@ fn value_is_computationally_independent(
             Some(offset) => value_is_computationally_independent(offset, data_of, decide_fallback),
             None => Some(true),
         },
-        StyleValueData::Function { value, .. } => child(value),
+        StyleValueData::Function { value, .. } => all_data(&[value]),
         StyleValueData::OpacityValue { value } => all_data(&[value]),
         // Auto placements carry no value; spans and lines recurse into theirs.
         StyleValueData::GridTrackPlacement { value, .. } => child(value),
@@ -963,7 +963,7 @@ fn value_is_computationally_independent(
         // Every filter kind's rule recurses into its single value.
         StyleValueData::Filter { value, .. } => child(value),
         StyleValueData::Counter { counter_style, .. } => child(counter_style),
-        StyleValueData::OpenTypeTagged { value, .. } => child(value),
+        StyleValueData::OpenTypeTagged { value, .. } => all_data(&[value]),
         StyleValueData::RandomValueSharing { fixed_value, .. } => child(fixed_value),
         StyleValueData::Cursor { image, x, y } => all_of(&[image, x, y]),
         // The unused fields of the non-matching easing kinds are absent, so one
@@ -1049,7 +1049,10 @@ fn value_is_computationally_independent(
             left,
             ..
         } => all_data(&[top, right, bottom, left]),
-        StyleValueData::FontStyle { angle_value, .. } => child(angle_value),
+        StyleValueData::FontStyle { angle_value, .. } => match angle_value.optional_data() {
+            Some(angle_value) => value_is_computationally_independent(angle_value, data_of, decide_fallback),
+            None => Some(true),
+        },
         StyleValueData::TextIndent { length_percentage, .. } => all_data(&[length_percentage]),
         StyleValueData::OverflowClipMargin { offset, .. } => child(offset),
         StyleValueData::BackgroundSize { size_x, size_y, .. } => all_data(&[size_x, size_y]),

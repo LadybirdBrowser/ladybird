@@ -167,8 +167,12 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
         return adopt_ref(*new (nothrow) AngleStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Flex:
         return adopt_ref(*new (nothrow) FlexStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::FontStyle:
+        return adopt_ref(*new (nothrow) FontStyleStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Frequency:
         return adopt_ref(*new (nothrow) FrequencyStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Function:
+        return adopt_ref(*new (nothrow) FunctionStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Length:
         return adopt_ref(*new (nothrow) LengthStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Percentage:
@@ -179,6 +183,8 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
         return adopt_ref(*new (nothrow) TimeStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::OpacityValue:
         return adopt_ref(*new (nothrow) OpacityValueStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::OpenTypeTagged:
+        return adopt_ref(*new (nothrow) OpenTypeTaggedStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Position:
         return adopt_ref(*new (nothrow) PositionStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Ratio:
