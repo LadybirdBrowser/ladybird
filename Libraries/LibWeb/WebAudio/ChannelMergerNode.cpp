@@ -6,6 +6,7 @@
 
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/ChannelMergerNode.h>
+#include <LibWeb/WebAudio/Rendering/RenderNodes.h>
 
 namespace Web::WebAudio {
 
@@ -43,6 +44,8 @@ WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> ChannelMergerNode::construct_imp
     // FIXME: Set tail-time to no
 
     TRY(node->initialize_audio_node_options(options, default_options));
+
+    node->queue_render_node_creation(make<Rendering::ChannelMergerRenderNode>(node->node_id(), BaseAudioContext::render_quantum_size(), options.number_of_inputs));
 
     return node;
 }

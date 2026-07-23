@@ -12,6 +12,7 @@
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/OfflineAudioContext.h>
+#include <LibWeb/WebAudio/Rendering/RenderNodes.h>
 
 namespace Web::WebAudio {
 
@@ -44,6 +45,8 @@ WebIDL::ExceptionOr<GC::Ref<AudioDestinationNode>> AudioDestinationNode::constru
     // FIXME: Set tail-time to no
 
     TRY(node->initialize_audio_node_options({}, default_options));
+
+    node->queue_render_node_creation(make<Rendering::DestinationRenderNode>(node->node_id(), channel_count, BaseAudioContext::render_quantum_size()));
 
     return node;
 }

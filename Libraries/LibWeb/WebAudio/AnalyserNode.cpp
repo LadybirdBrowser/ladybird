@@ -13,6 +13,8 @@
 #include <LibWeb/Bindings/AnalyserNode.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AnalyserNode.h>
+#include <LibWeb/WebAudio/BaseAudioContext.h>
+#include <LibWeb/WebAudio/Rendering/RenderNodes.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -314,6 +316,8 @@ WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::construct_impl(JS::Real
     // FIXME: Set tail-time to no
 
     TRY(node->initialize_audio_node_options(options, default_options));
+
+    node->queue_render_node_creation(make<Rendering::PassthroughRenderNode>(node->node_id(), BaseAudioContext::render_quantum_size()));
 
     return node;
 }

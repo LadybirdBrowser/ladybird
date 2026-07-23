@@ -14,6 +14,7 @@
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
 #include <LibWeb/WebAudio/Rendering/BiquadCoefficients.h>
+#include <LibWeb/WebAudio/Rendering/RenderNodes.h>
 
 namespace Web::WebAudio {
 
@@ -35,6 +36,7 @@ BiquadFilterNode::~BiquadFilterNode() = default;
 void BiquadFilterNode::set_type(Bindings::BiquadFilterType type)
 {
     m_type = type;
+    context()->queue_control_message(NodeMessage { SetBiquadFilterType { node_id(), type } });
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-type
@@ -129,6 +131,10 @@ WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::construct_impl(
     // FIXME: Set tail-time to yes
 
     TRY(node->initialize_audio_node_options(options, default_options));
+
+    node->queue_render_node_creation(make<Rendering::BiquadFilterRenderNode>(node->node_id(), BaseAudioContext::render_quantum_size(), node->m_frequency->render_param(), node->m_detune->render_param(), node->m_q->render_param(), node->m_gain->render_param()));
+    if (options.type != Bindings::BiquadFilterType::Lowpass)
+        context->queue_control_message(NodeMessage { SetBiquadFilterType { node->node_id(), options.type } });
 
     return node;
 }
