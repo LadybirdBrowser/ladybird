@@ -56,8 +56,12 @@ private:
 
     RefPtr<Rendering::OfflineAudioRenderer> m_renderer;
 
+    // https://webaudio.github.io/web-audio-api/#dom-offlineaudiocontext-suspend, keyed by suspend frame.
+    HashMap<u64, GC::Ref<WebIDL::Promise>> m_suspend_promises;
+
     void begin_offline_rendering(GC::Ref<WebIDL::Promise> promise);
     void finish_rendering(GC::Ref<WebIDL::Promise> promise);
+    void handle_suspended(double suspend_time);
     void queue_a_statechange_event();
 };
 
