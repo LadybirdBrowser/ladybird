@@ -2780,23 +2780,6 @@ CSSPixels Paintable::outline_offset() const
     return computed_values().outline_offset();
 }
 
-VisualContextIndex Paintable::nearest_scroll_node_index() const
-{
-    if (is_fixed_position())
-        return {};
-    auto const* paintable = containing_block_ptr();
-    while (paintable) {
-        if (paintable->own_scroll_node_index().value())
-            return paintable->own_scroll_node_index();
-        // Sticky elements need to find a scroll container even through fixed-position ancestors,
-        // because they must reference a scrollport for their sticky offset computation.
-        if (paintable->is_fixed_position() && !is_sticky_position())
-            return {};
-        paintable = paintable->containing_block_ptr();
-    }
-    return {};
-}
-
 RefPtr<Paintable const> Paintable::nearest_scrollable_ancestor() const
 {
     auto paintable = this->containing_block();

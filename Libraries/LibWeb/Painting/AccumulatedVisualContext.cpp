@@ -368,10 +368,22 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
     viewport_paintable.set_accumulated_visual_context(VISUAL_VIEWPORT_NODE_INDEX);
     viewport_paintable.set_accumulated_visual_context_for_descendants(viewport_state_for_descendants);
 
+    // Nearest ancestor scroll node resolved along the containing block chain, drilled down alongside
+    // the visual context indices. A fixed-position ancestor decouples its subtree from all outer
+    // scrollers, but sticky boxes must still reference a scrollport through fixed-position ancestors
+    // for their sticky offset computation, so both resolutions are carried.
+    struct NearestScrollNodeIndices {
+        VisualContextIndex stopping_at_fixed_position_ancestors;
+        VisualContextIndex continuing_through_fixed_position_ancestors;
+    };
+
     struct DescendantVisualContexts {
         VisualContextIndex normal;
         VisualContextIndex absolute_position;
         VisualContextIndex fixed_position;
+        NearestScrollNodeIndices normal_nearest_scroll_nodes;
+        NearestScrollNodeIndices absolute_position_nearest_scroll_nodes;
+        NearestScrollNodeIndices fixed_position_nearest_scroll_nodes;
     };
 
     auto build_paintable_box = [&](Paintable& paintable_box, DescendantVisualContexts inherited_contexts, bool may_be_root_element) -> DescendantVisualContexts {
@@ -381,9 +393,16 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         paintable_box.set_enclosing_scroll_node_index({});
         paintable_box.set_own_scroll_node_index({});
 
-        // One containing-block walk serves both the enclosing stamp and the parent reference of any
-        // scroll nodes this box appends at their chain positions below.
-        auto nearest_ancestor_scroll_node_index = paintable_box.nearest_scroll_node_index();
+        auto nearest_scroll_nodes_for_descendants = [&]() -> NearestScrollNodeIndices {
+            if (paintable_box.is_fixed_position())
+                return { {}, inherited_contexts.fixed_position_nearest_scroll_nodes.continuing_through_fixed_position_ancestors };
+            if (paintable_box.is_absolutely_positioned())
+                return inherited_contexts.absolute_position_nearest_scroll_nodes;
+            return inherited_contexts.normal_nearest_scroll_nodes;
+        }();
+        auto nearest_ancestor_scroll_node_index = paintable_box.is_sticky_position()
+            ? nearest_scroll_nodes_for_descendants.continuing_through_fixed_position_ancestors
+            : nearest_scroll_nodes_for_descendants.stopping_at_fixed_position_ancestors;
         if (!paintable_box.is_fixed_position() && !paintable_box.is_sticky_position())
             paintable_box.set_enclosing_scroll_node_index(nearest_ancestor_scroll_node_index);
 
@@ -457,6 +476,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             viewport_paintable.register_sticky_node(visual_context_tree, sticky_scroll_node_index, paintable_box, nearest_ancestor_scroll_node_index);
             paintable_box.set_enclosing_scroll_node_index(sticky_scroll_node_index);
             paintable_box.set_own_scroll_node_index(sticky_scroll_node_index);
+            nearest_scroll_nodes_for_descendants = { sticky_scroll_node_index, sticky_scroll_node_index };
         }
 
         auto const& computed_values = layout_node.computed_values();
@@ -558,27 +578,41 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             state_for_descendants = scroll_node_index;
             viewport_paintable.register_scroll_node(visual_context_tree, scroll_node_index, paintable_box, parent_index);
             paintable_box.set_own_scroll_node_index(scroll_node_index);
+            nearest_scroll_nodes_for_descendants = { scroll_node_index, scroll_node_index };
         }
 
         paintable_box.set_accumulated_visual_context_for_descendants(state_for_descendants);
         paintable_box.set_visual_context_node_range(first_visual_context_node_index, visual_context_tree.nodes().size());
+        auto absolute_position_nearest_scroll_nodes = inherited_contexts.absolute_position_nearest_scroll_nodes;
+        auto fixed_position_nearest_scroll_nodes = inherited_contexts.fixed_position_nearest_scroll_nodes;
         auto positioning_containing_blocks = layout_node.establishes_positioning_containing_blocks();
-        if (positioning_containing_blocks.absolute)
+        if (positioning_containing_blocks.absolute) {
             state_for_absolute_position_descendants = state_for_descendants;
-        if (positioning_containing_blocks.fixed)
+            absolute_position_nearest_scroll_nodes = nearest_scroll_nodes_for_descendants;
+        }
+        if (positioning_containing_blocks.fixed) {
             state_for_fixed_position_descendants = state_for_descendants;
+            fixed_position_nearest_scroll_nodes = nearest_scroll_nodes_for_descendants;
+        }
 
         return DescendantVisualContexts {
             state_for_descendants,
             state_for_absolute_position_descendants,
             state_for_fixed_position_descendants,
+            nearest_scroll_nodes_for_descendants,
+            absolute_position_nearest_scroll_nodes,
+            fixed_position_nearest_scroll_nodes,
         };
     };
 
+    NearestScrollNodeIndices viewport_nearest_scroll_nodes { viewport_state_for_descendants, viewport_state_for_descendants };
     DescendantVisualContexts viewport_contexts {
         viewport_state_for_descendants,
         viewport_state_for_descendants,
         visual_viewport_context_index,
+        viewport_nearest_scroll_nodes,
+        viewport_nearest_scroll_nodes,
+        viewport_nearest_scroll_nodes,
     };
 
     struct PendingPaintable {

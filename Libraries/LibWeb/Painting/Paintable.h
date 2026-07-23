@@ -389,8 +389,6 @@ public:
 
     CSSPixelRect transform_reference_box() const;
 
-    VisualContextIndex nearest_scroll_node_index() const;
-
     RefPtr<Paintable const> nearest_scrollable_ancestor() const;
 
     using StickyInsets = Painting::StickyInsets;
