@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const encodedAudio = await new Promise((resolve, reject) => {
+            const request = new XMLHttpRequest();
+            request.open("GET", "../../../Assets/test-webm-audio.ogg");
+            request.responseType = "arraybuffer";
+            request.onload = () => resolve(request.response);
+            request.onerror = reject;
+            request.send();
+        });
+
+        const context = new OfflineAudioContext(1, 8000, 48000);
+
+        try {
+            await context.decodeAudioData(new Uint8Array([1, 2, 3, 4]).buffer);
+            println("FAIL: garbage data did not reject");
+        } catch (e) {
+            println(`garbage data rejects with: ${e.name}`);
+        }
+
+        const alreadyDetached = encodedAudio.slice(0);
+        structuredClone(alreadyDetached, { transfer: [alreadyDetached] });
+        try {
+            await context.decodeAudioData(alreadyDetached);
+            println("FAIL: detached data did not reject");
+        } catch (e) {
+            println(`detached data rejects with: ${e.name}`);
+        }
+
+        const contextRateCopy = encodedAudio.slice(0);
+        const decoded = await context.decodeAudioData(contextRateCopy);
+        println(`decoded: channels=${decoded.numberOfChannels} sampleRate=${decoded.sampleRate} duration=${decoded.duration.toFixed(1)}`);
+        println(`audioData detached after decoding: ${contextRateCopy.byteLength === 0}`);
+
+        const resamplingContext = new OfflineAudioContext(1, 8000, 22050);
+        const resampled = await resamplingContext.decodeAudioData(encodedAudio.slice(0));
+        println(`resampled: channels=${resampled.numberOfChannels} sampleRate=${resampled.sampleRate} duration=${resampled.duration.toFixed(1)}`);
+
+        context.decodeAudioData(
+            encodedAudio.slice(0),
+            buffer => {
+                println(`success callback invoked with duration=${buffer.duration.toFixed(1)}`);
+                context.decodeAudioData(
+                    new ArrayBuffer(0),
+                    () => println("FAIL: success callback invoked for empty data"),
+                    error => {
+                        println(`error callback invoked with: ${error.name}`);
+                        done();
+                    }
+                );
+            },
+            () => println("FAIL: error callback invoked for valid data")
+        );
+    });
+</script>
