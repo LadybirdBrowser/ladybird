@@ -905,18 +905,34 @@ static Optional<CSS::EasingFunction> resolve_keyframe_easing(CSS::StyleValue con
 
 void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties::Builder& builder) const
 {
-    collect_animation_into(abstract_element, effect, builder.style(), &builder);
+    Array effects { effect };
+    collect_animations_into(abstract_element, effects.span(), builder);
 }
 
 void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties) const
 {
-    collect_animation_into(abstract_element, effect, computed_properties, nullptr);
+    Array effects { effect };
+    collect_animations_into(abstract_element, effects.span(), computed_properties);
 }
 
-void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties, ComputedProperties::Builder* builder) const
+void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedProperties::Builder& builder) const
 {
     StyleValueFFI::rust_style_ffi_note_animation_evaluation();
+    for (auto effect : effects)
+        collect_animation_effect_into(abstract_element, effect, builder.style(), &builder);
+    StyleValueFFI::rust_style_ffi_note_animation_result_batch();
+}
 
+void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedProperties& computed_properties) const
+{
+    StyleValueFFI::rust_style_ffi_note_animation_evaluation();
+    for (auto effect : effects)
+        collect_animation_effect_into(abstract_element, effect, computed_properties, nullptr);
+    StyleValueFFI::rust_style_ffi_note_animation_result_batch();
+}
+
+void StyleComputer::collect_animation_effect_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties, ComputedProperties::Builder* builder) const
+{
     auto animation = effect->associated_animation();
     if (!animation)
         return;
@@ -1240,7 +1256,6 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
     }
 
     clear_computation_context_caches();
-    StyleValueFFI::rust_style_ffi_note_animation_result_batch();
 }
 
 void StyleComputer::process_animation_definitions(ComputedProperties const& computed_properties, CascadedProperties const& cascaded_properties, DOM::AbstractElement& abstract_element) const
@@ -3703,16 +3718,19 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     if (animations.is_exception()) {
         dbgln("Error getting animations for element {}", abstract_element.debug_description());
     } else {
+        GC::RootVector<GC::Ref<Animations::KeyframeEffect>> effects;
         for (auto& animation : animations.value()) {
             if (auto effect = animation->effect(); effect && effect->is_keyframe_effect()) {
                 auto& keyframe_effect = *static_cast<Animations::KeyframeEffect*>(effect.ptr());
-                if (keyframe_effect.pseudo_element_type() == abstract_element.pseudo_element()) {
-                    if (!animation_values_applied)
-                        restore_values_before_post_compute_adjustments();
-                    animation_values_applied = true;
-                    collect_animation_into(abstract_element, keyframe_effect, builder);
-                }
+                if (keyframe_effect.pseudo_element_type() == abstract_element.pseudo_element())
+                    effects.append(keyframe_effect);
             }
+        }
+        if (!effects.is_empty()) {
+            if (!animation_values_applied)
+                restore_values_before_post_compute_adjustments();
+            animation_values_applied = true;
+            collect_animations_into(abstract_element, effects.span(), builder);
         }
     }
 

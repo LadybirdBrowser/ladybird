@@ -8,7 +8,8 @@
         const style = document.createElement("style");
         style.textContent = `
             @keyframes spin { from { transform: rotate(0deg); opacity: 0.2; } to { transform: rotate(360deg); opacity: 0.8; } }
-            .animated { animation: spin 10s linear infinite paused; }
+            @keyframes move { from { margin-top: 0px; } to { margin-top: 100px; } }
+            .animated { animation: spin 10s linear infinite paused, move 10s linear infinite paused; }
             .transitioned { transition: margin-left 10s linear; margin-left: 0px; }
             .moved { margin-left: 100px; }`;
         document.head.appendChild(style);

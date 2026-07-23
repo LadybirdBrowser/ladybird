@@ -134,6 +134,8 @@ public:
 
     void collect_animation_into(DOM::AbstractElement, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties&) const;
     void collect_animation_into(DOM::AbstractElement, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties::Builder&) const;
+    void collect_animations_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedProperties&) const;
+    void collect_animations_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedProperties::Builder&) const;
 
     [[nodiscard]] NonnullRefPtr<ComputedProperties> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles) const;
 
@@ -195,7 +197,7 @@ private:
 
     [[nodiscard]] RefPtr<ComputedProperties> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties, StyleScope const&, IncludeInlineStyle) const;
     [[nodiscard]] NonnullRefPtr<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, MatchingRuleSet const&, IncludeInlineStyle) const;
-    void collect_animation_into(DOM::AbstractElement, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties&, ComputedProperties::Builder*) const;
+    void collect_animation_effect_into(DOM::AbstractElement, GC::Ref<Animations::KeyframeEffect>, ComputedProperties&, ComputedProperties::Builder*) const;
     void compute_custom_properties(ComputedProperties&, DOM::AbstractElement) const;
     void start_needed_transitions(ComputedValues const& old_style, ComputedProperties::Builder& new_style, DOM::AbstractElement) const;
     void resolve_effective_overflow_values(ComputedProperties::Builder&) const;
