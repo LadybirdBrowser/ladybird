@@ -340,13 +340,12 @@ pub unsafe extern "C" fn rust_cascaded_properties_has_style_sheet_context(
 }
 
 /// A declared property in an `FfiCascadeBlock` crossing into `rust_cascade_matched_blocks`:
-/// the property identifier, its importance, and the borrowed value shell with its
-/// Rust-owned data.
+/// the property identifier, its importance, and borrowed shared Rust value data.
 #[repr(C)]
 pub struct FfiCascadeDeclaration {
     pub property_id: u16,
     pub important: bool,
-    pub shell: *const c_void,
+    pub has_style_sheet_context: bool,
     pub data: *const c_void,
 }
 
@@ -357,7 +356,7 @@ pub struct FfiCustomPropertyDeclaration {
     pub name_raw: usize,
     pub important: bool,
     pub is_revert_layer: bool,
-    pub shell: *const c_void,
+    pub data: *const c_void,
 }
 
 /// Applies one declaration block to the cascade: filters by importance and applicability,
@@ -373,16 +372,12 @@ fn apply_declaration_block(
     has_layer_name: bool,
     layer_name_raw: usize,
     source_shadow_root_identity: usize,
-    unset_shell: *const c_void,
     unset_data: *const c_void,
     is_property_disallowed: &dyn Fn(u16) -> bool,
     resolve_unresolved: &dyn Fn(u16, *const c_void) -> FfiResolvedStyleValue,
     parse_substituted: &dyn Fn(u16, &[u8]) -> FfiResolvedStyleValue,
     custom_property_store: *const c_void,
     custom_property_registry: *const c_void,
-    data_of: &dyn Fn(*const c_void) -> *const c_void,
-    has_style_sheet_context: &dyn Fn(*const c_void) -> bool,
-    create_pending_substitution: &dyn Fn(*const c_void, *const c_void) -> *const c_void,
     mut assign_source_slot: impl FnMut(u32),
 ) {
     let mut seen = [0u64; CONTAINED_BITMAP_WORDS];
@@ -403,8 +398,8 @@ fn apply_declaration_block(
             continue;
         }
 
-        let mut shell = declaration.shell;
         let mut data = declaration.data;
+        let mut has_style_sheet_context = declaration.has_style_sheet_context;
 
         if declared_is_unresolved {
             let native_resolution = unsafe {
@@ -413,18 +408,18 @@ fn apply_declaration_block(
             match native_resolution {
                 crate::custom_properties::NativeVarResolution::Resolved(source) => {
                     let resolved = parse_substituted(declaration.property_id, &source);
-                    shell = resolved.shell;
                     data = resolved.data;
+                    has_style_sheet_context = resolved.has_style_sheet_context;
                 }
                 crate::custom_properties::NativeVarResolution::Invalid => {
                     let resolved = parse_substituted(declaration.property_id, &[]);
-                    shell = resolved.shell;
                     data = resolved.data;
+                    has_style_sheet_context = resolved.has_style_sheet_context;
                 }
                 crate::custom_properties::NativeVarResolution::NotHandled => {
-                    let resolved = resolve_unresolved(declaration.property_id, shell);
-                    shell = resolved.shell;
+                    let resolved = resolve_unresolved(declaration.property_id, data);
                     data = resolved.data;
+                    has_style_sheet_context = resolved.has_style_sheet_context;
                 }
             }
         }
@@ -446,22 +441,19 @@ fn apply_declaration_block(
             // -> Otherwise
             // Either the property's inherited value or its initial value depending on whether the property is
             // inherited or not, respectively, as if the property's value had been specified as the unset keyword.
-            shell = unset_shell;
             data = unset_data;
+            has_style_sheet_context = false;
         }
 
         let value_is_pending_substitution = matches!(
             unsafe { &*(data as *const StyleValueData) },
             StyleValueData::PendingSubstitution { .. }
         );
-
         expand_shorthands_with(
-            &|shell| data_of(shell),
-            &|shell, data| create_pending_substitution(shell, data),
             declaration.property_id,
-            shell,
             data,
-            &mut |longhand_id, longhand_shell, longhand_data| {
+            has_style_sheet_context,
+            &mut |longhand_id, longhand_data, longhand_has_style_sheet_context| {
                 if is_property_disallowed(longhand_id) {
                     return;
                 }
@@ -506,7 +498,7 @@ fn apply_declaration_block(
                     let slot = store.set_property(
                         longhand_id,
                         retained_value,
-                        has_style_sheet_context(longhand_shell),
+                        longhand_has_style_sheet_context,
                         important,
                         origin,
                         layer_name,
@@ -561,32 +553,25 @@ pub struct FfiSourceSlotAssignment {
 pub struct FfiCascadedCustomProperty {
     pub name_raw: usize,
     pub important: bool,
-    pub shell: *const c_void,
+    pub data: *const c_void,
 }
 
-/// Callbacks for the bulk cascade. Values cross as opaque C++ style value
-/// shells; the C++ side pins every value it creates until the cascade
-/// returns.
+/// Callbacks for the parser-dependent parts of the bulk cascade. Values cross
+/// as shared Rust data; the C++ side pins every value it creates until the
+/// cascade returns.
 #[repr(C)]
 pub struct FfiBulkCascadeCallbacks {
     pub context: *mut c_void,
-    /// Resolves an unresolved value and returns its pinned shell and Rust-owned data.
+    /// Resolves borrowed Rust value data and returns pinned Rust-owned data.
     pub resolve_unresolved:
-        unsafe extern "C" fn(context: *mut c_void, property_id: u16, shell: *const c_void) -> FfiResolvedStyleValue,
-    /// Parses a substituted token stream and returns its pinned shell and Rust-owned data.
+        unsafe extern "C" fn(context: *mut c_void, property_id: u16, data: *const c_void) -> FfiResolvedStyleValue,
+    /// Parses a substituted token stream and returns pinned Rust-owned data.
     pub parse_substituted: unsafe extern "C" fn(
         context: *mut c_void,
         property_id: u16,
         source: *const u8,
         source_length: usize,
     ) -> FfiResolvedStyleValue,
-    /// Returns the Rust-owned data of a C++ style value shell.
-    pub data_of: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
-    /// Returns whether a shell carries stylesheet resource context.
-    pub has_style_sheet_context: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> bool,
-    /// Creates and pins a pending-substitution value wrapping the given value; returns its shell.
-    pub create_pending_substitution:
-        unsafe extern "C" fn(context: *mut c_void, shell: *const c_void, data: *const c_void) -> *const c_void,
     /// Whether the element's pseudo-element rejects the property; only called
     /// when the element has a pseudo-element.
     pub pseudo_element_rejects_property: unsafe extern "C" fn(context: *mut c_void, property_id: u16) -> bool,
@@ -603,8 +588,8 @@ pub struct FfiBulkCascadeCallbacks {
 
 #[repr(C)]
 pub struct FfiResolvedStyleValue {
-    pub shell: *const c_void,
     pub data: *const c_void,
+    pub has_style_sheet_context: bool,
 }
 
 /// Runs the whole cascade for one element in css-cascade-5 origin order over
@@ -633,7 +618,6 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
     has_pseudo_element: bool,
     cascade_custom_properties: bool,
     custom_property_registry: *const c_void,
-    unset_shell: *const c_void,
     unset_data: *const c_void,
     callbacks: *const FfiBulkCascadeCallbacks,
 ) {
@@ -749,7 +733,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                     let property = FfiCascadedCustomProperty {
                         name_raw: declaration.name_raw,
                         important,
-                        shell: declaration.shell,
+                        data: declaration.data,
                     };
                     if let Some(index) = custom_property_indices.get(&declaration.name_raw) {
                         custom_properties[*index] = property;
@@ -790,12 +774,11 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                 use_layer_name && block.has_layer_name,
                 block.layer_name_raw,
                 block.source_shadow_root_identity,
-                unset_shell,
                 unset_data,
                 &is_property_disallowed,
-                &|property_id, shell| {
+                &|property_id, data| {
                     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeResolveUnresolvedCallback);
-                    unsafe { (callbacks.resolve_unresolved)(context, property_id, shell) }
+                    unsafe { (callbacks.resolve_unresolved)(context, property_id, data) }
                 },
                 &|property_id, source| {
                     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeParseSubstitutedCallback);
@@ -803,15 +786,6 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                 },
                 custom_property_store,
                 custom_property_registry,
-                &|shell| {
-                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeDataOfCallback);
-                    unsafe { (callbacks.data_of)(context, shell) }
-                },
-                &|shell| !shell.is_null() && unsafe { (callbacks.has_style_sheet_context)(context, shell) },
-                &|shell, data| {
-                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadePendingSubstitutionCallback);
-                    unsafe { (callbacks.create_pending_substitution)(context, shell, data) }
-                },
                 |slot| {
                     source_slot_assignments.push(FfiSourceSlotAssignment {
                         slot,
