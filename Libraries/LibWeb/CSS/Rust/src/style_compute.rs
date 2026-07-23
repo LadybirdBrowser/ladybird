@@ -21,14 +21,15 @@ use std::sync::OnceLock;
 use crate::abort_on_panic;
 use crate::cascaded_properties::CascadedPropertyStore;
 use crate::css_pixels::CssPixels;
+use crate::display::FfiDisplay;
 use crate::property_metadata::longhands_for_shorthand;
 use crate::property_metadata::property_is_inherited;
 use crate::property_metadata::property_is_shorthand;
 use crate::style_value::StyleValueData;
 
+pub use crate::css_enums::*;
+
 include!(concat!(env!("OUT_DIR"), "/length_units_generated.rs"));
-include!(concat!(env!("OUT_DIR"), "/keywords_generated.rs"));
-include!(concat!(env!("OUT_DIR"), "/css_enums_generated.rs"));
 
 /// The font metrics needed for font-relative length resolution, as unrounded
 /// CSS pixel values.
@@ -3051,143 +3052,6 @@ pub unsafe extern "C" fn rust_for_each_property_expanding_shorthands(
     abort_on_panic(|| expand_shorthands(unsafe { &*callbacks }, property_id, shell, data));
 }
 
-/// Mirror of the CSS Display value; the C++ tagged union crosses as explicit
-/// fields, with the unused fields zeroed so equality is field-wise. `tag` uses
-/// the same discriminants as Display::Type.
-#[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct FfiDisplay {
-    /// 0 = outside-and-inside, 1 = internal, 2 = box.
-    pub tag: u8,
-    pub outside: u8,
-    pub inside: u8,
-    pub list_item: bool,
-    pub internal: u8,
-    pub box_value: u8,
-}
-
-const DISPLAY_TAG_OUTSIDE_AND_INSIDE: u8 = 0;
-const DISPLAY_TAG_INTERNAL: u8 = 1;
-const DISPLAY_TAG_BOX: u8 = 2;
-
-impl FfiDisplay {
-    fn from_raw(raw: u32) -> Self {
-        let [tag, first, second, third] = raw.to_ne_bytes();
-        match tag {
-            DISPLAY_TAG_OUTSIDE_AND_INSIDE => Self::outside_and_inside(first, second, third != 0),
-            DISPLAY_TAG_INTERNAL => Self::internal(first),
-            DISPLAY_TAG_BOX => Self {
-                tag,
-                outside: 0,
-                inside: 0,
-                list_item: false,
-                internal: 0,
-                box_value: first,
-            },
-            _ => unreachable!("invalid display tag"),
-        }
-    }
-
-    fn outside_and_inside(outside: u8, inside: u8, list_item: bool) -> Self {
-        Self {
-            tag: DISPLAY_TAG_OUTSIDE_AND_INSIDE,
-            outside,
-            inside,
-            list_item,
-            internal: 0,
-            box_value: 0,
-        }
-    }
-
-    fn internal(internal: u8) -> Self {
-        Self {
-            tag: DISPLAY_TAG_INTERNAL,
-            outside: 0,
-            inside: 0,
-            list_item: false,
-            internal,
-            box_value: 0,
-        }
-    }
-
-    fn block() -> Self {
-        Self::outside_and_inside(display_outside::BLOCK, display_inside::FLOW, false)
-    }
-
-    fn inline() -> Self {
-        Self::outside_and_inside(display_outside::INLINE, display_inside::FLOW, false)
-    }
-
-    fn inline_block() -> Self {
-        Self::outside_and_inside(display_outside::INLINE, display_inside::FLOW_ROOT, false)
-    }
-
-    fn flow_root() -> Self {
-        Self::outside_and_inside(display_outside::BLOCK, display_inside::FLOW_ROOT, false)
-    }
-
-    fn encoded(&self) -> u32 {
-        let (first, second, third) = match self.tag {
-            DISPLAY_TAG_OUTSIDE_AND_INSIDE => (self.outside, self.inside, self.list_item as u8),
-            DISPLAY_TAG_INTERNAL => (self.internal, 0, 0),
-            DISPLAY_TAG_BOX => (self.box_value, 0, 0),
-            _ => unreachable!("invalid display tag"),
-        };
-        self.tag as u32 | (first as u32) << 8 | (second as u32) << 16 | (third as u32) << 24
-    }
-
-    fn none() -> Self {
-        Self {
-            tag: DISPLAY_TAG_BOX,
-            outside: 0,
-            inside: 0,
-            list_item: false,
-            internal: 0,
-            box_value: display_box::NONE,
-        }
-    }
-
-    fn is_outside_and_inside(&self) -> bool {
-        self.tag == DISPLAY_TAG_OUTSIDE_AND_INSIDE
-    }
-
-    fn is_internal(&self) -> bool {
-        self.tag == DISPLAY_TAG_INTERNAL
-    }
-
-    fn is_none(&self) -> bool {
-        self.tag == DISPLAY_TAG_BOX && self.box_value == display_box::NONE
-    }
-
-    fn is_contents(&self) -> bool {
-        self.tag == DISPLAY_TAG_BOX && self.box_value == display_box::CONTENTS
-    }
-
-    fn is_block_outside(&self) -> bool {
-        self.is_outside_and_inside() && self.outside == display_outside::BLOCK
-    }
-
-    fn is_inline_outside(&self) -> bool {
-        self.is_outside_and_inside() && self.outside == display_outside::INLINE
-    }
-
-    fn is_math_inside(&self) -> bool {
-        self.is_outside_and_inside() && self.inside == display_inside::MATH
-    }
-
-    fn is_inline_block(&self) -> bool {
-        self.is_inline_outside() && self.inside == display_inside::FLOW_ROOT
-    }
-
-    fn is_grid_inside(&self) -> bool {
-        self.is_outside_and_inside() && self.inside == display_inside::GRID
-    }
-
-    fn is_flex_inside(&self) -> bool {
-        self.is_outside_and_inside() && self.inside == display_inside::FLEX
-    }
-}
-
 /// The element facts the box type transformation needs, marshalled by the C++
 /// side. The parent display is the first non-`display: contents` ancestor's.
 #[repr(C)]
@@ -3735,42 +3599,6 @@ mod tests {
         assert!(!result.inherited);
     }
 
-    #[test]
-    fn display_raw_value_decodes_for_box_type_transformation() {
-        let inline_flex = FfiDisplay::from_raw(u32::from_ne_bytes([
-            DISPLAY_TAG_OUTSIDE_AND_INSIDE,
-            display_outside::INLINE,
-            display_inside::FLEX,
-            0,
-        ]));
-        assert!(inline_flex.is_inline_outside());
-        assert!(inline_flex.is_flex_inside());
-
-        let none = FfiDisplay::from_raw(u32::from_ne_bytes([DISPLAY_TAG_BOX, display_box::NONE, 0, 0]));
-        assert!(none.is_none());
-    }
-
-    #[test]
-    fn display_encodes_for_adjustment_store() {
-        let list_item = FfiDisplay::outside_and_inside(display_outside::BLOCK, display_inside::FLOW, true);
-        assert_eq!(
-            list_item.encoded(),
-            DISPLAY_TAG_OUTSIDE_AND_INSIDE as u32
-                | (display_outside::BLOCK as u32) << 8
-                | (display_inside::FLOW as u32) << 16
-                | 1 << 24
-        );
-
-        assert_eq!(
-            FfiDisplay::internal(display_internal::TABLE_ROW).encoded(),
-            DISPLAY_TAG_INTERNAL as u32 | (display_internal::TABLE_ROW as u32) << 8
-        );
-        assert_eq!(
-            FfiDisplay::none().encoded(),
-            DISPLAY_TAG_BOX as u32 | (display_box::NONE as u32) << 8
-        );
-    }
-
     fn element_adjustment_input() -> FfiBoxTypeTransformationInput {
         FfiBoxTypeTransformationInput {
             display: FfiDisplay::inline(),
@@ -3801,15 +3629,7 @@ mod tests {
     fn element_styles_adjust_from_marshaled_facts() {
         let mut input = element_adjustment_input();
         input.disallow_display_contents = true;
-        let contents = FfiDisplay {
-            tag: DISPLAY_TAG_BOX,
-            outside: 0,
-            inside: 0,
-            list_item: false,
-            internal: 0,
-            box_value: display_box::CONTENTS,
-        };
-        let adjustment = adjust_element_style(&input, contents, keyword::LEFT);
+        let adjustment = adjust_element_style(&input, FfiDisplay::contents(), keyword::LEFT);
         assert!(adjustment.changed_display);
         assert!(adjustment.display.is_none());
 
