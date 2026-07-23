@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/Directory.h>
@@ -22,7 +23,7 @@ static constexpr auto INDEX_DATABASE = "INDEX"sv;
 
 static ErrorOr<u64> compute_associated_data_size(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key)
 {
-    u64 associated_data_size = 0;
+    Checked<u64> associated_data_size = 0;
     for (auto associated_data : CACHE_ENTRY_ASSOCIATED_DATA_TYPES) {
         auto path = path_for_cache_entry_associated_data(cache_directory, cache_key, vary_key, associated_data);
         auto size = FileSystem::size_from_stat(path.string());
@@ -36,7 +37,10 @@ static ErrorOr<u64> compute_associated_data_size(LexicalPath const& cache_direct
             return Error::from_errno(EINVAL);
         associated_data_size += static_cast<u64>(size.value());
     }
-    return associated_data_size;
+
+    if (associated_data_size.has_overflow())
+        return Error::from_errno(EOVERFLOW);
+    return associated_data_size.value();
 }
 
 static constexpr StringView cache_directory_for_mode(DiskCache::Mode mode)
@@ -271,7 +275,7 @@ ErrorOr<bool> DiskCache::store_associated_data(URL::URL const& url, StringView m
 
     TRY(FileSystem::move_file(path.string(), temporary_path.string()));
     remove_temporary_file.disarm();
-    m_index.update_associated_data_size(cache_key, *vary_key, TRY(compute_associated_data_size(m_cache_directory, cache_key, *vary_key)));
+    TRY(m_index.update_associated_data_size(cache_key, *vary_key, TRY(compute_associated_data_size(m_cache_directory, cache_key, *vary_key))));
     remove_entries_exceeding_cache_limit();
     return m_index.has_entry(cache_key, *vary_key);
 }
