@@ -4307,7 +4307,9 @@ GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options)
     // 8. If the element is the root element, return the Promise returned by scroll() on window after the method is
     //    invoked with scrollX on window as first argument and y as second argument, and abort the remaining steps.
     if (document.document_element() == this) {
-        options.left = window->scroll_x();
+        // AD-HOC: Pass x rather than scrollX on window. This matches the behavior of other engines.
+        //         See: https://github.com/w3c/csswg-drafts/issues/8700
+        options.left = x;
         options.top = y;
         return window->scroll(options);
     }
