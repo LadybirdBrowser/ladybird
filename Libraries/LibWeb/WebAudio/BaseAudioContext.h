@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <LibWeb/Bindings/BaseAudioContext.h>
 #include <LibWeb/Bindings/PeriodicWave.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -92,6 +93,12 @@ public:
     GC::Ref<WebIDL::Promise> decode_audio_data(GC::Ref<JS::ArrayBuffer>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
 
     void queue_control_message(ControlMessage);
+    ControlMessageQueue& control_message_queue() { return *m_control_message_queue; }
+
+    void add_playing_source(GC::Ref<AudioNode>);
+    void handle_ended_sources(ReadonlySpan<NodeID>);
+
+    void set_current_time(double current_time) { m_current_time = current_time; }
 
     NodeID next_node_id(Badge<AudioNode>) { return ++m_next_node_id; }
 
@@ -125,6 +132,8 @@ private:
     HTML::UniqueTaskSource m_media_element_event_task_source {};
 
     NonnullOwnPtr<ControlMessageQueue> m_control_message_queue;
+
+    HashMap<NodeID, GC::Ref<AudioNode>> m_playing_sources;
 };
 
 }

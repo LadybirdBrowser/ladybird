@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/BaseAudioContext.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -52,6 +53,26 @@ void BaseAudioContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_destination);
     visitor.visit(m_pending_promises);
     visitor.visit(m_listener);
+    visitor.visit(m_playing_sources);
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-onended
+void BaseAudioContext::add_playing_source(GC::Ref<AudioNode> node)
+{
+    // NB: A started source node is kept alive until it stops playing, at which point an ended event is fired at it.
+    m_playing_sources.set(node->node_id(), node);
+}
+
+void BaseAudioContext::handle_ended_sources(ReadonlySpan<NodeID> ended_nodes)
+{
+    for (auto node_id : ended_nodes) {
+        auto node = m_playing_sources.take(node_id);
+        if (!node.has_value())
+            continue;
+        queue_a_media_element_task(GC::create_function(heap(), [node = *node] {
+            node->dispatch_event(DOM::Event::create(node->realm(), HTML::EventNames::ended));
+        }));
+    }
 }
 
 void BaseAudioContext::set_onstatechange(WebIDL::CallbackType* event_handler)
@@ -216,7 +237,7 @@ WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_
 
 void BaseAudioContext::queue_a_media_element_task(GC::Ref<GC::Function<void()>> steps)
 {
-    auto task = HTML::Task::create(vm(), m_media_element_event_task_source.source, HTML::current_settings_object().responsible_document(), steps);
+    auto task = HTML::Task::create(vm(), m_media_element_event_task_source.source, HTML::relevant_settings_object(*this).responsible_document(), steps);
     (void)HTML::main_thread_event_loop().task_queue().add(task);
 }
 
