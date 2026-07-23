@@ -21,6 +21,7 @@ public:
     static ErrorOr<NonnullOwnPtr<FFmpegAudioConverter>> try_create();
     virtual ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification) override;
     virtual ErrorOr<void> convert(AudioBlock& input) override;
+    ErrorOr<void> flush(AudioBlock& output);
 
     virtual ~FFmpegAudioConverter() override;
 

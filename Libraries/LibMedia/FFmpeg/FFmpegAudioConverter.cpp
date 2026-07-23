@@ -149,6 +149,45 @@ ErrorOr<void> FFmpegAudioConverter::convert(AudioBlock& input)
     return {};
 }
 
+ErrorOr<void> FFmpegAudioConverter::flush(AudioBlock& output)
+{
+    // When resampling, swresample can buffer a tail of input samples that have not been converted yet. Draining the
+    // context converts that tail; without this, the last few milliseconds of a fully-converted stream would be lost.
+    output.clear();
+    if (m_context == nullptr)
+        return {};
+
+    auto delay = swr_get_delay(m_context, m_output_sample_specification.sample_rate());
+    if (delay <= 0)
+        return {};
+    if (delay > NumericLimits<int>::max())
+        return Error::from_string_literal("Converter delay is too large");
+    auto output_frame_count = static_cast<int>(delay);
+
+    auto output_channel_count = m_output_sample_specification.channel_count();
+    if (output_frame_count > m_output_buffer_frame_count) {
+        free_output_buffer();
+        auto alloc_samples_result = av_samples_alloc_array_and_samples(&m_output_buffers, nullptr, output_channel_count, output_frame_count, AVSampleFormat::AV_SAMPLE_FMT_FLTP, 0);
+        if (alloc_samples_result < 0)
+            return Error::from_string_view(av_error_code_to_string(alloc_samples_result));
+        VERIFY(m_output_buffers != nullptr);
+        m_output_buffer_frame_count = output_frame_count;
+    }
+
+    auto converted_frames_result = swr_convert(m_context, m_output_buffers, m_output_buffer_frame_count, nullptr, 0);
+    if (converted_frames_result < 0)
+        return Error::from_string_view(av_error_code_to_string(converted_frames_result));
+    VERIFY(converted_frames_result <= m_output_buffer_frame_count);
+    auto converted_frames = static_cast<size_t>(converted_frames_result);
+    if (converted_frames == 0)
+        return {};
+
+    output.initialize(m_output_sample_specification, AK::Duration::zero(), converted_frames);
+    for (size_t channel = 0; channel < output_channel_count; channel++)
+        AK::TypedTransfer<float>::copy(output.channel_data(channel).data(), reinterpret_cast<float*>(m_output_buffers[channel]), converted_frames);
+    return {};
+}
+
 FFmpegAudioConverter::~FFmpegAudioConverter()
 {
     free_output_buffer();
