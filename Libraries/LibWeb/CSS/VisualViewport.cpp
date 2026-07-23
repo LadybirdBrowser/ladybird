@@ -152,8 +152,22 @@ void VisualViewport::scroll_by(CSSPixelPoint delta)
     if (delta.is_zero())
         return;
     m_offset += delta;
+    did_scroll();
     update_accumulated_visual_context();
     m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
+}
+
+// https://drafts.csswg.org/cssom-view-1/#scrolling-events
+void VisualViewport::did_scroll()
+{
+    // Whenever a visual viewport gets scrolled (whether in response to user interaction or by an API), the user agent
+    // must run these steps:
+
+    // 1. Let vv be the VisualViewport object that was scrolled.
+    // 2. Let doc be vv's associated document.
+    // 3. If (vv, "scroll") is already in doc's pending scroll events, abort these steps.
+    // 4. Append (vv, "scroll") to doc's pending scroll events.
+    m_document->append_pending_scroll_event({ *this, HTML::EventNames::scroll });
 }
 
 Gfx::AffineTransform VisualViewport::transform() const
@@ -183,7 +197,10 @@ void VisualViewport::zoom(CSSPixelPoint position, double scale_delta)
     new_offset = { clamp(new_offset.x(), 0.0f, max_x_offset), clamp(new_offset.y(), 0.0f, max_y_offset) };
 
     m_scale = new_scale;
+    auto old_offset = m_offset;
     m_offset = (new_offset / m_scale).to_type<CSSPixels>();
+    if (m_offset != old_offset)
+        did_scroll();
     update_accumulated_visual_context();
     m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
 }
@@ -197,7 +214,13 @@ CSSPixelPoint VisualViewport::map_to_layout_viewport(CSSPixelPoint position) con
 void VisualViewport::reset()
 {
     m_scale = 1.0;
+    auto old_offset = m_offset;
     m_offset = { 0, 0 };
+    if (m_offset != old_offset) {
+        did_scroll();
+        // Resetting performs an instant scroll, so its scrollend event is queued immediately.
+        m_document->append_pending_scroll_event({ *this, HTML::EventNames::scrollend });
+    }
     update_accumulated_visual_context();
     m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
 }

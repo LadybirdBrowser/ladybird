@@ -432,6 +432,11 @@ void Internals::pinch(double x, double y, double scale_delta, WebIDL::UnsignedSh
     page.handle_pinch_event(position, modifiers, scale_delta);
 }
 
+void Internals::reset_zoom()
+{
+    page().top_level_traversable()->reset_zoom();
+}
+
 Utf16String Internals::current_cursor()
 {
     auto& page = this->page();

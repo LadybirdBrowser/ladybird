@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div style="width: 200vw; height: 200vh"></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const pinchScrollend = new Promise(resolve => visualViewport.addEventListener("scrollend", resolve, { once: true }));
+        internals.pinch(100, 100, 1.0, 0);
+        await animationFrame();
+        await animationFrame();
+        println(`scale: ${visualViewport.scale}`);
+        await pinchScrollend;
+        println(`visual viewport panned by pinch: ${visualViewport.offsetTop > 0}`);
+        println("pinch scrollend: received");
+
+        const scrollPromise = new Promise(resolve => visualViewport.addEventListener("scroll", resolve, { once: true }));
+        const scrollendPromise = new Promise(resolve => visualViewport.addEventListener("scrollend", resolve, { once: true }));
+        const offsetTopBeforeWheel = visualViewport.offsetTop;
+        await internals.wheel(100, 100, 0, 50);
+        await scrollPromise;
+        await scrollendPromise;
+        println(`visual viewport scrolled down: ${visualViewport.offsetTop > offsetTopBeforeWheel}`);
+        println(`window.scrollY: ${window.scrollY}`);
+        println("visual viewport scroll and scrollend: received");
+
+        const scrollendOrder = [];
+        visualViewport.addEventListener("scrollend", () => scrollendOrder.push("visualViewport"), { once: true });
+        const documentScrollend = new Promise(resolve => document.addEventListener("scrollend", () => {
+            scrollendOrder.push("document");
+            resolve();
+        }, { once: true }));
+        await internals.wheel(100, 100, 0, 800);
+        await documentScrollend;
+        println(`window scrolled: ${window.scrollY > 0}`);
+        println(`scrollend order: ${scrollendOrder.join(",")}`);
+
+        const resetScroll = new Promise(resolve => visualViewport.addEventListener("scroll", resolve, { once: true }));
+        const resetScrollend = new Promise(resolve => visualViewport.addEventListener("scrollend", resolve, { once: true }));
+        internals.resetZoom();
+        await resetScroll;
+        await resetScrollend;
+        println(`after reset scale: ${visualViewport.scale}`);
+        println(`after reset offsets: ${visualViewport.offsetLeft},${visualViewport.offsetTop}`);
+        println("reset scroll and scrollend: received");
+    });
+</script>

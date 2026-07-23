@@ -56,6 +56,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    void did_scroll();
     void update_accumulated_visual_context();
 
     GC::Ref<DOM::Document> m_document;

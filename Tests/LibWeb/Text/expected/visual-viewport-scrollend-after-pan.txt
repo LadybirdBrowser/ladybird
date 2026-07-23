@@ -1,0 +1,11 @@
+scale: 2
+visual viewport panned by pinch: true
+pinch scrollend: received
+visual viewport scrolled down: true
+window.scrollY: 0
+visual viewport scroll and scrollend: received
+window scrolled: true
+scrollend order: visualViewport,document
+after reset scale: 1
+after reset offsets: 0,0
+reset scroll and scrollend: received

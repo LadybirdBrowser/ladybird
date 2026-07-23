@@ -3950,7 +3950,7 @@ void LocalNavigable::user_scroll_did_settle()
         if (auto* element = as_if<DOM::Element>(*target)) {
             if (&element->document() != document.ptr() || !element->is_connected())
                 continue;
-        } else if (target.ptr() != document.ptr()) {
+        } else if (target.ptr() != document.ptr() && target.ptr() != document->visual_viewport().ptr()) {
             continue;
         }
 
@@ -4841,6 +4841,19 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
     //     Promise returned from this step.
     TemporaryExecutionContext temporary_execution_context { doc->realm() };
 
+    // 15. Perform a scroll of vv’s scrolling box to its current scroll position + (visual dx, visual dy) with element
+    //     as the associated element, and behavior as the scroll behavior. Let scrollPromise2 be the Promise returned
+    //     from this step.
+    // FIXME: Get a Promise from this.
+    // AD-HOC: Step 15 is performed before step 14 so that the visual viewport's scroll and scrollend events are
+    //         dispatched before the window's.
+    CSSPixelPoint visual_delta { visual_dx, visual_dy };
+    vv->scroll_by(visual_delta);
+    if (visual_delta.is_zero())
+        doc->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
+    else
+        queue_scrollend_event(*doc, *vv, trigger);
+
     // NB: Must update layout before accessing paintables.
     doc->update_layout(DOM::UpdateLayoutReason::NavigableViewportScroll);
 
@@ -4855,14 +4868,6 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
                                                                   .kind = Compositor::AsyncScrollNodeKind::Viewport,
                                                               },
         new_viewport_scroll_offset.to_type<CSSPixels>(), behavior, doc->document_element(), trigger);
-
-    // 15. Perform a scroll of vv’s scrolling box to its current scroll position + (visual dx, visual dy) with element
-    //     as the associated element, and behavior as the scroll behavior. Let scrollPromise2 be the Promise returned
-    //     from this step.
-    // FIXME: Get a Promise from this.
-    vv->scroll_by({ visual_dx, visual_dy });
-    if (visual_dx == 0.0 && visual_dy == 0.0)
-        doc->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
 
     // 17. Return scrollPromise, and run the remaining steps in parallel.
     // 18. Resolve scrollPromise when both scrollPromise1 and scrollPromise2 have settled.

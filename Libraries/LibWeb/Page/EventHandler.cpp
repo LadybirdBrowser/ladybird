@@ -1441,6 +1441,9 @@ EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, u32 modifiers,
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
+    // Pinch activity keeps the scroll gesture in progress even when it no longer moves the visual viewport.
+    m_navigable->defer_user_scroll_settlement();
+
     auto scale = 1.0 + scale_delta;
     if (scale == 1.0)
         return EventResult::Handled;
@@ -1453,7 +1456,12 @@ EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, u32 modifiers,
     if (!document || !document->is_fully_active())
         return EventResult::Dropped;
 
-    document->visual_viewport()->zoom(point, scale_delta);
+    auto visual_viewport = document->visual_viewport();
+    auto offset_left_before_zoom = visual_viewport->offset_left();
+    auto offset_top_before_zoom = visual_viewport->offset_top();
+    visual_viewport->zoom(point, scale_delta);
+    if (visual_viewport->offset_left() != offset_left_before_zoom || visual_viewport->offset_top() != offset_top_before_zoom)
+        m_navigable->queue_scrollend_event_after_user_scroll(*visual_viewport);
     return EventResult::Handled;
 }
 
