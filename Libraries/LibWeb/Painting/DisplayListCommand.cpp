@@ -110,11 +110,6 @@ void Restore::dump(StringBuilder&) const
 {
 }
 
-void Translate::dump(StringBuilder& builder) const
-{
-    builder.appendff(" delta={}", delta);
-}
-
 void AddClipRect::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={}", rect);

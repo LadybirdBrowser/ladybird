@@ -129,8 +129,18 @@ TEST_CASE(damage_contains_old_and_new_command_bounds)
 TEST_CASE(changed_unbounded_commands_require_full_repaint)
 {
     auto visual_context_tree = AccumulatedVisualContextTree::create();
-    auto old_display_list = command_bytes(Translate { { 1, 1 } });
-    auto new_display_list = command_bytes(Translate { { 2, 2 } });
+    auto old_display_list = command_bytes(ApplyEffects {
+        .opacity = 0.5f,
+        .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Normal,
+        .has_filter = false,
+        .filter_data = {},
+    });
+    auto new_display_list = command_bytes(ApplyEffects {
+        .opacity = 0.6f,
+        .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Normal,
+        .has_filter = false,
+        .filter_data = {},
+    });
     ScrollStateSnapshot scroll_state;
 
     auto damage = compute_display_list_damage(old_display_list, visual_context_tree, scroll_state, new_display_list, visual_context_tree, scroll_state, { 0, 0, 100, 100 });

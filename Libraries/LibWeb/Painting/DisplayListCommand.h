@@ -47,7 +47,6 @@ class DisplayList;
     V(Save, save)                                                                      \
     V(SaveLayer, save_layer)                                                           \
     V(Restore, restore)                                                                \
-    V(Translate, translate)                                                            \
     V(AddClipRect, add_clip_rect)                                                      \
     V(PaintLinearGradient, paint_linear_gradient)                                      \
     V(PaintRadialGradient, paint_radial_gradient)                                      \
@@ -300,15 +299,6 @@ struct Restore {
     static constexpr StringView command_name = "Restore"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::Restore;
     static constexpr int nesting_level_change = -1;
-
-    void dump(StringBuilder&) const;
-};
-
-struct Translate {
-    static constexpr StringView command_name = "Translate"sv;
-    static constexpr DisplayListCommandType command_type = DisplayListCommandType::Translate;
-
-    Gfx::IntPoint delta;
 
     void dump(StringBuilder&) const;
 };

@@ -202,7 +202,7 @@ void DisplayListPlayer::execute_impl(
             nearest_frame_node.unchecked_append(i == 0 ? VISUAL_VIEWPORT_NODE_INDEX : nearest_frame_node[node.parent_index.value()]);
         };
         auto append_spatial_translation = [&](Gfx::IntPoint offset) {
-            // Whole device pixels, matching the Translate ops the per-node application replayed.
+            // Whole device pixels, so scrolled content never lands on subpixel positions.
             append_spatial(Gfx::translation_matrix(Vector3<float>(static_cast<float>(offset.x()), static_cast<float>(offset.y()), 0)));
         };
         auto append_non_spatial = [&] {

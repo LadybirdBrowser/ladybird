@@ -527,12 +527,6 @@ void DisplayListPlayerSkia::play_command(Restore const&)
     canvas.restore();
 }
 
-void DisplayListPlayerSkia::play_command(Translate const& command)
-{
-    auto& canvas = surface().canvas();
-    canvas.translate(command.delta.x(), command.delta.y());
-}
-
 static SkGradient::Interpolation to_skia_interpolation(Gfx::GradientInterpolationMethod interpolation_method)
 {
     SkGradient::Interpolation interpolation;
