@@ -31,7 +31,7 @@ void detach_top_layer_element_layout_subtree(DOM::Element&);
 
 class TreeBuilder {
 public:
-    TreeBuilder();
+    TreeBuilder() = default;
     ~TreeBuilder();
 
     TreeBuilder(TreeBuilder const&) = delete;
@@ -59,23 +59,15 @@ private:
     static void clear_stale_layout_nodes_for_assigned_slottables(HTML::HTMLSlotElement&);
     static TraversalDecision clear_stale_layout_and_paint_node(DOM::Node&, DOM::Node const* cleared_subtree_root = nullptr);
 
-    void push_parent(Layout::NodeWithStyle&);
-    void pop_parent();
-    Layout::NodeWithStyle& current_parent() const;
-    size_t ancestor_count() const;
-    Layout::NodeWithStyle& ancestor_at(size_t) const;
-    u32 quote_nesting_level() const;
-    void set_quote_nesting_level(u32);
     RustFFI::FfiDomTreeBuilderCallbacks make_ffi_dom_tree_builder_callbacks();
     RustFFI::FfiPseudoTreeBuilderCallbacks make_ffi_pseudo_tree_builder_callbacks();
 
-    void insert_node_into_inline_or_block_ancestor(Layout::Node&, CSS::Display, AppendOrPrepend);
+    void insert_node_into_inline_or_block_ancestor(Layout::NodeWithStyle&, Layout::Node&, CSS::Display, AppendOrPrepend);
     static NonnullRefPtr<ListItemMarkerBox> create_and_attach_list_item_marker(ListItemBox&, DOM::Element&, NonnullRefPtr<CSS::ComputedValues const> marker_style);
-    RefPtr<NodeWithStyle> create_pseudo_element_if_needed(DOM::Element&, CSS::PseudoElement, Optional<AppendOrPrepend>);
+    RefPtr<NodeWithStyle> create_pseudo_element_if_needed(void* rust_state, DOM::Element&, CSS::PseudoElement, Optional<AppendOrPrepend>);
     static void create_first_letter_wrapper_if_needed(DOM::Element&, Layout::BlockContainer&);
 
     RefPtr<Layout::Node> m_layout_root;
-    void* m_rust_state { nullptr };
     OwnPtr<PrincipalNodeFrameStorage> m_principal_frames;
 
     // The root of the in-place subtree replacement currently being built, if any.

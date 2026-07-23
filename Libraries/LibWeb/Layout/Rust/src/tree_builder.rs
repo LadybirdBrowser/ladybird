@@ -7,6 +7,7 @@
 use crate::abort_on_panic;
 use std::ffi::c_void;
 
+#[derive(Default)]
 struct TreeBuilderState {
     ancestor_stack: Vec<LayoutNode>,
     quote_nesting_level: u32,
@@ -20,89 +21,13 @@ struct TreeBuilderContext {
     layout_svg_pattern: bool,
 }
 
-/// Creates the Rust-owned state for one layout tree builder.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_tree_builder_state_create() -> *mut c_void {
-    abort_on_panic(|| {
-        Box::into_raw(Box::new(TreeBuilderState {
-            ancestor_stack: Vec::new(),
-            quote_nesting_level: 0,
-        }))
-        .cast()
-    })
-}
-
-/// Destroys state returned by `rust_tree_builder_state_create`.
-///
-/// # Safety
-///
-/// `state` must have been returned by `rust_tree_builder_state_create` and must not have been destroyed already.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_tree_builder_state_destroy(state: *mut c_void) {
-    abort_on_panic(|| {
-        assert!(!state.is_null());
-        // SAFETY: Guaranteed by the entry point's contract and checked for null above.
-        drop(unsafe { Box::from_raw(state.cast::<TreeBuilderState>()) });
-    });
-}
-
-fn tree_builder_state(state: *mut c_void) -> &'static TreeBuilderState {
-    assert!(!state.is_null());
-    // SAFETY: Every caller passes live state created by `rust_tree_builder_state_create`.
-    unsafe { &*state.cast::<TreeBuilderState>() }
-}
-
-fn tree_builder_state_mut(state: *mut c_void) -> &'static mut TreeBuilderState {
-    assert!(!state.is_null());
-    // SAFETY: FFI calls are serialized by the owning C++ TreeBuilder.
-    unsafe { &mut *state.cast::<TreeBuilderState>() }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_tree_builder_push_parent(state: *mut c_void, parent: *mut c_void) {
-    abort_on_panic(|| {
-        assert!(!parent.is_null());
-        tree_builder_state_mut(state).ancestor_stack.push(parent);
-    });
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_tree_builder_pop_parent(state: *mut c_void) {
-    abort_on_panic(|| {
-        assert!(tree_builder_state_mut(state).ancestor_stack.pop().is_some());
-    });
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_tree_builder_ancestor_count(state: *mut c_void) -> usize {
-    abort_on_panic(|| tree_builder_state(state).ancestor_stack.len())
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_tree_builder_ancestor_at(state: *mut c_void, index: usize) -> *mut c_void {
-    abort_on_panic(|| tree_builder_state(state).ancestor_stack[index])
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_tree_builder_current_parent(state: *mut c_void) -> *mut c_void {
-    abort_on_panic(|| {
-        *tree_builder_state(state)
+impl TreeBuilderState {
+    fn current_parent(&self) -> LayoutNode {
+        *self
             .ancestor_stack
             .last()
             .expect("layout tree builder must have an insertion ancestor")
-    })
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_tree_builder_quote_nesting_level(state: *mut c_void) -> u32 {
-    abort_on_panic(|| tree_builder_state(state).quote_nesting_level)
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_tree_builder_set_quote_nesting_level(state: *mut c_void, quote_nesting_level: u32) {
-    abort_on_panic(|| {
-        tree_builder_state_mut(state).quote_nesting_level = quote_nesting_level;
-    });
+    }
 }
 
 #[repr(C)]
@@ -120,7 +45,8 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub clear_synthetic_pseudo_element_layout_nodes: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub clear_stale_inclusive_descendants: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub resolve_counters: unsafe extern "C" fn(*mut c_void),
-    pub create_pseudo_element: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, FfiInsertionMode),
+    pub create_pseudo_element:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiPseudoElement, FfiInsertionMode),
     pub clear_stale_assigned_slottables: unsafe extern "C" fn(*mut c_void),
     pub principal_descendant_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiPrincipalDescendantFacts,
@@ -128,22 +54,16 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub wrap_fieldset_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub wrap_button_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub clear_stale_descendants: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub push_layout_parent: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub pop_layout_parent: unsafe extern "C" fn(*mut c_void),
-    pub ensure_replaced_children_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
+    pub ensure_replaced_children_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> *mut c_void,
     pub top_layer_element_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub copy_top_layer_elements: unsafe extern "C" fn(*mut c_void, *mut *mut c_void, usize),
     pub rendered_in_top_layer: unsafe extern "C" fn(*mut c_void) -> bool,
     pub flat_tree_parent: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub flat_tree_render_facts: unsafe extern "C" fn(*mut c_void) -> FfiFlatTreeRenderFacts,
     pub clear_stale_top_layer_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub quote_nesting_level: unsafe extern "C" fn(*mut c_void) -> u32,
-    pub set_quote_nesting_level: unsafe extern "C" fn(*mut c_void, u32),
     pub clear_dom_update_flags: unsafe extern "C" fn(*mut c_void),
     pub svg_pattern_content_element: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub register_svg_resource_reference: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub ancestor_count: unsafe extern "C" fn(*mut c_void) -> usize,
-    pub ancestor_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
     pub layout_node_dom_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub principal_node_entry_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> FfiPrincipalNodeEntryFacts,
     pub request_top_layer_zone_rebuild: unsafe extern "C" fn(*mut c_void),
@@ -168,9 +88,10 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub start_principal_rebuild_root: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
     pub restore_principal_rebuild_root: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub mark_update_escaped_rebuild_roots: unsafe extern "C" fn(*mut c_void),
-    pub create_principal_backdrop: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool) -> *mut c_void,
+    pub create_principal_backdrop:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, *mut c_void, bool) -> *mut c_void,
     pub insert_principal_backdrop_before_old: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
-    pub place_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPrincipalBoxPlacement),
+    pub place_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiPrincipalBoxPlacement),
     pub clear_stale_inclusive_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub reset_style_ancestor_filter: unsafe extern "C" fn(*mut c_void),
     pub document_layout_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
@@ -649,6 +570,7 @@ unsafe fn dom_tree_builder_host<'a>(callbacks: *const FfiDomTreeBuilderCallbacks
 /// The callback table, parent, and context must remain valid for the duration of the call.
 unsafe fn update_layout_tree_for_dom_children(
     host: &DomTreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
     parent: *mut c_void,
     context: &mut TreeBuilderContext,
     must_create_subtree: bool,
@@ -657,7 +579,7 @@ unsafe fn update_layout_tree_for_dom_children(
         assert!(!parent.is_null());
         let mut node = host.first_child(parent);
         while !node.is_null() {
-            update_layout_tree(host, node, context, must_create_subtree);
+            update_layout_tree(host, state, node, context, must_create_subtree);
             node = host.next_sibling(node);
         }
     });
@@ -670,6 +592,7 @@ unsafe fn update_layout_tree_for_dom_children(
 /// The callback table, shadow root, and context must remain valid for the duration of the call.
 unsafe fn update_layout_tree_for_shadow_root_children(
     host: &DomTreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
     shadow_root: *mut c_void,
     context: &mut TreeBuilderContext,
     must_create_subtree: bool,
@@ -678,7 +601,7 @@ unsafe fn update_layout_tree_for_shadow_root_children(
         assert!(!shadow_root.is_null());
         let mut node = host.first_child(shadow_root);
         while !node.is_null() {
-            update_layout_tree(host, node, context, must_create_subtree);
+            update_layout_tree(host, state, node, context, must_create_subtree);
             node = host.next_sibling(node);
         }
         // SAFETY: `shadow_root` remains live throughout the call.
@@ -693,6 +616,7 @@ unsafe fn update_layout_tree_for_shadow_root_children(
 /// The callback table, slot element, and context must remain valid for the duration of the call.
 unsafe fn update_layout_tree_for_assigned_slottables(
     host: &DomTreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
     slot_element: *mut c_void,
     context: &mut TreeBuilderContext,
     must_create_subtree: bool,
@@ -708,7 +632,7 @@ unsafe fn update_layout_tree_for_assigned_slottables(
             // SAFETY: `index` is below the count reported for this unchanged assigned-node list.
             let node = unsafe { (host.callbacks.assigned_node_at)(slot_element, index) };
             assert!(!node.is_null());
-            update_layout_tree(host, node, context, must_create_subtree);
+            update_layout_tree(host, state, node, context, must_create_subtree);
         }
     });
 }
@@ -720,6 +644,7 @@ unsafe fn update_layout_tree_for_assigned_slottables(
 /// The callback table, switch element, and context must remain valid for the duration of the call.
 unsafe fn update_layout_tree_for_svg_switch_children(
     host: &DomTreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
     switch_element: *mut c_void,
     context: &mut TreeBuilderContext,
     must_create_subtree: bool,
@@ -757,7 +682,7 @@ unsafe fn update_layout_tree_for_svg_switch_children(
         }
 
         if !rendered_child.is_null() {
-            update_layout_tree(host, rendered_child, context, must_create_subtree);
+            update_layout_tree(host, state, rendered_child, context, must_create_subtree);
         }
     });
 }
@@ -769,6 +694,7 @@ unsafe fn update_layout_tree_for_svg_switch_children(
 /// The callback table, element, and context must remain valid for the duration of the call.
 unsafe fn update_layout_tree_for_display_contents(
     host: &DomTreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
     element: *mut c_void,
     context: &mut TreeBuilderContext,
     must_create_subtree: bool,
@@ -804,6 +730,7 @@ unsafe fn update_layout_tree_for_display_contents(
             unsafe {
                 (host.callbacks.create_pseudo_element)(
                     host.callbacks.builder,
+                    state as *mut TreeBuilderState as *mut c_void,
                     element,
                     FfiPseudoElement::Before,
                     FfiInsertionMode::Append,
@@ -816,13 +743,25 @@ unsafe fn update_layout_tree_for_display_contents(
             if !facts.shadow_root.is_null() {
                 // SAFETY: The callback table, shadow root, and context remain valid.
                 unsafe {
-                    update_layout_tree_for_shadow_root_children(host, facts.shadow_root, context, must_create_children);
+                    update_layout_tree_for_shadow_root_children(
+                        host,
+                        state,
+                        facts.shadow_root,
+                        context,
+                        must_create_children,
+                    );
                 }
             } else if facts.should_layout_dom_children {
                 assert!(!facts.dom_children_parent.is_null());
                 // SAFETY: The callback table, parent, and context remain valid.
                 unsafe {
-                    update_layout_tree_for_dom_children(host, facts.dom_children_parent, context, must_create_children);
+                    update_layout_tree_for_dom_children(
+                        host,
+                        state,
+                        facts.dom_children_parent,
+                        context,
+                        must_create_children,
+                    );
                 }
             }
         }
@@ -831,7 +770,13 @@ unsafe fn update_layout_tree_for_display_contents(
             if !facts.content_visibility_hidden {
                 // SAFETY: The callback table, slot element, and context remain valid.
                 unsafe {
-                    update_layout_tree_for_assigned_slottables(host, facts.slot_element, context, must_create_subtree);
+                    update_layout_tree_for_assigned_slottables(
+                        host,
+                        state,
+                        facts.slot_element,
+                        context,
+                        must_create_subtree,
+                    );
                 }
             } else {
                 // SAFETY: `slot_element` remains live throughout this call.
@@ -844,6 +789,7 @@ unsafe fn update_layout_tree_for_display_contents(
             unsafe {
                 (host.callbacks.create_pseudo_element)(
                     host.callbacks.builder,
+                    state as *mut TreeBuilderState as *mut c_void,
                     element,
                     FfiPseudoElement::After,
                     FfiInsertionMode::Append,
@@ -861,12 +807,12 @@ unsafe fn update_layout_tree_for_display_contents(
     });
 }
 
-fn ancestor_stack_contains_dom_node(host: &DomTreeBuilderHost<'_>, dom_node: *mut c_void) -> bool {
-    // SAFETY: The builder and its ancestor stack remain live throughout tree construction.
-    let count = unsafe { (host.callbacks.ancestor_count)(host.callbacks.builder) };
-    for index in 0..count {
-        // SAFETY: `index` is below the stable ancestor count and the returned layout node is live.
-        let ancestor = unsafe { (host.callbacks.ancestor_at)(host.callbacks.builder, index) };
+fn ancestor_stack_contains_dom_node(
+    host: &DomTreeBuilderHost<'_>,
+    state: &TreeBuilderState,
+    dom_node: *mut c_void,
+) -> bool {
+    for &ancestor in &state.ancestor_stack {
         assert!(!ancestor.is_null());
         // SAFETY: `ancestor` is a live layout node.
         if unsafe { (host.callbacks.layout_node_dom_node)(ancestor) } == dom_node {
@@ -878,6 +824,7 @@ fn ancestor_stack_contains_dom_node(host: &DomTreeBuilderHost<'_>, dom_node: *mu
 
 fn update_svg_resource(
     host: &DomTreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
     resource: *mut c_void,
     graphics_element: *mut c_void,
     layout_node: *mut c_void,
@@ -885,37 +832,35 @@ fn update_svg_resource(
     prior_context_value: bool,
 ) {
     context.layout_svg_mask_or_clip_path = true;
-    // SAFETY: The layout node remains live throughout resource construction.
-    unsafe { (host.callbacks.push_layout_parent)(host.callbacks.builder, layout_node) };
+    state.ancestor_stack.push(layout_node);
 
-    if !ancestor_stack_contains_dom_node(host, resource) {
-        update_layout_tree(host, resource, context, true);
+    if !ancestor_stack_contains_dom_node(host, state, resource) {
+        update_layout_tree(host, state, resource, context, true);
         // SAFETY: Both pointers denote live SVG elements held by the graphics element.
         unsafe { (host.callbacks.register_svg_resource_reference)(resource, graphics_element) };
     } else {
         // FIXME: Somehow either remove ancestor from the layout tree or mark it as invalid.
     }
 
-    // SAFETY: Balance the parent push.
-    unsafe { (host.callbacks.pop_layout_parent)(host.callbacks.builder) };
+    assert!(state.ancestor_stack.pop().is_some());
     context.layout_svg_mask_or_clip_path = prior_context_value;
 }
 
 fn update_svg_pattern(
     host: &DomTreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
     pattern: *mut c_void,
     content_element: *mut c_void,
     graphics_element: *mut c_void,
     layout_node: *mut c_void,
     context: &mut TreeBuilderContext,
-    prior_context_value: bool,
 ) {
+    let prior_context_value = context.layout_svg_pattern;
     context.layout_svg_pattern = true;
-    // SAFETY: The layout node remains live throughout resource construction.
-    unsafe { (host.callbacks.push_layout_parent)(host.callbacks.builder, layout_node) };
+    state.ancestor_stack.push(layout_node);
 
-    if !ancestor_stack_contains_dom_node(host, content_element) {
-        update_layout_tree(host, content_element, context, true);
+    if !ancestor_stack_contains_dom_node(host, state, content_element) {
+        update_layout_tree(host, state, content_element, context, true);
         // The referenced pattern may inherit its content from another pattern via href. Removing either element
         // invalidates the attached resource box, so register the referencer with both.
         // SAFETY: All pointers denote live SVG elements held by the graphics element or pattern chain.
@@ -927,8 +872,7 @@ fn update_svg_pattern(
         }
     }
 
-    // SAFETY: Balance the parent push.
-    unsafe { (host.callbacks.pop_layout_parent)(host.callbacks.builder) };
+    assert!(state.ancestor_stack.pop().is_some());
     context.layout_svg_pattern = prior_context_value;
 }
 
@@ -939,6 +883,7 @@ fn update_svg_pattern(
 /// The callback table, DOM node, layout node, and context must remain valid for the duration of the call.
 unsafe fn update_principal_node_descendants(
     host: &DomTreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
     dom_node: *mut c_void,
     layout_node: *mut c_void,
     context: &mut TreeBuilderContext,
@@ -951,8 +896,7 @@ unsafe fn update_principal_node_descendants(
         // SAFETY: All pointers remain live throughout the call.
         let facts =
             unsafe { (host.callbacks.principal_descendant_facts)(host.callbacks.builder, dom_node, layout_node) };
-        // SAFETY: The builder remains live throughout the call.
-        let prior_quote_nesting_level = unsafe { (host.callbacks.quote_nesting_level)(host.callbacks.builder) };
+        let prior_quote_nesting_level = state.quote_nesting_level;
 
         if should_create_layout_node {
             // Resolve counters now that we exist in the layout tree.
@@ -963,17 +907,18 @@ unsafe fn update_principal_node_descendants(
 
             // Add the ::before pseudo-element before walking normal children.
             if facts.is_element && facts.layout_node_can_have_children && !facts.content_visibility_hidden {
-                // SAFETY: The builder, element, and layout node remain live throughout pseudo-element creation.
+                state.ancestor_stack.push(layout_node);
+                // SAFETY: The builder, state, element, and layout node remain live throughout pseudo-element creation.
                 unsafe {
-                    (host.callbacks.push_layout_parent)(host.callbacks.builder, layout_node);
                     (host.callbacks.create_pseudo_element)(
                         host.callbacks.builder,
+                        state as *mut TreeBuilderState as *mut c_void,
                         dom_node,
                         FfiPseudoElement::Before,
                         FfiInsertionMode::Prepend,
                     );
-                    (host.callbacks.pop_layout_parent)(host.callbacks.builder);
                 }
+                assert!(state.ancestor_stack.pop().is_some());
             }
         }
 
@@ -989,8 +934,7 @@ unsafe fn update_principal_node_descendants(
             && facts.layout_node_can_have_children
             && !facts.content_visibility_hidden
         {
-            // SAFETY: `layout_node` remains live throughout descendant construction.
-            unsafe { (host.callbacks.push_layout_parent)(host.callbacks.builder, layout_node) };
+            state.ancestor_stack.push(layout_node);
 
             if !facts.shadow_root.is_null() {
                 if facts.layout_node_is_replaced_box_with_children {
@@ -998,24 +942,27 @@ unsafe fn update_principal_node_descendants(
                     // anonymous BlockContainer so that a BFC handles their layout.
                     // SAFETY: The callback returns the live first-child wrapper.
                     let wrapper = unsafe {
-                        (host.callbacks.ensure_replaced_children_wrapper)(host.callbacks.builder, layout_node)
+                        (host.callbacks.ensure_replaced_children_wrapper)(
+                            host.callbacks.builder,
+                            layout_node,
+                            state.current_parent(),
+                        )
                     };
                     assert!(!wrapper.is_null());
-                    // SAFETY: `wrapper` remains live and attached throughout the recursive call.
-                    unsafe { (host.callbacks.push_layout_parent)(host.callbacks.builder, wrapper) };
+                    state.ancestor_stack.push(wrapper);
                 }
                 // SAFETY: The callback table, shadow root, and context remain valid.
                 unsafe {
                     update_layout_tree_for_shadow_root_children(
                         host,
+                        state,
                         facts.shadow_root,
                         context,
                         should_create_layout_node,
                     );
                 }
                 if facts.layout_node_is_replaced_box_with_children {
-                    // SAFETY: Balances the wrapper push above.
-                    unsafe { (host.callbacks.pop_layout_parent)(host.callbacks.builder) };
+                    assert!(state.ancestor_stack.pop().is_some());
                 }
             } else if facts.should_layout_dom_children {
                 assert!(!facts.dom_children_parent.is_null());
@@ -1024,6 +971,7 @@ unsafe fn update_principal_node_descendants(
                     unsafe {
                         update_layout_tree_for_svg_switch_children(
                             host,
+                            state,
                             facts.dom_children_parent,
                             context,
                             should_create_layout_node,
@@ -1034,6 +982,7 @@ unsafe fn update_principal_node_descendants(
                     unsafe {
                         update_layout_tree_for_dom_children(
                             host,
+                            state,
                             facts.dom_children_parent,
                             context,
                             should_create_layout_node,
@@ -1068,25 +1017,28 @@ unsafe fn update_principal_node_descendants(
                         }
                         continue;
                     }
-                    update_layout_tree(host, element, context, should_create_layout_node);
+                    update_layout_tree(host, state, element, context, should_create_layout_node);
                 }
                 context.layout_top_layer = prior_layout_top_layer;
             }
 
-            // SAFETY: Balances the principal layout-node push above.
-            unsafe { (host.callbacks.pop_layout_parent)(host.callbacks.builder) };
+            assert!(state.ancestor_stack.pop().is_some());
         }
 
         if !facts.slot_element.is_null() {
             if !facts.content_visibility_hidden {
-                // SAFETY: `layout_node` remains live throughout assigned-node construction.
-                unsafe { (host.callbacks.push_layout_parent)(host.callbacks.builder, layout_node) };
+                state.ancestor_stack.push(layout_node);
                 // SAFETY: The callback table, slot element, and context remain valid.
                 unsafe {
-                    update_layout_tree_for_assigned_slottables(host, facts.slot_element, context, must_create_subtree);
+                    update_layout_tree_for_assigned_slottables(
+                        host,
+                        state,
+                        facts.slot_element,
+                        context,
+                        must_create_subtree,
+                    );
                 }
-                // SAFETY: Balances the assigned-node parent push above.
-                unsafe { (host.callbacks.pop_layout_parent)(host.callbacks.builder) };
+                assert!(state.ancestor_stack.pop().is_some());
             } else {
                 // SAFETY: `slot_element` remains live throughout cleanup.
                 unsafe { (host.callbacks.clear_stale_assigned_slottables)(facts.slot_element) };
@@ -1099,6 +1051,7 @@ unsafe fn update_principal_node_descendants(
                     if !resource.is_null() {
                         update_svg_resource(
                             host,
+                            state,
                             resource,
                             facts.svg_graphics_element,
                             layout_node,
@@ -1121,24 +1074,25 @@ unsafe fn update_principal_node_descendants(
                     seen_content_elements.push(content_element);
                     update_svg_pattern(
                         host,
+                        state,
                         pattern,
                         content_element,
                         facts.svg_graphics_element,
                         layout_node,
                         context,
-                        context.layout_svg_pattern,
                     );
                 }
             }
 
             // Add ::marker and ::after once normal and SVG resource children are complete.
             if facts.is_element && facts.layout_node_can_have_children && !facts.content_visibility_hidden {
-                // SAFETY: The builder, element, and layout node remain live throughout pseudo-element creation.
+                state.ancestor_stack.push(layout_node);
+                // SAFETY: The builder, state, element, and layout node remain live throughout pseudo-element creation.
                 unsafe {
-                    (host.callbacks.push_layout_parent)(host.callbacks.builder, layout_node);
                     if facts.layout_node_is_list_item_box {
                         (host.callbacks.create_pseudo_element)(
                             host.callbacks.builder,
+                            state as *mut TreeBuilderState as *mut c_void,
                             dom_node,
                             FfiPseudoElement::Marker,
                             FfiInsertionMode::Prepend,
@@ -1146,12 +1100,13 @@ unsafe fn update_principal_node_descendants(
                     }
                     (host.callbacks.create_pseudo_element)(
                         host.callbacks.builder,
+                        state as *mut TreeBuilderState as *mut c_void,
                         dom_node,
                         FfiPseudoElement::After,
                         FfiInsertionMode::Append,
                     );
-                    (host.callbacks.pop_layout_parent)(host.callbacks.builder);
                 }
+                assert!(state.ancestor_stack.pop().is_some());
 
                 if facts.layout_node_is_block_container && facts.has_first_letter_style {
                     // SAFETY: `dom_node` is an Element and `layout_node` is a BlockContainer when these facts are set.
@@ -1173,10 +1128,7 @@ unsafe fn update_principal_node_descendants(
         // 2. The effects of the 'content' property’s 'open-quote', 'close-quote', 'no-open-quote' and 'no-close-quote'
         //    must be scoped to the element’s sub-tree.
         if facts.has_style_containment {
-            // SAFETY: The builder remains live throughout the call.
-            unsafe {
-                (host.callbacks.set_quote_nesting_level)(host.callbacks.builder, prior_quote_nesting_level);
-            }
+            state.quote_nesting_level = prior_quote_nesting_level;
         }
 
         // SAFETY: `dom_node` remains live throughout the call.
@@ -1184,8 +1136,9 @@ unsafe fn update_principal_node_descendants(
     });
 }
 
-struct PrincipalNodeUpdate<'host, 'callbacks, 'context> {
+struct PrincipalNodeUpdate<'host, 'callbacks, 'state, 'context> {
     host: &'host DomTreeBuilderHost<'callbacks>,
+    state: &'state mut TreeBuilderState,
     frame: *mut c_void,
     dom_node: *mut c_void,
     context: &'context mut TreeBuilderContext,
@@ -1193,7 +1146,7 @@ struct PrincipalNodeUpdate<'host, 'callbacks, 'context> {
 }
 
 fn construct_principal_layout_node(
-    update: &mut PrincipalNodeUpdate<'_, '_, '_>,
+    update: &mut PrincipalNodeUpdate<'_, '_, '_, '_>,
     entry_facts: FfiPrincipalNodeEntryFacts,
     should_create_layout_node: bool,
 ) -> (bool, bool) {
@@ -1225,6 +1178,7 @@ fn construct_principal_layout_node(
             unsafe {
                 update_layout_tree_for_display_contents(
                     host,
+                    update.state,
                     dom_node,
                     context,
                     must_create_subtree,
@@ -1280,7 +1234,7 @@ fn construct_principal_layout_node(
 }
 
 fn update_principal_node_after_entry(
-    update: &mut PrincipalNodeUpdate<'_, '_, '_>,
+    update: &mut PrincipalNodeUpdate<'_, '_, '_, '_>,
     entry_facts: FfiPrincipalNodeEntryFacts,
     entry_decision: PrincipalNodeEntryDecision,
 ) {
@@ -1352,6 +1306,7 @@ fn update_principal_node_after_entry(
                 (host.callbacks.create_principal_backdrop)(
                     host.callbacks.builder,
                     frame,
+                    update.state as *mut TreeBuilderState as *mut c_void,
                     dom_node,
                     !placement.may_replace_existing_layout_node,
                 )
@@ -1369,11 +1324,19 @@ fn update_principal_node_after_entry(
         }
 
         // SAFETY: The builder and frame remain live, and Rust selected the placement mode.
-        unsafe { (host.callbacks.place_principal_layout)(host.callbacks.builder, frame, placement.placement) };
+        let current_parent = if update.state.ancestor_stack.is_empty() {
+            std::ptr::null_mut()
+        } else {
+            update.state.current_parent()
+        };
+        unsafe {
+            (host.callbacks.place_principal_layout)(host.callbacks.builder, frame, current_parent, placement.placement);
+        };
         // SAFETY: The callback table, DOM node, layout node, and context remain live throughout the call.
         unsafe {
             update_principal_node_descendants(
                 host,
+                update.state,
                 dom_node,
                 (host.callbacks.principal_layout_node)(frame),
                 context,
@@ -1407,6 +1370,7 @@ fn update_principal_node_after_entry(
 /// The callback table and DOM node must remain valid for the duration of the call.
 fn update_layout_tree(
     host: &DomTreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
     dom_node: *mut c_void,
     context: &mut TreeBuilderContext,
     must_create_subtree: bool,
@@ -1438,6 +1402,7 @@ fn update_layout_tree(
         assert!(!frame.is_null());
         let mut update = PrincipalNodeUpdate {
             host,
+            state,
             frame,
             dom_node,
             context,
@@ -1467,18 +1432,16 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         assert!(!document.is_null());
         // SAFETY: Guaranteed by the entry point's contract.
         let host = unsafe { dom_tree_builder_host(callbacks) };
+        let mut state = TreeBuilderState::default();
         let mut context = TreeBuilderContext::default();
         // SAFETY: All pointers remain live throughout the build.
         let entry_facts =
             unsafe { (host.callbacks.principal_node_entry_facts)(host.callbacks.builder, document, false) };
         assert!(entry_facts.is_document);
 
-        // SAFETY: The document and builder remain live throughout the build.
-        unsafe {
-            (host.callbacks.reset_style_ancestor_filter)(document);
-            (host.callbacks.set_quote_nesting_level)(host.callbacks.builder, 0);
-        }
-        update_layout_tree(&host, document, &mut context, false);
+        // SAFETY: The document remains live throughout the build.
+        unsafe { (host.callbacks.reset_style_ancestor_filter)(document) };
+        update_layout_tree(&host, &mut state, document, &mut context, false);
 
         // NB: Called during layout tree construction.
         // SAFETY: The document remains live and any attached layout root is owned by it and the builder.
@@ -1568,16 +1531,12 @@ pub struct FfiPseudoTreeBuilderCallbacks {
     pub layout_node_is_list_item: unsafe extern "C" fn(*mut c_void) -> bool,
     pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub configure_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32),
-    pub insert_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiInsertionMode),
+    pub insert_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiInsertionMode),
     pub resolve_counters: unsafe extern "C" fn(*mut c_void, FfiPseudoElement),
     pub resolve_content:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32) -> FfiResolvedPseudoContentFacts,
     pub create_content_item: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, usize) -> *mut c_void,
-    pub insert_content_item: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub push_layout_parent: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub pop_layout_parent: unsafe extern "C" fn(*mut c_void),
-    pub quote_nesting_level: unsafe extern "C" fn(*mut c_void) -> u32,
-    pub set_quote_nesting_level: unsafe extern "C" fn(*mut c_void, u32),
+    pub insert_content_item: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
 }
 
 fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDecision {
@@ -1659,6 +1618,7 @@ fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDeci
 pub unsafe extern "C" fn rust_create_pseudo_element(
     callbacks: *const FfiPseudoTreeBuilderCallbacks,
     frame: *mut c_void,
+    state: *mut c_void,
     element: *mut c_void,
     pseudo_element: FfiPseudoElement,
     has_insertion_mode: bool,
@@ -1667,9 +1627,12 @@ pub unsafe extern "C" fn rust_create_pseudo_element(
     abort_on_panic(|| {
         assert!(!callbacks.is_null());
         assert!(!frame.is_null());
+        assert!(!state.is_null());
         assert!(!element.is_null());
         // SAFETY: Guaranteed by the entry point's contract.
         let callbacks = unsafe { &*callbacks };
+        // SAFETY: The caller passes the state for the active Rust layout-tree build.
+        let state = unsafe { &mut *state.cast::<TreeBuilderState>() };
         // SAFETY: The frame and element remain live throughout initialization.
         let facts = unsafe { (callbacks.initialize)(frame, element, pseudo_element) };
         let decision = pseudo_element_decision(facts);
@@ -1712,12 +1675,11 @@ pub unsafe extern "C" fn rust_create_pseudo_element(
             // FIXME: Support counters on element::pseudo::marker.
         }
 
-        // SAFETY: The builder and frame remain live throughout configuration and insertion.
-        let initial_quote_nesting_level = unsafe { (callbacks.quote_nesting_level)(callbacks.builder) };
+        let initial_quote_nesting_level = state.quote_nesting_level;
         unsafe {
             (callbacks.configure_layout_node)(frame, element, pseudo_element, initial_quote_nesting_level);
             if has_insertion_mode {
-                (callbacks.insert_layout_node)(callbacks.builder, frame, insertion_mode);
+                (callbacks.insert_layout_node)(callbacks.builder, frame, state.current_parent(), insertion_mode);
             }
             (callbacks.resolve_counters)(element, pseudo_element);
         }
@@ -1727,23 +1689,18 @@ pub unsafe extern "C" fn rust_create_pseudo_element(
         // SAFETY: The frame and element remain live throughout content resolution.
         let resolved_content =
             unsafe { (callbacks.resolve_content)(frame, element, pseudo_element, initial_quote_nesting_level) };
-        // SAFETY: The builder remains live throughout the call.
-        unsafe {
-            (callbacks.set_quote_nesting_level)(callbacks.builder, resolved_content.final_quote_nesting_level);
-        }
+        state.quote_nesting_level = resolved_content.final_quote_nesting_level;
 
         if resolved_content.content_is_list && decision != FfiPseudoElementDecision::ContentReplacement {
-            // SAFETY: The pseudo-element node remains live throughout child construction.
-            unsafe { (callbacks.push_layout_parent)(callbacks.builder, layout_node) };
+            state.ancestor_stack.push(layout_node);
             for index in 0..resolved_content.content_item_count {
                 // SAFETY: `index` is below the resolved content item count and the frame retains the returned node.
                 let content_item = unsafe { (callbacks.create_content_item)(frame, element, pseudo_element, index) };
                 assert!(!content_item.is_null());
                 // SAFETY: The builder and generated content item remain live throughout insertion.
-                unsafe { (callbacks.insert_content_item)(callbacks.builder, content_item) };
+                unsafe { (callbacks.insert_content_item)(callbacks.builder, content_item, state.current_parent()) };
             }
-            // SAFETY: Balances the pseudo-element parent push above.
-            unsafe { (callbacks.pop_layout_parent)(callbacks.builder) };
+            assert!(state.ancestor_stack.pop().is_some());
         }
 
         layout_node
@@ -3150,21 +3107,19 @@ mod tests {
 
     #[test]
     fn tree_builder_state_tracks_ancestors_and_quotes() {
-        let state = super::rust_tree_builder_state_create();
+        let mut state = super::TreeBuilderState::default();
         let mut parent = 0_u8;
         let parent_pointer = (&raw mut parent).cast::<c_void>();
-        super::rust_tree_builder_push_parent(state, parent_pointer);
-        assert_eq!(super::rust_tree_builder_ancestor_count(state), 1);
-        assert_eq!(super::rust_tree_builder_current_parent(state), parent_pointer);
-        assert_eq!(super::rust_tree_builder_ancestor_at(state, 0), parent_pointer);
+        state.ancestor_stack.push(parent_pointer);
+        assert_eq!(state.ancestor_stack.len(), 1);
+        assert_eq!(state.current_parent(), parent_pointer);
+        assert_eq!(state.ancestor_stack[0], parent_pointer);
 
-        super::rust_tree_builder_set_quote_nesting_level(state, 3);
-        assert_eq!(super::rust_tree_builder_quote_nesting_level(state), 3);
+        state.quote_nesting_level = 3;
+        assert_eq!(state.quote_nesting_level, 3);
 
-        super::rust_tree_builder_pop_parent(state);
-        assert_eq!(super::rust_tree_builder_ancestor_count(state), 0);
-        // SAFETY: `state` was returned by the matching create function and has not been destroyed yet.
-        unsafe { super::rust_tree_builder_state_destroy(state) };
+        assert!(state.ancestor_stack.pop().is_some());
+        assert_eq!(state.ancestor_stack.len(), 0);
     }
 
     #[test]
