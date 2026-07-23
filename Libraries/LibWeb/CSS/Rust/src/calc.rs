@@ -362,6 +362,7 @@ impl CalcNumericValue {
 /// The FFI mirror of a numeric type, for the parity test on the C++ side.
 /// NB: The array dimension is the base type count, spelled literally so the
 ///     generated header does not depend on the crate-private constant.
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiNumericType {
     pub has_exponent: [bool; 7],
@@ -372,7 +373,7 @@ pub struct FfiNumericType {
 }
 
 impl FfiNumericType {
-    fn from_calc(value: Option<CalcNumericType>) -> Self {
+    pub(crate) fn from_calc(value: Option<CalcNumericType>) -> Self {
         let mut result = FfiNumericType {
             has_exponent: [false; BASE_TYPE_COUNT],
             exponents: [0; BASE_TYPE_COUNT],
@@ -395,7 +396,7 @@ impl FfiNumericType {
         result
     }
 
-    fn to_calc(&self) -> CalcNumericType {
+    fn to_calc(self) -> CalcNumericType {
         let mut result = CalcNumericType::default();
         for i in 0..BASE_TYPE_COUNT {
             if self.has_exponent[i] {
@@ -774,6 +775,12 @@ impl CalcNodeHandle {
         Self { node: raw }
     }
 
+    pub(crate) fn from_arc(node: Arc<CalcNode>) -> Self {
+        Self {
+            node: Arc::into_raw(node),
+        }
+    }
+
     pub(crate) fn node(&self) -> &CalcNode {
         unsafe { &*self.node }
     }
@@ -784,6 +791,37 @@ impl CalcNodeHandle {
         unsafe { Arc::increment_strong_count(self.node) };
         unsafe { Arc::from_raw(self.node) }
     }
+}
+
+/// https://drafts.csswg.org/css-values-4/#combine-math
+/// Interpolation of math functions, with each other or with numeric values and other numeric-valued functions, is
+/// defined as Vresult = calc((1 - p) * VA + p * VB).
+pub(crate) fn interpolate_length_percentage_calculations(
+    from: Arc<CalcNode>,
+    to: Arc<CalcNode>,
+    delta: f32,
+) -> Option<(Arc<CalcNode>, FfiNumericType)> {
+    let number = |value| shared(CalcNode::Numeric(CalcNumericValue::Number { value, number_type: 0 }));
+    let from_contribution = shared(CalcNode::Product(vec![from, number(1.0 - delta as f64)]));
+    let to_contribution = shared(CalcNode::Product(vec![to, number(delta as f64)]));
+    let root = shared(CalcNode::Sum(vec![from_contribution, to_contribution]));
+
+    let percentage_leaf_type = percentage_leaf_type_for(Some(ResolveAs::Base(0)));
+    let evaluation_context = CalcEvaluationContext {
+        percentage_leaf_type: &percentage_leaf_type,
+        resolve_as: Some(ResolveAs::Base(0)),
+        percentage_basis: None,
+        length_resolution: LengthResolution::default(),
+        random_base_value: None,
+    };
+    let callbacks = CalcSimplifyCallbacks {
+        resolve_non_math_function: &|_| None,
+        resolve_channel_keyword: &|_| None,
+        absolutize_random_sharing: &|_| None,
+    };
+    let simplified = root.simplify(&evaluation_context, &callbacks);
+    let numeric_type = simplified.numeric_type(&percentage_leaf_type)?;
+    Some((simplified, FfiNumericType::from_calc(Some(numeric_type))))
 }
 
 impl Drop for CalcNodeHandle {
@@ -1138,6 +1176,10 @@ fn is_canonical_unit(value: CalcNumericValue) -> bool {
         CalcNumericValue::Resolution { unit, .. } => unit == canonical_unit_code(&RESOLUTION_UNIT_CANONICAL_RATIOS),
         CalcNumericValue::Time { unit, .. } => unit == canonical_unit_code(&TIME_UNIT_CANONICAL_RATIOS),
     }
+}
+
+pub(crate) fn canonical_pixel_unit() -> u8 {
+    canonical_unit_code(&crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS)
 }
 
 impl CalcNode {

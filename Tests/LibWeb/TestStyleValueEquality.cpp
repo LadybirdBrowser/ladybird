@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
@@ -910,12 +911,13 @@ TEST_CASE(rust_filter_handles_retain_child_data)
 
 TEST_CASE(rust_calculated_handles_create_typed_wrappers)
 {
-    NumericType resolved_type { NumericType::BaseType::Length, 1 };
-    auto resolved_type_bytes = bit_cast<Array<u8, sizeof(NumericType)>>(resolved_type);
+    StyleValueFFI::FfiNumericType resolved_type {};
+    resolved_type.valid = true;
+    resolved_type.has_exponent[to_underlying(NumericType::BaseType::Length)] = true;
+    resolved_type.exponents[to_underlying(NumericType::BaseType::Length)] = 1;
     auto data = StyleValueFFI::rust_style_value_create_calculated(
         StyleValueFFI::rust_calc_node_create_numeric_dimension(4, 10, to_underlying(LengthUnit::Px)),
-        resolved_type_bytes.data(),
-        resolved_type_bytes.size(),
+        resolved_type,
         false,
         false,
         0,
@@ -1309,6 +1311,138 @@ TEST_CASE(rust_interpolates_font_style_values)
     EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "italic"sv);
 }
 
+TEST_CASE(rust_interpolates_visibility_values)
+{
+    auto visible = KeywordStyleValue::create(Keyword::Visible);
+    auto hidden = KeywordStyleValue::create(Keyword::Hidden);
+    auto collapse = KeywordStyleValue::create(Keyword::Collapse);
+    StyleValueFFI::FfiAnimationContext context {
+        .allow_discrete = false,
+        .has_transform_reference_box = false,
+        .transform_reference_box_width = 0,
+        .transform_reference_box_height = 0,
+    };
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        &context,
+        to_underlying(PropertyID::Visibility),
+        visible->rust_style_value_data(),
+        hidden->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto value = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(value->to_keyword(), Keyword::Visible);
+
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        &context,
+        to_underlying(PropertyID::Visibility),
+        hidden->rust_style_value_data(),
+        collapse->rust_style_value_data(),
+        0.75f);
+    EXPECT(result.handled);
+    EXPECT_EQ(result.value, nullptr);
+
+    context.allow_discrete = true;
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        &context,
+        to_underlying(PropertyID::Visibility),
+        hidden->rust_style_value_data(),
+        collapse->rust_style_value_data(),
+        0.75f);
+    EXPECT(result.handled);
+    value = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(value->to_keyword(), Keyword::Collapse);
+}
+
+TEST_CASE(rust_interpolates_content_visibility_values)
+{
+    auto visible = KeywordStyleValue::create(Keyword::Visible);
+    auto hidden = KeywordStyleValue::create(Keyword::Hidden);
+    auto auto_value = KeywordStyleValue::create(Keyword::Auto);
+    StyleValueFFI::FfiAnimationContext context {
+        .allow_discrete = false,
+        .has_transform_reference_box = false,
+        .transform_reference_box_width = 0,
+        .transform_reference_box_height = 0,
+    };
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        &context,
+        to_underlying(PropertyID::ContentVisibility),
+        hidden->rust_style_value_data(),
+        visible->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    EXPECT_EQ(result.value, nullptr);
+
+    context.allow_discrete = true;
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        &context,
+        to_underlying(PropertyID::ContentVisibility),
+        hidden->rust_style_value_data(),
+        visible->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto value = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(value->to_keyword(), Keyword::Visible);
+
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        &context,
+        to_underlying(PropertyID::ContentVisibility),
+        visible->rust_style_value_data(),
+        auto_value->rust_style_value_data(),
+        0.25f);
+    EXPECT(result.handled);
+    value = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(value->to_keyword(), Keyword::Visible);
+}
+
+TEST_CASE(rust_interpolates_display_values)
+{
+    Display const none_display { DisplayBox::None };
+    Display const block_display { DisplayOutside::Block, DisplayInside::Flow };
+    Display const inline_display { DisplayOutside::Inline, DisplayInside::Flow };
+    auto none = DisplayStyleValue::create(none_display);
+    auto block = DisplayStyleValue::create(block_display);
+    auto inline_value = DisplayStyleValue::create(inline_display);
+    StyleValueFFI::FfiAnimationContext context {
+        .allow_discrete = false,
+        .has_transform_reference_box = false,
+        .transform_reference_box_width = 0,
+        .transform_reference_box_height = 0,
+    };
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        &context,
+        to_underlying(PropertyID::Display),
+        none->rust_style_value_data(),
+        block->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    EXPECT_EQ(result.value, nullptr);
+
+    context.allow_discrete = true;
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        &context,
+        to_underlying(PropertyID::Display),
+        none->rust_style_value_data(),
+        block->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto value = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(value->as_display().display(), block_display);
+
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        &context,
+        to_underlying(PropertyID::Display),
+        block->rust_style_value_data(),
+        inline_value->rust_style_value_data(),
+        0.75f);
+    EXPECT(result.handled);
+    value = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(value->as_display().display(), inline_display);
+}
+
 TEST_CASE(cpp_function_facades_retain_argument_wrappers)
 {
     auto function = FunctionStyleValue::create(
@@ -1393,6 +1527,37 @@ TEST_CASE(rust_interpolates_and_composites_open_type_settings)
         to_underlying(PropertyID::FontWeight),
         from->rust_style_value_data(),
         mismatched_tag->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    EXPECT_EQ(result.value, nullptr);
+}
+
+TEST_CASE(rust_interpolates_font_variation_setting_lists)
+{
+    auto make_setting = [](StringView tag, double value) {
+        return OpenTypeTaggedStyleValue::create(
+            OpenTypeTaggedStyleValue::Mode::FontVariationSettings,
+            Utf16FlyString::from_utf8(tag),
+            NumberStyleValue::create(value));
+    };
+    auto from = StyleValueList::create({ make_setting("wght"sv, 100) }, StyleValueList::Separator::Comma);
+    auto to = StyleValueList::create({ make_setting("wght"sv, 300) }, StyleValueList::Separator::Comma);
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::FontVariationSettings),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "\"wght\" 200"sv);
+
+    auto unlike = StyleValueList::create({ make_setting("slnt"sv, 300) }, StyleValueList::Separator::Comma);
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::FontVariationSettings),
+        from->rust_style_value_data(),
+        unlike->rust_style_value_data(),
         0.5f);
     EXPECT(result.handled);
     EXPECT_EQ(result.value, nullptr);
@@ -1755,6 +1920,300 @@ TEST_CASE(rust_extends_transform_lists_with_identity_functions)
     EXPECT_EQ(transformations.size(), 2u);
     EXPECT_APPROXIMATE(transformations[0]->as_transformation().values()[0]->as_number().number(), 3.0);
     EXPECT_APPROXIMATE(transformations[1]->as_transformation().values()[0]->as_length().length().raw_value(), 50.0);
+}
+
+TEST_CASE(rust_extends_transform_lists_with_identity_perspective)
+{
+    auto from = StyleValueList::create(
+        { TransformationStyleValue::create(
+            PropertyID::Transform,
+            TransformFunction::ScaleZ,
+            { NumberStyleValue::create(2) }) },
+        StyleValueList::Separator::Space);
+    auto to = StyleValueList::create(
+        { TransformationStyleValue::create(
+              PropertyID::Transform,
+              TransformFunction::ScaleZ,
+              { NumberStyleValue::create(2) }),
+            TransformationStyleValue::create(
+                PropertyID::Transform,
+                TransformFunction::Perspective,
+                { LengthStyleValue::create(Length::make_px(500)) }) },
+        StyleValueList::Separator::Space);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    auto transformations = interpolated->as_value_list().values();
+    EXPECT_EQ(transformations.size(), 2u);
+    auto perspective = transformations[1]->as_transformation().values();
+    EXPECT_EQ(perspective.size(), 1u);
+    EXPECT_APPROXIMATE(perspective[0]->as_length().length().raw_value(), 1000.0);
+}
+
+TEST_CASE(rust_extends_transform_lists_with_identity_matrices)
+{
+    auto none = KeywordStyleValue::create(Keyword::None);
+    for (auto transform_function : { TransformFunction::Matrix, TransformFunction::Matrix3d }) {
+        StyleValueVector arguments;
+        auto argument_count = transform_function == TransformFunction::Matrix ? 6u : 16u;
+        for (u32 index = 0; index < argument_count; ++index) {
+            auto is_diagonal = transform_function == TransformFunction::Matrix
+                ? index == 0 || index == 3
+                : index % 5 == 0;
+            arguments.append(NumberStyleValue::create(is_diagonal ? 1 : 0));
+        }
+        auto matrix = TransformationStyleValue::create(PropertyID::Transform, transform_function, move(arguments));
+        auto to = StyleValueList::create({ matrix }, StyleValueList::Separator::Space);
+        auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+            nullptr,
+            to_underlying(PropertyID::Transform),
+            none->rust_style_value_data(),
+            to->rust_style_value_data(),
+            0.5f);
+        EXPECT(result.handled);
+        auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+        auto transformations = interpolated->as_value_list().values();
+        EXPECT_EQ(transformations.size(), 1u);
+        EXPECT_EQ(transformations[0]->as_transformation().transform_function(), TransformFunction::Matrix3d);
+        EXPECT_EQ(transformations[0]->as_transformation().values().size(), 16u);
+    }
+}
+
+TEST_CASE(rust_expands_omitted_transform_arguments_before_interpolation)
+{
+    auto from = StyleValueList::create(
+        { TransformationStyleValue::create(
+            PropertyID::Transform,
+            TransformFunction::Translate,
+            { PercentageStyleValue::create(Percentage { 50 }) }) },
+        StyleValueList::Separator::Space);
+    auto to = StyleValueList::create(
+        { TransformationStyleValue::create(
+            PropertyID::Transform,
+            TransformFunction::Translate,
+            { PercentageStyleValue::create(Percentage { 100 }), PercentageStyleValue::create(Percentage { 50 }) }) },
+        StyleValueList::Separator::Space);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    auto arguments = interpolated->as_value_list().values()[0]->as_transformation().values();
+    EXPECT_EQ(arguments.size(), 2u);
+    EXPECT_APPROXIMATE(arguments[0]->as_percentage().raw_value(), 75.0);
+    EXPECT_APPROXIMATE(arguments[1]->as_percentage().raw_value(), 25.0);
+}
+
+TEST_CASE(rust_interpolates_mixed_length_percentage_transform_arguments)
+{
+    auto make_transform = [](NonnullRefPtr<StyleValue const> x, NonnullRefPtr<StyleValue const> y) {
+        return StyleValueList::create(
+            { TransformationStyleValue::create(
+                PropertyID::Transform,
+                TransformFunction::Translate,
+                { move(x), move(y) }) },
+            StyleValueList::Separator::Space);
+    };
+    auto from = make_transform(
+        LengthStyleValue::create(Length::make_px(480)),
+        PercentageStyleValue::create(Percentage { 80 }));
+    auto to = make_transform(
+        PercentageStyleValue::create(Percentage { 240 }),
+        LengthStyleValue::create(Length::make_px(400)));
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.125f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "translate(calc(30% + 420px), calc(70% + 50px))"sv);
+}
+
+TEST_CASE(rust_interpolates_stroke_dasharray_values)
+{
+    auto make_dasharray = [](std::initializer_list<double> lengths) {
+        StyleValueVector values;
+        for (auto length : lengths)
+            values.append(LengthStyleValue::create(Length::make_px(length)));
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    };
+    auto from = make_dasharray({ 20, 40, 10 });
+    auto to = make_dasharray({ 40, 20 });
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::StrokeDasharray),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "30px 30px 25px 20px 40px 15px"sv);
+
+    auto none = KeywordStyleValue::create(Keyword::None);
+    StyleValueFFI::FfiAnimationContext context {
+        .allow_discrete = true,
+        .has_transform_reference_box = false,
+        .transform_reference_box_width = 0,
+        .transform_reference_box_height = 0,
+    };
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        &context,
+        to_underlying(PropertyID::StrokeDasharray),
+        none->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.75f);
+    EXPECT(result.handled);
+    interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "40px 20px"sv);
+}
+
+TEST_CASE(rust_interpolates_ratio_values)
+{
+    auto make_ratio = [](double numerator, double denominator) {
+        return RatioStyleValue::create(NumberStyleValue::create(numerator), NumberStyleValue::create(denominator));
+    };
+    auto from = make_ratio(1, 2);
+    auto to = make_ratio(2, 1);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::AspectRatio),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "1 / 1"sv);
+
+    auto from_auto = StyleValueList::create(
+        { KeywordStyleValue::create(Keyword::Auto), from },
+        StyleValueList::Separator::Space);
+    auto to_auto = StyleValueList::create(
+        { KeywordStyleValue::create(Keyword::Auto), to },
+        StyleValueList::Separator::Space);
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::AspectRatio),
+        from_auto->rust_style_value_data(),
+        to_auto->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "auto 1 / 1"sv);
+
+    auto degenerate = make_ratio(1, 0);
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::AspectRatio),
+        degenerate->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    EXPECT_EQ(result.value, nullptr);
+}
+
+TEST_CASE(rust_interpolates_individual_scale_values)
+{
+    auto none = KeywordStyleValue::create(Keyword::None);
+    auto scale = TransformationStyleValue::create(
+        PropertyID::Scale,
+        TransformFunction::Scale3d,
+        { NumberStyleValue::create(2), NumberStyleValue::create(0), NumberStyleValue::create(3) });
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Scale),
+        none->rust_style_value_data(),
+        scale->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->as_transformation().transform_function(), TransformFunction::Scale3d);
+    auto arguments = interpolated->as_transformation().values();
+    EXPECT_EQ(arguments.size(), 3u);
+    EXPECT_APPROXIMATE(arguments[0]->as_number().number(), 1.5);
+    EXPECT_APPROXIMATE(arguments[1]->as_number().number(), 0.5);
+    EXPECT_APPROXIMATE(arguments[2]->as_number().number(), 2.0);
+}
+
+TEST_CASE(rust_interpolates_individual_translate_values)
+{
+    auto from = TransformationStyleValue::create(
+        PropertyID::Translate,
+        TransformFunction::Translate3d,
+        { LengthStyleValue::create(Length::make_px(480)), LengthStyleValue::create(Length::make_px(400)), LengthStyleValue::create(Length::make_px(320)) });
+    auto to = TransformationStyleValue::create(
+        PropertyID::Translate,
+        TransformFunction::Translate,
+        { PercentageStyleValue::create(Percentage { 240 }), PercentageStyleValue::create(Percentage { 160 }) });
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Translate),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.125f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "calc(30% + 420px) calc(20% + 350px) 280px"sv);
+
+    auto zero = TransformationStyleValue::create(
+        PropertyID::Translate,
+        TransformFunction::Translate,
+        { LengthStyleValue::create(Length::make_px(0)), LengthStyleValue::create(Length::make_px(0)) });
+    auto three_dimensions = TransformationStyleValue::create(
+        PropertyID::Translate,
+        TransformFunction::Translate3d,
+        { LengthStyleValue::create(Length::make_px(-100)), LengthStyleValue::create(Length::make_px(-50)), LengthStyleValue::create(Length::make_px(100)) });
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Translate),
+        zero->rust_style_value_data(),
+        three_dimensions->rust_style_value_data(),
+        0.25f);
+    EXPECT(result.handled);
+    interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "-25px -12.5px 25px"sv);
+}
+
+TEST_CASE(rust_interpolates_individual_rotate_values)
+{
+    auto none = KeywordStyleValue::create(Keyword::None);
+    auto angle = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_angle(90, 0));
+    auto rotate = TransformationStyleValue::create(
+        PropertyID::Rotate,
+        TransformFunction::Rotate3d,
+        { NumberStyleValue::create(0), NumberStyleValue::create(1), NumberStyleValue::create(0), angle });
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Rotate),
+        none->rust_style_value_data(),
+        rotate->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->as_transformation().transform_function(), TransformFunction::Rotate3d);
+    auto arguments = interpolated->as_transformation().values();
+    EXPECT_EQ(arguments.size(), 4u);
+    EXPECT_APPROXIMATE(arguments[0]->as_number().number(), 0.0);
+    EXPECT_APPROXIMATE(arguments[1]->as_number().number(), 1.0);
+    EXPECT_APPROXIMATE(arguments[2]->as_number().number(), 0.0);
+    EXPECT_APPROXIMATE(arguments[3]->rust_style_value_data()->angle.value, 45.0);
 }
 
 TEST_CASE(rust_treats_transform_none_as_an_empty_list)

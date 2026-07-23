@@ -62,12 +62,12 @@ static StyleValueFFI::FfiNumericType to_ffi_numeric_type(Optional<NumericType> c
     return result;
 }
 
+static Optional<NumericType> from_ffi_numeric_type(StyleValueFFI::FfiNumericType const&);
+
 // Builds the Rust mirror of a calculation tree, transferring ownership of the
 // returned handle to the caller. The child orders follow each node's members.
 StyleValueFFI::StyleValueData const* CalculatedStyleValue::make_calculated_data_from_rust_root(StyleValueFFI::CalcNode const* rust_root, NumericType const& resolved_type, CalculationContext const& context)
 {
-    static_assert(IsTriviallyCopyable<NumericType>);
-    auto resolved_type_bytes = bit_cast<Array<u8, sizeof(NumericType)>>(resolved_type);
     Vector<StyleValueFFI::RetainedNumericRangeByType> ranges;
     ranges.ensure_capacity(context.accepted_ranges_by_type.size());
     for (auto const& [value_type, range] : context.accepted_ranges_by_type)
@@ -77,7 +77,7 @@ StyleValueFFI::StyleValueData const* CalculatedStyleValue::make_calculated_data_
         : OptionalNone {};
     return StyleValueFFI::rust_style_value_create_calculated(
         rust_root,
-        resolved_type_bytes.data(), resolved_type_bytes.size(),
+        to_ffi_numeric_type(resolved_type),
         context.percentages_resolve_as.has_value(),
         context.percentages_resolve_as == ValueType::Number,
         resolve_as_base.has_value() ? to_underlying(*resolve_as_base) : 0,
@@ -93,11 +93,7 @@ ValueComparingNonnullRefPtr<CalculatedStyleValue const> CalculatedStyleValue::cr
 
 NumericType CalculatedStyleValue::resolved_type() const
 {
-    auto const& blob = m_value->calculated.resolved_type;
-    Array<u8, sizeof(NumericType)> bytes;
-    VERIFY(blob.length == bytes.size());
-    __builtin_memcpy(bytes.data(), blob.pointer, bytes.size());
-    return bit_cast<NumericType>(bytes);
+    return from_ffi_numeric_type(m_value->calculated.resolved_type).release_value();
 }
 
 CalculationContext CalculatedStyleValue::calculation_context() const

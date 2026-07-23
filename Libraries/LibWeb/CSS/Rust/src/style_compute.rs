@@ -3153,6 +3153,10 @@ pub unsafe extern "C" fn rust_for_each_property_expanding_shorthands(
     abort_on_panic(|| expand_shorthands(unsafe { &*callbacks }, property_id, shell, data));
 }
 
+pub(crate) fn display_is_none(raw: u32) -> bool {
+    FfiDisplay::from_raw(raw).is_none()
+}
+
 /// The element facts the box type transformation needs, marshalled by the C++
 /// side. The parent display is the first non-`display: contents` ancestor's.
 #[repr(C)]

@@ -12,7 +12,10 @@
 use std::sync::Arc;
 
 use crate::property_metadata::{property_animation_type, property_numeric_ranges};
-use crate::style_value::{RetainedStyleValueData, RetainedStyleValueDataList, RetainedUtf16FlyString, StyleValueData};
+use crate::style_value::{
+    RetainedNumericRangeList, RetainedStyleValueData, RetainedStyleValueDataList, RetainedUtf16FlyString,
+    StyleValueData,
+};
 
 const ANIMATION_TYPE_BY_COMPUTED_VALUE: u8 = 1;
 const ANIMATION_TYPE_REPEATABLE_LIST: u8 = 2;
@@ -254,6 +257,498 @@ fn discrete_value(
         value: unsafe { crate::style_value::rust_style_value_retain(value) },
         handled: true,
     }
+}
+
+fn interpolate_visibility(
+    context: Option<&FfiAnimationContext>,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> FfiAnimationValueResult {
+    let (StyleValueData::Keyword { keyword: from_keyword }, StyleValueData::Keyword { keyword: to_keyword }) =
+        (from, to)
+    else {
+        return not_handled();
+    };
+
+    if from_keyword == to_keyword {
+        return FfiAnimationValueResult {
+            value: unsafe { crate::style_value::rust_style_value_retain(from) },
+            handled: true,
+        };
+    }
+
+    // https://drafts.csswg.org/web-animations-1/#animating-visibility
+    // For the visibility property, visible is interpolated as a discrete step where values of p between 0 and 1 map to visible and other values of p map to the closer endpoint.
+    // If neither value is visible, then discrete animation is used.
+    let visible = crate::style_compute::keyword::VISIBLE;
+    if *from_keyword == visible || *to_keyword == visible {
+        let value = if delta <= 0.0 {
+            from
+        } else if delta >= 1.0 {
+            to
+        } else if *from_keyword == visible {
+            from
+        } else {
+            to
+        };
+        return FfiAnimationValueResult {
+            value: unsafe { crate::style_value::rust_style_value_retain(value) },
+            handled: true,
+        };
+    }
+
+    discrete_value(context, from, to, delta)
+}
+
+fn interpolate_content_visibility(
+    context: Option<&FfiAnimationContext>,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> FfiAnimationValueResult {
+    let (StyleValueData::Keyword { keyword: from_keyword }, StyleValueData::Keyword { keyword: to_keyword }) =
+        (from, to)
+    else {
+        return not_handled();
+    };
+
+    if from_keyword == to_keyword {
+        return FfiAnimationValueResult {
+            value: unsafe { crate::style_value::rust_style_value_retain(from) },
+            handled: true,
+        };
+    }
+
+    // https://drafts.csswg.org/css-contain/#content-visibility-animation
+    // In general, the content-visibility property’s animation type is discrete.
+    // However, similar to interpolation of visibility, during interpolation between hidden and any other content-visibility value,
+    // p values between 0 and 1 map to the non-hidden value.
+    let hidden = crate::style_compute::keyword::HIDDEN;
+    if *from_keyword == hidden || *to_keyword == hidden {
+        if !context.is_some_and(|context| context.allow_discrete) {
+            return handled_without_value();
+        }
+        let value = if delta <= 0.0 {
+            from
+        } else if delta >= 1.0 || *from_keyword == hidden {
+            to
+        } else {
+            from
+        };
+        return FfiAnimationValueResult {
+            value: unsafe { crate::style_value::rust_style_value_retain(value) },
+            handled: true,
+        };
+    }
+
+    discrete_value(context, from, to, delta)
+}
+
+fn interpolate_display(
+    context: Option<&FfiAnimationContext>,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> FfiAnimationValueResult {
+    let (StyleValueData::Display { raw: from_raw }, StyleValueData::Display { raw: to_raw }) = (from, to) else {
+        return not_handled();
+    };
+
+    if from_raw == to_raw {
+        return FfiAnimationValueResult {
+            value: unsafe { crate::style_value::rust_style_value_retain(from) },
+            handled: true,
+        };
+    }
+
+    // https://drafts.csswg.org/css-display-4/#display-animation
+    // In general, the display property’s animation type is discrete. However, similar to interpolation of
+    // visibility (see Web Animations §  Animation of visibility), during interpolation between none and any
+    // other display value, p values between 0 and 1 map to the non-none value. Additionally, the element is
+    // inert as long as its display value would compute to none when ignoring the Transitions and Animations
+    // cascade origins.
+    // FIXME: Implement the inertness portion of this.
+    let from_is_none = crate::style_compute::display_is_none(*from_raw);
+    let to_is_none = crate::style_compute::display_is_none(*to_raw);
+    if from_is_none || to_is_none {
+        if !context.is_some_and(|context| context.allow_discrete) {
+            return handled_without_value();
+        }
+        let value = if delta <= 0.0 {
+            from
+        } else if delta >= 1.0 || from_is_none {
+            to
+        } else {
+            from
+        };
+        return FfiAnimationValueResult {
+            value: unsafe { crate::style_value::rust_style_value_retain(value) },
+            handled: true,
+        };
+    }
+
+    discrete_value(context, from, to, delta)
+}
+
+fn interpolate_scale(from: &StyleValueData, to: &StyleValueData, delta: f32) -> FfiAnimationValueResult {
+    let none = crate::style_compute::none_keyword();
+    if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
+        && matches!(to, StyleValueData::Keyword { keyword } if *keyword == none)
+    {
+        return FfiAnimationValueResult {
+            value: unsafe { crate::style_value::rust_style_value_retain(from) },
+            handled: true,
+        };
+    }
+
+    // https://drafts.csswg.org/css-transforms-2/#propdef-scale
+    // Animation type: by computed value, but see below for none
+    // The scale property accepts 1-3 values, each specifying a scale along one axis, in order X, Y, then Z.
+    // If the Y value is not given, then it defaults to being the same as the X value.
+    // If the Z value is not given, then it defaults to 1.
+    // A <percentage> is equivalent to a <number>, for example scale: 100% is equivalent to scale: 1. Numbers are used
+    // during serialization of specified and computed values.
+    // When translate, rotate or scale are animating or transitioning, and the from value or to value (but not both) is
+    // none, the value none is replaced by the equivalent identity value (0px for translate, 0deg for rotate, 1 for scale).
+    let decode = |value: &StyleValueData| {
+        if matches!(value, StyleValueData::Keyword { keyword } if *keyword == none) {
+            return Some(vec![1.0, 1.0]);
+        }
+        let StyleValueData::Transformation { values, .. } = value else {
+            return None;
+        };
+        if !matches!(values.as_slice().len(), 2 | 3) {
+            return None;
+        }
+        values
+            .as_slice()
+            .iter()
+            .map(|value| match value.data() {
+                StyleValueData::Number { value } => Some(*value),
+                StyleValueData::Percentage { value } => Some(*value / 100.0),
+                calculated @ StyleValueData::Calculated { .. } => {
+                    crate::calc::resolve_calculated_number_without_context(calculated).or_else(|| {
+                        crate::calc::resolve_calculated_percentage_without_context(calculated)
+                            .map(|value| value / 100.0)
+                    })
+                }
+                _ => None,
+            })
+            .collect::<Option<Vec<_>>>()
+    };
+    let (Some(mut from), Some(mut to)) = (decode(from), decode(to)) else {
+        return not_handled();
+    };
+    let is_3d = from.len() == 3 || to.len() == 3;
+    if is_3d {
+        from.resize(3, 1.0);
+        to.resize(3, 1.0);
+    }
+    let values = from
+        .into_iter()
+        .zip(to)
+        .map(|(from, to)| retained_number(interpolate_f64(from, to, delta, None)))
+        .collect();
+    owned(StyleValueData::Transformation {
+        property: crate::property_metadata::property_id::SCALE,
+        transform_function: if is_3d {
+            TRANSFORM_FUNCTION_SCALE_3D
+        } else {
+            TRANSFORM_FUNCTION_SCALE
+        },
+        values: RetainedStyleValueDataList::from_retained_values(values),
+    })
+}
+
+fn length_percentage_calculation_node(value: &StyleValueData) -> Option<Arc<crate::calc::CalcNode>> {
+    match value {
+        StyleValueData::Length { value, unit } => Some(Arc::new(crate::calc::CalcNode::Numeric(
+            crate::calc::CalcNumericValue::Length {
+                value: *value,
+                unit: *unit,
+            },
+        ))),
+        StyleValueData::Percentage { value } => Some(Arc::new(crate::calc::CalcNode::Numeric(
+            crate::calc::CalcNumericValue::Percentage(*value),
+        ))),
+        StyleValueData::Calculated { rust_calculation, .. } => Some(rust_calculation.node_arc()),
+        _ => None,
+    }
+}
+
+fn interpolate_translate_component(
+    property_id: u16,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> Option<RetainedStyleValueData> {
+    let direct = interpolate_scalar_value(property_id, from, to, delta, &[]);
+    if direct.handled && !direct.value.is_null() {
+        return Some(unsafe { RetainedStyleValueData::from_retained_pointer(direct.value) });
+    }
+
+    // https://drafts.csswg.org/css-values-4/#combine-mixed
+    // The computed value of a percentage-dimension mix is defined as
+    // a computed percentage if the dimension component is zero
+    let dimension_component_is_zero = match (from, to) {
+        (StyleValueData::Length { value, .. }, StyleValueData::Percentage { .. }) => {
+            *value * (1.0 - delta as f64) == 0.0
+        }
+        (StyleValueData::Percentage { .. }, StyleValueData::Length { value, .. }) => *value * delta as f64 == 0.0,
+        _ => false,
+    };
+    if dimension_component_is_zero {
+        let percentage = match (from, to) {
+            (StyleValueData::Length { .. }, StyleValueData::Percentage { value }) => *value * delta as f64,
+            (StyleValueData::Percentage { value }, StyleValueData::Length { .. }) => *value * (1.0 - delta as f64),
+            _ => unreachable!(),
+        };
+        let value = Arc::into_raw(Arc::new(StyleValueData::Percentage { value: percentage }));
+        return Some(unsafe { RetainedStyleValueData::from_retained_pointer(value) });
+    }
+
+    let from = length_percentage_calculation_node(from)?;
+    let to = length_percentage_calculation_node(to)?;
+    let (calculation, resolved_type) = crate::calc::interpolate_length_percentage_calculations(from, to, delta)?;
+    let value = match &*calculation {
+        crate::calc::CalcNode::Numeric(crate::calc::CalcNumericValue::Length { value, unit }) => {
+            StyleValueData::Length {
+                value: *value,
+                unit: *unit,
+            }
+        }
+        crate::calc::CalcNode::Numeric(crate::calc::CalcNumericValue::Percentage(value)) => {
+            StyleValueData::Percentage { value: *value }
+        }
+        _ => StyleValueData::Calculated {
+            rust_calculation: crate::calc::CalcNodeHandle::from_arc(calculation),
+            resolve_as_is_number: false,
+            resolve_as_base: 0,
+            resolved_type,
+            has_percentages_resolve_as: true,
+            percentages_resolve_as: VALUE_TYPE_LENGTH,
+            resolve_numbers_as_integers: false,
+            accepted_ranges: RetainedNumericRangeList::empty(),
+        },
+    };
+    let value = Arc::into_raw(Arc::new(value));
+    Some(unsafe { RetainedStyleValueData::from_retained_pointer(value) })
+}
+
+fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32) -> FfiAnimationValueResult {
+    let none = crate::style_compute::none_keyword();
+    if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
+        && matches!(to, StyleValueData::Keyword { keyword } if *keyword == none)
+    {
+        return FfiAnimationValueResult {
+            value: unsafe { crate::style_value::rust_style_value_retain(from) },
+            handled: true,
+        };
+    }
+
+    // https://drafts.csswg.org/css-transforms-2/#propdef-translate
+    // Animation type: by computed value, but see below for none
+    // The translate property accepts 1-3 values, each specifying a translation against one axis, in the order X, Y,
+    // then Z. When the second or third values are missing, they default to 0px.
+    // If the third value is omitted or zero, this specifies a 2d translation, equivalent to the translate() function.
+    // Otherwise, this specifies a 3d translation, equivalent to the translate3d() function.
+    // When translate, rotate or scale are animating or transitioning, and the from value or to value (but not both) is
+    // none, the value none is replaced by the equivalent identity value (0px for translate, 0deg for rotate, 1 for scale).
+    let decode = |value: &StyleValueData| {
+        let zero = || {
+            let zero = Arc::into_raw(Arc::new(StyleValueData::Length {
+                value: 0.0,
+                unit: crate::calc::canonical_pixel_unit(),
+            }));
+            unsafe { RetainedStyleValueData::from_retained_pointer(zero) }
+        };
+        if matches!(value, StyleValueData::Keyword { keyword } if *keyword == none) {
+            return Some(vec![zero(), zero()]);
+        }
+        let StyleValueData::Transformation { values, .. } = value else {
+            return None;
+        };
+        if !matches!(values.as_slice().len(), 2 | 3) {
+            return None;
+        }
+        Some(
+            values
+                .as_slice()
+                .iter()
+                .map(|value| value.clone_retained())
+                .collect::<Vec<_>>(),
+        )
+    };
+    let (Some(mut from), Some(mut to)) = (decode(from), decode(to)) else {
+        return not_handled();
+    };
+    let is_3d = from.len() == 3 || to.len() == 3;
+    let zero = || {
+        let zero = Arc::into_raw(Arc::new(StyleValueData::Length {
+            value: 0.0,
+            unit: crate::calc::canonical_pixel_unit(),
+        }));
+        unsafe { RetainedStyleValueData::from_retained_pointer(zero) }
+    };
+    if is_3d {
+        from.resize_with(3, zero);
+        to.resize_with(3, zero);
+    }
+    let values = from
+        .iter()
+        .zip(to.iter())
+        .map(|(from, to)| {
+            interpolate_translate_component(
+                crate::property_metadata::property_id::TRANSLATE,
+                from.data(),
+                to.data(),
+                delta,
+            )
+        })
+        .collect::<Option<Vec<_>>>();
+    let Some(values) = values else {
+        return not_handled();
+    };
+    owned(StyleValueData::Transformation {
+        property: crate::property_metadata::property_id::TRANSLATE,
+        transform_function: if is_3d {
+            TRANSFORM_FUNCTION_TRANSLATE_3D
+        } else {
+            TRANSFORM_FUNCTION_TRANSLATE
+        },
+        values: RetainedStyleValueDataList::from_retained_values(values),
+    })
+}
+
+fn interpolate_individual_rotate(from: &StyleValueData, to: &StyleValueData, delta: f32) -> FfiAnimationValueResult {
+    let none = crate::style_compute::none_keyword();
+    if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
+        && matches!(to, StyleValueData::Keyword { keyword } if *keyword == none)
+    {
+        return FfiAnimationValueResult {
+            value: unsafe { crate::style_value::rust_style_value_retain(from) },
+            handled: true,
+        };
+    }
+
+    // https://drafts.csswg.org/css-transforms-2/#propdef-rotate
+    // Animation type: as SLERP, but see below for none
+    // The rotate property accepts an angle to rotate an element, and optionally an axis to rotate it around.
+    // When translate, rotate or scale are animating or transitioning, and the from value or to value (but not both) is
+    // none, the value none is replaced by the equivalent identity value (0px for translate, 0deg for rotate, 1 for scale).
+    let is_none = |value: &StyleValueData| matches!(value, StyleValueData::Keyword { keyword } if *keyword == none);
+    let is_2d = |value: &StyleValueData| {
+        is_none(value)
+            || matches!(value, StyleValueData::Transformation { transform_function, values, .. }
+                if *transform_function == TRANSFORM_FUNCTION_ROTATE && values.as_slice().len() == 1)
+    };
+    if is_2d(from) && is_2d(to) {
+        let angle = |value: &StyleValueData| {
+            if is_none(value) {
+                return Some(0.0);
+            }
+            let StyleValueData::Transformation { values, .. } = value else {
+                return None;
+            };
+            let [angle] = values.as_slice() else {
+                return None;
+            };
+            match angle.data() {
+                StyleValueData::Angle { value, unit } => angle_to_degrees(*value, *unit),
+                _ => None,
+            }
+        };
+        let (Some(from), Some(to)) = (angle(from), angle(to)) else {
+            return not_handled();
+        };
+        let angle = Arc::into_raw(Arc::new(StyleValueData::Angle {
+            value: interpolate_f64(from, to, delta, None),
+            unit: 0,
+        }));
+        return owned(StyleValueData::Transformation {
+            property: crate::property_metadata::property_id::ROTATE,
+            transform_function: TRANSFORM_FUNCTION_ROTATE,
+            values: RetainedStyleValueDataList::from_retained_values(vec![unsafe {
+                RetainedStyleValueData::from_retained_pointer(angle)
+            }]),
+        });
+    }
+
+    let normalize = |value: &StyleValueData| {
+        if is_none(value) {
+            let angle = Arc::into_raw(Arc::new(StyleValueData::Angle { value: 0.0, unit: 0 }));
+            return Some(RetainedStyleValueDataList::from_retained_values(vec![
+                retained_number(0.0),
+                retained_number(0.0),
+                retained_number(1.0),
+                unsafe { RetainedStyleValueData::from_retained_pointer(angle) },
+            ]));
+        }
+        let StyleValueData::Transformation {
+            transform_function,
+            values,
+            ..
+        } = value
+        else {
+            return None;
+        };
+        match (*transform_function, values.as_slice()) {
+            (TRANSFORM_FUNCTION_ROTATE, [angle]) => Some(RetainedStyleValueDataList::from_retained_values(vec![
+                retained_number(0.0),
+                retained_number(0.0),
+                retained_number(1.0),
+                angle.clone_retained(),
+            ])),
+            (TRANSFORM_FUNCTION_ROTATE_3D, [..]) if values.as_slice().len() == 4 => {
+                Some(RetainedStyleValueDataList::from_retained_values(
+                    values
+                        .as_slice()
+                        .iter()
+                        .map(RetainedStyleValueData::clone_retained)
+                        .collect(),
+                ))
+            }
+            _ => None,
+        }
+    };
+    let (Some(from), Some(to)) = (normalize(from), normalize(to)) else {
+        return not_handled();
+    };
+    interpolate_rotate_3d(
+        crate::property_metadata::property_id::ROTATE,
+        TRANSFORM_FUNCTION_ROTATE_3D,
+        &from,
+        &to,
+        delta,
+    )
+    .map_or_else(not_handled, owned)
+}
+
+fn interpolate_font_variation_settings(
+    context: Option<&FfiAnimationContext>,
+    property_id: u16,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> FfiAnimationValueResult {
+    // https://drafts.csswg.org/css-fonts/#font-variation-settings-def
+    // Two declarations of font-feature-settings can be animated between if they are "like". "Like" declarations
+    // are ones where the same set of properties appear (in any order). Because successive duplicate properties
+    // are applied instead of prior duplicate properties, two declarations can be "like" even if they have
+    // differing number of properties. If two declarations are "like" then animation occurs pairwise between
+    // corresponding values in the declarations. Otherwise, animation is not possible.
+    if !matches!(from, StyleValueData::ValueList { .. }) || !matches!(to, StyleValueData::ValueList { .. }) {
+        return discrete_value(context, from, to, delta);
+    }
+
+    // NB: The values in these lists have already been deduplicated and sorted at this point, so we can
+    //     interpolate them pairwise.
+    let result = interpolate_scalar_value(property_id, from, to, delta, &[]);
+    if !result.handled || result.value.is_null() {
+        return discrete_value(context, from, to, delta);
+    }
+    result
 }
 
 fn radius_components_equal(first: &StyleValueData, second: &StyleValueData) -> bool {
@@ -807,6 +1302,14 @@ fn interpolate_scalar_value(
     range_overrides: &[NumericRangeOverride],
 ) -> FfiAnimationValueResult {
     match (from, to) {
+        (from_value @ StyleValueData::Keyword { keyword: from }, StyleValueData::Keyword { keyword: to })
+            if from == to =>
+        {
+            FfiAnimationValueResult {
+                value: unsafe { crate::style_value::rust_style_value_retain(from_value) },
+                handled: true,
+            }
+        }
         (StyleValueData::Number { value: from }, StyleValueData::Number { value: to }) => {
             owned(StyleValueData::Number {
                 value: interpolate_f64(
@@ -1389,7 +1892,7 @@ fn interpolate_scalar_value(
                 || !to_denominator.is_finite()
                 || *to_denominator == 0.0
             {
-                return not_handled();
+                return handled_without_value();
             }
 
             // The interpolation of a <ratio> is defined by converting each <ratio> to a number by dividing the first value
@@ -1432,8 +1935,11 @@ fn interpolate_scalar_value(
             let mut values = Vec::with_capacity(from_values.as_slice().len());
             for (from, to) in from_values.as_slice().iter().zip(to_values.as_slice()) {
                 let result = interpolate_scalar_value(property_id, from.data(), to.data(), delta, range_overrides);
-                if !result.handled || result.value.is_null() {
+                if !result.handled {
                     return not_handled();
+                }
+                if result.value.is_null() {
+                    return handled_without_value();
                 }
                 values.push(unsafe { RetainedStyleValueData::from_retained_pointer(result.value) });
             }
@@ -1515,8 +2021,11 @@ fn interpolate_rotate_3d(
     ];
 
     // https://drafts.csswg.org/css-transforms-2/#interpolation-of-transform-functions
-    // If the normalized vectors are equal, or if one of the angles is zero, interpolate the angle
-    // numerically and use the rotation vector of the non-zero angle (or (0, 0, 1) if both are zero).
+    // For interpolations with the primitive rotate3d(), the direction vectors of the transform functions get
+    // normalized first. If the normalized vectors are not equal and both rotation angles are non-zero the
+    // transform functions get converted into 4x4 matrices first and interpolated as defined in section
+    // Interpolation of Matrices afterwards. Otherwise the rotation angle gets interpolated numerically and the
+    // rotation vector of the non-zero angle is used or (0, 0, 1) if both angles are zero.
     let (result_axis, result_angle) = if length(axis_difference) < epsilon || from_angle == 0.0 || to_angle == 0.0 {
         let result_axis = if to_angle != 0.0 {
             to_axis_normalized
@@ -1527,10 +2036,7 @@ fn interpolate_rotate_3d(
         };
         (result_axis, interpolate_f64(from_angle, to_angle, delta, None))
     } else {
-        // If the normalized vectors are not equal and both rotation angles are non-zero, convert to
-        // 4x4 matrices and interpolate as defined in Interpolation of Matrices.
         let to_quaternion = |axis: [f64; 3], angle: f64| {
-            let axis = normalize(axis);
             let half_angle = angle / 2.0;
             let sin_half_angle = half_angle.sin();
             [
@@ -1540,8 +2046,8 @@ fn interpolate_rotate_3d(
                 half_angle.cos(),
             ]
         };
-        let from_quaternion = to_quaternion(from_axis, from_angle);
-        let to_quaternion = to_quaternion(to_axis, to_angle);
+        let from_quaternion = to_quaternion(from_axis_normalized, from_angle);
+        let to_quaternion = to_quaternion(to_axis_normalized, to_angle);
 
         // https://drafts.csswg.org/css-transforms-2/#interpolation-of-decomposed-3d-matrix-values
         let product = from_quaternion
@@ -1607,6 +2113,13 @@ fn retained_zero_px() -> RetainedStyleValueData {
     let value = Arc::into_raw(Arc::new(StyleValueData::Length {
         value: 0.0,
         unit: crate::style_compute::px_length_unit(),
+    }));
+    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+}
+
+fn retained_none_keyword() -> RetainedStyleValueData {
+    let value = Arc::into_raw(Arc::new(StyleValueData::Keyword {
+        keyword: crate::style_compute::none_keyword(),
     }));
     unsafe { RetainedStyleValueData::from_retained_pointer(value) }
 }
@@ -1683,6 +2196,8 @@ fn convert_2d_transform_to_primitive(
     }
 }
 
+// https://drafts.csswg.org/css-transforms-1/#transform-primitives
+// https://drafts.csswg.org/css-transforms-2/#transform-primitives
 fn convert_3d_transform_to_primitive(
     function: u8,
     arguments: &RetainedStyleValueDataList,
@@ -1820,7 +2335,30 @@ fn convert_transform_pair_to_common_primitive(
 }
 
 fn identity_transformation(property: u16, function: u8) -> Option<RetainedStyleValueData> {
+    // https://drafts.csswg.org/css-transforms-1/#identity-transform-function
+    // A transform function that is equivalent to a identity 4x4 matrix (see Mathematical Description of Transform
+    // Functions). Examples for identity transform functions are translate(0), translateX(0), translateY(0), scale(1),
+    // scaleX(1), scaleY(1), rotate(0), skew(0, 0), skewX(0), skewY(0) and matrix(1, 0, 0, 1, 0, 0).
+
+    // https://drafts.csswg.org/css-transforms-2/#identity-transform-function
+    // In addition to the identity transform function in CSS Transforms, examples for identity transform functions
+    // include translate3d(0, 0, 0), translateZ(0), scaleZ(1), rotate3d(1, 1, 1, 0), rotateX(0), rotateY(0), rotateZ(0)
+    // and matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1). A special case is perspective: perspective(none).
+    // The value of m34 becomes infinitesimal small and the transform function is therefore assumed to be equal to the
+    // identity matrix.
     let arguments = match function {
+        TRANSFORM_FUNCTION_MATRIX => vec![
+            retained_number(1.0),
+            retained_number(0.0),
+            retained_number(0.0),
+            retained_number(1.0),
+            retained_number(0.0),
+            retained_number(0.0),
+        ],
+        TRANSFORM_FUNCTION_MATRIX_3D => (0..16)
+            .map(|index| retained_number(if index % 5 == 0 { 1.0 } else { 0.0 }))
+            .collect(),
+        TRANSFORM_FUNCTION_PERSPECTIVE => vec![retained_none_keyword()],
         TRANSFORM_FUNCTION_ROTATE
         | TRANSFORM_FUNCTION_ROTATE_X
         | TRANSFORM_FUNCTION_ROTATE_Y
@@ -1934,6 +2472,7 @@ fn vector_cross(left: [f64; 3], right: [f64; 3]) -> [f64; 3] {
     ]
 }
 
+// https://drafts.csswg.org/css-transforms-1/#supporting-functions
 fn combine_vectors(left: [f64; 3], right: [f64; 3], left_scale: f64, right_scale: f64) -> [f64; 3] {
     std::array::from_fn(|index| left_scale * left[index] + right_scale * right[index])
 }
@@ -1956,6 +2495,8 @@ fn decompose_matrix(mut matrix: Matrix4) -> Option<DecomposedMatrix> {
     let mut perspective_matrix = matrix;
     perspective_matrix[3][..3].fill(0.0);
     perspective_matrix[3][3] = 1.0;
+    // Solve the equation by inverting perspectiveMatrix and multiplying
+    // rightHandSide by the inverse.
     let inverse_perspective_matrix = invert_matrix(perspective_matrix)?;
 
     // First, isolate perspective.
@@ -2107,6 +2648,7 @@ fn recompose_matrix(values: DecomposedMatrix) -> Matrix4 {
     matrix
 }
 
+// https://drafts.csswg.org/css-transforms-2/#interpolation-of-decomposed-3d-matrix-values
 fn slerp_quaternions(from: [f64; 4], to: [f64; 4], delta: f32) -> [f64; 4] {
     let product = from
         .iter()
@@ -2456,20 +2998,19 @@ fn interpolate_transform_list(
             let ([from_argument], [to_argument]) = (from_arguments.as_slice(), to_arguments.as_slice()) else {
                 return None;
             };
-            let (
-                StyleValueData::Length {
-                    value: from_depth,
-                    unit: from_unit,
-                },
-                StyleValueData::Length {
-                    value: to_depth,
-                    unit: to_unit,
-                },
-            ) = (from_argument.data(), to_argument.data())
+            let reciprocal_depth = |argument: &RetainedStyleValueData| match argument.data() {
+                StyleValueData::Length { value, unit } => Some((1.0 / value.max(1.0), Some(*unit))),
+                StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => {
+                    Some((0.0, None))
+                }
+                _ => None,
+            };
+            let (Some((from_reciprocal_depth, from_unit)), Some((to_reciprocal_depth, to_unit))) =
+                (reciprocal_depth(from_argument), reciprocal_depth(to_argument))
             else {
                 return None;
             };
-            if from_unit != to_unit {
+            if from_unit.is_some() && to_unit.is_some() && from_unit != to_unit {
                 return None;
             }
 
@@ -2479,19 +3020,22 @@ fn interpolate_transform_list(
             // OPTIMIZATION: A perspective matrix's only varying component is the negative reciprocal of its depth, so
             //               interpolating that component and inverting it produces the same result without materializing
             //               and decomposing two matrices.
-            let from_reciprocal_depth = 1.0 / from_depth.max(1.0);
-            let to_reciprocal_depth = 1.0 / to_depth.max(1.0);
-            let depth = 1.0 / interpolate_f64(from_reciprocal_depth, to_reciprocal_depth, delta, None);
-            let argument = Arc::into_raw(Arc::new(StyleValueData::Length {
-                value: depth,
-                unit: *from_unit,
-            }));
+            let reciprocal_depth = interpolate_f64(from_reciprocal_depth, to_reciprocal_depth, delta, None);
+            let argument = if reciprocal_depth == 0.0 {
+                retained_none_keyword()
+            } else {
+                let value = Arc::into_raw(Arc::new(StyleValueData::Length {
+                    value: 1.0 / reciprocal_depth,
+                    unit: from_unit
+                        .or(to_unit)
+                        .unwrap_or_else(crate::style_compute::px_length_unit),
+                }));
+                unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+            };
             let transformation = Arc::into_raw(Arc::new(StyleValueData::Transformation {
                 property: *from_property,
                 transform_function: *from_function,
-                values: RetainedStyleValueDataList::from_retained_values(vec![unsafe {
-                    RetainedStyleValueData::from_retained_pointer(argument)
-                }]),
+                values: RetainedStyleValueDataList::from_retained_values(vec![argument]),
             }));
             transformations.push(unsafe { RetainedStyleValueData::from_retained_pointer(transformation) });
             continue;
@@ -2516,6 +3060,9 @@ fn interpolate_transform_list(
                 Err(TransformMatrixInterpolationError::NotConvertible) => return None,
                 Err(TransformMatrixInterpolationError::NonInvertible) => {
                     // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
+                    // In some cases, an animation might cause a transformation matrix to be singular or non-invertible.
+                    // For example, an animation in which scale moves from 1 to -1. At the time when the matrix is in
+                    // such a state, the transformed element is not rendered.
                     // If one of the matrices for interpolation is non-invertible, the used animation function must
                     // fall-back to a discrete animation according to the rules of the respective animation specification.
                     return Some(None);
@@ -2556,10 +3103,22 @@ fn interpolate_transform_list(
 
         let mut arguments = Vec::with_capacity(from_arguments.len());
         for (from, to) in from_arguments.iter().zip(to_arguments) {
-            let result = interpolate_scalar_value(property_id, from.data(), to.data(), delta, &[]);
-            if !result.handled {
-                return None;
+            if matches!(
+                transform_function,
+                TRANSFORM_FUNCTION_TRANSLATE | TRANSFORM_FUNCTION_TRANSLATE_3D
+            ) {
+                arguments.push(interpolate_translate_component(
+                    property_id,
+                    from.data(),
+                    to.data(),
+                    delta,
+                )?);
+                continue;
             }
+            let result = interpolate_scalar_value(property_id, from.data(), to.data(), delta, &[]);
+            if !result.handled || result.value.is_null() {
+                return None;
+            };
             arguments.push(unsafe { RetainedStyleValueData::from_retained_pointer(result.value) });
         }
         let transformation = Arc::into_raw(Arc::new(StyleValueData::Transformation {
@@ -2585,7 +3144,16 @@ fn interpolate_value(
     delta: f32,
 ) -> FfiAnimationValueResult {
     let animation_type = property_animation_type(property_id);
-    if animation_type == ANIMATION_TYPE_REPEATABLE_LIST
+    let is_stroke_dasharray = animation_type == ANIMATION_TYPE_CUSTOM
+        && property_id == crate::property_metadata::property_id::STROKE_DASHARRAY;
+    if is_stroke_dasharray
+        && (!matches!(from, StyleValueData::ValueList { .. }) || !matches!(to, StyleValueData::ValueList { .. }))
+    {
+        // https://svgwg.org/svg2-draft/painting.html#StrokeDashing
+        // If either start or end compute to none or are invalid, start or end are combined using the discrete animation type.
+        return discrete_value(context, from, to, delta);
+    }
+    if (animation_type == ANIMATION_TYPE_REPEATABLE_LIST || is_stroke_dasharray)
         && let (
             StyleValueData::ValueList {
                 values: from_values,
@@ -2595,7 +3163,10 @@ fn interpolate_value(
             StyleValueData::ValueList { values: to_values, .. },
         ) = (from, to)
     {
-        // https://www.w3.org/TR/web-animations/#repeatable-list
+        // https://svgwg.org/svg2-draft/painting.html#StrokeDashing
+        // Otherwise, repeat both dash patterns of start and end value list until the length of elements in
+        // both value lists match. Each item is then combined by computed value.
+        // https://drafts.csswg.org/web-animations-1/#repeatable-list
         // Same as by computed value except that if the two lists have differing numbers of items, they are first repeated to the least common multiple number of items.
         // Each item is then combined by computed value.
         // If a pair of values cannot be combined or if any component value uses discrete animation, then the property values combine as discrete.
@@ -2696,6 +3267,31 @@ fn interpolate_value(
             font_style,
             angle_value,
         });
+    }
+    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::VISIBILITY {
+        return interpolate_visibility(context, from, to, delta);
+    }
+    if animation_type == ANIMATION_TYPE_CUSTOM
+        && property_id == crate::property_metadata::property_id::CONTENT_VISIBILITY
+    {
+        return interpolate_content_visibility(context, from, to, delta);
+    }
+    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::DISPLAY {
+        return interpolate_display(context, from, to, delta);
+    }
+    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::SCALE {
+        return interpolate_scale(from, to, delta);
+    }
+    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::TRANSLATE {
+        return interpolate_translate(from, to, delta);
+    }
+    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::ROTATE {
+        return interpolate_individual_rotate(from, to, delta);
+    }
+    if animation_type == ANIMATION_TYPE_CUSTOM
+        && property_id == crate::property_metadata::property_id::FONT_VARIATION_SETTINGS
+    {
+        return interpolate_font_variation_settings(context, property_id, from, to, delta);
     }
     if animation_type == ANIMATION_TYPE_CUSTOM
         && property_id == crate::property_metadata::property_id::TRANSFORM

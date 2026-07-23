@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 82 tests
 
-76 Pass
-6 Fail
+80 Pass
+2 Fail
 Pass	Interpolation between translateX(0px) and translateX(50px) gives the correct computed value halfway according to computedStyleMap.
 Pass	Interpolation between translateX(0px) and translateX(50px) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Pass	Interpolation between translateX(0%) and translateX(50%) gives the correct computed value halfway according to computedStyleMap.
@@ -76,10 +76,10 @@ Pass	Interpolation between skew(45deg, 0deg) and skew(0deg, 45deg) gives the cor
 Pass	Interpolation between skew(45deg, 0deg) and skew(0deg, 45deg) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Pass	Interpolation between perspective(10px) and perspective(2.5px) gives the correct computed value halfway according to computedStyleMap.
 Pass	Interpolation between perspective(10px) and perspective(2.5px) gives the correct computed value halfway according to computedStyleMap with zoom active.
-Fail	Interpolation between perspective(10px) and perspective(none) gives the correct computed value halfway according to computedStyleMap.
-Fail	Interpolation between perspective(10px) and perspective(none) gives the correct computed value halfway according to computedStyleMap with zoom active.
-Fail	Interpolation between perspective(none) and perspective(none) gives the correct computed value halfway according to computedStyleMap.
-Fail	Interpolation between perspective(none) and perspective(none) gives the correct computed value halfway according to computedStyleMap with zoom active.
+Pass	Interpolation between perspective(10px) and perspective(none) gives the correct computed value halfway according to computedStyleMap.
+Pass	Interpolation between perspective(10px) and perspective(none) gives the correct computed value halfway according to computedStyleMap with zoom active.
+Pass	Interpolation between perspective(none) and perspective(none) gives the correct computed value halfway according to computedStyleMap.
+Pass	Interpolation between perspective(none) and perspective(none) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Pass	Interpolation between matrix(2, 0, 0, 2, 10, 30) and matrix(4, 0, 0, 6, 14, 10) gives the correct computed value halfway according to computedStyleMap.
 Pass	Interpolation between matrix(2, 0, 0, 2, 10, 30) and matrix(4, 0, 0, 6, 14, 10) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Pass	Interpolation between matrix3d(1, 0, 0, 0, 0, 4, 0, 0, 0, 0, 1, 0, 5, 10, 4, 1) and matrix3d(3, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, -11, 2, 2, 1) gives the correct computed value halfway according to computedStyleMap.
