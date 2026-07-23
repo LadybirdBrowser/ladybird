@@ -61,18 +61,29 @@ public:
     bool is_repeating() const { return m_value->conic_gradient.repeating; }
 
 private:
+    friend class StyleValue;
+
     ConicGradientStyleValue(ValueComparingRefPtr<StyleValue const> from_angle, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, ValueComparingRefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::ConicGradient, make_conic_gradient_data(from_angle, position, color_stop_list, repeating, color_interpolation_method, color_syntax))
+        , m_from_angle(move(from_angle))
+        , m_position(move(position))
+        , m_color_interpolation_method(move(color_interpolation_method))
     {
     }
 
+    explicit ConicGradientStyleValue(StyleValueFFI::StyleValueData const*);
+
     static StyleValueFFI::StyleValueData const* make_conic_gradient_data(RefPtr<StyleValue const> const&, NonnullRefPtr<PositionStyleValue const> const&, Vector<ColorStopListElement> const&, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
 
-    ValueComparingRefPtr<StyleValue const> from_angle_value() const { return static_cast<StyleValue const*>(m_value->conic_gradient.from_angle.pointer); }
+    ValueComparingRefPtr<StyleValue const> from_angle_value() const { return m_from_angle; }
     ColorSyntax gradient_color_syntax() const { return static_cast<ColorSyntax>(m_value->conic_gradient.color_syntax); }
-    ValueComparingNonnullRefPtr<PositionStyleValue const> position_value() const { return *static_cast<PositionStyleValue const*>(m_value->conic_gradient.position.pointer); }
+    ValueComparingNonnullRefPtr<PositionStyleValue const> position_value() const { return m_position; }
 
-    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return static_cast<StyleValue const*>(m_value->conic_gradient.color_interpolation_method.pointer); }
+    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return m_color_interpolation_method; }
+
+    ValueComparingRefPtr<StyleValue const> m_from_angle;
+    ValueComparingNonnullRefPtr<PositionStyleValue const> m_position;
+    ValueComparingRefPtr<StyleValue const> m_color_interpolation_method;
 
     mutable Optional<CSSPixelSize> m_resolved_size;
 

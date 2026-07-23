@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/WindingRule.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/AnchorSizeStyleValue.h>
@@ -12,6 +13,7 @@
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusRectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
@@ -21,6 +23,7 @@
 #include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
@@ -38,7 +41,10 @@
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
@@ -46,6 +52,7 @@
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TupleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 
 // These tests build separately-allocated style values with equal (or deliberately unequal)
 // contents and check that StyleValue::equals() compares by value, not by pointer identity.
@@ -190,6 +197,40 @@ TEST_CASE(rust_scalar_handles_create_typed_wrappers)
     EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_counter_style(false, Utf16FlyString::from_utf8("decimal"sv).to_raw_leaked(), 0, nullptr, 0))->is_counter_style());
 }
 
+TEST_CASE(rust_style_value_handles_outlive_original_shells)
+{
+    auto handle = [] {
+        auto original = NumberStyleValue::create(42);
+        return RustStyleValueHandle { StyleValueFFI::rust_style_value_retain(original->rust_style_value_data()) };
+    }();
+    auto copied_handle = handle;
+
+    auto wrapper = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(copied_handle.data()));
+    EXPECT(wrapper->is_number());
+    EXPECT_EQ(wrapper->as_number().number(), 42);
+    EXPECT_EQ(handle, copied_handle);
+}
+
+TEST_CASE(rust_handles_create_every_remaining_typed_wrapper)
+{
+    auto expect_type = [](StyleValueFFI::StyleValueData const* data, StyleValue::Type type) {
+        EXPECT_EQ(StyleValue::adopt_rust_style_value_data(data)->type(), type);
+    };
+
+    expect_type(StyleValueFFI::rust_style_value_create_color_scheme(nullptr, nullptr, 0, false), StyleValue::Type::ColorScheme);
+    expect_type(StyleValueFFI::rust_style_value_create_display(0), StyleValue::Type::Display);
+    expect_type(StyleValueFFI::rust_style_value_create_empty_optional(), StyleValue::Type::EmptyOptional);
+    expect_type(StyleValueFFI::rust_style_value_create_grid_auto_flow(true, false), StyleValue::Type::GridAutoFlow);
+    expect_type(StyleValueFFI::rust_style_value_create_grid_template_area(nullptr, 0, 0, 0), StyleValue::Type::GridTemplateArea);
+    expect_type(StyleValueFFI::rust_style_value_create_guaranteed_invalid(), StyleValue::Type::GuaranteedInvalid);
+    expect_type(StyleValueFFI::rust_style_value_create_repeat_style(0, 0), StyleValue::Type::RepeatStyle);
+    expect_type(StyleValueFFI::rust_style_value_create_scrollbar_gutter(0), StyleValue::Type::ScrollbarGutter);
+    expect_type(StyleValueFFI::rust_style_value_create_shorthand(0, nullptr, 0, nullptr, 0), StyleValue::Type::Shorthand);
+    expect_type(StyleValueFFI::rust_style_value_create_text_underline_position(0, 0), StyleValue::Type::TextUnderlinePosition);
+    expect_type(StyleValueFFI::rust_style_value_create_unicode_range(0, 0), StyleValue::Type::UnicodeRange);
+    expect_type(StyleValueFFI::rust_style_value_create_url(MUST(String::from_utf8("https://example.com/"sv)).to_raw_leaked(), 0, nullptr, 0), StyleValue::Type::URL);
+}
+
 TEST_CASE(rust_transformation_handles_retain_child_data)
 {
     auto data = [] {
@@ -231,6 +272,28 @@ TEST_CASE(rust_value_list_handles_retain_child_data)
 
     EXPECT(child->is_number());
     EXPECT_EQ(child->as_number().number(), 3);
+}
+
+TEST_CASE(rust_shorthand_handles_retain_child_data)
+{
+    auto data = [] {
+        auto child = NumberStyleValue::create(4);
+        Array properties { to_underlying(PropertyID::MarginTop) };
+        Array values { StyleValueFFI::rust_style_value_retain(child->rust_style_value_data()) };
+        return StyleValueFFI::rust_style_value_create_shorthand(
+            to_underlying(PropertyID::Margin), properties.data(), properties.size(), values.data(), values.size());
+    }();
+
+    auto child = [&] {
+        auto shorthand = StyleValue::adopt_rust_style_value_data(data);
+        EXPECT(shorthand->is_shorthand());
+        auto values = shorthand->as_shorthand().values();
+        EXPECT_EQ(values.size(), 1u);
+        return values[0];
+    }();
+
+    EXPECT(child->is_number());
+    EXPECT_EQ(child->as_number().number(), 4);
 }
 
 TEST_CASE(rust_tuple_handles_retain_optional_child_data)
@@ -758,6 +821,448 @@ TEST_CASE(rust_pending_substitution_handles_retain_shorthand_data)
     RefPtr<StyleValue const> retained_shorthand = pending->as_pending_substitution().original_shorthand_value();
     pending = KeywordStyleValue::create(Keyword::None);
     EXPECT_EQ(retained_shorthand->to_string(SerializationMode::Normal), "1"sv);
+}
+
+TEST_CASE(rust_radial_size_handles_retain_component_data)
+{
+    auto horizontal = LengthStyleValue::create(Length::make_px(10));
+    auto vertical = LengthStyleValue::create(Length::make_px(20));
+    auto data = StyleValueFFI::rust_style_value_create_radial_size(
+        2,
+        false,
+        0,
+        StyleValueFFI::rust_style_value_retain(horizontal->rust_style_value_data()),
+        false,
+        0,
+        StyleValueFFI::rust_style_value_retain(vertical->rust_style_value_data()));
+
+    horizontal = LengthStyleValue::create(Length::make_px(30));
+    vertical = LengthStyleValue::create(Length::make_px(40));
+    auto size = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(size->is_radial_size());
+    auto components = size->as_radial_size().components();
+    size = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(components[0].get<NonnullRefPtr<StyleValue const>>()->to_string(SerializationMode::Normal), "10px"sv);
+    EXPECT_EQ(components[1].get<NonnullRefPtr<StyleValue const>>()->to_string(SerializationMode::Normal), "20px"sv);
+}
+
+TEST_CASE(rust_shadow_handles_retain_child_data)
+{
+    auto offset_x = LengthStyleValue::create(Length::make_px(1));
+    auto offset_y = LengthStyleValue::create(Length::make_px(2));
+    auto blur_radius = LengthStyleValue::create(Length::make_px(3));
+    auto spread_distance = LengthStyleValue::create(Length::make_px(4));
+    auto data = StyleValueFFI::rust_style_value_create_shadow(
+        to_underlying(ShadowStyleValue::ShadowType::Normal),
+        nullptr,
+        StyleValueFFI::rust_style_value_retain(offset_x->rust_style_value_data()),
+        StyleValueFFI::rust_style_value_retain(offset_y->rust_style_value_data()),
+        StyleValueFFI::rust_style_value_retain(blur_radius->rust_style_value_data()),
+        StyleValueFFI::rust_style_value_retain(spread_distance->rust_style_value_data()),
+        to_underlying(ShadowPlacement::Outer));
+
+    offset_x = LengthStyleValue::create(Length::make_px(5));
+    offset_y = LengthStyleValue::create(Length::make_px(6));
+    blur_radius = LengthStyleValue::create(Length::make_px(7));
+    spread_distance = LengthStyleValue::create(Length::make_px(8));
+    auto shadow = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(shadow->is_shadow());
+    auto retained_offset_x = shadow->as_shadow().offset_x();
+    auto retained_offset_y = shadow->as_shadow().offset_y();
+    auto retained_blur_radius = shadow->as_shadow().blur_radius_or_null();
+    auto retained_spread_distance = shadow->as_shadow().spread_distance_or_null();
+    shadow = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_offset_x->to_string(SerializationMode::Normal), "1px"sv);
+    EXPECT_EQ(retained_offset_y->to_string(SerializationMode::Normal), "2px"sv);
+    EXPECT_EQ(retained_blur_radius->to_string(SerializationMode::Normal), "3px"sv);
+    EXPECT_EQ(retained_spread_distance->to_string(SerializationMode::Normal), "4px"sv);
+}
+
+TEST_CASE(rust_filter_handles_retain_child_data)
+{
+    auto shadow = ShadowStyleValue::create(
+        ShadowStyleValue::ShadowType::Text,
+        nullptr,
+        LengthStyleValue::create(Length::make_px(1)),
+        LengthStyleValue::create(Length::make_px(2)),
+        LengthStyleValue::create(Length::make_px(3)),
+        nullptr,
+        ShadowPlacement::Outer);
+    auto data = StyleValueFFI::rust_style_value_create_filter(
+        to_underlying(FilterStyleValue::Kind::DropShadow),
+        0,
+        StyleValueFFI::rust_style_value_retain(shadow->rust_style_value_data()));
+
+    shadow = ShadowStyleValue::create(
+        ShadowStyleValue::ShadowType::Text,
+        nullptr,
+        LengthStyleValue::create(Length::make_px(4)),
+        LengthStyleValue::create(Length::make_px(5)),
+        LengthStyleValue::create(Length::make_px(6)),
+        nullptr,
+        ShadowPlacement::Outer);
+    auto filter = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(filter->is_filter());
+    auto retained_shadow = static_cast<DropShadowFilterStyleValue const&>(filter->as_filter()).shadow_style_value();
+    filter = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_shadow->to_string(SerializationMode::Normal), "1px 2px 3px"sv);
+}
+
+TEST_CASE(rust_calculated_handles_create_typed_wrappers)
+{
+    NumericType resolved_type { NumericType::BaseType::Length, 1 };
+    auto resolved_type_bytes = bit_cast<Array<u8, sizeof(NumericType)>>(resolved_type);
+    auto data = StyleValueFFI::rust_style_value_create_calculated(
+        StyleValueFFI::rust_calc_node_create_numeric_dimension(4, 10, to_underlying(LengthUnit::Px)),
+        resolved_type_bytes.data(),
+        resolved_type_bytes.size(),
+        false,
+        false,
+        0,
+        0,
+        false,
+        nullptr,
+        0);
+
+    auto calculated = StyleValue::adopt_rust_style_value_data(data);
+    auto retained_data = StyleValueFFI::rust_style_value_retain(calculated->rust_style_value_data());
+    calculated = KeywordStyleValue::create(Keyword::None);
+
+    auto retained_calculated = StyleValue::adopt_rust_style_value_data(retained_data);
+    EXPECT(retained_calculated->is_calculated());
+    EXPECT_EQ(retained_calculated->to_string(SerializationMode::Normal), "calc(10px)"sv);
+}
+
+TEST_CASE(rust_custom_property_stores_retain_value_data)
+{
+    auto name = Utf16FlyString::from_utf8("--value"sv);
+    auto name_utf8 = MUST(name.view().to_utf8());
+    auto name_raw = name.to_raw_leaked();
+    ComputedValuesFFI::FfiCustomPropertyStoreEntry entry {
+        .name_raw = name_raw,
+        .name_utf8 = name_utf8.bytes().data(),
+        .name_utf8_length = name_utf8.bytes().size(),
+        .important = false,
+        .data = StyleValueFFI::rust_style_value_create_number(1),
+    };
+    auto const* store = ComputedValuesFFI::rust_custom_property_store_create(&entry, 1, nullptr);
+    auto result = ComputedValuesFFI::rust_custom_property_store_get(store, name_raw);
+    EXPECT(result.found);
+    auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+        static_cast<StyleValueFFI::StyleValueData const*>(result.data)));
+    ComputedValuesFFI::rust_custom_property_store_destroy(store);
+    EXPECT_EQ(value->to_string(SerializationMode::Normal), "1"sv);
+}
+
+TEST_CASE(rust_calculation_nodes_retain_style_value_data)
+{
+    auto random = StyleValueFFI::rust_calc_node_create_random(
+        StyleValueFFI::rust_calc_node_create_numeric_dimension(0, 0, 0),
+        StyleValueFFI::rust_calc_node_create_numeric_dimension(0, 1, 0),
+        nullptr,
+        StyleValueFFI::rust_style_value_create_random_value_sharing(
+            StyleValueFFI::rust_style_value_create_number(0.25), false, false, 0, false));
+    auto const* sharing_data = static_cast<StyleValueFFI::StyleValueData const*>(
+        StyleValueFFI::rust_calc_node_style_value(random));
+    auto sharing = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(sharing_data));
+    StyleValueFFI::rust_calc_node_release(random);
+    EXPECT(sharing->is_random_value_sharing());
+    EXPECT_EQ(sharing->to_string(SerializationMode::Normal), "fixed 0.25"sv);
+
+    StyleValueFFI::FfiNumericType numeric_type {};
+    auto function = StyleValueFFI::rust_calc_node_create_non_math_function(
+        StyleValueFFI::rust_style_value_create_tree_counting_function(0, 0), &numeric_type);
+    auto const* function_data = static_cast<StyleValueFFI::StyleValueData const*>(
+        StyleValueFFI::rust_calc_node_style_value(function));
+    auto tree_counting_function = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_retain(function_data));
+    StyleValueFFI::rust_calc_node_release(function);
+    EXPECT(tree_counting_function->is_tree_counting_function());
+    EXPECT_EQ(tree_counting_function->to_string(SerializationMode::Normal), "sibling-count()"sv);
+}
+
+TEST_CASE(rust_basic_shape_handles_retain_polygon_point_data)
+{
+    auto x = LengthStyleValue::create(Length::make_px(1));
+    auto y = LengthStyleValue::create(Length::make_px(2));
+    StyleValueFFI::RetainedShapePoint point {
+        { StyleValueFFI::rust_style_value_retain(x->rust_style_value_data()) },
+        { StyleValueFFI::rust_style_value_retain(y->rust_style_value_data()) },
+    };
+    auto data = StyleValueFFI::rust_style_value_create_basic_shape(5, nullptr, nullptr, nullptr, nullptr, nullptr, to_underlying(Gfx::WindingRule::Nonzero), &point, 1, 0);
+
+    x = LengthStyleValue::create(Length::make_px(3));
+    y = LengthStyleValue::create(Length::make_px(4));
+    auto shape = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(shape->is_basic_shape());
+    auto const& retained_point = shape->rust_style_value_data()->basic_shape.points.pointer[0];
+    auto point_x = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(retained_point.x.pointer)));
+    auto point_y = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(retained_point.y.pointer)));
+    shape = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(point_x->to_string(SerializationMode::Normal), "1px"sv);
+    EXPECT_EQ(point_y->to_string(SerializationMode::Normal), "2px"sv);
+}
+
+TEST_CASE(rust_counter_definition_handles_retain_value_data)
+{
+    auto value = IntegerStyleValue::create(2);
+    StyleValueFFI::RetainedCounterDefinition definition {
+        { Utf16FlyString::from_utf8("item"sv).to_raw_leaked() },
+        false,
+        { StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()) },
+    };
+    auto data = StyleValueFFI::rust_style_value_create_counter_definitions(&definition, 1);
+
+    value = IntegerStyleValue::create(3);
+    auto definitions = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(definitions->is_counter_definitions());
+    auto retained_value = definitions->as_counter_definitions().counter_definitions()[0].value;
+    definitions = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_value->to_string(SerializationMode::Normal), "2"sv);
+}
+
+TEST_CASE(rust_easing_handles_retain_linear_stop_data)
+{
+    auto output = NumberStyleValue::create(1);
+    auto input = PercentageStyleValue::create(Percentage { 50 });
+    StyleValueFFI::RetainedLinearEasingStop stop {
+        { StyleValueFFI::rust_style_value_retain(output->rust_style_value_data()) },
+        { StyleValueFFI::rust_style_value_retain(input->rust_style_value_data()) },
+    };
+    auto data = StyleValueFFI::rust_style_value_create_easing(0, &stop, 1, nullptr, nullptr, nullptr, nullptr, nullptr, 0);
+
+    output = NumberStyleValue::create(2);
+    input = PercentageStyleValue::create(Percentage { 75 });
+    auto easing = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(easing->is_easing());
+    EXPECT_EQ(easing->to_string(SerializationMode::Normal), "linear(1 50%)"sv);
+    auto const& retained_stop = easing->rust_style_value_data()->easing.linear_stops.pointer[0];
+    auto retained_output = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(retained_stop.output.pointer)));
+    easing = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_output->to_string(SerializationMode::Normal), "1"sv);
+}
+
+TEST_CASE(rust_color_function_handles_retain_channel_data)
+{
+    auto channel_0 = NumberStyleValue::create(0.1);
+    auto channel_1 = NumberStyleValue::create(0.2);
+    auto channel_2 = NumberStyleValue::create(0.3);
+    auto data = StyleValueFFI::rust_style_value_create_color_function(
+        true, to_underlying(ColorStyleValue::ColorType::sRGB), to_underlying(ColorSyntax::Modern),
+        StyleValueFFI::rust_style_value_retain(channel_0->rust_style_value_data()),
+        StyleValueFFI::rust_style_value_retain(channel_1->rust_style_value_data()),
+        StyleValueFFI::rust_style_value_retain(channel_2->rust_style_value_data()),
+        nullptr, false, 0, nullptr);
+
+    channel_0 = NumberStyleValue::create(0.4);
+    channel_1 = NumberStyleValue::create(0.5);
+    channel_2 = NumberStyleValue::create(0.6);
+    auto color = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(color->is_color_function());
+    auto const* retained_channel_data = static_cast<StyleValueFFI::StyleValueData const*>(
+        color->rust_style_value_data()->color_function.channel_0.pointer);
+    auto retained_channel = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(retained_channel_data));
+    color = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_channel->to_string(SerializationMode::Normal), "0.1"sv);
+}
+
+TEST_CASE(rust_color_mix_handles_retain_component_data)
+{
+    auto make_color = [](double red) {
+        return ColorFunctionStyleValue::create(
+            ColorStyleValue::ColorType::sRGB,
+            NumberStyleValue::create(red), NumberStyleValue::create(0), NumberStyleValue::create(0));
+    };
+    auto first = make_color(0.1);
+    auto second = make_color(0.2);
+    auto data = StyleValueFFI::rust_style_value_create_color_mix(
+        false, 0, to_underlying(ColorSyntax::Modern), nullptr,
+        StyleValueFFI::rust_style_value_retain(first->rust_style_value_data()), nullptr,
+        StyleValueFFI::rust_style_value_retain(second->rust_style_value_data()), nullptr);
+
+    first = make_color(0.3);
+    second = make_color(0.4);
+    auto color_mix = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(color_mix->is_color());
+    EXPECT_EQ(color_mix->rust_style_value_data()->tag, StyleValueFFI::StyleValueData::Tag::ColorMix);
+    auto const* retained_color_data = static_cast<StyleValueFFI::StyleValueData const*>(
+        color_mix->rust_style_value_data()->color_mix.first_color.pointer);
+    auto retained_color = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(retained_color_data));
+    color_mix = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_color->to_string(SerializationMode::Normal), "color(srgb 0.1 0 0)"sv);
+}
+
+TEST_CASE(rust_gradient_color_stop_handles_retain_data)
+{
+    auto color = ColorFunctionStyleValue::create(
+        ColorStyleValue::ColorType::sRGB,
+        NumberStyleValue::create(0.1), NumberStyleValue::create(0.2), NumberStyleValue::create(0.3));
+    StyleValueFFI::RetainedColorStop stop {
+        { nullptr },
+        { StyleValueFFI::rust_style_value_retain(color->rust_style_value_data()) },
+        { nullptr },
+        { nullptr },
+    };
+    auto gradient_data = StyleValueFFI::rust_style_value_create_linear_gradient(
+        false, nullptr, 0, &stop, 1, 0, false, nullptr, to_underlying(ColorSyntax::Modern));
+    color = ColorFunctionStyleValue::create(
+        ColorStyleValue::ColorType::sRGB,
+        NumberStyleValue::create(0.4), NumberStyleValue::create(0.5), NumberStyleValue::create(0.6));
+    auto const* color_data = static_cast<StyleValueFFI::StyleValueData const*>(
+        gradient_data->linear_gradient.color_stop_list.pointer[0].color.pointer);
+    auto retained_color = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(color_data));
+    StyleValueFFI::rust_style_value_release(gradient_data);
+    EXPECT_EQ(retained_color->to_string(SerializationMode::Normal), "color(srgb 0.1 0.2 0.3)"sv);
+}
+
+TEST_CASE(rust_linear_gradient_handles_retain_direction_data)
+{
+    auto direction = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_create_angle(45, to_underlying(AngleUnit::Deg)));
+    auto color = ColorFunctionStyleValue::create(
+        ColorStyleValue::ColorType::sRGB,
+        NumberStyleValue::create(0.1), NumberStyleValue::create(0.2), NumberStyleValue::create(0.3));
+    StyleValueFFI::RetainedColorStop stop {
+        { nullptr },
+        { StyleValueFFI::rust_style_value_retain(color->rust_style_value_data()) },
+        { nullptr },
+        { nullptr },
+    };
+    auto data = StyleValueFFI::rust_style_value_create_linear_gradient(
+        true, StyleValueFFI::rust_style_value_retain(direction->rust_style_value_data()), 0,
+        &stop, 1, 0, false, nullptr, to_underlying(ColorSyntax::Modern));
+
+    direction = KeywordStyleValue::create(Keyword::None);
+    auto gradient = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(gradient->is_linear_gradient());
+    auto const* retained_direction_data = static_cast<StyleValueFFI::StyleValueData const*>(
+        gradient->rust_style_value_data()->linear_gradient.direction_value.pointer);
+    auto retained_direction = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_retain(retained_direction_data));
+    gradient = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_direction->to_string(SerializationMode::Normal), "45deg"sv);
+}
+
+TEST_CASE(rust_conic_gradient_handles_retain_position_data)
+{
+    ValueComparingNonnullRefPtr<StyleValue const> position = PositionStyleValue::create_center();
+    auto color = ColorFunctionStyleValue::create(
+        ColorStyleValue::ColorType::sRGB,
+        NumberStyleValue::create(0.1), NumberStyleValue::create(0.2), NumberStyleValue::create(0.3));
+    StyleValueFFI::RetainedColorStop stop {
+        { nullptr },
+        { StyleValueFFI::rust_style_value_retain(color->rust_style_value_data()) },
+        { nullptr },
+        { nullptr },
+    };
+    auto data = StyleValueFFI::rust_style_value_create_conic_gradient(
+        nullptr, StyleValueFFI::rust_style_value_retain(position->rust_style_value_data()),
+        &stop, 1, false, nullptr, to_underlying(ColorSyntax::Modern));
+
+    position = KeywordStyleValue::create(Keyword::None);
+    auto gradient = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(gradient->is_conic_gradient());
+    auto const* retained_position_data = static_cast<StyleValueFFI::StyleValueData const*>(
+        gradient->rust_style_value_data()->conic_gradient.position.pointer);
+    auto retained_position = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_retain(retained_position_data));
+    gradient = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_position->to_string(SerializationMode::Normal), "center center"sv);
+}
+
+TEST_CASE(rust_radial_gradient_handles_retain_size_data)
+{
+    ValueComparingNonnullRefPtr<StyleValue const> size = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_create_radial_size(
+            1, false, 0, StyleValueFFI::rust_style_value_create_length(10, to_underlying(LengthUnit::Px)),
+            false, 0, nullptr));
+    auto position = PositionStyleValue::create_center();
+    auto color = ColorFunctionStyleValue::create(
+        ColorStyleValue::ColorType::sRGB,
+        NumberStyleValue::create(0.1), NumberStyleValue::create(0.2), NumberStyleValue::create(0.3));
+    StyleValueFFI::RetainedColorStop stop {
+        { nullptr },
+        { StyleValueFFI::rust_style_value_retain(color->rust_style_value_data()) },
+        { nullptr },
+        { nullptr },
+    };
+    auto data = StyleValueFFI::rust_style_value_create_radial_gradient(
+        0, StyleValueFFI::rust_style_value_retain(size->rust_style_value_data()),
+        StyleValueFFI::rust_style_value_retain(position->rust_style_value_data()),
+        &stop, 1, false, nullptr, to_underlying(ColorSyntax::Modern));
+
+    size = KeywordStyleValue::create(Keyword::None);
+    auto gradient = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(gradient->is_radial_gradient());
+    auto const* retained_size_data = static_cast<StyleValueFFI::StyleValueData const*>(
+        gradient->rust_style_value_data()->radial_gradient.size.pointer);
+    auto retained_size = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_retain(retained_size_data));
+    gradient = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_size->to_string(SerializationMode::Normal), "10px"sv);
+}
+
+TEST_CASE(rust_grid_track_list_handles_retain_size_data)
+{
+    auto size = LengthStyleValue::create(Length::make_px(10));
+    StyleValueFFI::GridTrackEntryInput entry {};
+    entry.kind = StyleValueFFI::GridTrackEntryKind::Size;
+    entry.size_value = StyleValueFFI::rust_style_value_retain(size->rust_style_value_data());
+    auto data = StyleValueFFI::rust_style_value_create_grid_track_size_list(false, false, &entry, 1);
+
+    size = LengthStyleValue::create(Length::make_px(20));
+    auto list = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(list->is_grid_track_size_list());
+    auto const* retained_size_data = static_cast<StyleValueFFI::StyleValueData const*>(
+        list->rust_style_value_data()->grid_track_size_list.entries.pointer[0].size_value.pointer);
+    auto retained_size = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_retain(retained_size_data));
+    list = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_size->to_string(SerializationMode::Normal), "10px"sv);
+}
+
+TEST_CASE(rust_image_handles_create_typed_wrappers)
+{
+    auto image = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_create_image("image.png"_string.to_raw_leaked(), 0, nullptr, 0));
+    EXPECT(image->is_image());
+    EXPECT_EQ(image->to_string(SerializationMode::Normal), "url(\"image.png\")"sv);
+}
+
+TEST_CASE(rust_cursor_handles_retain_image_data)
+{
+    auto data = StyleValueFFI::rust_style_value_create_cursor(
+        StyleValueFFI::rust_style_value_create_image("cursor.png"_string.to_raw_leaked(), 0, nullptr, 0),
+        nullptr, nullptr);
+    auto cursor = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(cursor->is_cursor());
+    auto const* retained_image_data = static_cast<StyleValueFFI::StyleValueData const*>(
+        cursor->rust_style_value_data()->cursor.image.pointer);
+    auto image = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_retain(retained_image_data));
+    cursor = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(image->to_string(SerializationMode::Normal), "url(\"cursor.png\")"sv);
+}
+
+TEST_CASE(rust_image_set_handles_retain_option_data)
+{
+    StyleValueFFI::RetainedImageSetOption option {
+        { StyleValueFFI::rust_style_value_create_image("candidate.png"_string.to_raw_leaked(), 0, nullptr, 0) },
+        { StyleValueFFI::rust_style_value_create_resolution(1, 0) },
+        false,
+        { 0 },
+    };
+    auto image_set = StyleValue::adopt_rust_style_value_data(
+        StyleValueFFI::rust_style_value_create_image_set(&option, 1));
+    EXPECT(image_set->is_image_set());
+    auto const* image_data = static_cast<StyleValueFFI::StyleValueData const*>(
+        image_set->rust_style_value_data()->image_set.options.pointer[0].image.pointer);
+    auto image = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(image_data));
+    image_set = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(image->to_string(SerializationMode::Normal), "url(\"candidate.png\")"sv);
 }
 
 TEST_CASE(rust_interpolates_font_style_values)

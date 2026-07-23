@@ -20,9 +20,31 @@ StyleValueFFI::StyleValueData const* ConicGradientStyleValue::make_conic_gradien
     // The Rust allocation takes ownership of one strong reference to each non-null value.
     auto stops = retain_color_stops_for_rust(color_stop_list);
     return StyleValueFFI::rust_style_value_create_conic_gradient(
-        retain_style_value_for_rust(from_angle.ptr()), retain_style_value_for_rust(position.ptr()),
+        from_angle ? StyleValueFFI::rust_style_value_retain(from_angle->rust_style_value_data()) : nullptr,
+        StyleValueFFI::rust_style_value_retain(position->rust_style_value_data()),
         stops.data(), stops.size(), repeating == GradientRepeating::Yes,
-        retain_style_value_for_rust(color_interpolation_method.ptr()), to_underlying(color_syntax));
+        color_interpolation_method ? StyleValueFFI::rust_style_value_retain(color_interpolation_method->rust_style_value_data()) : nullptr,
+        to_underlying(color_syntax));
+}
+
+ConicGradientStyleValue::ConicGradientStyleValue(StyleValueFFI::StyleValueData const* data)
+    : AbstractImageStyleValue(Type::ConicGradient, data)
+    , m_from_angle([&]() -> ValueComparingRefPtr<StyleValue const> {
+        auto const* angle_data = static_cast<StyleValueFFI::StyleValueData const*>(data->conic_gradient.from_angle.pointer);
+        if (!angle_data)
+            return nullptr;
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(angle_data));
+    }())
+    , m_position(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+                                                             static_cast<StyleValueFFI::StyleValueData const*>(data->conic_gradient.position.pointer)))
+              ->as_position())
+    , m_color_interpolation_method([&]() -> ValueComparingRefPtr<StyleValue const> {
+        auto const* method_data = static_cast<StyleValueFFI::StyleValueData const*>(data->conic_gradient.color_interpolation_method.pointer);
+        if (!method_data)
+            return nullptr;
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(method_data));
+    }())
+{
 }
 
 void ConicGradientStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const

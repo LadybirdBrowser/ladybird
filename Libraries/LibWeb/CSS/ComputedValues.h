@@ -41,6 +41,7 @@
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
@@ -1119,8 +1120,8 @@ public:
     FontVariantEmoji font_variant_emoji() const { return m_inherited.font->font_variant_emoji; }
     CSSPixels const& word_spacing() const { return m_inherited.text->word_spacing; }
     CSSPixels letter_spacing() const { return m_inherited.text->letter_spacing; }
-    RefPtr<StyleValue const> word_spacing_style_value() const { return m_inherited.text->word_spacing_style_value; }
-    RefPtr<StyleValue const> letter_spacing_style_value() const { return m_inherited.text->letter_spacing_style_value; }
+    RefPtr<StyleValue const> word_spacing_style_value() const;
+    RefPtr<StyleValue const> letter_spacing_style_value() const;
     FlexDirection flex_direction() const { return m_noninherited.alignment->flex_direction; }
     FlexWrap flex_wrap() const { return m_noninherited.alignment->flex_wrap; }
     FlexBasis const& flex_basis() const { return m_noninherited.alignment->flex_basis; }
@@ -1265,7 +1266,7 @@ public:
 
     Color color() const { return m_inherited.text->color; }
     Color background_color() const { return m_noninherited.background->background_color; }
-    RefPtr<StyleValue const> background_color_style_value() const { return m_noninherited.background->background_color_style_value; }
+    RefPtr<StyleValue const> background_color_style_value() const;
     BackgroundBox background_color_clip() const { return m_noninherited.background->background_color_clip; }
     Vector<BackgroundLayerData> const& background_layers() const { return m_noninherited.background->background_layers; }
     Vector<BackgroundLayerData> const& mask_layers() const { return m_noninherited.mask_data->mask_layers; }
@@ -1363,6 +1364,15 @@ public:
 private:
     ComputedValues();
 
+    RefPtr<StyleValue const> style_value_from_handle(PropertyID, RustStyleValueHandle const&) const;
+
+    static RustStyleValueHandle retain_style_value_data(StyleValue const* value)
+    {
+        if (!value)
+            return {};
+        return RustStyleValueHandle { StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()) };
+    }
+
     static Statistics s_statistics;
 
     static size_t property_bitmap_index(PropertyID property_id)
@@ -1451,7 +1461,7 @@ public:
     struct InheritedTextValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedTextValues);
         Color color { InitialValues::color() };
-        RefPtr<StyleValue const> color_style_value;
+        RustStyleValueHandle color_style_value;
         Color webkit_text_fill_color { InitialValues::color() };
         bool webkit_text_fill_color_is_current_color { true };
         Vector<ShadowData> text_shadow;
@@ -1469,9 +1479,9 @@ public:
         WordBreak word_break { InitialValues::word_break() };
         OverflowWrap overflow_wrap { InitialValues::overflow_wrap() };
         CSSPixels word_spacing { InitialValues::word_spacing() };
-        RefPtr<StyleValue const> word_spacing_style_value;
+        RustStyleValueHandle word_spacing_style_value;
         CSSPixels letter_spacing { InitialValues::letter_spacing() };
-        RefPtr<StyleValue const> letter_spacing_style_value;
+        RustStyleValueHandle letter_spacing_style_value;
         u64 orphans { InitialValues::orphans() };
         u64 widows { InitialValues::widows() };
 
@@ -1698,7 +1708,7 @@ public:
     struct BackgroundValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::BackgroundValues);
         Color background_color { InitialValues::background_color() };
-        RefPtr<StyleValue const> background_color_style_value;
+        RustStyleValueHandle background_color_style_value;
         BackgroundBox background_color_clip { InitialValues::background_color_clip() };
         Vector<BackgroundLayerData> background_layers { BackgroundLayerData {} };
 
@@ -1711,10 +1721,10 @@ public:
         BorderData border_top;
         BorderData border_right;
         BorderData border_bottom;
-        RefPtr<StyleValue const> border_left_color_style_value;
-        RefPtr<StyleValue const> border_top_color_style_value;
-        RefPtr<StyleValue const> border_right_color_style_value;
-        RefPtr<StyleValue const> border_bottom_color_style_value;
+        RustStyleValueHandle border_left_color_style_value;
+        RustStyleValueHandle border_top_color_style_value;
+        RustStyleValueHandle border_right_color_style_value;
+        RustStyleValueHandle border_bottom_color_style_value;
         CSSPixels border_left_computed_width { 0 };
         CSSPixels border_top_computed_width { 0 };
         CSSPixels border_right_computed_width { 0 };
@@ -1858,6 +1868,7 @@ private:
     AK::FixedBitmap<number_of_longhand_properties> m_property_important { false };
     AK::FixedBitmap<number_of_longhand_properties> m_property_inherited { false };
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_inheritance_dependent_specified_values;
+    mutable HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_style_value_cache;
     RefPtr<StyleValue const> m_raw_cascaded_font_size;
     RefPtr<ComputedValues const> m_base_values;
     RefPtr<AnimatedProperties const> m_animated_properties;
@@ -2113,9 +2124,9 @@ public:
     }
     void set_color_style_value(StyleValue const* value)
     {
-        if (m_values.m_inherited.text->color_style_value == value)
+        if (m_values.m_inherited.text->color_style_value.data() == (value ? value->rust_style_value_data() : nullptr))
             return;
-        m_values.m_inherited.text.access().color_style_value = value;
+        m_values.m_inherited.text.access().color_style_value = retain_style_value_data(value);
     }
     void set_color_interpolation(ColorInterpolation color_interpolation)
     {
@@ -2193,9 +2204,9 @@ public:
     }
     void set_background_color_style_value(StyleValue const& value)
     {
-        if (m_values.m_noninherited.background->background_color_style_value == &value)
+        if (m_values.m_noninherited.background->background_color_style_value.data() == value.rust_style_value_data())
             return;
-        m_values.m_noninherited.background.access().background_color_style_value = value;
+        m_values.m_noninherited.background.access().background_color_style_value = retain_style_value_data(&value);
     }
     void set_background_color_clip(BackgroundBox box)
     {
@@ -2477,15 +2488,15 @@ public:
     }
     void set_word_spacing_style_value(StyleValue const& value)
     {
-        if (m_values.m_inherited.text->word_spacing_style_value == &value)
+        if (m_values.m_inherited.text->word_spacing_style_value.data() == value.rust_style_value_data())
             return;
-        m_values.m_inherited.text.access().word_spacing_style_value = value;
+        m_values.m_inherited.text.access().word_spacing_style_value = retain_style_value_data(&value);
     }
     void set_letter_spacing_style_value(StyleValue const& value)
     {
-        if (m_values.m_inherited.text->letter_spacing_style_value == &value)
+        if (m_values.m_inherited.text->letter_spacing_style_value.data() == value.rust_style_value_data())
             return;
-        m_values.m_inherited.text.access().letter_spacing_style_value = value;
+        m_values.m_inherited.text.access().letter_spacing_style_value = retain_style_value_data(&value);
     }
     void set_word_break(WordBreak value)
     {
@@ -2763,27 +2774,27 @@ public:
     }
     void set_border_left_color_style_value(StyleValue const& value)
     {
-        if (m_values.m_noninherited.border->border_left_color_style_value == &value)
+        if (m_values.m_noninherited.border->border_left_color_style_value.data() == value.rust_style_value_data())
             return;
-        m_values.m_noninherited.border.access().border_left_color_style_value = value;
+        m_values.m_noninherited.border.access().border_left_color_style_value = retain_style_value_data(&value);
     }
     void set_border_top_color_style_value(StyleValue const& value)
     {
-        if (m_values.m_noninherited.border->border_top_color_style_value == &value)
+        if (m_values.m_noninherited.border->border_top_color_style_value.data() == value.rust_style_value_data())
             return;
-        m_values.m_noninherited.border.access().border_top_color_style_value = value;
+        m_values.m_noninherited.border.access().border_top_color_style_value = retain_style_value_data(&value);
     }
     void set_border_right_color_style_value(StyleValue const& value)
     {
-        if (m_values.m_noninherited.border->border_right_color_style_value == &value)
+        if (m_values.m_noninherited.border->border_right_color_style_value.data() == value.rust_style_value_data())
             return;
-        m_values.m_noninherited.border.access().border_right_color_style_value = value;
+        m_values.m_noninherited.border.access().border_right_color_style_value = retain_style_value_data(&value);
     }
     void set_border_bottom_color_style_value(StyleValue const& value)
     {
-        if (m_values.m_noninherited.border->border_bottom_color_style_value == &value)
+        if (m_values.m_noninherited.border->border_bottom_color_style_value.data() == value.rust_style_value_data())
             return;
-        m_values.m_noninherited.border.access().border_bottom_color_style_value = value;
+        m_values.m_noninherited.border.access().border_bottom_color_style_value = retain_style_value_data(&value);
     }
     void set_border_left_computed_width(CSSPixels value)
     {

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/Utf16FlyString.h>
@@ -38,6 +39,7 @@ public:
     // GC-weak declaration source pair for a slot the store handed out.
     ComputedValuesFFI::CascadedPropertyStore* rust_store() { return m_store; }
     void assign_source_slot(u32 slot, GC::Ptr<CSS::CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
+    [[nodiscard]] GC::Ptr<CSS::CSSStyleDeclaration const> source_for_slot(u32 slot) const;
 
 private:
     CascadedProperties();
@@ -49,6 +51,7 @@ private:
 
     ComputedValuesFFI::CascadedPropertyStore* m_store { nullptr };
     Vector<SourcePair> m_source_slots;
+    mutable HashMap<PropertyID, ValueComparingNonnullRefPtr<StyleValue const>> m_property_cache;
 };
 
 }

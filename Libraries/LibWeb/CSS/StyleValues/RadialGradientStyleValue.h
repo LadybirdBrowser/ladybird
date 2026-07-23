@@ -63,19 +63,30 @@ public:
     virtual ~RadialGradientStyleValue() override = default;
 
 private:
+    friend class StyleValue;
+
     RadialGradientStyleValue(EndingShape ending_shape, NonnullRefPtr<StyleValue const> size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, ValueComparingRefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::RadialGradient, make_radial_gradient_data(ending_shape, size, position, color_stop_list, repeating, color_interpolation_method, color_syntax))
+        , m_size(move(size))
+        , m_position(move(position))
+        , m_color_interpolation_method(move(color_interpolation_method))
     {
     }
 
+    explicit RadialGradientStyleValue(StyleValueFFI::StyleValueData const*);
+
     static StyleValueFFI::StyleValueData const* make_radial_gradient_data(EndingShape, NonnullRefPtr<StyleValue const> const&, NonnullRefPtr<PositionStyleValue const> const&, Vector<ColorStopListElement> const&, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
 
-    ValueComparingNonnullRefPtr<StyleValue const> size_value() const { return *static_cast<StyleValue const*>(m_value->radial_gradient.size.pointer); }
-    ValueComparingNonnullRefPtr<PositionStyleValue const> position_value() const { return *static_cast<PositionStyleValue const*>(m_value->radial_gradient.position.pointer); }
+    ValueComparingNonnullRefPtr<StyleValue const> size_value() const { return m_size; }
+    ValueComparingNonnullRefPtr<PositionStyleValue const> position_value() const { return m_position; }
     EndingShape ending_shape() const { return static_cast<EndingShape>(m_value->radial_gradient.ending_shape); }
     ColorSyntax gradient_color_syntax() const { return static_cast<ColorSyntax>(m_value->radial_gradient.color_syntax); }
 
-    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return static_cast<StyleValue const*>(m_value->radial_gradient.color_interpolation_method.pointer); }
+    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return m_color_interpolation_method; }
+
+    ValueComparingNonnullRefPtr<StyleValue const> m_size;
+    ValueComparingNonnullRefPtr<PositionStyleValue const> m_position;
+    ValueComparingRefPtr<StyleValue const> m_color_interpolation_method;
 
     mutable Optional<CSSPixelSize> m_resolved_size;
 

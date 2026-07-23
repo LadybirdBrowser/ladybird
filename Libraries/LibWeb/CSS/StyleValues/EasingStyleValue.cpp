@@ -19,21 +19,58 @@ namespace Web::CSS {
 
 StyleValueFFI::StyleValueData const* EasingStyleValue::make_easing_data(Function const& function)
 {
-    // The Rust allocation takes ownership of one strong reference to each non-null value.
+    auto retain = [](StyleValue const* value) {
+        return value ? StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()) : nullptr;
+    };
     return function.visit(
         [&](Linear const& linear) {
             Vector<StyleValueFFI::RetainedLinearEasingStop> stops;
             stops.ensure_capacity(linear.stops.size());
             for (auto const& stop : linear.stops)
-                stops.unchecked_append({ { retain_style_value_for_rust(stop.output.ptr()) }, { retain_style_value_for_rust(stop.input.ptr()) } });
+                stops.unchecked_append({ { retain(stop.output.ptr()) }, { retain(stop.input.ptr()) } });
             return StyleValueFFI::rust_style_value_create_easing(0, stops.data(), stops.size(), nullptr, nullptr, nullptr, nullptr, nullptr, 0);
         },
         [&](CubicBezier const& bezier) {
-            return StyleValueFFI::rust_style_value_create_easing(1, nullptr, 0, retain_style_value_for_rust(bezier.x1.ptr()), retain_style_value_for_rust(bezier.y1.ptr()), retain_style_value_for_rust(bezier.x2.ptr()), retain_style_value_for_rust(bezier.y2.ptr()), nullptr, 0);
+            return StyleValueFFI::rust_style_value_create_easing(1, nullptr, 0, retain(bezier.x1.ptr()), retain(bezier.y1.ptr()), retain(bezier.x2.ptr()), retain(bezier.y2.ptr()), nullptr, 0);
         },
         [&](Steps const& steps) {
-            return StyleValueFFI::rust_style_value_create_easing(2, nullptr, 0, nullptr, nullptr, nullptr, nullptr, retain_style_value_for_rust(steps.number_of_intervals.ptr()), to_underlying(steps.position));
+            return StyleValueFFI::rust_style_value_create_easing(2, nullptr, 0, nullptr, nullptr, nullptr, nullptr, retain(steps.number_of_intervals.ptr()), to_underlying(steps.position));
         });
+}
+
+EasingStyleValue::EasingStyleValue(StyleValueFFI::StyleValueData const* data)
+    : StyleValueWithDefaultOperators(Type::Easing, data)
+    , m_function([&]() -> Function {
+        auto adopt = [](auto const& retained) -> ValueComparingNonnullRefPtr<StyleValue const> {
+            auto const* child_data = static_cast<StyleValueFFI::StyleValueData const*>(retained.pointer);
+            return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data));
+        };
+        auto adopt_optional = [](auto const& retained) -> ValueComparingRefPtr<StyleValue const> {
+            auto const* child_data = static_cast<StyleValueFFI::StyleValueData const*>(retained.pointer);
+            if (!child_data)
+                return nullptr;
+            return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data));
+        };
+        auto const& easing = data->easing;
+        switch (easing.kind) {
+        case 0: {
+            Vector<Linear::Stop> stops;
+            stops.ensure_capacity(easing.linear_stops.length);
+            for (size_t i = 0; i < easing.linear_stops.length; ++i) {
+                auto const& stop = easing.linear_stops.pointer[i];
+                stops.unchecked_append({ adopt(stop.output), adopt_optional(stop.input) });
+            }
+            return Linear { move(stops) };
+        }
+        case 1:
+            return CubicBezier { adopt(easing.x1), adopt(easing.y1), adopt(easing.x2), adopt(easing.y2) };
+        case 2:
+            return Steps { adopt(easing.number_of_intervals), static_cast<StepPosition>(easing.step_position) };
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }())
+{
 }
 
 EasingStyleValue::Function const& EasingStyleValue::function() const

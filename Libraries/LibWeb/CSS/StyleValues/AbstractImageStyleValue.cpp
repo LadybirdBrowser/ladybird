@@ -12,8 +12,11 @@ namespace Web::CSS {
 
 StyleValueFFI::RetainedColorStop retain_color_stop_for_rust(ColorStopListElement const& stop)
 {
-    return { { retain_style_value_for_rust(stop.transition_hint.ptr()) }, { retain_style_value_for_rust(stop.color_stop.color.ptr()) },
-        { retain_style_value_for_rust(stop.color_stop.position.ptr()) }, { retain_style_value_for_rust(stop.color_stop.second_position.ptr()) } };
+    auto retain = [](StyleValue const* value) {
+        return value ? StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()) : nullptr;
+    };
+    return { { retain(stop.transition_hint.ptr()) }, { retain(stop.color_stop.color.ptr()) },
+        { retain(stop.color_stop.position.ptr()) }, { retain(stop.color_stop.second_position.ptr()) } };
 }
 
 Vector<StyleValueFFI::RetainedColorStop> retain_color_stops_for_rust(ReadonlySpan<ColorStopListElement> color_stop_list)
@@ -27,12 +30,18 @@ Vector<StyleValueFFI::RetainedColorStop> retain_color_stops_for_rust(ReadonlySpa
 
 ColorStopListElement color_stop_from_rust_data(StyleValueFFI::RetainedColorStop const& stop)
 {
+    auto adopt = [](auto const& retained) -> ValueComparingRefPtr<StyleValue const> {
+        auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(retained.pointer);
+        if (!data)
+            return nullptr;
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data));
+    };
     return {
-        .transition_hint = static_cast<StyleValue const*>(stop.transition_hint.pointer),
+        .transition_hint = adopt(stop.transition_hint),
         .color_stop = {
-            .color = static_cast<StyleValue const*>(stop.color.pointer),
-            .position = static_cast<StyleValue const*>(stop.position.pointer),
-            .second_position = static_cast<StyleValue const*>(stop.second_position.pointer),
+            .color = adopt(stop.color),
+            .position = adopt(stop.position),
+            .second_position = adopt(stop.second_position),
         },
     };
 }

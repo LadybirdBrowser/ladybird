@@ -123,11 +123,15 @@ public:
     Gfx::Path to_path(CSSPixelRect reference_box) const;
 
 private:
+    friend class StyleValue;
+
     BasicShapeStyleValue(BasicShape basic_shape)
         : StyleValueWithDefaultOperators(Type::BasicShape, make_basic_shape_data(basic_shape))
         , m_shape(move(basic_shape))
     {
     }
+
+    explicit BasicShapeStyleValue(StyleValueFFI::StyleValueData const*);
 
     static StyleValueFFI::StyleValueData const* make_basic_shape_data(BasicShape const&);
 

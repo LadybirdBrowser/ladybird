@@ -18,6 +18,8 @@ namespace Web::CSS {
 // call.
 class RustStyleValueHandle {
 public:
+    RustStyleValueHandle() = default;
+
     explicit RustStyleValueHandle(StyleValueFFI::StyleValueData const* value)
         : m_value(value)
     {
@@ -57,6 +59,10 @@ public:
 
     StyleValueFFI::StyleValueData const& operator*() const { return *m_value; }
     StyleValueFFI::StyleValueData const* operator->() const { return m_value; }
+    explicit operator bool() const { return m_value; }
+    StyleValueFFI::StyleValueData const* data() const { return m_value; }
+
+    bool operator==(RustStyleValueHandle const&) const = default;
 
 private:
     StyleValueFFI::StyleValueData const* m_value { nullptr };

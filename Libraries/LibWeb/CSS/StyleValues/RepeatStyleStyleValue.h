@@ -29,6 +29,13 @@ public:
     bool properties_equal(RepeatStyleStyleValue const& other) const { return repeat_x() == other.repeat_x() && repeat_y() == other.repeat_y(); }
 
 private:
+    friend class StyleValue;
+
+    explicit RepeatStyleStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::RepeatStyle, data)
+    {
+    }
+
     RepeatStyleStyleValue(Repetition repeat_x, Repetition repeat_y);
 };
 

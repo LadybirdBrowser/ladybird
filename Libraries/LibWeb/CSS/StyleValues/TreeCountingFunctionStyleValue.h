@@ -38,11 +38,19 @@ public:
     bool equals(StyleValue const& other) const;
 
 private:
+    // NB: StyleValue dispatches operations by type tag, so it may call private constructors.
+    friend class StyleValue;
+
     TreeCountingFunction function() const { return static_cast<TreeCountingFunction>(m_value->tree_counting_function.function); }
     ComputedType computed_type() const { return static_cast<ComputedType>(m_value->tree_counting_function.computed_type); }
 
     TreeCountingFunctionStyleValue(TreeCountingFunction function, ComputedType computed_type)
         : AbstractNonMathCalcFunctionStyleValue(Type::TreeCountingFunction, StyleValueFFI::rust_style_value_create_tree_counting_function(to_underlying(function), to_underlying(computed_type)))
+    {
+    }
+
+    explicit TreeCountingFunctionStyleValue(StyleValueFFI::StyleValueData const* data)
+        : AbstractNonMathCalcFunctionStyleValue(Type::TreeCountingFunction, data)
     {
     }
 };

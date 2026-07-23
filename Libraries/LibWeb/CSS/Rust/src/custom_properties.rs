@@ -16,7 +16,7 @@ use crate::abort_on_panic;
 use crate::css_tokenizer::OwnedToken;
 use crate::css_tokenizer::OwnedTokenKind;
 use crate::css_tokenizer::tokenize_owned;
-use crate::style_value::RetainedStyleValue;
+use crate::style_value::RetainedStyleValueData;
 use crate::style_value::RetainedUtf16FlyString;
 use crate::style_value::StyleValueData;
 
@@ -26,15 +26,13 @@ pub struct FfiCustomPropertyStoreEntry {
     pub name_utf8: *const u8,
     pub name_utf8_length: usize,
     pub important: bool,
-    pub shell: *const c_void,
     pub data: *const c_void,
 }
 
 struct CustomPropertyEntry {
     _name: RetainedUtf16FlyString,
-    _value: RetainedStyleValue,
+    value: RetainedStyleValueData,
     important: bool,
-    data: *const c_void,
 }
 
 pub struct CustomPropertyStore {
@@ -190,7 +188,7 @@ fn resolve_custom_property(
                 TokenResolution::Resolved(tokenize_owned(source))
             });
     };
-    let data = unsafe { &*entry.data.cast::<StyleValueData>() };
+    let data = entry.value.data();
     if matches!(data, StyleValueData::GuaranteedInvalid) {
         return TokenResolution::Invalid;
     }
@@ -550,8 +548,8 @@ pub unsafe extern "C" fn rust_custom_property_registry_destroy(registry: *mut c_
     abort_on_panic(|| drop(unsafe { Box::from_raw(registry.cast::<CustomPropertyRegistry>()) }));
 }
 
-/// Creates one Rust store node. Each entry name transfers one leaked fly-string reference;
-/// value shells are borrowed and retained by Rust. The parent is another Rc raw pointer.
+/// Creates one Rust store node. Each entry transfers a leaked fly-string reference and a
+/// strong style value data handle. The parent is another Rc raw pointer.
 ///
 /// # Safety
 /// `entries` must point at `entry_count` valid entries and `parent` must be null or a pointer
@@ -588,9 +586,8 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
                     entry.name_raw,
                     CustomPropertyEntry {
                         _name: unsafe { RetainedUtf16FlyString::from_leaked_raw(entry.name_raw) },
-                        _value: unsafe { RetainedStyleValue::from_borrowed_shell_pointer(entry.shell) },
+                        value: unsafe { RetainedStyleValueData::from_retained_pointer(entry.data.cast()) },
                         important: entry.important,
-                        data: entry.data,
                     },
                 )
             })
@@ -619,7 +616,6 @@ pub unsafe extern "C" fn rust_custom_property_store_destroy(store: *const c_void
 pub struct FfiCustomPropertyStoreValue {
     pub found: bool,
     pub important: bool,
-    pub shell: *const c_void,
     pub data: *const c_void,
     pub token_source: *const u8,
     pub token_source_length: usize,
@@ -641,20 +637,16 @@ pub unsafe extern "C" fn rust_custom_property_store_get(
             return FfiCustomPropertyStoreValue {
                 found: false,
                 important: false,
-                shell: std::ptr::null(),
                 data: std::ptr::null(),
                 token_source: std::ptr::null(),
                 token_source_length: 0,
             };
         };
-        let token_source = unsafe { &*entry.data.cast::<StyleValueData>() }
-            .unresolved_token_source()
-            .unwrap_or_default();
+        let token_source = entry.value.data().unresolved_token_source().unwrap_or_default();
         FfiCustomPropertyStoreValue {
             found: true,
             important: entry.important,
-            shell: entry._value.shell_pointer(),
-            data: entry.data,
+            data: entry.value.data() as *const StyleValueData as *const c_void,
             token_source: token_source.as_ptr(),
             token_source_length: token_source.len(),
         }

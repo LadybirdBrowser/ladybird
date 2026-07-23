@@ -28,6 +28,13 @@ public:
     bool properties_equal(EmptyOptionalStyleValue const&) const { return true; }
 
 private:
+    friend class StyleValue;
+
+    explicit EmptyOptionalStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::EmptyOptional, data)
+    {
+    }
+
     EmptyOptionalStyleValue()
         : StyleValueWithDefaultOperators(Type::EmptyOptional, StyleValueFFI::rust_style_value_create_empty_optional())
     {

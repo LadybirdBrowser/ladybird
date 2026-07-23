@@ -15,7 +15,7 @@
 
 use std::sync::Arc;
 
-use crate::style_value::RetainedStyleValue;
+use crate::style_value::RetainedStyleValueData;
 
 include!(concat!(env!("OUT_DIR"), "/dimension_units_generated.rs"));
 
@@ -507,14 +507,14 @@ pub enum CalcNode {
         min: Arc<CalcNode>,
         max: Arc<CalcNode>,
         step: Option<Arc<CalcNode>>,
-        /// The random-value-sharing options value, retained from the shell.
-        sharing: RetainedStyleValue,
+        /// NB: The random-value-sharing options value retained in the Rust value graph.
+        sharing: RetainedStyleValueData,
     },
     /// A non-math function whose value participates in a calculation, kept as
     /// its retained style value together with the numeric type its context
     /// determined at creation.
     NonMathFunction {
-        value: RetainedStyleValue,
+        value: RetainedStyleValueData,
         numeric_type: CalcNumericType,
     },
 }
@@ -675,7 +675,7 @@ impl CalcNode {
     pub(crate) fn is_computationally_independent(
         &self,
         length_is_independent: &impl Fn(u8) -> bool,
-        style_value_is_independent: &impl Fn(&RetainedStyleValue) -> bool,
+        style_value_is_independent: &impl Fn(&RetainedStyleValueData) -> bool,
     ) -> bool {
         let leaf_independent = match self {
             CalcNode::Numeric(CalcNumericValue::Length { unit, .. }) => length_is_independent(*unit),
@@ -998,7 +998,7 @@ pub unsafe extern "C" fn rust_calc_node_create_round(
 
 /// # Safety
 /// The children must be valid transferred handles (`step` may be null), and
-/// `sharing` a leaked strong StyleValue reference.
+/// `sharing` a transferred strong style value data handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_create_random(
     min: *const CalcNode,
@@ -1016,13 +1016,13 @@ pub unsafe extern "C" fn rust_calc_node_create_random(
             } else {
                 Some(unsafe { Arc::from_raw(step) })
             },
-            sharing: unsafe { RetainedStyleValue::from_shell_pointer(sharing) },
+            sharing: unsafe { RetainedStyleValueData::from_retained_pointer(sharing.cast()) },
         })
     })
 }
 
 /// # Safety
-/// `value` must be a leaked strong StyleValue reference.
+/// `value` must be a transferred strong style value data handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_create_non_math_function(
     value: *const std::ffi::c_void,
@@ -1031,7 +1031,7 @@ pub unsafe extern "C" fn rust_calc_node_create_non_math_function(
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         handle(CalcNode::NonMathFunction {
-            value: unsafe { RetainedStyleValue::from_shell_pointer(value) },
+            value: unsafe { RetainedStyleValueData::from_retained_pointer(value.cast()) },
             numeric_type: unsafe { &*numeric_type }.to_calc(),
         })
     })
@@ -1112,16 +1112,16 @@ pub(crate) struct CalcEvaluationContext<'a> {
 }
 
 /// Produces the random base value for a random() node's sharing options.
-pub(crate) type RandomBaseValueResolver<'a> = &'a dyn Fn(&RetainedStyleValue) -> Option<f64>;
+pub(crate) type RandomBaseValueResolver<'a> = &'a dyn Fn(&RetainedStyleValueData) -> Option<f64>;
 
 /// The C++ seams the simplification needs: resolving a non-math function to a
 /// calculation subtree, and looking up a relative-color channel value.
 pub(crate) struct CalcSimplifyCallbacks<'a> {
-    pub resolve_non_math_function: &'a dyn Fn(&RetainedStyleValue) -> Option<Arc<CalcNode>>,
+    pub resolve_non_math_function: &'a dyn Fn(&RetainedStyleValueData) -> Option<Arc<CalcNode>>,
     pub resolve_channel_keyword: &'a dyn Fn(u8) -> Option<f64>,
     /// Absolutizes a random() node's sharing options at computed-value time,
     /// fixing its per-element random base value; None keeps the original.
-    pub absolutize_random_sharing: &'a dyn Fn(&RetainedStyleValue) -> Option<RetainedStyleValue>,
+    pub absolutize_random_sharing: &'a dyn Fn(&RetainedStyleValueData) -> Option<RetainedStyleValueData>,
 }
 
 fn is_canonical_unit(value: CalcNumericValue) -> bool {
@@ -2408,9 +2408,15 @@ fn with_ffi_evaluation<R>(
         }),
         _ => unreachable!("invalid percentage basis kind"),
     };
-    let random_base_value = |sharing: &RetainedStyleValue| -> Option<f64> {
+    let random_base_value = |sharing: &RetainedStyleValueData| -> Option<f64> {
         let mut value = 0.0;
-        if unsafe { (context.random_base_value)(context.callback_context, sharing.shell_pointer(), &raw mut value) } {
+        if unsafe {
+            (context.random_base_value)(
+                context.callback_context,
+                sharing.data() as *const _ as *const _,
+                &raw mut value,
+            )
+        } {
             Some(value)
         } else {
             None
@@ -2440,20 +2446,22 @@ fn with_ffi_evaluation<R>(
         },
         random_base_value: Some(&random_base_value),
     };
-    let absolutize_random_sharing = |sharing: &RetainedStyleValue| -> Option<RetainedStyleValue> {
-        let absolutized =
-            unsafe { (context.absolutize_random_sharing)(context.callback_context, sharing.shell_pointer()) };
+    let absolutize_random_sharing = |sharing: &RetainedStyleValueData| -> Option<RetainedStyleValueData> {
+        let absolutized = unsafe {
+            (context.absolutize_random_sharing)(context.callback_context, sharing.data() as *const _ as *const _)
+        };
         if absolutized.is_null() {
             None
         } else {
-            Some(unsafe { RetainedStyleValue::from_shell_pointer(absolutized) })
+            Some(unsafe { RetainedStyleValueData::from_retained_pointer(absolutized.cast()) })
         }
     };
     let callbacks = CalcSimplifyCallbacks {
         absolutize_random_sharing: &absolutize_random_sharing,
         resolve_non_math_function: &|value| {
-            let resolved =
-                unsafe { (context.resolve_non_math_function)(context.callback_context, value.shell_pointer()) };
+            let resolved = unsafe {
+                (context.resolve_non_math_function)(context.callback_context, value.data() as *const _ as *const _)
+            };
             if resolved.is_null() {
                 None
             } else {
@@ -2928,8 +2936,9 @@ impl CalcSerializer<'_> {
         {
             self.literal("random(");
             crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcSerializationCallback);
-            let appended =
-                unsafe { (self.callbacks.append_style_value)(self.callbacks.context, sharing.shell_pointer()) };
+            let appended = unsafe {
+                (self.callbacks.append_style_value)(self.callbacks.context, sharing.data() as *const _ as *const _)
+            };
             if appended {
                 self.literal(", ");
             }
@@ -3072,7 +3081,9 @@ impl CalcSerializer<'_> {
             CalcNode::Numeric(value) => self.leaf(*value),
             CalcNode::NonMathFunction { value, .. } => {
                 crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcSerializationCallback);
-                unsafe { (self.callbacks.append_style_value)(self.callbacks.context, value.shell_pointer()) };
+                unsafe {
+                    (self.callbacks.append_style_value)(self.callbacks.context, value.data() as *const _ as *const _)
+                };
             }
             // AD-HOC: ChannelKeyword nodes, used for relative-color syntax, serialize directly as
             //         the keyword name.
@@ -3224,7 +3235,7 @@ impl CalcNode {
     pub(crate) fn structurally_equals(
         &self,
         other: &CalcNode,
-        style_value_equals: &dyn Fn(&RetainedStyleValue, &RetainedStyleValue) -> bool,
+        style_value_equals: &dyn Fn(&RetainedStyleValueData, &RetainedStyleValueData) -> bool,
     ) -> bool {
         let children_equal = |a: &[Arc<CalcNode>], b: &[Arc<CalcNode>]| {
             a.len() == b.len()
@@ -3418,7 +3429,11 @@ pub unsafe extern "C" fn rust_calc_equals(
         let first_tree = tree_of(first);
         let second_tree = tree_of(second);
         first_tree.structurally_equals(&second_tree, &|a, b| unsafe {
-            style_value_equals(context, a.shell_pointer(), b.shell_pointer())
+            style_value_equals(
+                context,
+                a.data() as *const _ as *const _,
+                b.data() as *const _ as *const _,
+            )
         })
     })
 }
@@ -3526,8 +3541,8 @@ pub unsafe extern "C" fn rust_calc_node_numeric_leaf(
 pub unsafe extern "C" fn rust_calc_node_style_value(node: *const CalcNode) -> *const std::ffi::c_void {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
     crate::abort_on_panic(|| match unsafe { &*node } {
-        CalcNode::Random { sharing, .. } => sharing.shell_pointer(),
-        CalcNode::NonMathFunction { value, .. } => value.shell_pointer(),
+        CalcNode::Random { sharing, .. } => sharing.data() as *const _ as *const _,
+        CalcNode::NonMathFunction { value, .. } => value.data() as *const _ as *const _,
         _ => std::ptr::null(),
     })
 }

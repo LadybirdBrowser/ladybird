@@ -26,6 +26,13 @@ public:
     bool properties_equal(UnicodeRangeStyleValue const&) const;
 
 private:
+    friend class StyleValue;
+
+    explicit UnicodeRangeStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::UnicodeRange, data)
+    {
+    }
+
     UnicodeRangeStyleValue(Gfx::UnicodeRange);
 };
 

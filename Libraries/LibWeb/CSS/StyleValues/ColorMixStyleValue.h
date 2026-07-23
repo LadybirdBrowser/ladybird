@@ -29,29 +29,26 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
 
 private:
+    friend class StyleValue;
+
     ColorMixStyleValue(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component);
+    explicit ColorMixStyleValue(StyleValueFFI::StyleValueData const*);
 
     static StyleValueFFI::StyleValueData const* make_color_mix_data(RefPtr<StyleValue const> const& color_interpolation_method, ColorMixComponent const& first_component, ColorMixComponent const& second_component)
     {
-        // The Rust allocation takes ownership of one strong reference to each non-null value.
+        auto retain = [](StyleValue const* value) {
+            return value ? StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()) : nullptr;
+        };
         return StyleValueFFI::rust_style_value_create_color_mix(
             false, 0, to_underlying(ColorSyntax::Modern),
-            retain_style_value_for_rust(color_interpolation_method.ptr()),
-            retain_style_value_for_rust(first_component.color.ptr()), retain_style_value_for_rust(first_component.percentage.ptr()),
-            retain_style_value_for_rust(second_component.color.ptr()), retain_style_value_for_rust(second_component.percentage.ptr()));
+            retain(color_interpolation_method.ptr()),
+            retain(first_component.color.ptr()), retain(first_component.percentage.ptr()),
+            retain(second_component.color.ptr()), retain(second_component.percentage.ptr()));
     }
 
-    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return static_cast<StyleValue const*>(m_value->color_mix.color_interpolation_method.pointer); }
-    ColorMixComponent first_component() const
-    {
-        return { *static_cast<StyleValue const*>(m_value->color_mix.first_color.pointer),
-            static_cast<StyleValue const*>(m_value->color_mix.first_percentage.pointer) };
-    }
-    ColorMixComponent second_component() const
-    {
-        return { *static_cast<StyleValue const*>(m_value->color_mix.second_color.pointer),
-            static_cast<StyleValue const*>(m_value->color_mix.second_percentage.pointer) };
-    }
+    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return m_color_interpolation_method; }
+    ColorMixComponent first_component() const { return m_first_component; }
+    ColorMixComponent second_component() const { return m_second_component; }
 
     struct NormalizedPercentages {
         Percentage first_percentage;
@@ -66,6 +63,10 @@ private:
         double alpha_multiplier;
     };
     PercentageNormalizationResult normalize_percentages(ComputationContext const&) const;
+
+    ValueComparingRefPtr<StyleValue const> m_color_interpolation_method;
+    ColorMixComponent m_first_component;
+    ColorMixComponent m_second_component;
 };
 
 }

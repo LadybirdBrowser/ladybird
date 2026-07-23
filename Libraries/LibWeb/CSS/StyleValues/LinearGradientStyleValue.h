@@ -58,10 +58,7 @@ public:
 
     GradientDirection direction() const
     {
-        auto const& data = m_value->linear_gradient;
-        if (data.has_direction_value)
-            return NonnullRefPtr { *static_cast<StyleValue const*>(data.direction_value.pointer) };
-        return static_cast<SideOrCorner>(data.side_or_corner);
+        return m_direction;
     }
 
     // FIXME: This (and the any_non_legacy code in the constructor) is duplicated in the separate gradient classes,
@@ -85,16 +82,25 @@ public:
     void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
 
 private:
+    friend class StyleValue;
+
     LinearGradientStyleValue(GradientDirection direction, Vector<ColorStopListElement> color_stop_list, GradientType type, GradientRepeating repeating, ValueComparingRefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::LinearGradient, make_linear_gradient_data(direction, color_stop_list, type, repeating, color_interpolation_method, color_syntax))
+        , m_direction(move(direction))
+        , m_color_interpolation_method(move(color_interpolation_method))
     {
     }
 
+    explicit LinearGradientStyleValue(StyleValueFFI::StyleValueData const*);
+
     static StyleValueFFI::StyleValueData const* make_linear_gradient_data(GradientDirection const&, Vector<ColorStopListElement> const&, GradientType, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
 
-    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return static_cast<StyleValue const*>(m_value->linear_gradient.color_interpolation_method.pointer); }
+    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return m_color_interpolation_method; }
     GradientType gradient_type() const { return static_cast<GradientType>(m_value->linear_gradient.gradient_type); }
     ColorSyntax gradient_color_syntax() const { return static_cast<ColorSyntax>(m_value->linear_gradient.color_syntax); }
+
+    GradientDirection m_direction;
+    ValueComparingRefPtr<StyleValue const> m_color_interpolation_method;
 
     mutable Optional<CSSPixelSize> m_resolved_size;
     mutable Optional<Painting::LinearGradientData> m_resolved;

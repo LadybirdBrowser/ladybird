@@ -38,6 +38,12 @@
 
 namespace Web::CSS {
 
+static ValueComparingNonnullRefPtr<StyleValue const> wrap_borrowed_style_value_data(void const* data)
+{
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+        static_cast<StyleValueFFI::StyleValueData const*>(data)));
+}
+
 // Marshals a numeric type into its FFI mirror.
 static StyleValueFFI::FfiNumericType to_ffi_numeric_type(Optional<NumericType> const& type)
 {
@@ -163,10 +169,10 @@ void CalculatedStyleValue::serialize(StringBuilder& builder, SerializationMode m
                 return;
             }
             VERIFY_NOT_REACHED(); },
-        .append_style_value = [](void* context, void const* shell) -> bool {
+        .append_style_value = [](void* context, void const* data) -> bool {
             auto& callback_context = *static_cast<SerializationCallbackContext*>(context);
             auto start_length = callback_context.builder.length();
-            static_cast<StyleValue const*>(shell)->serialize(callback_context.builder, callback_context.mode);
+            wrap_borrowed_style_value_data(data)->serialize(callback_context.builder, callback_context.mode);
             return callback_context.builder.length() > start_length; },
         .append_channel_name = [](void* context, u8 channel) {
             auto& callback_context = *static_cast<SerializationCallbackContext*>(context);
@@ -226,9 +232,10 @@ static StyleValueFFI::FfiCalcResolutionContext make_calc_ffi_resolution_context(
         .basis_unit = 0,
         .length_resolution_context = nullptr,
         .callback_context = &callback_context,
-        .resolve_non_math_function = [](void* context, void const* shell) -> StyleValueFFI::CalcNode const* {
+        .resolve_non_math_function = [](void* context, void const* data) -> StyleValueFFI::CalcNode const* {
             auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
-            auto resolved = static_cast<AbstractNonMathCalcFunctionStyleValue const*>(shell)->resolve_to_calculation_node(callback_context.calculation_context, callback_context.resolution_context);
+            auto function = wrap_borrowed_style_value_data(data);
+            auto resolved = static_cast<AbstractNonMathCalcFunctionStyleValue const&>(*function).resolve_to_calculation_node(callback_context.calculation_context, callback_context.resolution_context);
             if (!resolved.has_value())
                 return nullptr;
             return resolved->release();
@@ -243,16 +250,16 @@ static StyleValueFFI::FfiCalcResolutionContext make_calc_ffi_resolution_context(
             *out_value = resolved.value();
             return true;
         },
-        .random_base_value = [](void* context, void const* sharing, double* out_value) -> bool {
+        .random_base_value = [](void* context, void const* data, double* out_value) -> bool {
             auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
             // NB: We don't want to resolve this before computation time even if it's possible.
             auto const& resolution_context = callback_context.resolution_context;
             if (!resolution_context.abstract_element.has_value() && !resolution_context.length_resolution_context.has_value() && resolution_context.percentage_basis.has<Empty>())
                 return false;
-            *out_value = static_cast<RandomValueSharingStyleValue const*>(sharing)->random_base_value();
+            *out_value = wrap_borrowed_style_value_data(data)->as_random_value_sharing().random_base_value();
             return true;
         },
-        .absolutize_random_sharing = [](void* context, void const* sharing) -> void const* {
+        .absolutize_random_sharing = [](void* context, void const* data) -> void const* {
             auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
             auto const& resolution_context = callback_context.resolution_context;
             // When we are in the absolutization process we should absolutize the sharing options.
@@ -262,8 +269,8 @@ static StyleValueFFI::FfiCalcResolutionContext make_calc_ffi_resolution_context(
                 .length_resolution_context = resolution_context.length_resolution_context.value(),
                 .abstract_element = resolution_context.abstract_element
             };
-            auto absolutized = static_cast<RandomValueSharingStyleValue const*>(sharing)->absolutized(computation_context);
-            return retain_style_value_for_rust(absolutized.ptr());
+            auto absolutized = wrap_borrowed_style_value_data(data)->as_random_value_sharing().absolutized(computation_context);
+            return StyleValueFFI::rust_style_value_retain(absolutized->rust_style_value_data());
         },
         .resolve_length = [](void* context, double value, u8 unit, double* out_px) -> bool {
             auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
@@ -329,12 +336,12 @@ bool CalculatedStyleValue::equals(StyleValue const& other) const
     if (type() != other.type())
         return false;
 
-    // Structural equality runs over the Rust trees; the style values carried by
-    // random() and non-math-function nodes compare through their own equals.
+    // NB: Structural equality runs over the Rust trees; the style value data carried by
+    //     random() and non-math-function nodes compare through their typed facades.
     return StyleValueFFI::rust_calc_equals(
         m_value.operator->(), other.as_calculated().m_value.operator->(), nullptr,
         [](void*, void const* a, void const* b) -> bool {
-            return static_cast<StyleValue const*>(a)->equals(*static_cast<StyleValue const*>(b));
+            return wrap_borrowed_style_value_data(a)->equals(*wrap_borrowed_style_value_data(b));
         });
 }
 
@@ -603,7 +610,7 @@ static GC::Ptr<CSSNumericValue> reify_rust_calc_node(JS::Realm& realm, void cons
 static bool rust_calc_node_contains_anchor(StyleValueFFI::CalcNode const* node)
 {
     if (StyleValueFFI::rust_calc_node_kind(node) == 28
-        && static_cast<StyleValue const*>(StyleValueFFI::rust_calc_node_style_value(node))->is_anchor())
+        && wrap_borrowed_style_value_data(StyleValueFFI::rust_calc_node_style_value(node))->is_anchor())
         return true;
     Vector<StyleValueFFI::CalcNode const*> children;
     auto count = StyleValueFFI::rust_calc_node_children(node, nullptr, 0);
@@ -745,14 +752,14 @@ CalcNodeRef CalcNodeRef::random(StyleValue const& random_value_sharing, CalcNode
     return adopt(StyleValueFFI::rust_calc_node_create_random(
         minimum_handle, maximum_handle,
         step.has_value() ? step->release() : nullptr,
-        retain_style_value_for_rust(&random_value_sharing)));
+        StyleValueFFI::rust_style_value_retain(random_value_sharing.rust_style_value_data())));
 }
 
 CalcNodeRef CalcNodeRef::non_math_function(StyleValue const& function, Optional<NumericType> const& numeric_type)
 {
     auto ffi_numeric_type = to_ffi_numeric_type(numeric_type);
     return adopt(StyleValueFFI::rust_calc_node_create_non_math_function(
-        retain_style_value_for_rust(&function), &ffi_numeric_type));
+        StyleValueFFI::rust_style_value_retain(function.rust_style_value_data()), &ffi_numeric_type));
 }
 
 CalcNodeRef CalcNodeRef::from_style_value(StyleValue const& style_value)

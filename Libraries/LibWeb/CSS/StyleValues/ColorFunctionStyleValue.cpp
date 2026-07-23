@@ -18,6 +18,38 @@
 
 namespace Web::CSS {
 
+ColorFunctionStyleValue::ColorFunctionStyleValue(StyleValueFFI::StyleValueData const* data)
+    : ColorStyleValue(data)
+    , m_channels([&] {
+        auto adopt = [](auto const& retained) -> ValueComparingNonnullRefPtr<StyleValue const> {
+            auto const* child_data = static_cast<StyleValueFFI::StyleValueData const*>(retained.pointer);
+            return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data));
+        };
+        auto const& color = data->color_function;
+        return Array<ValueComparingNonnullRefPtr<StyleValue const>, 3> {
+            adopt(color.channel_0), adopt(color.channel_1), adopt(color.channel_2)
+        };
+    }())
+    , m_alpha([&]() -> ValueComparingRefPtr<StyleValue const> {
+        auto const* child_data = static_cast<StyleValueFFI::StyleValueData const*>(data->color_function.alpha.pointer);
+        if (!child_data)
+            return nullptr;
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data));
+    }())
+    , m_name([&]() -> Optional<Utf16FlyString> {
+        if (!data->color_function.has_name)
+            return {};
+        return Utf16FlyString::from_raw(data->color_function.name.raw);
+    }())
+    , m_origin_color([&]() -> ValueComparingRefPtr<StyleValue const> {
+        auto const* child_data = static_cast<StyleValueFFI::StyleValueData const*>(data->color_function.origin_color.pointer);
+        if (!child_data)
+            return nullptr;
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data));
+    }())
+{
+}
+
 ValueComparingNonnullRefPtr<ColorFunctionStyleValue const> ColorFunctionStyleValue::create(
     ColorType color_type,
     ValueComparingNonnullRefPtr<StyleValue const> c1,
