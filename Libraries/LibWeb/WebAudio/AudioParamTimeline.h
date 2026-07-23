@@ -7,18 +7,22 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/Optional.h>
-#include <AK/RefCounted.h>
 #include <AK/Span.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibSync/Mutex.h>
 #include <LibWeb/Export.h>
 
 namespace Web::WebAudio {
 
 // Holds the automation events for a single AudioParam and evaluates the parameter's intrinsic value over time.
+// This timeline is shared between the control thread, which inserts events through the AudioParam interface, and
+// the rendering thread, which evaluates the parameter while rendering the audio graph. All public methods lock an
+// internal mutex, so both threads observe a consistent series of automation events.
 // https://webaudio.github.io/web-audio-api/#dfn-automation-event
-class WEB_API AudioParamTimeline final : public RefCounted<AudioParamTimeline> {
+class WEB_API AudioParamTimeline final : public AtomicRefCounted<AudioParamTimeline> {
 public:
     enum class [[nodiscard]] InsertResult : u8 {
         Success,
@@ -102,7 +106,7 @@ private:
         }
     };
 
-    float value_at_time(double selection_time, double time) const;
+    float value_at_time_locked(double selection_time, double time) const;
 
     // https://webaudio.github.io/web-audio-api/#dfn-automation-event
     size_t first_event_index_after(double) const;
@@ -116,6 +120,8 @@ private:
 
     // https://webaudio.github.io/web-audio-api/#dfn-automation-event
     InsertResult insert_event(AutomationEvent);
+
+    mutable Sync::Mutex m_mutex;
 
     float m_default_value {};
 
