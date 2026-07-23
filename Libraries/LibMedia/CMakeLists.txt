@@ -20,6 +20,7 @@ set(SOURCES
     Containers/Matroska/Reader.cpp
     Containers/Matroska/SampleIterator.cpp
     Containers/Matroska/Streamer.cpp
+    DecodeAudioStream.cpp
     GenericTimeProvider.cpp
     IncrementallyPopulatedStream.cpp
     PlaybackManager.cpp
