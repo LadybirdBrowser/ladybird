@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/OwnPtr.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
@@ -33,6 +34,7 @@ private:
     CSSPixelPoint m_origin;
     CSSPixelPoint m_mouse_position;
     CSSPixelPoint m_fractional_delta;
+    OwnPtr<HTML::UserScrollGestureHold> m_scroll_gesture_hold;
     bool m_mouse_has_moved_beyond_dead_zone { false };
 };
 

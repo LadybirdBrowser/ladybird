@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        height: 200px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div class="item">line1</div>
+    <div class="item">line2</div>
+    <div class="item">line3</div>
+    <div style="height: 150px"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        let scrollendCount = 0;
+        scroller.addEventListener("scrollend", () => ++scrollendCount);
+
+        const output = [];
+        const rect = scroller.getBoundingClientRect();
+
+        // Middle button scrolling away from its origin scrolls to the scroll extent, which lies between snap positions.
+        const origin = { x: rect.left + 100, y: rect.top + 100 };
+        internals.mouseDown(origin.x, origin.y, 1, 1);
+        internals.mouseMove(origin.x, origin.y + 400);
+        while (scroller.scrollTop < scroller.scrollHeight - scroller.clientHeight)
+            await animationFrame();
+
+        // Returning to the origin stops the scrolling without leaving middle button scrolling mode.
+        internals.mouseMove(origin.x, origin.y);
+        const scrollOffsetWhileScrolling = scroller.scrollTop;
+
+        await timeout(700);
+        output.push(`scroll offset changed while the mode was active: ${scroller.scrollTop !== scrollOffsetWhileScrolling}`);
+        output.push(`scrollend count while the mode was active: ${scrollendCount}`);
+
+        // A click exits middle button scrolling mode.
+        internals.mouseDown(origin.x, origin.y);
+        internals.mouseUp(origin.x, origin.y);
+        await scrollOffsetStopsChanging(() => scroller.scrollTop);
+        output.push(`scroll offset after the mode was exited: ${scroller.scrollLeft},${scroller.scrollTop}`);
+        output.push(`scrollend count after the mode was exited: ${scrollendCount}`);
+
+        scroller.scrollTo({ top: 0, behavior: "instant" });
+        await animationFrame();
+        await animationFrame();
+        scrollendCount = 0;
+
+        // Dragging a selection past the bottom edge auto scrolls to the scroll extent, between snap positions.
+        internals.mouseDown(rect.left + 10, rect.top + 10);
+        internals.mouseMove(rect.left + 10, rect.bottom + 200);
+        while (scroller.scrollTop < scroller.scrollHeight - scroller.clientHeight)
+            await animationFrame();
+
+        // Moving back inside the scroll container stops the auto scrolling without ending the drag.
+        internals.mouseMove(rect.left + 100, rect.top + 100);
+        const scrollOffsetWhileDragging = scroller.scrollTop;
+
+        await timeout(700);
+        output.push(`scroll offset changed while the drag continued: ${scroller.scrollTop !== scrollOffsetWhileDragging}`);
+        output.push(`scrollend count while the drag continued: ${scrollendCount}`);
+
+        internals.mouseUp(rect.left + 100, rect.top + 100);
+        await scrollOffsetStopsChanging(() => scroller.scrollTop);
+        output.push(`scroll offset after the drag ended: ${scroller.scrollLeft},${scroller.scrollTop}`);
+        output.push(`scrollend count after the drag ended: ${scrollendCount}`);
+
+        for (const line of output)
+            println(line);
+    });
+</script>

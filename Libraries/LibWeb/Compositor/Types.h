@@ -52,6 +52,8 @@ AK_ENUM_BITWISE_OPERATORS(VideoUpdateFlags);
 struct PendingAsyncScrollUpdates {
     Vector<AsyncScrollOffset> scroll_offsets;
     Vector<AsyncScrollOperationID> completed_operation_ids;
+    bool user_scroll_gesture_in_progress { false };
+    bool user_scroll_gesture_ended { false };
 };
 
 struct AsyncScrollEnqueueResult {

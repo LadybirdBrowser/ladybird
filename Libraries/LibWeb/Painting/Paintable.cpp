@@ -1111,6 +1111,19 @@ CSSPixelPoint Paintable::maximum_scroll_offset() const
     return max_scroll_offset;
 }
 
+Optional<Compositor::AsyncScrollNodeStableID> Paintable::async_scroll_node_stable_id() const
+{
+    auto scroll_node_kind = scroll_node_kind_for(*this);
+    if (!scroll_node_kind.has_value())
+        return {};
+
+    return Compositor::AsyncScrollNodeStableID {
+        .node_id = scrollable_node_id_for(*this),
+        .kind = Compositor::async_scroll_node_kind_for(*scroll_node_kind),
+        .pseudo_element_type = pseudo_element_type_for(*this),
+    };
+}
+
 Optional<CSSPixelRect> Paintable::absolute_containing_line_box_rect() const
 {
     if (!m_containing_line_box_index.has_value())
@@ -1201,7 +1214,7 @@ Paintable::ScrollHandled Paintable::set_scroll_offset_from_user_input(CSSPixelPo
 
     if (scroll_handled == ScrollHandled::Yes) {
         if (auto event_target = scroll_event_target())
-            navigable->queue_scrollend_event_after_user_scroll(*event_target);
+            navigable->queue_scrollend_event_after_user_scroll(*event_target, async_scroll_node_stable_id());
     } else {
         // User input keeps the scroll gesture in progress even when it does not move the scrolling box.
         navigable->defer_user_scroll_settlement();

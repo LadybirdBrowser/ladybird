@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
+#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/FlexLayoutData.h>
@@ -232,6 +233,8 @@ public:
     ScrollHandled set_scroll_offset_from_user_input(CSSPixelPoint);
     ScrollHandled scroll_by(double delta_x, double delta_y);
     void scroll_into_view(CSSPixelRect);
+
+    Optional<Compositor::AsyncScrollNodeStableID> async_scroll_node_stable_id() const;
 
     void set_offset(CSSPixelPoint);
     void set_offset(float x, float y) { set_offset({ x, y }); }

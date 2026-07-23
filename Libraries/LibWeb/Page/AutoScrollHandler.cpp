@@ -76,6 +76,8 @@ AutoScrollHandler::AutoScrollHandler(HTML::LocalNavigable& navigable, DOM::Eleme
 {
 }
 
+AutoScrollHandler::~AutoScrollHandler() = default;
+
 void AutoScrollHandler::visit_edges(JS::Cell::Visitor& visitor) const
 {
     visitor.visit(m_navigable);
@@ -144,6 +146,11 @@ RefPtr<Painting::Paintable> AutoScrollHandler::auto_scroll_paintable(DOM::Elemen
 void AutoScrollHandler::activate()
 {
     m_active = true;
+
+    // Moving the mouse back inside the scrollport pauses the scrolling without ending the selection drag it belongs
+    // to, so the hold outlives deactivation and is released when the handler is torn down.
+    if (!m_scroll_gesture_hold)
+        m_scroll_gesture_hold = make<HTML::UserScrollGestureHold>(m_navigable);
 }
 
 void AutoScrollHandler::deactivate()

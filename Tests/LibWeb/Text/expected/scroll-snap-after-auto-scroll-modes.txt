@@ -1,0 +1,8 @@
+scroll offset changed while the mode was active: false
+scrollend count while the mode was active: 0
+scroll offset after the mode was exited: 0,400
+scrollend count after the mode was exited: 1
+scroll offset changed while the drag continued: false
+scrollend count while the drag continued: 0
+scroll offset after the drag ended: 0,400
+scrollend count after the drag ended: 1

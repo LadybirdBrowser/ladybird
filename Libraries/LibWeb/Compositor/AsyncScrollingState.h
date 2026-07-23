@@ -38,6 +38,8 @@ enum class AsyncScrollNodeKind : u8 {
     PseudoElement,
 };
 
+WEB_API AsyncScrollNodeKind async_scroll_node_kind_for(Painting::CompositorScrollNodeKind);
+
 // Stable identity for reconciling compositor-side scroll offsets after the paint snapshot has been rebuilt.
 struct AsyncScrollNodeStableID {
     UniqueNodeID node_id;
