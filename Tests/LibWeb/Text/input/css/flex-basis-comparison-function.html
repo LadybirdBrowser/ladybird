@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container {
+        --bs-gutter-x: 30px;
+        box-sizing: border-box;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 96px;
+        width: 1359px;
+        padding: 42px 21px 63px;
+    }
+
+    .container > * {
+        box-sizing: border-box;
+        flex-shrink: 0;
+        width: 100%;
+        max-width: 100%;
+        padding-left: calc(var(--bs-gutter-x) * .5);
+        padding-right: calc(var(--bs-gutter-x) * .5);
+    }
+
+    .col-md-5 {
+        flex: 0 0 auto;
+        width: 41.66666667%;
+    }
+
+    .col-md-7 {
+        flex: 0 0 auto;
+        width: 58.33333333%;
+    }
+
+    .image {
+        flex: 0 0 min(58%, 820px);
+        max-width: min(58%, 820px);
+        height: 1016px;
+    }
+
+    .info {
+        flex: 1 1 0%;
+        max-width: 520px;
+        height: 752px;
+    }
+
+    .sticky {
+        position: sticky;
+        top: 112px;
+    }
+
+    h1 {
+        font-family: serif;
+        font-size: 46px;
+        font-weight: 400;
+        line-height: 1.05;
+        margin: 0 0 20px;
+    }
+
+    .trend {
+        display: block;
+        width: 100%;
+        max-height: 78px;
+        border: 1px solid black;
+    }
+
+    .pyramid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .paypal {
+        float: right;
+        width: 200px;
+        height: 35px;
+        margin: 10px 40px 0 0;
+    }
+</style>
+<div class="container">
+    <div class="col-md-5 image"></div>
+    <div class="col-md-7 info">
+        <div class="sticky">
+            <h1>Vanille Fleurie de Tahiti - Eau de Toilette 100ml</h1>
+            <div class="trend">Floral accent</div>
+            <div class="pyramid">
+                <div>Bergamot</div>
+                <div>Amber, Rose, Ylang-Ylang</div>
+                <div>Vanilla, Tonka bean, Benzoin</div>
+            </div>
+            <div class="paypal"></div>
+        </div>
+    </div>
+</div>
+<script>
+    test(() => {
+        const image = document.querySelector(".image");
+        const info = document.querySelector(".info");
+        const sticky = document.querySelector(".sticky");
+        println(`image: ${image.getBoundingClientRect().x}, ${image.getBoundingClientRect().width}`);
+        println(`info: ${info.getBoundingClientRect().x}, ${info.getBoundingClientRect().y}, ${info.getBoundingClientRect().width}`);
+        println(`sticky: ${sticky.getBoundingClientRect().x}, ${sticky.getBoundingClientRect().y}, ${sticky.getBoundingClientRect().width}`);
+    });
+</script>

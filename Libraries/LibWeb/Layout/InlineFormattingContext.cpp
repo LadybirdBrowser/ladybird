@@ -94,10 +94,7 @@ void InlineFormattingContext::run(LayoutInput const& layout_input)
 
     // NOTE: We ask the parent BFC to calculate the automatic content inline size of this IFC.
     //       This ensures that any floated boxes are taken into account.
-    auto provisional_containing_block_position_in_root = m_layout_input->content_box_position_in_bfc_root->translated(
-        0, parent().block_offset_adjustment_from_pending_ancestor_block_start_margins(containing_block()));
-    m_automatic_content_inline_size = parent().greatest_child_inline_size_in_rect(
-        containing_block(), { provisional_containing_block_position_in_root, m_containing_block_used_values.content_size() });
+    m_automatic_content_inline_size = parent().greatest_child_inline_size_including_floats(containing_block());
     m_automatic_content_block_size = content_block_size;
 
     compute_and_store_baselines(m_containing_block_used_values);

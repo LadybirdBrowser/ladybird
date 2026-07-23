@@ -1345,7 +1345,7 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
     if (m_layout_mode == LayoutMode::IntrinsicSizing) {
         auto& block_container_state = m_state.get_mutable(block_container);
         if (!block_container_state.has_definite_inline_size()) {
-            auto inline_size = greatest_child_inline_size_in_rect(block_container, { layout_input.content_box_position_in_bfc_root->translated(0, block_offset_adjustment_from_pending_ancestor_block_start_margins(block_container)), block_container_state.content_size() });
+            auto inline_size = greatest_child_inline_size_including_floats(block_container);
             auto const& computed_values = block_container.computed_values();
             // NOTE: Min and max constraints are not applied to a box that is being sized as intrinsic because
             //       according to css-sizing-3 spec:
@@ -1664,18 +1664,52 @@ void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_ite
 
 CSSPixels BlockFormattingContext::greatest_child_inline_size(Box const& box) const
 {
-    auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(m_state.get(box), root());
-    return greatest_child_inline_size_in_rect(box, box_in_root_rect);
+    return greatest_child_inline_size_including_floats(box);
 }
 
-CSSPixels BlockFormattingContext::greatest_child_inline_size_in_rect(Box const& box, CSSPixelRect const& box_in_root_rect) const
+CSSPixels BlockFormattingContext::greatest_child_inline_size_including_floats(Box const& box) const
 {
     // Similar to FormattingContext::greatest_child_inline_size()
     // but this one takes floats into account!
     CSSPixels max_inline_size = 0;
-    for (auto const& band : m_bands) {
-        auto intrusions = intrusions_for_band_into_rect(band, box_in_root_rect);
-        max_inline_size = max(max_inline_size, intrusions.left + intrusions.right);
+
+    // https://drafts.csswg.org/css2/#floats
+    // A line box is next to a float when there exists a vertical position that satisfies all of these
+    // four conditions: (a) at or below the top of the line box, (b) at or above the bottom of the line
+    // box, (c) below the top margin edge of the float, and (d) above the bottom margin edge of the float.
+    auto line_box_is_next_to_float = [](CSSPixels line_box_block_start, CSSPixels line_box_block_end, FloatingBox const& floating_box) {
+        return line_box_block_start < floating_box.bottom_margin_edge && line_box_block_end > floating_box.top_margin_edge;
+    };
+
+    auto inline_size_to_make_room_for_float_margin_box = [](FloatingBox const& floating_box) {
+        if (floating_box.side == FloatSide::Left)
+            return floating_box.offset_from_edge + floating_box.used_values.content_inline_size() + floating_box.used_values.margin_box_right();
+        return floating_box.offset_from_edge + floating_box.used_values.margin_box_left();
+    };
+
+    // https://drafts.csswg.org/css-sizing-3/#intrinsic-contribution
+    // A box’s min-content contribution/max-content contribution in each axis is the size of the
+    // content box of a hypothetical width/auto-sized float that contains only that box
+    //
+    // Only direct floats participate here. Descendant floats contribute through their containing block's
+    // own min-content contribution, not as if they belonged to this box's hypothetical float.
+    for (auto const& candidate_direct_float : m_floats) {
+        if (candidate_direct_float->box.containing_block() != &box)
+            continue;
+
+        SpaceUsedByFloats inline_space_used_by_direct_floats;
+        for (auto const& direct_float : m_floats) {
+            if (direct_float->box.containing_block() != &box)
+                continue;
+            if (line_box_is_next_to_float(candidate_direct_float->top_margin_edge, candidate_direct_float->bottom_margin_edge, *direct_float)) {
+                auto inline_size = inline_size_to_make_room_for_float_margin_box(*direct_float);
+                if (direct_float->side == FloatSide::Left)
+                    inline_space_used_by_direct_floats.left = max(inline_space_used_by_direct_floats.left, inline_size);
+                else
+                    inline_space_used_by_direct_floats.right = max(inline_space_used_by_direct_floats.right, inline_size);
+            }
+        }
+        max_inline_size = max(max_inline_size, inline_space_used_by_direct_floats.left + inline_space_used_by_direct_floats.right);
     }
 
     if (box.children_are_inline()) {
@@ -1690,9 +1724,8 @@ CSSPixels BlockFormattingContext::greatest_child_inline_size_in_rect(Box const& 
                 // NOTE: Floats directly affect the automatic size of their containing block, but only indirectly anything above in the tree.
                 if (left_float->box.containing_block() != &box)
                     continue;
-                if (line_block_start < left_float->bottom_margin_edge && line_block_end > left_float->top_margin_edge) {
-                    extra_inline_size_from_left_floats = max(extra_inline_size_from_left_floats, left_float->offset_from_edge + left_float->used_values.content_inline_size() + left_float->used_values.margin_box_right());
-                }
+                if (line_box_is_next_to_float(line_block_start, line_block_end, *left_float))
+                    extra_inline_size_from_left_floats = max(extra_inline_size_from_left_floats, inline_size_to_make_room_for_float_margin_box(*left_float));
             }
             CSSPixels extra_inline_size_from_right_floats = 0;
             for (auto& right_float : m_floats) {
@@ -1701,9 +1734,8 @@ CSSPixels BlockFormattingContext::greatest_child_inline_size_in_rect(Box const& 
                 // NOTE: Floats directly affect the automatic size of their containing block, but only indirectly anything above in the tree.
                 if (right_float->box.containing_block() != &box)
                     continue;
-                if (line_block_start < right_float->bottom_margin_edge && line_block_end > right_float->top_margin_edge) {
-                    extra_inline_size_from_right_floats = max(extra_inline_size_from_right_floats, right_float->offset_from_edge + right_float->used_values.margin_box_left());
-                }
+                if (line_box_is_next_to_float(line_block_start, line_block_end, *right_float))
+                    extra_inline_size_from_right_floats = max(extra_inline_size_from_right_floats, inline_size_to_make_room_for_float_margin_box(*right_float));
             }
             inline_size_here += extra_inline_size_from_left_floats + extra_inline_size_from_right_floats;
             max_inline_size = max(max_inline_size, inline_size_here);
