@@ -286,6 +286,117 @@ pub enum FfiReplacedElementDisplayAdjustment {
     Block,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+// NB: `Other` is constructed by C++ through the FFI.
+#[allow(dead_code)]
+pub enum FfiPseudoElement {
+    Before,
+    After,
+    Marker,
+    Other,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+// NB: `List` is constructed by C++ through the FFI.
+#[allow(dead_code)]
+pub enum FfiComputedContentType {
+    Normal,
+    None,
+    List,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiPseudoElementDecision {
+    None,
+    NormalMarker,
+    ContentReplacement,
+    Contents,
+    Box,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiPseudoElementFacts {
+    pub pseudo_element: FfiPseudoElement,
+    pub content_type: FfiComputedContentType,
+    pub display_is_none: bool,
+    pub display_is_contents: bool,
+    pub display_is_list_item: bool,
+    pub has_content_replacement: bool,
+    pub originating_layout_node_is_list_item: bool,
+    pub normal_marker_has_content: bool,
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDecision {
+    abort_on_panic(|| {
+        // https://drafts.csswg.org/css-display-3/#box-generation
+        // The element and its descendants generate no boxes or text sequences.
+        if facts.display_is_none {
+            return FfiPseudoElementDecision::None;
+        }
+
+        // ::before and ::after only exist if they have content. `content: normal` computes to `none` for them.
+        if matches!(facts.pseudo_element, FfiPseudoElement::Before | FfiPseudoElement::After)
+            && matches!(
+                facts.content_type,
+                FfiComputedContentType::Normal | FfiComputedContentType::None
+            )
+        {
+            return FfiPseudoElementDecision::None;
+        }
+
+        // For ::marker with content 'none' -- do nothing.
+        if facts.pseudo_element == FfiPseudoElement::Marker && facts.content_type == FfiComputedContentType::None {
+            return FfiPseudoElementDecision::None;
+        }
+
+        if facts.pseudo_element == FfiPseudoElement::Marker
+            && facts.content_type == FfiComputedContentType::Normal
+            && facts.originating_layout_node_is_list_item
+        {
+            // https://www.w3.org/TR/css-lists-3/#content-property
+            // "::marker does not generate a box" when list-style-type is 'none' and there's no marker image. Custom
+            // ::marker content is already excluded by the outer condition checking for Type::Normal.
+            return if facts.normal_marker_has_content {
+                FfiPseudoElementDecision::NormalMarker
+            } else {
+                FfiPseudoElementDecision::None
+            };
+        }
+
+        // https://drafts.csswg.org/css-content-3/#content-property
+        // Note: If the value of <content-list> is a single <image>, it must instead be interpreted as a
+        // <content-replacement>.
+        // Makes the element or pseudo-element a replaced element, filled with the specified <image>.
+        let mut is_content_replacement = facts.has_content_replacement;
+
+        // INTEROP: Blink, WebKit, and Gecko keep generated images as children of pseudo-element boxes. Preserve that
+        //          behavior for list items because our marker layout currently requires a ListItemBox.
+        if facts.display_is_list_item {
+            is_content_replacement = false;
+        }
+
+        // https://drafts.csswg.org/css-display-3/#box-generation
+        // This value computes to 'display: none' on replaced elements.
+        // INTEROP: Blink, WebKit, and Gecko preserve image content on 'display: contents' pseudo-elements instead.
+        if facts.display_is_contents {
+            is_content_replacement = false;
+        }
+
+        if is_content_replacement {
+            FfiPseudoElementDecision::ContentReplacement
+        } else if facts.display_is_contents {
+            FfiPseudoElementDecision::Contents
+        } else {
+            FfiPseudoElementDecision::Box
+        }
+    })
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_adjusted_table_display_for_replaced_element(
     is_table_inside: bool,
@@ -1475,8 +1586,9 @@ pub unsafe extern "C" fn rust_fixup_tables(callbacks: *const FfiTreeBuilderCallb
 #[cfg(test)]
 mod tests {
     use super::{
-        FfiFirstLetterCodePointFacts, FfiFirstLetterTextCallbacks, FfiReplacedElementDisplayAdjustment,
-        FirstLetterTextHost, find_first_letter_in_text, rust_adjusted_table_display_for_replaced_element,
+        FfiComputedContentType, FfiFirstLetterCodePointFacts, FfiFirstLetterTextCallbacks, FfiPseudoElement,
+        FfiPseudoElementDecision, FfiPseudoElementFacts, FfiReplacedElementDisplayAdjustment, FirstLetterTextHost,
+        find_first_letter_in_text, rust_adjusted_table_display_for_replaced_element, rust_pseudo_element_decision,
     };
     use std::ffi::c_void;
 
@@ -1580,5 +1692,94 @@ mod tests {
         assert_eq!(super::rust_tree_builder_ancestor_count(state), 0);
         // SAFETY: `state` was returned by the matching create function and has not been destroyed yet.
         unsafe { super::rust_tree_builder_state_destroy(state) };
+    }
+
+    #[test]
+    fn pseudo_element_box_generation_decisions() {
+        let decide = |pseudo_element,
+                      content_type,
+                      display_is_none,
+                      display_is_contents,
+                      display_is_list_item,
+                      has_content_replacement,
+                      originating_layout_node_is_list_item,
+                      normal_marker_has_content| {
+            rust_pseudo_element_decision(FfiPseudoElementFacts {
+                pseudo_element,
+                content_type,
+                display_is_none,
+                display_is_contents,
+                display_is_list_item,
+                has_content_replacement,
+                originating_layout_node_is_list_item,
+                normal_marker_has_content,
+            })
+        };
+
+        assert_eq!(
+            decide(
+                FfiPseudoElement::Before,
+                FfiComputedContentType::Normal,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            FfiPseudoElementDecision::None
+        );
+        assert_eq!(
+            decide(
+                FfiPseudoElement::Marker,
+                FfiComputedContentType::Normal,
+                false,
+                false,
+                false,
+                false,
+                true,
+                true
+            ),
+            FfiPseudoElementDecision::NormalMarker
+        );
+        assert_eq!(
+            decide(
+                FfiPseudoElement::Other,
+                FfiComputedContentType::List,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false
+            ),
+            FfiPseudoElementDecision::ContentReplacement
+        );
+        assert_eq!(
+            decide(
+                FfiPseudoElement::Other,
+                FfiComputedContentType::List,
+                false,
+                true,
+                false,
+                true,
+                false,
+                false
+            ),
+            FfiPseudoElementDecision::Contents
+        );
+        assert_eq!(
+            decide(
+                FfiPseudoElement::Other,
+                FfiComputedContentType::List,
+                false,
+                false,
+                true,
+                true,
+                false,
+                false
+            ),
+            FfiPseudoElementDecision::Box
+        );
     }
 }

@@ -333,6 +333,33 @@ NonnullRefPtr<ListItemMarkerBox> TreeBuilder::create_and_attach_list_item_marker
     return list_item_marker;
 }
 
+static RustFFI::FfiPseudoElement ffi_pseudo_element(CSS::PseudoElement pseudo_element)
+{
+    switch (pseudo_element) {
+    case CSS::PseudoElement::Before:
+        return RustFFI::FfiPseudoElement::Before;
+    case CSS::PseudoElement::After:
+        return RustFFI::FfiPseudoElement::After;
+    case CSS::PseudoElement::Marker:
+        return RustFFI::FfiPseudoElement::Marker;
+    default:
+        return RustFFI::FfiPseudoElement::Other;
+    }
+}
+
+static RustFFI::FfiComputedContentType ffi_computed_content_type(CSS::ComputedContentData::Type content_type)
+{
+    switch (content_type) {
+    case CSS::ComputedContentData::Type::Normal:
+        return RustFFI::FfiComputedContentType::Normal;
+    case CSS::ComputedContentData::Type::None:
+        return RustFFI::FfiComputedContentType::None;
+    case CSS::ComputedContentData::Type::List:
+        return RustFFI::FfiComputedContentType::List;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::PseudoElement pseudo_element, Optional<AppendOrPrepend> insertion_mode)
 {
     auto& document = element.document();
@@ -347,27 +374,29 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
 
     auto pseudo_element_display = pseudo_element_values->display();
 
-    // https://drafts.csswg.org/css-display-3/#box-generation
-    // The element and its descendants generate no boxes or text sequences.
-    if (pseudo_element_display.is_none())
-        return {};
-
     auto initial_quote_nesting_level = quote_nesting_level();
 
     // NB: Whether this pseudo-element generates a box depends only on the shape of its computed
     //     content value, so the full resolution (which reads counters that do not exist until
     //     the box is inserted) can wait until after insertion.
     auto const computed_content_type = pseudo_element_values->computed_content().type;
-
-    // ::before and ::after only exist if they have content. `content: normal` computes to `none` for them.
-    if (first_is_one_of(pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After)
-        && (computed_content_type == CSS::ComputedContentData::Type::Normal
-            || computed_content_type == CSS::ComputedContentData::Type::None))
-        return {};
-
-    // For ::marker with content 'none' -- do nothing.
-    if (pseudo_element == CSS::PseudoElement::Marker
-        && computed_content_type == CSS::ComputedContentData::Type::None)
+    auto const* replacement_image = content_replacement_image(pseudo_element_values->computed_content());
+    ListItemBox* originating_list_box = nullptr;
+    if (pseudo_element == CSS::PseudoElement::Marker && computed_content_type == CSS::ComputedContentData::Type::Normal)
+        originating_list_box = as_if<ListItemBox>(*element.unsafe_layout_node());
+    auto const normal_marker_has_content = originating_list_box
+        && (!originating_list_box->computed_values().list_style_type().has<Empty>() || originating_list_box->list_style_image());
+    auto const decision = RustFFI::rust_pseudo_element_decision({
+        .pseudo_element = ffi_pseudo_element(pseudo_element),
+        .content_type = ffi_computed_content_type(computed_content_type),
+        .display_is_none = pseudo_element_display.is_none(),
+        .display_is_contents = pseudo_element_display.is_contents(),
+        .display_is_list_item = pseudo_element_display.is_list_item(),
+        .has_content_replacement = replacement_image != nullptr,
+        .originating_layout_node_is_list_item = originating_list_box != nullptr,
+        .normal_marker_has_content = normal_marker_has_content,
+    });
+    if (decision == RustFFI::FfiPseudoElementDecision::None)
         return {};
 
     // For ::marker with content 'normal', create the marker pseudo-element from a ListItemMarkerBox
@@ -375,43 +404,17 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     //        are rendered using the special list-item counter.
     //        See: https://github.com/LadybirdBrowser/ladybird/issues/4782
     // NB: Called during layout tree construction.
-    if (pseudo_element == CSS::PseudoElement::Marker && computed_content_type == CSS::ComputedContentData::Type::Normal)
-        if (auto* list_box = as_if<ListItemBox>(*element.unsafe_layout_node())) {
-            // https://www.w3.org/TR/css-lists-3/#content-property
-            // "::marker does not generate a box" when list-style-type is 'none' and there's no marker image. Custom
-            // ::marker content is already excluded by the outer condition checking for Type::Normal.
-            if (list_box->computed_values().list_style_type().has<Empty>() && !list_box->list_style_image()) {
-                return {};
-            }
-
-            return create_and_attach_list_item_marker(*list_box, element, NonnullRefPtr { *pseudo_element_values });
-        }
+    if (decision == RustFFI::FfiPseudoElementDecision::NormalMarker)
+        return create_and_attach_list_item_marker(*originating_list_box, element, NonnullRefPtr { *pseudo_element_values });
 
     RefPtr<NodeWithStyle> pseudo_element_node;
-
-    // https://drafts.csswg.org/css-content-3/#content-property
-    // Note: If the value of <content-list> is a single <image>, it must instead be interpreted as a
-    // <content-replacement>.
-    // Makes the element or pseudo-element a replaced element, filled with the specified <image>.
-    auto const* replacement_image = content_replacement_image(pseudo_element_values->computed_content());
-    auto is_content_replacement = replacement_image != nullptr;
-
-    // INTEROP: Blink, WebKit, and Gecko keep generated images as children of pseudo-element boxes. Preserve that
-    //          behavior for list items because our marker layout currently requires a ListItemBox.
-    if (pseudo_element_display.is_list_item())
-        is_content_replacement = false;
-
-    // https://drafts.csswg.org/css-display-3/#box-generation
-    // This value computes to 'display: none' on replaced elements.
-    // INTEROP: Blink, WebKit, and Gecko preserve image content on 'display: contents' pseudo-elements instead.
-    if (pseudo_element_display.is_contents())
-        is_content_replacement = false;
+    auto const is_content_replacement = decision == RustFFI::FfiPseudoElementDecision::ContentReplacement;
 
     if (is_content_replacement) {
         pseudo_element_node = create_content_image_box(document, nullptr, NonnullRefPtr { *pseudo_element_values }, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
         if (auto adjusted_display = adjusted_table_display_for_replaced_element(pseudo_element_display); adjusted_display.has_value())
             pseudo_element_node->set_display(*adjusted_display);
-    } else if (pseudo_element_display.is_contents()) {
+    } else if (decision == RustFFI::FfiPseudoElementDecision::Contents) {
         pseudo_element_node = make_ref_counted<InlineNode>(document, nullptr, NonnullRefPtr { *pseudo_element_values });
         pseudo_element_node->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
     } else {
