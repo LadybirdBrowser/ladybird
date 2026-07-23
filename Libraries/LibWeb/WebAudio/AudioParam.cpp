@@ -18,6 +18,7 @@ AudioParam::AudioParam(JS::Realm& realm, GC::Ref<BaseAudioContext> context, floa
     : Bindings::PlatformObject(realm)
     , m_context(context)
     , m_timeline(make_ref_counted<AudioParamTimeline>(default_value))
+    , m_render_param(make_ref_counted<Rendering::RenderAudioParam>(m_timeline, min_value, max_value, automation_rate))
     , m_current_value(default_value)
     , m_default_value(default_value)
     , m_min_value(min_value)
@@ -68,6 +69,7 @@ WebIDL::ExceptionOr<void> AudioParam::set_automation_rate(Bindings::AutomationRa
         return WebIDL::InvalidStateError::create(realm(), "Automation rate cannot be changed"_utf16);
 
     m_automation_rate = automation_rate;
+    m_render_param->set_automation_rate(automation_rate);
     return {};
 }
 

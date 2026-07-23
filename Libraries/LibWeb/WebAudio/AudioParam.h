@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/AudioParam.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/WebAudio/AudioParamTimeline.h>
+#include <LibWeb/WebAudio/Rendering/RenderNode.h>
 
 namespace Web::WebAudio {
 
@@ -49,6 +50,7 @@ public:
     float max_value() const { return m_max_value; }
 
     NonnullRefPtr<AudioParamTimeline> timeline() const { return m_timeline; }
+    NonnullRefPtr<Rendering::RenderAudioParam> render_param() const { return m_render_param; }
 
     WebIDL::ExceptionOr<GC::Ref<AudioParam>> set_value_at_time(float value, double start_time);
     WebIDL::ExceptionOr<GC::Ref<AudioParam>> linear_ramp_to_value_at_time(float value, double end_time);
@@ -66,6 +68,7 @@ private:
     GC::Ref<BaseAudioContext> m_context;
 
     NonnullRefPtr<AudioParamTimeline> m_timeline;
+    NonnullRefPtr<Rendering::RenderAudioParam> m_render_param;
 
     // https://webaudio.github.io/web-audio-api/#dom-audioparam-current-value-slot
     float m_current_value {}; //  [[current value]]
