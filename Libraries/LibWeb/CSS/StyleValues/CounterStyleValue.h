@@ -31,7 +31,7 @@ public:
 
     CounterFunction function_type() const { return static_cast<CounterFunction>(m_value->counter.function); }
     Utf16FlyString counter_name() const { return Utf16FlyString::from_raw(m_value->counter.counter_name.raw); }
-    ValueComparingNonnullRefPtr<StyleValue const> counter_style() const { return *static_cast<StyleValue const*>(m_value->counter.counter_style.pointer); }
+    ValueComparingNonnullRefPtr<StyleValue const> counter_style() const { return m_counter_style; }
     Utf16FlyString join_string() const { return Utf16FlyString::from_raw(m_value->counter.join_string.raw); }
 
     Utf16String resolve(DOM::AbstractElement&) const;
@@ -41,7 +41,17 @@ public:
     bool properties_equal(CounterStyleValue const& other) const;
 
 private:
+    friend class StyleValue;
+
+    explicit CounterStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::Counter, data)
+        , m_counter_style(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->counter.counter_style.pointer))))
+    {
+    }
+
     explicit CounterStyleValue(CounterFunction, Utf16FlyString counter_name, ValueComparingNonnullRefPtr<StyleValue const> counter_style, Utf16FlyString join_string);
+
+    ValueComparingNonnullRefPtr<StyleValue const> m_counter_style;
 };
 
 }

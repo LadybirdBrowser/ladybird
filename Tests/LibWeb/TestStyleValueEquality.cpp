@@ -6,16 +6,24 @@
 
 #include <LibTest/TestCase.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleValues/AnchorSizeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusRectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ContrastColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -23,10 +31,15 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OverflowClipMarginStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ScrollbarColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TextIndentStyleValue.h>
@@ -89,6 +102,19 @@ TEST_CASE(rust_composites_scalar_style_values)
     EXPECT(result.handled);
     auto opacity = StyleValue::adopt_rust_style_value_data(result.value);
     EXPECT_EQ(opacity->as_opacity_value().resolved(), 1);
+}
+
+TEST_CASE(rust_unresolved_value_retains_cached_parsed_value)
+{
+    RefPtr<StyleValue const> parsed_value = NumberStyleValue::create(42);
+    auto unresolved_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_unresolved(
+        0, nullptr, 0, 0, nullptr, 0, false, false, false, false, false, false, true,
+        StyleValueFFI::rust_style_value_retain(parsed_value->rust_style_value_data())));
+    parsed_value = nullptr;
+
+    auto restored_parsed_value = unresolved_value->as_unresolved().parsed_value();
+    EXPECT(restored_parsed_value);
+    EXPECT_EQ(restored_parsed_value->as_number().number(), 42);
 }
 
 TEST_CASE(rust_interpolates_and_composites_scalar_dimensions)
@@ -160,6 +186,8 @@ TEST_CASE(rust_scalar_handles_create_typed_wrappers)
     EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_percentage(1))->is_percentage());
     EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_resolution(1, 0))->is_resolution());
     EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_time(1, 0))->is_time());
+    EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_custom_ident(Utf16FlyString::from_utf8("foo"sv).to_raw_leaked()))->is_custom_ident());
+    EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_counter_style(false, Utf16FlyString::from_utf8("decimal"sv).to_raw_leaked(), 0, nullptr, 0))->is_counter_style());
 }
 
 TEST_CASE(rust_transformation_handles_retain_child_data)
@@ -511,6 +539,225 @@ TEST_CASE(rust_font_style_handles_retain_angle_data)
     auto angle = font_style->as_font_style().angle();
     font_style = KeywordStyleValue::create(Keyword::None);
     EXPECT_EQ(angle->to_string(SerializationMode::Normal), "20deg"sv);
+}
+
+TEST_CASE(rust_overflow_clip_margin_handles_retain_offset_data)
+{
+    auto data = StyleValueFFI::rust_style_value_create_overflow_clip_margin(
+        false,
+        0,
+        StyleValueFFI::rust_style_value_create_length(10, to_underlying(LengthUnit::Px)));
+
+    auto clip_margin = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(clip_margin->is_overflow_clip_margin());
+    NonnullRefPtr<StyleValue const> offset { clip_margin->as_overflow_clip_margin().offset() };
+    clip_margin = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(offset->to_string(SerializationMode::Normal), "10px"sv);
+}
+
+TEST_CASE(rust_grid_track_placement_handles_retain_line_data)
+{
+    auto data = StyleValueFFI::rust_style_value_create_grid_track_placement(
+        2,
+        StyleValueFFI::rust_style_value_create_integer(3),
+        false,
+        0);
+
+    auto placement = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(placement->is_grid_track_placement());
+    auto line = placement->as_grid_track_placement().grid_track_placement().line_number();
+    placement = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(line->to_string(SerializationMode::Normal), "3"sv);
+}
+
+TEST_CASE(rust_counter_handles_retain_counter_style_data)
+{
+    auto data = StyleValueFFI::rust_style_value_create_counter(
+        to_underlying(CounterStyleValue::CounterFunction::Counter),
+        Utf16FlyString::from_utf8("example"sv).to_raw_leaked(),
+        StyleValueFFI::rust_style_value_create_counter_style(
+            false,
+            Utf16FlyString::from_utf8("decimal"sv).to_raw_leaked(),
+            0,
+            nullptr,
+            0),
+        Utf16FlyString::from_utf8(""sv).to_raw_leaked());
+
+    auto counter = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(counter->is_counter());
+    auto counter_style = counter->as_counter().counter_style();
+    counter = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(counter_style->to_string(SerializationMode::Normal), "decimal"sv);
+}
+
+TEST_CASE(rust_light_dark_handles_retain_color_data)
+{
+    auto light = NumberStyleValue::create(1);
+    auto dark = NumberStyleValue::create(2);
+    auto data = StyleValueFFI::rust_style_value_create_light_dark(
+        false,
+        0,
+        to_underlying(ColorSyntax::Modern),
+        StyleValueFFI::rust_style_value_retain(light->rust_style_value_data()),
+        StyleValueFFI::rust_style_value_retain(dark->rust_style_value_data()));
+
+    light = NumberStyleValue::create(3);
+    dark = NumberStyleValue::create(4);
+    auto light_dark = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(light_dark->is_color());
+    EXPECT_EQ(light_dark->to_string(SerializationMode::Normal), "light-dark(1, 2)"sv);
+}
+
+TEST_CASE(rust_scrollbar_color_handles_retain_color_data)
+{
+    auto thumb = NumberStyleValue::create(1);
+    auto track = NumberStyleValue::create(2);
+    auto data = StyleValueFFI::rust_style_value_create_scrollbar_color(
+        StyleValueFFI::rust_style_value_retain(thumb->rust_style_value_data()),
+        StyleValueFFI::rust_style_value_retain(track->rust_style_value_data()));
+
+    thumb = NumberStyleValue::create(3);
+    track = NumberStyleValue::create(4);
+    auto scrollbar_color = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(scrollbar_color->is_scrollbar_color());
+    auto retained_thumb = scrollbar_color->as_scrollbar_color().thumb_color();
+    scrollbar_color = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_thumb->to_string(SerializationMode::Normal), "1"sv);
+}
+
+TEST_CASE(rust_contrast_color_handles_retain_color_data)
+{
+    auto color = NumberStyleValue::create(1);
+    auto data = StyleValueFFI::rust_style_value_create_contrast_color(
+        false,
+        0,
+        to_underlying(ColorSyntax::Modern),
+        StyleValueFFI::rust_style_value_retain(color->rust_style_value_data()));
+
+    color = NumberStyleValue::create(2);
+    auto contrast_color = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(contrast_color->is_color());
+    EXPECT_EQ(contrast_color->to_string(SerializationMode::Normal), "contrast-color(1)"sv);
+}
+
+TEST_CASE(rust_random_value_sharing_handles_retain_fixed_data)
+{
+    auto fixed_value = NumberStyleValue::create(1);
+    auto data = StyleValueFFI::rust_style_value_create_random_value_sharing(
+        StyleValueFFI::rust_style_value_retain(fixed_value->rust_style_value_data()),
+        false,
+        false,
+        0,
+        false);
+
+    fixed_value = NumberStyleValue::create(2);
+    auto sharing = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(sharing->is_random_value_sharing());
+    EXPECT_EQ(sharing->to_string(SerializationMode::Normal), "fixed 1"sv);
+}
+
+TEST_CASE(rust_anchor_size_handles_retain_fallback_data)
+{
+    auto fallback = NumberStyleValue::create(1);
+    auto data = StyleValueFFI::rust_style_value_create_anchor_size(
+        false,
+        0,
+        false,
+        0,
+        StyleValueFFI::rust_style_value_retain(fallback->rust_style_value_data()));
+
+    fallback = NumberStyleValue::create(2);
+    auto anchor_size = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(anchor_size->is_anchor_size());
+    auto retained_fallback = anchor_size->as_anchor_size().fallback_value();
+    anchor_size = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_fallback->to_string(SerializationMode::Normal), "1"sv);
+}
+
+TEST_CASE(rust_anchor_handles_retain_side_and_fallback_data)
+{
+    auto side = NumberStyleValue::create(1);
+    auto fallback = NumberStyleValue::create(2);
+    auto data = StyleValueFFI::rust_style_value_create_anchor(
+        false,
+        0,
+        StyleValueFFI::rust_style_value_retain(side->rust_style_value_data()),
+        StyleValueFFI::rust_style_value_retain(fallback->rust_style_value_data()));
+
+    side = NumberStyleValue::create(3);
+    fallback = NumberStyleValue::create(4);
+    auto anchor = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(anchor->is_anchor());
+    auto retained_side = anchor->as_anchor().anchor_side();
+    anchor = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_side->to_string(SerializationMode::Normal), "1"sv);
+}
+
+TEST_CASE(rust_content_handles_retain_list_data)
+{
+    auto content = StyleValueList::create({ NumberStyleValue::create(1) }, StyleValueList::Separator::Space);
+    auto alt_text = StyleValueList::create({ NumberStyleValue::create(2) }, StyleValueList::Separator::Space);
+    auto data = StyleValueFFI::rust_style_value_create_content(
+        StyleValueFFI::rust_style_value_retain(content->rust_style_value_data()),
+        StyleValueFFI::rust_style_value_retain(alt_text->rust_style_value_data()));
+
+    content = StyleValueList::create({ NumberStyleValue::create(3) }, StyleValueList::Separator::Space);
+    alt_text = StyleValueList::create({ NumberStyleValue::create(4) }, StyleValueList::Separator::Space);
+    auto content_value = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(content_value->is_content());
+    EXPECT_EQ(content_value->to_string(SerializationMode::Normal), "1 / 2"sv);
+}
+
+TEST_CASE(rust_counter_style_system_handles_retain_first_symbol_data)
+{
+    auto first_symbol = NumberStyleValue::create(1);
+    auto data = StyleValueFFI::rust_style_value_create_counter_style_system(
+        1,
+        0,
+        StyleValueFFI::rust_style_value_retain(first_symbol->rust_style_value_data()),
+        0);
+
+    first_symbol = NumberStyleValue::create(2);
+    auto system = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(system->is_counter_style_system());
+    auto retained_symbol = system->as_counter_style_system().value().get<CounterStyleSystemStyleValue::Fixed>().first_symbol;
+    system = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_symbol->to_string(SerializationMode::Normal), "1"sv);
+}
+
+TEST_CASE(rust_font_source_handles_retain_local_name_data)
+{
+    auto local_name = StringStyleValue::create("Font Name"_utf16_fly_string);
+    auto data = StyleValueFFI::rust_style_value_create_font_source(
+        true,
+        StyleValueFFI::rust_style_value_retain(local_name->rust_style_value_data()),
+        0,
+        0,
+        nullptr,
+        0,
+        false,
+        0,
+        nullptr,
+        0);
+
+    local_name = StringStyleValue::create("Other Font"_utf16_fly_string);
+    auto source = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(source->is_font_source());
+    EXPECT_EQ(source->to_string(SerializationMode::Normal), "local(\"Font Name\")"sv);
+}
+
+TEST_CASE(rust_pending_substitution_handles_retain_shorthand_data)
+{
+    auto shorthand = NumberStyleValue::create(1);
+    auto data = StyleValueFFI::rust_style_value_create_pending_substitution(
+        StyleValueFFI::rust_style_value_retain(shorthand->rust_style_value_data()));
+
+    shorthand = NumberStyleValue::create(2);
+    auto pending = StyleValue::adopt_rust_style_value_data(data);
+    EXPECT(pending->is_pending_substitution());
+    RefPtr<StyleValue const> retained_shorthand = pending->as_pending_substitution().original_shorthand_value();
+    pending = KeywordStyleValue::create(Keyword::None);
+    EXPECT_EQ(retained_shorthand->to_string(SerializationMode::Normal), "1"sv);
 }
 
 TEST_CASE(rust_interpolates_font_style_values)

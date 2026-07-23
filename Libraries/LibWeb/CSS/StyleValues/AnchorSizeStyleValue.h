@@ -38,14 +38,26 @@ public:
     }
     ValueComparingRefPtr<StyleValue const> fallback_value() const
     {
-        return static_cast<StyleValue const*>(m_value->anchor_size.fallback_value.pointer);
+        return m_fallback_value;
     }
 
 private:
+    friend class StyleValue;
+
+    explicit AnchorSizeStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::AnchorSize, data)
+    {
+        auto const* fallback_data = static_cast<StyleValueFFI::StyleValueData const*>(data->anchor_size.fallback_value.pointer);
+        if (fallback_data)
+            m_fallback_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(fallback_data));
+    }
+
     AnchorSizeStyleValue(
         Optional<Utf16FlyString> const& anchor_name,
         Optional<AnchorSize> const& anchor_size,
         ValueComparingRefPtr<StyleValue const> const& fallback_value);
+
+    ValueComparingRefPtr<StyleValue const> m_fallback_value;
 };
 
 }

@@ -54,7 +54,7 @@ public:
         case 0:
             return static_cast<CounterStyleSystem>(data.system);
         case 1:
-            return Fixed { static_cast<StyleValue const*>(data.first_symbol.pointer) };
+            return Fixed { m_first_symbol };
         default:
             return Extends { Utf16FlyString::from_raw(data.name.raw) };
         }
@@ -64,9 +64,21 @@ public:
 
     // NB: We only use this style value within the @counter-style at-rule so will never call this
 private:
+    friend class StyleValue;
+
     explicit CounterStyleSystemStyleValue(Variant<CounterStyleSystem, Fixed, Extends> value)
         : StyleValueWithDefaultOperators(Type::CounterStyleSystem, make_counter_style_system_data(value))
     {
+        if (value.has<Fixed>())
+            m_first_symbol = value.get<Fixed>().first_symbol;
+    }
+
+    explicit CounterStyleSystemStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::CounterStyleSystem, data)
+    {
+        auto const* first_symbol_data = static_cast<StyleValueFFI::StyleValueData const*>(data->counter_style_system.first_symbol.pointer);
+        if (first_symbol_data)
+            m_first_symbol = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(first_symbol_data));
     }
 
     static StyleValueFFI::StyleValueData const* make_counter_style_system_data(Value const& value)
@@ -78,14 +90,15 @@ private:
                 return StyleValueFFI::rust_style_value_create_counter_style_system(0, to_underlying(system), nullptr, 0);
             },
             [](Fixed const& fixed) {
-                if (fixed.first_symbol)
-                    fixed.first_symbol->ref();
-                return StyleValueFFI::rust_style_value_create_counter_style_system(1, 0, fixed.first_symbol.ptr(), 0);
+                auto const* first_symbol_data = fixed.first_symbol ? StyleValueFFI::rust_style_value_retain(fixed.first_symbol->rust_style_value_data()) : nullptr;
+                return StyleValueFFI::rust_style_value_create_counter_style_system(1, 0, first_symbol_data, 0);
             },
             [](Extends const& extends) {
                 return StyleValueFFI::rust_style_value_create_counter_style_system(2, 0, nullptr, extends.name.to_raw_leaked());
             });
     }
+
+    ValueComparingRefPtr<StyleValue const> m_first_symbol;
 };
 
 }

@@ -50,6 +50,16 @@ public:
     GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
 
 private:
+    friend class StyleValue;
+
+    explicit UnresolvedStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValue(Type::Unresolved, data)
+        , m_parsed_value(data->unresolved.parsed_value.pointer
+                  ? RefPtr<StyleValue const> { StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->unresolved.parsed_value.pointer))) }
+                  : nullptr)
+    {
+    }
+
     static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_internal(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<String> original_source_text, SourceTextMode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
 
     UnresolvedStyleValue(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);

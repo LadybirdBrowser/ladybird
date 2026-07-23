@@ -12,12 +12,11 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData const* ContentStyleValue::make_content_data(ValueComparingNonnullRefPtr<StyleValueList const> content, ValueComparingRefPtr<StyleValueList const> const& alt_text)
+StyleValueFFI::StyleValueData const* ContentStyleValue::make_content_data(ValueComparingNonnullRefPtr<StyleValueList const> const& content, ValueComparingRefPtr<StyleValueList const> const& alt_text)
 {
-    // The Rust allocation takes ownership of one strong reference to each non-null list.
-    if (alt_text)
-        alt_text->ref();
-    return StyleValueFFI::rust_style_value_create_content(&content.leak_ref(), alt_text.ptr());
+    // The Rust allocation takes ownership of one strong reference to each non-null list data.
+    auto const* alt_text_data = alt_text ? StyleValueFFI::rust_style_value_retain(alt_text->rust_style_value_data()) : nullptr;
+    return StyleValueFFI::rust_style_value_create_content(StyleValueFFI::rust_style_value_retain(content->rust_style_value_data()), alt_text_data);
 }
 
 bool ContentStyleValue::properties_equal(ContentStyleValue const& other) const

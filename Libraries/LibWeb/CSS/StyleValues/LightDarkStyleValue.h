@@ -26,13 +26,27 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
 
 private:
+    friend class StyleValue;
+
     LightDarkStyleValue(ValueComparingNonnullRefPtr<StyleValue const> light, ValueComparingNonnullRefPtr<StyleValue const> dark)
-        : ColorStyleValue(StyleValueFFI::rust_style_value_create_light_dark(false, 0, to_underlying(ColorSyntax::Modern), &light.leak_ref(), &dark.leak_ref()))
+        : ColorStyleValue(StyleValueFFI::rust_style_value_create_light_dark(false, 0, to_underlying(ColorSyntax::Modern), StyleValueFFI::rust_style_value_retain(light->rust_style_value_data()), StyleValueFFI::rust_style_value_retain(dark->rust_style_value_data())))
+        , m_light(move(light))
+        , m_dark(move(dark))
     {
     }
 
-    ValueComparingNonnullRefPtr<StyleValue const> light() const { return *static_cast<StyleValue const*>(m_value->light_dark.light.pointer); }
-    ValueComparingNonnullRefPtr<StyleValue const> dark() const { return *static_cast<StyleValue const*>(m_value->light_dark.dark.pointer); }
+    explicit LightDarkStyleValue(StyleValueFFI::StyleValueData const* data)
+        : ColorStyleValue(data)
+        , m_light(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->light_dark.light.pointer))))
+        , m_dark(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->light_dark.dark.pointer))))
+    {
+    }
+
+    ValueComparingNonnullRefPtr<StyleValue const> light() const { return m_light; }
+    ValueComparingNonnullRefPtr<StyleValue const> dark() const { return m_dark; }
+
+    ValueComparingNonnullRefPtr<StyleValue const> m_light;
+    ValueComparingNonnullRefPtr<StyleValue const> m_dark;
 };
 
 } // Web::CSS

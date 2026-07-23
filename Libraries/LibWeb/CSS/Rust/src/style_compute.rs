@@ -920,7 +920,10 @@ fn value_is_computationally_independent(
         StyleValueData::Function { value, .. } => all_data(&[value]),
         StyleValueData::OpacityValue { value } => all_data(&[value]),
         // Auto placements carry no value; spans and lines recurse into theirs.
-        StyleValueData::GridTrackPlacement { value, .. } => child(value),
+        StyleValueData::GridTrackPlacement { value, .. } => match value.optional_data() {
+            Some(value) => value_is_computationally_independent(value, data_of, decide_fallback),
+            None => Some(true),
+        },
         // FIXME: Consider sub-values once we support <custom-color-space> values
         StyleValueData::ColorInterpolationMethod { .. } => Some(true),
         StyleValueData::ColorFunction {
@@ -938,7 +941,13 @@ fn value_is_computationally_independent(
             left,
             ..
         } => all_data(&[top, right, bottom, left]),
-        StyleValueData::Content { content, alt_text } => all_of(&[content, alt_text]),
+        StyleValueData::Content { content, alt_text } => {
+            let mut independent = value_is_computationally_independent(content.data(), data_of, decide_fallback)?;
+            if let Some(alt_text) = alt_text.optional_data() {
+                independent = independent && value_is_computationally_independent(alt_text, data_of, decide_fallback)?;
+            }
+            Some(independent)
+        }
         // Extent components carry no value; explicit sizes recurse into theirs.
         StyleValueData::RadialSize { value_0, value_1, .. } => all_of(&[value_0, value_1]),
         // Every shape kind's rule is a conjunction over the values it uses; the
@@ -962,9 +971,12 @@ fn value_is_computationally_independent(
         }
         // Every filter kind's rule recurses into its single value.
         StyleValueData::Filter { value, .. } => child(value),
-        StyleValueData::Counter { counter_style, .. } => child(counter_style),
+        StyleValueData::Counter { counter_style, .. } => all_data(&[counter_style]),
         StyleValueData::OpenTypeTagged { value, .. } => all_data(&[value]),
-        StyleValueData::RandomValueSharing { fixed_value, .. } => child(fixed_value),
+        StyleValueData::RandomValueSharing { fixed_value, .. } => match fixed_value.optional_data() {
+            Some(fixed_value) => value_is_computationally_independent(fixed_value, data_of, decide_fallback),
+            None => Some(true),
+        },
         StyleValueData::Cursor { image, x, y } => all_of(&[image, x, y]),
         // The unused fields of the non-matching easing kinds are absent, so one
         // null-tolerant conjunction covers every kind's rule.
@@ -1035,13 +1047,13 @@ fn value_is_computationally_independent(
             }
             Some(independent)
         }
-        StyleValueData::ContrastColor { color, .. } => child(color),
+        StyleValueData::ContrastColor { color, .. } => all_data(&[color]),
         StyleValueData::Superellipse { parameter } => all_data(&[parameter]),
         StyleValueData::ScrollbarColor {
             thumb_color,
             track_color,
             ..
-        } => all_of(&[thumb_color, track_color]),
+        } => all_data(&[thumb_color, track_color]),
         StyleValueData::Rect {
             top,
             right,
@@ -1054,7 +1066,7 @@ fn value_is_computationally_independent(
             None => Some(true),
         },
         StyleValueData::TextIndent { length_percentage, .. } => all_data(&[length_percentage]),
-        StyleValueData::OverflowClipMargin { offset, .. } => child(offset),
+        StyleValueData::OverflowClipMargin { offset, .. } => all_data(&[offset]),
         StyleValueData::BackgroundSize { size_x, size_y, .. } => all_data(&[size_x, size_y]),
         StyleValueData::Position { edge_x, edge_y, .. } => all_data(&[edge_x, edge_y]),
         StyleValueData::Shadow {

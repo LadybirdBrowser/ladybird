@@ -45,7 +45,7 @@ static void mark_as_attr_tainted(Vector<Parser::ComponentValue>& values)
         value.set_attr_tainted();
 }
 
-static StyleValueFFI::StyleValueData const* create_rust_style_value(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values)
+static StyleValueFFI::StyleValueData const* create_rust_style_value(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values, StyleValue const* parsed_value)
 {
     auto source_text_bytes = source_text.bytes();
     auto value_comparison_text_bytes = value_comparison_text.bytes();
@@ -64,7 +64,8 @@ static StyleValueFFI::StyleValueData const* create_rust_style_value(String sourc
         substitution_presence.if_,
         substitution_presence.inherit,
         substitution_presence.var,
-        contains_attr_tainted_values);
+        contains_attr_tainted_values,
+        parsed_value ? StyleValueFFI::rust_style_value_retain(parsed_value->rust_style_value_data()) : nullptr);
 }
 
 String UnresolvedStyleValue::comparison_text() const
@@ -109,7 +110,7 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
 }
 
 UnresolvedStyleValue::UnresolvedStyleValue(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value)
-    : StyleValue(Type::Unresolved, create_rust_style_value(move(source_text), move(value_comparison_text), substitution_presence, contains_attr_tainted_values))
+    : StyleValue(Type::Unresolved, create_rust_style_value(move(source_text), move(value_comparison_text), substitution_presence, contains_attr_tainted_values, parsed_value.ptr()))
     , m_parsed_value(move(parsed_value))
 {
 }

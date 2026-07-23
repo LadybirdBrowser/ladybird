@@ -16,14 +16,13 @@ StyleValueFFI::StyleValueData const* FontSourceStyleValue::make_font_source_data
     // The Rust allocation takes ownership of one strong reference to the local name, or one
     // leaked reference to each retained string.
     bool is_local = source.has<Local>();
-    void const* local_name = nullptr;
+    StyleValueFFI::StyleValueData const* local_name = nullptr;
     FlatPtr url_string = 0;
     u8 url_type = 0;
     Vector<StyleValueFFI::RetainedRequestUrlModifier> modifiers;
     if (is_local) {
         auto const& local = source.get<Local>();
-        local.name->ref();
-        local_name = local.name.ptr();
+        local_name = StyleValueFFI::rust_style_value_retain(local.name->rust_style_value_data());
     } else {
         auto const& url = source.get<URL>();
         url_string = url.url().to_raw_leaked();
@@ -41,7 +40,7 @@ FontSourceStyleValue::Source FontSourceStyleValue::source() const
 {
     auto const& data = m_value->font_source;
     if (data.is_local)
-        return Local { *static_cast<StyleValue const*>(data.local_name.pointer) };
+        return Local { *m_local_name };
 
     return url_from_rust_data(data.url, data.url_type, data.url_modifiers);
 }
@@ -49,6 +48,16 @@ FontSourceStyleValue::Source FontSourceStyleValue::source() const
 FontSourceStyleValue::FontSourceStyleValue(Source source, Optional<Utf16FlyString> format, Vector<FontTech> tech)
     : StyleValueWithDefaultOperators(Type::FontSource, make_font_source_data(source, format, tech))
 {
+    if (source.has<Local>())
+        m_local_name = source.get<Local>().name;
+}
+
+FontSourceStyleValue::FontSourceStyleValue(StyleValueFFI::StyleValueData const* data)
+    : StyleValueWithDefaultOperators(Type::FontSource, data)
+{
+    auto const* local_name_data = static_cast<StyleValueFFI::StyleValueData const*>(data->font_source.local_name.pointer);
+    if (local_name_data)
+        m_local_name = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(local_name_data));
 }
 
 FontSourceStyleValue::~FontSourceStyleValue() = default;

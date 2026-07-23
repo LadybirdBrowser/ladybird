@@ -23,14 +23,24 @@ public:
             return {};
         return static_cast<BackgroundBox>(m_value->overflow_clip_margin.visual_box);
     }
-    StyleValue const& offset() const { return *static_cast<StyleValue const*>(m_value->overflow_clip_margin.offset.pointer); }
+    StyleValue const& offset() const { return *m_offset; }
 
     void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool properties_equal(OverflowClipMarginStyleValue const&) const;
 
 private:
+    friend class StyleValue;
+
+    explicit OverflowClipMarginStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::OverflowClipMargin, data)
+        , m_offset(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->overflow_clip_margin.offset.pointer))))
+    {
+    }
+
     OverflowClipMarginStyleValue(Optional<BackgroundBox> visual_box, NonnullRefPtr<StyleValue const> offset);
+
+    ValueComparingNonnullRefPtr<StyleValue const> m_offset;
 };
 
 }

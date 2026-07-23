@@ -844,18 +844,18 @@ pub enum StyleValueData {
     /// contrast-color() with its retained color style value.
     ContrastColor {
         color_base: ColorBase,
-        color: RetainedStyleValue,
+        color: RetainedStyleValueData,
     },
     /// superellipse() with its retained parameter style value.
     Superellipse { parameter: RetainedStyleValueData },
     /// A pending-substitution value retaining the shorthand value it came from.
     PendingSubstitution {
-        original_shorthand_value: RetainedStyleValue,
+        original_shorthand_value: RetainedStyleValueData,
     },
     /// scrollbar-color with retained thumb and track color values.
     ScrollbarColor {
-        thumb_color: RetainedStyleValue,
-        track_color: RetainedStyleValue,
+        thumb_color: RetainedStyleValueData,
+        track_color: RetainedStyleValueData,
     },
     /// rect() with four retained edge style values.
     Rect {
@@ -895,7 +895,7 @@ pub enum StyleValueData {
     OverflowClipMargin {
         has_visual_box: bool,
         visual_box: u8,
-        offset: RetainedStyleValue,
+        offset: RetainedStyleValueData,
     },
     /// sibling-count() or sibling-index(). Both fields are C++ `enum class ... : u8` values,
     /// opaque to Rust.
@@ -923,15 +923,15 @@ pub enum StyleValueData {
         anchor_name: RetainedUtf16FlyString,
         has_anchor_size: bool,
         anchor_size: u8,
-        fallback_value: RetainedStyleValue,
+        fallback_value: RetainedStyleValueData,
     },
     /// anchor(): an optional anchor name, the retained side style value and an optional
     /// retained fallback value.
     Anchor {
         has_anchor_name: bool,
         anchor_name: RetainedUtf16FlyString,
-        anchor_side: RetainedStyleValue,
-        fallback_value: RetainedStyleValue,
+        anchor_side: RetainedStyleValueData,
+        fallback_value: RetainedStyleValueData,
     },
     /// A CSS `<position>` with its two retained edge style values.
     Position {
@@ -951,8 +951,8 @@ pub enum StyleValueData {
     },
     /// content with its retained content list and optional alt-text list (null when absent).
     Content {
-        content: RetainedStyleValue,
-        alt_text: RetainedStyleValue,
+        content: RetainedStyleValueData,
+        alt_text: RetainedStyleValueData,
     },
     /// A @counter-style system descriptor: a plain system keyword (kind 0, the C++ `enum class
     /// CounterStyleSystem : u8`, opaque to Rust), fixed with an optional retained first symbol
@@ -960,7 +960,7 @@ pub enum StyleValueData {
     CounterStyleSystem {
         kind: u8,
         system: u8,
-        first_symbol: RetainedStyleValue,
+        first_symbol: RetainedStyleValueData,
         name: RetainedUtf16FlyString,
     },
     /// A counter style reference: either a retained counter style name, or a symbols() function
@@ -1083,7 +1083,7 @@ pub enum StyleValueData {
     /// optional retained line value and an optional retained name.
     GridTrackPlacement {
         kind: u8,
-        value: RetainedStyleValue,
+        value: RetainedStyleValueData,
         has_name: bool,
         name: RetainedUtf16FlyString,
     },
@@ -1092,19 +1092,19 @@ pub enum StyleValueData {
     Counter {
         function: u8,
         counter_name: RetainedUtf16FlyString,
-        counter_style: RetainedStyleValue,
+        counter_style: RetainedStyleValueData,
         join_string: RetainedUtf16FlyString,
     },
     /// light-dark() with its two retained color style values.
     LightDark {
         color_base: ColorBase,
-        light: RetainedStyleValue,
-        dark: RetainedStyleValue,
+        light: RetainedStyleValueData,
+        dark: RetainedStyleValueData,
     },
     /// random-value-sharing: an optional retained fixed value (null when absent), the auto flag,
     /// an optional name and the element-shared flag.
     RandomValueSharing {
-        fixed_value: RetainedStyleValue,
+        fixed_value: RetainedStyleValueData,
         is_auto: bool,
         has_name: bool,
         name: RetainedUtf16FlyString,
@@ -1140,7 +1140,8 @@ pub enum StyleValueData {
     },
     /// An unresolved value containing arbitrary substitution functions, kept as its retained
     /// source text, an optional normalized comparison text (empty when absent), the presence
-    /// flags of each substitution function and the attr-taint flag.
+    /// flags of each substitution function, the attr-taint flag, and an optional parsed value
+    /// cached for an attr()-tainted registered custom property.
     Unresolved {
         source_text: RetainedReadableString,
         value_comparison_text: RetainedReadableString,
@@ -1151,6 +1152,7 @@ pub enum StyleValueData {
         presence_inherit: bool,
         presence_var: bool,
         contains_attr_tainted_values: bool,
+        parsed_value: RetainedStyleValueData,
     },
     /// A CSS url() or src() with its retained URL string, type (the C++ URL::Type, opaque to
     /// Rust) and request URL modifiers.
@@ -1164,7 +1166,7 @@ pub enum StyleValueData {
     /// technologies (C++ `enum class FontTech : u8`, opaque to Rust).
     FontSource {
         is_local: bool,
-        local_name: RetainedStyleValue,
+        local_name: RetainedStyleValueData,
         url: RetainedString,
         url_type: u8,
         url_modifiers: RetainedRequestUrlModifierList,
@@ -1398,7 +1400,7 @@ pub unsafe extern "C" fn rust_style_value_create_contrast_color(
     has_color_type: bool,
     color_type: u8,
     color_syntax: u8,
-    color: *const c_void,
+    color: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::ContrastColor {
@@ -1407,7 +1409,7 @@ pub unsafe extern "C" fn rust_style_value_create_contrast_color(
                 color_type,
                 color_syntax,
             },
-            color: RetainedStyleValue { pointer: color },
+            color: unsafe { RetainedStyleValueData::from_retained_pointer(color) },
         }))
     })
 }
@@ -1427,12 +1429,12 @@ pub unsafe extern "C" fn rust_style_value_create_superellipse(
 /// Takes ownership of one strong reference to the original shorthand value.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_pending_substitution(
-    original_shorthand_value: *const c_void,
+    original_shorthand_value: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::PendingSubstitution {
-            original_shorthand_value: RetainedStyleValue {
-                pointer: original_shorthand_value,
+            original_shorthand_value: unsafe {
+                RetainedStyleValueData::from_retained_pointer(original_shorthand_value)
             },
         }))
     })
@@ -1441,13 +1443,13 @@ pub unsafe extern "C" fn rust_style_value_create_pending_substitution(
 /// Takes ownership of one strong reference to each color.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_scrollbar_color(
-    thumb_color: *const c_void,
-    track_color: *const c_void,
+    thumb_color: *const StyleValueData,
+    track_color: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::ScrollbarColor {
-            thumb_color: RetainedStyleValue { pointer: thumb_color },
-            track_color: RetainedStyleValue { pointer: track_color },
+            thumb_color: unsafe { RetainedStyleValueData::from_retained_pointer(thumb_color) },
+            track_color: unsafe { RetainedStyleValueData::from_retained_pointer(track_color) },
         }))
     })
 }
@@ -1600,18 +1602,18 @@ pub unsafe extern "C" fn rust_style_value_create_text_indent(
     })
 }
 
-/// Takes ownership of one strong reference to the offset.
+/// Takes ownership of one strong reference to the offset data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_overflow_clip_margin(
     has_visual_box: bool,
     visual_box: u8,
-    offset: *const c_void,
+    offset: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::OverflowClipMargin {
             has_visual_box,
             visual_box,
-            offset: RetainedStyleValue { pointer: offset },
+            offset: unsafe { RetainedStyleValueData::from_retained_pointer(offset) },
         }))
     })
 }
@@ -1676,7 +1678,7 @@ pub unsafe extern "C" fn rust_style_value_create_anchor_size(
     anchor_name: usize,
     has_anchor_size: bool,
     anchor_size: u8,
-    fallback_value: *const c_void,
+    fallback_value: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::AnchorSize {
@@ -1684,9 +1686,7 @@ pub unsafe extern "C" fn rust_style_value_create_anchor_size(
             anchor_name: RetainedUtf16FlyString { raw: anchor_name },
             has_anchor_size,
             anchor_size,
-            fallback_value: RetainedStyleValue {
-                pointer: fallback_value,
-            },
+            fallback_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(fallback_value) },
         }))
     })
 }
@@ -1697,17 +1697,15 @@ pub unsafe extern "C" fn rust_style_value_create_anchor_size(
 pub unsafe extern "C" fn rust_style_value_create_anchor(
     has_anchor_name: bool,
     anchor_name: usize,
-    anchor_side: *const c_void,
-    fallback_value: *const c_void,
+    anchor_side: *const StyleValueData,
+    fallback_value: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Anchor {
             has_anchor_name,
             anchor_name: RetainedUtf16FlyString { raw: anchor_name },
-            anchor_side: RetainedStyleValue { pointer: anchor_side },
-            fallback_value: RetainedStyleValue {
-                pointer: fallback_value,
-            },
+            anchor_side: unsafe { RetainedStyleValueData::from_retained_pointer(anchor_side) },
+            fallback_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(fallback_value) },
         }))
     })
 }
@@ -1756,13 +1754,13 @@ pub unsafe extern "C" fn rust_style_value_create_shadow(
 /// alt-text list.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_content(
-    content: *const c_void,
-    alt_text: *const c_void,
+    content: *const StyleValueData,
+    alt_text: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Content {
-            content: RetainedStyleValue { pointer: content },
-            alt_text: RetainedStyleValue { pointer: alt_text },
+            content: unsafe { RetainedStyleValueData::from_retained_pointer(content) },
+            alt_text: unsafe { RetainedStyleValueData::from_retained_optional_pointer(alt_text) },
         }))
     })
 }
@@ -1773,14 +1771,14 @@ pub unsafe extern "C" fn rust_style_value_create_content(
 pub unsafe extern "C" fn rust_style_value_create_counter(
     function: u8,
     counter_name: usize,
-    counter_style: *const c_void,
+    counter_style: *const StyleValueData,
     join_string: usize,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Counter {
             function,
             counter_name: RetainedUtf16FlyString { raw: counter_name },
-            counter_style: RetainedStyleValue { pointer: counter_style },
+            counter_style: unsafe { RetainedStyleValueData::from_retained_pointer(counter_style) },
             join_string: RetainedUtf16FlyString { raw: join_string },
         }))
     })
@@ -1792,8 +1790,8 @@ pub unsafe extern "C" fn rust_style_value_create_light_dark(
     has_color_type: bool,
     color_type: u8,
     color_syntax: u8,
-    light: *const c_void,
-    dark: *const c_void,
+    light: *const StyleValueData,
+    dark: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::LightDark {
@@ -1802,8 +1800,8 @@ pub unsafe extern "C" fn rust_style_value_create_light_dark(
                 color_type,
                 color_syntax,
             },
-            light: RetainedStyleValue { pointer: light },
-            dark: RetainedStyleValue { pointer: dark },
+            light: unsafe { RetainedStyleValueData::from_retained_pointer(light) },
+            dark: unsafe { RetainedStyleValueData::from_retained_pointer(dark) },
         }))
     })
 }
@@ -1812,7 +1810,7 @@ pub unsafe extern "C" fn rust_style_value_create_light_dark(
 /// name when they are present.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_random_value_sharing(
-    fixed_value: *const c_void,
+    fixed_value: *const StyleValueData,
     is_auto: bool,
     has_name: bool,
     name: usize,
@@ -1820,7 +1818,7 @@ pub unsafe extern "C" fn rust_style_value_create_random_value_sharing(
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::RandomValueSharing {
-            fixed_value: RetainedStyleValue { pointer: fixed_value },
+            fixed_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(fixed_value) },
             is_auto,
             has_name,
             name: RetainedUtf16FlyString { raw: name },
@@ -1966,7 +1964,7 @@ pub unsafe extern "C" fn rust_style_value_create_url(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_font_source(
     is_local: bool,
-    local_name: *const c_void,
+    local_name: *const StyleValueData,
     url: usize,
     url_type: u8,
     url_modifiers: *const RetainedRequestUrlModifier,
@@ -1979,7 +1977,7 @@ pub unsafe extern "C" fn rust_style_value_create_font_source(
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::FontSource {
             is_local,
-            local_name: RetainedStyleValue { pointer: local_name },
+            local_name: unsafe { RetainedStyleValueData::from_retained_optional_pointer(local_name) },
             url: RetainedString { raw: url },
             url_type,
             url_modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(url_modifiers, url_modifier_count) },
@@ -2023,6 +2021,7 @@ pub unsafe extern "C" fn rust_style_value_create_unresolved(
     presence_inherit: bool,
     presence_var: bool,
     contains_attr_tainted_values: bool,
+    parsed_value: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Unresolved {
@@ -2043,6 +2042,7 @@ pub unsafe extern "C" fn rust_style_value_create_unresolved(
             presence_inherit,
             presence_var,
             contains_attr_tainted_values,
+            parsed_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(parsed_value) },
         }))
     })
 }
@@ -2065,14 +2065,14 @@ pub unsafe extern "C" fn rust_style_value_create_counter_definitions(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_grid_track_placement(
     kind: u8,
-    value: *const c_void,
+    value: *const StyleValueData,
     has_name: bool,
     name: usize,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::GridTrackPlacement {
             kind,
-            value: RetainedStyleValue { pointer: value },
+            value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(value) },
             has_name,
             name: RetainedUtf16FlyString { raw: name },
         }))
@@ -2085,14 +2085,14 @@ pub unsafe extern "C" fn rust_style_value_create_grid_track_placement(
 pub unsafe extern "C" fn rust_style_value_create_counter_style_system(
     kind: u8,
     system: u8,
-    first_symbol: *const c_void,
+    first_symbol: *const StyleValueData,
     name: usize,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::CounterStyleSystem {
             kind,
             system,
-            first_symbol: RetainedStyleValue { pointer: first_symbol },
+            first_symbol: unsafe { RetainedStyleValueData::from_retained_optional_pointer(first_symbol) },
             name: RetainedUtf16FlyString { raw: name },
         }))
     })
@@ -2467,8 +2467,8 @@ pub unsafe extern "C" fn rust_style_value_retain(value: *const StyleValueData) -
 
 /// Whether a value's computed color depends on the element's used currentcolor: the
 /// currentcolor keyword itself, or a color function, color-mix(), contrast-color() or
-/// light-dark() whose nested colors do. `data_of` maps a nested value's shell pointer to
-/// its Rust-owned data.
+/// light-dark() whose nested colors do. `data_of` maps a remaining nested value's shell pointer
+/// to its Rust-owned data.
 pub(crate) fn value_depends_on_current_color(
     value: &StyleValueData,
     data_of: unsafe extern "C" fn(*const c_void) -> *const c_void,
@@ -2481,6 +2481,8 @@ pub(crate) fn value_depends_on_current_color(
         let data = unsafe { data_of(shell) };
         value_depends_on_current_color(unsafe { &*(data as *const StyleValueData) }, data_of)
     };
+    let retained_data_depends =
+        |retained: &RetainedStyleValueData| -> bool { value_depends_on_current_color(retained.data(), data_of) };
     match value {
         StyleValueData::Keyword { keyword } => *keyword == crate::style_compute::keyword::CURRENTCOLOR,
         StyleValueData::ColorFunction { origin_color, .. } => retained_depends(origin_color),
@@ -2489,8 +2491,8 @@ pub(crate) fn value_depends_on_current_color(
             second_color,
             ..
         } => retained_depends(first_color) || retained_depends(second_color),
-        StyleValueData::ContrastColor { color, .. } => retained_depends(color),
-        StyleValueData::LightDark { light, dark, .. } => retained_depends(light) || retained_depends(dark),
+        StyleValueData::ContrastColor { color, .. } => retained_data_depends(color),
+        StyleValueData::LightDark { light, dark, .. } => retained_data_depends(light) || retained_data_depends(dark),
         _ => false,
     }
 }
