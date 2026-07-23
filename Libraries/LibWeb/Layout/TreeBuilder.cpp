@@ -1131,38 +1131,8 @@ static NonnullRefPtr<NodeWithStyle> create_button_content_box_wrapper(NodeWithSt
 void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, Layout::Node& layout_node)
 {
     auto const* html_element = as_if<HTML::HTMLElement>(dom_node);
-    if (!html_element || !html_element->uses_button_layout())
-        return;
-
-    // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
-    // If the element is an input element, or if it is a button element and its computed value for 'display' is not
-    // 'inline-grid', 'grid', 'inline-flex', or 'flex', then the element's box has a child anonymous button content box
-    // with the following behaviors:
-    auto display = as<NodeWithStyle>(layout_node).display();
-    if (!display.is_grid_inside() && !display.is_flex_inside()) {
-        auto& parent = as<NodeWithStyle>(layout_node);
-
-        // If the box does not overflow in the vertical axis, then it is centered vertically.
-        // FIXME: Only apply alignment when box overflows
-        auto flex_wrapper = create_button_flex_wrapper(parent);
-
-        auto content_box_wrapper = create_button_content_box_wrapper(parent);
-        content_box_wrapper->set_children_are_inline(parent.children_are_inline());
-
-        Vector<NonnullRefPtr<Node>> sequence;
-        for (auto child = parent.first_child(); child; child = child->next_sibling())
-            sequence.append(*child);
-
-        for (auto& node : sequence) {
-            parent.remove_child(*node);
-            content_box_wrapper->append_child(*node);
-        }
-
-        flex_wrapper->append_child(*content_box_wrapper);
-
-        parent.append_child(*flex_wrapper);
-        parent.set_children_are_inline(false);
-    }
+    auto callbacks = make_ffi_tree_builder_callbacks(this);
+    RustFFI::rust_wrap_button_contents_if_needed(&callbacks, &layout_node, html_element && html_element->uses_button_layout());
 }
 
 void TreeBuilder::update_layout_tree_before_children(DOM::Node& dom_node, Layout::Node& layout_node, TreeBuilder::Context&, bool element_has_content_visibility_hidden)
@@ -1258,36 +1228,8 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, Layout:
             create_first_letter_wrapper_if_needed(element, *block_container);
     }
 
-    // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
-    // The anonymous fieldset content box is expected to appear after the rendered legend and is expected to contain the
-    // content (including the '::before' and '::after' pseudo-elements) of the fieldset element except for the rendered
-    // legend, if there is one.
-    if (auto* fieldset_box = as_if<FieldSetBox>(layout_node)) {
-        if (auto legend = fieldset_box->rendered_legend()) {
-            auto wrapper = fieldset_box->create_anonymous_wrapper();
-            wrapper->set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
-
-            // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
-            // The following properties are expected to inherit from the fieldset element:
-            //     align-content, align-items, border-radius, column-count, column-fill, column-gap, column-rule,
-            //     column-width, flex-direction, flex-wrap, grid (grid-auto-columns, grid-auto-flow, grid-auto-rows,
-            //     grid-column-gap, grid-row-gap, grid-template-areas, grid-template-columns, grid-template-rows),
-            //     justify-content, justify-items, overflow, padding, text-overflow, unicode-bidi
-            // FIXME: Transfer all of these properties, not just overflow.
-            wrapper->set_overflow(fieldset_box->computed_values().overflow_x(), fieldset_box->computed_values().overflow_y());
-            fieldset_box->set_overflow(CSS::InitialValues::overflow(), CSS::InitialValues::overflow());
-
-            for (auto child = fieldset_box->first_child(); child;) {
-                auto next = child->next_sibling();
-                if (child != legend) {
-                    fieldset_box->remove_child(*child);
-                    wrapper->append_child(*child);
-                }
-                child = next;
-            }
-            fieldset_box->append_child(*wrapper);
-        }
-    }
+    auto callbacks = make_ffi_tree_builder_callbacks(this);
+    RustFFI::rust_wrap_fieldset_contents_if_needed(&callbacks, &layout_node);
 }
 
 RefPtr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)
@@ -1369,6 +1311,7 @@ static RustFFI::FfiLayoutNodeFacts ffi_layout_node_facts(void*, void* node_point
             auto* dom_element = as_if<DOM::Element>(node.dom_node());
             return dom_element && dom_element->computed_values(CSS::PseudoElement::FirstLetter);
         }(),
+        .has_rendered_legend = is<FieldSetBox>(node) && static_cast<FieldSetBox&>(node).rendered_legend(),
     };
 }
 
@@ -1642,6 +1585,62 @@ static void ffi_note_tree_restructuring(void* context, void* node_pointer)
     static_cast<TreeBuilder*>(context)->note_tree_restructuring_at(*static_cast<Node*>(node_pointer));
 }
 
+static void ffi_wrap_button_contents(void*, void* layout_node_pointer)
+{
+    VERIFY(layout_node_pointer);
+    auto& parent = as<NodeWithStyle>(*static_cast<Node*>(layout_node_pointer));
+
+    // If the box does not overflow in the vertical axis, then it is centered vertically.
+    // FIXME: Only apply alignment when box overflows
+    auto flex_wrapper = create_button_flex_wrapper(parent);
+
+    auto content_box_wrapper = create_button_content_box_wrapper(parent);
+    content_box_wrapper->set_children_are_inline(parent.children_are_inline());
+
+    Vector<NonnullRefPtr<Node>> sequence;
+    for (auto child = parent.first_child(); child; child = child->next_sibling())
+        sequence.append(*child);
+
+    for (auto& node : sequence) {
+        parent.remove_child(*node);
+        content_box_wrapper->append_child(*node);
+    }
+
+    flex_wrapper->append_child(*content_box_wrapper);
+    parent.append_child(*flex_wrapper);
+    parent.set_children_are_inline(false);
+}
+
+static void ffi_wrap_fieldset_contents(void*, void* layout_node_pointer)
+{
+    VERIFY(layout_node_pointer);
+    auto& fieldset_box = as<FieldSetBox>(*static_cast<Node*>(layout_node_pointer));
+    auto legend = fieldset_box.rendered_legend();
+    VERIFY(legend);
+    auto wrapper = fieldset_box.create_anonymous_wrapper();
+    wrapper->set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
+    // The following properties are expected to inherit from the fieldset element:
+    //     align-content, align-items, border-radius, column-count, column-fill, column-gap, column-rule,
+    //     column-width, flex-direction, flex-wrap, grid (grid-auto-columns, grid-auto-flow, grid-auto-rows,
+    //     grid-column-gap, grid-row-gap, grid-template-areas, grid-template-columns, grid-template-rows),
+    //     justify-content, justify-items, overflow, padding, text-overflow, unicode-bidi
+    // FIXME: Transfer all of these properties, not just overflow.
+    wrapper->set_overflow(fieldset_box.computed_values().overflow_x(), fieldset_box.computed_values().overflow_y());
+    fieldset_box.set_overflow(CSS::InitialValues::overflow(), CSS::InitialValues::overflow());
+
+    for (auto child = fieldset_box.first_child(); child;) {
+        auto next = child->next_sibling();
+        if (child != legend) {
+            fieldset_box.remove_child(*child);
+            wrapper->append_child(*child);
+        }
+        child = next;
+    }
+    fieldset_box.append_child(*wrapper);
+}
+
 static RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks(TreeBuilder* tree_builder)
 {
     return {
@@ -1667,6 +1666,8 @@ static RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks(TreeBuil
         .set_children_are_inline = ffi_set_children_are_inline,
         .note_tree_restructuring = ffi_note_tree_restructuring,
         .find_first_letter_in_text = ffi_find_first_letter_in_text,
+        .wrap_button_contents = ffi_wrap_button_contents,
+        .wrap_fieldset_contents = ffi_wrap_fieldset_contents,
     };
 }
 

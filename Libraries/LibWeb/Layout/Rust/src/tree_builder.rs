@@ -473,6 +473,7 @@ pub struct FfiLayoutNodeFacts {
     pub is_generated_for_marker: bool,
     pub is_fragmented_inline: bool,
     pub has_first_letter_style: bool,
+    pub has_rendered_legend: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -559,6 +560,8 @@ pub struct FfiTreeBuilderCallbacks {
     pub set_children_are_inline: unsafe extern "C" fn(*mut c_void, *mut c_void, bool),
     pub note_tree_restructuring: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub find_first_letter_in_text: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiFirstLetterTarget,
+    pub wrap_button_contents: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub wrap_fieldset_contents: unsafe extern "C" fn(*mut c_void, *mut c_void),
 }
 
 type LayoutNode = *mut c_void;
@@ -1125,6 +1128,70 @@ pub unsafe extern "C" fn rust_find_first_letter_in_block(
         };
         find_first_letter_in_block(&host, block)
     })
+}
+
+/// Creates the anonymous layout structure required for button rendering.
+///
+/// # Safety
+///
+/// `callbacks` must remain valid for the call and `layout_node` must be a live NodeWithStyle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_wrap_button_contents_if_needed(
+    callbacks: *const FfiTreeBuilderCallbacks,
+    layout_node: *mut c_void,
+    uses_button_layout: bool,
+) {
+    abort_on_panic(|| {
+        assert!(!callbacks.is_null());
+        assert!(!layout_node.is_null());
+        // SAFETY: Guaranteed by the entry point's contract.
+        let host = TreeBuilderHost {
+            callbacks: unsafe { &*callbacks },
+        };
+        if !uses_button_layout {
+            return;
+        }
+
+        // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
+        // If the element is an input element, or if it is a button element and its computed value for 'display' is not
+        // 'inline-grid', 'grid', 'inline-flex', or 'flex', then the element's box has a child anonymous button content
+        // box with the following behaviors:
+        let facts = host.facts(layout_node);
+        if !facts.display_is_grid_inside && !facts.display_is_flex_inside {
+            // SAFETY: `layout_node` remains live and the callback performs the ownership-sensitive wrapper mutation.
+            unsafe { (host.callbacks.wrap_button_contents)(host.callbacks.context, layout_node) };
+        }
+    });
+}
+
+/// Creates the anonymous fieldset content box around non-legend children.
+///
+/// # Safety
+///
+/// `callbacks` must remain valid for the call and `layout_node` must be a live layout node.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_wrap_fieldset_contents_if_needed(
+    callbacks: *const FfiTreeBuilderCallbacks,
+    layout_node: *mut c_void,
+) {
+    abort_on_panic(|| {
+        assert!(!callbacks.is_null());
+        assert!(!layout_node.is_null());
+        // SAFETY: Guaranteed by the entry point's contract.
+        let host = TreeBuilderHost {
+            callbacks: unsafe { &*callbacks },
+        };
+
+        // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
+        // The anonymous fieldset content box is expected to appear after the rendered legend and is expected to contain
+        // the content (including the '::before' and '::after' pseudo-elements) of the fieldset element except for the
+        // rendered legend, if there is one.
+        let facts = host.facts(layout_node);
+        if facts.is_field_set_box && facts.has_rendered_legend {
+            // SAFETY: `layout_node` is a live FieldSetBox with a rendered legend.
+            unsafe { (host.callbacks.wrap_fieldset_contents)(host.callbacks.context, layout_node) };
+        }
+    });
 }
 
 fn is_table_track(display: FfiTableDisplay) -> bool {
