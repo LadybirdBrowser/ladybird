@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video"></video>
+<script>
+    // A video-only file on a hidden page has no audio to drive playback to its end and no
+    // rendering updates to tick the video sink, so ending relies entirely on the demuxer's
+    // verified end time for the track.
+    const video = document.getElementById("video");
+
+    asyncTest(async done => {
+        video.src = "../../../Assets/resize-320x240-640x480.webm";
+        await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        internals.setSystemVisibilityState("hidden");
+        await video.play();
+        await new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+
+        println(`ended while hidden, currentTime === duration: ${video.currentTime === video.duration}`);
+        done();
+    });
+</script>

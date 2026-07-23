@@ -62,6 +62,15 @@ struct DemuxerScanState {
         return state;
     }
 
+    DemuxerTrackScanState const* state_for_track(Track const& track) const LIFETIME_BOUND
+    {
+        for (auto const& track_state : tracks) {
+            if (track_state.track == track)
+                return &track_state;
+        }
+        return nullptr;
+    }
+
     bool operator==(DemuxerScanState const&) const = default;
 };
 

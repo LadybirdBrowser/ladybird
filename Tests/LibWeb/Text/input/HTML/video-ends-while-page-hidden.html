@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video"></video>
+<script>
+    const video = document.getElementById("video");
+
+    asyncTest(async done => {
+        video.src = "../../../Assets/test-webm.webm";
+        await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        video.currentTime = video.duration - 0.5;
+        await new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
+
+        await video.play();
+        internals.setSystemVisibilityState("hidden");
+        await new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+
+        println(`ended while hidden, currentTime === duration: ${video.currentTime === video.duration}`);
+        done();
+    });
+</script>

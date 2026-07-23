@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<audio id="audio"></audio>
+<script>
+    const audio = document.getElementById("audio");
+
+    asyncTest(async done => {
+        audio.src = "../../../Assets/test-webm-audio.ogg";
+        await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        audio.currentTime = audio.duration - 0.125;
+        await new Promise(resolve => audio.addEventListener("seeked", resolve, { once: true }));
+
+        await audio.play();
+        await new Promise(resolve => audio.addEventListener("ended", resolve, { once: true }));
+
+        println(`ended, currentTime === duration: ${audio.currentTime === audio.duration}`);
+        done();
+    });
+</script>

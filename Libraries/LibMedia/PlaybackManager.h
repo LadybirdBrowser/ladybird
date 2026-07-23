@@ -72,6 +72,7 @@ public:
     VideoSinkHandle reserve_video_sink_handle(Track const&);
     static RefPtr<DisplayingVideoSink> resolve_video_sink(VideoSinkHandle);
     void disable_video_sink_by_handle(VideoSinkHandle);
+    void set_video_sink_ticking(VideoSinkHandle, bool);
 
     void enable_an_audio_track(Track const&);
     void disable_an_audio_track(Track const&);
@@ -109,6 +110,9 @@ private:
         Optional<VideoSinkHandle> handle { OptionalNone() };
         RefPtr<VideoSink> video_sink { nullptr };
         PipelineStatus sink_status { PipelineStatus::Pending };
+        // While ticking, the sink's dispatched status is live and remains the sole ending
+        // authority; while unticked, it is stale and the track ends at its verified end time.
+        bool ticking { true };
         bool read_blocked { false };
     };
     using VideoTrackDatas = Vector<VideoTrackData, EXPECTED_VIDEO_TRACK_COUNT>;
@@ -134,6 +138,7 @@ private:
     void on_video_sink_state_changed(Track const&, PipelineStatus);
     void update_duration_from_scan_states();
     bool is_enabled_supported_track(Track const&) const;
+    Optional<AK::Duration> verified_end_time_for_track(Track const&) const;
     void update_pipeline_state();
     void reset_pipeline_state();
     PipelineStatus combined_pipeline_status() const;
