@@ -140,6 +140,37 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub layout_node_dom_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub set_context_layout_svg_mask_or_clip_path: unsafe extern "C" fn(*mut c_void, bool),
     pub set_context_layout_svg_pattern: unsafe extern "C" fn(*mut c_void, bool),
+    pub principal_node_entry_facts:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool) -> FfiPrincipalNodeEntryFacts,
+    pub request_top_layer_zone_rebuild: unsafe extern "C" fn(*mut c_void),
+    pub push_style_ancestor: unsafe extern "C" fn(*mut c_void),
+    pub pop_style_ancestor: unsafe extern "C" fn(*mut c_void),
+    pub initialize_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub prepare_principal_element:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool) -> FfiPrincipalDisplayFacts,
+    pub create_principal_element_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, *mut c_void),
+    pub create_principal_document_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub create_principal_text_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub reuse_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub principal_layout_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub attach_principal_style_resources: unsafe extern "C" fn(*mut c_void),
+    pub principal_layout_facts: unsafe extern "C" fn(*mut c_void) -> FfiPrincipalLayoutFacts,
+    pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
+    pub principal_placement_facts: unsafe extern "C" fn(
+        *mut c_void,
+        *mut c_void,
+        *mut c_void,
+        *mut c_void,
+        bool,
+        bool,
+    ) -> FfiPrincipalBoxPlacementFacts,
+    pub start_principal_rebuild_root: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
+    pub restore_principal_rebuild_root: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub mark_update_escaped_rebuild_roots: unsafe extern "C" fn(*mut c_void),
+    pub create_principal_backdrop: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool),
+    pub place_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPrincipalBoxPlacement),
+    pub clear_stale_inclusive_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub set_context_has_svg_root: unsafe extern "C" fn(*mut c_void, bool),
 }
 
 #[derive(Clone, Copy)]
@@ -191,12 +222,31 @@ pub struct FfiPrincipalNodeEntryFacts {
     pub is_document: bool,
     pub has_layout_node: bool,
     pub is_element: bool,
+    pub is_text: bool,
     pub rendered_in_top_layer: bool,
     pub context_layout_top_layer: bool,
     pub layout_node_is_attached: bool,
     pub is_svg_container: bool,
     pub requires_svg_container: bool,
     pub context_has_svg_root: bool,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiPrincipalDisplayFacts {
+    pub display_is_none: bool,
+    pub display_is_contents: bool,
+    pub display_is_table_inside: bool,
+    pub display_is_block_outside: bool,
+    pub display_is_internal_table: bool,
+    pub display_is_table_caption: bool,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiPrincipalLayoutFacts {
+    pub is_replaced_element: bool,
+    pub display: FfiPrincipalDisplayFacts,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -987,6 +1037,257 @@ pub unsafe extern "C" fn rust_update_principal_node_descendants(
 
         // SAFETY: `dom_node` remains live throughout the call.
         unsafe { (host.callbacks.clear_dom_update_flags)(dom_node) };
+    });
+}
+
+struct PrincipalNodeUpdate<'host, 'callbacks> {
+    host: &'host DomTreeBuilderHost<'callbacks>,
+    callbacks: *const FfiDomTreeBuilderCallbacks,
+    frame: *mut c_void,
+    dom_node: *mut c_void,
+    context: *mut c_void,
+    must_create_subtree: bool,
+}
+
+fn construct_principal_layout_node(
+    update: &PrincipalNodeUpdate<'_, '_>,
+    entry_facts: FfiPrincipalNodeEntryFacts,
+    should_create_layout_node: bool,
+) -> (bool, bool) {
+    let host = update.host;
+    let frame = update.frame;
+    let dom_node = update.dom_node;
+    let context = update.context;
+    if entry_facts.is_element {
+        // SAFETY: The frame, builder, and DOM element remain live throughout the call.
+        let display = unsafe {
+            (host.callbacks.prepare_principal_element)(
+                host.callbacks.builder,
+                frame,
+                dom_node,
+                should_create_layout_node,
+            )
+        };
+        let generation = rust_principal_box_generation_decision(
+            true,
+            should_create_layout_node && display.display_is_none,
+            display.display_is_contents,
+        );
+        if generation == FfiPrincipalBoxGenerationDecision::Suppress {
+            return (false, false);
+        }
+        if generation == FfiPrincipalBoxGenerationDecision::DisplayContents {
+            // SAFETY: The callback table, DOM element, and context remain valid throughout the recursive walk.
+            unsafe {
+                rust_update_layout_tree_for_display_contents(
+                    update.callbacks,
+                    dom_node,
+                    context,
+                    update.must_create_subtree,
+                    should_create_layout_node,
+                );
+            }
+            return (false, true);
+        }
+        if should_create_layout_node {
+            // SAFETY: The builder, frame, element, and context remain live throughout construction.
+            unsafe {
+                (host.callbacks.create_principal_element_layout)(host.callbacks.builder, frame, dom_node, context);
+            }
+        } else {
+            // SAFETY: The frame and DOM node remain live throughout the call.
+            unsafe { (host.callbacks.reuse_principal_layout)(frame, dom_node) };
+        }
+    } else if should_create_layout_node {
+        if entry_facts.is_document {
+            // SAFETY: The frame and DOM document remain live throughout construction.
+            unsafe { (host.callbacks.create_principal_document_layout)(frame, dom_node) };
+        } else if entry_facts.is_text {
+            // SAFETY: The frame and DOM text node remain live throughout construction.
+            unsafe { (host.callbacks.create_principal_text_layout)(frame, dom_node) };
+        }
+    } else {
+        // SAFETY: The frame and DOM node remain live throughout the call.
+        unsafe { (host.callbacks.reuse_principal_layout)(frame, dom_node) };
+    }
+
+    // SAFETY: The frame remains live throughout the call.
+    (
+        !unsafe { (host.callbacks.principal_layout_node)(frame) }.is_null(),
+        false,
+    )
+}
+
+fn update_principal_node_after_entry(
+    update: &PrincipalNodeUpdate<'_, '_>,
+    entry_facts: FfiPrincipalNodeEntryFacts,
+    entry_decision: FfiPrincipalNodeEntryDecision,
+) {
+    let host = update.host;
+    let frame = update.frame;
+    let dom_node = update.dom_node;
+    let context = update.context;
+    // SAFETY: The frame and DOM node remain live throughout this update.
+    unsafe { (host.callbacks.initialize_principal_frame)(frame, dom_node) };
+
+    if entry_decision.svg == FfiSvgEntryDecision::EnterSvgRoot {
+        // SAFETY: The traversal context remains live throughout this update.
+        unsafe { (host.callbacks.set_context_has_svg_root)(context, true) };
+    }
+
+    let (has_layout_node, handled_display_contents) = if entry_decision.svg == FfiSvgEntryDecision::Skip {
+        (false, false)
+    } else {
+        construct_principal_layout_node(update, entry_facts, entry_decision.should_create_layout_node)
+    };
+
+    if has_layout_node {
+        if entry_facts.is_element || entry_facts.is_document {
+            // SAFETY: The frame owns a live NodeWithStyle for elements and documents.
+            unsafe { (host.callbacks.attach_principal_style_resources)(frame) };
+        }
+
+        // SAFETY: The frame owns the live principal layout node and its display.
+        let layout_facts = unsafe { (host.callbacks.principal_layout_facts)(frame) };
+        if layout_facts.is_replaced_element {
+            let adjustment = rust_adjusted_table_display_for_replaced_element(
+                layout_facts.display.display_is_table_inside,
+                layout_facts.display.display_is_block_outside,
+                layout_facts.display.display_is_internal_table,
+                layout_facts.display.display_is_table_caption,
+            );
+            if adjustment != FfiReplacedElementDisplayAdjustment::None {
+                // SAFETY: The frame owns a live NodeWithStyle.
+                unsafe { (host.callbacks.apply_replaced_display_adjustment)(frame, adjustment) };
+            }
+        }
+
+        // SAFETY: All pointers remain live and the frame owns both old and new layout nodes.
+        let placement_facts = unsafe {
+            (host.callbacks.principal_placement_facts)(
+                host.callbacks.builder,
+                frame,
+                dom_node,
+                context,
+                update.must_create_subtree,
+                entry_decision.should_create_layout_node,
+            )
+        };
+        let placement = rust_principal_box_placement_decision(placement_facts);
+
+        let mut prior_rebuild_root = std::ptr::null_mut();
+        if placement.start_rebuild_root {
+            // SAFETY: The builder and frame remain live throughout descendant construction.
+            prior_rebuild_root =
+                unsafe { (host.callbacks.start_principal_rebuild_root)(host.callbacks.builder, frame) };
+        } else if placement.mark_update_escaped_rebuild_roots {
+            // SAFETY: The builder remains live throughout the call.
+            unsafe { (host.callbacks.mark_update_escaped_rebuild_roots)(host.callbacks.builder) };
+        }
+
+        if placement.create_backdrop {
+            // SAFETY: The builder, frame, and DOM element remain live throughout creation.
+            unsafe {
+                (host.callbacks.create_principal_backdrop)(
+                    host.callbacks.builder,
+                    frame,
+                    dom_node,
+                    placement.may_replace_existing_layout_node,
+                );
+            }
+        }
+
+        if placement.clear_layout_top_layer_for_descendants {
+            // SAFETY: The traversal context remains live throughout descendant construction.
+            unsafe { (host.callbacks.set_context_layout_top_layer)(context, false) };
+        }
+
+        // SAFETY: The builder and frame remain live, and Rust selected the placement mode.
+        unsafe { (host.callbacks.place_principal_layout)(host.callbacks.builder, frame, placement.placement) };
+        // SAFETY: The callback table, DOM node, layout node, and context remain live throughout the call.
+        unsafe {
+            rust_update_principal_node_descendants(
+                update.callbacks,
+                dom_node,
+                (host.callbacks.principal_layout_node)(frame),
+                context,
+                entry_decision.should_create_layout_node,
+                update.must_create_subtree,
+            );
+        }
+
+        if placement.clear_layout_top_layer_for_descendants {
+            // SAFETY: Restore the context value captured in the placement facts.
+            unsafe { (host.callbacks.set_context_layout_top_layer)(context, placement_facts.context_layout_top_layer) };
+        }
+        if placement.start_rebuild_root {
+            // SAFETY: Restore the builder's previous rebuild root after descendant construction.
+            unsafe { (host.callbacks.restore_principal_rebuild_root)(host.callbacks.builder, prior_rebuild_root) };
+        }
+    } else if !handled_display_contents {
+        // If no layout node was created, remove every stale layout and paint node from the shadow-including subtree.
+        // SAFETY: The builder and DOM node remain live throughout cleanup.
+        unsafe { (host.callbacks.clear_stale_inclusive_subtree)(host.callbacks.builder, dom_node) };
+    }
+
+    if entry_decision.svg == FfiSvgEntryDecision::EnterSvgRoot {
+        // SAFETY: Restore the traversal context's entry value.
+        unsafe { (host.callbacks.set_context_has_svg_root)(context, entry_facts.context_has_svg_root) };
+    }
+}
+
+/// Updates one DOM node and its layout-tree subtree.
+///
+/// # Safety
+///
+/// The callback table, frame storage, DOM node, and context must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_update_layout_tree(
+    callbacks: *const FfiDomTreeBuilderCallbacks,
+    frame: *mut c_void,
+    dom_node: *mut c_void,
+    context: *mut c_void,
+    must_create_subtree: bool,
+) {
+    abort_on_panic(|| {
+        assert!(!frame.is_null());
+        assert!(!dom_node.is_null());
+        assert!(!context.is_null());
+        // SAFETY: Guaranteed by the entry point's contract.
+        let host = unsafe { dom_tree_builder_host(callbacks) };
+        // SAFETY: The builder, DOM node, and context remain live throughout the call.
+        let entry_facts = unsafe {
+            (host.callbacks.principal_node_entry_facts)(host.callbacks.builder, dom_node, context, must_create_subtree)
+        };
+        let entry_decision = rust_principal_node_entry_decision(entry_facts);
+        if entry_decision.top_layer != FfiTopLayerEntryDecision::Continue {
+            if entry_decision.top_layer == FfiTopLayerEntryDecision::SkipAndRequestZoneRebuild {
+                // A member found here without an attached box was cleared together with a hidden ancestor subtree, and
+                // nothing is scheduled to rebuild it. Request another top-layer zone pass instead of stranding dirty
+                // flags below ancestors whose walks already finished.
+                // SAFETY: `dom_node` remains live throughout the call.
+                unsafe { (host.callbacks.request_top_layer_zone_rebuild)(dom_node) };
+            }
+            return;
+        }
+
+        if entry_facts.is_element {
+            // SAFETY: `dom_node` is a live Element when this fact is set.
+            unsafe { (host.callbacks.push_style_ancestor)(dom_node) };
+        }
+        let update = PrincipalNodeUpdate {
+            host: &host,
+            callbacks,
+            frame,
+            dom_node,
+            context,
+            must_create_subtree,
+        };
+        update_principal_node_after_entry(&update, entry_facts, entry_decision);
+        if entry_facts.is_element {
+            // SAFETY: Balances the style ancestor push above.
+            unsafe { (host.callbacks.pop_style_ancestor)(dom_node) };
+        }
     });
 }
 
@@ -2575,6 +2876,7 @@ mod tests {
             is_document: false,
             has_layout_node: true,
             is_element: true,
+            is_text: false,
             rendered_in_top_layer: false,
             context_layout_top_layer: false,
             layout_node_is_attached: true,
