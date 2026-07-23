@@ -18,11 +18,11 @@ use crate::style_value::{
     RetainedUtf16FlyStringList, StyleValueData,
 };
 
-const ANIMATION_TYPE_DISCRETE: u8 = 0;
-const ANIMATION_TYPE_BY_COMPUTED_VALUE: u8 = 1;
+pub(crate) const ANIMATION_TYPE_DISCRETE: u8 = 0;
+pub(crate) const ANIMATION_TYPE_BY_COMPUTED_VALUE: u8 = 1;
 const ANIMATION_TYPE_REPEATABLE_LIST: u8 = 2;
 const ANIMATION_TYPE_CUSTOM: u8 = 3;
-const ANIMATION_TYPE_NONE: u8 = 4;
+pub(crate) const ANIMATION_TYPE_NONE: u8 = 4;
 const VALUE_TYPE_ANGLE: u8 = 2;
 const VALUE_TYPE_FLEX: u8 = 15;
 const VALUE_TYPE_FREQUENCY: u8 = 21;
@@ -433,6 +433,7 @@ pub struct FfiAnimationKeyframeValue {
 pub struct FfiAnimationValueInput {
     pub property_id: u16,
     pub underlying: *const StyleValueData,
+    pub initial: *const StyleValueData,
     pub current_key: f64,
     pub keyframes: *const FfiAnimationKeyframeValue,
     pub keyframe_count: usize,
@@ -453,6 +454,7 @@ pub struct FfiAnimatedProperty {
     pub start_index: usize,
     pub end_index: usize,
     pub handled: bool,
+    pub apply: bool,
 }
 
 #[repr(C)]
@@ -612,6 +614,14 @@ fn not_handled() -> FfiAnimationValueResult {
 fn handled_without_value() -> FfiAnimationValueResult {
     FfiAnimationValueResult {
         value: std::ptr::null(),
+        handled: true,
+    }
+}
+
+fn handled_retained_value(value: RetainedStyleValueData) -> FfiAnimationValueResult {
+    let pointer = unsafe { crate::style_value::rust_style_value_retain(value.data()) };
+    FfiAnimationValueResult {
+        value: pointer,
         handled: true,
     }
 }
@@ -848,6 +858,97 @@ fn length_percentage_calculation_node(value: &StyleValueData) -> Option<Arc<crat
         StyleValueData::Calculated { rust_calculation, .. } => Some(rust_calculation.node_arc()),
         _ => None,
     }
+}
+
+fn numeric_calculation_node(value: &StyleValueData) -> Option<Arc<crate::calc::CalcNode>> {
+    let numeric = match value {
+        StyleValueData::Number { value } => crate::calc::CalcNumericValue::Number {
+            value: *value,
+            number_type: 0,
+        },
+        StyleValueData::Integer { value } => crate::calc::CalcNumericValue::Number {
+            value: *value as f64,
+            number_type: 2,
+        },
+        StyleValueData::Angle { value, unit } => crate::calc::CalcNumericValue::Angle {
+            value: *value,
+            unit: *unit,
+        },
+        StyleValueData::Flex { value, unit } => crate::calc::CalcNumericValue::Flex {
+            value: *value,
+            unit: *unit,
+        },
+        StyleValueData::Frequency { value, unit } => crate::calc::CalcNumericValue::Frequency {
+            value: *value,
+            unit: *unit,
+        },
+        StyleValueData::Length { value, unit } => crate::calc::CalcNumericValue::Length {
+            value: *value,
+            unit: *unit,
+        },
+        StyleValueData::Percentage { value } => crate::calc::CalcNumericValue::Percentage(*value),
+        StyleValueData::Resolution { value, unit } => crate::calc::CalcNumericValue::Resolution {
+            value: *value,
+            unit: *unit,
+        },
+        StyleValueData::Time { value, unit } => crate::calc::CalcNumericValue::Time {
+            value: *value,
+            unit: *unit,
+        },
+        StyleValueData::Calculated { rust_calculation, .. } => return Some(rust_calculation.node_arc()),
+        _ => return None,
+    };
+    Some(Arc::new(crate::calc::CalcNode::Numeric(numeric)))
+}
+
+struct AnimationCalculationContext<'a> {
+    resolve_as_is_number: bool,
+    resolve_as_base: u8,
+    has_percentages_resolve_as: bool,
+    percentages_resolve_as: u8,
+    resolve_numbers_as_integers: bool,
+    accepted_ranges: &'a RetainedNumericRangeList,
+}
+
+fn animation_calculation_context(value: &StyleValueData) -> Option<AnimationCalculationContext<'_>> {
+    let StyleValueData::Calculated {
+        resolve_as_is_number,
+        resolve_as_base,
+        has_percentages_resolve_as,
+        percentages_resolve_as,
+        resolve_numbers_as_integers,
+        accepted_ranges,
+        ..
+    } = value
+    else {
+        return None;
+    };
+    Some(AnimationCalculationContext {
+        resolve_as_is_number: *resolve_as_is_number,
+        resolve_as_base: *resolve_as_base,
+        has_percentages_resolve_as: *has_percentages_resolve_as,
+        percentages_resolve_as: *percentages_resolve_as,
+        resolve_numbers_as_integers: *resolve_numbers_as_integers,
+        accepted_ranges,
+    })
+}
+
+fn retained_calculation(
+    calculation: Arc<crate::calc::CalcNode>,
+    resolved_type: crate::calc::FfiNumericType,
+    context: &AnimationCalculationContext<'_>,
+) -> RetainedStyleValueData {
+    let value = Arc::into_raw(Arc::new(StyleValueData::Calculated {
+        rust_calculation: crate::calc::CalcNodeHandle::from_arc(calculation),
+        resolve_as_is_number: context.resolve_as_is_number,
+        resolve_as_base: context.resolve_as_base,
+        resolved_type,
+        has_percentages_resolve_as: context.has_percentages_resolve_as,
+        percentages_resolve_as: context.percentages_resolve_as,
+        resolve_numbers_as_integers: context.resolve_numbers_as_integers,
+        accepted_ranges: context.accepted_ranges.clone_owned(),
+    }));
+    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
 }
 
 fn retained_length_percentage_calculation(
@@ -2336,6 +2437,37 @@ fn composite_scalar_value(
         return handled_without_value();
     }
 
+    if let Some(context) = animation_calculation_context(underlying).or_else(|| animation_calculation_context(animated))
+        && let (Some(underlying), Some(animated)) =
+            (numeric_calculation_node(underlying), numeric_calculation_node(animated))
+        && let Some((calculation, resolved_type)) = crate::calc::add_calculations(
+            underlying,
+            animated,
+            context.has_percentages_resolve_as,
+            context.resolve_as_is_number,
+            context.resolve_as_base,
+        )
+    {
+        // https://drafts.csswg.org/css-values-4/#combine-math
+        // Addition of math functions, with each other or with numeric values and other numeric-valued functions, is defined as Vresult = calc(VA + VB).
+        return handled_retained_value(retained_calculation(calculation, resolved_type, &context));
+    }
+
+    if (matches!(underlying, StyleValueData::Calculated { .. })
+        || matches!(animated, StyleValueData::Calculated { .. })
+        || std::mem::discriminant(underlying) != std::mem::discriminant(animated))
+        && let (Some(underlying), Some(animated)) = (
+            length_percentage_calculation_node(underlying),
+            length_percentage_calculation_node(animated),
+        )
+        && let Some((calculation, resolved_type)) =
+            crate::calc::add_length_percentage_calculations(underlying, animated)
+    {
+        // https://drafts.csswg.org/css-values-4/#combine-mixed
+        // Addition of <percentage> is defined the same as interpolation except by adding each component rather than interpolating it.
+        return handled_retained_value(retained_length_percentage_calculation(calculation, resolved_type));
+    }
+
     match (underlying, animated) {
         (StyleValueData::ColorFunction { .. }, StyleValueData::ColorFunction { .. }) => {
             // FIXME: Implement color addition and accumulation.
@@ -2486,7 +2618,7 @@ fn composite_scalar_value(
             let (StyleValueData::Number { value: underlying }, StyleValueData::Number { value: animated }) =
                 (underlying.data(), animated.data())
             else {
-                return not_handled();
+                return handled_without_value();
             };
 
             // https://drafts.csswg.org/css-color-4/#propdef-opacity
@@ -2511,7 +2643,7 @@ fn composite_scalar_value(
             let x = composite_scalar_value(underlying_x.data(), animated_x.data(), operation);
             let y = composite_scalar_value(underlying_y.data(), animated_y.data(), operation);
             if !x.handled || !y.handled {
-                return not_handled();
+                return handled_without_value();
             }
             if x.value.is_null() || y.value.is_null() {
                 return handled_without_value();
@@ -2523,11 +2655,11 @@ fn composite_scalar_value(
         }
         (StyleValueData::Edge { offset: underlying, .. }, StyleValueData::Edge { offset: animated, .. }) => {
             let (Some(underlying), Some(animated)) = (underlying.optional_data(), animated.optional_data()) else {
-                return not_handled();
+                return handled_without_value();
             };
             let result = composite_scalar_value(underlying, animated, operation);
             if !result.handled {
-                return not_handled();
+                return handled_without_value();
             }
             if result.value.is_null() {
                 return handled_without_value();
@@ -2551,7 +2683,7 @@ fn composite_scalar_value(
             let x = composite_scalar_value(underlying_x.data(), animated_x.data(), operation);
             let y = composite_scalar_value(underlying_y.data(), animated_y.data(), operation);
             if !x.handled || !y.handled {
-                return not_handled();
+                return handled_without_value();
             }
             if x.value.is_null() || y.value.is_null() {
                 return handled_without_value();
@@ -2608,7 +2740,7 @@ fn composite_scalar_value(
                 }))
             })();
             match value {
-                Err(()) => not_handled(),
+                Err(()) => handled_without_value(),
                 Ok(None) => handled_without_value(),
                 Ok(Some(value)) => owned(value),
             }
@@ -2628,7 +2760,7 @@ fn composite_scalar_value(
             let horizontal =
                 composite_scalar_value(underlying_horizontal.data(), animated_horizontal.data(), operation);
             if !horizontal.handled {
-                return not_handled();
+                return handled_without_value();
             }
             if horizontal.value.is_null() {
                 return handled_without_value();
@@ -2636,7 +2768,7 @@ fn composite_scalar_value(
             let horizontal = unsafe { RetainedStyleValueData::from_retained_pointer(horizontal.value) };
             let vertical = composite_scalar_value(underlying_vertical.data(), animated_vertical.data(), operation);
             if !vertical.handled {
-                return not_handled();
+                return handled_without_value();
             }
             if vertical.value.is_null() {
                 return handled_without_value();
@@ -2698,7 +2830,7 @@ fn composite_scalar_value(
                 }))
             })();
             match value {
-                Err(()) => not_handled(),
+                Err(()) => handled_without_value(),
                 Ok(None) => handled_without_value(),
                 Ok(Some(value)) => owned(value),
             }
@@ -2759,7 +2891,7 @@ fn composite_scalar_value(
                 }))
             })();
             match value {
-                Err(()) => not_handled(),
+                Err(()) => handled_without_value(),
                 Ok(None) => handled_without_value(),
                 Ok(Some(value)) => owned(value),
             }
@@ -2784,7 +2916,7 @@ fn composite_scalar_value(
             }
             let value = composite_scalar_value(underlying_value.data(), animated_value.data(), operation);
             if !value.handled {
-                return not_handled();
+                return handled_without_value();
             }
             if value.value.is_null() {
                 return handled_without_value();
@@ -2813,7 +2945,7 @@ fn composite_scalar_value(
             }
             let value = composite_scalar_value(underlying_value.data(), animated_value.data(), operation);
             if !value.handled {
-                return not_handled();
+                return handled_without_value();
             }
             if value.value.is_null() {
                 return handled_without_value();
@@ -2840,7 +2972,7 @@ fn composite_scalar_value(
             }
             let result = composite_scalar_value(underlying.data(), animated.data(), operation);
             if !result.handled {
-                return not_handled();
+                return handled_without_value();
             }
             if result.value.is_null() {
                 return handled_without_value();
@@ -2871,14 +3003,14 @@ fn composite_scalar_value(
             if underlying_values.as_slice().len() != animated_values.as_slice().len()
                 || underlying_separator != animated_separator
             {
-                return not_handled();
+                return handled_without_value();
             }
 
             let mut values = Vec::with_capacity(underlying_values.as_slice().len());
             for (underlying, animated) in underlying_values.as_slice().iter().zip(animated_values.as_slice()) {
                 let result = composite_scalar_value(underlying.data(), animated.data(), operation);
                 if !result.handled {
-                    return not_handled();
+                    return handled_without_value();
                 }
                 if result.value.is_null() {
                     return handled_without_value();
@@ -2918,7 +3050,7 @@ fn composite_scalar_value(
                 entries: RetainedGridTrackEntryList::from_retained_entries(entries),
             })
         }
-        _ => not_handled(),
+        _ => handled_without_value(),
     }
 }
 
@@ -2929,6 +3061,54 @@ fn interpolate_scalar_value(
     delta: f32,
     range_overrides: &[NumericRangeOverride],
 ) -> FfiAnimationValueResult {
+    if let Some(context) = animation_calculation_context(from).or_else(|| animation_calculation_context(to))
+        && let (Some(from), Some(to)) = (numeric_calculation_node(from), numeric_calculation_node(to))
+        && let Some((calculation, resolved_type)) = crate::calc::interpolate_calculations(
+            from,
+            to,
+            delta,
+            context.has_percentages_resolve_as,
+            context.resolve_as_is_number,
+            context.resolve_as_base,
+        )
+    {
+        // https://drafts.csswg.org/css-values-4/#combine-math
+        // Interpolation of math functions, with each other or with numeric values and other numeric-valued functions, is defined as Vresult = calc((1 - p) * VA + p * VB).
+        return handled_retained_value(retained_calculation(calculation, resolved_type, &context));
+    }
+
+    // https://drafts.csswg.org/css-values-4/#combine-mixed
+    // The computed value of a percentage-dimension mix is defined as
+    // a computed percentage if the dimension component is zero
+    let dimension_component_is_zero = match (from, to) {
+        (StyleValueData::Length { value, .. }, StyleValueData::Percentage { .. }) => {
+            *value * (1.0 - delta as f64) == 0.0
+        }
+        (StyleValueData::Percentage { .. }, StyleValueData::Length { value, .. }) => *value * delta as f64 == 0.0,
+        _ => false,
+    };
+    if dimension_component_is_zero {
+        let percentage = match (from, to) {
+            (StyleValueData::Length { .. }, StyleValueData::Percentage { value }) => *value * delta as f64,
+            (StyleValueData::Percentage { value }, StyleValueData::Length { .. }) => *value * (1.0 - delta as f64),
+            _ => unreachable!(),
+        };
+        return owned(StyleValueData::Percentage { value: percentage });
+    }
+
+    if (matches!(from, StyleValueData::Calculated { .. })
+        || matches!(to, StyleValueData::Calculated { .. })
+        || std::mem::discriminant(from) != std::mem::discriminant(to))
+        && let (Some(from), Some(to)) = (
+            length_percentage_calculation_node(from),
+            length_percentage_calculation_node(to),
+        )
+        && let Some((calculation, resolved_type)) =
+            crate::calc::interpolate_length_percentage_calculations(from, to, delta)
+    {
+        return handled_retained_value(retained_length_percentage_calculation(calculation, resolved_type));
+    }
+
     match (from, to) {
         (StyleValueData::ColorFunction { .. }, StyleValueData::ColorFunction { .. }) => {
             interpolate_legacy_rgb(from, to, delta)
@@ -4922,6 +5102,56 @@ fn resolve_animation_color(
     Some(unsafe { RetainedStyleValueData::from_retained_pointer(retained) })
 }
 
+enum RootAnimationColor<'a> {
+    Borrowed(&'a StyleValueData),
+    Owned(StyleValueData),
+}
+
+impl RootAnimationColor<'_> {
+    fn data(&self) -> &StyleValueData {
+        match self {
+            Self::Borrowed(value) => value,
+            Self::Owned(value) => value,
+        }
+    }
+}
+
+fn resolve_root_animation_color<'a>(
+    context: Option<&'a FfiAnimationContext>,
+    color: &'a StyleValueData,
+) -> Option<RootAnimationColor<'a>> {
+    match color {
+        StyleValueData::ColorFunction { .. } => Some(RootAnimationColor::Borrowed(color)),
+        StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::current_color_keyword() => {
+            let current_color = context?.current_color;
+            if current_color.is_null() {
+                return None;
+            }
+            let (components, missing) = legacy_srgb_components(unsafe { &*current_color })?;
+            if missing.iter().any(|component| *component) {
+                return None;
+            }
+            let to_byte = |value: f32| (value * 255.0).round().clamp(0.0, 255.0) as u8;
+            let alpha = to_byte(components[3]);
+            Some(RootAnimationColor::Owned(StyleValueData::ColorFunction {
+                color_base: ColorBase {
+                    has_color_type: true,
+                    color_type: COLOR_TYPE_RGB,
+                    color_syntax: COLOR_SYNTAX_LEGACY,
+                },
+                channel_0: retained_number(to_byte(components[0]) as f64),
+                channel_1: retained_number(to_byte(components[1]) as f64),
+                channel_2: retained_number(to_byte(components[2]) as f64),
+                alpha: retained_number(alpha as f64 / 255.0),
+                has_name: false,
+                name: empty_retained_fly_string(),
+                origin_color: empty_retained_style_value(),
+            }))
+        }
+        _ => None,
+    }
+}
+
 fn blank_shadow(other: &StyleValueData) -> Option<RetainedStyleValueData> {
     let StyleValueData::Shadow {
         shadow_type, placement, ..
@@ -5450,10 +5680,10 @@ fn composite_filter_list(
         }
     };
     let Some((mut underlying_filters, underlying_separator, underlying_collapsible)) = list(underlying) else {
-        return not_handled();
+        return handled_without_value();
     };
     let Some((mut animated_filters, animated_separator, animated_collapsible)) = list(animated) else {
-        return not_handled();
+        return handled_without_value();
     };
     let underlying_was_empty = underlying_filters.is_empty();
 
@@ -5624,7 +5854,7 @@ fn interpolate_filter_list(
     })
 }
 
-fn interpolate_value(
+pub(crate) fn interpolate_value(
     context: Option<&FfiAnimationContext>,
     property_id: u16,
     from: &StyleValueData,
@@ -5646,6 +5876,17 @@ fn interpolate_value(
         // https://www.w3.org/TR/web-animations-1/#discrete
         // The property’s values cannot be meaningfully combined, thus it is not additive and interpolation swaps from Va to Vb at 50% (p=0.5), i.e.
         return discrete_value(context, from, to, delta);
+    }
+    if let (Some(resolved_from), Some(resolved_to)) = (
+        resolve_root_animation_color(context, from),
+        resolve_root_animation_color(context, to),
+    ) {
+        // https://drafts.csswg.org/css-color-4/#interpolation
+        // Interpolating to or from currentcolor is possible. The numerical value used for this purpose is the used value.
+        let result = interpolate_scalar_value(property_id, resolved_from.data(), resolved_to.data(), delta, &[]);
+        if result.handled {
+            return result;
+        }
     }
     if animation_type == ANIMATION_TYPE_CUSTOM
         && matches!(
@@ -5913,11 +6154,11 @@ fn interpolate_value(
         // NB: C++ treats values declined by a property's specialized custom algorithm as discrete.
         return discrete_value(context, from, to, delta);
     }
-    if animation_type != ANIMATION_TYPE_BY_COMPUTED_VALUE {
-        return not_handled();
-    }
+    assert_eq!(animation_type, ANIMATION_TYPE_BY_COMPUTED_VALUE);
     let result = interpolate_scalar_value(property_id, from, to, delta, &[]);
-    if result.handled && result.value.is_null() && context.is_some_and(|context| context.allow_discrete) {
+    // https://drafts.csswg.org/web-animations-1/#by-computed-value
+    // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
+    if !result.handled || result.value.is_null() && context.is_some_and(|context| context.allow_discrete) {
         return discrete_value(context, from, to, delta);
     }
     result
@@ -5943,7 +6184,7 @@ fn composite_batch_value<'a>(
     underlying: &'a StyleValueData,
     animated: &'a StyleValueData,
     operation: FfiCompositeOperation,
-) -> Option<BatchAnimationValue<'a>> {
+) -> BatchAnimationValue<'a> {
     let result = if matches!(
         property_id,
         crate::property_metadata::property_id::FILTER | crate::property_metadata::property_id::BACKDROP_FILTER
@@ -5952,21 +6193,18 @@ fn composite_batch_value<'a>(
     } else {
         composite_scalar_value(underlying, animated, operation)
     };
-    if !result.handled {
-        return None;
-    }
+    assert!(result.handled);
     if result.value.is_null() {
-        return Some(BatchAnimationValue::Borrowed(animated));
+        return BatchAnimationValue::Borrowed(animated);
     }
     // SAFETY: A handled non-null composition result transfers one Arc reference.
-    Some(BatchAnimationValue::Owned(unsafe { Arc::from_raw(result.value) }))
+    BatchAnimationValue::Owned(unsafe { Arc::from_raw(result.value) })
 }
 
 fn evaluate_animation_value(
     context: &FfiAnimationContext,
     input: &FfiAnimationValueInput,
     underlying_override: Option<&StyleValueData>,
-    force_unhandled: bool,
 ) -> FfiAnimatedProperty {
     let keyframes = unsafe { std::slice::from_raw_parts(input.keyframes, input.keyframe_count) };
     assert!(keyframes.len() >= 2);
@@ -5993,37 +6231,49 @@ fn evaluate_animation_value(
     let interval_progress =
         (input.current_key - start_keyframe.key as f64) / (end_keyframe.key - start_keyframe.key) as f64;
     let progress = evaluate_easing_descriptor(&start_keyframe.easing, interval_progress, false) as f32;
-    let unhandled = || FfiAnimatedProperty {
-        property_id: input.property_id,
-        value: std::ptr::null(),
-        progress,
-        start_index,
-        end_index,
-        handled: false,
-    };
-    if force_unhandled {
-        return unhandled();
-    }
-    if start_keyframe.value.is_null() || end_keyframe.value.is_null() {
-        return unhandled();
+    if end_keyframe.value.is_null() {
+        if start_keyframe.value.is_null() {
+            return FfiAnimatedProperty {
+                property_id: input.property_id,
+                value: std::ptr::null(),
+                progress,
+                start_index,
+                end_index,
+                handled: true,
+                apply: false,
+            };
+        }
+        return FfiAnimatedProperty {
+            property_id: input.property_id,
+            value: unsafe { crate::style_value::rust_style_value_retain(start_keyframe.value) },
+            progress,
+            start_index,
+            end_index,
+            handled: true,
+            apply: true,
+        };
     }
     let underlying = underlying_override.unwrap_or_else(|| unsafe { &*input.underlying });
-    let start = unsafe { &*start_keyframe.value };
-    let end = unsafe { &*end_keyframe.value };
-    let (Some(start), Some(end)) = (
-        composite_batch_value(context, input.property_id, underlying, start, start_keyframe.composite),
-        composite_batch_value(context, input.property_id, underlying, end, end_keyframe.composite),
-    ) else {
-        return unhandled();
+    let start = unsafe {
+        if start_keyframe.value.is_null() {
+            &*input.initial
+        } else {
+            &*start_keyframe.value
+        }
     };
+    let end = unsafe { &*end_keyframe.value };
+    let start = composite_batch_value(context, input.property_id, underlying, start, start_keyframe.composite);
+    let end = composite_batch_value(context, input.property_id, underlying, end, end_keyframe.composite);
     let result = interpolate_value(Some(context), input.property_id, start.data(), end.data(), progress);
+    assert!(result.handled);
     FfiAnimatedProperty {
         property_id: input.property_id,
         value: result.value,
         progress,
         start_index,
         end_index,
-        handled: result.handled,
+        handled: true,
+        apply: true,
     }
 }
 
@@ -6050,23 +6300,15 @@ pub unsafe extern "C" fn rust_evaluate_animations(
         // NB: Inputs arrive in composite order. Keep each result as the underlying value for the
         //     next effect affecting the same property.
         let mut previous_values = Vec::<(u16, *const StyleValueData)>::new();
-        let mut unhandled_properties = Vec::<u16>::new();
         for input in inputs {
             let previous_value = previous_values
                 .iter()
                 .rev()
                 .find(|(property_id, _)| *property_id == input.property_id)
                 .map(|(_, value)| unsafe { &**value });
-            let result = evaluate_animation_value(
-                &batch.context,
-                input,
-                previous_value,
-                unhandled_properties.contains(&input.property_id),
-            );
-            if result.handled && !result.value.is_null() {
+            let result = evaluate_animation_value(&batch.context, input, previous_value);
+            if result.apply && !result.value.is_null() {
                 previous_values.push((input.property_id, result.value));
-            } else if !unhandled_properties.contains(&input.property_id) {
-                unhandled_properties.push(input.property_id);
             }
             results.push(result);
         }
@@ -6099,19 +6341,6 @@ pub unsafe extern "C" fn rust_interpolate_scalar_style_value(
     })
 }
 
-/// Attempt Rust-owned style value composition without consulting C++ or the DOM.
-///
-/// # Safety
-/// `underlying` and `animated` must point at live `StyleValueData` allocations.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_composite_scalar_style_value(
-    underlying: *const StyleValueData,
-    animated: *const StyleValueData,
-    operation: FfiCompositeOperation,
-) -> FfiAnimationValueResult {
-    crate::abort_on_panic(|| composite_scalar_value(unsafe { &*underlying }, unsafe { &*animated }, operation))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -6139,6 +6368,21 @@ mod tests {
             has_transform_reference_box: false,
             transform_reference_box_width: 0.0,
             transform_reference_box_height: 0.0,
+        }
+    }
+
+    fn calculated_number(value: f64) -> StyleValueData {
+        StyleValueData::Calculated {
+            rust_calculation: crate::calc::CalcNodeHandle::from_arc(Arc::new(crate::calc::CalcNode::Numeric(
+                crate::calc::CalcNumericValue::Number { value, number_type: 0 },
+            ))),
+            resolve_as_is_number: false,
+            resolve_as_base: 0,
+            resolved_type: crate::calc::FfiNumericType::from_calc(Some(crate::calc::CalcNumericType::default())),
+            has_percentages_resolve_as: false,
+            percentages_resolve_as: 0,
+            resolve_numbers_as_integers: false,
+            accepted_ranges: RetainedNumericRangeList::empty(),
         }
     }
 
@@ -6216,17 +6460,80 @@ mod tests {
         let input = FfiAnimationValueInput {
             property_id: crate::property_metadata::property_id::FLEX_GROW,
             underlying: &raw const underlying,
+            initial: &raw const underlying,
             current_key: 75.0,
             keyframes: keyframes.as_ptr(),
             keyframe_count: keyframes.len(),
         };
-        let result = evaluate_animation_value(&animation_context(true), &input, None, false);
+        let result = evaluate_animation_value(&animation_context(true), &input, None);
         assert!(result.handled);
+        assert!(result.apply);
         assert!(!result.value.is_null());
         assert_eq!(result.start_index, 1);
         assert_eq!(result.end_index, 2);
         let value = unsafe { Arc::from_raw(result.value) };
         assert!(matches!(&*value, StyleValueData::Number { value } if *value == 9.0));
+    }
+
+    #[test]
+    fn evaluates_missing_keyframe_values() {
+        let underlying = Arc::new(StyleValueData::Number { value: 2.0 });
+        let initial = Arc::new(StyleValueData::Number { value: 1.0 });
+        let start = Arc::new(StyleValueData::Number { value: 3.0 });
+        let end = Arc::new(StyleValueData::Number { value: 5.0 });
+        let easing = || FfiEasingDescriptor {
+            kind: FfiEasingKind::CubicBezier,
+            linear_points: std::ptr::null(),
+            linear_point_count: 0,
+            x1: 0.0,
+            y1: 0.0,
+            x2: 1.0,
+            y2: 1.0,
+            interval_count: 0,
+            step_position: 0,
+        };
+        let evaluate = |start_value, end_value| {
+            let keyframes = [
+                FfiAnimationKeyframeValue {
+                    key: 0,
+                    value: start_value,
+                    easing: easing(),
+                    composite: FfiCompositeOperation::Replace,
+                },
+                FfiAnimationKeyframeValue {
+                    key: 100,
+                    value: end_value,
+                    easing: easing(),
+                    composite: FfiCompositeOperation::Replace,
+                },
+            ];
+            let input = FfiAnimationValueInput {
+                property_id: crate::property_metadata::property_id::FLEX_GROW,
+                underlying: Arc::as_ptr(&underlying),
+                initial: Arc::as_ptr(&initial),
+                current_key: 50.0,
+                keyframes: keyframes.as_ptr(),
+                keyframe_count: keyframes.len(),
+            };
+            evaluate_animation_value(&animation_context(true), &input, None)
+        };
+
+        let result = evaluate(std::ptr::null(), Arc::as_ptr(&end));
+        assert!(result.handled);
+        assert!(result.apply);
+        let value = unsafe { Arc::from_raw(result.value) };
+        assert!(matches!(&*value, StyleValueData::Number { value } if *value == 3.0));
+
+        let result = evaluate(Arc::as_ptr(&start), std::ptr::null());
+        assert!(result.handled);
+        assert!(result.apply);
+        let value = unsafe { Arc::from_raw(result.value) };
+        assert!(matches!(&*value, StyleValueData::Number { value } if *value == 3.0));
+
+        let result = evaluate(std::ptr::null(), std::ptr::null());
+        assert!(result.handled);
+        assert!(!result.apply);
+        assert!(result.value.is_null());
     }
 
     #[test]
@@ -6244,6 +6551,27 @@ mod tests {
         assert!(result.handled);
         let value = unsafe { Arc::from_raw(result.value) };
         assert!(matches!(&*value, StyleValueData::Keyword { keyword: 2 }));
+
+        let result = interpolate_value(Some(&animation_context(false)), property_id, &from, &to, 0.75);
+        assert!(result.handled);
+        assert!(result.value.is_null());
+    }
+
+    #[test]
+    fn evaluates_incompatible_by_computed_values_as_discrete() {
+        let property_id = crate::property_metadata::property_id::FLEX_GROW;
+        let from = Arc::new(StyleValueData::Keyword { keyword: 1 });
+        let to = Arc::new(StyleValueData::Keyword { keyword: 2 });
+
+        let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.25);
+        assert!(result.handled);
+        assert_eq!(result.value, Arc::as_ptr(&from));
+        unsafe { crate::style_value::rust_style_value_release(result.value) };
+
+        let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.75);
+        assert!(result.handled);
+        assert_eq!(result.value, Arc::as_ptr(&to));
+        unsafe { crate::style_value::rust_style_value_release(result.value) };
 
         let result = interpolate_value(Some(&animation_context(false)), property_id, &from, &to, 0.75);
         assert!(result.handled);
@@ -6319,5 +6647,108 @@ mod tests {
         assert!(result.handled);
         let value = unsafe { Arc::from_raw(result.value) };
         assert!(matches!(&*value, StyleValueData::Number { value } if *value == 15.0));
+    }
+
+    #[test]
+    fn interpolates_mixed_length_percentage_values() {
+        let from = Arc::new(StyleValueData::Length { value: 10.0, unit: 0 });
+        let to = Arc::new(StyleValueData::Percentage { value: 50.0 });
+        let result = interpolate_value(
+            Some(&animation_context(true)),
+            crate::property_metadata::property_id::WIDTH,
+            &from,
+            &to,
+            0.5,
+        );
+        assert!(result.handled);
+        let value = unsafe { Arc::from_raw(result.value) };
+        assert!(matches!(&*value, StyleValueData::Calculated { .. }));
+    }
+
+    #[test]
+    fn combines_lengths_with_different_units_discretely() {
+        let from = Arc::new(StyleValueData::Length { value: 10.0, unit: 0 });
+        let to = Arc::new(StyleValueData::Length { value: 20.0, unit: 1 });
+        let result = interpolate_value(
+            Some(&animation_context(true)),
+            crate::property_metadata::property_id::WIDTH,
+            &from,
+            &to,
+            0.75,
+        );
+        assert!(result.handled);
+        let value = unsafe { Arc::from_raw(result.value) };
+        assert!(matches!(&*value, StyleValueData::Length { value, unit } if *value == 20.0 && *unit == 1));
+    }
+
+    #[test]
+    fn interpolates_rotate_3d_with_a_zero_axis() {
+        let retained_angle = |value| {
+            let pointer = Arc::into_raw(Arc::new(StyleValueData::Angle { value, unit: 0 }));
+            unsafe { RetainedStyleValueData::from_retained_pointer(pointer) }
+        };
+        let from = RetainedStyleValueDataList::from_retained_values(vec![
+            retained_number(0.0),
+            retained_number(0.0),
+            retained_number(0.0),
+            retained_angle(90.0),
+        ]);
+        let to = RetainedStyleValueDataList::from_retained_values(vec![
+            retained_number(1.0),
+            retained_number(0.0),
+            retained_number(0.0),
+            retained_angle(180.0),
+        ]);
+        let result = interpolate_rotate_3d(crate::property_metadata::property_id::TRANSFORM, 0, &from, &to, 0.5)
+            .expect("rotate3d values should interpolate");
+        let StyleValueData::Transformation { values, .. } = result else {
+            panic!("expected a transform function");
+        };
+        assert!(values.as_slice().iter().all(|value| match value.data() {
+            StyleValueData::Number { value } | StyleValueData::Angle { value, .. } => value.is_finite(),
+            _ => false,
+        }));
+    }
+
+    #[test]
+    fn composes_mixed_length_percentage_values() {
+        let underlying = Arc::new(StyleValueData::Length { value: 10.0, unit: 0 });
+        let animated = Arc::new(StyleValueData::Percentage { value: 50.0 });
+        let result = composite_scalar_value(&underlying, &animated, FfiCompositeOperation::Add);
+        assert!(result.handled);
+        let value = unsafe { Arc::from_raw(result.value) };
+        assert!(matches!(&*value, StyleValueData::Calculated { .. }));
+    }
+
+    #[test]
+    fn owns_unsupported_composition_decisions() {
+        let underlying = Arc::new(StyleValueData::Keyword {
+            keyword: crate::style_compute::none_keyword(),
+        });
+        let animated = Arc::new(StyleValueData::Number { value: 4.0 });
+        let result = composite_scalar_value(&underlying, &animated, FfiCompositeOperation::Add);
+        assert!(result.handled);
+        assert!(result.value.is_null());
+    }
+
+    #[test]
+    fn combines_general_calculated_numeric_values() {
+        let from = Arc::new(calculated_number(2.0));
+        let to = Arc::new(StyleValueData::Number { value: 4.0 });
+        let result = interpolate_value(
+            Some(&animation_context(true)),
+            crate::property_metadata::property_id::FLEX_GROW,
+            &from,
+            &to,
+            0.5,
+        );
+        assert!(result.handled);
+        let value = unsafe { Arc::from_raw(result.value) };
+        assert!(matches!(&*value, StyleValueData::Calculated { .. }));
+
+        let result = composite_scalar_value(&from, &to, FfiCompositeOperation::Add);
+        assert!(result.handled);
+        let value = unsafe { Arc::from_raw(result.value) };
+        assert!(matches!(&*value, StyleValueData::Calculated { .. }));
     }
 }

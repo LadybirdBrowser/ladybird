@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<style>
+    #container {
+        width: 100px;
+        height: 100px;
+    }
+
+    #target {
+        width: 0;
+        height: 0;
+    }
+
+    #additive {
+        width: 10px;
+    }
+</style>
+<div id="container"><div id="target"></div><div id="additive"></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const animations = [
+            target.animate({ width: ["calc(10px + 10%)", "calc(30px + 30%)"] }, 100),
+            target.animate({ height: ["10px", "50%"] }, 100),
+        ];
+        for (const animation of animations) {
+            animation.pause();
+            animation.currentTime = 50;
+        }
+        const additiveAnimation = additive.animate(
+            [
+                { width: "calc(10px + 10%)", composite: "add" },
+                { width: "calc(30px + 30%)", composite: "add" },
+            ],
+            100
+        );
+        additiveAnimation.pause();
+        additiveAnimation.currentTime = 50;
+
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+        const style = getComputedStyle(target);
+        println(`width: ${style.width}`);
+        println(`height: ${style.height}`);
+        println(`additive width: ${getComputedStyle(additive).width}`);
+    });
+</script>

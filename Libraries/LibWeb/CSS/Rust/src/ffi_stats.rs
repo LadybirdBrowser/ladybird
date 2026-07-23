@@ -76,7 +76,6 @@ define_ffi_ops! {
     CalcSerializationCallback => "calcSerializationCallbacks",
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
     AnimationResultBatchCallback => "animationResultBatchCallbacks",
-    AnimationCppInterpolationFallback => "animationCppInterpolationFallbacks",
     TransitionActionBatchCallback => "transitionActionBatchCallbacks",
 }
 
@@ -128,11 +127,6 @@ pub extern "C" fn rust_style_ffi_note_animation_evaluation() {
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_ffi_note_animation_result_batch() {
     bump(FfiOp::AnimationResultBatchCallback);
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_ffi_note_animation_cpp_interpolation_fallback() {
-    bump(FfiOp::AnimationCppInterpolationFallback);
 }
 
 #[unsafe(no_mangle)]

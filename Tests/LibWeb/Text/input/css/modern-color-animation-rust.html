@@ -19,6 +19,5 @@
         sample("oklab(none 0.2 0.3)", "oklab(0.5 0.6 0.7)");
         sample("oklab(none 0.2 0.3 / none)", "oklab(none 0.6 0.7 / none)");
         sample("oklch(0.2 none none)", "oklab(0.6 0.2 0.4)");
-        println(`C++ interpolation fallbacks: ${internals.styleFfiCounters().animationCppInterpolationFallbacks}`);
     });
 </script>

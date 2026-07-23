@@ -8,7 +8,6 @@
 #pragma once
 
 #include <LibWeb/Animations/Animation.h>
-#include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {

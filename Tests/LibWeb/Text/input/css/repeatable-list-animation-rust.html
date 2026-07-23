@@ -15,6 +15,5 @@
         internals.resetStyleFfiCounters();
         internals.updateStyle();
         println(getComputedStyle(target).objectPosition);
-        println(`C++ interpolation fallbacks: ${internals.styleFfiCounters().animationCppInterpolationFallbacks}`);
     });
 </script>

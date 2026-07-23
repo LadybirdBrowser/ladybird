@@ -834,9 +834,14 @@ Optional<DOM::AbstractElement> KeyframeEffect::target_abstract_element() const
     return {};
 }
 
-void KeyframeEffect::set_target(DOM::AbstractElement abstract_element)
+void KeyframeEffect::set_target(DOM::AbstractElement abstract_element, InvalidateEffect invalidate)
 {
-    set_target(&abstract_element.element());
+    if (invalidate == InvalidateEffect::Yes) {
+        set_target(&abstract_element.element());
+    } else {
+        VERIFY(!associated_animation());
+        m_target_element = &abstract_element.element();
+    }
     m_target_pseudo_selector = abstract_element.pseudo_element().map([](auto it) { return CSS::Selector::PseudoElementSelector { it }; });
 }
 

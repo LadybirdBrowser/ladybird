@@ -18,6 +18,14 @@
 
         animation.currentTime = 75;
         println(getComputedStyle(target).alignContent);
-        println(`C++ interpolation fallbacks: ${internals.styleFfiCounters().animationCppInterpolationFallbacks}`);
+
+        const byComputedAnimation = target.animate({ zIndex: ["auto", "10"] }, 100);
+        byComputedAnimation.pause();
+
+        byComputedAnimation.currentTime = 25;
+        println(getComputedStyle(target).zIndex);
+
+        byComputedAnimation.currentTime = 75;
+        println(getComputedStyle(target).zIndex);
     });
 </script>

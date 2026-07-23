@@ -21,14 +21,16 @@ pub enum FfiTransitionActionKind {
 #[repr(C)]
 pub struct FfiTransitionPropertyInput {
     pub property_id: u16,
+    pub before_change_value: *const crate::style_value::StyleValueData,
+    pub after_change_value: *const crate::style_value::StyleValueData,
+    pub current_value: *const crate::style_value::StyleValueData,
     pub has_matching_transition: bool,
+    pub allow_discrete: bool,
     pub before_change_value_differs: bool,
-    pub before_after_transitionable: bool,
     pub has_running_transition: bool,
     pub has_completed_transition: bool,
     pub existing_end_value_differs: bool,
     pub current_value_equals_after: bool,
-    pub current_after_transitionable: bool,
     pub reversing_start_value_equals_after: bool,
     pub delay: f64,
     pub duration: f64,
@@ -38,6 +40,7 @@ pub struct FfiTransitionPropertyInput {
 
 #[repr(C)]
 pub struct FfiTransitionInput {
+    pub context: crate::animation::FfiAnimationContext,
     pub properties: *const FfiTransitionPropertyInput,
     pub property_count: usize,
 }
@@ -58,10 +61,67 @@ pub struct FfiTransitionCallbacks {
         unsafe extern "C" fn(context: *mut std::ffi::c_void, actions: *const FfiTransitionAction, count: usize),
 }
 
-fn decide_transition(input: &FfiTransitionPropertyInput) -> FfiTransitionAction {
+fn property_values_are_transitionable(
+    context: &crate::animation::FfiAnimationContext,
+    property_id: u16,
+    old_value: *const crate::style_value::StyleValueData,
+    new_value: *const crate::style_value::StyleValueData,
+    allow_discrete: bool,
+) -> bool {
+    let animation_type = crate::property_metadata::property_animation_type(property_id);
+
+    // https://drafts.csswg.org/css-transitions/#transitionable
+    // When comparing the before-change style and after-change style for a given property, the property values are transitionable if they have an animation type that is neither not animatable nor discrete.
+    if animation_type == crate::animation::ANIMATION_TYPE_NONE
+        || !allow_discrete && animation_type == crate::animation::ANIMATION_TYPE_DISCRETE
+    {
+        return false;
+    }
+    if allow_discrete {
+        return true;
+    }
+
+    let result = crate::animation::interpolate_value(
+        Some(context),
+        property_id,
+        unsafe { &*old_value },
+        unsafe { &*new_value },
+        0.5,
+    );
+    assert!(result.handled);
+    if !result.value.is_null() {
+        unsafe { crate::style_value::rust_style_value_release(result.value) };
+        return true;
+    }
+    false
+}
+
+fn decide_transition(
+    context: &crate::animation::FfiAnimationContext,
+    input: &FfiTransitionPropertyInput,
+) -> FfiTransitionAction {
     // https://drafts.csswg.org/css-transitions/#transition-combined-duration
     // Define the combined duration of the transition as the sum of max(matching transition duration, 0s) and the matching transition delay.
     let combined_duration = input.duration.max(0.0) + input.delay;
+    let before_after_transitionable = input.has_matching_transition
+        && input.before_change_value_differs
+        && property_values_are_transitionable(
+            context,
+            input.property_id,
+            input.before_change_value,
+            input.after_change_value,
+            input.allow_discrete,
+        );
+    let current_after_transitionable = input.current_value_equals_after
+        || input.has_running_transition
+            && input.existing_end_value_differs
+            && property_values_are_transitionable(
+                context,
+                input.property_id,
+                input.current_value,
+                input.after_change_value,
+                input.allow_discrete,
+            );
     let mut action = FfiTransitionAction {
         property_id: input.property_id,
         kind: FfiTransitionActionKind::None,
@@ -83,7 +143,7 @@ fn decide_transition(input: &FfiTransitionPropertyInput) -> FfiTransitionAction 
     if !input.has_running_transition
         && input.has_matching_transition
         && input.before_change_value_differs
-        && input.before_after_transitionable
+        && before_after_transitionable
         && (!input.has_completed_transition || input.existing_end_value_differs)
         && combined_duration > 0.0
     {
@@ -128,14 +188,14 @@ fn decide_transition(input: &FfiTransitionPropertyInput) -> FfiTransitionAction 
     if input.has_running_transition && input.existing_end_value_differs {
         // 1. If the current value of the property in the running transition is equal to the value of the property in the after-change style, or if
         //    these two values are not transitionable, then implementations must cancel the running transition.
-        if input.current_value_equals_after || !input.current_after_transitionable {
+        if input.current_value_equals_after || !current_after_transitionable {
             action.kind = FfiTransitionActionKind::Cancel;
             return action;
         }
 
         // 2. Otherwise, if the combined duration is less than or equal to 0s, or if the current value of the property in the running transition is
         //    not transitionable with the value of the property in the after-change style, then implementations must cancel the running transition.
-        if combined_duration <= 0.0 || !input.current_after_transitionable {
+        if combined_duration <= 0.0 || !current_after_transitionable {
             action.kind = FfiTransitionActionKind::Cancel;
             return action;
         }
@@ -200,7 +260,10 @@ pub unsafe extern "C" fn rust_decide_transitions(
         let input = unsafe { &*input };
         let callbacks = unsafe { &*callbacks };
         let properties = unsafe { std::slice::from_raw_parts(input.properties, input.property_count) };
-        let actions = properties.iter().map(decide_transition).collect::<Vec<_>>();
+        let actions = properties
+            .iter()
+            .map(|property| decide_transition(&input.context, property))
+            .collect::<Vec<_>>();
         crate::ffi_stats::rust_style_ffi_note_transition_action_batch();
         unsafe { (callbacks.apply_actions)(callbacks.context, actions.as_ptr(), actions.len()) };
     });
@@ -210,17 +273,58 @@ pub unsafe extern "C" fn rust_decide_transitions(
 mod tests {
     use super::*;
 
-    fn input() -> FfiTransitionPropertyInput {
+    fn animation_context() -> crate::animation::FfiAnimationContext {
+        let font_metrics = || crate::animation::FfiAnimationFontMetrics {
+            font_size: 0.0,
+            x_height: 0.0,
+            cap_height: 0.0,
+            zero_advance: 0.0,
+            line_height: 0.0,
+        };
+        crate::animation::FfiAnimationContext {
+            allow_discrete: false,
+            current_color: std::ptr::null(),
+            has_length_resolution_context: false,
+            length_resolution_context: crate::animation::FfiAnimationLengthResolutionContext {
+                viewport_width: 0.0,
+                viewport_height: 0.0,
+                font_metrics: font_metrics(),
+                root_font_metrics: font_metrics(),
+                font_metrics_depend_on_viewport_metrics: false,
+                root_font_metrics_depend_on_viewport_metrics: false,
+            },
+            has_transform_reference_box: false,
+            transform_reference_box_width: 0.0,
+            transform_reference_box_height: 0.0,
+        }
+    }
+
+    fn by_computed_value_property() -> u16 {
+        (crate::property_metadata::FIRST_LONGHAND_PROPERTY_ID..=crate::property_metadata::LAST_LONGHAND_PROPERTY_ID)
+            .find(|property_id| {
+                crate::property_metadata::property_animation_type(*property_id)
+                    == crate::animation::ANIMATION_TYPE_BY_COMPUTED_VALUE
+            })
+            .unwrap()
+    }
+
+    fn input(
+        before_change_value: &crate::style_value::StyleValueData,
+        after_change_value: &crate::style_value::StyleValueData,
+        current_value: &crate::style_value::StyleValueData,
+    ) -> FfiTransitionPropertyInput {
         FfiTransitionPropertyInput {
-            property_id: 42,
+            property_id: by_computed_value_property(),
+            before_change_value,
+            after_change_value,
+            current_value,
             has_matching_transition: true,
+            allow_discrete: false,
             before_change_value_differs: true,
-            before_after_transitionable: true,
             has_running_transition: false,
             has_completed_transition: false,
             existing_end_value_differs: true,
             current_value_equals_after: false,
-            current_after_transitionable: true,
             reversing_start_value_equals_after: false,
             delay: 0.0,
             duration: 100.0,
@@ -231,25 +335,38 @@ mod tests {
 
     #[test]
     fn starts_an_initial_transition() {
-        assert_eq!(decide_transition(&input()).kind, FfiTransitionActionKind::Start);
+        let before = crate::style_value::StyleValueData::Number { value: 0.0 };
+        let after = crate::style_value::StyleValueData::Number { value: 1.0 };
+        assert_eq!(
+            decide_transition(&animation_context(), &input(&before, &after, &before)).kind,
+            FfiTransitionActionKind::Start
+        );
     }
 
     #[test]
     fn removes_a_completed_transition_before_replacement() {
-        let mut input = input();
+        let before = crate::style_value::StyleValueData::Number { value: 0.0 };
+        let after = crate::style_value::StyleValueData::Number { value: 1.0 };
+        let mut input = input(&before, &after, &before);
         input.has_completed_transition = true;
-        assert_eq!(decide_transition(&input).kind, FfiTransitionActionKind::RemoveAndStart);
+        assert_eq!(
+            decide_transition(&animation_context(), &input).kind,
+            FfiTransitionActionKind::RemoveAndStart
+        );
     }
 
     #[test]
     fn adjusts_a_reversing_transition() {
-        let mut input = input();
+        let before = crate::style_value::StyleValueData::Number { value: 0.0 };
+        let after = crate::style_value::StyleValueData::Number { value: 1.0 };
+        let current = crate::style_value::StyleValueData::Number { value: 0.5 };
+        let mut input = input(&before, &after, &current);
         input.has_running_transition = true;
         input.reversing_start_value_equals_after = true;
         input.delay = -20.0;
         input.old_timing_function_output = 0.25;
         input.old_reversing_shortening_factor = 0.5;
-        let action = decide_transition(&input);
+        let action = decide_transition(&animation_context(), &input);
         assert_eq!(action.kind, FfiTransitionActionKind::CancelRemoveAndStartReversing);
         assert_eq!(action.reversing_shortening_factor, 0.625);
         assert_eq!(action.delay, -12.5);
