@@ -64,6 +64,8 @@ public:
     void note_tree_restructuring_at(Layout::Node const&);
     static void detach_top_layer_element_layout_subtree(DOM::Element&);
 
+    struct FirstLetterTextContext;
+
 private:
     struct PrincipalNodeFrameStorage;
     struct PseudoElementFrameStorage;
@@ -71,6 +73,7 @@ private:
 
     RustFFI::FfiDomTreeBuilderCallbacks make_ffi_dom_tree_builder_callbacks();
     RustFFI::FfiPseudoTreeBuilderCallbacks make_ffi_pseudo_tree_builder_callbacks();
+    RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks();
 
     static NonnullRefPtr<ListItemMarkerBox> create_and_attach_list_item_marker(ListItemBox&, DOM::Element&, NonnullRefPtr<CSS::ComputedValues const> marker_style);
     static void create_first_letter_wrapper(DOM::Element&, RustFFI::FfiFirstLetterTarget);
@@ -78,6 +81,7 @@ private:
     RefPtr<Layout::Node> m_layout_root;
     OwnPtr<PrincipalNodeFrameStorage> m_principal_frames;
     OwnPtr<PseudoElementFrameStorage> m_pseudo_element_frames;
+    OwnPtr<FirstLetterTextContext> m_first_letter_text_context;
 
     Layout::Node* m_current_rebuild_root { nullptr };
     Vector<Layout::Node*> m_rebuilt_subtree_roots;
@@ -104,7 +108,6 @@ void LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(DOM::Element& el
     element.set_synthetic_pseudo_element_node({}, pseudo_element, layout_node);
 }
 
-static RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks(LayoutTreeBuildBridge*);
 static RustFFI::FfiPrincipalDisplayFacts ffi_principal_display_facts(CSS::Display);
 static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element&);
 static RefPtr<Layout::Node> create_layout_node_for_text(DOM::Text&);
@@ -366,6 +369,17 @@ struct PseudoElementFrame {
 struct LayoutTreeBuildBridge::PseudoElementFrameStorage {
     Vector<NonnullOwnPtr<PseudoElementFrame>> frames;
     size_t active_frame_count { 0 };
+};
+
+struct LayoutTreeBuildBridge::FirstLetterTextContext {
+    FirstLetterTextContext(Utf16View text, NonnullOwnPtr<Unicode::Segmenter> grapheme_segmenter)
+        : text(text)
+        , grapheme_segmenter(move(grapheme_segmenter))
+    {
+    }
+
+    Utf16View text;
+    NonnullOwnPtr<Unicode::Segmenter> grapheme_segmenter;
 };
 
 RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tree_builder_callbacks()
@@ -1123,7 +1137,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
         .layout_root = [](void* builder_pointer) -> void* {
             VERIFY(builder_pointer);
             return static_cast<LayoutTreeBuildBridge*>(builder_pointer)->m_layout_root.ptr(); },
-        .layout = make_ffi_tree_builder_callbacks(this),
+        .layout = make_ffi_tree_builder_callbacks(),
         .pseudo = make_ffi_pseudo_tree_builder_callbacks(),
     };
 }
@@ -1285,21 +1299,16 @@ static bool ffi_layout_node_is_inline_outside(void*, void* node_pointer)
     return node_with_style && node_with_style->display().is_inline_outside();
 }
 
-struct FfiFirstLetterTextContext {
-    Utf16View text;
-    NonnullOwnPtr<Unicode::Segmenter> grapheme_segmenter;
-};
-
 static size_t ffi_first_letter_code_unit_length(void* context_pointer)
 {
     VERIFY(context_pointer);
-    return static_cast<FfiFirstLetterTextContext*>(context_pointer)->text.length_in_code_units();
+    return static_cast<LayoutTreeBuildBridge::FirstLetterTextContext*>(context_pointer)->text.length_in_code_units();
 }
 
 static u32 ffi_first_letter_code_point_at(void* context_pointer, size_t index)
 {
     VERIFY(context_pointer);
-    auto& context = *static_cast<FfiFirstLetterTextContext*>(context_pointer);
+    auto& context = *static_cast<LayoutTreeBuildBridge::FirstLetterTextContext*>(context_pointer);
     VERIFY(index < context.text.length_in_code_units());
     return context.text.code_point_at(index);
 }
@@ -1307,7 +1316,7 @@ static u32 ffi_first_letter_code_point_at(void* context_pointer, size_t index)
 static size_t ffi_first_letter_next_grapheme_boundary(void* context_pointer, size_t index)
 {
     VERIFY(context_pointer);
-    auto& context = *static_cast<FfiFirstLetterTextContext*>(context_pointer);
+    auto& context = *static_cast<LayoutTreeBuildBridge::FirstLetterTextContext*>(context_pointer);
     VERIFY(index <= context.text.length_in_code_units());
     return context.grapheme_segmenter->next_boundary(index).value_or(context.text.length_in_code_units());
 }
@@ -1325,31 +1334,6 @@ static RustFFI::FfiFirstLetterCodePointFacts ffi_first_letter_code_point_facts(v
         .is_open_punctuation = Unicode::code_point_has_general_category(code_point, ps),
         .is_dash_punctuation = Unicode::code_point_has_general_category(code_point, pd),
     };
-}
-
-static RustFFI::FfiFirstLetterTarget ffi_find_first_letter_in_text(void*, void* node_pointer)
-{
-    VERIFY(node_pointer);
-    auto& text_node = as<TextNode>(*static_cast<Node*>(node_pointer));
-    auto text = text_node.text().utf16_view();
-    auto grapheme_segmenter = text_node.document().grapheme_segmenter().clone();
-    grapheme_segmenter->set_segmented_text(text);
-    FfiFirstLetterTextContext context { text, move(grapheme_segmenter) };
-    RustFFI::FfiFirstLetterTextCallbacks callbacks {
-        .context = &context,
-        .code_unit_length = ffi_first_letter_code_unit_length,
-        .code_point_at = ffi_first_letter_code_point_at,
-        .next_grapheme_boundary = ffi_first_letter_next_grapheme_boundary,
-        .code_point_facts = ffi_first_letter_code_point_facts,
-    };
-
-    auto const white_space_collapse = text_node.parent()->computed_values().white_space_collapse();
-    auto const preserves_segment_breaks = first_is_one_of(white_space_collapse,
-        CSS::WhiteSpaceCollapse::Preserve, CSS::WhiteSpaceCollapse::PreserveBreaks, CSS::WhiteSpaceCollapse::BreakSpaces);
-    auto target = RustFFI::rust_find_first_letter_in_text(&callbacks, preserves_segment_breaks);
-    if (target.found)
-        target.text_node = &text_node;
-    return target;
 }
 
 static void* ffi_layout_node_parent(void*, void* node_pointer)
@@ -1610,10 +1594,10 @@ static void ffi_move_nodes_to_parent(void*, void* parent_pointer, void* const* n
     }
 }
 
-static RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks(LayoutTreeBuildBridge* bridge)
+RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_callbacks()
 {
     return {
-        .context = bridge,
+        .context = this,
         .layout_node_facts = ffi_layout_node_facts,
         .is_inline_outside = ffi_layout_node_is_inline_outside,
         .parent = ffi_layout_node_parent,
@@ -1635,7 +1619,27 @@ static RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks(LayoutTr
         .insert_child = ffi_insert_child,
         .set_children_are_inline = ffi_set_children_are_inline,
         .note_tree_restructuring = ffi_note_tree_restructuring,
-        .find_first_letter_in_text = ffi_find_first_letter_in_text,
+        .prepare_first_letter_text = [](void* builder_pointer, void* node_pointer, RustFFI::FfiFirstLetterTextCallbacks* callbacks) {
+            VERIFY(builder_pointer);
+            VERIFY(node_pointer);
+            VERIFY(callbacks);
+            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
+            auto& text_node = as<TextNode>(*static_cast<Node*>(node_pointer));
+            auto text = text_node.text().utf16_view();
+            auto grapheme_segmenter = text_node.document().grapheme_segmenter().clone();
+            grapheme_segmenter->set_segmented_text(text);
+            builder.m_first_letter_text_context = make<FirstLetterTextContext>(text, move(grapheme_segmenter));
+            *callbacks = {
+                .context = builder.m_first_letter_text_context.ptr(),
+                .code_unit_length = ffi_first_letter_code_unit_length,
+                .code_point_at = ffi_first_letter_code_point_at,
+                .next_grapheme_boundary = ffi_first_letter_next_grapheme_boundary,
+                .code_point_facts = ffi_first_letter_code_point_facts,
+            };
+
+            auto const white_space_collapse = text_node.parent()->computed_values().white_space_collapse();
+            return first_is_one_of(white_space_collapse,
+                CSS::WhiteSpaceCollapse::Preserve, CSS::WhiteSpaceCollapse::PreserveBreaks, CSS::WhiteSpaceCollapse::BreakSpaces); },
         .create_button_content_wrapper = ffi_create_button_content_wrapper,
         .rendered_legend = ffi_rendered_legend,
         .create_fieldset_content_wrapper = ffi_create_fieldset_content_wrapper,

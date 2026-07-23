@@ -1883,7 +1883,8 @@ pub struct FfiTreeBuilderCallbacks {
     pub insert_child: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiInsertionMode),
     pub set_children_are_inline: unsafe extern "C" fn(*mut c_void, *mut c_void, bool),
     pub note_tree_restructuring: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub find_first_letter_in_text: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiFirstLetterTarget,
+    pub prepare_first_letter_text:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiFirstLetterTextCallbacks) -> bool,
     pub create_button_content_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
     pub rendered_legend: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
     pub create_fieldset_content_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
@@ -2342,24 +2343,20 @@ fn find_first_letter_in_text(host: &FirstLetterTextHost<'_>, preserves_segment_b
     FfiFirstLetterTarget::not_found()
 }
 
-/// Finds the first-letter text pattern within one layout text node.
-///
-/// # Safety
-///
-/// `callbacks` must point to a valid callback table whose context remains live for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_find_first_letter_in_text(
-    callbacks: *const FfiFirstLetterTextCallbacks,
-    preserves_segment_breaks: bool,
-) -> FfiFirstLetterTarget {
-    abort_on_panic(|| {
-        assert!(!callbacks.is_null());
-        // SAFETY: The caller guarantees that `callbacks` remains valid for the duration of this call.
-        let host = FirstLetterTextHost {
-            callbacks: unsafe { &*callbacks },
-        };
-        find_first_letter_in_text(&host, preserves_segment_breaks)
-    })
+fn find_first_letter_in_layout_text(host: &TreeBuilderHost<'_>, node: LayoutNode) -> FfiFirstLetterTarget {
+    let mut callbacks = std::mem::MaybeUninit::<FfiFirstLetterTextCallbacks>::uninit();
+    // SAFETY: `node` is a live TextNode and the callback initializes the output table with a context that remains live
+    // until the next call.
+    let preserves_segment_breaks =
+        unsafe { (host.callbacks.prepare_first_letter_text)(host.callbacks.context, node, callbacks.as_mut_ptr()) };
+    // SAFETY: The callback contract guarantees that the output table was initialized.
+    let callbacks = unsafe { callbacks.assume_init() };
+    let text_host = FirstLetterTextHost { callbacks: &callbacks };
+    let mut target = find_first_letter_in_text(&text_host, preserves_segment_breaks);
+    if target.found {
+        target.text_node = node;
+    }
+    target
 }
 
 fn is_marker_content(facts: FfiLayoutNodeFacts) -> bool {
@@ -2383,8 +2380,7 @@ fn find_first_letter_in_block(host: &TreeBuilderHost<'_>, block: LayoutNode) -> 
                 return TraversalDecision::SkipChildrenAndContinue;
             }
             if facts.is_text {
-                // SAFETY: `node` is a live TextNode.
-                result = unsafe { (host.callbacks.find_first_letter_in_text)(host.callbacks.context, node) };
+                result = find_first_letter_in_layout_text(host, node);
                 return if result.found {
                     TraversalDecision::Break
                 } else {
