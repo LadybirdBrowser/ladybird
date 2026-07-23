@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/AudioBuffer.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/WebAudio/AudioArray.h>
 #include <LibWeb/WebAudio/AudioBuffer.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -47,6 +48,18 @@ WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> AudioBuffer::construct_impl(JS::Realm&
 }
 
 AudioBuffer::~AudioBuffer() = default;
+
+// https://webaudio.github.io/web-audio-api/#acquire-the-content
+NonnullRefPtr<Rendering::AudioBufferContents> AudioBuffer::acquire_contents() const
+{
+    // AD-HOC: This operation is specified as copy-on-write; we conservatively copy the sample data every time the
+    //         content is acquired.
+    Vector<Vector<float>> channels;
+    channels.ensure_capacity(m_channels.size());
+    for (auto const& channel : m_channels)
+        channels.unchecked_append(copy_float32_array(*channel));
+    return make_ref_counted<Rendering::AudioBufferContents>(move(channels), m_sample_rate);
+}
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-samplerate
 float AudioBuffer::sample_rate() const

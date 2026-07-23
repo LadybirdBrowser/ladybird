@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PeriodicWave.h>
+#include <LibWeb/WebAudio/AudioArray.h>
 #include <LibWeb/WebAudio/PeriodicWave.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -101,6 +102,11 @@ WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> PeriodicWave::construct_impl(JS::Real
 PeriodicWave::PeriodicWave(JS::Realm& realm)
     : Base(realm)
 {
+}
+
+NonnullRefPtr<Rendering::PeriodicWaveData> PeriodicWave::render_data() const
+{
+    return make_ref_counted<Rendering::PeriodicWaveData>(copy_float32_array(*m_real), copy_float32_array(*m_imag), m_normalize);
 }
 
 PeriodicWave::~PeriodicWave() = default;
