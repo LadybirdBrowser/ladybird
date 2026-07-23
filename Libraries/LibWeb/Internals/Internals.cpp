@@ -377,10 +377,13 @@ void Internals::send_text(HTML::HTMLElement& target, Utf16String const& text, We
     target.focus();
 
     for (auto code_point : text) {
-        if (auto data = webdriver_key_to_key_code(code_point); data.has_value())
+        if (auto data = webdriver_key_to_key_code(code_point); data.has_value()) {
             page.handle_keydown(data->key_code, modifiers | data->additional_modifiers, data->code_point_to_send, false, data->code_point_to_send != 0);
-        else
+            page.handle_keyup(data->key_code, modifiers | data->additional_modifiers, data->code_point_to_send, false);
+        } else {
             page.handle_keydown(UIEvents::code_point_to_key_code(code_point), modifiers, code_point, false, true);
+            page.handle_keyup(UIEvents::code_point_to_key_code(code_point), modifiers, code_point, false);
+        }
     }
 }
 
