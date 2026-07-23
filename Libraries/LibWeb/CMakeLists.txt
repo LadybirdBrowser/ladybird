@@ -1146,6 +1146,7 @@ set(SOURCES
     WebAssembly/WebAssembly.cpp
     WebAssembly/WebAssemblyModule.cpp
     WebAudio/AnalyserNode.cpp
+    WebAudio/AudioArray.cpp
     WebAudio/AudioBuffer.cpp
     WebAudio/AudioBufferSourceNode.cpp
     WebAudio/AudioContext.cpp

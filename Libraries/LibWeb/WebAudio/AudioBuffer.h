@@ -6,9 +6,11 @@
 
 #pragma once
 
+#include <AK/NonnullRefPtr.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/WebAudio/Rendering/AudioData.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -33,6 +35,9 @@ public:
     WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> get_channel_data(WebIDL::UnsignedLong channel) const;
     WebIDL::ExceptionOr<void> copy_from_channel(GC::Ref<JS::Float32Array>, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0) const;
     WebIDL::ExceptionOr<void> copy_to_channel(GC::Ref<JS::Float32Array>, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0);
+
+    // https://webaudio.github.io/web-audio-api/#acquire-the-content
+    NonnullRefPtr<Rendering::AudioBufferContents> acquire_contents() const;
 
 private:
     explicit AudioBuffer(JS::Realm&, Bindings::AudioBufferOptions const&);

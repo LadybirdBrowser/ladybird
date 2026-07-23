@@ -6,9 +6,11 @@
 
 #pragma once
 
+#include <AK/NonnullRefPtr.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/WebAudio/Rendering/AudioData.h>
 
 namespace Web::WebAudio {
 
@@ -22,6 +24,8 @@ public:
 
     explicit PeriodicWave(JS::Realm&);
     virtual ~PeriodicWave() override;
+
+    NonnullRefPtr<Rendering::PeriodicWaveData> render_data() const;
 
 protected:
     virtual void initialize(JS::Realm&) override;
