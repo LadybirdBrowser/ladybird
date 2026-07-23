@@ -14,6 +14,8 @@
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/Performance.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/WebAudio/AudioContext.h>
 #include <LibWeb/WebAudio/AudioDestinationNode.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -95,11 +97,25 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Real
         }
     }
 
-    // FIXME: 11. If context is allowed to start, send a control message to start processing.
-    // FIXME: Implement control message queue to run following steps on the rendering thread
+    // AD-HOC: Ensure a sample rate is always set, even when no options were passed at all.
+    if (context->sample_rate() == 0)
+        context->set_sample_rate(44100);
+
+    // 11. If context is allowed to start, send a control message to start processing.
+    // FIXME: The context is currently always allowed to start; this should be gated on sticky activation.
     if (context->m_allowed_to_start) {
         // FIXME: 1. Let document be the current settings object's relevant global object's associated Document.
-        // FIXME: 2. Attempt to acquire system resources to use a following audio output device based on [[sink ID]] for rendering
+
+        // 2. Attempt to acquire system resources to use a following audio output device based on [[sink ID]] for
+        //    rendering.
+        context->m_renderer = Rendering::RealtimeAudioRenderer::create(context->control_message_queue(), context->destination()->node_id(), context->sample_rate(), render_quantum_size());
+        context->set_renderer_callbacks();
+        // AD-HOC: Headless instances use a null output stream, so their graph follows the same pull path as audio
+        // output while discarding the rendered samples.
+        if (settings.responsible_document()->page().client().is_headless())
+            context->m_renderer->start_rendering_with_null_output();
+        else
+            context->m_renderer->start_rendering();
 
         // 2. Set this [[rendering thread state]] to running on the AudioContext.
         context->set_rendering_state(Bindings::AudioContextState::Running);
@@ -132,17 +148,54 @@ void AudioContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_pending_resume_promises);
 }
 
+void AudioContext::finalize()
+{
+    Base::finalize();
+    if (m_renderer) {
+        m_renderer->stop();
+        m_renderer->clear_callbacks();
+    }
+}
+
+void AudioContext::document_became_inactive()
+{
+    // Release the audio output device and the GC roots held by the renderer's callbacks, so a context belonging to a
+    // navigated-away document stops playing and can eventually be collected.
+    if (m_renderer) {
+        m_renderer->stop();
+        m_renderer->clear_callbacks();
+    }
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-currenttime
+double AudioContext::current_time() const
+{
+    // This is the time in seconds of the sample frame immediately following the last sample-frame in the block of
+    // audio most recently processed by the context's rendering graph.
+    if (m_renderer)
+        return m_renderer->frames_rendered() / static_cast<double>(sample_rate());
+    return Base::current_time();
+}
+
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-getoutputtimestamp
 Bindings::AudioTimestamp AudioContext::get_output_timestamp()
 {
     // If the context's rendering graph has not yet processed a block of audio, then
     // getOutputTimestamp call returns an AudioTimestamp instance with both members
     // containing zero.
-    // FIXME: Once we process audio blocks, report the current output stream position
-    //        and the corresponding performance time here.
+    if (!m_renderer || m_renderer->frames_rendered() == 0) {
+        return {
+            .context_time = 0.0,
+            .performance_time = 0.0,
+        };
+    }
+    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
+    // FIXME: performanceTime should be the moment the sample frame at contextTime was rendered by the output device.
+    //        We sample performance.now() when getOutputTimestamp() is called instead of caching a timestamp when the
+    //        renderer produced that block, so the returned pair does not describe a single output instant.
     return {
-        .context_time = 0.0,
-        .performance_time = 0.0,
+        .context_time = m_renderer->output_time_played(),
+        .performance_time = window.performance()->now(),
     };
 }
 
@@ -178,8 +231,10 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::resume()
     set_control_state(Bindings::AudioContextState::Running);
 
     // 7. Queue a control message to resume the AudioContext.
-    // FIXME: Implement control message queue to run following steps on the rendering thread
-    // FIXME: 7.1: Attempt to acquire system resources.
+    // 7.1: Attempt to acquire system resources.
+    // NB: The renderer acquires system resources and starts rendering in a single resume, performed in step 7.3.
+    if (m_renderer)
+        set_renderer_callbacks();
 
     // 7.2: Set the [[rendering thread state]] on the AudioContext to running.
     set_rendering_state(Bindings::AudioContextState::Running);
@@ -268,8 +323,11 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::suspend()
     set_control_state(Bindings::AudioContextState::Suspended);
 
     // 7. Queue a control message to suspend the AudioContext.
-    // FIXME: Implement control message queue to run following steps on the rendering thread
-    // FIXME: 7.1: Attempt to release system resources.
+    // 7.1: Attempt to release system resources.
+    if (m_renderer) {
+        m_renderer->suspend();
+        m_renderer->clear_callbacks();
+    }
 
     // 7.2: Set the [[rendering thread state]] on the AudioContext to suspended.
     set_rendering_state(Bindings::AudioContextState::Suspended);
@@ -321,8 +379,11 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::close()
     set_control_state(Bindings::AudioContextState::Closed);
 
     // 5. Queue a control message to close the AudioContext.
-    // FIXME: Implement control message queue to run following steps on the rendering thread
-    // FIXME: 5.1: Attempt to release system resources.
+    // 5.1: Attempt to release system resources.
+    if (m_renderer) {
+        m_renderer->stop();
+        m_renderer->clear_callbacks();
+    }
 
     // 5.2: Set the [[rendering thread state]] to "suspended".
     set_rendering_state(Bindings::AudioContextState::Suspended);
@@ -352,11 +413,22 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::close()
     return promise;
 }
 
-// FIXME: Actually implement the rendering thread
 bool AudioContext::start_rendering_audio_graph()
 {
-    bool render_result = true;
-    return render_result;
+    if (m_renderer)
+        m_renderer->resume();
+    return true;
+}
+
+// The renderer's callback captures a GC root on this context, keeping it alive while it renders. That root is released
+// by clearing the callbacks when the context is suspended, closed, or its document becomes inactive, so this is called
+// again to re-establish it whenever rendering resumes.
+void AudioContext::set_renderer_callbacks()
+{
+    VERIFY(m_renderer);
+    m_renderer->set_on_sources_ended([self = GC::make_root(*this)](Vector<NodeID> const& ended_nodes) {
+        self->handle_ended_sources(ended_nodes);
+    });
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiocontext-createmediaelementsource

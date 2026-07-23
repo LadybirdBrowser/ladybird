@@ -6,11 +6,13 @@
 
 #pragma once
 
+#include <AK/RefPtr.h>
 #include <AK/Variant.h>
 #include <LibWeb/Bindings/AudioContext.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/MediaElementAudioSourceNode.h>
+#include <LibWeb/WebAudio/Rendering/RealtimeAudioRenderer.h>
 
 namespace Web::WebAudio {
 
@@ -19,6 +21,8 @@ class AudioContext final : public BaseAudioContext {
     WEB_PLATFORM_OBJECT(AudioContext, BaseAudioContext);
     GC_DECLARE_ALLOCATOR(AudioContext);
 
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
 public:
     static WebIDL::ExceptionOr<GC::Ref<AudioContext>> construct_impl(JS::Realm&, Optional<Bindings::AudioContextOptions> const& context_options = {});
 
@@ -26,6 +30,8 @@ public:
 
     double base_latency() const { return m_base_latency; }
     double output_latency() const { return m_output_latency; }
+
+    virtual double current_time() const override;
     Bindings::AudioTimestamp get_output_timestamp();
     WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> resume();
     WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> suspend();
@@ -41,6 +47,8 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void finalize() override;
+    virtual void document_became_inactive() override;
 
     double m_base_latency { 0 };
     double m_output_latency { 0 };
@@ -49,7 +57,10 @@ private:
     Vector<GC::Ref<WebIDL::Promise>> m_pending_resume_promises;
     bool m_suspended_by_user = false;
 
+    RefPtr<Rendering::RealtimeAudioRenderer> m_renderer;
+
     bool start_rendering_audio_graph();
+    void set_renderer_callbacks();
 };
 
 }

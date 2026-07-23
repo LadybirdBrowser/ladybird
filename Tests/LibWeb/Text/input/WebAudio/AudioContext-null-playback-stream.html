@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const context = new AudioContext();
+        const source = context.createConstantSource();
+        source.connect(context.destination);
+
+        source.onended = async () => {
+            println(`currentTime advances: ${context.currentTime > 0}`);
+
+            await context.suspend();
+            setTimeout(async () => {
+                const suspendedTime = context.currentTime;
+                setTimeout(async () => {
+                    println(`currentTime stays suspended: ${context.currentTime === suspendedTime}`);
+
+                    await context.resume();
+                    setTimeout(async () => {
+                        println(`currentTime resumes: ${context.currentTime > suspendedTime}`);
+                        await context.close();
+                        done();
+                    }, 25);
+                }, 25);
+            }, 125);
+        };
+
+        source.start();
+        source.stop(context.currentTime + 0.01);
+    });
+</script>

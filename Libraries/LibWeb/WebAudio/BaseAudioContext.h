@@ -54,7 +54,7 @@ public:
 
     GC::Ref<AudioDestinationNode> destination() const { return *m_destination; }
     float sample_rate() const { return m_sample_rate; }
-    double current_time() const { return m_current_time; }
+    virtual double current_time() const { return m_current_time; }
     GC::Ref<AudioListener> listener() const { return m_listener; }
     Bindings::AudioContextState state() const { return m_control_thread_state; }
 
