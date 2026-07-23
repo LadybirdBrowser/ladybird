@@ -24,8 +24,8 @@ struct WEBVIEW_API HistoryEntry {
     String url;
     Optional<String> title;
     Optional<String> favicon_base64_png;
-    u64 visit_count { 0 };
-    u64 direct_visit_count { 0 };
+    i64 visit_count { 0 };
+    i64 direct_visit_count { 0 };
     UnixDateTime last_visited_time;
     UnixDateTime last_qualifying_visit_time;
     UnixDateTime last_direct_visit_time;

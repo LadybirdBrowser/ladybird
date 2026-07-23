@@ -11,7 +11,7 @@ namespace {
 
 constexpr i64 now_seconds = 2'000'000;
 
-WebView::HistoryEntry entry(StringView url, Optional<StringView> title, u64 visit_count, i64 age_in_days = 0, u64 direct_visit_count = 2)
+WebView::HistoryEntry entry(StringView url, Optional<StringView> title, i64 visit_count, i64 age_in_days = 0, i64 direct_visit_count = 2)
 {
     auto last_visited_time = UnixDateTime::from_seconds_since_epoch(now_seconds - age_in_days * 86'400);
     return {
@@ -44,7 +44,7 @@ WebView::AutocompleteBookmark bookmark(StringView url, Optional<StringView> titl
     };
 }
 
-WebView::StoredOmniboxEngagement engagement(StringView input, WebView::OmniboxDestinationKind kind, StringView destination, u64 explicit_use_count, u64 default_use_count = 0)
+WebView::StoredOmniboxEngagement engagement(StringView input, WebView::OmniboxDestinationKind kind, StringView destination, i64 explicit_use_count, i64 default_use_count = 0)
 {
     return {
         .normalized_input = MUST(String::from_utf8(input)),
