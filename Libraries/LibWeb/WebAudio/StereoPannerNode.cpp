@@ -8,6 +8,7 @@
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
+#include <LibWeb/WebAudio/Rendering/RenderNodes.h>
 #include <LibWeb/WebAudio/StereoPannerNode.h>
 
 namespace Web::WebAudio {
@@ -36,6 +37,9 @@ WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> StereoPannerNode::construct_impl(
     // FIXME: Set tail-time to no
 
     TRY(node->initialize_audio_node_options(options, default_options));
+
+    node->queue_render_node_creation(make<Rendering::StereoPannerRenderNode>(node->node_id(), BaseAudioContext::render_quantum_size(), node->m_pan->render_param()));
+
     return node;
 }
 

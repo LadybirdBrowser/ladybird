@@ -7,7 +7,9 @@
 #include <LibWeb/Bindings/DynamicsCompressorNode.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioParam.h>
+#include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/DynamicsCompressorNode.h>
+#include <LibWeb/WebAudio/Rendering/RenderNodes.h>
 
 namespace Web::WebAudio {
 
@@ -35,6 +37,9 @@ WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> DynamicsCompressorNode::con
     // FIXME: Set tail-time to yes
 
     TRY(node->initialize_audio_node_options(options, default_options));
+
+    // FIXME: Implement actual dynamics compression; for now the signal passes through unchanged.
+    node->queue_render_node_creation(make<Rendering::PassthroughRenderNode>(node->node_id(), BaseAudioContext::render_quantum_size()));
 
     return node;
 }
