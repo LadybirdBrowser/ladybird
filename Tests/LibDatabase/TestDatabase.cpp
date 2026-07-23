@@ -609,3 +609,47 @@ TEST_CASE(column_name_cache_survives_a_reprepare)
         return {};
     }));
 }
+
+TEST_CASE(one_row_execution_maps_the_single_row)
+{
+    auto database = TRY_OR_FAIL(DB::create_memory_backed());
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER);"sv));
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO t (id, v) VALUES (1, 10), (2, 20);"sv));
+
+    auto select_by_id = TRY_OR_FAIL(database->prepare_statement("SELECT v FROM t WHERE id = :id;"sv));
+    auto read_v = [](Database::ResultRow& row) -> ErrorOr<i64> {
+        return row.read_integer<i64>("v"sv);
+    };
+
+    auto value = database->try_execute_bound_statement_one<i64>(select_by_id, [](auto& bind) -> ErrorOr<void> { return bind("id"sv, static_cast<i64>(2)); }, read_v);
+    EXPECT_EQ(TRY_OR_FAIL(move(value)), 20);
+
+    auto none = database->try_execute_bound_statement_one<i64>(select_by_id, [](auto& bind) -> ErrorOr<void> { return bind("id"sv, static_cast<i64>(99)); }, read_v);
+    EXPECT(none.is_error());
+    EXPECT_EQ(none.error().string_literal(), "Statement returned no rows"sv);
+
+    auto select_all = TRY_OR_FAIL(database->prepare_statement("SELECT v FROM t;"sv));
+    auto many = database->try_execute_bound_statement_one<i64>(select_all, [](auto&) -> ErrorOr<void> { return {}; }, read_v);
+    EXPECT(many.is_error());
+    EXPECT_EQ(many.error().string_literal(), "Statement returned more than one row"sv);
+
+    auto again = database->try_execute_bound_statement_one<i64>(select_by_id, [](auto& bind) -> ErrorOr<void> { return bind("id"sv, static_cast<i64>(1)); }, read_v);
+    EXPECT_EQ(TRY_OR_FAIL(move(again)), 10);
+}
+
+TEST_CASE(one_row_execution_reads_a_returning_clause)
+{
+    auto database = TRY_OR_FAIL(DB::create_memory_backed());
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER);"sv));
+
+    auto insert = TRY_OR_FAIL(database->prepare_statement("INSERT INTO t (v) VALUES (:v) RETURNING id;"sv));
+    auto read_id = [](Database::ResultRow& row) -> ErrorOr<i64> {
+        return row.read_integer<i64>("id"sv);
+    };
+
+    auto first = database->try_execute_bound_statement_one<i64>(insert, [](auto& bind) -> ErrorOr<void> { return bind("v"sv, static_cast<i64>(10)); }, read_id);
+    EXPECT_EQ(TRY_OR_FAIL(move(first)), 1);
+
+    auto second = database->try_execute_bound_statement_one<i64>(insert, [](auto& bind) -> ErrorOr<void> { return bind("v"sv, static_cast<i64>(20)); }, read_id);
+    EXPECT_EQ(TRY_OR_FAIL(move(second)), 2);
+}
