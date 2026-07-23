@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    @keyframes anim { from { letter-spacing: 0px } to { letter-spacing: 1000px } }
+    #target { animation: anim 10s infinite; }
+</style>
+<div id="target">
+    <div id="host"><span>slotted</span></div>
+</div>
+<script>
+    // Wait a few frames so the animation is running and produces a changed animated value
+    // every frame. Then attach a shadow root whose slot has not been styled yet and force a
+    // style update from within the same animation frame callback, before the regular style
+    // pass has styled the slot. The animated style update walk must not recompute inherited
+    // style for the slotted span against its unstyled assigned slot.
+    let frames = 0;
+    function tick() {
+        if (++frames < 4) {
+            requestAnimationFrame(tick);
+            return;
+        }
+
+        host.attachShadow({ mode: "open" }).innerHTML = "<slot></slot>";
+        target.getBoundingClientRect();
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("test-wait");
+        });
+    }
+
+    requestAnimationFrame(tick);
+</script>
+</html>

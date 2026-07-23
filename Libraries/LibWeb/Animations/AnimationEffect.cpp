@@ -884,6 +884,17 @@ AnimationUpdateContext::~AnimationUpdateContext()
             auto& element = static_cast<DOM::Element&>(node);
             if (!element.computed_values())
                 return TraversalDecision::SkipChildrenAndContinue;
+            // NB: A styled element can inherit from an unstyled one in the flat tree: per css-shadow-1, a slotted
+            //     element inherits from the slot it's assigned to rather than its light tree parent
+            //     (https://drafts.csswg.org/css-shadow-1/#slots-in-shadow-tree), and that slot may not have computed
+            //     values yet (e.g. a freshly attached shadow tree that hasn't been through a style update).
+            //     Inherited style can't be recomputed against an unstyled parent, so leave the element to the
+            //     regular style pass, which always styles slots before their assigned slottables.
+            if (auto inheritance_parent = DOM::AbstractElement { element }.element_to_inherit_style_from();
+                inheritance_parent.has_value() && !inheritance_parent->computed_values()) {
+                element.set_needs_style_update(true);
+                return TraversalDecision::SkipChildrenAndContinue;
+            }
             auto element_invalidation = element.recompute_inherited_style();
             if (element_invalidation.is_none())
                 return TraversalDecision::SkipChildrenAndContinue;

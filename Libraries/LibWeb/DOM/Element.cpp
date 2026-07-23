@@ -5413,6 +5413,11 @@ GC::Ref<WebIDL::Promise> Element::request_pointer_lock(Optional<Bindings::Pointe
 // If a pseudo-element is specified, this will return the element itself.
 // Otherwise, if this element is slotted somewhere, it will return the slot.
 // Otherwise, it will return the parent or shadow host element of this element.
+//
+// The slot case is specified in https://drafts.csswg.org/css-shadow-1/#slots-in-shadow-tree:
+// NOTE: A non-obvious result of assigning elements to slots is that they inherit from the slot they're assigned to.
+//       Their original light tree parent, and any deeper slots that their slot gets assigned to, don't affect
+//       inheritance.
 GC::Ptr<Element const> Element::element_to_inherit_style_from(Optional<CSS::PseudoElement> pseudo_element) const
 {
     if (pseudo_element.has_value())
