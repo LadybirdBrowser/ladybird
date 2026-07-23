@@ -10,27 +10,27 @@
 
 TEST_CASE(drain_returns_all_and_clears)
 {
-    Web::WebAudio::ControlMessageQueue queue;
+    auto queue = make_ref_counted<Web::WebAudio::ControlMessageQueue>();
 
-    queue.enqueue(Web::WebAudio::NodeMessage { Web::WebAudio::StartSource { .node_id = Web::WebAudio::NodeID { 0 }, .when = 1.0 } });
-    queue.enqueue(Web::WebAudio::NodeMessage { Web::WebAudio::StopSource { .node_id = Web::WebAudio::NodeID { 1 }, .when = 2.0 } });
+    queue->enqueue(Web::WebAudio::NodeMessage { Web::WebAudio::StartSource { .node_id = Web::WebAudio::NodeID { 0 }, .when = 1.0 } });
+    queue->enqueue(Web::WebAudio::NodeMessage { Web::WebAudio::StopSource { .node_id = Web::WebAudio::NodeID { 1 }, .when = 2.0 } });
 
-    auto batch = queue.drain();
+    auto batch = queue->drain();
     EXPECT_EQ(batch.size(), 2u);
 
-    auto empty = queue.drain();
+    auto empty = queue->drain();
     EXPECT_EQ(empty.size(), 0u);
 }
 
 TEST_CASE(drain_preserves_first_in_first_out)
 {
-    Web::WebAudio::ControlMessageQueue queue;
+    auto queue = make_ref_counted<Web::WebAudio::ControlMessageQueue>();
 
-    queue.enqueue(Web::WebAudio::NodeMessage { Web::WebAudio::StartSource { .node_id = Web::WebAudio::NodeID { 0 }, .when = 1.0 } });
-    queue.enqueue(Web::WebAudio::NodeMessage { Web::WebAudio::StopSource { .node_id = Web::WebAudio::NodeID { 1 }, .when = 2.0 } });
-    queue.enqueue(Web::WebAudio::NodeMessage { Web::WebAudio::StartSource { .node_id = Web::WebAudio::NodeID { 2 }, .when = 3.0 } });
+    queue->enqueue(Web::WebAudio::NodeMessage { Web::WebAudio::StartSource { .node_id = Web::WebAudio::NodeID { 0 }, .when = 1.0 } });
+    queue->enqueue(Web::WebAudio::NodeMessage { Web::WebAudio::StopSource { .node_id = Web::WebAudio::NodeID { 1 }, .when = 2.0 } });
+    queue->enqueue(Web::WebAudio::NodeMessage { Web::WebAudio::StartSource { .node_id = Web::WebAudio::NodeID { 2 }, .when = 3.0 } });
 
-    auto batch = queue.drain();
+    auto batch = queue->drain();
     EXPECT_EQ(batch.size(), 3u);
 
     EXPECT(batch[0].get<Web::WebAudio::NodeMessage>().has<Web::WebAudio::StartSource>());

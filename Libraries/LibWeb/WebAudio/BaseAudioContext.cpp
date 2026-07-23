@@ -36,7 +36,7 @@ BaseAudioContext::BaseAudioContext(JS::Realm& realm, float sample_rate)
     : DOM::EventTarget(realm)
     , m_sample_rate(sample_rate)
     , m_listener(AudioListener::create(realm, *this))
-    , m_control_message_queue(make<ControlMessageQueue>())
+    , m_control_message_queue(make_ref_counted<ControlMessageQueue>())
 {
 }
 
