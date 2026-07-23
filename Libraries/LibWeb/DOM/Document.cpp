@@ -2011,15 +2011,15 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
     Vector<Layout::Node*> rebuilt_subtree_roots;
     if (needs_layout_tree_rebuild) {
         auto tree_build_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-        Layout::TreeBuilder tree_builder;
-        m_layout_root = as<Layout::Viewport>(*tree_builder.build(*this));
-        record_layout_tree_build(tree_builder.rebuilt_subtree_roots().size(), tree_builder.layout_tree_update_escaped_rebuild_roots());
+        auto tree_build_result = Layout::build_layout_tree(*this);
+        m_layout_root = as<Layout::Viewport>(*tree_build_result.root);
+        record_layout_tree_build(tree_build_result.rebuilt_subtree_roots.size(), tree_build_result.layout_tree_update_escaped_rebuild_roots);
         needs_layout_tree_rebuild = false;
         layout_tree_was_built_in_partial_branch = true;
         pending_updates_escaped_during_partial_build = m_partial_relayout_invalidation.escapes()
-            || tree_builder.layout_tree_update_escaped_rebuild_roots();
+            || tree_build_result.layout_tree_update_escaped_rebuild_roots;
         m_partial_relayout_invalidation.clear_escape(PartialRelayoutEscapeClearReason::PartialLayoutTreeBuild);
-        rebuilt_subtree_roots = tree_builder.rebuilt_subtree_roots();
+        rebuilt_subtree_roots = move(tree_build_result.rebuilt_subtree_roots);
 
         if constexpr (UPDATE_LAYOUT_DEBUG) {
             dbgln("TREEBUILD {} µs", tree_build_timer.elapsed_time().to_microseconds());
@@ -2179,9 +2179,9 @@ void Document::update_layout(UpdateLayoutReason reason)
         auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
 
         if (needs_layout_tree_rebuild) {
-            Layout::TreeBuilder tree_builder;
-            m_layout_root = as<Layout::Viewport>(*tree_builder.build(*this));
-            record_layout_tree_build(tree_builder.rebuilt_subtree_roots().size(), tree_builder.layout_tree_update_escaped_rebuild_roots());
+            auto tree_build_result = Layout::build_layout_tree(*this);
+            m_layout_root = as<Layout::Viewport>(*tree_build_result.root);
+            record_layout_tree_build(tree_build_result.rebuilt_subtree_roots.size(), tree_build_result.layout_tree_update_escaped_rebuild_roots);
 
             // NB: Called during layout update.
             if (document_element && document_element->unsafe_layout_node())
@@ -8100,7 +8100,7 @@ void Document::process_pending_top_layer_layout_changes()
                 invalidate_layout_tree(InvalidateLayoutTreeReason::TopLayerElementStillRenderedAfterRemoval);
                 return;
             }
-            Layout::TreeBuilder::detach_top_layer_element_layout_subtree(element);
+            Layout::detach_top_layer_element_layout_subtree(element);
             if (element->is_connected())
                 elements_to_mark_for_layout_tree_update.append(element);
         }
@@ -8109,7 +8109,7 @@ void Document::process_pending_top_layer_layout_changes()
     for (auto const& member : m_top_layer_elements) {
         if (!member->rendered_in_top_layer())
             continue;
-        Layout::TreeBuilder::detach_top_layer_element_layout_subtree(member);
+        Layout::detach_top_layer_element_layout_subtree(member);
         elements_to_mark_for_layout_tree_update.append(member);
     }
 

@@ -1338,12 +1338,28 @@ static NonnullRefPtr<NodeWithStyle> create_button_content_box_wrapper(NodeWithSt
     return content_box_wrapper;
 }
 
-RefPtr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)
+LayoutTreeBuildResult TreeBuilder::build(DOM::Node& dom_node)
 {
     Context context;
     PrincipalNodeFrame frame;
     auto callbacks = make_ffi_dom_tree_builder_callbacks();
-    return static_cast<Layout::Node*>(RustFFI::rust_build_layout_tree(&callbacks, &frame, &dom_node, &context));
+    m_layout_root = static_cast<Layout::Node*>(RustFFI::rust_build_layout_tree(&callbacks, &frame, &dom_node, &context));
+    return {
+        .root = move(m_layout_root),
+        .rebuilt_subtree_roots = move(m_rebuilt_subtree_roots),
+        .layout_tree_update_escaped_rebuild_roots = m_layout_tree_update_escaped_rebuild_roots,
+    };
+}
+
+LayoutTreeBuildResult build_layout_tree(DOM::Node& dom_node)
+{
+    TreeBuilder tree_builder;
+    return tree_builder.build(dom_node);
+}
+
+void detach_top_layer_element_layout_subtree(DOM::Element& element)
+{
+    TreeBuilder::detach_top_layer_element_layout_subtree(element);
 }
 
 static RustFFI::FfiTableDisplay ffi_table_display(CSS::Display display)

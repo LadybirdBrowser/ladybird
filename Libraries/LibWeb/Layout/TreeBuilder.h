@@ -19,6 +19,15 @@ struct FfiPseudoTreeBuilderCallbacks;
 
 }
 
+struct LayoutTreeBuildResult {
+    RefPtr<Layout::Node> root;
+    Vector<Layout::Node*> rebuilt_subtree_roots;
+    bool layout_tree_update_escaped_rebuild_roots { false };
+};
+
+LayoutTreeBuildResult build_layout_tree(DOM::Node&);
+void detach_top_layer_element_layout_subtree(DOM::Element&);
+
 class TreeBuilder {
 public:
     TreeBuilder();
@@ -27,7 +36,7 @@ public:
     TreeBuilder(TreeBuilder const&) = delete;
     TreeBuilder& operator=(TreeBuilder const&) = delete;
 
-    RefPtr<Layout::Node> build(DOM::Node&);
+    LayoutTreeBuildResult build(DOM::Node&);
 
     enum class AppendOrPrepend {
         Append,
