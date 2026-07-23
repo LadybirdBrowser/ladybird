@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/BaseAudioContext.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -45,6 +46,14 @@ void BaseAudioContext::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(BaseAudioContext);
     Base::initialize(realm);
+
+    if (auto* window = as_if<HTML::Window>(realm.global_object())) {
+        // FIXME: Also handle the document becoming active again, e.g. when restored from the back/forward cache.
+        m_document_observer = realm.create<DOM::DocumentObserver>(realm, window->associated_document());
+        m_document_observer->set_document_became_inactive([this]() {
+            document_became_inactive();
+        });
+    }
 }
 
 void BaseAudioContext::visit_edges(Cell::Visitor& visitor)
@@ -54,6 +63,7 @@ void BaseAudioContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_pending_promises);
     visitor.visit(m_listener);
     visitor.visit(m_playing_sources);
+    visitor.visit(m_document_observer);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-onended

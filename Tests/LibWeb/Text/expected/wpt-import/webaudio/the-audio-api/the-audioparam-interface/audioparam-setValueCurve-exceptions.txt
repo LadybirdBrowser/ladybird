@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 66 tests
 
-63 Pass
-3 Fail
+66 Pass
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "setValueCurve"
 Pass	Executing "value setter"
@@ -41,14 +40,8 @@ Pass	  delayTime.setValueCurveAtTime([1, 5, Infinity], 0.043750000000000004, 0.0
 Pass	  setValueCurveAtTime(curve, 0.031415926535897934, 0.01) threw NotSupportedError: "Cannot schedule a value curve containing an automation event".
 Pass	< [automations] All assertions passed. (total 13 assertions)
 Pass	> [catch-exception] 
-Fail	X Handled setValueCurve exception so output: Expected 1 for all values but found 6000 unexpected values: 
-	Index	Actual
-	[0]	0
-	[1]	0
-	[2]	0
-	[3]	0
-	...and 5996 more errors.
-Fail	< [catch-exception] 1 out of 1 assertions were failed.
+Pass	  Handled setValueCurve exception so output contains only the constant 1.
+Pass	< [catch-exception] All assertions passed. (total 1 assertions)
 Pass	> [start-end] 
 Pass	  setValueAtTime(1, 0) did not throw an exception.
 Pass	  linearRampToValueAtTime(0, 0.0025) did not throw an exception.
@@ -75,4 +68,4 @@ Pass	  setValueCurveAtTime([], 0, 0.01) threw InvalidStateError: "values must co
 Pass	  setValueCurveAtTime([1], 0, 0.01) threw InvalidStateError: "values must contain at least two elements".
 Pass	  setValueCurveAtTime([1,2], 0, 0.01) did not throw an exception.
 Pass	< [curve lengths] All assertions passed. (total 3 assertions)
-Fail	# AUDIT TASK RUNNER FINISHED: 1 out of 7 tasks were failed.
+Pass	# AUDIT TASK RUNNER FINISHED: 7 tasks ran successfully.

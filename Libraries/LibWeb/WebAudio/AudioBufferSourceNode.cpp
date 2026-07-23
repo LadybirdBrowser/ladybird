@@ -161,6 +161,7 @@ WebIDL::ExceptionOr<void> AudioBufferSourceNode::start(Optional<double> when, Op
         .duration = duration,
         .buffer = move(contents),
     } });
+    context()->add_playing_source(*this);
 
     // FIXME: 6. Send a control message to the associated AudioContext to start running its rendering thread only when all the following conditions are met:
 
