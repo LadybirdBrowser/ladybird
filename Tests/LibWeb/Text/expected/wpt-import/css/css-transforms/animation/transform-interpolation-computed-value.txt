@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 82 tests
 
-74 Pass
-8 Fail
+76 Pass
+6 Fail
 Pass	Interpolation between translateX(0px) and translateX(50px) gives the correct computed value halfway according to computedStyleMap.
 Pass	Interpolation between translateX(0px) and translateX(50px) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Pass	Interpolation between translateX(0%) and translateX(50%) gives the correct computed value halfway according to computedStyleMap.
@@ -74,8 +74,8 @@ Pass	Interpolation between skew(0deg, 0deg) and skew(60deg, 60deg) gives the cor
 Pass	Interpolation between skew(0deg, 0deg) and skew(60deg, 60deg) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Pass	Interpolation between skew(45deg, 0deg) and skew(0deg, 45deg) gives the correct computed value halfway according to computedStyleMap.
 Pass	Interpolation between skew(45deg, 0deg) and skew(0deg, 45deg) gives the correct computed value halfway according to computedStyleMap with zoom active.
-Fail	Interpolation between perspective(10px) and perspective(2.5px) gives the correct computed value halfway according to computedStyleMap.
-Fail	Interpolation between perspective(10px) and perspective(2.5px) gives the correct computed value halfway according to computedStyleMap with zoom active.
+Pass	Interpolation between perspective(10px) and perspective(2.5px) gives the correct computed value halfway according to computedStyleMap.
+Pass	Interpolation between perspective(10px) and perspective(2.5px) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Fail	Interpolation between perspective(10px) and perspective(none) gives the correct computed value halfway according to computedStyleMap.
 Fail	Interpolation between perspective(10px) and perspective(none) gives the correct computed value halfway according to computedStyleMap with zoom active.
 Fail	Interpolation between perspective(none) and perspective(none) gives the correct computed value halfway according to computedStyleMap.

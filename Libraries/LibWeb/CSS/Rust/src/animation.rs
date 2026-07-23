@@ -12,9 +12,10 @@
 use std::sync::Arc;
 
 use crate::property_metadata::{property_animation_type, property_numeric_ranges};
-use crate::style_value::{RetainedStyleValueData, StyleValueData};
+use crate::style_value::{RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData};
 
 const ANIMATION_TYPE_BY_COMPUTED_VALUE: u8 = 1;
+const ANIMATION_TYPE_CUSTOM: u8 = 3;
 const VALUE_TYPE_ANGLE: u8 = 2;
 const VALUE_TYPE_FLEX: u8 = 15;
 const VALUE_TYPE_INTEGER: u8 = 24;
@@ -22,11 +23,40 @@ const VALUE_TYPE_LENGTH: u8 = 25;
 const VALUE_TYPE_NUMBER: u8 = 27;
 const VALUE_TYPE_PERCENTAGE: u8 = 31;
 const VALUE_TYPE_RATIO: u8 = 33;
+const TRANSFORM_FUNCTION_MATRIX: u8 = 0;
+const TRANSFORM_FUNCTION_MATRIX_3D: u8 = 1;
+const TRANSFORM_FUNCTION_PERSPECTIVE: u8 = 2;
+const TRANSFORM_FUNCTION_TRANSLATE: u8 = 3;
+const TRANSFORM_FUNCTION_TRANSLATE_3D: u8 = 4;
+const TRANSFORM_FUNCTION_TRANSLATE_X: u8 = 5;
+const TRANSFORM_FUNCTION_TRANSLATE_Y: u8 = 6;
+const TRANSFORM_FUNCTION_TRANSLATE_Z: u8 = 7;
+const TRANSFORM_FUNCTION_SCALE: u8 = 8;
+const TRANSFORM_FUNCTION_SCALE_3D: u8 = 9;
+const TRANSFORM_FUNCTION_SCALE_X: u8 = 10;
+const TRANSFORM_FUNCTION_SCALE_Y: u8 = 11;
+const TRANSFORM_FUNCTION_SCALE_Z: u8 = 12;
+const TRANSFORM_FUNCTION_ROTATE: u8 = 13;
+const TRANSFORM_FUNCTION_ROTATE_3D: u8 = 14;
+const TRANSFORM_FUNCTION_ROTATE_X: u8 = 15;
+const TRANSFORM_FUNCTION_ROTATE_Y: u8 = 16;
+const TRANSFORM_FUNCTION_ROTATE_Z: u8 = 17;
+const TRANSFORM_FUNCTION_SKEW: u8 = 18;
+const TRANSFORM_FUNCTION_SKEW_X: u8 = 19;
+const TRANSFORM_FUNCTION_SKEW_Y: u8 = 20;
 
 #[repr(C)]
 pub struct FfiAnimationValueResult {
     pub value: *const StyleValueData,
     pub handled: bool,
+}
+
+#[repr(C)]
+pub struct FfiAnimationContext {
+    pub allow_discrete: bool,
+    pub has_transform_reference_box: bool,
+    pub transform_reference_box_width: f64,
+    pub transform_reference_box_height: f64,
 }
 
 fn accepted_range(property_id: u16, value_type: u8) -> Option<(f64, f64)> {
@@ -86,16 +116,19 @@ fn not_handled() -> FfiAnimationValueResult {
     }
 }
 
-fn interpolate_scalar(
+fn handled_without_value() -> FfiAnimationValueResult {
+    FfiAnimationValueResult {
+        value: std::ptr::null(),
+        handled: true,
+    }
+}
+
+fn interpolate_scalar_value(
     property_id: u16,
     from: &StyleValueData,
     to: &StyleValueData,
     delta: f32,
 ) -> FfiAnimationValueResult {
-    if property_animation_type(property_id) != ANIMATION_TYPE_BY_COMPUTED_VALUE {
-        return not_handled();
-    }
-
     match (from, to) {
         (StyleValueData::Number { value: from }, StyleValueData::Number { value: to }) => {
             owned(StyleValueData::Number {
@@ -232,16 +265,1189 @@ fn interpolate_scalar(
     }
 }
 
-/// Attempt scalar by-computed-value interpolation without consulting C++ or the DOM.
+fn interpolate_rotate_3d(
+    property: u16,
+    transform_function: u8,
+    from_arguments: &RetainedStyleValueDataList,
+    to_arguments: &RetainedStyleValueDataList,
+    delta: f32,
+) -> Option<StyleValueData> {
+    let ([from_x, from_y, from_z, from_angle], [to_x, to_y, to_z, to_angle]) =
+        (from_arguments.as_slice(), to_arguments.as_slice())
+    else {
+        return None;
+    };
+    let (
+        StyleValueData::Number { value: from_x },
+        StyleValueData::Number { value: from_y },
+        StyleValueData::Number { value: from_z },
+        StyleValueData::Angle {
+            value: from_angle,
+            unit: from_angle_unit,
+        },
+        StyleValueData::Number { value: to_x },
+        StyleValueData::Number { value: to_y },
+        StyleValueData::Number { value: to_z },
+        StyleValueData::Angle {
+            value: to_angle,
+            unit: to_angle_unit,
+        },
+    ) = (
+        from_x.data(),
+        from_y.data(),
+        from_z.data(),
+        from_angle.data(),
+        to_x.data(),
+        to_y.data(),
+        to_z.data(),
+        to_angle.data(),
+    )
+    else {
+        return None;
+    };
+    let from_angle = angle_to_degrees(*from_angle, *from_angle_unit)?.to_radians();
+    let to_angle = angle_to_degrees(*to_angle, *to_angle_unit)?.to_radians();
+    let from_axis = [*from_x, *from_y, *from_z];
+    let to_axis = [*to_x, *to_y, *to_z];
+
+    let length = |vector: [f64; 3]| vector.iter().map(|component| component * component).sum::<f64>().sqrt();
+    let normalize = |vector: [f64; 3]| {
+        let length = length(vector);
+        [vector[0] / length, vector[1] / length, vector[2] / length]
+    };
+    let epsilon = 1e-5;
+    let from_axis_normalized = if length(from_axis) > epsilon {
+        normalize(from_axis)
+    } else {
+        [0.0, 0.0, 1.0]
+    };
+    let to_axis_normalized = if length(to_axis) > epsilon {
+        normalize(to_axis)
+    } else {
+        [0.0, 0.0, 1.0]
+    };
+    let axis_difference = [
+        from_axis_normalized[0] - to_axis_normalized[0],
+        from_axis_normalized[1] - to_axis_normalized[1],
+        from_axis_normalized[2] - to_axis_normalized[2],
+    ];
+
+    // https://drafts.csswg.org/css-transforms-2/#interpolation-of-transform-functions
+    // If the normalized vectors are equal, or if one of the angles is zero, interpolate the angle
+    // numerically and use the rotation vector of the non-zero angle (or (0, 0, 1) if both are zero).
+    let (result_axis, result_angle) = if length(axis_difference) < epsilon || from_angle == 0.0 || to_angle == 0.0 {
+        let result_axis = if to_angle != 0.0 {
+            to_axis_normalized
+        } else if from_angle != 0.0 {
+            from_axis_normalized
+        } else {
+            [0.0, 0.0, 1.0]
+        };
+        (result_axis, interpolate_f64(from_angle, to_angle, delta, None))
+    } else {
+        // If the normalized vectors are not equal and both rotation angles are non-zero, convert to
+        // 4x4 matrices and interpolate as defined in Interpolation of Matrices.
+        let to_quaternion = |axis: [f64; 3], angle: f64| {
+            let axis = normalize(axis);
+            let half_angle = angle / 2.0;
+            let sin_half_angle = half_angle.sin();
+            [
+                axis[0] * sin_half_angle,
+                axis[1] * sin_half_angle,
+                axis[2] * sin_half_angle,
+                half_angle.cos(),
+            ]
+        };
+        let from_quaternion = to_quaternion(from_axis, from_angle);
+        let to_quaternion = to_quaternion(to_axis, to_angle);
+
+        // https://drafts.csswg.org/css-transforms-2/#interpolation-of-decomposed-3d-matrix-values
+        let product = from_quaternion
+            .iter()
+            .zip(to_quaternion)
+            .map(|(from, to)| from * to)
+            .sum::<f64>()
+            .clamp(-1.0, 1.0);
+        let interpolated_quaternion = if product.abs() >= 1.0 {
+            from_quaternion
+        } else {
+            let theta = product.acos();
+            let weight = (f64::from(delta) * theta).sin() / (1.0 - product * product).sqrt();
+            let from_multiplier = (f64::from(delta) * theta).cos() - product * weight;
+            if weight.abs() < f64::from(f32::EPSILON) {
+                from_quaternion.map(|component| component * from_multiplier)
+            } else if from_multiplier.abs() < f64::from(f32::EPSILON) {
+                to_quaternion.map(|component| component * weight)
+            } else {
+                std::array::from_fn(|index| from_quaternion[index] * from_multiplier + to_quaternion[index] * weight)
+            }
+        };
+
+        let mut axis = [
+            interpolated_quaternion[0],
+            interpolated_quaternion[1],
+            interpolated_quaternion[2],
+        ];
+        let sin_half_angle = (1.0 - interpolated_quaternion[3] * interpolated_quaternion[3])
+            .max(0.0)
+            .sqrt();
+        let angle = 2.0 * interpolated_quaternion[3].clamp(-1.0, 1.0).acos();
+        if sin_half_angle >= epsilon {
+            axis = axis.map(|component| component / sin_half_angle);
+        }
+        (axis, angle)
+    };
+
+    let mut arguments = Vec::with_capacity(4);
+    for value in result_axis {
+        let argument = Arc::into_raw(Arc::new(StyleValueData::Number { value }));
+        arguments.push(unsafe { RetainedStyleValueData::from_retained_pointer(argument) });
+    }
+    let angle = Arc::into_raw(Arc::new(StyleValueData::Angle {
+        value: result_angle.to_degrees(),
+        unit: 0,
+    }));
+    arguments.push(unsafe { RetainedStyleValueData::from_retained_pointer(angle) });
+
+    Some(StyleValueData::Transformation {
+        property,
+        transform_function,
+        values: RetainedStyleValueDataList::from_retained_values(arguments),
+    })
+}
+
+fn retained_number(value: f64) -> RetainedStyleValueData {
+    let value = Arc::into_raw(Arc::new(StyleValueData::Number { value }));
+    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+}
+
+fn retained_zero_px() -> RetainedStyleValueData {
+    let value = Arc::into_raw(Arc::new(StyleValueData::Length {
+        value: 0.0,
+        unit: crate::style_compute::px_length_unit(),
+    }));
+    unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+}
+
+fn is_2d_transform(function: u8) -> bool {
+    matches!(
+        function,
+        TRANSFORM_FUNCTION_ROTATE
+            | TRANSFORM_FUNCTION_SCALE
+            | TRANSFORM_FUNCTION_SCALE_X
+            | TRANSFORM_FUNCTION_SCALE_Y
+            | TRANSFORM_FUNCTION_TRANSLATE
+            | TRANSFORM_FUNCTION_TRANSLATE_X
+            | TRANSFORM_FUNCTION_TRANSLATE_Y
+    )
+}
+
+fn is_3d_primitive(function: u8) -> bool {
+    matches!(
+        function,
+        TRANSFORM_FUNCTION_ROTATE_3D | TRANSFORM_FUNCTION_SCALE_3D | TRANSFORM_FUNCTION_TRANSLATE_3D
+    )
+}
+
+fn is_3d_transform(function: u8) -> bool {
+    is_2d_transform(function)
+        || is_3d_primitive(function)
+        || matches!(
+            function,
+            TRANSFORM_FUNCTION_ROTATE_X
+                | TRANSFORM_FUNCTION_ROTATE_Y
+                | TRANSFORM_FUNCTION_ROTATE_Z
+                | TRANSFORM_FUNCTION_SCALE_Z
+                | TRANSFORM_FUNCTION_TRANSLATE_Z
+        )
+}
+
+fn convert_2d_transform_to_primitive(
+    function: u8,
+    arguments: &RetainedStyleValueDataList,
+) -> Option<(u8, Vec<RetainedStyleValueData>)> {
+    let arguments = arguments.as_slice();
+    match (function, arguments) {
+        (TRANSFORM_FUNCTION_SCALE, [x]) => {
+            Some((TRANSFORM_FUNCTION_SCALE, vec![x.clone_retained(), x.clone_retained()]))
+        }
+        (TRANSFORM_FUNCTION_SCALE, [x, y]) => {
+            Some((TRANSFORM_FUNCTION_SCALE, vec![x.clone_retained(), y.clone_retained()]))
+        }
+        (TRANSFORM_FUNCTION_SCALE_X, [x]) => {
+            Some((TRANSFORM_FUNCTION_SCALE, vec![x.clone_retained(), retained_number(1.0)]))
+        }
+        (TRANSFORM_FUNCTION_SCALE_Y, [y]) => {
+            Some((TRANSFORM_FUNCTION_SCALE, vec![retained_number(1.0), y.clone_retained()]))
+        }
+        (TRANSFORM_FUNCTION_ROTATE, [angle]) => Some((TRANSFORM_FUNCTION_ROTATE, vec![angle.clone_retained()])),
+        (TRANSFORM_FUNCTION_TRANSLATE, [x]) => Some((
+            TRANSFORM_FUNCTION_TRANSLATE,
+            vec![x.clone_retained(), retained_zero_px()],
+        )),
+        (TRANSFORM_FUNCTION_TRANSLATE, [x, y]) => Some((
+            TRANSFORM_FUNCTION_TRANSLATE,
+            vec![x.clone_retained(), y.clone_retained()],
+        )),
+        (TRANSFORM_FUNCTION_TRANSLATE_X, [x]) => Some((
+            TRANSFORM_FUNCTION_TRANSLATE,
+            vec![x.clone_retained(), retained_zero_px()],
+        )),
+        (TRANSFORM_FUNCTION_TRANSLATE_Y, [y]) => Some((
+            TRANSFORM_FUNCTION_TRANSLATE,
+            vec![retained_zero_px(), y.clone_retained()],
+        )),
+        _ => None,
+    }
+}
+
+fn convert_3d_transform_to_primitive(
+    function: u8,
+    arguments: &RetainedStyleValueDataList,
+) -> Option<(u8, Vec<RetainedStyleValueData>)> {
+    let converted_2d;
+    let (function, arguments) = if is_2d_transform(function) {
+        converted_2d = convert_2d_transform_to_primitive(function, arguments)?;
+        (converted_2d.0, converted_2d.1.as_slice())
+    } else {
+        (function, arguments.as_slice())
+    };
+
+    match (function, arguments) {
+        (TRANSFORM_FUNCTION_ROTATE | TRANSFORM_FUNCTION_ROTATE_Z, [angle]) => Some((
+            TRANSFORM_FUNCTION_ROTATE_3D,
+            vec![
+                retained_number(0.0),
+                retained_number(0.0),
+                retained_number(1.0),
+                angle.clone_retained(),
+            ],
+        )),
+        (TRANSFORM_FUNCTION_ROTATE_X, [angle]) => Some((
+            TRANSFORM_FUNCTION_ROTATE_3D,
+            vec![
+                retained_number(1.0),
+                retained_number(0.0),
+                retained_number(0.0),
+                angle.clone_retained(),
+            ],
+        )),
+        (TRANSFORM_FUNCTION_ROTATE_Y, [angle]) => Some((
+            TRANSFORM_FUNCTION_ROTATE_3D,
+            vec![
+                retained_number(0.0),
+                retained_number(1.0),
+                retained_number(0.0),
+                angle.clone_retained(),
+            ],
+        )),
+        (TRANSFORM_FUNCTION_SCALE, [x, y]) => Some((
+            TRANSFORM_FUNCTION_SCALE_3D,
+            vec![x.clone_retained(), y.clone_retained(), retained_number(1.0)],
+        )),
+        (TRANSFORM_FUNCTION_SCALE_Z, [z]) => Some((
+            TRANSFORM_FUNCTION_SCALE_3D,
+            vec![retained_number(1.0), retained_number(1.0), z.clone_retained()],
+        )),
+        (TRANSFORM_FUNCTION_TRANSLATE, [x, y]) => Some((
+            TRANSFORM_FUNCTION_TRANSLATE_3D,
+            vec![x.clone_retained(), y.clone_retained(), retained_zero_px()],
+        )),
+        (TRANSFORM_FUNCTION_TRANSLATE_Z, [z]) => Some((
+            TRANSFORM_FUNCTION_TRANSLATE_3D,
+            vec![retained_zero_px(), retained_zero_px(), z.clone_retained()],
+        )),
+        _ => None,
+    }
+}
+
+fn convert_transform_pair_to_common_primitive(
+    from_function: u8,
+    from_arguments: &RetainedStyleValueDataList,
+    to_function: u8,
+    to_arguments: &RetainedStyleValueDataList,
+) -> Option<(u8, Vec<RetainedStyleValueData>, Vec<RetainedStyleValueData>)> {
+    if matches!(
+        (from_function, to_function),
+        (
+            TRANSFORM_FUNCTION_MATRIX | TRANSFORM_FUNCTION_MATRIX_3D | TRANSFORM_FUNCTION_PERSPECTIVE,
+            _,
+        ) | (
+            _,
+            TRANSFORM_FUNCTION_MATRIX | TRANSFORM_FUNCTION_MATRIX_3D | TRANSFORM_FUNCTION_PERSPECTIVE,
+        )
+    ) {
+        return None;
+    }
+    // https://drafts.csswg.org/css-transforms-2/#interpolation-of-transform-functions
+    // If both transform functions share a primitive in the two-dimensional space, both transform functions get
+    // converted to the two-dimensional primitive. If one or both transform functions are three-dimensional
+    // transform functions, the common three-dimensional primitive is used.
+    let (from_function, from_arguments, to_function, to_arguments) =
+        if is_2d_transform(from_function) && is_2d_transform(to_function) {
+            let (from_function, from_arguments) = convert_2d_transform_to_primitive(from_function, from_arguments)?;
+            let (to_function, to_arguments) = convert_2d_transform_to_primitive(to_function, to_arguments)?;
+            (from_function, from_arguments, to_function, to_arguments)
+        } else if is_3d_transform(from_function) || is_3d_transform(to_function) {
+            let (from_function, from_arguments) = if is_3d_primitive(from_function) {
+                (
+                    from_function,
+                    from_arguments
+                        .as_slice()
+                        .iter()
+                        .map(RetainedStyleValueData::clone_retained)
+                        .collect(),
+                )
+            } else {
+                convert_3d_transform_to_primitive(from_function, from_arguments)?
+            };
+            let (to_function, to_arguments) = if is_3d_primitive(to_function) {
+                (
+                    to_function,
+                    to_arguments
+                        .as_slice()
+                        .iter()
+                        .map(RetainedStyleValueData::clone_retained)
+                        .collect(),
+                )
+            } else {
+                convert_3d_transform_to_primitive(to_function, to_arguments)?
+            };
+            (from_function, from_arguments, to_function, to_arguments)
+        } else {
+            (
+                from_function,
+                from_arguments
+                    .as_slice()
+                    .iter()
+                    .map(RetainedStyleValueData::clone_retained)
+                    .collect(),
+                to_function,
+                to_arguments
+                    .as_slice()
+                    .iter()
+                    .map(RetainedStyleValueData::clone_retained)
+                    .collect(),
+            )
+        };
+    (from_function == to_function && from_arguments.len() == to_arguments.len()).then_some((
+        from_function,
+        from_arguments,
+        to_arguments,
+    ))
+}
+
+fn identity_transformation(property: u16, function: u8) -> Option<RetainedStyleValueData> {
+    let arguments = match function {
+        TRANSFORM_FUNCTION_ROTATE
+        | TRANSFORM_FUNCTION_ROTATE_X
+        | TRANSFORM_FUNCTION_ROTATE_Y
+        | TRANSFORM_FUNCTION_ROTATE_Z
+        | TRANSFORM_FUNCTION_SKEW
+        | TRANSFORM_FUNCTION_SKEW_X
+        | TRANSFORM_FUNCTION_SKEW_Y => {
+            let angle = Arc::into_raw(Arc::new(StyleValueData::Angle { value: 0.0, unit: 0 }));
+            vec![unsafe { RetainedStyleValueData::from_retained_pointer(angle) }]
+        }
+        TRANSFORM_FUNCTION_ROTATE_3D => vec![
+            retained_number(1.0),
+            retained_number(1.0),
+            retained_number(1.0),
+            unsafe {
+                RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(StyleValueData::Angle {
+                    value: 0.0,
+                    unit: 0,
+                })))
+            },
+        ],
+        TRANSFORM_FUNCTION_TRANSLATE
+        | TRANSFORM_FUNCTION_TRANSLATE_X
+        | TRANSFORM_FUNCTION_TRANSLATE_Y
+        | TRANSFORM_FUNCTION_TRANSLATE_Z => vec![retained_zero_px()],
+        TRANSFORM_FUNCTION_TRANSLATE_3D => vec![retained_zero_px(), retained_zero_px(), retained_zero_px()],
+        TRANSFORM_FUNCTION_SCALE
+        | TRANSFORM_FUNCTION_SCALE_X
+        | TRANSFORM_FUNCTION_SCALE_Y
+        | TRANSFORM_FUNCTION_SCALE_Z => vec![retained_number(1.0)],
+        TRANSFORM_FUNCTION_SCALE_3D => vec![retained_number(1.0), retained_number(1.0), retained_number(1.0)],
+        _ => return None,
+    };
+    let transformation = Arc::into_raw(Arc::new(StyleValueData::Transformation {
+        property,
+        transform_function: function,
+        values: RetainedStyleValueDataList::from_retained_values(arguments),
+    }));
+    Some(unsafe { RetainedStyleValueData::from_retained_pointer(transformation) })
+}
+
+type Matrix4 = [[f64; 4]; 4];
+
+struct DecomposedMatrix {
+    translation: [f64; 3],
+    scale: [f64; 3],
+    skew: [f64; 3],
+    rotation: [f64; 4],
+    perspective: [f64; 4],
+}
+
+fn identity_matrix() -> Matrix4 {
+    std::array::from_fn(|row| std::array::from_fn(|column| if row == column { 1.0 } else { 0.0 }))
+}
+
+fn multiply_matrices(left: Matrix4, right: Matrix4) -> Matrix4 {
+    std::array::from_fn(|row| {
+        std::array::from_fn(|column| (0..4).map(|index| left[row][index] * right[index][column]).sum())
+    })
+}
+
+fn invert_matrix(matrix: Matrix4) -> Option<Matrix4> {
+    let mut augmented = [[0.0; 8]; 4];
+    for row in 0..4 {
+        augmented[row][..4].copy_from_slice(&matrix[row]);
+        augmented[row][row + 4] = 1.0;
+    }
+    for column in 0..4 {
+        let pivot_row = (column..4).max_by(|left, right| {
+            augmented[*left][column]
+                .abs()
+                .total_cmp(&augmented[*right][column].abs())
+        })?;
+        if augmented[pivot_row][column] == 0.0 {
+            return None;
+        }
+        augmented.swap(column, pivot_row);
+        let pivot = augmented[column][column];
+        for value in &mut augmented[column] {
+            *value /= pivot;
+        }
+        let pivot_values = augmented[column];
+        for (row, values) in augmented.iter_mut().enumerate() {
+            if row == column {
+                continue;
+            }
+            let factor = values[column];
+            for index in 0..8 {
+                values[index] -= factor * pivot_values[index];
+            }
+        }
+    }
+    Some(std::array::from_fn(|row| {
+        std::array::from_fn(|column| augmented[row][column + 4])
+    }))
+}
+
+fn vector_length(vector: [f64; 3]) -> f64 {
+    vector.iter().map(|component| component * component).sum::<f64>().sqrt()
+}
+
+fn vector_dot(left: [f64; 3], right: [f64; 3]) -> f64 {
+    left.iter().zip(right).map(|(left, right)| left * right).sum()
+}
+
+fn vector_cross(left: [f64; 3], right: [f64; 3]) -> [f64; 3] {
+    [
+        left[1] * right[2] - left[2] * right[1],
+        left[2] * right[0] - left[0] * right[2],
+        left[0] * right[1] - left[1] * right[0],
+    ]
+}
+
+fn combine_vectors(left: [f64; 3], right: [f64; 3], left_scale: f64, right_scale: f64) -> [f64; 3] {
+    std::array::from_fn(|index| left_scale * left[index] + right_scale * right[index])
+}
+
+// https://drafts.csswg.org/css-transforms-2/#decomposing-a-3d-matrix
+fn decompose_matrix(mut matrix: Matrix4) -> Option<DecomposedMatrix> {
+    // Normalize the matrix.
+    if matrix[3][3] == 0.0 {
+        return None;
+    }
+    let normalization = matrix[3][3];
+    for row in &mut matrix {
+        for value in row {
+            *value /= normalization;
+        }
+    }
+
+    // perspectiveMatrix is used to solve for perspective, but it also provides
+    // an easy way to test for singularity of the upper 3x3 component.
+    let mut perspective_matrix = matrix;
+    perspective_matrix[3][..3].fill(0.0);
+    perspective_matrix[3][3] = 1.0;
+    let inverse_perspective_matrix = invert_matrix(perspective_matrix)?;
+
+    // First, isolate perspective.
+    let perspective = if matrix[3][0] != 0.0 || matrix[3][1] != 0.0 || matrix[3][2] != 0.0 {
+        // rightHandSide is the right hand side of the equation.
+        // Note: It is the bottom side in a row-major matrix
+        let bottom_side = matrix[3];
+        std::array::from_fn(|row| {
+            (0..4)
+                .map(|column| inverse_perspective_matrix[column][row] * bottom_side[column])
+                .sum()
+        })
+    } else {
+        // No perspective.
+        [0.0, 0.0, 0.0, 1.0]
+    };
+
+    // Next take care of translation
+    let translation = [matrix[0][3], matrix[1][3], matrix[2][3]];
+
+    // Now get scale and shear. 'row' is a 3 element array of 3 component vectors
+    let mut row: [[f64; 3]; 3] =
+        std::array::from_fn(|column| [matrix[0][column], matrix[1][column], matrix[2][column]]);
+
+    // Compute X scale factor and normalize first row.
+    let mut scale = [0.0; 3];
+    scale[0] = vector_length(row[0]);
+    row[0] = row[0].map(|value| value / scale[0]);
+
+    // Compute XY shear factor and make 2nd row orthogonal to 1st.
+    let mut skew = [0.0; 3];
+    skew[0] = vector_dot(row[0], row[1]);
+    row[1] = combine_vectors(row[1], row[0], 1.0, -skew[0]);
+
+    // Now, compute Y scale and normalize 2nd row.
+    scale[1] = vector_length(row[1]);
+    row[1] = row[1].map(|value| value / scale[1]);
+    skew[0] /= scale[1];
+
+    // Compute XZ and YZ shears, orthogonalize 3rd row
+    skew[1] = vector_dot(row[0], row[2]);
+    row[2] = combine_vectors(row[2], row[0], 1.0, -skew[1]);
+    skew[2] = vector_dot(row[1], row[2]);
+    row[2] = combine_vectors(row[2], row[1], 1.0, -skew[2]);
+
+    // Next, get Z scale and normalize 3rd row.
+    scale[2] = vector_length(row[2]);
+    row[2] = row[2].map(|value| value / scale[2]);
+    skew[1] /= scale[2];
+    skew[2] /= scale[2];
+
+    // At this point, the matrix (in rows) is orthonormal.
+    // Check for a coordinate system flip.  If the determinant
+    // is -1, then negate the matrix and the scaling factors.
+    let pdum3 = vector_cross(row[1], row[2]);
+    if vector_dot(row[0], pdum3) < 0.0 {
+        for index in 0..3 {
+            scale[index] *= -1.0;
+            row[index] = row[index].map(|value| -value);
+        }
+    }
+
+    // Now, get the rotations out
+    let mut rotation = [
+        0.5 * (1.0 + row[0][0] - row[1][1] - row[2][2]).max(0.0).sqrt(),
+        0.5 * (1.0 - row[0][0] + row[1][1] - row[2][2]).max(0.0).sqrt(),
+        0.5 * (1.0 - row[0][0] - row[1][1] + row[2][2]).max(0.0).sqrt(),
+        0.5 * (1.0 + row[0][0] + row[1][1] + row[2][2]).max(0.0).sqrt(),
+    ];
+    if row[2][1] > row[1][2] {
+        rotation[0] = -rotation[0];
+    }
+    if row[0][2] > row[2][0] {
+        rotation[1] = -rotation[1];
+    }
+    if row[1][0] > row[0][1] {
+        rotation[2] = -rotation[2];
+    }
+
+    // FIXME: This accounts for the fact that the browser coordinate system is left-handed instead of right-handed.
+    //        The reason for this is that the positive Y-axis direction points down instead of up. To fix this, we
+    //        invert the Y axis. However, it feels like the spec pseudo-code above should have taken something like
+    //        this into account, so we're probably doing something else wrong.
+    rotation[2] *= -1.0;
+
+    Some(DecomposedMatrix {
+        translation,
+        scale,
+        skew,
+        rotation,
+        perspective,
+    })
+}
+
+// https://drafts.csswg.org/css-transforms-2/#recomposing-to-a-3d-matrix
+fn recompose_matrix(values: DecomposedMatrix) -> Matrix4 {
+    let mut matrix = identity_matrix();
+
+    // apply perspective
+    matrix[3] = values.perspective;
+
+    // apply translation
+    for row in &mut matrix {
+        for column in 0..3 {
+            row[3] += values.translation[column] * row[column];
+        }
+    }
+
+    // apply rotation
+    let [x, y, z, w] = values.rotation;
+    // Construct a composite rotation matrix from the quaternion values
+    // rotationMatrix is a identity 4x4 matrix initially
+    let mut rotation_matrix = identity_matrix();
+    rotation_matrix[0][0] = 1.0 - 2.0 * (y * y + z * z);
+    rotation_matrix[1][0] = 2.0 * (x * y - z * w);
+    rotation_matrix[2][0] = 2.0 * (x * z + y * w);
+    rotation_matrix[0][1] = 2.0 * (x * y + z * w);
+    rotation_matrix[1][1] = 1.0 - 2.0 * (x * x + z * z);
+    rotation_matrix[2][1] = 2.0 * (y * z - x * w);
+    rotation_matrix[0][2] = 2.0 * (x * z - y * w);
+    rotation_matrix[1][2] = 2.0 * (y * z + x * w);
+    rotation_matrix[2][2] = 1.0 - 2.0 * (x * x + y * y);
+    matrix = multiply_matrices(matrix, rotation_matrix);
+
+    // apply skew
+    // temp is a identity 4x4 matrix initially
+    let mut temp = identity_matrix();
+    if values.skew[2] != 0.0 {
+        temp[1][2] = values.skew[2];
+        matrix = multiply_matrices(matrix, temp);
+    }
+    if values.skew[1] != 0.0 {
+        temp[1][2] = 0.0;
+        temp[0][2] = values.skew[1];
+        matrix = multiply_matrices(matrix, temp);
+    }
+    if values.skew[0] != 0.0 {
+        temp[0][2] = 0.0;
+        temp[0][1] = values.skew[0];
+        matrix = multiply_matrices(matrix, temp);
+    }
+
+    // apply scale
+    for index in 0..3 {
+        for row in &mut matrix {
+            row[index] *= values.scale[index];
+        }
+    }
+    matrix
+}
+
+fn slerp_quaternions(from: [f64; 4], to: [f64; 4], delta: f32) -> [f64; 4] {
+    let product = from
+        .iter()
+        .zip(to)
+        .map(|(from, to)| from * to)
+        .sum::<f64>()
+        .clamp(-1.0, 1.0);
+    if product.abs() >= 1.0 {
+        return from;
+    }
+    let theta = product.acos();
+    let weight = (f64::from(delta) * theta).sin() / (1.0 - product * product).sqrt();
+    let from_multiplier = (f64::from(delta) * theta).cos() - product * weight;
+    if weight.abs() < f64::from(f32::EPSILON) {
+        return from.map(|component| component * from_multiplier);
+    }
+    if from_multiplier.abs() < f64::from(f32::EPSILON) {
+        return to.map(|component| component * weight);
+    }
+    std::array::from_fn(|index| from[index] * from_multiplier + to[index] * weight)
+}
+
+fn interpolate_matrices(from: Matrix4, to: Matrix4, delta: f32) -> Option<Matrix4> {
+    let from = decompose_matrix(from)?;
+    let to = decompose_matrix(to)?;
+    let interpolate_array = |from: [f64; 3], to: [f64; 3]| {
+        std::array::from_fn(|index| interpolate_f64(from[index], to[index], delta, None))
+    };
+    let perspective =
+        std::array::from_fn(|index| interpolate_f64(from.perspective[index], to.perspective[index], delta, None));
+    Some(recompose_matrix(DecomposedMatrix {
+        translation: interpolate_array(from.translation, to.translation),
+        scale: interpolate_array(from.scale, to.scale),
+        skew: interpolate_array(from.skew, to.skew),
+        rotation: slerp_quaternions(from.rotation, to.rotation, delta),
+        perspective,
+    }))
+}
+
+fn transformation_to_matrix(
+    context: Option<&FfiAnimationContext>,
+    function: u8,
+    arguments: &[RetainedStyleValueData],
+) -> Option<Matrix4> {
+    let number = |argument: &RetainedStyleValueData| match argument.data() {
+        StyleValueData::Number { value } => Some(*value),
+        StyleValueData::Percentage { value } => Some(*value / 100.0),
+        _ => None,
+    };
+    let length = |argument: &RetainedStyleValueData, reference_length: Option<f64>| match argument.data() {
+        StyleValueData::Length { value, unit } => crate::style_compute::absolute_length_to_px(*value, *unit),
+        StyleValueData::Percentage { value } => {
+            reference_length.map(|reference_length| value / 100.0 * reference_length)
+        }
+        _ => None,
+    };
+    let angle = |argument: &RetainedStyleValueData| match argument.data() {
+        StyleValueData::Angle { value, unit } => angle_to_degrees(*value, *unit).map(f64::to_radians),
+        _ => None,
+    };
+    let numbers = || arguments.iter().map(number).collect::<Option<Vec<_>>>();
+    let reference_box = context
+        .filter(|context| context.has_transform_reference_box)
+        .map(|context| {
+            (
+                context.transform_reference_box_width,
+                context.transform_reference_box_height,
+            )
+        });
+    let translation_matrix = |x: f64, y: f64, z: f64| {
+        let mut matrix = identity_matrix();
+        matrix[0][3] = x;
+        matrix[1][3] = y;
+        matrix[2][3] = z;
+        matrix
+    };
+    let scale_matrix = |x: f64, y: f64, z: f64| {
+        let mut matrix = identity_matrix();
+        matrix[0][0] = x;
+        matrix[1][1] = y;
+        matrix[2][2] = z;
+        matrix
+    };
+    let rotation_matrix = |axis: [f64; 3], angle: f64| {
+        let axis_length = vector_length(axis);
+        if axis_length < 1e-5 {
+            return identity_matrix();
+        }
+        let [x, y, z] = axis.map(|component| component / axis_length);
+        let cosine = angle.cos();
+        let sine = angle.sin();
+        let one_minus_cosine = 1.0 - cosine;
+        [
+            [
+                cosine + x * x * one_minus_cosine,
+                x * y * one_minus_cosine - z * sine,
+                x * z * one_minus_cosine + y * sine,
+                0.0,
+            ],
+            [
+                y * x * one_minus_cosine + z * sine,
+                cosine + y * y * one_minus_cosine,
+                y * z * one_minus_cosine - x * sine,
+                0.0,
+            ],
+            [
+                z * x * one_minus_cosine - y * sine,
+                z * y * one_minus_cosine + x * sine,
+                cosine + z * z * one_minus_cosine,
+                0.0,
+            ],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    };
+
+    match (function, arguments) {
+        (TRANSFORM_FUNCTION_MATRIX, [a, b, c, d, e, f]) => Some([
+            [number(a)?, number(c)?, 0.0, number(e)?],
+            [number(b)?, number(d)?, 0.0, number(f)?],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]),
+        (TRANSFORM_FUNCTION_MATRIX_3D, values) if values.len() == 16 => {
+            let values = numbers()?;
+            Some(std::array::from_fn(|row| {
+                std::array::from_fn(|column| values[column * 4 + row])
+            }))
+        }
+        (TRANSFORM_FUNCTION_PERSPECTIVE, [argument]) => match argument.data() {
+            StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => {
+                Some(identity_matrix())
+            }
+            _ => {
+                let depth = length(argument, None)?.max(1.0);
+                let mut matrix = identity_matrix();
+                matrix[3][2] = -1.0 / depth;
+                Some(matrix)
+            }
+        },
+        (TRANSFORM_FUNCTION_TRANSLATE | TRANSFORM_FUNCTION_TRANSLATE_X, [x]) => Some(translation_matrix(
+            length(x, reference_box.map(|(width, _)| width))?,
+            0.0,
+            0.0,
+        )),
+        (TRANSFORM_FUNCTION_TRANSLATE, [x, y]) => Some(translation_matrix(
+            length(x, reference_box.map(|(width, _)| width))?,
+            length(y, reference_box.map(|(_, height)| height))?,
+            0.0,
+        )),
+        (TRANSFORM_FUNCTION_TRANSLATE_Y, [y]) => Some(translation_matrix(
+            0.0,
+            length(y, reference_box.map(|(_, height)| height))?,
+            0.0,
+        )),
+        (TRANSFORM_FUNCTION_TRANSLATE_Z, [z]) => Some(translation_matrix(0.0, 0.0, length(z, None)?)),
+        (TRANSFORM_FUNCTION_TRANSLATE_3D, [x, y, z]) => Some(translation_matrix(
+            length(x, reference_box.map(|(width, _)| width))?,
+            length(y, reference_box.map(|(_, height)| height))?,
+            length(z, None)?,
+        )),
+        (TRANSFORM_FUNCTION_SCALE, [value]) => {
+            let value = number(value)?;
+            Some(scale_matrix(value, value, 1.0))
+        }
+        (TRANSFORM_FUNCTION_SCALE, [x, y]) => Some(scale_matrix(number(x)?, number(y)?, 1.0)),
+        (TRANSFORM_FUNCTION_SCALE_X, [x]) => Some(scale_matrix(number(x)?, 1.0, 1.0)),
+        (TRANSFORM_FUNCTION_SCALE_Y, [y]) => Some(scale_matrix(1.0, number(y)?, 1.0)),
+        (TRANSFORM_FUNCTION_SCALE_Z, [z]) => Some(scale_matrix(1.0, 1.0, number(z)?)),
+        (TRANSFORM_FUNCTION_SCALE_3D, [x, y, z]) => Some(scale_matrix(number(x)?, number(y)?, number(z)?)),
+        (TRANSFORM_FUNCTION_ROTATE | TRANSFORM_FUNCTION_ROTATE_Z, [value]) => {
+            Some(rotation_matrix([0.0, 0.0, 1.0], angle(value)?))
+        }
+        (TRANSFORM_FUNCTION_ROTATE_X, [value]) => Some(rotation_matrix([1.0, 0.0, 0.0], angle(value)?)),
+        (TRANSFORM_FUNCTION_ROTATE_Y, [value]) => Some(rotation_matrix([0.0, 1.0, 0.0], angle(value)?)),
+        (TRANSFORM_FUNCTION_ROTATE_3D, [x, y, z, value]) => {
+            Some(rotation_matrix([number(x)?, number(y)?, number(z)?], angle(value)?))
+        }
+        (TRANSFORM_FUNCTION_SKEW | TRANSFORM_FUNCTION_SKEW_X, [x]) => {
+            let mut matrix = identity_matrix();
+            matrix[0][1] = angle(x)?.tan();
+            Some(matrix)
+        }
+        (TRANSFORM_FUNCTION_SKEW, [x, y]) => {
+            let mut matrix = identity_matrix();
+            matrix[0][1] = angle(x)?.tan();
+            matrix[1][0] = angle(y)?.tan();
+            Some(matrix)
+        }
+        (TRANSFORM_FUNCTION_SKEW_Y, [y]) => {
+            let mut matrix = identity_matrix();
+            matrix[1][0] = angle(y)?.tan();
+            Some(matrix)
+        }
+        _ => None,
+    }
+}
+
+fn matrix_transformation(property: u16, matrix: Matrix4) -> StyleValueData {
+    let arguments = (0..16)
+        .map(|index| retained_number(matrix[index % 4][index / 4]))
+        .collect();
+    StyleValueData::Transformation {
+        property,
+        transform_function: TRANSFORM_FUNCTION_MATRIX_3D,
+        values: RetainedStyleValueDataList::from_retained_values(arguments),
+    }
+}
+
+enum TransformMatrixInterpolationError {
+    NotConvertible,
+    NonInvertible,
+}
+
+fn interpolate_transform_matrix_suffix(
+    context: Option<&FfiAnimationContext>,
+    property: u16,
+    from: &[RetainedStyleValueData],
+    to: &[RetainedStyleValueData],
+    delta: f32,
+) -> Result<RetainedStyleValueData, TransformMatrixInterpolationError> {
+    let post_multiply = |transformations: &[RetainedStyleValueData]| {
+        let mut result = identity_matrix();
+        for transformation in transformations {
+            let StyleValueData::Transformation {
+                transform_function,
+                values,
+                ..
+            } = transformation.data()
+            else {
+                return None;
+            };
+            result = multiply_matrices(
+                result,
+                transformation_to_matrix(context, *transform_function, values.as_slice())?,
+            );
+        }
+        Some(result)
+    };
+    let from = post_multiply(from).ok_or(TransformMatrixInterpolationError::NotConvertible)?;
+    let to = post_multiply(to).ok_or(TransformMatrixInterpolationError::NotConvertible)?;
+    let matrix = interpolate_matrices(from, to, delta).ok_or(TransformMatrixInterpolationError::NonInvertible)?;
+    let transformation = Arc::into_raw(Arc::new(matrix_transformation(property, matrix)));
+    Ok(unsafe { RetainedStyleValueData::from_retained_pointer(transformation) })
+}
+
+fn interpolate_transform_list(
+    context: Option<&FfiAnimationContext>,
+    property_id: u16,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> Option<Option<StyleValueData>> {
+    if matches!(from, StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword())
+        && matches!(to, StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword())
+    {
+        // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
+        // * If both Va and Vb are none:
+        //   * Vresult is none.
+        return Some(Some(StyleValueData::Keyword {
+            keyword: crate::style_compute::none_keyword(),
+        }));
+    }
+
+    let decode_transform_list = |value: &StyleValueData| match value {
+        StyleValueData::ValueList {
+            values,
+            separator,
+            collapsible,
+        } => Some((
+            values
+                .as_slice()
+                .iter()
+                .map(RetainedStyleValueData::clone_retained)
+                .collect::<Vec<_>>(),
+            *separator,
+            *collapsible,
+        )),
+        StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => {
+            Some((Vec::new(), 0, false))
+        }
+        _ => None,
+    };
+    let (mut from_values, from_separator, from_collapsible) = decode_transform_list(from)?;
+    let (mut to_values, to_separator, to_collapsible) = decode_transform_list(to)?;
+    let (separator, collapsible) = if from_values.is_empty() {
+        (to_separator, to_collapsible)
+    } else {
+        (from_separator, from_collapsible)
+    };
+    if !from_values.is_empty()
+        && !to_values.is_empty()
+        && (from_separator != to_separator || from_collapsible != to_collapsible)
+    {
+        return None;
+    }
+    // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
+    // * Treating none as a list of zero length, if Va or Vb differ in length:
+    //   * extend the shorter list to the length of the longer list, setting the function at each additional
+    //     position to the identity transform function matching the function at the corresponding position in the
+    //     longer list. Both transform function lists are then interpolated following the next rule.
+    if from_values.len() != to_values.len() {
+        let (shorter, longer) = if from_values.len() < to_values.len() {
+            (&mut from_values, &to_values)
+        } else {
+            (&mut to_values, &from_values)
+        };
+        for transformation in &longer[shorter.len()..] {
+            let StyleValueData::Transformation {
+                property,
+                transform_function,
+                ..
+            } = transformation.data()
+            else {
+                return None;
+            };
+            shorter.push(identity_transformation(*property, *transform_function)?);
+        }
+    }
+
+    // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
+    // *  Let Vresult be an empty list. Beginning at the start of Va and Vb, compare the corresponding functions at each
+    //    position:
+    //   * While the functions have either the same name, or are derivatives of the same primitive transform
+    //     function, interpolate the corresponding pair of functions as described in § 10 Interpolation of
+    //     primitives and derived transform functions and append the result to Vresult.
+    let mut transformations = Vec::with_capacity(from_values.len());
+    for (index, (from, to)) in from_values.iter().zip(&to_values).enumerate() {
+        let (
+            StyleValueData::Transformation {
+                property: from_property,
+                transform_function: from_function,
+                values: from_arguments,
+            },
+            StyleValueData::Transformation {
+                transform_function: to_function,
+                values: to_arguments,
+                ..
+            },
+        ) = (from.data(), to.data())
+        else {
+            return None;
+        };
+        if from_function == to_function
+            && *from_function == TRANSFORM_FUNCTION_PERSPECTIVE
+            && index + 1 == from_values.len()
+        {
+            let ([from_argument], [to_argument]) = (from_arguments.as_slice(), to_arguments.as_slice()) else {
+                return None;
+            };
+            let (
+                StyleValueData::Length {
+                    value: from_depth,
+                    unit: from_unit,
+                },
+                StyleValueData::Length {
+                    value: to_depth,
+                    unit: to_unit,
+                },
+            ) = (from_argument.data(), to_argument.data())
+            else {
+                return None;
+            };
+            if from_unit != to_unit {
+                return None;
+            }
+
+            // https://drafts.csswg.org/css-transforms-2/#interpolation-of-transform-functions
+            // The transform functions <matrix()>, matrix3d() and perspective() get converted into 4x4 matrices first and
+            // interpolated as defined in section Interpolation of Matrices afterwards.
+            // OPTIMIZATION: A perspective matrix's only varying component is the negative reciprocal of its depth, so
+            //               interpolating that component and inverting it produces the same result without materializing
+            //               and decomposing two matrices.
+            let from_reciprocal_depth = 1.0 / from_depth.max(1.0);
+            let to_reciprocal_depth = 1.0 / to_depth.max(1.0);
+            let depth = 1.0 / interpolate_f64(from_reciprocal_depth, to_reciprocal_depth, delta, None);
+            let argument = Arc::into_raw(Arc::new(StyleValueData::Length {
+                value: depth,
+                unit: *from_unit,
+            }));
+            let transformation = Arc::into_raw(Arc::new(StyleValueData::Transformation {
+                property: *from_property,
+                transform_function: *from_function,
+                values: RetainedStyleValueDataList::from_retained_values(vec![unsafe {
+                    RetainedStyleValueData::from_retained_pointer(argument)
+                }]),
+            }));
+            transformations.push(unsafe { RetainedStyleValueData::from_retained_pointer(transformation) });
+            continue;
+        }
+        let Some((transform_function, from_arguments, to_arguments)) =
+            convert_transform_pair_to_common_primitive(*from_function, from_arguments, *to_function, to_arguments)
+        else {
+            // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
+            //   * If the pair do not have a common name or primitive transform function, post-multiply the remaining
+            //     transform functions in each of Va and Vb respectively to produce two 4x4 matrices. Interpolate these two
+            //     matrices as described in § 11 Interpolation of Matrices, append the result to Vresult, and cease
+            //     iterating over Va and Vb.
+            let transformation = interpolate_transform_matrix_suffix(
+                context,
+                *from_property,
+                &from_values[index..],
+                &to_values[index..],
+                delta,
+            );
+            match transformation {
+                Ok(transformation) => transformations.push(transformation),
+                Err(TransformMatrixInterpolationError::NotConvertible) => return None,
+                Err(TransformMatrixInterpolationError::NonInvertible) => {
+                    // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
+                    // If one of the matrices for interpolation is non-invertible, the used animation function must
+                    // fall-back to a discrete animation according to the rules of the respective animation specification.
+                    return Some(None);
+                }
+            }
+            break;
+        };
+
+        // https://drafts.csswg.org/css-transforms-2/#interpolation-of-transform-functions
+        // Two different types of transform functions that share the same primitive, or transform functions of the same
+        // type with different number of arguments can be interpolated. Both transform functions need a former
+        // conversion to the common primitive first and get interpolated numerically afterwards. The computed value will
+        // be the primitive with the resulting interpolated arguments.
+        if transform_function == TRANSFORM_FUNCTION_ROTATE_3D {
+            let from_arguments = RetainedStyleValueDataList::from_retained_values(
+                from_arguments
+                    .iter()
+                    .map(RetainedStyleValueData::clone_retained)
+                    .collect(),
+            );
+            let to_arguments = RetainedStyleValueDataList::from_retained_values(
+                to_arguments
+                    .iter()
+                    .map(RetainedStyleValueData::clone_retained)
+                    .collect(),
+            );
+            let transformation = interpolate_rotate_3d(
+                *from_property,
+                transform_function,
+                &from_arguments,
+                &to_arguments,
+                delta,
+            )?;
+            let transformation = Arc::into_raw(Arc::new(transformation));
+            transformations.push(unsafe { RetainedStyleValueData::from_retained_pointer(transformation) });
+            continue;
+        }
+
+        let mut arguments = Vec::with_capacity(from_arguments.len());
+        for (from, to) in from_arguments.iter().zip(to_arguments) {
+            let result = interpolate_scalar_value(property_id, from.data(), to.data(), delta);
+            if !result.handled {
+                return None;
+            }
+            arguments.push(unsafe { RetainedStyleValueData::from_retained_pointer(result.value) });
+        }
+        let transformation = Arc::into_raw(Arc::new(StyleValueData::Transformation {
+            property: *from_property,
+            transform_function,
+            values: RetainedStyleValueDataList::from_retained_values(arguments),
+        }));
+        transformations.push(unsafe { RetainedStyleValueData::from_retained_pointer(transformation) });
+    }
+
+    Some(Some(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(transformations),
+        separator,
+        collapsible,
+    }))
+}
+
+fn interpolate_value(
+    context: Option<&FfiAnimationContext>,
+    property_id: u16,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> FfiAnimationValueResult {
+    let animation_type = property_animation_type(property_id);
+    if animation_type == ANIMATION_TYPE_CUSTOM
+        && property_id == crate::property_metadata::property_id::TRANSFORM
+        && let Some(value) = interpolate_transform_list(context, property_id, from, to, delta)
+    {
+        return value.map_or_else(
+            || {
+                if context.is_some_and(|context| context.allow_discrete) {
+                    let value = if delta < 0.5 { from } else { to };
+                    FfiAnimationValueResult {
+                        value: unsafe { crate::style_value::rust_style_value_retain(value) },
+                        handled: true,
+                    }
+                } else {
+                    handled_without_value()
+                }
+            },
+            owned,
+        );
+    }
+    if animation_type != ANIMATION_TYPE_BY_COMPUTED_VALUE {
+        return not_handled();
+    }
+    interpolate_scalar_value(property_id, from, to, delta)
+}
+
+/// Attempt Rust-owned style value interpolation without consulting C++ or the DOM.
 ///
 /// # Safety
-/// `from` and `to` must point at live `StyleValueData` allocations.
+/// `context` must be null or point at a live `FfiAnimationContext`. `from` and `to` must point at live
+/// `StyleValueData` allocations.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_interpolate_scalar_style_value(
+    context: *const FfiAnimationContext,
     property_id: u16,
     from: *const StyleValueData,
     to: *const StyleValueData,
     delta: f32,
 ) -> FfiAnimationValueResult {
-    crate::abort_on_panic(|| interpolate_scalar(property_id, unsafe { &*from }, unsafe { &*to }, delta))
+    crate::abort_on_panic(|| {
+        interpolate_value(
+            unsafe { context.as_ref() },
+            property_id,
+            unsafe { &*from },
+            unsafe { &*to },
+            delta,
+        )
+    })
 }

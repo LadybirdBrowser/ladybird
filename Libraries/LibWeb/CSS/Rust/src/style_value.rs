@@ -110,6 +110,11 @@ impl RetainedStyleValueData {
             pointer: pointer.cast(),
         }
     }
+
+    pub(crate) fn clone_retained(&self) -> Self {
+        let pointer = unsafe { rust_style_value_retain(self.pointer.cast()) };
+        unsafe { Self::from_retained_pointer(pointer) }
+    }
 }
 
 impl Drop for RetainedStyleValueData {
@@ -131,6 +136,13 @@ impl RetainedStyleValueDataList {
             return &[];
         }
         unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+    }
+
+    pub(crate) fn from_retained_values(values: Vec<RetainedStyleValueData>) -> Self {
+        let slice = values.into_boxed_slice();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedStyleValueData;
+        Self { pointer, length }
     }
 
     /// Takes ownership of one strong reference to each value.
