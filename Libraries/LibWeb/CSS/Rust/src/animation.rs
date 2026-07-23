@@ -18,9 +18,11 @@ use crate::style_value::{
     RetainedUtf16FlyStringList, StyleValueData,
 };
 
+const ANIMATION_TYPE_DISCRETE: u8 = 0;
 const ANIMATION_TYPE_BY_COMPUTED_VALUE: u8 = 1;
 const ANIMATION_TYPE_REPEATABLE_LIST: u8 = 2;
 const ANIMATION_TYPE_CUSTOM: u8 = 3;
+const ANIMATION_TYPE_NONE: u8 = 4;
 const VALUE_TYPE_ANGLE: u8 = 2;
 const VALUE_TYPE_FLEX: u8 = 15;
 const VALUE_TYPE_FREQUENCY: u8 = 21;
@@ -5630,13 +5632,31 @@ fn interpolate_value(
     delta: f32,
 ) -> FfiAnimationValueResult {
     let animation_type = property_animation_type(property_id);
+    if animation_type == ANIMATION_TYPE_NONE {
+        // https://www.w3.org/TR/web-animations-1/#not-animatable
+        // The property is not animatable. It is not processed when listed in an animation keyframe, and is not affected by transitions.
+        // NB: Such values are normally filtered before evaluation. Preserve the C++ scalar API's
+        //     existing endpoint behavior if one reaches this lower-level operation.
+        return FfiAnimationValueResult {
+            value: unsafe { crate::style_value::rust_style_value_retain(to) },
+            handled: true,
+        };
+    }
+    if animation_type == ANIMATION_TYPE_DISCRETE {
+        // https://www.w3.org/TR/web-animations-1/#discrete
+        // The property’s values cannot be meaningfully combined, thus it is not additive and interpolation swaps from Va to Vb at 50% (p=0.5), i.e.
+        return discrete_value(context, from, to, delta);
+    }
     if animation_type == ANIMATION_TYPE_CUSTOM
         && matches!(
             property_id,
             crate::property_metadata::property_id::FILTER | crate::property_metadata::property_id::BACKDROP_FILTER
         )
     {
-        return interpolate_filter_list(context, property_id, from, to, delta);
+        let result = interpolate_filter_list(context, property_id, from, to, delta);
+        if result.handled {
+            return result;
+        }
     }
     if animation_type == ANIMATION_TYPE_CUSTOM
         && matches!(
@@ -5644,7 +5664,10 @@ fn interpolate_value(
             crate::property_metadata::property_id::BOX_SHADOW | crate::property_metadata::property_id::TEXT_SHADOW
         )
     {
-        return interpolate_shadow_list(context, property_id, from, to, delta);
+        let result = interpolate_shadow_list(context, property_id, from, to, delta);
+        if result.handled {
+            return result;
+        }
     }
     let is_stroke_dasharray = animation_type == ANIMATION_TYPE_CUSTOM
         && property_id == crate::property_metadata::property_id::STROKE_DASHARRAY;
@@ -5655,16 +5678,7 @@ fn interpolate_value(
         // If either start or end compute to none or are invalid, start or end are combined using the discrete animation type.
         return discrete_value(context, from, to, delta);
     }
-    if (animation_type == ANIMATION_TYPE_REPEATABLE_LIST || is_stroke_dasharray)
-        && let (
-            StyleValueData::ValueList {
-                values: from_values,
-                separator,
-                collapsible,
-            },
-            StyleValueData::ValueList { values: to_values, .. },
-        ) = (from, to)
-    {
+    if animation_type == ANIMATION_TYPE_REPEATABLE_LIST || is_stroke_dasharray {
         // https://svgwg.org/svg2-draft/painting.html#StrokeDashing
         // Otherwise, repeat both dash patterns of start and end value list until the length of elements in
         // both value lists match. Each item is then combined by computed value.
@@ -5672,31 +5686,60 @@ fn interpolate_value(
         // Same as by computed value except that if the two lists have differing numbers of items, they are first repeated to the least common multiple number of items.
         // Each item is then combined by computed value.
         // If a pair of values cannot be combined or if any component value uses discrete animation, then the property values combine as discrete.
-        let from_length = from_values.as_slice().len();
-        let to_length = to_values.as_slice().len();
-        if from_length == 0 || to_length == 0 {
-            return not_handled();
+        let from_list = match from {
+            StyleValueData::ValueList {
+                values,
+                separator,
+                collapsible,
+            } => Some((values.as_slice(), *separator, *collapsible)),
+            _ => None,
+        };
+        let to_list = match to {
+            StyleValueData::ValueList {
+                values,
+                separator,
+                collapsible,
+            } => Some((values.as_slice(), *separator, *collapsible)),
+            _ => None,
+        };
+        if from_list.is_none() && to_list.is_none() {
+            let result = interpolate_scalar_value(property_id, from, to, delta, &[]);
+            if result.handled && !result.value.is_null() {
+                return result;
+            }
+            return discrete_value(context, from, to, delta);
         }
+
+        let (separator, collapsible) = from_list
+            .map(|(_, separator, collapsible)| (separator, collapsible))
+            .or_else(|| to_list.map(|(_, separator, collapsible)| (separator, collapsible)))
+            .expect("at least one repeatable value is a list");
+        let from_length = from_list.map_or_else(|| to_list.unwrap().0.len(), |(values, _, _)| values.len());
+        let to_length = to_list.map_or_else(|| from_list.unwrap().0.len(), |(values, _, _)| values.len());
+        if from_length == 0 || to_length == 0 {
+            return owned(StyleValueData::ValueList {
+                values: RetainedStyleValueDataList::from_retained_values(Vec::new()),
+                separator,
+                collapsible,
+            });
+        }
+
         let mut a = from_length;
         let mut b = to_length;
         while b != 0 {
             (a, b) = (b, a % b);
         }
         let Some(list_size) = (from_length / a).checked_mul(to_length) else {
-            return not_handled();
+            return discrete_value(context, from, to, delta);
         };
 
         let mut values = Vec::with_capacity(list_size);
         for index in 0..list_size {
-            let result = interpolate_scalar_value(
-                property_id,
-                from_values.as_slice()[index % from_length].data(),
-                to_values.as_slice()[index % to_length].data(),
-                delta,
-                &[],
-            );
+            let from_value = from_list.map_or(from, |(values, _, _)| values[index % from_length].data());
+            let to_value = to_list.map_or(to, |(values, _, _)| values[index % to_length].data());
+            let result = interpolate_scalar_value(property_id, from_value, to_value, delta, &[]);
             if !result.handled {
-                return not_handled();
+                return discrete_value(context, from, to, delta);
             }
             if result.value.is_null() {
                 return discrete_value(context, from, to, delta);
@@ -5705,8 +5748,8 @@ fn interpolate_value(
         }
         return owned(StyleValueData::ValueList {
             values: RetainedStyleValueDataList::from_retained_values(values),
-            separator: *separator,
-            collapsible: *collapsible,
+            separator,
+            collapsible,
         });
     }
     if animation_type == ANIMATION_TYPE_CUSTOM
@@ -5738,7 +5781,7 @@ fn interpolate_value(
             normalize(*from_font_style, from_angle),
             normalize(*to_font_style, to_angle),
         ) else {
-            return not_handled();
+            return discrete_value(context, from, to, delta);
         };
         let font_style = if from_font_style == to_font_style {
             from_font_style
@@ -5755,7 +5798,7 @@ fn interpolate_value(
                     angle_to_degrees(from_value, from_unit),
                     angle_to_degrees(to_value, to_unit),
                 ) else {
-                    return not_handled();
+                    return discrete_value(context, from, to, delta);
                 };
                 let angle = Arc::into_raw(Arc::new(StyleValueData::Angle {
                     value: interpolate_f64(from_value, to_value, delta, Some((-90.0, 90.0))),
@@ -5771,29 +5814,50 @@ fn interpolate_value(
         });
     }
     if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::VISIBILITY {
-        return interpolate_visibility(context, from, to, delta);
+        let result = interpolate_visibility(context, from, to, delta);
+        if result.handled {
+            return result;
+        }
     }
     if animation_type == ANIMATION_TYPE_CUSTOM
         && property_id == crate::property_metadata::property_id::CONTENT_VISIBILITY
     {
-        return interpolate_content_visibility(context, from, to, delta);
+        let result = interpolate_content_visibility(context, from, to, delta);
+        if result.handled {
+            return result;
+        }
     }
     if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::DISPLAY {
-        return interpolate_display(context, from, to, delta);
+        let result = interpolate_display(context, from, to, delta);
+        if result.handled {
+            return result;
+        }
     }
     if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::SCALE {
-        return interpolate_scale(from, to, delta);
+        let result = interpolate_scale(from, to, delta);
+        if result.handled {
+            return result;
+        }
     }
     if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::TRANSLATE {
-        return interpolate_translate(from, to, delta);
+        let result = interpolate_translate(from, to, delta);
+        if result.handled {
+            return result;
+        }
     }
     if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::ROTATE {
-        return interpolate_individual_rotate(from, to, delta);
+        let result = interpolate_individual_rotate(from, to, delta);
+        if result.handled {
+            return result;
+        }
     }
     if animation_type == ANIMATION_TYPE_CUSTOM
         && property_id == crate::property_metadata::property_id::FONT_VARIATION_SETTINGS
     {
-        return interpolate_font_variation_settings(context, property_id, from, to, delta);
+        let result = interpolate_font_variation_settings(context, property_id, from, to, delta);
+        if result.handled {
+            return result;
+        }
     }
     if animation_type == ANIMATION_TYPE_CUSTOM
         && property_id == crate::property_metadata::property_id::TRANSFORM
@@ -5845,6 +5909,10 @@ fn interpolate_value(
             entries: RetainedGridTrackEntryList::from_retained_entries(entries),
         });
     }
+    if animation_type == ANIMATION_TYPE_CUSTOM {
+        // NB: C++ treats values declined by a property's specialized custom algorithm as discrete.
+        return discrete_value(context, from, to, delta);
+    }
     if animation_type != ANIMATION_TYPE_BY_COMPUTED_VALUE {
         return not_handled();
     }
@@ -5894,7 +5962,12 @@ fn composite_batch_value<'a>(
     Some(BatchAnimationValue::Owned(unsafe { Arc::from_raw(result.value) }))
 }
 
-fn evaluate_animation_value(context: &FfiAnimationContext, input: &FfiAnimationValueInput) -> FfiAnimatedProperty {
+fn evaluate_animation_value(
+    context: &FfiAnimationContext,
+    input: &FfiAnimationValueInput,
+    underlying_override: Option<&StyleValueData>,
+    force_unhandled: bool,
+) -> FfiAnimatedProperty {
     let keyframes = unsafe { std::slice::from_raw_parts(input.keyframes, input.keyframe_count) };
     assert!(keyframes.len() >= 2);
 
@@ -5928,10 +6001,13 @@ fn evaluate_animation_value(context: &FfiAnimationContext, input: &FfiAnimationV
         end_index,
         handled: false,
     };
+    if force_unhandled {
+        return unhandled();
+    }
     if start_keyframe.value.is_null() || end_keyframe.value.is_null() {
         return unhandled();
     }
-    let underlying = unsafe { &*input.underlying };
+    let underlying = underlying_override.unwrap_or_else(|| unsafe { &*input.underlying });
     let start = unsafe { &*start_keyframe.value };
     let end = unsafe { &*end_keyframe.value };
     let (Some(start), Some(end)) = (
@@ -5968,10 +6044,32 @@ pub unsafe extern "C" fn rust_evaluate_animations(
         let batch = unsafe { &*batch };
         let callbacks = unsafe { &*callbacks };
         let inputs = unsafe { std::slice::from_raw_parts(batch.values, batch.value_count) };
-        let results = inputs
-            .iter()
-            .map(|input| evaluate_animation_value(&batch.context, input))
-            .collect::<Vec<_>>();
+        let mut results = Vec::with_capacity(inputs.len());
+
+        // https://www.w3.org/TR/web-animations-1/#effect-stacks
+        // NB: Inputs arrive in composite order. Keep each result as the underlying value for the
+        //     next effect affecting the same property.
+        let mut previous_values = Vec::<(u16, *const StyleValueData)>::new();
+        let mut unhandled_properties = Vec::<u16>::new();
+        for input in inputs {
+            let previous_value = previous_values
+                .iter()
+                .rev()
+                .find(|(property_id, _)| *property_id == input.property_id)
+                .map(|(_, value)| unsafe { &**value });
+            let result = evaluate_animation_value(
+                &batch.context,
+                input,
+                previous_value,
+                unhandled_properties.contains(&input.property_id),
+            );
+            if result.handled && !result.value.is_null() {
+                previous_values.push((input.property_id, result.value));
+            } else if !unhandled_properties.contains(&input.property_id) {
+                unhandled_properties.push(input.property_id);
+            }
+            results.push(result);
+        }
         crate::ffi_stats::rust_style_ffi_note_animation_result_batch();
         unsafe { (callbacks.apply_overlay)(callbacks.context, results.as_ptr(), results.len()) };
     });
@@ -6017,6 +6115,32 @@ pub unsafe extern "C" fn rust_composite_scalar_style_value(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn animation_context(allow_discrete: bool) -> FfiAnimationContext {
+        let font_metrics = || FfiAnimationFontMetrics {
+            font_size: 0.0,
+            x_height: 0.0,
+            cap_height: 0.0,
+            zero_advance: 0.0,
+            line_height: 0.0,
+        };
+        FfiAnimationContext {
+            allow_discrete,
+            current_color: std::ptr::null(),
+            has_length_resolution_context: false,
+            length_resolution_context: FfiAnimationLengthResolutionContext {
+                viewport_width: 0.0,
+                viewport_height: 0.0,
+                font_metrics: font_metrics(),
+                root_font_metrics: font_metrics(),
+                font_metrics_depend_on_viewport_metrics: false,
+                root_font_metrics_depend_on_viewport_metrics: false,
+            },
+            has_transform_reference_box: false,
+            transform_reference_box_width: 0.0,
+            transform_reference_box_height: 0.0,
+        }
+    }
 
     #[test]
     fn evaluates_linear_easing() {
@@ -6096,42 +6220,104 @@ mod tests {
             keyframes: keyframes.as_ptr(),
             keyframe_count: keyframes.len(),
         };
-        let result = evaluate_animation_value(
-            &FfiAnimationContext {
-                allow_discrete: true,
-                current_color: std::ptr::null(),
-                has_length_resolution_context: false,
-                length_resolution_context: FfiAnimationLengthResolutionContext {
-                    viewport_width: 0.0,
-                    viewport_height: 0.0,
-                    font_metrics: FfiAnimationFontMetrics {
-                        font_size: 0.0,
-                        x_height: 0.0,
-                        cap_height: 0.0,
-                        zero_advance: 0.0,
-                        line_height: 0.0,
-                    },
-                    root_font_metrics: FfiAnimationFontMetrics {
-                        font_size: 0.0,
-                        x_height: 0.0,
-                        cap_height: 0.0,
-                        zero_advance: 0.0,
-                        line_height: 0.0,
-                    },
-                    font_metrics_depend_on_viewport_metrics: false,
-                    root_font_metrics_depend_on_viewport_metrics: false,
-                },
-                has_transform_reference_box: false,
-                transform_reference_box_width: 0.0,
-                transform_reference_box_height: 0.0,
-            },
-            &input,
-        );
+        let result = evaluate_animation_value(&animation_context(true), &input, None, false);
         assert!(result.handled);
         assert!(!result.value.is_null());
         assert_eq!(result.start_index, 1);
         assert_eq!(result.end_index, 2);
         let value = unsafe { Arc::from_raw(result.value) };
         assert!(matches!(&*value, StyleValueData::Number { value } if *value == 9.0));
+    }
+
+    #[test]
+    fn evaluates_discrete_animation_values() {
+        let from = Arc::new(StyleValueData::Keyword { keyword: 1 });
+        let to = Arc::new(StyleValueData::Keyword { keyword: 2 });
+        let property_id = crate::property_metadata::property_id::ALIGN_CONTENT;
+
+        let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.25);
+        assert!(result.handled);
+        let value = unsafe { Arc::from_raw(result.value) };
+        assert!(matches!(&*value, StyleValueData::Keyword { keyword: 1 }));
+
+        let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.75);
+        assert!(result.handled);
+        let value = unsafe { Arc::from_raw(result.value) };
+        assert!(matches!(&*value, StyleValueData::Keyword { keyword: 2 }));
+
+        let result = interpolate_value(Some(&animation_context(false)), property_id, &from, &to, 0.75);
+        assert!(result.handled);
+        assert!(result.value.is_null());
+    }
+
+    #[test]
+    fn preserves_not_animatable_endpoint_behavior() {
+        let from = Arc::new(StyleValueData::Keyword { keyword: 1 });
+        let to = Arc::new(StyleValueData::Keyword { keyword: 2 });
+        let result = interpolate_value(
+            Some(&animation_context(true)),
+            crate::property_metadata::property_id::ANIMATION_DURATION,
+            &from,
+            &to,
+            0.25,
+        );
+        assert!(result.handled);
+        let value = unsafe { Arc::from_raw(result.value) };
+        assert!(matches!(&*value, StyleValueData::Keyword { keyword: 2 }));
+    }
+
+    #[test]
+    fn evaluates_declined_custom_animation_values_as_discrete() {
+        let from = Arc::new(StyleValueData::Keyword { keyword: 1 });
+        let to = Arc::new(StyleValueData::Keyword { keyword: 2 });
+        let property_id = crate::property_metadata::property_id::SCALE;
+
+        let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.75);
+        assert!(result.handled);
+        let value = unsafe { Arc::from_raw(result.value) };
+        assert!(matches!(&*value, StyleValueData::Keyword { keyword: 2 }));
+
+        let result = interpolate_value(Some(&animation_context(false)), property_id, &from, &to, 0.75);
+        assert!(result.handled);
+        assert!(result.value.is_null());
+    }
+
+    #[test]
+    fn normalizes_repeatable_scalar_and_list_values() {
+        let property_id = crate::property_metadata::property_id::OBJECT_POSITION;
+        let from = Arc::new(StyleValueData::Number { value: 10.0 });
+        let to = Arc::new(StyleValueData::ValueList {
+            values: RetainedStyleValueDataList::from_retained_values(vec![
+                retained_number(20.0),
+                retained_number(30.0),
+            ]),
+            separator: 1,
+            collapsible: false,
+        });
+
+        let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.5);
+        assert!(result.handled);
+        let value = unsafe { Arc::from_raw(result.value) };
+        let StyleValueData::ValueList { values, .. } = &*value else {
+            panic!("expected a repeatable value list");
+        };
+        assert!(matches!(values.as_slice()[0].data(), StyleValueData::Number { value } if *value == 15.0));
+        assert!(matches!(values.as_slice()[1].data(), StyleValueData::Number { value } if *value == 20.0));
+    }
+
+    #[test]
+    fn interpolates_repeatable_scalar_values() {
+        let from = Arc::new(StyleValueData::Number { value: 10.0 });
+        let to = Arc::new(StyleValueData::Number { value: 20.0 });
+        let result = interpolate_value(
+            Some(&animation_context(true)),
+            crate::property_metadata::property_id::OBJECT_POSITION,
+            &from,
+            &to,
+            0.5,
+        );
+        assert!(result.handled);
+        let value = unsafe { Arc::from_raw(result.value) };
+        assert!(matches!(&*value, StyleValueData::Number { value } if *value == 15.0));
     }
 }
