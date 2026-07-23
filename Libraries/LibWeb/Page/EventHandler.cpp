@@ -1539,7 +1539,7 @@ EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, u32 modifiers,
     auto offset_top_before_zoom = visual_viewport->offset_top();
     visual_viewport->zoom(point, scale_delta);
     if (visual_viewport->offset_left() != offset_left_before_zoom || visual_viewport->offset_top() != offset_top_before_zoom)
-        m_navigable->queue_scrollend_event_after_user_scroll(*visual_viewport);
+        m_navigable->queue_scrollend_event_after_user_scroll(*visual_viewport, {});
     return EventResult::Handled;
 }
 

@@ -116,7 +116,7 @@ public:
         Gfx::FloatPoint delta,
         Gfx::IntRect viewport_rect,
         Web::Compositor::AsyncScrollOperationTracking);
-    AsyncScrollResult smooth_scroll_to(Web::Compositor::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel);
+    AsyncScrollResult smooth_scroll_to(Web::Compositor::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel);
     void cancel_smooth_scroll(Web::Compositor::AsyncScrollNodeStableID);
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
     bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }
@@ -176,6 +176,7 @@ private:
     Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&);
     void store_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&, Optional<Web::Compositor::AsyncScrollOperationID> = {});
     void cancel_smooth_scroll_for_node(Web::Compositor::AsyncScrollNodeID);
+    void note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_viewport_scrollbar);
     Optional<Gfx::IntRect> apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const&);
     void rebuild_wheel_hit_test_targets();
     bool is_present_blocked() const;
@@ -205,6 +206,7 @@ private:
 
     Vector<Web::Compositor::AsyncScrollOffset> m_pending_async_scroll_offsets;
     Vector<Web::Compositor::AsyncScrollOperationID> m_completed_async_scroll_operation_ids;
+    bool m_user_scroll_gesture_ended { false };
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;
     Web::Compositor::AsyncScrollOperationID m_next_async_scroll_operation_id { 0 };
     Gfx::IntRect m_async_scrolling_viewport_rect;

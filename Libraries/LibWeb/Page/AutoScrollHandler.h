@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/OwnPtr.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
@@ -16,6 +17,7 @@ namespace Web {
 class AutoScrollHandler {
 public:
     AutoScrollHandler(HTML::LocalNavigable&, DOM::Element& container);
+    ~AutoScrollHandler();
 
     void visit_edges(JS::Cell::Visitor&) const;
 
@@ -35,6 +37,7 @@ private:
     GC::Ref<DOM::Element> m_container_element;
     CSSPixelPoint m_mouse_position;
     CSSPixelPoint m_fractional_delta;
+    OwnPtr<HTML::UserScrollGestureHold> m_scroll_gesture_hold;
     bool m_active { false };
 };
 

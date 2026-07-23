@@ -17,7 +17,7 @@ static AsyncScrollNodeID scroll_node_id_for(UniqueNodeID document_id, Painting::
     return { .document_id = document_id, .scroll_node_index = scroll_node_index };
 }
 
-static AsyncScrollNodeKind async_scroll_node_kind_for(Painting::CompositorScrollNodeKind kind)
+AsyncScrollNodeKind async_scroll_node_kind_for(Painting::CompositorScrollNodeKind kind)
 {
     switch (kind) {
     case Painting::CompositorScrollNodeKind::Viewport:
