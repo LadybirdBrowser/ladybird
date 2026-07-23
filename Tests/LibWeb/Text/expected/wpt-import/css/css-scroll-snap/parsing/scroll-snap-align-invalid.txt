@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['scroll-snap-align'] = "auto" should not set the property value
+Pass	e.style['scroll-snap-align'] = "start invalid" should not set the property value
+Pass	e.style['scroll-snap-align'] = "start end center" should not set the property value

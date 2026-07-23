@@ -4303,6 +4303,37 @@
     ],
     "percentages-resolve-to": "length"
   },
+  "scroll-snap-align": {
+    "style-group": "MiscResetValues",
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "max-values": 2,
+    "requires-computation": "never",
+    "valid-types": [
+      "scroll-snap-align"
+    ]
+  },
+  "scroll-snap-stop": {
+    "style-group": "MiscResetValues",
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "normal",
+    "requires-computation": "never",
+    "valid-types": [
+      "scroll-snap-stop"
+    ]
+  },
+  "scroll-snap-type": {
+    "style-group": "MiscResetValues",
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "requires-computation": "never"
+  },
   "scroll-timeline": {
     "affects-layout": false,
     "initial": "none block",

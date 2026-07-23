@@ -962,6 +962,28 @@
     "auto",
     "smooth"
   ],
+  "scroll-snap-align": [
+    "none",
+    "start",
+    "end",
+    "center"
+  ],
+  "scroll-snap-axis": [
+    "x",
+    "y",
+    "block",
+    "inline",
+    "both"
+  ],
+  "scroll-snap-stop": [
+    "normal",
+    "always"
+  ],
+  "scroll-snap-strictness": [
+    "none",
+    "proximity",
+    "mandatory"
+  ],
   "scrollbar-gutter": [
     "auto",
     "stable",
