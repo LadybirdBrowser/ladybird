@@ -253,8 +253,8 @@ public:
     double scroll_x() const;
     double scroll_y() const;
     using ScrollToOptions = Bindings::ScrollToOptions;
-    void scroll(ScrollToOptions const&, GC::Ptr<WebIDL::Promise>);
-    void scroll(double x, double y, GC::Ptr<WebIDL::Promise>);
+    void scroll(ScrollToOptions const&, GC::Ptr<WebIDL::Promise>, Optional<CSSPixelPoint> relative_displacement = {});
+    void scroll(double x, double y, GC::Ptr<WebIDL::Promise>, Optional<CSSPixelPoint> relative_displacement = {});
     void scroll_by(ScrollToOptions, GC::Ptr<WebIDL::Promise>);
     void scroll_by(double x, double y, GC::Ptr<WebIDL::Promise>);
 

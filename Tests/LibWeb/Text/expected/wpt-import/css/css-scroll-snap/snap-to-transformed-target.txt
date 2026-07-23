@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Snaps to the transformed snap start position
+Pass	Snaps to the transformed snap end position
+Pass	Snaps to visible top left position of the transformed box

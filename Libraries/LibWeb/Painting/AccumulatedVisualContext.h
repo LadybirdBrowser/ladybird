@@ -125,6 +125,8 @@ struct AnchorScrollShift {
 
 using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, BackfaceVisibilityData, ClipPathData, EffectsData, ScrollCompensation, AnchorScrollShift, MaskData>;
 
+CSSPixelRect apply_css_transform_to_rect(Layout::Node const&, CSSPixelRect const&);
+
 struct AccumulatedVisualContextNode {
     VisualContextData data;
     VisualContextIndex parent_index {};

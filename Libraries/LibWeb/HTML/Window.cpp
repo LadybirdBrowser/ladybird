@@ -1768,7 +1768,7 @@ double Window::scroll_y() const
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-window-scroll
-void Window::scroll(ScrollToOptions const& options, GC::Ptr<WebIDL::Promise> promise)
+void Window::scroll(ScrollToOptions const& options, GC::Ptr<WebIDL::Promise> promise, Optional<CSSPixelPoint> relative_displacement)
 {
     // 4. If there is no viewport, return a resolved Promise and abort the remaining steps.
     // AD-HOC: Done here as step 1 requires the viewport.
@@ -1863,13 +1863,13 @@ void Window::scroll(ScrollToOptions const& options, GC::Ptr<WebIDL::Promise> pro
     // 12. Perform a scroll of the viewport to position, document’s root element as the associated element, if there is
     //     one, or null otherwise, and the scroll behavior being the value of the behavior dictionary member of options.
     //     Let scrollPromise be the Promise returned from this step.
-    auto scroll_promise = navigable->perform_a_scroll_of_the_viewport({ x, y }, options.behavior);
+    auto scroll_promise = navigable->perform_a_scroll_of_the_viewport({ x, y }, options.behavior, LocalNavigable::ScrollTrigger::Programmatic, relative_displacement);
     if (promise)
         WebIDL::resolve_promise(*promise, scroll_promise->promise());
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-window-scroll
-void Window::scroll(double x, double y, GC::Ptr<WebIDL::Promise> promise)
+void Window::scroll(double x, double y, GC::Ptr<WebIDL::Promise> promise, Optional<CSSPixelPoint> relative_displacement)
 {
     // NB: This just implements step 2, and then forwards to the other Window::scroll() overload.
 
@@ -1882,7 +1882,7 @@ void Window::scroll(double x, double y, GC::Ptr<WebIDL::Promise> promise)
     options.left = x;
     options.top = y;
 
-    scroll(options, promise);
+    scroll(options, promise, relative_displacement);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-window-scrollby
@@ -1902,7 +1902,8 @@ void Window::scroll_by(ScrollToOptions options, GC::Ptr<WebIDL::Promise> promise
     options.top = top + scroll_y();
 
     // 5. Return the Promise returned from scroll() after the method is invoked with options as the only argument.
-    scroll(options, promise);
+    CSSPixelPoint relative_displacement { CSSPixels::nearest_value_for(left), CSSPixels::nearest_value_for(top) };
+    scroll(options, promise, relative_displacement);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-window-scrollby

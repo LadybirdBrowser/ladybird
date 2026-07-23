@@ -5016,7 +5016,7 @@ void Element::scroll(double x, double y, GC::Ptr<WebIDL::Promise> promise)
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scroll
-void Element::scroll(Bindings::ScrollToOptions options, GC::Ptr<WebIDL::Promise> promise)
+void Element::scroll(Bindings::ScrollToOptions options, GC::Ptr<WebIDL::Promise> promise, Optional<CSSPixelPoint> relative_displacement)
 {
     // 1. If invoked with one argument, follow these substeps:
     //     1. Let options be the argument.
@@ -5062,9 +5062,13 @@ void Element::scroll(Bindings::ScrollToOptions options, GC::Ptr<WebIDL::Promise>
         && scroll_offset({}).is_zero()
         && this != document.body()
         && this != document.document_element()) {
-        if (promise)
-            WebIDL::resolve_promise(*promise);
-        return;
+        document.update_style();
+        auto const* misc_reset_values = style_group<CSS::ComputedValues::MiscResetValues>();
+        if (!misc_reset_values || misc_reset_values->scroll_snap_type_value().strictness == CSS::ScrollSnapStrictness::None) {
+            if (promise)
+                WebIDL::resolve_promise(*promise);
+            return;
+        }
     }
 
     // NB: Ensure that layout is up-to-date before looking at metrics.
@@ -5073,7 +5077,7 @@ void Element::scroll(Bindings::ScrollToOptions options, GC::Ptr<WebIDL::Promise>
     // 8. If the element is the root element, return the Promise returned by scroll() on window after the method is
     //    invoked with scrollX on window as first argument and y as second argument, and abort the remaining steps.
     if (document.document_element() == this) {
-        window->scroll(x, y, promise);
+        window->scroll(x, y, promise, relative_displacement);
         return;
     }
 
@@ -5081,7 +5085,7 @@ void Element::scroll(Bindings::ScrollToOptions options, GC::Ptr<WebIDL::Promise>
     //    scrollable, return the Promise returned by scroll() on window after the method is invoked with options as the
     //    only argument, and abort the remaining steps.
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable()) {
-        window->scroll(x, y, promise);
+        window->scroll(x, y, promise, relative_displacement);
         return;
     }
 
@@ -5099,7 +5103,7 @@ void Element::scroll(Bindings::ScrollToOptions options, GC::Ptr<WebIDL::Promise>
     //     options. Let scrollPromise be the Promise returned from this step.
     auto scroll_offset = CSSPixelPoint { CSSPixels::nearest_value_for(x), CSSPixels::nearest_value_for(y) };
     if (auto navigable = document.navigable()) {
-        auto scroll_promise = navigable->perform_a_scroll_of_an_element(*this, scroll_offset, options.behavior);
+        auto scroll_promise = navigable->perform_a_scroll_of_an_element(*this, scroll_offset, options.behavior, relative_displacement);
         if (promise)
             WebIDL::resolve_promise(*promise, scroll_promise->promise());
         (void)scroll_promise;
@@ -5143,7 +5147,8 @@ void Element::scroll_by(ScrollToOptions options, GC::Ptr<WebIDL::Promise> promis
     options.top = scroll_top() + top;
 
     // 5. Return the Promise returned by scroll() after the method is invoked with options as the only argument.
-    scroll(options, promise);
+    CSSPixelPoint relative_displacement { CSSPixels::nearest_value_for(left), CSSPixels::nearest_value_for(top) };
+    scroll(options, promise, relative_displacement);
 }
 
 // https://drafts.csswg.org/cssom-view-1/#dom-element-checkvisibility

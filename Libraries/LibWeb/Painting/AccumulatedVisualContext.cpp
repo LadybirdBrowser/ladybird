@@ -21,6 +21,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/Blending.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/ScrollState.h>
 
@@ -73,6 +74,20 @@ AccumulatedVisualContextTree AccumulatedVisualContextTree::create_with_content_o
         Gfx::translation_matrix(Vector3<float>(static_cast<float>(content_offset.x()), static_cast<float>(content_offset.y()), 0)),
         {},
     });
+}
+
+CSSPixelRect apply_css_transform_to_rect(Layout::Node const& box, CSSPixelRect const& rect)
+{
+    auto transform_data = rust_compute_css_transform(box, 1.0);
+    if (!transform_data.has_value())
+        return rect;
+
+    auto affine_transform = Gfx::extract_2d_affine_transform(transform_data->matrix);
+    auto transformed_rect = rect.to_type<float>();
+    transformed_rect.translate_by(-transform_data->origin);
+    transformed_rect = affine_transform.map(transformed_rect);
+    transformed_rect.translate_by(transform_data->origin);
+    return transformed_rect.to_type<CSSPixels>();
 }
 
 VisualContextIndex AccumulatedVisualContextTree::append(VisualContextData data, VisualContextIndex parent_index)

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	No snapping occurs if there is no valid snap position
+Pass	No snapping occurs if there is no valid snap position matches scroll-snap-type
+Pass	No snapping occurs when last remaining valid snap point is no longer valid.

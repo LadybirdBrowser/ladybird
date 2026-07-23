@@ -553,7 +553,11 @@ public:
     CSS::PointerEvents pointer_events() const { return style_group<CSS::ComputedValues::InheritedUIValues>().pointer_events_value(); }
     CSS::ScrollbarColorData scrollbar_color() const { return style_group<CSS::ComputedValues::InheritedUIValues>().scrollbar_color_value(); }
     CSS::Appearance appearance() const { return static_cast<CSS::Appearance>(style_group<CSS::ComputedValues::MiscResetValues>().appearance); }
+    CSS::LengthBox scroll_margin() const { return length_box(style_group<CSS::ComputedValues::MiscResetValues>().scroll_margin); }
     CSS::LengthBox scroll_padding() const { return length_box(style_group<CSS::ComputedValues::MiscResetValues>().scroll_padding); }
+    CSS::ScrollSnapAlignData scroll_snap_align() const { return style_group<CSS::ComputedValues::MiscResetValues>().scroll_snap_align_value(); }
+    CSS::ScrollSnapStop scroll_snap_stop() const { return static_cast<CSS::ScrollSnapStop>(style_group<CSS::ComputedValues::MiscResetValues>().scroll_snap_stop); }
+    CSS::ScrollSnapType scroll_snap_type() const { return style_group<CSS::ComputedValues::MiscResetValues>().scroll_snap_type_value(); }
     CSS::ScrollbarWidth scrollbar_width() const { return static_cast<CSS::ScrollbarWidth>(style_group<CSS::ComputedValues::MiscResetValues>().scrollbar_width); }
     CSS::UserSelect user_select() const { return static_cast<CSS::UserSelect>(style_group<CSS::ComputedValues::MiscResetValues>().user_select); }
     CSS::WillChange will_change() const { return style_group<CSS::ComputedValues::MiscResetValues>().will_change_value(); }

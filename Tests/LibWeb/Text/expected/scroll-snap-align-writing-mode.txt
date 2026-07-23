@@ -1,0 +1,3 @@
+scroll offset with horizontal-tb and ltr: 900,0
+scroll offset with horizontal-tb and rtl: -900,0
+scroll offset with vertical-rl and ltr: -900,0
