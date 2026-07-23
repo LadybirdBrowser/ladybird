@@ -83,7 +83,7 @@ public:
 
     void wait_until_readable();
 
-    void post_message(MessageDataType, Vector<Attachment>& attachments);
+    ErrorOr<void> post_message(MessageDataType, Vector<Attachment>& attachments);
 
     enum class ShouldShutdown {
         No,

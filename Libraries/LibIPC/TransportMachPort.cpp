@@ -489,13 +489,14 @@ void TransportMachPort::wait_until_readable()
         m_incoming_cv.wait();
 }
 
-void TransportMachPort::post_message(MessageDataType bytes, Vector<Attachment>& attachments)
+ErrorOr<void> TransportMachPort::post_message(MessageDataType bytes, Vector<Attachment>& attachments)
 {
     {
         Sync::MutexLocker locker(m_send_mutex);
         m_pending_send_messages.append(PendingMessage { move(bytes), move(attachments) });
     }
     wake_io_thread();
+    return {};
 }
 
 TransportMachPort::ShouldShutdown TransportMachPort::read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&& callback)

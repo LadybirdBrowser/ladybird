@@ -153,7 +153,7 @@ TEST_CASE(message_arriving_just_before_eof_is_not_dropped_on_shutdown)
         IPC::MessageDataType payload;
         payload.append(hello.data(), hello.size());
         Vector<IPC::Attachment> no_attachments;
-        peer.post_message(move(payload), no_attachments);
+        MUST(peer.post_message(move(payload), no_attachments));
         peer.close_after_sending_all_pending_messages();
     }
 
@@ -211,7 +211,7 @@ TEST_CASE(buffered_message_is_drained_when_io_thread_stops_without_reading_it)
         IPC::MessageDataType payload;
         payload.append(hello.data(), hello.size());
         Vector<IPC::Attachment> no_attachments;
-        peer.post_message(move(payload), no_attachments);
+        MUST(peer.post_message(move(payload), no_attachments));
         peer.close_after_sending_all_pending_messages();
     }
 

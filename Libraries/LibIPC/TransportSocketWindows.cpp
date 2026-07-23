@@ -175,17 +175,17 @@ Attachment TransportSocketWindows::deserialize_attachment(ReadonlyBytes& seriali
     VERIFY_NOT_REACHED();
 }
 
-void TransportSocketWindows::post_message(MessageDataType bytes, Vector<Attachment>& attachments)
+ErrorOr<void> TransportSocketWindows::post_message(MessageDataType bytes, Vector<Attachment>& attachments)
 {
     VERIFY(bytes.size() <= MAX_MESSAGE_PAYLOAD_SIZE);
     VERIFY(attachments.size() <= MAX_MESSAGE_FD_COUNT);
 
     auto attachment_count = attachments.size();
-    auto serialized_attachments = MUST(serialize_attachments(attachments));
+    auto serialized_attachments = TRY(serialize_attachments(attachments));
     VERIFY(serialized_attachments.size() <= MAX_ATTACHMENT_DATA_SIZE);
 
     Vector<u8> message_buffer;
-    MUST(message_buffer.try_resize(sizeof(MessageHeader) + serialized_attachments.size() + bytes.size()));
+    TRY(message_buffer.try_resize(sizeof(MessageHeader) + serialized_attachments.size() + bytes.size()));
 
     MessageHeader header {
         .payload_size = static_cast<u32>(bytes.size()),
@@ -202,7 +202,8 @@ void TransportSocketWindows::post_message(MessageDataType bytes, Vector<Attachme
     if (!bytes.is_empty())
         memcpy(payload_storage, bytes.data(), bytes.size());
 
-    MUST(transfer(message_buffer.span()));
+    TRY(transfer(message_buffer.span()));
+    return {};
 }
 
 ErrorOr<void> TransportSocketWindows::transfer(ReadonlyBytes bytes_to_write)

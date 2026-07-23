@@ -338,7 +338,7 @@ static constexpr size_t MAX_UNPROCESSED_BUFFER_SIZE = 128 * MiB;
 // Maximum number of accumulated unprocessed file descriptors before we disconnect the peer
 static constexpr size_t MAX_UNPROCESSED_FDS = 512;
 
-void TransportSocket::post_message(MessageDataType bytes_to_write, Vector<Attachment>& attachments)
+ErrorOr<void> TransportSocket::post_message(MessageDataType bytes_to_write, Vector<Attachment>& attachments)
 {
     auto num_fds_to_transfer = attachments.size();
 
@@ -362,6 +362,7 @@ void TransportSocket::post_message(MessageDataType bytes_to_write, Vector<Attach
 
     m_send_queue->enqueue_message(header, move(bytes_to_write), move(raw_fds));
     wake_io_thread();
+    return {};
 }
 
 ErrorOr<void> TransportSocket::send_message(Core::LocalSocket& socket, ReadonlyBytes& bytes_to_write, Vector<int>& unowned_fds)
