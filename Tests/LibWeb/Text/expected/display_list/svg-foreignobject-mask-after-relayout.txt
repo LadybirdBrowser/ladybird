@@ -3,7 +3,7 @@ AccumulatedVisualContext Tree:
     [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
       [2] clip=[8,8 100x100]
         [3] mask=[-2,-2 119x119] kind=luminance origin=svg-mask (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
-          [6] clip=[9,8 100x100] (PaintableWithLines(BlockContainer(anonymous)))
+          [4] clip=[9,8 100x100] (PaintableWithLines(BlockContainer(anonymous)))
 
 DisplayList:
 SaveLayer@0
@@ -13,13 +13,9 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x100]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 100x100]
   CompositorWheelHitTestTarget@3 target_scroll_node_index=0 rect=[9,8 100x100]
-  CompositorWheelHitTestTarget@6 target_scroll_node_index=0 rect=[9,8 100x100]
-  FillRect@6 rect=[9,8 100x100] color=rgb(0, 0, 0)
+  CompositorWheelHitTestTarget@4 target_scroll_node_index=0 rect=[9,8 100x100]
+  FillRect@4 rect=[9,8 100x100] color=rgb(0, 0, 0)
 Restore@0
 MaskDisplayList for context 3:
-  FillPath@0 path_bounding_rect=[8,8 100x100]
-MaskDisplayList for context 4:
-  FillPath@0 path_bounding_rect=[8,8 100x100]
-MaskDisplayList for context 5:
   FillPath@0 path_bounding_rect=[8,8 100x100]
 
