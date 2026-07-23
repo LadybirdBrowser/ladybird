@@ -40,6 +40,8 @@ public:
     bool contains_size_feature() const;
     bool contains_style_feature() const;
 
+    void mark_element_style_dependencies(DOM::AbstractElement&) const;
+
     Utf16String container_name() const;
     Utf16String container_query() const;
 

@@ -202,6 +202,15 @@ bool CSSContainerRule::contains_style_feature() const
     return false;
 }
 
+void CSSContainerRule::mark_element_style_dependencies(DOM::AbstractElement& abstract_element) const
+{
+    if (contains_size_feature())
+        abstract_element.element().set_style_depends_on_size_container_query();
+
+    if (contains_style_feature())
+        abstract_element.element().set_style_depends_on_style_container_query();
+}
+
 // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
 Utf16String CSSContainerRule::serialized() const
 {

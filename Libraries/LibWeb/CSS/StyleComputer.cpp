@@ -815,10 +815,8 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
             auto const contains_style_feature = rule.container_rule->contains_style_feature();
 
             if (contains_size_feature || contains_style_feature) {
-                if (contains_size_feature)
-                    abstract_element.element().set_style_depends_on_size_container_query();
-                if (contains_style_feature)
-                    abstract_element.element().set_style_depends_on_style_container_query();
+                rule.container_rule->mark_element_style_dependencies(abstract_element);
+
                 if (!rule.container_rule->matches(abstract_element))
                     continue;
             }
