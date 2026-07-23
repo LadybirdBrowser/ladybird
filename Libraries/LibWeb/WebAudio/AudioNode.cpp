@@ -7,11 +7,45 @@
 
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioNode.h>
+#include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
+#include <LibWeb/WebAudio/ControlMessage.h>
 
 namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioNode);
+
+// Copies the current channel configuration into the given render node and transfers it to the rendering thread.
+// Must be called at the end of a node's construction, after all options have been applied.
+void AudioNode::queue_render_node_creation(NonnullOwnPtr<Rendering::RenderNode> render_node)
+{
+    render_node->set_channel_count(m_channel_count);
+    render_node->set_channel_count_mode(m_channel_count_mode);
+    render_node->set_channel_interpretation(m_channel_interpretation);
+    m_context->queue_control_message(AddNode { move(render_node) });
+}
+
+// Sends a full snapshot of this node's outgoing connections to the rendering thread.
+void AudioNode::queue_connection_update()
+{
+    Vector<Rendering::RenderNode::OutgoingNodeConnection> node_connections;
+    node_connections.ensure_capacity(m_output_connections.size());
+    for (auto const& connection : m_output_connections)
+        node_connections.unchecked_append({ connection.destination_node->node_id(), connection.output, connection.input });
+
+    Vector<Rendering::RenderNode::OutgoingParamConnection> param_connections;
+    param_connections.ensure_capacity(m_param_connections.size());
+    for (auto const& connection : m_param_connections)
+        param_connections.unchecked_append({ connection.destination_param->render_param(), connection.output });
+
+    m_context->queue_control_message(ReplaceConnections { node_id(), move(node_connections), move(param_connections) });
+}
+
+// Sends the current channel configuration to the rendering thread.
+void AudioNode::queue_channel_config_update()
+{
+    m_context->queue_control_message(SetChannelConfig { node_id(), m_channel_count, m_channel_count_mode, m_channel_interpretation });
+}
 
 AudioNode::AudioNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, WebIDL::UnsignedLong channel_count)
     : DOM::EventTarget(realm)
@@ -23,6 +57,16 @@ AudioNode::AudioNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, WebIDL
 }
 
 AudioNode::~AudioNode() = default;
+
+// The rendering loop processes "the set of all nodes created by this BaseAudioContext, and still alive", so a node that
+// is no longer reachable from script or from the audio graph retires its render node here.
+// NB: Finalization runs before any cell is destroyed, so the context is still safe to reach from here.
+// https://webaudio.github.io/web-audio-api/#rendering-loop
+void AudioNode::finalize()
+{
+    Base::finalize();
+    m_context->queue_control_message(RemoveNode { m_node_id });
+}
 
 WebIDL::ExceptionOr<void> AudioNode::initialize_audio_node_options(Bindings::AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options)
 {
@@ -84,6 +128,8 @@ WebIDL::ExceptionOr<GC::Ref<AudioNode>> AudioNode::connect(GC::Ref<AudioNode> de
     // Connect destination_node input to node's output.
     destination_node->m_input_connections.append(input_connection);
 
+    queue_connection_update();
+
     return destination_node;
 }
 
@@ -114,6 +160,8 @@ WebIDL::ExceptionOr<void> AudioNode::connect(GC::Ref<AudioParam> destination_par
     // Connect node's output to destination_param.
     m_param_connections.append(param_connection);
 
+    queue_connection_update();
+
     return {};
 }
 
@@ -130,6 +178,8 @@ void AudioNode::disconnect()
     }
 
     m_param_connections.clear();
+
+    queue_connection_update();
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-output
@@ -157,6 +207,8 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(WebIDL::UnsignedLong output)
         return connection.output == output;
     });
 
+    queue_connection_update();
+
     return {};
 }
 
@@ -180,6 +232,8 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
     if (m_output_connections.size() == before) {
         return WebIDL::InvalidAccessError::create(realm(), Utf16String::formatted("No connection to given AudioNode"));
     }
+
+    queue_connection_update();
 
     return {};
 }
@@ -210,6 +264,8 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
     if (m_output_connections.size() == before) {
         return WebIDL::InvalidAccessError::create(realm(), Utf16String::formatted("No connection from output {} to given AudioNode", output));
     }
+
+    queue_connection_update();
 
     return {};
 }
@@ -247,6 +303,8 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
         return WebIDL::InvalidAccessError::create(realm(), Utf16String::formatted("No connection from output {} to input {} of given AudioNode", output, input));
     }
 
+    queue_connection_update();
+
     return {};
 }
 
@@ -263,6 +321,8 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioParam> destination_
     if (m_param_connections.size() == before) {
         return WebIDL::InvalidAccessError::create(realm(), Utf16String::formatted("No connection to given AudioParam"));
     }
+
+    queue_connection_update();
 
     return {};
 }
@@ -286,6 +346,8 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioParam> destination_
         return WebIDL::InvalidAccessError::create(realm(), Utf16String::formatted("No connection from output {} to given AudioParam", output));
     }
 
+    queue_connection_update();
+
     return {};
 }
 
@@ -298,6 +360,7 @@ WebIDL::ExceptionOr<void> AudioNode::set_channel_count(WebIDL::UnsignedLong chan
         return WebIDL::NotSupportedError::create(realm(), "Invalid channel count"_utf16);
 
     m_channel_count = channel_count;
+    queue_channel_config_update();
     return {};
 }
 
@@ -305,6 +368,7 @@ WebIDL::ExceptionOr<void> AudioNode::set_channel_count(WebIDL::UnsignedLong chan
 WebIDL::ExceptionOr<void> AudioNode::set_channel_count_mode(Bindings::ChannelCountMode channel_count_mode)
 {
     m_channel_count_mode = channel_count_mode;
+    queue_channel_config_update();
     return {};
 }
 
@@ -318,6 +382,7 @@ Bindings::ChannelCountMode AudioNode::channel_count_mode()
 WebIDL::ExceptionOr<void> AudioNode::set_channel_interpretation(Bindings::ChannelInterpretation channel_interpretation)
 {
     m_channel_interpretation = channel_interpretation;
+    queue_channel_config_update();
     return {};
 }
 
