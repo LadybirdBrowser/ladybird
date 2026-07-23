@@ -173,6 +173,22 @@ TEST_CASE(changed_visual_context_damages_affected_commands)
     EXPECT_EQ(*damage, (Gfx::IntRect { 9, 9, 32, 22 }));
 }
 
+TEST_CASE(mask_visual_context_damages_affected_commands)
+{
+    auto old_visual_context_tree = AccumulatedVisualContextTree::create();
+    auto old_mask_context = old_visual_context_tree.append(MaskData { .rect = Web::DevicePixelRect { 0, 0, 100, 100 } }, VISUAL_VIEWPORT_NODE_INDEX);
+
+    auto new_visual_context_tree = AccumulatedVisualContextTree::create();
+    new_visual_context_tree.append(MaskData { .rect = Web::DevicePixelRect { 0, 0, 100, 100 } }, VISUAL_VIEWPORT_NODE_INDEX);
+
+    auto display_list = command_bytes(FillRect { { 10, 10, 20, 20 }, Gfx::Color::Red }, Gfx::IntRect { 10, 10, 20, 20 }, old_mask_context);
+    ScrollStateSnapshot scroll_state;
+
+    auto damage = compute_display_list_damage(display_list, old_visual_context_tree, scroll_state, display_list, new_visual_context_tree, scroll_state, { 0, 0, 100, 100 });
+    EXPECT(damage.has_value());
+    EXPECT_EQ(*damage, (Gfx::IntRect { 9, 9, 22, 22 }));
+}
+
 TEST_CASE(unrelated_inserted_visual_context_does_not_damage_commands)
 {
     auto old_visual_context_tree = AccumulatedVisualContextTree::create();

@@ -9501,6 +9501,16 @@ Utf16String Document::dump_display_list()
                 if (nesting_change > 0)
                     indent += nesting_change;
             });
+
+            auto mask_context_indices = list.mask_display_lists().keys();
+            insertion_sort(mask_context_indices);
+            for (auto context_index : mask_context_indices) {
+                builder.append_repeated(' ', base_indent * 2);
+                builder.appendff("MaskDisplayList for context {}:\n", context_index.value());
+                auto display_list_id = list.mask_display_list_id(context_index).release_value();
+                auto& mask_display_list = resource_storage.display_list(display_list_id);
+                dump_commands(mask_display_list, base_indent + 1);
+            }
         };
 
     dump_commands(*display_list, 0);

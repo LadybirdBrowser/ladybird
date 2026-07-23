@@ -320,6 +320,13 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
             requires_direct_replay = true;
     }
 
+    auto recurse_into_nested_display_list = [&](DisplayListResourceId nested_display_list_id) {
+        if (visited_display_lists.set(nested_display_list_id.value()) != HashSetResult::InsertedNewEntry)
+            return;
+        if (has_display_list(nested_display_list_id))
+            requires_direct_replay = requires_direct_replay || nested_display_list_requires_direct_replay(nested_display_list_id, visited_display_lists);
+    };
+
     Vector<bool, 32> save_stack_entry_is_layer;
     u64 layer_depth = 0;
     DisplayList::for_each_command_header(list_resource.display_list->command_bytes(), [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
@@ -350,13 +357,13 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
                 //     matter when this command is not enclosed in a layer; recursing unconditionally is slightly
                 //     conservative for the latter. Pattern tile display lists are always rasterized into
                 //     standalone surfaces and cannot read the destination, so they are not followed.
-                if (visited_display_lists.set(command.display_list_id.value()) == HashSetResult::InsertedNewEntry) {
-                    if (m_display_lists.contains(command.display_list_id.value()))
-                        requires_direct_replay = nested_display_list_requires_direct_replay(command.display_list_id, visited_display_lists);
-                }
+                recurse_into_nested_display_list(command.display_list_id);
             }
         });
     });
+
+    for (auto const& mask_display_list : list_resource.display_list->mask_display_lists())
+        recurse_into_nested_display_list(mask_display_list.value);
 
     resource.requires_direct_replay = requires_direct_replay;
     return requires_direct_replay;
@@ -373,10 +380,7 @@ void DisplayListResourceStorage::collect_referenced_resources(
     DisplayListResourceSet& referenced_resources) const
 {
     auto add_display_list_resource = [&](DisplayListResourceId id) {
-        if (referenced_resources.display_lists.set(id, AK::HashSetExistingEntryBehavior::Keep) != HashSetResult::InsertedNewEntry)
-            return;
-        auto const& nested_display_list = display_list(id);
-        collect_referenced_resources(nested_display_list.command_bytes(), referenced_resources);
+        add_referenced_display_list(id, referenced_resources);
     };
 
     DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
@@ -415,6 +419,24 @@ void DisplayListResourceStorage::collect_referenced_resources(
     });
 }
 
+void DisplayListResourceStorage::collect_referenced_resources(
+    DisplayList const& display_list,
+    DisplayListResourceSet& referenced_resources) const
+{
+    collect_referenced_resources(display_list.command_bytes(), referenced_resources);
+    for (auto const& mask_display_list : display_list.mask_display_lists())
+        add_referenced_display_list(mask_display_list.value, referenced_resources);
+}
+
+void DisplayListResourceStorage::add_referenced_display_list(DisplayListResourceId id, DisplayListResourceSet& referenced_resources) const
+{
+    if (referenced_resources.display_lists.set(id, AK::HashSetExistingEntryBehavior::Keep) != HashSetResult::InsertedNewEntry)
+        return;
+    if (!has_display_list(id))
+        return;
+    collect_referenced_resources(display_list(id), referenced_resources);
+}
+
 DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(ReadonlyBytes command_bytes) const
 {
     DisplayListResourceSet referenced_resources;
@@ -424,7 +446,9 @@ DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(
 
 DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(DisplayList const& display_list) const
 {
-    return collect_referenced_resources(display_list.command_bytes());
+    DisplayListResourceSet referenced_resources;
+    collect_referenced_resources(display_list, referenced_resources);
+    return referenced_resources;
 }
 
 DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(

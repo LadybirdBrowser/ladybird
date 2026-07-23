@@ -35,11 +35,12 @@ DisplayList::DisplayList(u64 compatible_visual_context_tree_version)
 {
 }
 
-DisplayList::DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<AsyncScrollingMetadata> async_scrolling_metadata)
+DisplayList::DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<AsyncScrollingMetadata> async_scrolling_metadata, HashMap<VisualContextIndex, DisplayListResourceId>&& mask_display_lists)
     : m_compatible_visual_context_tree_version(compatible_visual_context_tree_version)
     , m_id(id)
     , m_command_bytes(move(command_bytes))
     , m_async_scrolling_metadata(move(async_scrolling_metadata))
+    , m_mask_display_lists(move(mask_display_lists))
 {
 }
 
@@ -232,7 +233,8 @@ void DisplayListPlayer::execute_impl(
             },
             [&](ClipData const&) { append_non_spatial(); },
             [&](ClipPathData const&) { append_non_spatial(); },
-            [&](EffectsData const&) { append_non_spatial(); });
+            [&](EffectsData const&) { append_non_spatial(); },
+            [&](MaskData const&) { append_non_spatial(); });
     }
 
     // The palette entry the canvas matrix currently equals, if known; every Restore resets the
@@ -247,10 +249,8 @@ void DisplayListPlayer::execute_impl(
         current_ctm_space = space_node_index;
     };
 
-    // One entry of the applied/target context: a clip or effect node on the target's root chain,
-    // each holding exactly one canvas save (a Save for clips, the layer pushed by ApplyEffects for
-    // effects), so unwinding is one Restore per popped frame. Geometry-only commands target an
-    // empty frame list: their coordinates come entirely from the palette.
+    // Each applied/target frame pushes and pops the canvas state according to its node kind;
+    // geometry-only commands target an empty frame list and take their coordinates from the palette.
     Vector<VisualContextIndex, 16> applied_frames;
     Vector<VisualContextIndex, 16> target_frames;
     Optional<VisualContextIndex> applied_context_index;
@@ -268,18 +268,46 @@ void DisplayListPlayer::execute_impl(
         target_frames.reverse();
     };
 
+    size_t applied_mask_frame_count = 0;
     auto restore_to_length = [&](size_t length) {
-        if (applied_frames.size() > length)
-            current_ctm_space = {};
         while (applied_frames.size() > length) {
-            play_command(Restore {});
-            applied_frames.take_last();
+            auto frame_node_index = applied_frames.take_last();
+            auto const* mask = applied_mask_frame_count > 0
+                ? visual_context_tree.node_at(frame_node_index).data.get_pointer<MaskData>()
+                : nullptr;
+            if (mask) {
+                --applied_mask_frame_count;
+                ensure_ctm_space(frame_node_index);
+                play_command(ApplyEffects {
+                                 .opacity = 1.0f,
+                                 .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::DestinationIn,
+                                 .has_filter = false,
+                                 .filter_data = {},
+                                 .has_mask_kind = mask->kind == Gfx::MaskKind::Luminance,
+                                 .mask_kind = mask->kind,
+                             },
+                    nullptr);
+                if (auto display_list_id = display_list.mask_display_list_id(frame_node_index);
+                    display_list_id.has_value() && resource_storage().has_display_list(*display_list_id)) {
+                    play_command(PaintNestedDisplayList {
+                        .display_list_id = *display_list_id,
+                        .rect = mask->rect.to_type<int>(),
+                    });
+                }
+                play_command(Restore {}); // DstIn layer
+                play_command(Restore {}); // content layer
+                play_command(Restore {}); // clip save
+            } else {
+                play_command(Restore {});
+            }
+            current_ctm_space = {};
         }
     };
 
-    // OPTIMIZATION: When walking down to apply effects (opacity, filters, blend modes), check culling before applying
-    //               each effect. Effects don't affect clip state, so the culling check is valid before applying them.
-    //               This avoids expensive saveLayer/restore cycles for off-screen elements with effects like blur.
+    // OPTIMIZATION: When walking down to layer-pushing frames (effects and masks), check culling before pushing
+    //               each one. Effects don't affect clip state and a mask push only narrows it, so testing against
+    //               the pre-push clip is conservative and valid. This avoids expensive saveLayer/restore cycles
+    //               for off-screen elements.
     enum class SwitchResult : u8 {
         Switched,
         CulledByEffect,
@@ -297,22 +325,24 @@ void DisplayListPlayer::execute_impl(
         for (size_t i = common_prefix_length; i < target_frames.size(); ++i) {
             auto frame_node_index = target_frames[i];
             auto const& frame_node = visual_context_tree.node_at(frame_node_index);
-            if (auto const* effects = frame_node.data.get_pointer<EffectsData>()) {
-                if (bounding_rect.has_value()) {
-                    bool culled_by_effect = bounding_rect->is_empty();
-                    if (!culled_by_effect) {
-                        ensure_ctm_space(target_index);
-                        culled_by_effect = would_be_fully_clipped_by_painter(*bounding_rect);
-                    }
-                    if (culled_by_effect) {
-                        restore_to_length(common_prefix_length);
-                        // The canvas is unwound to the shared prefix; clearing the applied index
-                        // keeps the fast path from reusing the pre-cull context while the frame
-                        // vector still enables prefix reuse on the next switch.
-                        applied_context_index = {};
-                        return SwitchResult::CulledByEffect;
-                    }
+            auto const* effects = frame_node.data.get_pointer<EffectsData>();
+            bool pushes_layer = effects || frame_node.data.has<MaskData>();
+            if (pushes_layer && bounding_rect.has_value()) {
+                bool culled_by_layer_frame = bounding_rect->is_empty();
+                if (!culled_by_layer_frame) {
+                    ensure_ctm_space(target_index);
+                    culled_by_layer_frame = would_be_fully_clipped_by_painter(*bounding_rect);
                 }
+                if (culled_by_layer_frame) {
+                    restore_to_length(common_prefix_length);
+                    // The canvas is unwound to the shared prefix; clearing the applied index
+                    // keeps the fast path from reusing the pre-cull context while the frame
+                    // vector still enables prefix reuse on the next switch.
+                    applied_context_index = {};
+                    return SwitchResult::CulledByEffect;
+                }
+            }
+            if (effects) {
                 ensure_ctm_space(frame_node_index);
                 play_command(ApplyEffects {
                                  .opacity = effects->opacity,
@@ -338,6 +368,11 @@ void DisplayListPlayer::execute_impl(
                     },
                     [&](ClipPathData const& clip_path) {
                         add_clip_path(clip_path.path, clip_path.fill_rule);
+                    },
+                    [&](MaskData const& mask) {
+                        play_command(AddClipRect { .rect = mask.rect.to_type<int>() });
+                        play_command(SaveLayer {});
+                        ++applied_mask_frame_count;
                     },
                     [&](auto const&) { VERIFY_NOT_REACHED(); });
             }
@@ -439,6 +474,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayList const& display
     TRY(encoder.encode(display_list.m_command_bytes));
     TRY(encoder.encode(display_list.m_compatible_visual_context_tree_version));
     TRY(encoder.encode(display_list.m_async_scrolling_metadata));
+    TRY(encoder.encode(display_list.m_mask_display_lists));
     return {};
 }
 
@@ -455,7 +491,8 @@ ErrorOr<NonnullRefPtr<Web::Painting::DisplayList>> decode(Decoder& decoder)
     auto command_bytes = TRY(decoder.decode<ByteBuffer>());
     auto compatible_visual_context_tree_version = TRY(decoder.decode<u64>());
     auto async_scrolling_metadata = TRY(decoder.decode<Optional<Web::Painting::DisplayList::AsyncScrollingMetadata>>());
-    return adopt_ref(*new Web::Painting::DisplayList(compatible_visual_context_tree_version, id, move(command_bytes), move(async_scrolling_metadata)));
+    auto mask_display_lists = TRY(decoder.decode<HashMap<Web::Painting::VisualContextIndex, Web::Painting::DisplayListResourceId>>());
+    return adopt_ref(*new Web::Painting::DisplayList(compatible_visual_context_tree_version, id, move(command_bytes), move(async_scrolling_metadata), move(mask_display_lists)));
 }
 
 }

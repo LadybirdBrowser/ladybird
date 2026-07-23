@@ -44,6 +44,10 @@ TEST_CASE(compatibility_requires_same_shape)
     different_type_tree.append(EffectsData {}, VISUAL_VIEWPORT_NODE_INDEX);
     EXPECT(!different_type_tree.is_compatible_with(tree));
 
+    auto mask_tree = AccumulatedVisualContextTree::create();
+    mask_tree.append(MaskData { .rect = Web::DevicePixelRect { 0, 0, 1, 1 } }, VISUAL_VIEWPORT_NODE_INDEX);
+    EXPECT(!mask_tree.is_compatible_with(tree));
+
     auto different_parent_tree = AccumulatedVisualContextTree::create();
     auto parent = different_parent_tree.append(make_transform(1), VISUAL_VIEWPORT_NODE_INDEX);
     different_parent_tree.append(make_transform(2), parent);
@@ -64,6 +68,20 @@ TEST_CASE(compatibility_requires_same_empty_effective_clip)
     non_empty_clip_tree.append(ClipData { Web::DevicePixelRect { 0, 0, 1, 1 }, {} }, VISUAL_VIEWPORT_NODE_INDEX);
 
     EXPECT(!empty_clip_tree.is_compatible_with(non_empty_clip_tree));
+}
+
+TEST_CASE(mask_data_contributes_to_empty_effective_clip)
+{
+    auto tree = AccumulatedVisualContextTree::create();
+    auto non_empty_mask = tree.append(MaskData { .rect = Web::DevicePixelRect { 0, 0, 1, 1 } }, VISUAL_VIEWPORT_NODE_INDEX);
+    EXPECT(!tree.has_empty_effective_clip(non_empty_mask));
+
+    auto empty_mask = tree.append(MaskData { .rect = Web::DevicePixelRect {} }, VISUAL_VIEWPORT_NODE_INDEX);
+    EXPECT(tree.has_empty_effective_clip(empty_mask));
+
+    auto empty_parent = tree.append(ClipData { Web::DevicePixelRect {}, {} }, VISUAL_VIEWPORT_NODE_INDEX);
+    auto inherited_empty_clip = tree.append(MaskData { .rect = Web::DevicePixelRect { 0, 0, 1, 1 } }, empty_parent);
+    EXPECT(tree.has_empty_effective_clip(inherited_empty_clip));
 }
 
 TEST_CASE(compatibility_requires_same_visual_context_types)

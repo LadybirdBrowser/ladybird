@@ -95,6 +95,7 @@ public:
     VideoFrameResourceId add_video_frame(VideoFrameResourceId, RefPtr<Media::VideoFrame const> = nullptr);
     DisplayListResourceId add_display_list(NonnullRefPtr<DisplayList const>, AccumulatedVisualContextTree const&);
     DisplayListResourceId add_display_list(DisplayListResource&&);
+    bool has_display_list(DisplayListResourceId id) const { return m_display_lists.contains(id.value()); }
     void set_font(FontResourceId, NonnullRefPtr<Gfx::Font const>);
     void set_image_frame(ImageFrameResourceId, Gfx::DecodedImageFrame);
     void apply_transaction(DisplayListResourceTransaction&&);
@@ -120,6 +121,8 @@ public:
 
 private:
     void collect_referenced_resources(ReadonlyBytes command_bytes, DisplayListResourceSet&) const;
+    void collect_referenced_resources(DisplayList const&, DisplayListResourceSet&) const;
+    void add_referenced_display_list(DisplayListResourceId, DisplayListResourceSet&) const;
     bool nested_display_list_requires_direct_replay(DisplayListResourceId, HashTable<u64>& visited_display_lists) const;
 
     HashMap<u64, NonnullRefPtr<Gfx::Font const>> m_fonts;

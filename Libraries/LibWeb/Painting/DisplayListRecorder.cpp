@@ -278,6 +278,13 @@ void DisplayListRecorder::paint_nested_display_list(DisplayListResource const& d
     });
 }
 
+void DisplayListRecorder::register_mask_display_list(ReadonlySpan<VisualContextIndex> context_indices, DisplayListResource const& display_list)
+{
+    auto display_list_id = resource_storage().add_display_list(display_list.display_list, display_list.visual_context_tree);
+    for (auto context_index : context_indices)
+        m_display_list.set_mask_display_list_id(context_index, display_list_id);
+}
+
 void DisplayListRecorder::add_rounded_rect_clip(Gfx::CornerRadii corner_radii, Gfx::IntRect border_rect, Gfx::CornerClip corner_clip)
 {
     append_command(AddRoundedRectClip { corner_radii, border_rect, corner_clip });

@@ -151,6 +151,10 @@ static bool visual_context_data_is_equal(VisualContextIndex a_index, VisualConte
                 && data.opacity == other->opacity
                 && data.blend_mode == other->blend_mode;
         },
+        [&](MaskData const&) {
+            // Mask content is per-recording and invisible here, so mask chains always damage.
+            return false;
+        },
         [&](ScrollCompensation const& data) {
             auto const* other = b.get_pointer<ScrollCompensation>();
             return other

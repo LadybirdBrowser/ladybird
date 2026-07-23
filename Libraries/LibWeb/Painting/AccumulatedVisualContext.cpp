@@ -727,6 +727,8 @@ VisualContextIndex AccumulatedVisualContextTree::append(VisualContextData data, 
         empty_clip = data.get<ClipData>().rect.is_empty();
     } else if (data.has<ClipPathData>()) {
         empty_clip = data.get<ClipPathData>().path.bounding_box().is_empty();
+    } else if (data.has<MaskData>()) {
+        empty_clip = data.get<MaskData>().rect.is_empty();
     }
 
     auto index = VisualContextIndex(m_nodes.size());
@@ -840,6 +842,9 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
                 // Effects don't affect coordinate transforms
                 return point;
             },
+            [&](MaskData const&) -> Optional<Gfx::FloatPoint> {
+                return point;
+            },
             [&](ScrollCompensation const& compensation) -> Optional<Gfx::FloatPoint> {
                 point.translate_by(scroll_state.device_offset_for_index(compensation.scroll_node_index));
                 return point;
@@ -914,7 +919,8 @@ Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualCo
                 },
                 [&](ClipData const&) { /* clips don't affect rect coordinates */ },
                 [&](ClipPathData const&) { /* clip paths don't affect rect coordinates */ },
-                [&](EffectsData const&) { /* effects don't affect rect coordinates */ });
+                [&](EffectsData const&) { /* effects don't affect rect coordinates */ },
+                [&](MaskData const&) {});
         }
         if (i == VISUAL_VIEWPORT_NODE_INDEX.value())
             break;
@@ -983,6 +989,22 @@ void AccumulatedVisualContextTree::dump(VisualContextIndex index, StringBuilder&
                 has_content = true;
             }
             builder.append("]"sv);
+        },
+        [&](MaskData const& mask) {
+            auto const& rect = mask.rect;
+            auto kind = mask.kind == Gfx::MaskKind::Alpha ? "alpha"sv : "luminance"sv;
+            auto origin = [&] {
+                switch (mask.origin) {
+                case MaskLayerOrigin::CssMaskLayers:
+                    return "css-mask-layers"sv;
+                case MaskLayerOrigin::SvgMask:
+                    return "svg-mask"sv;
+                case MaskLayerOrigin::SvgClip:
+                    return "svg-clip"sv;
+                }
+                VERIFY_NOT_REACHED();
+            }();
+            builder.appendff("mask=[{},{} {}x{}] kind={} origin={}", rect.x(), rect.y(), rect.width(), rect.height(), kind, origin);
         },
         [&](ScrollCompensation const& compensation) {
             builder.appendff("scroll_compensation(node_index={})", compensation.scroll_node_index.value());
@@ -1098,6 +1120,25 @@ ErrorOr<Web::Painting::EffectsData> decode(Decoder& decoder)
         .opacity = TRY(decoder.decode<float>()),
         .blend_mode = TRY(decoder.decode<Gfx::CompositingAndBlendingOperator>()),
         .gfx_filter = TRY(decoder.decode<Optional<Gfx::Filter>>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::MaskData const& data)
+{
+    TRY(encoder.encode(data.rect));
+    TRY(encoder.encode(data.kind));
+    TRY(encoder.encode(data.origin));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Painting::MaskData> decode(Decoder& decoder)
+{
+    return Web::Painting::MaskData {
+        .rect = TRY(decoder.decode<Web::DevicePixelRect>()),
+        .kind = TRY(decoder.decode<Gfx::MaskKind>()),
+        .origin = TRY(decoder.decode<Web::Painting::MaskLayerOrigin>()),
     };
 }
 

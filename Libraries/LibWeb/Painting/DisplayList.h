@@ -125,6 +125,9 @@ public:
     ReadonlyBytes command_bytes() const { return m_command_bytes.span(); }
     void set_async_scrolling_metadata(AsyncScrollingMetadata metadata) { m_async_scrolling_metadata = metadata; }
     Optional<AsyncScrollingMetadata> const& async_scrolling_metadata() const { return m_async_scrolling_metadata; }
+    Optional<DisplayListResourceId> mask_display_list_id(VisualContextIndex context_index) const { return m_mask_display_lists.get(context_index); }
+    void set_mask_display_list_id(VisualContextIndex context_index, DisplayListResourceId display_list_id) { m_mask_display_lists.set(context_index, display_list_id); }
+    HashMap<VisualContextIndex, DisplayListResourceId> const& mask_display_lists() const { return m_mask_display_lists; }
 
     static constexpr size_t command_alignment = 16;
 
@@ -154,7 +157,7 @@ public:
 
 private:
     explicit DisplayList(u64 compatible_visual_context_tree_version);
-    DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<AsyncScrollingMetadata>);
+    DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<AsyncScrollingMetadata>, HashMap<VisualContextIndex, DisplayListResourceId>&& mask_display_lists);
 
     static Optional<Gfx::IntRect> command_bounding_rectangle(auto const& command)
     {
@@ -186,6 +189,7 @@ private:
     u64 m_id { 0 };
     ByteBuffer m_command_bytes;
     Optional<AsyncScrollingMetadata> m_async_scrolling_metadata;
+    HashMap<VisualContextIndex, DisplayListResourceId> m_mask_display_lists;
 
     template<typename T>
     friend ErrorOr<void> IPC::encode(IPC::Encoder&, T const&);

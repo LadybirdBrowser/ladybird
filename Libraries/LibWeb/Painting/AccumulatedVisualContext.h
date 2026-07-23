@@ -12,6 +12,7 @@
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/CornerRadii.h>
 #include <LibGfx/Filter.h>
+#include <LibGfx/Forward.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/Point.h>
@@ -83,6 +84,18 @@ struct EffectsData {
     }
 };
 
+enum class MaskLayerOrigin : u8 {
+    CssMaskLayers,
+    SvgMask,
+    SvgClip,
+};
+
+struct MaskData {
+    DevicePixelRect rect;
+    Gfx::MaskKind kind { Gfx::MaskKind::Alpha };
+    MaskLayerOrigin origin { MaskLayerOrigin::CssMaskLayers };
+};
+
 // Translates by another scroll node's negated offset during display list replay, keeping fixed
 // backgrounds stationary relative to the viewport regardless of scroll position.
 struct ScrollCompensation {
@@ -100,7 +113,7 @@ struct AnchorScrollShift {
     Gfx::FloatPoint masked_offset(ScrollStateSnapshot const&) const;
 };
 
-using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData, ScrollCompensation, AnchorScrollShift>;
+using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData, ScrollCompensation, AnchorScrollShift, MaskData>;
 
 Optional<TransformData> compute_transform(Paintable const&, CSS::ComputedValues const&, double pixel_ratio);
 
@@ -214,6 +227,11 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::EffectsData const&);
 template<>
 WEB_API ErrorOr<Web::Painting::EffectsData> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::MaskData const&);
+template<>
+WEB_API ErrorOr<Web::Painting::MaskData> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ScrollCompensation const&);
