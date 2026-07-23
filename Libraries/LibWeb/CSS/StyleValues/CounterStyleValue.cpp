@@ -23,13 +23,13 @@ namespace Web::CSS {
 
 static StyleValueFFI::StyleValueData const* make_counter_data(CounterStyleValue::CounterFunction function, Utf16FlyString const& counter_name, ValueComparingNonnullRefPtr<StyleValue const> const& counter_style, Utf16FlyString const& join_string)
 {
-    // The Rust allocation takes ownership of one strong reference to the counter style.
-    counter_style->ref();
-    return StyleValueFFI::rust_style_value_create_counter(to_underlying(function), counter_name.to_raw_leaked(), counter_style.ptr(), join_string.to_raw_leaked());
+    // The Rust allocation takes ownership of one strong reference to the counter style data.
+    return StyleValueFFI::rust_style_value_create_counter(to_underlying(function), counter_name.to_raw_leaked(), StyleValueFFI::rust_style_value_retain(counter_style->rust_style_value_data()), join_string.to_raw_leaked());
 }
 
 CounterStyleValue::CounterStyleValue(CounterFunction function, Utf16FlyString counter_name, ValueComparingNonnullRefPtr<StyleValue const> counter_style, Utf16FlyString join_string)
     : StyleValueWithDefaultOperators(Type::Counter, make_counter_data(function, counter_name, counter_style, join_string))
+    , m_counter_style(move(counter_style))
 {
 }
 

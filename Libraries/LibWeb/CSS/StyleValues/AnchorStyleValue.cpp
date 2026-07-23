@@ -14,16 +14,14 @@ namespace Web::CSS {
 
 static StyleValueFFI::StyleValueData const* make_anchor_data(Optional<Utf16FlyString> const& anchor_name, ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side, ValueComparingRefPtr<StyleValue const> const& fallback_value)
 {
-    // The Rust allocation takes ownership of one strong reference to the side and, when present,
-    // the fallback value.
-    anchor_side->ref();
-    if (fallback_value)
-        fallback_value->ref();
+    // The Rust allocation takes ownership of one strong reference to the side data and, when
+    // present, the fallback value data.
+    auto const* fallback_data = fallback_value ? StyleValueFFI::rust_style_value_retain(fallback_value->rust_style_value_data()) : nullptr;
     return StyleValueFFI::rust_style_value_create_anchor(
         anchor_name.has_value(),
         anchor_name.has_value() ? anchor_name->to_raw_leaked() : 0,
-        anchor_side.ptr(),
-        fallback_value.ptr());
+        StyleValueFFI::rust_style_value_retain(anchor_side->rust_style_value_data()),
+        fallback_data);
 }
 
 ValueComparingNonnullRefPtr<AnchorStyleValue const> AnchorStyleValue::create(
@@ -38,6 +36,8 @@ AnchorStyleValue::AnchorStyleValue(Optional<Utf16FlyString> const& anchor_name,
     ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side,
     ValueComparingRefPtr<StyleValue const> const& fallback_value)
     : AbstractNonMathCalcFunctionStyleValue(Type::Anchor, make_anchor_data(anchor_name, anchor_side, fallback_value))
+    , m_anchor_side(anchor_side)
+    , m_fallback_value(fallback_value)
 {
 }
 

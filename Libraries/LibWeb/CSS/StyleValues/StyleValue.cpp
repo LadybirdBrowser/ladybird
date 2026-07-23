@@ -147,6 +147,10 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
 {
     VERIFY(data);
     switch (data->tag) {
+    case StyleValueFFI::StyleValueData::Tag::Anchor:
+        return adopt_ref(*new (nothrow) AnchorStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::AnchorSize:
+        return adopt_ref(*new (nothrow) AnchorSizeStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::BackgroundSize:
         return adopt_ref(*new (nothrow) BackgroundSizeStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::BorderRadius:
@@ -155,6 +159,18 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
         return adopt_ref(*new (nothrow) BorderRadiusRectStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::BorderImageSlice:
         return adopt_ref(*new (nothrow) BorderImageSliceStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::CustomIdent:
+        return adopt_ref(*new (nothrow) CustomIdentStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::CounterStyle:
+        return adopt_ref(*new (nothrow) CounterStyleStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::CounterStyleSystem:
+        return adopt_ref(*new (nothrow) CounterStyleSystemStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Counter:
+        return adopt_ref(*new (nothrow) CounterStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::ContrastColor:
+        return adopt_ref(*new (nothrow) ContrastColorStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Content:
+        return adopt_ref(*new (nothrow) ContentStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Edge:
         return adopt_ref(*new (nothrow) EdgeStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Keyword:
@@ -163,16 +179,22 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
         return adopt_ref(*new (nothrow) NumberStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Integer:
         return adopt_ref(*new (nothrow) IntegerStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::LightDark:
+        return adopt_ref(*new (nothrow) LightDarkStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Angle:
         return adopt_ref(*new (nothrow) AngleStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Flex:
         return adopt_ref(*new (nothrow) FlexStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::FontSource:
+        return adopt_ref(*new (nothrow) FontSourceStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::FontStyle:
         return adopt_ref(*new (nothrow) FontStyleStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Frequency:
         return adopt_ref(*new (nothrow) FrequencyStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Function:
         return adopt_ref(*new (nothrow) FunctionStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::GridTrackPlacement:
+        return adopt_ref(*new (nothrow) GridTrackPlacementStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Length:
         return adopt_ref(*new (nothrow) LengthStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Percentage:
@@ -183,14 +205,24 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
         return adopt_ref(*new (nothrow) TimeStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::OpacityValue:
         return adopt_ref(*new (nothrow) OpacityValueStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::PendingSubstitution:
+        return adopt_ref(*new (nothrow) PendingSubstitutionStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::OpenTypeTagged:
         return adopt_ref(*new (nothrow) OpenTypeTaggedStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::OverflowClipMargin:
+        return adopt_ref(*new (nothrow) OverflowClipMarginStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Position:
         return adopt_ref(*new (nothrow) PositionStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Ratio:
         return adopt_ref(*new (nothrow) RatioStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Rect:
         return adopt_ref(*new (nothrow) RectStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::RandomValueSharing:
+        return adopt_ref(*new (nothrow) RandomValueSharingStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::ScrollbarColor:
+        return adopt_ref(*new (nothrow) ScrollbarColorStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::String:
+        return adopt_ref(*new (nothrow) StringStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Superellipse:
         return adopt_ref(*new (nothrow) SuperellipseStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::TextIndent:
@@ -201,6 +233,8 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
         return adopt_ref(*new (nothrow) StyleValueList(data));
     case StyleValueFFI::StyleValueData::Tag::Tuple:
         return adopt_ref(*new (nothrow) TupleStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Unresolved:
+        return adopt_ref(*new (nothrow) UnresolvedStyleValue(data));
     default:
         VERIFY_NOT_REACHED();
     }

@@ -46,6 +46,13 @@ public:
     bool properties_equal(CounterStyleStyleValue const& other) const { return value() == other.value(); }
 
 private:
+    friend class StyleValue;
+
+    explicit CounterStyleStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::CounterStyle, data)
+    {
+    }
+
     explicit CounterStyleStyleValue(Variant<Utf16FlyString, SymbolsFunction> value)
         : StyleValueWithDefaultOperators(Type::CounterStyle, make_counter_style_data(value))
     {

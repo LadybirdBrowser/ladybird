@@ -33,15 +33,29 @@ public:
     }
     ValueComparingNonnullRefPtr<StyleValue const> anchor_side() const
     {
-        return *static_cast<StyleValue const*>(m_value->anchor.anchor_side.pointer);
+        return m_anchor_side;
     }
     ValueComparingRefPtr<StyleValue const> fallback_value() const
     {
-        return static_cast<StyleValue const*>(m_value->anchor.fallback_value.pointer);
+        return m_fallback_value;
     }
 
 private:
+    friend class StyleValue;
+
+    explicit AnchorStyleValue(StyleValueFFI::StyleValueData const* data)
+        : AbstractNonMathCalcFunctionStyleValue(Type::Anchor, data)
+        , m_anchor_side(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->anchor.anchor_side.pointer))))
+    {
+        auto const* fallback_data = static_cast<StyleValueFFI::StyleValueData const*>(data->anchor.fallback_value.pointer);
+        if (fallback_data)
+            m_fallback_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(fallback_data));
+    }
+
     AnchorStyleValue(Optional<Utf16FlyString> const& anchor_name, ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side, ValueComparingRefPtr<StyleValue const> const& fallback_value);
+
+    ValueComparingNonnullRefPtr<StyleValue const> m_anchor_side;
+    ValueComparingRefPtr<StyleValue const> m_fallback_value;
 };
 
 }
