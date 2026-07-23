@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-foreign-object-stacked-masks-and-clip-ref.html" />
+<style>* { margin: 0; }</style>
+<!-- Two CSS mask layers combine additively (union of kept regions) and the
+     SVG clipPath intersects the result. -->
+<svg width="300" height="300">
+  <clipPath id="c"><rect x="0" y="0" width="240" height="240"/></clipPath>
+  <foreignObject x="0" y="0" width="300" height="300" clip-path="url(#c)"
+      style="mask-image: linear-gradient(to bottom, black 0 50%, transparent 50% 100%),
+             linear-gradient(to right, black 0 50%, transparent 50% 100%);">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width: 300px; height: 300px; background: green;"></div>
+  </foreignObject>
+</svg>

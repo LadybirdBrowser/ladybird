@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/mask-on-containing-block-of-positioned-children-ref.html" />
+<style>* { margin: 0; }</style>
+<!-- The transformed masked box is the containing block for both positioned
+     children, so their chains stay inside the mask group and both must be
+     cut at the mask edge. -->
+<div style="position: relative; transform: translate(50px, 50px); width: 200px; height: 200px;
+            background: green;
+            mask-image: linear-gradient(to bottom, black 0 50%, transparent 50% 100%);">
+  <div style="position: absolute; left: 0; top: 60px; width: 200px; height: 80px; background: blue;"></div>
+  <div style="position: fixed; left: 40px; top: 60px; width: 40px; height: 120px; background: red;"></div>
+</div>

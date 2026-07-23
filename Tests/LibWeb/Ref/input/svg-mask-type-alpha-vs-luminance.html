@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-mask-type-alpha-vs-luminance-ref.html" />
+<style>* { margin: 0; }</style>
+<svg width="400" height="200">
+  <mask id="alpha" style="mask-type: alpha">
+    <rect x="20" y="20" width="160" height="80" fill="#123456"/>
+  </mask>
+  <mask id="lum" style="mask-type: luminance">
+    <rect x="220" y="20" width="160" height="80" fill="white"/>
+  </mask>
+  <rect x="20" y="20" width="160" height="160" fill="green" mask="url(#alpha)"/>
+  <rect x="220" y="20" width="160" height="160" fill="green" mask="url(#lum)"/>
+</svg>

@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-mask-clips-blurred-content-ref.html" />
+<style>* { margin: 0; }</style>
+<!-- The mask applies after the filter, so the blur bleed must be cut at the
+     mask edge instead of the cut edge being blurred. -->
+<div style="position: absolute; left: 50px; top: 50px; width: 200px; height: 200px;
+            background: green; filter: blur(10px); opacity: 0.5;
+            mask-image: linear-gradient(to bottom, black 0 50%, transparent 50% 100%);"></div>
