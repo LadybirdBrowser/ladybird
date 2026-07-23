@@ -941,6 +941,81 @@ void TreeBuilder::clear_stale_layout_nodes_for_assigned_slottables(HTML::HTMLSlo
     }
 }
 
+// Elements inside a `display:none` subtree are skipped by `Document::update_style_recursively`,
+// so a bypass path (top-layer iteration, slot projection, SVG mask/clip-path or pattern
+// reference) may reach an element whose `needs_style_update` flag is still set or whose
+// `computed_values` is null. Route through `update_style_for_element`, which seeds the style
+// computer's ancestor filter so descendant-combinator selectors continue to match during the
+// lazy re-cascade.
+static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element& element)
+{
+    if (element.needs_style_update() || !element.computed_values()) {
+        element.document().update_style_for_element({ element });
+        element.set_needs_style_update(false);
+    }
+}
+
+RefPtr<Layout::Node> TreeBuilder::create_layout_node_for_element(DOM::Element& element, Context& context) const
+{
+    auto& document = element.document();
+    NonnullRefPtr<CSS::ComputedValues const> computed_values = *element.computed_values();
+
+    if (auto content_replacement = create_content_replacement_if_needed(element, computed_values))
+        return content_replacement;
+
+    if (context.layout_svg_mask_or_clip_path) {
+        RefPtr<Layout::Node> layout_node;
+        if (is<SVG::SVGMaskElement>(element))
+            layout_node = make_ref_counted<Layout::SVGMaskBox>(document, static_cast<SVG::SVGMaskElement&>(element), move(computed_values));
+        else if (is<SVG::SVGClipPathElement>(element))
+            layout_node = make_ref_counted<Layout::SVGClipBox>(document, static_cast<SVG::SVGClipPathElement&>(element), move(computed_values));
+        else
+            VERIFY_NOT_REACHED();
+        // Only layout direct uses of SVG masks/clipPaths.
+        context.layout_svg_mask_or_clip_path = false;
+        return layout_node;
+    }
+
+    if (context.layout_svg_pattern) {
+        context.layout_svg_pattern = false;
+        return make_ref_counted<Layout::SVGPatternBox>(document, as<SVG::SVGPatternElement>(element), move(computed_values));
+    }
+
+    return element.create_layout_node(move(computed_values));
+}
+
+static RefPtr<Layout::Node> create_layout_node_for_text(DOM::Text& text_node)
+{
+    auto& document = text_node.document();
+    RefPtr<Layout::Node> layout_node = make_ref_counted<Layout::TextNode>(document, text_node);
+    if (auto* style_parent = display_contents_style_parent_for_text_node(text_node); style_parent && display_contents_text_needs_style_wrapper(text_node, *style_parent)) {
+        auto wrapper = make_ref_counted<Layout::InlineNode>(document, nullptr, style_parent->computed_values().release_nonnull());
+        wrapper->attach_style_resources();
+        wrapper->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
+        wrapper->set_children_are_inline(true);
+        wrapper->append_child(*layout_node);
+        return wrapper;
+    }
+    return layout_node;
+}
+
+// Each element rendered in the top layer has a ::backdrop pseudo-element, for which it is the
+// originating element. When the element's box replaces an existing one in place, the ::backdrop
+// box must be inserted before the old box so it ends up behind the element; otherwise it is
+// appended before the element's own box is.
+void TreeBuilder::create_backdrop_for_top_layer_element_if_needed(DOM::Element& element, Layout::Node* old_layout_node, bool may_replace_existing_layout_node)
+{
+    if (may_replace_existing_layout_node) {
+        if (auto backdrop_node = create_pseudo_element_if_needed(element, CSS::PseudoElement::Backdrop, {})) {
+            // The ::backdrop box is a fresh sibling of the rebuild root, outside it.
+            note_tree_restructuring_at(*old_layout_node->parent());
+            old_layout_node->parent()->insert_before(*backdrop_node, old_layout_node);
+        }
+    } else {
+        (void)create_pseudo_element_if_needed(element, CSS::PseudoElement::Backdrop, AppendOrPrepend::Append);
+    }
+}
+
 void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& context, MustCreateSubtree must_create_subtree)
 {
     // NB: Called during layout tree construction.
@@ -1026,16 +1101,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 old_backdrop_node->remove();
             }
             element.clear_synthetic_pseudo_element_layout_nodes(Badge<TreeBuilder> {});
-            // Elements inside a `display:none` subtree are skipped by
-            // `Document::update_style_recursively`, so a bypass path (top-layer iteration, slot
-            // projection, SVG mask/clip-path or pattern reference) may reach an element whose
-            // `needs_style_update` flag is still set or whose `computed_values` is null. Route
-            // through `update_style_for_element`, which seeds the style computer's ancestor filter
-            // so descendant-combinator selectors continue to match during the lazy re-cascade.
-            if (element.needs_style_update() || !element.computed_values()) {
-                document.update_style_for_element({ element });
-                element.set_needs_style_update(false);
-            }
+            update_style_if_needed_for_layout_tree_bypass_path(element);
             computed_values = element.computed_values();
             display = computed_values->display();
             if (display.is_none())
@@ -1045,40 +1111,15 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 update_layout_tree_for_display_contents(element, context, must_create_subtree, should_create_layout_node);
                 return;
             }
-            if (auto content_replacement = create_content_replacement_if_needed(element, NonnullRefPtr { *computed_values })) {
-                layout_node = content_replacement.release_nonnull();
-            } else if (context.layout_svg_mask_or_clip_path) {
-                if (is<SVG::SVGMaskElement>(dom_node))
-                    layout_node = make_ref_counted<Layout::SVGMaskBox>(document, static_cast<SVG::SVGMaskElement&>(dom_node), computed_values.release_nonnull());
-                else if (is<SVG::SVGClipPathElement>(dom_node))
-                    layout_node = make_ref_counted<Layout::SVGClipBox>(document, static_cast<SVG::SVGClipPathElement&>(dom_node), computed_values.release_nonnull());
-                else
-                    VERIFY_NOT_REACHED();
-                // Only layout direct uses of SVG masks/clipPaths.
-                context.layout_svg_mask_or_clip_path = false;
-            } else if (context.layout_svg_pattern) {
-                layout_node = make_ref_counted<Layout::SVGPatternBox>(document, as<SVG::SVGPatternElement>(dom_node), computed_values.release_nonnull());
-                context.layout_svg_pattern = false;
-            } else {
-                layout_node = element.create_layout_node(computed_values.release_nonnull());
-            }
+            layout_node = create_layout_node_for_element(element, context);
         } else if (is<DOM::Document>(dom_node)) {
             auto document_style = style_computer.create_document_style();
             computed_values = move(document_style);
             display = computed_values->display();
             layout_node = make_ref_counted<Layout::Viewport>(static_cast<DOM::Document&>(dom_node), computed_values.release_nonnull());
         } else if (is<DOM::Text>(dom_node)) {
-            auto& text_node = static_cast<DOM::Text&>(dom_node);
-            layout_node = make_ref_counted<Layout::TextNode>(document, text_node);
+            layout_node = create_layout_node_for_text(static_cast<DOM::Text&>(dom_node));
             display = CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow);
-            if (auto* style_parent = display_contents_style_parent_for_text_node(text_node); style_parent && display_contents_text_needs_style_wrapper(text_node, *style_parent)) {
-                auto wrapper = make_ref_counted<Layout::InlineNode>(document, nullptr, style_parent->computed_values().release_nonnull());
-                wrapper->attach_style_resources();
-                wrapper->set_display(display);
-                wrapper->set_children_are_inline(true);
-                wrapper->append_child(*layout_node);
-                layout_node = move(wrapper);
-            }
         }
     }
 
@@ -1113,20 +1154,8 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     if (dom_node.is_element() && should_create_layout_node) {
         auto& element = static_cast<DOM::Element&>(dom_node);
-        // Each element rendered in the top layer has a ::backdrop pseudo-element, for which it is the originating element.
-        if (element.rendered_in_top_layer() && context.layout_top_layer) {
-            // If we're inserting a new element, we can append the ::backdrop node now, before layout_node is appended.
-            // Otherwise, we need to insert the ::backdrop before old_layout_node so it's behind the layout_node.
-            if (may_replace_existing_layout_node) {
-                if (auto backdrop_node = create_pseudo_element_if_needed(element, CSS::PseudoElement::Backdrop, {})) {
-                    // The ::backdrop box is a fresh sibling of the rebuild root, outside it.
-                    note_tree_restructuring_at(*old_layout_node->parent());
-                    old_layout_node->parent()->insert_before(*backdrop_node, old_layout_node);
-                }
-            } else {
-                (void)create_pseudo_element_if_needed(element, CSS::PseudoElement::Backdrop, AppendOrPrepend::Append);
-            }
-        }
+        if (element.rendered_in_top_layer() && context.layout_top_layer)
+            create_backdrop_for_top_layer_element_if_needed(element, old_layout_node, may_replace_existing_layout_node);
     }
 
     // A top layer member nested inside this member must be skipped at its normal position
