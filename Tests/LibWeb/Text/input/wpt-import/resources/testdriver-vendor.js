@@ -1,9 +1,13 @@
-window.test_driver_internal.click = function(element) {
+function elementCenter(element) {
     const boundingRect = element.getBoundingClientRect();
-    const centerPoint = {
+    return {
         x: boundingRect.left + boundingRect.width / 2,
         y: boundingRect.top + boundingRect.height / 2
     };
+}
+
+window.test_driver_internal.click = function(element) {
+    const centerPoint = elementCenter(element);
     window.internals.click(centerPoint.x, centerPoint.y);
     return Promise.resolve();
 };
@@ -25,7 +29,7 @@ window.test_driver_internal.delete_all_cookies = function(context) {
     return window.internals.deleteAllCookies();
 };
 
-window.test_driver_internal.action_sequence = function(actions, context) {
+window.test_driver_internal.action_sequence = async function(actions, context) {
     // Modifier key codes from WebDriver spec
     const SHIFT = "\uE008";
     const CTRL = "\uE009";
@@ -77,5 +81,22 @@ window.test_driver_internal.action_sequence = function(actions, context) {
         }
     }
 
-    return Promise.resolve();
+    for (const source of actions) {
+        if (source.type !== "wheel" || !source.actions) {
+            continue;
+        }
+        for (const action of source.actions) {
+            if (action.type !== "scroll") {
+                continue;
+            }
+            let x = action.x;
+            let y = action.y;
+            if (action.origin instanceof Element) {
+                const centerPoint = elementCenter(action.origin);
+                x += centerPoint.x;
+                y += centerPoint.y;
+            }
+            await window.internals.wheel(x, y, action.deltaX, action.deltaY);
+        }
+    }
 };
