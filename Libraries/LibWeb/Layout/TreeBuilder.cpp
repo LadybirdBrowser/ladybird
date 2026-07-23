@@ -67,7 +67,6 @@ public:
 private:
     struct PrincipalNodeFrameStorage;
     struct PseudoElementFrameStorage;
-    static void clear_stale_layout_nodes_for_assigned_slottables(HTML::HTMLSlotElement&);
     static TraversalDecision clear_stale_layout_and_paint_node(DOM::Node&, DOM::Node const* cleared_subtree_root = nullptr);
 
     RustFFI::FfiDomTreeBuilderCallbacks make_ffi_dom_tree_builder_callbacks();
@@ -109,6 +108,22 @@ static RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks(LayoutTr
 static RustFFI::FfiPrincipalDisplayFacts ffi_principal_display_facts(CSS::Display);
 static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element&);
 static RefPtr<Layout::Node> create_layout_node_for_text(DOM::Text&);
+
+static size_t ffi_assigned_node_count(void* slot_element_pointer)
+{
+    VERIFY(slot_element_pointer);
+    return static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)->assigned_nodes_internal().size();
+}
+
+static void* ffi_assigned_node_at(void* slot_element_pointer, size_t index)
+{
+    VERIFY(slot_element_pointer);
+    auto assigned_nodes = static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)->assigned_nodes_internal();
+    VERIFY(index < assigned_nodes.size());
+    DOM::Node* node = nullptr;
+    assigned_nodes[index].visit([&](auto& assigned_node) { node = assigned_node.ptr(); });
+    return node;
+}
 
 void LayoutTreeBuildBridge::note_tree_restructuring_at(Layout::Node const& node)
 {
@@ -639,9 +654,14 @@ void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element
         .slot_element = [](void* element_pointer) -> void* {
             VERIFY(element_pointer);
             return as_if<HTML::HTMLSlotElement>(*static_cast<DOM::Element*>(element_pointer)); },
-        .clear_assigned_slottables = [](void* slot_element_pointer) {
-            VERIFY(slot_element_pointer);
-            clear_stale_layout_nodes_for_assigned_slottables(*static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)); },
+        .assigned_node_count = ffi_assigned_node_count,
+        .assigned_node_at = ffi_assigned_node_at,
+        .clear_assigned_subtree = [](void* root_pointer) {
+            VERIFY(root_pointer);
+            auto& root = *static_cast<DOM::Node*>(root_pointer);
+            root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
+                return clear_stale_layout_and_paint_node(node, &root);
+            }); },
     };
     RustFFI::rust_detach_top_layer_element_layout_subtree(&callbacks, &element);
 }
@@ -694,17 +714,8 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
         .needs_layout_tree_update = [](void* node_pointer) {
             VERIFY(node_pointer);
             return static_cast<DOM::Node*>(node_pointer)->needs_layout_tree_update(); },
-        .assigned_node_count = [](void* slot_element_pointer) {
-            VERIFY(slot_element_pointer);
-            return static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)->assigned_nodes_internal().size(); },
-        .assigned_node_at = [](void* slot_element_pointer, size_t index) -> void* {
-            VERIFY(slot_element_pointer);
-            auto assigned_nodes = static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)->assigned_nodes_internal();
-            VERIFY(index < assigned_nodes.size());
-            DOM::Node* node = nullptr;
-            assigned_nodes[index].visit([&](auto& assigned_node) { node = assigned_node.ptr(); });
-            return node;
-        },
+        .assigned_node_count = ffi_assigned_node_count,
+        .assigned_node_at = ffi_assigned_node_at,
         .is_svg_element = [](void* node_pointer) {
             VERIFY(node_pointer);
             return is<SVG::SVGElement>(*static_cast<DOM::Node*>(node_pointer)); },
@@ -741,9 +752,13 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(element_pointer);
             DOM::AbstractElement element_reference { *static_cast<DOM::Element*>(element_pointer) };
             CSS::resolve_counters(element_reference); },
-        .clear_stale_assigned_slottables = [](void* slot_element_pointer) {
-            VERIFY(slot_element_pointer);
-            clear_stale_layout_nodes_for_assigned_slottables(*static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)); },
+        .clear_stale_assigned_subtree = [](void* builder_pointer, void* root_pointer) {
+            VERIFY(builder_pointer);
+            VERIFY(root_pointer);
+            auto& root = *static_cast<DOM::Node*>(root_pointer);
+            root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
+                return static_cast<LayoutTreeBuildBridge*>(builder_pointer)->clear_stale_layout_and_paint_node(node, &root);
+            }); },
         .principal_descendant_facts = [](void*, void* node_pointer, void* layout_node_pointer) -> RustFFI::FfiPrincipalDescendantFacts {
             VERIFY(node_pointer);
             VERIFY(layout_node_pointer);
@@ -1111,31 +1126,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
         .layout = make_ffi_tree_builder_callbacks(this),
         .pseudo = make_ffi_pseudo_tree_builder_callbacks(),
     };
-}
-
-void LayoutTreeBuildBridge::clear_stale_layout_nodes_for_assigned_slottables(HTML::HTMLSlotElement& slot_element)
-{
-    // Assigned slottables are flat tree children of a slot, not DOM descendants, so subtree
-    // cleanup of the slot does not reach them.
-    RustFFI::FfiAssignedCleanupCallbacks callbacks {
-        .assigned_node_count = [](void* slot_element_pointer) {
-            VERIFY(slot_element_pointer);
-            return static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)->assigned_nodes_internal().size(); },
-        .assigned_node_at = [](void* slot_element_pointer, size_t index) -> void* {
-            VERIFY(slot_element_pointer);
-            auto assigned_nodes = static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)->assigned_nodes_internal();
-            VERIFY(index < assigned_nodes.size());
-            DOM::Node* node = nullptr;
-            assigned_nodes[index].visit([&](auto& assigned_node) { node = assigned_node.ptr(); });
-            return node; },
-        .clear_assigned_subtree = [](void* root_pointer) {
-            VERIFY(root_pointer);
-            auto& root = *static_cast<DOM::Node*>(root_pointer);
-            root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                return clear_stale_layout_and_paint_node(node, &root);
-            }); },
-    };
-    RustFFI::rust_clear_stale_assigned_slottables(&callbacks, &slot_element);
 }
 
 // Elements inside a `display:none` subtree are skipped by `Document::update_style_recursively`,

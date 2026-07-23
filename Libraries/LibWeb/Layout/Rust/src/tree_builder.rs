@@ -45,7 +45,7 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub clear_synthetic_pseudo_element_layout_nodes: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub clear_stale_inclusive_descendants: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub resolve_counters: unsafe extern "C" fn(*mut c_void),
-    pub clear_stale_assigned_slottables: unsafe extern "C" fn(*mut c_void),
+    pub clear_stale_assigned_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub principal_descendant_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiPrincipalDescendantFacts,
     pub create_first_letter_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiFirstLetterTarget),
@@ -325,7 +325,9 @@ pub struct FfiTopLayerDetachCallbacks {
     pub remove_layout_node: unsafe extern "C" fn(*mut c_void),
     pub clear_element_subtree: unsafe extern "C" fn(*mut c_void),
     pub slot_element: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
-    pub clear_assigned_slottables: unsafe extern "C" fn(*mut c_void),
+    pub assigned_node_count: unsafe extern "C" fn(*mut c_void) -> usize,
+    pub assigned_node_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
+    pub clear_assigned_subtree: unsafe extern "C" fn(*mut c_void),
 }
 
 /// Detaches a top-layer element's layout placement and clears every stale projected subtree.
@@ -369,44 +371,29 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
         // SAFETY: The callback returns the element's adjusted HTMLSlotElement pointer, if any.
         let slot_element = unsafe { (callbacks.slot_element)(element) };
         if !slot_element.is_null() {
-            // SAFETY: The slot element remains live throughout assigned-node cleanup.
-            unsafe { (callbacks.clear_assigned_slottables)(slot_element) };
+            clear_stale_assigned_slottables(
+                slot_element,
+                |slot| unsafe { (callbacks.assigned_node_count)(slot) },
+                |slot, index| unsafe { (callbacks.assigned_node_at)(slot, index) },
+                |root| unsafe { (callbacks.clear_assigned_subtree)(root) },
+            );
         }
     });
 }
 
-#[repr(C)]
-pub struct FfiAssignedCleanupCallbacks {
-    pub assigned_node_count: unsafe extern "C" fn(*mut c_void) -> usize,
-    pub assigned_node_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
-    pub clear_assigned_subtree: unsafe extern "C" fn(*mut c_void),
-}
-
-/// Clears stale layout state for every flat-tree child assigned to a slot.
-///
-/// # Safety
-///
-/// The callback table and slot element must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_clear_stale_assigned_slottables(
-    callbacks: *const FfiAssignedCleanupCallbacks,
+fn clear_stale_assigned_slottables(
     slot_element: *mut c_void,
+    assigned_node_count: impl Fn(*mut c_void) -> usize,
+    assigned_node_at: impl Fn(*mut c_void, usize) -> *mut c_void,
+    clear_assigned_subtree: impl Fn(*mut c_void),
 ) {
-    abort_on_panic(|| {
-        assert!(!callbacks.is_null());
-        assert!(!slot_element.is_null());
-        // SAFETY: Guaranteed by the entry point's contract.
-        let callbacks = unsafe { &*callbacks };
-        // SAFETY: The slot and assigned-node list remain live throughout cleanup.
-        let count = unsafe { (callbacks.assigned_node_count)(slot_element) };
-        for index in 0..count {
-            // SAFETY: `index` is below the stable assigned-node count.
-            let root = unsafe { (callbacks.assigned_node_at)(slot_element, index) };
-            assert!(!root.is_null());
-            // SAFETY: The assigned subtree root remains live throughout cleanup.
-            unsafe { (callbacks.clear_assigned_subtree)(root) };
-        }
-    });
+    assert!(!slot_element.is_null());
+    let count = assigned_node_count(slot_element);
+    for index in 0..count {
+        let root = assigned_node_at(slot_element, index);
+        assert!(!root.is_null());
+        clear_assigned_subtree(root);
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -778,8 +765,12 @@ unsafe fn update_layout_tree_for_display_contents(
                     );
                 }
             } else {
-                // SAFETY: `slot_element` remains live throughout this call.
-                unsafe { (host.callbacks.clear_stale_assigned_slottables)(facts.slot_element) };
+                clear_stale_assigned_slottables(
+                    facts.slot_element,
+                    |slot| unsafe { (host.callbacks.assigned_node_count)(slot) },
+                    |slot, index| unsafe { (host.callbacks.assigned_node_at)(slot, index) },
+                    |root| unsafe { (host.callbacks.clear_stale_assigned_subtree)(host.callbacks.builder, root) },
+                );
             }
         }
 
@@ -1033,8 +1024,12 @@ unsafe fn update_principal_node_descendants(
                 }
                 assert!(state.ancestor_stack.pop().is_some());
             } else {
-                // SAFETY: `slot_element` remains live throughout cleanup.
-                unsafe { (host.callbacks.clear_stale_assigned_slottables)(facts.slot_element) };
+                clear_stale_assigned_slottables(
+                    facts.slot_element,
+                    |slot| unsafe { (host.callbacks.assigned_node_count)(slot) },
+                    |slot, index| unsafe { (host.callbacks.assigned_node_at)(slot, index) },
+                    |root| unsafe { (host.callbacks.clear_stale_assigned_subtree)(host.callbacks.builder, root) },
+                );
             }
         }
 
