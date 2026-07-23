@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibCore/Forward.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 
@@ -13,15 +14,13 @@ namespace Media {
 
 class PlayingStateHandler final : public PlaybackStateHandler {
 public:
-    PlayingStateHandler(PlaybackManager& manager)
-        : PlaybackStateHandler(manager)
-    {
-    }
-    virtual ~PlayingStateHandler() override = default;
+    PlayingStateHandler(PlaybackManager& manager);
+    virtual ~PlayingStateHandler() override;
 
     virtual void on_enter() override
     {
         manager().m_clock->resume();
+        update_unticked_end_of_stream_timer();
     }
     virtual void on_exit() override
     {
@@ -45,6 +44,11 @@ public:
     }
 
     virtual void on_pipeline_status_changed(PipelineStatus) override;
+
+private:
+    void update_unticked_end_of_stream_timer();
+
+    RefPtr<Core::Timer> m_unticked_end_of_stream_timer;
 };
 
 }
