@@ -8,8 +8,10 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <LibMedia/DecodeAudioStream.h>
 #include <LibWeb/Bindings/BaseAudioContext.h>
 #include <LibWeb/Bindings/PeriodicWave.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -121,7 +123,8 @@ private:
     // https://webaudio.github.io/web-audio-api/#render-quantum-size
     static constexpr WebIDL::UnsignedLong s_render_quantum_size { 128 };
 
-    void queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>, GC::Ref<JS::ArrayBuffer>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
+    void queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>, ByteBuffer audio_data, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
+    void finish_a_decoding_operation(GC::Ref<JS::PromiseCapability>, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback, Media::DecoderErrorOr<Media::DecodedAudioData>);
 
     u64 m_next_node_id { 0 };
 

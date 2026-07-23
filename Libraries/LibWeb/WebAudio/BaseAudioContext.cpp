@@ -6,6 +6,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/EventLoop.h>
+#include <LibGC/Root.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibThreading/ThreadPool.h>
 #include <LibWeb/Bindings/BaseAudioContext.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
@@ -14,8 +19,10 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebAudio/AnalyserNode.h>
+#include <LibWeb/WebAudio/AudioArray.h>
 #include <LibWeb/WebAudio/AudioBuffer.h>
 #include <LibWeb/WebAudio/AudioBufferSourceNode.h>
 #include <LibWeb/WebAudio/AudioDestinationNode.h>
@@ -275,21 +282,30 @@ GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Ref<JS::ArrayBu
     // 2. Let promise be a new Promise.
     auto promise = WebIDL::create_promise(realm);
 
-    // FIXME: 3. If audioData is detached, execute the following steps:
-    if (true) {
+    // 3. If audioData is detached, execute the following steps:
+    // NB: The spec condition is inverted: decoding proceeds when audioData is _not_ detached, and the error steps
+    //     below reject buffers that already are. See https://github.com/WebAudio/web-audio-api/issues/2570
+    auto queued_a_decoding_operation = false;
+    if (!audio_data->is_detached()) {
         // 3.1. Append promise to [[pending promises]].
         m_pending_promises.append(promise);
 
-        // FIXME: 3.2. Detach the audioData ArrayBuffer. If this operations throws, jump to the step 3.
-
-        // 3.3. Queue a decoding operation to be performed on another thread.
-        queue_a_decoding_operation(promise, audio_data, success_callback, error_callback);
+        // 3.2. Detach the audioData ArrayBuffer. If this operations throws, jump to the step 3.
+        // NB: The buffer's contents are copied out before detaching it, since detaching frees the data. "Jump to
+        //     the step 3" is interpreted as running the error steps below.
+        auto audio_data_copy = audio_data->copy_to_byte_buffer();
+        auto detach_result = JS::detach_array_buffer(realm.vm(), audio_data);
+        if (!audio_data_copy.is_error() && !detach_result.is_error()) {
+            // 3.3. Queue a decoding operation to be performed on another thread.
+            queue_a_decoding_operation(promise, audio_data_copy.release_value(), success_callback, error_callback);
+            queued_a_decoding_operation = true;
+        }
     }
 
     // 4. Else, execute the following error steps:
-    else {
+    if (!queued_a_decoding_operation) {
         // 4.1. Let error be a DataCloneError.
-        auto error = WebIDL::DataCloneError::create(realm, "Audio data is not detached."_utf16);
+        auto error = WebIDL::DataCloneError::create(realm, "Cannot decode detached audio data."_utf16);
 
         // 4.2. Reject promise with error, and remove it from [[pending promises]].
         WebIDL::reject_promise(realm, promise, error);
@@ -312,33 +328,64 @@ GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Ref<JS::ArrayBu
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata
-void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability> promise, [[maybe_unused]] GC::Ref<JS::ArrayBuffer> audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
+void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability> promise, ByteBuffer audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
 {
-    auto& realm = this->realm();
+    // When queuing a decoding operation to be performed on another thread, the following steps MUST happen on a
+    // thread that is not the control thread nor the rendering thread, called the decoding thread.
+    // NB: Decoding operations are submitted to a thread pool, so multiple decoding threads may run in parallel. The
+    //     GC roots below keep the context, promise and callbacks alive while the operation is in flight; they are
+    //     created here on the control thread and released on the control thread again after the result is posted
+    //     back through the main thread's event loop.
+    auto& main_thread_event_loop = Core::EventLoop::current();
 
-    // FIXME: When queuing a decoding operation to be performed on another thread, the following steps
-    //        MUST happen on a thread that is not the control thread nor the rendering thread, called
-    //        the decoding thread.
+    // 5.1. Take the result, representing the decoded linear PCM audio data, and resample it to the sample-rate of
+    //      the BaseAudioContext if it is different from the sample-rate of audioData.
+    // NB: Resampling happens as part of the decoding operation below.
+    // FIXME: Non-integral context sample rates cannot be represented by our audio converter; for those, we decode at
+    //        the stream's native sample rate instead. This is fine for playback, since AudioBufferSourceNode
+    //        resamples buffers whose rate differs from the context's, but it is observable through
+    //        AudioBuffer.sampleRate.
+    Optional<u32> context_sample_rate;
+    if (m_sample_rate == static_cast<float>(static_cast<u32>(m_sample_rate)))
+        context_sample_rate = static_cast<u32>(m_sample_rate);
 
-    // 1. Let can decode be a boolean flag, initially set to true.
-    auto can_decode { true };
+    Threading::ThreadPool::the().submit([self = GC::make_root(*this), promise = GC::make_root(promise),
+                                            success_callback = success_callback ? GC::make_root(*success_callback) : GC::Root<WebIDL::CallbackType> {},
+                                            error_callback = error_callback ? GC::make_root(*error_callback) : GC::Root<WebIDL::CallbackType> {},
+                                            audio_data = move(audio_data), context_sample_rate, &main_thread_event_loop] mutable {
+        // 1. Let can decode be a boolean flag, initially set to true.
+        // NB: Represented by decode_result below not holding an error.
 
-    // FIXME: 2. Attempt to determine the MIME type of audioData, using MIME Sniffing § 6.2 Matching an
-    //           audio or video type pattern. If the audio or video type pattern matching algorithm returns
-    //           undefined, set can decode to false.
+        // FIXME: 2. Attempt to determine the MIME type of audioData, using MIME Sniffing § 6.2 Matching an
+        //           audio or video type pattern. If the audio or video type pattern matching algorithm returns
+        //           undefined, set can decode to false.
 
-    // 3. If can decode is true,
-    if (can_decode) {
-        // FIXME: attempt to decode the encoded audioData into linear PCM. In case of
-        //        failure, set can decode to false.
+        // 3. If can decode is true, attempt to decode the encoded audioData into linear PCM. In case of failure,
+        //    set can decode to false.
+        //    If the media byte-stream contains multiple audio tracks, only decode the first track to linear pcm.
+        auto decode_result = [&]() -> Media::DecoderErrorOr<Media::DecodedAudioData> {
+            if (audio_data.is_empty())
+                return Media::DecoderError::with_description(Media::DecoderErrorCategory::Corrupted, "Audio data is empty"sv);
+            auto stream = Media::IncrementallyPopulatedStream::create_from_data(audio_data);
+            return Media::decode_entire_audio_stream(move(stream), context_sample_rate);
+        }();
 
-        // FIXME: If the media byte-stream contains multiple audio tracks, only decode the first track to linear pcm.
-    }
+        main_thread_event_loop.deferred_invoke([self = move(self), promise = move(promise), success_callback = move(success_callback),
+                                                   error_callback = move(error_callback), decode_result = move(decode_result)] mutable {
+            self->finish_a_decoding_operation(*promise, success_callback.ptr(), error_callback.ptr(), move(decode_result));
+        });
+    });
+}
 
-    // 4. If can decode is false,
-    if (!can_decode) {
-        // queue a media element task to execute the following steps:
-        queue_a_media_element_task(GC::create_function(heap(), [this, &realm, promise, error_callback] {
+// Continuation of the decoding operation above, back on the control thread with the decoding thread's result.
+void BaseAudioContext::finish_a_decoding_operation(GC::Ref<JS::PromiseCapability> promise, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback, Media::DecoderErrorOr<Media::DecodedAudioData> decode_result)
+{
+    auto reject_with_encoding_error = [this, promise, error_callback] {
+        // 4. If can decode is false, queue a media element task to execute the following steps:
+        queue_a_media_element_task(GC::create_function(heap(), [this, promise, error_callback] {
+            auto& realm = this->realm();
+            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+
             // 4.1. Let error be a DOMException whose name is EncodingError.
             auto error = WebIDL::EncodingError::create(realm, "Unable to decode."_utf16);
 
@@ -355,19 +402,36 @@ void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>
                     HTML::report_exception(completion, realm);
             }
         }));
+    };
+
+    if (decode_result.is_error()) {
+        reject_with_encoding_error();
+        return;
     }
 
     // 5. Otherwise:
-    else {
-        // FIXME: 5.1. Take the result, representing the decoded linear PCM audio data, and resample it to the
-        //             sample-rate of the BaseAudioContext if it is different from the sample-rate of
-        //             audioData.
+    // 5.2. queue a media element task to execute the following steps:
+    queue_a_media_element_task(GC::create_function(heap(), [this, promise, success_callback, reject_with_encoding_error = move(reject_with_encoding_error), data = decode_result.release_value()] {
+        auto& realm = this->realm();
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
-        // FIXME: 5.2. queue a media element task to execute the following steps:
-
-        // FIXME: 5.2.1. Let buffer be an AudioBuffer containing the final result (after possibly performing
-        //               sample-rate conversion).
-        auto buffer = MUST(create_buffer(2, 1, 44100));
+        // 5.2.1. Let buffer be an AudioBuffer containing the final result (after possibly performing sample-rate
+        //        conversion).
+        // NB: Buffer creation fails for decoded audio that falls outside AudioBuffer's supported ranges, e.g. too
+        //     many channels; treat that the same as a decoding failure.
+        auto length = data.channels[0].size();
+        if (length > NumericLimits<WebIDL::UnsignedLong>::max()) {
+            reject_with_encoding_error();
+            return;
+        }
+        auto buffer_result = AudioBuffer::create(realm, static_cast<WebIDL::UnsignedLong>(data.channels.size()), static_cast<WebIDL::UnsignedLong>(length), static_cast<float>(data.sample_specification.sample_rate()));
+        if (buffer_result.is_error()) {
+            reject_with_encoding_error();
+            return;
+        }
+        auto buffer = buffer_result.release_value();
+        for (size_t channel = 0; channel < data.channels.size(); channel++)
+            overwrite_float32_array(MUST(buffer->get_channel_data(channel)), data.channels[channel]);
 
         // 5.2.2. Resolve promise with buffer.
         WebIDL::resolve_promise(realm, promise, buffer);
@@ -378,7 +442,7 @@ void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>
             if (completion.is_abrupt())
                 HTML::report_exception(completion, realm);
         }
-    }
+    }));
 }
 
 }

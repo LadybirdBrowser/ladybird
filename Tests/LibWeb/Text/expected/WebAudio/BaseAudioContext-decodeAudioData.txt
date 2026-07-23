@@ -1,0 +1,7 @@
+garbage data rejects with: EncodingError
+detached data rejects with: DataCloneError
+decoded: channels=2 sampleRate=48000 duration=12.1
+audioData detached after decoding: true
+resampled: channels=2 sampleRate=22050 duration=12.1
+success callback invoked with duration=12.1
+error callback invoked with: EncodingError
