@@ -8880,8 +8880,11 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         display_list_recorder.fill_rect(bitmap_rect, CSS::SystemColor::canvas(color_scheme));
 
     auto background_color = this->background_color();
-    if (navigable()->is_top_level_traversable())
-        page().client().page_did_change_background_color(canvas_background_color());
+    if (navigable()->is_top_level_traversable()) {
+        auto canvas_background_color = this->canvas_background_color();
+        display_list->set_surface_clear_color(canvas_background_color);
+        page().client().page_did_change_background_color(canvas_background_color);
+    }
 
     display_list_recorder.fill_rect(bitmap_rect, background_color);
 

@@ -35,10 +35,11 @@ DisplayList::DisplayList(u64 compatible_visual_context_tree_version)
 {
 }
 
-DisplayList::DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<AsyncScrollingMetadata> async_scrolling_metadata, HashMap<VisualContextIndex, DisplayListResourceId>&& mask_display_lists)
+DisplayList::DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata> async_scrolling_metadata, HashMap<VisualContextIndex, DisplayListResourceId>&& mask_display_lists)
     : m_compatible_visual_context_tree_version(compatible_visual_context_tree_version)
     , m_id(id)
     , m_command_bytes(move(command_bytes))
+    , m_surface_clear_color(surface_clear_color)
     , m_async_scrolling_metadata(move(async_scrolling_metadata))
     , m_mask_display_lists(move(mask_display_lists))
 {
@@ -473,6 +474,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayList const& display
     TRY(encoder.encode(display_list.m_id));
     TRY(encoder.encode(display_list.m_command_bytes));
     TRY(encoder.encode(display_list.m_compatible_visual_context_tree_version));
+    TRY(encoder.encode(display_list.m_surface_clear_color));
     TRY(encoder.encode(display_list.m_async_scrolling_metadata));
     TRY(encoder.encode(display_list.m_mask_display_lists));
     return {};
@@ -490,9 +492,10 @@ ErrorOr<NonnullRefPtr<Web::Painting::DisplayList>> decode(Decoder& decoder)
     auto id = TRY(decoder.decode<u64>());
     auto command_bytes = TRY(decoder.decode<ByteBuffer>());
     auto compatible_visual_context_tree_version = TRY(decoder.decode<u64>());
+    auto surface_clear_color = TRY(decoder.decode<Optional<Gfx::Color>>());
     auto async_scrolling_metadata = TRY(decoder.decode<Optional<Web::Painting::DisplayList::AsyncScrollingMetadata>>());
     auto mask_display_lists = TRY(decoder.decode<HashMap<Web::Painting::VisualContextIndex, Web::Painting::DisplayListResourceId>>());
-    return adopt_ref(*new Web::Painting::DisplayList(compatible_visual_context_tree_version, id, move(command_bytes), move(async_scrolling_metadata), move(mask_display_lists)));
+    return adopt_ref(*new Web::Painting::DisplayList(compatible_visual_context_tree_version, id, move(command_bytes), surface_clear_color, move(async_scrolling_metadata), move(mask_display_lists)));
 }
 
 }

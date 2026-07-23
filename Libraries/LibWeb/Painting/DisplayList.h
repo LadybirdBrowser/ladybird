@@ -123,6 +123,8 @@ public:
     u64 id() const { return m_id; }
 
     ReadonlyBytes command_bytes() const { return m_command_bytes.span(); }
+    void set_surface_clear_color(Gfx::Color color) { m_surface_clear_color = color; }
+    Optional<Gfx::Color> surface_clear_color() const { return m_surface_clear_color; }
     void set_async_scrolling_metadata(AsyncScrollingMetadata metadata) { m_async_scrolling_metadata = metadata; }
     Optional<AsyncScrollingMetadata> const& async_scrolling_metadata() const { return m_async_scrolling_metadata; }
     Optional<DisplayListResourceId> mask_display_list_id(VisualContextIndex context_index) const { return m_mask_display_lists.get(context_index); }
@@ -157,7 +159,7 @@ public:
 
 private:
     explicit DisplayList(u64 compatible_visual_context_tree_version);
-    DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<AsyncScrollingMetadata>, HashMap<VisualContextIndex, DisplayListResourceId>&& mask_display_lists);
+    DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>, HashMap<VisualContextIndex, DisplayListResourceId>&& mask_display_lists);
 
     static Optional<Gfx::IntRect> command_bounding_rectangle(auto const& command)
     {
@@ -188,6 +190,7 @@ private:
     u64 m_compatible_visual_context_tree_version { 0 };
     u64 m_id { 0 };
     ByteBuffer m_command_bytes;
+    Optional<Gfx::Color> m_surface_clear_color;
     Optional<AsyncScrollingMetadata> m_async_scrolling_metadata;
     HashMap<VisualContextIndex, DisplayListResourceId> m_mask_display_lists;
 

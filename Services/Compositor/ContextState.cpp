@@ -11,6 +11,7 @@
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibGfx/SkiaUtils.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <core/SkCanvas.h>
@@ -968,6 +969,7 @@ Web::Painting::AccumulatedVisualContextTree const& ContextState::visual_context_
 void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, CompositedContextResolver const* composited_context_resolver, Optional<Gfx::IntRect> damage_rect)
 {
     VERIFY(m_display_list);
+    auto surface_clear_color = Gfx::to_skia_color(m_display_list->surface_clear_color().value_or(Gfx::Color::Transparent));
     auto paint_display_list = [&](Gfx::PaintingSurface& target_surface) {
         display_list_player.execute(
             *m_display_list,
@@ -987,7 +989,7 @@ void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSk
         }
 
         auto& damage_canvas = m_damage_surface->canvas();
-        damage_canvas.clear(SK_ColorTRANSPARENT);
+        damage_canvas.clear(surface_clear_color);
         damage_canvas.save();
         damage_canvas.translate(-damage_rect->x(), -damage_rect->y());
         paint_display_list(*m_damage_surface);
@@ -1010,8 +1012,7 @@ void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSk
     auto save_count = canvas.save();
     if (damage_rect.has_value()) {
         canvas.clipIRect(SkIRect::MakeXYWH(damage_rect->x(), damage_rect->y(), damage_rect->width(), damage_rect->height()));
-        if (!presents_to_client())
-            canvas.clear(SK_ColorTRANSPARENT);
+        canvas.clear(surface_clear_color);
     }
     paint_display_list(surface);
     canvas.restoreToCount(save_count);
