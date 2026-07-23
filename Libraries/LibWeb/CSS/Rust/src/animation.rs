@@ -18,11 +18,14 @@ const ANIMATION_TYPE_BY_COMPUTED_VALUE: u8 = 1;
 const ANIMATION_TYPE_CUSTOM: u8 = 3;
 const VALUE_TYPE_ANGLE: u8 = 2;
 const VALUE_TYPE_FLEX: u8 = 15;
+const VALUE_TYPE_FREQUENCY: u8 = 21;
 const VALUE_TYPE_INTEGER: u8 = 24;
 const VALUE_TYPE_LENGTH: u8 = 25;
 const VALUE_TYPE_NUMBER: u8 = 27;
 const VALUE_TYPE_PERCENTAGE: u8 = 31;
 const VALUE_TYPE_RATIO: u8 = 33;
+const VALUE_TYPE_RESOLUTION: u8 = 35;
+const VALUE_TYPE_TIME: u8 = 38;
 const TRANSFORM_FUNCTION_MATRIX: u8 = 0;
 const TRANSFORM_FUNCTION_MATRIX_3D: u8 = 1;
 const TRANSFORM_FUNCTION_PERSPECTIVE: u8 = 2;
@@ -57,6 +60,14 @@ pub struct FfiAnimationContext {
     pub has_transform_reference_box: bool,
     pub transform_reference_box_width: f64,
     pub transform_reference_box_height: f64,
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy)]
+pub enum FfiCompositeOperation {
+    Replace,
+    Add,
+    Accumulate,
 }
 
 fn accepted_range(property_id: u16, value_type: u8) -> Option<(f64, f64)> {
@@ -123,6 +134,179 @@ fn handled_without_value() -> FfiAnimationValueResult {
     }
 }
 
+fn composite_scalar_value(
+    underlying: &StyleValueData,
+    animated: &StyleValueData,
+    operation: FfiCompositeOperation,
+) -> FfiAnimationValueResult {
+    if matches!(operation, FfiCompositeOperation::Replace) {
+        return handled_without_value();
+    }
+
+    match (underlying, animated) {
+        (StyleValueData::Number { value: underlying }, StyleValueData::Number { value: animated }) => {
+            // https://drafts.csswg.org/css-values-4/#combine-numbers
+            // Addition of <number> is defined as Vresult = VA + VB.
+            owned(StyleValueData::Number {
+                value: underlying + animated,
+            })
+        }
+        (StyleValueData::Integer { value: underlying }, StyleValueData::Integer { value: animated }) => {
+            // https://drafts.csswg.org/css-values-4/#combine-integers
+            // Addition of <integer> is defined as Vresult = VA + VB.
+            owned(StyleValueData::Integer {
+                value: underlying.saturating_add(*animated),
+            })
+        }
+        (
+            StyleValueData::Angle {
+                value: underlying,
+                unit: underlying_unit,
+            },
+            StyleValueData::Angle {
+                value: animated,
+                unit: animated_unit,
+            },
+        ) if underlying_unit == animated_unit => {
+            // https://drafts.csswg.org/css-values-4/#combine-dimensions
+            // Addition of compatible dimensions is defined as Vresult = VA + VB.
+            owned(StyleValueData::Angle {
+                value: underlying + animated,
+                unit: *underlying_unit,
+            })
+        }
+        (
+            StyleValueData::Flex {
+                value: underlying,
+                unit: underlying_unit,
+            },
+            StyleValueData::Flex {
+                value: animated,
+                unit: animated_unit,
+            },
+        ) if underlying_unit == animated_unit => owned(StyleValueData::Flex {
+            value: underlying + animated,
+            unit: *underlying_unit,
+        }),
+        (
+            StyleValueData::Frequency {
+                value: underlying,
+                unit: underlying_unit,
+            },
+            StyleValueData::Frequency {
+                value: animated,
+                unit: animated_unit,
+            },
+        ) if underlying_unit == animated_unit => owned(StyleValueData::Frequency {
+            value: underlying + animated,
+            unit: *underlying_unit,
+        }),
+        (
+            StyleValueData::Length {
+                value: underlying,
+                unit: underlying_unit,
+            },
+            StyleValueData::Length {
+                value: animated,
+                unit: animated_unit,
+            },
+        ) if underlying_unit == animated_unit => owned(StyleValueData::Length {
+            value: underlying + animated,
+            unit: *underlying_unit,
+        }),
+        (StyleValueData::Percentage { value: underlying }, StyleValueData::Percentage { value: animated }) => {
+            // https://drafts.csswg.org/css-values-4/#combine-mixed
+            // Addition of <percentage> is defined the same as interpolation except by adding each component rather than interpolating it.
+            owned(StyleValueData::Percentage {
+                value: underlying + animated,
+            })
+        }
+        (
+            StyleValueData::Resolution {
+                value: underlying,
+                unit: underlying_unit,
+            },
+            StyleValueData::Resolution {
+                value: animated,
+                unit: animated_unit,
+            },
+        ) if underlying_unit == animated_unit => owned(StyleValueData::Resolution {
+            value: underlying + animated,
+            unit: *underlying_unit,
+        }),
+        (
+            StyleValueData::Time {
+                value: underlying,
+                unit: underlying_unit,
+            },
+            StyleValueData::Time {
+                value: animated,
+                unit: animated_unit,
+            },
+        ) if underlying_unit == animated_unit => owned(StyleValueData::Time {
+            value: underlying + animated,
+            unit: *underlying_unit,
+        }),
+        (StyleValueData::OpacityValue { value: underlying }, StyleValueData::OpacityValue { value: animated }) => {
+            let (StyleValueData::Number { value: underlying }, StyleValueData::Number { value: animated }) =
+                (underlying.data(), animated.data())
+            else {
+                return not_handled();
+            };
+
+            // https://drafts.csswg.org/css-color-4/#propdef-opacity
+            // Computed value: specified number, clamped to the range [0,1]
+            let number = Arc::into_raw(Arc::new(StyleValueData::Number {
+                value: (underlying + animated).clamp(0.0, 1.0),
+            }));
+            owned(StyleValueData::OpacityValue {
+                value: unsafe { RetainedStyleValueData::from_retained_pointer(number) },
+            })
+        }
+        (StyleValueData::Ratio { .. }, StyleValueData::Ratio { .. }) => {
+            // https://drafts.csswg.org/css-values-4/#combine-ratio
+            // Addition of <ratio>s is not possible.
+            handled_without_value()
+        }
+        (
+            StyleValueData::ValueList {
+                values: underlying_values,
+                separator: underlying_separator,
+                ..
+            },
+            StyleValueData::ValueList {
+                values: animated_values,
+                separator: animated_separator,
+                collapsible,
+            },
+        ) => {
+            if underlying_values.as_slice().len() != animated_values.as_slice().len()
+                || underlying_separator != animated_separator
+            {
+                return not_handled();
+            }
+
+            let mut values = Vec::with_capacity(underlying_values.as_slice().len());
+            for (underlying, animated) in underlying_values.as_slice().iter().zip(animated_values.as_slice()) {
+                let result = composite_scalar_value(underlying.data(), animated.data(), operation);
+                if !result.handled {
+                    return not_handled();
+                }
+                if result.value.is_null() {
+                    return handled_without_value();
+                }
+                values.push(unsafe { RetainedStyleValueData::from_retained_pointer(result.value) });
+            }
+            owned(StyleValueData::ValueList {
+                values: RetainedStyleValueDataList::from_retained_values(values),
+                separator: *underlying_separator,
+                collapsible: *collapsible,
+            })
+        }
+        _ => not_handled(),
+    }
+}
+
 fn interpolate_scalar_value(
     property_id: u16,
     from: &StyleValueData,
@@ -172,6 +356,19 @@ fn interpolate_scalar_value(
             unit: *from_unit,
         }),
         (
+            StyleValueData::Frequency {
+                value: from,
+                unit: from_unit,
+            },
+            StyleValueData::Frequency {
+                value: to,
+                unit: to_unit,
+            },
+        ) if from_unit == to_unit => owned(StyleValueData::Frequency {
+            value: interpolate_f64(*from, *to, delta, accepted_range(property_id, VALUE_TYPE_FREQUENCY)),
+            unit: *from_unit,
+        }),
+        (
             StyleValueData::Length {
                 value: from,
                 unit: from_unit,
@@ -186,6 +383,32 @@ fn interpolate_scalar_value(
                 value: interpolate_f64(*from, *to, delta, accepted_range(property_id, VALUE_TYPE_PERCENTAGE)),
             })
         }
+        (
+            StyleValueData::Resolution {
+                value: from,
+                unit: from_unit,
+            },
+            StyleValueData::Resolution {
+                value: to,
+                unit: to_unit,
+            },
+        ) if from_unit == to_unit => owned(StyleValueData::Resolution {
+            value: interpolate_f64(*from, *to, delta, accepted_range(property_id, VALUE_TYPE_RESOLUTION)),
+            unit: *from_unit,
+        }),
+        (
+            StyleValueData::Time {
+                value: from,
+                unit: from_unit,
+            },
+            StyleValueData::Time {
+                value: to,
+                unit: to_unit,
+            },
+        ) if from_unit == to_unit => owned(StyleValueData::Time {
+            value: interpolate_f64(*from, *to, delta, accepted_range(property_id, VALUE_TYPE_TIME)),
+            unit: *from_unit,
+        }),
         (StyleValueData::OpacityValue { value: from }, StyleValueData::OpacityValue { value: to }) => {
             let (StyleValueData::Number { value: from }, StyleValueData::Number { value: to }) =
                 (from.data(), to.data())
@@ -259,6 +482,36 @@ fn interpolate_scalar_value(
             owned(StyleValueData::Ratio {
                 numerator: unsafe { RetainedStyleValueData::from_retained_pointer(numerator) },
                 denominator: unsafe { RetainedStyleValueData::from_retained_pointer(denominator) },
+            })
+        }
+        (
+            StyleValueData::ValueList {
+                values: from_values,
+                separator,
+                collapsible,
+            },
+            StyleValueData::ValueList { values: to_values, .. },
+        ) => {
+            // https://www.w3.org/TR/web-animations/#by-computed-value
+            // If the number of components or the types of corresponding components do not match,
+            // or if any component value uses discrete animation and the two corresponding values do not match,
+            // then the property values combine as discrete.
+            if from_values.as_slice().len() != to_values.as_slice().len() {
+                return not_handled();
+            }
+
+            let mut values = Vec::with_capacity(from_values.as_slice().len());
+            for (from, to) in from_values.as_slice().iter().zip(to_values.as_slice()) {
+                let result = interpolate_scalar_value(property_id, from.data(), to.data(), delta);
+                if !result.handled || result.value.is_null() {
+                    return not_handled();
+                }
+                values.push(unsafe { RetainedStyleValueData::from_retained_pointer(result.value) });
+            }
+            owned(StyleValueData::ValueList {
+                values: RetainedStyleValueDataList::from_retained_values(values),
+                separator: *separator,
+                collapsible: *collapsible,
             })
         }
         _ => not_handled(),
@@ -1450,4 +1703,17 @@ pub unsafe extern "C" fn rust_interpolate_scalar_style_value(
             delta,
         )
     })
+}
+
+/// Attempt Rust-owned style value composition without consulting C++ or the DOM.
+///
+/// # Safety
+/// `underlying` and `animated` must point at live `StyleValueData` allocations.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_composite_scalar_style_value(
+    underlying: *const StyleValueData,
+    animated: *const StyleValueData,
+    operation: FfiCompositeOperation,
+) -> FfiAnimationValueResult {
+    crate::abort_on_panic(|| composite_scalar_value(unsafe { &*underlying }, unsafe { &*animated }, operation))
 }

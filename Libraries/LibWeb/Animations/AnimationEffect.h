@@ -10,6 +10,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibGC/ConservativeHashMap.h>
+#include <LibGC/ConservativeVector.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/AnimationEffect.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -43,6 +44,7 @@ struct AnimationUpdateContext {
 
         RefPtr<CSS::AnimatedProperties const> animated_properties_before_update;
         RefPtr<CSS::ComputedProperties> target_style;
+        GC::ConservativeVector<GC::Ref<KeyframeEffect>> effects;
     };
 
     AnimationUpdateContext();

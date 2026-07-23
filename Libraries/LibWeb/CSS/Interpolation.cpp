@@ -2187,12 +2187,6 @@ RefPtr<StyleValue const> interpolate_value(DOM::Element& element, CalculationCon
     return interpolate_discrete(from, to, delta, allow_discrete);
 }
 
-template<typename T>
-static T composite_raw_values(T underlying_raw_value, T animated_raw_value)
-{
-    return underlying_raw_value + animated_raw_value;
-}
-
 static Optional<GridTrackSizeList> composite_grid_track_size_list(PropertyID property_id, CalculationContext const& calculation_context, GridTrackSizeList const& underlying, GridTrackSizeList const& animated, Bindings::CompositeOperation composite_operation)
 {
     // https://drafts.csswg.org/css-grid-2/#track-sizing
@@ -2310,13 +2304,28 @@ static RefPtr<StyleValue const> composite_mixed_value(StyleValue const& underlyi
 
 RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue const& underlying_value, StyleValue const& animated_value, Bindings::CompositeOperation composite_operation, ColorResolutionContext const& color_resolution_context)
 {
-    auto calculation_context = CalculationContext::for_property(PropertyNameAndID::from_id(property_id));
+    auto ffi_composite_operation = [&] {
+        switch (composite_operation) {
+        case Bindings::CompositeOperation::Replace:
+            return StyleValueFFI::FfiCompositeOperation::Replace;
+        case Bindings::CompositeOperation::Add:
+            return StyleValueFFI::FfiCompositeOperation::Add;
+        case Bindings::CompositeOperation::Accumulate:
+            return StyleValueFFI::FfiCompositeOperation::Accumulate;
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    auto rust_result = StyleValueFFI::rust_composite_scalar_style_value(
+        underlying_value.rust_style_value_data(),
+        animated_value.rust_style_value_data(),
+        ffi_composite_operation);
+    if (rust_result.handled) {
+        if (!rust_result.value)
+            return {};
+        return StyleValue::adopt_rust_style_value_data(rust_result.value);
+    }
 
-    auto composite_dimension_value = [](StyleValue const& underlying_value, StyleValue const& animated_value) -> Optional<double> {
-        auto const& underlying_dimension = as<DimensionStyleValue>(underlying_value);
-        auto const& animated_dimension = as<DimensionStyleValue>(animated_value);
-        return composite_raw_values(underlying_dimension.raw_value(), animated_dimension.raw_value());
-    };
+    auto calculation_context = CalculationContext::for_property(PropertyNameAndID::from_id(property_id));
 
     if (composite_operation == Bindings::CompositeOperation::Replace)
         return {};
@@ -2325,13 +2334,6 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
         return composite_mixed_value(underlying_value, animated_value, calculation_context);
 
     switch (underlying_value.type()) {
-    case StyleValue::Type::Angle: {
-        auto result = composite_dimension_value(underlying_value, animated_value);
-        if (!result.has_value())
-            return {};
-        VERIFY(underlying_value.as_angle().angle().unit() == animated_value.as_angle().angle().unit());
-        return AngleStyleValue::create({ *result, underlying_value.as_angle().angle().unit() });
-    }
     case StyleValue::Type::BasicShape: {
         auto const& underlying_basic_shape = underlying_value.as_basic_shape();
         auto const& animated_basic_shape = animated_value.as_basic_shape();
@@ -2476,10 +2478,6 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
 
         return {};
     }
-    case StyleValue::Type::Flex: {
-        auto result = composite_raw_values(underlying_value.as_flex().flex().to_fr(), animated_value.as_flex().flex().to_fr());
-        return FlexStyleValue::create(Flex::make_fr(result));
-    }
     case StyleValue::Type::Function: {
         auto const& underlying_function = underlying_value.as_function();
         auto const& animated_function = animated_value.as_function();
@@ -2501,21 +2499,6 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
             return {};
         return GridTrackSizeListStyleValue::create(composited_list.release_value());
     }
-    case StyleValue::Type::Integer: {
-        auto result = composite_raw_values(underlying_value.as_integer().integer(), animated_value.as_integer().integer());
-        return IntegerStyleValue::create(result);
-    }
-    case StyleValue::Type::Length: {
-        auto result = composite_dimension_value(underlying_value, animated_value);
-        if (!result.has_value())
-            return {};
-        VERIFY(underlying_value.as_length().length().unit() == animated_value.as_length().length().unit());
-        return LengthStyleValue::create(Length { *result, underlying_value.as_length().length().unit() });
-    }
-    case StyleValue::Type::Number: {
-        auto result = composite_raw_values(underlying_value.as_number().number(), animated_value.as_number().number());
-        return NumberStyleValue::create(result);
-    }
     case StyleValue::Type::OpenTypeTagged: {
         auto& underlying_open_type_tagged = underlying_value.as_open_type_tagged();
         auto& animated_open_type_tagged = animated_value.as_open_type_tagged();
@@ -2525,10 +2508,6 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
         if (!composited_value)
             return {};
         return OpenTypeTaggedStyleValue::create(OpenTypeTaggedStyleValue::Mode::FontVariationSettings, underlying_open_type_tagged.tag(), composited_value.release_nonnull());
-    }
-    case StyleValue::Type::Percentage: {
-        auto result = composite_raw_values(underlying_value.as_percentage().percentage().value(), animated_value.as_percentage().percentage().value());
-        return PercentageStyleValue::create(Percentage { result });
     }
     case StyleValue::Type::Position: {
         auto& underlying_position = underlying_value.as_position();
@@ -2576,11 +2555,6 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
             return {};
 
         return RadialSizeStyleValue::create({ composited_horizontal.release_nonnull(), composited_vertical.release_nonnull() });
-    }
-    case StyleValue::Type::Ratio: {
-        // https://drafts.csswg.org/css-values/#combine-ratio
-        // Addition of <ratio>s is not possible.
-        return {};
     }
     case StyleValue::Type::ValueList: {
         auto& underlying_list = underlying_value.as_value_list();

@@ -859,6 +859,8 @@ AnimationUpdateContext::~AnimationUpdateContext()
             continue;
         auto& element = it.key;
         GC::Ref<DOM::Element> target = element.element();
+        if (!it.value.effects.is_empty())
+            target->document().style_computer().collect_animations_into(element, it.value.effects.span(), *style);
         auto animated_properties_after_update = style->animated_properties_snapshot();
         auto invalidation = compute_required_invalidation_for_animated_properties(it.value.animated_properties_before_update.ptr(), animated_properties_after_update.ptr());
 

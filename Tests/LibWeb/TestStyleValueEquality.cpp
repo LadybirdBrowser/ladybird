@@ -15,9 +15,11 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LightDarkStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TupleStyleValue.h>
@@ -30,6 +32,105 @@
 // transitions.
 
 namespace Web::CSS {
+
+TEST_CASE(rust_composites_scalar_style_values)
+{
+    auto underlying_number = NumberStyleValue::create(2);
+    auto animated_number = NumberStyleValue::create(3);
+    auto result = StyleValueFFI::rust_composite_scalar_style_value(
+        underlying_number->rust_style_value_data(),
+        animated_number->rust_style_value_data(),
+        StyleValueFFI::FfiCompositeOperation::Add);
+    EXPECT(result.handled);
+    auto number = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(number->as_number().number(), 5);
+
+    auto underlying_length = LengthStyleValue::create(Length::make_px(10));
+    auto animated_length = LengthStyleValue::create(Length::make_px(15));
+    result = StyleValueFFI::rust_composite_scalar_style_value(
+        underlying_length->rust_style_value_data(),
+        animated_length->rust_style_value_data(),
+        StyleValueFFI::FfiCompositeOperation::Accumulate);
+    EXPECT(result.handled);
+    auto length = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(length->as_length().length().raw_value(), 25);
+
+    result = StyleValueFFI::rust_composite_scalar_style_value(
+        underlying_number->rust_style_value_data(),
+        animated_number->rust_style_value_data(),
+        StyleValueFFI::FfiCompositeOperation::Replace);
+    EXPECT(result.handled);
+    EXPECT_EQ(result.value, nullptr);
+
+    auto underlying_ratio = RatioStyleValue::create(NumberStyleValue::create(4), NumberStyleValue::create(3));
+    auto animated_ratio = RatioStyleValue::create(NumberStyleValue::create(16), NumberStyleValue::create(9));
+    result = StyleValueFFI::rust_composite_scalar_style_value(
+        underlying_ratio->rust_style_value_data(),
+        animated_ratio->rust_style_value_data(),
+        StyleValueFFI::FfiCompositeOperation::Add);
+    EXPECT(result.handled);
+    EXPECT_EQ(result.value, nullptr);
+
+    auto underlying_opacity = OpacityValueStyleValue::create(NumberStyleValue::create(0.75));
+    auto animated_opacity = OpacityValueStyleValue::create(NumberStyleValue::create(0.75));
+    result = StyleValueFFI::rust_composite_scalar_style_value(
+        underlying_opacity->rust_style_value_data(),
+        animated_opacity->rust_style_value_data(),
+        StyleValueFFI::FfiCompositeOperation::Add);
+    EXPECT(result.handled);
+    auto opacity = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(opacity->as_opacity_value().resolved(), 1);
+}
+
+TEST_CASE(rust_interpolates_and_composites_scalar_dimensions)
+{
+    auto from_frequency = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_frequency(100, 0));
+    auto to_frequency = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_frequency(200, 0));
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Width),
+        from_frequency->rust_style_value_data(),
+        to_frequency->rust_style_value_data(),
+        0.25f);
+    EXPECT(result.handled);
+    auto frequency = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(frequency->rust_style_value_data()->frequency.value, 125);
+
+    auto underlying_time = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_time(2, 0));
+    auto animated_time = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_time(3, 0));
+    result = StyleValueFFI::rust_composite_scalar_style_value(
+        underlying_time->rust_style_value_data(),
+        animated_time->rust_style_value_data(),
+        StyleValueFFI::FfiCompositeOperation::Add);
+    EXPECT(result.handled);
+    auto time = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(time->rust_style_value_data()->time.value, 5);
+}
+
+TEST_CASE(rust_interpolates_and_composites_value_lists)
+{
+    auto from = StyleValueList::create({ NumberStyleValue::create(1), NumberStyleValue::create(3) }, StyleValueList::Separator::Space);
+    auto to = StyleValueList::create({ NumberStyleValue::create(3), NumberStyleValue::create(7) }, StyleValueList::Separator::Space);
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Width),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(interpolated->as_value_list().values()[0]->as_number().number(), 2);
+    EXPECT_EQ(interpolated->as_value_list().values()[1]->as_number().number(), 5);
+
+    result = StyleValueFFI::rust_composite_scalar_style_value(
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        StyleValueFFI::FfiCompositeOperation::Add);
+    EXPECT(result.handled);
+    auto composited = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT_EQ(composited->as_value_list().values()[0]->as_number().number(), 4);
+    EXPECT_EQ(composited->as_value_list().values()[1]->as_number().number(), 10);
+}
 
 TEST_CASE(rust_scalar_handles_create_typed_wrappers)
 {

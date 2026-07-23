@@ -995,7 +995,7 @@ void KeyframeEffect::update_computed_properties_for_style(AnimationUpdateContext
     });
 
     VERIFY(element_data.target_style);
-    style_computer.collect_animation_into(abstract_element, *this, *element_data.target_style);
+    element_data.effects.append(*this);
 }
 
 Bindings::CompositeOperation css_animation_composition_to_bindings_composite_operation(CSS::AnimationComposition composition)
