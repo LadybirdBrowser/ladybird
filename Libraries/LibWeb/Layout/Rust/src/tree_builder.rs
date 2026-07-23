@@ -109,6 +109,26 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub assigned_node_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
     pub is_svg_element: unsafe extern "C" fn(*mut c_void) -> bool,
     pub clear_stale_layout_and_paint_node: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub display_contents_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiDisplayContentsFacts,
+    pub set_context_layout_top_layer: unsafe extern "C" fn(*mut c_void, bool),
+    pub clear_synthetic_pseudo_element_layout_nodes: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub clear_stale_inclusive_descendants: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub resolve_counters: unsafe extern "C" fn(*mut c_void),
+    pub create_pseudo_element: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, FfiInsertionMode),
+    pub clear_stale_assigned_slottables: unsafe extern "C" fn(*mut c_void),
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiDisplayContentsFacts {
+    pub rendered_in_top_layer: bool,
+    pub context_layout_top_layer: bool,
+    pub content_visibility_hidden: bool,
+    pub should_layout_dom_children: bool,
+    pub child_needs_layout_tree_update: bool,
+    pub dom_children_parent: *mut c_void,
+    pub shadow_root: *mut c_void,
+    pub slot_element: *mut c_void,
 }
 
 struct DomTreeBuilderHost<'a> {
@@ -274,6 +294,126 @@ pub unsafe extern "C" fn rust_update_layout_tree_for_svg_switch_children(
 
         if !rendered_child.is_null() {
             host.update_layout_tree(rendered_child, context, must_create_subtree);
+        }
+    });
+}
+
+/// Updates an element that generates no principal box because it has `display: contents`.
+///
+/// # Safety
+///
+/// The callback table, element, and context must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_update_layout_tree_for_display_contents(
+    callbacks: *const FfiDomTreeBuilderCallbacks,
+    element: *mut c_void,
+    context: *mut c_void,
+    must_create_subtree: bool,
+    should_create_layout_node: bool,
+) {
+    abort_on_panic(|| {
+        assert!(!element.is_null());
+        assert!(!context.is_null());
+        // SAFETY: Guaranteed by the entry point's contract.
+        let host = unsafe { dom_tree_builder_host(callbacks) };
+        // SAFETY: The element and context remain live for the duration of the call.
+        let facts = unsafe { (host.callbacks.display_contents_facts)(host.callbacks.builder, element, context) };
+
+        // A display:contents member builds its children through this path, so the top layer flag
+        // is consumed here the same way update_layout_tree does for members with a box.
+        let clear_layout_top_layer_for_descendants = facts.rendered_in_top_layer && facts.context_layout_top_layer;
+        if clear_layout_top_layer_for_descendants {
+            // SAFETY: `context` remains live throughout this call.
+            unsafe { (host.callbacks.set_context_layout_top_layer)(context, false) };
+        }
+
+        // SAFETY: The builder and element remain live throughout this call.
+        unsafe {
+            (host.callbacks.clear_synthetic_pseudo_element_layout_nodes)(host.callbacks.builder, element);
+        }
+
+        if should_create_layout_node {
+            // SAFETY: The builder and element remain live throughout this call.
+            unsafe {
+                (host.callbacks.clear_stale_inclusive_descendants)(host.callbacks.builder, element);
+                (host.callbacks.resolve_counters)(element);
+            }
+        }
+
+        if !facts.content_visibility_hidden {
+            // SAFETY: The builder and element remain live throughout this call.
+            unsafe {
+                (host.callbacks.create_pseudo_element)(
+                    host.callbacks.builder,
+                    element,
+                    FfiPseudoElement::Before,
+                    FfiInsertionMode::Append,
+                );
+            }
+        }
+
+        if !facts.content_visibility_hidden && (should_create_layout_node || facts.child_needs_layout_tree_update) {
+            let must_create_children = should_create_layout_node;
+            if !facts.shadow_root.is_null() {
+                // SAFETY: The callback table, shadow root, and context remain valid.
+                unsafe {
+                    rust_update_layout_tree_for_shadow_root_children(
+                        callbacks,
+                        facts.shadow_root,
+                        context,
+                        must_create_children,
+                    );
+                }
+            } else if facts.should_layout_dom_children {
+                assert!(!facts.dom_children_parent.is_null());
+                // SAFETY: The callback table, parent, and context remain valid.
+                unsafe {
+                    rust_update_layout_tree_for_dom_children(
+                        callbacks,
+                        facts.dom_children_parent,
+                        context,
+                        must_create_children,
+                    );
+                }
+            }
+        }
+
+        if !facts.slot_element.is_null() {
+            if !facts.content_visibility_hidden {
+                // SAFETY: The callback table, slot element, and context remain valid.
+                unsafe {
+                    rust_update_layout_tree_for_assigned_slottables(
+                        callbacks,
+                        facts.slot_element,
+                        context,
+                        must_create_subtree,
+                    );
+                }
+            } else {
+                // SAFETY: `slot_element` remains live throughout this call.
+                unsafe { (host.callbacks.clear_stale_assigned_slottables)(facts.slot_element) };
+            }
+        }
+
+        if !facts.content_visibility_hidden {
+            // SAFETY: The builder and element remain live throughout this call.
+            unsafe {
+                (host.callbacks.create_pseudo_element)(
+                    host.callbacks.builder,
+                    element,
+                    FfiPseudoElement::After,
+                    FfiInsertionMode::Append,
+                );
+            }
+        }
+
+        assert!(!facts.dom_children_parent.is_null());
+        // SAFETY: The element's ParentNode subobject remains live throughout this call.
+        unsafe { (host.callbacks.clear_update_flags)(facts.dom_children_parent) };
+
+        if clear_layout_top_layer_for_descendants {
+            // SAFETY: Restore the live traversal context to its entry value.
+            unsafe { (host.callbacks.set_context_layout_top_layer)(context, true) };
         }
     });
 }

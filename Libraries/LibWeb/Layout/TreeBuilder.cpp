@@ -652,6 +652,59 @@ RustFFI::FfiDomTreeBuilderCallbacks TreeBuilder::make_ffi_dom_tree_builder_callb
             VERIFY(builder_pointer);
             VERIFY(node_pointer);
             (void)static_cast<TreeBuilder*>(builder_pointer)->clear_stale_layout_and_paint_node(*static_cast<DOM::Node*>(node_pointer)); },
+        .display_contents_facts = [](void*, void* element_pointer, void* context_pointer) -> RustFFI::FfiDisplayContentsFacts {
+            VERIFY(element_pointer);
+            VERIFY(context_pointer);
+            auto& element = *static_cast<DOM::Element*>(element_pointer);
+            auto& context = *static_cast<Context*>(context_pointer);
+            auto* slot_element = as_if<HTML::HTMLSlotElement>(element);
+            auto shadow_root = element.shadow_root();
+            return {
+                .rendered_in_top_layer = element.rendered_in_top_layer(),
+                .context_layout_top_layer = context.layout_top_layer,
+                .content_visibility_hidden = element.computed_values()->content_visibility() == CSS::ContentVisibility::Hidden,
+                .should_layout_dom_children = slot_element ? slot_element->assigned_nodes_internal().is_empty() && element.has_children() : element.has_children(),
+                .child_needs_layout_tree_update = element.child_needs_layout_tree_update(),
+                .dom_children_parent = static_cast<DOM::ParentNode*>(&element),
+                .shadow_root = shadow_root ? static_cast<DOM::ParentNode*>(shadow_root.ptr()) : nullptr,
+                .slot_element = slot_element,
+            };
+        },
+        .set_context_layout_top_layer = [](void* context_pointer, bool layout_top_layer) {
+            VERIFY(context_pointer);
+            static_cast<Context*>(context_pointer)->layout_top_layer = layout_top_layer; },
+        .clear_synthetic_pseudo_element_layout_nodes = [](void*, void* element_pointer) {
+            VERIFY(element_pointer);
+            static_cast<DOM::Element*>(element_pointer)->clear_synthetic_pseudo_element_layout_nodes(Badge<TreeBuilder> {}); },
+        .clear_stale_inclusive_descendants = [](void* builder_pointer, void* element_pointer) {
+            VERIFY(builder_pointer);
+            VERIFY(element_pointer);
+            auto& builder = *static_cast<TreeBuilder*>(builder_pointer);
+            static_cast<DOM::Element*>(element_pointer)->for_each_shadow_including_inclusive_descendant([&](auto& node) {
+                return builder.clear_stale_layout_and_paint_node(node);
+            }); },
+        .resolve_counters = [](void* element_pointer) {
+            VERIFY(element_pointer);
+            DOM::AbstractElement element_reference { *static_cast<DOM::Element*>(element_pointer) };
+            CSS::resolve_counters(element_reference); },
+        .create_pseudo_element = [](void* builder_pointer, void* element_pointer, RustFFI::FfiPseudoElement pseudo_element, RustFFI::FfiInsertionMode insertion_mode) {
+            VERIFY(builder_pointer);
+            VERIFY(element_pointer);
+            auto css_pseudo_element = [&] {
+                switch (pseudo_element) {
+                case RustFFI::FfiPseudoElement::Before:
+                    return CSS::PseudoElement::Before;
+                case RustFFI::FfiPseudoElement::After:
+                    return CSS::PseudoElement::After;
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+            }();
+            auto mode = insertion_mode == RustFFI::FfiInsertionMode::Append ? AppendOrPrepend::Append : AppendOrPrepend::Prepend;
+            (void)static_cast<TreeBuilder*>(builder_pointer)->create_pseudo_element_if_needed(*static_cast<DOM::Element*>(element_pointer), css_pseudo_element, mode); },
+        .clear_stale_assigned_slottables = [](void* slot_element_pointer) {
+            VERIFY(slot_element_pointer);
+            clear_stale_layout_nodes_for_assigned_slottables(*static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)); },
     };
 }
 
@@ -1045,53 +1098,13 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
 void TreeBuilder::update_layout_tree_for_display_contents(DOM::Element& element, TreeBuilder::Context& context, MustCreateSubtree must_create_subtree, bool should_create_layout_node)
 {
-    // A display:contents member builds its children through this path, so the top layer flag
-    // is consumed here the same way update_layout_tree does for members with a box.
-    Optional<TemporaryChange<bool>> layout_top_layer_cleared_for_member_descendants;
-    if (element.rendered_in_top_layer() && context.layout_top_layer)
-        layout_top_layer_cleared_for_member_descendants.emplace(context.layout_top_layer, false);
-
-    element.clear_synthetic_pseudo_element_layout_nodes(Badge<TreeBuilder> {});
-
-    if (should_create_layout_node) {
-        element.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-            return clear_stale_layout_and_paint_node(node);
-        });
-
-        DOM::AbstractElement element_reference { element };
-        CSS::resolve_counters(element_reference);
-    }
-
-    auto element_has_content_visibility_hidden = element.computed_values()->content_visibility() == CSS::ContentVisibility::Hidden;
-    if (!element_has_content_visibility_hidden)
-        (void)create_pseudo_element_if_needed(element, CSS::PseudoElement::Before, AppendOrPrepend::Append);
-
-    auto should_layout_dom_children = [&]() {
-        if (auto const* slot_element = as_if<HTML::HTMLSlotElement>(element))
-            return slot_element->assigned_nodes_internal().is_empty() && element.has_children();
-        return element.has_children();
-    }();
-
-    auto shadow_root = element.shadow_root();
-    if (!element_has_content_visibility_hidden && (should_create_layout_node || element.child_needs_layout_tree_update())) {
-        if (shadow_root)
-            update_layout_tree_for_shadow_root_children(*shadow_root, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
-        else if (should_layout_dom_children)
-            update_layout_tree_for_dom_children(element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
-    }
-
-    if (auto* slot_element = as_if<HTML::HTMLSlotElement>(element)) {
-        if (!element_has_content_visibility_hidden)
-            update_layout_tree_for_assigned_slottables(*slot_element, context, must_create_subtree);
-        else
-            clear_stale_layout_nodes_for_assigned_slottables(*slot_element);
-    }
-
-    if (!element_has_content_visibility_hidden)
-        (void)create_pseudo_element_if_needed(element, CSS::PseudoElement::After, AppendOrPrepend::Append);
-
-    element.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
-    element.set_child_needs_layout_tree_update(false);
+    auto callbacks = make_ffi_dom_tree_builder_callbacks();
+    RustFFI::rust_update_layout_tree_for_display_contents(
+        &callbacks,
+        &element,
+        &context,
+        must_create_subtree == MustCreateSubtree::Yes,
+        should_create_layout_node);
 }
 
 void TreeBuilder::update_layout_tree_for_svg_switch_children(SVG::SVGSwitchElement& switch_element, Context& context, MustCreateSubtree must_create_subtree)
