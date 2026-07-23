@@ -64,7 +64,7 @@ TEST_CASE(rasterization_clears_damaged_pixels_to_the_canvas_color_in_presentatio
     auto viewport_rect = Gfx::IntRect { 0, 0, 4, 4 };
 
     context.viewport_size_updated(viewport_rect.size(), Web::Compositor::WindowResizingInProgress::No);
-    auto publication = context.resize_backing_stores_if_needed({});
+    auto publication = context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed);
     VERIFY(publication.has_value());
 
     auto paint_frame = [&](NonnullRefPtr<Web::Painting::DisplayList> display_list) {
