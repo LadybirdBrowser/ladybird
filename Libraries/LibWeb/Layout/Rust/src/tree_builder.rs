@@ -131,6 +131,83 @@ pub struct FfiDisplayContentsFacts {
     pub slot_element: *mut c_void,
 }
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiPrincipalNodeEntryFacts {
+    pub must_create_subtree: bool,
+    pub needs_layout_tree_update: bool,
+    pub document_needs_full_layout_tree_update: bool,
+    pub is_document: bool,
+    pub has_layout_node: bool,
+    pub is_element: bool,
+    pub rendered_in_top_layer: bool,
+    pub context_layout_top_layer: bool,
+    pub layout_node_is_attached: bool,
+    pub is_svg_container: bool,
+    pub requires_svg_container: bool,
+    pub context_has_svg_root: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiTopLayerEntryDecision {
+    Continue,
+    Skip,
+    SkipAndRequestZoneRebuild,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiSvgEntryDecision {
+    Continue,
+    EnterSvgRoot,
+    Skip,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiPrincipalNodeEntryDecision {
+    pub should_create_layout_node: bool,
+    pub top_layer: FfiTopLayerEntryDecision,
+    pub svg: FfiSvgEntryDecision,
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_principal_node_entry_decision(
+    facts: FfiPrincipalNodeEntryFacts,
+) -> FfiPrincipalNodeEntryDecision {
+    abort_on_panic(|| {
+        let should_create_layout_node = facts.must_create_subtree
+            || facts.needs_layout_tree_update
+            || facts.document_needs_full_layout_tree_update
+            || (facts.is_document && !facts.has_layout_node);
+
+        let top_layer = if facts.is_element && facts.rendered_in_top_layer && !facts.context_layout_top_layer {
+            if !facts.layout_node_is_attached && !facts.needs_layout_tree_update {
+                FfiTopLayerEntryDecision::SkipAndRequestZoneRebuild
+            } else {
+                FfiTopLayerEntryDecision::Skip
+            }
+        } else {
+            FfiTopLayerEntryDecision::Continue
+        };
+
+        let svg = if facts.is_svg_container {
+            FfiSvgEntryDecision::EnterSvgRoot
+        } else if facts.requires_svg_container && !facts.context_has_svg_root {
+            FfiSvgEntryDecision::Skip
+        } else {
+            FfiSvgEntryDecision::Continue
+        };
+
+        FfiPrincipalNodeEntryDecision {
+            should_create_layout_node,
+            top_layer,
+            svg,
+        }
+    })
+}
+
 struct DomTreeBuilderHost<'a> {
     callbacks: &'a FfiDomTreeBuilderCallbacks,
 }
@@ -1793,9 +1870,11 @@ pub unsafe extern "C" fn rust_fixup_tables(callbacks: *const FfiTreeBuilderCallb
 #[cfg(test)]
 mod tests {
     use super::{
-        FfiComputedContentType, FfiFirstLetterCodePointFacts, FfiFirstLetterTextCallbacks, FfiPseudoElement,
-        FfiPseudoElementDecision, FfiPseudoElementFacts, FfiReplacedElementDisplayAdjustment, FirstLetterTextHost,
-        find_first_letter_in_text, rust_adjusted_table_display_for_replaced_element, rust_pseudo_element_decision,
+        FfiComputedContentType, FfiFirstLetterCodePointFacts, FfiFirstLetterTextCallbacks, FfiPrincipalNodeEntryFacts,
+        FfiPseudoElement, FfiPseudoElementDecision, FfiPseudoElementFacts, FfiReplacedElementDisplayAdjustment,
+        FfiSvgEntryDecision, FfiTopLayerEntryDecision, FirstLetterTextHost, find_first_letter_in_text,
+        rust_adjusted_table_display_for_replaced_element, rust_principal_node_entry_decision,
+        rust_pseudo_element_decision,
     };
     use std::ffi::c_void;
 
@@ -1988,5 +2067,43 @@ mod tests {
             ),
             FfiPseudoElementDecision::Box
         );
+    }
+
+    #[test]
+    fn principal_node_entry_decisions() {
+        let mut facts = FfiPrincipalNodeEntryFacts {
+            must_create_subtree: false,
+            needs_layout_tree_update: false,
+            document_needs_full_layout_tree_update: false,
+            is_document: false,
+            has_layout_node: true,
+            is_element: true,
+            rendered_in_top_layer: false,
+            context_layout_top_layer: false,
+            layout_node_is_attached: true,
+            is_svg_container: false,
+            requires_svg_container: false,
+            context_has_svg_root: false,
+        };
+        let decision = rust_principal_node_entry_decision(facts);
+        assert!(!decision.should_create_layout_node);
+        assert_eq!(decision.top_layer, FfiTopLayerEntryDecision::Continue);
+        assert_eq!(decision.svg, FfiSvgEntryDecision::Continue);
+
+        facts.rendered_in_top_layer = true;
+        facts.layout_node_is_attached = false;
+        let decision = rust_principal_node_entry_decision(facts);
+        assert_eq!(decision.top_layer, FfiTopLayerEntryDecision::SkipAndRequestZoneRebuild);
+
+        facts.rendered_in_top_layer = false;
+        facts.requires_svg_container = true;
+        let decision = rust_principal_node_entry_decision(facts);
+        assert_eq!(decision.svg, FfiSvgEntryDecision::Skip);
+
+        facts.must_create_subtree = true;
+        facts.is_svg_container = true;
+        let decision = rust_principal_node_entry_decision(facts);
+        assert!(decision.should_create_layout_node);
+        assert_eq!(decision.svg, FfiSvgEntryDecision::EnterSvgRoot);
     }
 }

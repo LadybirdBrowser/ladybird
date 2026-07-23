@@ -829,28 +829,34 @@ void TreeBuilder::create_backdrop_for_top_layer_element_if_needed(DOM::Element& 
 void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& context, MustCreateSubtree must_create_subtree)
 {
     // NB: Called during layout tree construction.
-    bool should_create_layout_node = must_create_subtree == MustCreateSubtree::Yes
-        || dom_node.needs_layout_tree_update()
-        || dom_node.document().needs_full_layout_tree_update()
-        || (dom_node.is_document() && !dom_node.unsafe_layout_node());
-
-    if (dom_node.is_element()) {
-        auto& element = static_cast<DOM::Element&>(dom_node);
-        if (element.rendered_in_top_layer() && !context.layout_top_layer) {
+    auto* existing_layout_node = dom_node.unsafe_layout_node();
+    auto entry_decision = RustFFI::rust_principal_node_entry_decision({
+        .must_create_subtree = must_create_subtree == MustCreateSubtree::Yes,
+        .needs_layout_tree_update = dom_node.needs_layout_tree_update(),
+        .document_needs_full_layout_tree_update = dom_node.document().needs_full_layout_tree_update(),
+        .is_document = dom_node.is_document(),
+        .has_layout_node = existing_layout_node != nullptr,
+        .is_element = dom_node.is_element(),
+        .rendered_in_top_layer = dom_node.is_element() && static_cast<DOM::Element&>(dom_node).rendered_in_top_layer(),
+        .context_layout_top_layer = context.layout_top_layer,
+        .layout_node_is_attached = existing_layout_node && existing_layout_node->parent(),
+        .is_svg_container = dom_node.is_svg_container(),
+        .requires_svg_container = dom_node.requires_svg_container(),
+        .context_has_svg_root = context.has_svg_root,
+    });
+    if (entry_decision.top_layer != RustFFI::FfiTopLayerEntryDecision::Continue) {
+        if (entry_decision.top_layer == RustFFI::FfiTopLayerEntryDecision::SkipAndRequestZoneRebuild) {
             // A member found here without an attached box was cleared together with a hidden
             // ancestor subtree, and nothing is scheduled to rebuild it: request a top layer
             // zone rebuild, which runs as another update_layout pass and re-marks every member
             // itself. Marking the member here instead would strand dirty flags under ancestors
             // whose walks already finished, and a later update_layout would then treat the
             // detached member boxes as up to date.
-            // NB: Called during layout tree construction.
-            auto* element_layout_node = element.unsafe_layout_node();
-            bool element_box_is_missing_or_detached = !element_layout_node || !element_layout_node->parent();
-            if (element_box_is_missing_or_detached && !element.needs_layout_tree_update())
-                element.document().set_top_layer_needs_layout_zone_rebuild();
-            return;
+            dom_node.document().set_top_layer_needs_layout_zone_rebuild();
         }
+        return;
     }
+    bool should_create_layout_node = entry_decision.should_create_layout_node;
     if (dom_node.is_element())
         dom_node.document().style_computer().push_ancestor(static_cast<DOM::Element const&>(dom_node));
 
@@ -876,9 +882,9 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         }
     };
 
-    if (dom_node.is_svg_container()) {
+    if (entry_decision.svg == RustFFI::FfiSvgEntryDecision::EnterSvgRoot) {
         has_svg_root_change.emplace(context.has_svg_root, true);
-    } else if (dom_node.requires_svg_container() && !context.has_svg_root) {
+    } else if (entry_decision.svg == RustFFI::FfiSvgEntryDecision::Skip) {
         return;
     }
 
