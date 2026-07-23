@@ -879,6 +879,7 @@ class TrackEvent;
 class TransferDataDecoder;
 class TransferDataEncoder;
 class UserActivation;
+class UserScrollGestureHold;
 class ValidityState;
 class VideoTrack;
 class VideoTrackList;

@@ -204,6 +204,7 @@ public:
 
     CSSPixelPoint scroll_offset() const;
     ScrollHandled set_scroll_offset(CSSPixelPoint);
+    ScrollHandled set_scroll_offset_from_user_input(CSSPixelPoint);
     ScrollHandled scroll_by(double delta_x, double delta_y);
     void scroll_into_view(CSSPixelRect);
 
@@ -472,6 +473,7 @@ private:
     void detach_from_layout_node(Badge<Layout::Node>);
     void detach_chrome_widgets();
     void set_containing_block(Paintable* containing_block);
+    GC::Ptr<DOM::EventTarget> scroll_event_target();
 
     void paint_middle_button_scroll_indicator(DisplayListRecordingContext&) const;
     void invalidate_absolute_geometry_cache(InvalidateDescendantGeometry);

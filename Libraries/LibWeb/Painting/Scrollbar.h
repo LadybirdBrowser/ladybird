@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/OwnPtr.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/Paintable.h>
 
@@ -31,11 +32,13 @@ private:
     MouseAction mouse_move(CSSPixelPoint);
     MouseAction mouse_up(CSSPixelPoint, unsigned button);
     bool scroll_to_mouse_position(CSSPixelPoint);
+    void release_thumb_grab();
     virtual void did_detach_from_paintable() override;
 
     Paintable::ScrollDirection m_direction;
     bool m_hovered { false };
     Optional<CSSPixels> m_thumb_grab_position;
+    OwnPtr<HTML::UserScrollGestureHold> m_thumb_grab_gesture_hold;
 };
 
 }

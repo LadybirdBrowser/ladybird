@@ -309,9 +309,18 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
+    enum class ScrollTrigger {
+        Programmatic,
+        UserInput,
+    };
+
     GC::Ref<WebIDL::Promise> scroll_viewport_by_delta(CSSPixelPoint delta);
-    GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto);
+    GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto, ScrollTrigger = ScrollTrigger::Programmatic);
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_an_element(DOM::Element&, CSSPixelPoint position, Bindings::ScrollBehavior);
+    void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>);
+    void defer_user_scroll_settlement();
+    void begin_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
+    void end_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
     void reset_zoom();
 
 protected:
@@ -348,10 +357,13 @@ private:
     void resolve_async_scroll_operation(Compositor::AsyncScrollOperationID);
     void resolve_all_pending_async_scroll_operations();
     void resolve_pending_smooth_scrolls(Compositor::AsyncScrollNodeStableID);
-    GC::Ref<WebIDL::Promise> perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID, CSSPixelPoint position, Bindings::ScrollBehavior, GC::Ptr<DOM::Element> associated_element);
+    GC::Ref<WebIDL::Promise> perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID, CSSPixelPoint position, Bindings::ScrollBehavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger);
     Optional<CSSPixelPoint> scroll_offset_for(Compositor::AsyncScrollNodeStableID) const;
     bool set_scroll_offset_for(Compositor::AsyncScrollNodeStableID, CSSPixelPoint);
-    void queue_scrollend_event(Compositor::AsyncScrollNodeStableID);
+    void queue_scrollend_event(Compositor::AsyncScrollNodeStableID, ScrollTrigger);
+    void queue_scrollend_event(DOM::Document&, GC::Ref<DOM::EventTarget>, ScrollTrigger);
+    void user_scroll_did_settle();
+    void cancel_user_scroll_settlement();
     void schedule_hover_update_after_async_scroll();
     void update_hover_after_async_scroll_stops();
     void cancel_hover_update_after_async_scroll();
@@ -416,6 +428,9 @@ private:
     Painting::DisplayListResourceSet m_compositor_display_list_resources;
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
     RefPtr<Core::Timer> m_async_scroll_hover_update_timer;
+    Vector<GC::Ref<DOM::EventTarget>> m_pending_user_scrollend_targets;
+    RefPtr<Core::Timer> m_user_scroll_settle_timer;
+    size_t m_user_scroll_gesture_hold_count { 0 };
 
     struct PendingAsyncScrollOperation {
         Compositor::AsyncScrollOperationID operation_id { 0 };
@@ -434,6 +449,18 @@ private:
         GC::Ref<WebIDL::Promise> promise;
     };
     Vector<MainThreadSmoothScroll> m_main_thread_smooth_scrolls;
+};
+
+class WEB_API UserScrollGestureHold {
+    AK_MAKE_NONCOPYABLE(UserScrollGestureHold);
+    AK_MAKE_NONMOVABLE(UserScrollGestureHold);
+
+public:
+    explicit UserScrollGestureHold(LocalNavigable&);
+    ~UserScrollGestureHold();
+
+private:
+    GC::Weak<LocalNavigable> m_navigable;
 };
 
 struct PopulateSessionHistoryEntryDocumentOutput final : public JS::Cell {

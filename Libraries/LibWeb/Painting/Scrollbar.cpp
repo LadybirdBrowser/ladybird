@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -46,7 +47,7 @@ MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned
 
     auto paintable_box = paintable();
     if (!paintable_box) {
-        m_thumb_grab_position.clear();
+        release_thumb_grab();
         return MouseAction::None;
     }
 
@@ -56,7 +57,7 @@ MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned
     paintable_box->set_needs_repaint();
 
     if (type == UIEvents::EventNames::pointerup) {
-        m_thumb_grab_position.clear();
+        release_thumb_grab();
         return MouseAction::None;
     }
 
@@ -78,10 +79,16 @@ MouseAction Scrollbar::mouse_move(CSSPixelPoint position)
 
 MouseAction Scrollbar::mouse_up(CSSPixelPoint, unsigned)
 {
-    m_thumb_grab_position.clear();
+    release_thumb_grab();
     if (auto paintable_box = paintable())
         paintable_box->set_needs_repaint();
     return MouseAction::None;
+}
+
+void Scrollbar::release_thumb_grab()
+{
+    m_thumb_grab_position.clear();
+    m_thumb_grab_gesture_hold = nullptr;
 }
 
 void Scrollbar::mouse_enter()
@@ -127,6 +134,8 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
         m_thumb_grab_position = scrollbar_data->thumb_rect.contains(position)
             ? (position - scrollbar_data->thumb_rect.location()).primary_offset_for_orientation(orientation)
             : max(min(offset_relative_to_gutter, thumb_size / 2), offset_relative_to_gutter - gutter_size + thumb_size);
+        if (auto navigable = paintable_box->document().navigable())
+            m_thumb_grab_gesture_hold = make<HTML::UserScrollGestureHold>(*navigable);
     }
 
     auto constrained_offset = AK::clamp(offset_relative_to_gutter - m_thumb_grab_position.value(), 0, gutter_size - thumb_size);
@@ -138,14 +147,14 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
 
     auto new_scroll_offset = paintable_box->scroll_offset();
     new_scroll_offset.set_primary_offset_for_orientation(orientation, scroll_position_in_pixels);
-    paintable_box->set_scroll_offset(new_scroll_offset);
+    paintable_box->set_scroll_offset_from_user_input(new_scroll_offset);
     return true;
 }
 
 void Scrollbar::did_detach_from_paintable()
 {
     m_hovered = false;
-    m_thumb_grab_position.clear();
+    release_thumb_grab();
 }
 
 }

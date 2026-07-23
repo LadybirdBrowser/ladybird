@@ -711,6 +711,9 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
+    // Wheel activity marks the scroll gesture as still in progress even when it no longer moves any scrolling box.
+    m_navigable->defer_user_scroll_settlement();
+
     auto visual_viewport = document->visual_viewport();
 
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseWheel);

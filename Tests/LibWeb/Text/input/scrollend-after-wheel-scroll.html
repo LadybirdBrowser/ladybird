@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="scroller" style="width: 100px; height: 100px; overflow: scroll">
+    <div style="width: 400px; height: 400px"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        let documentScrollendCount = 0;
+        document.addEventListener("scrollend", () => ++documentScrollendCount);
+
+        let scrollerScrollendCount = 0;
+        scroller.addEventListener("scrollend", () => ++scrollerScrollendCount);
+
+        const scrollend = new Promise(resolve => scroller.addEventListener("scrollend", resolve, { once: true }));
+        await internals.wheel(50, 50, 0, 40);
+        await internals.wheel(50, 50, 0, 40);
+        const event = await scrollend;
+        println(`scrollend target: ${event.target.id}`);
+        println(`scrollend bubbles: ${event.bubbles}`);
+        println(`scroll offset: ${scroller.scrollLeft},${scroller.scrollTop}`);
+        println(`scroller scrollend count: ${scrollerScrollendCount}`);
+        println(`document scrollend count: ${documentScrollendCount}`);
+    });
+</script>
