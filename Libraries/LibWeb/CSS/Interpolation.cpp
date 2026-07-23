@@ -383,8 +383,43 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
     auto from = with_keyword_values_resolved(element, property_id, a_from);
     auto to = with_keyword_values_resolved(element, property_id, a_to);
 
+    RefPtr<StyleValue const> current_color_style_value;
+    StyleValueFFI::FfiAnimationLengthResolutionContext length_resolution_context {};
+    auto font_metrics = [](Length::FontMetrics const& metrics) {
+        return StyleValueFFI::FfiAnimationFontMetrics {
+            .font_size = metrics.font_size.to_double(),
+            .x_height = metrics.x_height.to_double(),
+            .cap_height = metrics.cap_height.to_double(),
+            .zero_advance = metrics.zero_advance.to_double(),
+            .line_height = metrics.line_height.to_double(),
+        };
+    };
+    auto has_length_resolution_context = false;
+    if (property_id == PropertyID::BoxShadow || property_id == PropertyID::TextShadow || property_id == PropertyID::Filter || property_id == PropertyID::BackdropFilter) {
+        if (color_resolution_context)
+            current_color_style_value = color_resolution_context->current_color_style_value;
+        if (!current_color_style_value && element.unsafe_layout_node())
+            current_color_style_value = ColorResolutionContext::for_layout_node_with_style(*element.unsafe_layout_node()).current_color_style_value;
+
+        if (auto layout_node = element.unsafe_layout_node()) {
+            auto resolution_context = Length::ResolutionContext::for_layout_node(*layout_node);
+            length_resolution_context = {
+                .viewport_width = resolution_context.viewport_rect.width().to_double(),
+                .viewport_height = resolution_context.viewport_rect.height().to_double(),
+                .font_metrics = font_metrics(resolution_context.font_metrics),
+                .root_font_metrics = font_metrics(resolution_context.root_font_metrics),
+                .font_metrics_depend_on_viewport_metrics = resolution_context.font_metrics_depend_on_viewport_metrics,
+                .root_font_metrics_depend_on_viewport_metrics = resolution_context.root_font_metrics_depend_on_viewport_metrics,
+            };
+            has_length_resolution_context = true;
+        }
+    }
+
     StyleValueFFI::FfiAnimationContext animation_context {
         .allow_discrete = allow_discrete == AllowDiscrete::Yes,
+        .current_color = current_color_style_value ? current_color_style_value->rust_style_value_data() : nullptr,
+        .has_length_resolution_context = has_length_resolution_context,
+        .length_resolution_context = length_resolution_context,
         .has_transform_reference_box = false,
         .transform_reference_box_width = 0,
         .transform_reference_box_height = 0,

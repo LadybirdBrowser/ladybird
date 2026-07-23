@@ -801,9 +801,25 @@ pub(crate) fn interpolate_length_percentage_calculations(
     to: Arc<CalcNode>,
     delta: f32,
 ) -> Option<(Arc<CalcNode>, FfiNumericType)> {
+    combine_length_percentage_calculations(from, to, 1.0 - delta as f64, delta as f64)
+}
+
+pub(crate) fn add_length_percentage_calculations(
+    underlying: Arc<CalcNode>,
+    animated: Arc<CalcNode>,
+) -> Option<(Arc<CalcNode>, FfiNumericType)> {
+    combine_length_percentage_calculations(underlying, animated, 1.0, 1.0)
+}
+
+fn combine_length_percentage_calculations(
+    from: Arc<CalcNode>,
+    to: Arc<CalcNode>,
+    from_multiplier: f64,
+    to_multiplier: f64,
+) -> Option<(Arc<CalcNode>, FfiNumericType)> {
     let number = |value| shared(CalcNode::Numeric(CalcNumericValue::Number { value, number_type: 0 }));
-    let from_contribution = shared(CalcNode::Product(vec![from, number(1.0 - delta as f64)]));
-    let to_contribution = shared(CalcNode::Product(vec![to, number(delta as f64)]));
+    let from_contribution = shared(CalcNode::Product(vec![from, number(from_multiplier)]));
+    let to_contribution = shared(CalcNode::Product(vec![to, number(to_multiplier)]));
     let root = shared(CalcNode::Sum(vec![from_contribution, to_contribution]));
 
     let percentage_leaf_type = percentage_leaf_type_for(Some(ResolveAs::Base(0)));
@@ -2595,13 +2611,13 @@ fn resolve_simplified_calculation(
     Some((raw_value, result.numeric_type))
 }
 
-/// Resolves a calculated value with no external context: the equivalent of a
-/// resolution against an empty C++ resolution context, where the callbacks for
-/// non-math functions, relative-color channels, and random() all fail. Used by
-/// the style computation core's own property helpers.
-fn resolve_calculated_without_context(
+/// Resolves a calculated value using the supplied length metrics while the
+/// callbacks for non-math functions, relative-color channels, and random()
+/// remain unavailable.
+fn resolve_calculated_with_length_resolution(
     calculated: &crate::style_value::StyleValueData,
     percentage_basis: Option<CalcNumericValue>,
+    length_resolution: LengthResolution,
 ) -> Option<(f64, CalcNumericType, Option<ResolveAs>)> {
     use crate::style_value::StyleValueData;
     let StyleValueData::Calculated {
@@ -2623,7 +2639,7 @@ fn resolve_calculated_without_context(
         percentage_leaf_type: &percentage_leaf_type,
         resolve_as,
         percentage_basis,
-        length_resolution: LengthResolution::default(),
+        length_resolution,
         random_base_value: None,
     };
     let callbacks = CalcSimplifyCallbacks {
@@ -2643,12 +2659,36 @@ fn resolve_calculated_without_context(
     Some((value, numeric_type.expect("canonical result has a type"), resolve_as))
 }
 
+fn resolve_calculated_without_context(
+    calculated: &crate::style_value::StyleValueData,
+    percentage_basis: Option<CalcNumericValue>,
+) -> Option<(f64, CalcNumericType, Option<ResolveAs>)> {
+    resolve_calculated_with_length_resolution(calculated, percentage_basis, LengthResolution::default())
+}
+
 /// Resolves a calculated value that must produce a number, with no external
 /// context; the equivalent of the C++ resolve_number with an empty context.
 pub(crate) fn resolve_calculated_number_without_context(
     calculated: &crate::style_value::StyleValueData,
 ) -> Option<f64> {
     let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, None)?;
+    numeric_type.matches_number(resolve_as).then_some(value)
+}
+
+/// Resolves a calculated value that must produce a number using the immutable
+/// per-element length metrics supplied to animation evaluation.
+pub(crate) fn resolve_calculated_number_with_context(
+    calculated: &crate::style_value::StyleValueData,
+    context: &crate::style_compute::FfiLengthResolutionContext,
+) -> Option<f64> {
+    let (value, numeric_type, resolve_as) = resolve_calculated_with_length_resolution(
+        calculated,
+        None,
+        LengthResolution {
+            context: Some(context),
+            fallback: None,
+        },
+    )?;
     numeric_type.matches_number(resolve_as).then_some(value)
 }
 
@@ -2660,6 +2700,30 @@ pub(crate) fn resolve_calculated_percentage_without_context(
 ) -> Option<f64> {
     let (value, numeric_type, ..) = resolve_calculated_without_context(calculated, None)?;
     numeric_type.matches_percentage().then_some(value)
+}
+
+/// Resolves a calculated value that must produce an angle, with no external
+/// context; the equivalent of the C++ resolve_angle with an empty context.
+pub(crate) fn resolve_calculated_angle_without_context(calculated: &crate::style_value::StyleValueData) -> Option<f64> {
+    let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, None)?;
+    numeric_type.matches_dimension(1, resolve_as).then_some(value)
+}
+
+/// Resolves a calculated value that must produce an angle using the immutable
+/// per-element length metrics supplied to animation evaluation.
+pub(crate) fn resolve_calculated_angle_with_context(
+    calculated: &crate::style_value::StyleValueData,
+    context: &crate::style_compute::FfiLengthResolutionContext,
+) -> Option<f64> {
+    let (value, numeric_type, resolve_as) = resolve_calculated_with_length_resolution(
+        calculated,
+        None,
+        LengthResolution {
+            context: Some(context),
+            fallback: None,
+        },
+    )?;
+    numeric_type.matches_dimension(1, resolve_as).then_some(value)
 }
 
 /// Resolves a calculated value that must produce a number and rounds it to the
@@ -2696,6 +2760,23 @@ pub(crate) fn resolve_calculated_length_without_context(
     };
     let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, Some(basis))?;
     (numeric_type.matches_dimension(0, resolve_as) || numeric_type.matches_percentage()).then_some(value)
+}
+
+/// Resolves a calculated value that must produce a length using the immutable
+/// per-element length metrics supplied to animation evaluation.
+pub(crate) fn resolve_calculated_length_with_context(
+    calculated: &crate::style_value::StyleValueData,
+    context: &crate::style_compute::FfiLengthResolutionContext,
+) -> Option<f64> {
+    let (value, numeric_type, resolve_as) = resolve_calculated_with_length_resolution(
+        calculated,
+        None,
+        LengthResolution {
+            context: Some(context),
+            fallback: None,
+        },
+    )?;
+    numeric_type.matches_dimension(0, resolve_as).then_some(value)
 }
 
 /// The outcome of resolving a line-height calculation: a pixel length or a

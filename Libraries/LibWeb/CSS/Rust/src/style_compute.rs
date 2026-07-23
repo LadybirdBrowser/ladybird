@@ -104,6 +104,10 @@ pub(crate) fn none_keyword() -> u16 {
     keyword::NONE
 }
 
+pub(crate) fn current_color_keyword() -> u16 {
+    keyword::CURRENTCOLOR
+}
+
 pub(crate) fn absolute_length_to_px(value: f64, unit: u8) -> Option<f64> {
     match length_unit_kinds().get(unit as usize)? {
         LengthUnitKind::Px => Some(value),
