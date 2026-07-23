@@ -45,8 +45,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub clear_synthetic_pseudo_element_layout_nodes: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub clear_stale_inclusive_descendants: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub resolve_counters: unsafe extern "C" fn(*mut c_void),
-    pub create_pseudo_element:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiPseudoElement, FfiInsertionMode),
     pub clear_stale_assigned_slottables: unsafe extern "C" fn(*mut c_void),
     pub principal_descendant_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiPrincipalDescendantFacts,
@@ -86,8 +84,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub start_principal_rebuild_root: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
     pub restore_principal_rebuild_root: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub mark_update_escaped_rebuild_roots: unsafe extern "C" fn(*mut c_void),
-    pub create_principal_backdrop:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, *mut c_void, bool) -> *mut c_void,
     pub insert_principal_backdrop_before_old: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub place_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiPrincipalBoxPlacement),
     pub clear_stale_inclusive_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -95,6 +91,7 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub document_layout_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub layout_root: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub layout: FfiTreeBuilderCallbacks,
+    pub pseudo: FfiPseudoTreeBuilderCallbacks,
 }
 
 #[derive(Clone, Copy)]
@@ -731,16 +728,13 @@ unsafe fn update_layout_tree_for_display_contents(
         }
 
         if !facts.content_visibility_hidden {
-            // SAFETY: The builder and element remain live throughout this call.
-            unsafe {
-                (host.callbacks.create_pseudo_element)(
-                    host.callbacks.builder,
-                    state as *mut TreeBuilderState as *mut c_void,
-                    element,
-                    FfiPseudoElement::Before,
-                    FfiInsertionMode::Append,
-                );
-            }
+            create_pseudo_element(
+                host,
+                state,
+                element,
+                FfiPseudoElement::Before,
+                Some(FfiInsertionMode::Append),
+            );
         }
 
         if !facts.content_visibility_hidden && (should_create_layout_node || facts.child_needs_layout_tree_update) {
@@ -790,16 +784,13 @@ unsafe fn update_layout_tree_for_display_contents(
         }
 
         if !facts.content_visibility_hidden {
-            // SAFETY: The builder and element remain live throughout this call.
-            unsafe {
-                (host.callbacks.create_pseudo_element)(
-                    host.callbacks.builder,
-                    state as *mut TreeBuilderState as *mut c_void,
-                    element,
-                    FfiPseudoElement::After,
-                    FfiInsertionMode::Append,
-                );
-            }
+            create_pseudo_element(
+                host,
+                state,
+                element,
+                FfiPseudoElement::After,
+                Some(FfiInsertionMode::Append),
+            );
         }
 
         assert!(!facts.dom_children_parent.is_null());
@@ -913,16 +904,13 @@ unsafe fn update_principal_node_descendants(
             // Add the ::before pseudo-element before walking normal children.
             if facts.is_element && facts.layout_node_can_have_children && !facts.content_visibility_hidden {
                 state.ancestor_stack.push(layout_node);
-                // SAFETY: The builder, state, element, and layout node remain live throughout pseudo-element creation.
-                unsafe {
-                    (host.callbacks.create_pseudo_element)(
-                        host.callbacks.builder,
-                        state as *mut TreeBuilderState as *mut c_void,
-                        dom_node,
-                        FfiPseudoElement::Before,
-                        FfiInsertionMode::Prepend,
-                    );
-                }
+                create_pseudo_element(
+                    host,
+                    state,
+                    dom_node,
+                    FfiPseudoElement::Before,
+                    Some(FfiInsertionMode::Prepend),
+                );
                 assert!(state.ancestor_stack.pop().is_some());
             }
         }
@@ -1092,25 +1080,22 @@ unsafe fn update_principal_node_descendants(
             // Add ::marker and ::after once normal and SVG resource children are complete.
             if facts.is_element && facts.layout_node_can_have_children && !facts.content_visibility_hidden {
                 state.ancestor_stack.push(layout_node);
-                // SAFETY: The builder, state, element, and layout node remain live throughout pseudo-element creation.
-                unsafe {
-                    if facts.layout_node_is_list_item_box {
-                        (host.callbacks.create_pseudo_element)(
-                            host.callbacks.builder,
-                            state as *mut TreeBuilderState as *mut c_void,
-                            dom_node,
-                            FfiPseudoElement::Marker,
-                            FfiInsertionMode::Prepend,
-                        );
-                    }
-                    (host.callbacks.create_pseudo_element)(
-                        host.callbacks.builder,
-                        state as *mut TreeBuilderState as *mut c_void,
+                if facts.layout_node_is_list_item_box {
+                    create_pseudo_element(
+                        host,
+                        state,
                         dom_node,
-                        FfiPseudoElement::After,
-                        FfiInsertionMode::Append,
+                        FfiPseudoElement::Marker,
+                        Some(FfiInsertionMode::Prepend),
                     );
                 }
+                create_pseudo_element(
+                    host,
+                    state,
+                    dom_node,
+                    FfiPseudoElement::After,
+                    Some(FfiInsertionMode::Append),
+                );
                 assert!(state.ancestor_stack.pop().is_some());
 
                 if facts.layout_node_is_block_container && facts.has_first_letter_style {
@@ -1307,16 +1292,13 @@ fn update_principal_node_after_entry(
         if placement.create_backdrop {
             // A backdrop is a sibling of its originating top-layer element. Append it normally, but insert it before
             // an old box that will be replaced in place so the backdrop remains behind the element.
-            // SAFETY: The builder and DOM element remain live throughout pseudo-element construction.
-            let backdrop = unsafe {
-                (host.callbacks.create_principal_backdrop)(
-                    host.callbacks.builder,
-                    frame,
-                    update.state as *mut TreeBuilderState as *mut c_void,
-                    dom_node,
-                    !placement.may_replace_existing_layout_node,
-                )
+            let insertion_mode = if placement.may_replace_existing_layout_node {
+                None
+            } else {
+                Some(FfiInsertionMode::Append)
             };
+            let backdrop =
+                create_pseudo_element(host, update.state, dom_node, FfiPseudoElement::Backdrop, insertion_mode);
             if placement.may_replace_existing_layout_node && !backdrop.is_null() {
                 // SAFETY: The frame retains the attached old layout node and `backdrop` is owned by the element.
                 unsafe {
@@ -1335,9 +1317,26 @@ fn update_principal_node_after_entry(
         } else {
             update.state.current_parent()
         };
-        unsafe {
-            (host.callbacks.place_principal_layout)(host.callbacks.builder, frame, current_parent, placement.placement);
-        };
+        if placement.placement == FfiPrincipalBoxPlacement::NormalInsertion {
+            let layout_node = unsafe { (host.callbacks.principal_layout_node)(frame) };
+            let layout_host = host.layout();
+            insert_node_into_inline_or_block_ancestor(
+                &layout_host,
+                current_parent,
+                layout_node,
+                layout_host.is_inline_outside(layout_node),
+                FfiInsertionMode::Append,
+            );
+        } else {
+            unsafe {
+                (host.callbacks.place_principal_layout)(
+                    host.callbacks.builder,
+                    frame,
+                    current_parent,
+                    placement.placement,
+                );
+            };
+        }
         // SAFETY: The callback table, DOM node, layout node, and context remain live throughout the call.
         unsafe {
             update_principal_node_descendants(
@@ -1526,6 +1525,8 @@ pub struct FfiResolvedPseudoContentFacts {
 #[repr(C)]
 pub struct FfiPseudoTreeBuilderCallbacks {
     pub builder: *mut c_void,
+    pub push_frame: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub pop_frame: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub initialize: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement) -> FfiPseudoElementFacts,
     pub create_layout_node:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiPseudoElement, FfiPseudoElementDecision),
@@ -1536,12 +1537,10 @@ pub struct FfiPseudoTreeBuilderCallbacks {
     pub layout_node_is_list_item: unsafe extern "C" fn(*mut c_void) -> bool,
     pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub configure_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32),
-    pub insert_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiInsertionMode),
     pub resolve_counters: unsafe extern "C" fn(*mut c_void, FfiPseudoElement),
     pub resolve_content:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32) -> FfiResolvedPseudoContentFacts,
     pub create_content_item: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, usize) -> *mut c_void,
-    pub insert_content_item: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
 }
 
 fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDecision {
@@ -1614,102 +1613,117 @@ fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDeci
     })
 }
 
-/// Creates a generated pseudo-element layout subtree when its style and content require one.
-///
-/// # Safety
-///
-/// The callback table, frame storage, and originating element must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_create_pseudo_element(
-    callbacks: *const FfiPseudoTreeBuilderCallbacks,
-    frame: *mut c_void,
-    state: *mut c_void,
+fn create_pseudo_element(
+    host: &DomTreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
     element: *mut c_void,
     pseudo_element: FfiPseudoElement,
-    has_insertion_mode: bool,
-    insertion_mode: FfiInsertionMode,
+    insertion_mode: Option<FfiInsertionMode>,
 ) -> *mut c_void {
-    abort_on_panic(|| {
-        assert!(!callbacks.is_null());
-        assert!(!frame.is_null());
-        assert!(!state.is_null());
-        assert!(!element.is_null());
-        // SAFETY: Guaranteed by the entry point's contract.
-        let callbacks = unsafe { &*callbacks };
-        // SAFETY: The caller passes the state for the active Rust layout-tree build.
-        let state = unsafe { &mut *state.cast::<TreeBuilderState>() };
-        // SAFETY: The frame and element remain live throughout initialization.
-        let facts = unsafe { (callbacks.initialize)(frame, element, pseudo_element) };
-        let decision = pseudo_element_decision(facts);
-        if decision == FfiPseudoElementDecision::None {
-            return std::ptr::null_mut();
-        }
+    assert!(!element.is_null());
+    let callbacks = &host.callbacks.pseudo;
+    // SAFETY: The builder owns frame storage that remains live throughout the build.
+    let frame = unsafe { (callbacks.push_frame)(callbacks.builder) };
+    assert!(!frame.is_null());
+    let layout_node = create_pseudo_element_with_frame(host, state, frame, element, pseudo_element, insertion_mode);
+    // SAFETY: `frame` is the most recently pushed pseudo-element frame and Rust no longer uses it.
+    unsafe { (callbacks.pop_frame)(callbacks.builder, frame) };
+    layout_node
+}
 
-        // SAFETY: The builder, frame, and element remain live throughout construction.
-        unsafe {
-            (callbacks.create_layout_node)(callbacks.builder, frame, element, pseudo_element, decision);
-        }
-        // SAFETY: The frame remains live throughout the call.
-        let layout_node = unsafe { (callbacks.layout_node)(frame) };
-        if layout_node.is_null() || decision == FfiPseudoElementDecision::NormalMarker {
-            return layout_node;
-        }
+fn create_pseudo_element_with_frame(
+    host: &DomTreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
+    frame: *mut c_void,
+    element: *mut c_void,
+    pseudo_element: FfiPseudoElement,
+    insertion_mode: Option<FfiInsertionMode>,
+) -> *mut c_void {
+    let callbacks = &host.callbacks.pseudo;
+    // SAFETY: The frame and element remain live throughout initialization.
+    let facts = unsafe { (callbacks.initialize)(frame, element, pseudo_element) };
+    let decision = pseudo_element_decision(facts);
+    if decision == FfiPseudoElementDecision::None {
+        return std::ptr::null_mut();
+    }
 
-        // SAFETY: The frame owns a live pseudo-element layout node.
-        unsafe { (callbacks.attach_style_resources)(frame) };
-        if decision == FfiPseudoElementDecision::ContentReplacement {
-            // SAFETY: The frame owns the live replacement node and its display.
-            let layout_facts = unsafe { (callbacks.layout_facts)(frame) };
-            let adjustment = adjusted_table_display_for_replaced_element(
-                layout_facts.display.display_is_table_inside,
-                layout_facts.display.display_is_block_outside,
-                layout_facts.display.display_is_internal_table,
-                layout_facts.display.display_is_table_caption,
+    // SAFETY: The builder, frame, and element remain live throughout construction.
+    unsafe {
+        (callbacks.create_layout_node)(callbacks.builder, frame, element, pseudo_element, decision);
+    }
+    // SAFETY: The frame remains live throughout the call.
+    let layout_node = unsafe { (callbacks.layout_node)(frame) };
+    if layout_node.is_null() || decision == FfiPseudoElementDecision::NormalMarker {
+        return layout_node;
+    }
+
+    // SAFETY: The frame owns a live pseudo-element layout node.
+    unsafe { (callbacks.attach_style_resources)(frame) };
+    if decision == FfiPseudoElementDecision::ContentReplacement {
+        // SAFETY: The frame owns the live replacement node and its display.
+        let layout_facts = unsafe { (callbacks.layout_facts)(frame) };
+        let adjustment = adjusted_table_display_for_replaced_element(
+            layout_facts.display.display_is_table_inside,
+            layout_facts.display.display_is_block_outside,
+            layout_facts.display.display_is_internal_table,
+            layout_facts.display.display_is_table_caption,
+        );
+        if adjustment != FfiReplacedElementDisplayAdjustment::None {
+            // SAFETY: The frame owns a live NodeWithStyle.
+            unsafe { (callbacks.apply_replaced_display_adjustment)(frame, adjustment) };
+        }
+    }
+
+    // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker.
+    // SAFETY: The frame owns a live pseudo-element layout node.
+    if unsafe { (callbacks.layout_node_is_list_item)(frame) } {
+        // SAFETY: The builder, frame, and element remain live throughout marker creation.
+        unsafe { (callbacks.create_nested_list_marker)(callbacks.builder, frame, element) };
+        // FIXME: Support counters on element::pseudo::marker.
+    }
+
+    let initial_quote_nesting_level = state.quote_nesting_level;
+    // SAFETY: The frame and element remain live throughout configuration.
+    unsafe { (callbacks.configure_layout_node)(frame, element, pseudo_element, initial_quote_nesting_level) };
+    if let Some(insertion_mode) = insertion_mode {
+        let layout_host = host.layout();
+        insert_node_into_inline_or_block_ancestor(
+            &layout_host,
+            state.current_parent(),
+            layout_node,
+            layout_host.is_inline_outside(layout_node),
+            insertion_mode,
+        );
+    }
+    // SAFETY: The element remains live and its pseudo-element layout node is attached when requested.
+    unsafe { (callbacks.resolve_counters)(element, pseudo_element) };
+
+    // Resolve content after insertion because counter() and counters() items read the counters established by this
+    // pseudo-element's box.
+    // SAFETY: The frame and element remain live throughout content resolution.
+    let resolved_content =
+        unsafe { (callbacks.resolve_content)(frame, element, pseudo_element, initial_quote_nesting_level) };
+    state.quote_nesting_level = resolved_content.final_quote_nesting_level;
+
+    if resolved_content.content_is_list && decision != FfiPseudoElementDecision::ContentReplacement {
+        state.ancestor_stack.push(layout_node);
+        for index in 0..resolved_content.content_item_count {
+            // SAFETY: `index` is below the resolved content item count and the frame retains the returned node.
+            let content_item = unsafe { (callbacks.create_content_item)(frame, element, pseudo_element, index) };
+            assert!(!content_item.is_null());
+            let layout_host = host.layout();
+            insert_node_into_inline_or_block_ancestor(
+                &layout_host,
+                state.current_parent(),
+                content_item,
+                layout_host.is_inline_outside(content_item),
+                FfiInsertionMode::Append,
             );
-            if adjustment != FfiReplacedElementDisplayAdjustment::None {
-                // SAFETY: The frame owns a live NodeWithStyle.
-                unsafe { (callbacks.apply_replaced_display_adjustment)(frame, adjustment) };
-            }
         }
+        assert!(state.ancestor_stack.pop().is_some());
+    }
 
-        // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker.
-        // SAFETY: The frame owns a live pseudo-element layout node.
-        if unsafe { (callbacks.layout_node_is_list_item)(frame) } {
-            // SAFETY: The builder, frame, and element remain live throughout marker creation.
-            unsafe { (callbacks.create_nested_list_marker)(callbacks.builder, frame, element) };
-            // FIXME: Support counters on element::pseudo::marker.
-        }
-
-        let initial_quote_nesting_level = state.quote_nesting_level;
-        unsafe {
-            (callbacks.configure_layout_node)(frame, element, pseudo_element, initial_quote_nesting_level);
-            if has_insertion_mode {
-                (callbacks.insert_layout_node)(callbacks.builder, frame, state.current_parent(), insertion_mode);
-            }
-            (callbacks.resolve_counters)(element, pseudo_element);
-        }
-
-        // Resolve content after insertion because counter() and counters() items read the counters established by this
-        // pseudo-element's box.
-        // SAFETY: The frame and element remain live throughout content resolution.
-        let resolved_content =
-            unsafe { (callbacks.resolve_content)(frame, element, pseudo_element, initial_quote_nesting_level) };
-        state.quote_nesting_level = resolved_content.final_quote_nesting_level;
-
-        if resolved_content.content_is_list && decision != FfiPseudoElementDecision::ContentReplacement {
-            state.ancestor_stack.push(layout_node);
-            for index in 0..resolved_content.content_item_count {
-                // SAFETY: `index` is below the resolved content item count and the frame retains the returned node.
-                let content_item = unsafe { (callbacks.create_content_item)(frame, element, pseudo_element, index) };
-                assert!(!content_item.is_null());
-                // SAFETY: The builder and generated content item remain live throughout insertion.
-                unsafe { (callbacks.insert_content_item)(callbacks.builder, content_item, state.current_parent()) };
-            }
-            assert!(state.ancestor_stack.pop().is_some());
-        }
-
-        layout_node
-    })
+    layout_node
 }
 
 fn adjusted_table_display_for_replaced_element(
@@ -1853,6 +1867,7 @@ pub enum FfiInsertionMode {
 pub struct FfiTreeBuilderCallbacks {
     pub context: *mut c_void,
     pub layout_node_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiLayoutNodeFacts,
+    pub is_inline_outside: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub parent: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
     pub first_child: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
     pub next_sibling: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
@@ -1898,6 +1913,12 @@ impl TreeBuilderHost<'_> {
         assert!(!node.is_null());
         // SAFETY: The entry point's callback contract guarantees that every node passed to a callback is live.
         unsafe { (self.callbacks.layout_node_facts)(self.callbacks.context, node) }
+    }
+
+    fn is_inline_outside(&self, node: LayoutNode) -> bool {
+        assert!(!node.is_null());
+        // SAFETY: The entry point's callback contract guarantees that `node` is live.
+        unsafe { (self.callbacks.is_inline_outside)(self.callbacks.context, node) }
     }
 
     fn parent(&self, node: LayoutNode) -> LayoutNode {
@@ -2170,54 +2191,41 @@ fn insertion_parent_for_block_node(
     new_parent
 }
 
-/// Inserts a layout node while maintaining the inline/block child invariant.
-///
-/// # Safety
-///
-/// `callbacks`, `nearest_insertion_ancestor`, and `node` must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_insert_node_into_inline_or_block_ancestor(
-    callbacks: *const FfiTreeBuilderCallbacks,
+fn insert_node_into_inline_or_block_ancestor(
+    host: &TreeBuilderHost<'_>,
     nearest_insertion_ancestor: *mut c_void,
     node: *mut c_void,
     is_inline_outside: bool,
     mode: FfiInsertionMode,
 ) {
-    abort_on_panic(|| {
-        assert!(!callbacks.is_null());
-        assert!(!nearest_insertion_ancestor.is_null());
-        assert!(!node.is_null());
-        // SAFETY: The caller guarantees that `callbacks` remains valid for the duration of this call.
-        let host = TreeBuilderHost {
-            callbacks: unsafe { &*callbacks },
-        };
+    assert!(!nearest_insertion_ancestor.is_null());
+    assert!(!node.is_null());
 
-        let insertion_point = if is_inline_outside {
-            insertion_parent_for_inline_node(&host, nearest_insertion_ancestor)
-        } else {
-            insertion_parent_for_block_node(&host, nearest_insertion_ancestor, node, mode)
-        };
+    let insertion_point = if is_inline_outside {
+        insertion_parent_for_inline_node(host, nearest_insertion_ancestor)
+    } else {
+        insertion_parent_for_block_node(host, nearest_insertion_ancestor, node, mode)
+    };
 
-        // Insertion parents can be above the subtree being rebuilt in place: inline ancestors are
-        // skipped, and out-of-flow boxes can join a trailing anonymous sibling.
-        // SAFETY: `insertion_point` is live for the duration of this call.
-        unsafe { (host.callbacks.note_tree_restructuring)(host.callbacks.context, insertion_point) };
-        // SAFETY: The callback retains `node` while inserting it into the live insertion point.
-        unsafe { (host.callbacks.insert_child)(host.callbacks.context, insertion_point, node, mode) };
+    // Insertion parents can be above the subtree being rebuilt in place: inline ancestors are
+    // skipped, and out-of-flow boxes can join a trailing anonymous sibling.
+    // SAFETY: `insertion_point` is live for the duration of this call.
+    unsafe { (host.callbacks.note_tree_restructuring)(host.callbacks.context, insertion_point) };
+    // SAFETY: The callback retains `node` while inserting it into the live insertion point.
+    unsafe { (host.callbacks.insert_child)(host.callbacks.context, insertion_point, node, mode) };
 
-        if is_inline_outside {
-            // After inserting an inline-level box into a parent, mark the parent as having inline children.
+    if is_inline_outside {
+        // After inserting an inline-level box into a parent, mark the parent as having inline children.
+        // SAFETY: `insertion_point` remains live and attached.
+        unsafe { (host.callbacks.set_children_are_inline)(host.callbacks.context, insertion_point, true) };
+    } else if host.facts(node).is_in_flow {
+        let insertion_point_facts = host.facts(insertion_point);
+        // Inline-flow parents keep their inline children flag; their IFC may contain interrupting blocks.
+        if !insertion_point_facts.is_inline || !insertion_point_facts.display_is_flow_inside {
             // SAFETY: `insertion_point` remains live and attached.
-            unsafe { (host.callbacks.set_children_are_inline)(host.callbacks.context, insertion_point, true) };
-        } else if host.facts(node).is_in_flow {
-            let insertion_point_facts = host.facts(insertion_point);
-            // Inline-flow parents keep their inline children flag; their IFC may contain interrupting blocks.
-            if !insertion_point_facts.is_inline || !insertion_point_facts.display_is_flow_inside {
-                // SAFETY: `insertion_point` remains live and attached.
-                unsafe { (host.callbacks.set_children_are_inline)(host.callbacks.context, insertion_point, false) };
-            }
+            unsafe { (host.callbacks.set_children_are_inline)(host.callbacks.context, insertion_point, false) };
         }
-    });
+    }
 }
 
 struct FirstLetterTextHost<'a> {
