@@ -164,6 +164,8 @@ void DownloadStore::save_download(DownloadRecord const& download, UnixDateTime u
 {
     if (!m_database)
         return;
+    if (download.id < 0 || download.total_size < 0)
+        return;
 
     m_database->execute_statement(
         m_statements.upsert_download,
@@ -177,12 +179,12 @@ void DownloadStore::save_download(DownloadRecord const& download, UnixDateTime u
         download.etag.value_or(String {}),
         download.last_modified.value_or(String {}),
         serialize_segments(download.segments),
-        static_cast<u64>(download.can_restart_from_zero ? 1 : 0),
+        download.can_restart_from_zero,
         download.created_time,
         updated_at);
 }
 
-void DownloadStore::remove_download(u64 id)
+void DownloadStore::remove_download(i64 id)
 {
     if (!m_database)
         return;
@@ -200,6 +202,11 @@ Vector<DownloadRecord> DownloadStore::resumable_downloads()
     m_database->execute_statement(
         m_statements.list_downloads,
         [&](auto statement_id) -> ErrorOr<void> {
+            auto id = m_database->result_i64_checked(statement_id, 0);
+            auto total_size = m_database->result_i64_checked(statement_id, 5);
+            if (id.is_error() || total_size.is_error() || id.value() < 0 || total_size.value() < 0)
+                return {};
+
             auto segments = deserialize_segments(m_database->result_column<String>(statement_id, 8));
             if (!segments.has_value())
                 return {};
@@ -208,17 +215,17 @@ Vector<DownloadRecord> DownloadStore::resumable_downloads()
             auto last_modified = m_database->result_column<String>(statement_id, 7);
 
             downloads.append(DownloadRecord {
-                .id = m_database->result_column<u64>(statement_id, 0),
+                .id = id.value(),
                 .url = m_database->result_column<String>(statement_id, 1),
                 .display_url = m_database->result_column<String>(statement_id, 2),
                 .destination = m_database->result_column<String>(statement_id, 3),
                 .temporary_destination = m_database->result_column<String>(statement_id, 4),
-                .total_size = m_database->result_column<u64>(statement_id, 5),
+                .total_size = total_size.value(),
                 .etag = etag.is_empty() ? Optional<String> {} : Optional<String> { move(etag) },
                 .last_modified = last_modified.is_empty() ? Optional<String> {} : Optional<String> { move(last_modified) },
                 .segments = segments.release_value(),
                 .created_time = m_database->result_column<UnixDateTime>(statement_id, 10),
-                .can_restart_from_zero = m_database->result_column<u64>(statement_id, 9) != 0,
+                .can_restart_from_zero = m_database->result_column<bool>(statement_id, 9),
             });
 
             return {};
@@ -227,17 +234,19 @@ Vector<DownloadRecord> DownloadStore::resumable_downloads()
     return downloads;
 }
 
-u64 DownloadStore::maximum_download_id()
+i64 DownloadStore::maximum_download_id()
 {
     if (!m_database)
         return 0;
 
-    u64 maximum_id = 0;
+    i64 maximum_id = 0;
 
     m_database->execute_statement(
         m_statements.maximum_download_id,
         [&](auto statement_id) -> ErrorOr<void> {
-            maximum_id = m_database->result_column<u64>(statement_id, 0);
+            auto id = m_database->result_i64_checked(statement_id, 0);
+            if (!id.is_error() && id.value() >= 0)
+                maximum_id = id.value();
             return {};
         });
 

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
 #include <LibDatabase/Database.h>
 #include <LibTest/TestCase.h>
 #include <LibWebView/DownloadStore.h>
@@ -19,7 +20,7 @@ static NonnullOwnPtr<WebView::DownloadStore> create_store(Database::Database& da
     return MUST(WebView::DownloadStore::create(database));
 }
 
-static WebView::DownloadRecord example_download(u64 id = 7)
+static WebView::DownloadRecord example_download(i64 id = 7)
 {
     return WebView::DownloadRecord {
         .id = id,
@@ -65,6 +66,62 @@ TEST_CASE(downloads_round_trip)
     EXPECT_EQ(download.segments[1].start_offset, 2048u);
     EXPECT_EQ(download.segments[1].end_offset, 4095u);
     EXPECT_EQ(download.segments[1].next_offset, 2048u);
+}
+
+TEST_CASE(sqlite_integer_boundaries_round_trip)
+{
+    auto database = create_database();
+    auto store = create_store(database);
+
+    auto download = example_download(NumericLimits<i64>::max());
+    download.total_size = NumericLimits<i64>::max();
+    store->save_download(download);
+
+    auto downloads = store->resumable_downloads();
+    EXPECT_EQ(downloads.size(), 1u);
+    EXPECT_EQ(downloads.first().id, NumericLimits<i64>::max());
+    EXPECT_EQ(downloads.first().total_size, NumericLimits<i64>::max());
+    EXPECT_EQ(store->maximum_download_id(), NumericLimits<i64>::max());
+}
+
+TEST_CASE(negative_records_are_not_saved)
+{
+    auto database = create_database();
+    auto store = create_store(database);
+
+    store->save_download(example_download(-1));
+    auto negative_size = example_download(1);
+    negative_size.total_size = -1;
+    store->save_download(negative_size);
+
+    auto count = MUST(database->prepare_statement("SELECT COUNT(*) FROM Downloads;"sv));
+    i64 stored_records = -1;
+    database->execute_statement(count, [&](auto statement_id) -> ErrorOr<void> {
+        stored_records = database->result_column<i64>(statement_id, 0);
+        return {};
+    });
+    EXPECT_EQ(stored_records, 0);
+}
+
+TEST_CASE(corrupt_numeric_fields_are_skipped)
+{
+    auto database = create_database();
+    auto store = create_store(database);
+
+    store->save_download(example_download(1));
+    store->save_download(example_download(2));
+    store->save_download(example_download(3));
+    MUST(database->execute_raw(R"#(
+        UPDATE Downloads SET id = -1 WHERE id = 1;
+        UPDATE Downloads SET total_size = -1 WHERE id = 2;
+        UPDATE Downloads SET total_size = 'not an integer' WHERE id = 3;
+    )#"));
+
+    EXPECT(store->resumable_downloads().is_empty());
+
+    store->remove_download(2);
+    store->remove_download(3);
+    EXPECT_EQ(store->maximum_download_id(), 0);
 }
 
 TEST_CASE(saving_a_download_again_replaces_its_segments)
@@ -127,13 +184,13 @@ TEST_CASE(a_download_with_unreadable_segments_is_skipped)
     store->save_download(example_download(2));
 
     auto corrupt = MUST(database->prepare_statement("UPDATE Downloads SET segments = ? WHERE id = ?;"sv));
-    database->execute_statement(corrupt, {}, "not json at all"_string, static_cast<u64>(1));
+    database->execute_statement(corrupt, {}, "not json at all"_string, static_cast<i64>(1));
 
     auto downloads = store->resumable_downloads();
     EXPECT_EQ(downloads.size(), 1u);
     EXPECT_EQ(downloads.first().id, 2u);
 
-    database->execute_statement(corrupt, {}, "[]"_string, static_cast<u64>(2));
+    database->execute_statement(corrupt, {}, "[]"_string, static_cast<i64>(2));
     EXPECT(store->resumable_downloads().is_empty());
 }
 

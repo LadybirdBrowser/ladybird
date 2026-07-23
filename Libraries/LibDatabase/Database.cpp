@@ -40,22 +40,20 @@ static constexpr StringView sql_error(int error_code)
         }                                                                                                          \
     })
 
-#define ENUMERATE_SQL_TYPES              \
-    __ENUMERATE_TYPE(String)             \
-    __ENUMERATE_TYPE(Utf16String)        \
-    __ENUMERATE_TYPE(ByteString)         \
-    __ENUMERATE_TYPE(UnixDateTime)       \
-    __ENUMERATE_TYPE(i8)                 \
-    __ENUMERATE_TYPE(i16)                \
-    __ENUMERATE_TYPE(i32)                \
-    __ENUMERATE_TYPE(long)               \
-    __ENUMERATE_TYPE(long long)          \
-    __ENUMERATE_TYPE(u8)                 \
-    __ENUMERATE_TYPE(u16)                \
-    __ENUMERATE_TYPE(u32)                \
-    __ENUMERATE_TYPE(unsigned long)      \
-    __ENUMERATE_TYPE(unsigned long long) \
-    __ENUMERATE_TYPE(double)             \
+#define ENUMERATE_SQL_TYPES        \
+    __ENUMERATE_TYPE(String)       \
+    __ENUMERATE_TYPE(Utf16String)  \
+    __ENUMERATE_TYPE(ByteString)   \
+    __ENUMERATE_TYPE(UnixDateTime) \
+    __ENUMERATE_TYPE(i8)           \
+    __ENUMERATE_TYPE(i16)          \
+    __ENUMERATE_TYPE(i32)          \
+    __ENUMERATE_TYPE(long)         \
+    __ENUMERATE_TYPE(long long)    \
+    __ENUMERATE_TYPE(u8)           \
+    __ENUMERATE_TYPE(u16)          \
+    __ENUMERATE_TYPE(u32)          \
+    __ENUMERATE_TYPE(double)       \
     __ENUMERATE_TYPE(bool)
 
 ErrorOr<NonnullRefPtr<Database>> Database::create_memory_backed(Options options)
@@ -229,10 +227,9 @@ ErrorOr<void> Database::try_apply_placeholder(StatementID statement_id, int inde
     } else if constexpr (IsSame<ValueType, double>) {
         SQL_TRY(sqlite3_bind_double(statement, index, value));
     } else if constexpr (IsIntegral<ValueType>) {
-        if constexpr (sizeof(ValueType) <= sizeof(int))
-            SQL_TRY(sqlite3_bind_int(statement, index, static_cast<int>(value)));
-        else
-            SQL_TRY(sqlite3_bind_int64(statement, index, static_cast<sqlite3_int64>(value)));
+        static_assert(!Detail::is_unsupported_unsigned_sql_integer<ValueType>);
+        static_assert(sizeof(ValueType) <= sizeof(sqlite3_int64));
+        SQL_TRY(sqlite3_bind_int64(statement, index, static_cast<sqlite3_int64>(value)));
     } else {
         static_assert(DependentFalse<ValueType>);
     }
@@ -246,6 +243,7 @@ ENUMERATE_SQL_TYPES
 #undef __ENUMERATE_TYPE
 
 template<typename ValueType>
+requires(!Detail::is_unsupported_unsigned_sql_integer<ValueType>)
 ValueType Database::result_column(StatementID statement_id, int column)
 {
     auto* statement = prepared_statement(statement_id).statement;

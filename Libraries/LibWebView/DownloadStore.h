@@ -23,14 +23,14 @@ struct DownloadSegmentRecord {
 };
 
 struct WEBVIEW_API DownloadRecord {
-    u64 id { 0 };
+    i64 id { 0 };
 
     String url;
     String display_url;
 
     String destination;
     String temporary_destination;
-    u64 total_size { 0 };
+    i64 total_size { 0 };
     Optional<String> etag;
     Optional<String> last_modified;
     Vector<DownloadSegmentRecord> segments;
@@ -53,10 +53,10 @@ public:
     ~DownloadStore();
 
     void save_download(DownloadRecord const&, UnixDateTime updated_at = UnixDateTime::now());
-    void remove_download(u64 id);
+    void remove_download(i64 id);
     Vector<DownloadRecord> resumable_downloads();
 
-    u64 maximum_download_id();
+    i64 maximum_download_id();
 
 private:
     struct Statements {
