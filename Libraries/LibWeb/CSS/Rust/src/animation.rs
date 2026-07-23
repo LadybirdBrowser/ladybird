@@ -15,6 +15,7 @@ use crate::property_metadata::{property_animation_type, property_numeric_ranges}
 use crate::style_value::{RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData};
 
 const ANIMATION_TYPE_BY_COMPUTED_VALUE: u8 = 1;
+const ANIMATION_TYPE_REPEATABLE_LIST: u8 = 2;
 const ANIMATION_TYPE_CUSTOM: u8 = 3;
 const VALUE_TYPE_ANGLE: u8 = 2;
 const VALUE_TYPE_FLEX: u8 = 15;
@@ -48,6 +49,26 @@ const TRANSFORM_FUNCTION_SKEW: u8 = 18;
 const TRANSFORM_FUNCTION_SKEW_X: u8 = 19;
 const TRANSFORM_FUNCTION_SKEW_Y: u8 = 20;
 
+#[derive(Clone, Copy)]
+struct NumericRangeOverride {
+    value_type: u8,
+    min: f64,
+    max: f64,
+}
+
+const BORDER_RADIUS_RECT_RANGES: &[NumericRangeOverride] = &[
+    NumericRangeOverride {
+        value_type: VALUE_TYPE_LENGTH,
+        min: 0.0,
+        max: f32::MAX as f64,
+    },
+    NumericRangeOverride {
+        value_type: VALUE_TYPE_PERCENTAGE,
+        min: 0.0,
+        max: f32::MAX as f64,
+    },
+];
+
 #[repr(C)]
 pub struct FfiAnimationValueResult {
     pub value: *const StyleValueData,
@@ -70,7 +91,10 @@ pub enum FfiCompositeOperation {
     Accumulate,
 }
 
-fn accepted_range(property_id: u16, value_type: u8) -> Option<(f64, f64)> {
+fn accepted_range(property_id: u16, value_type: u8, range_overrides: &[NumericRangeOverride]) -> Option<(f64, f64)> {
+    if let Some(range) = range_overrides.iter().find(|range| range.value_type == value_type) {
+        return Some((range.min, range.max));
+    }
     property_numeric_ranges(property_id)
         .iter()
         .find(|range| range.value_type == value_type)
@@ -102,6 +126,85 @@ fn interpolate_i32(from: i32, to: i32, delta: f32, range: Option<(f64, f64)>) ->
     clamp_to_range(f64::from(value), range) as i32
 }
 
+// https://drafts.csswg.org/css-borders-4/#normalized-superellipse-half-corner
+fn normalized_super_ellipse_half_corner(s: f64) -> f64 {
+    //  To compute the normalized superellipse half corner given a superellipse parameter s, return the first matching statement, switching on s:
+
+    // -∞ Return 0.
+    if s == f64::NEG_INFINITY {
+        return 0.0;
+    }
+
+    // ∞ Return 1.
+    if s == f64::INFINITY {
+        return 1.0;
+    }
+
+    // Otherwise
+    // 1. Let k be 0.5^abs(s).
+    let k = 0.5_f64.powf(s.abs());
+
+    // 2. Let convexHalfCorner be 0.5^k.
+    let convex_half_corner = 0.5_f64.powf(k);
+
+    // 3. If s is less than 0, return 1 - convexHalfCorner.
+    if s < 0.0 {
+        return 1.0 - convex_half_corner;
+    }
+
+    // 4. Return convexHalfCorner.
+    convex_half_corner
+}
+
+fn interpolation_value_to_super_ellipse_parameter(interpolation_value: f64) -> f64 {
+    // To convert a <number [0,1]> interpolationValue back to a superellipse parameter, switch on interpolationValue:
+
+    // 0 Return -∞.
+    if interpolation_value == 0.0 {
+        return f64::NEG_INFINITY;
+    }
+
+    // 0.5 Return 0.
+    if interpolation_value == 0.5 {
+        return 0.0;
+    }
+
+    // 1 Return ∞.
+    if interpolation_value == 1.0 {
+        return f64::INFINITY;
+    }
+
+    // Otherwise
+    // 1. Let convexHalfCorner be interpolationValue.
+    let mut convex_half_corner = interpolation_value;
+
+    // 2. If interpolationValue is less than 0.5, set convexHalfCorner to 1 - interpolationValue.
+    if interpolation_value < 0.5 {
+        convex_half_corner = 1.0 - interpolation_value;
+    }
+
+    // 3. Let k be ln(0.5) / ln(convexHalfCorner).
+    let k = 0.5_f64.ln() / convex_half_corner.ln();
+
+    // 4. Let s be log2(k).
+    let mut s = k.log2();
+
+    // AD-HOC: The logs above can introduce slight inaccuracies, this can interfere with the behaviour of
+    //         serializing superellipse style values as their equivalent keywords as that relies on exact
+    //         equality. To mitigate this we simply round to a whole number if we are sufficiently near
+    if (s.round() - s).abs() < f64::from(f32::EPSILON) {
+        s = s.round();
+    }
+
+    // 5. If interpolationValue is less than 0.5, return -s.
+    if interpolation_value < 0.5 {
+        return -s;
+    }
+
+    // 6. Return s.
+    s
+}
+
 fn angle_to_degrees(value: f64, unit: u8) -> Option<f64> {
     let ratio = match unit {
         0 => 1.0,
@@ -131,6 +234,39 @@ fn handled_without_value() -> FfiAnimationValueResult {
     FfiAnimationValueResult {
         value: std::ptr::null(),
         handled: true,
+    }
+}
+
+fn discrete_value(
+    context: Option<&FfiAnimationContext>,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> FfiAnimationValueResult {
+    if !context.is_some_and(|context| context.allow_discrete) {
+        return handled_without_value();
+    }
+    let value = if delta < 0.5 { from } else { to };
+    FfiAnimationValueResult {
+        value: unsafe { crate::style_value::rust_style_value_retain(value) },
+        handled: true,
+    }
+}
+
+fn radius_components_equal(first: &StyleValueData, second: &StyleValueData) -> bool {
+    match (first, second) {
+        (
+            StyleValueData::Length {
+                value: first_value,
+                unit: first_unit,
+            },
+            StyleValueData::Length {
+                value: second_value,
+                unit: second_unit,
+            },
+        ) => first_value == second_value && first_unit == second_unit,
+        (StyleValueData::Percentage { value: first }, StyleValueData::Percentage { value: second }) => first == second,
+        _ => false,
     }
 }
 
@@ -263,6 +399,300 @@ fn composite_scalar_value(
                 value: unsafe { RetainedStyleValueData::from_retained_pointer(number) },
             })
         }
+        (
+            StyleValueData::BackgroundSize {
+                size_x: underlying_x,
+                size_y: underlying_y,
+            },
+            StyleValueData::BackgroundSize {
+                size_x: animated_x,
+                size_y: animated_y,
+            },
+        ) => {
+            let x = composite_scalar_value(underlying_x.data(), animated_x.data(), operation);
+            let y = composite_scalar_value(underlying_y.data(), animated_y.data(), operation);
+            if !x.handled || !y.handled {
+                return not_handled();
+            }
+            if x.value.is_null() || y.value.is_null() {
+                return handled_without_value();
+            }
+            owned(StyleValueData::BackgroundSize {
+                size_x: unsafe { RetainedStyleValueData::from_retained_pointer(x.value) },
+                size_y: unsafe { RetainedStyleValueData::from_retained_pointer(y.value) },
+            })
+        }
+        (StyleValueData::Edge { offset: underlying, .. }, StyleValueData::Edge { offset: animated, .. }) => {
+            let (Some(underlying), Some(animated)) = (underlying.optional_data(), animated.optional_data()) else {
+                return not_handled();
+            };
+            let result = composite_scalar_value(underlying, animated, operation);
+            if !result.handled {
+                return not_handled();
+            }
+            if result.value.is_null() {
+                return handled_without_value();
+            }
+            owned(StyleValueData::Edge {
+                has_edge: false,
+                edge: 0,
+                offset: unsafe { RetainedStyleValueData::from_retained_pointer(result.value) },
+            })
+        }
+        (
+            StyleValueData::Position {
+                edge_x: underlying_x,
+                edge_y: underlying_y,
+            },
+            StyleValueData::Position {
+                edge_x: animated_x,
+                edge_y: animated_y,
+            },
+        ) => {
+            let x = composite_scalar_value(underlying_x.data(), animated_x.data(), operation);
+            let y = composite_scalar_value(underlying_y.data(), animated_y.data(), operation);
+            if !x.handled || !y.handled {
+                return not_handled();
+            }
+            if x.value.is_null() || y.value.is_null() {
+                return handled_without_value();
+            }
+            owned(StyleValueData::Position {
+                edge_x: unsafe { RetainedStyleValueData::from_retained_pointer(x.value) },
+                edge_y: unsafe { RetainedStyleValueData::from_retained_pointer(y.value) },
+            })
+        }
+        (
+            StyleValueData::Rect {
+                top: underlying_top,
+                right: underlying_right,
+                bottom: underlying_bottom,
+                left: underlying_left,
+            },
+            StyleValueData::Rect {
+                top: animated_top,
+                right: animated_right,
+                bottom: animated_bottom,
+                left: animated_left,
+            },
+        ) => {
+            let combine = |underlying: &RetainedStyleValueData, animated: &RetainedStyleValueData| {
+                let result = composite_scalar_value(underlying.data(), animated.data(), operation);
+                if !result.handled {
+                    return Err(());
+                }
+                if result.value.is_null() {
+                    return Ok(None);
+                }
+                Ok(Some(unsafe {
+                    RetainedStyleValueData::from_retained_pointer(result.value)
+                }))
+            };
+            let value = (|| {
+                let Some(top) = combine(underlying_top, animated_top)? else {
+                    return Ok(None);
+                };
+                let Some(right) = combine(underlying_right, animated_right)? else {
+                    return Ok(None);
+                };
+                let Some(bottom) = combine(underlying_bottom, animated_bottom)? else {
+                    return Ok(None);
+                };
+                let Some(left) = combine(underlying_left, animated_left)? else {
+                    return Ok(None);
+                };
+                Ok(Some(StyleValueData::Rect {
+                    top,
+                    right,
+                    bottom,
+                    left,
+                }))
+            })();
+            match value {
+                Err(()) => not_handled(),
+                Ok(None) => handled_without_value(),
+                Ok(Some(value)) => owned(value),
+            }
+        }
+        (
+            StyleValueData::BorderRadius {
+                horizontal_radius: underlying_horizontal,
+                vertical_radius: underlying_vertical,
+                ..
+            },
+            StyleValueData::BorderRadius {
+                horizontal_radius: animated_horizontal,
+                vertical_radius: animated_vertical,
+                ..
+            },
+        ) => {
+            let horizontal =
+                composite_scalar_value(underlying_horizontal.data(), animated_horizontal.data(), operation);
+            if !horizontal.handled {
+                return not_handled();
+            }
+            if horizontal.value.is_null() {
+                return handled_without_value();
+            }
+            let horizontal = unsafe { RetainedStyleValueData::from_retained_pointer(horizontal.value) };
+            let vertical = composite_scalar_value(underlying_vertical.data(), animated_vertical.data(), operation);
+            if !vertical.handled {
+                return not_handled();
+            }
+            if vertical.value.is_null() {
+                return handled_without_value();
+            }
+            let vertical = unsafe { RetainedStyleValueData::from_retained_pointer(vertical.value) };
+            owned(StyleValueData::BorderRadius {
+                is_elliptical: !radius_components_equal(horizontal.data(), vertical.data()),
+                horizontal_radius: horizontal,
+                vertical_radius: vertical,
+            })
+        }
+        (
+            StyleValueData::BorderRadiusRect {
+                top_left: underlying_top_left,
+                top_right: underlying_top_right,
+                bottom_right: underlying_bottom_right,
+                bottom_left: underlying_bottom_left,
+            },
+            StyleValueData::BorderRadiusRect {
+                top_left: animated_top_left,
+                top_right: animated_top_right,
+                bottom_right: animated_bottom_right,
+                bottom_left: animated_bottom_left,
+            },
+        ) => {
+            // https://drafts.csswg.org/web-animations-1/#animating-properties
+            // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
+            // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
+            let combine = |underlying: &RetainedStyleValueData, animated: &RetainedStyleValueData| {
+                let result = composite_scalar_value(underlying.data(), animated.data(), operation);
+                if !result.handled {
+                    return Err(());
+                }
+                if result.value.is_null() {
+                    return Ok(None);
+                }
+                Ok(Some(unsafe {
+                    RetainedStyleValueData::from_retained_pointer(result.value)
+                }))
+            };
+            let value = (|| {
+                let Some(top_left) = combine(underlying_top_left, animated_top_left)? else {
+                    return Ok(None);
+                };
+                let Some(top_right) = combine(underlying_top_right, animated_top_right)? else {
+                    return Ok(None);
+                };
+                let Some(bottom_right) = combine(underlying_bottom_right, animated_bottom_right)? else {
+                    return Ok(None);
+                };
+                let Some(bottom_left) = combine(underlying_bottom_left, animated_bottom_left)? else {
+                    return Ok(None);
+                };
+                Ok(Some(StyleValueData::BorderRadiusRect {
+                    top_left,
+                    top_right,
+                    bottom_right,
+                    bottom_left,
+                }))
+            })();
+            match value {
+                Err(()) => not_handled(),
+                Ok(None) => handled_without_value(),
+                Ok(Some(value)) => owned(value),
+            }
+        }
+        (
+            StyleValueData::BorderImageSlice {
+                top: underlying_top,
+                right: underlying_right,
+                bottom: underlying_bottom,
+                left: underlying_left,
+                fill: underlying_fill,
+            },
+            StyleValueData::BorderImageSlice {
+                top: animated_top,
+                right: animated_right,
+                bottom: animated_bottom,
+                left: animated_left,
+                fill: animated_fill,
+            },
+        ) => {
+            // https://drafts.csswg.org/web-animations-1/#animating-properties
+            // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
+            // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
+            if underlying_fill != animated_fill {
+                return handled_without_value();
+            }
+            let combine = |underlying: &RetainedStyleValueData, animated: &RetainedStyleValueData| {
+                let result = composite_scalar_value(underlying.data(), animated.data(), operation);
+                if !result.handled {
+                    return Err(());
+                }
+                if result.value.is_null() {
+                    return Ok(None);
+                }
+                Ok(Some(unsafe {
+                    RetainedStyleValueData::from_retained_pointer(result.value)
+                }))
+            };
+            let value = (|| {
+                let Some(top) = combine(underlying_top, animated_top)? else {
+                    return Ok(None);
+                };
+                let Some(right) = combine(underlying_right, animated_right)? else {
+                    return Ok(None);
+                };
+                let Some(bottom) = combine(underlying_bottom, animated_bottom)? else {
+                    return Ok(None);
+                };
+                let Some(left) = combine(underlying_left, animated_left)? else {
+                    return Ok(None);
+                };
+                Ok(Some(StyleValueData::BorderImageSlice {
+                    top,
+                    right,
+                    bottom,
+                    left,
+                    fill: *underlying_fill,
+                }))
+            })();
+            match value {
+                Err(()) => not_handled(),
+                Ok(None) => handled_without_value(),
+                Ok(Some(value)) => owned(value),
+            }
+        }
+        (
+            StyleValueData::TextIndent {
+                length_percentage: underlying,
+                hanging: underlying_hanging,
+                each_line: underlying_each_line,
+            },
+            StyleValueData::TextIndent {
+                length_percentage: animated,
+                hanging: animated_hanging,
+                each_line: animated_each_line,
+            },
+        ) => {
+            if underlying_hanging != animated_hanging || underlying_each_line != animated_each_line {
+                return handled_without_value();
+            }
+            let result = composite_scalar_value(underlying.data(), animated.data(), operation);
+            if !result.handled {
+                return not_handled();
+            }
+            if result.value.is_null() {
+                return handled_without_value();
+            }
+            owned(StyleValueData::TextIndent {
+                length_percentage: unsafe { RetainedStyleValueData::from_retained_pointer(result.value) },
+                hanging: *underlying_hanging,
+                each_line: *underlying_each_line,
+            })
+        }
         (StyleValueData::Ratio { .. }, StyleValueData::Ratio { .. }) => {
             // https://drafts.csswg.org/css-values-4/#combine-ratio
             // Addition of <ratio>s is not possible.
@@ -312,16 +742,27 @@ fn interpolate_scalar_value(
     from: &StyleValueData,
     to: &StyleValueData,
     delta: f32,
+    range_overrides: &[NumericRangeOverride],
 ) -> FfiAnimationValueResult {
     match (from, to) {
         (StyleValueData::Number { value: from }, StyleValueData::Number { value: to }) => {
             owned(StyleValueData::Number {
-                value: interpolate_f64(*from, *to, delta, accepted_range(property_id, VALUE_TYPE_NUMBER)),
+                value: interpolate_f64(
+                    *from,
+                    *to,
+                    delta,
+                    accepted_range(property_id, VALUE_TYPE_NUMBER, range_overrides),
+                ),
             })
         }
         (StyleValueData::Integer { value: from }, StyleValueData::Integer { value: to }) => {
             owned(StyleValueData::Integer {
-                value: interpolate_i32(*from, *to, delta, accepted_range(property_id, VALUE_TYPE_INTEGER)),
+                value: interpolate_i32(
+                    *from,
+                    *to,
+                    delta,
+                    accepted_range(property_id, VALUE_TYPE_INTEGER, range_overrides),
+                ),
             })
         }
         (
@@ -338,7 +779,12 @@ fn interpolate_scalar_value(
                 return not_handled();
             };
             owned(StyleValueData::Angle {
-                value: interpolate_f64(from, to, delta, accepted_range(property_id, VALUE_TYPE_ANGLE)),
+                value: interpolate_f64(
+                    from,
+                    to,
+                    delta,
+                    accepted_range(property_id, VALUE_TYPE_ANGLE, range_overrides),
+                ),
                 unit: 0,
             })
         }
@@ -352,7 +798,12 @@ fn interpolate_scalar_value(
                 unit: to_unit,
             },
         ) if from_unit == to_unit => owned(StyleValueData::Flex {
-            value: interpolate_f64(*from, *to, delta, accepted_range(property_id, VALUE_TYPE_FLEX)),
+            value: interpolate_f64(
+                *from,
+                *to,
+                delta,
+                accepted_range(property_id, VALUE_TYPE_FLEX, range_overrides),
+            ),
             unit: *from_unit,
         }),
         (
@@ -365,7 +816,12 @@ fn interpolate_scalar_value(
                 unit: to_unit,
             },
         ) if from_unit == to_unit => owned(StyleValueData::Frequency {
-            value: interpolate_f64(*from, *to, delta, accepted_range(property_id, VALUE_TYPE_FREQUENCY)),
+            value: interpolate_f64(
+                *from,
+                *to,
+                delta,
+                accepted_range(property_id, VALUE_TYPE_FREQUENCY, range_overrides),
+            ),
             unit: *from_unit,
         }),
         (
@@ -373,14 +829,27 @@ fn interpolate_scalar_value(
                 value: from,
                 unit: from_unit,
             },
-            StyleValueData::Length { value: to, .. },
-        ) => owned(StyleValueData::Length {
-            value: interpolate_f64(*from, *to, delta, accepted_range(property_id, VALUE_TYPE_LENGTH)),
+            StyleValueData::Length {
+                value: to,
+                unit: to_unit,
+            },
+        ) if from_unit == to_unit => owned(StyleValueData::Length {
+            value: interpolate_f64(
+                *from,
+                *to,
+                delta,
+                accepted_range(property_id, VALUE_TYPE_LENGTH, range_overrides),
+            ),
             unit: *from_unit,
         }),
         (StyleValueData::Percentage { value: from }, StyleValueData::Percentage { value: to }) => {
             owned(StyleValueData::Percentage {
-                value: interpolate_f64(*from, *to, delta, accepted_range(property_id, VALUE_TYPE_PERCENTAGE)),
+                value: interpolate_f64(
+                    *from,
+                    *to,
+                    delta,
+                    accepted_range(property_id, VALUE_TYPE_PERCENTAGE, range_overrides),
+                ),
             })
         }
         (
@@ -393,7 +862,12 @@ fn interpolate_scalar_value(
                 unit: to_unit,
             },
         ) if from_unit == to_unit => owned(StyleValueData::Resolution {
-            value: interpolate_f64(*from, *to, delta, accepted_range(property_id, VALUE_TYPE_RESOLUTION)),
+            value: interpolate_f64(
+                *from,
+                *to,
+                delta,
+                accepted_range(property_id, VALUE_TYPE_RESOLUTION, range_overrides),
+            ),
             unit: *from_unit,
         }),
         (
@@ -406,7 +880,12 @@ fn interpolate_scalar_value(
                 unit: to_unit,
             },
         ) if from_unit == to_unit => owned(StyleValueData::Time {
-            value: interpolate_f64(*from, *to, delta, accepted_range(property_id, VALUE_TYPE_TIME)),
+            value: interpolate_f64(
+                *from,
+                *to,
+                delta,
+                accepted_range(property_id, VALUE_TYPE_TIME, range_overrides),
+            ),
             unit: *from_unit,
         }),
         (StyleValueData::OpacityValue { value: from }, StyleValueData::OpacityValue { value: to }) => {
@@ -420,6 +899,333 @@ fn interpolate_scalar_value(
             }));
             owned(StyleValueData::OpacityValue {
                 value: unsafe { RetainedStyleValueData::from_retained_pointer(number) },
+            })
+        }
+        (StyleValueData::Superellipse { parameter: from }, StyleValueData::Superellipse { parameter: to }) => {
+            let (StyleValueData::Number { value: from }, StyleValueData::Number { value: to }) =
+                (from.data(), to.data())
+            else {
+                return not_handled();
+            };
+
+            // https://drafts.csswg.org/css-borders-4/#corner-shape-interpolation
+            let from_normalized_value = normalized_super_ellipse_half_corner(*from);
+            let to_normalized_value = normalized_super_ellipse_half_corner(*to);
+            let interpolated_value =
+                interpolate_f64(from_normalized_value, to_normalized_value, delta, Some((0.0, 1.0)));
+            let parameter = Arc::into_raw(Arc::new(StyleValueData::Number {
+                value: interpolation_value_to_super_ellipse_parameter(interpolated_value),
+            }));
+            owned(StyleValueData::Superellipse {
+                parameter: unsafe { RetainedStyleValueData::from_retained_pointer(parameter) },
+            })
+        }
+        (
+            StyleValueData::BackgroundSize {
+                size_x: from_x,
+                size_y: from_y,
+            },
+            StyleValueData::BackgroundSize {
+                size_x: to_x,
+                size_y: to_y,
+            },
+        ) => {
+            let x = interpolate_scalar_value(property_id, from_x.data(), to_x.data(), delta, range_overrides);
+            let y = interpolate_scalar_value(property_id, from_y.data(), to_y.data(), delta, range_overrides);
+            if !x.handled || !y.handled {
+                return not_handled();
+            }
+            if x.value.is_null() || y.value.is_null() {
+                return handled_without_value();
+            }
+            owned(StyleValueData::BackgroundSize {
+                size_x: unsafe { RetainedStyleValueData::from_retained_pointer(x.value) },
+                size_y: unsafe { RetainedStyleValueData::from_retained_pointer(y.value) },
+            })
+        }
+        (StyleValueData::Edge { offset: from, .. }, StyleValueData::Edge { offset: to, .. }) => {
+            let (Some(from), Some(to)) = (from.optional_data(), to.optional_data()) else {
+                return not_handled();
+            };
+            let result = interpolate_scalar_value(property_id, from, to, delta, range_overrides);
+            if !result.handled {
+                return not_handled();
+            }
+            if result.value.is_null() {
+                return handled_without_value();
+            }
+            owned(StyleValueData::Edge {
+                has_edge: false,
+                edge: 0,
+                offset: unsafe { RetainedStyleValueData::from_retained_pointer(result.value) },
+            })
+        }
+        (
+            StyleValueData::Position {
+                edge_x: from_x,
+                edge_y: from_y,
+            },
+            StyleValueData::Position {
+                edge_x: to_x,
+                edge_y: to_y,
+            },
+        ) => {
+            // https://www.w3.org/TR/css-values-4/#combine-positions
+            // FIXME: Interpolation of <position> is defined as the independent interpolation of each component (x, y) normalized as an offset from the top left corner as a <length-percentage>.
+            let x = interpolate_scalar_value(property_id, from_x.data(), to_x.data(), delta, range_overrides);
+            let y = interpolate_scalar_value(property_id, from_y.data(), to_y.data(), delta, range_overrides);
+            if !x.handled || !y.handled {
+                return not_handled();
+            }
+            if x.value.is_null() || y.value.is_null() {
+                return handled_without_value();
+            }
+            owned(StyleValueData::Position {
+                edge_x: unsafe { RetainedStyleValueData::from_retained_pointer(x.value) },
+                edge_y: unsafe { RetainedStyleValueData::from_retained_pointer(y.value) },
+            })
+        }
+        (
+            StyleValueData::Rect {
+                top: from_top,
+                right: from_right,
+                bottom: from_bottom,
+                left: from_left,
+            },
+            StyleValueData::Rect {
+                top: to_top,
+                right: to_right,
+                bottom: to_bottom,
+                left: to_left,
+            },
+        ) => {
+            let combine = |from: &RetainedStyleValueData, to: &RetainedStyleValueData| {
+                let result = interpolate_scalar_value(property_id, from.data(), to.data(), delta, range_overrides);
+                if !result.handled {
+                    return Err(());
+                }
+                if result.value.is_null() {
+                    return Ok(None);
+                }
+                Ok(Some(unsafe {
+                    RetainedStyleValueData::from_retained_pointer(result.value)
+                }))
+            };
+            let value = (|| {
+                let Some(top) = combine(from_top, to_top)? else {
+                    return Ok(None);
+                };
+                let Some(right) = combine(from_right, to_right)? else {
+                    return Ok(None);
+                };
+                let Some(bottom) = combine(from_bottom, to_bottom)? else {
+                    return Ok(None);
+                };
+                let Some(left) = combine(from_left, to_left)? else {
+                    return Ok(None);
+                };
+                Ok(Some(StyleValueData::Rect {
+                    top,
+                    right,
+                    bottom,
+                    left,
+                }))
+            })();
+            match value {
+                Err(()) => not_handled(),
+                Ok(None) => handled_without_value(),
+                Ok(Some(value)) => owned(value),
+            }
+        }
+        (
+            StyleValueData::BorderRadius {
+                horizontal_radius: from_horizontal,
+                vertical_radius: from_vertical,
+                ..
+            },
+            StyleValueData::BorderRadius {
+                horizontal_radius: to_horizontal,
+                vertical_radius: to_vertical,
+                ..
+            },
+        ) => {
+            let horizontal = interpolate_scalar_value(
+                property_id,
+                from_horizontal.data(),
+                to_horizontal.data(),
+                delta,
+                range_overrides,
+            );
+            if !horizontal.handled {
+                return not_handled();
+            }
+            if horizontal.value.is_null() {
+                return handled_without_value();
+            }
+            let horizontal = unsafe { RetainedStyleValueData::from_retained_pointer(horizontal.value) };
+            let vertical = interpolate_scalar_value(
+                property_id,
+                from_vertical.data(),
+                to_vertical.data(),
+                delta,
+                range_overrides,
+            );
+            if !vertical.handled {
+                return not_handled();
+            }
+            if vertical.value.is_null() {
+                return handled_without_value();
+            }
+            let vertical = unsafe { RetainedStyleValueData::from_retained_pointer(vertical.value) };
+            owned(StyleValueData::BorderRadius {
+                is_elliptical: !radius_components_equal(horizontal.data(), vertical.data()),
+                horizontal_radius: horizontal,
+                vertical_radius: vertical,
+            })
+        }
+        (
+            StyleValueData::BorderRadiusRect {
+                top_left: from_top_left,
+                top_right: from_top_right,
+                bottom_right: from_bottom_right,
+                bottom_left: from_bottom_left,
+            },
+            StyleValueData::BorderRadiusRect {
+                top_left: to_top_left,
+                top_right: to_top_right,
+                bottom_right: to_bottom_right,
+                bottom_left: to_bottom_left,
+            },
+        ) => {
+            // https://drafts.csswg.org/web-animations-1/#animating-properties
+            // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
+            // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
+            let combine = |from: &RetainedStyleValueData, to: &RetainedStyleValueData| {
+                let result =
+                    interpolate_scalar_value(property_id, from.data(), to.data(), delta, BORDER_RADIUS_RECT_RANGES);
+                if !result.handled {
+                    return Err(());
+                }
+                if result.value.is_null() {
+                    return Ok(None);
+                }
+                Ok(Some(unsafe {
+                    RetainedStyleValueData::from_retained_pointer(result.value)
+                }))
+            };
+            let value = (|| {
+                let Some(top_left) = combine(from_top_left, to_top_left)? else {
+                    return Ok(None);
+                };
+                let Some(top_right) = combine(from_top_right, to_top_right)? else {
+                    return Ok(None);
+                };
+                let Some(bottom_right) = combine(from_bottom_right, to_bottom_right)? else {
+                    return Ok(None);
+                };
+                let Some(bottom_left) = combine(from_bottom_left, to_bottom_left)? else {
+                    return Ok(None);
+                };
+                Ok(Some(StyleValueData::BorderRadiusRect {
+                    top_left,
+                    top_right,
+                    bottom_right,
+                    bottom_left,
+                }))
+            })();
+            match value {
+                Err(()) => not_handled(),
+                Ok(None) => handled_without_value(),
+                Ok(Some(value)) => owned(value),
+            }
+        }
+        (
+            StyleValueData::BorderImageSlice {
+                top: from_top,
+                right: from_right,
+                bottom: from_bottom,
+                left: from_left,
+                fill: from_fill,
+            },
+            StyleValueData::BorderImageSlice {
+                top: to_top,
+                right: to_right,
+                bottom: to_bottom,
+                left: to_left,
+                fill: to_fill,
+            },
+        ) => {
+            // https://drafts.csswg.org/web-animations-1/#animating-properties
+            // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
+            // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
+            if from_fill != to_fill {
+                return handled_without_value();
+            }
+            let combine = |from: &RetainedStyleValueData, to: &RetainedStyleValueData| {
+                let result = interpolate_scalar_value(property_id, from.data(), to.data(), delta, range_overrides);
+                if !result.handled {
+                    return Err(());
+                }
+                if result.value.is_null() {
+                    return Ok(None);
+                }
+                Ok(Some(unsafe {
+                    RetainedStyleValueData::from_retained_pointer(result.value)
+                }))
+            };
+            let value = (|| {
+                let Some(top) = combine(from_top, to_top)? else {
+                    return Ok(None);
+                };
+                let Some(right) = combine(from_right, to_right)? else {
+                    return Ok(None);
+                };
+                let Some(bottom) = combine(from_bottom, to_bottom)? else {
+                    return Ok(None);
+                };
+                let Some(left) = combine(from_left, to_left)? else {
+                    return Ok(None);
+                };
+                Ok(Some(StyleValueData::BorderImageSlice {
+                    top,
+                    right,
+                    bottom,
+                    left,
+                    fill: *from_fill,
+                }))
+            })();
+            match value {
+                Err(()) => not_handled(),
+                Ok(None) => handled_without_value(),
+                Ok(Some(value)) => owned(value),
+            }
+        }
+        (
+            StyleValueData::TextIndent {
+                length_percentage: from,
+                hanging: from_hanging,
+                each_line: from_each_line,
+            },
+            StyleValueData::TextIndent {
+                length_percentage: to,
+                hanging: to_hanging,
+                each_line: to_each_line,
+            },
+        ) => {
+            if from_hanging != to_hanging || from_each_line != to_each_line {
+                return handled_without_value();
+            }
+            let result = interpolate_scalar_value(property_id, from.data(), to.data(), delta, range_overrides);
+            if !result.handled {
+                return not_handled();
+            }
+            if result.value.is_null() {
+                return handled_without_value();
+            }
+            owned(StyleValueData::TextIndent {
+                length_percentage: unsafe { RetainedStyleValueData::from_retained_pointer(result.value) },
+                hanging: *from_hanging,
+                each_line: *from_each_line,
             })
         }
         (
@@ -474,7 +1280,7 @@ fn interpolate_scalar_value(
                 from_number,
                 to_number,
                 delta,
-                accepted_range(property_id, VALUE_TYPE_RATIO),
+                accepted_range(property_id, VALUE_TYPE_RATIO, range_overrides),
             )
             .exp();
             let numerator = Arc::into_raw(Arc::new(StyleValueData::Number { value }));
@@ -502,7 +1308,7 @@ fn interpolate_scalar_value(
 
             let mut values = Vec::with_capacity(from_values.as_slice().len());
             for (from, to) in from_values.as_slice().iter().zip(to_values.as_slice()) {
-                let result = interpolate_scalar_value(property_id, from.data(), to.data(), delta);
+                let result = interpolate_scalar_value(property_id, from.data(), to.data(), delta, range_overrides);
                 if !result.handled || result.value.is_null() {
                     return not_handled();
                 }
@@ -1627,7 +2433,7 @@ fn interpolate_transform_list(
 
         let mut arguments = Vec::with_capacity(from_arguments.len());
         for (from, to) in from_arguments.iter().zip(to_arguments) {
-            let result = interpolate_scalar_value(property_id, from.data(), to.data(), delta);
+            let result = interpolate_scalar_value(property_id, from.data(), to.data(), delta, &[]);
             if !result.handled {
                 return None;
             }
@@ -1656,6 +2462,57 @@ fn interpolate_value(
     delta: f32,
 ) -> FfiAnimationValueResult {
     let animation_type = property_animation_type(property_id);
+    if animation_type == ANIMATION_TYPE_REPEATABLE_LIST
+        && let (
+            StyleValueData::ValueList {
+                values: from_values,
+                separator,
+                collapsible,
+            },
+            StyleValueData::ValueList { values: to_values, .. },
+        ) = (from, to)
+    {
+        // https://www.w3.org/TR/web-animations/#repeatable-list
+        // Same as by computed value except that if the two lists have differing numbers of items, they are first repeated to the least common multiple number of items.
+        // Each item is then combined by computed value.
+        // If a pair of values cannot be combined or if any component value uses discrete animation, then the property values combine as discrete.
+        let from_length = from_values.as_slice().len();
+        let to_length = to_values.as_slice().len();
+        if from_length == 0 || to_length == 0 {
+            return not_handled();
+        }
+        let mut a = from_length;
+        let mut b = to_length;
+        while b != 0 {
+            (a, b) = (b, a % b);
+        }
+        let Some(list_size) = (from_length / a).checked_mul(to_length) else {
+            return not_handled();
+        };
+
+        let mut values = Vec::with_capacity(list_size);
+        for index in 0..list_size {
+            let result = interpolate_scalar_value(
+                property_id,
+                from_values.as_slice()[index % from_length].data(),
+                to_values.as_slice()[index % to_length].data(),
+                delta,
+                &[],
+            );
+            if !result.handled {
+                return not_handled();
+            }
+            if result.value.is_null() {
+                return discrete_value(context, from, to, delta);
+            }
+            values.push(unsafe { RetainedStyleValueData::from_retained_pointer(result.value) });
+        }
+        return owned(StyleValueData::ValueList {
+            values: RetainedStyleValueDataList::from_retained_values(values),
+            separator: *separator,
+            collapsible: *collapsible,
+        });
+    }
     if animation_type == ANIMATION_TYPE_CUSTOM
         && property_id == crate::property_metadata::property_id::TRANSFORM
         && let Some(value) = interpolate_transform_list(context, property_id, from, to, delta)
@@ -1663,11 +2520,7 @@ fn interpolate_value(
         return value.map_or_else(
             || {
                 if context.is_some_and(|context| context.allow_discrete) {
-                    let value = if delta < 0.5 { from } else { to };
-                    FfiAnimationValueResult {
-                        value: unsafe { crate::style_value::rust_style_value_retain(value) },
-                        handled: true,
-                    }
+                    discrete_value(context, from, to, delta)
                 } else {
                     handled_without_value()
                 }
@@ -1678,7 +2531,11 @@ fn interpolate_value(
     if animation_type != ANIMATION_TYPE_BY_COMPUTED_VALUE {
         return not_handled();
     }
-    interpolate_scalar_value(property_id, from, to, delta)
+    let result = interpolate_scalar_value(property_id, from, to, delta, &[]);
+    if result.handled && result.value.is_null() && context.is_some_and(|context| context.allow_discrete) {
+        return discrete_value(context, from, to, delta);
+    }
+    result
 }
 
 /// Attempt Rust-owned style value interpolation without consulting C++ or the DOM.

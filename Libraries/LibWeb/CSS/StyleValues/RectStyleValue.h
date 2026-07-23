@@ -19,10 +19,10 @@ public:
     static ValueComparingNonnullRefPtr<RectStyleValue const> create(NonnullRefPtr<StyleValue const> top, NonnullRefPtr<StyleValue const> right, NonnullRefPtr<StyleValue const> bottom, NonnullRefPtr<StyleValue const> left);
     virtual ~RectStyleValue() override = default;
 
-    ValueComparingNonnullRefPtr<StyleValue const> top() const { return *static_cast<StyleValue const*>(m_value->rect.top.pointer); }
-    ValueComparingNonnullRefPtr<StyleValue const> right() const { return *static_cast<StyleValue const*>(m_value->rect.right.pointer); }
-    ValueComparingNonnullRefPtr<StyleValue const> bottom() const { return *static_cast<StyleValue const*>(m_value->rect.bottom.pointer); }
-    ValueComparingNonnullRefPtr<StyleValue const> left() const { return *static_cast<StyleValue const*>(m_value->rect.left.pointer); }
+    ValueComparingNonnullRefPtr<StyleValue const> top() const { return m_top; }
+    ValueComparingNonnullRefPtr<StyleValue const> right() const { return m_right; }
+    ValueComparingNonnullRefPtr<StyleValue const> bottom() const { return m_bottom; }
+    ValueComparingNonnullRefPtr<StyleValue const> left() const { return m_left; }
 
     EdgeRect rect() const { return { LengthOrAuto::from_style_value(top(), {}), LengthOrAuto::from_style_value(right(), {}), LengthOrAuto::from_style_value(bottom(), {}), LengthOrAuto::from_style_value(left(), {}) }; }
     void serialize(StringBuilder&, SerializationMode) const;
@@ -38,10 +38,30 @@ public:
     }
 
 private:
-    explicit RectStyleValue(NonnullRefPtr<StyleValue const> top, NonnullRefPtr<StyleValue const> right, NonnullRefPtr<StyleValue const> bottom, NonnullRefPtr<StyleValue const> left)
-        : StyleValueWithDefaultOperators(Type::Rect, StyleValueFFI::rust_style_value_create_rect(&top.leak_ref(), &right.leak_ref(), &bottom.leak_ref(), &left.leak_ref()))
+    friend class StyleValue;
+
+    explicit RectStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::Rect, data)
+        , m_top(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->rect.top.pointer))))
+        , m_right(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->rect.right.pointer))))
+        , m_bottom(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->rect.bottom.pointer))))
+        , m_left(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->rect.left.pointer))))
     {
     }
+
+    explicit RectStyleValue(NonnullRefPtr<StyleValue const> top, NonnullRefPtr<StyleValue const> right, NonnullRefPtr<StyleValue const> bottom, NonnullRefPtr<StyleValue const> left)
+        : StyleValueWithDefaultOperators(Type::Rect, StyleValueFFI::rust_style_value_create_rect(StyleValueFFI::rust_style_value_retain(top->rust_style_value_data()), StyleValueFFI::rust_style_value_retain(right->rust_style_value_data()), StyleValueFFI::rust_style_value_retain(bottom->rust_style_value_data()), StyleValueFFI::rust_style_value_retain(left->rust_style_value_data())))
+        , m_top(move(top))
+        , m_right(move(right))
+        , m_bottom(move(bottom))
+        , m_left(move(left))
+    {
+    }
+
+    ValueComparingNonnullRefPtr<StyleValue const> m_top;
+    ValueComparingNonnullRefPtr<StyleValue const> m_right;
+    ValueComparingNonnullRefPtr<StyleValue const> m_bottom;
+    ValueComparingNonnullRefPtr<StyleValue const> m_left;
 };
 
 }

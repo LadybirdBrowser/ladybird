@@ -28,8 +28,8 @@ public:
     }
     virtual ~BorderRadiusStyleValue() override = default;
 
-    ValueComparingNonnullRefPtr<StyleValue const> horizontal_radius() const { return *static_cast<StyleValue const*>(m_value->border_radius.horizontal_radius.pointer); }
-    ValueComparingNonnullRefPtr<StyleValue const> vertical_radius() const { return *static_cast<StyleValue const*>(m_value->border_radius.vertical_radius.pointer); }
+    ValueComparingNonnullRefPtr<StyleValue const> horizontal_radius() const { return m_horizontal_radius; }
+    ValueComparingNonnullRefPtr<StyleValue const> vertical_radius() const { return m_vertical_radius; }
     bool is_elliptical() const { return m_value->border_radius.is_elliptical; }
 
     void serialize(StringBuilder&, SerializationMode) const;
@@ -42,22 +42,26 @@ public:
     }
 
 private:
-    BorderRadiusStyleValue(ValueComparingNonnullRefPtr<StyleValue const> const& horizontal_radius, ValueComparingNonnullRefPtr<StyleValue const> const& vertical_radius)
-        : StyleValueWithDefaultOperators(Type::BorderRadius, make_border_radius_data(horizontal_radius, vertical_radius))
+    explicit BorderRadiusStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::BorderRadius, data)
+        , m_horizontal_radius(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->border_radius.horizontal_radius.pointer))))
+        , m_vertical_radius(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->border_radius.vertical_radius.pointer))))
     {
     }
 
-    static StyleValueFFI::StyleValueData const* make_border_radius_data(ValueComparingNonnullRefPtr<StyleValue const> const& horizontal_radius, ValueComparingNonnullRefPtr<StyleValue const> const& vertical_radius)
+    BorderRadiusStyleValue(ValueComparingNonnullRefPtr<StyleValue const> const& horizontal_radius, ValueComparingNonnullRefPtr<StyleValue const> const& vertical_radius)
+        : StyleValueWithDefaultOperators(Type::BorderRadius, StyleValueFFI::rust_style_value_create_border_radius(horizontal_radius != vertical_radius, StyleValueFFI::rust_style_value_retain(horizontal_radius->rust_style_value_data()), StyleValueFFI::rust_style_value_retain(vertical_radius->rust_style_value_data())))
+        , m_horizontal_radius(horizontal_radius)
+        , m_vertical_radius(vertical_radius)
     {
-        // The Rust allocation takes ownership of one strong reference to each radius.
-        return StyleValueFFI::rust_style_value_create_border_radius(
-            horizontal_radius != vertical_radius,
-            retain_style_value_for_rust(horizontal_radius.ptr()), retain_style_value_for_rust(vertical_radius.ptr()));
     }
 
     // NB: StyleValue dispatches operations by type tag, so it may call private impls.
     friend class StyleValue;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
+
+    ValueComparingNonnullRefPtr<StyleValue const> m_horizontal_radius;
+    ValueComparingNonnullRefPtr<StyleValue const> m_vertical_radius;
 };
 
 }
