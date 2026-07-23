@@ -193,6 +193,13 @@
             const sizeFormatter = new Intl.NumberFormat([], {
                 maximumFractionDigits: 1,
             });
+            const sizeUnits = [
+                { divisor: 1, suffix: "B" },
+                { divisor: 1024, suffix: "KiB" },
+                { divisor: 1024 ** 2, suffix: "MiB" },
+                { divisor: 1024 ** 3, suffix: "GiB" },
+                { divisor: 1024 ** 4, suffix: "TiB" },
+            ];
 
             let downloads = [];
             const downloadRows = new Map();
@@ -208,18 +215,11 @@
                 return `${count} ${count === 1 ? singular : plural}`;
             }
 
-            function formatSize(size) {
-                if (size < 1024) return `${size} B`;
-
-                const units = ["KiB", "MiB", "GiB", "TiB"];
-                let value = size / 1024;
-                let unitIndex = 0;
-                while (value >= 1024 && unitIndex < units.length - 1) {
-                    value /= 1024;
-                    unitIndex++;
+            function unitForDownloadSize(size) {
+                for (let i = sizeUnits.length - 1; i > 0; --i) {
+                    if (size >= sizeUnits[i].divisor) return sizeUnits[i];
                 }
-
-                return `${sizeFormatter.format(value)} ${units[unitIndex]}`;
+                return sizeUnits[0];
             }
 
             function statusLabel(download) {
@@ -232,9 +232,13 @@
             function detailLabel(download) {
                 if (download.status === "canceled") return "Partial file removed.";
                 if (download.status === "failed") return download.error || "The download failed.";
-                if (download.totalSize !== null && download.totalSize !== undefined)
-                    return `${formatSize(download.downloadedSize)} of ${formatSize(download.totalSize)}`;
-                return formatSize(download.downloadedSize);
+                if (download.status !== "completed" && download.totalSize > 0) {
+                    const unit = unitForDownloadSize(download.totalSize);
+                    return `${sizeFormatter.format(download.downloadedSize / unit.divisor)}/${sizeFormatter.format(download.totalSize / unit.divisor)} ${unit.suffix}`;
+                }
+
+                const unit = unitForDownloadSize(download.downloadedSize);
+                return `${sizeFormatter.format(download.downloadedSize / unit.divisor)} ${unit.suffix}`;
             }
 
             function createActionButton(className, textContent, message, downloadId) {

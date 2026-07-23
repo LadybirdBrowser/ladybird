@@ -28,20 +28,36 @@ static String download_percent_text(double progress)
     return MUST(String::formatted("{}%", static_cast<int>(progress * 100.0)));
 }
 
+struct SizeUnit {
+    u64 divisor;
+    StringView suffix;
+};
+
+static SizeUnit unit_for_download_size(u64 size)
+{
+    if (size < KiB)
+        return { 1, "B"sv };
+    if (size < MiB)
+        return { KiB, "KiB"sv };
+    if (size < GiB)
+        return { MiB, "MiB"sv };
+    if (size < TiB)
+        return { GiB, "GiB"sv };
+    return { TiB, "TiB"sv };
+}
+
+static String unitless_download_size_text(u64 size, SizeUnit unit)
+{
+    if (unit.divisor == 1)
+        return MUST(String::formatted("{}", size));
+
+    return MUST(String::formatted("{:.1f}", static_cast<double>(size) / static_cast<double>(unit.divisor)));
+}
+
 static String download_size_text(u64 size)
 {
-    constexpr double kibibyte = 1024.0;
-    constexpr double mebibyte = kibibyte * 1024.0;
-    constexpr double gibibyte = mebibyte * 1024.0;
-
-    auto size_as_double = static_cast<double>(size);
-    if (size_as_double < kibibyte)
-        return MUST(String::formatted("{} B", size));
-    if (size_as_double < mebibyte)
-        return MUST(String::formatted("{:.1f} KB", size_as_double / kibibyte));
-    if (size_as_double < gibibyte)
-        return MUST(String::formatted("{:.1f} MB", size_as_double / mebibyte));
-    return MUST(String::formatted("{:.1f} GB", size_as_double / gibibyte));
+    auto unit = unit_for_download_size(size);
+    return MUST(String::formatted("{} {}", unitless_download_size_text(size, unit), unit.suffix));
 }
 
 String download_status_text(FileDownloader::Download const& download)
@@ -51,9 +67,11 @@ String download_status_text(FileDownloader::Download const& download)
     switch (download.status) {
     case DownloadStatus::InProgress:
         if (auto progress = download.progress(); progress.has_value()) {
-            return MUST(String::formatted("{} of {} - {}",
-                download_size_text(download.downloaded_size),
-                download_size_text(*download.total_size),
+            auto unit = unit_for_download_size(*download.total_size);
+            return MUST(String::formatted("{}/{} {} - {}",
+                unitless_download_size_text(download.downloaded_size, unit),
+                unitless_download_size_text(*download.total_size, unit),
+                unit.suffix,
                 download_percent_text(*progress)));
         }
         return MUST(String::formatted("{} downloaded", download_size_text(download.downloaded_size)));
