@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Property scroll-snap-type value 'none'
+Pass	Property scroll-snap-type value 'x'
+Pass	Property scroll-snap-type value 'y'
+Pass	Property scroll-snap-type value 'block'
+Pass	Property scroll-snap-type value 'inline'
+Pass	Property scroll-snap-type value 'both'
+Pass	Property scroll-snap-type value 'y mandatory'
+Pass	Property scroll-snap-type value 'inline proximity'

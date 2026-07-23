@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	e.style['scroll-snap-type'] = "none" should set the property value
+Pass	e.style['scroll-snap-type'] = "x" should set the property value
+Pass	e.style['scroll-snap-type'] = "y" should set the property value
+Pass	e.style['scroll-snap-type'] = "block" should set the property value
+Pass	e.style['scroll-snap-type'] = "inline" should set the property value
+Pass	e.style['scroll-snap-type'] = "both" should set the property value
+Pass	e.style['scroll-snap-type'] = "y mandatory" should set the property value
+Pass	e.style['scroll-snap-type'] = "block mandatory" should set the property value
+Pass	e.style['scroll-snap-type'] = "both mandatory" should set the property value
+Pass	e.style['scroll-snap-type'] = "inline proximity" should set the property value
+Pass	e.style['scroll-snap-type'] = "x proximity" should set the property value
