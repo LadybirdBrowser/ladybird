@@ -104,6 +104,10 @@ private:
     RefPtr<Core::Timer> m_timer;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_read_notifiers;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
+#ifdef AK_OS_WINDOWS
+    HashTable<int> m_sockets_waiting_for_write;
+    RefPtr<Core::Timer> m_write_socket_fallback_timer;
+#endif
 
     NonnullRefPtr<Resolver> m_resolver;
     Optional<ByteString> m_alt_svc_cache_path;

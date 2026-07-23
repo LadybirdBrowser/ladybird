@@ -117,6 +117,28 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
         VERIFY(result == CURLM_OK);
         check_active_requests();
     });
+
+#ifdef AK_OS_WINDOWS
+    // WSAEventSelect associates only one event object with a socket. RequestServer currently uses separate read and
+    // write notifiers, so registering the read notifier can replace the write notifier and cause a large upload to
+    // stall after filling the socket's send buffer. Keep driving sockets for which curl requested write readiness
+    // until curl no longer needs it.
+    m_write_socket_fallback_timer = Core::Timer::create_repeating(10, [this] {
+        Vector<int> sockets;
+        sockets.ensure_capacity(m_sockets_waiting_for_write.size());
+        for (auto socket : m_sockets_waiting_for_write)
+            sockets.unchecked_append(socket);
+
+        for (auto socket : sockets) {
+            if (!m_sockets_waiting_for_write.contains(socket))
+                continue;
+            auto result = curl_multi_socket_action(m_curl_multi, socket, CURL_CSELECT_OUT, nullptr);
+            VERIFY(result == CURLM_OK);
+        }
+
+        check_active_requests();
+    });
+#endif
 }
 
 ConnectionFromClient::~ConnectionFromClient()
@@ -358,8 +380,24 @@ int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* 
     if (what == CURL_POLL_REMOVE) {
         client->m_read_notifiers.remove(sockfd);
         client->m_write_notifiers.remove(sockfd);
+#ifdef AK_OS_WINDOWS
+        client->m_sockets_waiting_for_write.remove(sockfd);
+        if (client->m_sockets_waiting_for_write.is_empty())
+            client->m_write_socket_fallback_timer->stop();
+#endif
         return 0;
     }
+
+#ifdef AK_OS_WINDOWS
+    if (what & CURL_POLL_OUT) {
+        client->m_sockets_waiting_for_write.set(sockfd);
+        client->m_write_socket_fallback_timer->start();
+    } else {
+        client->m_sockets_waiting_for_write.remove(sockfd);
+        if (client->m_sockets_waiting_for_write.is_empty())
+            client->m_write_socket_fallback_timer->stop();
+    }
+#endif
 
     auto update_notifier = [client, sockfd, what](auto& notifiers, Core::NotificationType type, int poll_flag, int select_flag) {
         if (!(what & poll_flag)) {
@@ -385,6 +423,16 @@ int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* 
 
         notifier->set_enabled(true);
     };
+
+#ifdef AK_OS_WINDOWS
+    // WSAEventSelect replaces the event object previously associated with a socket. Re-register the notifiers in the
+    // order below whenever curl changes its poll mask; otherwise a notifier can remain logically enabled while its
+    // event object is no longer associated with the socket.
+    if (auto notifier = client->m_read_notifiers.get(sockfd); notifier.has_value())
+        notifier.value()->set_enabled(false);
+    if (auto notifier = client->m_write_notifiers.get(sockfd); notifier.has_value())
+        notifier.value()->set_enabled(false);
+#endif
 
     update_notifier(client->m_read_notifiers, Core::NotificationType::Read, CURL_POLL_IN, CURL_CSELECT_IN);
     update_notifier(client->m_write_notifiers, Core::NotificationType::Write, CURL_POLL_OUT, CURL_CSELECT_OUT);
