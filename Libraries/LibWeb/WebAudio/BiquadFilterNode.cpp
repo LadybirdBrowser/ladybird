@@ -8,10 +8,12 @@
 #include <LibWeb/Bindings/AudioParam.h>
 #include <LibWeb/Bindings/BiquadFilterNode.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/WebAudio/AudioArray.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
+#include <LibWeb/WebAudio/Rendering/BiquadCoefficients.h>
 
 namespace Web::WebAudio {
 
@@ -68,10 +70,41 @@ GC::Ref<AudioParam> BiquadFilterNode::gain() const
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-getfrequencyresponse
 WebIDL::ExceptionOr<void> BiquadFilterNode::get_frequency_response(GC::Ref<JS::Float32Array> frequency_hz, GC::Ref<JS::Float32Array> mag_response, GC::Ref<JS::Float32Array> phase_response)
 {
-    (void)frequency_hz;
-    (void)mag_response;
-    (void)phase_response;
-    dbgln("FIXME: Implement BiquadFilterNode::get_frequency_response(Float32Array, Float32Array, Float32Array)");
+    auto length = float32_array_length(*frequency_hz);
+
+    // If these arrays do not have the same length, an InvalidAccessError MUST be thrown.
+    if (float32_array_length(*mag_response) != length || float32_array_length(*phase_response) != length)
+        return WebIDL::InvalidAccessError::create(realm(), "Arrays must have the same length"_utf16);
+
+    auto frequencies = copy_float32_array(*frequency_hz);
+    Vector<float> magnitudes;
+    magnitudes.resize(length);
+    Vector<float> phases;
+    phases.resize(length);
+
+    // The filter response is evaluated with the current parameter values at the context's current time.
+    auto current_time = context()->current_time();
+    auto nyquist_frequency = context()->nyquist_frequency();
+    auto frequency = m_frequency->intrinsic_value_at_time(current_time);
+    auto detune = m_detune->intrinsic_value_at_time(current_time);
+    auto computed_frequency = frequency * AK::exp2(detune / 1200.);
+    auto normalized_frequency = clamp(computed_frequency / nyquist_frequency, 0., 1.);
+    auto coefficients = Rendering::compute_biquad_coefficients(m_type, normalized_frequency, m_q->intrinsic_value_at_time(current_time), m_gain->intrinsic_value_at_time(current_time));
+
+    for (size_t index = 0; index < length; ++index) {
+        auto response_frequency = frequencies[index];
+
+        // Frequencies outside the nominal range produce NaN in both output arrays.
+        if (isnan(response_frequency) || response_frequency < 0 || response_frequency > nyquist_frequency) {
+            magnitudes[index] = NAN;
+            phases[index] = NAN;
+            continue;
+        }
+        Rendering::biquad_frequency_response(coefficients, response_frequency / nyquist_frequency, magnitudes[index], phases[index]);
+    }
+
+    overwrite_float32_array(*mag_response, magnitudes);
+    overwrite_float32_array(*phase_response, phases);
     return {};
 }
 
