@@ -1153,6 +1153,7 @@ set(SOURCES
     WebAudio/AudioListener.cpp
     WebAudio/AudioNode.cpp
     WebAudio/AudioParam.cpp
+    WebAudio/AudioParamTimeline.cpp
     WebAudio/AudioScheduledSourceNode.cpp
     WebAudio/BaseAudioContext.cpp
     WebAudio/BiquadFilterNode.cpp
