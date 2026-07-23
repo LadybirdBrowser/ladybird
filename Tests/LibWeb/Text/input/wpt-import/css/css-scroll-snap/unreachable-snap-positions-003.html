@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#unreachable" />
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1905247">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+.content {
+  overflow-x: scroll;
+  scroll-snap-type: x mandatory;
+  white-space: nowrap;
+  width: 400px;
+  border: 2px solid black;
+  /* padding-bottom so you can see the scrollbar: */
+  padding-bottom: 10px;
+}
+.item {
+  width: 250px;
+  height: 200px;
+  border: 3px solid orange;
+  box-sizing: border-box;
+  scroll-snap-align: start;
+  display: inline-block;
+}
+</style>
+
+<div id="scroller" class="content">
+  <!-- There's intentionally no whitespace between these tags, so that they're
+       laid out flush with each other with no space character between them. -->
+    <div class="item" style="width: 305px; background:teal"></div
+    ><div class="item" style="width: 100px; background:pink"></div>
+</div>
+
+<script>
+test(() => {
+  scroller.scrollLeft = 3;
+  assert_equals(scroller.scrollLeft, 5);
+}, "Snaps to the positions defined by the element as much as possible");
+</script>

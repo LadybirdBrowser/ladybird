@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<title>
+  A test case that scrolling to a point on large element where the snap area
+  doesn't cover over the snapport
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#snap-overflow"/>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+  width: 100%;
+}
+#scroller {
+  left: 10px;
+  height: 200px;
+  width: 100px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  scroll-snap-type: y mandatory;
+}
+.snap {
+  scroll-snap-align: start;
+  background-color: green;
+}
+.target {
+  background-color: red;
+  border-radius: 100%;
+  height: 88px;
+  top: 536px;
+}
+</style>
+<div id="scroller">
+  <div style="height: 2000px;"></div>
+  <div class="snap" style="top:    0px; height:   40px;">1</div>
+  <div class="snap" style="top:   40px; height:   40px;">2</div>
+  <div class="snap" style="top:   80px; height: 1000px;">3</div>
+  <div class="snap" style="top: 1080px; height:   40px;">4</div>
+  <div class="snap" style="top: 1120px; height:   40px;">5</div>
+  <div class="target"></div>
+</div>
+<script>
+test(() => {
+  const scroller = document.getElementById("scroller");
+
+  scroller.scrollBy(0, 10);
+  // Snap to the first snap point.
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 40);
+
+  scroller.scrollBy(0, 10);
+  // Snap to the second snap point.
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 80);
+
+  scroller.scrollBy(0, 100);
+  // Snap to the given scrolling position since the third snap target element
+  // is larger than the snapport.
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 180);
+
+  scroller.scrollBy(0, 100);
+  // Again, snap to the given scrolling position.
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 280);
+
+  // Scroll to a point where the third target element is still covering over the
+  // snapport.
+  scroller.scrollBy(0, 600);
+  assert_equals(scroller.scrollLeft, 0);
+  // Again, snap to the given scrolling position.
+  assert_equals(scroller.scrollTop, 880);
+
+  // Scroll to a point where the third target element is no longer convering
+  // over the snapport, rather the forth snap point is in the snapport.
+  scroller.scrollBy(0, 10);
+  // Now, snap to the forth snap point.
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 1080);
+
+  // Scroll back a bit.
+  scroller.scrollBy(0, -10);
+  // This should snap to the bottom of the 3rd snap area and not all the way
+  // back up to its top.
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 880);
+}, "snaps to bottom edge of large snap area that doesn't cover the snap port.");
+</script>

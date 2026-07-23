@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    html {
+        scroll-snap-type: x mandatory;
+    }
+    .area {
+        position: absolute;
+        top: 0;
+        width: 100px;
+        height: 100px;
+        scroll-snap-align: start;
+    }
+</style>
+<div class="area" style="left: 0"></div>
+<div class="area" style="left: 900px"></div>
+<div class="area" style="left: 1800px"></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        // The start edge of an axis is its lesser physical edge only while the axis runs in the same direction as the
+        // physical one.
+        const snappedOffsets = [];
+        for (const [writingMode, direction] of [
+            ["horizontal-tb", "ltr"],
+            ["horizontal-tb", "rtl"],
+            ["vertical-rl", "ltr"],
+        ]) {
+            document.documentElement.style.writingMode = writingMode;
+            document.documentElement.style.direction = direction;
+            window.scrollTo({ left: 500, behavior: "instant" });
+            snappedOffsets.push(`scroll offset with ${writingMode} and ${direction}: ${window.scrollX},${window.scrollY}`);
+        }
+
+        // Printing only once every scroll has been made keeps the printed lines out of the scrollable overflow the snap
+        // positions are computed from.
+        for (const snappedOffset of snappedOffsets)
+            println(snappedOffset);
+    });
+</script>

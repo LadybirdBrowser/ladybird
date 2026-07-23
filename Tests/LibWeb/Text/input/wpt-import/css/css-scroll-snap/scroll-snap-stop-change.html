@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#scroll-snap-stop" />
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+div, html, body {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-snap-type: x mandatory;
+  overflow: scroll;
+}
+
+#scroller {
+  scroll-snap-type: x mandatory;
+  overflow: scroll;
+  height: 400px;
+  width: 400px;
+}
+
+.large_space {
+  width: 2000px;
+  height: 2000px;
+}
+
+.snap_area {
+  scroll-snap-align: none start;
+  width: 100px;
+  height: 100px;
+
+  background-color: blue;
+}
+
+.snap_area:nth-child(1) {
+  margin-left: 0;
+}
+
+.snap_area:nth-child(2) {
+  margin-left: 100px;
+}
+
+.snap_area:nth-child(3) {
+  margin-left: 300px;
+}
+
+.snap_area:nth-child(4) {
+  margin-left: 500px;
+}
+</style>
+
+<!-- Add snap area to the root scroller -->
+<div class="snap_area"></div>
+<div class="snap_area"></div>
+<div class="snap_area"></div>
+<div class="snap_area"></div>
+
+<div id="scroller">
+  <div class="snap_area"></div>
+  <div class="snap_area"></div>
+  <div class="snap_area"></div>
+  <div class="snap_area"></div>
+  <div class="large_space"></div>
+</div>
+
+<div class="large_space"></div>
+
+<script>
+const scrollers = [document.scrollingElement, document.getElementById("scroller")];
+for (const scroller of scrollers) {
+  test(_ => {
+    assert_equals(scroller.scrollLeft, 0); // sanity check
+
+    scroller.querySelectorAll('.snap_area').forEach(area => area.style.scrollSnapStop = 'always');
+    scroller.scrollBy(500, 0);
+    assert_equals(scroller.scrollLeft, 100, "scrollBy should not skip area with stop always");
+
+    scroller.querySelectorAll('.snap_area').forEach(area => area.style.scrollSnapStop = 'normal');
+    scroller.scrollBy(500, 0);
+    assert_equals(scroller.scrollLeft, 500, "scrollBy should skip secon area with stop normal");
+
+    // When snap type is changed back to mandatory, scrolling should snap.
+    scroller.querySelectorAll('.snap_area').forEach(area => area.style.scrollSnapStop = 'always');
+    scroller.scrollBy(-500, 0);
+    assert_equals(scroller.scrollLeft, 300, "scrollBy should not skip area with stop always");
+  }, `scroll-snap-stop for areas on ${scroller.nodeName} should control snapping behavior and changing it takes effect`);
+}
+</script>

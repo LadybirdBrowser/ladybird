@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta viewport="width=device-width, initial-scale=1" />
+    <link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#scroll-snap-type" />
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/testdriver.js"></script>
+    <script src="../../resources/testdriver-actions.js"></script>
+    <script src="../../resources/testdriver-vendor.js"></script>
+    <script src="../../dom/events/scrolling/scroll_support.js"></script>
+  </head>
+  <body>
+    <style>
+      #scroller {
+        width: 200px;
+        height: 400px;
+        overflow-y: scroll;
+        scroll-snap-type: y mandatory;
+        background-color: blue;
+      }
+      #snap_target {
+        width: 100px;
+        height: 1942.5px;
+        scroll-snap-align: start;
+        background-color: pink;
+      }
+    </style>
+    <div id="scroller">
+      <div id="snap_target"></div>
+    </div>
+    <script>
+      promise_test(async (t) => {
+        await waitForCompositorCommit();
+        let scrollend_promise = new Promise((resolve) => {
+          scroller.addEventListener("scrollend", resolve);
+        });
+        let scroll_promise = new Promise((resolve) => {
+          scroller.addEventListener("scroll", resolve);
+        });
+        await new test_driver.Actions().scroll(0, 0, 0,
+            scroller.scrollHeight, { origin: scroller }).send();
+        await scroll_promise;
+        await scrollend_promise;
+        assert_approx_equals(scroller.scrollTop,
+            scroller.scrollHeight - scroller.clientHeight, 1,
+            "scroller is scrolled to its bottom and not its top.");
+      }, "snapport covered by snap area doesn't jump");
+    </script>
+  </body>
+</html>

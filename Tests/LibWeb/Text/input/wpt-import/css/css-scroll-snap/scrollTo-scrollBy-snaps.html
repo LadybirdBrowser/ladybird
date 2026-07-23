@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#scroll-snap-type" />
+<meta name="viewport" content="user-scalable=no">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+html {
+  margin: 0px;
+  overflow: scroll;
+  scroll-snap-type: both mandatory;
+}
+div {
+  position: absolute;
+}
+.scroller {
+  overflow: scroll;
+  scroll-snap-type: both mandatory;
+}
+#inner-scroller {
+  top: 3000px;
+  width: 800px;
+  height: 800px;
+}
+.space {
+  left: 0px;
+  top: 0px;
+  width: 4000px;
+  height: 4000px;
+}
+.target {
+  width: 600px;
+  height: 600px;
+  scroll-snap-align: start;
+}
+
+.left {
+  left: 0px;
+}
+.right {
+  left: 1000px;
+}
+.top {
+  top: 0px;
+}
+.bottom {
+  top: 1000px;
+}
+</style>
+<body class="scroller">
+  <div class="space"></div>
+  <div class="target left top"></div>
+  <div class="target right top"></div>
+  <div class="target left bottom"></div>
+  <div class="target right bottom"></div>
+  <div class="scroller" id="inner-scroller">
+    <div class="space"></div>
+    <div class="target left top"></div>
+    <div class="target right top"></div>
+    <div class="target left bottom"></div>
+    <div class="target right bottom"></div>
+  </div>
+</body>
+
+<script>
+function format_dict(dict) {
+  const props = [];
+  for (let prop in dict) {
+    props.push(`${prop}: ${format_value(dict[prop])}`);
+  }
+  return `{${props.join(', ')}}`;
+}
+
+var divScroller = document.getElementById("inner-scroller");
+var viewport = document.scrollingElement;
+[
+  [{left: 800}, 1000, 0],
+  [{top: 900}, 0, 1000],
+  [{left: 900, top: 800}, 1000, 1000],
+  [{left: 800, top: -100}, 1000, 0], /* outside bounds on y axis */
+  [{left: 10000, top: -100}, 1000, 0] /* outside bounds on both axes */
+].forEach(([input, expectedX, expectedY]) => {
+  test(() => {
+    divScroller.scrollTo(0, 0);
+    assert_equals(divScroller.scrollLeft, 0);
+    assert_equals(divScroller.scrollTop, 0);
+    if (input.left)
+      divScroller.scrollLeft = input.left;
+    if (input.top)
+      divScroller.scrollTop = input.top;
+    assert_equals(divScroller.scrollLeft, expectedX);
+    assert_equals(divScroller.scrollTop, expectedY);
+  }, `assign scrollLeft and scrollTop for ${format_dict(input)} on div lands on (${expectedX}, ${expectedY})`);
+
+  test(() => {
+    viewport.scrollTo(0, 0);
+    assert_equals(viewport.scrollLeft, 0);
+    assert_equals(viewport.scrollTop, 0);
+    if (input.left)
+      viewport.scrollLeft = input.left;
+    if (input.top)
+      viewport.scrollTop = input.top;
+    assert_equals(viewport.scrollLeft, expectedX);
+    assert_equals(viewport.scrollTop, expectedY);
+  }, `assign scrollLeft and scrollTop for ${format_dict(input)} on viewport-defining element lands on (${expectedX}, ${expectedY})`);
+
+  test(() => {
+    divScroller.scrollTo(0, 0);
+    assert_equals(divScroller.scrollLeft, 0);
+    assert_equals(divScroller.scrollTop, 0);
+    divScroller.scrollTo(input);
+    assert_equals(divScroller.scrollLeft, expectedX);
+    assert_equals(divScroller.scrollTop, expectedY);
+  }, `scrollTo(${format_dict(input)}) on div lands on (${expectedX}, ${expectedY})`);
+
+  test(() => {
+    divScroller.scrollTo(0, 0);
+    assert_equals(divScroller.scrollLeft, 0);
+    assert_equals(divScroller.scrollTop, 0);
+    divScroller.scrollBy(input);
+    assert_equals(divScroller.scrollLeft, expectedX);
+    assert_equals(divScroller.scrollTop, expectedY);
+  }, `scrollBy(${format_dict(input)}) on div lands on (${expectedX}, ${expectedY})`);
+
+  test(() => {
+    viewport.scrollTo(0, 0);
+    assert_equals(viewport.scrollLeft, 0);
+    assert_equals(viewport.scrollTop, 0);
+    viewport.scrollTo(input);
+    assert_equals(viewport.scrollLeft, expectedX);
+    assert_equals(viewport.scrollTop, expectedY);
+  }, `scrollTo(${format_dict(input)}) on viewport-defining element lands on (${expectedX}, ${expectedY})`);
+
+  test(() => {
+    viewport.scrollTo(0, 0);
+    assert_equals(viewport.scrollLeft, 0);
+    assert_equals(viewport.scrollTop, 0);
+    viewport.scrollBy(input);
+    assert_equals(viewport.scrollLeft, expectedX);
+    assert_equals(viewport.scrollTop, expectedY);
+  }, `scrollBy(${format_dict(input)}) on viewport-defining element lands on (${expectedX}, ${expectedY})`);
+
+  test(() => {
+    window.scrollTo(0, 0);
+    assert_equals(window.scrollX, 0);
+    assert_equals(window.scrollY, 0);
+    window.scrollTo(input);
+    assert_equals(window.scrollX, expectedX);
+    assert_equals(window.scrollY, expectedY);
+  }, `scrollTo(${format_dict(input)}) on window lands on (${expectedX}, ${expectedY})`);
+
+  test(() => {
+    window.scrollTo(0, 0);
+    assert_equals(window.scrollX, 0);
+    assert_equals(window.scrollY, 0);
+    window.scrollBy(input);
+    assert_equals(window.scrollX, expectedX);
+    assert_equals(window.scrollY, expectedY);
+  }, `scrollBy(${format_dict(input)}) on window lands on (${expectedX}, ${expectedY})`);
+});
+</script>

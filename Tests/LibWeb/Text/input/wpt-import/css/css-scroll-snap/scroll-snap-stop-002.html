@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#scroll-snap-stop" />
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#snap-overflow" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+}
+.scroller {
+  width: 400px;
+  height: 100px;
+  overflow: scroll;
+  scroll-snap-type: x mandatory;
+}
+#space {
+  left: 0px;
+  top: 0px;
+  width: 2100px;
+  height: 50px;
+}
+.target {
+  width: 50px;
+  height: 50px;
+  scroll-snap-align: start;
+  top: 0px;
+}
+</style>
+
+<!--
+ start                           dest   closest   always
+   |------------------------------|--------|--------|
+ -->
+<div class="scroller" id="scroller1">
+  <div id="space"></div>
+  <div class="target" style="left:   0px;"></div>
+  <!-- Add `scroll-snap-stop: always` element into the DOM tree prior to the
+      closest snap point -->
+  <div class="target" style="left: 120px; scroll-snap-stop: always;"></div>
+  <!-- Add a snap point closest-to-destination but further than the destination
+      from the start position -->
+  <div class="target" style="left: 110px;"></div>
+</div>
+
+<!--
+ start                         closest  dest   always
+   |------------------------------|------|--------|
+ -->
+<div class="scroller" id="scroller2">
+  <div id="space"></div>
+  <div class="target" style="left:   0px;"></div>
+  <div class="target" style="left: 120px; scroll-snap-stop: always;"></div>
+  <!-- Add a snap point closest-to-destination and closer than the destination
+      from the start position -->
+  <div class="target" style="left:  95px;"></div>
+</div>
+</div>
+
+<!--
+ A test case where there's a snap point whose snap area covers the snapport and
+ there's a `scroll-snap-stop: always` snap point on the opposite side.
+ -->
+<div class="scroller" id="scroller3">
+  <div id="space"></div>
+  <div class="target" style="left:   0px;"></div>
+  <div class="target" style="left: 700px; scroll-snap-stop: always;"></div>
+  <!-- Add a snap point where the snap area covers the snapport entirely -->
+  <div class="target" style="left: 100px; width: 500px;"></div>
+  <!-- Add a snap point where the distance between this and the 100px point is
+       larger than the snapport size (400px) -->
+  <div class="target" style="left: 600px;"></div>
+</div>
+
+<!--
+ A  similar case above, but two `scroll-snap-stop: always` snap points.
+ -->
+<div class="scroller" id="scroller4">
+  <div id="space"></div>
+  <div class="target" style="left:   0px;"></div>
+  <div class="target" style="left: 700px; scroll-snap-stop: always;"></div>
+  <!-- Add a snap point where the snap area covers the snapport entirely -->
+  <div class="target" style="left: 100px; width: 500px;"></div>
+  <!-- Add a snap point where the distance between this and the 100px point is
+       larger than the snapport size (400px) -->
+  <div class="target" style="left: 600px; scroll-snap-stop: always;"></div>
+</div>
+
+<!--
+ Another similar case, but the nearest snap point to the start point is
+ `scroll-snap-stop: always`.
+ -->
+<div class="scroller" id="scroller5">
+  <div id="space"></div>
+  <div class="target" style="left:   0px;"></div>
+  <div class="target" style="left: 700px; scroll-snap-stop: always;"></div>
+  <!-- Add a snap point where the snap area covers the snapport entirely -->
+  <div class="target" style="left: 100px; width: 500px; scroll-snap-stop: always;"></div>
+  <!-- Add a snap point where the distance between this and the 100px point is
+       larger than the snapport size (400px) -->
+  <div class="target" style="left: 600px;"></div>
+</div>
+
+<!--
+ A test case that a `scroll-snap-stop: always` snap point is further than the
+ scroll destination.
+ -->
+<div class="scroller" id="scroller6">
+  <div id="space"></div>
+  <div class="target" style="left:   0px;"></div>
+  <div class="target" style="left: 400px;"></div>
+  <div class="target" style="left: 700px; scroll-snap-stop: always;"></div
+</div>
+
+<script>
+
+test(() => {
+  assert_equals(scroller1.scrollLeft, 0);
+  assert_equals(scroller1.scrollTop, 0);
+
+  // start                           dest   closest   always
+  //   |------------------------------|--------|--------|
+  //   0                             100      110      120
+  scroller1.scrollBy(100, 0);
+  assert_equals(scroller1.scrollLeft, 110);
+  assert_equals(scroller1.scrollTop, 0);
+}, "The closest snap point is preferred than scroll-snap-stop: always where " +
+   "it's further than the destination (the closest one is closer to the " +
+   "scroll start position than the destination)");
+
+test(() => {
+  assert_equals(scroller2.scrollLeft, 0);
+  assert_equals(scroller2.scrollTop, 0);
+
+  // start                         closest  dest   always
+  //   |------------------------------|------|--------|
+  //   0                              95    100      120
+  scroller2.scrollBy(100, 0);
+  assert_equals(scroller2.scrollLeft, 95);
+  assert_equals(scroller2.scrollTop, 0);
+}, "The closest snap point is preferred than scroll-snap-stop: always where " +
+   "it's further than the destination (the closest one is further than the " +
+   "destination from the start position)");
+
+test(() => {
+  assert_equals(scroller3.scrollLeft, 0);
+  assert_equals(scroller3.scrollTop, 0);
+
+  // start      dest                               always
+  //   |-----|===|============================|------|
+  //   0    100 150                          600    700
+
+  // Scoll on the element whose snap area is larger than the snapport.
+  scroller3.scrollBy(150, 0);
+  assert_equals(scroller3.scrollLeft, 150);
+  assert_equals(scroller3.scrollTop, 0);
+}, "The scroll destination on a large element whose snap area covers " +
+   "the snapport entirely is a valid snap position");
+
+test(() => {
+  assert_equals(scroller4.scrollLeft, 0);
+  assert_equals(scroller4.scrollTop, 0);
+
+  // start       dest                        always always
+  //   |-----|====|============================|------|
+  //   0    100  150                          600    700
+
+  // Scoll on the element whose snap area is larger than the snapport.
+  scroller4.scrollBy(150, 0);
+  assert_equals(scroller4.scrollLeft, 150);
+  assert_equals(scroller4.scrollTop, 0);
+}, "The scroll destination on a large element whose snap area covers " +
+   "the snapport entirely is a valid snap position (with two " +
+   "`scroll-snap-stop: always` snap points");
+
+test(() => {
+  assert_equals(scroller5.scrollLeft, 0);
+  assert_equals(scroller5.scrollTop, 0);
+
+  // start always dest                               always
+  //   |-----|=====|============================|------|
+  //   0    100   150                          600    700
+
+  // Scoll on the element whose snap area is larger than the snapport, but
+  // the scroll-snap-stop property is `always`.
+  scroller5.scrollBy(150, 0);
+  assert_equals(scroller5.scrollLeft, 100);
+  assert_equals(scroller5.scrollTop, 0);
+
+  // Scroll the direction further, it should NOT be trapped by the
+  // `scroll-snap-stop: always` snap point.
+  scroller5.scrollBy(50, 0);
+  assert_equals(scroller5.scrollLeft, 150);
+  assert_equals(scroller5.scrollTop, 0);
+}, "`scroll-snap-stop: always` snap point is preferred even if the snap area " +
+   "entire snapport");
+
+test(() => {
+  assert_equals(scroller6.scrollLeft, 0);
+  assert_equals(scroller6.scrollTop, 0);
+
+  // start                                       dest   always
+  //   |-------------------------|-----------------|------|
+  //   0                        400               600    700
+
+  // Scroll to a point where it's closer to a `scroll-snap-stop: always` snap
+  // position.
+  scroller6.scrollBy(600, 0);
+  assert_equals(scroller6.scrollLeft, 700);
+  assert_equals(scroller6.scrollTop, 0);
+}, "`scroll-snap-stop: always` snap point is further than the scroll " +
+   "destination");
+
+</script>

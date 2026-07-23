@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Scroll margin should be considered when calculating snap area visibilty while snapping on the x-axis

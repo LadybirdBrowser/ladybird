@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Unreachable snap point with `scroll-snap-align: end`
+Pass	Unreachable snap point with `scroll-snap-align: center`
+Pass	Unreachable snap point with `scroll-snap-align: end` in RTL
+Pass	Unreachable snap point with `scroll-snap-align: center` in RTL

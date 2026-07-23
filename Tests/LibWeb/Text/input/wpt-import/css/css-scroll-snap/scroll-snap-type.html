@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#scroll-snap-type" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+div {
+  position: absolute;
+  margin: 0px;
+}
+#scroller {
+  height: 400px;
+  width: 400px;
+  overflow: scroll;
+}
+#space {
+  width: 2000px;
+  height: 2000px;
+}
+
+.snap {
+  width: 200px;
+  height: 200px;
+  background-color: blue;
+  scroll-snap-align: start;
+}
+#left-top {
+  left: 0px;
+  top: 0px;
+}
+#right-bottom {
+  left: 1000px;
+  top: 1000px;
+}
+</style>
+
+<div id="scroller">
+  <div id="space"></div>
+  <div class="snap" id="left-top"></div>
+  <div class="snap" id="right-bottom"></div>
+</div>
+
+<script>
+var scroller = document.getElementById("scroller");
+var visible_x = 1000 - scroller.clientWidth;
+var visible_y = 1000 - scroller.clientHeight;
+
+test(() => {
+  scroller.style.scrollSnapType = "both mandatory";
+  scroller.scrollTo(0, 0);
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+
+  scroller.scrollTo(visible_x + 10, visible_y + 10);
+  assert_equals(scroller.scrollLeft, 1000);
+  assert_equals(scroller.scrollTop, 1000);
+}, "mandatory scroll-snap-type should snap as long as the element is visible.");
+
+test(() => {
+  scroller.style.scrollSnapType = "both proximity";
+  scroller.scrollTo(0, 0);
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+
+  scroller.scrollTo(visible_x + 10, visible_y + 10);
+  assert_equals(scroller.scrollLeft, visible_x + 10);
+  assert_equals(scroller.scrollTop, visible_y + 10);
+}, "proximity scroll-snap-type shouldn't snap if the snap position is too far away.");
+
+test(() => {
+  scroller.style.scrollSnapType = "both proximity";
+  scroller.scrollTo(0, 0);
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+
+  scroller.scrollTo(995, 995);
+  assert_equals(scroller.scrollLeft, 1000);
+  assert_equals(scroller.scrollTop, 1000);
+}, "proximity scroll-snap-type should snap if the snap position is close.");
+
+test(_ => {
+  scroller.style.scrollSnapType = "none";
+  scroller.scrollTo(100, 100);
+  assert_equals(scroller.scrollLeft, 100, "scrolling should not snap");
+  assert_equals(scroller.scrollTop, 100, "scrolling should not snap");
+}, "none scroll-snap-type shouldn't snap.");
+</script>

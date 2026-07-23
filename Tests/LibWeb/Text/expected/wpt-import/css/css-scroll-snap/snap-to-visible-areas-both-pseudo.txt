@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Only snap to visible areas in the case where taking the closest snap point of   each axis does not snap to a visible area
