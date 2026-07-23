@@ -9,9 +9,11 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
+#include <LibWeb/CSS/StyleSheetResourceContext.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 
@@ -47,13 +49,21 @@ public:
 
     GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
 
+    void set_style_sheet(Badge<StyleValue>, GC::Ptr<CSSStyleSheet>);
+    void update_style_sheet_resource_context(Badge<CSSStyleSheet>, CSSStyleSheet const&);
+    Optional<StyleSheetResourceContext> const& style_sheet_resource_context() const { return m_style_sheet_resource_context; }
+
 private:
     UnresolvedStyleValue(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence, bool contains_attr_tainted_values);
+
+    void update_style_sheet_resource_context(CSSStyleSheet const&);
 
     String comparison_text() const;
 
     String source_text() const { return String::from_raw(m_value->unresolved.source_text.raw); }
     String value_comparison_text() const { return String::from_raw(m_value->unresolved.value_comparison_text.raw); }
+
+    Optional<StyleSheetResourceContext> m_style_sheet_resource_context;
 };
 
 }

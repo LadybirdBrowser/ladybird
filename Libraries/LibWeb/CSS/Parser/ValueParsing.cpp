@@ -2803,6 +2803,15 @@ RefPtr<AbstractImageStyleValue const> Parser::parse_image_value(TokenStream<Comp
     return parse_image_value(tokens, AllowImageSet::Yes);
 }
 
+NonnullRefPtr<ImageStyleValue const> Parser::create_image_style_value(URL const& url) const
+{
+    if (m_style_sheet_resource_context.has_value())
+        return ImageStyleValue::create(url, *m_style_sheet_resource_context);
+    if (m_document)
+        return ImageStyleValue::create(url, m_document->base_url());
+    return ImageStyleValue::create(url);
+}
+
 RefPtr<ImageSetStyleValue const> Parser::parse_image_set_function(TokenStream<ComponentValue>& tokens)
 {
     tokens.discard_whitespace();
@@ -2820,7 +2829,6 @@ RefPtr<ImageSetStyleValue const> Parser::parse_image_set_function(TokenStream<Co
 
     Vector<ImageSetStyleValue::Option> options;
     options.ensure_capacity(image_set_options_tokens.size());
-    auto style_resource_base_url = m_document ? Optional<::URL::URL> { m_document->base_url() } : Optional<::URL::URL> {};
     for (auto const& option_tokens_list : image_set_options_tokens) {
         if (option_tokens_list.first_matching([](auto const& component_value) { return component_value.contains_attr_tainted_value(); }).has_value())
             return nullptr;
@@ -2831,7 +2839,7 @@ RefPtr<ImageSetStyleValue const> Parser::parse_image_set_function(TokenStream<Co
         RefPtr<AbstractImageStyleValue const> image;
         if (option_tokens.next_token().is(Token::Type::String)) {
             auto url = URL { option_tokens.consume_a_token().token().string() };
-            image = ImageStyleValue::create(url, style_resource_base_url);
+            image = create_image_style_value(url);
         } else {
             image = parse_image_value(option_tokens, AllowImageSet::No);
         }
@@ -2895,8 +2903,7 @@ RefPtr<AbstractImageStyleValue const> Parser::parse_image_value(TokenStream<Comp
         // FIXME: Remove this special case once mask-image accepts `<image>`.
         if (!url->url().starts_with('#')) {
             tokens.discard_a_mark();
-            auto style_resource_base_url = m_document ? Optional<::URL::URL> { m_document->base_url() } : Optional<::URL::URL> {};
-            return ImageStyleValue::create(url.release_value(), move(style_resource_base_url));
+            return create_image_style_value(url.release_value());
         }
         tokens.restore_a_mark();
         return nullptr;
@@ -5734,10 +5741,20 @@ RefPtr<FontSourceStyleValue const> Parser::parse_font_source_value(TokenStream<C
 NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, AbstractOrHypotheticalElement element, ArbitrarySubstitutionReplacementContext const& replacement_context, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved, Optional<GuardedSubstitutionContexts&> existing_guarded_contexts)
 {
     auto parser = Parser::create(context, ""sv);
+    parser.m_style_sheet_resource_context = unresolved.style_sheet_resource_context();
     if (existing_guarded_contexts.has_value())
         return parser.resolve_unresolved_style_value(element, existing_guarded_contexts.value(), replacement_context, property, unresolved);
     GuardedSubstitutionContexts guarded_contexts;
     return parser.resolve_unresolved_style_value(element, guarded_contexts, replacement_context, property, unresolved);
+}
+
+RefPtr<StyleValue const> Parser::parse_substituted_css_value(ParsingParams const& context, StringView substituted_source, PropertyID property_id, UnresolvedStyleValue const& unresolved)
+{
+    if (substituted_source.is_empty())
+        return nullptr;
+    auto parser = Parser::create(context, substituted_source);
+    parser.m_style_sheet_resource_context = unresolved.style_sheet_resource_context();
+    return parser.parse_as_css_value(property_id);
 }
 
 // If a component value sequence is a single CSS-wide keyword (inherit/initial/unset/revert/revert-layer),

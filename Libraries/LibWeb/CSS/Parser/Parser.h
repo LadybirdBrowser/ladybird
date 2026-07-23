@@ -29,6 +29,7 @@
 #include <LibWeb/CSS/Parser/Tokenizer.h>
 #include <LibWeb/CSS/Parser/Types.h>
 #include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/StyleSheetResourceContext.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
@@ -182,6 +183,7 @@ public:
     Vector<ComponentValue> parse_as_list_of_component_values();
 
     static NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(ParsingParams const&, AbstractOrHypotheticalElement, ArbitrarySubstitutionReplacementContext const&, PropertyNameAndID const&, UnresolvedStyleValue const&, Optional<GuardedSubstitutionContexts&> = {});
+    static RefPtr<StyleValue const> parse_substituted_css_value(ParsingParams const&, StringView substituted_source, PropertyID, UnresolvedStyleValue const&);
 
     [[nodiscard]] NonnullRefPtr<StyleValue const> parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
 
@@ -476,6 +478,7 @@ private:
     RefPtr<AbstractImageStyleValue const> parse_image_value(TokenStream<ComponentValue>&);
     RefPtr<AbstractImageStyleValue const> parse_image_value(TokenStream<ComponentValue>&, AllowImageSet);
     RefPtr<ImageSetStyleValue const> parse_image_set_function(TokenStream<ComponentValue>&);
+    NonnullRefPtr<ImageStyleValue const> create_image_style_value(URL const&) const;
     enum class PositionParsingMode {
         Normal,
         BackgroundPosition,
@@ -673,6 +676,8 @@ private:
     GC::Ptr<JS::Realm> m_realm;
     ParsingMode m_parsing_mode { ParsingMode::Normal };
     IsUAStyleSheet m_is_ua_style_sheet { IsUAStyleSheet::No };
+
+    Optional<StyleSheetResourceContext> m_style_sheet_resource_context;
 
     Vector<Token> m_tokens;
     TokenStream<Token> m_token_stream;

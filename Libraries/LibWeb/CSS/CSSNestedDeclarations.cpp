@@ -9,8 +9,10 @@
 #include <LibWeb/Bindings/CSSNestedDeclarations.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSScopeRule.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Dump.h>
 
 namespace Web::CSS {
@@ -28,6 +30,14 @@ GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm& realm, P
 GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm& realm, CSSStyleProperties& declaration)
 {
     return realm.create<CSSNestedDeclarations>(realm, declaration);
+}
+
+void CSSNestedDeclarations::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
+{
+    Base::set_parent_style_sheet(parent_style_sheet);
+
+    for (auto const& property : m_declaration->properties())
+        const_cast<StyleValue&>(*property.value).set_style_sheet(parent_style_sheet);
 }
 
 CSSNestedDeclarations::CSSNestedDeclarations(JS::Realm& realm, CSSStyleProperties& declaration)

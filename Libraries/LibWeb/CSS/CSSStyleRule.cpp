@@ -193,6 +193,8 @@ void CSSStyleRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
     Base::set_parent_style_sheet(parent_style_sheet);
 
     // This is annoying: Style values that request resources need to know their CSSStyleSheet in order to fetch them.
+    // FIXME: Also attach the style sheet to custom property values, so that relative URLs in registered custom
+    //        properties can be resolved against the style sheet containing their declaration.
     for (auto const& property : m_declaration->properties()) {
         const_cast<StyleValue&>(*property.value).set_style_sheet(parent_style_sheet);
     }
