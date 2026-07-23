@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Scroll Snap Test: scroll-snap-type with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#propdef-scroll-snap-type">
+<meta name="assert" content="scroll-snap-type supports the full grammar 'none | [ x | y | block | inline | both ] [ mandatory | proximity ]?'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("scroll-snap-type", "none");
+
+test_valid_value("scroll-snap-type", "x");
+test_valid_value("scroll-snap-type", "y");
+test_valid_value("scroll-snap-type", "block");
+test_valid_value("scroll-snap-type", "inline");
+test_valid_value("scroll-snap-type", "both");
+
+test_valid_value("scroll-snap-type", "y mandatory");
+test_valid_value("scroll-snap-type", "block mandatory");
+test_valid_value("scroll-snap-type", "both mandatory");
+test_valid_value("scroll-snap-type", "inline proximity", "inline"); // The shortest serialization is preferable
+test_valid_value("scroll-snap-type", "x proximity", "x");
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Scroll Snap Test: scroll-snap-align with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#propdef-scroll-snap-align">
+<meta name="assert" content="scroll-snap-align supports only the grammar '[ none | start | end | center ]{1,2}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("scroll-snap-align", "auto");
+
+test_invalid_value("scroll-snap-align", "start invalid");
+
+test_invalid_value("scroll-snap-align", "start end center");
+</script>
+</body>
+</html>

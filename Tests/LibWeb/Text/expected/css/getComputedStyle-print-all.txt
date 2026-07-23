@@ -292,6 +292,9 @@ scroll-padding-inline-start: auto
 scroll-padding-left: auto
 scroll-padding-right: auto
 scroll-padding-top: auto
+scroll-snap-align: none
+scroll-snap-stop: normal
+scroll-snap-type: none
 scroll-timeline-axis: block
 scroll-timeline-name: none
 scrollbar-gutter: auto

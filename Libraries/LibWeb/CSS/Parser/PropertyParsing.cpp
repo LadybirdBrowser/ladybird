@@ -616,6 +616,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_quotes_value(tokens); });
     case PropertyID::Rotate:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_rotate_value(tokens); });
+    case PropertyID::ScrollSnapType:
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_scroll_snap_type_value(tokens); });
     case PropertyID::ScrollbarColor:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_scrollbar_color_value(tokens); });
     case PropertyID::ScrollbarGutter:
@@ -4840,6 +4842,31 @@ RefPtr<StyleValue const> Parser::parse_scrollbar_gutter_value(TokenStream<Compon
     else
         gutter_value = ScrollbarGutter::Auto;
     return ScrollbarGutterStyleValue::create(gutter_value);
+}
+
+// https://drafts.csswg.org/css-scroll-snap-1/#scroll-snap-type
+RefPtr<StyleValue const> Parser::parse_scroll_snap_type_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | [ x | y | block | inline | both ] [ mandatory | proximity ]?
+    auto transaction = tokens.begin_transaction();
+
+    if (auto none = parse_specific_keyword_value(tokens, { { Keyword::None } })) {
+        transaction.commit();
+        return none;
+    }
+
+    auto axis = parse_specific_keyword_value(tokens, { { Keyword::X, Keyword::Y, Keyword::Block, Keyword::Inline, Keyword::Both } });
+    if (!axis)
+        return nullptr;
+
+    auto strictness = parse_specific_keyword_value(tokens, { { Keyword::Mandatory, Keyword::Proximity } });
+    transaction.commit();
+
+    // Proximity is the default strictness, so the single-keyword form is the shortest serialization of such values.
+    if (!strictness || strictness->to_keyword() == Keyword::Proximity)
+        return axis;
+
+    return StyleValueList::create(StyleValueVector { axis.release_nonnull(), strictness.release_nonnull() }, StyleValueList::Separator::Space);
 }
 
 RefPtr<StyleValue const> Parser::parse_grid_track_placement_shorthand_value(PropertyID property_id, TokenStream<ComponentValue>& tokens)

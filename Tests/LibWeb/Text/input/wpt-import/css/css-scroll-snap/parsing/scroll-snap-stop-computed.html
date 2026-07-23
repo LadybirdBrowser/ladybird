@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Scroll Snap: getComputedStyle().scrollSnapStop</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#propdef-scroll-snap-stop">
+<meta name="assert" content="scroll-snap-stop computed value is as specified.">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("scroll-snap-stop", "normal");
+test_computed_value("scroll-snap-stop", "always");
+</script>
+</body>
+</html>
