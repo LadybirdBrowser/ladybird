@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#valdef-scroll-snap-type-mandatory" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="./support/common.js"></script>
+<style>
+div {
+  position: absolute;
+  margin: 0px;
+}
+#scroller {
+  height: 500px;
+  width: 500px;
+  overflow: hidden;
+}
+.child {
+  width: 300px;
+  height: 300px;
+  background-color: blue;
+}
+</style>
+
+<div id="scroller">
+  <div class="child" style="top: 0px; left: 0px;"></div>
+  <div class="child" style="top: 1000px; left: 1000px;"></div>
+  <div style="width: 2000px; height: 2000px;"></div>
+</div>
+
+<script>
+test(() => {
+  scroller.style.scrollSnapType = "both mandatory";
+
+  // Scroll to where the first child is in view.
+  scroller.scrollTo(100, 100);
+  assert_equals(scroller.scrollLeft, 100);
+  assert_equals(scroller.scrollTop, 100);
+
+  // Scroll to where the second child is in view.
+  scroller.scrollTo(900, 900);
+  assert_equals(scroller.scrollLeft, 900);
+  assert_equals(scroller.scrollTop, 900);
+}, "No snapping occurs if there is no valid snap position");
+
+test(() => {
+  scroller.style.scrollSnapType = "x mandatory";
+
+  for (const target of document.querySelectorAll(".child")) {
+    target.scrollSnapAlign = "start none";
+  }
+
+  // Scroll to where the first child is in view.
+  scroller.scrollTo(100, 100);
+  assert_equals(scroller.scrollLeft, 100);
+  assert_equals(scroller.scrollTop, 100);
+
+  // Scroll to where the second child is in view.
+  scroller.scrollTo(900, 900);
+  assert_equals(scroller.scrollLeft, 900);
+  assert_equals(scroller.scrollTop, 900);
+}, "No snapping occurs if there is no valid snap position matches scroll-snap-type");
+
+promise_test(async t => {
+  // Start with valid snap positions.
+  scroller.style.scrollSnapType = "y mandatory";
+  document.querySelectorAll('.child').forEach(el => {
+    el.style.scrollSnapAlign = 'start';
+    t.add_cleanup(() => {
+      el.style.scrollSnapAlign = '';
+    });
+  });
+  scroller.scrollTo(100, 100);
+  await waitForNextFrame();
+  const scrollPosition = scroller.scrollTop;
+  // Elements no longer snap along the y-axis.
+  document.querySelectorAll('.child').forEach(el => {
+    el.style.scrollSnapAlign = 'none start';
+    // Bump the position to verify that we don't stay pinned to the same element
+    // after layout update.
+    el.style.top = `${parseInt(el.style.top) + 100}px`;
+  });
+  await waitForNextFrame();
+  assert_equals(scroller.scrollTop, scrollPosition);
+  scroller.scrollTo(900, 900);
+  assert_equals(scroller.scrollLeft, 900);
+  assert_equals(scroller.scrollTop, 900);
+
+}, "No snapping occurs when last remaining valid snap point is no longer " +
+   "valid.");
+</script>

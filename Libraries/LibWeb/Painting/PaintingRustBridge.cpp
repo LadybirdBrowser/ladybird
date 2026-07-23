@@ -492,6 +492,25 @@ bool rust_update_accumulated_visual_context_values(ViewportPaintable& viewport_p
     return Layout::RustFFI::layout_arena_update_visual_context_values(viewport_paintable.rust_arena().handle(), paintable_box.rust_slot(), visual_context_host_callbacks(viewport_paintable));
 }
 
+Optional<TransformData> rust_compute_css_transform(Paintable const& paintable_box, double pixel_ratio)
+{
+    auto viewport_paintable = const_cast<DOM::Document&>(paintable_box.document()).unsafe_paintable();
+    if (!viewport_paintable)
+        return {};
+    float matrix_values[16];
+    float origin_values[2];
+    if (!Layout::RustFFI::layout_arena_compute_css_transform(viewport_paintable->rust_arena().handle(), paintable_box.rust_slot(), visual_context_host_callbacks(*viewport_paintable), pixel_ratio, matrix_values, origin_values))
+        return {};
+    return TransformData {
+        Gfx::FloatMatrix4x4(
+            matrix_values[0], matrix_values[1], matrix_values[2], matrix_values[3],
+            matrix_values[4], matrix_values[5], matrix_values[6], matrix_values[7],
+            matrix_values[8], matrix_values[9], matrix_values[10], matrix_values[11],
+            matrix_values[12], matrix_values[13], matrix_values[14], matrix_values[15]),
+        { origin_values[0], origin_values[1] },
+    };
+}
+
 Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Paintable const& paintable_box)
 {
     return Layout::RustFFI::layout_arena_physical_overflow_directions(paintable_box.rust_arena().handle(), paintable_box.rust_slot());

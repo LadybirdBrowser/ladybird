@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Snap to area such that only the scroll margin from both axes' areas are visible

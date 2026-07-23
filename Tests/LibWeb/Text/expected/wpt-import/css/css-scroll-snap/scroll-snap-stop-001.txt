@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	A scroll with intended direction and end position should not pass a snap area with scroll-snap-stop: always.
+Pass	A scroll with intended end position should always choose the closest snap position regardless of the scroll-snap-stop value.
+Pass	A scroll outside bounds in the snapping axis with intended direction and end position should not pass a snap area with scroll-snap-stop: always.
+Pass	A scroll outside bounds in the non-snapping axis with intended direction and end position should not pass a snap area with scroll-snap-stop: always.

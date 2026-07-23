@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#scroll-snap-stop" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+}
+#scroller {
+  width: 400px;
+  height: 400px;
+  overflow: scroll;
+  scroll-snap-type: both mandatory;
+}
+#space {
+  left: 0px;
+  top: 0px;
+  width: 2100px;
+  height: 2100px;
+}
+.target {
+  width: 50px;
+  height: 50px;
+  scroll-snap-align: start;
+}
+.origin {
+  left: 0px;
+  top: 0px;
+}
+.always-stop {
+  left: 100px;
+  top: 0px;
+  scroll-snap-stop: always;
+}
+.closer {
+  left: 200px;
+  top: 0px;
+}
+</style>
+
+<div id="scroller">
+  <div id="space"></div>
+  <div class="target origin"></div>
+  <div class="target always-stop"></div>
+  <div class="target closer"></div>
+</div>
+
+<script>
+var scroller = document.getElementById("scroller");
+test(() => {
+  scroller.scrollTo(0, 0);
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+
+  scroller.scrollBy(300, 0);
+  assert_equals(scroller.scrollLeft, 100);
+  assert_equals(scroller.scrollTop, 0);
+}, "A scroll with intended direction and end position should not pass a snap " +
+   "area with scroll-snap-stop: always.")
+
+test(() => {
+  scroller.scrollTo(0, 0);
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+
+  scroller.scrollTo(300, 0);
+  assert_equals(scroller.scrollLeft, 200);
+  assert_equals(scroller.scrollTop, 0);
+}, "A scroll with intended end position should always choose the closest snap " +
+   "position regardless of the scroll-snap-stop value.")
+
+// Tests for programmatic scrolls beyond the scroller bounds.
+
+test(() => {
+  scroller.scrollTo(0, 0);
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+
+  scroller.scrollBy(100000, 0);
+  assert_equals(scroller.scrollLeft, 100);
+  assert_equals(scroller.scrollTop, 0);
+}, "A scroll outside bounds in the snapping axis with intended direction and " +
+   "end position should not pass a snap area with scroll-snap-stop: always.")
+
+test(() => {
+  scroller.scrollTo(0, 0);
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+
+  scroller.scrollBy(300, -10);
+  assert_equals(scroller.scrollLeft, 100);
+  assert_equals(scroller.scrollTop, 0);
+}, "A scroll outside bounds in the non-snapping axis with intended direction " +
+   "and end position should not pass a snap area with scroll-snap-stop: always.")
+
+</script>

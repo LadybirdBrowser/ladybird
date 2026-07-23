@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#scroll-snap-type" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+}
+.scroller-x {
+  overflow: scroll;
+  scroll-snap-type: x mandatory;
+  width: 500px;
+  height: 500px;
+}
+.scroller-y {
+  overflow: scroll;
+  scroll-snap-type: y mandatory;
+  width: 500px;
+  height: 500px;
+}
+.space {
+  width: 4000px;
+  height: 4000px;
+}
+.target {
+  scroll-snap-align: start;
+  height: 400px;
+  width: 400px;
+}
+.large-x {
+  width: 3000px;
+  background-color: yellow;
+}
+.large-y {
+  height: 2000px;
+  background-color: yellow;
+}
+.small {
+  height: 200px;
+  width: 200px;
+  background-color: black;
+}
+</style>
+<div class="scroller-x" id="one-target">
+  <div class="space"></div>
+  <div class="large-x target" id="single" style="left: 200px;"></div>
+</div>
+
+<div class="scroller-x" id="x">
+  <div class="space"></div>
+  <div style="left: 200px;">
+    <div class="target large-x"></div>
+    <div class="target small" style="left: 200px"></div>
+    <div class="target small" style="left: 600px"></div>
+    <div class="target small" style="left: 1200px"></div>
+  </div>
+</div>
+
+<div class="scroller-y" id="y">
+  <div class="space"></div>
+  <div style="top: 200px;">
+    <div class="target large-y"></div>
+    <div class="target small" style="top: 200px"></div>
+    <div class="target small" style="top: 600px"></div>
+    <div class="target small" style="top: 1200px"></div>
+    <div class="target large-y" style="top: 2000px"></div>
+  </div>
+</div>
+
+<div class="scroller-x" id="two-axes" style="scroll-snap-type: both mandatory">
+  <div class="space"></div>
+  <div class="target large-x" style="top: 200px"></div>
+</div>
+
+<div class="scroller-x" id="overlapping-overflow" style="scroll-snap-type: both mandatory">
+  <div class="space"></div>
+  <div style="left: 200px; top: 200px;">
+    <div class="target small"></div>
+    <div class="target small"></div>
+    <div class="target small"></div>
+    <div class="target large-y large-x"></div>
+    <div class="target small"></div>
+    <div class="target small"></div>
+    <div class="target small"></div>
+  </div>
+</div>
+
+<script>
+var one_target_scroller = document.getElementById("one-target");
+var scroller_x = document.getElementById("x");
+var scroller_y = document.getElementById("y");
+var two_axes_scroller = document.getElementById("two-axes");
+var overlapping_scroller = document.getElementById("overlapping-overflow");
+
+test(() => {
+  one_target_scroller.scrollTo(10, 0);
+  assert_equals(one_target_scroller.scrollLeft, 200);
+  assert_equals(one_target_scroller.scrollTop, 0);
+}, "Snaps to the snap position if the snap area doesn't cover the snapport on x.");
+
+test(() => {
+  var right_align = 3200 - one_target_scroller.clientWidth;
+  one_target_scroller.scrollTo(right_align, 0);
+  assert_equals(one_target_scroller.scrollLeft, right_align);
+  assert_equals(one_target_scroller.scrollTop, 0);
+}, "Snaps to the snap position if the snap area covers the snapport on x on the right border.");
+
+// We use end alignment for this test so that we don't fall on a snap
+// position when the snap area just covers the snapport on the left border.
+test(() => {
+  document.getElementById("single").style.scrollSnapAlign = 'end';
+  one_target_scroller.scrollTo(200, 0);
+  assert_equals(one_target_scroller.scrollLeft, 200);
+  assert_equals(one_target_scroller.scrollTop, 0);
+}, "Snaps to the snap position if the snap area covers the snapport on x on the left border.");
+
+test(() => {
+  scroller_x.scrollTo(450, 0);
+  assert_equals(scroller_x.scrollLeft, 400);
+  assert_equals(scroller_x.scrollTop, 0);
+}, "Snaps to a snap area (400) that is closer than the position that reveals " +
+   "the space between snap areas (600) within the larger snap area on x.");
+
+test(() => {
+  scroller_y.scrollTo(0, 450);
+  assert_equals(scroller_y.scrollLeft, 0);
+  assert_equals(scroller_y.scrollTop, 400);
+}, "Snaps to a snap area (400) that is closer than the position that reveals " +
+   "the space between snap areas (600) within the larger snap area on y.");
+
+test(() => {
+  scroller_x.scrollTo(1650, 0);
+  assert_equals(scroller_x.scrollLeft, 1650);
+  assert_equals(scroller_x.scrollTop, 0);
+}, "Snap to current scroll position which is a valid snap position, as the " +
+   "snap area covers snapport on x and there is no intruding snap area.");
+
+test(() => {
+  scroller_y.scrollTo(0, 1650);
+  assert_equals(scroller_y.scrollLeft, 0);
+  assert_equals(scroller_y.scrollTop, 1650);
+}, "Snap to current scroll position which is a valid snap position, as the " +
+   "snap area covers snapport on y and there is no intruding snap area.");
+
+test(() => {
+  const maxScrollTop = scroller_y.scrollHeight - scroller_y.clientHeight;
+
+  // Scroll to the bottom edge which is a valid snap position that a large
+  // target element covers the snapport.
+  scroller_y.scrollTo(0, maxScrollTop);
+  assert_equals(scroller_y.scrollTop, maxScrollTop);
+
+  // Scroll to `the bottom edge + 1`.
+  scroller_y.scrollTo(0, maxScrollTop + 1);
+  assert_equals(scroller_y.scrollTop, maxScrollTop);
+}, "Don't snap back even if scrollTo tries to scroll to positions which are " +
+   "outside of the scroll range and if a snap target element covers the snaport");
+
+test(() => {
+  two_axes_scroller.scrollTo(10, 100);
+  assert_equals(two_axes_scroller.scrollLeft, 10);
+  assert_equals(two_axes_scroller.scrollTop, 200);
+}, "Snap to current scroll position on x as the area is covering x axis." +
+   "However, we snap to the specified snap position on y as the area is not " +
+   "covering y axis.");
+
+test(() => {
+  overlapping_scroller.scrollTo(200, 800);
+  assert_equals(overlapping_scroller.scrollLeft, 200);
+  assert_equals(overlapping_scroller.scrollTop, 800);
+}, "snap to current scroll position on y as the area is covering y axis, " +
+   "even though that area is not the only scroll area at the same position.");
+
+test(() => {
+  overlapping_scroller.scrollTo(800, 200);
+  assert_equals(overlapping_scroller.scrollLeft, 800);
+  assert_equals(overlapping_scroller.scrollTop, 200);
+}, "snap to current scroll position on x as the area is covering x axis, " +
+   "even though that area is not the only scroll area at the same position.");
+</script>

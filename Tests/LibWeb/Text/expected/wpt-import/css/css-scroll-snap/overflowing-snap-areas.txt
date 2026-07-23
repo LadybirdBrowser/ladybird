@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	Snaps to the snap position if the snap area doesn't cover the snapport on x.
+Pass	Snaps to the snap position if the snap area covers the snapport on x on the right border.
+Pass	Snaps to the snap position if the snap area covers the snapport on x on the left border.
+Pass	Snaps to a snap area (400) that is closer than the position that reveals the space between snap areas (600) within the larger snap area on x.
+Pass	Snaps to a snap area (400) that is closer than the position that reveals the space between snap areas (600) within the larger snap area on y.
+Pass	Snap to current scroll position which is a valid snap position, as the snap area covers snapport on x and there is no intruding snap area.
+Pass	Snap to current scroll position which is a valid snap position, as the snap area covers snapport on y and there is no intruding snap area.
+Pass	Don't snap back even if scrollTo tries to scroll to positions which are outside of the scroll range and if a snap target element covers the snaport
+Pass	Snap to current scroll position on x as the area is covering x axis.However, we snap to the specified snap position on y as the area is not covering y axis.
+Pass	snap to current scroll position on y as the area is covering y axis, even though that area is not the only scroll area at the same position.
+Pass	snap to current scroll position on x as the area is covering x axis, even though that area is not the only scroll area at the same position.
