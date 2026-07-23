@@ -59,11 +59,6 @@ private:
         Yes,
     };
     void update_layout_tree(DOM::Node&, Context&, MustCreateSubtree);
-    void update_layout_tree_for_display_contents(DOM::Element&, Context&, MustCreateSubtree, bool should_create_layout_node);
-    void update_layout_tree_for_svg_switch_children(SVG::SVGSwitchElement&, Context&, MustCreateSubtree);
-    void update_layout_tree_for_shadow_root_children(DOM::ShadowRoot&, Context&, MustCreateSubtree);
-    void update_layout_tree_for_dom_children(DOM::ParentNode&, Context&, MustCreateSubtree);
-    void update_layout_tree_for_assigned_slottables(HTML::HTMLSlotElement&, Context&, MustCreateSubtree);
     static void clear_stale_layout_nodes_for_assigned_slottables(HTML::HTMLSlotElement&);
     static TraversalDecision clear_stale_layout_and_paint_node(DOM::Node&, DOM::Node const* cleared_subtree_root = nullptr);
 
@@ -75,8 +70,6 @@ private:
     u32 quote_nesting_level() const;
     void set_quote_nesting_level(u32);
     RustFFI::FfiDomTreeBuilderCallbacks make_ffi_dom_tree_builder_callbacks();
-
-    void fixup_tables(NodeWithStyle& root);
 
     void insert_node_into_inline_or_block_ancestor(Layout::Node&, CSS::Display, AppendOrPrepend);
     RefPtr<Layout::Node> create_layout_node_for_element(DOM::Element&, Context&) const;

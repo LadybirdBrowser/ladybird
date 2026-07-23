@@ -1072,37 +1072,22 @@ RustFFI::FfiDomTreeBuilderCallbacks TreeBuilder::make_ffi_dom_tree_builder_callb
         .set_context_has_svg_root = [](void* context_pointer, bool has_svg_root) {
             VERIFY(context_pointer);
             static_cast<Context*>(context_pointer)->has_svg_root = has_svg_root; },
+        .reset_style_ancestor_filter = [](void* document_pointer) {
+            VERIFY(document_pointer);
+            static_cast<DOM::Document*>(document_pointer)->style_computer().reset_ancestor_filter(); },
+        .document_layout_node = [](void* document_pointer) -> void* {
+            VERIFY(document_pointer);
+            // NB: Called during layout tree construction.
+            return static_cast<DOM::Document*>(document_pointer)->unsafe_layout_node(); },
+        .fixup_tables = [](void* builder_pointer, void* root_pointer) {
+            VERIFY(builder_pointer);
+            VERIFY(root_pointer);
+            auto callbacks = make_ffi_tree_builder_callbacks(static_cast<TreeBuilder*>(builder_pointer));
+            RustFFI::rust_fixup_tables(&callbacks, root_pointer); },
+        .layout_root = [](void* builder_pointer) -> void* {
+            VERIFY(builder_pointer);
+            return static_cast<TreeBuilder*>(builder_pointer)->m_layout_root.ptr(); },
     };
-}
-
-void TreeBuilder::update_layout_tree_for_shadow_root_children(DOM::ShadowRoot& shadow_root, Context& context, MustCreateSubtree must_create_subtree)
-{
-    auto callbacks = make_ffi_dom_tree_builder_callbacks();
-    RustFFI::rust_update_layout_tree_for_shadow_root_children(
-        &callbacks,
-        static_cast<DOM::ParentNode*>(&shadow_root),
-        &context,
-        must_create_subtree == MustCreateSubtree::Yes);
-}
-
-void TreeBuilder::update_layout_tree_for_dom_children(DOM::ParentNode& parent, Context& context, MustCreateSubtree must_create_subtree)
-{
-    auto callbacks = make_ffi_dom_tree_builder_callbacks();
-    RustFFI::rust_update_layout_tree_for_dom_children(
-        &callbacks,
-        &parent,
-        &context,
-        must_create_subtree == MustCreateSubtree::Yes);
-}
-
-void TreeBuilder::update_layout_tree_for_assigned_slottables(HTML::HTMLSlotElement& slot_element, Context& context, MustCreateSubtree must_create_subtree)
-{
-    auto callbacks = make_ffi_dom_tree_builder_callbacks();
-    RustFFI::rust_update_layout_tree_for_assigned_slottables(
-        &callbacks,
-        &slot_element,
-        &context,
-        must_create_subtree == MustCreateSubtree::Yes);
 }
 
 void TreeBuilder::clear_stale_layout_nodes_for_assigned_slottables(HTML::HTMLSlotElement& slot_element)
@@ -1205,27 +1190,6 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         must_create_subtree == MustCreateSubtree::Yes);
 }
 
-void TreeBuilder::update_layout_tree_for_display_contents(DOM::Element& element, TreeBuilder::Context& context, MustCreateSubtree must_create_subtree, bool should_create_layout_node)
-{
-    auto callbacks = make_ffi_dom_tree_builder_callbacks();
-    RustFFI::rust_update_layout_tree_for_display_contents(
-        &callbacks,
-        &element,
-        &context,
-        must_create_subtree == MustCreateSubtree::Yes,
-        should_create_layout_node);
-}
-
-void TreeBuilder::update_layout_tree_for_svg_switch_children(SVG::SVGSwitchElement& switch_element, Context& context, MustCreateSubtree must_create_subtree)
-{
-    auto callbacks = make_ffi_dom_tree_builder_callbacks();
-    RustFFI::rust_update_layout_tree_for_svg_switch_children(
-        &callbacks,
-        static_cast<DOM::ParentNode*>(&switch_element),
-        &context,
-        must_create_subtree == MustCreateSubtree::Yes);
-}
-
 // A full-height flex column that centers the button contents vertically.
 static NonnullRefPtr<NodeWithStyle> create_button_flex_wrapper(NodeWithStyle& parent)
 {
@@ -1259,19 +1223,10 @@ void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, Layo
 
 RefPtr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)
 {
-    VERIFY(dom_node.is_document());
-
-    dom_node.document().style_computer().reset_ancestor_filter();
-
     Context context;
-    set_quote_nesting_level(0);
-    update_layout_tree(dom_node, context, MustCreateSubtree::No);
-
-    // NB: Called during layout tree construction.
-    if (auto* root = dom_node.document().unsafe_layout_node())
-        fixup_tables(*root);
-
-    return m_layout_root;
+    PrincipalNodeFrame frame;
+    auto callbacks = make_ffi_dom_tree_builder_callbacks();
+    return static_cast<Layout::Node*>(RustFFI::rust_build_layout_tree(&callbacks, &frame, &dom_node, &context));
 }
 
 static RustFFI::FfiTableDisplay ffi_table_display(CSS::Display display)
@@ -1697,10 +1652,5 @@ static RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks(TreeBuil
 }
 
 // https://drafts.csswg.org/css-tables-3/#fixup-algorithm
-void TreeBuilder::fixup_tables(NodeWithStyle& root)
-{
-    auto callbacks = make_ffi_tree_builder_callbacks(this);
-    RustFFI::rust_fixup_tables(&callbacks, &root);
-}
 
 }

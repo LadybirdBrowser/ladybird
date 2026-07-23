@@ -171,6 +171,10 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub place_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPrincipalBoxPlacement),
     pub clear_stale_inclusive_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub set_context_has_svg_root: unsafe extern "C" fn(*mut c_void, bool),
+    pub reset_style_ancestor_filter: unsafe extern "C" fn(*mut c_void),
+    pub document_layout_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub fixup_tables: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub layout_root: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
 }
 
 #[derive(Clone, Copy)]
@@ -1289,6 +1293,49 @@ pub unsafe extern "C" fn rust_update_layout_tree(
             unsafe { (host.callbacks.pop_style_ancestor)(dom_node) };
         }
     });
+}
+
+/// Builds or incrementally updates a document's layout tree and applies table fixup.
+///
+/// # Safety
+///
+/// The callback table, frame storage, document, and context must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_build_layout_tree(
+    callbacks: *const FfiDomTreeBuilderCallbacks,
+    frame: *mut c_void,
+    document: *mut c_void,
+    context: *mut c_void,
+) -> *mut c_void {
+    abort_on_panic(|| {
+        assert!(!frame.is_null());
+        assert!(!document.is_null());
+        assert!(!context.is_null());
+        // SAFETY: Guaranteed by the entry point's contract.
+        let host = unsafe { dom_tree_builder_host(callbacks) };
+        // SAFETY: All pointers remain live throughout the build.
+        let entry_facts =
+            unsafe { (host.callbacks.principal_node_entry_facts)(host.callbacks.builder, document, context, false) };
+        assert!(entry_facts.is_document);
+
+        // SAFETY: The document and builder remain live throughout the build.
+        unsafe {
+            (host.callbacks.reset_style_ancestor_filter)(document);
+            (host.callbacks.set_quote_nesting_level)(host.callbacks.builder, 0);
+            rust_update_layout_tree(callbacks, frame, document, context, false);
+        }
+
+        // NB: Called during layout tree construction.
+        // SAFETY: The document remains live and any attached layout root is owned by it and the builder.
+        let document_layout_node = unsafe { (host.callbacks.document_layout_node)(document) };
+        if !document_layout_node.is_null() {
+            // SAFETY: The builder and layout root remain live throughout table fixup.
+            unsafe { (host.callbacks.fixup_tables)(host.callbacks.builder, document_layout_node) };
+        }
+
+        // SAFETY: The builder remains live and owns the returned root.
+        unsafe { (host.callbacks.layout_root)(host.callbacks.builder) }
+    })
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
