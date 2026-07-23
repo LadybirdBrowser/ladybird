@@ -769,23 +769,6 @@ void AccumulatedVisualContextTree::reuse_version_from(AccumulatedVisualContextTr
     m_version = other.m_version;
 }
 
-VisualContextIndex AccumulatedVisualContextTree::find_common_ancestor(VisualContextIndex a, VisualContextIndex b) const
-{
-    VERIFY(a.value() < m_nodes.size());
-    VERIFY(b.value() < m_nodes.size());
-    size_t a_index = a.value();
-    size_t b_index = b.value();
-    while (m_nodes[a_index].depth > m_nodes[b_index].depth)
-        a_index = m_nodes[a_index].parent_index.value();
-    while (m_nodes[b_index].depth > m_nodes[a_index].depth)
-        b_index = m_nodes[b_index].parent_index.value();
-    while (a_index != b_index) {
-        a_index = m_nodes[a_index].parent_index.value();
-        b_index = m_nodes[b_index].parent_index.value();
-    }
-    return a_index;
-}
-
 Vector<size_t, 8> AccumulatedVisualContextTree::build_ancestor_chain(VisualContextIndex index) const
 {
     VERIFY(index.value() < m_nodes.size());

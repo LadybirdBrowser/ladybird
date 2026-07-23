@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-mask-with-effect-group-ref.html" />
+<style>* { margin: 0; }</style>
+<svg width="400" height="300">
+  <mask id="m">
+    <!-- The group needs a layer during mask replay, so the commands after it re-enter the
+         mask's root context; the full-coverage white rect must still land on the target. -->
+    <g opacity="0.5"><rect x="110" y="110" width="10" height="10" fill="white"/></g>
+    <rect x="100" y="100" width="100" height="100" fill="white"/>
+  </mask>
+  <rect x="100" y="100" width="100" height="100" fill="green" mask="url(#m)"/>
+</svg>

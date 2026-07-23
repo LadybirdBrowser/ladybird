@@ -67,7 +67,8 @@ private:
     ENUMERATE_DISPLAY_LIST_COMMANDS(DECLARE_PLAY_COMMAND)
 #undef DECLARE_PLAY_COMMAND
     virtual void play_command(ApplyEffects const&, Gfx::Filter const*) = 0;
-    virtual void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 const&) = 0;
+    virtual void set_matrix(Gfx::FloatMatrix4x4 const&) = 0;
+    virtual Gfx::FloatMatrix4x4 canvas_matrix() const = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
 
     virtual void add_clip_path(Gfx::Path const&, Gfx::WindingRule) = 0;
@@ -78,6 +79,16 @@ private:
     CanvasSurfaceRegistry const* m_canvas_surface_registry { nullptr };
     RefPtr<Gfx::PaintingSurface> m_surface;
     ReadonlyBytes m_current_command_payload;
+
+    // Scratch for the per-replay transform palette, retained so steady-state replays reuse warm
+    // capacity; execute_impl moves it out for the duration of a replay, letting re-entrant nested
+    // replays build their own palettes without clobbering the outer one.
+    struct ReplayPaletteStorage {
+        Vector<Gfx::FloatMatrix4x4> to_root_matrices;
+        Vector<VisualContextIndex> nearest_spatial_nodes;
+        Vector<VisualContextIndex> nearest_frame_nodes;
+    };
+    ReplayPaletteStorage m_replay_palette_storage;
 };
 
 class DisplayList : public AtomicRefCounted<DisplayList> {

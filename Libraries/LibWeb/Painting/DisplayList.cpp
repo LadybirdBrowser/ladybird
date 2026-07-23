@@ -170,87 +170,112 @@ void DisplayListPlayer::execute_impl(
 
     VERIFY(m_surface);
 
-    auto for_each_node_from_common_ancestor_to_target =
-        [&](this auto const& self,
-            Optional<VisualContextIndex> common_ancestor_index,
-            VisualContextIndex target_index,
-            auto&& callback) -> IterationDecision {
-        if (common_ancestor_index.has_value() && target_index == common_ancestor_index.value())
-            return IterationDecision::Continue;
-        if (target_index != VISUAL_VIEWPORT_NODE_INDEX
-            && self(common_ancestor_index, visual_context_tree.node_at(target_index).parent_index, callback)
-                == IterationDecision::Break) {
-            return IterationDecision::Break;
-        }
-        return callback(target_index, visual_context_tree.node_at(target_index));
+    // Cumulative to-root matrices for every visual context node, resolved against the live scroll
+    // offsets and folded onto the canvas matrix at replay entry, so any node's space can be entered
+    // absolutely with a single set_matrix(). Coordinate-affecting nodes therefore never touch the
+    // canvas save stack; only clips and effects do. Clip and effect nodes inherit their parent's
+    // matrix, so the palette is defined for every node index; nearest_spatial_node canonicalizes
+    // indices whose spaces coincide onto one identity for the current-matrix cache, and
+    // nearest_frame_node links every node to its innermost clip-or-effect ancestor-or-self (root
+    // index 0 doubling as none), letting frame chains hop between frames without visiting the
+    // coordinate-affecting nodes in between. The storage lives on the player so steady-state
+    // replays reuse warm capacity; moving it out for the duration of the replay keeps re-entrant
+    // nested replays from clobbering the outer palette.
+    auto palette_storage = move(m_replay_palette_storage);
+    auto& transform_palette = palette_storage.to_root_matrices;
+    auto& nearest_spatial_node = palette_storage.nearest_spatial_nodes;
+    auto& nearest_frame_node = palette_storage.nearest_frame_nodes;
+    auto const& nodes = visual_context_tree.nodes();
+    transform_palette.clear_with_capacity();
+    transform_palette.ensure_capacity(nodes.size());
+    nearest_spatial_node.clear_with_capacity();
+    nearest_spatial_node.ensure_capacity(nodes.size());
+    nearest_frame_node.clear_with_capacity();
+    nearest_frame_node.ensure_capacity(nodes.size());
+    auto const replay_base_matrix = canvas_matrix();
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        auto const& node = nodes[i];
+        auto append_spatial = [&](Gfx::FloatMatrix4x4 const& local_matrix) {
+            auto const& parent_matrix = i == 0 ? replay_base_matrix : transform_palette[node.parent_index.value()];
+            transform_palette.unchecked_append(parent_matrix * local_matrix);
+            nearest_spatial_node.unchecked_append(VisualContextIndex { i });
+            nearest_frame_node.unchecked_append(i == 0 ? VISUAL_VIEWPORT_NODE_INDEX : nearest_frame_node[node.parent_index.value()]);
+        };
+        auto append_spatial_translation = [&](Gfx::IntPoint offset) {
+            // Whole device pixels, matching the Translate ops the per-node application replayed.
+            append_spatial(Gfx::translation_matrix(Vector3<float>(static_cast<float>(offset.x()), static_cast<float>(offset.y()), 0)));
+        };
+        auto append_non_spatial = [&] {
+            VERIFY(i != 0);
+            transform_palette.unchecked_append(transform_palette[node.parent_index.value()]);
+            nearest_spatial_node.unchecked_append(nearest_spatial_node[node.parent_index.value()]);
+            nearest_frame_node.unchecked_append(VisualContextIndex { i });
+        };
+        node.data.visit(
+            [&](TransformData const& transform) {
+                auto matrix = Gfx::translation_matrix(Vector3<float>(transform.origin.x(), transform.origin.y(), 0));
+                matrix = matrix * transform.matrix;
+                matrix = matrix * Gfx::translation_matrix(Vector3<float>(-transform.origin.x(), -transform.origin.y(), 0));
+                append_spatial(matrix);
+            },
+            [&](PerspectiveData const& perspective) {
+                append_spatial(perspective.matrix);
+            },
+            [&](ScrollData const&) {
+                append_spatial_translation(scroll_state.device_offset_for_index(VisualContextIndex { i }).to_type<int>());
+            },
+            [&](ScrollCompensation const& compensation) {
+                append_spatial_translation((-scroll_state.device_offset_for_index(compensation.scroll_node_index)).to_type<int>());
+            },
+            [&](AnchorScrollShift const& shift) {
+                append_spatial_translation(shift.masked_offset(scroll_state).to_type<int>());
+            },
+            [&](ClipData const&) { append_non_spatial(); },
+            [&](ClipPathData const&) { append_non_spatial(); },
+            [&](EffectsData const&) { append_non_spatial(); });
+    }
+
+    // The palette entry the canvas matrix currently equals, if known; every Restore resets the
+    // matrix to its save point, so unwinding applied frames invalidates it. Recorded streams
+    // contain no matrix-mutating commands, so playing commands never invalidates the cache.
+    Optional<VisualContextIndex> current_ctm_space;
+    auto ensure_ctm_space = [&](VisualContextIndex context_index) {
+        auto space_node_index = nearest_spatial_node[context_index.value()];
+        if (current_ctm_space == space_node_index)
+            return;
+        set_matrix(transform_palette[space_node_index.value()]);
+        current_ctm_space = space_node_index;
     };
 
-    auto apply_accumulated_visual_context =
-        [&](VisualContextIndex node_index, AccumulatedVisualContextNode const& node, bool geometry_only) {
-            // Geometry-only application skips nodes that don't affect coordinates, but still pushes a
-            // save so the chain keeps one canvas save per node, which restore_to_depth relies on.
-            if (geometry_only && (node.data.has<ClipData>() || node.data.has<ClipPathData>() || node.data.has<EffectsData>())) {
-                play_command(Save {});
-                return;
-            }
-            node.data.visit(
-                [&](EffectsData const& effects) {
-                    play_command(ApplyEffects {
-                                     .opacity = effects.opacity,
-                                     .compositing_and_blending_operator = effects.blend_mode,
-                                     .has_filter = effects.gfx_filter.has_value(),
-                                     .filter_data = {},
-                                 },
-                        effects.gfx_filter.has_value() ? &effects.gfx_filter.value() : nullptr);
-                },
-                [&](PerspectiveData const& perspective) {
-                    play_command(Save {});
-                    apply_transform({ 0, 0 }, perspective.matrix);
-                },
-                [&](ScrollData const&) {
-                    play_command(Save {});
-                    auto offset = scroll_state.device_offset_for_index(node_index);
-                    if (!offset.is_zero())
-                        play_command(Translate { .delta = offset.to_type<int>() });
-                },
-                [&](ScrollCompensation const& compensation) {
-                    play_command(Save {});
-                    auto offset = -scroll_state.device_offset_for_index(compensation.scroll_node_index);
-                    if (!offset.is_zero())
-                        play_command(Translate { .delta = offset.to_type<int>() });
-                },
-                [&](AnchorScrollShift const& shift) {
-                    play_command(Save {});
-                    auto offset = shift.masked_offset(scroll_state);
-                    if (!offset.is_zero())
-                        play_command(Translate { .delta = offset.to_type<int>() });
-                },
-                [&](TransformData const& transform) {
-                    play_command(Save {});
-                    apply_transform(transform.origin, transform.matrix);
-                },
-                [&](ClipData const& clip) {
-                    play_command(Save {});
-                    if (clip.corner_radii.has_any_radius()) {
-                        play_command(AddRoundedRectClip {
-                            .corner_radii = clip.corner_radii,
-                            .border_rect = clip.rect.to_type<int>(),
-                            .corner_clip = Gfx::CornerClip::Outside,
-                        });
-                    } else {
-                        play_command(AddClipRect { .rect = clip.rect.to_type<int>() });
-                    }
-                },
-                [&](ClipPathData const& clip_path) {
-                    play_command(Save {});
-                    add_clip_path(clip_path.path, clip_path.fill_rule);
-                });
-        };
-
-    VisualContextIndex applied_context_index;
-    bool has_applied_context { false };
+    // One entry of the applied/target context: a clip or effect node on the target's root chain,
+    // each holding exactly one canvas save (a Save for clips, the layer pushed by ApplyEffects for
+    // effects), so unwinding is one Restore per popped frame. Geometry-only commands target an
+    // empty frame list: their coordinates come entirely from the palette.
+    Vector<VisualContextIndex, 16> applied_frames;
+    Vector<VisualContextIndex, 16> target_frames;
+    Optional<VisualContextIndex> applied_context_index;
     bool applied_context_geometry_only { false };
-    size_t applied_depth = 0;
+
+    auto build_target_frames = [&](VisualContextIndex target_index, bool geometry_only) {
+        target_frames.clear_with_capacity();
+        if (geometry_only)
+            return;
+        for (auto index = nearest_frame_node[target_index.value()];
+            index != VISUAL_VIEWPORT_NODE_INDEX;
+            index = nearest_frame_node[visual_context_tree.node_at(index).parent_index.value()]) {
+            target_frames.append(index);
+        }
+        target_frames.reverse();
+    };
+
+    auto restore_to_length = [&](size_t length) {
+        if (applied_frames.size() > length)
+            current_ctm_space = {};
+        while (applied_frames.size() > length) {
+            play_command(Restore {});
+            applied_frames.take_last();
+        }
+    };
 
     // OPTIMIZATION: When walking down to apply effects (opacity, filters, blend modes), check culling before applying
     //               each effect. Effects don't affect clip state, so the culling check is valid before applying them.
@@ -260,74 +285,68 @@ void DisplayListPlayer::execute_impl(
         CulledByEffect,
     };
     auto switch_to_context = [&](VisualContextIndex target_index, bool geometry_only, Optional<Gfx::IntRect> bounding_rect = {}) -> SwitchResult {
-        if (has_applied_context && applied_context_index == target_index && applied_context_geometry_only == geometry_only)
+        if (applied_context_index == target_index && applied_context_geometry_only == geometry_only)
             return SwitchResult::Switched;
 
-        // A chain applied in one mode can't be partially reused in the other: the modes disagree on what
-        // every shared ancestor contributes. Unwind fully and reapply from the root instead.
-        if (has_applied_context && applied_context_geometry_only != geometry_only) {
-            while (applied_depth > 0) {
-                play_command(Restore {});
-                --applied_depth;
-            }
-            has_applied_context = false;
-        }
+        build_target_frames(target_index, geometry_only);
 
-        Optional<VisualContextIndex> common_ancestor_index;
-        if (has_applied_context)
-            common_ancestor_index = visual_context_tree.find_common_ancestor(applied_context_index, target_index);
-        size_t const common_ancestor_depth = common_ancestor_index.has_value() ? visual_context_tree.node_at(common_ancestor_index.value()).depth + 1 : 0;
+        auto common_prefix_length = applied_frames.span().matching_prefix_length(target_frames);
 
-        auto has_coordinate_changing_descendant = [&](Optional<VisualContextIndex> ancestor_index) {
-            for (auto index = target_index;; index = visual_context_tree.node_at(index).parent_index) {
-                if (ancestor_index.has_value() && index == ancestor_index.value())
-                    break;
-                auto const& node = visual_context_tree.node_at(index);
-                if (node.data.has<TransformData>()
-                    || node.data.has<PerspectiveData>()
-                    || node.data.has<ScrollData>()
-                    || node.data.has<ScrollCompensation>()
-                    || node.data.has<AnchorScrollShift>())
-                    return true;
-                if (index == VISUAL_VIEWPORT_NODE_INDEX)
-                    break;
-            }
-            return false;
-        };
+        restore_to_length(common_prefix_length);
 
-        auto restore_to_depth = [&](size_t target_depth) {
-            while (applied_depth > target_depth) {
-                play_command(Restore {});
-                --applied_depth;
-            }
-        };
-        restore_to_depth(common_ancestor_depth);
-
-        auto result = SwitchResult::Switched;
-        for_each_node_from_common_ancestor_to_target(
-            common_ancestor_index,
-            target_index,
-            [&](VisualContextIndex node_index, AccumulatedVisualContextNode const& node) {
-                if (!geometry_only && bounding_rect.has_value() && node.data.has<EffectsData>()) {
-                    auto can_cull_before_effect = !has_coordinate_changing_descendant(Optional<VisualContextIndex> { node_index });
-                    if (bounding_rect->is_empty() || (can_cull_before_effect && would_be_fully_clipped_by_painter(*bounding_rect))) {
-                        result = SwitchResult::CulledByEffect;
-                        return IterationDecision::Break;
+        for (size_t i = common_prefix_length; i < target_frames.size(); ++i) {
+            auto frame_node_index = target_frames[i];
+            auto const& frame_node = visual_context_tree.node_at(frame_node_index);
+            if (auto const* effects = frame_node.data.get_pointer<EffectsData>()) {
+                if (bounding_rect.has_value()) {
+                    bool culled_by_effect = bounding_rect->is_empty();
+                    if (!culled_by_effect) {
+                        ensure_ctm_space(target_index);
+                        culled_by_effect = would_be_fully_clipped_by_painter(*bounding_rect);
+                    }
+                    if (culled_by_effect) {
+                        restore_to_length(common_prefix_length);
+                        // The canvas is unwound to the shared prefix; clearing the applied index
+                        // keeps the fast path from reusing the pre-cull context while the frame
+                        // vector still enables prefix reuse on the next switch.
+                        applied_context_index = {};
+                        return SwitchResult::CulledByEffect;
                     }
                 }
-                apply_accumulated_visual_context(node_index, node, geometry_only);
-                applied_depth++;
-                return IterationDecision::Continue;
-            });
-
-        if (result == SwitchResult::Switched) {
-            applied_context_index = target_index;
-            applied_context_geometry_only = geometry_only;
-            has_applied_context = true;
-        } else {
-            restore_to_depth(common_ancestor_depth);
+                ensure_ctm_space(frame_node_index);
+                play_command(ApplyEffects {
+                                 .opacity = effects->opacity,
+                                 .compositing_and_blending_operator = effects->blend_mode,
+                                 .has_filter = effects->gfx_filter.has_value(),
+                                 .filter_data = {},
+                             },
+                    effects->gfx_filter.has_value() ? &effects->gfx_filter.value() : nullptr);
+            } else {
+                play_command(Save {});
+                ensure_ctm_space(frame_node_index);
+                frame_node.data.visit(
+                    [&](ClipData const& clip) {
+                        if (clip.corner_radii.has_any_radius()) {
+                            play_command(AddRoundedRectClip {
+                                .corner_radii = clip.corner_radii,
+                                .border_rect = clip.rect.to_type<int>(),
+                                .corner_clip = Gfx::CornerClip::Outside,
+                            });
+                        } else {
+                            play_command(AddClipRect { .rect = clip.rect.to_type<int>() });
+                        }
+                    },
+                    [&](ClipPathData const& clip_path) {
+                        add_clip_path(clip_path.path, clip_path.fill_rule);
+                    },
+                    [&](auto const&) { VERIFY_NOT_REACHED(); });
+            }
+            applied_frames.append(frame_node_index);
         }
-        return result;
+
+        applied_context_index = target_index;
+        applied_context_geometry_only = geometry_only;
+        return SwitchResult::Switched;
     };
 
     DisplayList::for_each_command_header(commands, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
@@ -340,6 +359,8 @@ void DisplayListPlayer::execute_impl(
 
         if (switch_to_context(header.context_index, header.context_geometry_only, bounding_rect) == SwitchResult::CulledByEffect)
             return;
+
+        ensure_ctm_space(header.context_index);
 
         if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))) {
             // Any clip that's located outside of the visible region is equivalent to a simple clip-rect,
@@ -378,10 +399,12 @@ void DisplayListPlayer::execute_impl(
         }
     });
 
-    while (applied_depth > 0) {
-        play_command(Restore {});
-        applied_depth--;
-    }
+    restore_to_length(0);
+    // Node spaces were entered by setting the canvas matrix absolutely, outside any save, so the
+    // matrix the replay entered with must be handed back explicitly.
+    set_matrix(replay_base_matrix);
+
+    m_replay_palette_storage = move(palette_storage);
 }
 
 }

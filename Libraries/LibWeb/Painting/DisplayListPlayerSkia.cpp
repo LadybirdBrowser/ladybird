@@ -124,6 +124,16 @@ static SkM44 to_skia_matrix4x4(Gfx::FloatMatrix4x4 const& matrix)
         matrix[3, 3]);
 }
 
+static Gfx::FloatMatrix4x4 to_gfx_matrix4x4(SkM44 const& matrix)
+{
+    Gfx::FloatMatrix4x4 result;
+    for (int row = 0; row < 4; ++row) {
+        for (int column = 0; column < 4; ++column)
+            result[row, column] = matrix.rc(row, column);
+    }
+    return result;
+}
+
 void DisplayListPlayerSkia::flush(Gfx::PaintingSurface& surface)
 {
     if (auto context = surface.skia_backend_context())
@@ -1189,13 +1199,14 @@ void DisplayListPlayerSkia::play_command(ApplyEffects const& command, Gfx::Filte
     canvas.saveLayer(nullptr, &paint);
 }
 
-void DisplayListPlayerSkia::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 const& matrix)
+void DisplayListPlayerSkia::set_matrix(Gfx::FloatMatrix4x4 const& matrix)
 {
-    auto new_transform = Gfx::translation_matrix(Vector3<float>(origin.x(), origin.y(), 0));
-    new_transform = new_transform * matrix;
-    new_transform = new_transform * Gfx::translation_matrix(Vector3<float>(-origin.x(), -origin.y(), 0));
-    auto skia_matrix = to_skia_matrix4x4(new_transform);
-    surface().canvas().concat(skia_matrix);
+    surface().canvas().setMatrix(to_skia_matrix4x4(matrix));
+}
+
+Gfx::FloatMatrix4x4 DisplayListPlayerSkia::canvas_matrix() const
+{
+    return to_gfx_matrix4x4(surface().canvas().getLocalToDevice());
 }
 
 void DisplayListPlayerSkia::add_clip_path(Gfx::Path const& path, Gfx::WindingRule winding_rule)
