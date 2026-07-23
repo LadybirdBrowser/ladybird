@@ -1172,8 +1172,10 @@ set(SOURCES
     WebAudio/PannerNode.cpp
     WebAudio/PeriodicWave.cpp
     WebAudio/Rendering/AudioBus.cpp
+    WebAudio/Rendering/BiquadCoefficients.cpp
     WebAudio/Rendering/RenderGraph.cpp
     WebAudio/Rendering/RenderNode.cpp
+    WebAudio/Rendering/RenderNodes.cpp
     WebAudio/ScriptProcessorNode.cpp
     WebAudio/StereoPannerNode.cpp
     WebDriver/Actions.cpp
