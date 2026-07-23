@@ -866,16 +866,8 @@ void TreeBuilder::detach_top_layer_element_layout_subtree(DOM::Element& element)
     element.for_each_shadow_including_inclusive_descendant([&](auto& node) {
         return clear_stale_layout_and_paint_node(node, &element);
     });
-    // Assigned slottables are flat tree children of a slot, not DOM descendants.
-    if (auto* slot_element = as_if<HTML::HTMLSlotElement>(element)) {
-        for (auto const& slottable : slot_element->assigned_nodes_internal()) {
-            slottable.visit([&](DOM::Node& slottable_root) {
-                slottable_root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                    return clear_stale_layout_and_paint_node(node, &slottable_root);
-                });
-            });
-        }
-    }
+    if (auto* slot_element = as_if<HTML::HTMLSlotElement>(element))
+        clear_stale_layout_nodes_for_assigned_slottables(*slot_element);
 }
 
 static bool element_has_an_unrendered_flat_tree_ancestor(DOM::Element const& element)
@@ -890,6 +882,43 @@ static bool element_has_an_unrendered_flat_tree_ancestor(DOM::Element const& ele
             return true;
     }
     return false;
+}
+
+void TreeBuilder::update_layout_tree_for_shadow_root_children(DOM::ShadowRoot& shadow_root, Context& context, MustCreateSubtree must_create_subtree)
+{
+    for (auto* node = shadow_root.first_child(); node; node = node->next_sibling())
+        update_layout_tree(*node, context, must_create_subtree);
+    shadow_root.set_child_needs_layout_tree_update(false);
+    shadow_root.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
+}
+
+void TreeBuilder::update_layout_tree_for_dom_children(DOM::ParentNode& parent, Context& context, MustCreateSubtree must_create_subtree)
+{
+    for (auto* node = parent.first_child(); node; node = node->next_sibling())
+        update_layout_tree(*node, context, must_create_subtree);
+}
+
+void TreeBuilder::update_layout_tree_for_assigned_slottables(HTML::HTMLSlotElement& slot_element, Context& context, MustCreateSubtree must_create_subtree)
+{
+    auto must_create_subtree_for_slottable = must_create_subtree;
+    if (slot_element.needs_layout_tree_update())
+        must_create_subtree_for_slottable = MustCreateSubtree::Yes;
+
+    for (auto const& slottable : slot_element.assigned_nodes_internal())
+        slottable.visit([&](auto& node) { update_layout_tree(node, context, must_create_subtree_for_slottable); });
+}
+
+void TreeBuilder::clear_stale_layout_nodes_for_assigned_slottables(HTML::HTMLSlotElement& slot_element)
+{
+    // Assigned slottables are flat tree children of a slot, not DOM descendants, so subtree
+    // cleanup of the slot does not reach them.
+    for (auto const& slottable : slot_element.assigned_nodes_internal()) {
+        slottable.visit([&](DOM::Node& slottable_root) {
+            slottable_root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
+                return clear_stale_layout_and_paint_node(node, &slottable_root);
+            });
+        });
+    }
 }
 
 void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& context, MustCreateSubtree must_create_subtree)
@@ -1175,20 +1204,14 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                     }
                     push_parent(as<NodeWithStyle>(*layout_node->first_child()));
                 }
-                for (auto* node = shadow_root->first_child(); node; node = node->next_sibling()) {
-                    update_layout_tree(*node, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
-                }
+                update_layout_tree_for_shadow_root_children(*shadow_root, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
                 if (layout_node->is_replaced_box_with_children())
                     pop_parent();
-                shadow_root->set_child_needs_layout_tree_update(false);
-                shadow_root->set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
             } else if (should_layout_dom_children) {
                 if (auto* switch_element = as_if<SVG::SVGSwitchElement>(dom_node)) {
                     update_layout_tree_for_svg_switch_children(*switch_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
                 } else {
-                    // This is the same as as<DOM::ParentNode>(dom_node).for_each_child
-                    for (auto* node = as<DOM::ParentNode>(dom_node).first_child(); node; node = node->next_sibling())
-                        update_layout_tree(*node, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
+                    update_layout_tree_for_dom_children(as<DOM::ParentNode>(dom_node), context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
                 }
             }
 
@@ -1216,28 +1239,11 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         auto& slot_element = static_cast<HTML::HTMLSlotElement&>(dom_node);
 
         if (slot_element.computed_values()->content_visibility() != CSS::ContentVisibility::Hidden) {
-            auto slottables = slot_element.assigned_nodes_internal();
             push_parent(as<NodeWithStyle>(*layout_node));
-
-            MustCreateSubtree must_create_subtree_for_slottable = must_create_subtree;
-            if (slot_element.needs_layout_tree_update())
-                must_create_subtree_for_slottable = MustCreateSubtree::Yes;
-
-            for (auto const& slottable : slottables) {
-                slottable.visit([&](auto& node) { update_layout_tree(node, context, must_create_subtree_for_slottable); });
-            }
-
+            update_layout_tree_for_assigned_slottables(slot_element, context, must_create_subtree);
             pop_parent();
         } else {
-            // Assigned slottables are not DOM descendants of the slot, so the generic
-            // content-visibility:hidden descendant cleanup above does not reach them.
-            for (auto const& slottable : slot_element.assigned_nodes_internal()) {
-                slottable.visit([&](DOM::Node& slottable_root) {
-                    slottable_root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                        return clear_stale_layout_and_paint_node(node, &slottable_root);
-                    });
-                });
-            }
+            clear_stale_layout_nodes_for_assigned_slottables(slot_element);
         }
     }
 
@@ -1289,36 +1295,17 @@ void TreeBuilder::update_layout_tree_for_display_contents(DOM::Element& element,
 
     auto shadow_root = element.shadow_root();
     if (!element_has_content_visibility_hidden && (should_create_layout_node || element.child_needs_layout_tree_update())) {
-        if (shadow_root) {
-            for (auto* node = shadow_root->first_child(); node; node = node->next_sibling())
-                update_layout_tree(*node, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
-            shadow_root->set_child_needs_layout_tree_update(false);
-            shadow_root->set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
-        } else if (should_layout_dom_children) {
-            for (auto* node = element.first_child(); node; node = node->next_sibling())
-                update_layout_tree(*node, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
-        }
+        if (shadow_root)
+            update_layout_tree_for_shadow_root_children(*shadow_root, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
+        else if (should_layout_dom_children)
+            update_layout_tree_for_dom_children(element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
     }
 
-    if (is<HTML::HTMLSlotElement>(element)) {
-        auto& slot_element = static_cast<HTML::HTMLSlotElement&>(element);
-
-        if (!element_has_content_visibility_hidden) {
-            MustCreateSubtree must_create_subtree_for_slottable = must_create_subtree;
-            if (slot_element.needs_layout_tree_update())
-                must_create_subtree_for_slottable = MustCreateSubtree::Yes;
-
-            for (auto const& slottable : slot_element.assigned_nodes_internal())
-                slottable.visit([&](auto& node) { update_layout_tree(node, context, must_create_subtree_for_slottable); });
-        } else {
-            for (auto const& slottable : slot_element.assigned_nodes_internal()) {
-                slottable.visit([&](DOM::Node& slottable_root) {
-                    slottable_root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                        return clear_stale_layout_and_paint_node(node, &slottable_root);
-                    });
-                });
-            }
-        }
+    if (auto* slot_element = as_if<HTML::HTMLSlotElement>(element)) {
+        if (!element_has_content_visibility_hidden)
+            update_layout_tree_for_assigned_slottables(*slot_element, context, must_create_subtree);
+        else
+            clear_stale_layout_nodes_for_assigned_slottables(*slot_element);
     }
 
     if (!element_has_content_visibility_hidden)

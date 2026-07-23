@@ -53,6 +53,10 @@ private:
     void update_layout_tree(DOM::Node&, Context&, MustCreateSubtree);
     void update_layout_tree_for_display_contents(DOM::Element&, Context&, MustCreateSubtree, bool should_create_layout_node);
     void update_layout_tree_for_svg_switch_children(SVG::SVGSwitchElement&, Context&, MustCreateSubtree);
+    void update_layout_tree_for_shadow_root_children(DOM::ShadowRoot&, Context&, MustCreateSubtree);
+    void update_layout_tree_for_dom_children(DOM::ParentNode&, Context&, MustCreateSubtree);
+    void update_layout_tree_for_assigned_slottables(HTML::HTMLSlotElement&, Context&, MustCreateSubtree);
+    static void clear_stale_layout_nodes_for_assigned_slottables(HTML::HTMLSlotElement&);
     static TraversalDecision clear_stale_layout_and_paint_node(DOM::Node&, DOM::Node const* cleared_subtree_root = nullptr);
 
     void push_parent(Layout::NodeWithStyle& node) { m_ancestor_stack.append(&node); }
