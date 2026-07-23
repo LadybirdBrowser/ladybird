@@ -128,7 +128,8 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub top_layer_element_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub copy_top_layer_elements: unsafe extern "C" fn(*mut c_void, *mut *mut c_void, usize),
     pub rendered_in_top_layer: unsafe extern "C" fn(*mut c_void) -> bool,
-    pub has_unrendered_flat_tree_ancestor: unsafe extern "C" fn(*mut c_void) -> bool,
+    pub flat_tree_parent: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub flat_tree_render_facts: unsafe extern "C" fn(*mut c_void) -> FfiFlatTreeRenderFacts,
     pub clear_stale_top_layer_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub quote_nesting_level: unsafe extern "C" fn(*mut c_void) -> u32,
     pub set_quote_nesting_level: unsafe extern "C" fn(*mut c_void, u32),
@@ -170,7 +171,8 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub start_principal_rebuild_root: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
     pub restore_principal_rebuild_root: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub mark_update_escaped_rebuild_roots: unsafe extern "C" fn(*mut c_void),
-    pub create_principal_backdrop: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool),
+    pub create_principal_backdrop: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool) -> *mut c_void,
+    pub insert_principal_backdrop_before_old: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub place_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPrincipalBoxPlacement),
     pub clear_stale_inclusive_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub set_context_has_svg_root: unsafe extern "C" fn(*mut c_void, bool),
@@ -195,6 +197,14 @@ pub struct FfiDisplayContentsFacts {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
+pub struct FfiFlatTreeRenderFacts {
+    pub is_element: bool,
+    pub has_computed_style: bool,
+    pub display_is_none: bool,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
 pub struct FfiPrincipalDescendantFacts {
     pub is_element: bool,
     pub context_layout_top_layer: bool,
@@ -205,6 +215,7 @@ pub struct FfiPrincipalDescendantFacts {
     pub layout_node_is_replaced_box_with_children: bool,
     pub layout_node_is_list_item_box: bool,
     pub layout_node_is_block_container: bool,
+    pub has_first_letter_style: bool,
     pub is_svg_switch_element: bool,
     pub is_document: bool,
     pub has_style_containment: bool,
@@ -344,6 +355,156 @@ pub extern "C" fn rust_principal_box_generation_decision(
     })
 }
 
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_display_contents_text_needs_style_wrapper(
+    has_style_parent: bool,
+    parent_display_is_contents: bool,
+    text_is_ascii_whitespace: bool,
+    parent_collapses_whitespace: bool,
+) -> bool {
+    abort_on_panic(|| {
+        has_style_parent && parent_display_is_contents && (!text_is_ascii_whitespace || !parent_collapses_whitespace)
+    })
+}
+
+#[repr(C)]
+pub struct FfiStaleNodeCallbacks {
+    pub layout_parent: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub layout_dom_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub dom_is_shadow_including_inclusive_descendant: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
+}
+
+/// Returns whether an SVG resource layout node must survive cleanup of a DOM subtree.
+///
+/// # Safety
+///
+/// The callback table, layout node, and optional cleared subtree root must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_should_preserve_svg_resource_layout_node(
+    callbacks: *const FfiStaleNodeCallbacks,
+    layout_node: *mut c_void,
+    cleared_subtree_root: *mut c_void,
+) -> bool {
+    abort_on_panic(|| {
+        assert!(!callbacks.is_null());
+        assert!(!layout_node.is_null());
+        // SAFETY: Guaranteed by the entry point's contract.
+        let callbacks = unsafe { &*callbacks };
+        if cleared_subtree_root.is_null() {
+            return true;
+        }
+
+        // SAFETY: The layout node remains live throughout the ancestor walk.
+        let mut ancestor = unsafe { (callbacks.layout_parent)(layout_node) };
+        while !ancestor.is_null() {
+            // SAFETY: `ancestor` is a live layout node.
+            let dom_node = unsafe { (callbacks.layout_dom_node)(ancestor) };
+            // SAFETY: Both DOM pointers remain live throughout cleanup.
+            if !dom_node.is_null()
+                && unsafe { (callbacks.dom_is_shadow_including_inclusive_descendant)(dom_node, cleared_subtree_root) }
+            {
+                return false;
+            }
+            // SAFETY: `ancestor` remains live throughout the walk.
+            ancestor = unsafe { (callbacks.layout_parent)(ancestor) };
+        }
+        true
+    })
+}
+
+#[repr(C)]
+pub struct FfiTopLayerDetachCallbacks {
+    pub element_layout_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub topmost_placement_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void),
+    pub layout_parent: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub remove_layout_node: unsafe extern "C" fn(*mut c_void),
+    pub clear_element_subtree: unsafe extern "C" fn(*mut c_void),
+    pub slot_element: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub clear_assigned_slottables: unsafe extern "C" fn(*mut c_void),
+}
+
+/// Detaches a top-layer element's layout placement and clears every stale projected subtree.
+///
+/// # Safety
+///
+/// The callback table and element must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
+    callbacks: *const FfiTopLayerDetachCallbacks,
+    element: *mut c_void,
+) {
+    abort_on_panic(|| {
+        assert!(!callbacks.is_null());
+        assert!(!element.is_null());
+        // SAFETY: Guaranteed by the entry point's contract.
+        let callbacks = unsafe { &*callbacks };
+        // SAFETY: The element remains live throughout the call.
+        let element_layout_node = unsafe { (callbacks.element_layout_node)(element) };
+        if !element_layout_node.is_null() {
+            // Take along any anonymous table-fixup wrapper around the box. Leaving an empty table wrapper as a
+            // viewport child would violate layout invariants.
+            // SAFETY: The element layout node remains live throughout detachment.
+            let topmost = unsafe { (callbacks.topmost_placement_node)(element_layout_node) };
+            let layout_node_to_detach = if topmost.is_null() {
+                element_layout_node
+            } else {
+                topmost
+            };
+            // SAFETY: The chosen layout subtree remains live throughout detachment.
+            unsafe {
+                (callbacks.prepare_subtree_for_detach)(layout_node_to_detach);
+                if !(callbacks.layout_parent)(layout_node_to_detach).is_null() {
+                    (callbacks.remove_layout_node)(layout_node_to_detach);
+                }
+            }
+        }
+
+        // SAFETY: The element remains live throughout subtree cleanup.
+        unsafe { (callbacks.clear_element_subtree)(element) };
+        // SAFETY: The callback returns the element's adjusted HTMLSlotElement pointer, if any.
+        let slot_element = unsafe { (callbacks.slot_element)(element) };
+        if !slot_element.is_null() {
+            // SAFETY: The slot element remains live throughout assigned-node cleanup.
+            unsafe { (callbacks.clear_assigned_slottables)(slot_element) };
+        }
+    });
+}
+
+#[repr(C)]
+pub struct FfiAssignedCleanupCallbacks {
+    pub assigned_node_count: unsafe extern "C" fn(*mut c_void) -> usize,
+    pub assigned_node_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
+    pub clear_assigned_subtree: unsafe extern "C" fn(*mut c_void),
+}
+
+/// Clears stale layout state for every flat-tree child assigned to a slot.
+///
+/// # Safety
+///
+/// The callback table and slot element must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_clear_stale_assigned_slottables(
+    callbacks: *const FfiAssignedCleanupCallbacks,
+    slot_element: *mut c_void,
+) {
+    abort_on_panic(|| {
+        assert!(!callbacks.is_null());
+        assert!(!slot_element.is_null());
+        // SAFETY: Guaranteed by the entry point's contract.
+        let callbacks = unsafe { &*callbacks };
+        // SAFETY: The slot and assigned-node list remain live throughout cleanup.
+        let count = unsafe { (callbacks.assigned_node_count)(slot_element) };
+        for index in 0..count {
+            // SAFETY: `index` is below the stable assigned-node count.
+            let root = unsafe { (callbacks.assigned_node_at)(slot_element, index) };
+            assert!(!root.is_null());
+            // SAFETY: The assigned subtree root remains live throughout cleanup.
+            unsafe { (callbacks.clear_assigned_subtree)(root) };
+        }
+    });
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiPrincipalBoxPlacementFacts {
@@ -478,6 +639,22 @@ impl DomTreeBuilderHost<'_> {
             (self.callbacks.update_layout_tree)(self.callbacks.builder, node, context, must_create_subtree);
         }
     }
+}
+
+fn has_unrendered_flat_tree_ancestor(host: &DomTreeBuilderHost<'_>, element: *mut c_void) -> bool {
+    // SAFETY: `element` and every returned flat-tree ancestor remain live throughout layout-tree construction.
+    let mut ancestor = unsafe { (host.callbacks.flat_tree_parent)(element) };
+    while !ancestor.is_null() {
+        // SAFETY: `ancestor` is a live DOM node.
+        let facts = unsafe { (host.callbacks.flat_tree_render_facts)(ancestor) };
+        // Null style means the style update pass skipped a display:none subtree.
+        if facts.is_element && (!facts.has_computed_style || facts.display_is_none) {
+            return true;
+        }
+        // SAFETY: `ancestor` remains live throughout the walk.
+        ancestor = unsafe { (host.callbacks.flat_tree_parent)(ancestor) };
+    }
+    false
 }
 
 unsafe fn dom_tree_builder_host<'a>(callbacks: *const FfiDomTreeBuilderCallbacks) -> DomTreeBuilderHost<'a> {
@@ -957,7 +1134,7 @@ pub unsafe extern "C" fn rust_update_principal_node_descendants(
                         continue;
                     }
                     // SAFETY: `element` is a live DOM Element.
-                    if unsafe { (host.callbacks.has_unrendered_flat_tree_ancestor)(element) } {
+                    if has_unrendered_flat_tree_ancestor(&host, element) {
                         // SAFETY: The builder and element remain live throughout cleanup.
                         unsafe {
                             (host.callbacks.clear_stale_top_layer_subtree)(host.callbacks.builder, element);
@@ -1055,7 +1232,7 @@ pub unsafe extern "C" fn rust_update_principal_node_descendants(
                     (host.callbacks.pop_layout_parent)(host.callbacks.builder);
                 }
 
-                if facts.layout_node_is_block_container {
+                if facts.layout_node_is_block_container && facts.has_first_letter_style {
                     // SAFETY: `dom_node` is an Element and `layout_node` is a BlockContainer when these facts are set.
                     unsafe {
                         (host.callbacks.create_first_letter_wrapper)(host.callbacks.builder, dom_node, layout_node);
@@ -1247,14 +1424,22 @@ fn update_principal_node_after_entry(
         }
 
         if placement.create_backdrop {
-            // SAFETY: The builder, frame, and DOM element remain live throughout creation.
-            unsafe {
+            // A backdrop is a sibling of its originating top-layer element. Append it normally, but insert it before
+            // an old box that will be replaced in place so the backdrop remains behind the element.
+            // SAFETY: The builder and DOM element remain live throughout pseudo-element construction.
+            let backdrop = unsafe {
                 (host.callbacks.create_principal_backdrop)(
                     host.callbacks.builder,
                     frame,
                     dom_node,
-                    placement.may_replace_existing_layout_node,
-                );
+                    !placement.may_replace_existing_layout_node,
+                )
+            };
+            if placement.may_replace_existing_layout_node && !backdrop.is_null() {
+                // SAFETY: The frame retains the attached old layout node and `backdrop` is owned by the element.
+                unsafe {
+                    (host.callbacks.insert_principal_backdrop_before_old)(host.callbacks.builder, frame, backdrop);
+                }
             }
         }
 
@@ -2914,8 +3099,9 @@ mod tests {
         FfiPrincipalBoxPlacementFacts, FfiPrincipalNodeEntryFacts, FfiPseudoElement, FfiPseudoElementDecision,
         FfiPseudoElementFacts, FfiReplacedElementDisplayAdjustment, FfiSvgEntryDecision, FfiTopLayerEntryDecision,
         FirstLetterTextHost, element_layout_kind, find_first_letter_in_text,
-        rust_adjusted_table_display_for_replaced_element, rust_principal_box_generation_decision,
-        rust_principal_box_placement_decision, rust_principal_node_entry_decision, rust_pseudo_element_decision,
+        rust_adjusted_table_display_for_replaced_element, rust_display_contents_text_needs_style_wrapper,
+        rust_principal_box_generation_decision, rust_principal_box_placement_decision,
+        rust_principal_node_entry_decision, rust_pseudo_element_decision,
     };
     use std::ffi::c_void;
 
@@ -3216,5 +3402,15 @@ mod tests {
         let decision = rust_principal_box_placement_decision(facts);
         assert_eq!(decision.placement, FfiPrincipalBoxPlacement::AppendSvg);
         assert!(decision.mark_update_escaped_rebuild_roots);
+    }
+
+    #[test]
+    fn display_contents_text_style_wrapper_decisions() {
+        assert!(!rust_display_contents_text_needs_style_wrapper(
+            false, true, false, false
+        ));
+        assert!(rust_display_contents_text_needs_style_wrapper(true, true, false, true));
+        assert!(!rust_display_contents_text_needs_style_wrapper(true, true, true, true));
+        assert!(rust_display_contents_text_needs_style_wrapper(true, true, true, false));
     }
 }

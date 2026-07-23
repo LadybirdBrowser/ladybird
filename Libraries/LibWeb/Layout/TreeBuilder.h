@@ -52,7 +52,6 @@ private:
         bool layout_svg_pattern = false;
     };
 
-    void wrap_in_button_layout_tree_if_needed(DOM::Node&, Layout::Node&);
     enum class MustCreateSubtree {
         No,
         Yes,
@@ -72,7 +71,6 @@ private:
     RustFFI::FfiPseudoTreeBuilderCallbacks make_ffi_pseudo_tree_builder_callbacks();
 
     void insert_node_into_inline_or_block_ancestor(Layout::Node&, CSS::Display, AppendOrPrepend);
-    void create_backdrop_for_top_layer_element_if_needed(DOM::Element&, Layout::Node* old_layout_node, bool may_replace_existing_layout_node);
     static NonnullRefPtr<ListItemMarkerBox> create_and_attach_list_item_marker(ListItemBox&, DOM::Element&, NonnullRefPtr<CSS::ComputedValues const> marker_style);
     RefPtr<NodeWithStyle> create_pseudo_element_if_needed(DOM::Element&, CSS::PseudoElement, Optional<AppendOrPrepend>);
     static void create_first_letter_wrapper_if_needed(DOM::Element&, Layout::BlockContainer&);
