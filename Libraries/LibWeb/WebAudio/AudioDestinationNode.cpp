@@ -82,15 +82,17 @@ WebIDL::ExceptionOr<void> AudioDestinationNode::set_channel_count(WebIDL::Unsign
 
     // AudioContext: The channel count MUST be between 1 and maxChannelCount. An IndexSizeError
     // exception MUST be thrown for any attempt to set the count outside this range.
+    // NB: Setting the count to zero throws NotSupportedError through AudioNode's channelCount validation below,
+    //     taking precedence over the range check here.
     if (is<AudioContext>(*context())) {
-        if (channel_count < 1 || channel_count > max_channel_count())
+        if (channel_count > max_channel_count())
             return WebIDL::IndexSizeError::create(realm(), "Channel index is out of range"_utf16);
     }
 
-    // OfflineAudioContext: The channel count cannot be changed. An InvalidStateError exception MUST
-    // be thrown for any attempt to change the value.
+    // OfflineAudioContext: This value may not be changed; a NotSupportedError exception MUST be thrown if
+    // channelCount is changed to a different value.
     if (is<OfflineAudioContext>(*context()))
-        return WebIDL::InvalidStateError::create(realm(), "Cannot change channel count in an OfflineAudioContext"_utf16);
+        return WebIDL::NotSupportedError::create(realm(), "Cannot change channel count in an OfflineAudioContext"_utf16);
 
     return AudioNode::set_channel_count(channel_count);
 }
