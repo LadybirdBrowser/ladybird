@@ -19,10 +19,11 @@ AudioParamTimeline::AudioParamTimeline(float default_value)
 // https://webaudio.github.io/web-audio-api/#computedvalue
 float AudioParamTimeline::value_at_time(double time) const
 {
-    return value_at_time(time, time);
+    Sync::MutexLocker locker(m_mutex);
+    return value_at_time_locked(time, time);
 }
 
-float AudioParamTimeline::value_at_time(double selection_time, double time) const
+float AudioParamTimeline::value_at_time_locked(double selection_time, double time) const
 {
     // paramIntrinsicValue will be calculated at each time, which is either the value set directly to the value
     // attribute, or, if there are any automation events with times before or at this time, the value as calculated from
@@ -76,19 +77,22 @@ float AudioParamTimeline::value_at_time(double selection_time, double time) cons
 // Evaluates the intrinsic value for each sample frame of a render quantum starting at start_time.
 void AudioParamTimeline::sample(double start_time, double sample_period, Span<float> output) const
 {
+    Sync::MutexLocker locker(m_mutex);
     for (size_t frame = 0; frame < output.size(); ++frame) {
         auto frame_time = start_time + frame * sample_period;
-        output[frame] = value_at_time(frame_time + sample_period / 2, frame_time);
+        output[frame] = value_at_time_locked(frame_time + sample_period / 2, frame_time);
     }
 }
 
 bool AudioParamTimeline::has_events() const
 {
+    Sync::MutexLocker locker(m_mutex);
     return !m_automation_events.is_empty();
 }
 
 AudioParamTimeline::InsertResult AudioParamTimeline::set_value_at_time(float value, double start_time)
 {
+    Sync::MutexLocker locker(m_mutex);
     return insert_event({
         .time = start_time,
         .parameterization = SetValue { value },
@@ -97,6 +101,7 @@ AudioParamTimeline::InsertResult AudioParamTimeline::set_value_at_time(float val
 
 AudioParamTimeline::InsertResult AudioParamTimeline::linear_ramp_to_value_at_time(float value, double end_time, double current_time, float current_value)
 {
+    Sync::MutexLocker locker(m_mutex);
 
     // If there is no event preceding this event, the linear ramp behaves as if setValueAtTime(value, currentTime) were
     // called, where value is the current value of the attribute.
@@ -118,6 +123,7 @@ AudioParamTimeline::InsertResult AudioParamTimeline::linear_ramp_to_value_at_tim
 
 AudioParamTimeline::InsertResult AudioParamTimeline::exponential_ramp_to_value_at_time(float value, double end_time, double current_time, float current_value)
 {
+    Sync::MutexLocker locker(m_mutex);
 
     // If there is no event preceding this event, the exponential ramp behaves as if setValueAtTime(value, currentTime)
     // were called, where value is the current value of the attribute.
@@ -139,6 +145,7 @@ AudioParamTimeline::InsertResult AudioParamTimeline::exponential_ramp_to_value_a
 
 AudioParamTimeline::InsertResult AudioParamTimeline::set_target_at_time(float target, double start_time, float time_constant)
 {
+    Sync::MutexLocker locker(m_mutex);
     return insert_event({
         .time = start_time,
         .parameterization = SetTarget { target, time_constant },
@@ -147,6 +154,7 @@ AudioParamTimeline::InsertResult AudioParamTimeline::set_target_at_time(float ta
 
 AudioParamTimeline::InsertResult AudioParamTimeline::set_value_curve_at_time(Vector<float> values, double start_time, double duration)
 {
+    Sync::MutexLocker locker(m_mutex);
 
     // If there are any events with a time strictly greater than startTime but strictly less than startTime + duration,
     // a NotSupportedError exception MUST be thrown.
@@ -333,6 +341,7 @@ AudioParamTimeline::InsertResult AudioParamTimeline::insert_event(AutomationEven
 
 void AudioParamTimeline::cancel_scheduled_values(double cancel_time)
 {
+    Sync::MutexLocker locker(m_mutex);
 
     // Cancel all scheduled parameter changes with times greater than or equal to cancelTime.
     auto first_event_to_remove = AK::lower_bound_index(m_automation_events, cancel_time, [](auto const& event, double time) {
@@ -364,17 +373,19 @@ void AudioParamTimeline::cancel_scheduled_values(double cancel_time)
 
 void AudioParamTimeline::cancel_and_hold_at_time(double cancel_time)
 {
+    Sync::MutexLocker locker(m_mutex);
 
-    auto value_to_hold = value_at_time(cancel_time, cancel_time);
+    auto value_to_hold = value_at_time_locked(cancel_time, cancel_time);
     auto event_index = first_event_index_after(cancel_time);
-    auto rewrote_ramp = false;
 
-    // If the next event is a ramp, rewrite it to end at cancelTime with the value from the original timeline.
+    // If the event immediately after cancelTime is a ramp, rewrite it to end at cancelTime with the value from the
+    // original timeline. This takes precedence over holding the value of the event active at cancelTime.
+    auto rewrote_ramp = false;
     if (event_index < m_automation_events.size()) {
-        auto& event = m_automation_events[event_index];
-        rewrote_ramp = event.parameterization.visit(
+        auto& next_event = m_automation_events[event_index];
+        rewrote_ramp = next_event.parameterization.visit(
             [&](OneOf<LinearRamp, ExponentialRamp> auto& ramp) {
-                event.time = cancel_time;
+                next_event.time = cancel_time;
                 ramp.value = value_to_hold;
                 return true;
             },
@@ -383,26 +394,36 @@ void AudioParamTimeline::cancel_and_hold_at_time(double cancel_time)
             });
     }
 
+    // Otherwise, decide which value (if any) to hold from cancelTime onward, based on the event active at cancelTime.
+    Optional<float> hold_value;
+    auto drop_active_curve = false;
     if (!rewrote_ramp && event_index > 0) {
-        auto const& previous_event = m_automation_events[event_index - 1];
-        auto needs_hold_event = previous_event.parameterization.visit(
-            [](SetTarget const&) {
-                return true;
+        auto const& active_event = m_automation_events[event_index - 1];
+        hold_value = active_event.parameterization.visit(
+            [&](SetTarget const&) -> Optional<float> {
+                return value_to_hold;
             },
-            [&](SetValueCurve const& set_value_curve) {
-                return cancel_time <= previous_event.time + set_value_curve.duration;
+            [&](SetValueCurve const& set_value_curve) -> Optional<float> {
+                // Cancelling exactly at a curve's start truncates it to a zero-duration curve, which produces no
+                // output, so the value reverts to the value before the curve rather than the curve's first element.
+                if (active_event.time == cancel_time) {
+                    drop_active_curve = true;
+                    return event_index >= 2 ? event_value_at_time(event_index - 2, cancel_time) : m_default_value;
+                }
+                if (cancel_time <= active_event.time + set_value_curve.duration)
+                    return value_to_hold;
+                return {};
             },
-            [](auto const&) {
-                return false;
+            [](auto const&) -> Optional<float> {
+                return {};
             });
-        if (needs_hold_event) {
-            auto result = insert_event({
-                .time = cancel_time,
-                .parameterization = Hold { value_to_hold },
-            });
-            VERIFY(result == InsertResult::Success);
-        }
     }
+
+    // Curve removal and hold insertion mutate the event list, so they run after the visit rather than inside it.
+    if (drop_active_curve)
+        m_automation_events.remove(event_index - 1);
+    if (hold_value.has_value())
+        VERIFY(insert_event({ .time = cancel_time, .parameterization = Hold { *hold_value } }) == InsertResult::Success);
 
     // Remove all events with times greater than cancelTime. The rewritten ramp or inserted hold remains at cancelTime.
     auto first_event_to_remove = first_event_index_after(cancel_time);
