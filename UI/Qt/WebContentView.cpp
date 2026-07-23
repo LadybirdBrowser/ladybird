@@ -1295,7 +1295,8 @@ bool WebContentView::handle_vulkan_window_event(QEvent* event)
         mouseReleaseEvent(static_cast<QMouseEvent*>(event));
         return true;
     case QEvent::MouseButtonDblClick:
-        mouseDoubleClickEvent(static_cast<QMouseEvent*>(event));
+        // QWindow sends a MouseButtonPress before MouseButtonDblClick for the second click, so the press has already
+        // been forwarded and included in the click count.
         return true;
     case QEvent::Wheel:
         wheelEvent(static_cast<QWheelEvent*>(event));
