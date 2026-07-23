@@ -705,6 +705,120 @@ RustFFI::FfiDomTreeBuilderCallbacks TreeBuilder::make_ffi_dom_tree_builder_callb
         .clear_stale_assigned_slottables = [](void* slot_element_pointer) {
             VERIFY(slot_element_pointer);
             clear_stale_layout_nodes_for_assigned_slottables(*static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)); },
+        .principal_descendant_facts = [](void*, void* node_pointer, void* layout_node_pointer, void* context_pointer) -> RustFFI::FfiPrincipalDescendantFacts {
+            VERIFY(node_pointer);
+            VERIFY(layout_node_pointer);
+            VERIFY(context_pointer);
+            auto& node = *static_cast<DOM::Node*>(node_pointer);
+            auto& layout_node = *static_cast<Layout::Node*>(layout_node_pointer);
+            auto& context = *static_cast<Context*>(context_pointer);
+            auto* element = as_if<DOM::Element>(node);
+            auto* slot_element = as_if<HTML::HTMLSlotElement>(node);
+            auto* parent_node = as_if<DOM::ParentNode>(node);
+            auto shadow_root = element ? element->shadow_root() : nullptr;
+            return {
+                .is_element = element != nullptr,
+                .context_layout_top_layer = context.layout_top_layer,
+                .content_visibility_hidden = element && element->computed_values()->content_visibility() == CSS::ContentVisibility::Hidden,
+                .should_layout_dom_children = slot_element ? slot_element->assigned_nodes_internal().is_empty() && node.has_children() : node.has_children(),
+                .child_needs_layout_tree_update = node.child_needs_layout_tree_update(),
+                .layout_node_can_have_children = layout_node.can_have_children(),
+                .layout_node_is_replaced_box_with_children = layout_node.is_replaced_box_with_children(),
+                .is_svg_switch_element = is<SVG::SVGSwitchElement>(node),
+                .is_document = node.is_document(),
+                .has_style_containment = is<NodeWithStyle>(layout_node) && static_cast<NodeWithStyle&>(layout_node).has_style_containment(),
+                .dom_children_parent = parent_node,
+                .shadow_root = shadow_root ? static_cast<DOM::ParentNode*>(shadow_root.ptr()) : nullptr,
+                .slot_element = slot_element,
+            }; },
+        .update_before_children = [](void* builder_pointer, void* node_pointer, void* layout_node_pointer, void* context_pointer, bool content_visibility_hidden) {
+            VERIFY(builder_pointer);
+            VERIFY(node_pointer);
+            VERIFY(layout_node_pointer);
+            VERIFY(context_pointer);
+            static_cast<TreeBuilder*>(builder_pointer)->update_layout_tree_before_children(
+                *static_cast<DOM::Node*>(node_pointer),
+                *static_cast<Layout::Node*>(layout_node_pointer),
+                *static_cast<Context*>(context_pointer),
+                content_visibility_hidden); },
+        .update_after_children = [](void* builder_pointer, void* node_pointer, void* layout_node_pointer, void* context_pointer, bool content_visibility_hidden) {
+            VERIFY(builder_pointer);
+            VERIFY(node_pointer);
+            VERIFY(layout_node_pointer);
+            VERIFY(context_pointer);
+            static_cast<TreeBuilder*>(builder_pointer)->update_layout_tree_after_children(
+                *static_cast<DOM::Node*>(node_pointer),
+                *static_cast<Layout::Node*>(layout_node_pointer),
+                *static_cast<Context*>(context_pointer),
+                content_visibility_hidden); },
+        .wrap_button_layout = [](void* builder_pointer, void* node_pointer, void* layout_node_pointer) {
+            VERIFY(builder_pointer);
+            VERIFY(node_pointer);
+            VERIFY(layout_node_pointer);
+            static_cast<TreeBuilder*>(builder_pointer)->wrap_in_button_layout_tree_if_needed(
+                *static_cast<DOM::Node*>(node_pointer),
+                *static_cast<Layout::Node*>(layout_node_pointer)); },
+        .clear_stale_descendants = [](void* builder_pointer, void* node_pointer) {
+            VERIFY(builder_pointer);
+            VERIFY(node_pointer);
+            auto& builder = *static_cast<TreeBuilder*>(builder_pointer);
+            auto& node = *static_cast<DOM::Node*>(node_pointer);
+            node.for_each_shadow_including_descendant([&](auto& descendant) {
+                return builder.clear_stale_layout_and_paint_node(descendant, &node);
+            }); },
+        .push_layout_parent = [](void* builder_pointer, void* layout_node_pointer) {
+            VERIFY(builder_pointer);
+            VERIFY(layout_node_pointer);
+            static_cast<TreeBuilder*>(builder_pointer)->push_parent(as<NodeWithStyle>(*static_cast<Layout::Node*>(layout_node_pointer))); },
+        .pop_layout_parent = [](void* builder_pointer) {
+            VERIFY(builder_pointer);
+            static_cast<TreeBuilder*>(builder_pointer)->pop_parent(); },
+        .ensure_replaced_children_wrapper = [](void* builder_pointer, void* layout_node_pointer) -> void* {
+            VERIFY(builder_pointer);
+            VERIFY(layout_node_pointer);
+            auto& builder = *static_cast<TreeBuilder*>(builder_pointer);
+            auto& layout_node = *static_cast<Layout::Node*>(layout_node_pointer);
+            if (!layout_node.first_child() || !layout_node.first_child()->is_anonymous()) {
+                auto wrapper = as<NodeWithStyle>(layout_node).create_anonymous_wrapper();
+                builder.current_parent().append_child(wrapper);
+            }
+            return layout_node.first_child().ptr(); },
+        .top_layer_element_count = [](void* document_pointer) {
+            VERIFY(document_pointer);
+            return static_cast<DOM::Document*>(document_pointer)->top_layer_elements().size(); },
+        .copy_top_layer_elements = [](void* document_pointer, void** output, size_t count) {
+            VERIFY(document_pointer);
+            VERIFY(output || count == 0);
+            auto const& elements = static_cast<DOM::Document*>(document_pointer)->top_layer_elements();
+            VERIFY(count == elements.size());
+            size_t index = 0;
+            for (auto const& element : elements)
+                output[index++] = element.ptr(); },
+        .rendered_in_top_layer = [](void* element_pointer) {
+            VERIFY(element_pointer);
+            return static_cast<DOM::Element*>(element_pointer)->rendered_in_top_layer(); },
+        .has_unrendered_flat_tree_ancestor = [](void* element_pointer) {
+            VERIFY(element_pointer);
+            return element_has_an_unrendered_flat_tree_ancestor(*static_cast<DOM::Element*>(element_pointer)); },
+        .clear_stale_top_layer_subtree = [](void* builder_pointer, void* element_pointer) {
+            VERIFY(builder_pointer);
+            VERIFY(element_pointer);
+            auto& builder = *static_cast<TreeBuilder*>(builder_pointer);
+            auto& element = *static_cast<DOM::Element*>(element_pointer);
+            element.for_each_shadow_including_inclusive_descendant([&](auto& node) {
+                return builder.clear_stale_layout_and_paint_node(node, &element);
+            }); },
+        .quote_nesting_level = [](void* builder_pointer) {
+            VERIFY(builder_pointer);
+            return static_cast<TreeBuilder*>(builder_pointer)->quote_nesting_level(); },
+        .set_quote_nesting_level = [](void* builder_pointer, u32 quote_nesting_level) {
+            VERIFY(builder_pointer);
+            static_cast<TreeBuilder*>(builder_pointer)->set_quote_nesting_level(quote_nesting_level); },
+        .clear_dom_update_flags = [](void* node_pointer) {
+            VERIFY(node_pointer);
+            auto& node = *static_cast<DOM::Node*>(node_pointer);
+            node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
+            node.set_child_needs_layout_tree_update(false); },
     };
 }
 
@@ -1001,111 +1115,14 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         insert_node_into_inline_or_block_ancestor(*layout_node, display, AppendOrPrepend::Append);
     }
 
-    auto shadow_root = dom_element ? dom_element->shadow_root() : nullptr;
-
-    auto element_has_content_visibility_hidden = [&dom_node]() {
-        if (is<DOM::Element>(dom_node)) {
-            auto& element = static_cast<DOM::Element&>(dom_node);
-            return element.computed_values()->content_visibility() == CSS::ContentVisibility::Hidden;
-        }
-        return false;
-    }();
-
-    auto prior_quote_nesting_level = quote_nesting_level();
-
-    if (should_create_layout_node) {
-        // Resolve counters now that we exist in the layout tree.
-        if (auto* element = as_if<DOM::Element>(dom_node)) {
-            DOM::AbstractElement element_reference { *element };
-            CSS::resolve_counters(element_reference);
-        }
-
-        update_layout_tree_before_children(dom_node, *layout_node, context, element_has_content_visibility_hidden);
-    }
-
-    if (element_has_content_visibility_hidden) {
-        dom_node.for_each_shadow_including_descendant([&](auto& node) {
-            return clear_stale_layout_and_paint_node(node, &dom_node);
-        });
-    }
-
-    auto should_layout_dom_children = [&]() {
-        if (auto const* slot_element = as_if<HTML::HTMLSlotElement>(dom_node))
-            return slot_element->assigned_nodes_internal().is_empty() && dom_node.has_children();
-        return dom_node.has_children();
-    }();
-
-    if (should_create_layout_node || dom_node.child_needs_layout_tree_update()) {
-        if ((should_layout_dom_children || shadow_root) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
-            push_parent(as<NodeWithStyle>(*layout_node));
-            if (shadow_root) {
-                // For replaced elements with shadow DOM children, wrap the children in an
-                // anonymous BlockContainer so that a BFC handles their layout.
-                if (layout_node->is_replaced_box_with_children()) {
-                    if (!layout_node->first_child() || !layout_node->first_child()->is_anonymous()) {
-                        auto wrapper = as<NodeWithStyle>(*layout_node).create_anonymous_wrapper();
-                        current_parent().append_child(wrapper);
-                    }
-                    push_parent(as<NodeWithStyle>(*layout_node->first_child()));
-                }
-                update_layout_tree_for_shadow_root_children(*shadow_root, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
-                if (layout_node->is_replaced_box_with_children())
-                    pop_parent();
-            } else if (should_layout_dom_children) {
-                if (auto* switch_element = as_if<SVG::SVGSwitchElement>(dom_node)) {
-                    update_layout_tree_for_svg_switch_children(*switch_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
-                } else {
-                    update_layout_tree_for_dom_children(as<DOM::ParentNode>(dom_node), context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
-                }
-            }
-
-            if (dom_node.is_document()) {
-                // Elements in the top layer do not lay out normally based on their position in the document; instead they
-                // generate boxes as if they were siblings of the root element.
-                TemporaryChange<bool> layout_mask(context.layout_top_layer, true);
-                for (auto const& top_layer_element : document.top_layer_elements()) {
-                    if (!top_layer_element->rendered_in_top_layer())
-                        continue;
-                    if (element_has_an_unrendered_flat_tree_ancestor(top_layer_element)) {
-                        top_layer_element->for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                            return clear_stale_layout_and_paint_node(node, top_layer_element.ptr());
-                        });
-                        continue;
-                    }
-                    update_layout_tree(top_layer_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
-                }
-            }
-            pop_parent();
-        }
-    }
-
-    if (is<HTML::HTMLSlotElement>(dom_node)) {
-        auto& slot_element = static_cast<HTML::HTMLSlotElement&>(dom_node);
-
-        if (slot_element.computed_values()->content_visibility() != CSS::ContentVisibility::Hidden) {
-            push_parent(as<NodeWithStyle>(*layout_node));
-            update_layout_tree_for_assigned_slottables(slot_element, context, must_create_subtree);
-            pop_parent();
-        } else {
-            clear_stale_layout_nodes_for_assigned_slottables(slot_element);
-        }
-    }
-
-    if (should_create_layout_node) {
-        update_layout_tree_after_children(dom_node, *layout_node, context, element_has_content_visibility_hidden);
-        wrap_in_button_layout_tree_if_needed(dom_node, *layout_node);
-    }
-
-    // https://www.w3.org/TR/css-contain-2/#containment-style
-    // Giving an element style containment has the following effects:
-    // 2. The effects of the 'content' property’s 'open-quote', 'close-quote', 'no-open-quote' and 'no-close-quote' must
-    //    be scoped to the element’s sub-tree.
-    if (auto const* node_with_style = as_if<NodeWithStyle>(*layout_node); node_with_style && node_with_style->has_style_containment()) {
-        set_quote_nesting_level(prior_quote_nesting_level);
-    }
-
-    dom_node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
-    dom_node.set_child_needs_layout_tree_update(false);
+    auto callbacks = make_ffi_dom_tree_builder_callbacks();
+    RustFFI::rust_update_principal_node_descendants(
+        &callbacks,
+        &dom_node,
+        layout_node.ptr(),
+        &context,
+        should_create_layout_node,
+        must_create_subtree == MustCreateSubtree::Yes);
 }
 
 void TreeBuilder::update_layout_tree_for_display_contents(DOM::Element& element, TreeBuilder::Context& context, MustCreateSubtree must_create_subtree, bool should_create_layout_node)
