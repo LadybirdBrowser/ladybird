@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/TextAffinity.h>
@@ -42,6 +43,7 @@ WheelScrollableAxes wheel_scrollable_axes(Layout::Node const&);
 bool could_be_scrolled_by_wheel_event(Layout::Node const&);
 bool could_be_scrolled_by_wheel_event(Layout::Node const&, ScrollDirection);
 Layout::Node const* nearest_scrollable_ancestor(Layout::Node const&);
+WEB_API Optional<Compositor::AsyncScrollNodeStableID> async_scroll_node_stable_id(Layout::Node const&);
 ScrollHandled set_scroll_offset(Layout::Node&, CSSPixelPoint);
 ScrollHandled set_scroll_offset_from_user_input(Layout::Node&, CSSPixelPoint);
 ScrollHandled scroll_by(Layout::Node&, double delta_x, double delta_y);

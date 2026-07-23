@@ -719,8 +719,8 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
         visitor.visit(async_scroll_operation.promise);
     for (auto& smooth_scroll : m_main_thread_smooth_scrolls)
         visitor.visit(smooth_scroll.promise);
-    for (auto& target : m_pending_user_scrollend_targets)
-        visitor.visit(target);
+    for (auto& entry : m_pending_user_scrollend_targets)
+        visitor.visit(entry.target);
 }
 
 void LocalNavigable::NavigateParams::visit_edges(Cell::Visitor& visitor)
@@ -3935,6 +3935,18 @@ static GC::Ptr<DOM::EventTarget> scroll_event_target_for_async_scroll_node(DOM::
     return element_for_async_scroll_node_stable_id(document, stable_node_id);
 }
 
+LocalNavigable::PendingUserScrollendTarget* LocalNavigable::latched_user_scroll_gesture_for(GC::Ref<DOM::EventTarget> target, Optional<Compositor::AsyncScrollNodeStableID> const& stable_node_id)
+{
+    auto index = m_pending_user_scrollend_targets.find_first_index_if([&](auto const& entry) {
+        if (stable_node_id.has_value() && entry.stable_node_id.has_value())
+            return *entry.stable_node_id == *stable_node_id;
+        return entry.target.ptr() == target.ptr();
+    });
+    if (!index.has_value())
+        return nullptr;
+    return &m_pending_user_scrollend_targets[*index];
+}
+
 void LocalNavigable::queue_scrollend_event(Compositor::AsyncScrollNodeStableID stable_node_id, ScrollTrigger trigger)
 {
     auto document = active_document();
@@ -3945,49 +3957,50 @@ void LocalNavigable::queue_scrollend_event(Compositor::AsyncScrollNodeStableID s
     if (!target)
         return;
 
-    queue_scrollend_event(*document, *target, trigger);
+    queue_scrollend_event(*document, *target, stable_node_id, trigger);
 }
 
-void LocalNavigable::queue_scrollend_event(DOM::Document& document, GC::Ref<DOM::EventTarget> target, ScrollTrigger trigger)
+void LocalNavigable::queue_scrollend_event(DOM::Document& document, GC::Ref<DOM::EventTarget> target, Optional<Compositor::AsyncScrollNodeStableID> stable_node_id, ScrollTrigger trigger)
 {
     if (trigger == ScrollTrigger::UserInput)
-        queue_scrollend_event_after_user_scroll(target);
+        queue_scrollend_event_after_user_scroll(target, stable_node_id);
     else
         document.append_pending_scroll_event({ target, EventNames::scrollend });
 }
 
 void LocalNavigable::queue_scrollend_event_for_finished_scroll(Compositor::AsyncScrollNodeStableID stable_node_id, ScrollTrigger trigger)
 {
-    // Position updates for the scrolling box are finished, so once no held input remains, both completion conditions
-    // for the scroll are met and its scrollend event is queued immediately.
-    if (trigger == ScrollTrigger::UserInput && m_user_scroll_gesture_hold_count == 0) {
-        auto document = active_document();
-        if (!document)
-            return;
-        auto target = scroll_event_target_for_async_scroll_node(*document, stable_node_id);
-        if (!target)
-            return;
-        m_pending_user_scrollend_targets.remove_first_matching([&](auto const& pending_target) { return pending_target.ptr() == target.ptr(); });
-        if (m_pending_user_scrollend_targets.is_empty()) {
-            if (m_user_scroll_settle_timer)
-                m_user_scroll_settle_timer->stop();
-        } else if (m_user_scroll_settle_timer && !m_user_scroll_settle_timer->is_active()) {
-            m_user_scroll_settle_timer->restart();
-        }
+    auto document = active_document();
+    if (!document)
+        return;
+    auto target = scroll_event_target_for_async_scroll_node(*document, stable_node_id);
+    if (!target)
+        return;
+
+    if (trigger != ScrollTrigger::UserInput) {
         document->append_pending_scroll_event({ *target, EventNames::scrollend });
         return;
     }
-    queue_scrollend_event(stable_node_id, trigger);
+
+    if (latched_user_scroll_gesture_for(*target, stable_node_id))
+        return;
+
+    if (m_user_scroll_gesture_hold_count > 0) {
+        queue_scrollend_event_after_user_scroll(*target, stable_node_id);
+        return;
+    }
+
+    document->append_pending_scroll_event({ *target, EventNames::scrollend });
 }
 
-void LocalNavigable::queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget> target)
+void LocalNavigable::queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget> target, Optional<Compositor::AsyncScrollNodeStableID> stable_node_id)
 {
     // AD-HOC: Wheel events carry no gesture phase information, so a scroll gesture is considered finished once no
     //         user scrolling has moved this navigable's scrolling boxes for 500 milliseconds.
     static constexpr int user_scroll_settle_delay_ms = 500;
 
-    if (!m_pending_user_scrollend_targets.contains_slow(target))
-        m_pending_user_scrollend_targets.append(target);
+    if (!latched_user_scroll_gesture_for(target, stable_node_id))
+        m_pending_user_scrollend_targets.append({ target, stable_node_id });
 
     if (!m_user_scroll_settle_timer) {
         m_user_scroll_settle_timer = Core::Timer::create_single_shot(user_scroll_settle_delay_ms, [this] {
@@ -4011,6 +4024,7 @@ void LocalNavigable::cancel_user_scroll_settlement()
     if (m_user_scroll_settle_timer)
         m_user_scroll_settle_timer->stop();
     m_pending_user_scrollend_targets.clear();
+    m_compositor_user_scroll_gesture_hold = nullptr;
 }
 
 void LocalNavigable::begin_user_scroll_gesture_hold(Badge<UserScrollGestureHold>)
@@ -4026,25 +4040,31 @@ void LocalNavigable::end_user_scroll_gesture_hold(Badge<UserScrollGestureHold>)
     if (m_pending_user_scrollend_targets.is_empty())
         return;
 
-    if (has_in_flight_user_scroll_operation())
-        return;
-
     // The release of the last held input completes the scroll gesture.
     m_user_scroll_settle_timer->stop();
     user_scroll_did_settle();
 }
 
-bool LocalNavigable::has_in_flight_user_scroll_operation() const
+Optional<LocalNavigable::InFlightScroll> LocalNavigable::in_flight_scroll_for(Optional<Compositor::AsyncScrollNodeStableID> const& stable_node_id) const
 {
+    if (!stable_node_id.has_value())
+        return {};
+
+    Optional<InFlightScroll> in_flight_scroll;
+    auto consider = [&](ScrollTrigger trigger) {
+        if (in_flight_scroll.has_value() && in_flight_scroll->trigger == ScrollTrigger::UserInput)
+            return;
+        in_flight_scroll = InFlightScroll { trigger };
+    };
     for (auto const& pending : m_pending_async_scroll_operations) {
-        if (pending.trigger == ScrollTrigger::UserInput)
-            return true;
+        if (pending.stable_node_id == stable_node_id)
+            consider(pending.trigger);
     }
     for (auto const& smooth_scroll : m_main_thread_smooth_scrolls) {
-        if (smooth_scroll.trigger == ScrollTrigger::UserInput)
-            return true;
+        if (smooth_scroll.stable_node_id == *stable_node_id)
+            consider(smooth_scroll.trigger);
     }
-    return false;
+    return in_flight_scroll;
 }
 
 void LocalNavigable::user_scroll_did_settle()
@@ -4061,13 +4081,42 @@ void LocalNavigable::user_scroll_did_settle()
     if (!document)
         return;
 
+    // Settlement can occur inside a layout update when tearing down a scrollbar whose thumb is grabbed, so snapping
+    // geometry is only consulted when layout is already up to date.
+    bool can_snap = document->layout_is_up_to_date() && !document->is_running_update_layout();
+
     bool queued_any_scrollend_event = false;
-    for (auto const& target : targets) {
+    for (auto& entry : targets) {
+        auto const& target = entry.target;
         if (auto* element = as_if<DOM::Element>(*target)) {
             if (&element->document() != document.ptr() || !element->is_connected())
                 continue;
-        } else if (target.ptr() != document.ptr() && target.ptr() != document->visual_viewport().ptr()) {
+        }
+
+        auto const& stable_node_id = entry.stable_node_id;
+
+        // A user scroll that is still running has not reached the position the gesture ends at. The completion of that
+        // scroll settles the gesture instead.
+        if (in_flight_scroll_for(stable_node_id).map([](auto const& in_flight_scroll) { return in_flight_scroll.trigger; }) == ScrollTrigger::UserInput) {
+            m_pending_user_scrollend_targets.append(move(entry));
             continue;
+        }
+
+        // https://drafts.csswg.org/css-scroll-snap-1/#snap-type
+        // If a valid snap position exists then the scroll container must snap at the termination of a scroll (if none
+        // exist then no snapping occurs).
+        if (can_snap && stable_node_id.has_value()) {
+            auto const* snap_container = layout_node_for_async_scroll_node(*document, *stable_node_id);
+            auto current_scroll_offset = scroll_offset_for(*stable_node_id);
+            if (snap_container && current_scroll_offset.has_value()) {
+                auto snapped_offset = Painting::adjust_scroll_destination_for_snapping(*snap_container, *current_scroll_offset).position;
+                if (snapped_offset != *current_scroll_offset) {
+                    // The snap animation queues this target's scrollend event once it completes.
+                    TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*document) };
+                    perform_a_scroll_of_a_scrolling_box(*stable_node_id, snapped_offset, Bindings::ScrollBehavior::Smooth, nullptr, ScrollTrigger::UserInput);
+                    continue;
+                }
+            }
         }
 
         if (document->append_pending_scroll_event({ target, EventNames::scrollend }))
@@ -4154,6 +4203,19 @@ void LocalNavigable::adopt_pending_async_scroll_offsets()
     // The compositor process may have already presented newer scroll offsets. Adopt the latest ones before running
     // rendering-update observers so they see the same scroll positions as the user.
     auto async_scroll_updates = compositor_context().take_pending_async_scroll_updates();
+
+    // A gesture that both began and ended since the previous update is held for the length of this one, so that it
+    // settles here rather than once its input deadline passes.
+    if ((async_scroll_updates.user_scroll_gesture_in_progress || async_scroll_updates.user_scroll_gesture_ended)
+        && !m_compositor_user_scroll_gesture_hold) {
+        m_compositor_user_scroll_gesture_hold = make<UserScrollGestureHold>(*this);
+    }
+
+    ScopeGuard release_gesture_hold_once_its_scrolls_are_adopted = [&] {
+        if (!async_scroll_updates.user_scroll_gesture_in_progress)
+            m_compositor_user_scroll_gesture_hold = nullptr;
+    };
+
     if (async_scroll_updates.scroll_offsets.is_empty() && async_scroll_updates.completed_operation_ids.is_empty())
         return;
 
@@ -4202,7 +4264,7 @@ void LocalNavigable::adopt_pending_async_scroll_offsets()
 
         if (auto element = adopt_async_element_scroll_delta(*document, async_scroll_offset.stable_node_id, css_scroll_delta)) {
             adopted_any_scroll_offset = true;
-            queue_scrollend_event_after_user_scroll(*element);
+            queue_scrollend_event_after_user_scroll(*element, async_scroll_offset.stable_node_id);
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async element delta {},{}",
                 async_scroll_offset.unadopted_scroll_delta.x(), async_scroll_offset.unadopted_scroll_delta.y());
         }
@@ -4871,8 +4933,12 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
             static_cast<float>(position.x().to_double() * device_pixels_per_css_pixel),
             static_cast<float>(position.y().to_double() * device_pixels_per_css_pixel),
         };
+        auto main_thread_offset = Gfx::FloatPoint {
+            static_cast<float>(initial_scroll_offset->x().to_double() * device_pixels_per_css_pixel),
+            static_cast<float>(initial_scroll_offset->y().to_double() * device_pixels_per_css_pixel),
+        };
         auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
-        auto enqueue_result = compositor_context().smooth_scroll_to(stable_node_id, target_offset, viewport_rect, device_pixels_per_css_pixel);
+        auto enqueue_result = compositor_context().smooth_scroll_to(stable_node_id, target_offset, main_thread_offset, viewport_rect, device_pixels_per_css_pixel);
         if (enqueue_result.accepted) {
             VERIFY(enqueue_result.operation_id.has_value());
             m_pending_async_scroll_operations.append(PendingAsyncScrollOperation {
@@ -4996,7 +5062,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
     if (visual_delta.is_zero())
         doc->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
     else
-        queue_scrollend_event(*doc, *vv, trigger);
+        queue_scrollend_event(*doc, *vv, {}, trigger);
 
     // NB: Must update layout before accessing paintables.
     doc->update_layout(DOM::UpdateLayoutReason::NavigableViewportScroll);

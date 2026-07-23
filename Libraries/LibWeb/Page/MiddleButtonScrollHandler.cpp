@@ -7,6 +7,7 @@
 #include <AK/Math.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/AutoScrollHandler.h>
@@ -92,6 +93,12 @@ void MiddleButtonScrollHandler::perform_tick()
     auto scroll_y = m_fractional_delta.y().to_int();
     m_fractional_delta -= CSSPixelPoint { scroll_x, scroll_y };
 
+    if (auto navigable = m_container_element->document().navigable()) {
+        // Middle button scrolling is one scroll gesture that runs until the mode it belongs to is exited, rather than
+        // until it runs out of scrolls, so it is held open for as long as this handler lives.
+        if (!m_scroll_gesture_hold)
+            m_scroll_gesture_hold = make<HTML::UserScrollGestureHold>(*navigable);
+    }
     Painting::scroll_by(*layout_node, scroll_x, scroll_y);
 }
 

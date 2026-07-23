@@ -102,7 +102,7 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_display_list(Web::Painting
     return decode_display_list(visual_context_tree, move(command_bytes), surface_clear_color);
 }
 
-static NonnullRefPtr<Web::Painting::DisplayList> make_display_list_with_viewport_scrollbar(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree)
+static NonnullRefPtr<Web::Painting::DisplayList> make_scrollable_viewport_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, bool with_viewport_scrollbar = true)
 {
     ByteBuffer command_bytes;
     Web::UniqueNodeID document_id { 1 };
@@ -126,24 +126,26 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_display_list_with_viewport
         },
         true);
 
-    append_display_list_command(
-        command_bytes,
-        Web::Painting::CompositorViewportScrollbar {
-            .document_id = document_id,
-            .scroll_node_index = scroll_node_index,
-            .gutter_rect = { 96, 0, 4, 100 },
-            .thumb_rect = { 98, 0, 2, 20 },
-            .expanded_gutter_rect = { 92, 0, 8, 100 },
-            .expanded_thumb_rect = { 94, 0, 6, 20 },
-            .scroll_size = 0.8,
-            .expanded_scroll_size = 0.8,
-            .min_scroll_offset = 0,
-            .max_scroll_offset = 100,
-            .thumb_color = Gfx::Color::Black,
-            .track_color = Gfx::Color::Transparent,
-            .vertical = true,
-        },
-        true);
+    if (with_viewport_scrollbar) {
+        append_display_list_command(
+            command_bytes,
+            Web::Painting::CompositorViewportScrollbar {
+                .document_id = document_id,
+                .scroll_node_index = scroll_node_index,
+                .gutter_rect = { 96, 0, 4, 100 },
+                .thumb_rect = { 98, 0, 2, 20 },
+                .expanded_gutter_rect = { 92, 0, 8, 100 },
+                .expanded_thumb_rect = { 94, 0, 6, 20 },
+                .scroll_size = 0.8,
+                .expanded_scroll_size = 0.8,
+                .min_scroll_offset = 0,
+                .max_scroll_offset = 100,
+                .thumb_color = Gfx::Color::Black,
+                .track_color = Gfx::Color::Transparent,
+                .vertical = true,
+            },
+            true);
+    }
 
     return decode_display_list(visual_context_tree, move(command_bytes), {},
         Web::Painting::DisplayList::AsyncScrollingMetadata {
@@ -219,7 +221,7 @@ TEST_CASE(viewport_scrollbar_collapses_when_drag_is_released_away_from_scrollbar
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { 0, client, canvas_surface_registry, true };
     auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
-    context.install_display_list_update(make_display_list_with_viewport_scrollbar(visual_context_tree), visual_context_tree, {});
+    context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
     auto hover_result = context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 98, 10));
     EXPECT(hover_result.accepted);
@@ -246,7 +248,7 @@ TEST_CASE(viewport_scrollbar_drag_ignores_non_primary_mouse_up)
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { 0, client, canvas_surface_registry, true };
     auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
-    context.install_display_list_update(make_display_list_with_viewport_scrollbar(visual_context_tree), visual_context_tree, {});
+    context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
     EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 98, 10)).accepted);
     EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 98, 10, Web::UIEvents::MouseButton::Primary)).accepted);
@@ -312,4 +314,55 @@ TEST_CASE(hidden_context_coalesces_presents_and_presents_once_when_shown)
     EXPECT(!spin_event_loop_until(event_loop, 100, [&] { return compositor_client.presented_frames.size() > 1; }));
     EXPECT_EQ(compositor_client.presented_frames.size(), 1u);
     EXPECT_EQ(compositor_client.presented_frames[0].damage_rect, viewport_rect);
+}
+
+TEST_CASE(dragging_a_viewport_scrollbar_reports_a_user_scroll_gesture_until_it_is_released)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, true };
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
+
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 98, 10, Web::UIEvents::MouseButton::Primary)).accepted);
+    auto updates = context.take_pending_async_scroll_updates();
+    EXPECT(updates.user_scroll_gesture_in_progress);
+    EXPECT(!updates.user_scroll_gesture_ended);
+
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 98, 50)).accepted);
+    updates = context.take_pending_async_scroll_updates();
+    EXPECT(!updates.scroll_offsets.is_empty());
+    EXPECT(updates.user_scroll_gesture_in_progress);
+    EXPECT(!updates.user_scroll_gesture_ended);
+
+    // The release always asks for a rendering update, so that the main thread learns of it even when nothing scrolled.
+    auto release_result = context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseUp, 98, 50, Web::UIEvents::MouseButton::Primary));
+    EXPECT(release_result.accepted);
+    EXPECT(release_result.should_request_rendering_update);
+    updates = context.take_pending_async_scroll_updates();
+    EXPECT(!updates.user_scroll_gesture_in_progress);
+    EXPECT(updates.user_scroll_gesture_ended);
+
+    // The release is reported once.
+    updates = context.take_pending_async_scroll_updates();
+    EXPECT(!updates.user_scroll_gesture_in_progress);
+    EXPECT(!updates.user_scroll_gesture_ended);
+}
+
+TEST_CASE(losing_the_scrollbar_a_drag_holds_ends_its_user_scroll_gesture)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, true };
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
+
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 98, 10, Web::UIEvents::MouseButton::Primary)).accepted);
+    EXPECT(context.take_pending_async_scroll_updates().user_scroll_gesture_in_progress);
+
+    // The drag cannot outlive the scrollbar it holds.
+    context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree, false), visual_context_tree, {});
+    auto updates = context.take_pending_async_scroll_updates();
+    EXPECT(!updates.user_scroll_gesture_in_progress);
+    EXPECT(updates.user_scroll_gesture_ended);
 }

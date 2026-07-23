@@ -315,7 +315,7 @@ public:
     GC::Ref<WebIDL::Promise> scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Instant);
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto, ScrollTrigger = ScrollTrigger::Programmatic, Optional<CSSPixelPoint> relative_displacement = {});
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_an_element(DOM::Element&, CSSPixelPoint position, Bindings::ScrollBehavior, Optional<CSSPixelPoint> relative_displacement = {});
-    void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>);
+    void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID>);
     void defer_user_scroll_settlement();
     void begin_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
     void end_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
@@ -360,10 +360,20 @@ private:
     Optional<CSSPixelPoint> scroll_offset_for(Compositor::AsyncScrollNodeStableID) const;
     bool set_scroll_offset_for(Compositor::AsyncScrollNodeStableID, CSSPixelPoint);
     void queue_scrollend_event(Compositor::AsyncScrollNodeStableID, ScrollTrigger);
-    void queue_scrollend_event(DOM::Document&, GC::Ref<DOM::EventTarget>, ScrollTrigger);
+    void queue_scrollend_event(DOM::Document&, GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID>, ScrollTrigger);
     void queue_scrollend_event_for_finished_scroll(Compositor::AsyncScrollNodeStableID, ScrollTrigger);
     void queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Compositor::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, GC::Ref<WebIDL::Promise>);
-    bool has_in_flight_user_scroll_operation() const;
+    // The scroll a new input to a scrolling box would interact with; a scroll driven by user input is reported over
+    // any programmatic scroll also in flight.
+    struct InFlightScroll {
+        ScrollTrigger trigger { ScrollTrigger::Programmatic };
+    };
+    Optional<InFlightScroll> in_flight_scroll_for(Optional<Compositor::AsyncScrollNodeStableID> const&) const;
+    struct PendingUserScrollendTarget {
+        GC::Ref<DOM::EventTarget> target;
+        Optional<Compositor::AsyncScrollNodeStableID> stable_node_id;
+    };
+    PendingUserScrollendTarget* latched_user_scroll_gesture_for(GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID> const&);
     void user_scroll_did_settle();
     void cancel_user_scroll_settlement();
     void schedule_hover_update_after_async_scroll();
@@ -439,8 +449,9 @@ private:
     Painting::DisplayListResourceSet m_compositor_display_list_resources;
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
     RefPtr<Core::Timer> m_async_scroll_hover_update_timer;
-    Vector<GC::Ref<DOM::EventTarget>> m_pending_user_scrollend_targets;
+    Vector<PendingUserScrollendTarget> m_pending_user_scrollend_targets;
     RefPtr<Core::Timer> m_user_scroll_settle_timer;
+    OwnPtr<UserScrollGestureHold> m_compositor_user_scroll_gesture_hold;
     size_t m_user_scroll_gesture_hold_count { 0 };
 
     struct PendingAsyncScrollOperation {
