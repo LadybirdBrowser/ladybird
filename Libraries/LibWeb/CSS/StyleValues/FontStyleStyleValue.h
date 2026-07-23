@@ -20,7 +20,7 @@ public:
     virtual ~FontStyleStyleValue() override;
 
     FontStyleKeyword font_style() const { return static_cast<FontStyleKeyword>(m_value->font_style.font_style); }
-    ValueComparingRefPtr<StyleValue const> angle() const { return static_cast<StyleValue const*>(m_value->font_style.angle_value.pointer); }
+    ValueComparingRefPtr<StyleValue const> angle() const { return m_angle_value; }
 
     int to_font_slope() const;
 
@@ -38,15 +38,24 @@ public:
     bool properties_equal(FontStyleStyleValue const& other) const { return font_style() == other.font_style() && angle() == other.angle(); }
 
 private:
+    friend class StyleValue;
+
+    explicit FontStyleStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::FontStyle, data)
+    {
+        auto const* angle_data = static_cast<StyleValueFFI::StyleValueData const*>(data->font_style.angle_value.pointer);
+        if (angle_data)
+            m_angle_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(angle_data));
+    }
+
     FontStyleStyleValue(FontStyleKeyword, ValueComparingRefPtr<StyleValue const> angle_value);
 
     static StyleValueFFI::StyleValueData const* make_font_style_data(FontStyleKeyword font_style, ValueComparingRefPtr<StyleValue const> const& angle_value)
     {
-        // The Rust allocation takes ownership of one strong reference to the angle value.
-        if (angle_value)
-            angle_value->ref();
-        return StyleValueFFI::rust_style_value_create_font_style(to_underlying(font_style), angle_value.ptr());
+        return StyleValueFFI::rust_style_value_create_font_style(to_underlying(font_style), angle_value ? StyleValueFFI::rust_style_value_retain(angle_value->rust_style_value_data()) : nullptr);
     }
+
+    ValueComparingRefPtr<StyleValue const> m_angle_value;
 };
 
 }

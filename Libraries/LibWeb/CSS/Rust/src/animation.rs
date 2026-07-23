@@ -12,7 +12,7 @@
 use std::sync::Arc;
 
 use crate::property_metadata::{property_animation_type, property_numeric_ranges};
-use crate::style_value::{RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData};
+use crate::style_value::{RetainedStyleValueData, RetainedStyleValueDataList, RetainedUtf16FlyString, StyleValueData};
 
 const ANIMATION_TYPE_BY_COMPUTED_VALUE: u8 = 1;
 const ANIMATION_TYPE_REPEATABLE_LIST: u8 = 2;
@@ -48,6 +48,9 @@ const TRANSFORM_FUNCTION_ROTATE_Z: u8 = 17;
 const TRANSFORM_FUNCTION_SKEW: u8 = 18;
 const TRANSFORM_FUNCTION_SKEW_X: u8 = 19;
 const TRANSFORM_FUNCTION_SKEW_Y: u8 = 20;
+const OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS: u8 = 1;
+const FONT_STYLE_NORMAL: u8 = 0;
+const FONT_STYLE_OBLIQUE: u8 = 4;
 
 #[derive(Clone, Copy)]
 struct NumericRangeOverride {
@@ -666,6 +669,65 @@ fn composite_scalar_value(
             }
         }
         (
+            StyleValueData::OpenTypeTagged {
+                tag: underlying_tag,
+                value: underlying_value,
+                ..
+            },
+            StyleValueData::OpenTypeTagged {
+                tag: animated_tag,
+                value: animated_value,
+                ..
+            },
+        ) => {
+            // https://drafts.csswg.org/web-animations-1/#animating-properties
+            // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
+            // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
+            if underlying_tag.raw() != animated_tag.raw() {
+                return handled_without_value();
+            }
+            let value = composite_scalar_value(underlying_value.data(), animated_value.data(), operation);
+            if !value.handled {
+                return not_handled();
+            }
+            if value.value.is_null() {
+                return handled_without_value();
+            }
+            owned(StyleValueData::OpenTypeTagged {
+                mode: OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS,
+                tag: unsafe { RetainedUtf16FlyString::from_borrowed_raw(underlying_tag.raw()) },
+                value: unsafe { RetainedStyleValueData::from_retained_pointer(value.value) },
+            })
+        }
+        (
+            StyleValueData::Function {
+                name: underlying_name,
+                value: underlying_value,
+            },
+            StyleValueData::Function {
+                name: animated_name,
+                value: animated_value,
+            },
+        ) => {
+            // https://drafts.csswg.org/web-animations-1/#animating-properties
+            // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
+            // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
+            if underlying_name.raw() != animated_name.raw() {
+                return handled_without_value();
+            }
+            let value = composite_scalar_value(underlying_value.data(), animated_value.data(), operation);
+            if !value.handled {
+                return not_handled();
+            }
+            if value.value.is_null() {
+                return handled_without_value();
+            }
+            owned(StyleValueData::Function {
+                name: unsafe { RetainedUtf16FlyString::from_borrowed_raw(underlying_name.raw()) },
+                value: unsafe { RetainedStyleValueData::from_retained_pointer(value.value) },
+            })
+        }
+        (
             StyleValueData::TextIndent {
                 length_percentage: underlying,
                 hanging: underlying_hanging,
@@ -1199,6 +1261,67 @@ fn interpolate_scalar_value(
                 Ok(None) => handled_without_value(),
                 Ok(Some(value)) => owned(value),
             }
+        }
+        (
+            StyleValueData::OpenTypeTagged {
+                tag: from_tag,
+                value: from_value,
+                ..
+            },
+            StyleValueData::OpenTypeTagged {
+                tag: to_tag,
+                value: to_value,
+                ..
+            },
+        ) => {
+            // https://drafts.csswg.org/web-animations-1/#animating-properties
+            // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
+            // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
+            if from_tag.raw() != to_tag.raw() {
+                return handled_without_value();
+            }
+            let value =
+                interpolate_scalar_value(property_id, from_value.data(), to_value.data(), delta, range_overrides);
+            if !value.handled {
+                return not_handled();
+            }
+            if value.value.is_null() {
+                return handled_without_value();
+            }
+            owned(StyleValueData::OpenTypeTagged {
+                mode: OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS,
+                tag: unsafe { RetainedUtf16FlyString::from_borrowed_raw(from_tag.raw()) },
+                value: unsafe { RetainedStyleValueData::from_retained_pointer(value.value) },
+            })
+        }
+        (
+            StyleValueData::Function {
+                name: from_name,
+                value: from_value,
+            },
+            StyleValueData::Function {
+                name: to_name,
+                value: to_value,
+            },
+        ) => {
+            // https://drafts.csswg.org/web-animations-1/#animating-properties
+            // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
+            // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
+            if from_name.raw() != to_name.raw() {
+                return handled_without_value();
+            }
+            let value =
+                interpolate_scalar_value(property_id, from_value.data(), to_value.data(), delta, range_overrides);
+            if !value.handled {
+                return not_handled();
+            }
+            if value.value.is_null() {
+                return handled_without_value();
+            }
+            owned(StyleValueData::Function {
+                name: unsafe { RetainedUtf16FlyString::from_borrowed_raw(from_name.raw()) },
+                value: unsafe { RetainedStyleValueData::from_retained_pointer(value.value) },
+            })
         }
         (
             StyleValueData::TextIndent {
@@ -2511,6 +2634,67 @@ fn interpolate_value(
             values: RetainedStyleValueDataList::from_retained_values(values),
             separator: *separator,
             collapsible: *collapsible,
+        });
+    }
+    if animation_type == ANIMATION_TYPE_CUSTOM
+        && property_id == crate::property_metadata::property_id::FONT_STYLE
+        && let (
+            StyleValueData::FontStyle {
+                font_style: from_font_style,
+                angle_value: from_angle,
+            },
+            StyleValueData::FontStyle {
+                font_style: to_font_style,
+                angle_value: to_angle,
+            },
+        ) = (from, to)
+    {
+        // https://drafts.csswg.org/css-fonts-4/#font-style-prop
+        // Animation type: by computed value type; normal animates as oblique 0deg
+        let normalize = |font_style: u8, angle: &RetainedStyleValueData| {
+            if font_style == FONT_STYLE_NORMAL {
+                return Some((FONT_STYLE_OBLIQUE, Some((0.0, 0))));
+            }
+            match angle.optional_data() {
+                Some(StyleValueData::Angle { value, unit }) => Some((font_style, Some((*value, *unit)))),
+                Some(_) => None,
+                None => Some((font_style, None)),
+            }
+        };
+        let (Some((from_font_style, from_angle)), Some((to_font_style, to_angle))) = (
+            normalize(*from_font_style, from_angle),
+            normalize(*to_font_style, to_angle),
+        ) else {
+            return not_handled();
+        };
+        let font_style = if from_font_style == to_font_style {
+            from_font_style
+        } else if !context.is_some_and(|context| context.allow_discrete) {
+            return handled_without_value();
+        } else if delta < 0.5 {
+            from_font_style
+        } else {
+            to_font_style
+        };
+        let angle_value = match (from_angle, to_angle) {
+            (Some((from_value, from_unit)), Some((to_value, to_unit))) => {
+                let (Some(from_value), Some(to_value)) = (
+                    angle_to_degrees(from_value, from_unit),
+                    angle_to_degrees(to_value, to_unit),
+                ) else {
+                    return not_handled();
+                };
+                let angle = Arc::into_raw(Arc::new(StyleValueData::Angle {
+                    value: interpolate_f64(from_value, to_value, delta, Some((-90.0, 90.0))),
+                    unit: 0,
+                }));
+                unsafe { RetainedStyleValueData::from_retained_pointer(angle) }
+            }
+            _ => unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) },
+        };
+        return owned(StyleValueData::FontStyle {
+            font_style,
+            angle_value,
         });
     }
     if animation_type == ANIMATION_TYPE_CUSTOM
