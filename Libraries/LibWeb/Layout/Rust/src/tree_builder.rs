@@ -307,50 +307,45 @@ fn element_layout_kind(facts: FfiElementLayoutFacts) -> FfiElementLayoutKind {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiTopLayerEntryDecision {
+enum TopLayerEntryDecision {
     Continue,
     Skip,
     SkipAndRequestZoneRebuild,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiSvgEntryDecision {
+enum SvgEntryDecision {
     Continue,
     EnterSvgRoot,
     Skip,
 }
 
 #[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiPrincipalNodeEntryDecision {
-    pub should_create_layout_node: bool,
-    pub top_layer: FfiTopLayerEntryDecision,
-    pub svg: FfiSvgEntryDecision,
+struct PrincipalNodeEntryDecision {
+    should_create_layout_node: bool,
+    top_layer: TopLayerEntryDecision,
+    svg: SvgEntryDecision,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiPrincipalBoxGenerationDecision {
+enum PrincipalBoxGenerationDecision {
     Suppress,
     DisplayContents,
     PrincipalBox,
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_principal_box_generation_decision(
+fn principal_box_generation_decision(
     is_element: bool,
     display_is_none: bool,
     display_is_contents: bool,
-) -> FfiPrincipalBoxGenerationDecision {
+) -> PrincipalBoxGenerationDecision {
     abort_on_panic(|| {
         if is_element && display_is_none {
-            FfiPrincipalBoxGenerationDecision::Suppress
+            PrincipalBoxGenerationDecision::Suppress
         } else if is_element && display_is_contents {
-            FfiPrincipalBoxGenerationDecision::DisplayContents
+            PrincipalBoxGenerationDecision::DisplayContents
         } else {
-            FfiPrincipalBoxGenerationDecision::PrincipalBox
+            PrincipalBoxGenerationDecision::PrincipalBox
         }
     })
 }
@@ -532,20 +527,16 @@ pub enum FfiPrincipalBoxPlacement {
 }
 
 #[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiPrincipalBoxPlacementDecision {
-    pub placement: FfiPrincipalBoxPlacement,
-    pub may_replace_existing_layout_node: bool,
-    pub start_rebuild_root: bool,
-    pub mark_update_escaped_rebuild_roots: bool,
-    pub create_backdrop: bool,
-    pub clear_layout_top_layer_for_descendants: bool,
+struct PrincipalBoxPlacementDecision {
+    placement: FfiPrincipalBoxPlacement,
+    may_replace_existing_layout_node: bool,
+    start_rebuild_root: bool,
+    mark_update_escaped_rebuild_roots: bool,
+    create_backdrop: bool,
+    clear_layout_top_layer_for_descendants: bool,
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_principal_box_placement_decision(
-    facts: FfiPrincipalBoxPlacementFacts,
-) -> FfiPrincipalBoxPlacementDecision {
+fn principal_box_placement_decision(facts: FfiPrincipalBoxPlacementFacts) -> PrincipalBoxPlacementDecision {
     abort_on_panic(|| {
         let may_replace_existing_layout_node = !facts.must_create_subtree
             && facts.has_old_layout_node
@@ -571,7 +562,7 @@ pub extern "C" fn rust_principal_box_placement_decision(
 
         let is_active_top_layer_member =
             facts.is_element && facts.rendered_in_top_layer && facts.context_layout_top_layer;
-        FfiPrincipalBoxPlacementDecision {
+        PrincipalBoxPlacementDecision {
             placement,
             may_replace_existing_layout_node,
             start_rebuild_root,
@@ -582,10 +573,7 @@ pub extern "C" fn rust_principal_box_placement_decision(
     })
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_principal_node_entry_decision(
-    facts: FfiPrincipalNodeEntryFacts,
-) -> FfiPrincipalNodeEntryDecision {
+fn principal_node_entry_decision(facts: FfiPrincipalNodeEntryFacts) -> PrincipalNodeEntryDecision {
     abort_on_panic(|| {
         let should_create_layout_node = facts.must_create_subtree
             || facts.needs_layout_tree_update
@@ -594,23 +582,23 @@ pub extern "C" fn rust_principal_node_entry_decision(
 
         let top_layer = if facts.is_element && facts.rendered_in_top_layer && !facts.context_layout_top_layer {
             if !facts.layout_node_is_attached && !facts.needs_layout_tree_update {
-                FfiTopLayerEntryDecision::SkipAndRequestZoneRebuild
+                TopLayerEntryDecision::SkipAndRequestZoneRebuild
             } else {
-                FfiTopLayerEntryDecision::Skip
+                TopLayerEntryDecision::Skip
             }
         } else {
-            FfiTopLayerEntryDecision::Continue
+            TopLayerEntryDecision::Continue
         };
 
         let svg = if facts.is_svg_container {
-            FfiSvgEntryDecision::EnterSvgRoot
+            SvgEntryDecision::EnterSvgRoot
         } else if facts.requires_svg_container && !facts.context_has_svg_root {
-            FfiSvgEntryDecision::Skip
+            SvgEntryDecision::Skip
         } else {
-            FfiSvgEntryDecision::Continue
+            SvgEntryDecision::Continue
         };
 
-        FfiPrincipalNodeEntryDecision {
+        PrincipalNodeEntryDecision {
             should_create_layout_node,
             top_layer,
             svg,
@@ -670,8 +658,7 @@ unsafe fn dom_tree_builder_host<'a>(callbacks: *const FfiDomTreeBuilderCallbacks
 /// # Safety
 ///
 /// The callback table, parent, and context must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_update_layout_tree_for_dom_children(
+unsafe fn update_layout_tree_for_dom_children(
     callbacks: *const FfiDomTreeBuilderCallbacks,
     parent: *mut c_void,
     context: *mut c_void,
@@ -695,8 +682,7 @@ pub unsafe extern "C" fn rust_update_layout_tree_for_dom_children(
 /// # Safety
 ///
 /// The callback table, shadow root, and context must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_update_layout_tree_for_shadow_root_children(
+unsafe fn update_layout_tree_for_shadow_root_children(
     callbacks: *const FfiDomTreeBuilderCallbacks,
     shadow_root: *mut c_void,
     context: *mut c_void,
@@ -722,8 +708,7 @@ pub unsafe extern "C" fn rust_update_layout_tree_for_shadow_root_children(
 /// # Safety
 ///
 /// The callback table, slot element, and context must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_update_layout_tree_for_assigned_slottables(
+unsafe fn update_layout_tree_for_assigned_slottables(
     callbacks: *const FfiDomTreeBuilderCallbacks,
     slot_element: *mut c_void,
     context: *mut c_void,
@@ -753,8 +738,7 @@ pub unsafe extern "C" fn rust_update_layout_tree_for_assigned_slottables(
 /// # Safety
 ///
 /// The callback table, switch element, and context must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_update_layout_tree_for_svg_switch_children(
+unsafe fn update_layout_tree_for_svg_switch_children(
     callbacks: *const FfiDomTreeBuilderCallbacks,
     switch_element: *mut c_void,
     context: *mut c_void,
@@ -806,8 +790,7 @@ pub unsafe extern "C" fn rust_update_layout_tree_for_svg_switch_children(
 /// # Safety
 ///
 /// The callback table, element, and context must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_update_layout_tree_for_display_contents(
+unsafe fn update_layout_tree_for_display_contents(
     callbacks: *const FfiDomTreeBuilderCallbacks,
     element: *mut c_void,
     context: *mut c_void,
@@ -860,7 +843,7 @@ pub unsafe extern "C" fn rust_update_layout_tree_for_display_contents(
             if !facts.shadow_root.is_null() {
                 // SAFETY: The callback table, shadow root, and context remain valid.
                 unsafe {
-                    rust_update_layout_tree_for_shadow_root_children(
+                    update_layout_tree_for_shadow_root_children(
                         callbacks,
                         facts.shadow_root,
                         context,
@@ -871,7 +854,7 @@ pub unsafe extern "C" fn rust_update_layout_tree_for_display_contents(
                 assert!(!facts.dom_children_parent.is_null());
                 // SAFETY: The callback table, parent, and context remain valid.
                 unsafe {
-                    rust_update_layout_tree_for_dom_children(
+                    update_layout_tree_for_dom_children(
                         callbacks,
                         facts.dom_children_parent,
                         context,
@@ -885,7 +868,7 @@ pub unsafe extern "C" fn rust_update_layout_tree_for_display_contents(
             if !facts.content_visibility_hidden {
                 // SAFETY: The callback table, slot element, and context remain valid.
                 unsafe {
-                    rust_update_layout_tree_for_assigned_slottables(
+                    update_layout_tree_for_assigned_slottables(
                         callbacks,
                         facts.slot_element,
                         context,
@@ -1005,8 +988,7 @@ fn update_svg_pattern(
 /// # Safety
 ///
 /// The callback table, DOM node, layout node, and context must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_update_principal_node_descendants(
+unsafe fn update_principal_node_descendants(
     callbacks: *const FfiDomTreeBuilderCallbacks,
     dom_node: *mut c_void,
     layout_node: *mut c_void,
@@ -1079,7 +1061,7 @@ pub unsafe extern "C" fn rust_update_principal_node_descendants(
                 }
                 // SAFETY: The callback table, shadow root, and context remain valid.
                 unsafe {
-                    rust_update_layout_tree_for_shadow_root_children(
+                    update_layout_tree_for_shadow_root_children(
                         callbacks,
                         facts.shadow_root,
                         context,
@@ -1095,7 +1077,7 @@ pub unsafe extern "C" fn rust_update_principal_node_descendants(
                 if facts.is_svg_switch_element {
                     // SAFETY: The callback table, parent, and context remain valid.
                     unsafe {
-                        rust_update_layout_tree_for_svg_switch_children(
+                        update_layout_tree_for_svg_switch_children(
                             callbacks,
                             facts.dom_children_parent,
                             context,
@@ -1105,7 +1087,7 @@ pub unsafe extern "C" fn rust_update_principal_node_descendants(
                 } else {
                     // SAFETY: The callback table, parent, and context remain valid.
                     unsafe {
-                        rust_update_layout_tree_for_dom_children(
+                        update_layout_tree_for_dom_children(
                             callbacks,
                             facts.dom_children_parent,
                             context,
@@ -1157,7 +1139,7 @@ pub unsafe extern "C" fn rust_update_principal_node_descendants(
                 unsafe { (host.callbacks.push_layout_parent)(host.callbacks.builder, layout_node) };
                 // SAFETY: The callback table, slot element, and context remain valid.
                 unsafe {
-                    rust_update_layout_tree_for_assigned_slottables(
+                    update_layout_tree_for_assigned_slottables(
                         callbacks,
                         facts.slot_element,
                         context,
@@ -1291,18 +1273,18 @@ fn construct_principal_layout_node(
                 should_create_layout_node,
             )
         };
-        let generation = rust_principal_box_generation_decision(
+        let generation = principal_box_generation_decision(
             true,
             should_create_layout_node && display.display_is_none,
             display.display_is_contents,
         );
-        if generation == FfiPrincipalBoxGenerationDecision::Suppress {
+        if generation == PrincipalBoxGenerationDecision::Suppress {
             return (false, false);
         }
-        if generation == FfiPrincipalBoxGenerationDecision::DisplayContents {
+        if generation == PrincipalBoxGenerationDecision::DisplayContents {
             // SAFETY: The callback table, DOM element, and context remain valid throughout the recursive walk.
             unsafe {
-                rust_update_layout_tree_for_display_contents(
+                update_layout_tree_for_display_contents(
                     update.callbacks,
                     dom_node,
                     context,
@@ -1359,7 +1341,7 @@ fn construct_principal_layout_node(
 fn update_principal_node_after_entry(
     update: &PrincipalNodeUpdate<'_, '_>,
     entry_facts: FfiPrincipalNodeEntryFacts,
-    entry_decision: FfiPrincipalNodeEntryDecision,
+    entry_decision: PrincipalNodeEntryDecision,
 ) {
     let host = update.host;
     let frame = update.frame;
@@ -1368,12 +1350,12 @@ fn update_principal_node_after_entry(
     // SAFETY: The frame and DOM node remain live throughout this update.
     unsafe { (host.callbacks.initialize_principal_frame)(frame, dom_node) };
 
-    if entry_decision.svg == FfiSvgEntryDecision::EnterSvgRoot {
+    if entry_decision.svg == SvgEntryDecision::EnterSvgRoot {
         // SAFETY: The traversal context remains live throughout this update.
         unsafe { (host.callbacks.set_context_has_svg_root)(context, true) };
     }
 
-    let (has_layout_node, handled_display_contents) = if entry_decision.svg == FfiSvgEntryDecision::Skip {
+    let (has_layout_node, handled_display_contents) = if entry_decision.svg == SvgEntryDecision::Skip {
         (false, false)
     } else {
         construct_principal_layout_node(update, entry_facts, entry_decision.should_create_layout_node)
@@ -1388,7 +1370,7 @@ fn update_principal_node_after_entry(
         // SAFETY: The frame owns the live principal layout node and its display.
         let layout_facts = unsafe { (host.callbacks.principal_layout_facts)(frame) };
         if layout_facts.is_replaced_element {
-            let adjustment = rust_adjusted_table_display_for_replaced_element(
+            let adjustment = adjusted_table_display_for_replaced_element(
                 layout_facts.display.display_is_table_inside,
                 layout_facts.display.display_is_block_outside,
                 layout_facts.display.display_is_internal_table,
@@ -1411,7 +1393,7 @@ fn update_principal_node_after_entry(
                 entry_decision.should_create_layout_node,
             )
         };
-        let placement = rust_principal_box_placement_decision(placement_facts);
+        let placement = principal_box_placement_decision(placement_facts);
 
         let mut prior_rebuild_root = std::ptr::null_mut();
         if placement.start_rebuild_root {
@@ -1452,7 +1434,7 @@ fn update_principal_node_after_entry(
         unsafe { (host.callbacks.place_principal_layout)(host.callbacks.builder, frame, placement.placement) };
         // SAFETY: The callback table, DOM node, layout node, and context remain live throughout the call.
         unsafe {
-            rust_update_principal_node_descendants(
+            update_principal_node_descendants(
                 update.callbacks,
                 dom_node,
                 (host.callbacks.principal_layout_node)(frame),
@@ -1476,7 +1458,7 @@ fn update_principal_node_after_entry(
         unsafe { (host.callbacks.clear_stale_inclusive_subtree)(host.callbacks.builder, dom_node) };
     }
 
-    if entry_decision.svg == FfiSvgEntryDecision::EnterSvgRoot {
+    if entry_decision.svg == SvgEntryDecision::EnterSvgRoot {
         // SAFETY: Restore the traversal context's entry value.
         unsafe { (host.callbacks.set_context_has_svg_root)(context, entry_facts.context_has_svg_root) };
     }
@@ -1505,9 +1487,9 @@ pub unsafe extern "C" fn rust_update_layout_tree(
         let entry_facts = unsafe {
             (host.callbacks.principal_node_entry_facts)(host.callbacks.builder, dom_node, context, must_create_subtree)
         };
-        let entry_decision = rust_principal_node_entry_decision(entry_facts);
-        if entry_decision.top_layer != FfiTopLayerEntryDecision::Continue {
-            if entry_decision.top_layer == FfiTopLayerEntryDecision::SkipAndRequestZoneRebuild {
+        let entry_decision = principal_node_entry_decision(entry_facts);
+        if entry_decision.top_layer != TopLayerEntryDecision::Continue {
+            if entry_decision.top_layer == TopLayerEntryDecision::SkipAndRequestZoneRebuild {
                 // A member found here without an attached box was cleared together with a hidden ancestor subtree, and
                 // nothing is scheduled to rebuild it. Request another top-layer zone pass instead of stranding dirty
                 // flags below ancestors whose walks already finished.
@@ -1667,8 +1649,7 @@ pub struct FfiPseudoTreeBuilderCallbacks {
     pub set_quote_nesting_level: unsafe extern "C" fn(*mut c_void, u32),
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDecision {
+fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDecision {
     abort_on_panic(|| {
         if !facts.has_style {
             return FfiPseudoElementDecision::None;
@@ -1760,7 +1741,7 @@ pub unsafe extern "C" fn rust_create_pseudo_element(
         let callbacks = unsafe { &*callbacks };
         // SAFETY: The frame and element remain live throughout initialization.
         let facts = unsafe { (callbacks.initialize)(frame, element, pseudo_element) };
-        let decision = rust_pseudo_element_decision(facts);
+        let decision = pseudo_element_decision(facts);
         if decision == FfiPseudoElementDecision::None {
             return std::ptr::null_mut();
         }
@@ -1780,7 +1761,7 @@ pub unsafe extern "C" fn rust_create_pseudo_element(
         if decision == FfiPseudoElementDecision::ContentReplacement {
             // SAFETY: The frame owns the live replacement node and its display.
             let layout_facts = unsafe { (callbacks.layout_facts)(frame) };
-            let adjustment = rust_adjusted_table_display_for_replaced_element(
+            let adjustment = adjusted_table_display_for_replaced_element(
                 layout_facts.display.display_is_table_inside,
                 layout_facts.display.display_is_block_outside,
                 layout_facts.display.display_is_internal_table,
@@ -1838,8 +1819,7 @@ pub unsafe extern "C" fn rust_create_pseudo_element(
     })
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_adjusted_table_display_for_replaced_element(
+fn adjusted_table_display_for_replaced_element(
     is_table_inside: bool,
     is_block_outside: bool,
     is_internal_table: bool,
@@ -3095,13 +3075,12 @@ pub unsafe extern "C" fn rust_fixup_tables(callbacks: *const FfiTreeBuilderCallb
 mod tests {
     use super::{
         FfiComputedContentType, FfiElementLayoutFacts, FfiElementLayoutKind, FfiFirstLetterCodePointFacts,
-        FfiFirstLetterTextCallbacks, FfiPrincipalBoxGenerationDecision, FfiPrincipalBoxPlacement,
-        FfiPrincipalBoxPlacementFacts, FfiPrincipalNodeEntryFacts, FfiPseudoElement, FfiPseudoElementDecision,
-        FfiPseudoElementFacts, FfiReplacedElementDisplayAdjustment, FfiSvgEntryDecision, FfiTopLayerEntryDecision,
-        FirstLetterTextHost, element_layout_kind, find_first_letter_in_text,
-        rust_adjusted_table_display_for_replaced_element, rust_display_contents_text_needs_style_wrapper,
-        rust_principal_box_generation_decision, rust_principal_box_placement_decision,
-        rust_principal_node_entry_decision, rust_pseudo_element_decision,
+        FfiFirstLetterTextCallbacks, FfiPrincipalBoxPlacement, FfiPrincipalBoxPlacementFacts,
+        FfiPrincipalNodeEntryFacts, FfiPseudoElement, FfiPseudoElementDecision, FfiPseudoElementFacts,
+        FfiReplacedElementDisplayAdjustment, FirstLetterTextHost, PrincipalBoxGenerationDecision, SvgEntryDecision,
+        TopLayerEntryDecision, adjusted_table_display_for_replaced_element, element_layout_kind,
+        find_first_letter_in_text, principal_box_generation_decision, principal_box_placement_decision,
+        principal_node_entry_decision, pseudo_element_decision, rust_display_contents_text_needs_style_wrapper,
     };
     use std::ffi::c_void;
 
@@ -3146,23 +3125,23 @@ mod tests {
     #[test]
     fn replaced_table_display_adjustments() {
         assert_eq!(
-            rust_adjusted_table_display_for_replaced_element(true, true, false, false),
+            adjusted_table_display_for_replaced_element(true, true, false, false),
             FfiReplacedElementDisplayAdjustment::Block
         );
         assert_eq!(
-            rust_adjusted_table_display_for_replaced_element(true, false, false, false),
+            adjusted_table_display_for_replaced_element(true, false, false, false),
             FfiReplacedElementDisplayAdjustment::Inline
         );
         assert_eq!(
-            rust_adjusted_table_display_for_replaced_element(false, false, true, false),
+            adjusted_table_display_for_replaced_element(false, false, true, false),
             FfiReplacedElementDisplayAdjustment::Inline
         );
         assert_eq!(
-            rust_adjusted_table_display_for_replaced_element(false, false, false, true),
+            adjusted_table_display_for_replaced_element(false, false, false, true),
             FfiReplacedElementDisplayAdjustment::Inline
         );
         assert_eq!(
-            rust_adjusted_table_display_for_replaced_element(false, false, false, false),
+            adjusted_table_display_for_replaced_element(false, false, false, false),
             FfiReplacedElementDisplayAdjustment::None
         );
     }
@@ -3217,7 +3196,7 @@ mod tests {
                       has_content_replacement,
                       originating_layout_node_is_list_item,
                       normal_marker_has_content| {
-            rust_pseudo_element_decision(FfiPseudoElementFacts {
+            pseudo_element_decision(FfiPseudoElementFacts {
                 has_style: true,
                 pseudo_element,
                 content_type,
@@ -3314,26 +3293,26 @@ mod tests {
             requires_svg_container: false,
             context_has_svg_root: false,
         };
-        let decision = rust_principal_node_entry_decision(facts);
+        let decision = principal_node_entry_decision(facts);
         assert!(!decision.should_create_layout_node);
-        assert_eq!(decision.top_layer, FfiTopLayerEntryDecision::Continue);
-        assert_eq!(decision.svg, FfiSvgEntryDecision::Continue);
+        assert_eq!(decision.top_layer, TopLayerEntryDecision::Continue);
+        assert_eq!(decision.svg, SvgEntryDecision::Continue);
 
         facts.rendered_in_top_layer = true;
         facts.layout_node_is_attached = false;
-        let decision = rust_principal_node_entry_decision(facts);
-        assert_eq!(decision.top_layer, FfiTopLayerEntryDecision::SkipAndRequestZoneRebuild);
+        let decision = principal_node_entry_decision(facts);
+        assert_eq!(decision.top_layer, TopLayerEntryDecision::SkipAndRequestZoneRebuild);
 
         facts.rendered_in_top_layer = false;
         facts.requires_svg_container = true;
-        let decision = rust_principal_node_entry_decision(facts);
-        assert_eq!(decision.svg, FfiSvgEntryDecision::Skip);
+        let decision = principal_node_entry_decision(facts);
+        assert_eq!(decision.svg, SvgEntryDecision::Skip);
 
         facts.must_create_subtree = true;
         facts.is_svg_container = true;
-        let decision = rust_principal_node_entry_decision(facts);
+        let decision = principal_node_entry_decision(facts);
         assert!(decision.should_create_layout_node);
-        assert_eq!(decision.svg, FfiSvgEntryDecision::EnterSvgRoot);
+        assert_eq!(decision.svg, SvgEntryDecision::EnterSvgRoot);
     }
 
     #[test]
@@ -3365,16 +3344,16 @@ mod tests {
     #[test]
     fn principal_box_generation_and_placement_decisions() {
         assert_eq!(
-            rust_principal_box_generation_decision(true, true, false),
-            FfiPrincipalBoxGenerationDecision::Suppress
+            principal_box_generation_decision(true, true, false),
+            PrincipalBoxGenerationDecision::Suppress
         );
         assert_eq!(
-            rust_principal_box_generation_decision(true, false, true),
-            FfiPrincipalBoxGenerationDecision::DisplayContents
+            principal_box_generation_decision(true, false, true),
+            PrincipalBoxGenerationDecision::DisplayContents
         );
         assert_eq!(
-            rust_principal_box_generation_decision(false, false, false),
-            FfiPrincipalBoxGenerationDecision::PrincipalBox
+            principal_box_generation_decision(false, false, false),
+            PrincipalBoxGenerationDecision::PrincipalBox
         );
 
         let mut facts = FfiPrincipalBoxPlacementFacts {
@@ -3390,7 +3369,7 @@ mod tests {
             context_layout_top_layer: true,
             layout_node_is_svg_box: false,
         };
-        let decision = rust_principal_box_placement_decision(facts);
+        let decision = principal_box_placement_decision(facts);
         assert_eq!(decision.placement, FfiPrincipalBoxPlacement::ReplaceExisting);
         assert!(decision.start_rebuild_root);
         assert!(decision.create_backdrop);
@@ -3399,7 +3378,7 @@ mod tests {
         facts.has_old_layout_node = false;
         facts.old_layout_node_is_attached = false;
         facts.layout_node_is_svg_box = true;
-        let decision = rust_principal_box_placement_decision(facts);
+        let decision = principal_box_placement_decision(facts);
         assert_eq!(decision.placement, FfiPrincipalBoxPlacement::AppendSvg);
         assert!(decision.mark_update_escaped_rebuild_roots);
     }
