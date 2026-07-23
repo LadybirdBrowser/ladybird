@@ -913,7 +913,10 @@ fn value_is_computationally_independent(
         StyleValueData::Ratio {
             numerator, denominator, ..
         } => all_data(&[numerator, denominator]),
-        StyleValueData::Edge { offset, .. } => child(offset),
+        StyleValueData::Edge { offset, .. } => match offset.optional_data() {
+            Some(offset) => value_is_computationally_independent(offset, data_of, decide_fallback),
+            None => Some(true),
+        },
         StyleValueData::Function { value, .. } => child(value),
         StyleValueData::OpacityValue { value } => all_data(&[value]),
         // Auto placements carry no value; spans and lines recurse into theirs.
@@ -934,7 +937,7 @@ fn value_is_computationally_independent(
             bottom,
             left,
             ..
-        } => all_of(&[top, right, bottom, left]),
+        } => all_data(&[top, right, bottom, left]),
         StyleValueData::Content { content, alt_text } => all_of(&[content, alt_text]),
         // Extent components carry no value; explicit sizes recurse into theirs.
         StyleValueData::RadialSize { value_0, value_1, .. } => all_of(&[value_0, value_1]),
@@ -1033,7 +1036,7 @@ fn value_is_computationally_independent(
             Some(independent)
         }
         StyleValueData::ContrastColor { color, .. } => child(color),
-        StyleValueData::Superellipse { parameter } => child(parameter),
+        StyleValueData::Superellipse { parameter } => all_data(&[parameter]),
         StyleValueData::ScrollbarColor {
             thumb_color,
             track_color,
@@ -1045,12 +1048,12 @@ fn value_is_computationally_independent(
             bottom,
             left,
             ..
-        } => all_of(&[top, right, bottom, left]),
+        } => all_data(&[top, right, bottom, left]),
         StyleValueData::FontStyle { angle_value, .. } => child(angle_value),
-        StyleValueData::TextIndent { length_percentage, .. } => child(length_percentage),
+        StyleValueData::TextIndent { length_percentage, .. } => all_data(&[length_percentage]),
         StyleValueData::OverflowClipMargin { offset, .. } => child(offset),
-        StyleValueData::BackgroundSize { size_x, size_y, .. } => all_of(&[size_x, size_y]),
-        StyleValueData::Position { edge_x, edge_y, .. } => all_of(&[edge_x, edge_y]),
+        StyleValueData::BackgroundSize { size_x, size_y, .. } => all_data(&[size_x, size_y]),
+        StyleValueData::Position { edge_x, edge_y, .. } => all_data(&[edge_x, edge_y]),
         StyleValueData::Shadow {
             color,
             offset_x,
@@ -1083,12 +1086,12 @@ fn value_is_computationally_independent(
             bottom_right,
             bottom_left,
             ..
-        } => all_of(&[top_left, top_right, bottom_right, bottom_left]),
+        } => all_data(&[top_left, top_right, bottom_right, bottom_left]),
         StyleValueData::BorderRadius {
             horizontal_radius,
             vertical_radius,
             ..
-        } => all_of(&[horizontal_radius, vertical_radius]),
+        } => all_data(&[horizontal_radius, vertical_radius]),
         _ => None,
     }
 }

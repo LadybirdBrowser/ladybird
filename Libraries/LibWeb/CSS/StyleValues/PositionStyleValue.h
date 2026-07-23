@@ -23,8 +23,8 @@ public:
     static ValueComparingNonnullRefPtr<PositionStyleValue const> create_computed_center();
     virtual ~PositionStyleValue() override = default;
 
-    ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x() const { return *static_cast<EdgeStyleValue const*>(m_value->position.edge_x.pointer); }
-    ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y() const { return *static_cast<EdgeStyleValue const*>(m_value->position.edge_y.pointer); }
+    ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x() const { return m_edge_x; }
+    ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y() const { return m_edge_y; }
     bool is_center(SerializationMode) const;
     CSSPixelPoint resolved(CSSPixelRect const&) const;
 
@@ -34,10 +34,24 @@ public:
     bool properties_equal(PositionStyleValue const& other) const { return edge_x() == other.edge_x() && edge_y() == other.edge_y(); }
 
 private:
-    PositionStyleValue(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y)
-        : StyleValueWithDefaultOperators(Type::Position, StyleValueFFI::rust_style_value_create_position(&edge_x.leak_ref(), &edge_y.leak_ref()))
+    friend class StyleValue;
+
+    explicit PositionStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::Position, data)
+        , m_edge_x(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->position.edge_x.pointer)))->as_edge())
+        , m_edge_y(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->position.edge_y.pointer)))->as_edge())
     {
     }
+
+    PositionStyleValue(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y)
+        : StyleValueWithDefaultOperators(Type::Position, StyleValueFFI::rust_style_value_create_position(StyleValueFFI::rust_style_value_retain(edge_x->rust_style_value_data()), StyleValueFFI::rust_style_value_retain(edge_y->rust_style_value_data())))
+        , m_edge_x(move(edge_x))
+        , m_edge_y(move(edge_y))
+    {
+    }
+
+    ValueComparingNonnullRefPtr<EdgeStyleValue const> m_edge_x;
+    ValueComparingNonnullRefPtr<EdgeStyleValue const> m_edge_y;
 };
 
 }

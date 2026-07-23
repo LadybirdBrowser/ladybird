@@ -14,7 +14,8 @@ ValueComparingNonnullRefPtr<TextIndentStyleValue const> TextIndentStyleValue::cr
 }
 
 TextIndentStyleValue::TextIndentStyleValue(NonnullRefPtr<StyleValue const> length_percentage, Hanging hanging, EachLine each_line)
-    : StyleValueWithDefaultOperators(Type::TextIndent, StyleValueFFI::rust_style_value_create_text_indent(&length_percentage.leak_ref(), hanging == Hanging::Yes, each_line == EachLine::Yes))
+    : StyleValueWithDefaultOperators(Type::TextIndent, StyleValueFFI::rust_style_value_create_text_indent(StyleValueFFI::rust_style_value_retain(length_percentage->rust_style_value_data()), hanging == Hanging::Yes, each_line == EachLine::Yes))
+    , m_length_percentage(move(length_percentage))
 {
 }
 

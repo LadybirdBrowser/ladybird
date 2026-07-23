@@ -111,9 +111,19 @@ impl RetainedStyleValueData {
         }
     }
 
+    /// Assumes ownership of one strong reference when `pointer` is non-null.
+    ///
+    /// # Safety
+    /// `pointer` must be null or a strong reference returned by `rust_style_value_retain`.
+    pub(crate) unsafe fn from_retained_optional_pointer(pointer: *const StyleValueData) -> Self {
+        Self {
+            pointer: pointer.cast(),
+        }
+    }
+
     pub(crate) fn clone_retained(&self) -> Self {
         let pointer = unsafe { rust_style_value_retain(self.pointer.cast()) };
-        unsafe { Self::from_retained_pointer(pointer) }
+        unsafe { Self::from_retained_optional_pointer(pointer) }
     }
 }
 
@@ -821,7 +831,7 @@ pub enum StyleValueData {
     Edge {
         has_edge: bool,
         edge: u8,
-        offset: RetainedStyleValue,
+        offset: RetainedStyleValueData,
     },
     /// The guaranteed-invalid value: https://drafts.csswg.org/css-variables/#guaranteed-invalid-value
     GuaranteedInvalid,
@@ -837,7 +847,7 @@ pub enum StyleValueData {
         color: RetainedStyleValue,
     },
     /// superellipse() with its retained parameter style value.
-    Superellipse { parameter: RetainedStyleValue },
+    Superellipse { parameter: RetainedStyleValueData },
     /// A pending-substitution value retaining the shorthand value it came from.
     PendingSubstitution {
         original_shorthand_value: RetainedStyleValue,
@@ -849,10 +859,10 @@ pub enum StyleValueData {
     },
     /// rect() with four retained edge style values.
     Rect {
-        top: RetainedStyleValue,
-        right: RetainedStyleValue,
-        bottom: RetainedStyleValue,
-        left: RetainedStyleValue,
+        top: RetainedStyleValueData,
+        right: RetainedStyleValueData,
+        bottom: RetainedStyleValueData,
+        left: RetainedStyleValueData,
     },
     /// A CSS `<string>`.
     String { string: RetainedUtf16FlyString },
@@ -876,7 +886,7 @@ pub enum StyleValueData {
     },
     /// text-indent: a length-percentage style value plus the hanging and each-line flags.
     TextIndent {
-        length_percentage: RetainedStyleValue,
+        length_percentage: RetainedStyleValueData,
         hanging: bool,
         each_line: bool,
     },
@@ -892,18 +902,18 @@ pub enum StyleValueData {
     TreeCountingFunction { function: u8, computed_type: u8 },
     /// background-size with its two retained size style values.
     BackgroundSize {
-        size_x: RetainedStyleValue,
-        size_y: RetainedStyleValue,
+        size_x: RetainedStyleValueData,
+        size_y: RetainedStyleValueData,
     },
     /// A background repeat-style. Both fields are the C++ `enum class Repetition : u8`, opaque
     /// to Rust.
     RepeatStyle { repeat_x: u8, repeat_y: u8 },
-    /// border-image-slice: four retained offset style values and the fill keyword.
+    /// border-image-slice: four retained offset data allocations and the fill keyword.
     BorderImageSlice {
-        top: RetainedStyleValue,
-        right: RetainedStyleValue,
-        bottom: RetainedStyleValue,
-        left: RetainedStyleValue,
+        top: RetainedStyleValueData,
+        right: RetainedStyleValueData,
+        bottom: RetainedStyleValueData,
+        left: RetainedStyleValueData,
         fill: bool,
     },
     /// anchor-size(): an optional anchor name, an optional size keyword (the C++ `enum class
@@ -925,8 +935,8 @@ pub enum StyleValueData {
     },
     /// A CSS `<position>` with its two retained edge style values.
     Position {
-        edge_x: RetainedStyleValue,
-        edge_y: RetainedStyleValue,
+        edge_x: RetainedStyleValueData,
+        edge_y: RetainedStyleValueData,
     },
     /// A shadow. The type and placement are C++ enums, opaque to Rust; the color, blur radius
     /// and spread distance are optional retained style values (null when absent).
@@ -1189,18 +1199,18 @@ pub enum StyleValueData {
     },
     /// A CSS `<custom-ident>`.
     CustomIdent { custom_ident: RetainedUtf16FlyString },
-    /// A border-radius rect of four retained corner radius style values.
+    /// A border-radius rect of four retained corner radius data allocations.
     BorderRadiusRect {
-        top_left: RetainedStyleValue,
-        top_right: RetainedStyleValue,
-        bottom_right: RetainedStyleValue,
-        bottom_left: RetainedStyleValue,
+        top_left: RetainedStyleValueData,
+        top_right: RetainedStyleValueData,
+        bottom_right: RetainedStyleValueData,
+        bottom_left: RetainedStyleValueData,
     },
     /// A single corner radius: the horizontal and vertical radii and whether they differ.
     BorderRadius {
         is_elliptical: bool,
-        horizontal_radius: RetainedStyleValue,
-        vertical_radius: RetainedStyleValue,
+        horizontal_radius: RetainedStyleValueData,
+        vertical_radius: RetainedStyleValueData,
     },
     /// A filter function. Kinds: blur (0, value = radius), drop-shadow (1, value = shadow),
     /// hue-rotate (2, value = angle), color (3, value = amount, with the color operation).
@@ -1343,18 +1353,18 @@ pub unsafe extern "C" fn rust_style_value_create_opacity_value(value: *const Sty
     })
 }
 
-/// Takes ownership of one strong reference to the offset if it is non-null.
+/// Takes ownership of one strong reference to the offset data if it is non-null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_edge(
     has_edge: bool,
     edge: u8,
-    offset: *const c_void,
+    offset: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Edge {
             has_edge,
             edge,
-            offset: RetainedStyleValue { pointer: offset },
+            offset: unsafe { RetainedStyleValueData::from_retained_optional_pointer(offset) },
         }))
     })
 }
@@ -1402,12 +1412,14 @@ pub unsafe extern "C" fn rust_style_value_create_contrast_color(
     })
 }
 
-/// Takes ownership of one strong reference to the parameter.
+/// Takes ownership of one strong reference to the parameter data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_superellipse(parameter: *const c_void) -> *const StyleValueData {
+pub unsafe extern "C" fn rust_style_value_create_superellipse(
+    parameter: *const StyleValueData,
+) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Superellipse {
-            parameter: RetainedStyleValue { pointer: parameter },
+            parameter: unsafe { RetainedStyleValueData::from_retained_pointer(parameter) },
         }))
     })
 }
@@ -1440,20 +1452,20 @@ pub unsafe extern "C" fn rust_style_value_create_scrollbar_color(
     })
 }
 
-/// Takes ownership of one strong reference to each edge.
+/// Takes ownership of one strong reference to each edge data allocation.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_rect(
-    top: *const c_void,
-    right: *const c_void,
-    bottom: *const c_void,
-    left: *const c_void,
+    top: *const StyleValueData,
+    right: *const StyleValueData,
+    bottom: *const StyleValueData,
+    left: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Rect {
-            top: RetainedStyleValue { pointer: top },
-            right: RetainedStyleValue { pointer: right },
-            bottom: RetainedStyleValue { pointer: bottom },
-            left: RetainedStyleValue { pointer: left },
+            top: unsafe { RetainedStyleValueData::from_retained_pointer(top) },
+            right: unsafe { RetainedStyleValueData::from_retained_pointer(right) },
+            bottom: unsafe { RetainedStyleValueData::from_retained_pointer(bottom) },
+            left: unsafe { RetainedStyleValueData::from_retained_pointer(left) },
         }))
     })
 }
@@ -1474,40 +1486,36 @@ pub unsafe extern "C" fn rust_style_value_create_filter(
     })
 }
 
-/// Takes ownership of one strong reference to each radius.
+/// Takes ownership of one strong reference to each radius data allocation.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_border_radius(
     is_elliptical: bool,
-    horizontal_radius: *const c_void,
-    vertical_radius: *const c_void,
+    horizontal_radius: *const StyleValueData,
+    vertical_radius: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::BorderRadius {
             is_elliptical,
-            horizontal_radius: RetainedStyleValue {
-                pointer: horizontal_radius,
-            },
-            vertical_radius: RetainedStyleValue {
-                pointer: vertical_radius,
-            },
+            horizontal_radius: unsafe { RetainedStyleValueData::from_retained_pointer(horizontal_radius) },
+            vertical_radius: unsafe { RetainedStyleValueData::from_retained_pointer(vertical_radius) },
         }))
     })
 }
 
-/// Takes ownership of one strong reference to each corner radius.
+/// Takes ownership of one strong reference to each corner radius data allocation.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_border_radius_rect(
-    top_left: *const c_void,
-    top_right: *const c_void,
-    bottom_right: *const c_void,
-    bottom_left: *const c_void,
+    top_left: *const StyleValueData,
+    top_right: *const StyleValueData,
+    bottom_right: *const StyleValueData,
+    bottom_left: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::BorderRadiusRect {
-            top_left: RetainedStyleValue { pointer: top_left },
-            top_right: RetainedStyleValue { pointer: top_right },
-            bottom_right: RetainedStyleValue { pointer: bottom_right },
-            bottom_left: RetainedStyleValue { pointer: bottom_left },
+            top_left: unsafe { RetainedStyleValueData::from_retained_pointer(top_left) },
+            top_right: unsafe { RetainedStyleValueData::from_retained_pointer(top_right) },
+            bottom_right: unsafe { RetainedStyleValueData::from_retained_pointer(bottom_right) },
+            bottom_left: unsafe { RetainedStyleValueData::from_retained_pointer(bottom_left) },
         }))
     })
 }
@@ -1576,15 +1584,13 @@ pub unsafe extern "C" fn rust_style_value_create_font_style(
 /// Takes ownership of one strong reference to the length-percentage.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_text_indent(
-    length_percentage: *const c_void,
+    length_percentage: *const StyleValueData,
     hanging: bool,
     each_line: bool,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::TextIndent {
-            length_percentage: RetainedStyleValue {
-                pointer: length_percentage,
-            },
+            length_percentage: unsafe { RetainedStyleValueData::from_retained_pointer(length_percentage) },
             hanging,
             each_line,
         }))
@@ -1623,13 +1629,13 @@ pub extern "C" fn rust_style_value_create_tree_counting_function(
 /// Takes ownership of one strong reference to each size.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_background_size(
-    size_x: *const c_void,
-    size_y: *const c_void,
+    size_x: *const StyleValueData,
+    size_y: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::BackgroundSize {
-            size_x: RetainedStyleValue { pointer: size_x },
-            size_y: RetainedStyleValue { pointer: size_y },
+            size_x: unsafe { RetainedStyleValueData::from_retained_pointer(size_x) },
+            size_y: unsafe { RetainedStyleValueData::from_retained_pointer(size_y) },
         }))
     })
 }
@@ -1639,21 +1645,21 @@ pub extern "C" fn rust_style_value_create_repeat_style(repeat_x: u8, repeat_y: u
     abort_on_panic(|| Arc::into_raw(Arc::new(StyleValueData::RepeatStyle { repeat_x, repeat_y })))
 }
 
-/// Takes ownership of one strong reference to each offset.
+/// Takes ownership of one strong reference to each offset data allocation.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_border_image_slice(
-    top: *const c_void,
-    right: *const c_void,
-    bottom: *const c_void,
-    left: *const c_void,
+    top: *const StyleValueData,
+    right: *const StyleValueData,
+    bottom: *const StyleValueData,
+    left: *const StyleValueData,
     fill: bool,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::BorderImageSlice {
-            top: RetainedStyleValue { pointer: top },
-            right: RetainedStyleValue { pointer: right },
-            bottom: RetainedStyleValue { pointer: bottom },
-            left: RetainedStyleValue { pointer: left },
+            top: unsafe { RetainedStyleValueData::from_retained_pointer(top) },
+            right: unsafe { RetainedStyleValueData::from_retained_pointer(right) },
+            bottom: unsafe { RetainedStyleValueData::from_retained_pointer(bottom) },
+            left: unsafe { RetainedStyleValueData::from_retained_pointer(left) },
             fill,
         }))
     })
@@ -1703,16 +1709,16 @@ pub unsafe extern "C" fn rust_style_value_create_anchor(
     })
 }
 
-/// Takes ownership of one strong reference to each edge.
+/// Takes ownership of one strong reference to each edge data allocation.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_position(
-    edge_x: *const c_void,
-    edge_y: *const c_void,
+    edge_x: *const StyleValueData,
+    edge_y: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Position {
-            edge_x: RetainedStyleValue { pointer: edge_x },
-            edge_y: RetainedStyleValue { pointer: edge_y },
+            edge_x: unsafe { RetainedStyleValueData::from_retained_pointer(edge_x) },
+            edge_y: unsafe { RetainedStyleValueData::from_retained_pointer(edge_y) },
         }))
     })
 }

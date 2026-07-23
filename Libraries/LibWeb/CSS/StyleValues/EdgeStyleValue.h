@@ -31,17 +31,20 @@ public:
     bool properties_equal(EdgeStyleValue const& other) const { return edge() == other.edge() && offset_style_value() == other.offset_style_value(); }
 
 private:
-    EdgeStyleValue(Optional<PositionEdge> edge, RefPtr<StyleValue const> const& offset)
-        : StyleValueWithDefaultOperators(Type::Edge, make_edge_data(edge, offset))
+    friend class StyleValue;
+
+    explicit EdgeStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::Edge, data)
     {
+        auto const* offset_data = static_cast<StyleValueFFI::StyleValueData const*>(data->edge.offset.pointer);
+        if (offset_data)
+            m_offset = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(offset_data));
     }
 
-    static StyleValueFFI::StyleValueData const* make_edge_data(Optional<PositionEdge> edge, RefPtr<StyleValue const> const& offset)
+    EdgeStyleValue(Optional<PositionEdge> edge, RefPtr<StyleValue const> const& offset)
+        : StyleValueWithDefaultOperators(Type::Edge, StyleValueFFI::rust_style_value_create_edge(edge.has_value(), edge.has_value() ? to_underlying(*edge) : 0, offset ? StyleValueFFI::rust_style_value_retain(offset->rust_style_value_data()) : nullptr))
+        , m_offset(offset)
     {
-        // The Rust allocation takes ownership of one strong reference to the offset.
-        if (offset)
-            offset->ref();
-        return StyleValueFFI::rust_style_value_create_edge(edge.has_value(), edge.has_value() ? to_underlying(*edge) : 0, offset.ptr());
     }
 
     Optional<PositionEdge> edge() const
@@ -51,7 +54,9 @@ private:
         return static_cast<PositionEdge>(m_value->edge.edge);
     }
 
-    ValueComparingRefPtr<StyleValue const> offset_style_value() const { return static_cast<StyleValue const*>(m_value->edge.offset.pointer); }
+    ValueComparingRefPtr<StyleValue const> offset_style_value() const { return m_offset; }
+
+    ValueComparingRefPtr<StyleValue const> m_offset;
 };
 
 }

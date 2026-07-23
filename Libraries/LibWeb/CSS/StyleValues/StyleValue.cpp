@@ -147,6 +147,16 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
 {
     VERIFY(data);
     switch (data->tag) {
+    case StyleValueFFI::StyleValueData::Tag::BackgroundSize:
+        return adopt_ref(*new (nothrow) BackgroundSizeStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::BorderRadius:
+        return adopt_ref(*new (nothrow) BorderRadiusStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::BorderRadiusRect:
+        return adopt_ref(*new (nothrow) BorderRadiusRectStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::BorderImageSlice:
+        return adopt_ref(*new (nothrow) BorderImageSliceStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Edge:
+        return adopt_ref(*new (nothrow) EdgeStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Keyword:
         return adopt_ref(*new (nothrow) KeywordStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Number:
@@ -169,8 +179,16 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
         return adopt_ref(*new (nothrow) TimeStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::OpacityValue:
         return adopt_ref(*new (nothrow) OpacityValueStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Position:
+        return adopt_ref(*new (nothrow) PositionStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Ratio:
         return adopt_ref(*new (nothrow) RatioStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Rect:
+        return adopt_ref(*new (nothrow) RectStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Superellipse:
+        return adopt_ref(*new (nothrow) SuperellipseStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::TextIndent:
+        return adopt_ref(*new (nothrow) TextIndentStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Transformation:
         return adopt_ref(*new (nothrow) TransformationStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::ValueList:
