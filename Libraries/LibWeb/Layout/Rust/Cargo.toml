@@ -1,0 +1,17 @@
+[package]
+name = "libweb_layout_rust"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib"]
+
+[features]
+default = []
+allocator = []
+
+[build-dependencies]
+cbindgen = "0.29"
+
+[lints]
+workspace = true

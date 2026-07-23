@@ -1341,6 +1341,17 @@ import_rust_crate(
     FFI_HEADERS HTML/Parser/RustFFI.h
 )
 
+set(layout_rust_features "")
+if (NOT BUILD_SHARED_LIBS)
+    set(layout_rust_features FEATURES allocator)
+endif()
+import_rust_crate(
+    MANIFEST_PATH Layout/Rust/Cargo.toml
+    CRATE_NAME libweb_layout_rust
+    ${layout_rust_features}
+    FFI_HEADERS Layout/TreeBuilderRustFFI.h
+)
+
 set(css_rust_features "")
 if (NOT BUILD_SHARED_LIBS)
     set(css_rust_features FEATURES allocator)
@@ -1357,8 +1368,9 @@ if (NOT BUILD_SHARED_LIBS)
     set(content_blocker_rust_features FEATURES allocator)
 endif()
 import_rust_crate(MANIFEST_PATH ContentBlocker/Rust/Cargo.toml CRATE_NAME libweb_content_blocker_rust ${content_blocker_rust_features} FFI_HEADER ContentBlockerRustFFI.h)
-target_link_libraries(LibWeb PRIVATE libweb_rust libweb_css_rust libweb_content_blocker_rust)
+target_link_libraries(LibWeb PRIVATE libweb_rust libweb_layout_rust libweb_css_rust libweb_content_blocker_rust)
 get_target_property(_libweb_rust_lib libweb_rust IMPORTED_LOCATION)
+get_target_property(_libweb_layout_rust_lib libweb_layout_rust IMPORTED_LOCATION)
 get_target_property(_libweb_css_rust_lib libweb_css_rust IMPORTED_LOCATION)
 get_target_property(_libweb_content_blocker_rust_lib libweb_content_blocker_rust IMPORTED_LOCATION)
 set_property(SOURCE HTML/Parser/HTMLTokenizer.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
@@ -1371,6 +1383,7 @@ endif()
 if(NOT BUILD_SHARED_LIBS)
     add_custom_command(TARGET LibWeb POST_BUILD
         COMMAND ${CMAKE_AR} -x $<TARGET_FILE:libweb_rust>
+        COMMAND ${CMAKE_AR} -x $<TARGET_FILE:libweb_layout_rust>
         COMMAND ${CMAKE_AR} -x $<TARGET_FILE:libweb_css_rust>
         COMMAND ${CMAKE_AR} -x $<TARGET_FILE:libweb_content_blocker_rust>
         COMMAND ${CMAKE_AR} -qS $<TARGET_FILE:LibWeb> *.o
@@ -1388,6 +1401,7 @@ if(NOT BUILD_SHARED_LIBS)
     # re-merges the fresh Rust objects.
     set_property(SOURCE CSS/Parser/RustTokenizer.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_css_rust_lib})
     set_property(SOURCE HTML/Parser/HTMLEncodingDetection.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
+    set_property(SOURCE Layout/TreeBuilder.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_layout_rust_lib})
     set_property(SOURCE Loader/ContentBlocker.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_content_blocker_rust_lib})
 endif()
 

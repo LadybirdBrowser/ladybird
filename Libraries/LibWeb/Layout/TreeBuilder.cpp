@@ -47,6 +47,7 @@
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TreeBuilder.h>
+#include <LibWeb/Layout/TreeBuilderRustFFI.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/SVG/SVGSwitchElement.h>
@@ -96,18 +97,14 @@ static bool is_out_of_flow_table_internal_child_of_table_root(Layout::NodeWithSt
 
 static Optional<CSS::Display> adjusted_table_display_for_replaced_element(CSS::Display display)
 {
-    // https://drafts.csswg.org/css-display-3/#outer-role
-    // Note: Outer display types do affect replaced elements.
-    if (display.is_table_inside()) {
-        if (display.is_block_outside())
-            return CSS::Display::from_short(CSS::Display::Short::Block);
-        return CSS::Display::from_short(CSS::Display::Short::Inline);
-    }
-
-    // https://drafts.csswg.org/css-display-3/#layout-specific-display
-    // When the 'display' property of a replaced element computes to one of the layout-internal values, it is handled
-    // as having a used value of 'display: inline'.
-    if (display.is_internal_table() || display.is_table_caption())
+    auto adjustment = RustFFI::rust_adjusted_table_display_for_replaced_element(
+        display.is_table_inside(),
+        display.is_block_outside(),
+        display.is_internal_table(),
+        display.is_table_caption());
+    if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Block)
+        return CSS::Display::from_short(CSS::Display::Short::Block);
+    if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Inline)
         return CSS::Display::from_short(CSS::Display::Short::Inline);
     return {};
 }
