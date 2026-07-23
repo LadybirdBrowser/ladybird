@@ -75,6 +75,7 @@ private:
     void missing_cells_fixup(Vector<NonnullRefPtr<Box>> const&);
 
     void insert_node_into_inline_or_block_ancestor(Layout::Node&, CSS::Display, AppendOrPrepend);
+    static NonnullRefPtr<ListItemMarkerBox> create_and_attach_list_item_marker(ListItemBox&, DOM::Element&, NonnullRefPtr<CSS::ComputedValues const> marker_style);
     RefPtr<NodeWithStyle> create_pseudo_element_if_needed(DOM::Element&, CSS::PseudoElement, Optional<AppendOrPrepend>);
     RefPtr<NodeWithStyle> create_content_replacement_if_needed(DOM::Element&, NonnullRefPtr<CSS::ComputedValues const>) const;
     static void create_first_letter_wrapper_if_needed(DOM::Element&, Layout::BlockContainer&);

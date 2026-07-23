@@ -534,6 +534,32 @@ static Optional<FirstLetterTarget> find_first_letter_in_block(BlockContainer& bl
     return {};
 }
 
+struct FirstLetterTextSlices {
+    NonnullRefPtr<TextNode> first_letter_slice;
+    NonnullRefPtr<TextNode> remainder_slice;
+};
+
+static FirstLetterTextSlices create_first_letter_text_slices(DOM::Document& document, TextNode& text_node, size_t letter_end)
+{
+    auto const full_length = text_node.text().length_in_code_units();
+
+    // The first-letter and remainder boxes render slices of the same DOM text node; generated text
+    // (from a content property) has no DOM node and gets plain generated slices of its text instead.
+    if (auto* dom_text = text_node.dom_text()) {
+        auto& mutable_dom_text = const_cast<DOM::Text&>(*dom_text);
+        auto remainder_slice = make_ref_counted<TextSliceNode>(document, mutable_dom_text, Node::AttachToDOMNode::Yes, letter_end, full_length - letter_end);
+        auto first_letter_slice = make_ref_counted<TextSliceNode>(document, mutable_dom_text, Node::AttachToDOMNode::No, 0, letter_end);
+        remainder_slice->set_first_letter_slice(*first_letter_slice);
+        return { move(first_letter_slice), move(remainder_slice) };
+    }
+
+    auto text = text_node.text();
+    return {
+        make_ref_counted<GeneratedTextNode>(document, Utf16String::from_utf16(text.utf16_view().substring_view(0, letter_end))),
+        make_ref_counted<GeneratedTextNode>(document, Utf16String::from_utf16(text.utf16_view().substring_view(letter_end, full_length - letter_end))),
+    };
+}
+
 void TreeBuilder::create_first_letter_wrapper_if_needed(DOM::Element& element, BlockContainer& block_container)
 {
     if (!element.computed_values(CSS::PseudoElement::FirstLetter))
@@ -544,26 +570,9 @@ void TreeBuilder::create_first_letter_wrapper_if_needed(DOM::Element& element, B
         return;
 
     auto& text_node = *target->text_node;
-    auto const full_length = text_node.text().length_in_code_units();
-
-    auto const letter_end = target->letter_end;
-
     auto& document = element.document();
 
-    RefPtr<TextNode> remainder_slice;
-    RefPtr<TextNode> first_letter_slice;
-    if (auto* dom_text = text_node.dom_text()) {
-        auto& mutable_dom_text = const_cast<DOM::Text&>(*dom_text);
-        auto dom_remainder_slice = make_ref_counted<TextSliceNode>(document, mutable_dom_text, Node::AttachToDOMNode::Yes, letter_end, full_length - letter_end);
-        auto dom_first_letter_slice = make_ref_counted<TextSliceNode>(document, mutable_dom_text, Node::AttachToDOMNode::No, 0, letter_end);
-        dom_remainder_slice->set_first_letter_slice(*dom_first_letter_slice);
-        remainder_slice = move(dom_remainder_slice);
-        first_letter_slice = move(dom_first_letter_slice);
-    } else {
-        auto text = text_node.text();
-        remainder_slice = make_ref_counted<GeneratedTextNode>(document, Utf16String::from_utf16(text.utf16_view().substring_view(letter_end, full_length - letter_end)));
-        first_letter_slice = make_ref_counted<GeneratedTextNode>(document, Utf16String::from_utf16(text.utf16_view().substring_view(0, letter_end)));
-    }
+    auto [first_letter_slice, remainder_slice] = create_first_letter_text_slices(document, text_node, target->letter_end);
 
     auto first_letter_values = element.computed_values(CSS::PseudoElement::FirstLetter);
     VERIFY(first_letter_values);
@@ -582,6 +591,21 @@ void TreeBuilder::create_first_letter_wrapper_if_needed(DOM::Element& element, B
     parent->insert_before(*first_letter_wrapper, text_node);
     parent->insert_before(*remainder_slice, text_node);
     parent->remove_child(text_node);
+}
+
+NonnullRefPtr<ListItemMarkerBox> TreeBuilder::create_and_attach_list_item_marker(ListItemBox& list_box, DOM::Element& element, NonnullRefPtr<CSS::ComputedValues const> marker_style)
+{
+    auto list_item_marker = make_ref_counted<ListItemMarkerBox>(
+        list_box.document(),
+        list_box.computed_values().list_style_type(),
+        list_box.computed_values().list_style_position(),
+        element,
+        move(marker_style));
+    list_item_marker->attach_style_resources();
+    list_box.set_marker(list_item_marker);
+    element.set_synthetic_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
+    list_box.prepend_child(*list_item_marker);
+    return list_item_marker;
 }
 
 RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::PseudoElement pseudo_element, Optional<AppendOrPrepend> insertion_mode)
@@ -629,22 +653,11 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
             // https://www.w3.org/TR/css-lists-3/#content-property
             // "::marker does not generate a box" when list-style-type is 'none' and there's no marker image. Custom
             // ::marker content is already excluded by the outer condition checking for Type::Normal.
-            auto const& list_style_type = list_box->computed_values().list_style_type();
-            if (list_style_type.has<Empty>() && !list_box->list_style_image()) {
+            if (list_box->computed_values().list_style_type().has<Empty>() && !list_box->list_style_image()) {
                 return {};
             }
 
-            auto list_item_marker = make_ref_counted<ListItemMarkerBox>(
-                document,
-                list_style_type,
-                list_box->computed_values().list_style_position(),
-                element,
-                NonnullRefPtr { *pseudo_element_values });
-            list_item_marker->attach_style_resources();
-            list_box->set_marker(list_item_marker);
-            element.set_synthetic_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
-            list_box->prepend_child(*list_item_marker);
-            return list_item_marker;
+            return create_and_attach_list_item_marker(*list_box, element, NonnullRefPtr { *pseudo_element_values });
         }
 
     RefPtr<NodeWithStyle> pseudo_element_node;
@@ -682,20 +695,9 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     pseudo_element_node->attach_style_resources();
 
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker
-    if (is<ListItemBox>(*pseudo_element_node)) {
-        auto& style_computer = document.style_computer();
-
-        auto marker_style = style_computer.compute_style({ element, CSS::PseudoElement::Marker });
-        auto list_item_marker = make_ref_counted<ListItemMarkerBox>(
-            document,
-            pseudo_element_node->computed_values().list_style_type(),
-            pseudo_element_node->computed_values().list_style_position(),
-            element,
-            marker_style);
-        list_item_marker->attach_style_resources();
-        static_cast<ListItemBox&>(*pseudo_element_node).set_marker(list_item_marker);
-        element.set_synthetic_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
-        pseudo_element_node->prepend_child(*list_item_marker);
+    if (auto* list_box = as_if<ListItemBox>(*pseudo_element_node)) {
+        auto marker_style = document.style_computer().compute_style({ element, CSS::PseudoElement::Marker });
+        (void)create_and_attach_list_item_marker(*list_box, element, move(marker_style));
 
         // FIXME: Support counters on element::pseudo::marker
     }
@@ -793,6 +795,33 @@ static bool layout_node_is_attached_to_dom_subtree(Node const& layout_node, DOM:
             return true;
     }
     return false;
+}
+
+// The replacement box represents the same element in the same tree position, so layout state
+// saved by the previous layout pass carries over to it: the saved abspos layout inputs, and the
+// flat fragment and inline-box-piece lists held by the containing block of a node that
+// participated in inline layout, which a subtree relayout that skips the containing block never
+// rebuilds.
+static void transfer_saved_layout_state_to_replacement_box(Layout::Node& old_layout_node, Layout::Node& new_layout_node)
+{
+    if (auto const* old_box = as_if<Box>(old_layout_node)) {
+        if (auto* new_box = as_if<Box>(new_layout_node)) {
+            if (old_box->saved_abspos_layout_inputs())
+                new_box->set_saved_abspos_layout_inputs(*old_box->saved_abspos_layout_inputs());
+        }
+    }
+    if (auto* containing_block = old_layout_node.containing_block()) {
+        if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(containing_block->paintable().ptr())) {
+            for (auto& fragment : paintable_with_lines->fragments()) {
+                if (fragment.has_layout_node() && &fragment.layout_node() == &old_layout_node)
+                    fragment.set_layout_node(new_layout_node);
+            }
+            for (auto& piece : paintable_with_lines->inline_box_pieces()) {
+                if (piece.node.ptr() == &old_layout_node)
+                    piece.node = &new_layout_node;
+            }
+        }
+    }
 }
 
 static DOM::Element* display_contents_style_parent_for_text_node(DOM::Text& text_node)
@@ -1111,30 +1140,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         m_layout_root = layout_node;
     } else if (should_create_layout_node) {
         if (may_replace_existing_layout_node) {
-            // The replacement box represents the same element in the same tree position, so the
-            // layout inputs saved by the previous layout pass carry over to it.
-            if (auto const* old_box = as_if<Box>(*old_layout_node)) {
-                if (auto* new_box = as_if<Box>(*layout_node)) {
-                    if (old_box->saved_abspos_layout_inputs())
-                        new_box->set_saved_abspos_layout_inputs(*old_box->saved_abspos_layout_inputs());
-                }
-            }
-            // A replaced node that participated in inline layout is referenced by the flat
-            // fragment and inline-box-piece lists held by its containing block; repoint those
-            // references at the replacement, since a subtree relayout that skips the containing
-            // block never rebuilds them.
-            if (auto* containing_block = old_layout_node->containing_block()) {
-                if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(containing_block->paintable().ptr())) {
-                    for (auto& fragment : paintable_with_lines->fragments()) {
-                        if (fragment.has_layout_node() && &fragment.layout_node() == old_layout_node.ptr())
-                            fragment.set_layout_node(*layout_node);
-                    }
-                    for (auto& piece : paintable_with_lines->inline_box_pieces()) {
-                        if (piece.node.ptr() == old_layout_node.ptr())
-                            piece.node = layout_node.ptr();
-                    }
-                }
-            }
+            transfer_saved_layout_state_to_replacement_box(*old_layout_node, *layout_node);
             old_layout_node->prepare_subtree_for_detach_from_layout_tree();
             old_layout_node->parent()->replace_child(*layout_node, *old_layout_node);
         } else if (layout_node->is_svg_box()) {
@@ -1330,6 +1336,30 @@ void TreeBuilder::update_layout_tree_for_svg_switch_children(SVG::SVGSwitchEleme
         update_layout_tree(*rendered_child, context, must_create_subtree);
 }
 
+// A full-height flex column that centers the button contents vertically.
+static NonnullRefPtr<NodeWithStyle> create_button_flex_wrapper(NodeWithStyle& parent)
+{
+    auto flex_wrapper = parent.create_anonymous_wrapper();
+    flex_wrapper->modify_computed_values([](auto& values) {
+        values.set_display(CSS::Display { CSS::DisplayOutside::Block, CSS::DisplayInside::Flex });
+        values.set_justify_content(CSS::JustifyContent::Center);
+        values.set_flex_direction(CSS::FlexDirection::Column);
+        values.set_height(CSS::Size::make_percentage(CSS::Percentage(100)));
+    });
+    return flex_wrapper;
+}
+
+// Let percentage-sized descendants shrink to fixed-height buttons instead of the flex
+// item's automatic minimum size.
+static NonnullRefPtr<NodeWithStyle> create_button_content_box_wrapper(NodeWithStyle& parent)
+{
+    auto content_box_wrapper = parent.create_anonymous_wrapper();
+    content_box_wrapper->modify_computed_values([](auto& values) {
+        values.set_min_height(CSS::Size::make_px(CSSPixels(0)));
+    });
+    return content_box_wrapper;
+}
+
 void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, Layout::Node& layout_node)
 {
     auto const* html_element = as_if<HTML::HTMLElement>(dom_node);
@@ -1346,20 +1376,9 @@ void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, Layo
 
         // If the box does not overflow in the vertical axis, then it is centered vertically.
         // FIXME: Only apply alignment when box overflows
-        auto flex_wrapper = parent.create_anonymous_wrapper();
-        flex_wrapper->modify_computed_values([](auto& values) {
-            values.set_display(CSS::Display { CSS::DisplayOutside::Block, CSS::DisplayInside::Flex });
-            values.set_justify_content(CSS::JustifyContent::Center);
-            values.set_flex_direction(CSS::FlexDirection::Column);
-            values.set_height(CSS::Size::make_percentage(CSS::Percentage(100)));
-        });
+        auto flex_wrapper = create_button_flex_wrapper(parent);
 
-        auto content_box_wrapper = parent.create_anonymous_wrapper();
-        // Let percentage-sized descendants shrink to fixed-height buttons instead of the flex
-        // item's automatic minimum size.
-        content_box_wrapper->modify_computed_values([](auto& values) {
-            values.set_min_height(CSS::Size::make_px(CSSPixels(0)));
-        });
+        auto content_box_wrapper = create_button_content_box_wrapper(parent);
         content_box_wrapper->set_children_are_inline(parent.children_are_inline());
 
         Vector<NonnullRefPtr<Node>> sequence;
