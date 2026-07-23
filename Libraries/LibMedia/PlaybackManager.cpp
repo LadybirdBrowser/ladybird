@@ -250,11 +250,6 @@ void PlaybackManager::set_up_producers()
                 return;
             self->dispatch_error(move(error));
         });
-        video_track_data.producer->set_duration_change_handler([self = weak()](AK::Duration time) {
-            if (!self)
-                return;
-            self->check_for_duration_change(time);
-        });
         video_track_data.producer->set_read_blocked_change_handler([self = weak(), track = video_track_data.track](ReadBlocked read_blocked) {
             if (!self)
                 return;
@@ -268,11 +263,6 @@ void PlaybackManager::set_up_producers()
             if (!self)
                 return;
             self->dispatch_error(move(error));
-        });
-        audio_track_data.producer->set_duration_change_handler([self = weak()](AK::Duration time) {
-            if (!self)
-                return;
-            self->check_for_duration_change(time);
         });
         audio_track_data.producer->set_read_blocked_change_handler([self = weak(), track = audio_track_data.track](ReadBlocked read_blocked) {
             if (!self)

@@ -34,8 +34,7 @@ DecoderErrorOr<FramePlaneLayout> plane_layout_for_frame(VideoFrameMetadata const
 DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> DecodedVideoProducer::try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration auto_suspend_idle_timeout)
 {
     TRY(demuxer->create_context_for_track(track));
-    auto duration = TRY(demuxer->duration_of_track(track));
-    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedVideoProducer::ThreadData>(main_thread_event_loop, demuxer, track, duration, auto_suspend_idle_timeout));
+    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedVideoProducer::ThreadData>(main_thread_event_loop, demuxer, track, auto_suspend_idle_timeout));
     TRY(thread_data->create_decoder());
     auto producer = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedVideoProducer>(thread_data));
 
@@ -70,11 +69,6 @@ DecodedVideoProducer::~DecodedVideoProducer()
 void DecodedVideoProducer::set_error_handler(ErrorHandler&& handler)
 {
     m_thread_data->set_error_handler(move(handler));
-}
-
-void DecodedVideoProducer::set_duration_change_handler(FrameEndTimeHandler&& handler)
-{
-    m_thread_data->set_duration_change_handler(move(handler));
 }
 
 void DecodedVideoProducer::set_read_blocked_change_handler(ReadBlockedChangeHandler handler)
@@ -181,11 +175,10 @@ void DecodedVideoProducer::seek(AK::Duration timestamp)
     m_thread_data->seek(timestamp);
 }
 
-DecodedVideoProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration duration, AK::Duration auto_suspend_idle_timeout)
+DecodedVideoProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration auto_suspend_idle_timeout)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
     , m_track(track)
-    , m_duration(duration)
     , m_auto_suspend_idle_timeout(auto_suspend_idle_timeout)
 {
     m_demuxer->set_read_blocked_change_handler_for_track(m_track, [this](ReadBlocked blocked) {
@@ -239,11 +232,6 @@ void DecodedVideoProducer::ThreadData::start()
     m_requested_state = RequestedState::Running;
     m_last_consumer_activity = MonotonicTime::now();
     wake();
-}
-
-void DecodedVideoProducer::ThreadData::set_duration_change_handler(FrameEndTimeHandler&& handler)
-{
-    m_duration_change_handler = move(handler);
 }
 
 void DecodedVideoProducer::ThreadData::exit()
@@ -384,25 +372,6 @@ bool DecodedVideoProducer::ThreadData::handle_auto_suspension()
     return true;
 }
 
-template<typename Invokee>
-void DecodedVideoProducer::ThreadData::invoke_on_main_thread(Invokee invokee)
-{
-    auto locker = take_lock();
-    invoke_on_main_thread_while_locked(move(invokee));
-}
-
-void DecodedVideoProducer::ThreadData::dispatch_frame_end_time(CodedFrame const& frame)
-{
-    auto end_time = frame.timestamp() + frame.duration();
-    if (end_time < m_duration)
-        return;
-    m_duration = end_time;
-    invoke_on_main_thread([end_time](auto const& self) {
-        if (self->m_duration_change_handler)
-            self->m_duration_change_handler(end_time);
-    });
-}
-
 void DecodedVideoProducer::ThreadData::queue_frame(NonnullRefPtr<VideoFrame> const& frame)
 {
     if (m_seek_id.load() != m_last_processed_seek_id)
@@ -487,8 +456,6 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
                 }
             } else {
                 auto coded_frame = coded_frame_result.release_value();
-                dispatch_frame_end_time(coded_frame);
-
                 auto const& video_frame_data = coded_frame.auxiliary_data().get<CodedVideoFrameData>();
                 auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data(), video_frame_data.decode_timestamp());
                 if (decode_result.is_error()) {
@@ -650,8 +617,6 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
         }
     } else {
         auto coded_frame = sample_result.release_value();
-        dispatch_frame_end_time(coded_frame);
-
         auto const& video_frame_data = coded_frame.auxiliary_data().get<CodedVideoFrameData>();
         auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data(), video_frame_data.decode_timestamp());
         if (decode_result.is_error()) {
