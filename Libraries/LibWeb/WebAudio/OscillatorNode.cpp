@@ -11,6 +11,8 @@
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/OscillatorNode.h>
+#include <LibWeb/WebAudio/PeriodicWave.h>
+#include <LibWeb/WebAudio/Rendering/RenderNodes.h>
 
 namespace Web::WebAudio {
 
@@ -44,7 +46,18 @@ WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::construct_impl(JS::
 
     TRY(node->initialize_audio_node_options(options, default_options));
 
+    node->queue_render_node_creation(make<Rendering::OscillatorRenderNode>(node->node_id(), BaseAudioContext::render_quantum_size(), node->m_frequency->render_param(), node->m_detune->render_param()));
+    node->queue_waveform_update();
+
     return node;
+}
+
+void OscillatorNode::queue_waveform_update()
+{
+    RefPtr<Rendering::PeriodicWaveData> wave_data;
+    if (m_type == Bindings::OscillatorType::Custom && m_periodic_wave)
+        wave_data = m_periodic_wave->render_data();
+    context()->queue_control_message(NodeMessage { SetOscillatorWaveform { node_id(), m_type, move(wave_data) } });
 }
 
 OscillatorNode::OscillatorNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::OscillatorOptions const& options)
@@ -71,6 +84,7 @@ WebIDL::ExceptionOr<void> OscillatorNode::set_type(Bindings::OscillatorType type
     set_periodic_wave(nullptr);
 
     m_type = type;
+    queue_waveform_update();
     return {};
 }
 
@@ -79,6 +93,7 @@ void OscillatorNode::set_periodic_wave(GC::Ptr<PeriodicWave> periodic_wave)
 {
     m_periodic_wave = periodic_wave;
     m_type = Bindings::OscillatorType::Custom;
+    queue_waveform_update();
 }
 
 void OscillatorNode::initialize(JS::Realm& realm)
