@@ -644,6 +644,13 @@ pub struct RetainedNumericRangeList {
 retained_list!(RetainedNumericRangeList, RetainedNumericRangeByType);
 
 impl RetainedNumericRangeList {
+    pub(crate) fn empty() -> Self {
+        Self {
+            pointer: std::ptr::null_mut(),
+            length: 0,
+        }
+    }
+
     pub(crate) fn as_slice(&self) -> &[RetainedNumericRangeByType] {
         if self.pointer.is_null() {
             return &[];
@@ -704,9 +711,8 @@ pub enum StyleValueData {
         points: RetainedShapePointList,
         path_string: RetainedUtf16FlyString,
     },
-    /// A calc() or other math function: the retained calculation node tree root, the resolved
-    /// numeric type as its raw bytes (a trivially copyable C++ NumericType, opaque to Rust)
-    /// and the parse-time calculation context.
+    /// A calc() or other math function: the retained calculation node tree root, its resolved
+    /// numeric type, and the parse-time calculation context.
     Calculated {
         rust_calculation: crate::calc::CalcNodeHandle,
         /// The resolve-against target, base-mapped at creation: whether one
@@ -714,7 +720,7 @@ pub enum StyleValueData {
         /// index in the numeric type order.
         resolve_as_is_number: bool,
         resolve_as_base: u8,
-        resolved_type: RetainedByteList,
+        resolved_type: crate::calc::FfiNumericType,
         has_percentages_resolve_as: bool,
         percentages_resolve_as: u8,
         resolve_numbers_as_integers: bool,
@@ -2292,8 +2298,7 @@ pub unsafe extern "C" fn rust_style_value_create_basic_shape(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_calculated(
     rust_calculation: *const crate::calc::CalcNode,
-    resolved_type: *const u8,
-    resolved_type_length: usize,
+    resolved_type: crate::calc::FfiNumericType,
     has_percentages_resolve_as: bool,
     resolve_as_is_number: bool,
     resolve_as_base: u8,
@@ -2307,7 +2312,7 @@ pub unsafe extern "C" fn rust_style_value_create_calculated(
             rust_calculation: unsafe { crate::calc::CalcNodeHandle::from_raw(rust_calculation) },
             resolve_as_is_number,
             resolve_as_base,
-            resolved_type: unsafe { RetainedByteList::from_raw(resolved_type, resolved_type_length) },
+            resolved_type,
             has_percentages_resolve_as,
             percentages_resolve_as,
             resolve_numbers_as_integers,

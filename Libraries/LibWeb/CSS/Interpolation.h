@@ -26,7 +26,6 @@ bool property_values_are_transitionable(PropertyID, StyleValue const& old_value,
 RefPtr<StyleValue const> interpolate_value(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete, ColorResolutionContext const* = nullptr);
 RefPtr<StyleValue const> interpolate_repeatable_list(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete, ColorResolutionContext const* = nullptr);
 RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
-RefPtr<StyleValue const> interpolate_transform(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
 
 RefPtr<StyleValue const> interpolate_color(StyleValue const& from, StyleValue const& to, float delta, Optional<ColorInterpolationMethodStyleValue::ColorInterpolationMethod>, ColorResolutionContext const&);
 
