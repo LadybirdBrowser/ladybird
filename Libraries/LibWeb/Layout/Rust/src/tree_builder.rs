@@ -118,8 +118,8 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub clear_stale_assigned_slottables: unsafe extern "C" fn(*mut c_void),
     pub principal_descendant_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, *mut c_void) -> FfiPrincipalDescendantFacts,
-    pub update_before_children: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, *mut c_void, bool),
-    pub update_after_children: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, *mut c_void, bool),
+    pub create_first_letter_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
+    pub wrap_fieldset_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub wrap_button_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub clear_stale_descendants: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub push_layout_parent: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -133,6 +133,13 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub quote_nesting_level: unsafe extern "C" fn(*mut c_void) -> u32,
     pub set_quote_nesting_level: unsafe extern "C" fn(*mut c_void, u32),
     pub clear_dom_update_flags: unsafe extern "C" fn(*mut c_void),
+    pub svg_pattern_content_element: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub register_svg_resource_reference: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub ancestor_count: unsafe extern "C" fn(*mut c_void) -> usize,
+    pub ancestor_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
+    pub layout_node_dom_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub set_context_layout_svg_mask_or_clip_path: unsafe extern "C" fn(*mut c_void, bool),
+    pub set_context_layout_svg_pattern: unsafe extern "C" fn(*mut c_void, bool),
 }
 
 #[derive(Clone, Copy)]
@@ -158,12 +165,21 @@ pub struct FfiPrincipalDescendantFacts {
     pub child_needs_layout_tree_update: bool,
     pub layout_node_can_have_children: bool,
     pub layout_node_is_replaced_box_with_children: bool,
+    pub layout_node_is_list_item_box: bool,
+    pub layout_node_is_block_container: bool,
     pub is_svg_switch_element: bool,
     pub is_document: bool,
     pub has_style_containment: bool,
     pub dom_children_parent: *mut c_void,
     pub shadow_root: *mut c_void,
     pub slot_element: *mut c_void,
+    pub svg_graphics_element: *mut c_void,
+    pub svg_mask: *mut c_void,
+    pub svg_clip_path: *mut c_void,
+    pub svg_fill_pattern: *mut c_void,
+    pub svg_stroke_pattern: *mut c_void,
+    pub context_layout_svg_mask_or_clip_path: bool,
+    pub context_layout_svg_pattern: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -632,6 +648,85 @@ pub unsafe extern "C" fn rust_update_layout_tree_for_display_contents(
     });
 }
 
+fn ancestor_stack_contains_dom_node(host: &DomTreeBuilderHost<'_>, dom_node: *mut c_void) -> bool {
+    // SAFETY: The builder and its ancestor stack remain live throughout tree construction.
+    let count = unsafe { (host.callbacks.ancestor_count)(host.callbacks.builder) };
+    for index in 0..count {
+        // SAFETY: `index` is below the stable ancestor count and the returned layout node is live.
+        let ancestor = unsafe { (host.callbacks.ancestor_at)(host.callbacks.builder, index) };
+        assert!(!ancestor.is_null());
+        // SAFETY: `ancestor` is a live layout node.
+        if unsafe { (host.callbacks.layout_node_dom_node)(ancestor) } == dom_node {
+            return true;
+        }
+    }
+    false
+}
+
+fn update_svg_resource(
+    host: &DomTreeBuilderHost<'_>,
+    resource: *mut c_void,
+    graphics_element: *mut c_void,
+    layout_node: *mut c_void,
+    context: *mut c_void,
+    prior_context_value: bool,
+) {
+    // SAFETY: The traversal context and layout node remain live throughout resource construction.
+    unsafe {
+        (host.callbacks.set_context_layout_svg_mask_or_clip_path)(context, true);
+        (host.callbacks.push_layout_parent)(host.callbacks.builder, layout_node);
+    }
+
+    if !ancestor_stack_contains_dom_node(host, resource) {
+        host.update_layout_tree(resource, context, true);
+        // SAFETY: Both pointers denote live SVG elements held by the graphics element.
+        unsafe { (host.callbacks.register_svg_resource_reference)(resource, graphics_element) };
+    } else {
+        // FIXME: Somehow either remove ancestor from the layout tree or mark it as invalid.
+    }
+
+    // SAFETY: Balance the parent push and restore the context's entry value.
+    unsafe {
+        (host.callbacks.pop_layout_parent)(host.callbacks.builder);
+        (host.callbacks.set_context_layout_svg_mask_or_clip_path)(context, prior_context_value);
+    }
+}
+
+fn update_svg_pattern(
+    host: &DomTreeBuilderHost<'_>,
+    pattern: *mut c_void,
+    content_element: *mut c_void,
+    graphics_element: *mut c_void,
+    layout_node: *mut c_void,
+    context: *mut c_void,
+    prior_context_value: bool,
+) {
+    // SAFETY: The traversal context and layout node remain live throughout resource construction.
+    unsafe {
+        (host.callbacks.set_context_layout_svg_pattern)(context, true);
+        (host.callbacks.push_layout_parent)(host.callbacks.builder, layout_node);
+    }
+
+    if !ancestor_stack_contains_dom_node(host, content_element) {
+        host.update_layout_tree(content_element, context, true);
+        // The referenced pattern may inherit its content from another pattern via href. Removing either element
+        // invalidates the attached resource box, so register the referencer with both.
+        // SAFETY: All pointers denote live SVG elements held by the graphics element or pattern chain.
+        unsafe {
+            (host.callbacks.register_svg_resource_reference)(content_element, graphics_element);
+            if pattern != content_element {
+                (host.callbacks.register_svg_resource_reference)(pattern, graphics_element);
+            }
+        }
+    }
+
+    // SAFETY: Balance the parent push and restore the context's entry value.
+    unsafe {
+        (host.callbacks.pop_layout_parent)(host.callbacks.builder);
+        (host.callbacks.set_context_layout_svg_pattern)(context, prior_context_value);
+    }
+}
+
 /// Updates the descendants and post-child state of a node with a principal layout box.
 ///
 /// # Safety
@@ -665,15 +760,20 @@ pub unsafe extern "C" fn rust_update_principal_node_descendants(
                 // SAFETY: `dom_node` is a live Element when this fact is set.
                 unsafe { (host.callbacks.resolve_counters)(dom_node) };
             }
-            // SAFETY: All pointers remain live throughout the call.
-            unsafe {
-                (host.callbacks.update_before_children)(
-                    host.callbacks.builder,
-                    dom_node,
-                    layout_node,
-                    context,
-                    facts.content_visibility_hidden,
-                );
+
+            // Add the ::before pseudo-element before walking normal children.
+            if facts.is_element && facts.layout_node_can_have_children && !facts.content_visibility_hidden {
+                // SAFETY: The builder, element, and layout node remain live throughout pseudo-element creation.
+                unsafe {
+                    (host.callbacks.push_layout_parent)(host.callbacks.builder, layout_node);
+                    (host.callbacks.create_pseudo_element)(
+                        host.callbacks.builder,
+                        dom_node,
+                        FfiPseudoElement::Before,
+                        FfiInsertionMode::Prepend,
+                    );
+                    (host.callbacks.pop_layout_parent)(host.callbacks.builder);
+                }
             }
         }
 
@@ -800,15 +900,76 @@ pub unsafe extern "C" fn rust_update_principal_node_descendants(
         }
 
         if should_create_layout_node {
-            // SAFETY: All pointers remain live throughout the call.
+            if !facts.svg_graphics_element.is_null() {
+                for resource in [facts.svg_mask, facts.svg_clip_path] {
+                    if !resource.is_null() {
+                        update_svg_resource(
+                            &host,
+                            resource,
+                            facts.svg_graphics_element,
+                            layout_node,
+                            context,
+                            facts.context_layout_svg_mask_or_clip_path,
+                        );
+                    }
+                }
+
+                let mut seen_content_elements = Vec::with_capacity(2);
+                for pattern in [facts.svg_fill_pattern, facts.svg_stroke_pattern] {
+                    if pattern.is_null() {
+                        continue;
+                    }
+                    // SAFETY: `pattern` is a live SVGPatternElement.
+                    let content_element = unsafe { (host.callbacks.svg_pattern_content_element)(pattern) };
+                    if content_element.is_null() || seen_content_elements.contains(&content_element) {
+                        continue;
+                    }
+                    seen_content_elements.push(content_element);
+                    update_svg_pattern(
+                        &host,
+                        pattern,
+                        content_element,
+                        facts.svg_graphics_element,
+                        layout_node,
+                        context,
+                        facts.context_layout_svg_pattern,
+                    );
+                }
+            }
+
+            // Add ::marker and ::after once normal and SVG resource children are complete.
+            if facts.is_element && facts.layout_node_can_have_children && !facts.content_visibility_hidden {
+                // SAFETY: The builder, element, and layout node remain live throughout pseudo-element creation.
+                unsafe {
+                    (host.callbacks.push_layout_parent)(host.callbacks.builder, layout_node);
+                    if facts.layout_node_is_list_item_box {
+                        (host.callbacks.create_pseudo_element)(
+                            host.callbacks.builder,
+                            dom_node,
+                            FfiPseudoElement::Marker,
+                            FfiInsertionMode::Prepend,
+                        );
+                    }
+                    (host.callbacks.create_pseudo_element)(
+                        host.callbacks.builder,
+                        dom_node,
+                        FfiPseudoElement::After,
+                        FfiInsertionMode::Append,
+                    );
+                    (host.callbacks.pop_layout_parent)(host.callbacks.builder);
+                }
+
+                if facts.layout_node_is_block_container {
+                    // SAFETY: `dom_node` is an Element and `layout_node` is a BlockContainer when these facts are set.
+                    unsafe {
+                        (host.callbacks.create_first_letter_wrapper)(host.callbacks.builder, dom_node, layout_node);
+                    }
+                }
+            }
+
+            // SAFETY: All pointers remain live throughout the calls.
             unsafe {
-                (host.callbacks.update_after_children)(
-                    host.callbacks.builder,
-                    dom_node,
-                    layout_node,
-                    context,
-                    facts.content_visibility_hidden,
-                );
+                (host.callbacks.wrap_fieldset_layout)(host.callbacks.builder, layout_node);
                 (host.callbacks.wrap_button_layout)(host.callbacks.builder, dom_node, layout_node);
             }
         }

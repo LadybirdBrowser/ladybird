@@ -696,6 +696,8 @@ RustFFI::FfiDomTreeBuilderCallbacks TreeBuilder::make_ffi_dom_tree_builder_callb
                     return CSS::PseudoElement::Before;
                 case RustFFI::FfiPseudoElement::After:
                     return CSS::PseudoElement::After;
+                case RustFFI::FfiPseudoElement::Marker:
+                    return CSS::PseudoElement::Marker;
                 default:
                     VERIFY_NOT_REACHED();
                 }
@@ -716,6 +718,11 @@ RustFFI::FfiDomTreeBuilderCallbacks TreeBuilder::make_ffi_dom_tree_builder_callb
             auto* slot_element = as_if<HTML::HTMLSlotElement>(node);
             auto* parent_node = as_if<DOM::ParentNode>(node);
             auto shadow_root = element ? element->shadow_root() : nullptr;
+            auto* graphics_element = as_if<SVG::SVGGraphicsElement>(node);
+            auto mask = graphics_element ? graphics_element->mask() : nullptr;
+            auto clip_path = graphics_element ? graphics_element->clip_path() : nullptr;
+            auto fill_pattern = graphics_element ? graphics_element->fill_pattern() : nullptr;
+            auto stroke_pattern = graphics_element ? graphics_element->stroke_pattern() : nullptr;
             return {
                 .is_element = element != nullptr,
                 .context_layout_top_layer = context.layout_top_layer,
@@ -724,33 +731,33 @@ RustFFI::FfiDomTreeBuilderCallbacks TreeBuilder::make_ffi_dom_tree_builder_callb
                 .child_needs_layout_tree_update = node.child_needs_layout_tree_update(),
                 .layout_node_can_have_children = layout_node.can_have_children(),
                 .layout_node_is_replaced_box_with_children = layout_node.is_replaced_box_with_children(),
+                .layout_node_is_list_item_box = layout_node.is_list_item_box(),
+                .layout_node_is_block_container = is<BlockContainer>(layout_node),
                 .is_svg_switch_element = is<SVG::SVGSwitchElement>(node),
                 .is_document = node.is_document(),
                 .has_style_containment = is<NodeWithStyle>(layout_node) && static_cast<NodeWithStyle&>(layout_node).has_style_containment(),
                 .dom_children_parent = parent_node,
                 .shadow_root = shadow_root ? static_cast<DOM::ParentNode*>(shadow_root.ptr()) : nullptr,
                 .slot_element = slot_element,
+                .svg_graphics_element = graphics_element,
+                .svg_mask = const_cast<SVG::SVGMaskElement*>(mask.ptr()),
+                .svg_clip_path = const_cast<SVG::SVGClipPathElement*>(clip_path.ptr()),
+                .svg_fill_pattern = const_cast<SVG::SVGPatternElement*>(fill_pattern.ptr()),
+                .svg_stroke_pattern = const_cast<SVG::SVGPatternElement*>(stroke_pattern.ptr()),
+                .context_layout_svg_mask_or_clip_path = context.layout_svg_mask_or_clip_path,
+                .context_layout_svg_pattern = context.layout_svg_pattern,
             }; },
-        .update_before_children = [](void* builder_pointer, void* node_pointer, void* layout_node_pointer, void* context_pointer, bool content_visibility_hidden) {
-            VERIFY(builder_pointer);
-            VERIFY(node_pointer);
+        .create_first_letter_wrapper = [](void*, void* element_pointer, void* layout_node_pointer) {
+            VERIFY(element_pointer);
             VERIFY(layout_node_pointer);
-            VERIFY(context_pointer);
-            static_cast<TreeBuilder*>(builder_pointer)->update_layout_tree_before_children(
-                *static_cast<DOM::Node*>(node_pointer),
-                *static_cast<Layout::Node*>(layout_node_pointer),
-                *static_cast<Context*>(context_pointer),
-                content_visibility_hidden); },
-        .update_after_children = [](void* builder_pointer, void* node_pointer, void* layout_node_pointer, void* context_pointer, bool content_visibility_hidden) {
+            create_first_letter_wrapper_if_needed(
+                *static_cast<DOM::Element*>(element_pointer),
+                as<BlockContainer>(*static_cast<Layout::Node*>(layout_node_pointer))); },
+        .wrap_fieldset_layout = [](void* builder_pointer, void* layout_node_pointer) {
             VERIFY(builder_pointer);
-            VERIFY(node_pointer);
             VERIFY(layout_node_pointer);
-            VERIFY(context_pointer);
-            static_cast<TreeBuilder*>(builder_pointer)->update_layout_tree_after_children(
-                *static_cast<DOM::Node*>(node_pointer),
-                *static_cast<Layout::Node*>(layout_node_pointer),
-                *static_cast<Context*>(context_pointer),
-                content_visibility_hidden); },
+            auto callbacks = make_ffi_tree_builder_callbacks(static_cast<TreeBuilder*>(builder_pointer));
+            RustFFI::rust_wrap_fieldset_contents_if_needed(&callbacks, layout_node_pointer); },
         .wrap_button_layout = [](void* builder_pointer, void* node_pointer, void* layout_node_pointer) {
             VERIFY(builder_pointer);
             VERIFY(node_pointer);
@@ -819,6 +826,29 @@ RustFFI::FfiDomTreeBuilderCallbacks TreeBuilder::make_ffi_dom_tree_builder_callb
             auto& node = *static_cast<DOM::Node*>(node_pointer);
             node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
             node.set_child_needs_layout_tree_update(false); },
+        .svg_pattern_content_element = [](void* pattern_pointer) -> void* {
+            VERIFY(pattern_pointer);
+            return const_cast<SVG::SVGPatternElement*>(static_cast<SVG::SVGPatternElement*>(pattern_pointer)->pattern_content_element().ptr()); },
+        .register_svg_resource_reference = [](void* resource_pointer, void* graphics_element_pointer) {
+            VERIFY(resource_pointer);
+            VERIFY(graphics_element_pointer);
+            static_cast<SVG::SVGElement*>(resource_pointer)->register_resource_box_referencing_element(
+                {}, *static_cast<SVG::SVGGraphicsElement*>(graphics_element_pointer)); },
+        .ancestor_count = [](void* builder_pointer) {
+            VERIFY(builder_pointer);
+            return static_cast<TreeBuilder*>(builder_pointer)->ancestor_count(); },
+        .ancestor_at = [](void* builder_pointer, size_t index) -> void* {
+            VERIFY(builder_pointer);
+            return &static_cast<TreeBuilder*>(builder_pointer)->ancestor_at(index); },
+        .layout_node_dom_node = [](void* layout_node_pointer) -> void* {
+            VERIFY(layout_node_pointer);
+            return static_cast<Layout::Node*>(layout_node_pointer)->dom_node(); },
+        .set_context_layout_svg_mask_or_clip_path = [](void* context_pointer, bool layout_svg_mask_or_clip_path) {
+            VERIFY(context_pointer);
+            static_cast<Context*>(context_pointer)->layout_svg_mask_or_clip_path = layout_svg_mask_or_clip_path; },
+        .set_context_layout_svg_pattern = [](void* context_pointer, bool layout_svg_pattern) {
+            VERIFY(context_pointer);
+            static_cast<Context*>(context_pointer)->layout_svg_pattern = layout_svg_pattern; },
     };
 }
 
@@ -1175,103 +1205,6 @@ void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, Layo
     auto const* html_element = as_if<HTML::HTMLElement>(dom_node);
     auto callbacks = make_ffi_tree_builder_callbacks(this);
     RustFFI::rust_wrap_button_contents_if_needed(&callbacks, &layout_node, html_element && html_element->uses_button_layout());
-}
-
-void TreeBuilder::update_layout_tree_before_children(DOM::Node& dom_node, Layout::Node& layout_node, TreeBuilder::Context&, bool element_has_content_visibility_hidden)
-{
-    // Add node for the ::before pseudo-element.
-    if (is<DOM::Element>(dom_node) && layout_node.can_have_children() && !element_has_content_visibility_hidden) {
-        auto& element = static_cast<DOM::Element&>(dom_node);
-        push_parent(as<NodeWithStyle>(layout_node));
-        (void)create_pseudo_element_if_needed(element, CSS::PseudoElement::Before, AppendOrPrepend::Prepend);
-
-        pop_parent();
-    }
-}
-
-void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, Layout::Node& layout_node, TreeBuilder::Context& context, bool element_has_content_visibility_hidden)
-{
-    if (is<SVG::SVGGraphicsElement>(dom_node)) {
-        auto& graphics_element = static_cast<SVG::SVGGraphicsElement&>(dom_node);
-        // Create the layout tree for the SVG mask/clip paths as a child of the masked element.
-        // Note: This will create a new subtree for each use of the mask (so there's  not a 1-to-1 mapping
-        // from DOM node to mask layout node). Each use of a mask may be laid out differently so this
-        // duplication is necessary.
-        auto layout_mask_or_clip_path = [&](GC::Ptr<SVG::SVGElement const> mask_or_clip_path) {
-            TemporaryChange<bool> layout_mask(context.layout_svg_mask_or_clip_path, true);
-            push_parent(as<NodeWithStyle>(layout_node));
-
-            // Check for reference cycle
-            for (size_t index = 0; index < ancestor_count(); ++index) {
-                if (ancestor_at(index).dom_node() == mask_or_clip_path) {
-                    // FIXME: Somehow either remove ancestor from the layout tree or mark it as invalid.
-                    pop_parent();
-                    return;
-                }
-            }
-            update_layout_tree(const_cast<SVG::SVGElement&>(*mask_or_clip_path), context, MustCreateSubtree::Yes);
-            const_cast<SVG::SVGElement&>(*mask_or_clip_path).register_resource_box_referencing_element({}, graphics_element);
-            pop_parent();
-        };
-        if (auto mask = graphics_element.mask())
-            layout_mask_or_clip_path(mask);
-        if (auto clip_path = graphics_element.clip_path())
-            layout_mask_or_clip_path(clip_path);
-
-        HashTable<SVG::SVGPatternElement const*> seen_content_elements;
-        auto layout_pattern = [&](GC::Ptr<SVG::SVGPatternElement const> pattern) {
-            if (!pattern)
-                return;
-            auto content_element = pattern->pattern_content_element();
-            if (!content_element)
-                return;
-            if (seen_content_elements.set(content_element.ptr()) != AK::HashSetResult::InsertedNewEntry)
-                return;
-            TemporaryChange<bool> layout_flag(context.layout_svg_pattern, true);
-            push_parent(as<NodeWithStyle>(layout_node));
-            for (size_t index = 0; index < ancestor_count(); ++index) {
-                if (ancestor_at(index).dom_node() == content_element.ptr()) {
-                    pop_parent();
-                    return;
-                }
-            }
-            update_layout_tree(const_cast<SVG::SVGPatternElement&>(*content_element), context, MustCreateSubtree::Yes);
-            // NB: The referenced pattern may inherit its content from another pattern via href. Removing either
-            //     element invalidates the attached resource box, so register the referencer with both.
-            const_cast<SVG::SVGPatternElement&>(*content_element).register_resource_box_referencing_element({}, graphics_element);
-            if (pattern != content_element)
-                const_cast<SVG::SVGPatternElement&>(*pattern).register_resource_box_referencing_element({}, graphics_element);
-            pop_parent();
-        };
-        if (auto fill = graphics_element.fill_pattern())
-            layout_pattern(fill);
-        if (auto stroke = graphics_element.stroke_pattern())
-            layout_pattern(stroke);
-    }
-
-    // Add nodes for the ::after pseudo-element.
-    if (is<DOM::Element>(dom_node) && layout_node.can_have_children() && !element_has_content_visibility_hidden) {
-        auto& element = static_cast<DOM::Element&>(dom_node);
-        push_parent(as<NodeWithStyle>(layout_node));
-
-        // https://drafts.csswg.org/css-lists-3/#marker-pseudo
-        // The marker box is generated by the ::marker pseudo-element of a list item as the list item’s first child,
-        // before the ::before pseudo-element (if it exists on the element). It is filled with content as defined
-        // in § 3.2 Generating Marker Contents.
-        // NOTE: This happens in update_layout_tree_after_children (and not in ..._before_...), since potential
-        //       block container wrapper children are created after update_layout_tree_before_children.
-        if (layout_node.is_list_item_box())
-            (void)create_pseudo_element_if_needed(element, CSS::PseudoElement::Marker, AppendOrPrepend::Prepend);
-
-        (void)create_pseudo_element_if_needed(element, CSS::PseudoElement::After, AppendOrPrepend::Append);
-        pop_parent();
-
-        if (auto* block_container = as_if<BlockContainer>(layout_node))
-            create_first_letter_wrapper_if_needed(element, *block_container);
-    }
-
-    auto callbacks = make_ffi_tree_builder_callbacks(this);
-    RustFFI::rust_wrap_fieldset_contents_if_needed(&callbacks, &layout_node);
 }
 
 RefPtr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)
