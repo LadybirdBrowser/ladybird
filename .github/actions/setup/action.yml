@@ -43,7 +43,7 @@ runs:
         mkdir -p "${RUNNER_TEMP}/pip-cache"
         echo "PIP_CACHE_DIR=${RUNNER_TEMP}/pip-cache" >> "$GITHUB_ENV"
 
-    - uses: actions/setup-python@v6
+    - uses: actions/setup-python@v7
       if: ${{ inputs.os != 'Linux' }}
       with:
         python-version: 3.12
