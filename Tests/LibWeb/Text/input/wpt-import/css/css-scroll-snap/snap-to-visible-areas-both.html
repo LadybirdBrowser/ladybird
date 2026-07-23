@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<title>
+  Snap to a visible area only even when there is a closer snap point for an area
+  that is closer but not visible (using both axes snap type)
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#snap-scope"/>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+  margin: 0px;
+}
+
+#scroller {
+  height: 600px;
+  width: 600px;
+  overflow: scroll;
+  scroll-snap-type: both mandatory;
+}
+
+#space {
+  width: 2000px;
+  height: 2000px;
+}
+
+.snap {
+  width: 200px;
+  height: 200px;
+  background-color: blue;
+  scroll-snap-align: start;
+}
+
+#left-top {
+  left: 0px;
+  top: 0px;
+}
+
+#left-bottom {
+  left: 0px;
+  top: 800px;
+}
+
+#right-top {
+  left: 800px;
+  top: 0px;
+}
+
+</style>
+<div id="scroller">
+  <div id="space"></div>
+  <div id="left-top" class="snap"></div>
+  <div id="left-bottom" class="snap"></div>
+  <div id="right-top" class="snap"></div>
+</div>
+<script>
+test(t => {
+  const scroller = document.getElementById("scroller");
+  scroller.scrollTo(0, 0);
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+  scroller.scrollTo(500, 600);
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 800);
+  scroller.scrollTo(600, 500);
+  assert_equals(scroller.scrollLeft, 800);
+  assert_equals(scroller.scrollTop, 0);
+}, 'Only snap to visible areas in the case where taking the closest snap point of \
+  each axis does not snap to a visible area');
+</script>

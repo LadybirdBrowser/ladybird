@@ -863,6 +863,7 @@ set(SOURCES
     Painting/ResizeHandle.cpp
     Painting/Scrollbar.cpp
     Painting/Scrolling.cpp
+    Painting/ScrollSnap.cpp
     Painting/ScrollState.cpp
     Painting/SVGMasking.cpp
     PerformanceTimeline/EntryTypes.cpp

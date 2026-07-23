@@ -527,6 +527,23 @@ bool rust_update_accumulated_visual_context_values(DOM::Document& document, Layo
     return Layout::RustFFI::layout_arena_update_visual_context_values(layout_arena_handle(document), paintable_slot, visual_context_host_callbacks(document));
 }
 
+Optional<TransformData> rust_compute_css_transform(Layout::Node const& box, double pixel_ratio)
+{
+    auto& document = const_cast<DOM::Document&>(box.document());
+    float matrix_values[16];
+    float origin_values[2];
+    if (!Layout::RustFFI::layout_arena_compute_css_transform(box.arena_handle(), committed_row_slot(box), visual_context_host_callbacks(document), pixel_ratio, matrix_values, origin_values))
+        return {};
+    return TransformData {
+        Gfx::FloatMatrix4x4(
+            matrix_values[0], matrix_values[1], matrix_values[2], matrix_values[3],
+            matrix_values[4], matrix_values[5], matrix_values[6], matrix_values[7],
+            matrix_values[8], matrix_values[9], matrix_values[10], matrix_values[11],
+            matrix_values[12], matrix_values[13], matrix_values[14], matrix_values[15]),
+        { origin_values[0], origin_values[1] },
+    };
+}
+
 Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const& box)
 {
     return Layout::RustFFI::layout_arena_physical_overflow_directions(box.arena_handle(), committed_row_slot(box));

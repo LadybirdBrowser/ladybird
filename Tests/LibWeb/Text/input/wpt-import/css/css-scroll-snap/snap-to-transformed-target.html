@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#scroll-snap-type" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+}
+#scroller {
+  overflow: hidden; /* TODO: Use scrollbar-width: none */
+  scroll-snap-type: x mandatory;
+  width: 500px;
+  height: 500px;
+}
+.space {
+  width: 2000px;
+  height: 2000px;
+}
+#target {
+  height: 200px;
+  width: 200px;
+  left: 50px;
+  background-color: blue;
+}
+</style>
+<div id="scroller">
+  <div class="space"></div>
+  <div id="target"></div>
+</div>
+<script>
+test(() => {
+  target.style.scrollSnapAlign = "start";
+  target.style.transform = "translateX(300px)";
+  scroller.scrollTo(10, 0);
+  assert_equals(scroller.scrollLeft, 350 /* left + translateX(300px) */);
+  assert_equals(scroller.scrollTop, 0);
+}, "Snaps to the transformed snap start position");
+
+test(() => {
+  target.style.scrollSnapAlign = "end";
+  target.style.transform = "translateX(300px)";
+  scroller.scrollTo(10, 0);
+  assert_equals(scroller.scrollLeft,
+                50 /* left + width + translateX(300px) - scroller.width */);
+  assert_equals(scroller.scrollTop, 0);
+}, "Snaps to the transformed snap end position");
+
+test(() => {
+  target.style.scrollSnapAlign = "start";
+  target.style.transform = "translateX(-100px)";
+  scroller.scrollTo(10, 0);
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+}, "Snaps to visible top left position of the transformed box");
+
+</script>

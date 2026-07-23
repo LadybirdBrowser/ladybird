@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<title>
+  Snap to an area where the element's scroll-margin is visible but not the
+  element itself (using both axes snap type)
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#snap-scope"/>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+  margin: 0px;
+}
+
+#scroller {
+  height: 600px;
+  width: 600px;
+  overflow: scroll;
+  scroll-snap-type: both mandatory;
+}
+
+#space {
+  width: 2000px;
+  height: 2000px;
+}
+
+.snap {
+  width: 200px;
+  height: 200px;
+  background-color: blue;
+  scroll-snap-align: start;
+}
+
+#left-top {
+  left: 0px;
+  top: 0px;
+}
+
+#left-bottom {
+  left: 0px;
+  top: 800px;
+  /* 800px scroll-margin makes the snap area span to the right end of the
+  right-top area */
+  scroll-margin-right: 800px;
+}
+
+#right-top {
+  left: 800px;
+  top: 0px;
+  /* 800px scroll-margin makes the snap area span to the bottom end of the
+  left-bottom area */
+  scroll-margin-bottom: 800px;
+}
+
+</style>
+<div id="scroller">
+  <div id="space"></div>
+  <div id="left-top" class="snap"></div>
+  <div id="left-bottom" class="snap"></div>
+  <div id="right-top" class="snap"></div>
+</div>
+<script>
+test(() => {
+  const scroller = document.getElementById("scroller");
+  scroller.scrollTo(0, 0);
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+  // 750 and 650 are picked as those are closer to top left of the intersection
+  // (800, 800) of the snap areas where the browser should snap. This makes the
+  // intersection a closer snap option than a covering option that the browser
+  // might choose where the snapport is aligned on the bottom and right.
+  scroller.scrollTo(650, 750);
+  assert_equals(scroller.scrollLeft, 800);
+  assert_equals(scroller.scrollTop, 800);
+  scroller.scrollTo(750, 650);
+  assert_equals(scroller.scrollLeft, 800);
+  assert_equals(scroller.scrollTop, 800);
+}, 'Snap to area such that only the scroll margin from both axes\' areas are \
+visible');
+</script>

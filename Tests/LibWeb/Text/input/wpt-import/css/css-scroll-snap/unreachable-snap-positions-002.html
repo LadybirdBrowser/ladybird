@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#unreachable" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+.scroller {
+  width: 100vw;
+  height: 100px;
+  display: flex;
+  scroll-snap-type: x mandatory;
+  overflow-x: auto;
+}
+.scroller.rtl {
+  direction: rtl;
+}
+.scroller.end > span {
+  scroll-snap-align: end;
+}
+.scroller.center > span {
+  scroll-snap-align: end;
+}
+</style>
+<div class="scroller end">
+  <span style="min-width:  25px;"></span>
+  <span style="min-width: 100vw;"></span>
+</div>
+<div class="scroller center">
+  <span style="min-width:  25px;"></span>
+  <span style="min-width: 100vw;"></span>
+</div>
+<div class="scroller end rtl">
+  <span style="min-width:  25px;"></span>
+  <span style="min-width: 100vw;"></span>
+</div>
+<div class="scroller center rtl">
+  <span style="min-width:  25px;"></span>
+  <span style="min-width: 100vw;"></span>
+</div>
+<script>
+
+test(() => {
+  const scroller = document.querySelector(".scroller.end");
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+}, "Unreachable snap point with `scroll-snap-align: end`");
+
+test(() => {
+  const scroller = document.querySelector(".scroller.center");
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+}, "Unreachable snap point with `scroll-snap-align: center`");
+
+test(() => {
+  const scroller = document.querySelector(".scroller.end.rtl");
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+}, "Unreachable snap point with `scroll-snap-align: end` in RTL");
+
+test(() => {
+  const scroller = document.querySelector(".scroller.center.rtl");
+  assert_equals(scroller.scrollLeft, 0);
+  assert_equals(scroller.scrollTop, 0);
+}, "Unreachable snap point with `scroll-snap-align: center` in RTL");
+
+</script>
+</html>

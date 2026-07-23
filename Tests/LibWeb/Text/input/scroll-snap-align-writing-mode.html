@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    html {
+        scroll-snap-type: x mandatory;
+    }
+    .area {
+        position: absolute;
+        top: 0;
+        width: 100px;
+        height: 100px;
+        scroll-snap-align: start;
+    }
+</style>
+<div class="area"></div>
+<div class="area"></div>
+<div class="area"></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        // The start edge of an axis is its lesser physical edge only while the axis runs in the same direction as the
+        // physical one. Overflow is only reachable on the side an axis ends at, so each case lays its snap areas out
+        // toward that side and scrolls toward it.
+        const snappedOffsets = [];
+        for (const [writingMode, direction, inset, target] of [
+            ["horizontal-tb", "ltr", "left", 500],
+            ["horizontal-tb", "rtl", "right", -500],
+            ["vertical-rl", "ltr", "right", -500],
+        ]) {
+            document.documentElement.style.writingMode = writingMode;
+            document.documentElement.style.direction = direction;
+            document.querySelectorAll(".area").forEach((area, index) => {
+                area.style.left = "";
+                area.style.right = "";
+                area.style[inset] = `${index * 900}px`;
+            });
+            window.scrollTo({ left: target, behavior: "instant" });
+            snappedOffsets.push(`scroll offset with ${writingMode} and ${direction}: ${window.scrollX},${window.scrollY}`);
+        }
+
+        // Printing only once every scroll has been made keeps the printed lines out of the scrollable overflow the snap
+        // positions are computed from.
+        for (const snappedOffset of snappedOffsets)
+            println(snappedOffset);
+    });
+</script>
