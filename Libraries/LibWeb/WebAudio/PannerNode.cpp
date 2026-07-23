@@ -5,16 +5,33 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/WebAudio/AudioListener.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/PannerNode.h>
+#include <LibWeb/WebAudio/Rendering/RenderNodes.h>
 
 namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(PannerNode);
 
 PannerNode::~PannerNode() = default;
+
+void PannerNode::queue_panner_parameters_update()
+{
+    context()->queue_control_message(NodeMessage { SetPannerParameters {
+        .node_id = node_id(),
+        .panning_model = m_panning_model,
+        .distance_model = m_distance_model,
+        .ref_distance = m_ref_distance,
+        .max_distance = m_max_distance,
+        .rolloff_factor = m_rolloff_factor,
+        .cone_inner_angle = m_cone_inner_angle,
+        .cone_outer_angle = m_cone_outer_angle,
+        .cone_outer_gain = m_cone_outer_gain,
+    } });
+}
 
 WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::PannerOptions const& options)
 {
@@ -56,6 +73,30 @@ WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::construct_impl(JS::Realm& r
     // FIXME: Set tail-time to maybe
 
     TRY(node->initialize_audio_node_options(options, default_options));
+
+    auto const& listener = context->listener();
+    node->queue_render_node_creation(make<Rendering::PannerRenderNode>(node->node_id(), BaseAudioContext::render_quantum_size(),
+        Rendering::PannerRenderNode::Params {
+            node->m_position_x->render_param(),
+            node->m_position_y->render_param(),
+            node->m_position_z->render_param(),
+            node->m_orientation_x->render_param(),
+            node->m_orientation_y->render_param(),
+            node->m_orientation_z->render_param(),
+        },
+        Rendering::PannerRenderNode::ListenerParams {
+            listener->position_x()->render_param(),
+            listener->position_y()->render_param(),
+            listener->position_z()->render_param(),
+            listener->forward_x()->render_param(),
+            listener->forward_y()->render_param(),
+            listener->forward_z()->render_param(),
+            listener->up_x()->render_param(),
+            listener->up_y()->render_param(),
+            listener->up_z()->render_param(),
+        }));
+    node->queue_panner_parameters_update();
+
     return node;
 }
 
@@ -103,6 +144,7 @@ WebIDL::ExceptionOr<void> PannerNode::set_ref_distance(double value)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "refDistance cannot be negative"_utf16 };
 
     m_ref_distance = value;
+    queue_panner_parameters_update();
     return {};
 }
 
@@ -114,6 +156,7 @@ WebIDL::ExceptionOr<void> PannerNode::set_max_distance(double value)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "maxDistance must be positive"_utf16 };
 
     m_max_distance = value;
+    queue_panner_parameters_update();
     return {};
 }
 
@@ -125,6 +168,7 @@ WebIDL::ExceptionOr<void> PannerNode::set_rolloff_factor(double value)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "rolloffFactor cannot be negative"_utf16 };
 
     m_rolloff_factor = value;
+    queue_panner_parameters_update();
     return {};
 }
 
@@ -136,6 +180,7 @@ WebIDL::ExceptionOr<void> PannerNode::set_cone_outer_gain(double value)
         return WebIDL::InvalidStateError::create(realm(), "coneOuterGain must be in the range of [0, 1]"_utf16);
 
     m_cone_outer_gain = value;
+    queue_panner_parameters_update();
     return {};
 }
 

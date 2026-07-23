@@ -33,10 +33,18 @@ public:
     GC::Ref<AudioParam const> orientation_z() const { return m_orientation_z; }
 
     Bindings::PanningModelType panning_model() const { return m_panning_model; }
-    void set_panning_model(Bindings::PanningModelType value) { m_panning_model = value; }
+    void set_panning_model(Bindings::PanningModelType value)
+    {
+        m_panning_model = value;
+        queue_panner_parameters_update();
+    }
 
     Bindings::DistanceModelType distance_model() const { return m_distance_model; }
-    void set_distance_model(Bindings::DistanceModelType value) { m_distance_model = value; }
+    void set_distance_model(Bindings::DistanceModelType value)
+    {
+        m_distance_model = value;
+        queue_panner_parameters_update();
+    }
 
     double ref_distance() const { return m_ref_distance; }
     WebIDL::ExceptionOr<void> set_ref_distance(double);
@@ -48,13 +56,23 @@ public:
     WebIDL::ExceptionOr<void> set_rolloff_factor(double);
 
     double cone_inner_angle() const { return m_cone_inner_angle; }
-    void set_cone_inner_angle(double value) { m_cone_inner_angle = value; }
+    void set_cone_inner_angle(double value)
+    {
+        m_cone_inner_angle = value;
+        queue_panner_parameters_update();
+    }
 
     double cone_outer_angle() const { return m_cone_outer_angle; }
-    void set_cone_outer_angle(double value) { m_cone_outer_angle = value; }
+    void set_cone_outer_angle(double value)
+    {
+        m_cone_outer_angle = value;
+        queue_panner_parameters_update();
+    }
 
     double cone_outer_gain() const { return m_cone_outer_gain; }
     WebIDL::ExceptionOr<void> set_cone_outer_gain(double);
+
+    void queue_panner_parameters_update();
 
     WebIDL::ExceptionOr<void> set_position(float x, float y, float z);
     WebIDL::ExceptionOr<void> set_orientation(float x, float y, float z);
