@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../include.js"></script>
+<svg width="200" height="200">
+    <mask id="mask" style="mask-type: alpha">
+        <rect x="0" y="0" width="100" height="50" fill="white"/>
+    </mask>
+    <rect x="0" y="0" width="100" height="100" fill="green" mask="url(#mask)"/>
+</svg>
+<script>
+    test(() => {
+        // NOTE: Display lists are captured first and printed later because println() modifies
+        // the DOM tree, causing layout updates that invalidate the accumulated visual context
+        // tree, which would affect the captured display lists.
+        const displayListBefore = internals.dumpDisplayList();
+        document.getElementById("mask").style.maskType = "luminance";
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("With mask-type alpha:");
+        println(displayListBefore);
+        println("After switching to mask-type luminance:");
+        println(displayListAfter);
+    });
+</script>

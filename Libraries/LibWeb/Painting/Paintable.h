@@ -44,6 +44,7 @@ namespace Web::Painting {
 struct FlexboxInspectorOverlayOptions;
 struct GridInspectorOverlayOptions;
 class HitTestDisplayList;
+class Paintable;
 class ResizeHandle;
 class Scrollbar;
 
@@ -52,6 +53,24 @@ bool should_paint_viewport_scrollbars();
 ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintable const& paintable_box);
 
 bool body_background_is_propagated_to_root(Layout::NodeWithStyle const&);
+
+struct MaskLayerPresence {
+    MaskLayerOrigin origin;
+    CSSPixelRect area;
+    Gfx::MaskKind kind { Gfx::MaskKind::Alpha };
+};
+
+enum class MaskLayerSet : u8 {
+    CssAndSvg,
+    SvgOnly,
+};
+
+struct MaskLayerDisplayList {
+    MaskLayerOrigin origin;
+    DisplayListResource resource;
+};
+
+void register_mask_display_lists(DisplayListRecordingContext&, Paintable const&, ReadonlySpan<MaskLayerDisplayList>);
 
 class WEB_API Paintable
     : public RefCounted<Paintable>
@@ -185,6 +204,8 @@ public:
 
     virtual Optional<CSSPixelRect> get_clip_area() const { return {}; }
     virtual Optional<DisplayListResource> calculate_clip(DisplayListRecordingContext&, CSSPixelRect const&) const { return {}; }
+
+    Vector<MaskLayerPresence, 3> mask_layer_presence(MaskLayerSet) const;
 
     auto& box_model() { return m_box_model; }
     auto const& box_model() const { return m_box_model; }

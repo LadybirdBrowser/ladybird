@@ -1,0 +1,77 @@
+With mask-image:
+AccumulatedVisualContext Tree:
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+      [2] mask=[8,8 100x100] kind=alpha origin=css-mask-layers (PaintableWithLines(BlockContainer<DIV>#box.box))
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x121]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x100]
+  CompositorWheelHitTestTarget@2 target_scroll_node_index=0 rect=[8,8 100x100]
+  FillRect@2 rect=[8,8 100x100] color=rgb(173, 216, 230)
+  DrawGlyphRun@2 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
+Restore@0
+MaskDisplayList for context 2:
+  Save@0
+    AddClipRect@0 rect=[0,0 100x100]
+    PaintLinearGradient@0 rect=[0,0 100x100]
+  Restore@0
+MaskDisplayList for context 3:
+  Save@0
+    AddClipRect@0 rect=[0,0 100x100]
+    PaintLinearGradient@0 rect=[0,0 100x100]
+  Restore@0
+MaskDisplayList for context 4:
+  Save@0
+    AddClipRect@0 rect=[0,0 100x100]
+    PaintLinearGradient@0 rect=[0,0 100x100]
+  Restore@0
+
+After mask-image removal:
+AccumulatedVisualContext Tree:
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x121]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x100]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 100x100]
+  FillRect@1 rect=[8,8 100x100] color=rgb(173, 216, 230)
+  DrawGlyphRun@1 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
+Restore@0
+
+After mask-image reinstatement:
+AccumulatedVisualContext Tree:
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+      [2] mask=[8,8 100x100] kind=alpha origin=css-mask-layers (PaintableWithLines(BlockContainer<DIV>#box.box))
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x121]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x100]
+  CompositorWheelHitTestTarget@2 target_scroll_node_index=0 rect=[8,8 100x100]
+  FillRect@2 rect=[8,8 100x100] color=rgb(173, 216, 230)
+  DrawGlyphRun@2 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
+Restore@0
+MaskDisplayList for context 2:
+  Save@0
+    AddClipRect@0 rect=[0,0 100x100]
+    PaintLinearGradient@0 rect=[0,0 100x100]
+  Restore@0
+MaskDisplayList for context 3:
+  Save@0
+    AddClipRect@0 rect=[0,0 100x100]
+    PaintLinearGradient@0 rect=[0,0 100x100]
+  Restore@0
+MaskDisplayList for context 4:
+  Save@0
+    AddClipRect@0 rect=[0,0 100x100]
+    PaintLinearGradient@0 rect=[0,0 100x100]
+  Restore@0
+

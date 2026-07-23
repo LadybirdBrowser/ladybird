@@ -2948,6 +2948,7 @@
     "initial": "add"
   },
   "mask-image": {
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -3033,6 +3034,7 @@
     "percentages-resolve-to": "length"
   },
   "mask-type": {
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,

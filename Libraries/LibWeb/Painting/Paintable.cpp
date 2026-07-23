@@ -101,6 +101,69 @@ CSS::ComputedValues const& Paintable::computed_values() const
     return layout_node().computed_values();
 }
 
+Vector<MaskLayerPresence, 3> Paintable::mask_layer_presence(MaskLayerSet mask_layer_set) const
+{
+    Vector<MaskLayerPresence, 3> presence;
+
+    if (mask_layer_set == MaskLayerSet::CssAndSvg
+        && any_of(computed_values().mask_layers(), [](auto const& layer) { return layer.background_image != nullptr; })
+        && is<Layout::Box>(layout_node())
+        && layout_node().establishes_stacking_context()) {
+        presence.append({
+            MaskLayerOrigin::CssMaskLayers,
+            absolute_border_box_rect(),
+            Gfx::MaskKind::Alpha,
+        });
+    }
+
+    if (auto mask_area = get_mask_area(); mask_area.has_value()) {
+        presence.append({
+            MaskLayerOrigin::SvgMask,
+            *mask_area,
+            get_mask_type().value_or(Gfx::MaskKind::Alpha),
+        });
+    }
+
+    if (auto clip_area = get_clip_area(); clip_area.has_value()) {
+        presence.append({
+            MaskLayerOrigin::SvgClip,
+            *clip_area,
+            Gfx::MaskKind::Alpha,
+        });
+    }
+
+    return presence;
+}
+
+void register_mask_display_lists(DisplayListRecordingContext& context, Paintable const& paintable, ReadonlySpan<MaskLayerDisplayList> mask_display_lists)
+{
+    if (mask_display_lists.is_empty())
+        return;
+
+    auto const& visual_context_tree = context.display_list_recorder().visual_context_tree();
+
+    Vector<VisualContextIndex, 9> mask_node_indices;
+    if (auto const& nested_assignments = context.nested_mask_node_assignments(); nested_assignments.has_value()) {
+        if (auto assignment = nested_assignments->find(&paintable); assignment != nested_assignments->end())
+            mask_node_indices.extend(assignment->value);
+    } else {
+        for (size_t index = paintable.visual_context_nodes_begin(); index < paintable.visual_context_nodes_end(); ++index) {
+            if (visual_context_tree.node_at(VisualContextIndex { index }).data.has<MaskData>())
+                mask_node_indices.append(VisualContextIndex { index });
+        }
+    }
+
+    for (auto const& mask_display_list : mask_display_lists) {
+        Vector<VisualContextIndex, 3> node_indices_for_origin;
+        for (auto node_index : mask_node_indices) {
+            if (visual_context_tree.node_at(node_index).data.get<MaskData>().origin == mask_display_list.origin)
+                node_indices_for_origin.append(node_index);
+        }
+        VERIFY(!node_indices_for_origin.is_empty());
+        context.display_list_recorder().register_mask_display_list(node_indices_for_origin, mask_display_list.resource);
+    }
+}
+
 bool Paintable::visible_for_hit_testing() const
 {
     if (auto node = dom_node(); node && node->is_inert())

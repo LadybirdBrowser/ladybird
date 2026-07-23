@@ -44,32 +44,23 @@ void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Painta
     }
 
     // Collect masks (SVG <mask>, SVG <clipPath>).
-    Vector<DisplayListRecorder::MaskInfo> masks;
+    Vector<MaskLayerDisplayList> masks;
 
     bool skip_painting = false;
 
-    auto mask_area = svg_box.get_mask_area();
-    if (mask_area.has_value()) {
-        if (mask_area->is_empty()) {
+    for (auto const& mask_layer : svg_box.mask_layer_presence(MaskLayerSet::SvgOnly)) {
+        if (mask_layer.area.is_empty()) {
             skip_painting = true;
-        } else if (auto mask_display_list = svg_box.calculate_mask(context, *mask_area); mask_display_list.has_value()) {
-            auto rect = context.enclosing_device_rect(*mask_area).to_type<int>();
-            auto kind = svg_box.get_mask_type().value_or(Gfx::MaskKind::Alpha);
-            masks.append({ mask_display_list.release_value(), rect, kind });
+            continue;
         }
+        auto mask_display_list = mask_layer.origin == MaskLayerOrigin::SvgMask
+            ? svg_box.calculate_mask(context, mask_layer.area)
+            : svg_box.calculate_clip(context, mask_layer.area);
+        if (mask_display_list.has_value())
+            masks.append({ mask_layer.origin, mask_display_list.release_value() });
     }
 
-    auto clip_area = svg_box.get_clip_area();
-    if (clip_area.has_value()) {
-        if (clip_area->is_empty()) {
-            skip_painting = true;
-        } else if (auto clip_display_list = svg_box.calculate_clip(context, *clip_area); clip_display_list.has_value()) {
-            auto rect = context.enclosing_device_rect(*clip_area).to_type<int>();
-            masks.append({ clip_display_list.release_value(), rect, Gfx::MaskKind::Alpha });
-        }
-    }
-
-    context.display_list_recorder().begin_masks(masks);
+    register_mask_display_lists(context, svg_box, masks);
 
     if (!skip_painting) {
         svg_box.record_hit_test_items(context, phase);
@@ -82,8 +73,6 @@ void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Painta
         svg_box.paint(context, PaintPhase::Foreground);
         paint_descendants(context, svg_box, phase);
     }
-
-    context.display_list_recorder().end_masks(masks);
 }
 
 void SVGSVGPaintable::paint_descendants(DisplayListRecordingContext& context, Paintable const& paintable, PaintPhase phase)

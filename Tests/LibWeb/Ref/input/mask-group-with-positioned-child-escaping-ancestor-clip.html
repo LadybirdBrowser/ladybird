@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/mask-group-with-positioned-child-escaping-ancestor-clip-ref.html" />
+<style>* { margin: 0; }</style>
+<!-- The absolutely positioned child escapes the static clipper's frame chain
+     but stays inside the mask group. The mask must apply to it without
+     touching anything painted beneath the group: the yellow underlay keeps
+     its pixels everywhere, including under the mask's transparent half. -->
+<div style="position: fixed; left: 0; top: 0; width: 600px; height: 600px; background: yellow; z-index: -1;"></div>
+<div style="overflow: hidden; width: 300px; height: 300px;">
+  <div style="width: 250px; height: 250px; background: blue;
+              mask-image: linear-gradient(to bottom, black 0 50%, transparent 50% 100%);">
+    <div style="position: absolute; left: 200px; top: 20px; width: 150px; height: 60px; background: red;"></div>
+  </div>
+</div>

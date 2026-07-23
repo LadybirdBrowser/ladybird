@@ -15,17 +15,14 @@ SaveLayer@0
       CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 300x200]
       FillPath@1 path_bounding_rect=[5,0 55x56]
       FillPath@1 path_bounding_rect=[1,50 55x55]
-      Save@1
-        AddClipRect@1 rect=[4,10 55x55]
-        SaveLayer@1
-          FillPath@1 path_bounding_rect=[5,0 55x56]
-          FillPath@1 path_bounding_rect=[1,50 55x55]
-          ApplyEffects@1 opacity=1 has_filter=false
-            PaintNestedDisplayList@1 rect=[4,10 55x55]
-              FillPath@0 path_bounding_rect=[4,10 55x56]
-          Restore@1
-        Restore@1
-      Restore@1
+      FillPath@2 path_bounding_rect=[5,0 55x56]
+      FillPath@2 path_bounding_rect=[1,50 55x55]
     Restore@0
+    MaskDisplayList for context 2:
+      FillPath@0 path_bounding_rect=[4,10 55x56]
+    MaskDisplayList for context 3:
+      FillPath@0 path_bounding_rect=[4,10 55x56]
+    MaskDisplayList for context 4:
+      FillPath@0 path_bounding_rect=[4,10 55x56]
 Restore@0
 

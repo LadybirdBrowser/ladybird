@@ -1,0 +1,46 @@
+With mask-type alpha:
+AccumulatedVisualContext Tree:
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+      [2] clip=[8,8 200x200]
+        [3] mask=[-11,-11 238x238] kind=alpha origin=svg-mask (SVGPathPaintable(SVGGeometryBox<rect>))
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x221]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x200]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x200]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 200x200]
+  FillPath@3 path_bounding_rect=[8,8 100x100]
+Restore@0
+MaskDisplayList for context 3:
+  FillPath@0 path_bounding_rect=[8,8 100x50]
+MaskDisplayList for context 4:
+  FillPath@0 path_bounding_rect=[8,8 100x50]
+MaskDisplayList for context 5:
+  FillPath@0 path_bounding_rect=[8,8 100x50]
+
+After switching to mask-type luminance:
+AccumulatedVisualContext Tree:
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+      [2] clip=[8,8 200x200]
+        [3] mask=[-11,-11 238x238] kind=luminance origin=svg-mask (SVGPathPaintable(SVGGeometryBox<rect>))
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x221]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x200]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x200]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 200x200]
+  FillPath@3 path_bounding_rect=[8,8 100x100]
+Restore@0
+MaskDisplayList for context 3:
+  FillPath@0 path_bounding_rect=[8,8 100x50]
+MaskDisplayList for context 4:
+  FillPath@0 path_bounding_rect=[8,8 100x50]
+MaskDisplayList for context 5:
+  FillPath@0 path_bounding_rect=[8,8 100x50]
+

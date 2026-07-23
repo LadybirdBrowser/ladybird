@@ -1,0 +1,30 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .box {
+        width: 100px;
+        height: 100px;
+        background: lightblue;
+        mask-image: linear-gradient(to bottom, black, transparent);
+    }
+</style>
+<div class="box" id="box">Box</div>
+<script>
+    test(() => {
+        // NOTE: Display lists are captured first and printed later because println() modifies
+        // the DOM tree, causing layout updates that invalidate the accumulated visual context
+        // tree, which would affect the captured display lists.
+        const displayListBefore = internals.dumpDisplayList();
+        document.getElementById("box").style.maskImage = "none";
+        const displayListAfterRemoval = internals.dumpDisplayList();
+        document.getElementById("box").style.maskImage = "linear-gradient(to right, black, transparent)";
+        const displayListAfterReinstatement = internals.dumpDisplayList();
+
+        println("With mask-image:");
+        println(displayListBefore);
+        println("After mask-image removal:");
+        println(displayListAfterRemoval);
+        println("After mask-image reinstatement:");
+        println(displayListAfterReinstatement);
+    });
+</script>

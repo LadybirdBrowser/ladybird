@@ -483,6 +483,9 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         if (auto clip_path_data = compute_basic_shape_clip_path_data(paintable_box, computed_values, converter, scale); clip_path_data.has_value())
             append_to_own_and_positioned_descendant_contexts(clip_path_data.value());
 
+        for (auto const& mask_layer : paintable_box.mask_layer_presence(MaskLayerSet::CssAndSvg))
+            append_to_own_and_positioned_descendant_contexts(MaskData { converter.enclosing_device_rect(mask_layer.area), mask_layer.kind, mask_layer.origin });
+
         paintable_box.set_accumulated_visual_context(own_state);
 
         Vector<CSS::BackgroundLayerData> const* background_layers = &computed_values.background_layers();

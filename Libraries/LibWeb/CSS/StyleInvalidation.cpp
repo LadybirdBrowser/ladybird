@@ -270,6 +270,8 @@ static bool accumulated_visual_context_change_requires_repaint(CSS::PropertyID p
     case CSS::PropertyID::BackgroundAttachment:
     case CSS::PropertyID::Clip:
     case CSS::PropertyID::ClipPath:
+    case CSS::PropertyID::MaskImage:
+    case CSS::PropertyID::MaskType:
     case CSS::PropertyID::MixBlendMode:
     case CSS::PropertyID::Perspective:
         return true;

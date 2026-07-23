@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
+#include <AK/Vector.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Palette.h>
@@ -15,6 +17,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/DevicePixelConverter.h>
+#include <LibWeb/Painting/VisualContextIndex.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
@@ -22,7 +25,10 @@ namespace Web::Painting {
 class AccumulatedVisualContextTree;
 class DisplayList;
 class HitTestDisplayList;
+class Paintable;
 class ScrollState;
+
+using NestedMaskNodeAssignments = HashMap<Paintable const*, Vector<VisualContextIndex>>;
 
 enum class PaintCommandCacheMode : u8 {
     ReadOnly,
@@ -75,6 +81,9 @@ public:
     {
         m_draw_svg_geometry_for_clip_path = draw_svg_geometry_for_clip_path;
     }
+
+    Optional<Painting::NestedMaskNodeAssignments> const& nested_mask_node_assignments() const { return m_nested_mask_node_assignments; }
+    void set_nested_mask_node_assignments(Painting::NestedMaskNodeAssignments assignments) { m_nested_mask_node_assignments = move(assignments); }
 
     DevicePixels enclosing_device_pixels(CSSPixels css_pixels) const;
     DevicePixels floored_device_pixels(CSSPixels css_pixels) const;
@@ -135,6 +144,7 @@ private:
     bool m_should_paint_overlay { true };
     bool m_draw_svg_geometry_for_clip_path { false };
     Gfx::AffineTransform m_svg_transform;
+    Optional<Painting::NestedMaskNodeAssignments> m_nested_mask_node_assignments;
     u64 m_paint_generation_id { 0 };
     UniqueNodeID m_async_scrolling_document_id {};
     Painting::AccumulatedVisualContextTree const* m_async_scrolling_visual_context_tree { nullptr };
