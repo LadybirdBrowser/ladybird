@@ -5,6 +5,7 @@
  */
 
 #include <AK/LexicalPath.h>
+#include <AK/NumericLimits.h>
 #include <LibCore/Directory.h>
 #include <LibCore/StandardPaths.h>
 #include <LibDatabase/Database.h>
@@ -127,7 +128,7 @@ TEST_CASE(associated_data_counts_toward_cache_size)
 
     for (u64 cache_key = 1; cache_key <= 5; ++cache_key)
         TRY_OR_FAIL(state.index.create_entry(cache_key, vary_key, "https://example.com/script.js"_string, request_headers, response_headers, 10, now, now));
-    state.index.update_associated_data_size(1, vary_key, 50);
+    TRY_OR_FAIL(state.index.update_associated_data_size(1, vary_key, 50));
 
     EXPECT_EQ(state.index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 100u);
 
@@ -149,4 +150,40 @@ TEST_CASE(newer_cache_index_schema_reports_database_too_new)
 
     EXPECT_EQ(TRY_OR_FAIL(HTTP::CacheIndex::migrate_schema(*database)), Database::MigrationOutcome::DatabaseTooNew);
     EXPECT_EQ(TRY_OR_FAIL(HTTP::CacheIndex::migrate_schema(*database, Database::MigrationMode::CheckOnly)), Database::MigrationOutcome::DatabaseTooNew);
+}
+
+TEST_CASE(full_range_cache_keys_round_trip)
+{
+    auto state = create_cache_index();
+
+    auto request_headers = HTTP::HeaderList::create();
+    auto response_headers = HTTP::HeaderList::create({ { "Cache-Control"sv, "max-age=60"sv } });
+    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers);
+    auto now = UnixDateTime::now();
+
+    for (u64 cache_key : { static_cast<u64>(NumericLimits<i64>::max()) + 1, NumericLimits<u64>::max() }) {
+        TRY_OR_FAIL(state.index.create_entry(cache_key, vary_key, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+
+        auto entry = state.index.find_entry(cache_key, *request_headers);
+        EXPECT(entry.has_value());
+        EXPECT_EQ(entry->vary_key, vary_key);
+        EXPECT(state.index.has_entry(cache_key, vary_key));
+    }
+}
+
+TEST_CASE(negative_stored_sizes_are_skipped_as_corrupt)
+{
+    auto state = create_cache_index();
+
+    auto request_headers = HTTP::HeaderList::create();
+    auto response_headers = HTTP::HeaderList::create({ { "Cache-Control"sv, "max-age=60"sv } });
+    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers);
+    auto now = UnixDateTime::now();
+
+    TRY_OR_FAIL(state.index.create_entry(1, vary_key, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+    TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET data_size = -5;"sv));
+
+    auto reloaded_index = MUST(HTTP::CacheIndex::create(*state.database, cache_directory()));
+    auto entry = reloaded_index.find_entry(1, *request_headers);
+    EXPECT(!entry.has_value());
 }

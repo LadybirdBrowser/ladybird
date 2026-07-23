@@ -55,7 +55,7 @@ public:
     bool has_entry(u64 cache_key, u64 vary_key);
 
     void update_response_headers(u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList>);
-    void update_associated_data_size(u64 cache_key, u64 vary_key, u64 associated_data_size);
+    ErrorOr<void> update_associated_data_size(u64 cache_key, u64 vary_key, u64 associated_data_size);
     void update_last_access_time(u64 cache_key, u64 vary_key);
 
     Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since);
@@ -78,14 +78,15 @@ private:
 
     struct Limits {
         u64 free_disk_space { 0 };
-        u64 maximum_disk_cache_size { 0 };
-        u64 maximum_disk_cache_entry_size { 0 };
+        i64 maximum_disk_cache_size { 0 };
+        i64 maximum_disk_cache_entry_size { 0 };
     };
 
-    CacheIndex(Database::Database&, Statements, Limits, u64 total_estimated_size);
+    CacheIndex(Database::Database&, Statements, Limits, i64 total_estimated_size);
 
     Optional<Entry&> get_entry(u64 cache_key, u64 vary_key);
     void delete_entry(u64 cache_key, u64 vary_key);
+    void adjust_total_estimated_size(i64 delta);
 
     NonnullRawPtr<Database::Database> m_database;
     Statements m_statements;
@@ -93,7 +94,7 @@ private:
     HashMap<u64, Vector<Entry>, IdentityHashTraits<u64>> m_entries;
 
     Limits m_limits;
-    u64 m_total_estimated_size { 0 };
+    i64 m_total_estimated_size { 0 };
 };
 
 }

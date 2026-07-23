@@ -33,8 +33,8 @@ constexpr inline Array CACHE_ENTRY_ASSOCIATED_DATA_TYPES {
     CacheEntryAssociatedData::WebAssemblyCompiledCode,
 };
 
-u64 compute_maximum_disk_cache_size(u64 free_bytes, u64 limit_maximum_disk_cache_size = DEFAULT_MAXIMUM_DISK_CACHE_SIZE);
-u64 compute_maximum_disk_cache_entry_size(u64 maximum_disk_cache_size);
+i64 compute_maximum_disk_cache_size(u64 free_bytes, u64 limit_maximum_disk_cache_size = DEFAULT_MAXIMUM_DISK_CACHE_SIZE);
+i64 compute_maximum_disk_cache_entry_size(i64 maximum_disk_cache_size);
 
 String serialize_url_for_cache_storage(URL::URL const&);
 u64 create_cache_key(StringView url, StringView method);
