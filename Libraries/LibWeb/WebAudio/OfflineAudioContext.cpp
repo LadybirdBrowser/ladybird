@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/OfflineAudioCompletionEvent.h>
 #include <LibWeb/DOM/Document.h>
@@ -136,9 +137,15 @@ void OfflineAudioContext::begin_offline_rendering(GC::Ref<WebIDL::Promise> promi
     m_renderer->set_on_complete([self = GC::make_root(this), promise = GC::make_root(promise)] {
         self->finish_rendering(*promise);
     });
+    m_renderer->set_on_suspended([self = GC::make_root(this)](double suspend_time) {
+        self->handle_suspended(suspend_time);
+    });
     m_renderer->set_on_sources_ended([self = GC::make_root(this)](Vector<NodeID> const& ended_nodes) {
         self->handle_ended_sources(ended_nodes);
     });
+    for (auto const& [frame, suspend_promise] : m_suspend_promises)
+        m_renderer->request_suspend(frame);
+
     // AD-HOC: Other engines transition the context to "running" once rendering starts.
     set_control_state(Bindings::AudioContextState::Running);
     set_rendering_state(Bindings::AudioContextState::Running);
@@ -197,6 +204,24 @@ void OfflineAudioContext::finish_rendering(GC::Ref<WebIDL::Promise> promise)
     }));
 }
 
+// Invoked on the control thread once the rendering thread has reached a scheduled suspension.
+void OfflineAudioContext::handle_suspended(double suspend_time)
+{
+    set_control_state(Bindings::AudioContextState::Suspended);
+    set_rendering_state(Bindings::AudioContextState::Suspended);
+    set_current_time(suspend_time);
+
+    auto frame = static_cast<u64>(AK::round(suspend_time * sample_rate()));
+    auto suspend_promise = m_suspend_promises.take(frame);
+
+    queue_a_media_element_task(GC::create_function(heap(), [this, suspend_promise]() {
+        HTML::TemporaryExecutionContext context(this->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        if (suspend_promise.has_value())
+            WebIDL::resolve_promise(this->realm(), *suspend_promise, JS::js_undefined());
+        this->dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::statechange));
+    }));
+}
+
 void OfflineAudioContext::queue_a_statechange_event()
 {
     queue_a_media_element_task(GC::create_function(heap(), [this]() {
@@ -204,15 +229,97 @@ void OfflineAudioContext::queue_a_statechange_event()
     }));
 }
 
+// https://webaudio.github.io/web-audio-api/#dom-offlineaudiocontext-resume
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> OfflineAudioContext::resume()
 {
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement OfflineAudioContext::resume"_utf16);
+    auto& realm = this->realm();
+
+    // FIXME: 1. If this's relevant global object's associated Document is not fully active then return a promise
+    //           rejected with "InvalidStateError" DOMException.
+
+    // 2. Let promise be a new Promise.
+    // 3. Abort these steps and reject promise with InvalidStateError when any of following conditions is true:
+    //    - The [[control thread state]] on the OfflineAudioContext is closed.
+    //    - The [[rendering started]] slot on the OfflineAudioContext is false.
+    if (state() == Bindings::AudioContextState::Closed) {
+        auto error = WebIDL::InvalidStateError::create(realm, "Context is closed"_utf16);
+        return WebIDL::create_rejected_promise_from_exception(realm, error);
+    }
+    if (!m_rendering_started) {
+        auto error = WebIDL::InvalidStateError::create(realm, "Rendering has not started"_utf16);
+        return WebIDL::create_rejected_promise_from_exception(realm, error);
+    }
+
+    auto promise = WebIDL::create_promise(realm);
+
+    // 4. Set the [[control thread state]] flag on the OfflineAudioContext to running.
+    set_control_state(Bindings::AudioContextState::Running);
+
+    // 5. Queue a control message to resume the OfflineAudioContext.
+    // AD-HOC: The control message's steps below run inline on the control thread instead.
+
+    // 5.1. Set the [[rendering thread state]] on the OfflineAudioContext to running.
+    set_rendering_state(Bindings::AudioContextState::Running);
+
+    // 5.2. Start rendering the audio graph.
+    if (m_renderer)
+        m_renderer->resume();
+
+    // AD-HOC: The promise is resolved and a statechange event is fired immediately instead of from queued media
+    //         element tasks.
+    queue_a_statechange_event();
+    WebIDL::resolve_promise(realm, promise, JS::js_undefined());
+
+    // 6. Return promise.
+    return promise;
 }
 
+// https://webaudio.github.io/web-audio-api/#dom-offlineaudiocontext-suspend
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> OfflineAudioContext::suspend(double suspend_time)
 {
-    (void)suspend_time;
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement OfflineAudioContext::suspend"_utf16);
+    auto& realm = this->realm();
+
+    // The specified suspension time is quantized and rounded up to the render quantum size. If the quantized frame
+    // number is negative or is less than or equal to the current time or is greater than or equal to the total render
+    // duration or is scheduled by another suspend for the same time, then the promise is rejected with
+    // InvalidStateError.
+    if (suspend_time < 0) {
+        auto error = WebIDL::InvalidStateError::create(realm, "suspendTime must not be negative"_utf16);
+        return WebIDL::create_rejected_promise_from_exception(realm, error);
+    }
+
+    // NB: The comparison against the current time only applies once rendering has started, so suspensions can still
+    //     be scheduled for the very beginning of the rendering beforehand.
+    if (suspend_time <= current_time() && m_rendering_started) {
+        auto error = WebIDL::InvalidStateError::create(realm, "suspendTime must be in the future"_utf16);
+        return WebIDL::create_rejected_promise_from_exception(realm, error);
+    }
+
+    // 4. Quantize suspendTime to the render quantum boundary that comes right after it.
+    auto quantum_size = render_quantum_size();
+    auto frame = static_cast<u64>(AK::ceil(suspend_time * sample_rate() / quantum_size)) * quantum_size;
+
+    // 5. If frame is at or beyond the total duration of rendering, return a promise rejected with InvalidStateError.
+    if (frame >= m_length) {
+        auto error = WebIDL::InvalidStateError::create(realm, "Cannot suspend at or beyond the total duration of rendering"_utf16);
+        return WebIDL::create_rejected_promise_from_exception(realm, error);
+    }
+
+    // 6. If another suspend has been scheduled at frame, return a promise rejected with InvalidStateError.
+    if (m_suspend_promises.contains(frame)) {
+        auto error = WebIDL::InvalidStateError::create(realm, "A suspension is already scheduled at this frame"_utf16);
+        return WebIDL::create_rejected_promise_from_exception(realm, error);
+    }
+
+    // AD-HOC: Rendering may already have progressed past frame while this call was being made.
+    if (m_renderer && !m_renderer->request_suspend(frame)) {
+        auto error = WebIDL::InvalidStateError::create(realm, "Rendering has already progressed beyond the given suspendTime"_utf16);
+        return WebIDL::create_rejected_promise_from_exception(realm, error);
+    }
+
+    auto promise = WebIDL::create_promise(realm);
+    m_suspend_promises.set(frame, promise);
+    return promise;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-offlineaudiocontext-length
@@ -261,6 +368,7 @@ void OfflineAudioContext::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rendered_buffer);
+    visitor.visit(m_suspend_promises);
 }
 
 }
