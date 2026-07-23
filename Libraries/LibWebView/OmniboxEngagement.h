@@ -31,8 +31,8 @@ struct WEBVIEW_API StoredOmniboxEngagement {
     String normalized_input;
     OmniboxDestinationKind destination_kind { OmniboxDestinationKind::URL };
     String destination;
-    u64 explicit_use_count { 0 };
-    u64 default_use_count { 0 };
+    i64 explicit_use_count { 0 };
+    i64 default_use_count { 0 };
     UnixDateTime last_used_time;
 };
 

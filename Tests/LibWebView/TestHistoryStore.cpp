@@ -716,6 +716,36 @@ TEST_CASE(persisted_omnibox_engagements_are_normalized_and_accumulated)
     expect_omnibox_engagements_are_normalized_and_accumulated(*store);
 }
 
+TEST_CASE(persisted_negative_usage_counters_are_ignored)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    auto store = create_persisted_store(*database);
+
+    auto corrupt_url = parse_url("https://corrupt.example/"sv);
+    auto valid_url = parse_url("https://valid.example/"sv);
+    store->record_visit(corrupt_url, {}, UnixDateTime::from_seconds_since_epoch(1));
+    store->record_visit(valid_url, {}, UnixDateTime::from_seconds_since_epoch(2));
+    TRY_OR_FAIL(database->execute_raw("UPDATE History SET visit_count = -1, direct_visit_count = -1 WHERE url = 'https://corrupt.example/';"sv));
+
+    EXPECT(!store->entry_for_url(corrupt_url).has_value());
+    auto autocomplete_entries = store->autocomplete_entries("example"sv, 8);
+    EXPECT_EQ(autocomplete_entries.size(), 1uz);
+    EXPECT_EQ(autocomplete_entries[0].url, "https://valid.example/"sv);
+    auto listed_entries = store->list_entries(""sv, 0, 8);
+    EXPECT_EQ(listed_entries.size(), 1uz);
+    EXPECT_EQ(listed_entries[0].url, "https://valid.example/"sv);
+
+    store->record_omnibox_engagement({
+                                         .input = "corrupt"_string,
+                                         .destination_kind = WebView::OmniboxDestinationKind::URL,
+                                         .destination = "https://corrupt.example/"_string,
+                                         .was_explicit = true,
+                                     },
+        UnixDateTime::from_seconds_since_epoch(3));
+    TRY_OR_FAIL(database->execute_raw("UPDATE OmniboxEngagements SET explicit_use_count = -1;"sv));
+    EXPECT(store->omnibox_engagements("corrupt"sv).is_empty());
+}
+
 TEST_CASE(persisted_history_page_entries_are_paginated_and_searchable)
 {
     auto database_directory = ByteString::formatted(

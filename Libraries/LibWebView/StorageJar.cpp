@@ -46,9 +46,9 @@ ErrorOr<NonnullOwnPtr<StorageJar>> StorageJar::create(Database::Database& databa
     statements.update_last_access_time = TRY(database.prepare_statement("UPDATE WebStorage SET last_access_time = ? WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key = ?;"sv));
     statements.clear = TRY(database.prepare_statement("DELETE FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
     statements.get_keys = TRY(database.prepare_statement("SELECT bottle_key FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ?;"sv));
-    statements.calculate_size_excluding_bottle_key = TRY(database.prepare_statement("SELECT SUM(OCTET_LENGTH(bottle_key) + OCTET_LENGTH(bottle_value)) FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key != ?;"sv));
-    statements.calculate_size = TRY(database.prepare_statement("SELECT COALESCE(SUM(OCTET_LENGTH(bottle_key) + OCTET_LENGTH(bottle_value)), 0) FROM WebStorage WHERE storage_key = ?;"sv));
-    statements.estimate_storage_size_accessed_since = TRY(database.prepare_statement("SELECT SUM(OCTET_LENGTH(storage_key)) + SUM(OCTET_LENGTH(bottle_key)) + SUM(OCTET_LENGTH(bottle_value)) FROM WebStorage WHERE last_access_time >= ?;"sv));
+    statements.calculate_size_excluding_bottle_key = TRY(database.prepare_statement("SELECT COALESCE(SUM(OCTET_LENGTH(bottle_key) + OCTET_LENGTH(bottle_value)), 0) FROM WebStorage WHERE storage_endpoint = ? AND storage_key = ? AND bottle_key != ?;"sv));
+    statements.calculate_size = TRY(database.prepare_statement("SELECT COALESCE(SUM(COALESCE(OCTET_LENGTH(bottle_key), 0) + COALESCE(OCTET_LENGTH(bottle_value), 0)), 0) FROM WebStorage WHERE storage_key = ?;"sv));
+    statements.estimate_storage_size_accessed_since = TRY(database.prepare_statement("SELECT COALESCE(SUM(COALESCE(OCTET_LENGTH(storage_key), 0) + COALESCE(OCTET_LENGTH(bottle_key), 0) + COALESCE(OCTET_LENGTH(bottle_value), 0)), 0) FROM WebStorage WHERE last_access_time >= ?;"sv));
 
     return adopt_own(*new StorageJar { PersistedStorage { database, statements } });
 }
@@ -264,7 +264,7 @@ StorageSetResult StorageJar::PersistedStorage::set_item(StorageLocation const& k
     database.execute_statement(
         statements.calculate_size_excluding_bottle_key,
         [&](auto statement_id) -> ErrorOr<void> {
-            current_size = database.result_column<int>(statement_id, 0);
+            current_size = database.result_column<i64>(statement_id, 0);
             return {};
         },
         to_underlying(key.storage_endpoint),
@@ -335,7 +335,7 @@ u64 StorageJar::PersistedStorage::usage(String const& storage_key)
     database.execute_statement(
         statements.calculate_size,
         [&](auto statement_id) -> ErrorOr<void> {
-            current_size_in_bytes = database.result_column<u64>(statement_id, 0);
+            current_size_in_bytes = static_cast<u64>(database.result_column<i64>(statement_id, 0));
             return {};
         },
         storage_key);
@@ -348,12 +348,12 @@ Requests::CacheSizes StorageJar::PersistedStorage::estimate_storage_size_accesse
 
     database.execute_statement(
         statements.estimate_storage_size_accessed_since,
-        [&](auto statement_id) -> ErrorOr<void> { sizes.since_requested_time = database.result_column<u64>(statement_id, 0); return {}; },
+        [&](auto statement_id) -> ErrorOr<void> { sizes.since_requested_time = static_cast<u64>(database.result_column<i64>(statement_id, 0)); return {}; },
         since);
 
     database.execute_statement(
         statements.estimate_storage_size_accessed_since,
-        [&](auto statement_id) -> ErrorOr<void> { sizes.total = database.result_column<u64>(statement_id, 0); return {}; },
+        [&](auto statement_id) -> ErrorOr<void> { sizes.total = static_cast<u64>(database.result_column<i64>(statement_id, 0)); return {}; },
         UnixDateTime::earliest());
 
     return sizes;
