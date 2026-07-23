@@ -28,7 +28,16 @@ AudioDestinationNode::~AudioDestinationNode() = default;
 // https://webaudio.github.io/web-audio-api/#dom-audiodestinationnode-maxchannelcount
 WebIDL::UnsignedLong AudioDestinationNode::max_channel_count()
 {
-    dbgln("FIXME: Implement Audio::DestinationNode::max_channel_count()");
+    // The maximum number of channels that the channelCount attribute can be set to. An AudioDestinationNode
+    // representing the audio hardware end-point (the normal case) can potentially output more than 2 channels of
+    // audio if the audio hardware is multi-channel. maxChannelCount is the maximum number of channels that this
+    // hardware is capable of supporting.
+    // NB: For an OfflineAudioContext, channelCount may not be changed, so the maximum equals the channel count the
+    //     context was constructed with. For an AudioContext, we follow the recommendation from the spec's privacy
+    //     considerations that maxChannelCount be set to two (stereo) instead of exposing the audio hardware's
+    //     actual capabilities.
+    if (is<OfflineAudioContext>(*context()))
+        return channel_count();
     return 2;
 }
 
