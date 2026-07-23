@@ -1354,6 +1354,7 @@ pub enum FfiPseudoElement {
     Before,
     After,
     Marker,
+    Backdrop,
     Other,
 }
 
@@ -1380,6 +1381,7 @@ pub enum FfiPseudoElementDecision {
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiPseudoElementFacts {
+    pub has_style: bool,
     pub pseudo_element: FfiPseudoElement,
     pub content_type: FfiComputedContentType,
     pub display_is_none: bool,
@@ -1390,9 +1392,46 @@ pub struct FfiPseudoElementFacts {
     pub normal_marker_has_content: bool,
 }
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiResolvedPseudoContentFacts {
+    pub final_quote_nesting_level: u32,
+    pub content_is_list: bool,
+    pub content_item_count: usize,
+}
+
+#[repr(C)]
+pub struct FfiPseudoTreeBuilderCallbacks {
+    pub builder: *mut c_void,
+    pub initialize: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement) -> FfiPseudoElementFacts,
+    pub create_layout_node:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiPseudoElement, FfiPseudoElementDecision),
+    pub layout_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub attach_style_resources: unsafe extern "C" fn(*mut c_void),
+    pub layout_facts: unsafe extern "C" fn(*mut c_void) -> FfiPrincipalLayoutFacts,
+    pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
+    pub layout_node_is_list_item: unsafe extern "C" fn(*mut c_void) -> bool,
+    pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
+    pub configure_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32),
+    pub insert_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiInsertionMode),
+    pub resolve_counters: unsafe extern "C" fn(*mut c_void, FfiPseudoElement),
+    pub resolve_content:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32) -> FfiResolvedPseudoContentFacts,
+    pub create_content_item: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, usize) -> *mut c_void,
+    pub insert_content_item: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub push_layout_parent: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub pop_layout_parent: unsafe extern "C" fn(*mut c_void),
+    pub quote_nesting_level: unsafe extern "C" fn(*mut c_void) -> u32,
+    pub set_quote_nesting_level: unsafe extern "C" fn(*mut c_void, u32),
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDecision {
     abort_on_panic(|| {
+        if !facts.has_style {
+            return FfiPseudoElementDecision::None;
+        }
+
         // https://drafts.csswg.org/css-display-3/#box-generation
         // The element and its descendants generate no boxes or text sequences.
         if facts.display_is_none {
@@ -1454,6 +1493,106 @@ pub extern "C" fn rust_pseudo_element_decision(facts: FfiPseudoElementFacts) -> 
         } else {
             FfiPseudoElementDecision::Box
         }
+    })
+}
+
+/// Creates a generated pseudo-element layout subtree when its style and content require one.
+///
+/// # Safety
+///
+/// The callback table, frame storage, and originating element must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_create_pseudo_element(
+    callbacks: *const FfiPseudoTreeBuilderCallbacks,
+    frame: *mut c_void,
+    element: *mut c_void,
+    pseudo_element: FfiPseudoElement,
+    has_insertion_mode: bool,
+    insertion_mode: FfiInsertionMode,
+) -> *mut c_void {
+    abort_on_panic(|| {
+        assert!(!callbacks.is_null());
+        assert!(!frame.is_null());
+        assert!(!element.is_null());
+        // SAFETY: Guaranteed by the entry point's contract.
+        let callbacks = unsafe { &*callbacks };
+        // SAFETY: The frame and element remain live throughout initialization.
+        let facts = unsafe { (callbacks.initialize)(frame, element, pseudo_element) };
+        let decision = rust_pseudo_element_decision(facts);
+        if decision == FfiPseudoElementDecision::None {
+            return std::ptr::null_mut();
+        }
+
+        // SAFETY: The builder, frame, and element remain live throughout construction.
+        unsafe {
+            (callbacks.create_layout_node)(callbacks.builder, frame, element, pseudo_element, decision);
+        }
+        // SAFETY: The frame remains live throughout the call.
+        let layout_node = unsafe { (callbacks.layout_node)(frame) };
+        if layout_node.is_null() || decision == FfiPseudoElementDecision::NormalMarker {
+            return layout_node;
+        }
+
+        // SAFETY: The frame owns a live pseudo-element layout node.
+        unsafe { (callbacks.attach_style_resources)(frame) };
+        if decision == FfiPseudoElementDecision::ContentReplacement {
+            // SAFETY: The frame owns the live replacement node and its display.
+            let layout_facts = unsafe { (callbacks.layout_facts)(frame) };
+            let adjustment = rust_adjusted_table_display_for_replaced_element(
+                layout_facts.display.display_is_table_inside,
+                layout_facts.display.display_is_block_outside,
+                layout_facts.display.display_is_internal_table,
+                layout_facts.display.display_is_table_caption,
+            );
+            if adjustment != FfiReplacedElementDisplayAdjustment::None {
+                // SAFETY: The frame owns a live NodeWithStyle.
+                unsafe { (callbacks.apply_replaced_display_adjustment)(frame, adjustment) };
+            }
+        }
+
+        // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker.
+        // SAFETY: The frame owns a live pseudo-element layout node.
+        if unsafe { (callbacks.layout_node_is_list_item)(frame) } {
+            // SAFETY: The builder, frame, and element remain live throughout marker creation.
+            unsafe { (callbacks.create_nested_list_marker)(callbacks.builder, frame, element) };
+            // FIXME: Support counters on element::pseudo::marker.
+        }
+
+        // SAFETY: The builder and frame remain live throughout configuration and insertion.
+        let initial_quote_nesting_level = unsafe { (callbacks.quote_nesting_level)(callbacks.builder) };
+        unsafe {
+            (callbacks.configure_layout_node)(frame, element, pseudo_element, initial_quote_nesting_level);
+            if has_insertion_mode {
+                (callbacks.insert_layout_node)(callbacks.builder, frame, insertion_mode);
+            }
+            (callbacks.resolve_counters)(element, pseudo_element);
+        }
+
+        // Resolve content after insertion because counter() and counters() items read the counters established by this
+        // pseudo-element's box.
+        // SAFETY: The frame and element remain live throughout content resolution.
+        let resolved_content =
+            unsafe { (callbacks.resolve_content)(frame, element, pseudo_element, initial_quote_nesting_level) };
+        // SAFETY: The builder remains live throughout the call.
+        unsafe {
+            (callbacks.set_quote_nesting_level)(callbacks.builder, resolved_content.final_quote_nesting_level);
+        }
+
+        if resolved_content.content_is_list && decision != FfiPseudoElementDecision::ContentReplacement {
+            // SAFETY: The pseudo-element node remains live throughout child construction.
+            unsafe { (callbacks.push_layout_parent)(callbacks.builder, layout_node) };
+            for index in 0..resolved_content.content_item_count {
+                // SAFETY: `index` is below the resolved content item count and the frame retains the returned node.
+                let content_item = unsafe { (callbacks.create_content_item)(frame, element, pseudo_element, index) };
+                assert!(!content_item.is_null());
+                // SAFETY: The builder and generated content item remain live throughout insertion.
+                unsafe { (callbacks.insert_content_item)(callbacks.builder, content_item) };
+            }
+            // SAFETY: Balances the pseudo-element parent push above.
+            unsafe { (callbacks.pop_layout_parent)(callbacks.builder) };
+        }
+
+        layout_node
     })
 }
 
@@ -2836,6 +2975,7 @@ mod tests {
                       originating_layout_node_is_list_item,
                       normal_marker_has_content| {
             rust_pseudo_element_decision(FfiPseudoElementFacts {
+                has_style: true,
                 pseudo_element,
                 content_type,
                 display_is_none,

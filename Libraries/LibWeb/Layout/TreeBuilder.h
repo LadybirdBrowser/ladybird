@@ -15,6 +15,7 @@ namespace Web::Layout {
 namespace RustFFI {
 
 struct FfiDomTreeBuilderCallbacks;
+struct FfiPseudoTreeBuilderCallbacks;
 
 }
 
@@ -70,6 +71,7 @@ private:
     u32 quote_nesting_level() const;
     void set_quote_nesting_level(u32);
     RustFFI::FfiDomTreeBuilderCallbacks make_ffi_dom_tree_builder_callbacks();
+    RustFFI::FfiPseudoTreeBuilderCallbacks make_ffi_pseudo_tree_builder_callbacks();
 
     void insert_node_into_inline_or_block_ancestor(Layout::Node&, CSS::Display, AppendOrPrepend);
     RefPtr<Layout::Node> create_layout_node_for_element(DOM::Element&, Context&) const;

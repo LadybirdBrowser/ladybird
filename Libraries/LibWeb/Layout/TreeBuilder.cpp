@@ -101,6 +101,7 @@ void TreeBuilder::set_quote_nesting_level(u32 quote_nesting_level)
 }
 
 static RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks(TreeBuilder*);
+static RustFFI::FfiPrincipalDisplayFacts ffi_principal_display_facts(CSS::Display);
 static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element&);
 static RefPtr<Layout::Node> create_layout_node_for_text(DOM::Text&);
 
@@ -108,20 +109,6 @@ void TreeBuilder::note_tree_restructuring_at(Layout::Node const& node)
 {
     if (m_current_rebuild_root && !m_current_rebuild_root->is_inclusive_ancestor_of(node))
         m_layout_tree_update_escaped_rebuild_roots = true;
-}
-
-static Optional<CSS::Display> adjusted_table_display_for_replaced_element(CSS::Display display)
-{
-    auto adjustment = RustFFI::rust_adjusted_table_display_for_replaced_element(
-        display.is_table_inside(),
-        display.is_block_outside(),
-        display.is_internal_table(),
-        display.is_table_caption());
-    if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Block)
-        return CSS::Display::from_short(CSS::Display::Short::Block);
-    if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Inline)
-        return CSS::Display::from_short(CSS::Display::Short::Inline);
-    return {};
 }
 
 void TreeBuilder::insert_node_into_inline_or_block_ancestor(Layout::Node& node, CSS::Display display, AppendOrPrepend mode)
@@ -343,9 +330,28 @@ static RustFFI::FfiPseudoElement ffi_pseudo_element(CSS::PseudoElement pseudo_el
         return RustFFI::FfiPseudoElement::After;
     case CSS::PseudoElement::Marker:
         return RustFFI::FfiPseudoElement::Marker;
+    case CSS::PseudoElement::Backdrop:
+        return RustFFI::FfiPseudoElement::Backdrop;
     default:
         return RustFFI::FfiPseudoElement::Other;
     }
+}
+
+static CSS::PseudoElement css_pseudo_element(RustFFI::FfiPseudoElement pseudo_element)
+{
+    switch (pseudo_element) {
+    case RustFFI::FfiPseudoElement::Before:
+        return CSS::PseudoElement::Before;
+    case RustFFI::FfiPseudoElement::After:
+        return CSS::PseudoElement::After;
+    case RustFFI::FfiPseudoElement::Marker:
+        return CSS::PseudoElement::Marker;
+    case RustFFI::FfiPseudoElement::Backdrop:
+        return CSS::PseudoElement::Backdrop;
+    case RustFFI::FfiPseudoElement::Other:
+        VERIFY_NOT_REACHED();
+    }
+    VERIFY_NOT_REACHED();
 }
 
 static RustFFI::FfiComputedContentType ffi_computed_content_type(CSS::ComputedContentData::Type content_type)
@@ -361,118 +367,230 @@ static RustFFI::FfiComputedContentType ffi_computed_content_type(CSS::ComputedCo
     VERIFY_NOT_REACHED();
 }
 
+struct PseudoElementFrame {
+    RefPtr<CSS::ComputedValues const> computed_values;
+    CSS::Display display;
+    CSS::AbstractImageStyleValue const* replacement_image { nullptr };
+    ListItemBox* originating_list_box { nullptr };
+    RefPtr<NodeWithStyle> layout_node;
+    CSS::ContentData resolved_content;
+    RefPtr<Layout::Node> content_item;
+};
+
 RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::PseudoElement pseudo_element, Optional<AppendOrPrepend> insertion_mode)
 {
-    auto& document = element.document();
+    PseudoElementFrame frame;
+    auto callbacks = make_ffi_pseudo_tree_builder_callbacks();
+    auto* layout_node = RustFFI::rust_create_pseudo_element(
+        &callbacks,
+        &frame,
+        &element,
+        ffi_pseudo_element(pseudo_element),
+        insertion_mode.has_value(),
+        insertion_mode.value_or(AppendOrPrepend::Append) == AppendOrPrepend::Append
+            ? RustFFI::FfiInsertionMode::Append
+            : RustFFI::FfiInsertionMode::Prepend);
+    return static_cast<NodeWithStyle*>(layout_node);
+}
 
-    // Clear stale layout nodes before deciding if this pseudo-element still generates one.
-    if (auto existing_pseudo = element.get_synthetic_pseudo_element(pseudo_element); existing_pseudo.has_value() && existing_pseudo->layout_node())
-        existing_pseudo->set_layout_node(nullptr);
-
-    auto pseudo_element_values = element.computed_values(pseudo_element);
-    if (!pseudo_element_values)
-        return {};
-
-    auto pseudo_element_display = pseudo_element_values->display();
-
-    auto initial_quote_nesting_level = quote_nesting_level();
-
-    // NB: Whether this pseudo-element generates a box depends only on the shape of its computed
-    //     content value, so the full resolution (which reads counters that do not exist until
-    //     the box is inserted) can wait until after insertion.
-    auto const computed_content_type = pseudo_element_values->computed_content().type;
-    auto const* replacement_image = content_replacement_image(pseudo_element_values->computed_content());
-    ListItemBox* originating_list_box = nullptr;
-    if (pseudo_element == CSS::PseudoElement::Marker && computed_content_type == CSS::ComputedContentData::Type::Normal)
-        originating_list_box = as_if<ListItemBox>(*element.unsafe_layout_node());
-    auto const normal_marker_has_content = originating_list_box
-        && (!originating_list_box->computed_values().list_style_type().has<Empty>() || originating_list_box->list_style_image());
-    auto const decision = RustFFI::rust_pseudo_element_decision({
-        .pseudo_element = ffi_pseudo_element(pseudo_element),
-        .content_type = ffi_computed_content_type(computed_content_type),
-        .display_is_none = pseudo_element_display.is_none(),
-        .display_is_contents = pseudo_element_display.is_contents(),
-        .display_is_list_item = pseudo_element_display.is_list_item(),
-        .has_content_replacement = replacement_image != nullptr,
-        .originating_layout_node_is_list_item = originating_list_box != nullptr,
-        .normal_marker_has_content = normal_marker_has_content,
-    });
-    if (decision == RustFFI::FfiPseudoElementDecision::None)
-        return {};
-
-    // For ::marker with content 'normal', create the marker pseudo-element from a ListItemMarkerBox
-    // FIXME: This + ListItemBox + ListItemMarkerBox will disappear once ::marker pseudo-elements with 'normal' content
-    //        are rendered using the special list-item counter.
-    //        See: https://github.com/LadybirdBrowser/ladybird/issues/4782
-    // NB: Called during layout tree construction.
-    if (decision == RustFFI::FfiPseudoElementDecision::NormalMarker)
-        return create_and_attach_list_item_marker(*originating_list_box, element, NonnullRefPtr { *pseudo_element_values });
-
-    RefPtr<NodeWithStyle> pseudo_element_node;
-    auto const is_content_replacement = decision == RustFFI::FfiPseudoElementDecision::ContentReplacement;
-
-    if (is_content_replacement) {
-        pseudo_element_node = create_content_image_box(document, nullptr, NonnullRefPtr { *pseudo_element_values }, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
-        if (auto adjusted_display = adjusted_table_display_for_replaced_element(pseudo_element_display); adjusted_display.has_value())
-            pseudo_element_node->set_display(*adjusted_display);
-    } else if (decision == RustFFI::FfiPseudoElementDecision::Contents) {
-        pseudo_element_node = make_ref_counted<InlineNode>(document, nullptr, NonnullRefPtr { *pseudo_element_values });
-        pseudo_element_node->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
-    } else {
-        pseudo_element_node = DOM::Element::create_layout_node_for_display_type(document, pseudo_element_display, NonnullRefPtr { *pseudo_element_values }, nullptr);
-        if (!pseudo_element_node)
-            return {};
-    }
-    pseudo_element_node->attach_style_resources();
-
-    // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker
-    if (auto* list_box = as_if<ListItemBox>(*pseudo_element_node)) {
-        auto marker_style = document.style_computer().compute_style({ element, CSS::PseudoElement::Marker });
-        (void)create_and_attach_list_item_marker(*list_box, element, move(marker_style));
-
-        // FIXME: Support counters on element::pseudo::marker
-    }
-
-    pseudo_element_node->set_generated_for(pseudo_element, element);
-    pseudo_element_node->set_initial_quote_nesting_level(initial_quote_nesting_level);
-
-    element.set_synthetic_pseudo_element_node({}, pseudo_element, pseudo_element_node);
-    if (insertion_mode.has_value())
-        insert_node_into_inline_or_block_ancestor(*pseudo_element_node, pseudo_element_node->display(), insertion_mode.value());
-
-    // Resolve counters before content: counter() and counters() items in the content list read
-    // the counters established for this pseudo-element's box.
-    DOM::AbstractElement element_reference { element, pseudo_element };
-    CSS::resolve_counters(element_reference);
-
-    auto [pseudo_element_content, final_quote_nesting_level] = pseudo_element_values->resolved_content(element_reference, initial_quote_nesting_level);
-    set_quote_nesting_level(final_quote_nesting_level);
-    pseudo_element_node->set_content(pseudo_element_content);
-
-    // FIXME: Handle images, and multiple values
-    if (pseudo_element_content.type == CSS::ContentData::Type::List && !is_content_replacement) {
-        push_parent(*pseudo_element_node);
-        for (auto& item : pseudo_element_content.data) {
-            RefPtr<Layout::Node> layout_node;
+RustFFI::FfiPseudoTreeBuilderCallbacks TreeBuilder::make_ffi_pseudo_tree_builder_callbacks()
+{
+    return {
+        .builder = this,
+        .initialize = [](void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo) -> RustFFI::FfiPseudoElementFacts {
+            VERIFY(frame_pointer);
+            VERIFY(element_pointer);
+            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
+            auto& element = *static_cast<DOM::Element*>(element_pointer);
+            auto pseudo_element = css_pseudo_element(ffi_pseudo);
+            if (auto existing_pseudo = element.get_synthetic_pseudo_element(pseudo_element); existing_pseudo.has_value() && existing_pseudo->layout_node())
+                existing_pseudo->set_layout_node(nullptr);
+            frame.computed_values = element.computed_values(pseudo_element);
+            frame.replacement_image = nullptr;
+            frame.originating_list_box = nullptr;
+            frame.layout_node = nullptr;
+            frame.content_item = nullptr;
+            if (!frame.computed_values) {
+                return {
+                    .has_style = false,
+                    .pseudo_element = ffi_pseudo,
+                    .content_type = RustFFI::FfiComputedContentType::None,
+                    .display_is_none = false,
+                    .display_is_contents = false,
+                    .display_is_list_item = false,
+                    .has_content_replacement = false,
+                    .originating_layout_node_is_list_item = false,
+                    .normal_marker_has_content = false,
+                };
+            }
+            frame.display = frame.computed_values->display();
+            auto const computed_content_type = frame.computed_values->computed_content().type;
+            frame.replacement_image = content_replacement_image(frame.computed_values->computed_content());
+            if (pseudo_element == CSS::PseudoElement::Marker && computed_content_type == CSS::ComputedContentData::Type::Normal)
+                frame.originating_list_box = as_if<ListItemBox>(*element.unsafe_layout_node());
+            auto const normal_marker_has_content = frame.originating_list_box
+                && (!frame.originating_list_box->computed_values().list_style_type().has<Empty>() || frame.originating_list_box->list_style_image());
+            return {
+                .has_style = true,
+                .pseudo_element = ffi_pseudo,
+                .content_type = ffi_computed_content_type(computed_content_type),
+                .display_is_none = frame.display.is_none(),
+                .display_is_contents = frame.display.is_contents(),
+                .display_is_list_item = frame.display.is_list_item(),
+                .has_content_replacement = frame.replacement_image != nullptr,
+                .originating_layout_node_is_list_item = frame.originating_list_box != nullptr,
+                .normal_marker_has_content = normal_marker_has_content,
+            }; },
+        .create_layout_node = [](void* builder_pointer, void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement, RustFFI::FfiPseudoElementDecision decision) {
+            VERIFY(builder_pointer);
+            VERIFY(frame_pointer);
+            VERIFY(element_pointer);
+            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
+            auto& element = *static_cast<DOM::Element*>(element_pointer);
+            VERIFY(frame.computed_values);
+            auto& document = element.document();
+            switch (decision) {
+            case RustFFI::FfiPseudoElementDecision::None:
+                VERIFY_NOT_REACHED();
+            case RustFFI::FfiPseudoElementDecision::NormalMarker:
+                VERIFY(frame.originating_list_box);
+                frame.layout_node = create_and_attach_list_item_marker(*frame.originating_list_box, element, NonnullRefPtr { *frame.computed_values });
+                break;
+            case RustFFI::FfiPseudoElementDecision::ContentReplacement:
+                VERIFY(frame.replacement_image);
+                frame.layout_node = create_content_image_box(document, nullptr, NonnullRefPtr { *frame.computed_values }, const_cast<CSS::AbstractImageStyleValue&>(*frame.replacement_image));
+                break;
+            case RustFFI::FfiPseudoElementDecision::Contents:
+                frame.layout_node = make_ref_counted<InlineNode>(document, nullptr, NonnullRefPtr { *frame.computed_values });
+                frame.layout_node->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
+                break;
+            case RustFFI::FfiPseudoElementDecision::Box:
+                frame.layout_node = DOM::Element::create_layout_node_for_display_type(document, frame.display, NonnullRefPtr { *frame.computed_values }, nullptr);
+                break;
+            } },
+        .layout_node = [](void* frame_pointer) -> void* {
+            VERIFY(frame_pointer);
+            return static_cast<PseudoElementFrame*>(frame_pointer)->layout_node.ptr(); },
+        .attach_style_resources = [](void* frame_pointer) {
+            VERIFY(frame_pointer);
+            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
+            VERIFY(frame.layout_node);
+            frame.layout_node->attach_style_resources(); },
+        .layout_facts = [](void* frame_pointer) -> RustFFI::FfiPrincipalLayoutFacts {
+            VERIFY(frame_pointer);
+            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
+            VERIFY(frame.layout_node);
+            return {
+                .is_replaced_element = frame.layout_node->is_replaced_element(),
+                .display = ffi_principal_display_facts(frame.display),
+            }; },
+        .apply_replaced_display_adjustment = [](void* frame_pointer, RustFFI::FfiReplacedElementDisplayAdjustment adjustment) {
+            VERIFY(frame_pointer);
+            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
+            VERIFY(frame.layout_node);
+            if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Block)
+                frame.display = CSS::Display::from_short(CSS::Display::Short::Block);
+            else if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Inline)
+                frame.display = CSS::Display::from_short(CSS::Display::Short::Inline);
+            else
+                VERIFY_NOT_REACHED();
+            frame.layout_node->set_display(frame.display); },
+        .layout_node_is_list_item = [](void* frame_pointer) {
+            VERIFY(frame_pointer);
+            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
+            VERIFY(frame.layout_node);
+            return is<ListItemBox>(*frame.layout_node); },
+        .create_nested_list_marker = [](void* builder_pointer, void* frame_pointer, void* element_pointer) {
+            VERIFY(builder_pointer);
+            VERIFY(frame_pointer);
+            VERIFY(element_pointer);
+            auto& builder = *static_cast<TreeBuilder*>(builder_pointer);
+            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
+            auto& element = *static_cast<DOM::Element*>(element_pointer);
+            VERIFY(frame.layout_node);
+            auto marker_style = element.document().style_computer().compute_style({ element, CSS::PseudoElement::Marker });
+            (void)builder.create_and_attach_list_item_marker(as<ListItemBox>(*frame.layout_node), element, move(marker_style)); },
+        .configure_layout_node = [](void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo, u32 initial_quote_nesting_level) {
+            VERIFY(frame_pointer);
+            VERIFY(element_pointer);
+            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
+            auto& element = *static_cast<DOM::Element*>(element_pointer);
+            auto pseudo_element = css_pseudo_element(ffi_pseudo);
+            VERIFY(frame.layout_node);
+            frame.layout_node->set_generated_for(pseudo_element, element);
+            frame.layout_node->set_initial_quote_nesting_level(initial_quote_nesting_level);
+            element.set_synthetic_pseudo_element_node({}, pseudo_element, frame.layout_node); },
+        .insert_layout_node = [](void* builder_pointer, void* frame_pointer, RustFFI::FfiInsertionMode insertion_mode) {
+            VERIFY(builder_pointer);
+            VERIFY(frame_pointer);
+            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
+            VERIFY(frame.layout_node);
+            static_cast<TreeBuilder*>(builder_pointer)->insert_node_into_inline_or_block_ancestor(
+                *frame.layout_node,
+                frame.layout_node->display(),
+                insertion_mode == RustFFI::FfiInsertionMode::Append ? AppendOrPrepend::Append : AppendOrPrepend::Prepend); },
+        .resolve_counters = [](void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo) {
+            VERIFY(element_pointer);
+            DOM::AbstractElement element_reference { *static_cast<DOM::Element*>(element_pointer), css_pseudo_element(ffi_pseudo) };
+            CSS::resolve_counters(element_reference); },
+        .resolve_content = [](void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo, u32 initial_quote_nesting_level) -> RustFFI::FfiResolvedPseudoContentFacts {
+            VERIFY(frame_pointer);
+            VERIFY(element_pointer);
+            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
+            VERIFY(frame.computed_values);
+            VERIFY(frame.layout_node);
+            DOM::AbstractElement element_reference { *static_cast<DOM::Element*>(element_pointer), css_pseudo_element(ffi_pseudo) };
+            auto [content, final_quote_nesting_level] = frame.computed_values->resolved_content(element_reference, initial_quote_nesting_level);
+            frame.resolved_content = move(content);
+            frame.layout_node->set_content(frame.resolved_content);
+            return {
+                .final_quote_nesting_level = final_quote_nesting_level,
+                .content_is_list = frame.resolved_content.type == CSS::ContentData::Type::List,
+                .content_item_count = frame.resolved_content.data.size(),
+            }; },
+        .create_content_item = [](void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo, size_t index) -> void* {
+            VERIFY(frame_pointer);
+            VERIFY(element_pointer);
+            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
+            auto& element = *static_cast<DOM::Element*>(element_pointer);
+            VERIFY(frame.layout_node);
+            VERIFY(index < frame.resolved_content.data.size());
+            auto& item = frame.resolved_content.data[index];
             if (auto const* string = item.get_pointer<Utf16String>()) {
-                layout_node = make_ref_counted<GeneratedTextNode>(document, *string);
+                frame.content_item = make_ref_counted<GeneratedTextNode>(element.document(), *string);
             } else {
                 auto& image = *item.get<NonnullRefPtr<CSS::AbstractImageStyleValue>>();
-                auto image_box = create_content_image_box(document, nullptr, NonnullRefPtr { pseudo_element_node->computed_values() }, image);
+                auto image_box = create_content_image_box(element.document(), nullptr, NonnullRefPtr { frame.layout_node->computed_values() }, image);
                 // https://drafts.csswg.org/css-content-3/#content-property
                 // For <image>, this is an inline anonymous replaced element.
                 image_box->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
                 image_box->attach_style_resources();
-                layout_node = move(image_box);
+                frame.content_item = move(image_box);
             }
-            layout_node->set_generated_for(pseudo_element, element);
-            auto display = layout_node->is_text_node() ? CSS::Display::from_short(CSS::Display::Short::Inline) : as<NodeWithStyle>(*layout_node).display();
-            insert_node_into_inline_or_block_ancestor(*layout_node, display, AppendOrPrepend::Append);
-        }
-        pop_parent();
-    }
-
-    return pseudo_element_node;
+            frame.content_item->set_generated_for(css_pseudo_element(ffi_pseudo), element);
+            return frame.content_item.ptr(); },
+        .insert_content_item = [](void* builder_pointer, void* content_item_pointer) {
+            VERIFY(builder_pointer);
+            VERIFY(content_item_pointer);
+            auto& content_item = *static_cast<Layout::Node*>(content_item_pointer);
+            auto display = content_item.is_text_node()
+                ? CSS::Display::from_short(CSS::Display::Short::Inline)
+                : as<NodeWithStyle>(content_item).display();
+            static_cast<TreeBuilder*>(builder_pointer)->insert_node_into_inline_or_block_ancestor(content_item, display, AppendOrPrepend::Append); },
+        .push_layout_parent = [](void* builder_pointer, void* layout_node_pointer) {
+            VERIFY(builder_pointer);
+            VERIFY(layout_node_pointer);
+            static_cast<TreeBuilder*>(builder_pointer)->push_parent(as<NodeWithStyle>(*static_cast<Layout::Node*>(layout_node_pointer))); },
+        .pop_layout_parent = [](void* builder_pointer) {
+            VERIFY(builder_pointer);
+            static_cast<TreeBuilder*>(builder_pointer)->pop_parent(); },
+        .quote_nesting_level = [](void* builder_pointer) {
+            VERIFY(builder_pointer);
+            return static_cast<TreeBuilder*>(builder_pointer)->quote_nesting_level(); },
+        .set_quote_nesting_level = [](void* builder_pointer, u32 quote_nesting_level) {
+            VERIFY(builder_pointer);
+            static_cast<TreeBuilder*>(builder_pointer)->set_quote_nesting_level(quote_nesting_level); },
+    };
 }
 
 RefPtr<NodeWithStyle> TreeBuilder::create_content_replacement_if_needed(DOM::Element& element, NonnullRefPtr<CSS::ComputedValues const> computed_values) const
