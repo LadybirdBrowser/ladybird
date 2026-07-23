@@ -55,7 +55,51 @@
 
 namespace Web::Layout {
 
-TreeBuilder::TreeBuilder() = default;
+TreeBuilder::TreeBuilder()
+    : m_rust_state(RustFFI::rust_tree_builder_state_create())
+{
+    VERIFY(m_rust_state);
+}
+
+TreeBuilder::~TreeBuilder()
+{
+    RustFFI::rust_tree_builder_state_destroy(m_rust_state);
+}
+
+void TreeBuilder::push_parent(Layout::NodeWithStyle& parent)
+{
+    RustFFI::rust_tree_builder_push_parent(m_rust_state, &parent);
+}
+
+void TreeBuilder::pop_parent()
+{
+    RustFFI::rust_tree_builder_pop_parent(m_rust_state);
+}
+
+Layout::NodeWithStyle& TreeBuilder::current_parent() const
+{
+    return *static_cast<Layout::NodeWithStyle*>(RustFFI::rust_tree_builder_current_parent(m_rust_state));
+}
+
+size_t TreeBuilder::ancestor_count() const
+{
+    return RustFFI::rust_tree_builder_ancestor_count(m_rust_state);
+}
+
+Layout::NodeWithStyle& TreeBuilder::ancestor_at(size_t index) const
+{
+    return *static_cast<Layout::NodeWithStyle*>(RustFFI::rust_tree_builder_ancestor_at(m_rust_state, index));
+}
+
+u32 TreeBuilder::quote_nesting_level() const
+{
+    return RustFFI::rust_tree_builder_quote_nesting_level(m_rust_state);
+}
+
+void TreeBuilder::set_quote_nesting_level(u32 quote_nesting_level)
+{
+    RustFFI::rust_tree_builder_set_quote_nesting_level(m_rust_state, quote_nesting_level);
+}
 
 static RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks(TreeBuilder*);
 
@@ -84,7 +128,7 @@ void TreeBuilder::insert_node_into_inline_or_block_ancestor(Layout::Node& node, 
     auto callbacks = make_ffi_tree_builder_callbacks(this);
     RustFFI::rust_insert_node_into_inline_or_block_ancestor(
         &callbacks,
-        m_ancestor_stack.last(),
+        &current_parent(),
         &node,
         display.is_inline_outside(),
         mode == AppendOrPrepend::Append ? RustFFI::FfiInsertionMode::Append : RustFFI::FfiInsertionMode::Prepend);
@@ -308,7 +352,7 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     if (pseudo_element_display.is_none())
         return {};
 
-    auto initial_quote_nesting_level = m_quote_nesting_level;
+    auto initial_quote_nesting_level = quote_nesting_level();
 
     // NB: Whether this pseudo-element generates a box depends only on the shape of its computed
     //     content value, so the full resolution (which reads counters that do not exist until
@@ -398,7 +442,7 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     CSS::resolve_counters(element_reference);
 
     auto [pseudo_element_content, final_quote_nesting_level] = pseudo_element_values->resolved_content(element_reference, initial_quote_nesting_level);
-    m_quote_nesting_level = final_quote_nesting_level;
+    set_quote_nesting_level(final_quote_nesting_level);
     pseudo_element_node->set_content(pseudo_element_content);
 
     // FIXME: Handle images, and multiple values
@@ -827,7 +871,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             old_layout_node->prepare_subtree_for_detach_from_layout_tree();
             old_layout_node->parent()->replace_child(*layout_node, *old_layout_node);
         } else if (layout_node->is_svg_box()) {
-            m_ancestor_stack.last()->append_child(*layout_node);
+            current_parent().append_child(*layout_node);
         } else {
             insert_node_into_inline_or_block_ancestor(*layout_node, display, AppendOrPrepend::Append);
         }
@@ -844,7 +888,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         return false;
     }();
 
-    auto prior_quote_nesting_level = m_quote_nesting_level;
+    auto prior_quote_nesting_level = quote_nesting_level();
 
     if (should_create_layout_node) {
         // Resolve counters now that we exist in the layout tree.
@@ -877,7 +921,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 if (layout_node->is_replaced_box_with_children()) {
                     if (!layout_node->first_child() || !layout_node->first_child()->is_anonymous()) {
                         auto wrapper = as<NodeWithStyle>(*layout_node).create_anonymous_wrapper();
-                        m_ancestor_stack.last()->append_child(wrapper);
+                        current_parent().append_child(wrapper);
                     }
                     push_parent(as<NodeWithStyle>(*layout_node->first_child()));
                 }
@@ -934,7 +978,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     // 2. The effects of the 'content' property’s 'open-quote', 'close-quote', 'no-open-quote' and 'no-close-quote' must
     //    be scoped to the element’s sub-tree.
     if (auto const* node_with_style = as_if<NodeWithStyle>(*layout_node); node_with_style && node_with_style->has_style_containment()) {
-        m_quote_nesting_level = prior_quote_nesting_level;
+        set_quote_nesting_level(prior_quote_nesting_level);
     }
 
     dom_node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
@@ -1105,8 +1149,8 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, Layout:
             push_parent(as<NodeWithStyle>(layout_node));
 
             // Check for reference cycle
-            for (auto* ancestor : m_ancestor_stack) {
-                if (ancestor->dom_node() == mask_or_clip_path) {
+            for (size_t index = 0; index < ancestor_count(); ++index) {
+                if (ancestor_at(index).dom_node() == mask_or_clip_path) {
                     // FIXME: Somehow either remove ancestor from the layout tree or mark it as invalid.
                     pop_parent();
                     return;
@@ -1132,8 +1176,8 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, Layout:
                 return;
             TemporaryChange<bool> layout_flag(context.layout_svg_pattern, true);
             push_parent(as<NodeWithStyle>(layout_node));
-            for (auto* ancestor : m_ancestor_stack) {
-                if (ancestor->dom_node() == content_element.ptr()) {
+            for (size_t index = 0; index < ancestor_count(); ++index) {
+                if (ancestor_at(index).dom_node() == content_element.ptr()) {
                     pop_parent();
                     return;
                 }
@@ -1212,7 +1256,7 @@ RefPtr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)
     dom_node.document().style_computer().reset_ancestor_filter();
 
     Context context;
-    m_quote_nesting_level = 0;
+    set_quote_nesting_level(0);
     update_layout_tree(dom_node, context, MustCreateSubtree::No);
 
     // NB: Called during layout tree construction.

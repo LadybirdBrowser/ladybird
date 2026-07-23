@@ -15,6 +15,10 @@ namespace Web::Layout {
 class TreeBuilder {
 public:
     TreeBuilder();
+    ~TreeBuilder();
+
+    TreeBuilder(TreeBuilder const&) = delete;
+    TreeBuilder& operator=(TreeBuilder const&) = delete;
 
     RefPtr<Layout::Node> build(DOM::Node&);
 
@@ -59,8 +63,13 @@ private:
     static void clear_stale_layout_nodes_for_assigned_slottables(HTML::HTMLSlotElement&);
     static TraversalDecision clear_stale_layout_and_paint_node(DOM::Node&, DOM::Node const* cleared_subtree_root = nullptr);
 
-    void push_parent(Layout::NodeWithStyle& node) { m_ancestor_stack.append(&node); }
-    void pop_parent() { m_ancestor_stack.take_last(); }
+    void push_parent(Layout::NodeWithStyle&);
+    void pop_parent();
+    Layout::NodeWithStyle& current_parent() const;
+    size_t ancestor_count() const;
+    Layout::NodeWithStyle& ancestor_at(size_t) const;
+    u32 quote_nesting_level() const;
+    void set_quote_nesting_level(u32);
 
     void fixup_tables(NodeWithStyle& root);
 
@@ -73,14 +82,12 @@ private:
     static void create_first_letter_wrapper_if_needed(DOM::Element&, Layout::BlockContainer&);
 
     RefPtr<Layout::Node> m_layout_root;
-    Vector<Layout::NodeWithStyle*> m_ancestor_stack;
+    void* m_rust_state { nullptr };
 
     // The root of the in-place subtree replacement currently being built, if any.
     Layout::Node* m_current_rebuild_root { nullptr };
     Vector<Layout::Node*> m_rebuilt_subtree_roots;
     bool m_layout_tree_update_escaped_rebuild_roots { false };
-
-    u32 m_quote_nesting_level { 0 };
 };
 
 }

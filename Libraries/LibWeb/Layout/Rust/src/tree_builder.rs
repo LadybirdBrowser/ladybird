@@ -7,6 +7,96 @@
 use crate::abort_on_panic;
 use std::ffi::c_void;
 
+struct TreeBuilderState {
+    ancestor_stack: Vec<LayoutNode>,
+    quote_nesting_level: u32,
+}
+
+/// Creates the Rust-owned state for one layout tree builder.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_tree_builder_state_create() -> *mut c_void {
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(TreeBuilderState {
+            ancestor_stack: Vec::new(),
+            quote_nesting_level: 0,
+        }))
+        .cast()
+    })
+}
+
+/// Destroys state returned by `rust_tree_builder_state_create`.
+///
+/// # Safety
+///
+/// `state` must have been returned by `rust_tree_builder_state_create` and must not have been destroyed already.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_tree_builder_state_destroy(state: *mut c_void) {
+    abort_on_panic(|| {
+        assert!(!state.is_null());
+        // SAFETY: Guaranteed by the entry point's contract and checked for null above.
+        drop(unsafe { Box::from_raw(state.cast::<TreeBuilderState>()) });
+    });
+}
+
+fn tree_builder_state(state: *mut c_void) -> &'static TreeBuilderState {
+    assert!(!state.is_null());
+    // SAFETY: Every caller passes live state created by `rust_tree_builder_state_create`.
+    unsafe { &*state.cast::<TreeBuilderState>() }
+}
+
+fn tree_builder_state_mut(state: *mut c_void) -> &'static mut TreeBuilderState {
+    assert!(!state.is_null());
+    // SAFETY: FFI calls are serialized by the owning C++ TreeBuilder.
+    unsafe { &mut *state.cast::<TreeBuilderState>() }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_tree_builder_push_parent(state: *mut c_void, parent: *mut c_void) {
+    abort_on_panic(|| {
+        assert!(!parent.is_null());
+        tree_builder_state_mut(state).ancestor_stack.push(parent);
+    });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_tree_builder_pop_parent(state: *mut c_void) {
+    abort_on_panic(|| {
+        assert!(tree_builder_state_mut(state).ancestor_stack.pop().is_some());
+    });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_tree_builder_ancestor_count(state: *mut c_void) -> usize {
+    abort_on_panic(|| tree_builder_state(state).ancestor_stack.len())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_tree_builder_ancestor_at(state: *mut c_void, index: usize) -> *mut c_void {
+    abort_on_panic(|| tree_builder_state(state).ancestor_stack[index])
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_tree_builder_current_parent(state: *mut c_void) -> *mut c_void {
+    abort_on_panic(|| {
+        *tree_builder_state(state)
+            .ancestor_stack
+            .last()
+            .expect("layout tree builder must have an insertion ancestor")
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_tree_builder_quote_nesting_level(state: *mut c_void) -> u32 {
+    abort_on_panic(|| tree_builder_state(state).quote_nesting_level)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_tree_builder_set_quote_nesting_level(state: *mut c_void, quote_nesting_level: u32) {
+    abort_on_panic(|| {
+        tree_builder_state_mut(state).quote_nesting_level = quote_nesting_level;
+    });
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiReplacedElementDisplayAdjustment {
@@ -1290,5 +1380,24 @@ mod tests {
         assert_eq!((target.letter_start, target.letter_end), (0, 1));
 
         assert!(!first_letter_target("\nHello", true).found);
+    }
+
+    #[test]
+    fn tree_builder_state_tracks_ancestors_and_quotes() {
+        let state = super::rust_tree_builder_state_create();
+        let mut parent = 0_u8;
+        let parent_pointer = (&raw mut parent).cast::<c_void>();
+        super::rust_tree_builder_push_parent(state, parent_pointer);
+        assert_eq!(super::rust_tree_builder_ancestor_count(state), 1);
+        assert_eq!(super::rust_tree_builder_current_parent(state), parent_pointer);
+        assert_eq!(super::rust_tree_builder_ancestor_at(state, 0), parent_pointer);
+
+        super::rust_tree_builder_set_quote_nesting_level(state, 3);
+        assert_eq!(super::rust_tree_builder_quote_nesting_level(state), 3);
+
+        super::rust_tree_builder_pop_parent(state);
+        assert_eq!(super::rust_tree_builder_ancestor_count(state), 0);
+        // SAFETY: `state` was returned by the matching create function and has not been destroyed yet.
+        unsafe { super::rust_tree_builder_state_destroy(state) };
     }
 }
