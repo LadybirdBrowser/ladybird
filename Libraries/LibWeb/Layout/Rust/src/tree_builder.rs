@@ -1981,8 +1981,10 @@ pub struct FfiTreeBuilderCallbacks {
     pub set_children_are_inline: unsafe extern "C" fn(*mut c_void, *mut c_void, bool),
     pub note_tree_restructuring: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub find_first_letter_in_text: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiFirstLetterTarget,
-    pub wrap_button_contents: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub wrap_fieldset_contents: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub create_button_content_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
+    pub rendered_legend: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
+    pub create_fieldset_content_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
+    pub move_nodes_to_parent: unsafe extern "C" fn(*mut c_void, *mut c_void, *const *mut c_void, usize),
 }
 
 type LayoutNode = *mut c_void;
@@ -2579,8 +2581,32 @@ pub unsafe extern "C" fn rust_wrap_button_contents_if_needed(
         // box with the following behaviors:
         let facts = host.facts(layout_node);
         if !facts.display_is_grid_inside && !facts.display_is_flex_inside {
-            // SAFETY: `layout_node` remains live and the callback performs the ownership-sensitive wrapper mutation.
-            unsafe { (host.callbacks.wrap_button_contents)(host.callbacks.context, layout_node) };
+            let mut children = Vec::new();
+            let mut child = host.first_child(layout_node);
+            while !child.is_null() {
+                children.push(child);
+                child = host.next_sibling(child);
+            }
+
+            // SAFETY: `layout_node` remains live and owns the returned content wrapper through its flex wrapper.
+            let content_wrapper =
+                unsafe { (host.callbacks.create_button_content_wrapper)(host.callbacks.context, layout_node) };
+            assert!(!content_wrapper.is_null());
+            // SAFETY: The parent and content wrapper remain live, and the callback retains all nodes while moving them.
+            unsafe {
+                (host.callbacks.set_children_are_inline)(
+                    host.callbacks.context,
+                    content_wrapper,
+                    facts.children_are_inline,
+                );
+                (host.callbacks.move_nodes_to_parent)(
+                    host.callbacks.context,
+                    content_wrapper,
+                    children.as_ptr(),
+                    children.len(),
+                );
+                (host.callbacks.set_children_are_inline)(host.callbacks.context, layout_node, false);
+            }
         }
     });
 }
@@ -2610,7 +2636,31 @@ pub unsafe extern "C" fn rust_wrap_fieldset_contents_if_needed(
         let facts = host.facts(layout_node);
         if facts.is_field_set_box && facts.has_rendered_legend {
             // SAFETY: `layout_node` is a live FieldSetBox with a rendered legend.
-            unsafe { (host.callbacks.wrap_fieldset_contents)(host.callbacks.context, layout_node) };
+            let legend = unsafe { (host.callbacks.rendered_legend)(host.callbacks.context, layout_node) };
+            assert!(!legend.is_null());
+
+            let mut children = Vec::new();
+            let mut child = host.first_child(layout_node);
+            while !child.is_null() {
+                if child != legend {
+                    children.push(child);
+                }
+                child = host.next_sibling(child);
+            }
+
+            // SAFETY: The fieldset remains live and owns the returned wrapper.
+            let wrapper =
+                unsafe { (host.callbacks.create_fieldset_content_wrapper)(host.callbacks.context, layout_node) };
+            assert!(!wrapper.is_null());
+            // SAFETY: The wrapper remains attached and the callback retains all nodes while moving them.
+            unsafe {
+                (host.callbacks.move_nodes_to_parent)(
+                    host.callbacks.context,
+                    wrapper,
+                    children.as_ptr(),
+                    children.len(),
+                );
+            }
         }
     });
 }

@@ -1682,7 +1682,7 @@ static void ffi_note_tree_restructuring(void* context, void* node_pointer)
     static_cast<TreeBuilder*>(context)->note_tree_restructuring_at(*static_cast<Node*>(node_pointer));
 }
 
-static void ffi_wrap_button_contents(void*, void* layout_node_pointer)
+static void* ffi_create_button_content_wrapper(void*, void* layout_node_pointer)
 {
     VERIFY(layout_node_pointer);
     auto& parent = as<NodeWithStyle>(*static_cast<Node*>(layout_node_pointer));
@@ -1692,28 +1692,22 @@ static void ffi_wrap_button_contents(void*, void* layout_node_pointer)
     auto flex_wrapper = create_button_flex_wrapper(parent);
 
     auto content_box_wrapper = create_button_content_box_wrapper(parent);
-    content_box_wrapper->set_children_are_inline(parent.children_are_inline());
-
-    Vector<NonnullRefPtr<Node>> sequence;
-    for (auto child = parent.first_child(); child; child = child->next_sibling())
-        sequence.append(*child);
-
-    for (auto& node : sequence) {
-        parent.remove_child(*node);
-        content_box_wrapper->append_child(*node);
-    }
-
     flex_wrapper->append_child(*content_box_wrapper);
     parent.append_child(*flex_wrapper);
-    parent.set_children_are_inline(false);
+    return content_box_wrapper.ptr();
 }
 
-static void ffi_wrap_fieldset_contents(void*, void* layout_node_pointer)
+static void* ffi_rendered_legend(void*, void* layout_node_pointer)
 {
     VERIFY(layout_node_pointer);
     auto& fieldset_box = as<FieldSetBox>(*static_cast<Node*>(layout_node_pointer));
-    auto legend = fieldset_box.rendered_legend();
-    VERIFY(legend);
+    return const_cast<Node*>(static_cast<Node const*>(fieldset_box.rendered_legend().ptr()));
+}
+
+static void* ffi_create_fieldset_content_wrapper(void*, void* layout_node_pointer)
+{
+    VERIFY(layout_node_pointer);
+    auto& fieldset_box = as<FieldSetBox>(*static_cast<Node*>(layout_node_pointer));
     auto wrapper = fieldset_box.create_anonymous_wrapper();
     wrapper->set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
 
@@ -1727,15 +1721,20 @@ static void ffi_wrap_fieldset_contents(void*, void* layout_node_pointer)
     wrapper->set_overflow(fieldset_box.computed_values().overflow_x(), fieldset_box.computed_values().overflow_y());
     fieldset_box.set_overflow(CSS::InitialValues::overflow(), CSS::InitialValues::overflow());
 
-    for (auto child = fieldset_box.first_child(); child;) {
-        auto next = child->next_sibling();
-        if (child != legend) {
-            fieldset_box.remove_child(*child);
-            wrapper->append_child(*child);
-        }
-        child = next;
-    }
     fieldset_box.append_child(*wrapper);
+    return wrapper.ptr();
+}
+
+static void ffi_move_nodes_to_parent(void*, void* parent_pointer, void* const* node_pointers, size_t node_count)
+{
+    VERIFY(parent_pointer);
+    auto& parent = *static_cast<Node*>(parent_pointer);
+    auto nodes = retain_ffi_layout_nodes(node_pointers, node_count);
+    for (auto& node : nodes) {
+        VERIFY(node->parent());
+        node->parent()->remove_child(*node);
+        parent.append_child(*node);
+    }
 }
 
 static RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks(TreeBuilder* tree_builder)
@@ -1763,8 +1762,10 @@ static RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks(TreeBuil
         .set_children_are_inline = ffi_set_children_are_inline,
         .note_tree_restructuring = ffi_note_tree_restructuring,
         .find_first_letter_in_text = ffi_find_first_letter_in_text,
-        .wrap_button_contents = ffi_wrap_button_contents,
-        .wrap_fieldset_contents = ffi_wrap_fieldset_contents,
+        .create_button_content_wrapper = ffi_create_button_content_wrapper,
+        .rendered_legend = ffi_rendered_legend,
+        .create_fieldset_content_wrapper = ffi_create_fieldset_content_wrapper,
+        .move_nodes_to_parent = ffi_move_nodes_to_parent,
     };
 }
 
