@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LightDarkStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
@@ -113,6 +114,373 @@ TEST_CASE(rust_tuple_handles_retain_optional_child_data)
     EXPECT(child);
     EXPECT(child->is_number());
     EXPECT_EQ(child->as_number().number(), 4);
+}
+
+TEST_CASE(rust_interpolates_matching_transform_functions)
+{
+    auto make_transform = [](double degrees) {
+        return StyleValueList::create(
+            { TransformationStyleValue::create(
+                PropertyID::Transform,
+                TransformFunction::Rotate,
+                { StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_angle(degrees, 0)) }) },
+            StyleValueList::Separator::Space);
+    };
+    auto from = make_transform(0);
+    auto to = make_transform(360);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.25f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    auto transformations = interpolated->as_value_list().values();
+    EXPECT_EQ(transformations.size(), 1u);
+    auto arguments = transformations[0]->as_transformation().values();
+    EXPECT_EQ(arguments.size(), 1u);
+    EXPECT(arguments[0]->is_angle());
+    EXPECT_APPROXIMATE(arguments[0]->rust_style_value_data()->angle.value, 90.0);
+    EXPECT_EQ(arguments[0]->rust_style_value_data()->angle.unit, 0u);
+}
+
+TEST_CASE(rust_interpolates_perspective_transform_functions)
+{
+    auto make_transform = [](double depth) {
+        return StyleValueList::create(
+            { TransformationStyleValue::create(
+                PropertyID::Transform,
+                TransformFunction::Perspective,
+                { LengthStyleValue::create(Length::make_px(depth)) }) },
+            StyleValueList::Separator::Space);
+    };
+    auto from = make_transform(400);
+    auto to = make_transform(500);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.25f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    auto transformations = interpolated->as_value_list().values();
+    EXPECT_EQ(transformations.size(), 1u);
+    auto arguments = transformations[0]->as_transformation().values();
+    EXPECT_EQ(arguments.size(), 1u);
+    EXPECT(arguments[0]->is_length());
+    EXPECT_APPROXIMATE(arguments[0]->as_length().length().raw_value(), 421.0526315789474);
+    EXPECT(arguments[0]->as_length().length().is_px());
+}
+
+TEST_CASE(rust_interpolates_rotate_3d_transform_functions)
+{
+    auto make_transform = [](double x, double y, double z, double degrees) {
+        return StyleValueList::create(
+            { TransformationStyleValue::create(
+                PropertyID::Transform,
+                TransformFunction::Rotate3d,
+                { NumberStyleValue::create(x),
+                    NumberStyleValue::create(y),
+                    NumberStyleValue::create(z),
+                    StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_angle(degrees, 0)) }) },
+            StyleValueList::Separator::Space);
+    };
+    auto from = make_transform(1, 1, 0, 90);
+    auto to = make_transform(0, 1, 1, 180);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.25f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    auto transformations = interpolated->as_value_list().values();
+    EXPECT_EQ(transformations.size(), 1u);
+    auto arguments = transformations[0]->as_transformation().values();
+    EXPECT_EQ(arguments.size(), 4u);
+    EXPECT_APPROXIMATE(arguments[0]->as_number().number(), 0.5240828967217527);
+    EXPECT_APPROXIMATE(arguments[1]->as_number().number(), 0.8042617338748014);
+    EXPECT_APPROXIMATE(arguments[2]->as_number().number(), 0.28017883715304875);
+    EXPECT_APPROXIMATE(arguments[3]->rust_style_value_data()->angle.value, 106.91089335915852);
+}
+
+TEST_CASE(rust_interpolates_transform_functions_with_a_common_primitive)
+{
+    auto make_transform = [](TransformFunction function, double value) {
+        return StyleValueList::create(
+            { TransformationStyleValue::create(
+                PropertyID::Transform,
+                function,
+                { NumberStyleValue::create(value) }) },
+            StyleValueList::Separator::Space);
+    };
+    auto from = make_transform(TransformFunction::ScaleX, 2);
+    auto to = make_transform(TransformFunction::ScaleY, 3);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    auto transformations = interpolated->as_value_list().values();
+    EXPECT_EQ(transformations.size(), 1u);
+    EXPECT_EQ(transformations[0]->as_transformation().transform_function(), TransformFunction::Scale);
+    auto arguments = transformations[0]->as_transformation().values();
+    EXPECT_EQ(arguments.size(), 2u);
+    EXPECT_APPROXIMATE(arguments[0]->as_number().number(), 1.5);
+    EXPECT_APPROXIMATE(arguments[1]->as_number().number(), 2.0);
+}
+
+TEST_CASE(rust_extends_transform_lists_with_identity_functions)
+{
+    auto from = StyleValueList::create(
+        { TransformationStyleValue::create(
+            PropertyID::Transform,
+            TransformFunction::ScaleX,
+            { NumberStyleValue::create(2) }) },
+        StyleValueList::Separator::Space);
+    auto to = StyleValueList::create(
+        { TransformationStyleValue::create(
+              PropertyID::Transform,
+              TransformFunction::ScaleX,
+              { NumberStyleValue::create(4) }),
+            TransformationStyleValue::create(
+                PropertyID::Transform,
+                TransformFunction::TranslateX,
+                { LengthStyleValue::create(Length::make_px(100)) }) },
+        StyleValueList::Separator::Space);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    auto transformations = interpolated->as_value_list().values();
+    EXPECT_EQ(transformations.size(), 2u);
+    EXPECT_APPROXIMATE(transformations[0]->as_transformation().values()[0]->as_number().number(), 3.0);
+    EXPECT_APPROXIMATE(transformations[1]->as_transformation().values()[0]->as_length().length().raw_value(), 50.0);
+}
+
+TEST_CASE(rust_treats_transform_none_as_an_empty_list)
+{
+    auto from = KeywordStyleValue::create(Keyword::None);
+    auto to = StyleValueList::create(
+        { TransformationStyleValue::create(
+            PropertyID::Transform,
+            TransformFunction::Rotate,
+            { StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_angle(90, 0)) }) },
+        StyleValueList::Separator::Space);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    auto transformations = interpolated->as_value_list().values();
+    EXPECT_EQ(transformations.size(), 1u);
+    auto arguments = transformations[0]->as_transformation().values();
+    EXPECT_EQ(arguments.size(), 1u);
+    EXPECT_APPROXIMATE(arguments[0]->rust_style_value_data()->angle.value, 45.0);
+}
+
+TEST_CASE(rust_interpolates_terminal_matrix_transform_functions)
+{
+    auto make_transform = [](double scale_x, double scale_y, double translate_x, double translate_y) {
+        return StyleValueList::create(
+            { TransformationStyleValue::create(
+                PropertyID::Transform,
+                TransformFunction::Matrix,
+                { NumberStyleValue::create(scale_x),
+                    NumberStyleValue::create(0),
+                    NumberStyleValue::create(0),
+                    NumberStyleValue::create(scale_y),
+                    NumberStyleValue::create(translate_x),
+                    NumberStyleValue::create(translate_y) }) },
+            StyleValueList::Separator::Space);
+    };
+    auto from = make_transform(2, 2, 10, 30);
+    auto to = make_transform(4, 6, 14, 10);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    auto transformations = interpolated->as_value_list().values();
+    EXPECT_EQ(transformations.size(), 1u);
+    EXPECT_EQ(transformations[0]->as_transformation().transform_function(), TransformFunction::Matrix3d);
+    auto arguments = transformations[0]->as_transformation().values();
+    EXPECT_EQ(arguments.size(), 16u);
+    EXPECT_APPROXIMATE(arguments[0]->as_number().number(), 3.0);
+    EXPECT_APPROXIMATE(arguments[5]->as_number().number(), 4.0);
+    EXPECT_APPROXIMATE(arguments[12]->as_number().number(), 12.0);
+    EXPECT_APPROXIMATE(arguments[13]->as_number().number(), 20.0);
+}
+
+TEST_CASE(rust_post_multiplies_transform_matrix_suffixes)
+{
+    auto make_transform = [](double translation) {
+        return StyleValueList::create(
+            { TransformationStyleValue::create(
+                  PropertyID::Transform,
+                  TransformFunction::Matrix,
+                  { NumberStyleValue::create(1),
+                      NumberStyleValue::create(0),
+                      NumberStyleValue::create(0),
+                      NumberStyleValue::create(1),
+                      NumberStyleValue::create(0),
+                      NumberStyleValue::create(0) }),
+                TransformationStyleValue::create(
+                    PropertyID::Transform,
+                    TransformFunction::TranslateX,
+                    { LengthStyleValue::create(Length::make_px(translation)) }) },
+            StyleValueList::Separator::Space);
+    };
+    auto from = make_transform(100);
+    auto to = make_transform(200);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    auto transformations = interpolated->as_value_list().values();
+    EXPECT_EQ(transformations.size(), 1u);
+    auto arguments = transformations[0]->as_transformation().values();
+    EXPECT_EQ(arguments.size(), 16u);
+    EXPECT_APPROXIMATE(arguments[12]->as_number().number(), 150.0);
+}
+
+TEST_CASE(rust_interpolates_transform_functions_without_a_common_primitive)
+{
+    auto from = StyleValueList::create(
+        { TransformationStyleValue::create(
+            PropertyID::Transform,
+            TransformFunction::Rotate,
+            { StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_angle(0, 0)) }) },
+        StyleValueList::Separator::Space);
+    auto to = StyleValueList::create(
+        { TransformationStyleValue::create(
+            PropertyID::Transform,
+            TransformFunction::Scale,
+            { NumberStyleValue::create(2) }) },
+        StyleValueList::Separator::Space);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    auto transformations = interpolated->as_value_list().values();
+    EXPECT_EQ(transformations.size(), 1u);
+    auto arguments = transformations[0]->as_transformation().values();
+    EXPECT_EQ(arguments.size(), 16u);
+    EXPECT_APPROXIMATE(arguments[0]->as_number().number(), 1.5);
+    EXPECT_APPROXIMATE(arguments[5]->as_number().number(), 1.5);
+}
+
+TEST_CASE(rust_resolves_percentage_transforms_against_a_reference_box_snapshot)
+{
+    auto from = StyleValueList::create(
+        { TransformationStyleValue::create(
+            PropertyID::Transform,
+            TransformFunction::Rotate,
+            { StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_angle(0, 0)) }) },
+        StyleValueList::Separator::Space);
+    auto to = StyleValueList::create(
+        { TransformationStyleValue::create(
+            PropertyID::Transform,
+            TransformFunction::TranslateX,
+            { StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_percentage(50)) }) },
+        StyleValueList::Separator::Space);
+    StyleValueFFI::FfiAnimationContext context {
+        .allow_discrete = false,
+        .has_transform_reference_box = true,
+        .transform_reference_box_width = 200,
+        .transform_reference_box_height = 100,
+    };
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        &context,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    auto transformations = interpolated->as_value_list().values();
+    EXPECT_EQ(transformations.size(), 1u);
+    auto arguments = transformations[0]->as_transformation().values();
+    EXPECT_EQ(arguments.size(), 16u);
+    EXPECT_APPROXIMATE(arguments[12]->as_number().number(), 50.0);
+}
+
+TEST_CASE(rust_handles_non_invertible_transform_matrices_without_a_value)
+{
+    auto make_transform = [](double scale) {
+        return StyleValueList::create(
+            { TransformationStyleValue::create(
+                PropertyID::Transform,
+                TransformFunction::Matrix,
+                { NumberStyleValue::create(scale),
+                    NumberStyleValue::create(0),
+                    NumberStyleValue::create(0),
+                    NumberStyleValue::create(scale),
+                    NumberStyleValue::create(0),
+                    NumberStyleValue::create(0) }) },
+            StyleValueList::Separator::Space);
+    };
+    auto from = make_transform(1);
+    auto to = make_transform(0);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    EXPECT_EQ(result.value, nullptr);
+
+    StyleValueFFI::FfiAnimationContext context {
+        .allow_discrete = true,
+        .has_transform_reference_box = false,
+        .transform_reference_box_width = 0,
+        .transform_reference_box_height = 0,
+    };
+    result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        &context,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto discrete = StyleValue::adopt_rust_style_value_data(result.value);
+    EXPECT(discrete->equals(*to));
 }
 
 TEST_CASE(counter_definitions_equality_is_deep)

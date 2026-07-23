@@ -598,7 +598,21 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
     auto from = with_keyword_values_resolved(element, property_id, a_from);
     auto to = with_keyword_values_resolved(element, property_id, a_to);
 
-    auto rust_result = StyleValueFFI::rust_interpolate_scalar_style_value(to_underlying(property_id), from->rust_style_value_data(), to->rust_style_value_data(), delta);
+    StyleValueFFI::FfiAnimationContext animation_context {
+        .allow_discrete = allow_discrete == AllowDiscrete::Yes,
+        .has_transform_reference_box = false,
+        .transform_reference_box_width = 0,
+        .transform_reference_box_height = 0,
+    };
+    if (property_id == PropertyID::Transform) {
+        if (auto paintable = element.unsafe_paintable(); paintable) {
+            auto reference_box = paintable->transform_reference_box();
+            animation_context.has_transform_reference_box = true;
+            animation_context.transform_reference_box_width = reference_box.width().to_double();
+            animation_context.transform_reference_box_height = reference_box.height().to_double();
+        }
+    }
+    auto rust_result = StyleValueFFI::rust_interpolate_scalar_style_value(&animation_context, to_underlying(property_id), from->rust_style_value_data(), to->rust_style_value_data(), delta);
     if (rust_result.handled) {
         if (!rust_result.value)
             return {};

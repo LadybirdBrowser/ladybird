@@ -100,6 +100,18 @@ pub(crate) fn px_length_unit() -> u8 {
     *PX.get_or_init(|| LENGTH_UNIT_NAMES.iter().position(|&name| name == "px").unwrap() as u8)
 }
 
+pub(crate) fn none_keyword() -> u16 {
+    keyword::NONE
+}
+
+pub(crate) fn absolute_length_to_px(value: f64, unit: u8) -> Option<f64> {
+    match length_unit_kinds().get(unit as usize)? {
+        LengthUnitKind::Px => Some(value),
+        LengthUnitKind::Absolute { px_per_unit } => Some(value * px_per_unit),
+        _ => None,
+    }
+}
+
 fn length_unit_kinds() -> &'static [LengthUnitKind] {
     static KINDS: OnceLock<Vec<LengthUnitKind>> = OnceLock::new();
     KINDS.get_or_init(|| {
