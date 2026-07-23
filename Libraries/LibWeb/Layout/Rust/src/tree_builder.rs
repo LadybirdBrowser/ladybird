@@ -87,6 +87,51 @@ pub struct FfiLayoutNodeFacts {
     pub display_is_flow_inside: bool,
     pub display_is_flex_inside: bool,
     pub display_is_grid_inside: bool,
+    pub is_list_item_marker_box: bool,
+    pub is_generated_for_marker: bool,
+    pub is_fragmented_inline: bool,
+    pub has_first_letter_style: bool,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiFirstLetterTarget {
+    pub text_node: *mut c_void,
+    pub letter_start: usize,
+    pub letter_end: usize,
+    pub found: bool,
+}
+
+impl FfiFirstLetterTarget {
+    fn not_found() -> Self {
+        Self {
+            text_node: std::ptr::null_mut(),
+            letter_start: 0,
+            letter_end: 0,
+            found: false,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiFirstLetterCodePointFacts {
+    pub is_space_separator: bool,
+    pub is_punctuation: bool,
+    pub is_letter: bool,
+    pub is_number: bool,
+    pub is_symbol: bool,
+    pub is_open_punctuation: bool,
+    pub is_dash_punctuation: bool,
+}
+
+#[repr(C)]
+pub struct FfiFirstLetterTextCallbacks {
+    pub context: *mut c_void,
+    pub code_unit_length: unsafe extern "C" fn(*mut c_void) -> usize,
+    pub code_point_at: unsafe extern "C" fn(*mut c_void, usize) -> u32,
+    pub next_grapheme_boundary: unsafe extern "C" fn(*mut c_void, usize) -> usize,
+    pub code_point_facts: unsafe extern "C" fn(*mut c_void, u32) -> FfiFirstLetterCodePointFacts,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -131,6 +176,7 @@ pub struct FfiTreeBuilderCallbacks {
     pub insert_child: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiInsertionMode),
     pub set_children_are_inline: unsafe extern "C" fn(*mut c_void, *mut c_void, bool),
     pub note_tree_restructuring: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub find_first_letter_in_text: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiFirstLetterTarget,
 }
 
 type LayoutNode = *mut c_void;
@@ -471,6 +517,232 @@ pub unsafe extern "C" fn rust_insert_node_into_inline_or_block_ancestor(
             }
         }
     });
+}
+
+struct FirstLetterTextHost<'a> {
+    callbacks: &'a FfiFirstLetterTextCallbacks,
+}
+
+impl FirstLetterTextHost<'_> {
+    fn code_unit_length(&self) -> usize {
+        // SAFETY: The entry point's callback contract guarantees that the text context is live.
+        unsafe { (self.callbacks.code_unit_length)(self.callbacks.context) }
+    }
+
+    fn code_point_at(&self, index: usize) -> u32 {
+        // SAFETY: Callers only pass indices below `code_unit_length`.
+        unsafe { (self.callbacks.code_point_at)(self.callbacks.context, index) }
+    }
+
+    fn next_grapheme_boundary(&self, index: usize) -> usize {
+        // SAFETY: Callers only pass indices at or below `code_unit_length`.
+        unsafe { (self.callbacks.next_grapheme_boundary)(self.callbacks.context, index) }
+    }
+
+    fn code_point_facts(&self, code_point: u32) -> FfiFirstLetterCodePointFacts {
+        // SAFETY: The callback accepts every Unicode scalar value and lone surrogate value supplied by the text view.
+        unsafe { (self.callbacks.code_point_facts)(self.callbacks.context, code_point) }
+    }
+}
+
+fn code_unit_length_for_code_point(code_point: u32) -> usize {
+    if code_point > 0xffff { 2 } else { 1 }
+}
+
+// https://drafts.csswg.org/css-pseudo-4/#first-letter-pattern
+fn find_first_letter_in_text(host: &FirstLetterTextHost<'_>, preserves_segment_breaks: bool) -> FfiFirstLetterTarget {
+    // NB: Matches the first-letter text pattern: (P (Zs|P)*)? (L|N|S) ((Zs|P-(Ps|Pd))* (P-(Ps|Pd))?)?
+
+    let code_units = host.code_unit_length();
+    let mut match_start = 0;
+    while match_start < code_units {
+        let mut cursor = match_start;
+        let starting_code_point = host.code_point_at(cursor);
+
+        // When white-space preserves segment breaks, a newline before any letter puts the letter on a later line, so
+        // the first formatted line is empty and ::first-letter must not match.
+        if preserves_segment_breaks && (starting_code_point == b'\n' as u32 || starting_code_point == b'\r' as u32) {
+            return FfiFirstLetterTarget::not_found();
+        }
+
+        let starting_facts = host.code_point_facts(starting_code_point);
+
+        // A valid match starts with either a P, or the letter itself.
+        let has_preceding = starting_facts.is_punctuation;
+        if !(has_preceding || starting_facts.is_letter || starting_facts.is_number || starting_facts.is_symbol) {
+            match_start += code_unit_length_for_code_point(starting_code_point);
+            continue;
+        }
+
+        if has_preceding {
+            // Preceding group: P followed by (Zs|P)*.
+            cursor = host.next_grapheme_boundary(cursor);
+            while cursor < code_units {
+                let code_point = host.code_point_at(cursor);
+                let facts = host.code_point_facts(code_point);
+                // For the preceding run: Zs excluding U+3000 IDEOGRAPHIC SPACE.
+                let is_preceding_intervening_space = code_point != 0x3000 && facts.is_space_separator;
+                if !facts.is_punctuation && !is_preceding_intervening_space {
+                    break;
+                }
+                cursor = host.next_grapheme_boundary(cursor);
+            }
+        }
+
+        // The letter (L|N|S) must follow the preceding group. If the preceding punctuation consumed the entire text
+        // node, accept it as the first-letter.
+        if cursor >= code_units {
+            return FfiFirstLetterTarget {
+                text_node: std::ptr::null_mut(),
+                letter_start: match_start,
+                letter_end: cursor,
+                found: true,
+            };
+        }
+        let letter_facts = host.code_point_facts(host.code_point_at(cursor));
+        if !(letter_facts.is_letter || letter_facts.is_number || letter_facts.is_symbol) {
+            match_start += code_unit_length_for_code_point(starting_code_point);
+            continue;
+        }
+
+        let mut letter_end = host.next_grapheme_boundary(cursor);
+
+        // Trailing group: greedy match of (Zs|P-(Ps|Pd))*.
+        while letter_end < code_units {
+            let code_point = host.code_point_at(letter_end);
+            let facts = host.code_point_facts(code_point);
+            // For the trailing run: Zs excluding U+3000 IDEOGRAPHIC SPACE and word separators.
+            // NB: css-text-4 defines word separators as a non-exhaustive list, but of the seven code
+            //     points it names only U+0020 SPACE and U+00A0 NO-BREAK SPACE are in the Zs category;
+            //     the rest are in Po and would never reach this check. Fixed-width spaces are explicitly
+            //     not word separators per the spec's note, so they remain valid intervening Zs here.
+            let is_trailing_intervening_space =
+                !matches!(code_point, 0x0020 | 0x00a0 | 0x3000) && facts.is_space_separator;
+            // NB: The css-pseudo specification excludes Ps and Pd classes (closing punctuation and dashes) from the
+            //     trailing run, whereas CSS 2.1 allowed all classes in both the preceding and trailing runs.
+            let is_trailing_punctuation =
+                facts.is_punctuation && !facts.is_open_punctuation && !facts.is_dash_punctuation;
+            if !is_trailing_intervening_space && !is_trailing_punctuation {
+                break;
+            }
+            letter_end = host.next_grapheme_boundary(letter_end);
+        }
+
+        return FfiFirstLetterTarget {
+            text_node: std::ptr::null_mut(),
+            letter_start: match_start,
+            letter_end,
+            found: true,
+        };
+    }
+    FfiFirstLetterTarget::not_found()
+}
+
+/// Finds the first-letter text pattern within one layout text node.
+///
+/// # Safety
+///
+/// `callbacks` must point to a valid callback table whose context remains live for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_find_first_letter_in_text(
+    callbacks: *const FfiFirstLetterTextCallbacks,
+    preserves_segment_breaks: bool,
+) -> FfiFirstLetterTarget {
+    abort_on_panic(|| {
+        assert!(!callbacks.is_null());
+        // SAFETY: The caller guarantees that `callbacks` remains valid for the duration of this call.
+        let host = FirstLetterTextHost {
+            callbacks: unsafe { &*callbacks },
+        };
+        find_first_letter_in_text(&host, preserves_segment_breaks)
+    })
+}
+
+fn is_marker_content(facts: FfiLayoutNodeFacts) -> bool {
+    facts.is_list_item_marker_box || facts.is_generated_for_marker
+}
+
+// https://drafts.csswg.org/css-pseudo-4/#first-letter-application
+fn find_first_letter_in_block(host: &TreeBuilderHost<'_>, block: LayoutNode) -> FfiFirstLetterTarget {
+    // NB: This walks a block container's inline descendants looking for the first-letter text. If the block has block
+    //     children instead of inline, recurses into each in-flow block child in turn.
+    if host.facts(block).children_are_inline {
+        let mut result = FfiFirstLetterTarget::not_found();
+        let mut is_root = true;
+        host.for_each_in_inclusive_subtree(block, |node| {
+            if is_root {
+                is_root = false;
+                return TraversalDecision::Continue;
+            }
+            let facts = host.facts(node);
+            if is_marker_content(facts) || facts.is_out_of_flow {
+                return TraversalDecision::SkipChildrenAndContinue;
+            }
+            if facts.is_text {
+                // SAFETY: `node` is a live TextNode.
+                result = unsafe { (host.callbacks.find_first_letter_in_text)(host.callbacks.context, node) };
+                return if result.found {
+                    TraversalDecision::Break
+                } else {
+                    TraversalDecision::Continue
+                };
+            }
+            if facts.is_fragmented_inline {
+                return TraversalDecision::Continue;
+            }
+            TraversalDecision::Break
+        });
+        return result;
+    }
+
+    // We have no inline content of our own but ::first-letter can still apply to text in an in-flow block descendant,
+    // so walk into each in-flow block child in document order until one yields a letter.
+    let mut child = host.first_child(block);
+    while !child.is_null() {
+        let facts = host.facts(child);
+        if is_marker_content(facts) || facts.is_out_of_flow {
+            child = host.next_sibling(child);
+            continue;
+        }
+        if !facts.is_block_container {
+            break;
+        }
+        // Stop descending if this child block defines its own ::first-letter: the child will style the first letter
+        // inside it, so the ancestor's ::first-letter must not also claim the same letter.
+        if facts.has_first_letter_style {
+            break;
+        }
+        let target = find_first_letter_in_block(host, child);
+        if target.found {
+            return target;
+        }
+        if !facts.is_anonymous {
+            break;
+        }
+        child = host.next_sibling(child);
+    }
+    FfiFirstLetterTarget::not_found()
+}
+
+/// Finds the text range claimed by a block's `::first-letter` pseudo-element.
+///
+/// # Safety
+///
+/// `callbacks` must remain valid for the duration of the call and `block` must be a live BlockContainer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_find_first_letter_in_block(
+    callbacks: *const FfiTreeBuilderCallbacks,
+    block: *mut c_void,
+) -> FfiFirstLetterTarget {
+    abort_on_panic(|| {
+        assert!(!callbacks.is_null());
+        assert!(!block.is_null());
+        // SAFETY: The caller guarantees that `callbacks` remains valid for the duration of this call.
+        let host = TreeBuilderHost {
+            callbacks: unsafe { &*callbacks },
+        };
+        find_first_letter_in_block(&host, block)
+    })
 }
 
 fn is_table_track(display: FfiTableDisplay) -> bool {
@@ -931,7 +1203,49 @@ pub unsafe extern "C" fn rust_fixup_tables(callbacks: *const FfiTreeBuilderCallb
 
 #[cfg(test)]
 mod tests {
-    use super::{FfiReplacedElementDisplayAdjustment, rust_adjusted_table_display_for_replaced_element};
+    use super::{
+        FfiFirstLetterCodePointFacts, FfiFirstLetterTextCallbacks, FfiReplacedElementDisplayAdjustment,
+        FirstLetterTextHost, find_first_letter_in_text, rust_adjusted_table_display_for_replaced_element,
+    };
+    use std::ffi::c_void;
+
+    unsafe extern "C" fn text_length(context: *mut c_void) -> usize {
+        // SAFETY: Test callers pass a valid `Vec<u16>` as the callback context.
+        unsafe { (&*context.cast::<Vec<u16>>()).len() }
+    }
+
+    unsafe extern "C" fn code_point_at(context: *mut c_void, index: usize) -> u32 {
+        // SAFETY: Test callers pass a valid `Vec<u16>` and an in-bounds index.
+        unsafe { (&*context.cast::<Vec<u16>>())[index] as u32 }
+    }
+
+    unsafe extern "C" fn next_grapheme_boundary(_: *mut c_void, index: usize) -> usize {
+        index + 1
+    }
+
+    unsafe extern "C" fn code_point_facts(_: *mut c_void, code_point: u32) -> FfiFirstLetterCodePointFacts {
+        FfiFirstLetterCodePointFacts {
+            is_space_separator: code_point == b' ' as u32,
+            is_punctuation: matches!(code_point, 0x21 | 0x22 | 0x27..=0x2f | 0x3a | 0x3b | 0x3f | 0x40),
+            is_letter: matches!(code_point, 0x41..=0x5a | 0x61..=0x7a),
+            is_number: matches!(code_point, 0x30..=0x39),
+            is_symbol: matches!(code_point, 0x24 | 0x2b | 0x3c..=0x3e | 0x5e | 0x60 | 0x7c | 0x7e),
+            is_open_punctuation: matches!(code_point, 0x28 | 0x5b | 0x7b),
+            is_dash_punctuation: code_point == 0x2d,
+        }
+    }
+
+    fn first_letter_target(text: &str, preserves_segment_breaks: bool) -> super::FfiFirstLetterTarget {
+        let mut text = text.encode_utf16().collect::<Vec<_>>();
+        let callbacks = FfiFirstLetterTextCallbacks {
+            context: (&raw mut text).cast(),
+            code_unit_length: text_length,
+            code_point_at,
+            next_grapheme_boundary,
+            code_point_facts,
+        };
+        find_first_letter_in_text(&FirstLetterTextHost { callbacks: &callbacks }, preserves_segment_breaks)
+    }
 
     #[test]
     fn replaced_table_display_adjustments() {
@@ -955,5 +1269,26 @@ mod tests {
             rust_adjusted_table_display_for_replaced_element(false, false, false, false),
             FfiReplacedElementDisplayAdjustment::None
         );
+    }
+
+    #[test]
+    fn first_letter_text_pattern() {
+        let target = first_letter_target("  Hello", false);
+        assert!(target.found);
+        assert_eq!((target.letter_start, target.letter_end), (2, 3));
+
+        let target = first_letter_target("\") A", false);
+        assert!(target.found);
+        assert_eq!((target.letter_start, target.letter_end), (0, 4));
+
+        let target = first_letter_target("H!ello", false);
+        assert!(target.found);
+        assert_eq!((target.letter_start, target.letter_end), (0, 2));
+
+        let target = first_letter_target("H-ello", false);
+        assert!(target.found);
+        assert_eq!((target.letter_start, target.letter_end), (0, 1));
+
+        assert!(!first_letter_target("\nHello", true).found);
     }
 }
