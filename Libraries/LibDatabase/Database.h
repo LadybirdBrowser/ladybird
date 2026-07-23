@@ -153,6 +153,21 @@ public:
         return try_step_bound_statement(statement_id, move(on_result));
     }
 
+    template<typename T, typename BindCallback, typename ReadCallback>
+    ErrorOr<T> try_execute_bound_statement_one(StatementID statement_id, BindCallback&& bind_all, ReadCallback&& read_row)
+    {
+        Optional<T> result;
+        TRY(try_execute_bound_statement(statement_id, forward<BindCallback>(bind_all), [&](ResultRow& row) -> ErrorOr<void> {
+            if (result.has_value())
+                return Error::from_string_literal("Statement returned more than one row");
+            result = TRY(read_row(row));
+            return {};
+        }));
+        if (!result.has_value())
+            return Error::from_string_literal("Statement returned no rows");
+        return result.release_value();
+    }
+
     ErrorOr<int> result_column_index(StatementID, StringView name);
 
     ErrorOr<void> execute_raw(ByteString const& sql);
