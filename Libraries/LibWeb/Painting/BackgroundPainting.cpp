@@ -327,7 +327,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
         auto apply_blend_layer = [&] {
             if (compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::Normal)
                 return;
-            display_list_recorder.apply_effects(1.0f, compositing_and_blending_operator);
+            display_list_recorder.apply_effects(compositing_and_blending_operator);
             applied_blend_layer = true;
         };
 
@@ -443,7 +443,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
         display_list_recorder.restore();
 
     if (needs_text_clip) {
-        display_list_recorder.apply_effects(1.0f, Gfx::CompositingAndBlendingOperator::DestinationIn);
+        display_list_recorder.apply_effects(Gfx::CompositingAndBlendingOperator::DestinationIn);
         append_text_clip_paths(context, paintable_box);
         display_list_recorder.restore();
         display_list_recorder.restore();

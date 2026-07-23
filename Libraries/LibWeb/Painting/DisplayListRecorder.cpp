@@ -290,28 +290,6 @@ void DisplayListRecorder::add_rounded_rect_clip(Gfx::CornerRadii corner_radii, G
     append_command(AddRoundedRectClip { corner_radii, border_rect, corner_clip });
 }
 
-void DisplayListRecorder::begin_masks(ReadonlySpan<MaskInfo> masks)
-{
-    for (auto const& mask : masks) {
-        save();
-        add_clip_rect(mask.rect);
-        save_layer();
-    }
-}
-
-void DisplayListRecorder::end_masks(ReadonlySpan<MaskInfo> masks)
-{
-    for (size_t i = masks.size(); i-- > 0;) {
-        auto const& mask = masks[i];
-        auto mask_kind = mask.kind == Gfx::MaskKind::Luminance ? Optional<Gfx::MaskKind>(Gfx::MaskKind::Luminance) : Optional<Gfx::MaskKind> {};
-        apply_effects(1.0f, Gfx::CompositingAndBlendingOperator::DestinationIn, {}, mask_kind);
-        paint_nested_display_list(mask.display_list, mask.rect);
-        restore(); // DstIn layer
-        restore(); // content layer
-        restore(); // clip save
-    }
-}
-
 void DisplayListRecorder::fill_rect(Gfx::IntRect const& rect, Color color)
 {
     if (rect.is_empty() || color.alpha() == 0)
@@ -802,21 +780,16 @@ void DisplayListRecorder::compositor_blocking_wheel_event_region(CompositorBlock
     append_command(region);
 }
 
-void DisplayListRecorder::apply_effects(float opacity, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Gfx::Filter> filter, Optional<Gfx::MaskKind> mask_kind)
+void DisplayListRecorder::apply_effects(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
 {
-    CommandPayloadBuilder<ApplyEffects> payload_builder(m_display_list);
-    auto filter_data = filter.has_value()
-        ? append_filter_data(payload_builder, resource_storage(), filter.value())
-        : DisplayListDataSpan {};
     append_command(
         ApplyEffects {
-            .opacity = opacity,
+            .opacity = 1.0f,
             .compositing_and_blending_operator = compositing_and_blending_operator,
-            .has_filter = filter.has_value(),
-            .filter_data = filter_data,
-            .has_mask_kind = mask_kind.has_value(),
-            .mask_kind = mask_kind.value_or({}) },
-        payload_builder.inline_data());
+            .has_filter = false,
+            .filter_data = {},
+            .has_mask_kind = false,
+            .mask_kind = {} });
 }
 
 }
