@@ -902,6 +902,28 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     m_computed_values = move(computed_values);
 }
 
+void NodeWithStyle::set_display(CSS::Display display)
+{
+    modify_computed_values([&](auto& values) {
+        values.set_display(display);
+    });
+}
+
+void NodeWithStyle::set_content(CSS::ContentData const& content)
+{
+    modify_computed_values([&](auto& values) {
+        values.set_content(content);
+    });
+}
+
+void NodeWithStyle::set_overflow(CSS::Overflow overflow_x, CSS::Overflow overflow_y)
+{
+    modify_computed_values([&](auto& values) {
+        values.set_overflow_x(overflow_x);
+        values.set_overflow_y(overflow_y);
+    });
+}
+
 void NodeWithStyle::reset_table_box_computed_values_used_by_wrapper_to_init_values()
 {
     VERIFY(this->display().is_table_inside());

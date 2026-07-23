@@ -381,6 +381,10 @@ public:
 
     void set_computed_values(NonnullRefPtr<CSS::ComputedValues const>);
 
+    void set_display(CSS::Display);
+    void set_content(CSS::ContentData const&);
+    void set_overflow(CSS::Overflow overflow_x, CSS::Overflow overflow_y);
+
     u32 layout_index() const { return m_layout_index; }
     void set_layout_index(u32 index) { m_layout_index = index; }
 

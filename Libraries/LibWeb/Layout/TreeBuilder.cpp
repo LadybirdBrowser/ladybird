@@ -670,12 +670,10 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     if (is_content_replacement) {
         pseudo_element_node = create_content_image_box(document, nullptr, NonnullRefPtr { *pseudo_element_values }, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
         if (auto adjusted_display = adjusted_table_display_for_replaced_element(pseudo_element_display); adjusted_display.has_value())
-            pseudo_element_node->modify_computed_values([&](auto& values) { values.set_display(*adjusted_display); });
+            pseudo_element_node->set_display(*adjusted_display);
     } else if (pseudo_element_display.is_contents()) {
         pseudo_element_node = make_ref_counted<InlineNode>(document, nullptr, NonnullRefPtr { *pseudo_element_values });
-        pseudo_element_node->modify_computed_values([](auto& values) {
-            values.set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
-        });
+        pseudo_element_node->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
     } else {
         pseudo_element_node = DOM::Element::create_layout_node_for_display_type(document, pseudo_element_display, NonnullRefPtr { *pseudo_element_values }, nullptr);
         if (!pseudo_element_node)
@@ -708,17 +706,13 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
     element.set_synthetic_pseudo_element_node({}, pseudo_element, pseudo_element_node);
     if (insertion_mode.has_value())
         insert_node_into_inline_or_block_ancestor(*pseudo_element_node, pseudo_element_node->display(), insertion_mode.value());
-    pseudo_element_node->modify_computed_values([&](auto& values) {
-        values.set_content(pseudo_element_content);
-    });
+    pseudo_element_node->set_content(pseudo_element_content);
 
     CSS::resolve_counters(element_reference);
     // Now that we have counters, we can compute the content for real. Which is silly.
     if (pseudo_element_content.type == CSS::ContentData::Type::List) {
         auto [new_content, _] = pseudo_element_values->resolved_content(element_reference, initial_quote_nesting_level);
-        pseudo_element_node->modify_computed_values([&](auto& values) {
-            values.set_content(new_content);
-        });
+        pseudo_element_node->set_content(new_content);
 
         // FIXME: Handle images, and multiple values
         if (new_content.type == CSS::ContentData::Type::List) {
@@ -733,9 +727,7 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
                         auto image_box = create_content_image_box(document, nullptr, NonnullRefPtr { pseudo_element_node->computed_values() }, image);
                         // https://drafts.csswg.org/css-content-3/#content-property
                         // For <image>, this is an inline anonymous replaced element.
-                        image_box->modify_computed_values([](auto& values) {
-                            values.set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
-                        });
+                        image_box->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
                         image_box->attach_style_resources();
                         layout_node = move(image_box);
                     }
@@ -1054,9 +1046,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             if (auto* style_parent = display_contents_style_parent_for_text_node(text_node); style_parent && display_contents_text_needs_style_wrapper(text_node, *style_parent)) {
                 auto wrapper = make_ref_counted<Layout::InlineNode>(document, nullptr, style_parent->computed_values().release_nonnull());
                 wrapper->attach_style_resources();
-                wrapper->modify_computed_values([&](auto& values) {
-                    values.set_display(display);
-                });
+                wrapper->set_display(display);
                 wrapper->set_children_are_inline(true);
                 wrapper->append_child(*layout_node);
                 layout_node = move(wrapper);
@@ -1073,9 +1063,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     if (layout_node->is_replaced_element()) {
         if (auto adjusted_display = adjusted_table_display_for_replaced_element(display); adjusted_display.has_value()) {
             display = *adjusted_display;
-            as<NodeWithStyle>(*layout_node).modify_computed_values([&](auto& values) {
-                values.set_display(display);
-            });
+            as<NodeWithStyle>(*layout_node).set_display(display);
         }
     }
 
@@ -1490,9 +1478,7 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, Layout:
     if (auto* fieldset_box = as_if<FieldSetBox>(layout_node)) {
         if (auto legend = fieldset_box->rendered_legend()) {
             auto wrapper = fieldset_box->create_anonymous_wrapper();
-            wrapper->modify_computed_values([](auto& values) {
-                values.set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
-            });
+            wrapper->set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
 
             // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
             // The following properties are expected to inherit from the fieldset element:
@@ -1501,14 +1487,8 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, Layout:
             //     grid-column-gap, grid-row-gap, grid-template-areas, grid-template-columns, grid-template-rows),
             //     justify-content, justify-items, overflow, padding, text-overflow, unicode-bidi
             // FIXME: Transfer all of these properties, not just overflow.
-            wrapper->modify_computed_values([&](auto& values) {
-                values.set_overflow_x(fieldset_box->computed_values().overflow_x());
-                values.set_overflow_y(fieldset_box->computed_values().overflow_y());
-            });
-            fieldset_box->modify_computed_values([](auto& values) {
-                values.set_overflow_x(CSS::InitialValues::overflow());
-                values.set_overflow_y(CSS::InitialValues::overflow());
-            });
+            wrapper->set_overflow(fieldset_box->computed_values().overflow_x(), fieldset_box->computed_values().overflow_y());
+            fieldset_box->set_overflow(CSS::InitialValues::overflow(), CSS::InitialValues::overflow());
 
             for (auto child = fieldset_box->first_child(); child;) {
                 auto next = child->next_sibling();
