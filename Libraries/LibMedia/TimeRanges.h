@@ -65,6 +65,11 @@ private:
     Vector<Range> m_ranges;
 };
 
+struct BufferedRangesScan {
+    TimeRanges time_ranges;
+    bool last_byte_range_has_samples { false };
+};
+
 }
 
 template<>

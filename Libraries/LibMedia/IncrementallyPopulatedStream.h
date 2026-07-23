@@ -43,6 +43,7 @@ public:
     u64 next_chunk_start() const { return m_last_chunk_end; }
 
     void close();
+    virtual bool is_closed() const override;
 
     virtual Vector<ByteRange> available_byte_ranges() const override;
 

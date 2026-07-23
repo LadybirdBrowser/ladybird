@@ -14,7 +14,7 @@
 
 namespace Media {
 
-class MP3Navigator final : public ContainerNavigator {
+class MP3Navigator final : public SingleTrackContainerNavigator {
 public:
     MP3Navigator(NonnullRefPtr<MediaStream> stream, size_t first_frame_position, AK::Duration total_duration);
 
@@ -25,7 +25,7 @@ public:
         u64 duration_in_ticks { 0 };
     };
 
-    TimeRanges buffered_time_ranges(Vector<MediaStream::ByteRange> const& byte_ranges) const override;
+    BufferedRangesScan buffered_time_ranges(Vector<MediaStream::ByteRange> const& byte_ranges) const override;
     DecoderErrorOr<SeekResult> seek_to_timestamp(AK::Duration timestamp) const override;
 
 private:

@@ -9,6 +9,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/EnumBits.h>
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Time.h>
 #include <LibCore/EventReceiver.h>
@@ -35,9 +36,31 @@ enum class DemuxerSeekResult : u8 {
     KeptCurrentPosition,
 };
 
-struct DemuxerScanState {
+struct DemuxerTrackScanState {
+    Track track;
     TimeRanges buffered_ranges;
+    bool reached_end_of_stream { false };
+
+    bool operator==(DemuxerTrackScanState const&) const = default;
+};
+
+struct DemuxerScanState {
+    Vector<DemuxerTrackScanState> tracks;
     AK::Duration duration;
+
+    static DemuxerScanState create_from_track_scans(Vector<Track> const& tracks, HashMap<u64, BufferedRangesScan> scans_by_track_identifier, AK::Duration minimum_duration, bool closing_bytes_are_available)
+    {
+        DemuxerScanState state;
+        state.duration = minimum_duration;
+        for (auto const& track : tracks) {
+            auto scan = scans_by_track_identifier.take(track.identifier());
+            if (!scan.has_value())
+                continue;
+            state.duration = max(state.duration, scan->time_ranges.highest_end_time());
+            state.tracks.empend(track, move(scan->time_ranges), scan->last_byte_range_has_samples && closing_bytes_are_available);
+        }
+        return state;
+    }
 
     bool operator==(DemuxerScanState const&) const = default;
 };

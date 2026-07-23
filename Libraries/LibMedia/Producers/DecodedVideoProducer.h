@@ -63,8 +63,6 @@ public:
     AK::Duration select_fast_seek_target(AK::Duration timestamp, SeekMode);
     virtual void seek(AK::Duration timestamp) override;
 
-    TimeRanges buffered_time_ranges() const;
-
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
@@ -111,8 +109,6 @@ private:
         void enter_halting_state(PipelineStatus, Optional<DecoderError>);
 
         void dispatch_wake_if_needed_while_locked();
-
-        TimeRanges buffered_time_ranges() const;
 
         [[nodiscard]] Sync::MutexLocker<Sync::Mutex> take_lock() const { return Sync::MutexLocker(m_wait_state->mutex); }
         void wake() const { m_wait_state->condition.broadcast(); }

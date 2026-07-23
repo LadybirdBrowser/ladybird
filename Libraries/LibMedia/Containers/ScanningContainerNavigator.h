@@ -30,9 +30,9 @@ struct CachedByteRange {
 };
 
 template<typename Derived, typename CachedRange = CachedByteRange>
-class ScanningContainerNavigator : public ContainerNavigator {
+class ScanningContainerNavigator : public SingleTrackContainerNavigator {
 public:
-    TimeRanges buffered_time_ranges(Vector<MediaStream::ByteRange> const& byte_ranges) const override
+    BufferedRangesScan buffered_time_ranges(Vector<MediaStream::ByteRange> const& byte_ranges) const override
     {
         auto const& self = *static_cast<Derived const*>(this);
 
@@ -100,10 +100,19 @@ public:
         if (cached_index < m_cached_ranges.size())
             m_cached_ranges.remove(cached_index, m_cached_ranges.size() - cached_index);
 
-        TimeRanges result;
-        for (auto const& cached : m_cached_ranges)
-            self.append_time_range(cached, result);
-        return result;
+        BufferedRangesScan scan;
+        if (m_cached_ranges.is_empty())
+            return scan;
+
+        for (size_t i = 0; i + 1 < m_cached_ranges.size(); i++)
+            self.append_time_range(m_cached_ranges[i], scan.time_ranges);
+
+        TimeRanges last_byte_range_time_ranges;
+        self.append_time_range(m_cached_ranges.last(), last_byte_range_time_ranges);
+        scan.last_byte_range_has_samples = !last_byte_range_time_ranges.is_empty();
+        for (auto const& range : last_byte_range_time_ranges)
+            scan.time_ranges.add_range(range.start, range.end);
+        return scan;
     }
 
 protected:

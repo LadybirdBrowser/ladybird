@@ -388,11 +388,15 @@ void TrackBufferDemuxer::queue_scan_state_change_dispatch_while_locked()
         return;
     m_scan_state_change_dispatch_pending = true;
     m_scan_state_change_handler_event_loop->deferred_invoke([self = NonnullRefPtr(*this)] {
+        bool reached_end_of_stream;
         {
             Sync::MutexLocker locker { self->m_mutex };
             self->m_scan_state_change_dispatch_pending = false;
+            reached_end_of_stream = self->m_reached_end_of_stream;
         }
-        self->m_scan_state = { self->track_buffer_ranges(), AK::Duration::zero() };
+        Vector<Media::DemuxerTrackScanState> tracks;
+        tracks.empend(self->m_track, self->track_buffer_ranges(), reached_end_of_stream);
+        self->m_scan_state = { move(tracks), AK::Duration::zero() };
         if (self->m_scan_state_change_handler)
             self->m_scan_state_change_handler();
     });

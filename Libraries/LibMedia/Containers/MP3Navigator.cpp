@@ -494,24 +494,23 @@ MP3Navigator::MP3Navigator(NonnullRefPtr<MediaStream> stream, size_t first_frame
     });
 }
 
-TimeRanges MP3Navigator::buffered_time_ranges(Vector<MediaStream::ByteRange> const& byte_ranges) const
+BufferedRangesScan MP3Navigator::buffered_time_ranges(Vector<MediaStream::ByteRange> const& byte_ranges) const
 {
     Sync::MutexLocker locker { m_mutex };
     update_cached_ranges(byte_ranges, *m_buffered_range_scanning_cursor);
 
-    TimeRanges result;
-    auto file_size = m_stream->expected_size();
+    BufferedRangesScan scan;
     for (auto const& range : m_cached_ranges) {
         auto byte_range = find_containing_byte_range(byte_ranges, range.byte_start);
         if (!byte_range.has_value())
             continue;
         auto time_start = max(range.time_start, AK::Duration::zero());
         auto time_end = range.time_start + duration_from_ticks(range.duration_in_ticks);
-        if (file_size.has_value() && byte_range->end == *file_size)
-            time_end = AK::Duration::max();
-        result.add_range(time_start, time_end);
+        scan.time_ranges.add_range(time_start, time_end);
+        if (time_end > time_start && byte_range->start == byte_ranges.last().start)
+            scan.last_byte_range_has_samples = true;
     }
-    return result;
+    return scan;
 }
 
 DecoderErrorOr<SeekResult> MP3Navigator::seek_to_timestamp(AK::Duration timestamp) const

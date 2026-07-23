@@ -1148,7 +1148,7 @@ Optional<Vector<TrackCuePoint> const&> Reader::cue_points_for_track(u64 track_nu
     return m_cues.get(track_number);
 }
 
-TimeRanges Reader::buffered_time_ranges(NonnullRefPtr<MediaStreamCursor> const& cursor, Vector<MediaStream::ByteRange> const& byte_ranges) const
+HashMap<u64, BufferedRangesScan> Reader::buffered_time_ranges_by_track_number(NonnullRefPtr<MediaStreamCursor> const& cursor, Vector<MediaStream::ByteRange> const& byte_ranges) const
 {
     auto create_iterator = [&](size_t position) -> Optional<SampleIterator> {
         auto iterator = create_sample_iterator_at_byte_position(cursor, position);
@@ -1175,6 +1175,7 @@ TimeRanges Reader::buffered_time_ranges(NonnullRefPtr<MediaStreamCursor> const& 
                 .start = byte_range.start,
                 .end = byte_range.end,
                 .iterator = create_iterator(byte_range.start),
+                .track_intervals = {},
             };
             m_buffered_ranges.insert(cached_range_index, move(new_cached_range));
             cached_range_index++;
@@ -1218,7 +1219,11 @@ TimeRanges Reader::buffered_time_ranges(NonnullRefPtr<MediaStreamCursor> const& 
                 if (!first_block.is_error() && first_block.value().timestamp().has_value()) {
                     cached_range->start = byte_range.start;
                     cached_range->end = byte_range.end;
-                    cached_range->time_start = first_block.value().timestamp().value();
+                    // The evicted front may have carried any track's earliest blocks; the first
+                    // block remaining is the earliest coverage still claimable for every track.
+                    auto new_time_start = first_block.value().timestamp().value();
+                    for (auto& [track_number, interval] : cached_range->track_intervals)
+                        interval.start = max(interval.start, new_time_start);
                     cached_range_index++;
                     byte_range_index++;
                     continue;
@@ -1231,6 +1236,7 @@ TimeRanges Reader::buffered_time_ranges(NonnullRefPtr<MediaStreamCursor> const& 
             .start = byte_range.start,
             .end = byte_range.end,
             .iterator = move(new_iterator),
+            .track_intervals = {},
         };
         cached_range_index++;
         byte_range_index++;
@@ -1239,10 +1245,10 @@ TimeRanges Reader::buffered_time_ranges(NonnullRefPtr<MediaStreamCursor> const& 
     // Remove any leftover ranges. We should be left with only the exact ranges provided to us.
     m_buffered_ranges.remove(cached_range_index, m_buffered_ranges.size() - cached_range_index);
 
-    // All previously known buffered ranges are now matched up or discarded. Iterate the blocks to update the ranges'
-    // end times and append the ranges.
+    // All previously known buffered ranges are now matched up or discarded. Iterate the blocks to update each
+    // track's interval end times and append the intervals to their tracks' ranges.
     VERIFY(m_buffered_ranges.size() == byte_ranges.size());
-    TimeRanges result;
+    HashMap<u64, BufferedRangesScan> scans_by_track_number;
 
     for (size_t i = 0; i < byte_ranges.size(); i++) {
         auto& cached_range = m_buffered_ranges[i];
@@ -1259,20 +1265,24 @@ TimeRanges Reader::buffered_time_ranges(NonnullRefPtr<MediaStreamCursor> const& 
                     break;
                 auto block = block_or_error.release_value();
                 if (block.timestamp().has_value() && block.duration().has_value()) {
-                    if (!cached_range.time_start.has_value())
-                        cached_range.time_start = block.timestamp().value();
-
                     auto block_end = block.timestamp().value() + block.duration().value();
-                    cached_range.time_end = block_end;
+                    auto& interval = cached_range.track_intervals.ensure(block.track_number(), [&] {
+                        return TimeRanges::Range { block.timestamp().value(), block_end };
+                    });
+                    interval.end = max(interval.end, block_end);
                 }
             }
         }
 
-        if (cached_range.time_start.has_value())
-            result.add_range(max(AK::Duration::zero(), cached_range.time_start.value()), cached_range.time_end);
+        for (auto const& [track_number, interval] : cached_range.track_intervals)
+            scans_by_track_number.ensure(track_number).time_ranges.add_range(max(AK::Duration::zero(), interval.start), interval.end);
     }
 
-    return result;
+    if (!m_buffered_ranges.is_empty()) {
+        for (auto const& [track_number, interval] : m_buffered_ranges.last().track_intervals)
+            scans_by_track_number.ensure(track_number).last_byte_range_has_samples = true;
+    }
+    return scans_by_track_number;
 }
 
 }
