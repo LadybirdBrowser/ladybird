@@ -1,0 +1,10 @@
+append inline child: rebuilt subtree roots=1, escaped=false
+two independent mutations: rebuilt subtree roots=2, escaped=false
+display none to block: rebuilt subtree roots=1, escaped=false
+append block into inline parent: rebuilt subtree roots=1, escaped=false
+append under display:contents: rebuilt subtree roots=1, escaped=false
+showModal: rebuilt subtree roots=0, escaped=true
+mutate inside open dialog: rebuilt subtree roots=1, escaped=false
+close dialog: rebuilt subtree roots=0, escaped=false
+attach shadow root with content: rebuilt subtree roots=1, escaped=false
+append abspos child: rebuilt subtree roots=1, escaped=false

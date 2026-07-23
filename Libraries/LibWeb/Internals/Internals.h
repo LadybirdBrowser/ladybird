@@ -147,6 +147,7 @@ public:
 
     JS::Object* get_style_invalidation_counters();
     void reset_style_invalidation_counters();
+    JS::Object* layout_tree_build_stats();
     JS::Object* computed_values_stats();
     JS::Object* style_ffi_counters();
     void reset_style_ffi_counters();

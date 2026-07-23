@@ -1050,6 +1050,16 @@ public:
     void record_full_style_invalidation() const;
     static void set_style_invalidation_counter_dump_interval(Optional<u64>);
 
+    // Confinement report of the most recent layout tree build, for tests observing whether a
+    // partial rebuild stayed inside its rebuilt subtrees.
+    struct LayoutTreeBuildStats {
+        u64 builds { 0 };
+        u64 last_build_rebuilt_subtree_roots { 0 };
+        bool last_build_escaped_rebuild_roots { false };
+    };
+    LayoutTreeBuildStats const& layout_tree_build_stats() const { return m_layout_tree_build_stats; }
+    void record_layout_tree_build(u64 rebuilt_subtree_root_count, bool escaped_rebuild_roots);
+
     void set_needs_accumulated_visual_contexts_update(bool);
     bool needs_accumulated_visual_contexts_update() const { return m_needs_accumulated_visual_contexts_update; }
     void schedule_accumulated_visual_context_value_update(Element&);
@@ -1722,6 +1732,7 @@ private:
     Optional<CSSPixelRect> m_caret_hit_test_debug_rect;
 
     mutable StyleInvalidationCounters m_style_invalidation_counters;
+    LayoutTreeBuildStats m_layout_tree_build_stats;
     mutable u64 m_style_invalidations_since_last_counter_dump { 0 };
 
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;

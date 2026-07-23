@@ -957,6 +957,16 @@ void Internals::reset_style_invalidation_counters()
     window().associated_document().reset_style_invalidation_counters();
 }
 
+JS::Object* Internals::layout_tree_build_stats()
+{
+    auto object = JS::Object::create(realm(), nullptr);
+    auto const& stats = window().associated_document().layout_tree_build_stats();
+    object->define_direct_property("builds"_utf16_fly_string, JS::Value(stats.builds), JS::default_attributes);
+    object->define_direct_property("lastBuildRebuiltSubtreeRoots"_utf16_fly_string, JS::Value(stats.last_build_rebuilt_subtree_roots), JS::default_attributes);
+    object->define_direct_property("lastBuildEscapedRebuildRoots"_utf16_fly_string, JS::Value(stats.last_build_escaped_rebuild_roots), JS::default_attributes);
+    return object;
+}
+
 JS::Object* Internals::style_ffi_counters()
 {
     auto object = JS::Object::create(realm(), nullptr);

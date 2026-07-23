@@ -140,6 +140,11 @@ interface Internals {
     // styleInvalidations, elementStyleRecomputations, and elementStyleNoopRecomputations.
     object getStyleInvalidationCounters();
     undefined resetStyleInvalidationCounters();
+    // Returns the confinement report of the most recent layout tree build for the current
+    // document. Keys: builds (cumulative build count), lastBuildRebuiltSubtreeRoots (number of
+    // subtrees rebuilt in place), lastBuildEscapedRebuildRoots (whether any tree mutation
+    // escaped the rebuilt subtrees, disqualifying the build from partial relayout).
+    object layoutTreeBuildStats();
     // Returns process-wide ComputedValues instance statistics.
     // Keys: liveComputedValues, totalComputedValuesCreated.
     object computedValuesStats();

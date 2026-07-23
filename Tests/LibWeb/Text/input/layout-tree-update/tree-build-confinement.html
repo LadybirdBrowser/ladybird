@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #contents-parent { display: contents; }
+</style>
+<div id="inline-parent"><span>hello</span></div>
+<div id="second-parent"><span>world</span></div>
+<div id="toggle-me" style="display: none">revealed</div>
+<div id="contents-host"><div id="contents-parent"><span>inside contents</span></div></div>
+<dialog id="dlg"><p id="dlg-content">dialog</p></dialog>
+<div id="shadow-host"></div>
+<script>
+    // Pins TreeBuilder's rebuild-confinement report: how many subtrees an incremental layout
+    // tree build rebuilds in place, and whether any tree mutation escaped those subtrees. A
+    // build whose mutations escape is not eligible for partial relayout, so silent changes to
+    // this report mean under- or over-invalidation.
+    //
+    // NB: All output is printed after the last measurement; println mutates the harness's
+    //     output element, which would otherwise show up as an extra rebuilt subtree in the
+    //     next build's report.
+    test(() => {
+        const lines = [];
+        function forceLayout() { return document.body.offsetHeight; }
+        function measure(label, mutate) {
+            mutate();
+            forceLayout();
+            const s = internals.layoutTreeBuildStats();
+            lines.push(`${label}: rebuilt subtree roots=${s.lastBuildRebuiltSubtreeRoots}, escaped=${s.lastBuildEscapedRebuildRoots}`);
+        }
+
+        forceLayout();
+
+        measure("append inline child", () => {
+            document.getElementById("inline-parent").appendChild(document.createElement("span")).textContent = "x";
+        });
+
+        measure("two independent mutations", () => {
+            document.getElementById("inline-parent").appendChild(document.createElement("span")).textContent = "y";
+            document.getElementById("second-parent").appendChild(document.createElement("span")).textContent = "z";
+        });
+
+        // Revealing a display:none element marks its parent for rebuild, so the parent (here:
+        // body) becomes the single rebuilt subtree instead of the revealed element escaping as
+        // a fresh box.
+        measure("display none to block", () => {
+            document.getElementById("toggle-me").style.display = "block";
+        });
+
+        // The anonymous-box restructuring needed to accommodate the block child happens inside
+        // the rebuilt parent subtree.
+        measure("append block into inline parent", () => {
+            document.getElementById("inline-parent").appendChild(document.createElement("div")).textContent = "block";
+        });
+
+        // A mutation under a display:contents element rebuilds the nearest box-generating
+        // ancestor's subtree.
+        measure("append under display:contents", () => {
+            document.getElementById("contents-parent").appendChild(document.createElement("span")).textContent = "c";
+        });
+
+        // Top layer boxes (dialog and its ::backdrop) are built as fresh siblings of the root
+        // element's box, replacing nothing in place, so their creation escapes.
+        measure("showModal", () => {
+            document.getElementById("dlg").showModal();
+        });
+
+        measure("mutate inside open dialog", () => {
+            document.getElementById("dlg-content").appendChild(document.createElement("span")).textContent = "d";
+        });
+
+        // Closing detaches the dialog and ::backdrop boxes at DOM mutation time through a
+        // separate invalidation channel; the following build itself rebuilds nothing and stays
+        // confined.
+        measure("close dialog", () => {
+            document.getElementById("dlg").close();
+        });
+
+        measure("attach shadow root with content", () => {
+            const shadow = document.getElementById("shadow-host").attachShadow({ mode: "open" });
+            shadow.innerHTML = "<span>shadow content</span>";
+        });
+
+        measure("append abspos child", () => {
+            const abs = document.createElement("div");
+            abs.style.position = "absolute";
+            document.getElementById("inline-parent").appendChild(abs);
+        });
+
+        for (const line of lines)
+            println(line);
+    });
+</script>
