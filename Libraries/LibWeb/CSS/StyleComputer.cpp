@@ -862,16 +862,30 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         .data_of = [](void*, void const* shell) -> void const* {
             return static_cast<StyleValue const*>(shell)->rust_style_value_data();
         },
-        .create_pending_substitution = [](void* context, void const* shell) -> void const* {
+        .create_pending_substitution = [](void* context, void const* shell, void const* data) -> void const* {
             auto& expansion_context = *static_cast<ExpansionContext*>(context);
-            auto pending_substitution_value = PendingSubstitutionStyleValue::create(*static_cast<StyleValue const*>(shell));
+            auto value = [&]() -> ValueComparingNonnullRefPtr<StyleValue const> {
+                if (shell)
+                    return *static_cast<StyleValue const*>(shell);
+                return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+                    static_cast<StyleValueFFI::StyleValueData const*>(data)));
+            }();
+            auto pending_substitution_value = PendingSubstitutionStyleValue::create(*value);
             auto const* pointer = pending_substitution_value.ptr();
+            expansion_context.pinned_values.append(move(value));
             expansion_context.pinned_values.append(move(pending_substitution_value));
             return pointer;
         },
-        .set_longhand_property = [](void* context, u16 property_id, void const* shell) {
+        .set_longhand_property = [](void* context, u16 property_id, void const* shell, void const* data) {
             auto& expansion_context = *static_cast<ExpansionContext*>(context);
-            expansion_context.set_longhand_property(static_cast<PropertyID>(property_id), *static_cast<StyleValue const*>(shell)); },
+            if (shell) {
+                expansion_context.set_longhand_property(static_cast<PropertyID>(property_id), *static_cast<StyleValue const*>(shell));
+                return;
+            }
+            auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+                static_cast<StyleValueFFI::StyleValueData const*>(data)));
+            expansion_context.set_longhand_property(static_cast<PropertyID>(property_id), *value);
+            expansion_context.pinned_values.append(move(value)); },
     };
     ComputedValuesFFI::rust_for_each_property_expanding_shorthands(&callbacks, to_underlying(property_id), &value, value.rust_style_value_data());
 }
@@ -2407,10 +2421,20 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         .data_of = [](void*, void const* shell) -> void const* {
             return static_cast<StyleValue const*>(shell)->rust_style_value_data();
         },
-        .create_pending_substitution = [](void* context, void const* shell) -> void const* {
+        .has_style_sheet_context = [](void*, void const* shell) -> bool {
+            return static_cast<StyleValue const*>(shell)->has_style_sheet_context();
+        },
+        .create_pending_substitution = [](void* context, void const* shell, void const* data) -> void const* {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
-            auto pending_substitution_value = PendingSubstitutionStyleValue::create(*static_cast<StyleValue const*>(shell));
+            auto value = [&]() -> ValueComparingNonnullRefPtr<StyleValue const> {
+                if (shell)
+                    return *static_cast<StyleValue const*>(shell);
+                return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+                    static_cast<StyleValueFFI::StyleValueData const*>(data)));
+            }();
+            auto pending_substitution_value = PendingSubstitutionStyleValue::create(*value);
             auto const* pointer = pending_substitution_value.ptr();
+            bulk_context.pinned_values.append(move(value));
             bulk_context.pinned_values.append(move(pending_substitution_value));
             return pointer;
         },
@@ -3502,7 +3526,18 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             auto const& entry = entries[i];
             auto property_id = static_cast<PropertyID>(entry.property_id);
             auto inherited_property_id = static_cast<PropertyID>(entry.inherited_property_id);
-            auto const& value = *static_cast<StyleValue const*>(entry.shell);
+            ValueComparingRefPtr<StyleValue const> retained_value;
+            if (entry.shell) {
+                retained_value = static_cast<StyleValue const*>(entry.shell);
+            } else {
+                retained_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+                    static_cast<StyleValueFFI::StyleValueData const*>(entry.data)));
+            }
+            if (entry.source_slot >= 0 && entry.has_style_sheet_context) {
+                if (auto source = cascaded_properties.source_for_slot(static_cast<u32>(entry.source_slot)); source && source->parent_rule())
+                    const_cast<StyleValue&>(*retained_value).set_style_sheet(source->parent_rule()->parent_style_sheet());
+            }
+            auto const& value = *retained_value;
             if (entry.inherited)
                 copy_animated_inherited_value(property_id, inherited_property_id);
             // Store the resolved specified value for properties whose computation depends on
@@ -3627,8 +3662,11 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             loop_context.pinned_parent_values.append(move(value));
             return entry;
         },
-        .data_of = [](void const* shell) -> void const* { return static_cast<StyleValue const*>(shell)->rust_style_value_data(); },
         .computational_independence_fallback = [](void const* shell) -> bool { return static_cast<StyleValue const*>(shell)->decide_computational_independence_fallback(); },
+        .computational_independence_data_fallback = [](void const* data) -> bool {
+            auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+                static_cast<StyleValueFFI::StyleValueData const*>(data)));
+            return value->decide_computational_independence_fallback(); },
         .writing_mode_and_direction = [](void* context) -> u16 {
             auto& loop_context = *static_cast<LonghandLoopContext*>(context);
             auto mapping_context = loop_context.get_logical_alias_mapping_context_callback();
@@ -3646,7 +3684,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         .important_words = important_words.data(),
         .inherited_words = inherited_words.data(),
         .word_count = longhand_bitmap_words,
-        .raw_cascaded_font_size_shell = nullptr,
+        .raw_cascaded_font_size_data = nullptr,
         .depends_on_viewport_metrics = false,
         .font_metrics_depend_on_viewport_metrics = false,
         .explicitly_inherited_non_inherited_property = false,
@@ -3669,8 +3707,9 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     // Store the raw winning cascaded font-size. This is needed to implement the time-traveling inheritance for
     // font-size when font-family is monospace.
     // See the recascade_font_size_if_needed() function for further details.
-    if (driver_results.raw_cascaded_font_size_shell)
-        builder.set_raw_cascaded_font_size(*static_cast<StyleValue const*>(driver_results.raw_cascaded_font_size_shell));
+    if (driver_results.raw_cascaded_font_size_data)
+        builder.set_raw_cascaded_font_size(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+            static_cast<StyleValueFFI::StyleValueData const*>(driver_results.raw_cascaded_font_size_data))));
     if (driver_results.depends_on_viewport_metrics)
         builder.set_depends_on_viewport_metrics();
     if (driver_results.font_metrics_depend_on_viewport_metrics)

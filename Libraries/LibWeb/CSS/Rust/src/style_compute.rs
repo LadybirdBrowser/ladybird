@@ -793,49 +793,12 @@ pub struct FfiIndependenceDecision {
 ///
 /// Returns None for value types whose rule still lives with their C++ shells; a container is
 /// also undecided when any of its nested values is, so the whole tree falls back.
-fn value_is_computationally_independent(
-    value: &StyleValueData,
-    data_of: unsafe extern "C" fn(*const c_void) -> *const c_void,
-    decide_fallback: unsafe extern "C" fn(*const c_void) -> bool,
-) -> Option<bool> {
-    use crate::style_value::RetainedStyleValue;
-    // An absent nested value never makes its container dependent. A nested value the core
-    // cannot decide is decided by the C++ fallback in place, so containers never go
-    // unhandled; only root values fall back.
-    let child = |retained: &RetainedStyleValue| -> Option<bool> {
-        let shell = retained.shell_pointer();
-        if shell.is_null() {
-            return Some(true);
-        }
-        let data = unsafe { data_of(shell) };
-        match value_is_computationally_independent(
-            unsafe { &*(data as *const StyleValueData) },
-            data_of,
-            decide_fallback,
-        ) {
-            Some(independent) => Some(independent),
-            None => Some(unsafe { decide_fallback(shell) }),
-        }
-    };
-    let all_of = |children: &[&RetainedStyleValue]| -> Option<bool> {
-        let mut independent = true;
-        for retained in children {
-            independent = independent && child(retained)?;
-        }
-        Some(independent)
-    };
-    let all_in_list = |list: &crate::style_value::RetainedStyleValueList| -> Option<bool> {
-        let mut independent = true;
-        for retained in list.as_slice() {
-            independent = independent && child(retained)?;
-        }
-        Some(independent)
-    };
+fn value_is_computationally_independent(value: &StyleValueData) -> Option<bool> {
     let all_data_in_list = |list: &crate::style_value::RetainedStyleValueDataList| -> Option<bool> {
         let mut independent = true;
         for retained in list.as_slice() {
             if let Some(data) = retained.optional_data() {
-                independent = independent && value_is_computationally_independent(data, data_of, decide_fallback)?;
+                independent = independent && value_is_computationally_independent(data)?;
             }
         }
         Some(independent)
@@ -843,8 +806,7 @@ fn value_is_computationally_independent(
     let all_data = |children: &[&crate::style_value::RetainedStyleValueData]| -> Option<bool> {
         let mut independent = true;
         for retained in children {
-            independent =
-                independent && value_is_computationally_independent(retained.data(), data_of, decide_fallback)?;
+            independent = independent && value_is_computationally_independent(retained.data())?;
         }
         Some(independent)
     };
@@ -893,35 +855,21 @@ fn value_is_computationally_independent(
         StyleValueData::Calculated { rust_calculation, .. } => {
             Some(rust_calculation.node().is_computationally_independent(
                 &|unit| !length_unit_is_font_or_container_relative(unit),
-                &|retained| {
-                    let shell = retained.shell_pointer();
-                    if shell.is_null() {
-                        return true;
-                    }
-                    let data = unsafe { data_of(shell) };
-                    match value_is_computationally_independent(
-                        unsafe { &*(data as *const StyleValueData) },
-                        data_of,
-                        decide_fallback,
-                    ) {
-                        Some(independent) => independent,
-                        None => unsafe { decide_fallback(shell) },
-                    }
-                },
+                &|retained| value_is_computationally_independent(retained.data()).unwrap_or_default(),
             ))
         }
         StyleValueData::Ratio {
             numerator, denominator, ..
         } => all_data(&[numerator, denominator]),
         StyleValueData::Edge { offset, .. } => match offset.optional_data() {
-            Some(offset) => value_is_computationally_independent(offset, data_of, decide_fallback),
+            Some(offset) => value_is_computationally_independent(offset),
             None => Some(true),
         },
         StyleValueData::Function { value, .. } => all_data(&[value]),
         StyleValueData::OpacityValue { value } => all_data(&[value]),
         // Auto placements carry no value; spans and lines recurse into theirs.
         StyleValueData::GridTrackPlacement { value, .. } => match value.optional_data() {
-            Some(value) => value_is_computationally_independent(value, data_of, decide_fallback),
+            Some(value) => value_is_computationally_independent(value),
             None => Some(true),
         },
         // FIXME: Consider sub-values once we support <custom-color-space> values
@@ -933,7 +881,15 @@ fn value_is_computationally_independent(
             alpha,
             origin_color,
             ..
-        } => all_of(&[channel_0, channel_1, channel_2, alpha, origin_color]),
+        } => {
+            let mut independent = true;
+            for value in [channel_0, channel_1, channel_2, alpha, origin_color] {
+                if let Some(value) = value.optional_data() {
+                    independent = independent && value_is_computationally_independent(value)?;
+                }
+            }
+            Some(independent)
+        }
         StyleValueData::BorderImageSlice {
             top,
             right,
@@ -942,14 +898,30 @@ fn value_is_computationally_independent(
             ..
         } => all_data(&[top, right, bottom, left]),
         StyleValueData::Content { content, alt_text } => {
-            let mut independent = value_is_computationally_independent(content.data(), data_of, decide_fallback)?;
+            let mut independent = value_is_computationally_independent(content.data())?;
             if let Some(alt_text) = alt_text.optional_data() {
-                independent = independent && value_is_computationally_independent(alt_text, data_of, decide_fallback)?;
+                independent = independent && value_is_computationally_independent(alt_text)?;
             }
             Some(independent)
         }
         // Extent components carry no value; explicit sizes recurse into theirs.
-        StyleValueData::RadialSize { value_0, value_1, .. } => all_of(&[value_0, value_1]),
+        StyleValueData::RadialSize {
+            component_count,
+            is_extent_0,
+            value_0,
+            is_extent_1,
+            value_1,
+            ..
+        } => {
+            let mut independent = true;
+            if !is_extent_0 {
+                independent = value_is_computationally_independent(value_0.data())?;
+            }
+            if *component_count == 2 && !is_extent_1 {
+                independent = independent && value_is_computationally_independent(value_1.data())?;
+            }
+            Some(independent)
+        }
         // Every shape kind's rule is a conjunction over the values it uses; the
         // unused generic fields and point list of the other kinds are absent, so
         // one null-tolerant conjunction covers inset, xywh, rect, circle,
@@ -963,21 +935,36 @@ fn value_is_computationally_independent(
             points,
             ..
         } => {
-            let mut independent = all_of(&[v0, v1, v2, v3, v4])?;
+            let mut independent = true;
+            for value in [v0, v1, v2, v3, v4] {
+                if let Some(value) = value.optional_data() {
+                    independent = independent && value_is_computationally_independent(value)?;
+                }
+            }
             for point in points.as_slice() {
-                independent = independent && all_of(&point.values())?;
+                for value in point.values() {
+                    independent = independent && value_is_computationally_independent(value.data())?;
+                }
             }
             Some(independent)
         }
         // Every filter kind's rule recurses into its single value.
-        StyleValueData::Filter { value, .. } => child(value),
+        StyleValueData::Filter { value, .. } => all_data(&[value]),
         StyleValueData::Counter { counter_style, .. } => all_data(&[counter_style]),
         StyleValueData::OpenTypeTagged { value, .. } => all_data(&[value]),
         StyleValueData::RandomValueSharing { fixed_value, .. } => match fixed_value.optional_data() {
-            Some(fixed_value) => value_is_computationally_independent(fixed_value, data_of, decide_fallback),
+            Some(fixed_value) => value_is_computationally_independent(fixed_value),
             None => Some(true),
         },
-        StyleValueData::Cursor { image, x, y } => all_of(&[image, x, y]),
+        StyleValueData::Cursor { image, x, y } => {
+            let mut independent = value_is_computationally_independent(image.data())?;
+            for coordinate in [x, y] {
+                if let Some(coordinate) = coordinate.optional_data() {
+                    independent = independent && value_is_computationally_independent(coordinate)?;
+                }
+            }
+            Some(independent)
+        }
         // The unused fields of the non-matching easing kinds are absent, so one
         // null-tolerant conjunction covers every kind's rule.
         StyleValueData::Easing {
@@ -989,23 +976,34 @@ fn value_is_computationally_independent(
             number_of_intervals,
             ..
         } => {
-            let mut independent = all_of(&[x1, y1, x2, y2, number_of_intervals])?;
+            let mut independent = true;
+            for value in [x1, y1, x2, y2, number_of_intervals] {
+                if let Some(value) = value.optional_data() {
+                    independent = independent && value_is_computationally_independent(value)?;
+                }
+            }
             for stop in linear_stops.as_slice() {
-                independent = independent && all_of(&stop.values())?;
+                for value in stop.values() {
+                    if let Some(value) = value.optional_data() {
+                        independent = independent && value_is_computationally_independent(value)?;
+                    }
+                }
             }
             Some(independent)
         }
         StyleValueData::ImageSet { options } => {
             let mut independent = true;
             for option in options.as_slice() {
-                independent = independent && all_of(&option.values())?;
+                independent = independent && all_data(&option.values())?;
             }
             Some(independent)
         }
         StyleValueData::CounterDefinitions { counter_definitions } => {
             let mut independent = true;
             for definition in counter_definitions.as_slice() {
-                independent = independent && child(definition.value())?;
+                if let Some(value) = definition.value().optional_data() {
+                    independent = independent && value_is_computationally_independent(value)?;
+                }
             }
             Some(independent)
         }
@@ -1015,9 +1013,18 @@ fn value_is_computationally_independent(
             color_interpolation_method,
             ..
         } => {
-            let mut independent = child(direction_value)? && child(color_interpolation_method)?;
+            let mut independent = true;
+            for value in [direction_value, color_interpolation_method] {
+                if let Some(value) = value.optional_data() {
+                    independent = independent && value_is_computationally_independent(value)?;
+                }
+            }
             for stop in color_stop_list.as_slice() {
-                independent = independent && all_of(&stop.values())?;
+                for value in stop.values() {
+                    if let Some(value) = value.optional_data() {
+                        independent = independent && value_is_computationally_independent(value)?;
+                    }
+                }
             }
             Some(independent)
         }
@@ -1028,9 +1035,18 @@ fn value_is_computationally_independent(
             color_interpolation_method,
             ..
         } => {
-            let mut independent = child(from_angle)? && child(position)? && child(color_interpolation_method)?;
+            let mut independent = true;
+            for value in [from_angle, position, color_interpolation_method] {
+                if let Some(value) = value.optional_data() {
+                    independent = independent && value_is_computationally_independent(value)?;
+                }
+            }
             for stop in color_stop_list.as_slice() {
-                independent = independent && all_of(&stop.values())?;
+                for value in stop.values() {
+                    if let Some(value) = value.optional_data() {
+                        independent = independent && value_is_computationally_independent(value)?;
+                    }
+                }
             }
             Some(independent)
         }
@@ -1041,9 +1057,18 @@ fn value_is_computationally_independent(
             color_interpolation_method,
             ..
         } => {
-            let mut independent = child(size)? && child(position)? && child(color_interpolation_method)?;
+            let mut independent = true;
+            for value in [size, position, color_interpolation_method] {
+                if let Some(value) = value.optional_data() {
+                    independent = independent && value_is_computationally_independent(value)?;
+                }
+            }
             for stop in color_stop_list.as_slice() {
-                independent = independent && all_of(&stop.values())?;
+                for value in stop.values() {
+                    if let Some(value) = value.optional_data() {
+                        independent = independent && value_is_computationally_independent(value)?;
+                    }
+                }
             }
             Some(independent)
         }
@@ -1062,7 +1087,7 @@ fn value_is_computationally_independent(
             ..
         } => all_data(&[top, right, bottom, left]),
         StyleValueData::FontStyle { angle_value, .. } => match angle_value.optional_data() {
-            Some(angle_value) => value_is_computationally_independent(angle_value, data_of, decide_fallback),
+            Some(angle_value) => value_is_computationally_independent(angle_value),
             None => Some(true),
         },
         StyleValueData::TextIndent { length_percentage, .. } => all_data(&[length_percentage]),
@@ -1076,7 +1101,16 @@ fn value_is_computationally_independent(
             blur_radius,
             spread_distance,
             ..
-        } => all_of(&[color, offset_x, offset_y, blur_radius, spread_distance]),
+        } => {
+            let mut independent = value_is_computationally_independent(offset_x.data())?
+                && value_is_computationally_independent(offset_y.data())?;
+            for value in [color, blur_radius, spread_distance] {
+                if let Some(value) = value.optional_data() {
+                    independent = independent && value_is_computationally_independent(value)?;
+                }
+            }
+            Some(independent)
+        }
         StyleValueData::ColorMix {
             color_interpolation_method,
             first_color,
@@ -1084,15 +1118,23 @@ fn value_is_computationally_independent(
             second_color,
             second_percentage,
             ..
-        } => all_of(&[
-            color_interpolation_method,
-            first_color,
-            first_percentage,
-            second_color,
-            second_percentage,
-        ]),
-        StyleValueData::Shorthand { values, .. } => all_in_list(values),
-        StyleValueData::ValueList { values, .. }
+        } => {
+            let mut independent = true;
+            for value in [
+                color_interpolation_method,
+                first_color,
+                first_percentage,
+                second_color,
+                second_percentage,
+            ] {
+                if let Some(value) = value.optional_data() {
+                    independent = independent && value_is_computationally_independent(value)?;
+                }
+            }
+            Some(independent)
+        }
+        StyleValueData::Shorthand { values, .. }
+        | StyleValueData::ValueList { values, .. }
         | StyleValueData::Tuple { values }
         | StyleValueData::Transformation { values, .. } => all_data_in_list(values),
         StyleValueData::BorderRadiusRect {
@@ -1112,21 +1154,14 @@ fn value_is_computationally_independent(
 }
 
 /// # Safety
-/// `data` must point at a valid StyleValueData and `data_of` must be a valid callback mapping a
-/// nested value's shell pointer to its Rust-owned data.
+/// `data` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_is_computationally_independent(
     data: *const c_void,
-    data_of: unsafe extern "C" fn(shell: *const c_void) -> *const c_void,
-    decide_fallback: unsafe extern "C" fn(shell: *const c_void) -> bool,
 ) -> FfiIndependenceDecision {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StyleValueQueryEntry);
-    abort_on_panic(|| {
-        match value_is_computationally_independent(
-            unsafe { &*(data as *const StyleValueData) },
-            data_of,
-            decide_fallback,
-        ) {
+    abort_on_panic(
+        || match value_is_computationally_independent(unsafe { &*(data as *const StyleValueData) }) {
             Some(independent) => FfiIndependenceDecision {
                 handled: true,
                 independent,
@@ -1135,8 +1170,8 @@ pub unsafe extern "C" fn rust_style_value_is_computationally_independent(
                 handled: false,
                 independent: false,
             },
-        }
-    })
+        },
+    )
 }
 
 // The computed value of the math-depth value is determined as follows:
@@ -1850,15 +1885,21 @@ pub extern "C" fn rust_map_physical_to_logical_alias(property_id: u16, writing_m
 }
 
 /// One deferred store operation for a longhand whose selected value needs no
-/// computation: the value shell and the flags driving the C++ side effects
+/// computation: the value identity and the flags driving the C++ side effects
 /// (animated-inheritance copy and inheritance-dependent bookkeeping).
 #[repr(C)]
 pub struct FfiComputedStoreEntry {
     pub property_id: u16,
     pub inherited_property_id: u16,
     /// The selected specified value; also the stored value unless a computed
-    /// pixel length or keyword replaces it.
+    /// pixel length or keyword replaces it. `shell` is null for values owned
+    /// by the cascaded property store; `data` is always present.
     pub shell: *const c_void,
+    pub data: *const c_void,
+    /// The C++ declaration-source slot for a cascaded value, or -1.
+    pub source_slot: i64,
+    /// Whether the selected cascaded facade carried stylesheet context.
+    pub has_style_sheet_context: bool,
     pub inheritance_dependent: bool,
     pub inherited: bool,
     /// How the natively computed value crosses: with COMPUTED_KIND_SHELL the
@@ -1903,10 +1944,10 @@ pub struct FfiLonghandCallbacks {
     /// and any remaining C++ computation in property order. The driver
     /// flushes the batch before any callback that may read the stored
     /// values, so the C++ side always observes the same compute and store
-    /// sequence as one call per property would produce. Every entry's shell
-    /// stays alive for the duration of the drive: cascaded values are
-    /// retained by the store, initial values are immortal, and parent values
-    /// are pinned by the snapshot or the fetch below.
+    /// sequence as one call per property would produce. Every entry's value
+    /// stays alive for the duration of the drive: cascaded data is retained
+    /// by the store, initial values are immortal, and parent shells are pinned
+    /// by the snapshot or the fetch below.
     pub store_computed_batch:
         unsafe extern "C" fn(context: *mut c_void, entries: *const FfiComputedStoreEntry, count: usize),
     /// Stores the used color scheme resolved from the computed color-scheme
@@ -1931,12 +1972,11 @@ pub struct FfiLonghandCallbacks {
     /// deferred store batches may hold it.
     pub fetch_non_inherited_parent_value:
         unsafe extern "C" fn(context: *mut c_void, inherited_property_id: u16) -> FfiShellAndData,
-    /// Maps a nested value's shell pointer to its Rust-owned data while the
-    /// driver decides inheritance dependence.
-    pub data_of: unsafe extern "C" fn(shell: *const c_void) -> *const c_void,
     /// Decides computational independence for value kinds whose rule still
     /// lives with their C++ shells.
     pub computational_independence_fallback: unsafe extern "C" fn(shell: *const c_void) -> bool,
+    /// Decides computational independence for a root value owned by Rust.
+    pub computational_independence_data_fallback: unsafe extern "C" fn(data: *const c_void) -> bool,
     /// Returns the element's computed writing mode and direction, packed as
     /// writing_mode | direction << 8.
     pub writing_mode_and_direction: unsafe extern "C" fn(context: *mut c_void) -> u16,
@@ -2092,9 +2132,9 @@ pub struct FfiLonghandDriverResults {
     pub important_words: *mut u64,
     pub inherited_words: *mut u64,
     pub word_count: usize,
-    /// The raw winning cascaded font-size value, or null; borrowed from the
+    /// The raw winning cascaded font-size value data, or null; borrowed from the
     /// cascaded property store.
-    pub raw_cascaded_font_size_shell: *const c_void,
+    pub raw_cascaded_font_size_data: *const c_void,
     pub depends_on_viewport_metrics: bool,
     pub font_metrics_depend_on_viewport_metrics: bool,
     pub explicitly_inherited_non_inherited_property: bool,
@@ -2201,7 +2241,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 return;
             }
             crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandStoreBatchCallback);
-            // SAFETY: The entries and their shells stay alive for the call; the callback
+            // SAFETY: The entries and their values stay alive for the call; the callback
             // table outlives the drive.
             unsafe { (callbacks.store_computed_batch)(context, pending_stores.as_ptr(), pending_stores.len()) };
             pending_stores.clear();
@@ -2294,18 +2334,24 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             }
 
             let mut value = FfiShellAndData::null();
-            if let Some((value_shell, value_data, important)) = store.winning_declaration(cascaded_property_id) {
+            let mut source_slot = -1;
+            let mut has_style_sheet_context = false;
+            if let Some((value_data, important, cascaded_source_slot, cascaded_has_style_sheet_context)) =
+                store.winning_declaration(cascaded_property_id)
+            {
                 value = FfiShellAndData {
-                    shell: value_shell,
+                    shell: std::ptr::null(),
                     data: value_data,
                 };
+                source_slot = i64::from(cascaded_source_slot);
+                has_style_sheet_context = cascaded_has_style_sheet_context;
                 if important {
                     set_longhand_bit(important_words, property_id);
                 }
                 // Keep the raw winning cascaded font-size for the monospace font-size
                 // recascade (see recascade_font_size_if_needed on the C++ side).
                 if property_id == crate::property_metadata::property_id::FONT_SIZE {
-                    results.raw_cascaded_font_size_shell = value_shell;
+                    results.raw_cascaded_font_size_data = value_data;
                 }
             } else if property_id == crate::property_metadata::property_id::FONT_SIZE && has_new_font_size {
                 // NOTE: The recascaded font-size has already been stored before the loop.
@@ -2327,6 +2373,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
 
             let inherit_fetch_attempted = decision.should_inherit && has_inheritance_parent;
             if inherit_fetch_attempted {
+                source_slot = -1;
+                has_style_sheet_context = false;
                 let snapshot = snapshot.unwrap();
                 set_longhand_bit(inherited_words, property_id);
                 if decision.explicitly_inherits_non_inherited_property {
@@ -2354,6 +2402,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 decision.use_initial_without_inherit
             };
             if use_initial {
+                source_slot = -1;
+                has_style_sheet_context = false;
                 value = initial_value(property_id);
                 required_level = REQUIRES_COMPUTATION_NON_INHERITED;
             }
@@ -2376,18 +2426,16 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     computed_direction = keyword_to_direction(*keyword);
                 }
             }
-            let inheritance_dependent =
-                crate::style_value::value_depends_on_current_color(value_data, callbacks.data_of)
-                    || !value_is_computationally_independent(
-                        value_data,
-                        callbacks.data_of,
-                        callbacks.computational_independence_fallback,
-                    )
-                    .unwrap_or_else(|| {
-                        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandIndependenceFallbackCallback);
+            let inheritance_dependent = crate::style_value::value_depends_on_current_color(value_data)
+                || !value_is_computationally_independent(value_data).unwrap_or_else(|| {
+                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandIndependenceFallbackCallback);
+                    if value.shell.is_null() {
+                        unsafe { (callbacks.computational_independence_data_fallback)(value.data) }
+                    } else {
                         unsafe { (callbacks.computational_independence_fallback)(value.shell) }
-                    })
-                    || value_depends_on_inherited_info_for_property(value_data, property_id);
+                    }
+                })
+                || value_depends_on_inherited_info_for_property(value_data, property_id);
 
             if requires_computation {
                 // Plain length values of properties without a dedicated computed-value rule
@@ -2719,6 +2767,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     property_id,
                     inherited_property_id,
                     shell: value.shell,
+                    data: value.data,
+                    source_slot,
+                    has_style_sheet_context,
                     inheritance_dependent,
                     inherited: inherit_fetch_attempted,
                     computed_kind,
@@ -2729,6 +2780,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     property_id,
                     inherited_property_id,
                     shell: value.shell,
+                    data: value.data,
+                    source_slot,
+                    has_style_sheet_context,
                     inheritance_dependent,
                     inherited: inherit_fetch_attempted,
                     computed_kind: COMPUTED_KIND_SHELL,
@@ -2892,6 +2946,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             property_id,
             inherited_property_id: property_id,
             shell: initial_value(property_id).shell,
+            data: initial_value(property_id).data,
+            source_slot: -1,
+            has_style_sheet_context: false,
             inheritance_dependent: false,
             inherited: false,
             computed_kind,
@@ -2946,18 +3003,20 @@ fn property_affects_font_metrics(property_id: u16) -> bool {
         || property_id == crate::property_metadata::property_id::LINE_HEIGHT
 }
 
-/// Shell-level callbacks for the shorthand expansion recursion. Values cross
-/// as opaque C++ style value shells; the C++ side pins every value it creates
-/// until the expansion returns.
+/// Callbacks for the shorthand expansion recursion. Boundary values carry a
+/// borrowed C++ facade while nested shorthand values carry only Rust data.
+/// The C++ side pins every facade it creates until expansion returns.
 #[repr(C)]
 pub struct FfiShorthandExpansionCallbacks {
     pub context: *mut c_void,
     /// Returns the Rust-owned data of a C++ style value shell.
     pub data_of: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
     /// Creates and pins a pending-substitution value wrapping the given value;
-    /// returns its shell.
-    pub create_pending_substitution: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
-    pub set_longhand_property: unsafe extern "C" fn(context: *mut c_void, property_id: u16, shell: *const c_void),
+    /// returns its shell. `shell` is null for a nested Rust-owned value.
+    pub create_pending_substitution:
+        unsafe extern "C" fn(context: *mut c_void, shell: *const c_void, data: *const c_void) -> *const c_void,
+    pub set_longhand_property:
+        unsafe extern "C" fn(context: *mut c_void, property_id: u16, shell: *const c_void, data: *const c_void),
 }
 
 pub(crate) fn value_is_css_wide_keyword(value: &StyleValueData) -> bool {
@@ -2971,8 +3030,8 @@ pub(crate) fn value_is_css_wide_keyword(value: &StyleValueData) -> bool {
 }
 
 /// The expansion recursion over `(shell, data)` value pairs. `data_of` returns the Rust-owned
-/// data of a shell, `create_pending_substitution` wraps a shell in a pinned
-/// pending-substitution value, and `sink` receives each `(longhand id, shell, data)` result.
+/// data of a shell, `create_pending_substitution` wraps a value in a pinned
+/// pending-substitution facade, and `sink` receives each `(longhand id, shell, data)` result.
 pub(crate) fn expand_shorthands_with<DataOf, CreatePendingSubstitution, Sink>(
     data_of: &DataOf,
     create_pending_substitution: &CreatePendingSubstitution,
@@ -2982,7 +3041,7 @@ pub(crate) fn expand_shorthands_with<DataOf, CreatePendingSubstitution, Sink>(
     sink: &mut Sink,
 ) where
     DataOf: Fn(*const c_void) -> *const c_void,
-    CreatePendingSubstitution: Fn(*const c_void) -> *const c_void,
+    CreatePendingSubstitution: Fn(*const c_void, *const c_void) -> *const c_void,
     Sink: FnMut(u16, *const c_void, *const c_void),
 {
     let value = unsafe { &*(data as *const StyleValueData) };
@@ -3002,7 +3061,7 @@ pub(crate) fn expand_shorthands_with<DataOf, CreatePendingSubstitution, Sink>(
         // https://drafts.csswg.org/css-values-5/#pending-substitution-value
         // Ensure we keep the longhand around until it can be resolved.
         sink(property_id, shell, data);
-        let pending = create_pending_substitution(shell);
+        let pending = create_pending_substitution(shell, data);
         let pending_data = data_of(pending);
         for &longhand in longhands_for_shorthand(property_id) {
             expand_shorthands_with(
@@ -3022,8 +3081,8 @@ pub(crate) fn expand_shorthands_with<DataOf, CreatePendingSubstitution, Sink>(
     } = value
     {
         for (&sub_property, sub_value) in sub_properties.as_slice().iter().zip(values.as_slice()) {
-            let sub_shell = sub_value.shell_pointer();
-            let sub_data = data_of(sub_shell);
+            let sub_shell = std::ptr::null();
+            let sub_data = sub_value.pointer().cast();
             expand_shorthands_with(
                 data_of,
                 create_pending_substitution,
@@ -3063,16 +3122,16 @@ fn expand_shorthands(
             crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeDataOfCallback);
             unsafe { (callbacks.data_of)(context, shell) }
         },
-        &|shell| {
+        &|shell, data| {
             crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadePendingSubstitutionCallback);
-            unsafe { (callbacks.create_pending_substitution)(context, shell) }
+            unsafe { (callbacks.create_pending_substitution)(context, shell, data) }
         },
         property_id,
         shell,
         data,
-        &mut |longhand_id, longhand_shell, _longhand_data| {
+        &mut |longhand_id, longhand_shell, longhand_data| {
             crate::ffi_stats::bump(crate::ffi_stats::FfiOp::ShorthandSetLonghandCallback);
-            unsafe { (callbacks.set_longhand_property)(context, longhand_id, longhand_shell) };
+            unsafe { (callbacks.set_longhand_property)(context, longhand_id, longhand_shell, longhand_data) };
         },
     );
 }
@@ -3568,12 +3627,6 @@ pub extern "C" fn rust_style_compute_context_anchor(_context: *const c_void) {}
 // that StyleValueData's retained members call on drop are stubbed out here.
 #[cfg(test)]
 mod ffi_test_stubs {
-    use std::ffi::c_void;
-
-    #[unsafe(no_mangle)]
-    extern "C" fn ladybird_style_value_unref(_style_value: *const c_void) {}
-    #[unsafe(no_mangle)]
-    extern "C" fn ladybird_style_value_ref(_style_value: *const c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]

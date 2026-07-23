@@ -43,6 +43,7 @@ public:
 
 private:
     explicit ImageSetStyleValue(Vector<Option>);
+    explicit ImageSetStyleValue(StyleValueFFI::StyleValueData const*);
 
     // NB: StyleValue dispatches operations by type tag, so it may call private impls.
     friend class StyleValue;
@@ -51,8 +52,10 @@ private:
 
     Optional<Option> select_option(double device_pixels_per_css_pixel) const;
 
-    Vector<Option> options() const
+    Vector<Option> const& options() const
     {
+        if (m_options.has_value())
+            return *m_options;
         auto const& list = m_value->image_set.options;
         Vector<Option> options;
         options.ensure_capacity(list.length);
@@ -62,16 +65,21 @@ private:
             if (option.has_type)
                 type = Utf16String::from_raw(option.type_string.raw);
             options.unchecked_append(Option {
-                .image = *static_cast<AbstractImageStyleValue const*>(option.image.pointer),
-                .resolution = *static_cast<StyleValue const*>(option.resolution.pointer),
+                .image = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+                                                                     static_cast<StyleValueFFI::StyleValueData const*>(option.image.pointer)))
+                    ->as_abstract_image(),
+                .resolution = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+                    static_cast<StyleValueFFI::StyleValueData const*>(option.resolution.pointer))),
                 .type = move(type),
             });
         }
-        return options;
+        m_options = move(options);
+        return *m_options;
     }
 
     static StyleValueFFI::StyleValueData const* make_image_set_data(Vector<Option> const&);
 
+    mutable Optional<Vector<Option>> m_options;
     mutable AbstractImageStyleValue const* m_selected_image { nullptr };
     mutable double m_selected_resolution { 1 };
 };

@@ -116,11 +116,15 @@ public:
     bool properties_equal(EasingStyleValue const& other) const { return function() == other.function(); }
 
 private:
+    friend class StyleValue;
+
     EasingStyleValue(Function const& function)
         : StyleValueWithDefaultOperators(Type::Easing, make_easing_data(function))
         , m_function(function)
     {
     }
+
+    explicit EasingStyleValue(StyleValueFFI::StyleValueData const*);
 
     static StyleValueFFI::StyleValueData const* make_easing_data(Function const&);
 

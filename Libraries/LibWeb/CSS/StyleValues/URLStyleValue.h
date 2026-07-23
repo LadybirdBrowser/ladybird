@@ -71,6 +71,13 @@ public:
     void serialize(StringBuilder& builder, SerializationMode) const { builder.append(url().to_string()); }
 
 private:
+    friend class StyleValue;
+
+    explicit URLStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::URL, data)
+    {
+    }
+
     URLStyleValue(URL const& url)
         : StyleValueWithDefaultOperators(Type::URL, make_url_data(url))
     {

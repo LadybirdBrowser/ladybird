@@ -74,8 +74,6 @@ define_ffi_ops! {
     LonghandIndependenceFallbackCallback => "longhandIndependenceFallbackCallbacks",
     LonghandWritingModeCallback => "longhandWritingModeCallbacks",
     CalcSerializationCallback => "calcSerializationCallbacks",
-    StyleValueShellRetainCallback => "styleValueShellRetainCallbacks",
-    StyleValueShellReleaseCallback => "styleValueShellReleaseCallbacks",
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
     AnimationResultBatchCallback => "animationResultBatchCallbacks",
     AnimationCppInterpolationFallback => "animationCppInterpolationFallbacks",

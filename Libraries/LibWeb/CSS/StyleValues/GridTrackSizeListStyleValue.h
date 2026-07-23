@@ -36,8 +36,15 @@ public:
     bool is_computationally_independent() const { return grid_track_size_list().is_computationally_independent(); }
 
 private:
+    friend class StyleValue;
+
     explicit GridTrackSizeListStyleValue(CSS::GridTrackSizeList grid_track_size_list)
         : StyleValueWithDefaultOperators(Type::GridTrackSizeList, make_grid_track_size_list_data(grid_track_size_list))
+    {
+    }
+
+    explicit GridTrackSizeListStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::GridTrackSizeList, data)
     {
     }
 

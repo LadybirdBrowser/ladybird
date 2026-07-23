@@ -32,8 +32,7 @@ CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StylePrope
             .name_utf8 = name_utf8.bytes().data(),
             .name_utf8_length = name_utf8.bytes().size(),
             .important = property.important == Important::Yes,
-            .shell = property.value.ptr(),
-            .data = property.value->rust_style_value_data(),
+            .data = StyleValueFFI::rust_style_value_retain(property.value->rust_style_value_data()),
         });
     }
     m_rust_store = ComputedValuesFFI::rust_custom_property_store_create(

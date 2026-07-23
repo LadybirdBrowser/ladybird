@@ -256,9 +256,9 @@ pub const GROUP_FIELD_REQUIRE_INITIAL_VALUE: u8 = 11;
 pub const GROUP_FIELD_CSS_PIXELS_NON_NEGATIVE: u8 = 12;
 /// A number stored as f64, resolved by the C++ gather loop.
 pub const GROUP_FIELD_RESOLVED_F64: u8 = 13;
-/// The value's shell stored into a single-pointer reference slot, retaining
+/// The value's Rust data stored into a single-pointer handle slot, retaining
 /// one reference; the slot's constructor default must be null.
-pub const GROUP_FIELD_RETAINED_SHELL: u8 = 14;
+pub const GROUP_FIELD_RETAINED_DATA: u8 = 14;
 /// A bool stored as one byte: whether the value is the descriptor's keyword.
 pub const GROUP_FIELD_KEYWORD_EQUALS_BOOL: u8 = 15;
 /// A byte resolved by the C++ gather loop, carried in the resolved number,
@@ -266,10 +266,9 @@ pub const GROUP_FIELD_KEYWORD_EQUALS_BOOL: u8 = 15;
 pub const GROUP_FIELD_RESOLVED_U8: u8 = 16;
 
 /// One gathered value for the generic group builder: the computed value's
-/// shell and data, plus the resolved raw color for color-kind fields.
+/// data, plus the resolved raw color for color-kind fields.
 #[repr(C)]
 pub struct FfiGroupValueEntry {
-    pub shell: *const c_void,
     pub data: *const c_void,
     pub resolved_color: u32,
     pub has_resolved_color: bool,
@@ -315,7 +314,7 @@ pub unsafe extern "C" fn rust_style_group_register_field_descriptors(
 /// the parent or default payload when the result compares equal.
 ///
 /// # Safety
-/// `values` must hold one valid (shell, data) entry per registered descriptor
+/// `values` must hold one valid data entry per registered descriptor
 /// of the group, in registration order; `parent_payload` must be a valid
 /// payload of the group or null.
 #[unsafe(no_mangle)]
@@ -345,7 +344,7 @@ pub unsafe extern "C" fn rust_build_style_group(
             I32(u32, i32),
             U64(u32, u64),
             U32(u32, u32),
-            Shell(u32, *const c_void),
+            Data(u32, *const StyleValueData),
         }
         let mut pokes = Vec::with_capacity(count);
         for (descriptor, value) in descriptors.iter().zip(values) {
@@ -463,11 +462,8 @@ pub unsafe extern "C" fn rust_build_style_group(
                     }
                     pokes.push(Poke::F64(descriptor.offset, value.resolved_number));
                 }
-                GROUP_FIELD_RETAINED_SHELL => {
-                    if value.shell.is_null() {
-                        return None;
-                    }
-                    pokes.push(Poke::Shell(descriptor.offset, value.shell));
+                GROUP_FIELD_RETAINED_DATA => {
+                    pokes.push(Poke::Data(descriptor.offset, value.data.cast()));
                 }
                 GROUP_FIELD_KEYWORD_EQUALS_BOOL => {
                     let is_keyword =
@@ -499,10 +495,10 @@ pub unsafe extern "C" fn rust_build_style_group(
                     Poke::I32(offset, value) => *(base.add(offset as usize) as *mut i32) = value,
                     Poke::U64(offset, value) => *(base.add(offset as usize) as *mut u64) = value,
                     Poke::U32(offset, value) => *(base.add(offset as usize) as *mut u32) = value,
-                    Poke::Shell(offset, shell) => {
+                    Poke::Data(offset, data) => {
                         // The slot's constructor default is null, so nothing is released.
-                        crate::style_value::retain_shell_pointer(shell);
-                        *(base.add(offset as usize) as *mut *const c_void) = shell;
+                        let retained = crate::style_value::rust_style_value_retain(data);
+                        *(base.add(offset as usize) as *mut *const StyleValueData) = retained;
                     }
                 }
             }

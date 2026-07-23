@@ -22,6 +22,36 @@ ValueComparingNonnullRefPtr<ColorMixStyleValue const> ColorMixStyleValue::create
 
 ColorMixStyleValue::ColorMixStyleValue(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component)
     : ColorStyleValue(make_color_mix_data(color_interpolation_method, first_component, second_component))
+    , m_color_interpolation_method(move(color_interpolation_method))
+    , m_first_component(move(first_component))
+    , m_second_component(move(second_component))
+{
+}
+
+ColorMixStyleValue::ColorMixStyleValue(StyleValueFFI::StyleValueData const* data)
+    : ColorStyleValue(data)
+    , m_color_interpolation_method([&]() -> ValueComparingRefPtr<StyleValue const> {
+        auto const* child_data = static_cast<StyleValueFFI::StyleValueData const*>(data->color_mix.color_interpolation_method.pointer);
+        if (!child_data)
+            return nullptr;
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data));
+    }())
+    , m_first_component([&] {
+        auto const& color_mix = data->color_mix;
+        auto color = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(color_mix.first_color.pointer)));
+        ValueComparingRefPtr<StyleValue const> percentage;
+        if (auto const* percentage_data = static_cast<StyleValueFFI::StyleValueData const*>(color_mix.first_percentage.pointer))
+            percentage = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(percentage_data));
+        return ColorMixComponent { move(color), move(percentage) };
+    }())
+    , m_second_component([&] {
+        auto const& color_mix = data->color_mix;
+        auto color = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(color_mix.second_color.pointer)));
+        ValueComparingRefPtr<StyleValue const> percentage;
+        if (auto const* percentage_data = static_cast<StyleValueFFI::StyleValueData const*>(color_mix.second_percentage.pointer))
+            percentage = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(percentage_data));
+        return ColorMixComponent { move(color), move(percentage) };
+    }())
 {
 }
 

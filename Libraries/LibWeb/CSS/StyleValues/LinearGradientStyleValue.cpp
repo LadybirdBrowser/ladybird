@@ -20,17 +20,36 @@ StyleValueFFI::StyleValueData const* LinearGradientStyleValue::make_linear_gradi
     // The Rust allocation takes ownership of one strong reference to each non-null value.
     auto stops = retain_color_stops_for_rust(color_stop_list);
     bool has_direction_value = direction.has<NonnullRefPtr<StyleValue const>>();
-    void const* direction_value = nullptr;
+    StyleValueFFI::StyleValueData const* direction_value = nullptr;
     u8 side_or_corner = 0;
     if (has_direction_value)
-        direction_value = retain_style_value_for_rust(direction.get<NonnullRefPtr<StyleValue const>>().ptr());
+        direction_value = StyleValueFFI::rust_style_value_retain(direction.get<NonnullRefPtr<StyleValue const>>()->rust_style_value_data());
     else
         side_or_corner = to_underlying(direction.get<SideOrCorner>());
     return StyleValueFFI::rust_style_value_create_linear_gradient(
         has_direction_value, direction_value, side_or_corner,
         stops.data(), stops.size(),
         static_cast<u8>(to_underlying(type)), repeating == GradientRepeating::Yes,
-        retain_style_value_for_rust(color_interpolation_method.ptr()), to_underlying(color_syntax));
+        color_interpolation_method ? StyleValueFFI::rust_style_value_retain(color_interpolation_method->rust_style_value_data()) : nullptr,
+        to_underlying(color_syntax));
+}
+
+LinearGradientStyleValue::LinearGradientStyleValue(StyleValueFFI::StyleValueData const* data)
+    : AbstractImageStyleValue(Type::LinearGradient, data)
+    , m_direction([&]() -> GradientDirection {
+        auto const& gradient = data->linear_gradient;
+        if (!gradient.has_direction_value)
+            return static_cast<SideOrCorner>(gradient.side_or_corner);
+        auto const* direction_data = static_cast<StyleValueFFI::StyleValueData const*>(gradient.direction_value.pointer);
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(direction_data));
+    }())
+    , m_color_interpolation_method([&]() -> ValueComparingRefPtr<StyleValue const> {
+        auto const* method_data = static_cast<StyleValueFFI::StyleValueData const*>(data->linear_gradient.color_interpolation_method.pointer);
+        if (!method_data)
+            return nullptr;
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(method_data));
+    }())
+{
 }
 
 void LinearGradientStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const

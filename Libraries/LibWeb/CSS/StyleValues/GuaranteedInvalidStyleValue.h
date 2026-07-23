@@ -28,6 +28,13 @@ public:
     bool properties_equal(GuaranteedInvalidStyleValue const&) const { return true; }
 
 private:
+    friend class StyleValue;
+
+    explicit GuaranteedInvalidStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::GuaranteedInvalid, data)
+    {
+    }
+
     GuaranteedInvalidStyleValue()
         : StyleValueWithDefaultOperators(Type::GuaranteedInvalid, StyleValueFFI::rust_style_value_create_guaranteed_invalid())
     {

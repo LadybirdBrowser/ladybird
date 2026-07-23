@@ -37,16 +37,16 @@ static Vector<StyleValueFFI::GridTrackEntryInput> const& build_grid_track_entry_
             [&](ExplicitGridTrack const& track) {
                 if (track.is_default()) {
                     input.kind = 1;
-                    input.size_value = retain_style_value_for_rust(track.grid_size().style_value().ptr());
+                    input.size_value = StyleValueFFI::rust_style_value_retain(track.grid_size().style_value()->rust_style_value_data());
                 } else if (track.is_minmax()) {
                     input.kind = 2;
-                    input.min_value = retain_style_value_for_rust(track.minmax().min_grid_size().style_value().ptr());
-                    input.max_value = retain_style_value_for_rust(track.minmax().max_grid_size().style_value().ptr());
+                    input.min_value = StyleValueFFI::rust_style_value_retain(track.minmax().min_grid_size().style_value()->rust_style_value_data());
+                    input.max_value = StyleValueFFI::rust_style_value_retain(track.minmax().max_grid_size().style_value()->rust_style_value_data());
                 } else {
                     auto const& repeat = track.repeat();
                     input.kind = 3;
                     input.repeat_type = static_cast<u8>(to_underlying(repeat.type()));
-                    input.repeat_count = retain_style_value_for_rust(repeat.repeat_count_style_value().ptr());
+                    input.repeat_count = repeat.repeat_count_style_value() ? StyleValueFFI::rust_style_value_retain(repeat.repeat_count_style_value()->rust_style_value_data()) : nullptr;
                     input.repeat_is_subgrid = repeat.grid_track_size_list().is_subgrid();
                     input.repeat_preserve_line_name_sets = repeat.grid_track_size_list().preserves_line_name_sets();
                     auto const& nested = build_grid_track_entry_inputs(repeat.grid_track_size_list(), arena);
@@ -71,6 +71,12 @@ StyleValueFFI::StyleValueData const* GridTrackSizeListStyleValue::make_grid_trac
 
 static GridTrackSizeList materialize_grid_track_size_list(bool is_subgrid, bool preserve_line_name_sets, StyleValueFFI::RetainedGridTrackEntry const* entries, size_t entry_count)
 {
+    auto materialize_style_value = [](void const* pointer) -> ValueComparingRefPtr<StyleValue const> {
+        if (!pointer)
+            return nullptr;
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+            static_cast<StyleValueFFI::StyleValueData const*>(pointer)));
+    };
     auto list = is_subgrid        ? GridTrackSizeList::make_subgrid()
         : preserve_line_name_sets ? GridTrackSizeList::make_line_name_list()
                                   : GridTrackSizeList::make_none();
@@ -85,14 +91,14 @@ static GridTrackSizeList materialize_grid_track_size_list(bool is_subgrid, bool 
             break;
         }
         case 1:
-            list.append(ExplicitGridTrack { GridSize { *static_cast<StyleValue const*>(entry.size_value.pointer) } });
+            list.append(ExplicitGridTrack { GridSize { *materialize_style_value(entry.size_value.pointer) } });
             break;
         case 2:
-            list.append(ExplicitGridTrack { GridMinMax { GridSize { *static_cast<StyleValue const*>(entry.min_value.pointer) }, GridSize { *static_cast<StyleValue const*>(entry.max_value.pointer) } } });
+            list.append(ExplicitGridTrack { GridMinMax { GridSize { *materialize_style_value(entry.min_value.pointer) }, GridSize { *materialize_style_value(entry.max_value.pointer) } } });
             break;
         default: {
             auto nested = materialize_grid_track_size_list(entry.repeat_is_subgrid, entry.repeat_preserve_line_name_sets, entry.repeat_entries_pointer, entry.repeat_entries_length);
-            list.append(ExplicitGridTrack { GridRepeat { static_cast<GridRepeatType>(entry.repeat_type), move(nested), static_cast<StyleValue const*>(entry.repeat_count.pointer) } });
+            list.append(ExplicitGridTrack { GridRepeat { static_cast<GridRepeatType>(entry.repeat_type), move(nested), materialize_style_value(entry.repeat_count.pointer) } });
             break;
         }
         }

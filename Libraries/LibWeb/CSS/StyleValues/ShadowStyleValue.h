@@ -44,13 +44,13 @@ public:
 
     ShadowType shadow_type() const { return static_cast<ShadowType>(m_value->shadow.shadow_type); }
     ValueComparingNonnullRefPtr<StyleValue const> color() const;
-    ValueComparingRefPtr<StyleValue const> color_or_null() const { return static_cast<StyleValue const*>(m_value->shadow.color.pointer); }
-    ValueComparingNonnullRefPtr<StyleValue const> offset_x() const { return *static_cast<StyleValue const*>(m_value->shadow.offset_x.pointer); }
-    ValueComparingNonnullRefPtr<StyleValue const> offset_y() const { return *static_cast<StyleValue const*>(m_value->shadow.offset_y.pointer); }
+    ValueComparingRefPtr<StyleValue const> color_or_null() const { return m_color; }
+    ValueComparingNonnullRefPtr<StyleValue const> offset_x() const { return m_offset_x; }
+    ValueComparingNonnullRefPtr<StyleValue const> offset_y() const { return m_offset_y; }
     ValueComparingNonnullRefPtr<StyleValue const> blur_radius() const;
-    ValueComparingRefPtr<StyleValue const> blur_radius_or_null() const { return static_cast<StyleValue const*>(m_value->shadow.blur_radius.pointer); }
+    ValueComparingRefPtr<StyleValue const> blur_radius_or_null() const { return m_blur_radius; }
     ValueComparingNonnullRefPtr<StyleValue const> spread_distance() const;
-    ValueComparingRefPtr<StyleValue const> spread_distance_or_null() const { return static_cast<StyleValue const*>(m_value->shadow.spread_distance.pointer); }
+    ValueComparingRefPtr<StyleValue const> spread_distance_or_null() const { return m_spread_distance; }
     ShadowPlacement placement() const { return static_cast<ShadowPlacement>(m_value->shadow.placement); }
 
     void serialize(StringBuilder&, SerializationMode) const;
@@ -67,26 +67,47 @@ private:
         ValueComparingRefPtr<StyleValue const> spread_distance,
         ShadowPlacement placement)
         : StyleValueWithDefaultOperators(Type::Shadow, make_shadow_data(shadow_type, color, offset_x, offset_y, blur_radius, spread_distance, placement))
+        , m_color(move(color))
+        , m_offset_x(move(offset_x))
+        , m_offset_y(move(offset_y))
+        , m_blur_radius(move(blur_radius))
+        , m_spread_distance(move(spread_distance))
     {
+    }
+
+    explicit ShadowStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::Shadow, data)
+        , m_offset_x(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->shadow.offset_x.pointer))))
+        , m_offset_y(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->shadow.offset_y.pointer))))
+    {
+        auto adopt_optional = [](auto const& value) -> ValueComparingRefPtr<StyleValue const> {
+            auto const* value_data = static_cast<StyleValueFFI::StyleValueData const*>(value.pointer);
+            if (!value_data)
+                return nullptr;
+            return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value_data));
+        };
+        m_color = adopt_optional(data->shadow.color);
+        m_blur_radius = adopt_optional(data->shadow.blur_radius);
+        m_spread_distance = adopt_optional(data->shadow.spread_distance);
     }
 
     static StyleValueFFI::StyleValueData const* make_shadow_data(ShadowType shadow_type, ValueComparingRefPtr<StyleValue const> const& color, ValueComparingNonnullRefPtr<StyleValue const> const& offset_x, ValueComparingNonnullRefPtr<StyleValue const> const& offset_y, ValueComparingRefPtr<StyleValue const> const& blur_radius, ValueComparingRefPtr<StyleValue const> const& spread_distance, ShadowPlacement placement)
     {
-        // The Rust allocation takes ownership of one strong reference to each non-null value.
-        offset_x->ref();
-        offset_y->ref();
-        if (color)
-            color->ref();
-        if (blur_radius)
-            blur_radius->ref();
-        if (spread_distance)
-            spread_distance->ref();
-        return StyleValueFFI::rust_style_value_create_shadow(to_underlying(shadow_type), color.ptr(), offset_x.ptr(), offset_y.ptr(), blur_radius.ptr(), spread_distance.ptr(), to_underlying(placement));
+        auto retain = [](StyleValue const* value) {
+            return value ? StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()) : nullptr;
+        };
+        return StyleValueFFI::rust_style_value_create_shadow(to_underlying(shadow_type), retain(color.ptr()), retain(offset_x.ptr()), retain(offset_y.ptr()), retain(blur_radius.ptr()), retain(spread_distance.ptr()), to_underlying(placement));
     }
 
     // NB: StyleValue dispatches operations by type tag, so it may call private impls.
     friend class StyleValue;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
+
+    ValueComparingRefPtr<StyleValue const> m_color;
+    ValueComparingNonnullRefPtr<StyleValue const> m_offset_x;
+    ValueComparingNonnullRefPtr<StyleValue const> m_offset_y;
+    ValueComparingRefPtr<StyleValue const> m_blur_radius;
+    ValueComparingRefPtr<StyleValue const> m_spread_distance;
 };
 
 }

@@ -117,6 +117,11 @@ ImageStyleValue::ImageStyleValue(URL const& url, Optional<::URL::URL> style_reso
 {
 }
 
+ImageStyleValue::ImageStyleValue(StyleValueFFI::StyleValueData const* data)
+    : AbstractImageStyleValue(Type::Image, data)
+{
+}
+
 ImageStyleValue::~ImageStyleValue() = default;
 
 GC::Ptr<HTML::SharedResourceRequest> ImageStyleValue::fetch_image(DOM::Document& document) const

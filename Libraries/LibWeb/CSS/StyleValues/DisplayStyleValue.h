@@ -25,6 +25,13 @@ public:
     GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
 
 private:
+    friend class StyleValue;
+
+    explicit DisplayStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::Display, data)
+    {
+    }
+
     explicit DisplayStyleValue(Display const& display)
         : StyleValueWithDefaultOperators(Type::Display, StyleValueFFI::rust_style_value_create_display(bit_cast<u32>(display)))
     {

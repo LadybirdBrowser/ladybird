@@ -32,18 +32,7 @@ public:
 
     Vector<CounterDefinition> counter_definitions() const
     {
-        auto const& list = m_value->counter_definitions.counter_definitions;
-        Vector<CounterDefinition> definitions;
-        definitions.ensure_capacity(list.length);
-        for (size_t i = 0; i < list.length; ++i) {
-            auto const& definition = list.pointer[i];
-            definitions.unchecked_append(CounterDefinition {
-                .name = Utf16FlyString::from_raw(definition.name.raw),
-                .is_reversed = definition.is_reversed,
-                .value = static_cast<StyleValue const*>(definition.value.pointer),
-            });
-        }
-        return definitions;
+        return m_counter_definitions;
     }
     void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
@@ -51,24 +40,28 @@ public:
     bool properties_equal(CounterDefinitionsStyleValue const& other) const;
 
 private:
+    friend class StyleValue;
+
     explicit CounterDefinitionsStyleValue(Vector<CounterDefinition> counter_definitions)
         : StyleValueWithDefaultOperators(Type::CounterDefinitions, make_counter_definitions_data(counter_definitions))
+        , m_counter_definitions(move(counter_definitions))
     {
     }
 
+    explicit CounterDefinitionsStyleValue(StyleValueFFI::StyleValueData const*);
+
     static StyleValueFFI::StyleValueData const* make_counter_definitions_data(Vector<CounterDefinition> const& counter_definitions)
     {
-        // The Rust allocation takes ownership of one leaked reference to each name and one
-        // strong reference to each non-null value.
         Vector<StyleValueFFI::RetainedCounterDefinition> ffi_definitions;
         ffi_definitions.ensure_capacity(counter_definitions.size());
         for (auto const& definition : counter_definitions) {
-            if (definition.value)
-                definition.value->ref();
-            ffi_definitions.unchecked_append({ { definition.name.to_raw_leaked() }, definition.is_reversed, { definition.value.ptr() } });
+            auto const* value_data = definition.value ? StyleValueFFI::rust_style_value_retain(definition.value->rust_style_value_data()) : nullptr;
+            ffi_definitions.unchecked_append({ { definition.name.to_raw_leaked() }, definition.is_reversed, { value_data } });
         }
         return StyleValueFFI::rust_style_value_create_counter_definitions(ffi_definitions.data(), ffi_definitions.size());
     }
+
+    Vector<CounterDefinition> m_counter_definitions;
 };
 
 }

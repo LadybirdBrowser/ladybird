@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/WeakInlines.h>
+#include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -43,9 +44,30 @@ void CascadedProperties::assign_source_slot(u32 slot, GC::Ptr<CSSStyleDeclaratio
     m_source_slots[slot] = SourcePair { source.ptr(), source_shadow_root.ptr() };
 }
 
+GC::Ptr<CSSStyleDeclaration const> CascadedProperties::source_for_slot(u32 slot) const
+{
+    if (slot >= m_source_slots.size())
+        return nullptr;
+    return m_source_slots[slot].source.ptr();
+}
+
 RefPtr<StyleValue const> CascadedProperties::property(PropertyID property_id) const
 {
-    return static_cast<StyleValue const*>(ComputedValuesFFI::rust_cascaded_properties_property(m_store, to_underlying(property_id)));
+    auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(ComputedValuesFFI::rust_cascaded_properties_property(m_store, to_underlying(property_id)));
+    if (!data) {
+        m_property_cache.remove(property_id);
+        return nullptr;
+    }
+    if (auto it = m_property_cache.find(property_id); it != m_property_cache.end() && it->value->rust_style_value_data() == data)
+        return it->value;
+    auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data));
+    auto source_slot = ComputedValuesFFI::rust_cascaded_properties_source_slot(m_store, to_underlying(property_id));
+    if (source_slot >= 0 && ComputedValuesFFI::rust_cascaded_properties_has_style_sheet_context(m_store, to_underlying(property_id))) {
+        if (auto source = source_for_slot(static_cast<u32>(source_slot)); source && source->parent_rule())
+            const_cast<StyleValue&>(*value).set_style_sheet(source->parent_rule()->parent_style_sheet());
+    }
+    m_property_cache.set(property_id, value);
+    return value;
 }
 
 GC::Ptr<DOM::ShadowRoot const> CascadedProperties::property_source_shadow_root(PropertyID property_id) const

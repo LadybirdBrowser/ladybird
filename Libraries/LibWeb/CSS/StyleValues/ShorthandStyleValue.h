@@ -29,12 +29,7 @@ public:
     }
     StyleValueVector values() const
     {
-        auto const& list = m_value->shorthand.values;
-        StyleValueVector values;
-        values.ensure_capacity(list.length);
-        for (size_t i = 0; i < list.length; ++i)
-            values.unchecked_append(*static_cast<StyleValue const*>(list.pointer[i].pointer));
-        return values;
+        return m_values;
     }
 
     ValueComparingRefPtr<StyleValue const> longhand(PropertyID) const;
@@ -55,16 +50,29 @@ public:
     }
 
 private:
+    explicit ShorthandStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::Shorthand, data)
+    {
+        auto const& values = m_value->shorthand.values;
+        m_values.ensure_capacity(values.length);
+        for (size_t i = 0; i < values.length; ++i) {
+            auto const* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
+            m_values.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
+        }
+    }
+
     ShorthandStyleValue(PropertyID shorthand, Vector<PropertyID> sub_properties, Vector<ValueComparingNonnullRefPtr<StyleValue const>> values);
 
     // NB: StyleValue dispatches operations by type tag, so it may call private impls.
     friend class StyleValue;
     void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 
-    static StyleValueFFI::StyleValueData const* make_shorthand_data(PropertyID shorthand, Vector<PropertyID> const& sub_properties, Vector<ValueComparingNonnullRefPtr<StyleValue const>>&& values)
+    static StyleValueFFI::StyleValueData const* make_shorthand_data(PropertyID shorthand, Vector<PropertyID> const& sub_properties, Vector<ValueComparingNonnullRefPtr<StyleValue const>> const& values)
     {
-        // The Rust allocation takes ownership of one strong reference to each value.
-        auto pointers = leak_style_value_pointers_for_rust(values);
+        Vector<StyleValueFFI::StyleValueData const*> pointers;
+        pointers.ensure_capacity(values.size());
+        for (auto const& value : values)
+            pointers.unchecked_append(StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()));
         Vector<u16> property_ids;
         property_ids.ensure_capacity(sub_properties.size());
         for (auto property : sub_properties)
@@ -81,10 +89,12 @@ private:
 
     ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i) const
     {
-        return *static_cast<StyleValue const*>(m_value->shorthand.values.pointer[i].pointer);
+        return m_values[i];
     }
 
     PropertyID shorthand_property() const { return static_cast<PropertyID>(m_value->shorthand.shorthand_property); }
+
+    StyleValueVector m_values;
 };
 
 }

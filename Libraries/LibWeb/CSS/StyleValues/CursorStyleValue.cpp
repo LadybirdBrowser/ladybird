@@ -25,12 +25,30 @@ StyleValueFFI::StyleValueData const* CursorStyleValue::make_cursor_data(NonnullR
 {
     // The Rust allocation takes ownership of one strong reference to the image and to each
     // non-null coordinate.
-    image->ref();
-    if (x)
-        x->ref();
-    if (y)
-        y->ref();
-    return StyleValueFFI::rust_style_value_create_cursor(image.ptr(), x.ptr(), y.ptr());
+    return StyleValueFFI::rust_style_value_create_cursor(
+        StyleValueFFI::rust_style_value_retain(image->rust_style_value_data()),
+        x ? StyleValueFFI::rust_style_value_retain(x->rust_style_value_data()) : nullptr,
+        y ? StyleValueFFI::rust_style_value_retain(y->rust_style_value_data()) : nullptr);
+}
+
+CursorStyleValue::CursorStyleValue(StyleValueFFI::StyleValueData const* data)
+    : StyleValueWithDefaultOperators(Type::Cursor, data)
+    , m_image(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+                                                          static_cast<StyleValueFFI::StyleValueData const*>(data->cursor.image.pointer)))
+              ->as_abstract_image())
+    , m_x([&]() -> ValueComparingRefPtr<StyleValue const> {
+        auto const* x_data = static_cast<StyleValueFFI::StyleValueData const*>(data->cursor.x.pointer);
+        if (!x_data)
+            return nullptr;
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(x_data));
+    }())
+    , m_y([&]() -> ValueComparingRefPtr<StyleValue const> {
+        auto const* y_data = static_cast<StyleValueFFI::StyleValueData const*>(data->cursor.y.pointer);
+        if (!y_data)
+            return nullptr;
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(y_data));
+    }())
+{
 }
 
 void CursorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const

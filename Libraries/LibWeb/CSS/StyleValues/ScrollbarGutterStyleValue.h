@@ -40,6 +40,13 @@ public:
     bool properties_equal(ScrollbarGutterStyleValue const& other) const { return value() == other.value(); }
 
 private:
+    friend class StyleValue;
+
+    explicit ScrollbarGutterStyleValue(StyleValueFFI::StyleValueData const* data)
+        : StyleValueWithDefaultOperators(Type::ScrollbarGutter, data)
+    {
+    }
+
     ScrollbarGutterStyleValue(ScrollbarGutter value)
         : StyleValueWithDefaultOperators(Type::ScrollbarGutter, StyleValueFFI::rust_style_value_create_scrollbar_gutter(to_underlying(value)))
     {

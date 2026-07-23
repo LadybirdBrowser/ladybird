@@ -8,7 +8,7 @@
 //! cascade, one winning declaration list per longhand.
 //!
 //! This is the Rust backing for the C++ CascadedProperties shell. Entries own
-//! strong references to their C++ StyleValue shells and layer name strings.
+//! strong references to Rust-owned style value data and layer name strings.
 //! The GC-managed declaration sources stay on the C++ side, pinned in a slot
 //! table of weak references; each entry carries its slot index and the C++
 //! shell resolves a slot back to the source objects on demand.
@@ -21,7 +21,7 @@ use std::hash::Hasher;
 use crate::abort_on_panic;
 use crate::property_metadata::LAST_LONGHAND_PROPERTY_ID;
 use crate::style_compute::expand_shorthands_with;
-use crate::style_value::RetainedStyleValue;
+use crate::style_value::RetainedStyleValueData;
 use crate::style_value::RetainedUtf16FlyString;
 use crate::style_value::StyleValueData;
 
@@ -61,10 +61,8 @@ impl LayerName {
 }
 
 struct Entry {
-    value: RetainedStyleValue,
-    /// The Rust-owned data of `value`, recorded so the property computation
-    /// driver can read winning declarations without any shell interaction.
-    value_data: *const c_void,
+    value: RetainedStyleValueData,
+    has_style_sheet_context: bool,
     important: bool,
     cascade_index: u64,
     origin: CascadeOrigin,
@@ -154,8 +152,8 @@ impl CascadedPropertyStore {
     fn set_property(
         &mut self,
         property_id: u16,
-        value: RetainedStyleValue,
-        value_data: *const c_void,
+        value: RetainedStyleValueData,
+        has_style_sheet_context: bool,
         important: bool,
         origin: CascadeOrigin,
         layer_name: LayerName,
@@ -176,7 +174,7 @@ impl CascadedPropertyStore {
                     return -1;
                 }
                 entry.value = value;
-                entry.value_data = value_data;
+                entry.has_style_sheet_context = has_style_sheet_context;
                 entry.important = important;
                 entry.cascade_index = cascade_index;
                 return entry.source_slot as i64;
@@ -186,7 +184,7 @@ impl CascadedPropertyStore {
         let source_slot = self.allocate_source_slot();
         self.entries.get_mut(&property_id).unwrap().push(Entry {
             value,
-            value_data,
+            has_style_sheet_context,
             important,
             cascade_index,
             origin,
@@ -197,11 +195,17 @@ impl CascadedPropertyStore {
         source_slot as i64
     }
 
-    /// The winning declaration for a property: its shell pointer, Rust-owned
-    /// data, and importance.
-    pub(crate) fn winning_declaration(&self, property_id: u16) -> Option<(*const c_void, *const c_void, bool)> {
-        self.last_entry(property_id)
-            .map(|entry| (entry.value.shell_pointer(), entry.value_data, entry.important))
+    /// The winning declaration for a property: its Rust-owned data, importance,
+    /// and C++ declaration-source slot.
+    pub(crate) fn winning_declaration(&self, property_id: u16) -> Option<(*const c_void, bool, u32, bool)> {
+        self.last_entry(property_id).map(|entry| {
+            (
+                entry.value.pointer().cast(),
+                entry.important,
+                entry.source_slot,
+                entry.has_style_sheet_context,
+            )
+        })
     }
 
     /// Returns whichever of the two properties has the higher-priority winning
@@ -285,7 +289,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_destroy(store: *mut CascadedPr
     abort_on_panic(|| drop(unsafe { Box::from_raw(store) }));
 }
 
-/// Returns a borrowed pointer to the winning declaration's StyleValue shell, or null.
+/// Returns a borrowed pointer to the winning declaration's Rust-owned style value data, or null.
 ///
 /// # Safety
 /// `store` must be a valid store.
@@ -296,7 +300,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_property(
 ) -> *const c_void {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadedStoreQueryEntry);
     abort_on_panic(|| match unsafe { &*store }.last_entry(property_id) {
-        Some(entry) => entry.value.shell_pointer(),
+        Some(entry) => entry.value.pointer().cast(),
         None => std::ptr::null(),
     })
 }
@@ -314,6 +318,24 @@ pub unsafe extern "C" fn rust_cascaded_properties_source_slot(
     abort_on_panic(|| match unsafe { &*store }.last_entry(property_id) {
         Some(entry) => entry.source_slot as i64,
         None => -1,
+    })
+}
+
+/// Returns whether the winning declaration's original C++ facade carried
+/// stylesheet resource context.
+///
+/// # Safety
+/// `store` must be a valid store.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_cascaded_properties_has_style_sheet_context(
+    store: *const CascadedPropertyStore,
+    property_id: u16,
+) -> bool {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadedStoreQueryEntry);
+    abort_on_panic(|| {
+        unsafe { &*store }
+            .last_entry(property_id)
+            .is_some_and(|entry| entry.has_style_sheet_context)
     })
 }
 
@@ -359,7 +381,8 @@ fn apply_declaration_block(
     custom_property_store: *const c_void,
     custom_property_registry: *const c_void,
     data_of: &dyn Fn(*const c_void) -> *const c_void,
-    create_pending_substitution: &dyn Fn(*const c_void) -> *const c_void,
+    has_style_sheet_context: &dyn Fn(*const c_void) -> bool,
+    create_pending_substitution: &dyn Fn(*const c_void, *const c_void) -> *const c_void,
     mut assign_source_slot: impl FnMut(u32),
 ) {
     let mut seen = [0u64; CONTAINED_BITMAP_WORDS];
@@ -434,7 +457,7 @@ fn apply_declaration_block(
 
         expand_shorthands_with(
             &|shell| data_of(shell),
-            &|shell| create_pending_substitution(shell),
+            &|shell, data| create_pending_substitution(shell, data),
             declaration.property_id,
             shell,
             data,
@@ -472,14 +495,18 @@ fn apply_declaration_block(
                     // Track the exact shadow-root scope that supplied this winning declaration. A constructable
                     // stylesheet can be adopted into multiple scopes at once, so the declaration object alone is
                     // not specific enough.
-                    let retained_value = unsafe { RetainedStyleValue::from_borrowed_shell_pointer(longhand_shell) };
+                    let retained_value = unsafe {
+                        RetainedStyleValueData::from_retained_pointer(crate::style_value::rust_style_value_retain(
+                            longhand_data.cast(),
+                        ))
+                    };
                     let layer_name = LayerName(
                         has_layer_name.then(|| unsafe { RetainedUtf16FlyString::from_borrowed_raw(layer_name_raw) }),
                     );
                     let slot = store.set_property(
                         longhand_id,
                         retained_value,
-                        longhand_data,
+                        has_style_sheet_context(longhand_shell),
                         important,
                         origin,
                         layer_name,
@@ -555,8 +582,11 @@ pub struct FfiBulkCascadeCallbacks {
     ) -> FfiResolvedStyleValue,
     /// Returns the Rust-owned data of a C++ style value shell.
     pub data_of: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
+    /// Returns whether a shell carries stylesheet resource context.
+    pub has_style_sheet_context: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> bool,
     /// Creates and pins a pending-substitution value wrapping the given value; returns its shell.
-    pub create_pending_substitution: unsafe extern "C" fn(context: *mut c_void, shell: *const c_void) -> *const c_void,
+    pub create_pending_substitution:
+        unsafe extern "C" fn(context: *mut c_void, shell: *const c_void, data: *const c_void) -> *const c_void,
     /// Whether the element's pseudo-element rejects the property; only called
     /// when the element has a pseudo-element.
     pub pseudo_element_rejects_property: unsafe extern "C" fn(context: *mut c_void, property_id: u16) -> bool,
@@ -777,9 +807,10 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeDataOfCallback);
                     unsafe { (callbacks.data_of)(context, shell) }
                 },
-                &|shell| {
+                &|shell| !shell.is_null() && unsafe { (callbacks.has_style_sheet_context)(context, shell) },
+                &|shell, data| {
                     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadePendingSubstitutionCallback);
-                    unsafe { (callbacks.create_pending_substitution)(context, shell) }
+                    unsafe { (callbacks.create_pending_substitution)(context, shell, data) }
                 },
                 |slot| {
                     source_slot_assignments.push(FfiSourceSlotAssignment {
@@ -805,4 +836,44 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
             };
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::*;
+
+    #[test]
+    fn winning_declaration_retains_rust_value_data() {
+        let source_value = Arc::new(StyleValueData::Number { value: 42.0 });
+        let weak_value = Arc::downgrade(&source_value);
+        let retained_value = unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(source_value)) };
+        let mut store = CascadedPropertyStore::new();
+
+        store.set_property(
+            crate::property_metadata::property_id::OPACITY,
+            retained_value,
+            false,
+            false,
+            CascadeOrigin::Author,
+            LayerName(None),
+            0,
+        );
+
+        let (data, important, source_slot, has_style_sheet_context) = store
+            .winning_declaration(crate::property_metadata::property_id::OPACITY)
+            .expect("the declaration must be retained");
+        assert!(!important);
+        assert_eq!(source_slot, 0);
+        assert!(!has_style_sheet_context);
+        assert!(matches!(
+            unsafe { &*(data as *const StyleValueData) },
+            StyleValueData::Number { value } if *value == 42.0
+        ));
+        assert!(weak_value.upgrade().is_some());
+
+        drop(store);
+        assert!(weak_value.upgrade().is_none());
+    }
 }

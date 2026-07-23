@@ -100,6 +100,7 @@ private:
     friend class Client;
     friend class CSSStyleSheet;
     ImageStyleValue(URL const&, Optional<::URL::URL> style_resource_base_url = {});
+    explicit ImageStyleValue(StyleValueFFI::StyleValueData const*);
 
     void register_client(Client&) const;
     void unregister_client(Client&) const;

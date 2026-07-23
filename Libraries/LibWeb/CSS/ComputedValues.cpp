@@ -586,7 +586,7 @@ static void register_style_group_field_descriptors()
     using InheritedText = ComputedValues::InheritedTextValues;
     constexpr auto inherited_text = to_underlying(StyleGroupIndex::InheritedTextValues);
     add(inherited_text, PropertyID::Color, offsetof(InheritedText, color), GROUP_FIELD_COLOR, 0, nullptr);
-    add(inherited_text, PropertyID::Color, offsetof(InheritedText, color_style_value), GROUP_FIELD_RETAINED_SHELL, 0, nullptr);
+    add(inherited_text, PropertyID::Color, offsetof(InheritedText, color_style_value), GROUP_FIELD_RETAINED_DATA, 0, nullptr);
     add(inherited_text, PropertyID::WebkitTextFillColor, offsetof(InheritedText, webkit_text_fill_color), GROUP_FIELD_COLOR, 0, nullptr);
     add(inherited_text, PropertyID::WebkitTextFillColor, offsetof(InheritedText, webkit_text_fill_color_is_current_color), GROUP_FIELD_KEYWORD_EQUALS_BOOL, to_underlying(Keyword::Currentcolor), nullptr);
     add(inherited_text, PropertyID::TextShadow, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
@@ -604,9 +604,9 @@ static void register_style_group_field_descriptors()
     add(inherited_text, PropertyID::WordBreak, offsetof(InheritedText, word_break), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_word_break>());
     add(inherited_text, PropertyID::OverflowWrap, offsetof(InheritedText, overflow_wrap), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<overflow_wrap_from_keyword>());
     add(inherited_text, PropertyID::WordSpacing, offsetof(InheritedText, word_spacing), GROUP_FIELD_CSS_PIXELS, 0, nullptr);
-    add(inherited_text, PropertyID::WordSpacing, offsetof(InheritedText, word_spacing_style_value), GROUP_FIELD_RETAINED_SHELL, 0, nullptr);
+    add(inherited_text, PropertyID::WordSpacing, offsetof(InheritedText, word_spacing_style_value), GROUP_FIELD_RETAINED_DATA, 0, nullptr);
     add(inherited_text, PropertyID::LetterSpacing, offsetof(InheritedText, letter_spacing), GROUP_FIELD_CSS_PIXELS, 0, nullptr);
-    add(inherited_text, PropertyID::LetterSpacing, offsetof(InheritedText, letter_spacing_style_value), GROUP_FIELD_RETAINED_SHELL, 0, nullptr);
+    add(inherited_text, PropertyID::LetterSpacing, offsetof(InheritedText, letter_spacing_style_value), GROUP_FIELD_RETAINED_DATA, 0, nullptr);
     add(inherited_text, PropertyID::Orphans, offsetof(InheritedText, orphans), GROUP_FIELD_U64, 0, nullptr);
     add(inherited_text, PropertyID::Widows, offsetof(InheritedText, widows), GROUP_FIELD_U64, 0, nullptr);
 
@@ -752,7 +752,7 @@ static void register_style_group_field_descriptors()
         PropertyID style;
         PropertyID width;
         u32 data_offset;
-        u32 shell_offset;
+        u32 data_handle_offset;
         u32 computed_width_offset;
     };
     for (auto const& side : {
@@ -762,7 +762,7 @@ static void register_style_group_field_descriptors()
              BorderSide { PropertyID::BorderBottomColor, PropertyID::BorderBottomStyle, PropertyID::BorderBottomWidth, offsetof(Border, border_bottom), offsetof(Border, border_bottom_color_style_value), offsetof(Border, border_bottom_computed_width) },
          }) {
         add(border, side.color, side.data_offset + offsetof(BorderData, color), GROUP_FIELD_COLOR, 0, nullptr);
-        add(border, side.color, side.shell_offset, GROUP_FIELD_RETAINED_SHELL, 0, nullptr);
+        add(border, side.color, side.data_handle_offset, GROUP_FIELD_RETAINED_DATA, 0, nullptr);
         // NB: A none border-style keeps BorderData's width at the constructor's zero,
         //     matching the used-width rule; styled borders take the C++ path.
         add(border, side.style, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
@@ -783,7 +783,7 @@ static void register_style_group_field_descriptors()
     using Background = ComputedValues::BackgroundValues;
     constexpr auto background = to_underlying(StyleGroupIndex::BackgroundValues);
     add(background, PropertyID::BackgroundColor, offsetof(Background, background_color), GROUP_FIELD_COLOR, 0, nullptr);
-    add(background, PropertyID::BackgroundColor, offsetof(Background, background_color_style_value), GROUP_FIELD_RETAINED_SHELL, 0, nullptr);
+    add(background, PropertyID::BackgroundColor, offsetof(Background, background_color_style_value), GROUP_FIELD_RETAINED_DATA, 0, nullptr);
     for (auto property : { PropertyID::BackgroundImage, PropertyID::BackgroundClip, PropertyID::BackgroundAttachment,
              PropertyID::BackgroundOrigin, PropertyID::BackgroundPositionX, PropertyID::BackgroundPositionY,
              PropertyID::BackgroundRepeat, PropertyID::BackgroundSize, PropertyID::BackgroundBlendMode })
@@ -798,6 +798,8 @@ static_assert(sizeof(ComputedValues::InheritedBoxValues) == sizeof(ComputedValue
 static_assert(alignof(ComputedValues::InheritedBoxValues) == alignof(ComputedValuesFFI::InheritedBoxValues));
 static_assert(sizeof(ComputedValues::InheritedTableValues) == sizeof(ComputedValuesFFI::InheritedTableValues));
 static_assert(alignof(ComputedValues::InheritedTableValues) == alignof(ComputedValuesFFI::InheritedTableValues));
+static_assert(sizeof(RustStyleValueHandle) == sizeof(StyleValueFFI::StyleValueData const*));
+static_assert(alignof(RustStyleValueHandle) == alignof(StyleValueFFI::StyleValueData const*));
 
 void const* style_group_default_payload(size_t group_index)
 {
@@ -981,7 +983,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     auto gather_group_values = [&]<size_t N>(Array<PropertyID, N> const& properties, Array<ComputedValuesFFI::FfiGroupValueEntry, N>& entries) {
         for (size_t i = 0; i < N; ++i) {
             auto const& value = computed_style.property(properties[i]);
-            entries[i] = { &value, value.rust_style_value_data(), 0, false, 0, false };
+            entries[i] = { value.rust_style_value_data(), 0, false, 0, false };
         }
     };
 

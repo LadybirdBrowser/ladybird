@@ -92,11 +92,39 @@ RefPtr<AnimatedProperties const> ComputedValues::animated_properties_snapshot() 
     return m_animated_properties;
 }
 
+RefPtr<StyleValue const> ComputedValues::style_value_from_handle(PropertyID property_id, RustStyleValueHandle const& handle) const
+{
+    if (!handle) {
+        m_style_value_cache.remove(property_id);
+        return nullptr;
+    }
+    if (auto it = m_style_value_cache.find(property_id); it != m_style_value_cache.end() && it->value->rust_style_value_data() == handle.data())
+        return it->value;
+    auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(handle.data()));
+    m_style_value_cache.set(property_id, value);
+    return value;
+}
+
 RefPtr<StyleValue const> ComputedValues::color_style_value() const
 {
     if (m_inherited.text->color_style_value)
-        return m_inherited.text->color_style_value;
+        return style_value_from_handle(PropertyID::Color, m_inherited.text->color_style_value);
     return computed_style_value(PropertyID::Color);
+}
+
+RefPtr<StyleValue const> ComputedValues::word_spacing_style_value() const
+{
+    return style_value_from_handle(PropertyID::WordSpacing, m_inherited.text->word_spacing_style_value);
+}
+
+RefPtr<StyleValue const> ComputedValues::letter_spacing_style_value() const
+{
+    return style_value_from_handle(PropertyID::LetterSpacing, m_inherited.text->letter_spacing_style_value);
+}
+
+RefPtr<StyleValue const> ComputedValues::background_color_style_value() const
+{
+    return style_value_from_handle(PropertyID::BackgroundColor, m_noninherited.background->background_color_style_value);
 }
 
 static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= sizeof(u64) * 8);
@@ -449,20 +477,20 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             { length_style_value(border_spacing_horizontal()), length_style_value(border_spacing_vertical()) },
             StyleValueList::Separator::Space);
     case PropertyID::BorderBottomColor:
-        if (m_noninherited.border->border_bottom_color_style_value && !m_noninherited.border->border_bottom_color_style_value->depends_on_current_color())
-            return m_noninherited.border->border_bottom_color_style_value;
+        if (auto value = style_value_from_handle(PropertyID::BorderBottomColor, m_noninherited.border->border_bottom_color_style_value); value && !value->depends_on_current_color())
+            return value;
         return color_style_value(border_bottom().color);
     case PropertyID::BorderLeftColor:
-        if (m_noninherited.border->border_left_color_style_value && !m_noninherited.border->border_left_color_style_value->depends_on_current_color())
-            return m_noninherited.border->border_left_color_style_value;
+        if (auto value = style_value_from_handle(PropertyID::BorderLeftColor, m_noninherited.border->border_left_color_style_value); value && !value->depends_on_current_color())
+            return value;
         return color_style_value(border_left().color);
     case PropertyID::BorderRightColor:
-        if (m_noninherited.border->border_right_color_style_value && !m_noninherited.border->border_right_color_style_value->depends_on_current_color())
-            return m_noninherited.border->border_right_color_style_value;
+        if (auto value = style_value_from_handle(PropertyID::BorderRightColor, m_noninherited.border->border_right_color_style_value); value && !value->depends_on_current_color())
+            return value;
         return color_style_value(border_right().color);
     case PropertyID::BorderTopColor:
-        if (m_noninherited.border->border_top_color_style_value && !m_noninherited.border->border_top_color_style_value->depends_on_current_color())
-            return m_noninherited.border->border_top_color_style_value;
+        if (auto value = style_value_from_handle(PropertyID::BorderTopColor, m_noninherited.border->border_top_color_style_value); value && !value->depends_on_current_color())
+            return value;
         return color_style_value(border_top().color);
     case PropertyID::CaretColor:
         return color_or_auto_style_value(caret_color_value());
@@ -481,8 +509,8 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     case PropertyID::ColumnWidth:
         return size_style_value(column_width());
     case PropertyID::Color:
-        if (m_inherited.text->color_style_value && !m_inherited.text->color_style_value->depends_on_current_color())
-            return m_inherited.text->color_style_value;
+        if (auto value = style_value_from_handle(PropertyID::Color, m_inherited.text->color_style_value); value && !value->depends_on_current_color())
+            return value;
         return color_style_value(color());
     case PropertyID::FloodColor:
         return color_style_value(flood_color());
