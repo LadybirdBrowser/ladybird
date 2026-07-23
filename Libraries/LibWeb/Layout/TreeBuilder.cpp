@@ -593,15 +593,6 @@ RustFFI::FfiPseudoTreeBuilderCallbacks TreeBuilder::make_ffi_pseudo_tree_builder
     };
 }
 
-RefPtr<NodeWithStyle> TreeBuilder::create_content_replacement_if_needed(DOM::Element& element, NonnullRefPtr<CSS::ComputedValues const> computed_values) const
-{
-    auto const* replacement_image = content_replacement_image(computed_values->computed_content());
-    if (!replacement_image)
-        return {};
-
-    return create_content_image_box(element.document(), element, move(computed_values), const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
-}
-
 static bool is_svg_resource_box(Node const& layout_node)
 {
     return is<SVGPatternBox>(layout_node) || is<SVGMaskBox>(layout_node) || is<SVGClipBox>(layout_node);
@@ -1050,16 +1041,50 @@ RustFFI::FfiDomTreeBuilderCallbacks TreeBuilder::make_ffi_dom_tree_builder_callb
             frame.computed_values = element.computed_values();
             frame.display = frame.computed_values->display();
             return ffi_principal_display_facts(frame.display); },
-        .create_principal_element_layout = [](void* builder_pointer, void* frame_pointer, void* element_pointer, void* context_pointer) {
-            VERIFY(builder_pointer);
+        .principal_element_layout_facts = [](void* frame_pointer, void* element_pointer, void* context_pointer) -> RustFFI::FfiElementLayoutFacts {
             VERIFY(frame_pointer);
             VERIFY(element_pointer);
             VERIFY(context_pointer);
-            auto& builder = *static_cast<TreeBuilder*>(builder_pointer);
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
-            frame.layout_node = builder.create_layout_node_for_element(
-                *static_cast<DOM::Element*>(element_pointer),
-                *static_cast<Context*>(context_pointer)); },
+            auto& element = *static_cast<DOM::Element*>(element_pointer);
+            auto& context = *static_cast<Context*>(context_pointer);
+            VERIFY(frame.computed_values);
+            return {
+                .has_content_replacement = content_replacement_image(frame.computed_values->computed_content()) != nullptr,
+                .context_layout_svg_mask_or_clip_path = context.layout_svg_mask_or_clip_path,
+                .context_layout_svg_pattern = context.layout_svg_pattern,
+                .is_svg_mask_element = is<SVG::SVGMaskElement>(element),
+                .is_svg_clip_path_element = is<SVG::SVGClipPathElement>(element),
+                .is_svg_pattern_element = is<SVG::SVGPatternElement>(element),
+            }; },
+        .create_principal_element_layout = [](void* builder_pointer, void* frame_pointer, void* element_pointer, RustFFI::FfiElementLayoutKind kind) {
+            VERIFY(builder_pointer);
+            VERIFY(frame_pointer);
+            VERIFY(element_pointer);
+            auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
+            auto& element = *static_cast<DOM::Element*>(element_pointer);
+            VERIFY(frame.computed_values);
+            auto computed_values = NonnullRefPtr { *frame.computed_values };
+            switch (kind) {
+            case RustFFI::FfiElementLayoutKind::ContentReplacement: {
+                auto const* replacement_image = content_replacement_image(computed_values->computed_content());
+                VERIFY(replacement_image);
+                frame.layout_node = create_content_image_box(element.document(), element, move(computed_values), const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
+                break;
+            }
+            case RustFFI::FfiElementLayoutKind::SvgMask:
+                frame.layout_node = make_ref_counted<Layout::SVGMaskBox>(element.document(), as<SVG::SVGMaskElement>(element), move(computed_values));
+                break;
+            case RustFFI::FfiElementLayoutKind::SvgClipPath:
+                frame.layout_node = make_ref_counted<Layout::SVGClipBox>(element.document(), as<SVG::SVGClipPathElement>(element), move(computed_values));
+                break;
+            case RustFFI::FfiElementLayoutKind::SvgPattern:
+                frame.layout_node = make_ref_counted<Layout::SVGPatternBox>(element.document(), as<SVG::SVGPatternElement>(element), move(computed_values));
+                break;
+            case RustFFI::FfiElementLayoutKind::Normal:
+                frame.layout_node = element.create_layout_node(move(computed_values));
+                break;
+            } },
         .create_principal_document_layout = [](void* frame_pointer, void* document_pointer) {
             VERIFY(frame_pointer);
             VERIFY(document_pointer);
@@ -1233,35 +1258,6 @@ static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element& ele
         element.document().update_style_for_element({ element });
         element.set_needs_style_update(false);
     }
-}
-
-RefPtr<Layout::Node> TreeBuilder::create_layout_node_for_element(DOM::Element& element, Context& context) const
-{
-    auto& document = element.document();
-    NonnullRefPtr<CSS::ComputedValues const> computed_values = *element.computed_values();
-
-    if (auto content_replacement = create_content_replacement_if_needed(element, computed_values))
-        return content_replacement;
-
-    if (context.layout_svg_mask_or_clip_path) {
-        RefPtr<Layout::Node> layout_node;
-        if (is<SVG::SVGMaskElement>(element))
-            layout_node = make_ref_counted<Layout::SVGMaskBox>(document, static_cast<SVG::SVGMaskElement&>(element), move(computed_values));
-        else if (is<SVG::SVGClipPathElement>(element))
-            layout_node = make_ref_counted<Layout::SVGClipBox>(document, static_cast<SVG::SVGClipPathElement&>(element), move(computed_values));
-        else
-            VERIFY_NOT_REACHED();
-        // Only layout direct uses of SVG masks/clipPaths.
-        context.layout_svg_mask_or_clip_path = false;
-        return layout_node;
-    }
-
-    if (context.layout_svg_pattern) {
-        context.layout_svg_pattern = false;
-        return make_ref_counted<Layout::SVGPatternBox>(document, as<SVG::SVGPatternElement>(element), move(computed_values));
-    }
-
-    return element.create_layout_node(move(computed_values));
 }
 
 static RefPtr<Layout::Node> create_layout_node_for_text(DOM::Text& text_node)

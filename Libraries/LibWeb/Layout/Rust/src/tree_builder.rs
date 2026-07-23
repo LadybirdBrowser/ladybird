@@ -148,7 +148,10 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub initialize_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub prepare_principal_element:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool) -> FfiPrincipalDisplayFacts,
-    pub create_principal_element_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, *mut c_void),
+    pub principal_element_layout_facts:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiElementLayoutFacts,
+    pub create_principal_element_layout:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiElementLayoutKind),
     pub create_principal_document_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub create_principal_text_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub reuse_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -251,6 +254,45 @@ pub struct FfiPrincipalDisplayFacts {
 pub struct FfiPrincipalLayoutFacts {
     pub is_replaced_element: bool,
     pub display: FfiPrincipalDisplayFacts,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiElementLayoutFacts {
+    pub has_content_replacement: bool,
+    pub context_layout_svg_mask_or_clip_path: bool,
+    pub context_layout_svg_pattern: bool,
+    pub is_svg_mask_element: bool,
+    pub is_svg_clip_path_element: bool,
+    pub is_svg_pattern_element: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiElementLayoutKind {
+    ContentReplacement,
+    SvgMask,
+    SvgClipPath,
+    SvgPattern,
+    Normal,
+}
+
+fn element_layout_kind(facts: FfiElementLayoutFacts) -> FfiElementLayoutKind {
+    if facts.has_content_replacement {
+        FfiElementLayoutKind::ContentReplacement
+    } else if facts.context_layout_svg_mask_or_clip_path {
+        if facts.is_svg_mask_element {
+            FfiElementLayoutKind::SvgMask
+        } else {
+            assert!(facts.is_svg_clip_path_element);
+            FfiElementLayoutKind::SvgClipPath
+        }
+    } else if facts.context_layout_svg_pattern {
+        assert!(facts.is_svg_pattern_element);
+        FfiElementLayoutKind::SvgPattern
+    } else {
+        FfiElementLayoutKind::Normal
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1094,9 +1136,24 @@ fn construct_principal_layout_node(
             return (false, true);
         }
         if should_create_layout_node {
-            // SAFETY: The builder, frame, element, and context remain live throughout construction.
+            // SAFETY: The frame, element, and context remain live throughout construction.
+            let layout_facts = unsafe { (host.callbacks.principal_element_layout_facts)(frame, dom_node, context) };
+            let layout_kind = element_layout_kind(layout_facts);
+            // SAFETY: The builder, frame, and element remain live throughout construction.
             unsafe {
-                (host.callbacks.create_principal_element_layout)(host.callbacks.builder, frame, dom_node, context);
+                (host.callbacks.create_principal_element_layout)(host.callbacks.builder, frame, dom_node, layout_kind);
+            }
+            if matches!(
+                layout_kind,
+                FfiElementLayoutKind::SvgMask | FfiElementLayoutKind::SvgClipPath
+            ) {
+                // Only direct mask and clip-path uses inherit this construction mode.
+                // SAFETY: The traversal context remains live throughout the call.
+                unsafe { (host.callbacks.set_context_layout_svg_mask_or_clip_path)(context, false) };
+            } else if layout_kind == FfiElementLayoutKind::SvgPattern {
+                // Only the directly referenced pattern inherits this construction mode.
+                // SAFETY: The traversal context remains live throughout the call.
+                unsafe { (host.callbacks.set_context_layout_svg_pattern)(context, false) };
             }
         } else {
             // SAFETY: The frame and DOM node remain live throughout the call.
@@ -2852,13 +2909,13 @@ pub unsafe extern "C" fn rust_fixup_tables(callbacks: *const FfiTreeBuilderCallb
 #[cfg(test)]
 mod tests {
     use super::{
-        FfiComputedContentType, FfiFirstLetterCodePointFacts, FfiFirstLetterTextCallbacks,
-        FfiPrincipalBoxGenerationDecision, FfiPrincipalBoxPlacement, FfiPrincipalBoxPlacementFacts,
-        FfiPrincipalNodeEntryFacts, FfiPseudoElement, FfiPseudoElementDecision, FfiPseudoElementFacts,
-        FfiReplacedElementDisplayAdjustment, FfiSvgEntryDecision, FfiTopLayerEntryDecision, FirstLetterTextHost,
-        find_first_letter_in_text, rust_adjusted_table_display_for_replaced_element,
-        rust_principal_box_generation_decision, rust_principal_box_placement_decision,
-        rust_principal_node_entry_decision, rust_pseudo_element_decision,
+        FfiComputedContentType, FfiElementLayoutFacts, FfiElementLayoutKind, FfiFirstLetterCodePointFacts,
+        FfiFirstLetterTextCallbacks, FfiPrincipalBoxGenerationDecision, FfiPrincipalBoxPlacement,
+        FfiPrincipalBoxPlacementFacts, FfiPrincipalNodeEntryFacts, FfiPseudoElement, FfiPseudoElementDecision,
+        FfiPseudoElementFacts, FfiReplacedElementDisplayAdjustment, FfiSvgEntryDecision, FfiTopLayerEntryDecision,
+        FirstLetterTextHost, element_layout_kind, find_first_letter_in_text,
+        rust_adjusted_table_display_for_replaced_element, rust_principal_box_generation_decision,
+        rust_principal_box_placement_decision, rust_principal_node_entry_decision, rust_pseudo_element_decision,
     };
     use std::ffi::c_void;
 
@@ -3091,6 +3148,32 @@ mod tests {
         let decision = rust_principal_node_entry_decision(facts);
         assert!(decision.should_create_layout_node);
         assert_eq!(decision.svg, FfiSvgEntryDecision::EnterSvgRoot);
+    }
+
+    #[test]
+    fn specialized_element_layout_kinds() {
+        let mut facts = FfiElementLayoutFacts {
+            has_content_replacement: false,
+            context_layout_svg_mask_or_clip_path: false,
+            context_layout_svg_pattern: false,
+            is_svg_mask_element: false,
+            is_svg_clip_path_element: false,
+            is_svg_pattern_element: false,
+        };
+        assert_eq!(element_layout_kind(facts), FfiElementLayoutKind::Normal);
+
+        facts.has_content_replacement = true;
+        assert_eq!(element_layout_kind(facts), FfiElementLayoutKind::ContentReplacement);
+        facts.has_content_replacement = false;
+        facts.context_layout_svg_mask_or_clip_path = true;
+        facts.is_svg_mask_element = true;
+        assert_eq!(element_layout_kind(facts), FfiElementLayoutKind::SvgMask);
+
+        facts.context_layout_svg_mask_or_clip_path = false;
+        facts.is_svg_mask_element = false;
+        facts.context_layout_svg_pattern = true;
+        facts.is_svg_pattern_element = true;
+        assert_eq!(element_layout_kind(facts), FfiElementLayoutKind::SvgPattern);
     }
 
     #[test]
