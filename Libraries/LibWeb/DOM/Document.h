@@ -802,6 +802,7 @@ public:
         Utf16FlyString event_type;
         bool operator==(PendingScrollEvent const&) const = default;
     };
+    bool append_pending_scroll_event(PendingScrollEvent);
     Vector<PendingScrollEvent>& pending_scroll_events() { return m_pending_scroll_events; }
 
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#completely-loaded

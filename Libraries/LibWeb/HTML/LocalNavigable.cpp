@@ -3560,11 +3560,8 @@ void LocalNavigable::scroll_offset_did_change()
     //    newInlineTarget.
 
     // 3. If (doc, "scroll") is already in doc’s pending scroll events, abort these steps.
-    if (doc->pending_scroll_events().contains_slow(DOM::Document::PendingScrollEvent { *doc, EventNames::scroll }))
-        return;
-
     // 4. Append (doc, "scroll") to doc’s pending scroll events.
-    doc->pending_scroll_events().append({ *doc, EventNames::scroll });
+    doc->append_pending_scroll_event({ *doc, EventNames::scroll });
 }
 
 CSSPixelRect LocalNavigable::to_top_level_rect(CSSPixelRect const& a_rect)
@@ -3724,8 +3721,7 @@ static bool adopt_async_element_scroll_delta(DOM::Document& document, Compositor
     element->set_scroll_offset(pseudo_element, scroll_offset);
 
     document.set_needs_to_refresh_scroll_state(true);
-    if (!document.pending_scroll_events().contains_slow(DOM::Document::PendingScrollEvent { *element, EventNames::scroll }))
-        document.pending_scroll_events().append({ *element, EventNames::scroll });
+    document.append_pending_scroll_event({ *element, EventNames::scroll });
     element->set_needs_repaint(InvalidateDisplayList::No);
     return true;
 }
@@ -3863,9 +3859,7 @@ void LocalNavigable::queue_scrollend_event(Compositor::AsyncScrollNodeStableID s
     if (!target)
         return;
 
-    DOM::Document::PendingScrollEvent pending_event { *target, EventNames::scrollend };
-    if (!document->pending_scroll_events().contains_slow(pending_event))
-        document->pending_scroll_events().append(pending_event);
+    document->append_pending_scroll_event({ *target, EventNames::scrollend });
 }
 
 void LocalNavigable::resolve_pending_smooth_scrolls(Compositor::AsyncScrollNodeStableID stable_node_id)

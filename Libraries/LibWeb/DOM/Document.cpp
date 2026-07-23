@@ -4658,6 +4658,14 @@ void Document::run_the_resize_steps()
     }
 }
 
+bool Document::append_pending_scroll_event(PendingScrollEvent event)
+{
+    if (m_pending_scroll_events.contains_slow(event))
+        return false;
+    m_pending_scroll_events.append(move(event));
+    return true;
+}
+
 // https://drafts.csswg.org/cssom-view-1/#document-run-the-scroll-steps
 void Document::run_the_scroll_steps()
 {

@@ -1076,11 +1076,9 @@ Paintable::ScrollHandled Paintable::set_scroll_offset(CSSPixelPoint offset)
         return ScrollHandled::Yes;
 
     // 3. If (element, "scroll") is already in doc’s pending scroll events, abort these steps.
-    if (document.pending_scroll_events().contains_slow(DOM::Document::PendingScrollEvent { *event_target, HTML::EventNames::scroll }))
-        return ScrollHandled::Yes;
-
     // 4. Append (element, "scroll") to doc’s pending scroll events.
-    document.pending_scroll_events().append({ *event_target, HTML::EventNames::scroll });
+    if (!document.append_pending_scroll_event({ *event_target, HTML::EventNames::scroll }))
+        return ScrollHandled::Yes;
 
     set_needs_repaint(InvalidateDisplayList::No);
     return ScrollHandled::Yes;
