@@ -23,8 +23,7 @@ DecoderErrorOr<NonnullRefPtr<DecodedAudioProducer>> DecodedAudioProducer::try_cr
     auto converter = DECODER_TRY_ALLOC(FFmpeg::FFmpegAudioConverter::try_create());
 
     TRY(demuxer->create_context_for_track(track));
-    auto duration = TRY(demuxer->duration_of_track(track));
-    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedAudioProducer::ThreadData>(main_thread_event_loop, demuxer, track, duration, auto_suspend_idle_timeout, move(converter)));
+    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedAudioProducer::ThreadData>(main_thread_event_loop, demuxer, track, auto_suspend_idle_timeout, move(converter)));
     TRY(thread_data->create_decoder());
     auto producer = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedAudioProducer>(thread_data));
 
@@ -59,11 +58,6 @@ DecodedAudioProducer::~DecodedAudioProducer()
 void DecodedAudioProducer::set_error_handler(ErrorHandler&& handler)
 {
     m_thread_data->set_error_handler(move(handler));
-}
-
-void DecodedAudioProducer::set_duration_change_handler(BlockEndTimeHandler&& handler)
-{
-    m_thread_data->set_duration_change_handler(move(handler));
 }
 
 void DecodedAudioProducer::set_read_blocked_change_handler(ReadBlockedChangeHandler handler)
@@ -101,11 +95,10 @@ void DecodedAudioProducer::seek(AK::Duration timestamp)
     m_thread_data->seek(timestamp);
 }
 
-DecodedAudioProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration duration, AK::Duration auto_suspend_idle_timeout, NonnullOwnPtr<Audio::AudioConverter>&& converter)
+DecodedAudioProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration auto_suspend_idle_timeout, NonnullOwnPtr<Audio::AudioConverter>&& converter)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
     , m_track(track)
-    , m_duration(duration)
     , m_converter(move(converter))
     , m_auto_suspend_idle_timeout(auto_suspend_idle_timeout)
 {
@@ -122,11 +115,6 @@ DecodedAudioProducer::ThreadData::~ThreadData()
 void DecodedAudioProducer::ThreadData::set_error_handler(ErrorHandler&& handler)
 {
     m_error_handler = move(handler);
-}
-
-void DecodedAudioProducer::ThreadData::set_duration_change_handler(BlockEndTimeHandler&& handler)
-{
-    m_duration_change_handler = move(handler);
 }
 
 void DecodedAudioProducer::ThreadData::set_read_blocked_change_handler(ReadBlockedChangeHandler handler)
@@ -359,25 +347,6 @@ void DecodedAudioProducer::ThreadData::invoke_on_main_thread_while_locked(Invoke
     });
 }
 
-template<typename Invokee>
-void DecodedAudioProducer::ThreadData::invoke_on_main_thread(Invokee invokee)
-{
-    auto locker = take_lock();
-    invoke_on_main_thread_while_locked(move(invokee));
-}
-
-void DecodedAudioProducer::ThreadData::dispatch_block_end_time(AudioBlock const& block)
-{
-    auto end_time = block.media_time_end();
-    if (end_time < m_duration)
-        return;
-    m_duration = end_time;
-    invoke_on_main_thread_while_locked([end_time](auto const& self) {
-        if (self->m_duration_change_handler)
-            self->m_duration_change_handler(end_time);
-    });
-}
-
 void DecodedAudioProducer::ThreadData::queue_block(AudioBlock const& block)
 {
     // FIXME: Specify trailing samples in the demuxer, and drop them here or in the audio decoder implementation.
@@ -385,7 +354,6 @@ void DecodedAudioProducer::ThreadData::queue_block(AudioBlock const& block)
     VERIFY(!block.is_empty());
     if (m_seek_id.load() != m_last_processed_seek_id)
         return;
-    dispatch_block_end_time(block);
     m_latest_available_timestamp = block.media_time_end();
     m_queue.enqueue({ block });
     VERIFY(!m_queue.tail().block.is_empty());

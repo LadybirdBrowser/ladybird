@@ -41,7 +41,6 @@ public:
     using FrameQueue = Queue<QueuedFrame>;
 
     using ErrorHandler = Function<void(DecoderError&&)>;
-    using FrameEndTimeHandler = Function<void(AK::Duration)>;
 
     static constexpr AK::Duration DEFAULT_AUTO_SUSPEND_IDLE_TIMEOUT = AK::Duration::from_milliseconds(5'000);
 
@@ -51,7 +50,6 @@ public:
     ~DecodedVideoProducer();
 
     void set_error_handler(ErrorHandler&&);
-    void set_duration_change_handler(FrameEndTimeHandler&&);
     void set_read_blocked_change_handler(ReadBlockedChangeHandler);
 
     virtual void start() override;
@@ -66,11 +64,10 @@ public:
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
-        ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, AK::Duration duration, AK::Duration auto_suspend_idle_timeout);
+        ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, AK::Duration auto_suspend_idle_timeout);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
-        void set_duration_change_handler(FrameEndTimeHandler&&);
         void set_read_blocked_change_handler(ReadBlockedChangeHandler);
         void set_wake_handler(PipelineWakeHandler);
 
@@ -95,9 +92,6 @@ private:
         bool handle_auto_suspension();
         template<typename Invokee>
         void invoke_on_main_thread_while_locked(Invokee);
-        template<typename Invokee>
-        void invoke_on_main_thread(Invokee);
-        void dispatch_frame_end_time(CodedFrame const&);
         void queue_frame(NonnullRefPtr<VideoFrame> const&);
         void dispatch_error(DecoderError&&);
         bool handle_seek();
@@ -138,7 +132,6 @@ private:
         AK::ThreadID m_decode_thread_id;
         NonnullRefPtr<Demuxer> m_demuxer;
         Track m_track;
-        AK::Duration m_duration;
         OwnPtr<VideoDecoder> m_decoder;
         RefPtr<VideoFramePool> m_frame_pool;
         bool m_decoder_needs_keyframe_next_seek { false };
@@ -146,7 +139,6 @@ private:
         FrameQueue m_queue;
         AK::Duration m_earliest_available_timestamp;
         AK::Duration m_latest_available_timestamp;
-        FrameEndTimeHandler m_duration_change_handler;
         ErrorHandler m_error_handler;
         ReadBlockedChangeHandler m_read_blocked_change_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };
