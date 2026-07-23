@@ -6,12 +6,11 @@
 
 #pragma once
 
-#include <AK/Optional.h>
-#include <AK/Variant.h>
-#include <AK/Vector.h>
+#include <AK/NonnullRefPtr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/AudioParam.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/WebAudio/AudioParamTimeline.h>
 
 namespace Web::WebAudio {
 
@@ -35,7 +34,7 @@ public:
     WebIDL::ExceptionOr<void> set_value(float);
 
     // https://webaudio.github.io/web-audio-api/#computedvalue
-    float intrinsic_value_at_time(double) const;
+    float intrinsic_value_at_time(double time) const { return m_timeline->value_at_time(time); }
 
     Bindings::AutomationRate automation_rate() const;
     WebIDL::ExceptionOr<void> set_automation_rate(Bindings::AutomationRate);
@@ -49,6 +48,8 @@ public:
     // https://webaudio.github.io/web-audio-api/#dom-audioparam-maxvalue
     float max_value() const { return m_max_value; }
 
+    NonnullRefPtr<AudioParamTimeline> timeline() const { return m_timeline; }
+
     WebIDL::ExceptionOr<GC::Ref<AudioParam>> set_value_at_time(float value, double start_time);
     WebIDL::ExceptionOr<GC::Ref<AudioParam>> linear_ramp_to_value_at_time(float value, double end_time);
     WebIDL::ExceptionOr<GC::Ref<AudioParam>> exponential_ramp_to_value_at_time(float value, double end_time);
@@ -58,77 +59,13 @@ public:
     WebIDL::ExceptionOr<GC::Ref<AudioParam>> cancel_and_hold_at_time(double cancel_time);
 
 private:
-    struct SetValue {
-        float value { 0 };
-    };
-
-    struct RampStart {
-        size_t set_target_event_id { 0 };
-        double time { 0 };
-        float value { 0 };
-    };
-
-    struct LinearRamp {
-        float value { 0 };
-        Optional<RampStart> start;
-    };
-
-    struct ExponentialRamp {
-        float value { 0 };
-        Optional<RampStart> start;
-    };
-
-    struct SetTarget {
-        float target { 0 };
-        float time_constant { 0 };
-    };
-
-    struct SetValueCurve {
-        Vector<float> values;
-        double duration { 0 };
-    };
-
-    struct Hold {
-        float value { 0 };
-    };
-
-    using Parameterization = Variant<SetValue, LinearRamp, ExponentialRamp, SetTarget, SetValueCurve, Hold>;
-
-    struct AutomationEvent {
-        double time { 0 };
-        Parameterization parameterization;
-        size_t id { 0 };
-    };
-
-    struct ParameterizationCache {
-        Optional<size_t> event_index {};
-        Optional<double> minimum_time {};
-        Optional<double> maximum_time {};
-        float starting_value { 0 };
-
-        bool contains(double time) const
-        {
-            return (!minimum_time.has_value() || time >= *minimum_time)
-                && (!maximum_time.has_value() || time < *maximum_time);
-        }
-    };
-
     AudioParam(JS::Realm&, GC::Ref<BaseAudioContext>, float default_value, float min_value, float max_value, Bindings::AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
 
-    // https://webaudio.github.io/web-audio-api/#dfn-automation-event
-    size_t first_event_index_after(double) const;
-
-    Optional<RampStart> ramp_start_for_insertion_index(size_t) const;
-
-    float event_value_at_time(size_t event_index, double time) const;
-
-    // https://webaudio.github.io/web-audio-api/#computedvalue
-    ParameterizationCache const& parameterization_cache_for_time(double) const;
-
-    // https://webaudio.github.io/web-audio-api/#dfn-automation-event
-    WebIDL::ExceptionOr<void> insert_event(AutomationEvent);
+    WebIDL::ExceptionOr<void> map_insert_result(AudioParamTimeline::InsertResult);
 
     GC::Ref<BaseAudioContext> m_context;
+
+    NonnullRefPtr<AudioParamTimeline> m_timeline;
 
     // https://webaudio.github.io/web-audio-api/#dom-audioparam-current-value-slot
     float m_current_value {}; //  [[current value]]
@@ -141,12 +78,6 @@ private:
     Bindings::AutomationRate m_automation_rate {};
 
     FixedAutomationRate m_fixed_automation_rate { FixedAutomationRate::No };
-
-    // https://webaudio.github.io/web-audio-api/#dfn-automation-event
-    Vector<AutomationEvent> m_automation_events;
-    size_t m_next_event_id { 0 };
-
-    mutable Optional<ParameterizationCache> m_parameterization_cache;
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
