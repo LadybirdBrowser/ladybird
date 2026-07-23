@@ -110,7 +110,7 @@ void LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(DOM::Element& el
 
 static RustFFI::FfiPrincipalDisplayFacts ffi_principal_display_facts(CSS::Display);
 static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element&);
-static RefPtr<Layout::Node> create_layout_node_for_text(DOM::Text&);
+static RefPtr<Layout::Node> create_layout_node_for_text(DOM::Text&, bool needs_style_wrapper);
 
 static size_t ffi_assigned_node_count(void* slot_element_pointer)
 {
@@ -1009,11 +1009,22 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             frame.computed_values = document.style_computer().create_document_style();
             frame.display = frame.computed_values->display();
             frame.layout_node = make_ref_counted<Layout::Viewport>(document, frame.computed_values.release_nonnull()); },
-        .create_principal_text_layout = [](void* frame_pointer, void* text_pointer) {
+        .principal_text_layout_facts = [](void* text_pointer) -> RustFFI::FfiTextLayoutFacts {
+            VERIFY(text_pointer);
+            auto& text = *static_cast<DOM::Text*>(text_pointer);
+            auto* style_parent = as_if<DOM::Element>(text.flat_tree_parent());
+            auto style_parent_values = style_parent ? style_parent->computed_values() : nullptr;
+            return {
+                .has_style_parent = style_parent_values != nullptr,
+                .parent_display_is_contents = style_parent_values && style_parent_values->display().is_contents(),
+                .text_is_ascii_whitespace = text.data().is_ascii_whitespace(),
+                .parent_collapses_whitespace = style_parent_values && first_is_one_of(style_parent_values->white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse),
+            }; },
+        .create_principal_text_layout = [](void* frame_pointer, void* text_pointer, bool needs_style_wrapper) {
             VERIFY(frame_pointer);
             VERIFY(text_pointer);
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
-            frame.layout_node = create_layout_node_for_text(*static_cast<DOM::Text*>(text_pointer));
+            frame.layout_node = create_layout_node_for_text(*static_cast<DOM::Text*>(text_pointer), needs_style_wrapper);
             frame.display = CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow); },
         .reuse_principal_layout = [](void* frame_pointer, void* node_pointer) {
             VERIFY(frame_pointer);
@@ -1156,18 +1167,13 @@ static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element& ele
     }
 }
 
-static RefPtr<Layout::Node> create_layout_node_for_text(DOM::Text& text_node)
+static RefPtr<Layout::Node> create_layout_node_for_text(DOM::Text& text_node, bool needs_style_wrapper)
 {
     auto& document = text_node.document();
     RefPtr<Layout::Node> layout_node = make_ref_counted<Layout::TextNode>(document, text_node);
-    auto* style_parent = as_if<DOM::Element>(text_node.flat_tree_parent());
-    auto style_parent_values = style_parent ? style_parent->computed_values() : nullptr;
-    if (RustFFI::rust_display_contents_text_needs_style_wrapper(
-            style_parent_values != nullptr,
-            style_parent_values && style_parent_values->display().is_contents(),
-            text_node.data().is_ascii_whitespace(),
-            style_parent_values && first_is_one_of(style_parent_values->white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse))) {
-        auto wrapper = make_ref_counted<Layout::InlineNode>(document, nullptr, style_parent->computed_values().release_nonnull());
+    if (needs_style_wrapper) {
+        auto& style_parent = as<DOM::Element>(*text_node.flat_tree_parent());
+        auto wrapper = make_ref_counted<Layout::InlineNode>(document, nullptr, style_parent.computed_values().release_nonnull());
         wrapper->attach_style_resources();
         wrapper->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
         wrapper->set_children_are_inline(true);

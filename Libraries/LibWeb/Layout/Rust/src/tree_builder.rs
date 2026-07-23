@@ -73,7 +73,8 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub create_principal_element_layout:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiElementLayoutKind),
     pub create_principal_document_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub create_principal_text_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub principal_text_layout_facts: unsafe extern "C" fn(*mut c_void) -> FfiTextLayoutFacts,
+    pub create_principal_text_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, bool),
     pub reuse_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub principal_layout_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub attach_principal_style_resources: unsafe extern "C" fn(*mut c_void),
@@ -104,6 +105,15 @@ pub struct FfiDisplayContentsFacts {
     pub dom_children_parent: *mut c_void,
     pub shadow_root: *mut c_void,
     pub slot_element: *mut c_void,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiTextLayoutFacts {
+    pub has_style_parent: bool,
+    pub parent_display_is_contents: bool,
+    pub text_is_ascii_whitespace: bool,
+    pub parent_collapses_whitespace: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -259,8 +269,7 @@ fn principal_box_generation_decision(
     })
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_display_contents_text_needs_style_wrapper(
+fn display_contents_text_needs_style_wrapper(
     has_style_parent: bool,
     parent_display_is_contents: bool,
     text_is_ascii_whitespace: bool,
@@ -1204,8 +1213,16 @@ fn construct_principal_layout_node(
             // SAFETY: The frame and DOM document remain live throughout construction.
             unsafe { (host.callbacks.create_principal_document_layout)(frame, dom_node) };
         } else if entry_facts.is_text {
+            // SAFETY: The DOM text node remains live throughout the fact query.
+            let facts = unsafe { (host.callbacks.principal_text_layout_facts)(dom_node) };
+            let needs_style_wrapper = display_contents_text_needs_style_wrapper(
+                facts.has_style_parent,
+                facts.parent_display_is_contents,
+                facts.text_is_ascii_whitespace,
+                facts.parent_collapses_whitespace,
+            );
             // SAFETY: The frame and DOM text node remain live throughout construction.
-            unsafe { (host.callbacks.create_principal_text_layout)(frame, dom_node) };
+            unsafe { (host.callbacks.create_principal_text_layout)(frame, dom_node, needs_style_wrapper) };
         }
     } else {
         // SAFETY: The frame and DOM node remain live throughout the call.
@@ -2946,9 +2963,10 @@ mod tests {
         FfiFirstLetterTextCallbacks, FfiPrincipalBoxPlacement, FfiPrincipalBoxPlacementFacts,
         FfiPrincipalNodeEntryFacts, FfiPseudoElement, FfiPseudoElementDecision, FfiPseudoElementFacts,
         FfiReplacedElementDisplayAdjustment, FirstLetterTextHost, PrincipalBoxGenerationDecision, SvgEntryDecision,
-        TopLayerEntryDecision, TreeBuilderContext, adjusted_table_display_for_replaced_element, element_layout_kind,
-        find_first_letter_in_text, principal_box_generation_decision, principal_box_placement_decision,
-        principal_node_entry_decision, pseudo_element_decision, rust_display_contents_text_needs_style_wrapper,
+        TopLayerEntryDecision, TreeBuilderContext, adjusted_table_display_for_replaced_element,
+        display_contents_text_needs_style_wrapper, element_layout_kind, find_first_letter_in_text,
+        principal_box_generation_decision, principal_box_placement_decision, principal_node_entry_decision,
+        pseudo_element_decision,
     };
     use std::ffi::c_void;
 
@@ -3251,11 +3269,9 @@ mod tests {
 
     #[test]
     fn display_contents_text_style_wrapper_decisions() {
-        assert!(!rust_display_contents_text_needs_style_wrapper(
-            false, true, false, false
-        ));
-        assert!(rust_display_contents_text_needs_style_wrapper(true, true, false, true));
-        assert!(!rust_display_contents_text_needs_style_wrapper(true, true, true, true));
-        assert!(rust_display_contents_text_needs_style_wrapper(true, true, true, false));
+        assert!(!display_contents_text_needs_style_wrapper(false, true, false, false));
+        assert!(display_contents_text_needs_style_wrapper(true, true, false, true));
+        assert!(!display_contents_text_needs_style_wrapper(true, true, true, true));
+        assert!(display_contents_text_needs_style_wrapper(true, true, true, false));
     }
 }
