@@ -371,7 +371,7 @@ public:
 
     void clear_layout_node_and_paintable(Badge<Document>);
     void set_layout_node(Badge<Layout::Node>, Layout::Node&);
-    void detach_layout_node(Badge<Layout::TreeBuilder>);
+    void detach_layout_node(Badge<Layout::LayoutTreeBuilderAccess>);
 
     virtual bool is_child_allowed(Node const&) const { return true; }
 

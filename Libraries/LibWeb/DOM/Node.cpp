@@ -1775,7 +1775,7 @@ void Node::clear_layout_node_and_paintable(Badge<Document>)
     m_paintable = nullptr;
 }
 
-void Node::detach_layout_node(Badge<Layout::TreeBuilder>)
+void Node::detach_layout_node(Badge<Layout::LayoutTreeBuilderAccess>)
 {
     if (m_layout_node)
         m_layout_node->prepare_for_detach_from_layout_tree();

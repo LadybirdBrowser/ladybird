@@ -38,7 +38,7 @@ public:
     virtual bool is_presentational_hint(Utf16FlyString const&) const final override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const final override;
 
-    void register_resource_box_referencing_element(Badge<Layout::TreeBuilder>, DOM::Element&);
+    void register_resource_box_referencing_element(Badge<Layout::LayoutTreeBuilderAccess>, DOM::Element&);
 
 protected:
     SVGElement(DOM::Document&, DOM::QualifiedName);

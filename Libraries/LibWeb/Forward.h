@@ -994,7 +994,7 @@ class SVGSVGBox;
 class TableWrapper;
 class TextNode;
 class TextOffsetMapping;
-class TreeBuilder;
+class LayoutTreeBuilderAccess;
 class VideoBox;
 class Viewport;
 
