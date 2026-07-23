@@ -135,7 +135,7 @@ struct EffectiveValues<'a> {
     override_values: &'a [*const c_void],
 }
 
-const MAX_GROUP_FIELD_COUNT: usize = 32;
+const MAX_GROUP_FIELD_COUNT: usize = 40;
 
 struct GroupValueEntries {
     entries: [std::mem::MaybeUninit<FfiGroupValueEntry>; MAX_GROUP_FIELD_COUNT],
@@ -2462,6 +2462,52 @@ unsafe fn build_misc_reset_group(
         unreachable!("a computed scrollbar-gutter is a scrollbar-gutter value");
     };
 
+    let scroll_snap_alignment = |data: &StyleValueData| {
+        keyword_of(data)
+            .and_then(crate::css::css_enums::keyword_to_scroll_snap_align)
+            .expect("a computed scroll-snap-align keyword maps to its enum")
+    };
+    let (scroll_snap_align_block, scroll_snap_align_inline) = match values.value(property_id::SCROLL_SNAP_ALIGN) {
+        Some(StyleValueData::ValueList { values: list, .. }) => {
+            let components = list.as_slice();
+            (
+                scroll_snap_alignment(components[0].data()),
+                scroll_snap_alignment(components[1].data()),
+            )
+        }
+        Some(data) => {
+            let alignment = scroll_snap_alignment(data);
+            (alignment, alignment)
+        }
+        None => unreachable!("the table holds scroll-snap-align"),
+    };
+
+    let (scroll_snap_axis, scroll_snap_strictness) = match values.value(property_id::SCROLL_SNAP_TYPE) {
+        Some(StyleValueData::ValueList { values: list, .. }) => {
+            let components = list.as_slice();
+            (
+                keyword_of(components[0].data())
+                    .and_then(crate::css::css_enums::keyword_to_scroll_snap_axis)
+                    .expect("a computed scroll-snap-type axis keyword maps to its enum"),
+                keyword_of(components[1].data())
+                    .and_then(crate::css::css_enums::keyword_to_scroll_snap_strictness)
+                    .expect("a computed scroll-snap-type strictness keyword maps to its enum"),
+            )
+        }
+        Some(data) => match keyword_of(data).expect("a computed single-value scroll-snap-type is a keyword") {
+            keyword::NONE => (
+                crate::css::css_enums::scroll_snap_axis::BOTH,
+                crate::css::css_enums::scroll_snap_strictness::NONE,
+            ),
+            code => (
+                crate::css::css_enums::keyword_to_scroll_snap_axis(code)
+                    .expect("a computed single-keyword scroll-snap-type is none, x, y, block, inline or both"),
+                crate::css::css_enums::scroll_snap_strictness::PROXIMITY,
+            ),
+        },
+        None => unreachable!("the table holds scroll-snap-type"),
+    };
+
     let outline_offset_data = values
         .value(property_id::OUTLINE_OFFSET)
         .expect("the table holds outline-offset");
@@ -2520,6 +2566,10 @@ unsafe fn build_misc_reset_group(
                 payload.touch_action_allow_down = allow[3];
                 payload.touch_action_allow_pinch_zoom = allow[4];
                 payload.touch_action_allow_other = allow[5];
+                payload.scroll_snap_align_block = scroll_snap_align_block;
+                payload.scroll_snap_align_inline = scroll_snap_align_inline;
+                payload.scroll_snap_axis = scroll_snap_axis;
+                payload.scroll_snap_strictness = scroll_snap_strictness;
                 payload.scrollbar_gutter = *scrollbar_gutter;
                 payload.shape_margin = retained(property_id::SHAPE_MARGIN);
                 payload.shape_outside = retained(property_id::SHAPE_OUTSIDE);

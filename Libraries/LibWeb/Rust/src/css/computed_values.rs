@@ -587,6 +587,11 @@ impl_computed_payload_clone_and_eq!(MiscResetValues {
     touch_action_allow_pinch_zoom,
     touch_action_allow_other,
     scroll_behavior,
+    scroll_snap_align_block,
+    scroll_snap_align_inline,
+    scroll_snap_stop,
+    scroll_snap_axis,
+    scroll_snap_strictness,
     scrollbar_gutter,
     scrollbar_width,
     shape_image_threshold,
@@ -1730,7 +1735,7 @@ enum GroupFieldPoke {
     Data(u32, *const crate::css::style_value::StyleValueData),
 }
 
-const MAX_GROUP_FIELD_COUNT: usize = 32;
+const MAX_GROUP_FIELD_COUNT: usize = 40;
 
 struct GroupFieldPokes {
     entries: [std::mem::MaybeUninit<GroupFieldPoke>; MAX_GROUP_FIELD_COUNT],
@@ -2970,6 +2975,11 @@ impl MiscResetValues {
             touch_action_allow_pinch_zoom: true,
             touch_action_allow_other: true,
             scroll_behavior: 0,
+            scroll_snap_align_block: crate::css::css_enums::scroll_snap_align::NONE,
+            scroll_snap_align_inline: crate::css::css_enums::scroll_snap_align::NONE,
+            scroll_snap_stop: crate::css::css_enums::scroll_snap_stop::NORMAL,
+            scroll_snap_axis: crate::css::css_enums::scroll_snap_axis::BOTH,
+            scroll_snap_strictness: crate::css::css_enums::scroll_snap_strictness::NONE,
             scrollbar_gutter: 0,
             scrollbar_width: 0,
             shape_image_threshold: 0.0,

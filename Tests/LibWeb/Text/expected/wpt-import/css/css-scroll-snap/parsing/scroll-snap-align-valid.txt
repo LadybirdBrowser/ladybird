@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	e.style['scroll-snap-align'] = "none" should set the property value
+Pass	e.style['scroll-snap-align'] = "start" should set the property value
+Pass	e.style['scroll-snap-align'] = "end" should set the property value
+Pass	e.style['scroll-snap-align'] = "center" should set the property value
+Pass	e.style['scroll-snap-align'] = "start none" should set the property value
+Pass	e.style['scroll-snap-align'] = "center end" should set the property value
+Pass	e.style['scroll-snap-align'] = "start start" should set the property value

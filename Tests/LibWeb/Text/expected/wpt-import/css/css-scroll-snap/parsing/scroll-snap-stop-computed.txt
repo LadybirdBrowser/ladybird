@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Property scroll-snap-stop value 'normal'
+Pass	Property scroll-snap-stop value 'always'

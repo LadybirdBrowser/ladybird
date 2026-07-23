@@ -260,6 +260,9 @@ static void register_style_group_field_descriptors()
     add(misc_reset, PropertyID::ViewTransitionName, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
     add(misc_reset, PropertyID::TouchAction, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(misc_reset, PropertyID::ScrollBehavior, offsetof(MiscReset, scroll_behavior), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_scroll_behavior>());
+    add(misc_reset, PropertyID::ScrollSnapAlign, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(misc_reset, PropertyID::ScrollSnapStop, offsetof(MiscReset, scroll_snap_stop), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_scroll_snap_stop>());
+    add(misc_reset, PropertyID::ScrollSnapType, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(misc_reset, PropertyID::ScrollbarGutter, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(misc_reset, PropertyID::ScrollbarWidth, offsetof(MiscReset, scrollbar_width), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_scrollbar_width>());
     add(misc_reset, PropertyID::ShapeImageThreshold, offsetof(MiscReset, shape_image_threshold), GROUP_FIELD_RESOLVED_F64, 0, nullptr);
@@ -1051,6 +1054,22 @@ TouchActionData ComputedValues::MiscResetValues::touch_action_value() const
         .allow_down = touch_action_allow_down,
         .allow_pinch_zoom = touch_action_allow_pinch_zoom,
         .allow_other = touch_action_allow_other,
+    };
+}
+
+ScrollSnapAlignData ComputedValues::MiscResetValues::scroll_snap_align_value() const
+{
+    return {
+        .block_alignment = static_cast<ScrollSnapAlign>(scroll_snap_align_block),
+        .inline_alignment = static_cast<ScrollSnapAlign>(scroll_snap_align_inline),
+    };
+}
+
+ScrollSnapType ComputedValues::MiscResetValues::scroll_snap_type_value() const
+{
+    return {
+        .axis = static_cast<ScrollSnapAxis>(scroll_snap_axis),
+        .strictness = static_cast<ScrollSnapStrictness>(scroll_snap_strictness),
     };
 }
 

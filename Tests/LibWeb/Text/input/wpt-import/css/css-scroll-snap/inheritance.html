@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inheritance of CSS Scroll Snap properties</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#property-index">
+<meta name="assert" content="Properties inherit or not according to the spec.">
+<meta name="assert" content="Properties have initial values according to the spec.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/inheritance-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+<div id="target"></div>
+</div>
+<script>
+assert_not_inherited('scroll-margin-block-end', '0px', '10px');
+assert_not_inherited('scroll-margin-block-start', '0px', '10px');
+assert_not_inherited('scroll-margin-bottom', '0px', '10px');
+assert_not_inherited('scroll-margin-inline-end', '0px', '10px');
+assert_not_inherited('scroll-margin-inline-start', '0px', '10px');
+assert_not_inherited('scroll-margin-left', '0px', '10px');
+assert_not_inherited('scroll-margin-right', '0px', '10px');
+assert_not_inherited('scroll-margin-top', '0px', '10px');
+assert_not_inherited('scroll-padding-block-end', 'auto', '10px');
+assert_not_inherited('scroll-padding-block-start', 'auto', '10px');
+assert_not_inherited('scroll-padding-bottom', 'auto', '10px');
+assert_not_inherited('scroll-padding-inline-end', 'auto', '10px');
+assert_not_inherited('scroll-padding-inline-start', 'auto', '10px');
+assert_not_inherited('scroll-padding-left', 'auto', '10px');
+assert_not_inherited('scroll-padding-right', 'auto', '10px');
+assert_not_inherited('scroll-padding-top', 'auto', '10px');
+assert_not_inherited('scroll-snap-align', 'none', 'start end');
+assert_not_inherited('scroll-snap-stop', 'normal', 'always');
+assert_not_inherited('scroll-snap-type', 'none', 'inline');
+</script>
+</body>
+</html>

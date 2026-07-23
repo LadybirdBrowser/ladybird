@@ -1652,6 +1652,38 @@ fn parse_scrollbar_gutter_property(values: &[ComponentValue]) -> ParseOutcome {
     ParseOutcome::Parsed(shared_style_value(StyleValueData::ScrollbarGutter { value }))
 }
 
+// https://drafts.csswg.org/css-scroll-snap-1/#scroll-snap-type
+fn parse_scroll_snap_type_property(values: &[ComponentValue]) -> ParseOutcome {
+    // none | [ x | y | block | inline | both ] [ mandatory | proximity ]?
+    let Some(keywords) = keyword_sequence(values) else {
+        return ParseOutcome::Invalid;
+    };
+    let (axis, strictness) = match keywords.as_slice() {
+        [keyword::NONE] => {
+            return ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword { keyword: keyword::NONE }));
+        }
+        [axis] => (*axis, None),
+        [axis, strictness] => (*axis, Some(*strictness)),
+        _ => return ParseOutcome::Invalid,
+    };
+    if !matches!(
+        axis,
+        keyword::X | keyword::Y | keyword::BLOCK | keyword::INLINE | keyword::BOTH
+    ) {
+        return ParseOutcome::Invalid;
+    }
+    match strictness {
+        // Proximity is the default strictness, so the single-keyword form is the shortest serialization of such values.
+        None | Some(keyword::PROXIMITY) => {
+            ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword { keyword: axis }))
+        }
+        Some(keyword::MANDATORY) => {
+            ParseOutcome::Parsed(shared_style_value(keyword_value_list(vec![axis, keyword::MANDATORY])))
+        }
+        Some(_) => ParseOutcome::Invalid,
+    }
+}
+
 fn parse_aspect_ratio_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
     let non_whitespace = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
     let auto_at_start = non_whitespace
@@ -5340,6 +5372,9 @@ fn parse_css_value_after_substitution_scan(
     }
     if property_id == property_id::SCROLLBAR_GUTTER {
         return parse_scrollbar_gutter_property(values);
+    }
+    if property_id == property_id::SCROLL_SNAP_TYPE {
+        return parse_scroll_snap_type_property(values);
     }
     if property_id == property_id::ASPECT_RATIO {
         return parse_aspect_ratio_property(context, property_id, values);
