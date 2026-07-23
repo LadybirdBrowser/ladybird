@@ -61,7 +61,7 @@ public:
 
     static size_t find_cue_point_index_at_or_before(Vector<TrackCuePoint> const&, Optional<AK::Duration> total_duration, AK::Duration target);
 
-    TimeRanges buffered_time_ranges(NonnullRefPtr<MediaStreamCursor> const&, Vector<MediaStream::ByteRange> const& byte_ranges) const;
+    HashMap<u64, BufferedRangesScan> buffered_time_ranges_by_track_number(NonnullRefPtr<MediaStreamCursor> const&, Vector<MediaStream::ByteRange> const& byte_ranges) const;
 
 private:
     Reader() = default;
@@ -103,8 +103,7 @@ private:
         size_t start { 0 };
         size_t end { 0 };
         Optional<SampleIterator> iterator;
-        Optional<AK::Duration> time_start { OptionalNone() };
-        AK::Duration time_end { AK::Duration::zero() };
+        HashMap<u64, TimeRanges::Range> track_intervals;
     };
     mutable Vector<BufferedRange> m_buffered_ranges;
 };

@@ -10,7 +10,7 @@
 
 namespace Media {
 
-class ConstantBitrateContainerNavigator final : public ContainerNavigator {
+class ConstantBitrateContainerNavigator final : public SingleTrackContainerNavigator {
 public:
     ConstantBitrateContainerNavigator(size_t first_sample_position, u32 bytes_per_second, u32 block_align)
         : m_first_sample_position(first_sample_position)
@@ -19,7 +19,7 @@ public:
     {
     }
 
-    TimeRanges buffered_time_ranges(Vector<MediaStream::ByteRange> const& byte_ranges) const override;
+    BufferedRangesScan buffered_time_ranges(Vector<MediaStream::ByteRange> const& byte_ranges) const override;
     virtual DecoderErrorOr<SeekResult> seek_to_timestamp(AK::Duration timestamp) const override;
 
 private:

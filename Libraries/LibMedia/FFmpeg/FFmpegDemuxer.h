@@ -85,15 +85,15 @@ private:
 
     struct BufferedScanPayload {
         NonnullOwnPtr<ContainerNavigator> navigator;
+        Vector<Track> tracks;
         AK::Duration initial_duration;
     };
 
     FFmpegDemuxer(NonnullRefPtr<MediaStream> const&);
 
-    static OwnPtr<ContainerNavigator> create_container_navigator(AVFormatContext&, AK::Duration, NonnullRefPtr<MediaStream> const&);
-    static OwnPtr<ContainerNavigator> create_container_navigator_from_index(AVFormatContext&);
+    static OwnPtr<ContainerNavigator> create_single_track_container_navigator(AVFormatContext&, AK::Duration, NonnullRefPtr<MediaStream> const&);
 
-    void start_buffered_scan_thread(NonnullOwnPtr<ContainerNavigator>);
+    void start_buffered_scan_thread(AVFormatContext&);
 
     StreamInfo const& get_track_info(Track const&) const;
     TrackContext& get_track_context(Track const&);

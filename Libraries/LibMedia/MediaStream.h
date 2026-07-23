@@ -11,6 +11,7 @@
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Stream.h>
+#include <AK/Vector.h>
 #include <LibMedia/DecoderError.h>
 
 namespace Media {
@@ -91,6 +92,16 @@ public:
     virtual Vector<ByteRange> available_byte_ranges() const = 0;
 
     virtual Optional<u64> expected_size() const = 0;
+
+    virtual bool is_closed() const = 0;
+
+    bool closing_bytes_are_available() const
+    {
+        if (!is_closed())
+            return false;
+        auto ranges = available_byte_ranges();
+        return !ranges.is_empty() && ranges.last().end >= expected_size().value();
+    }
 
     // The observer is invoked under the stream's lock, so it must be cheap and must not call back into the stream.
     virtual void set_available_ranges_change_observer(Function<void()>) { }

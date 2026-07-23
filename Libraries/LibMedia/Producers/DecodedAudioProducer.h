@@ -61,8 +61,6 @@ public:
 
     virtual void seek(AK::Duration timestamp) override;
 
-    TimeRanges buffered_time_ranges() const;
-
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
@@ -101,8 +99,6 @@ private:
         AudioProducerOutput peek();
         AudioProducerOutput peek_while_locked();
         void consume();
-
-        TimeRanges buffered_time_ranges() const;
 
         void seek(AK::Duration timestamp);
 

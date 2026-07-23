@@ -16,18 +16,23 @@ namespace Media {
 
 class IndexedContainerNavigator final : public ContainerNavigator {
 public:
-    IndexedContainerNavigator(Vector<IndexEntry>&& entries, AK::Duration duration)
-        : m_entries(move(entries))
+    struct TrackIndex {
+        u64 track_identifier;
+        Vector<IndexEntry> entries;
+    };
+
+    IndexedContainerNavigator(Vector<TrackIndex>&& track_indices, AK::Duration duration)
+        : m_track_indices(move(track_indices))
         , m_duration(duration)
     {
     }
 
-    TimeRanges buffered_time_ranges(Vector<MediaStream::ByteRange> const& byte_ranges) const override;
+    virtual HashMap<u64, BufferedRangesScan> buffered_time_ranges_by_track(Vector<MediaStream::ByteRange> const& byte_ranges) const override;
 
 private:
-    size_t lower_bound(size_t target) const;
+    static size_t lower_bound(Vector<IndexEntry> const& entries, size_t target);
 
-    Vector<IndexEntry> m_entries;
+    Vector<TrackIndex> m_track_indices;
     AK::Duration m_duration;
 };
 

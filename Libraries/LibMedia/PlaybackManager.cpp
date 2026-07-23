@@ -539,19 +539,40 @@ TimeRanges PlaybackManager::buffered_time_ranges() const
 {
     TimeRanges intersection { { AK::Duration::zero(), m_duration } };
 
-    auto intersect_ranges = [&](auto const& track_datas) {
-        for (auto const& track_data : track_datas) {
-            if (!track_is_enabled(track_data.track))
+    for (auto const& demuxer : m_demuxers) {
+        for (auto const& track_state : demuxer->scan_state().tracks) {
+            if (!is_enabled_supported_track(track_state.track))
                 continue;
-
-            auto range = track_data.producer->buffered_time_ranges();
-            intersection = intersection.intersection(range);
+            auto track_ranges = track_state.buffered_ranges;
+            // The estimated duration may lie beyond a track's scanned ranges, but it should be
+            // reported as buffered once no further data will arrive to extend that track.
+            if (track_state.reached_end_of_stream && !track_ranges.is_empty())
+                track_ranges.add_range(track_ranges[track_ranges.size() - 1].start, m_duration);
+            intersection = intersection.intersection(track_ranges);
         }
-    };
-    intersect_ranges(m_video_track_datas);
-    intersect_ranges(m_audio_track_datas);
+    }
 
     return intersection;
+}
+
+bool PlaybackManager::is_enabled_supported_track(Track const& track) const
+{
+    if (track.type() == TrackType::Video) {
+        for (auto const& track_data : m_video_track_datas) {
+            if (track_data.track == track)
+                return track_data.video_sink != nullptr;
+        }
+        return false;
+    }
+
+    if (track.type() == TrackType::Audio) {
+        for (auto const& track_data : m_audio_track_datas) {
+            if (track_data.track == track)
+                return track_data.enabled;
+        }
+    }
+
+    return false;
 }
 
 void PlaybackManager::set_volume(double volume)

@@ -6,6 +6,6 @@ emptied: readyState >= HAVE_NOTHING
 loadstart: readyState >= HAVE_NOTHING
 loadedmetadata: readyState >= HAVE_METADATA
 loadeddata: readyState >= HAVE_CURRENT_DATA
-document loaded
 canplay: readyState >= HAVE_FUTURE_DATA
 canplaythrough: readyState >= HAVE_ENOUGH_DATA
+document loaded

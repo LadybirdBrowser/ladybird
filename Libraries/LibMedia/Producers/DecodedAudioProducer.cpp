@@ -101,11 +101,6 @@ void DecodedAudioProducer::seek(AK::Duration timestamp)
     m_thread_data->seek(timestamp);
 }
 
-TimeRanges DecodedAudioProducer::buffered_time_ranges() const
-{
-    return m_thread_data->buffered_time_ranges();
-}
-
 DecodedAudioProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration duration, AK::Duration auto_suspend_idle_timeout, NonnullOwnPtr<Audio::AudioConverter>&& converter)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
@@ -631,11 +626,6 @@ void DecodedAudioProducer::ThreadData::push_data_and_decode_a_block()
         auto locker = take_lock();
         queue_block(block);
     }
-}
-
-TimeRanges DecodedAudioProducer::ThreadData::buffered_time_ranges() const
-{
-    return m_demuxer->scan_state().buffered_ranges;
 }
 
 }

@@ -145,6 +145,12 @@ void IncrementallyPopulatedStream::close()
     notify_available_ranges_changed_while_locked();
 }
 
+bool IncrementallyPopulatedStream::is_closed() const
+{
+    Sync::MutexLocker locker { m_mutex };
+    return m_closed;
+}
+
 void IncrementallyPopulatedStream::set_available_ranges_change_observer(Function<void()> observer)
 {
     Sync::MutexLocker locker { m_mutex };

@@ -10,12 +10,12 @@
 
 namespace Media {
 
-TimeRanges ConstantBitrateContainerNavigator::buffered_time_ranges(Vector<MediaStream::ByteRange> const& byte_ranges) const
+BufferedRangesScan ConstantBitrateContainerNavigator::buffered_time_ranges(Vector<MediaStream::ByteRange> const& byte_ranges) const
 {
     if (byte_ranges.is_empty())
         return {};
 
-    TimeRanges ranges;
+    BufferedRangesScan scan;
 
     for (auto const& byte_range : byte_ranges) {
         if (byte_range.end <= m_first_sample_position)
@@ -27,10 +27,11 @@ TimeRanges ConstantBitrateContainerNavigator::buffered_time_ranges(Vector<MediaS
         auto time_start = AK::Duration::from_time_units(AK::clamp_to<i64>(data_start), 1, m_bytes_per_second);
         auto time_end = AK::Duration::from_time_units(AK::clamp_to<i64>(data_end), 1, m_bytes_per_second);
 
-        ranges.add_range(max(AK::Duration::zero(), time_start), time_end);
+        scan.time_ranges.add_range(max(AK::Duration::zero(), time_start), time_end);
     }
 
-    return ranges;
+    scan.last_byte_range_has_samples = byte_ranges.last().end > m_first_sample_position;
+    return scan;
 }
 
 DecoderErrorOr<SeekResult> ConstantBitrateContainerNavigator::seek_to_timestamp(AK::Duration timestamp) const

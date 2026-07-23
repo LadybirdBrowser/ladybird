@@ -208,11 +208,6 @@ void DecodedVideoProducer::ThreadData::release_decoder()
     m_decoder.clear();
 }
 
-TimeRanges DecodedVideoProducer::buffered_time_ranges() const
-{
-    return m_thread_data->buffered_time_ranges();
-}
-
 DecodedVideoProducer::ThreadData::~ThreadData()
 {
     m_demuxer->set_read_blocked_change_handler_for_track(m_track, nullptr);
@@ -716,11 +711,6 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
         auto locker = take_lock();
         queue_frame(frame);
     }
-}
-
-TimeRanges DecodedVideoProducer::ThreadData::buffered_time_ranges() const
-{
-    return m_demuxer->scan_state().buffered_ranges;
 }
 
 }
