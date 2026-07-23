@@ -42,6 +42,8 @@ public:
 protected:
     AudioBufferSourceNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
 
+    void queue_parameters_update(RefPtr<Rendering::AudioBufferContents> buffer = nullptr, bool update_buffer = false);
+
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 

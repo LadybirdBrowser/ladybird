@@ -36,6 +36,8 @@ public:
 protected:
     OscillatorNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::OscillatorOptions const& = {});
 
+    void queue_waveform_update();
+
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
