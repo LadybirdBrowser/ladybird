@@ -579,7 +579,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     generate_ffi_header(
         selector_config,
-        &[manifest_dir.join("src/selector_engine.rs")],
+        &[
+            manifest_dir.join("src/selector_engine.rs"),
+            manifest_dir.join("src/ffi_support.rs"),
+        ],
         &out_dir,
         &ffi_out_dir,
         Path::new("SelectorRustFFI.h"),

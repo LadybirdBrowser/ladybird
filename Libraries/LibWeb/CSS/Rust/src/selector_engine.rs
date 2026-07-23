@@ -8,11 +8,14 @@ use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::abort_on_panic;
+use crate::ffi_support::{
+    DomStringView, FfiCallScope, FfiDomStringView, RetainedCxxPointer, ascii_lowercase, utf16_equals,
+    utf16_equals_ignoring_ascii_case,
+};
 
 static NEXT_SELECTOR_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -20,19 +23,6 @@ pub type SelectorString = Box<[u16]>;
 /// A selector list owns references to selectors that have already been compiled. `Rc` allows
 /// functional pseudo-classes to share those selectors with the C++ selector tree that owns them.
 pub type SelectorList = Box<[Rc<CompiledSelector>]>;
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-struct RetainedCxxPointer(Option<NonNull<c_void>>);
-
-impl RetainedCxxPointer {
-    fn new(pointer: *const c_void) -> Self {
-        Self(NonNull::new(pointer.cast_mut()))
-    }
-
-    fn as_ptr(self) -> *const c_void {
-        self.0.map_or(std::ptr::null(), |pointer| pointer.as_ptr().cast_const())
-    }
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -1618,11 +1608,8 @@ impl FfiElement {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns its current ID with
         // backing storage owned by the element for this matching call.
-        DomStringView {
-            // SAFETY: C++ guarantees that the returned string view remains valid for matching.
-            view: unsafe { selector_ffi_element_id_value(self.pointer) },
-            marker: PhantomData,
-        }
+        // SAFETY: C++ guarantees that the returned string view remains valid for matching.
+        DomStringView::new(unsafe { selector_ffi_element_id_value(self.pointer) })
     }
 
     fn id_and_class_names_are_case_insensitive(self) -> bool {
@@ -1704,10 +1691,7 @@ impl FfiElement {
         // SAFETY: The handle identifies a live DOM element. C++ returns its current language with
         // backing storage owned by the element for this matching call.
         let view = unsafe { selector_ffi_element_language(self.pointer) };
-        (view.length != 0).then_some(DomStringView {
-            view,
-            marker: PhantomData,
-        })
+        (view.length != 0).then_some(DomStringView::new(view))
     }
 
     fn is_focused(self) -> bool {
@@ -1894,22 +1878,16 @@ impl FfiElement {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns a string view borrowed
         // from its current local name for this matching call.
-        DomStringView {
-            // SAFETY: C++ guarantees that the returned string view remains valid for matching.
-            view: unsafe { selector_ffi_element_local_name(self.pointer) },
-            marker: PhantomData,
-        }
+        // SAFETY: C++ guarantees that the returned string view remains valid for matching.
+        DomStringView::new(unsafe { selector_ffi_element_local_name(self.pointer) })
     }
 
     unsafe fn class_name<'a>(self, index: usize) -> DomStringView<'a> {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element and `index` identifies one of its
         // current classes. C++ returns a view borrowed for this matching call.
-        DomStringView {
-            // SAFETY: The caller guarantees that `index` is within the current class list.
-            view: unsafe { selector_ffi_element_class_name(self.pointer, index) },
-            marker: PhantomData,
-        }
+        // SAFETY: The caller guarantees that `index` is within the current class list.
+        DomStringView::new(unsafe { selector_ffi_element_class_name(self.pointer, index) })
     }
 
     fn attribute_count(self) -> usize {
@@ -1972,14 +1950,6 @@ pub struct FfiInternedStringList {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiDomStringView {
-    pub data: *const c_void,
-    pub length: usize,
-    pub is_ascii: bool,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
 pub struct FfiDomAttribute {
     pub local_name: usize,
     pub namespace_: usize,
@@ -2003,33 +1973,7 @@ impl<'a> DomAttribute<'a> {
     }
 
     fn value(self) -> DomStringView<'a> {
-        DomStringView {
-            view: self.attribute.value,
-            marker: PhantomData,
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-struct DomStringView<'a> {
-    view: FfiDomStringView,
-    marker: PhantomData<&'a FfiCallScope>,
-}
-
-impl DomStringView<'_> {
-    fn len(self) -> usize {
-        self.view.length
-    }
-
-    fn code_unit_at(self, index: usize) -> u16 {
-        assert!(index < self.len());
-        assert!(!self.view.data.is_null());
-        if self.view.is_ascii {
-            // SAFETY: C++ guarantees that an ASCII view points at `length` bytes.
-            return u16::from(unsafe { *(self.view.data.cast::<u8>().add(index)) });
-        }
-        // SAFETY: C++ guarantees that a UTF-16 view points at `length` aligned code units.
-        unsafe { *(self.view.data.cast::<u16>().add(index)) }
+        DomStringView::new(self.attribute.value)
     }
 }
 
@@ -2238,30 +2182,6 @@ fn ffi_string_view(string: &[u16]) -> FfiStringView {
         data: string.as_ptr(),
         length: string.len(),
     }
-}
-
-fn ascii_lowercase(code_unit: u16) -> u16 {
-    if (u16::from(b'A')..=u16::from(b'Z')).contains(&code_unit) {
-        code_unit + u16::from(b'a' - b'A')
-    } else {
-        code_unit
-    }
-}
-
-fn utf16_equals_ignoring_ascii_case(first: DomStringView<'_>, second: &[u16]) -> bool {
-    first.len() == second.len()
-        && second
-            .iter()
-            .enumerate()
-            .all(|(index, &second)| ascii_lowercase(first.code_unit_at(index)) == ascii_lowercase(second))
-}
-
-fn utf16_equals(first: DomStringView<'_>, second: &[u16]) -> bool {
-    first.len() == second.len()
-        && second
-            .iter()
-            .enumerate()
-            .all(|(index, &second)| first.code_unit_at(index) == second)
 }
 
 struct SelectorSubtags<'a> {
@@ -2576,8 +2496,6 @@ fn is_ascii_case_insensitive_html_attribute(name: &[u16]) -> bool {
     ];
     NAMES.iter().any(|candidate| utf16_equals_ascii(name, candidate))
 }
-
-struct FfiCallScope;
 
 struct FfiDom<'a> {
     context: *mut c_void,
