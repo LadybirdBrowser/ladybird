@@ -40,6 +40,8 @@ float AudioParam::value() const
 {
     // Each AudioParam includes minValue and maxValue attributes that together form the simple nominal range
     // for the parameter. In effect, value of the parameter is clamped to the range [minValue, maxValue].
+    if (m_timeline->has_events())
+        return clamp(m_timeline->value_at_time(context()->current_time()), min_value(), max_value());
     return clamp(m_current_value, min_value(), max_value());
 }
 
