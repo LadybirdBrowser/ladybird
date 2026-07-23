@@ -129,9 +129,44 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> OfflineAudioContext::start_renderi
 void OfflineAudioContext::begin_offline_rendering(GC::Ref<WebIDL::Promise> promise)
 {
     // To begin offline rendering, the following steps MUST happen on a rendering thread that is created for the occasion.
-    // FIXME: 1: Given the current connections and scheduled changes, start rendering length sample-frames of audio into [[rendered buffer]]
-    // FIXME: 2: For every render quantum, check and suspend rendering if necessary.
-    // FIXME: 3: If a suspended context is resumed, continue to render the buffer.
+    // 1: Given the current connections and scheduled changes, start rendering length sample-frames of audio into [[rendered buffer]]
+    // 2: For every render quantum, check and suspend rendering if necessary.
+    // 3: If a suspended context is resumed, continue to render the buffer.
+    m_renderer = Rendering::OfflineAudioRenderer::create(control_message_queue(), destination()->node_id(), m_number_of_channels, m_length, sample_rate(), render_quantum_size());
+    m_renderer->set_on_complete([self = GC::make_root(this), promise = GC::make_root(promise)] {
+        self->finish_rendering(*promise);
+    });
+    m_renderer->set_on_sources_ended([self = GC::make_root(this)](Vector<NodeID> const& ended_nodes) {
+        self->handle_ended_sources(ended_nodes);
+    });
+    // AD-HOC: Other engines transition the context to "running" once rendering starts.
+    set_control_state(Bindings::AudioContextState::Running);
+    set_rendering_state(Bindings::AudioContextState::Running);
+    queue_a_statechange_event();
+
+    m_renderer->start_rendering();
+}
+
+void OfflineAudioContext::finish_rendering(GC::Ref<WebIDL::Promise> promise)
+{
+    // NB: Copy the rendered samples into [[rendered buffer]].
+    auto const& rendered_channels = m_renderer->rendered_channels();
+    for (size_t channel_index = 0; channel_index < rendered_channels.size(); ++channel_index) {
+        auto channel_data = MUST(m_rendered_buffer->get_channel_data(channel_index));
+        auto const& samples = rendered_channels[channel_index];
+        channel_data->viewed_array_buffer()->overwrite(channel_data->byte_offset(), samples.data(), samples.size() * sizeof(float));
+    }
+
+    set_current_time(m_renderer->frames_rendered() / static_cast<double>(sample_rate()));
+
+    // AD-HOC: Other engines transition the context to "closed" once rendering completes.
+    set_control_state(Bindings::AudioContextState::Closed);
+    set_rendering_state(Bindings::AudioContextState::Closed);
+    queue_a_statechange_event();
+
+    // NB: Break the reference cycle between the renderer's callbacks and this context.
+    m_renderer->clear_callbacks();
+
     // 4: Once the rendering is complete, queue a media element task to execute the following steps:
     queue_a_media_element_task(GC::create_function(heap(), [promise, this]() {
         HTML::TemporaryExecutionContext context(this->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
@@ -159,6 +194,13 @@ void OfflineAudioContext::begin_offline_rendering(GC::Ref<WebIDL::Promise> promi
             auto event = MUST(OfflineAudioCompletionEvent::construct_impl(this->realm(), HTML::EventNames::complete, event_init));
             this->dispatch_event(event);
         }));
+    }));
+}
+
+void OfflineAudioContext::queue_a_statechange_event()
+{
+    queue_a_media_element_task(GC::create_function(heap(), [this]() {
+        this->dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::statechange));
     }));
 }
 
@@ -203,6 +245,16 @@ void OfflineAudioContext::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(OfflineAudioContext);
     Base::initialize(realm);
+}
+
+void OfflineAudioContext::document_became_inactive()
+{
+    // End rendering and release the GC roots held by the renderer's callbacks, so a context belonging to a
+    // navigated-away document can eventually be collected even if it was suspended indefinitely.
+    if (m_renderer) {
+        m_renderer->stop();
+        m_renderer->clear_callbacks();
+    }
 }
 
 void OfflineAudioContext::visit_edges(Cell::Visitor& visitor)

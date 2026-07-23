@@ -10,13 +10,13 @@ Pass	Executing "disconnect(AudioParam, output)"
 Pass	Executing "exceptions"
 Pass	Audit report
 Pass	> [disconnect(AudioParam)] 
-Fail	X Channel #0 expected to have the value sequence of [2.25,1.5] but got 1 values, [0], instead of 2.
+Fail	X Channel #0 expected to have the value sequence of [2.25,1.5] but got 1 values, [2.25], instead of 2.
 Fail	X The index of value change is not equal to 11136. Got -1.
 Fail	< [disconnect(AudioParam)] 2 out of 2 assertions were failed.
 Pass	> [disconnect(AudioParam, output)] 
-Fail	X Channel #0 expected to have the value sequence of [3,1.5] but got 1 values, [0], instead of 2.
+Fail	X Channel #0 expected to have the value sequence of [3,1.5] but got 1 values, [3], instead of 2.
 Fail	X The index of value change in channel #0 is not equal to 11136. Got -1.
-Fail	X Channel #1 expected to have the value sequence of [6,3] but got 1 values, [0], instead of 2.
+Fail	X Channel #1 expected to have the value sequence of [6,3] but got 1 values, [6], instead of 2.
 Fail	X The index of value change in channel #1 is not equal to 11136. Got -1.
 Fail	< [disconnect(AudioParam, output)] 4 out of 4 assertions were failed.
 Pass	> [exceptions] 

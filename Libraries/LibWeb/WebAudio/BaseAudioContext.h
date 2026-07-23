@@ -105,6 +105,10 @@ public:
 protected:
     explicit BaseAudioContext(JS::Realm&, float m_sample_rate = 0);
 
+    // Called when the associated document is destroyed or otherwise stops being fully active, so rendering resources
+    // can be released.
+    virtual void document_became_inactive() { }
+
     void queue_a_media_element_task(GC::Ref<GC::Function<void()>>);
 
     virtual void initialize(JS::Realm&) override;
@@ -130,6 +134,8 @@ private:
     Bindings::AudioContextState m_rendering_thread_state = Bindings::AudioContextState::Suspended;
 
     HTML::UniqueTaskSource m_media_element_event_task_source {};
+
+    GC::Ptr<DOM::DocumentObserver> m_document_observer;
 
     NonnullOwnPtr<ControlMessageQueue> m_control_message_queue;
 
