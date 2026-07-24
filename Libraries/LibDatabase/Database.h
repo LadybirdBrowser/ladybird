@@ -7,12 +7,17 @@
 
 #pragma once
 
+#include <AK/Badge.h>
+#include <AK/Bitmap.h>
+#include <AK/ByteString.h>
 #include <AK/Error.h>
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/LexicalPath.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
+#include <AK/ScopeGuard.h>
 #include <AK/Span.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
@@ -33,6 +38,8 @@ struct Migration {
     // try_execute_statement to allow a failure to roll the migration transaction back.
     Function<ErrorOr<void>(Database&)> backfill {};
 };
+
+class ResultRow;
 
 class DATABASE_API Database : public RefCounted<Database> {
 public:
@@ -73,6 +80,7 @@ public:
     ~Database();
 
     using OnResult = Function<ErrorOr<void>(StatementID)>;
+    using OnResultRow = Function<ErrorOr<void>(ResultRow&)>;
 
     enum class StatementExecutionOutcome {
         Completed,
@@ -126,8 +134,26 @@ public:
         TooLarge,
     };
     ErrorOr<i64, ColumnReadError> result_i64_checked(StatementID, int column);
-    ErrorOr<ByteString, ColumnReadError> result_text_column_bounded(StatementID, int column, size_t max_bytes);
-    ErrorOr<ByteString, ColumnReadError> result_blob_column_bounded(StatementID, int column, size_t max_bytes);
+
+    // Borrow the current row's storage; ResultRow controls the lifetime.
+    ErrorOr<StringView, ColumnReadError> result_text_column_bounded(Badge<ResultRow>, StatementID, int column, size_t max_bytes);
+    ErrorOr<ReadonlyBytes, ColumnReadError> result_blob_column_bounded(Badge<ResultRow>, StatementID, int column, size_t max_bytes);
+
+    // Aggregates such as MAX() yield NULL over zero rows even when the schema stores no NULLs.
+    bool result_column_is_null(Badge<ResultRow>, StatementID, int column);
+
+    template<typename BindCallback>
+    ErrorOr<void> try_execute_bound_statement(StatementID statement_id, BindCallback&& bind_all, OnResultRow on_result = {})
+    {
+        ScopeGuard clear_on_exit = [&] { clear_bound_parameters(statement_id); };
+        auto bind = [&](StringView name, auto const& value) -> ErrorOr<void> {
+            return bind_parameter(statement_id, name, value);
+        };
+        TRY(bind_all(bind));
+        return try_step_bound_statement(statement_id, move(on_result));
+    }
+
+    ErrorOr<int> result_column_index(StatementID, StringView name);
 
     ErrorOr<void> execute_raw(ByteString const& sql);
 
@@ -194,6 +220,11 @@ private:
     template<typename ValueType>
     ErrorOr<void> try_apply_placeholder(StatementID statement_id, int index, ValueType const& value);
 
+    template<typename ValueType>
+    ErrorOr<void> bind_parameter(StatementID statement_id, StringView name, ValueType const& value);
+    ErrorOr<void> try_step_bound_statement(StatementID, OnResultRow);
+    void clear_bound_parameters(StatementID statement_id);
+
     class Transaction {
     public:
         explicit Transaction(Database& database)
@@ -215,7 +246,15 @@ private:
         bool m_active { false };
     };
 
-    ALWAYS_INLINE sqlite3_stmt* prepared_statement(StatementID statement_id)
+    struct PreparedStatement {
+        sqlite3_stmt* statement { nullptr };
+        Bitmap bound_parameters;
+        // Clear cached, owned column names after SQLite reprepares the statement; duplicate names map to -1.
+        HashMap<ByteString, int> result_column_indices {};
+        int result_column_generation { -1 };
+    };
+
+    ALWAYS_INLINE PreparedStatement& prepared_statement(StatementID statement_id)
     {
         VERIFY(statement_id < m_prepared_statements.size());
         return m_prepared_statements[statement_id];
@@ -224,7 +263,7 @@ private:
     Optional<LexicalPath> m_database_path;
     Options m_options;
     sqlite3* m_database { nullptr };
-    Vector<sqlite3_stmt*> m_prepared_statements;
+    Vector<PreparedStatement> m_prepared_statements;
     Optional<StatementID> m_table_exists_statement;
     Optional<StatementID> m_schema_version_statement;
 };
