@@ -22,8 +22,6 @@ public:
 
     virtual SampleSpecification sample_specification() const override;
 
-    virtual void set_underrun_callback(Function<void()>) override;
-
     virtual NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> resume() override;
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> drain_buffer_and_suspend() override;
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> discard_buffer_and_suspend() override;

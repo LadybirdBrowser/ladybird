@@ -316,14 +316,6 @@ ErrorOr<NonnullRefPtr<PulseAudioStream>> PulseAudioContext::create_stream(Output
         },
         stream_wrapper.ptr());
 
-    pa_stream_set_underflow_callback(
-        stream, [](pa_stream*, void* user_data) {
-            auto& stream = *static_cast<PulseAudioStream*>(user_data);
-            if (stream.m_underrun_callback)
-                stream.m_underrun_callback();
-        },
-        stream_wrapper.ptr());
-
     if (auto error = pa_stream_connect_playback(stream, nullptr, &buffer_attributes, flags, nullptr, nullptr); error != 0) {
         warnln("Failed to start PulseAudio stream connection with error: {}", pulse_audio_error_to_string(static_cast<PulseAudioErrorCode>(error)));
         return Error::from_string_literal("Error while connecting the PulseAudio stream");
@@ -366,7 +358,6 @@ PulseAudioStream::~PulseAudioStream()
 {
     auto locker = m_context->main_loop_locker();
     pa_stream_set_write_callback(m_stream, nullptr, nullptr);
-    pa_stream_set_underflow_callback(m_stream, nullptr, nullptr);
     pa_stream_set_started_callback(m_stream, nullptr, nullptr);
     pa_stream_disconnect(m_stream);
     pa_stream_unref(m_stream);
@@ -380,12 +371,6 @@ PulseAudioStreamState PulseAudioStream::get_connection_state()
 bool PulseAudioStream::connection_is_good()
 {
     return PA_STREAM_IS_GOOD(pa_stream_get_state(m_stream));
-}
-
-void PulseAudioStream::set_underrun_callback(Function<void()> callback)
-{
-    auto locker = m_context->main_loop_locker();
-    m_underrun_callback = move(callback);
 }
 
 SampleSpecification PulseAudioStream::sample_specification()

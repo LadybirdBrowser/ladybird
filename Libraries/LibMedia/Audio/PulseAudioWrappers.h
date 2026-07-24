@@ -98,10 +98,6 @@ public:
     PulseAudioStreamState get_connection_state();
     bool connection_is_good();
 
-    // Sets the callback to be run when the server consumes more of the buffer than
-    // has been written yet.
-    void set_underrun_callback(Function<void()>);
-
     SampleSpecification sample_specification();
     u32 sample_rate();
     size_t sample_size();
@@ -160,8 +156,6 @@ private:
     };
 
     Atomic<CallbackState> m_callback_state { CallbackState::Parked };
-
-    Function<void()> m_underrun_callback;
 };
 
 enum class PulseAudioErrorCode {

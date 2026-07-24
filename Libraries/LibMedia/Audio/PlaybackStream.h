@@ -48,12 +48,6 @@ public:
 
     virtual ~PlaybackStream() = default;
 
-    // Sets the callback function that will be fired whenever the server consumes more data than is made available
-    // by the data request callback. It will fire when either the data request runs too long, or the data request
-    // returns no data. If all the input data has been exhausted and this event fires, that means that playback
-    // has ended.
-    virtual void set_underrun_callback(Function<void()>) = 0;
-
     // Resume playback from the suspended state, requesting new data for audio buffers as soon as possible.
     //
     // The value provided to the promise resolution will match the `total_time_played()` at the exact moment that

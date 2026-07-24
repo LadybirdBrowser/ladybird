@@ -376,11 +376,6 @@ SampleSpecification PlaybackStreamAudioUnit::sample_specification() const
     return m_state->sample_specification();
 }
 
-void PlaybackStreamAudioUnit::set_underrun_callback(Function<void()>)
-{
-    // FIXME: Implement this.
-}
-
 NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamAudioUnit::resume()
 {
     auto promise = Core::ThreadedPromise<AK::Duration>::create();

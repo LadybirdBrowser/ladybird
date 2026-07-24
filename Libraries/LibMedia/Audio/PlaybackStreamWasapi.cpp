@@ -100,7 +100,6 @@ struct PlaybackStreamWASAPI::AudioState : public AtomicRefCounted<PlaybackStream
     HANDLE buffer_event = 0;
 
     PlaybackStreamWASAPI::AudioDataRequestCallback data_request_callback;
-    Function<void()> underrun_callback;
 
     Sync::Mutex task_queue_mutex;
     Queue<Variant<TaskPlay, TaskDrainAndSuspend, TaskDiscardAndSuspend, TaskResumeFromUnderrun>> task_queue;
@@ -453,8 +452,6 @@ int PlaybackStreamWASAPI::AudioState::render_thread_loop(PlaybackStreamWASAPI::A
         auto output_buffer = Bytes(buffer, buffer_size).reinterpret<float>();
         auto floats_written = state.data_request_callback(output_buffer);
         if (floats_written.is_empty()) [[unlikely]] {
-            if (state.underrun_callback)
-                state.underrun_callback();
             MUST_HR(state.render_client->ReleaseBuffer(0, AUDCLNT_BUFFERFLAGS_SILENT));
             state.paused = Paused::Underrun;
             drain_buffer_and_stop(state);
@@ -467,11 +464,6 @@ int PlaybackStreamWASAPI::AudioState::render_thread_loop(PlaybackStreamWASAPI::A
     VERIFY(timeEndPeriod(1) == TIMERR_NOERROR);
 
     return 0;
-}
-
-void PlaybackStreamWASAPI::set_underrun_callback(Function<void()> underrun_callback)
-{
-    m_state->underrun_callback = move(underrun_callback);
 }
 
 NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamWASAPI::resume()

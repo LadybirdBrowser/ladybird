@@ -93,13 +93,6 @@ PlaybackStreamPulseAudio::~PlaybackStreamPulseAudio()
         __temporary_result.release_value();                      \
     })
 
-void PlaybackStreamPulseAudio::set_underrun_callback(Function<void()> callback)
-{
-    m_state->enqueue([&state = *m_state, callback = move(callback)]() mutable {
-        state.stream()->set_underrun_callback(move(callback));
-    });
-}
-
 NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamPulseAudio::resume()
 {
     auto promise = Core::ThreadedPromise<AK::Duration>::create();
