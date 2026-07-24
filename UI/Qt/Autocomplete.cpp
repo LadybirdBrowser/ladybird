@@ -32,6 +32,7 @@
 #include <QTextLayout>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QWindow>
 
 namespace Ladybird {
 
@@ -43,6 +44,7 @@ static constexpr int CELL_ICON_TEXT_SPACING = 10;
 static constexpr int CELL_LABEL_VERTICAL_SPACING = 4;
 static constexpr int MINIMUM_POPUP_WIDTH = 100;
 static constexpr size_t MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS = 6;
+static constexpr u32 WAYLAND_POPUP_CONSTRAINT_ADJUSTMENT_NONE = 0;
 
 enum AutocompleteRole {
     TitleRole = Qt::UserRole + 1,
@@ -519,6 +521,12 @@ void Autocomplete::position_popup()
         m_popup->setParent(top_window, Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
         m_popup->setAttribute(Qt::WA_ShowWithoutActivating);
         m_popup->setAttribute(Qt::WA_X11DoNotAcceptFocus);
+    }
+
+    if (QGuiApplication::platformName() == "wayland") {
+        // FIXME: Replace this with a public popup positioning API once Qt provides one.
+        (void)m_popup->winId();
+        m_popup->windowHandle()->setProperty("_q_waylandPopupConstraintAdjustment", WAYLAND_POPUP_CONSTRAINT_ADJUSTMENT_NONE);
     }
 
     int width = std::max(m_anchor->width(), MINIMUM_POPUP_WIDTH);
