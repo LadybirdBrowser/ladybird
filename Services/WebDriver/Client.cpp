@@ -172,9 +172,11 @@ Web::WebDriver::Response Client::navigate_to(Web::WebDriver::Parameters paramete
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/url");
     auto session = TRY(Session::find_session(parameters[0]));
 
-    auto response = TRY(session->perform_async_action([&](auto& connection) {
-        auto navigate_response = connection.navigate_to(move(payload));
-        return navigate_response.response();
+    auto response = TRY(session->perform_async_action([&](auto& connection) -> Web::WebDriver::Response {
+        auto navigate_response = connection.template send_sync_but_allow_failure<Messages::WebDriverClient::NavigateTo>(move(payload));
+        if (!navigate_response)
+            return JsonValue {};
+        return navigate_response->response();
     },
         Session::WebContentReplacement::Allow));
     TRY(session->wait_for_current_window_to_have_web_content_connection());
@@ -205,7 +207,15 @@ Web::WebDriver::Response Client::back(Web::WebDriver::Parameters parameters, Jso
     auto session = TRY(Session::find_session(parameters[0]));
 
     auto response = TRY(session->perform_async_action(
-        [&](auto& connection) { return connection.back(); },
+        [&](auto& connection) -> Web::WebDriver::Response {
+            // A torn-down WebContent process leaves this reply unanswered. Treat the lost reply as an
+            // empty success, so only this command fails over to the replacement process instead of
+            // aborting WebDriver; the wait below then adopts the incoming process.
+            auto reply = connection.template send_sync_but_allow_failure<Messages::WebDriverClient::Back>();
+            if (!reply)
+                return JsonValue {};
+            return reply->take_response();
+        },
         Session::WebContentReplacement::Allow));
     TRY(session->wait_for_current_window_to_have_web_content_connection());
     response = TRY(session->perform_async_action(
@@ -223,7 +233,15 @@ Web::WebDriver::Response Client::forward(Web::WebDriver::Parameters parameters, 
     auto session = TRY(Session::find_session(parameters[0]));
 
     auto response = TRY(session->perform_async_action(
-        [&](auto& connection) { return connection.forward(); },
+        [&](auto& connection) -> Web::WebDriver::Response {
+            // A torn-down WebContent process leaves this reply unanswered. Treat the lost reply as an
+            // empty success, so only this command fails over to the replacement process instead of
+            // aborting WebDriver; the wait below then adopts the incoming process.
+            auto reply = connection.template send_sync_but_allow_failure<Messages::WebDriverClient::Forward>();
+            if (!reply)
+                return JsonValue {};
+            return reply->take_response();
+        },
         Session::WebContentReplacement::Allow));
     TRY(session->wait_for_current_window_to_have_web_content_connection());
     response = TRY(session->perform_async_action(
@@ -240,8 +258,11 @@ Web::WebDriver::Response Client::refresh(Web::WebDriver::Parameters parameters, 
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/refresh");
     auto session = TRY(Session::find_session(parameters[0]));
 
-    auto response = TRY(session->perform_async_action([&](auto& connection) {
-        return connection.refresh();
+    auto response = TRY(session->perform_async_action([&](auto& connection) -> Web::WebDriver::Response {
+        auto refresh_response = connection.template send_sync_but_allow_failure<Messages::WebDriverClient::Refresh>();
+        if (!refresh_response)
+            return JsonValue {};
+        return refresh_response->response();
     }));
     if (TRY(session->wait_for_current_window_to_have_web_content_connection()))
         response = TRY(session->perform_async_action([&](auto& connection) {
