@@ -158,7 +158,7 @@ PlaybackStreamWASAPI::~PlaybackStreamWASAPI()
     SetEvent(m_state->buffer_event);
 }
 
-NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&& data_callback)
+NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create_platform_playback_stream(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&& data_callback)
 {
     return PlaybackStreamWASAPI::create(initial_output_state, target_latency_ms, move(data_callback));
 }
