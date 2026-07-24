@@ -76,18 +76,18 @@
         {
           "type": "git",
           "url": "https://github.com/pnggroup/libpng.git",
-          "tag": "v1.6.50"
+          "tag": "v1.6.58"
         },
         {
           "type": "file",
-          "url": "https://downloads.sourceforge.net/project/libpng-apng/libpng16/1.6.49/libpng-1.6.49-apng.patch.gz",
-          "sha512": "d3a7121f892049f5488f32b5de29fb8892f2b329ee1df956b129918601946ab86a542a4412587ee5f660c581484812aaf101f953bcc187c993d98ba9d8d63a00"
+          "url": "https://downloads.sourceforge.net/project/libpng-apng/libpng16/1.6.58/libpng-1.6.58-apng.patch.gz",
+          "sha512": "95a6f5bb7148b5c48dccd73811d7bcf9752a631a7bb4f4856670a7da12a7159581ac1bce1749318343794e0f5cb86972711ba2ec0f523c168f0991fa940687d5"
         },
         {
           "type": "shell",
           "commands": [
-            "gunzip -k libpng-1.6.49-apng.patch.gz",
-            "patch -p1 -i libpng-1.6.49-apng.patch"
+            "gunzip -k libpng-1.6.58-apng.patch.gz",
+            "patch -p1 -i libpng-1.6.58-apng.patch"
           ]
         }
       ],
@@ -373,7 +373,7 @@
         {
           "type": "git",
           "url": "https://code.videolan.org/videolan/dav1d.git",
-          "tag": "1.5.1"
+          "tag": "1.5.3"
         }
       ],
       "config-opts": [
@@ -410,7 +410,7 @@
         {
           "type": "git",
           "url": "https://github.com/AOMediaCodec/libavif.git",
-          "tag": "v1.3.0"
+          "tag": "v1.4.2"
         }
       ],
       "config-opts": [
@@ -482,7 +482,7 @@
           {
             "type": "git",
             "url": "https://github.com/libjxl/libjxl.git",
-            "tag": "v0.11.1",
+            "tag": "v0.11.2",
             "disable-submodules": true
           }
         ],
