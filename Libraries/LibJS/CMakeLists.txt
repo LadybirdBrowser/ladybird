@@ -321,89 +321,97 @@ if(NOT BUILD_SHARED_LIBS)
     set_property(SOURCE RustIntegration.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libjs_rust_lib})
 endif()
 
-# AsmInterpreter: generate platform-specific assembly from DSL.
+# Generate the JS interpreter's platform-specific assembly.
 if ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64)$")
-    set(ASMINT_ARCH "x86_64")
+    set(FLAP_ARCH "x86_64")
 elseif ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(aarch64|arm64|ARM64)$")
-    set(ASMINT_ARCH "aarch64")
+    set(FLAP_ARCH "aarch64")
 else()
-    message(FATAL_ERROR "LibJS requires AsmInterpreter support for ${CMAKE_SYSTEM_PROCESSOR}")
+    message(FATAL_ERROR "LibJS requires JS interpreter support for ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
-if (DEFINED ASMINT_ARCH)
+if (DEFINED FLAP_ARCH)
     enable_language(ASM)
     if (WIN32 AND CMAKE_ASM_COMPILER_ID MATCHES "Clang")
         set(CMAKE_ASM_COMPILE_OPTIONS_MSVC_DEBUG_INFORMATION_FORMAT_ProgramDatabase "")
         set(CMAKE_ASM_COMPILE_OPTIONS_MSVC_DEBUG_INFORMATION_FORMAT_EditAndContinue "")
     endif()
-    set(ASMINT_DSL "${CMAKE_CURRENT_SOURCE_DIR}/Interpreter/asmint.asm")
-    set(ASMINT_GENERATED_S "${CMAKE_CURRENT_BINARY_DIR}/Interpreter/asmint_${ASMINT_ARCH}.S")
-    set(ASM_OFFSETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/Interpreter/asm_offsets.conf")
+    set(FLAP_DSL
+        "${CMAKE_CURRENT_SOURCE_DIR}/Interpreter/interpreter.flap")
+    set(FLAP_GENERATED_S "${CMAKE_CURRENT_BINARY_DIR}/Interpreter/interpreter_${FLAP_ARCH}.S")
+    set(INTERPRETER_LAYOUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/Interpreter/layout.conf")
 
     # Build-time offset generator: compiles a small C++ program that uses
     # offsetof() to emit struct field offsets as DSL constants.
-    add_executable(gen_asm_offsets "${CMAKE_CURRENT_SOURCE_DIR}/Interpreter/GenerateLayout.cpp")
-    target_link_libraries(gen_asm_offsets PRIVATE AK)
+    add_executable(generate_interpreter_layout "${CMAKE_CURRENT_SOURCE_DIR}/Interpreter/GenerateLayout.cpp")
+    target_link_libraries(generate_interpreter_layout PRIVATE AK)
     if (MSVC)
-        target_compile_definitions(gen_asm_offsets PRIVATE _ALLOW_KEYWORD_MACROS)
+        target_compile_definitions(generate_interpreter_layout PRIVATE _ALLOW_KEYWORD_MACROS)
     endif()
-    target_compile_definitions(gen_asm_offsets PRIVATE private=public protected=public)
-    # NB: Strip fuzzer sanitizer flags so gen_asm_offsets can define its own main().
+    target_compile_definitions(generate_interpreter_layout PRIVATE private=public protected=public)
+    # NB: Strip fuzzer sanitizer flags so generate_interpreter_layout can define its own main().
     if (ENABLE_FUZZERS_LIBFUZZER)
-        target_compile_options(gen_asm_offsets PRIVATE -fno-sanitize=fuzzer)
-        target_link_options(gen_asm_offsets PRIVATE -fno-sanitize=fuzzer)
+        target_compile_options(generate_interpreter_layout PRIVATE -fno-sanitize=fuzzer)
+        target_link_options(generate_interpreter_layout PRIVATE -fno-sanitize=fuzzer)
     endif()
     # NB: GenerateLayout.cpp does not depend on Op.h since opcode field
-    # offsets are now computed from Bytecode.def by asmintgen directly.
+    # offsets are now computed from Bytecode.def by flapc directly.
 
     add_custom_command(
-        OUTPUT "${ASM_OFFSETS_FILE}"
-        COMMAND "$<TARGET_FILE:gen_asm_offsets>" > "${ASM_OFFSETS_FILE}"
-        DEPENDS gen_asm_offsets
-        COMMENT "Generating asm struct offsets"
+        OUTPUT "${INTERPRETER_LAYOUT_FILE}"
+        COMMAND "$<TARGET_FILE:generate_interpreter_layout>" > "${INTERPRETER_LAYOUT_FILE}"
+        DEPENDS generate_interpreter_layout
+        COMMENT "Generating JS interpreter layout"
     )
 
     build_rust_binary(
-        MANIFEST_PATH AsmIntGen/Cargo.toml
-        CRATE_NAME asmintgen
-        BINARY_NAME asmintgen
-        OUTPUT_PATH_VAR ASMINTGEN_BIN
+        MANIFEST_PATH Flap/Cargo.toml
+        CRATE_NAME flapc
+        BINARY_NAME flapc
+        OUTPUT_PATH_VAR FLAPC_BIN
     )
 
     set(BYTECODE_DEF "${CMAKE_CURRENT_SOURCE_DIR}/Bytecode/Bytecode.def")
 
     if (WIN32)
-        set(ASMINT_OBJ_FORMAT "coff")
+        set(FLAP_OBJECT_FORMAT "coff")
     elseif (APPLE)
-        set(ASMINT_OBJ_FORMAT "macho")
+        set(FLAP_OBJECT_FORMAT "macho")
     else()
-        set(ASMINT_OBJ_FORMAT "elf")
+        set(FLAP_OBJECT_FORMAT "elf")
     endif()
 
-    set(ASMINT_EXTRA_FLAGS "")
+    set(FLAP_EXTRA_FLAGS "")
     if (CMAKE_BUILD_TYPE STREQUAL "Debug"
         OR ENABLE_ADDRESS_SANITIZER
         OR ENABLE_MEMORY_SANITIZER
         OR ENABLE_UNDEFINED_SANITIZER)
-        list(APPEND ASMINT_EXTRA_FLAGS "--enable-assertions")
+        list(APPEND FLAP_EXTRA_FLAGS "--enable-assertions")
     endif()
     # All Apple Silicon chips are ARMv8.5+ which includes FEAT_JSCVT.
-    if ("${ASMINT_ARCH}" STREQUAL "aarch64" AND APPLE)
-        list(APPEND ASMINT_EXTRA_FLAGS "--has-jscvt")
+    if ("${FLAP_ARCH}" STREQUAL "aarch64" AND APPLE)
+        list(APPEND FLAP_EXTRA_FLAGS "--has-jscvt")
     endif()
 
     add_custom_command(
-        OUTPUT "${ASMINT_GENERATED_S}"
-        COMMAND "${ASMINTGEN_BIN}" --arch ${ASMINT_ARCH}
-            --object-format ${ASMINT_OBJ_FORMAT}
-            --constants "${ASM_OFFSETS_FILE}"
+        OUTPUT "${FLAP_GENERATED_S}"
+        COMMAND "${FLAPC_BIN}" --arch ${FLAP_ARCH}
+            --object-format ${FLAP_OBJECT_FORMAT}
+            --constants "${INTERPRETER_LAYOUT_FILE}"
             --bytecode-def "${BYTECODE_DEF}"
-            --input "${ASMINT_DSL}"
-            --output "${ASMINT_GENERATED_S}"
-            ${ASMINT_EXTRA_FLAGS}
-        DEPENDS "${ASMINTGEN_BIN}" "${ASMINT_DSL}" "${ASM_OFFSETS_FILE}" "${BYTECODE_DEF}"
-        COMMENT "Generating asmint_${ASMINT_ARCH}.S from DSL"
+            --input "${FLAP_DSL}"
+            --output "${FLAP_GENERATED_S}"
+            ${FLAP_EXTRA_FLAGS}
+        DEPENDS "${FLAPC_BIN}" "${FLAP_DSL}"
+            "${INTERPRETER_LAYOUT_FILE}" "${BYTECODE_DEF}"
+        COMMENT "Generating interpreter_${FLAP_ARCH}.S from Flap"
     )
 
-    target_sources(LibJS PRIVATE "${ASMINT_GENERATED_S}")
+    target_sources(LibJS PRIVATE "${FLAP_GENERATED_S}")
+    if ("${FLAP_ARCH}" STREQUAL "x86_64" AND CMAKE_ASM_COMPILER_ID MATCHES "Clang")
+        # Keep conditional branches within 32-byte boundaries so Intel's
+        # microcode mitigation does not prevent their blocks from using the DSB.
+        set_property(SOURCE "${FLAP_GENERATED_S}" APPEND PROPERTY COMPILE_OPTIONS
+            "-malign-branch-boundary=32;-malign-branch=fused,jcc")
+    endif()
 endif()
