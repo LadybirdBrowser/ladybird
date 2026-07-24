@@ -49,6 +49,7 @@ signals:
 
 private:
     virtual void changeEvent(QEvent* event) override;
+    virtual void contextMenuEvent(QContextMenuEvent* event) override;
     virtual void focusInEvent(QFocusEvent* event) override;
     virtual void focusOutEvent(QFocusEvent* event) override;
     virtual void keyPressEvent(QKeyEvent* event) override;
