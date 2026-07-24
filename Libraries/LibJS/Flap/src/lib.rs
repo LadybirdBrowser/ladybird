@@ -13,6 +13,7 @@
 //! system and command-line adapter.
 
 pub(crate) mod bytecode;
+pub(crate) mod frontend;
 pub(crate) mod identity;
 pub(crate) mod intrinsic;
 pub(crate) mod types;
