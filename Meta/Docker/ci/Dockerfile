@@ -72,6 +72,7 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
         python3-psutil \
         python3-venv \
         qt6-base-dev \
+        qt6-base-private-dev \
         qt6-tools-dev-tools \
         rsync \
         shellcheck \
