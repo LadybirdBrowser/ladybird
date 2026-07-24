@@ -49,8 +49,6 @@ public:
 
     bool matches() const;
     bool has_scope() const { return m_scope.has_value(); }
-    Optional<SelectorList> const& scope_start_selectors() const;
-    Optional<SelectorList> const& scope_end_selectors() const;
     Optional<SelectorList> const& scope_start_selectors_for_matching() const;
     Optional<SelectorList> const& scope_end_selectors_for_matching() const;
 

@@ -1957,18 +1957,6 @@ void ComputedProperties::Builder::set_property_without_modifying_flags(PropertyI
         style().clear_computed_font_list_cache();
 }
 
-void ComputedProperties::Builder::revert_property(PropertyID id, ComputedProperties const& style_for_revert)
-{
-    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
-
-    data().property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = style_for_revert.data().property_values[to_underlying(id) - to_underlying(first_longhand_property_id)];
-    set_property_important(id, style_for_revert.is_property_important(id) ? Important::Yes : Important::No);
-    set_property_inherited(id, style_for_revert.is_property_inherited(id) ? Inherited::Yes : Inherited::No);
-
-    if (property_affects_computed_font_list(id))
-        style().clear_computed_font_list_cache();
-}
-
 Display ComputedProperties::display_before_box_type_transformation() const
 {
     return data().display_before_box_type_transformation;

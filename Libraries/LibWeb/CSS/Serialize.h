@@ -29,7 +29,6 @@ void serialize_a_string(StringBuilder&, Utf16View string);
 void serialize_a_string(Utf16StringBuilder&, Utf16View string);
 WEB_API void serialize_a_url(StringBuilder&, Utf16View url);
 void serialize_a_url(Utf16StringBuilder&, Utf16View url);
-void serialize_unicode_ranges(StringBuilder&, Vector<Gfx::UnicodeRange> const& unicode_ranges);
 WEB_API void serialize_a_number(StringBuilder&, double value);
 WEB_API void serialize_a_number(Utf16StringBuilder&, double value);
 

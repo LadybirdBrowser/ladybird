@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <AK/Utf16View.h>
-
 namespace Web::CSS {
 
 enum class PreferredContrast {
@@ -16,7 +14,5 @@ enum class PreferredContrast {
     More,
     NoPreference,
 };
-
-PreferredContrast preferred_contrast_from_string(Utf16View);
 
 }

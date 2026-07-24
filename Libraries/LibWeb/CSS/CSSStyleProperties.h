@@ -49,8 +49,6 @@ public:
     Vector<StyleProperty> const& properties() const { return m_properties; }
     OrderedHashMap<Utf16FlyString, StyleProperty> const& custom_properties() const { return m_custom_properties; }
 
-    size_t custom_property_count() const { return m_custom_properties.size(); }
-
     virtual bool has_property(PropertyNameAndID const&) const override;
     bool has_property(PropertyID) const;
 

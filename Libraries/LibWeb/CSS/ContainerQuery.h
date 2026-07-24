@@ -108,7 +108,6 @@ public:
     static NonnullRefPtr<ContainerQuery> create(NonnullOwnPtr<BooleanExpression>&&);
 
     bool matches() const { return m_matches; }
-    ContainerQueryFeatureRequirements const& feature_requirements() const { return m_feature_requirements; }
     bool contains_size_feature() const { return m_feature_requirements.contains_size_feature(); }
     bool contains_style_feature() const { return m_feature_requirements.contains_style_feature(); }
     MatchResult evaluate(DOM::AbstractElement const&, Optional<Utf16FlyString> const& container_name) const;

@@ -1740,18 +1740,6 @@ Vector<RuleOrListOfDeclarations> Parser::parse_a_blocks_contents(TokenStream<T>&
     return consume_a_blocks_contents(input);
 }
 
-Optional<StyleProperty> Parser::parse_as_supports_condition()
-{
-    m_rule_context.append(RuleContext::SupportsCondition);
-    auto maybe_declaration = parse_a_declaration(m_token_stream);
-    m_rule_context.take_last();
-    if (maybe_declaration.has_value()) {
-        if (auto maybe_property_and_name = convert_to_style_property(maybe_declaration.release_value()); maybe_property_and_name.has_value())
-            return maybe_property_and_name->property;
-    }
-    return {};
-}
-
 // https://drafts.csswg.org/css-syntax/#parse-declaration
 template<typename T>
 Optional<Declaration> Parser::parse_a_declaration(TokenStream<T>& input)

@@ -64,8 +64,6 @@ public:
 
     Utf16String speak_as() const;
     void set_speak_as(Utf16String const& speak_as);
-    RefPtr<StyleValue const> const& speak_as_style_value() const { return m_speak_as; }
-
     // https://drafts.csswg.org/css-counter-styles-3/#non-overridable-counter-style-names
     static bool matches_non_overridable_counter_style_name(Utf16View name)
     {

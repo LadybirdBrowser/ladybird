@@ -19,41 +19,6 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<FilterStyleValue const> FilterStyleValue::initial_value_for(FilterStyleValue const& value, bool use_transparent_drop_shadow_color)
-{
-    switch (value.kind()) {
-    case FilterStyleValue::Kind::Blur:
-        return BlurFilterStyleValue::create(LengthStyleValue::create(Length::make_px(0)));
-    case FilterStyleValue::Kind::DropShadow:
-        return DropShadowFilterStyleValue::create(
-            LengthStyleValue::create(Length::make_px(0)),
-            LengthStyleValue::create(Length::make_px(0)),
-            LengthStyleValue::create(Length::make_px(0)),
-            use_transparent_drop_shadow_color ? static_cast<ValueComparingRefPtr<ColorStyleValue const>>(ColorStyleValue::create_from_color(Color::Transparent, ColorSyntax::Legacy)) : nullptr);
-    case FilterStyleValue::Kind::HueRotate:
-        return HueRotateFilterStyleValue::create(AngleStyleValue::create(Angle::make_degrees(0)));
-    case FilterStyleValue::Kind::Color: {
-        auto const& color = static_cast<ColorFilterStyleValue const&>(value);
-        auto default_value = [&]() {
-            switch (color.operation()) {
-            case Gfx::ColorFilterType::Grayscale:
-            case Gfx::ColorFilterType::Invert:
-            case Gfx::ColorFilterType::Sepia:
-                return 0.0;
-            case Gfx::ColorFilterType::Brightness:
-            case Gfx::ColorFilterType::Contrast:
-            case Gfx::ColorFilterType::Opacity:
-            case Gfx::ColorFilterType::Saturate:
-                return 1.0;
-            }
-            VERIFY_NOT_REACHED();
-        }();
-        return ColorFilterStyleValue::create(color.operation(), NumberStyleValue::create(default_value));
-    }
-    }
-    VERIFY_NOT_REACHED();
-}
-
 // The C++ Type is Filter for every filter kind, so filter operations dispatch on the kind.
 ValueComparingNonnullRefPtr<StyleValue const> FilterStyleValue::absolutized(ComputationContext const& context) const
 {

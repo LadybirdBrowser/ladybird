@@ -28,8 +28,6 @@ public:
     Optional<SelectorList> const& end_selectors() const { return m_end_selectors; }
     Optional<SelectorList> const& start_selectors_for_matching() const;
     Optional<SelectorList> const& end_selectors_for_matching() const;
-    GC::Ptr<CSSScopeRule const> nearest_ancestor_scope_rule() const;
-
     Optional<Utf16String> start() const;
     Optional<Utf16String> end() const;
 
@@ -46,7 +44,6 @@ private:
     Optional<SelectorList> m_end_selectors;
     mutable Optional<SelectorList> m_cached_start_selectors_for_matching;
     mutable Optional<SelectorList> m_cached_end_selectors_for_matching;
-    mutable Optional<GC::Ptr<CSSScopeRule const>> m_cached_nearest_ancestor_scope_rule;
 };
 
 template<>

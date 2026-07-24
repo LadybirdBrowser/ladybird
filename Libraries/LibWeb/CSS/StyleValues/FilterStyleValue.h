@@ -30,8 +30,6 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
     bool equals(StyleValue const& other) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-    virtual bool contains_url() const { return false; }
-    static ValueComparingNonnullRefPtr<FilterStyleValue const> initial_value_for(FilterStyleValue const&, bool use_transparent_drop_shadow_color);
 
 protected:
     explicit FilterStyleValue(StyleValueFFI::StyleValueData const* data)

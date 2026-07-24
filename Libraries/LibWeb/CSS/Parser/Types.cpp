@@ -204,26 +204,6 @@ void AtRule::for_each_as_qualified_rule_list(QualifiedRuleVisitor&& visit) const
         });
 }
 
-// https://drafts.csswg.org/css-syntax/#typedef-at-rule-list
-void AtRule::for_each_as_at_rule_list(AtRuleVisitor&& visit) const
-{
-    // <at-rule-list>: only at-rules are allowed; declarations and qualified rules are automatically invalid.
-    for_each(
-        move(visit),
-        [this](auto const&) {
-            ErrorReporter::the().report(InvalidRuleLocationError {
-                .outer_rule_name = Utf16String::formatted("@{}", name),
-                .inner_rule_name = "qualified-rule"_utf16_fly_string,
-            });
-        },
-        [this](auto const&) {
-            ErrorReporter::the().report(InvalidRuleLocationError {
-                .outer_rule_name = Utf16String::formatted("@{}", name),
-                .inner_rule_name = "list-of-declarations"_utf16_fly_string,
-            });
-        });
-}
-
 // https://drafts.csswg.org/css-syntax/#typedef-declaration-rule-list
 void AtRule::for_each_as_declaration_rule_list(AtRuleVisitor&& visit_at_rule, DeclarationVisitor&& visit_declaration) const
 {
@@ -237,22 +217,6 @@ void AtRule::for_each_as_declaration_rule_list(AtRuleVisitor&& visit_at_rule, De
             });
         },
         move(visit_declaration));
-}
-
-// https://drafts.csswg.org/css-syntax/#typedef-rule-list
-void AtRule::for_each_as_rule_list(RuleVisitor&& visit) const
-{
-    // <rule-list>: qualified rules and at-rules are allowed; declarations are automatically invalid.
-    for (auto const& child : child_rules_and_lists_of_declarations) {
-        child.visit(
-            [&](Rule const& rule) { visit(rule); },
-            [&](Vector<Declaration> const&) {
-                ErrorReporter::the().report(InvalidRuleLocationError {
-                    .outer_rule_name = Utf16String::formatted("@{}", name),
-                    .inner_rule_name = "list-of-declarations"_utf16_fly_string,
-                });
-            });
-    }
 }
 
 // https://drafts.csswg.org/css-syntax/#typedef-declaration-list

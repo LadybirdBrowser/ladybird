@@ -3396,19 +3396,10 @@ pub unsafe extern "C" fn rust_calc_serialize(
 
 impl CalcNode {
     /// Structural equality over two calculation trees, mirroring the C++ node
-    /// equals implementations: kinds, leaf values and child structures must
-    /// match, with the style values carried by random() and non-math-function
-    /// nodes compared through the given value-equality callback.
-    pub(crate) fn structurally_equals(
-        &self,
-        other: &CalcNode,
-        style_value_equals: &dyn Fn(&RetainedStyleValueData, &RetainedStyleValueData) -> bool,
-    ) -> bool {
+    /// equals implementations: kinds, leaf values and child structures must match.
+    pub(crate) fn structurally_equals(&self, other: &CalcNode) -> bool {
         let children_equal = |a: &[Arc<CalcNode>], b: &[Arc<CalcNode>]| {
-            a.len() == b.len()
-                && a.iter()
-                    .zip(b.iter())
-                    .all(|(a, b)| a.structurally_equals(b, style_value_equals))
+            a.len() == b.len() && a.iter().zip(b.iter()).all(|(a, b)| a.structurally_equals(b))
         };
         match (self, other) {
             (CalcNode::Numeric(a), CalcNode::Numeric(b)) => a == b,
@@ -3429,7 +3420,7 @@ impl CalcNode {
             | (CalcNode::Acos(a), CalcNode::Acos(b))
             | (CalcNode::Atan(a), CalcNode::Atan(b))
             | (CalcNode::Sqrt(a), CalcNode::Sqrt(b))
-            | (CalcNode::Exp(a), CalcNode::Exp(b)) => a.structurally_equals(b, style_value_equals),
+            | (CalcNode::Exp(a), CalcNode::Exp(b)) => a.structurally_equals(b),
             (
                 CalcNode::Clamp {
                     min: a_min,
@@ -3442,9 +3433,9 @@ impl CalcNode {
                     max: b_max,
                 },
             ) => {
-                a_min.structurally_equals(b_min, style_value_equals)
-                    && a_center.structurally_equals(b_center, style_value_equals)
-                    && a_max.structurally_equals(b_max, style_value_equals)
+                a_min.structurally_equals(b_min)
+                    && a_center.structurally_equals(b_center)
+                    && a_max.structurally_equals(b_max)
             }
             (
                 CalcNode::Progress {
@@ -3461,12 +3452,12 @@ impl CalcNode {
                 },
             ) => {
                 a_no_clamp == b_no_clamp
-                    && a_progress.structurally_equals(b_progress, style_value_equals)
-                    && a_from.structurally_equals(b_from, style_value_equals)
-                    && a_to.structurally_equals(b_to, style_value_equals)
+                    && a_progress.structurally_equals(b_progress)
+                    && a_from.structurally_equals(b_from)
+                    && a_to.structurally_equals(b_to)
             }
             (CalcNode::Atan2 { y: a_y, x: a_x }, CalcNode::Atan2 { y: b_y, x: b_x }) => {
-                a_y.structurally_equals(b_y, style_value_equals) && a_x.structurally_equals(b_x, style_value_equals)
+                a_y.structurally_equals(b_y) && a_x.structurally_equals(b_x)
             }
             (
                 CalcNode::Pow {
@@ -3477,10 +3468,7 @@ impl CalcNode {
                     base: b_base,
                     exponent: b_exponent,
                 },
-            ) => {
-                a_base.structurally_equals(b_base, style_value_equals)
-                    && a_exponent.structurally_equals(b_exponent, style_value_equals)
-            }
+            ) => a_base.structurally_equals(b_base) && a_exponent.structurally_equals(b_exponent),
             (
                 CalcNode::Log {
                     value: a_value,
@@ -3490,10 +3478,7 @@ impl CalcNode {
                     value: b_value,
                     base: b_base,
                 },
-            ) => {
-                a_value.structurally_equals(b_value, style_value_equals)
-                    && a_base.structurally_equals(b_base, style_value_equals)
-            }
+            ) => a_value.structurally_equals(b_value) && a_base.structurally_equals(b_base),
             (
                 CalcNode::Round {
                     strategy: a_strategy,
@@ -3507,8 +3492,8 @@ impl CalcNode {
                 },
             ) => {
                 a_strategy == b_strategy
-                    && a_value.structurally_equals(b_value, style_value_equals)
-                    && a_interval.structurally_equals(b_interval, style_value_equals)
+                    && a_value.structurally_equals(b_value)
+                    && a_interval.structurally_equals(b_interval)
             }
             (
                 CalcNode::Mod {
@@ -3519,10 +3504,7 @@ impl CalcNode {
                     value: b_value,
                     modulus: b_modulus,
                 },
-            ) => {
-                a_value.structurally_equals(b_value, style_value_equals)
-                    && a_modulus.structurally_equals(b_modulus, style_value_equals)
-            }
+            ) => a_value.structurally_equals(b_value) && a_modulus.structurally_equals(b_modulus),
             (
                 CalcNode::Rem {
                     value: a_value,
@@ -3532,10 +3514,7 @@ impl CalcNode {
                     value: b_value,
                     divisor: b_divisor,
                 },
-            ) => {
-                a_value.structurally_equals(b_value, style_value_equals)
-                    && a_divisor.structurally_equals(b_divisor, style_value_equals)
-            }
+            ) => a_value.structurally_equals(b_value) && a_divisor.structurally_equals(b_divisor),
             (
                 CalcNode::Random {
                     min: a_min,
@@ -3550,17 +3529,17 @@ impl CalcNode {
                     sharing: b_sharing,
                 },
             ) => {
-                a_min.structurally_equals(b_min, style_value_equals)
-                    && a_max.structurally_equals(b_max, style_value_equals)
+                a_min.structurally_equals(b_min)
+                    && a_max.structurally_equals(b_max)
                     && match (a_step, b_step) {
                         (None, None) => true,
-                        (Some(a), Some(b)) => a.structurally_equals(b, style_value_equals),
+                        (Some(a), Some(b)) => a.structurally_equals(b),
                         _ => false,
                     }
-                    && style_value_equals(a_sharing, b_sharing)
+                    && a_sharing == b_sharing
             }
             (CalcNode::NonMathFunction { value: a_value, .. }, CalcNode::NonMathFunction { value: b_value, .. }) => {
-                style_value_equals(a_value, b_value)
+                a_value == b_value
             }
             _ => false,
         }
@@ -3570,19 +3549,9 @@ impl CalcNode {
 /// Structural equality of two calculated style values' trees.
 ///
 /// # Safety
-/// Both pointers must reference Calculated style value data, and the callback
-/// must be valid.
+/// Both pointers must reference Calculated style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_equals(
-    first: *const std::ffi::c_void,
-    second: *const std::ffi::c_void,
-    context: *mut std::ffi::c_void,
-    style_value_equals: unsafe extern "C" fn(
-        context: *mut std::ffi::c_void,
-        a: *const std::ffi::c_void,
-        b: *const std::ffi::c_void,
-    ) -> bool,
-) -> bool {
+pub unsafe extern "C" fn rust_calc_equals(first: *const std::ffi::c_void, second: *const std::ffi::c_void) -> bool {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
     use crate::style_value::StyleValueData;
     crate::abort_on_panic(|| {
@@ -3595,13 +3564,7 @@ pub unsafe extern "C" fn rust_calc_equals(
         };
         let first_tree = tree_of(first);
         let second_tree = tree_of(second);
-        first_tree.structurally_equals(&second_tree, &|a, b| unsafe {
-            style_value_equals(
-                context,
-                a.data() as *const _ as *const _,
-                b.data() as *const _ as *const _,
-            )
-        })
+        first_tree.structurally_equals(&second_tree)
     })
 }
 

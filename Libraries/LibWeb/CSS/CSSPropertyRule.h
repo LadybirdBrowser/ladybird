@@ -29,8 +29,6 @@ public:
     Utf16FlyString const& syntax() const { return m_syntax; }
     bool inherits() const { return m_inherits; }
     Optional<Utf16String> initial_value() const;
-    RefPtr<StyleValue const> initial_style_value() const { return m_initial_value; }
-
     CustomPropertyRegistration to_registration() const;
 
 private:
