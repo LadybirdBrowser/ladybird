@@ -13,9 +13,9 @@ use std::sync::Arc;
 
 use crate::property_metadata::{property_animation_type, property_numeric_ranges};
 use crate::style_value::{
-    ColorBase, RetainedGridTrackEntry, RetainedGridTrackEntryList, RetainedNumericRangeList, RetainedShapePoint,
-    RetainedShapePointList, RetainedStyleValueData, RetainedStyleValueDataList, RetainedUtf16FlyString,
-    RetainedUtf16FlyStringList, StyleValueData,
+    ColorBase, GridTrackEntryKind, RetainedGridTrackEntry, RetainedGridTrackEntryList, RetainedNumericRangeList,
+    RetainedShapePoint, RetainedShapePointList, RetainedStyleValueData, RetainedStyleValueDataList,
+    RetainedUtf16FlyString, RetainedUtf16FlyStringList, StyleValueData,
 };
 
 pub(crate) const ANIMATION_TYPE_DISCRETE: u8 = 0;
@@ -61,10 +61,6 @@ const STEP_POSITION_JUMP_START: u8 = 0;
 const STEP_POSITION_JUMP_NONE: u8 = 2;
 const STEP_POSITION_JUMP_BOTH: u8 = 3;
 const STEP_POSITION_START: u8 = 4;
-const GRID_TRACK_ENTRY_LINE_NAMES: u8 = 0;
-const GRID_TRACK_ENTRY_SIZE: u8 = 1;
-const GRID_TRACK_ENTRY_MINMAX: u8 = 2;
-const GRID_TRACK_ENTRY_REPEAT: u8 = 3;
 const GRID_REPEAT_FIXED: u8 = 2;
 const BASIC_SHAPE_INSET: u8 = 0;
 const BASIC_SHAPE_CIRCLE: u8 = 3;
@@ -1507,7 +1503,7 @@ fn clone_grid_track_entry(entry: &RetainedGridTrackEntry) -> RetainedGridTrackEn
 
 fn grid_line_names_entry(names: &RetainedUtf16FlyStringList) -> RetainedGridTrackEntry {
     RetainedGridTrackEntry {
-        kind: GRID_TRACK_ENTRY_LINE_NAMES,
+        kind: GridTrackEntryKind::LineNames,
         names: names.clone_retained(),
         size_value: empty_retained_style_value(),
         min_value: empty_retained_style_value(),
@@ -1527,15 +1523,12 @@ fn expand_grid_tracks_and_lines(entries: &[RetainedGridTrackEntry]) -> Option<Ve
     let mut current_line_names = None;
 
     for entry in entries {
-        if entry.kind == GRID_TRACK_ENTRY_LINE_NAMES {
+        if entry.kind == GridTrackEntryKind::LineNames {
             if current_line_names.is_some() {
                 return None;
             }
             current_line_names = Some(&entry.names);
-        } else if matches!(
-            entry.kind,
-            GRID_TRACK_ENTRY_SIZE | GRID_TRACK_ENTRY_MINMAX | GRID_TRACK_ENTRY_REPEAT
-        ) {
+        } else {
             if let Some(track) = current_track.take() {
                 result.push(ExpandedGridTrack {
                     track,
@@ -1543,8 +1536,6 @@ fn expand_grid_tracks_and_lines(entries: &[RetainedGridTrackEntry]) -> Option<Ve
                 });
             }
             current_track = Some(entry);
-        } else {
-            return None;
         }
 
         if current_track.is_some() && current_line_names.is_some() {
@@ -1618,7 +1609,7 @@ fn interpolate_grid_track_entries(
     for (from, to) in expanded_from.iter().zip(&expanded_to) {
         let line_names = if delta < 0.5 { from.line_names } else { to.line_names };
         let track = match (from.track.kind, to.track.kind) {
-            (GRID_TRACK_ENTRY_REPEAT, GRID_TRACK_ENTRY_REPEAT) => {
+            (GridTrackEntryKind::Repeat, GridTrackEntryKind::Repeat) => {
                 // https://drafts.csswg.org/css-grid/#repeat-interpolation
                 if from.track.repeat_type != GRID_REPEAT_FIXED || to.track.repeat_type != GRID_REPEAT_FIXED {
                     return None;
@@ -1641,7 +1632,7 @@ fn interpolate_grid_track_entries(
                 )?;
                 let (repeat_entries_pointer, repeat_entries_length) = grid_entries_into_raw_parts(nested);
                 RetainedGridTrackEntry {
-                    kind: GRID_TRACK_ENTRY_REPEAT,
+                    kind: GridTrackEntryKind::Repeat,
                     names: empty_grid_line_names(),
                     size_value: empty_retained_style_value(),
                     min_value: empty_retained_style_value(),
@@ -1654,9 +1645,9 @@ fn interpolate_grid_track_entries(
                     repeat_entries_length,
                 }
             }
-            (GRID_TRACK_ENTRY_REPEAT, _) | (_, GRID_TRACK_ENTRY_REPEAT) => return None,
-            (GRID_TRACK_ENTRY_MINMAX, GRID_TRACK_ENTRY_MINMAX) => RetainedGridTrackEntry {
-                kind: GRID_TRACK_ENTRY_MINMAX,
+            (GridTrackEntryKind::Repeat, _) | (_, GridTrackEntryKind::Repeat) => return None,
+            (GridTrackEntryKind::MinMax, GridTrackEntryKind::MinMax) => RetainedGridTrackEntry {
+                kind: GridTrackEntryKind::MinMax,
                 names: empty_grid_line_names(),
                 size_value: empty_retained_style_value(),
                 min_value: interpolate_grid_component(property_id, &from.track.min_value, &to.track.min_value, delta),
@@ -1668,8 +1659,8 @@ fn interpolate_grid_track_entries(
                 repeat_entries_pointer: std::ptr::null_mut(),
                 repeat_entries_length: 0,
             },
-            (GRID_TRACK_ENTRY_SIZE, GRID_TRACK_ENTRY_SIZE) => RetainedGridTrackEntry {
-                kind: GRID_TRACK_ENTRY_SIZE,
+            (GridTrackEntryKind::Size, GridTrackEntryKind::Size) => RetainedGridTrackEntry {
+                kind: GridTrackEntryKind::Size,
                 names: empty_grid_line_names(),
                 size_value: interpolate_grid_component(
                     property_id,
@@ -1749,7 +1740,7 @@ fn composite_grid_track_entries(
     let mut result = Vec::new();
     for (underlying, animated) in expanded_underlying.iter().zip(&expanded_animated) {
         let track = match (underlying.track.kind, animated.track.kind) {
-            (GRID_TRACK_ENTRY_REPEAT, GRID_TRACK_ENTRY_REPEAT) => {
+            (GridTrackEntryKind::Repeat, GridTrackEntryKind::Repeat) => {
                 if underlying.track.repeat_type != GRID_REPEAT_FIXED || animated.track.repeat_type != GRID_REPEAT_FIXED
                 {
                     return None;
@@ -1775,7 +1766,7 @@ fn composite_grid_track_entries(
                 )?;
                 let (repeat_entries_pointer, repeat_entries_length) = grid_entries_into_raw_parts(nested);
                 RetainedGridTrackEntry {
-                    kind: GRID_TRACK_ENTRY_REPEAT,
+                    kind: GridTrackEntryKind::Repeat,
                     names: empty_grid_line_names(),
                     size_value: empty_retained_style_value(),
                     min_value: empty_retained_style_value(),
@@ -1788,9 +1779,9 @@ fn composite_grid_track_entries(
                     repeat_entries_length,
                 }
             }
-            (GRID_TRACK_ENTRY_REPEAT, _) | (_, GRID_TRACK_ENTRY_REPEAT) => return None,
-            (GRID_TRACK_ENTRY_MINMAX, GRID_TRACK_ENTRY_MINMAX) => RetainedGridTrackEntry {
-                kind: GRID_TRACK_ENTRY_MINMAX,
+            (GridTrackEntryKind::Repeat, _) | (_, GridTrackEntryKind::Repeat) => return None,
+            (GridTrackEntryKind::MinMax, GridTrackEntryKind::MinMax) => RetainedGridTrackEntry {
+                kind: GridTrackEntryKind::MinMax,
                 names: empty_grid_line_names(),
                 size_value: empty_retained_style_value(),
                 min_value: composite_grid_component(&underlying.track.min_value, &animated.track.min_value, operation),
@@ -1802,8 +1793,8 @@ fn composite_grid_track_entries(
                 repeat_entries_pointer: std::ptr::null_mut(),
                 repeat_entries_length: 0,
             },
-            (GRID_TRACK_ENTRY_SIZE, GRID_TRACK_ENTRY_SIZE) => RetainedGridTrackEntry {
-                kind: GRID_TRACK_ENTRY_SIZE,
+            (GridTrackEntryKind::Size, GridTrackEntryKind::Size) => RetainedGridTrackEntry {
+                kind: GridTrackEntryKind::Size,
                 names: empty_grid_line_names(),
                 size_value: composite_grid_component(
                     &underlying.track.size_value,
@@ -3111,6 +3102,7 @@ fn composite_scalar_value(
         (
             StyleValueData::OpenTypeTagged {
                 tag: underlying_tag,
+                packed_tag: underlying_packed_tag,
                 value: underlying_value,
                 ..
             },
@@ -3136,6 +3128,7 @@ fn composite_scalar_value(
             owned(StyleValueData::OpenTypeTagged {
                 mode: OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS,
                 tag: unsafe { RetainedUtf16FlyString::from_borrowed_raw(underlying_tag.raw()) },
+                packed_tag: *underlying_packed_tag,
                 value: unsafe { RetainedStyleValueData::from_retained_pointer(value.value) },
             })
         }
@@ -3828,6 +3821,7 @@ fn interpolate_scalar_value(
         (
             StyleValueData::OpenTypeTagged {
                 tag: from_tag,
+                packed_tag: from_packed_tag,
                 value: from_value,
                 ..
             },
@@ -3854,6 +3848,7 @@ fn interpolate_scalar_value(
             owned(StyleValueData::OpenTypeTagged {
                 mode: OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS,
                 tag: unsafe { RetainedUtf16FlyString::from_borrowed_raw(from_tag.raw()) },
+                packed_tag: *from_packed_tag,
                 value: unsafe { RetainedStyleValueData::from_retained_pointer(value.value) },
             })
         }

@@ -3541,14 +3541,6 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         return computed_value;
     };
 
-    Optional<LogicalAliasMappingContext> logical_alias_mapping_context;
-    auto const get_logical_alias_mapping_context = [&]() {
-        if (!logical_alias_mapping_context.has_value())
-            logical_alias_mapping_context = LogicalAliasMappingContext { computed_style.writing_mode(), computed_style.direction() };
-
-        return *logical_alias_mapping_context;
-    };
-
     // The parent's inheritable computed values, prepared once so the driver's inherit
     // path never crosses the FFI. Every entry is pinned for the duration of the drive.
     constexpr size_t inherited_longhand_count = to_underlying(last_inherited_property_id) - to_underlying(first_inherited_property_id) + 1;
@@ -3591,18 +3583,20 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         }
     };
 
-    // Hands the driver the length resolution context a property's computation would
-    // use, so plain lengths can absolutize natively; the driver caches one per
-    // context kind, like get_computation_context_for_property does here.
-    auto fetch_length_resolution_context = [&](PropertyID property_id) {
-        auto const& computation_context = get_computation_context_for_property(property_id, computed_style, abstract_element);
-        return to_ffi_length_resolution_context(computation_context.length_resolution_context);
-    };
+    Optional<ComputedValuesFFI::FfiDisplay> display_before_adjustments;
+    Optional<Keyword> float_before_adjustments;
+    Optional<Keyword> overflow_x_before_adjustments;
+    Optional<Keyword> overflow_y_before_adjustments;
+    Optional<Keyword> text_align_before_adjustments;
+    Optional<Keyword> position_before_adjustments;
+    RefPtr<StyleValue const> line_height_before_adjustments;
+    // Pins every parent value handed out by an explicit-inherit action until the end
+    // of the drive; the driver may queue its data in deferred store batches.
+    Vector<NonnullRefPtr<StyleValue const>> pinned_parent_values;
 
-    // Applies a batch of store operations the driver queued, in property order,
-    // replicating the per-property side effects and performing any computation the
-    // driver deferred to C++.
-    auto store_computed_batch = [&](ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count) {
+    // Applies the Rust driver's ordered action batch. Stores precede the optional
+    // external request so a returned context observes every earlier computed value.
+    auto execute_computation_batch = [&](ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count, i16 effective_color_scheme, u8 request_kind, ComputedValuesFFI::FfiLonghandBatchRequest const* request) {
         for (size_t i = 0; i < count; ++i) {
             auto const& entry = entries[i];
             auto property_id = static_cast<PropertyID>(entry.property_id);
@@ -3675,81 +3669,46 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
                 builder.set_effective_color_scheme(static_cast<PreferredColorScheme>(effective_color_scheme));
             }
         }
+        if (effective_color_scheme >= 0)
+            builder.set_effective_color_scheme(static_cast<PreferredColorScheme>(effective_color_scheme));
+
+        switch (request_kind) {
+        case ComputedValuesFFI::LONGHAND_BATCH_REQUEST_NONE:
+            break;
+        case ComputedValuesFFI::LONGHAND_BATCH_REQUEST_LENGTH_CONTEXT: {
+            auto const& computation_context = get_computation_context_for_property(static_cast<PropertyID>(request->property_id), computed_style, abstract_element);
+            *request->out_context = to_ffi_length_resolution_context(computation_context.length_resolution_context);
+            break;
+        }
+        case ComputedValuesFFI::LONGHAND_BATCH_REQUEST_PARENT_VALUE: {
+            auto value = get_non_animated_inherit_value(static_cast<PropertyID>(request->property_id), abstract_element);
+            *request->out_data = value->rust_style_value_data();
+            pinned_parent_values.append(move(value));
+            break;
+        }
+        case ComputedValuesFFI::LONGHAND_BATCH_REQUEST_POST_COMPUTE_ADJUSTMENTS: {
+            display_before_adjustments = request->display_before;
+            float_before_adjustments = static_cast<Keyword>(request->float_before);
+            overflow_x_before_adjustments = static_cast<Keyword>(request->overflow_x_before);
+            overflow_y_before_adjustments = static_cast<Keyword>(request->overflow_y_before);
+            text_align_before_adjustments = static_cast<Keyword>(request->text_align_before);
+            position_before_adjustments = static_cast<Keyword>(request->position_before);
+            line_height_before_adjustments = builder.style().property(PropertyID::LineHeight);
+            builder.set_display_before_box_type_transformation(from_ffi_display(request->display_before));
+            *request->out_input_line_height_metrics = input_line_height_metrics(builder, abstract_element, request->check_input_line_height);
+            break;
+        }
+        default:
+            VERIFY_NOT_REACHED();
+        }
     };
 
     // The property computation flow is driven from the Rust style computation core: it
     // iterates the longhands in computation order, resolves logical pairing through its
     // mapping tables, and selects the cascaded, inherited or initial value natively.
-    struct LonghandLoopContext {
-        ComputedProperties::Builder& builder;
-        decltype(store_computed_batch)& store_computed_batch_callback;
-        decltype(fetch_length_resolution_context)& fetch_length_resolution_context_callback;
-        decltype(get_logical_alias_mapping_context)& get_logical_alias_mapping_context_callback;
-        DOM::AbstractElement abstract_element;
-        Optional<ComputedValuesFFI::FfiDisplay> display_before_adjustments;
-        Optional<Keyword> float_before_adjustments;
-        Optional<Keyword> overflow_x_before_adjustments;
-        Optional<Keyword> overflow_y_before_adjustments;
-        Optional<Keyword> text_align_before_adjustments;
-        Optional<Keyword> position_before_adjustments;
-        RefPtr<StyleValue const> line_height_before_adjustments;
-        // Pins every parent value handed out by the explicit-inherit fetch until the end
-        // of the drive; the driver may queue its data in deferred store batches.
-        Vector<NonnullRefPtr<StyleValue const>> pinned_parent_values;
-    } loop_context {
-        .builder = builder,
-        .store_computed_batch_callback = store_computed_batch,
-        .fetch_length_resolution_context_callback = fetch_length_resolution_context,
-        .get_logical_alias_mapping_context_callback = get_logical_alias_mapping_context,
-        .abstract_element = abstract_element,
-        .display_before_adjustments = {},
-        .float_before_adjustments = {},
-        .overflow_x_before_adjustments = {},
-        .overflow_y_before_adjustments = {},
-        .text_align_before_adjustments = {},
-        .position_before_adjustments = {},
-        .line_height_before_adjustments = {},
-        .pinned_parent_values = {},
-    };
-
     ComputedValuesFFI::FfiLonghandCallbacks const callbacks {
-        .context = &loop_context,
-        .store_computed_batch = [](void* context, ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count) {
-            auto& loop_context = *static_cast<LonghandLoopContext*>(context);
-            loop_context.store_computed_batch_callback(entries, count); },
-        .store_effective_color_scheme = [](void* context, u8 color_scheme) {
-            auto& loop_context = *static_cast<LonghandLoopContext*>(context);
-            loop_context.builder.set_effective_color_scheme(static_cast<PreferredColorScheme>(color_scheme)); },
-        .prepare_post_compute_adjustments = [](void* context, ComputedValuesFFI::FfiDisplay const* display_before, u16 float_before, u16 overflow_x_before, u16 overflow_y_before, u16 text_align_before, u16 position_before, bool check_input_line_height) -> ComputedValuesFFI::FfiInputLineHeightMetrics {
-            auto& loop_context = *static_cast<LonghandLoopContext*>(context);
-            loop_context.display_before_adjustments = *display_before;
-            loop_context.float_before_adjustments = static_cast<Keyword>(float_before);
-            loop_context.overflow_x_before_adjustments = static_cast<Keyword>(overflow_x_before);
-            loop_context.overflow_y_before_adjustments = static_cast<Keyword>(overflow_y_before);
-            loop_context.text_align_before_adjustments = static_cast<Keyword>(text_align_before);
-            loop_context.position_before_adjustments = static_cast<Keyword>(position_before);
-            loop_context.line_height_before_adjustments = loop_context.builder.style().property(PropertyID::LineHeight);
-            loop_context.builder.set_display_before_box_type_transformation(from_ffi_display(*display_before));
-            return input_line_height_metrics(loop_context.builder, loop_context.abstract_element, check_input_line_height); },
-        .fetch_non_inherited_parent_value = [](void* context, u16 inherited_property_id) -> void const* {
-            auto& loop_context = *static_cast<LonghandLoopContext*>(context);
-            auto value = get_non_animated_inherit_value(static_cast<PropertyID>(inherited_property_id), loop_context.abstract_element);
-            auto* data = value->rust_style_value_data();
-            loop_context.pinned_parent_values.append(move(value));
-            return data;
-        },
-        .computational_independence_fallback = [](void const* data) -> bool {
-            auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                static_cast<StyleValueFFI::StyleValueData const*>(data)));
-            return value->decide_computational_independence_fallback(); },
-        .writing_mode_and_direction = [](void* context) -> u16 {
-            auto& loop_context = *static_cast<LonghandLoopContext*>(context);
-            auto mapping_context = loop_context.get_logical_alias_mapping_context_callback();
-            return static_cast<u16>(to_underlying(mapping_context.writing_mode)) | static_cast<u16>(to_underlying(mapping_context.direction)) << 8;
-        },
-        .length_resolution_context = [](void* context, u16 property_id, ComputedValuesFFI::FfiLengthResolutionContext* out) {
-            auto& loop_context = *static_cast<LonghandLoopContext*>(context);
-            *out = loop_context.fetch_length_resolution_context_callback(static_cast<PropertyID>(property_id)); },
+        .context = &execute_computation_batch,
+        .execute_computation_batch = [](void* context, ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count, i16 effective_color_scheme, u8 request_kind, ComputedValuesFFI::FfiLonghandBatchRequest const* request) { (*static_cast<decltype(execute_computation_batch)*>(context))(entries, count, effective_color_scheme, request_kind, request); },
     };
 
     constexpr size_t longhand_bitmap_words = (number_of_longhand_properties + 63) / 64;
@@ -3808,20 +3767,20 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     process_animation_definitions(computed_style, cascaded_properties, abstract_element);
 
     auto restore_values_before_post_compute_adjustments = [&] {
-        VERIFY(loop_context.display_before_adjustments.has_value());
-        VERIFY(loop_context.float_before_adjustments.has_value());
-        VERIFY(loop_context.overflow_x_before_adjustments.has_value());
-        VERIFY(loop_context.overflow_y_before_adjustments.has_value());
-        VERIFY(loop_context.text_align_before_adjustments.has_value());
-        VERIFY(loop_context.position_before_adjustments.has_value());
-        VERIFY(loop_context.line_height_before_adjustments);
-        builder.set_property_without_modifying_flags(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(*loop_context.display_before_adjustments)));
-        builder.set_property_without_modifying_flags(PropertyID::Float, KeywordStyleValue::create(*loop_context.float_before_adjustments));
-        builder.set_property_without_modifying_flags(PropertyID::OverflowX, KeywordStyleValue::create(*loop_context.overflow_x_before_adjustments));
-        builder.set_property_without_modifying_flags(PropertyID::OverflowY, KeywordStyleValue::create(*loop_context.overflow_y_before_adjustments));
-        builder.set_property_without_modifying_flags(PropertyID::TextAlign, KeywordStyleValue::create(*loop_context.text_align_before_adjustments));
-        builder.set_property_without_modifying_flags(PropertyID::Position, KeywordStyleValue::create(*loop_context.position_before_adjustments));
-        builder.set_property_without_modifying_flags(PropertyID::LineHeight, *loop_context.line_height_before_adjustments);
+        VERIFY(display_before_adjustments.has_value());
+        VERIFY(float_before_adjustments.has_value());
+        VERIFY(overflow_x_before_adjustments.has_value());
+        VERIFY(overflow_y_before_adjustments.has_value());
+        VERIFY(text_align_before_adjustments.has_value());
+        VERIFY(position_before_adjustments.has_value());
+        VERIFY(line_height_before_adjustments);
+        builder.set_property_without_modifying_flags(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(*display_before_adjustments)));
+        builder.set_property_without_modifying_flags(PropertyID::Float, KeywordStyleValue::create(*float_before_adjustments));
+        builder.set_property_without_modifying_flags(PropertyID::OverflowX, KeywordStyleValue::create(*overflow_x_before_adjustments));
+        builder.set_property_without_modifying_flags(PropertyID::OverflowY, KeywordStyleValue::create(*overflow_y_before_adjustments));
+        builder.set_property_without_modifying_flags(PropertyID::TextAlign, KeywordStyleValue::create(*text_align_before_adjustments));
+        builder.set_property_without_modifying_flags(PropertyID::Position, KeywordStyleValue::create(*position_before_adjustments));
+        builder.set_property_without_modifying_flags(PropertyID::LineHeight, *line_height_before_adjustments);
     };
     if (animation_values_applied)
         restore_values_before_post_compute_adjustments();
@@ -3856,8 +3815,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         }
     }
     if (parent_text_align_input_is_animated && !animation_values_applied) {
-        VERIFY(loop_context.text_align_before_adjustments.has_value());
-        builder.set_property_without_modifying_flags(PropertyID::TextAlign, KeywordStyleValue::create(*loop_context.text_align_before_adjustments));
+        VERIFY(text_align_before_adjustments.has_value());
+        builder.set_property_without_modifying_flags(PropertyID::TextAlign, KeywordStyleValue::create(*text_align_before_adjustments));
     }
 
     // Run automatic box type transformations again after animations have been applied.
@@ -4562,34 +4521,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_feature_tag_value_li
     if (absolutized_value->is_keyword())
         return absolutized_value;
 
-    // The deduplication and sorting live in the Rust style computation core; it works over the
-    // entry indices and calls back for the interned-fly-string tag comparisons.
-    auto values = absolutized_value->as_value_list().values();
-    struct TagContext {
-        StyleValueVector const& values;
-    } context { values };
-
-    Vector<u32> order;
-    order.resize(values.size());
-    auto count = ComputedValuesFFI::rust_font_feature_settings_computed_order(
-        values.size(),
-        &context,
-        [](void* context, size_t i, size_t j) -> bool {
-            auto const& values = static_cast<TagContext*>(context)->values;
-            return values[i]->as_open_type_tagged().tag() == values[j]->as_open_type_tagged().tag();
-        },
-        [](void* context, size_t i, size_t j) -> bool {
-            auto const& values = static_cast<TagContext*>(context)->values;
-            return values[i]->as_open_type_tagged().tag().operator<=>(values[j]->as_open_type_tagged().tag()) < 0;
-        },
-        order.data());
-
-    StyleValueVector axis_tags;
-    axis_tags.ensure_capacity(count);
-    for (size_t i = 0; i < count; ++i)
-        axis_tags.unchecked_append(values[order[i]]);
-
-    return StyleValueList::create(move(axis_tags), StyleValueList::Separator::Comma);
+    return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(
+        ComputedValuesFFI::rust_compute_font_feature_settings(absolutized_value->rust_style_value_data())));
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(NonnullRefPtr<StyleValue const> const& absolutized_value, double device_pixels_per_css_pixel)

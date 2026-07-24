@@ -598,12 +598,23 @@ pub struct RetainedLinearEasingStopList {
 
 retained_list!(RetainedLinearEasingStopList, RetainedLinearEasingStop);
 
+/// The kind of one grid track list entry.
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+// The C++ constructor supplies every variant through the FFI input.
+#[allow(dead_code)]
+pub enum GridTrackEntryKind {
+    LineNames,
+    Size,
+    MinMax,
+    Repeat,
+}
+
 /// Borrowed input description of one grid track list entry, used when creating a grid track
-/// size list. Kinds: 0 = line names, 1 = a single size, 2 = minmax, 3 = repeat with a nested
-/// entry list.
+/// size list.
 #[repr(C)]
 pub struct GridTrackEntryInput {
-    kind: u8,
+    kind: GridTrackEntryKind,
     names: *const usize,
     name_count: usize,
     size_value: *const StyleValueData,
@@ -627,7 +638,7 @@ pub struct RetainedGridTrackEntryList {
 /// A retained, Rust-owned grid track list entry (see [`GridTrackEntryInput`] for the kinds).
 #[repr(C)]
 pub struct RetainedGridTrackEntry {
-    pub(crate) kind: u8,
+    pub(crate) kind: GridTrackEntryKind,
     pub(crate) names: RetainedUtf16FlyStringList,
     pub(crate) size_value: RetainedStyleValueData,
     pub(crate) min_value: RetainedStyleValueData,
@@ -724,6 +735,15 @@ impl RetainedGridTrackEntryList {
         let length = slice.len();
         let pointer = Box::into_raw(slice) as *mut RetainedGridTrackEntry;
         Self { pointer, length }
+    }
+}
+
+impl RetainedGridTrackEntry {
+    pub(crate) fn repeat_entries(&self) -> &[RetainedGridTrackEntry] {
+        if self.repeat_entries_pointer.is_null() {
+            return &[];
+        }
+        unsafe { std::slice::from_raw_parts(self.repeat_entries_pointer, self.repeat_entries_length) }
     }
 }
 
@@ -966,6 +986,7 @@ pub enum StyleValueData {
     OpenTypeTagged {
         mode: u8,
         tag: RetainedUtf16FlyString,
+        packed_tag: u32,
         value: RetainedStyleValueData,
     },
     /// font-style: a keyword (the C++ `enum class FontStyleKeyword : u8`, opaque to Rust) and
@@ -1651,12 +1672,14 @@ pub unsafe extern "C" fn rust_style_value_create_function(
 pub unsafe extern "C" fn rust_style_value_create_open_type_tagged(
     mode: u8,
     tag: usize,
+    packed_tag: u32,
     value: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::OpenTypeTagged {
             mode,
             tag: RetainedUtf16FlyString { raw: tag },
+            packed_tag,
             value: unsafe { RetainedStyleValueData::from_retained_pointer(value) },
         }))
     })

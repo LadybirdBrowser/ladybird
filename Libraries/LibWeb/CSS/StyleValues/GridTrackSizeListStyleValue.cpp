@@ -25,7 +25,7 @@ static Vector<StyleValueFFI::GridTrackEntryInput> const& build_grid_track_entry_
         StyleValueFFI::GridTrackEntryInput input {};
         entry.visit(
             [&](GridLineNames const& line_names) {
-                input.kind = 0;
+                input.kind = StyleValueFFI::GridTrackEntryKind::LineNames;
                 Vector<size_t> raws;
                 raws.ensure_capacity(line_names.names().size());
                 for (auto const& name : line_names.names())
@@ -36,15 +36,15 @@ static Vector<StyleValueFFI::GridTrackEntryInput> const& build_grid_track_entry_
             },
             [&](ExplicitGridTrack const& track) {
                 if (track.is_default()) {
-                    input.kind = 1;
+                    input.kind = StyleValueFFI::GridTrackEntryKind::Size;
                     input.size_value = StyleValueFFI::rust_style_value_retain(track.grid_size().style_value()->rust_style_value_data());
                 } else if (track.is_minmax()) {
-                    input.kind = 2;
+                    input.kind = StyleValueFFI::GridTrackEntryKind::MinMax;
                     input.min_value = StyleValueFFI::rust_style_value_retain(track.minmax().min_grid_size().style_value()->rust_style_value_data());
                     input.max_value = StyleValueFFI::rust_style_value_retain(track.minmax().max_grid_size().style_value()->rust_style_value_data());
                 } else {
                     auto const& repeat = track.repeat();
-                    input.kind = 3;
+                    input.kind = StyleValueFFI::GridTrackEntryKind::Repeat;
                     input.repeat_type = static_cast<u8>(to_underlying(repeat.type()));
                     input.repeat_count = repeat.repeat_count_style_value() ? StyleValueFFI::rust_style_value_retain(repeat.repeat_count_style_value()->rust_style_value_data()) : nullptr;
                     input.repeat_is_subgrid = repeat.grid_track_size_list().is_subgrid();
@@ -83,20 +83,20 @@ static GridTrackSizeList materialize_grid_track_size_list(bool is_subgrid, bool 
     for (size_t i = 0; i < entry_count; ++i) {
         auto const& entry = entries[i];
         switch (entry.kind) {
-        case 0: {
+        case StyleValueFFI::GridTrackEntryKind::LineNames: {
             GridLineNames names;
             for (size_t j = 0; j < entry.names.length; ++j)
                 names.append(Utf16FlyString::from_raw(entry.names.pointer[j].raw));
             list.append(move(names));
             break;
         }
-        case 1:
+        case StyleValueFFI::GridTrackEntryKind::Size:
             list.append(ExplicitGridTrack { GridSize { *materialize_style_value(entry.size_value.pointer) } });
             break;
-        case 2:
+        case StyleValueFFI::GridTrackEntryKind::MinMax:
             list.append(ExplicitGridTrack { GridMinMax { GridSize { *materialize_style_value(entry.min_value.pointer) }, GridSize { *materialize_style_value(entry.max_value.pointer) } } });
             break;
-        default: {
+        case StyleValueFFI::GridTrackEntryKind::Repeat: {
             auto nested = materialize_grid_track_size_list(entry.repeat_is_subgrid, entry.repeat_preserve_line_name_sets, entry.repeat_entries_pointer, entry.repeat_entries_length);
             list.append(ExplicitGridTrack { GridRepeat { static_cast<GridRepeatType>(entry.repeat_type), move(nested), materialize_style_value(entry.repeat_count.pointer) } });
             break;

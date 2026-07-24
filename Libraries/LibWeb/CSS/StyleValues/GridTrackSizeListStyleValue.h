@@ -33,8 +33,6 @@ public:
 
     bool properties_equal(GridTrackSizeListStyleValue const& other) const { return grid_track_size_list() == other.grid_track_size_list(); }
 
-    bool is_computationally_independent() const { return grid_track_size_list().is_computationally_independent(); }
-
 private:
     friend class StyleValue;
 
