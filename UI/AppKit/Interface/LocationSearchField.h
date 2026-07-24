@@ -19,5 +19,6 @@
 - (void)setZoomAction:(WebView::Action&)action;
 
 @property (nonatomic, copy) void (^willBeginEditing)(void);
+@property (nonatomic, copy) void (^pasteAndGoHandler)(NSString*);
 
 @end
