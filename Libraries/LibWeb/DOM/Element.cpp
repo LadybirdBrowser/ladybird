@@ -93,6 +93,7 @@
 #include <LibWeb/HTML/HTMLFrameSetElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLMenuElement.h>
@@ -142,6 +143,7 @@
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
+#include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -579,6 +581,71 @@ void Element::download_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTM
     };
     auto& relevant_realm = document().relevant_settings_object().realm();
     controller_holder->set_controller(Fetch::Fetching::fetch(relevant_realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input))));
+}
+
+// https://html.spec.whatwg.org/multipage/links.html#links-created-by-a-and-area-elements
+void Element::activate_the_hyperlink(Event const& event)
+{
+    // The activation behavior of an a or area element element given an event event is:
+
+    // 1. If element has no href attribute, then return.
+    // NB: SVG a elements may create a hyperlink using the deprecated xlink:href attribute.
+    if (!has_attribute(HTML::AttributeNames::href) && !(is_svg_a_element() && has_attribute_ns(Namespace::XLink, HTML::AttributeNames::href)))
+        return;
+
+    auto const* mouse_event = as_if<UIEvents::MouseEvent>(event);
+
+    // AD-HOC: Do not activate the element for clicks with the ctrl/cmd modifier present. This lets
+    //         the browser process open the link in a new tab.
+    if (mouse_event && mouse_event->platform_ctrl_key())
+        return;
+
+    // 2. Let hyperlinkSuffix be null.
+    Optional<Utf16String> hyperlink_suffix {};
+
+    // 3. If element is an a element, and event's target is an img with an ismap attribute specified:
+    auto const* image_target = event.target() ? as_if<HTML::HTMLImageElement>(*event.target()) : nullptr;
+    if (is_html_anchor_element() && image_target && image_target->has_attribute(HTML::AttributeNames::ismap)) {
+        // 1. Let x and y be 0.
+        CSSPixels x { 0 };
+        CSSPixels y { 0 };
+
+        // 2. If event's isTrusted attribute is initialized to true, then set x to the distance in CSS pixels from the left edge of the image
+        //    to the location of the click, and set y to the distance in CSS pixels from the top edge of the image to the location of the click.
+        if (event.is_trusted() && mouse_event) {
+            x = CSSPixels { mouse_event->offset_x() };
+            y = CSSPixels { mouse_event->offset_y() };
+        }
+
+        // 3. If x is negative, set x to 0.
+        x = max(x, 0);
+
+        // 4. If y is negative, set y to 0.
+        y = max(y, 0);
+
+        // 5. Set hyperlinkSuffix to the concatenation of U+003F (?), the value of x expressed as a base-ten integer using ASCII digits,
+        //    U+002C (,), and the value of y expressed as a base-ten integer using ASCII digits.
+        hyperlink_suffix = Utf16String::formatted("?{},{}", x.to_int(), y.to_int());
+    }
+
+    // 4. Let userInvolvement be event's user navigation involvement.
+    auto user_involvement = HTML::user_navigation_involvement(event);
+
+    // 5. If the user has expressed a preference to download the hyperlink, then set userInvolvement to "browser UI".
+    // NOTE: That is, if the user has expressed a specific preference for downloading, this no longer counts as merely "activation".
+    // NB: There is currently no way for the user to express a preference to download a hyperlink at activation
+    //     time.
+
+    // 6. If element has a download attribute, or if the user has expressed a preference to download the
+    //    hyperlink, then download the hyperlink created by element with hyperlinkSuffix set to hyperlinkSuffix and
+    //    userInvolvement set to userInvolvement.
+    if (has_attribute(HTML::AttributeNames::download)) {
+        download_the_hyperlink(hyperlink_suffix, user_involvement);
+        return;
+    }
+
+    // 7. Otherwise, follow the hyperlink created by element with hyperlinkSuffix set to hyperlinkSuffix and userInvolvement set to userInvolvement.
+    follow_the_hyperlink(hyperlink_suffix, user_involvement);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributenode
