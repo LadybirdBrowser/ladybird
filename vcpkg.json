@@ -345,7 +345,7 @@
     },
     {
       "name": "libxml2",
-      "version": "2.13.8#1"
+      "version": "2.15.3#0"
     },
     {
       "name": "mimalloc",

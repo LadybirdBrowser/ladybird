@@ -270,7 +270,7 @@
         {
           "type": "git",
           "url": "https://github.com/GNOME/libxml2.git",
-          "tag": "v2.13.8"
+          "tag": "v2.15.3"
         }
       ],
       "config-opts": [
