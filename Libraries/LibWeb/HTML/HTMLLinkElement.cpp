@@ -917,6 +917,12 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                 nullptr,
                 nullptr);
 
+            // NB: Removing the disabled attribute explicitly enables the style sheet, regardless of which style sheet
+            //     set is currently preferred. Creating the sheet may have disabled it based on its title, so restore
+            //     the state requested by the link element.
+            if (m_explicitly_enabled)
+                m_loaded_style_sheet->set_disabled(false);
+
             // 2. Fire an event named load at el.
             dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::load));
         }

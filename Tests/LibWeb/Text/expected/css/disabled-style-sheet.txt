@@ -1,0 +1,3 @@
+Before disabling style sheet: rgb(255, 255, 0)
+After disabling style sheet: rgba(0, 0, 0, 0)
+After explicitly enabling linked style sheet: rgb(0, 0, 255)

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style title="preferred">
+    body { background: yellow; }
+</style>
+<link id="linked-style-sheet" rel="stylesheet" title="linked" disabled href="data:text/css,body { background: blue; }">
+<script>
+    asyncTest(done => {
+        println(`Before disabling style sheet: ${getComputedStyle(document.body).backgroundColor}`);
+        document.styleSheets[0].disabled = true;
+        println(`After disabling style sheet: ${getComputedStyle(document.body).backgroundColor}`);
+
+        const link = document.querySelector("#linked-style-sheet");
+        link.onload = () => {
+            println(`After explicitly enabling linked style sheet: ${getComputedStyle(document.body).backgroundColor}`);
+            done();
+        };
+        link.disabled = false;
+    });
+</script>

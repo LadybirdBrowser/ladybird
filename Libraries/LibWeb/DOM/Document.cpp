@@ -7872,7 +7872,7 @@ void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&
 {
     if (m_style_sheets) {
         for (auto& style_sheet : m_style_sheets->sheets()) {
-            if (!(style_sheet->is_alternate() && style_sheet->disabled()))
+            if (!style_sheet->disabled())
                 callback(*style_sheet);
         }
     }
