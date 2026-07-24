@@ -9,7 +9,9 @@ use std::ffi::c_void;
 use super::instruction::dump_instruction_from_bytes;
 use super::instruction::instruction_is_terminator_from_opcode;
 use super::instruction::instruction_length_from_bytes;
+use super::instruction::instruction_name_from_opcode;
 use super::instruction::visit_labels_from_bytes;
+use super::native_disassembler::disassemble;
 use super::operand::Operand;
 use super::validator::read_u32;
 use crate::abort_on_panic;
@@ -37,6 +39,14 @@ pub struct FFIBytecodeDumpCallbacks {
 }
 
 #[repr(C)]
+pub struct FFIInterpreterHandlerRange {
+    pub hot_start: *const u8,
+    pub hot_end: *const u8,
+    pub cold_start: *const u8,
+    pub cold_end: *const u8,
+}
+
+#[repr(C)]
 pub struct FFIBytecodeDumpMetadata {
     pub number_of_registers: u32,
     pub registers_and_locals_count: u32,
@@ -44,6 +54,14 @@ pub struct FFIBytecodeDumpMetadata {
     pub argument_index_base: u32,
     pub constants: *const u64,
     pub constant_count: usize,
+    pub interpreter_handler_ranges: *const FFIInterpreterHandlerRange,
+    pub dump_interpreter: bool,
+}
+
+struct ColdCodeRange {
+    start: *const u8,
+    end: *const u8,
+    owners: Vec<&'static str>,
 }
 
 pub struct BytecodeDumper<'a> {
@@ -53,6 +71,74 @@ pub struct BytecodeDumper<'a> {
     constants: &'a [u64],
     basic_block_start_offsets: &'a [u32],
     first_piece: bool,
+}
+
+unsafe fn native_code_from_range<'a>(start: *const u8, end: *const u8) -> &'a [u8] {
+    let start_address = start as usize;
+    let end_address = end as usize;
+    assert!(end_address >= start_address, "native code range must be ordered");
+    if start_address == end_address {
+        return &[];
+    }
+    unsafe { std::slice::from_raw_parts(start, end_address - start_address) }
+}
+
+fn append_native_code(dumper: &mut BytecodeDumper<'_>, code: &[u8]) {
+    if code.is_empty() {
+        return;
+    }
+
+    let instructions = disassemble(code, code.as_ptr() as u64);
+    if instructions.is_empty() {
+        dumper.append("          <native disassembly unavailable>\n");
+        return;
+    }
+    for instruction in instructions {
+        let instruction_bytes = &code[instruction.offset..instruction.offset + instruction.length];
+        dumper.append("          ");
+        dumper.append(&format!("{:016x}  ", instruction.address));
+        for byte in instruction_bytes {
+            dumper.append(&format!("{byte:02x} "));
+        }
+        for _ in instruction_bytes.len()..15 {
+            dumper.append("   ");
+        }
+        dumper.append(" ");
+        dumper.append(&instruction.text);
+        dumper.append("\n");
+    }
+}
+
+fn record_cold_code_range(ranges: &mut Vec<ColdCodeRange>, start: *const u8, end: *const u8, owner: &'static str) {
+    if start == end {
+        return;
+    }
+    if let Some(range) = ranges.iter_mut().find(|range| range.start == start && range.end == end) {
+        if !range.owners.contains(&owner) {
+            range.owners.push(owner);
+        }
+        return;
+    }
+    ranges.push(ColdCodeRange {
+        start,
+        end,
+        owners: vec![owner],
+    });
+}
+
+fn append_cold_code_ranges(dumper: &mut BytecodeDumper<'_>, ranges: &[ColdCodeRange]) {
+    if ranges.is_empty() {
+        return;
+    }
+
+    dumper.append("\n\x1b[36;1mCold native paths\x1b[0m:\n");
+    for range in ranges {
+        dumper.append("\n  \x1b[36m");
+        dumper.append(&range.owners.join(", "));
+        dumper.append("\x1b[0m:\n");
+        let code = unsafe { native_code_from_range(range.start, range.end) };
+        append_native_code(dumper, code);
+    }
 }
 
 impl<'a> BytecodeDumper<'a> {
@@ -445,8 +531,10 @@ pub unsafe extern "C" fn rust_count_basic_blocks(
 /// `metadata` and `callbacks` must point to valid structs, and every callback
 /// must remain callable for the duration of this function. `metadata.constants`
 /// must point to `metadata.constant_count` encoded Values, or be null when the
-/// count is zero. `ctx` is passed through to callbacks and must remain valid
-/// for their requirements.
+/// count is zero. When `metadata.dump_interpreter` is true,
+/// `metadata.interpreter_handler_ranges` must point to 256 valid entries whose
+/// pointers delimit readable native code. `ctx` is passed through to callbacks
+/// and must remain valid for their requirements.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_dump_bytecode(
     bytecode_ptr: *const u8,
@@ -480,6 +568,7 @@ pub unsafe extern "C" fn rust_dump_bytecode(
         let basic_block_start_offsets = collect_basic_block_start_offsets(bytecode, exception_handlers);
         let mut dumper = BytecodeDumper::new(ctx, callbacks, metadata, constants, &basic_block_start_offsets);
         let mut basic_block_offset_index = 0;
+        let mut cold_code_ranges = Vec::new();
 
         let mut at = 0;
         while at < bytecode.len() {
@@ -501,10 +590,44 @@ pub unsafe extern "C" fn rust_dump_bytecode(
             dump_instruction_from_bytes(bytecode[at], bytecode, at, &mut dumper);
             dumper.append("\n");
 
+            if metadata.dump_interpreter {
+                assert!(!metadata.interpreter_handler_ranges.is_null());
+                let handler_range = &*metadata.interpreter_handler_ranges.add(bytecode[at] as usize);
+                let hot_code = native_code_from_range(handler_range.hot_start, handler_range.hot_end);
+                append_native_code(&mut dumper, hot_code);
+                record_cold_code_range(
+                    &mut cold_code_ranges,
+                    handler_range.cold_start,
+                    handler_range.cold_end,
+                    instruction_name_from_opcode(bytecode[at]),
+                );
+            }
+
             at += instruction_length_from_bytes(bytecode[at], bytecode, at)
                 .expect("validated bytecode should have valid instruction lengths");
         }
 
         dumper.append_exception_handlers(exception_handlers);
+        append_cold_code_ranges(&mut dumper, &cold_code_ranges);
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deduplicates_cold_ranges_and_combines_their_owners() {
+        let mut ranges = Vec::new();
+        let start = 0x1000usize as *const u8;
+        let end = 0x1010usize as *const u8;
+
+        record_cold_code_range(&mut ranges, start, end, "GetById");
+        record_cold_code_range(&mut ranges, start, end, "GetById");
+        record_cold_code_range(&mut ranges, start, end, "GetLength");
+        record_cold_code_range(&mut ranges, end, end, "Empty");
+
+        assert_eq!(ranges.len(), 1);
+        assert_eq!(ranges[0].owners, ["GetById", "GetLength"]);
+    }
 }

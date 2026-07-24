@@ -6,6 +6,7 @@
  */
 
 #include <AK/TemporaryChange.h>
+#include <LibCore/Environment.h>
 #include <LibJS/Bytecode/Debug.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Label.h>
@@ -33,6 +34,25 @@ extern "C" void js_interpreter(u8 const* bytecode, u32 entry_point, Value* value
 
 bool Bytecode::g_dump_bytecode = false;
 
+bool Bytecode::should_dump_interpreter_assembly()
+{
+    static bool const should_dump = [] {
+        auto value = Core::Environment::get("LADYBIRD_JS_INTERPRETER_DUMP"sv);
+        if (!value.has_value() || value == "0"sv)
+            return false;
+        if (value == "1"sv)
+            return true;
+        warnln("Ignoring LADYBIRD_JS_INTERPRETER_DUMP value '{}': expected 0 or 1", *value);
+        return false;
+    }();
+    return should_dump;
+}
+
+bool Bytecode::should_dump_bytecode()
+{
+    return g_dump_bytecode || should_dump_interpreter_assembly();
+}
+
 // 16.1.6 ScriptEvaluation ( scriptRecord ), https://tc39.es/ecma262/#sec-runtime-semantics-scriptevaluation
 ThrowCompletionOr<Value> VM::run(Script& script_record, GC::Ptr<Environment> lexical_environment_override)
 {
@@ -49,7 +69,7 @@ ThrowCompletionOr<Value> VM::run(Script& script_record, GC::Ptr<Environment> lex
 
     // 11. Let script be scriptRecord.[[ECMAScriptCode]].
     GC::Ptr<Executable> executable = script_record.cached_executable();
-    if (executable && g_dump_bytecode)
+    if (executable && should_dump_bytecode())
         executable->dump();
 
     u32 registers_and_locals_count = 0;

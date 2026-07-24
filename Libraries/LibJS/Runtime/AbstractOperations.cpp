@@ -760,7 +760,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
     // 30. Let result be Completion(EvalDeclarationInstantiation(body, varEnv, lexEnv, privateEnv, strictEval)).
     TRY(eval_declaration_instantiation(vm, eval_declaration_data, variable_environment, lexical_environment, private_environment, strict_eval));
 
-    if (Bytecode::g_dump_bytecode)
+    if (Bytecode::should_dump_bytecode())
         executable->dump();
 
     // 22. Let evalContext be a new ECMAScript code execution context.

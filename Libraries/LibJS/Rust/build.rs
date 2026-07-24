@@ -68,11 +68,25 @@ fn generate_rust_code(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn st
     generate_instruction_enum(&mut w, ops)?;
     generate_instruction_impl(&mut w, ops)?;
     generate_instruction_length_from_bytes(&mut w, ops)?;
+    generate_instruction_name_from_opcode(&mut w, ops)?;
     generate_instruction_dump_from_bytes(&mut w, ops)?;
     generate_visit_labels_from_bytes(&mut w, ops)?;
     generate_instruction_is_terminator_from_opcode(&mut w, ops)?;
     generate_validate_instruction(&mut w, ops)?;
 
+    Ok(())
+}
+
+fn generate_instruction_name_from_opcode(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
+    writeln!(w, "pub fn instruction_name_from_opcode(opcode: u8) -> &'static str {{")?;
+    writeln!(w, "    match opcode {{")?;
+    for (i, op) in ops.iter().enumerate() {
+        writeln!(w, "        {i} => \"{}\",", op.name)?;
+    }
+    writeln!(w, "        _ => unreachable!(\"unknown bytecode opcode\"),")?;
+    writeln!(w, "    }}")?;
+    writeln!(w, "}}")?;
+    writeln!(w)?;
     Ok(())
 }
 
