@@ -15,6 +15,7 @@ members = [
 ]
 exclude = [
     "Libraries/LibJS/AsmIntGen",
+    "Libraries/LibJS/Flap",
 ]
 resolver = "2"
 
