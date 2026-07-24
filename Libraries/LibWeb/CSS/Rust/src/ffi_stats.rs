@@ -71,7 +71,6 @@ define_ffi_ops! {
     LonghandParentValueFetchCallback => "longhandParentValueFetchCallbacks",
     LonghandIndependenceFallbackCallback => "longhandIndependenceFallbackCallbacks",
     LonghandWritingModeCallback => "longhandWritingModeCallbacks",
-    CalcSerializationCallback => "calcSerializationCallbacks",
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
     AnimationComputeBatchCallback => "animationComputeBatchCallbacks",
 }

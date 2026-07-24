@@ -123,58 +123,63 @@ CalculationContext CalculationContext::for_property(PropertyNameAndID const& pro
 // https://drafts.csswg.org/css-values-4/#funcdef-min
 void CalculatedStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    // The serialization structure lives in the Rust style computation core; every formatted
-    // byte still comes from the value serializers below. Trees containing random() keep the
-    // C++ path, like resolution does.
-    struct SerializationCallbackContext {
-        StringBuilder& builder;
-        SerializationMode mode;
-    } callback_context { builder, mode };
+    struct Serialization {
+        StyleValueFFI::FfiCalcSerialization pieces;
+        ~Serialization() { StyleValueFFI::rust_calc_serialization_release(pieces.storage); }
+    } serialization { StyleValueFFI::rust_calc_serialize(m_value.operator->(), mode == SerializationMode::ResolvedValue) };
 
-    StyleValueFFI::FfiCalcSerializationCallbacks const callbacks {
-        .context = &callback_context,
-        .append_literal = [](void* context, u8 const* bytes, size_t length) {
-            auto& callback_context = *static_cast<SerializationCallbackContext*>(context);
-            callback_context.builder.append(StringView { bytes, length }); },
-        .append_numeric_leaf = [](void* context, u8 kind, double value, u8 unit, bool) {
-            auto& callback_context = *static_cast<SerializationCallbackContext*>(context);
-            switch (kind) {
+    bool previous_piece_appended = false;
+    for (auto const& piece : ReadonlySpan<StyleValueFFI::FfiCalcSerializationPiece> { serialization.pieces.pieces, serialization.pieces.piece_count }) {
+        auto start_length = builder.length();
+        switch (piece.kind) {
+        case 0:
+            builder.append(StringView { piece.bytes, piece.length });
+            break;
+        case 1:
+            switch (piece.numeric_kind) {
             case 0:
-                Number { static_cast<Number::Type>(unit), value }.serialize(callback_context.builder, callback_context.mode);
-                return;
+                Number { static_cast<Number::Type>(piece.unit_or_channel), piece.value }.serialize(builder, mode);
+                break;
             case 1:
-                Angle { value, static_cast<AngleUnit>(unit) }.serialize(callback_context.builder, callback_context.mode);
-                return;
+                Angle { piece.value, static_cast<AngleUnit>(piece.unit_or_channel) }.serialize(builder, mode);
+                break;
             case 2:
-                Flex { value, static_cast<FlexUnit>(unit) }.serialize(callback_context.builder, callback_context.mode);
-                return;
+                Flex { piece.value, static_cast<FlexUnit>(piece.unit_or_channel) }.serialize(builder, mode);
+                break;
             case 3:
-                Frequency { value, static_cast<FrequencyUnit>(unit) }.serialize(callback_context.builder, callback_context.mode);
-                return;
+                Frequency { piece.value, static_cast<FrequencyUnit>(piece.unit_or_channel) }.serialize(builder, mode);
+                break;
             case 4:
-                Length { value, static_cast<LengthUnit>(unit) }.serialize(callback_context.builder, callback_context.mode);
-                return;
+                Length { piece.value, static_cast<LengthUnit>(piece.unit_or_channel) }.serialize(builder, mode);
+                break;
             case 5:
-                Percentage { value }.serialize(callback_context.builder, callback_context.mode);
-                return;
+                Percentage { piece.value }.serialize(builder, mode);
+                break;
             case 6:
-                Resolution { value, static_cast<ResolutionUnit>(unit) }.serialize(callback_context.builder, callback_context.mode);
-                return;
+                Resolution { piece.value, static_cast<ResolutionUnit>(piece.unit_or_channel) }.serialize(builder, mode);
+                break;
             case 7:
-                Time { value, static_cast<TimeUnit>(unit) }.serialize(callback_context.builder, callback_context.mode);
-                return;
+                Time { piece.value, static_cast<TimeUnit>(piece.unit_or_channel) }.serialize(builder, mode);
+                break;
+            default:
+                VERIFY_NOT_REACHED();
             }
-            VERIFY_NOT_REACHED(); },
-        .append_style_value = [](void* context, void const* data) -> bool {
-            auto& callback_context = *static_cast<SerializationCallbackContext*>(context);
-            auto start_length = callback_context.builder.length();
-            wrap_borrowed_style_value_data(data)->serialize(callback_context.builder, callback_context.mode);
-            return callback_context.builder.length() > start_length; },
-        .append_channel_name = [](void* context, u8 channel) {
-            auto& callback_context = *static_cast<SerializationCallbackContext*>(context);
-            callback_context.builder.append(CSS::to_string(static_cast<ChannelKeyword>(channel))); },
-    };
-    StyleValueFFI::rust_calc_serialize(m_value.operator->(), &callbacks, mode == SerializationMode::ResolvedValue);
+            break;
+        case 2:
+            wrap_borrowed_style_value_data(piece.style_value)->serialize(builder, mode);
+            break;
+        case 3:
+            builder.append(CSS::to_string(static_cast<ChannelKeyword>(piece.unit_or_channel)));
+            break;
+        case 4:
+            if (previous_piece_appended)
+                builder.append(StringView { piece.bytes, piece.length });
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+        previous_piece_appended = builder.length() > start_length;
+    }
 }
 
 // The RoundingStrategy discriminants cross the boundary as round()'s strategy code; pin them.
@@ -213,100 +218,90 @@ static Optional<NumericType> from_ffi_numeric_type(StyleValueFFI::FfiNumericType
     return result;
 }
 
-// The callback seams shared by resolution and absolutization: the C++ leaf
-// I/O the Rust calc core calls back into while simplifying a tree.
-struct CalcResolveCallbackContext {
-    CalculationContext const& calculation_context;
-    CalculationResolutionContext const& resolution_context;
-};
+struct CalcResolutionSnapshot {
+    CalcResolutionSnapshot(StyleValueFFI::CalcNode const* root, CalculationContext const& calculation_context, CalculationResolutionContext const& resolution_context)
+    {
+        if (resolution_context.length_resolution_context.has_value()) {
+            length_resolution_context = to_ffi_length_resolution_context(*resolution_context.length_resolution_context);
+            ffi_context.length_resolution_context = &length_resolution_context.value();
+        }
+        resolution_context.percentage_basis.visit(
+            [](Empty const&) {},
+            [&](Angle const& angle) {
+                ffi_context.basis_kind = 1;
+                ffi_context.basis_value = angle.raw_value();
+                ffi_context.basis_unit = to_underlying(angle.unit());
+            },
+            [&](Frequency const& frequency) {
+                ffi_context.basis_kind = 2;
+                ffi_context.basis_value = frequency.raw_value();
+                ffi_context.basis_unit = to_underlying(frequency.unit());
+            },
+            [&](Length const& length) {
+                ffi_context.basis_kind = 3;
+                ffi_context.basis_value = length.raw_value();
+                ffi_context.basis_unit = to_underlying(length.unit());
+            },
+            [&](Time const& time) {
+                ffi_context.basis_kind = 4;
+                ffi_context.basis_value = time.raw_value();
+                ffi_context.basis_unit = to_underlying(time.unit());
+            });
 
-static StyleValueFFI::FfiCalcResolutionContext make_calc_ffi_resolution_context(CalcResolveCallbackContext& callback_context, Optional<ComputedValuesFFI::FfiLengthResolutionContext>& length_context_storage)
-{
-    StyleValueFFI::FfiCalcResolutionContext ffi_context {
-        .basis_kind = 0,
-        .basis_value = 0,
-        .basis_unit = 0,
-        .length_resolution_context = nullptr,
-        .callback_context = &callback_context,
-        .resolve_non_math_function = [](void* context, void const* data) -> StyleValueFFI::CalcNode const* {
-            auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
-            auto function = wrap_borrowed_style_value_data(data);
-            auto resolved = static_cast<AbstractNonMathCalcFunctionStyleValue const&>(*function).resolve_to_calculation_node(callback_context.calculation_context, callback_context.resolution_context);
-            if (!resolved.has_value())
-                return nullptr;
-            return resolved->release();
-        },
-        .resolve_channel_keyword = [](void* context, u8 channel, double* out_value) -> bool {
-            auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
-            if (!callback_context.resolution_context.relative_color.has_value())
-                return false;
-            auto resolved = callback_context.resolution_context.relative_color->get(static_cast<ChannelKeyword>(channel));
-            if (!resolved.has_value())
-                return false;
-            *out_value = resolved.value();
-            return true;
-        },
-        .random_base_value = [](void* context, void const* data, double* out_value) -> bool {
-            auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
-            // NB: We don't want to resolve this before computation time even if it's possible.
-            auto const& resolution_context = callback_context.resolution_context;
-            if (!resolution_context.abstract_element.has_value() && !resolution_context.length_resolution_context.has_value() && resolution_context.percentage_basis.has<Empty>())
-                return false;
-            *out_value = wrap_borrowed_style_value_data(data)->as_random_value_sharing().random_base_value();
-            return true;
-        },
-        .absolutize_random_sharing = [](void* context, void const* data) -> void const* {
-            auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
-            auto const& resolution_context = callback_context.resolution_context;
-            // When we are in the absolutization process we should absolutize the sharing options.
-            if (!resolution_context.length_resolution_context.has_value())
-                return nullptr;
-            ComputationContext computation_context {
-                .length_resolution_context = resolution_context.length_resolution_context.value(),
-                .abstract_element = resolution_context.abstract_element
-            };
-            auto absolutized = wrap_borrowed_style_value_data(data)->as_random_value_sharing().absolutized(computation_context);
-            return StyleValueFFI::rust_style_value_retain(absolutized->rust_style_value_data());
-        },
-        .resolve_length = [](void* context, double value, u8 unit, double* out_px) -> bool {
-            auto& callback_context = *static_cast<CalcResolveCallbackContext*>(context);
-            auto const& resolution_context = callback_context.resolution_context;
-            if (!resolution_context.length_resolution_context.has_value())
-                return false;
-            *out_px = Length { value, static_cast<LengthUnit>(unit) }.to_px(*resolution_context.length_resolution_context).to_double();
-            return true;
-        },
-    };
-    auto const& resolution_context = callback_context.resolution_context;
-    if (resolution_context.length_resolution_context.has_value()) {
-        length_context_storage = to_ffi_length_resolution_context(*resolution_context.length_resolution_context);
-        ffi_context.length_resolution_context = &length_context_storage.value();
+        external_resolutions = StyleValueFFI::rust_calc_external_resolutions(root, ffi_context.basis_kind, ffi_context.basis_value, ffi_context.basis_unit);
+        ffi_context.external_resolutions = external_resolutions.resolutions;
+        ffi_context.external_resolution_count = external_resolutions.resolution_count;
+        for (auto& resolution : Span<StyleValueFFI::FfiCalcExternalResolution> { external_resolutions.resolutions, external_resolutions.resolution_count }) {
+            switch (resolution.kind) {
+            case StyleValueFFI::FfiCalcExternalResolutionKind::NonMathFunction: {
+                auto function = wrap_borrowed_style_value_data(resolution.source);
+                auto resolved = static_cast<AbstractNonMathCalcFunctionStyleValue const&>(*function).resolve_to_calculation_node(calculation_context, resolution_context);
+                if (resolved.has_value())
+                    resolution.resolved_node = resolved->release();
+                break;
+            }
+            case StyleValueFFI::FfiCalcExternalResolutionKind::Channel:
+                if (resolution_context.relative_color.has_value()) {
+                    if (auto value = resolution_context.relative_color->get(static_cast<ChannelKeyword>(resolution.unit_or_channel)); value.has_value()) {
+                        resolution.has_number = true;
+                        resolution.number = value.value();
+                    }
+                }
+                break;
+            case StyleValueFFI::FfiCalcExternalResolutionKind::RandomSharing: {
+                auto sharing = wrap_borrowed_style_value_data(resolution.source);
+                // When we are in the absolutization process we should absolutize the sharing options.
+                if (resolution_context.length_resolution_context.has_value()) {
+                    ComputationContext context { resolution_context.length_resolution_context.value(), resolution_context.abstract_element };
+                    auto absolutized = sharing->as_random_value_sharing().absolutized(context);
+                    resolution.resolved_style_value = StyleValueFFI::rust_style_value_retain(absolutized->rust_style_value_data());
+                    resolution.has_number = true;
+                    resolution.number = absolutized->as_random_value_sharing().random_base_value();
+                } else if (resolution_context.abstract_element.has_value() || !resolution_context.percentage_basis.has<Empty>()) {
+                    // NB: We don't want to resolve this before computation time even if it's possible.
+                    resolution.has_number = true;
+                    resolution.number = sharing->as_random_value_sharing().random_base_value();
+                }
+                break;
+            }
+            case StyleValueFFI::FfiCalcExternalResolutionKind::Length:
+                if (resolution_context.length_resolution_context.has_value()) {
+                    resolution.has_number = true;
+                    resolution.number = Length { resolution.input_value, static_cast<LengthUnit>(resolution.unit_or_channel) }.to_px(*resolution_context.length_resolution_context).to_double();
+                }
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        }
     }
-    resolution_context.percentage_basis.visit(
-        [](Empty const&) {},
-        [&](Angle const& angle) {
-            ffi_context.basis_kind = 1;
-            ffi_context.basis_value = angle.raw_value();
-            ffi_context.basis_unit = to_underlying(angle.unit());
-        },
-        [&](Frequency const& frequency) {
-            ffi_context.basis_kind = 2;
-            ffi_context.basis_value = frequency.raw_value();
-            ffi_context.basis_unit = to_underlying(frequency.unit());
-        },
-        [&](Length const& length) {
-            ffi_context.basis_kind = 3;
-            ffi_context.basis_value = length.raw_value();
-            ffi_context.basis_unit = to_underlying(length.unit());
-        },
-        [&](Time const& time) {
-            ffi_context.basis_kind = 4;
-            ffi_context.basis_value = time.raw_value();
-            ffi_context.basis_unit = to_underlying(time.unit());
-        });
 
-    return ffi_context;
-}
+    ~CalcResolutionSnapshot() { StyleValueFFI::rust_calc_external_resolutions_release(external_resolutions.storage); }
+
+    Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
+    StyleValueFFI::FfiCalcExternalResolutions external_resolutions {};
+    StyleValueFFI::FfiCalcResolutionContext ffi_context {};
+};
 
 ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(ComputationContext const& computation_context) const
 {
@@ -314,11 +309,9 @@ ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(
     auto calculation_context = this->calculation_context();
     auto resolution_context = CalculationResolutionContext::from_computation_context(computation_context);
 
-    CalcResolveCallbackContext callback_context { calculation_context, resolution_context };
-    Optional<ComputedValuesFFI::FfiLengthResolutionContext> ffi_length_resolution_context;
-    auto ffi_context = make_calc_ffi_resolution_context(callback_context, ffi_length_resolution_context);
+    CalcResolutionSnapshot resolution_snapshot { m_value->calculated.rust_calculation.node, calculation_context, resolution_context };
 
-    auto result = StyleValueFFI::rust_calc_absolutize(m_value.operator->(), &ffi_context);
+    auto result = StyleValueFFI::rust_calc_absolutize(m_value.operator->(), &resolution_snapshot.ffi_context);
     if (result.is_percentage)
         return PercentageStyleValue::create(Percentage { result.percentage_value });
 
@@ -346,11 +339,9 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
 Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationContext const& calculation_context, CalculationResolutionContext const& resolution_context, bool apply_censoring_and_clamping) const
 {
     // The resolution runs in the Rust style computation core.
-    CalcResolveCallbackContext callback_context { calculation_context, resolution_context };
-    Optional<ComputedValuesFFI::FfiLengthResolutionContext> ffi_length_resolution_context;
-    auto ffi_context = make_calc_ffi_resolution_context(callback_context, ffi_length_resolution_context);
+    CalcResolutionSnapshot resolution_snapshot { m_value->calculated.rust_calculation.node, calculation_context, resolution_context };
 
-    auto rust_result = StyleValueFFI::rust_calc_resolve(m_value.operator->(), &ffi_context, apply_censoring_and_clamping);
+    auto rust_result = StyleValueFFI::rust_calc_resolve(m_value.operator->(), &resolution_snapshot.ffi_context, apply_censoring_and_clamping);
     if (!rust_result.resolved)
         return {};
     return ResolvedValue { rust_result.value, from_ffi_numeric_type(rust_result.numeric_type) };
@@ -495,136 +486,111 @@ bool CalculatedStyleValue::is_fully_simplified() const
     return resolve_value({}).has_value();
 }
 
-// Reifies one node of the Rust calculation tree into its typed-om object.
-static GC::Ptr<CSSNumericValue> reify_rust_calc_node(JS::Realm& realm, void const* calculated_data, StyleValueFFI::CalcNode const* node)
-{
-    auto numeric_type_of = [&]() {
-        return from_ffi_numeric_type(StyleValueFFI::rust_calc_node_numeric_type(calculated_data, node)).value();
-    };
-    auto children_of = [&]() {
-        Vector<StyleValueFFI::CalcNode const*> children;
-        auto count = StyleValueFFI::rust_calc_node_children(node, nullptr, 0);
-        children.resize(count);
-        StyleValueFFI::rust_calc_node_children(node, children.data(), children.size());
-        return children;
-    };
-    auto reify_children_of = [&]() -> GC::Ptr<CSSNumericArray> {
-        GC::RootVector<GC::Ref<CSSNumericValue>> reified_children;
-        for (auto const* child : children_of()) {
-            auto reified_child = reify_rust_calc_node(realm, calculated_data, child);
-            if (!reified_child)
-                return nullptr;
-            reified_children.append(reified_child.as_nonnull());
-        }
-        return CSSNumericArray::create(realm, move(reified_children));
-    };
-
-    switch (StyleValueFFI::rust_calc_node_kind(node)) {
-    case 0: {
-        // A numeric leaf reifies as a unit value in its own unit.
-        u8 kind = 0;
-        double value = 0;
-        u8 unit = 0;
-        StyleValueFFI::rust_calc_node_numeric_leaf(node, &kind, &value, &unit);
-        switch (kind) {
-        case 0:
-            return CSSUnitValue::create(realm, value, "number"_utf16_fly_string);
-        case 1:
-            return CSSUnitValue::create(realm, value, Angle { value, static_cast<AngleUnit>(unit) }.unit_name());
-        case 2:
-            return CSSUnitValue::create(realm, value, Flex { value, static_cast<FlexUnit>(unit) }.unit_name());
-        case 3:
-            return CSSUnitValue::create(realm, value, Frequency { value, static_cast<FrequencyUnit>(unit) }.unit_name());
-        case 4:
-            return CSSUnitValue::create(realm, value, Length { value, static_cast<LengthUnit>(unit) }.unit_name());
-        case 5:
-            return CSSUnitValue::create(realm, value, "percent"_utf16_fly_string);
-        case 6:
-            return CSSUnitValue::create(realm, value, Resolution { value, static_cast<ResolutionUnit>(unit) }.unit_name());
-        case 7:
-            return CSSUnitValue::create(realm, value, Time { value, static_cast<TimeUnit>(unit) }.unit_name());
-        }
-        VERIFY_NOT_REACHED();
-    }
-    case 2: {
-        auto reified_children = reify_children_of();
-        if (!reified_children)
-            return nullptr;
-        return CSSMathSum::create(realm, numeric_type_of(), reified_children.as_nonnull());
-    }
-    case 3: {
-        auto reified_children = reify_children_of();
-        if (!reified_children)
-            return nullptr;
-        return CSSMathProduct::create(realm, numeric_type_of(), reified_children.as_nonnull());
-    }
-    case 4:
-    case 5: {
-        auto children = children_of();
-        VERIFY(children.size() == 1);
-        auto reified_child = reify_rust_calc_node(realm, calculated_data, children[0]);
-        if (!reified_child)
-            return nullptr;
-        if (StyleValueFFI::rust_calc_node_kind(node) == 4)
-            return CSSMathNegate::create(realm, numeric_type_of(), reified_child.as_nonnull());
-        return CSSMathInvert::create(realm, numeric_type_of(), reified_child.as_nonnull());
-    }
-    case 6: {
-        auto reified_children = reify_children_of();
-        if (!reified_children)
-            return nullptr;
-        return CSSMathMin::create(realm, numeric_type_of(), reified_children.as_nonnull());
-    }
-    case 7: {
-        auto reified_children = reify_children_of();
-        if (!reified_children)
-            return nullptr;
-        return CSSMathMax::create(realm, numeric_type_of(), reified_children.as_nonnull());
-    }
-    case 8: {
-        auto children = children_of();
-        VERIFY(children.size() == 3);
-        auto lower = reify_rust_calc_node(realm, calculated_data, children[0]);
-        auto value = reify_rust_calc_node(realm, calculated_data, children[1]);
-        auto upper = reify_rust_calc_node(realm, calculated_data, children[2]);
-        if (!lower || !value || !upper)
-            return nullptr;
-        return CSSMathClamp::create(realm, numeric_type_of(), lower.as_nonnull(), value.as_nonnull(), upper.as_nonnull());
-    }
-    default:
-        // Some math functions are not reifiable yet.
-        // https://github.com/w3c/css-houdini-drafts/issues/1090
-        return nullptr;
-    }
-}
-
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-math-expression
-static bool rust_calc_node_contains_anchor(StyleValueFFI::CalcNode const* node)
+static GC::Ptr<CSSNumericValue> reify_rust_calculation(JS::Realm& realm, void const* calculated_data)
 {
-    if (StyleValueFFI::rust_calc_node_kind(node) == 28
-        && wrap_borrowed_style_value_data(StyleValueFFI::rust_calc_node_style_value(node))->is_anchor())
-        return true;
-    Vector<StyleValueFFI::CalcNode const*> children;
-    auto count = StyleValueFFI::rust_calc_node_children(node, nullptr, 0);
-    children.resize(count);
-    StyleValueFFI::rust_calc_node_children(node, children.data(), children.size());
-    for (auto const* child : children) {
-        if (rust_calc_node_contains_anchor(child))
-            return true;
+    struct Reification {
+        StyleValueFFI::FfiCalcReification description;
+        ~Reification() { StyleValueFFI::rust_calc_reification_release(description.storage); }
+    } reification { StyleValueFFI::rust_calc_describe_for_typed_om(calculated_data) };
+    if (reification.description.node_count == 0)
+        return nullptr;
+
+    auto nodes = ReadonlySpan<StyleValueFFI::FfiCalcReificationNode> { reification.description.nodes, reification.description.node_count };
+    auto child_indices = ReadonlySpan<size_t> { reification.description.children, reification.description.child_count };
+    GC::RootVector<GC::Ref<CSSNumericValue>> reified_nodes;
+    reified_nodes.ensure_capacity(nodes.size());
+    for (auto const& node : nodes) {
+        auto numeric_type = from_ffi_numeric_type(node.numeric_type).release_value();
+        VERIFY(node.child_start + node.child_count <= child_indices.size());
+        auto children = child_indices.slice(node.child_start, node.child_count);
+        auto child = [&](size_t index) -> GC::Ref<CSSNumericValue> {
+            VERIFY(index < children.size());
+            VERIFY(children[index] < reified_nodes.size());
+            return reified_nodes[children[index]];
+        };
+        auto reify_children = [&]() {
+            GC::RootVector<GC::Ref<CSSNumericValue>> result;
+            result.ensure_capacity(children.size());
+            for (auto index : children) {
+                VERIFY(index < reified_nodes.size());
+                result.append(reified_nodes[index]);
+            }
+            return CSSNumericArray::create(realm, move(result));
+        };
+
+        switch (node.kind) {
+        case 0:
+            switch (node.numeric_kind) {
+            case 0:
+                reified_nodes.append(CSSUnitValue::create(realm, node.value, "number"_utf16_fly_string));
+                break;
+            case 1:
+                reified_nodes.append(CSSUnitValue::create(realm, node.value, Angle { node.value, static_cast<AngleUnit>(node.unit) }.unit_name()));
+                break;
+            case 2:
+                reified_nodes.append(CSSUnitValue::create(realm, node.value, Flex { node.value, static_cast<FlexUnit>(node.unit) }.unit_name()));
+                break;
+            case 3:
+                reified_nodes.append(CSSUnitValue::create(realm, node.value, Frequency { node.value, static_cast<FrequencyUnit>(node.unit) }.unit_name()));
+                break;
+            case 4:
+                reified_nodes.append(CSSUnitValue::create(realm, node.value, Length { node.value, static_cast<LengthUnit>(node.unit) }.unit_name()));
+                break;
+            case 5:
+                reified_nodes.append(CSSUnitValue::create(realm, node.value, "percent"_utf16_fly_string));
+                break;
+            case 6:
+                reified_nodes.append(CSSUnitValue::create(realm, node.value, Resolution { node.value, static_cast<ResolutionUnit>(node.unit) }.unit_name()));
+                break;
+            case 7:
+                reified_nodes.append(CSSUnitValue::create(realm, node.value, Time { node.value, static_cast<TimeUnit>(node.unit) }.unit_name()));
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+            break;
+        case 2:
+            reified_nodes.append(CSSMathSum::create(realm, move(numeric_type), reify_children()));
+            break;
+        case 3:
+            reified_nodes.append(CSSMathProduct::create(realm, move(numeric_type), reify_children()));
+            break;
+        case 4:
+            VERIFY(children.size() == 1);
+            reified_nodes.append(CSSMathNegate::create(realm, move(numeric_type), child(0)));
+            break;
+        case 5:
+            VERIFY(children.size() == 1);
+            reified_nodes.append(CSSMathInvert::create(realm, move(numeric_type), child(0)));
+            break;
+        case 6:
+            reified_nodes.append(CSSMathMin::create(realm, move(numeric_type), reify_children()));
+            break;
+        case 7:
+            reified_nodes.append(CSSMathMax::create(realm, move(numeric_type), reify_children()));
+            break;
+        case 8:
+            VERIFY(children.size() == 3);
+            reified_nodes.append(CSSMathClamp::create(realm, move(numeric_type), child(0), child(1), child(2)));
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
     }
-    return false;
+    return reified_nodes.last();
 }
 
 bool CalculatedStyleValue::contains_anchor_function() const
 {
-    return rust_calc_node_contains_anchor(rust_calculation_root());
+    return StyleValueFFI::rust_calc_contains_anchor(m_value.operator->());
 }
 
 GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
 {
-    // NB: This spec algorithm isn't really implementable here - it's incomplete, and assumes we don't already have a
-    //     calculation tree. So we have a per-node method instead, walking the Rust tree.
-    if (auto reified = reify_rust_calc_node(realm, m_value.operator->(), m_value->calculated.rust_calculation.node))
+    // NB: This spec algorithm is incomplete and assumes we do not already have a calculation tree.
+    //     Rust describes the existing tree in one batch instead.
+    if (auto reified = reify_rust_calculation(realm, m_value.operator->()))
         return *reified;
     // Some math functions are not reifiable yet. If we contain one, we have to fall back to CSSStyleValue.
     // https://github.com/w3c/css-houdini-drafts/issues/1090
@@ -793,9 +759,7 @@ Optional<NumericType> CalcNodeRef::determine_type(CalculationContext const& cont
 // https://drafts.csswg.org/css-values-4/#calc-simplification
 CalcNodeRef simplify_a_calculation_tree(CalcNodeRef const& root, CalculationContext const& context, CalculationResolutionContext const& resolution_context)
 {
-    CalcResolveCallbackContext callback_context { context, resolution_context };
-    Optional<ComputedValuesFFI::FfiLengthResolutionContext> ffi_length_resolution_context;
-    auto ffi_context = make_calc_ffi_resolution_context(callback_context, ffi_length_resolution_context);
+    CalcResolutionSnapshot resolution_snapshot { root.node(), context, resolution_context };
 
     auto resolve_as_base = context.percentages_resolve_as.has_value()
         ? NumericType::base_type_from_value_type(*context.percentages_resolve_as)
@@ -803,7 +767,7 @@ CalcNodeRef simplify_a_calculation_tree(CalcNodeRef const& root, CalculationCont
 
     return CalcNodeRef::adopt(StyleValueFFI::rust_calc_simplify_tree(
         root.node(),
-        &ffi_context,
+        &resolution_snapshot.ffi_context,
         context.percentages_resolve_as.has_value(),
         context.percentages_resolve_as == ValueType::Number,
         resolve_as_base.has_value() ? to_underlying(*resolve_as_base) : 0));
