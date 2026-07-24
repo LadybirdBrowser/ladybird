@@ -25,5 +25,6 @@ pub mod dump;
 pub mod ffi;
 pub mod generator;
 pub mod instruction;
+mod native_disassembler;
 pub mod operand;
 pub mod validator;

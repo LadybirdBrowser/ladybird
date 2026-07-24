@@ -151,7 +151,7 @@ void ECMAScriptFunctionObject::get_stack_frame_info(size_t& registers_and_locals
         m_shared_data->set_executable(rust_executable);
         executable = rust_executable;
         executable->name = name();
-        if (Bytecode::g_dump_bytecode)
+        if (Bytecode::should_dump_bytecode())
             executable->dump();
         m_shared_data->clear_compile_inputs();
     }

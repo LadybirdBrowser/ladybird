@@ -102,7 +102,7 @@ Bytecode::Executable& NativeJavaScriptBackedFunction::bytecode_executable()
         m_shared_function_instance_data->set_executable(rust_executable);
         executable = rust_executable;
         executable->name = m_shared_function_instance_data->m_name;
-        if (Bytecode::g_dump_bytecode)
+        if (Bytecode::should_dump_bytecode())
             executable->dump();
         m_shared_function_instance_data->clear_compile_inputs();
     }

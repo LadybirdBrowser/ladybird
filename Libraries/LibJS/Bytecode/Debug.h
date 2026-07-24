@@ -11,5 +11,7 @@
 namespace JS::Bytecode {
 
 JS_API extern bool g_dump_bytecode;
+JS_API bool should_dump_interpreter_assembly();
+JS_API bool should_dump_bytecode();
 
 }
