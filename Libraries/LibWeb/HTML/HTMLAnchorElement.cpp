@@ -44,7 +44,7 @@ void HTMLAnchorElement::attribute_changed(Utf16FlyString const& name, Optional<U
 
 bool HTMLAnchorElement::has_activation_behavior() const
 {
-    return true;
+    return creates_a_hyperlink();
 }
 
 void HTMLAnchorElement::activation_behavior(Web::DOM::Event const& event)
