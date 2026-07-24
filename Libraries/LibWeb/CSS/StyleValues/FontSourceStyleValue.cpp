@@ -17,7 +17,9 @@ StyleValueFFI::StyleValueData const* FontSourceStyleValue::make_font_source_data
     // leaked reference to each retained string.
     bool is_local = source.has<Local>();
     StyleValueFFI::StyleValueData const* local_name = nullptr;
+    String retained_url_string;
     FlatPtr url_string = 0;
+    ReadonlyBytes url_bytes;
     u8 url_type = 0;
     Vector<StyleValueFFI::RetainedRequestUrlModifier> modifiers;
     if (is_local) {
@@ -25,13 +27,15 @@ StyleValueFFI::StyleValueData const* FontSourceStyleValue::make_font_source_data
         local_name = StyleValueFFI::rust_style_value_retain(local.name->rust_style_value_data());
     } else {
         auto const& url = source.get<URL>();
-        url_string = url.url().to_raw_leaked();
+        retained_url_string = url.url();
+        url_bytes = retained_url_string.bytes();
+        url_string = retained_url_string.to_raw_leaked();
         url_type = to_underlying(url.type());
         modifiers = retain_url_modifiers_for_rust(url);
     }
     static_assert(sizeof(FontTech) == sizeof(u8));
     return StyleValueFFI::rust_style_value_create_font_source(
-        is_local, local_name, url_string, url_type, modifiers.data(), modifiers.size(),
+        is_local, local_name, url_string, url_bytes.data(), url_bytes.size(), url_type, modifiers.data(), modifiers.size(),
         format.has_value(), format.has_value() ? format->to_raw_leaked() : 0,
         reinterpret_cast<u8 const*>(tech.data()), tech.size());
 }

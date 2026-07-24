@@ -31,7 +31,9 @@ StyleValueFFI::StyleValueData const* ImageStyleValue::make_image_url_data(URL co
 {
     // The Rust allocation takes ownership of one leaked reference to each retained string.
     auto modifiers = retain_url_modifiers_for_rust(url);
-    return StyleValueFFI::rust_style_value_create_image(url.url().to_raw_leaked(), to_underlying(url.type()), modifiers.data(), modifiers.size());
+    auto url_string = url.url();
+    auto url_bytes = url_string.bytes();
+    return StyleValueFFI::rust_style_value_create_image(url_string.to_raw_leaked(), url_bytes.data(), url_bytes.size(), to_underlying(url.type()), modifiers.data(), modifiers.size());
 }
 
 URL ImageStyleValue::url_value() const

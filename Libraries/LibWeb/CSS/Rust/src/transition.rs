@@ -24,14 +24,14 @@ pub struct FfiTransitionPropertyInput {
     pub before_change_value: *const crate::style_value::StyleValueData,
     pub after_change_value: *const crate::style_value::StyleValueData,
     pub current_value: *const crate::style_value::StyleValueData,
+    pub existing_end_value: *const crate::style_value::StyleValueData,
+    pub reversing_adjusted_start_value: *const crate::style_value::StyleValueData,
     pub has_matching_transition: bool,
     pub allow_discrete: bool,
-    pub before_change_value_differs: bool,
+    pub before_change_value_originates_from_current_color: bool,
+    pub after_change_value_originates_from_current_color: bool,
     pub has_running_transition: bool,
     pub has_completed_transition: bool,
-    pub existing_end_value_differs: bool,
-    pub current_value_equals_after: bool,
-    pub reversing_start_value_equals_after: bool,
     pub delay: f64,
     pub duration: f64,
     pub old_timing_function_output: f64,
@@ -100,11 +100,32 @@ fn decide_transition(
     context: &crate::animation::FfiAnimationContext,
     input: &FfiTransitionPropertyInput,
 ) -> FfiTransitionAction {
+    let values_equal = |first: *const crate::style_value::StyleValueData,
+                        second: *const crate::style_value::StyleValueData| {
+        assert!(!first.is_null());
+        assert!(!second.is_null());
+        let (first, second) = unsafe { (&*first, &*second) };
+        std::ptr::eq(first, second) || first == second
+    };
+    let before_change_value_differs = input.has_matching_transition
+        && !(input.before_change_value_originates_from_current_color
+            && input.after_change_value_originates_from_current_color)
+        && !values_equal(input.before_change_value, input.after_change_value);
+    let existing_end_value_differs = input.has_matching_transition
+        && (input.has_running_transition || input.has_completed_transition)
+        && !values_equal(input.existing_end_value, input.after_change_value);
+    let current_value_equals_after = input.has_matching_transition
+        && input.has_running_transition
+        && values_equal(input.current_value, input.after_change_value);
+    let reversing_start_value_equals_after = input.has_matching_transition
+        && input.has_running_transition
+        && values_equal(input.reversing_adjusted_start_value, input.after_change_value);
+
     // https://drafts.csswg.org/css-transitions/#transition-combined-duration
     // Define the combined duration of the transition as the sum of max(matching transition duration, 0s) and the matching transition delay.
     let combined_duration = input.duration.max(0.0) + input.delay;
     let before_after_transitionable = input.has_matching_transition
-        && input.before_change_value_differs
+        && before_change_value_differs
         && property_values_are_transitionable(
             context,
             input.property_id,
@@ -112,9 +133,9 @@ fn decide_transition(
             input.after_change_value,
             input.allow_discrete,
         );
-    let current_after_transitionable = input.current_value_equals_after
+    let current_after_transitionable = current_value_equals_after
         || input.has_running_transition
-            && input.existing_end_value_differs
+            && existing_end_value_differs
             && property_values_are_transitionable(
                 context,
                 input.property_id,
@@ -142,9 +163,9 @@ fn decide_transition(
     // - the combined duration is greater than 0s,
     if !input.has_running_transition
         && input.has_matching_transition
-        && input.before_change_value_differs
+        && before_change_value_differs
         && before_after_transitionable
-        && (!input.has_completed_transition || input.existing_end_value_differs)
+        && (!input.has_completed_transition || existing_end_value_differs)
         && combined_duration > 0.0
     {
         // then implementations must remove the completed transition (if present) from the set of completed transitions
@@ -165,7 +186,7 @@ fn decide_transition(
 
     // 2. Otherwise, if the element has a completed transition for the property and the end value of the completed transition is different from the
     //    after-change style for the property, then implementations must remove the completed transition from the set of completed transitions.
-    if input.has_completed_transition && input.existing_end_value_differs {
+    if input.has_completed_transition && existing_end_value_differs {
         action.kind = FfiTransitionActionKind::Remove;
         return action;
     }
@@ -185,10 +206,10 @@ fn decide_transition(
 
     // 4. If the element has a running transition for the property, there is a matching transition-property value, and the end value of the running
     //    transition is not equal to the value of the property in the after-change style, then:
-    if input.has_running_transition && input.existing_end_value_differs {
+    if input.has_running_transition && existing_end_value_differs {
         // 1. If the current value of the property in the running transition is equal to the value of the property in the after-change style, or if
         //    these two values are not transitionable, then implementations must cancel the running transition.
-        if input.current_value_equals_after || !current_after_transitionable {
+        if current_value_equals_after || !current_after_transitionable {
             action.kind = FfiTransitionActionKind::Cancel;
             return action;
         }
@@ -202,7 +223,7 @@ fn decide_transition(
 
         // 3. Otherwise, if the reversing-adjusted start value of the running transition is the same as the value of the property in the after-change style
         //    (see the section on reversing of transitions for why these case exists),
-        if input.reversing_start_value_equals_after {
+        if reversing_start_value_equals_after {
             // implementations must cancel the running transition and start a new transition whose:
             // - reversing-adjusted start value is the end value of the running transition,
             // - reversing shortening factor is the absolute value, clamped to the range [0, 1], of the sum of:
@@ -318,14 +339,14 @@ mod tests {
             before_change_value,
             after_change_value,
             current_value,
+            existing_end_value: std::ptr::null(),
+            reversing_adjusted_start_value: std::ptr::null(),
             has_matching_transition: true,
             allow_discrete: false,
-            before_change_value_differs: true,
+            before_change_value_originates_from_current_color: false,
+            after_change_value_originates_from_current_color: false,
             has_running_transition: false,
             has_completed_transition: false,
-            existing_end_value_differs: true,
-            current_value_equals_after: false,
-            reversing_start_value_equals_after: false,
             delay: 0.0,
             duration: 100.0,
             old_timing_function_output: 0.0,
@@ -344,11 +365,43 @@ mod tests {
     }
 
     #[test]
+    fn equal_nested_values_do_not_start_a_transition() {
+        let nested_value = || {
+            let number = std::sync::Arc::into_raw(std::sync::Arc::new(crate::style_value::StyleValueData::Number {
+                value: 0.5,
+            }));
+            crate::style_value::StyleValueData::OpacityValue {
+                value: unsafe { crate::style_value::RetainedStyleValueData::from_retained_pointer(number) },
+            }
+        };
+        let before = nested_value();
+        let after = nested_value();
+        assert_eq!(
+            decide_transition(&animation_context(), &input(&before, &after, &before)).kind,
+            FfiTransitionActionKind::None
+        );
+    }
+
+    #[test]
+    fn current_color_origins_are_equivalent() {
+        let before = crate::style_value::StyleValueData::Number { value: 0.0 };
+        let after = crate::style_value::StyleValueData::Number { value: 1.0 };
+        let mut input = input(&before, &after, &before);
+        input.before_change_value_originates_from_current_color = true;
+        input.after_change_value_originates_from_current_color = true;
+        assert_eq!(
+            decide_transition(&animation_context(), &input).kind,
+            FfiTransitionActionKind::None
+        );
+    }
+
+    #[test]
     fn removes_a_completed_transition_before_replacement() {
         let before = crate::style_value::StyleValueData::Number { value: 0.0 };
         let after = crate::style_value::StyleValueData::Number { value: 1.0 };
         let mut input = input(&before, &after, &before);
         input.has_completed_transition = true;
+        input.existing_end_value = &raw const before;
         assert_eq!(
             decide_transition(&animation_context(), &input).kind,
             FfiTransitionActionKind::RemoveAndStart
@@ -362,7 +415,8 @@ mod tests {
         let current = crate::style_value::StyleValueData::Number { value: 0.5 };
         let mut input = input(&before, &after, &current);
         input.has_running_transition = true;
-        input.reversing_start_value_equals_after = true;
+        input.existing_end_value = &raw const before;
+        input.reversing_adjusted_start_value = &raw const after;
         input.delay = -20.0;
         input.old_timing_function_output = 0.25;
         input.old_reversing_shortening_factor = 0.5;

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes conflicts {
+        from, to {
+            border: 1px solid red;
+            border-top: 2px solid green;
+            border-top-color: blue;
+            margin-inline-start: 10px;
+            margin-left: 20px;
+        }
+    }
+
+    #target {
+        animation: conflicts 2s linear paused;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const animation = document.getAnimations()[0];
+        animation.currentTime = 1000;
+        const style = getComputedStyle(document.getElementById("target"));
+        println(`border-top: ${style.borderTopWidth} ${style.borderTopStyle} ${style.borderTopColor}`);
+        println(`margin-left: ${style.marginLeft}`);
+    });
+</script>

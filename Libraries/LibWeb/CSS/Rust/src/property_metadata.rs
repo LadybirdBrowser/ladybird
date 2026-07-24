@@ -127,6 +127,54 @@ pub fn longhands_for_shorthand(property_id: u16) -> &'static [u16] {
     SHORTHAND_EXPANSIONS[(property_id - FIRST_SHORTHAND_PROPERTY_ID) as usize]
 }
 
+fn property_index(property_id: u16) -> usize {
+    debug_assert!((FIRST_SHORTHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property_id));
+    (property_id - FIRST_SHORTHAND_PROPERTY_ID) as usize
+}
+
+fn property_is_logical_alias_including_shorthands(property_id: u16) -> bool {
+    PROPERTY_IS_LOGICAL_ALIAS[property_index(property_id)]
+}
+
+/// Returns whether `a` wins a keyframe declaration conflict with `b`.
+pub(crate) fn animation_property_is_preferred(a: u16, b: u16) -> bool {
+    // https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes
+    // If conflicts arise when expanding shorthand properties or replacing logical properties with physical properties, apply the following rules in order until the conflict is resolved:
+
+    // 1. Longhand properties override shorthand properties (e.g. border-top-color overrides border-top).
+    if property_is_shorthand(a) != property_is_shorthand(b) {
+        return !property_is_shorthand(a);
+    }
+
+    // 2. Shorthand properties with fewer longhand components override those with more longhand components (e.g. border-top overrides border-color).
+    if property_is_shorthand(a) {
+        let a_length = SHORTHAND_EXPANDED_LONGHAND_COUNTS[(a - FIRST_SHORTHAND_PROPERTY_ID) as usize];
+        let b_length = SHORTHAND_EXPANDED_LONGHAND_COUNTS[(b - FIRST_SHORTHAND_PROPERTY_ID) as usize];
+        if a_length != b_length {
+            return a_length < b_length;
+        }
+    }
+
+    let a_is_logical_alias = property_is_logical_alias_including_shorthands(a);
+    let b_is_logical_alias = property_is_logical_alias_including_shorthands(b);
+
+    // 3. Physical properties override logical properties.
+    if a_is_logical_alias != b_is_logical_alias {
+        return !a_is_logical_alias;
+    }
+
+    // 4. For shorthand properties with an equal number of longhand components, properties whose IDL name (see
+    //    the CSS property to IDL attribute algorithm [CSSOM]) appears earlier when sorted in ascending order
+    //    by the Unicode codepoints that make up each IDL name, override those who appear later.
+    PROPERTY_IDL_NAMES[property_index(a)] < PROPERTY_IDL_NAMES[property_index(b)]
+}
+
+/// FFI accessor for the metadata parity test on the C++ side.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_animation_property_is_preferred(a: u16, b: u16) -> bool {
+    animation_property_is_preferred(a, b)
+}
+
 /// FFI accessors for the parity test on the C++ side.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_property_metadata_is_shorthand(property_id: u16) -> bool {

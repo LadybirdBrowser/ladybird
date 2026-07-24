@@ -26,6 +26,8 @@ WEB_API u16 const* invoke_rust_property_metadata_longhands_for_shorthand(u16 pro
 WEB_API u8 invoke_rust_property_metadata_requires_computation_level(u16 property_id);
 WEB_API u8 invoke_rust_property_metadata_animation_type(u16 property_id);
 WEB_API ComputedValuesFFI::FfiPropertyNumericRange const* invoke_rust_property_metadata_numeric_ranges(u16 property_id, size_t* length);
+WEB_API bool invoke_rust_animation_property_is_preferred(u16 a, u16 b);
+WEB_API bool invoke_cpp_animation_property_is_preferred(u16 a, u16 b);
 WEB_API StyleValueFFI::StyleValueData const* invoke_rust_style_metadata_initial_value(u16 property_id);
 
 WEB_API ComputedValuesFFI::FfiAbsolutizedLength invoke_rust_absolutize_length(double value, u8 unit, ComputedValuesFFI::FfiLengthResolutionContext const* context);

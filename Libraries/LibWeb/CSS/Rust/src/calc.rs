@@ -362,7 +362,7 @@ impl CalcNumericValue {
 /// The FFI mirror of a numeric type, for the parity test on the C++ side.
 /// NB: The array dimension is the base type count, spelled literally so the
 ///     generated header does not depend on the crate-private constant.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 #[repr(C)]
 pub struct FfiNumericType {
     pub has_exponent: [bool; 7],
@@ -443,6 +443,7 @@ pub type CalcRoundingStrategy = u8;
 /// One node of a calculation tree. Child nodes are shared immutably.
 ///
 /// https://www.w3.org/TR/css-values-4/#calculation-tree
+#[derive(PartialEq)]
 pub enum CalcNode {
     /// A numeric leaf value.
     Numeric(CalcNumericValue),
@@ -790,6 +791,12 @@ impl CalcNodeHandle {
     pub(crate) fn node_arc(&self) -> Arc<CalcNode> {
         unsafe { Arc::increment_strong_count(self.node) };
         unsafe { Arc::from_raw(self.node) }
+    }
+}
+
+impl PartialEq for CalcNodeHandle {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.node, other.node) || self.node() == other.node()
     }
 }
 
