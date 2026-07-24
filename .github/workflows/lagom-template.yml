@@ -215,24 +215,27 @@ jobs:
         if: ${{ inputs.os_name == 'Linux' && (inputs.build_preset == 'Release' || inputs.build_preset == 'Sanitizer') }}
         timeout-minutes: 5
         working-directory: ${{ github.workspace }}
-        run: Meta/WPT.sh run --test-list Tests/LibWeb/WPT/ci-smoke-tests.txt
+        shell: bash
+        run: |
+          export ASAN_OPTIONS="log_path=\"${GITHUB_WORKSPACE}/Build/asan.log\""
+          export UBSAN_OPTIONS="log_path=\"${GITHUB_WORKSPACE}/Build/ubsan.log\""
+          Meta/WPT.sh run --test-list Tests/LibWeb/WPT/ci-smoke-tests.txt
         env:
           BUILD_LADYBIRD: 'false'
           LADYBIRD_BINARY: ${{ github.workspace }}/Build/bin/Ladybird
           WEBDRIVER_BINARY: ${{ github.workspace }}/Build/bin/WebDriver
           WPT_PROCESSES: '4'
-          ASAN_OPTIONS: 'log_path=${{ github.workspace }}/Build/asan.log'
-          UBSAN_OPTIONS: 'log_path=${{ github.workspace }}/Build/ubsan.log'
 
       - name: Test
         if: ${{ inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
-        run: ctest --preset ${{ inputs.build_preset }} --output-on-failure --test-dir Build --timeout 1800
+        shell: bash
+        run: |
+          export ASAN_OPTIONS="log_path=\"${GITHUB_WORKSPACE}/Build/asan.log\""
+          export UBSAN_OPTIONS="log_path=\"${GITHUB_WORKSPACE}/Build/ubsan.log\""
+          ctest --preset ${{ inputs.build_preset }} --output-on-failure --test-dir Build --timeout 1800
         env:
           TESTS_ONLY: 1
-          # NOTE: These are appended to the preset's options.
-          ASAN_OPTIONS: 'log_path=asan.log'
-          UBSAN_OPTIONS: 'log_path=ubsan.log'
 
       - name: Test
         if: ${{ inputs.build_preset != 'Fuzzers' && inputs.build_preset != 'All_Debug' && inputs.build_preset != 'Sanitizer' }}
