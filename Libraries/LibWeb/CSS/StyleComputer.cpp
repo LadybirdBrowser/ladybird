@@ -3653,6 +3653,10 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
                 }
                 break;
             }
+            case ComputedValuesFFI::COMPUTED_KIND_STYLE_VALUE:
+                builder.set_property_without_modifying_flags(property_id,
+                    StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(entry.computed_data)));
+                break;
             default:
                 builder.set_property_without_modifying_flags(property_id, value);
                 break;
@@ -4471,8 +4475,6 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
         return compute_line_height(absolutized_value, computation_context.length_resolution_context.font_metrics.font_size);
     case PropertyID::MathDepth:
         return compute_math_depth(absolutized_value, inheritance_parent());
-    case PropertyID::PositionArea:
-        return compute_position_area(absolutized_value);
     default:
         return absolutized_value;
     }
@@ -4641,49 +4643,6 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_line_height(NonnullRefPtr
     // NOTE: We also support calc()'d numbers
     VERIFY(absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_number());
     return NumberStyleValue::create(absolutized_value->as_calculated().resolve_number({ .percentage_basis = Length::make_px(computed_font_size) }).value());
-}
-
-// https://drafts.csswg.org/css-anchor-position/#position-area-computed
-NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefPtr<StyleValue const> const& absolutized_value)
-{
-    // The computed value of a <position-area> value is the two keywords indicating the selected tracks in each axis,
-    // with the long (block-start) and short (start) logical keywords treated as equivalent. It serializes in the order
-    // given in the grammar (above), with the logical keywords serialized in their short forms (e.g. start start
-    // instead of block-start inline-start).
-    if (absolutized_value->is_keyword())
-        return absolutized_value;
-
-    auto to_short_keyword = [](NonnullRefPtr<KeywordStyleValue const> const& keyword_value) -> NonnullRefPtr<KeywordStyleValue const> {
-        // The short-form mapping lives in the Rust style computation core.
-        auto short_keyword = static_cast<Keyword>(ComputedValuesFFI::rust_position_area_short_keyword(to_underlying(keyword_value->keyword())));
-        if (short_keyword == keyword_value->keyword())
-            return keyword_value;
-        return KeywordStyleValue::create(short_keyword);
-    };
-
-    auto const& value_list = absolutized_value->as_value_list();
-    VERIFY(value_list.size() == 2);
-
-    auto values = value_list.values();
-    auto const& block_value = values.at(0);
-    auto const& inline_value = values.at(1);
-
-    // When one axis is span-all, the value computes to a single logical keyword from the
-    // other axis. The remapping decision lives in the Rust style computation core.
-    auto span_all_remap = ComputedValuesFFI::rust_position_area_span_all_remap(
-        to_underlying(block_value->as_keyword().keyword()), to_underlying(inline_value->as_keyword().keyword()));
-    if (block_value->as_keyword().keyword() == Keyword::SpanAll || inline_value->as_keyword().keyword() == Keyword::SpanAll) {
-        if (span_all_remap.remapped)
-            return KeywordStyleValue::create(static_cast<Keyword>(span_all_remap.keyword));
-        return absolutized_value;
-    }
-
-    auto short_block_value = to_short_keyword(block_value->as_keyword());
-    auto short_inline_value = to_short_keyword(inline_value->as_keyword());
-    if (*block_value != short_block_value || *inline_value != short_inline_value)
-        return StyleValueList::create({ short_block_value, short_inline_value }, StyleValueList::Separator::Space);
-
-    return absolutized_value;
 }
 
 // https://w3c.github.io/mathml-core/#propdef-math-depth
