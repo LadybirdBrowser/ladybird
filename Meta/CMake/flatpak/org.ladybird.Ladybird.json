@@ -672,8 +672,8 @@
         {
           "type": "git",
           "url": "https://github.com/openssl/openssl.git",
-          "commit": "c4da9ac23de497ce039a102e6715381047899447",
-          "tag": "openssl-3.5.3"
+          "commit": "aae016bfd52fcad2bc9657c2c782cfdf73b1ed5f",
+          "tag": "openssl-3.6.3"
         }
       ]
     },
