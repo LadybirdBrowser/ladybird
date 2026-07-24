@@ -59,7 +59,6 @@ define_ffi_ops! {
     // Callbacks: Rust -> C++.
     SelectorDomReadCallback => "selectorDomReadCallbacks",
     SelectorMetadataCallback => "selectorMetadataCallbacks",
-    CascadePropertyDisallowedCallback => "cascadePropertyDisallowedCallbacks",
     CascadeResolveUnresolvedCallback => "cascadeResolveUnresolvedCallbacks",
     CascadeParseSubstitutedCallback => "cascadeParseSubstitutedCallbacks",
     CascadeSourceSlotCallback => "cascadeSourceSlotCallbacks",

@@ -52,6 +52,7 @@
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/SelectorMatching.h>
+#include <LibWeb/CSS/SelectorRustBridge.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleProperty.h>
@@ -2521,10 +2522,6 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             bulk_context.pinned_values.append(move(resolved));
             return result;
         },
-        .pseudo_element_rejects_property = [](void* context, u16 property_id) -> bool {
-            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
-            return !pseudo_element_supports_property(*bulk_context.abstract_element.pseudo_element(), static_cast<PropertyID>(property_id));
-        },
         .assign_source_slots = [](void* context, ComputedValuesFFI::FfiSourceSlotAssignment const* assignments, size_t count) {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
             for (size_t i = 0; i < count; ++i) {
@@ -2577,16 +2574,12 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         },
     };
 
-    auto cascade_custom_properties = !abstract_element.pseudo_element().has_value()
-        || pseudo_element_supports_property(*abstract_element.pseudo_element(), PropertyID::Custom);
-
     ComputedValuesFFI::rust_cascade_matched_blocks(
         cascaded_properties->rust_store(),
         blocks.data(),
         blocks.size(),
         static_cast<u32>(matching_rule_set.author_contexts.size()),
-        abstract_element.pseudo_element().has_value(),
-        cascade_custom_properties,
+        pseudo_element_to_ffi(abstract_element.pseudo_element()),
         abstract_element.document().rust_custom_property_registry(),
         unset_value->rust_style_value_data(),
         &callbacks);

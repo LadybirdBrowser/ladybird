@@ -27,11 +27,12 @@ WEB_API void const* style_group_default_payload(size_t group_index);
 // A copy-on-write reference to a style value group struct.
 //
 // The payloads are owned by the Rust side of LibWeb (see computed_values.rs):
-// Rust allocates, copies and destroys them through per-group vtable callbacks,
-// and places an atomic reference count in a header immediately before each
-// payload. Reading a group is an inline field access and sharing one is an
-// inline atomic operation; only cloning for mutation and destroying the last
-// reference cross the FFI boundary.
+// Rust-native groups use their Rust layout and lifecycle directly, while groups
+// containing C++ field types use registered lifecycle callbacks. Rust places an
+// atomic reference count in a header immediately before each payload. Reading a
+// group is an inline field access and sharing one is an inline atomic operation;
+// only cloning for mutation and destroying the last reference cross the FFI
+// boundary.
 //
 // Copying a StyleStructRef shares the underlying payload by bumping the
 // reference count instead of copying the struct. access() returns a mutable
