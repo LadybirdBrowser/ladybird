@@ -127,6 +127,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
     auto result = DisplayingVideoSinkUpdateResult::NoChange;
 
     auto last_status = PipelineStatus::Pending;
+    auto seek_resolved_during_this_update = false;
     while (true) {
         if (m_next_frame == nullptr) {
             auto output = m_input->peek();
@@ -144,13 +145,16 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         if (m_seek_status != SeekStatus::None && resolves_seek(last_status)) {
             m_current_frame.clear();
             m_seek_status = SeekStatus::None;
+            seek_resolved_during_this_update = true;
             result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
         }
         if (m_seek_status != SeekStatus::None)
             break;
         if (m_next_frame->timestamp() > current_time)
             break;
-        if (current_time > m_next_frame->conservative_end()) {
+        // Skip presenting frames that are late, unless we're resolving a seek. Seeks should always resolve with a
+        // frame regardless of whether it is late.
+        if (!seek_resolved_during_this_update && current_time > m_next_frame->conservative_end()) {
             auto next = m_input->peek();
             last_status = next.status;
             if (!is_terminal(last_status)) {
