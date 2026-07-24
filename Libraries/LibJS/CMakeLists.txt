@@ -1,11 +1,11 @@
 include(libjs_generators)
 
 set(SOURCES
-    Bytecode/AsmInterpreter/AsmSlowPaths.cpp
+    Interpreter/SlowPaths.cpp
     Bytecode/Executable.cpp
     Bytecode/IdentifierTable.cpp
     Bytecode/Instruction.cpp
-    Bytecode/Interpreter.cpp
+    Interpreter/Interpreter.cpp
     Bytecode/PropertyNameIterator.cpp
     Bytecode/PropertyKeyTable.cpp
     Bytecode/RegexTable.cpp
@@ -336,13 +336,13 @@ if (DEFINED ASMINT_ARCH)
         set(CMAKE_ASM_COMPILE_OPTIONS_MSVC_DEBUG_INFORMATION_FORMAT_ProgramDatabase "")
         set(CMAKE_ASM_COMPILE_OPTIONS_MSVC_DEBUG_INFORMATION_FORMAT_EditAndContinue "")
     endif()
-    set(ASMINT_DSL "${CMAKE_CURRENT_SOURCE_DIR}/Bytecode/AsmInterpreter/asmint.asm")
-    set(ASMINT_GENERATED_S "${CMAKE_CURRENT_BINARY_DIR}/Bytecode/AsmInterpreter/asmint_${ASMINT_ARCH}.S")
-    set(ASM_OFFSETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/Bytecode/AsmInterpreter/asm_offsets.conf")
+    set(ASMINT_DSL "${CMAKE_CURRENT_SOURCE_DIR}/Interpreter/asmint.asm")
+    set(ASMINT_GENERATED_S "${CMAKE_CURRENT_BINARY_DIR}/Interpreter/asmint_${ASMINT_ARCH}.S")
+    set(ASM_OFFSETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/Interpreter/asm_offsets.conf")
 
     # Build-time offset generator: compiles a small C++ program that uses
     # offsetof() to emit struct field offsets as DSL constants.
-    add_executable(gen_asm_offsets "${CMAKE_CURRENT_SOURCE_DIR}/Bytecode/AsmInterpreter/gen_asm_offsets.cpp")
+    add_executable(gen_asm_offsets "${CMAKE_CURRENT_SOURCE_DIR}/Interpreter/GenerateLayout.cpp")
     target_link_libraries(gen_asm_offsets PRIVATE AK)
     if (MSVC)
         target_compile_definitions(gen_asm_offsets PRIVATE _ALLOW_KEYWORD_MACROS)
@@ -353,7 +353,7 @@ if (DEFINED ASMINT_ARCH)
         target_compile_options(gen_asm_offsets PRIVATE -fno-sanitize=fuzzer)
         target_link_options(gen_asm_offsets PRIVATE -fno-sanitize=fuzzer)
     endif()
-    # NB: gen_asm_offsets no longer depends on Op.h since opcode field
+    # NB: GenerateLayout.cpp does not depend on Op.h since opcode field
     # offsets are now computed from Bytecode.def by asmintgen directly.
 
     add_custom_command(
