@@ -17,7 +17,9 @@ pub(crate) mod frontend;
 pub(crate) mod hir;
 pub(crate) mod identity;
 pub(crate) mod intrinsic;
+pub(crate) mod low_ir;
 pub(crate) mod ssa;
+pub(crate) mod target;
 pub(crate) mod types;
 
 use frontend::diagnostic::{Diagnostic, SourceLocation};
@@ -26,6 +28,36 @@ use std::error::Error;
 use std::fmt;
 
 pub use frontend::diagnostic::SourceSpan;
+
+/// A machine architecture supported by Flap's textual assembly backends.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Architecture {
+    X86_64,
+    Aarch64,
+}
+
+/// The object-file conventions expected by the generated assembly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObjectFormat {
+    MachO,
+    Elf,
+    Coff,
+}
+
+/// The target selected for a compilation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Target {
+    pub architecture: Architecture,
+    pub object_format: ObjectFormat,
+}
+
+/// Options which affect machine lowering or assembly emission.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompileOptions {
+    pub target: Target,
+    pub has_jscvt: bool,
+    pub enable_assertions: bool,
+}
 
 /// A diagnostic produced by one of the compiler stages.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
