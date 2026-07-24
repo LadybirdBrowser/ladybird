@@ -1212,8 +1212,8 @@ pub(crate) struct CalcEvaluationContext<'a> {
 /// Produces the random base value for a random() node's sharing options.
 pub(crate) type RandomBaseValueResolver<'a> = &'a dyn Fn(&RetainedStyleValueData) -> Option<f64>;
 
-/// The C++ seams the simplification needs: resolving a non-math function to a
-/// calculation subtree, and looking up a relative-color channel value.
+/// The external values simplification needs, read from the immutable
+/// resolution batch prepared before evaluation.
 pub(crate) struct CalcSimplifyCallbacks<'a> {
     pub resolve_non_math_function: &'a dyn Fn(&RetainedStyleValueData) -> Option<Arc<CalcNode>>,
     pub resolve_channel_keyword: &'a dyn Fn(u8) -> Option<f64>,
@@ -2431,30 +2431,145 @@ pub struct FfiCalcResolutionContext {
     /// The length resolution context as an opaque pointer (its type lives in
     /// the computed-values header), or null.
     pub length_resolution_context: *const std::ffi::c_void,
-    pub callback_context: *mut std::ffi::c_void,
-    /// Resolves a non-math function value to a calculation subtree, or null.
-    pub resolve_non_math_function:
-        unsafe extern "C" fn(context: *mut std::ffi::c_void, shell: *const std::ffi::c_void) -> *const CalcNode,
-    /// Looks up a relative-color channel value.
-    pub resolve_channel_keyword:
-        unsafe extern "C" fn(context: *mut std::ffi::c_void, channel: u8, out_value: *mut f64) -> bool,
-    /// Produces the random base value for a random() node's sharing options,
-    /// or reports that the context cannot (it needs per-element state).
-    pub random_base_value: unsafe extern "C" fn(
-        context: *mut std::ffi::c_void,
-        sharing: *const std::ffi::c_void,
-        out_value: *mut f64,
-    ) -> bool,
-    /// Absolutizes a random() node's sharing options at computed-value time,
-    /// returning a leaked strong reference to the fixed value, or null.
-    pub absolutize_random_sharing: unsafe extern "C" fn(
-        context: *mut std::ffi::c_void,
-        sharing: *const std::ffi::c_void,
-    ) -> *const std::ffi::c_void,
-    /// Resolves a length the Rust resolver cannot (container-relative units,
-    /// which need the per-element query container lookup).
-    pub resolve_length:
-        unsafe extern "C" fn(context: *mut std::ffi::c_void, value: f64, unit: u8, out_px: *mut f64) -> bool,
+    /// External leaf resolutions prepared by C++ before Rust evaluates.
+    pub external_resolutions: *const FfiCalcExternalResolution,
+    pub external_resolution_count: usize,
+}
+
+/// One external calculation leaf and the resolution C++ prepared for it.
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum FfiCalcExternalResolutionKind {
+    NonMathFunction,
+    Channel,
+    RandomSharing,
+    Length,
+}
+
+#[repr(C)]
+pub struct FfiCalcExternalResolution {
+    pub kind: FfiCalcExternalResolutionKind,
+    pub source: *const std::ffi::c_void,
+    pub input_value: f64,
+    pub unit_or_channel: u8,
+    pub has_number: bool,
+    pub number: f64,
+    pub resolved_node: *const CalcNode,
+    pub resolved_style_value: *const std::ffi::c_void,
+}
+
+#[repr(C)]
+pub struct FfiCalcExternalResolutions {
+    pub resolutions: *mut FfiCalcExternalResolution,
+    pub resolution_count: usize,
+    pub storage: *mut std::ffi::c_void,
+}
+
+struct CalcExternalResolutionStorage {
+    resolutions: Box<[FfiCalcExternalResolution]>,
+}
+
+fn collect_external_resolutions(node: &CalcNode, resolutions: &mut Vec<FfiCalcExternalResolution>) {
+    let mut append = |kind, source, input_value, unit_or_channel| {
+        resolutions.push(FfiCalcExternalResolution {
+            kind,
+            source,
+            input_value,
+            unit_or_channel,
+            has_number: false,
+            number: 0.0,
+            resolved_node: std::ptr::null(),
+            resolved_style_value: std::ptr::null(),
+        });
+    };
+    match node {
+        CalcNode::NonMathFunction { value, .. } => append(
+            FfiCalcExternalResolutionKind::NonMathFunction,
+            value.pointer().cast(),
+            0.0,
+            0,
+        ),
+        CalcNode::ChannelKeyword(channel) => {
+            append(FfiCalcExternalResolutionKind::Channel, std::ptr::null(), 0.0, *channel);
+        }
+        CalcNode::Random { sharing, .. } => append(
+            FfiCalcExternalResolutionKind::RandomSharing,
+            sharing.pointer().cast(),
+            0.0,
+            0,
+        ),
+        CalcNode::Numeric(CalcNumericValue::Length { value, unit })
+            if crate::style_compute::LENGTH_UNIT_NAMES[*unit as usize].starts_with("cq") =>
+        {
+            append(FfiCalcExternalResolutionKind::Length, std::ptr::null(), *value, *unit);
+        }
+        _ => {}
+    }
+    node.for_each_child(&mut |child| collect_external_resolutions(child, resolutions));
+}
+
+/// Returns every calculation leaf that needs C++-owned state. C++ fills the
+/// output fields once, before passing the batch back in a resolution context.
+///
+/// # Safety
+/// `root` must be a valid calculation node pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_external_resolutions(
+    root: *const CalcNode,
+    basis_kind: u8,
+    basis_value: f64,
+    basis_unit: u8,
+) -> FfiCalcExternalResolutions {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
+    crate::abort_on_panic(|| {
+        let mut resolutions = Vec::new();
+        let root = unsafe { &*root };
+        collect_external_resolutions(root, &mut resolutions);
+        if basis_kind == 3
+            && root.contains_percentage()
+            && crate::style_compute::LENGTH_UNIT_NAMES[basis_unit as usize].starts_with("cq")
+        {
+            resolutions.push(FfiCalcExternalResolution {
+                kind: FfiCalcExternalResolutionKind::Length,
+                source: std::ptr::null(),
+                input_value: basis_value,
+                unit_or_channel: basis_unit,
+                has_number: false,
+                number: 0.0,
+                resolved_node: std::ptr::null(),
+                resolved_style_value: std::ptr::null(),
+            });
+        }
+        let storage = Box::new(CalcExternalResolutionStorage {
+            resolutions: resolutions.into_boxed_slice(),
+        });
+        let result = FfiCalcExternalResolutions {
+            resolutions: storage.resolutions.as_ptr().cast_mut(),
+            resolution_count: storage.resolutions.len(),
+            storage: std::ptr::null_mut(),
+        };
+        let storage = Box::into_raw(storage);
+        FfiCalcExternalResolutions {
+            storage: storage.cast(),
+            ..result
+        }
+    })
+}
+
+/// # Safety
+/// `storage` must be returned by `rust_calc_external_resolutions`. Any output
+/// handles written by C++ must each own one strong reference.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_external_resolutions_release(storage: *mut std::ffi::c_void) {
+    let storage = unsafe { Box::from_raw(storage.cast::<CalcExternalResolutionStorage>()) };
+    for resolution in &storage.resolutions {
+        if !resolution.resolved_node.is_null() {
+            drop(unsafe { Arc::from_raw(resolution.resolved_node) });
+        }
+        if !resolution.resolved_style_value.is_null() {
+            unsafe { crate::style_value::rust_style_value_release(resolution.resolved_style_value.cast()) };
+        }
+    }
 }
 
 /// The resolve-as target from a calculated value's creation-time fields.
@@ -2510,27 +2625,32 @@ fn with_ffi_evaluation<R>(
         }),
         _ => unreachable!("invalid percentage basis kind"),
     };
+    let external_resolutions = if context.external_resolutions.is_null() {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(context.external_resolutions, context.external_resolution_count) }
+    };
     let random_base_value = |sharing: &RetainedStyleValueData| -> Option<f64> {
-        let mut value = 0.0;
-        if unsafe {
-            (context.random_base_value)(
-                context.callback_context,
-                sharing.data() as *const _ as *const _,
-                &raw mut value,
-            )
-        } {
-            Some(value)
-        } else {
-            None
-        }
+        external_resolutions
+            .iter()
+            .find(|resolution| {
+                matches!(resolution.kind, FfiCalcExternalResolutionKind::RandomSharing)
+                    && (resolution.source == sharing.pointer().cast()
+                        || resolution.resolved_style_value == sharing.pointer().cast())
+            })
+            .filter(|resolution| resolution.has_number)
+            .map(|resolution| resolution.number)
     };
     let resolve_length_fallback = |value: f64, unit: u8| -> Option<f64> {
-        let mut px = 0.0;
-        if unsafe { (context.resolve_length)(context.callback_context, value, unit, &raw mut px) } {
-            Some(px)
-        } else {
-            None
-        }
+        external_resolutions
+            .iter()
+            .find(|resolution| {
+                matches!(resolution.kind, FfiCalcExternalResolutionKind::Length)
+                    && resolution.input_value.to_bits() == value.to_bits()
+                    && resolution.unit_or_channel == unit
+            })
+            .filter(|resolution| resolution.has_number)
+            .map(|resolution| resolution.number)
     };
     let evaluation_context = CalcEvaluationContext {
         percentage_leaf_type: &percentage_leaf_type,
@@ -2549,34 +2669,44 @@ fn with_ffi_evaluation<R>(
         random_base_value: Some(&random_base_value),
     };
     let absolutize_random_sharing = |sharing: &RetainedStyleValueData| -> Option<RetainedStyleValueData> {
-        let absolutized = unsafe {
-            (context.absolutize_random_sharing)(context.callback_context, sharing.data() as *const _ as *const _)
-        };
-        if absolutized.is_null() {
-            None
-        } else {
-            Some(unsafe { RetainedStyleValueData::from_retained_pointer(absolutized.cast()) })
-        }
+        external_resolutions
+            .iter()
+            .find(|resolution| {
+                matches!(resolution.kind, FfiCalcExternalResolutionKind::RandomSharing)
+                    && resolution.source == sharing.pointer().cast()
+            })
+            .filter(|resolution| !resolution.resolved_style_value.is_null())
+            .map(|resolution| unsafe {
+                RetainedStyleValueData::from_retained_pointer(crate::style_value::rust_style_value_retain(
+                    resolution.resolved_style_value.cast(),
+                ))
+            })
     };
     let callbacks = CalcSimplifyCallbacks {
         absolutize_random_sharing: &absolutize_random_sharing,
         resolve_non_math_function: &|value| {
-            let resolved = unsafe {
-                (context.resolve_non_math_function)(context.callback_context, value.data() as *const _ as *const _)
-            };
+            let resolved = external_resolutions
+                .iter()
+                .find(|resolution| {
+                    matches!(resolution.kind, FfiCalcExternalResolutionKind::NonMathFunction)
+                        && resolution.source == value.pointer().cast()
+                })?
+                .resolved_node;
             if resolved.is_null() {
-                None
-            } else {
-                Some(unsafe { Arc::from_raw(resolved) })
+                return None;
             }
+            unsafe { Arc::increment_strong_count(resolved) };
+            Some(unsafe { Arc::from_raw(resolved) })
         },
         resolve_channel_keyword: &|channel| {
-            let mut value = 0.0;
-            if unsafe { (context.resolve_channel_keyword)(context.callback_context, channel, &raw mut value) } {
-                Some(value)
-            } else {
-                None
-            }
+            external_resolutions
+                .iter()
+                .find(|resolution| {
+                    matches!(resolution.kind, FfiCalcExternalResolutionKind::Channel)
+                        && resolution.unit_or_channel == channel
+                })
+                .filter(|resolution| resolution.has_number)
+                .map(|resolution| resolution.number)
         },
     };
     f(&evaluation_context, &callbacks)
@@ -2909,22 +3039,28 @@ pub unsafe extern "C" fn rust_calc_resolve(
     })
 }
 
-/// The output surface for serialization: the structure is built here, but
-/// every formatted byte comes from the C++ side, so leaf formatting stays
-/// identical to the values' own serializers.
 #[repr(C)]
-pub struct FfiCalcSerializationCallbacks {
-    pub context: *mut std::ffi::c_void,
-    pub append_literal: unsafe extern "C" fn(context: *mut std::ffi::c_void, bytes: *const u8, length: usize),
-    /// Appends a numeric leaf: kind follows the numeric dimension order, and
-    /// the C++ side materializes the value type and runs its serializer.
-    pub append_numeric_leaf:
-        unsafe extern "C" fn(context: *mut std::ffi::c_void, kind: u8, value: f64, unit: u8, resolved_mode: bool),
-    /// Serializes a style value per its own rules, reporting whether any
-    /// bytes were appended (random()'s sharing options may serialize empty).
-    pub append_style_value:
-        unsafe extern "C" fn(context: *mut std::ffi::c_void, shell: *const std::ffi::c_void) -> bool,
-    pub append_channel_name: unsafe extern "C" fn(context: *mut std::ffi::c_void, channel: u8),
+pub struct FfiCalcSerializationPiece {
+    /// 0 = literal, 1 = numeric leaf, 2 = style value, 3 = channel keyword,
+    /// 4 = literal conditioned on the preceding piece producing output.
+    pub kind: u8,
+    pub numeric_kind: u8,
+    pub unit_or_channel: u8,
+    pub value: f64,
+    pub bytes: *const u8,
+    pub length: usize,
+    pub style_value: *const std::ffi::c_void,
+}
+
+#[repr(C)]
+pub struct FfiCalcSerialization {
+    pub pieces: *const FfiCalcSerializationPiece,
+    pub piece_count: usize,
+    pub storage: *mut std::ffi::c_void,
+}
+
+struct CalcSerializationStorage {
+    pieces: Box<[FfiCalcSerializationPiece]>,
 }
 
 impl CalcNumericValue {
@@ -2956,22 +3092,63 @@ impl CalcNumericValue {
 }
 
 struct CalcSerializer<'a> {
-    callbacks: &'a FfiCalcSerializationCallbacks,
+    pieces: Vec<FfiCalcSerializationPiece>,
     resolved_mode: bool,
     resolve_numbers_as_integers: bool,
     accepted_ranges: &'a [crate::style_value::RetainedNumericRangeByType],
 }
 
 impl CalcSerializer<'_> {
-    fn literal(&self, text: &str) {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcSerializationCallback);
-        unsafe { (self.callbacks.append_literal)(self.callbacks.context, text.as_ptr(), text.len()) };
+    fn piece(kind: u8) -> FfiCalcSerializationPiece {
+        FfiCalcSerializationPiece {
+            kind,
+            numeric_kind: 0,
+            unit_or_channel: 0,
+            value: 0.0,
+            bytes: std::ptr::null(),
+            length: 0,
+            style_value: std::ptr::null(),
+        }
     }
 
-    fn leaf(&self, value: CalcNumericValue) {
+    fn literal(&mut self, text: &'static str) {
+        self.pieces.push(FfiCalcSerializationPiece {
+            bytes: text.as_ptr(),
+            length: text.len(),
+            ..Self::piece(0)
+        });
+    }
+
+    fn conditional_literal(&mut self, text: &'static str) {
+        self.pieces.push(FfiCalcSerializationPiece {
+            bytes: text.as_ptr(),
+            length: text.len(),
+            ..Self::piece(4)
+        });
+    }
+
+    fn leaf(&mut self, value: CalcNumericValue) {
         let (kind, raw, unit) = value.leaf_parts();
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcSerializationCallback);
-        unsafe { (self.callbacks.append_numeric_leaf)(self.callbacks.context, kind, raw, unit, self.resolved_mode) };
+        self.pieces.push(FfiCalcSerializationPiece {
+            numeric_kind: kind,
+            unit_or_channel: unit,
+            value: raw,
+            ..Self::piece(1)
+        });
+    }
+
+    fn style_value(&mut self, value: &RetainedStyleValueData) {
+        self.pieces.push(FfiCalcSerializationPiece {
+            style_value: value.data() as *const _ as *const _,
+            ..Self::piece(2)
+        });
+    }
+
+    fn channel(&mut self, channel: u8) {
+        self.pieces.push(FfiCalcSerializationPiece {
+            unit_or_channel: channel,
+            ..Self::piece(3)
+        });
     }
 
     fn function_name(node: &CalcNode) -> &'static str {
@@ -3042,7 +3219,7 @@ impl CalcSerializer<'_> {
     }
 
     /// https://drafts.csswg.org/css-values-4/#serialize-a-math-function
-    fn serialize_math_function(&self, node: &Arc<CalcNode>) {
+    fn serialize_math_function(&mut self, node: &Arc<CalcNode>) {
         // To serialize a math function fn:
 
         // 1. If the root of the calculation tree fn represents is a numeric value (number,
@@ -3102,13 +3279,8 @@ impl CalcSerializer<'_> {
         } = &**node
         {
             self.literal("random(");
-            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcSerializationCallback);
-            let appended = unsafe {
-                (self.callbacks.append_style_value)(self.callbacks.context, sharing.data() as *const _ as *const _)
-            };
-            if appended {
-                self.literal(", ");
-            }
+            self.style_value(sharing);
+            self.conditional_literal(", ");
             self.serialize_tree(min, true);
             self.literal(", ");
             self.serialize_tree(max, true);
@@ -3239,25 +3411,17 @@ impl CalcSerializer<'_> {
     }
 
     /// https://drafts.csswg.org/css-values-4/#serialize-a-calculation-tree
-    fn serialize_tree(&self, node: &Arc<CalcNode>, emit_outer_parentheses: bool) {
+    fn serialize_tree(&mut self, node: &Arc<CalcNode>, emit_outer_parentheses: bool) {
         // 1. Let root be the root node of the calculation tree.
         // NOTE: Already the case.
         match &**node {
             // 2. If root is a numeric value, or a non-math function, serialize root per the normal
             //    rules for it and return the result.
             CalcNode::Numeric(value) => self.leaf(*value),
-            CalcNode::NonMathFunction { value, .. } => {
-                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcSerializationCallback);
-                unsafe {
-                    (self.callbacks.append_style_value)(self.callbacks.context, value.data() as *const _ as *const _)
-                };
-            }
+            CalcNode::NonMathFunction { value, .. } => self.style_value(value),
             // AD-HOC: ChannelKeyword nodes, used for relative-color syntax, serialize directly as
             //         the keyword name.
-            CalcNode::ChannelKeyword(channel) => unsafe {
-                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcSerializationCallback);
-                (self.callbacks.append_channel_name)(self.callbacks.context, *channel);
-            },
+            CalcNode::ChannelKeyword(channel) => self.channel(*channel),
             // 4. If root is a Negate node, let s be a string initially containing "(-1 * ".
             CalcNode::Negate(child) => {
                 if emit_outer_parentheses {
@@ -3359,18 +3523,16 @@ impl CalcSerializer<'_> {
     }
 }
 
-/// Serializes a calculated style value's math function through the callback
-/// surface.
+/// Serializes a calculated style value's math function into an ordered piece batch. Literal
+/// structure comes from Rust, while C++ formats numeric and embedded style values after return.
 ///
 /// # Safety
-/// `calculated` must point at Calculated style value data and `callbacks` at a
-/// valid callback table.
+/// `calculated` must point at Calculated style value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_serialize(
     calculated: *const std::ffi::c_void,
-    callbacks: *const FfiCalcSerializationCallbacks,
     resolved_mode: bool,
-) {
+) -> FfiCalcSerialization {
     crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
     use crate::style_value::StyleValueData;
     crate::abort_on_panic(|| {
@@ -3384,14 +3546,34 @@ pub unsafe extern "C" fn rust_calc_serialize(
             unreachable!("rust_calc_serialize requires calculated value data");
         };
         let root = rust_calculation.node_arc();
-        let serializer = CalcSerializer {
-            callbacks: unsafe { &*callbacks },
+        let mut serializer = CalcSerializer {
+            pieces: Vec::new(),
             resolved_mode,
             resolve_numbers_as_integers: *resolve_numbers_as_integers,
             accepted_ranges: accepted_ranges.as_slice(),
         };
         serializer.serialize_math_function(&root);
-    });
+        let storage = Box::new(CalcSerializationStorage {
+            pieces: serializer.pieces.into_boxed_slice(),
+        });
+        let result = FfiCalcSerialization {
+            pieces: storage.pieces.as_ptr(),
+            piece_count: storage.pieces.len(),
+            storage: std::ptr::null_mut(),
+        };
+        let storage = Box::into_raw(storage);
+        FfiCalcSerialization {
+            storage: storage.cast(),
+            ..result
+        }
+    })
+}
+
+/// # Safety
+/// `storage` must be a value returned by `rust_calc_serialize` that has not been released.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_serialization_release(storage: *mut std::ffi::c_void) {
+    drop(unsafe { Box::from_raw(storage.cast::<CalcSerializationStorage>()) });
 }
 
 impl CalcNode {
@@ -3544,6 +3726,18 @@ impl CalcNode {
             _ => false,
         }
     }
+
+    fn contains_anchor_function(&self) -> bool {
+        if let CalcNode::NonMathFunction { value, .. } = self
+            && matches!(value.data(), crate::style_value::StyleValueData::Anchor { .. })
+        {
+            return true;
+        }
+
+        let mut contains_anchor = false;
+        self.for_each_child(&mut |child| contains_anchor |= child.contains_anchor_function());
+        contains_anchor
+    }
 }
 
 /// Structural equality of two calculated style values' trees.
@@ -3568,8 +3762,24 @@ pub unsafe extern "C" fn rust_calc_equals(first: *const std::ffi::c_void, second
     })
 }
 
-/// The node kind codes exposed to the C++ read API, in a stable documented
-/// order for the reification walk.
+/// Whether a calculated style value contains an anchor() function.
+///
+/// # Safety
+/// `calculated` must point at Calculated style value data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_contains_anchor(calculated: *const std::ffi::c_void) -> bool {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
+    crate::abort_on_panic(|| {
+        let crate::style_value::StyleValueData::Calculated { rust_calculation, .. } =
+            (unsafe { &*(calculated as *const crate::style_value::StyleValueData) })
+        else {
+            unreachable!("rust_calc_contains_anchor requires calculated value data");
+        };
+        rust_calculation.node().contains_anchor_function()
+    })
+}
+
+/// The node kind codes exposed to C++ in a stable documented order.
 fn node_kind_code(node: &CalcNode) -> u8 {
     match node {
         CalcNode::Numeric(..) => 0,
@@ -3604,62 +3814,153 @@ fn node_kind_code(node: &CalcNode) -> u8 {
     }
 }
 
-/// # Safety
-/// `node` must be a valid calculation node pointer for all read functions.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_kind(node: *const CalcNode) -> u8 {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
-    crate::abort_on_panic(|| node_kind_code(unsafe { &*node }))
+#[repr(C)]
+pub struct FfiCalcReificationNode {
+    pub kind: u8,
+    pub numeric_kind: u8,
+    pub unit: u8,
+    pub value: f64,
+    pub numeric_type: FfiNumericType,
+    pub child_start: usize,
+    pub child_count: usize,
 }
 
-/// The node's calculation children in their canonical order. Returned
-/// pointers are borrowed from the node's own references.
-///
-/// # Safety
-/// `out_children` must have room for `capacity` entries.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_children(
-    node: *const CalcNode,
-    out_children: *mut *const CalcNode,
-    capacity: usize,
-) -> usize {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
-    crate::abort_on_panic(|| {
-        let mut count = 0;
-        unsafe { &*node }.for_each_child(&mut |child| {
-            if count < capacity {
-                unsafe { *out_children.add(count) = Arc::as_ptr(child) };
-            }
-            count += 1;
-        });
-        count
-    })
+#[repr(C)]
+pub struct FfiCalcReification {
+    pub nodes: *const FfiCalcReificationNode,
+    pub node_count: usize,
+    pub children: *const usize,
+    pub child_count: usize,
+    pub storage: *mut std::ffi::c_void,
 }
 
-/// Reads a numeric leaf's parts; false for non-leaf nodes.
-///
-/// # Safety
-/// All out-pointers must be valid.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_numeric_leaf(
-    node: *const CalcNode,
-    out_kind: *mut u8,
-    out_value: *mut f64,
-    out_unit: *mut u8,
-) -> bool {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
-    crate::abort_on_panic(|| {
-        let CalcNode::Numeric(value) = (unsafe { &*node }) else {
-            return false;
-        };
-        let (kind, raw, unit) = value.leaf_parts();
-        unsafe {
-            *out_kind = kind;
-            *out_value = raw;
-            *out_unit = unit;
+struct CalcReificationStorage {
+    nodes: Box<[FfiCalcReificationNode]>,
+    children: Box<[usize]>,
+}
+
+fn append_reification_node(
+    node: &CalcNode,
+    percentage_leaf_type: &CalcNumericType,
+    nodes: &mut Vec<FfiCalcReificationNode>,
+    children: &mut Vec<usize>,
+) -> Option<usize> {
+    if !matches!(
+        node,
+        CalcNode::Numeric(..)
+            | CalcNode::Sum(..)
+            | CalcNode::Product(..)
+            | CalcNode::Negate(..)
+            | CalcNode::Invert(..)
+            | CalcNode::Min(..)
+            | CalcNode::Max(..)
+            | CalcNode::Clamp { .. }
+    ) {
+        return None;
+    }
+
+    let mut child_indices = Vec::new();
+    let mut failed = false;
+    node.for_each_child(&mut |child| {
+        if let Some(index) = append_reification_node(child, percentage_leaf_type, nodes, children) {
+            child_indices.push(index);
+        } else {
+            failed = true;
         }
-        true
+    });
+    if failed {
+        return None;
+    }
+
+    let child_start = children.len();
+    children.extend(child_indices);
+    let (numeric_kind, value, unit) = match node {
+        CalcNode::Numeric(value) => value.leaf_parts(),
+        _ => (0, 0.0, 0),
+    };
+    let index = nodes.len();
+    nodes.push(FfiCalcReificationNode {
+        kind: node_kind_code(node),
+        numeric_kind,
+        unit,
+        value,
+        numeric_type: FfiNumericType::from_calc(node.numeric_type(percentage_leaf_type)),
+        child_start,
+        child_count: children.len() - child_start,
+    });
+    Some(index)
+}
+
+/// https://drafts.css-houdini.org/css-typed-om-1/#reify-a-math-expression
+/// Describe a calculation tree in postorder so C++ can create its GC-owned Typed OM objects.
+/// Unsupported math functions return an empty description.
+///
+/// # Safety
+/// `calculated` must point at Calculated style value data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_describe_for_typed_om(calculated: *const std::ffi::c_void) -> FfiCalcReification {
+    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
+    crate::abort_on_panic(|| {
+        let crate::style_value::StyleValueData::Calculated {
+            rust_calculation,
+            has_percentages_resolve_as,
+            resolve_as_is_number,
+            resolve_as_base,
+            ..
+        } = (unsafe { &*(calculated as *const crate::style_value::StyleValueData) })
+        else {
+            unreachable!("rust_calc_describe_for_typed_om requires calculated value data");
+        };
+        let percentage_leaf_type = percentage_leaf_type_for(resolve_as_from_fields(
+            *has_percentages_resolve_as,
+            *resolve_as_is_number,
+            *resolve_as_base,
+        ));
+        let mut nodes = Vec::new();
+        let mut children = Vec::new();
+        if append_reification_node(
+            rust_calculation.node(),
+            &percentage_leaf_type,
+            &mut nodes,
+            &mut children,
+        )
+        .is_none()
+        {
+            return FfiCalcReification {
+                nodes: std::ptr::null(),
+                node_count: 0,
+                children: std::ptr::null(),
+                child_count: 0,
+                storage: std::ptr::null_mut(),
+            };
+        }
+        let storage = Box::new(CalcReificationStorage {
+            nodes: nodes.into_boxed_slice(),
+            children: children.into_boxed_slice(),
+        });
+        let result = FfiCalcReification {
+            nodes: storage.nodes.as_ptr(),
+            node_count: storage.nodes.len(),
+            children: storage.children.as_ptr(),
+            child_count: storage.children.len(),
+            storage: std::ptr::null_mut(),
+        };
+        let storage = Box::into_raw(storage);
+        FfiCalcReification {
+            storage: storage.cast(),
+            ..result
+        }
     })
+}
+
+/// # Safety
+/// `storage` must be null or a value returned by `rust_calc_describe_for_typed_om` that has not
+/// already been released.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_reification_release(storage: *mut std::ffi::c_void) {
+    if !storage.is_null() {
+        drop(unsafe { Box::from_raw(storage.cast::<CalcReificationStorage>()) });
+    }
 }
 
 /// The style value carried by a random() or non-math-function node
@@ -3674,39 +3975,6 @@ pub unsafe extern "C" fn rust_calc_node_style_value(node: *const CalcNode) -> *c
         CalcNode::Random { sharing, .. } => sharing.data() as *const _ as *const _,
         CalcNode::NonMathFunction { value, .. } => value.data() as *const _ as *const _,
         _ => std::ptr::null(),
-    })
-}
-
-/// The numeric type of a node within a calculated value's context, for the
-/// reification of math function objects.
-///
-/// # Safety
-/// `calculated` must point at Calculated style value data owning `node`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_numeric_type(
-    calculated: *const std::ffi::c_void,
-    node: *const CalcNode,
-) -> FfiNumericType {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
-    use crate::style_value::StyleValueData;
-    crate::abort_on_panic(|| {
-        let StyleValueData::Calculated {
-            has_percentages_resolve_as,
-            resolve_as_is_number,
-            resolve_as_base,
-            ..
-        } = (unsafe { &*(calculated as *const StyleValueData) })
-        else {
-            unreachable!("rust_calc_node_numeric_type requires calculated value data");
-        };
-        let mut percentage_leaf_type = CalcNumericType::default();
-        if *has_percentages_resolve_as && !*resolve_as_is_number {
-            percentage_leaf_type.exponents[*resolve_as_base as usize] = Some(1);
-            percentage_leaf_type.percent_hint = Some(*resolve_as_base);
-        } else {
-            percentage_leaf_type.exponents[BASE_TYPE_PERCENT] = Some(1);
-        }
-        FfiNumericType::from_calc(unsafe { &*node }.numeric_type(&percentage_leaf_type))
     })
 }
 
