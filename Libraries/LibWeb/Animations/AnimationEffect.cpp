@@ -870,6 +870,9 @@ AnimationUpdateContext::~AnimationUpdateContext()
         auto computed_values = target->document().style_computer().build_computed_values(*style, element, element.style_scope());
         target->refresh_computed_values(element.pseudo_element(), computed_values);
 
+        if (!element.pseudo_element().has_value() && invalidation.inherited_style_changed)
+            invalidation |= target->recompute_pseudo_element_styles_after_animation_update({});
+
         // Traversal of the subtree is necessary to update the animated properties inherited from the target element.
         bool invalidated_assigned_slottables_for_descendant_slots = false;
         if (!element.pseudo_element().has_value()) {

@@ -1241,6 +1241,16 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     return invalidation;
 }
 
+CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles_after_animation_update(Badge<Web::Animations::AnimationUpdateContext>)
+{
+    VERIFY(m_computed_values);
+
+    bool did_change_custom_properties = false;
+    auto invalidation = recompute_pseudo_element_styles(did_change_custom_properties, m_computed_values->display().is_list_item(), nullptr);
+    apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(invalidation);
+    return invalidation;
+}
+
 void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reason)
 {
     // NB: We normally mark the parent element for the rebuild rather than this element itself, so that a "display"
@@ -1282,7 +1292,14 @@ void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalid
     if (invalidation.needs_repaint())
         set_needs_repaint();
 
-    // Do the same for pseudo-elements.
+    apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(invalidation);
+}
+
+void Element::apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS::RequiredInvalidationAfterStyleChange const& invalidation)
+{
+    if (invalidation.needs_layout_tree_rebuild())
+        return;
+
     for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element_type, SyntheticPseudoElement const& pseudo_element) {
         auto pseudo_element_style = computed_values(pseudo_element_type);
         if (!pseudo_element_style)

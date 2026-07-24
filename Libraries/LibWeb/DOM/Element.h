@@ -213,6 +213,7 @@ public:
 
     CSS::RequiredInvalidationAfterStyleChange recompute_style(bool& did_change_custom_properties);
     CSS::RequiredInvalidationAfterStyleChange recompute_inherited_style(ScheduleAnimationUpdate = ScheduleAnimationUpdate::No);
+    CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles_after_animation_update(Badge<Web::Animations::AnimationUpdateContext>);
 
     void set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason);
 
@@ -699,6 +700,7 @@ private:
     void exit_fullscreen_on_element_removal();
     CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style);
     void apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
+    void apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
     void set_in_display_none_subtree_on_descendant_styles();
     void mark_descendants_with_stale_styles_for_style_update();
 
