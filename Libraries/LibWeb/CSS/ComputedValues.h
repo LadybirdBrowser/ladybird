@@ -1119,9 +1119,14 @@ public:
     CSSPixels letter_spacing() const { return m_inherited.text->letter_spacing; }
     RefPtr<StyleValue const> word_spacing_style_value() const;
     RefPtr<StyleValue const> letter_spacing_style_value() const;
-    FlexDirection flex_direction() const { return m_noninherited.alignment->flex_direction; }
-    FlexWrap flex_wrap() const { return m_noninherited.alignment->flex_wrap; }
-    FlexBasis const& flex_basis() const { return m_noninherited.alignment->flex_basis; }
+    FlexDirection flex_direction() const { return static_cast<FlexDirection>(m_noninherited.alignment->flex_direction); }
+    FlexWrap flex_wrap() const { return static_cast<FlexWrap>(m_noninherited.alignment->flex_wrap); }
+    FlexBasis flex_basis() const
+    {
+        if (m_noninherited.alignment->flex_basis.is_content)
+            return FlexBasisContent {};
+        return Size::view(m_noninherited.alignment->flex_basis.size);
+    }
     double flex_grow() const { return m_noninherited.alignment->flex_grow; }
     double flex_shrink() const { return m_noninherited.alignment->flex_shrink; }
     i32 order() const { return m_noninherited.alignment->order; }
@@ -1132,17 +1137,17 @@ public:
             return {};
         return m_inherited.ui->accent_color.used_value;
     }
-    AlignContent align_content() const { return m_noninherited.alignment->align_content; }
-    AlignItems align_items() const { return m_noninherited.alignment->align_items; }
-    AlignSelf align_self() const { return m_noninherited.alignment->align_self; }
+    AlignContent align_content() const { return static_cast<AlignContent>(m_noninherited.alignment->align_content); }
+    AlignItems align_items() const { return static_cast<AlignItems>(m_noninherited.alignment->align_items); }
+    AlignSelf align_self() const { return static_cast<AlignSelf>(m_noninherited.alignment->align_self); }
     Appearance appearance() const { return m_noninherited.misc->appearance; }
     Appearance computed_appearance() const { return m_noninherited.misc->computed_appearance; }
     float opacity() const { return m_noninherited.effects->opacity; }
     Visibility visibility() const { return static_cast<Visibility>(m_inherited.box->visibility); }
     ImageRendering image_rendering() const { return static_cast<ImageRendering>(m_inherited.box->image_rendering); }
-    JustifyContent justify_content() const { return m_noninherited.alignment->justify_content; }
-    JustifySelf justify_self() const { return m_noninherited.alignment->justify_self; }
-    JustifyItems justify_items() const { return m_noninherited.alignment->justify_items; }
+    JustifyContent justify_content() const { return static_cast<JustifyContent>(m_noninherited.alignment->justify_content); }
+    JustifySelf justify_self() const { return static_cast<JustifySelf>(m_noninherited.alignment->justify_self); }
+    JustifyItems justify_items() const { return static_cast<JustifyItems>(m_noninherited.alignment->justify_items); }
     Filter const& backdrop_filter() const { return m_noninherited.effects->backdrop_filter; }
     Filter const& filter() const { return m_noninherited.effects->filter; }
     Vector<ShadowData> const& box_shadow() const { return m_noninherited.effects->box_shadow; }
@@ -1164,11 +1169,11 @@ public:
     GridTrackPlacement const& grid_row_end() const { return m_noninherited.grid->grid_row_end; }
     GridTrackPlacement const& grid_row_start() const { return m_noninherited.grid->grid_row_start; }
     ColumnCount column_count() const { return m_noninherited.misc->column_count; }
-    Variant<LengthPercentage, NormalGap> const& column_gap() const { return m_noninherited.alignment->column_gap; }
+    Variant<LengthPercentage, NormalGap> column_gap() const { return gap(m_noninherited.alignment->column_gap); }
     ColumnSpan const& column_span() const { return m_noninherited.misc->column_span; }
     Size const& column_width() const { return m_noninherited.misc->column_width; }
     Size const& column_height() const { return m_noninherited.misc->column_height; }
-    Variant<LengthPercentage, NormalGap> const& row_gap() const { return m_noninherited.alignment->row_gap; }
+    Variant<LengthPercentage, NormalGap> row_gap() const { return gap(m_noninherited.alignment->row_gap); }
     BorderCollapse border_collapse() const { return static_cast<BorderCollapse>(m_inherited.table->border_collapse); }
     EmptyCells empty_cells() const { return static_cast<EmptyCells>(m_inherited.table->empty_cells); }
     GridTemplateAreas const& grid_template_areas() const { return m_noninherited.grid->grid_template_areas; }
@@ -1215,26 +1220,33 @@ public:
     MixBlendMode mix_blend_mode() const { return m_noninherited.effects->mix_blend_mode; }
     Optional<Utf16FlyString> view_transition_name() const { return m_noninherited.misc->view_transition_name; }
     TouchActionData touch_action() const { return m_noninherited.misc->touch_action; }
-    ShapeRendering shape_rendering() const { return m_noninherited.svg_reset->shape_rendering; }
+    ShapeRendering shape_rendering() const { return static_cast<ShapeRendering>(m_noninherited.svg_reset->shape_rendering); }
 
-    LengthBox const& inset() const { return m_noninherited.surround->inset; }
+    LengthBox inset() const { return length_box(m_noninherited.surround->inset); }
     RefPtr<StyleValue const> anchor_inset(PropertyID property_id) const
     {
+        ComputedValuesFFI::ComputedStyleValueHandle const* handle = nullptr;
         switch (property_id) {
         case PropertyID::Top:
-            return m_noninherited.surround->top_anchor_inset;
+            handle = &m_noninherited.surround->top_anchor_inset;
+            break;
         case PropertyID::Right:
-            return m_noninherited.surround->right_anchor_inset;
+            handle = &m_noninherited.surround->right_anchor_inset;
+            break;
         case PropertyID::Bottom:
-            return m_noninherited.surround->bottom_anchor_inset;
+            handle = &m_noninherited.surround->bottom_anchor_inset;
+            break;
         case PropertyID::Left:
-            return m_noninherited.surround->left_anchor_inset;
+            handle = &m_noninherited.surround->left_anchor_inset;
+            break;
         default:
             return {};
         }
+        static_assert(sizeof(RustStyleValueHandle) == sizeof(*handle));
+        return style_value_from_handle(property_id, reinterpret_cast<RustStyleValueHandle const&>(*handle));
     }
-    LengthBox const& margin() const { return m_noninherited.surround->margin; }
-    LengthBox const& padding() const { return m_noninherited.surround->padding; }
+    LengthBox margin() const { return length_box(m_noninherited.surround->margin); }
+    LengthBox padding() const { return length_box(m_noninherited.surround->padding); }
     LengthBox const& scroll_margin() const { return m_noninherited.misc->scroll_margin; }
     LengthBox const& scroll_padding() const { return m_noninherited.misc->scroll_padding; }
     OverflowClipMarginData const& overflow_clip_margin() const { return m_noninherited.misc->overflow_clip_margin; }
@@ -1285,11 +1297,11 @@ public:
     LengthPercentage const& stroke_dashoffset() const { return m_inherited.svg->stroke_dashoffset; }
     StrokeLinecap stroke_linecap() const { return m_inherited.svg->stroke_linecap; }
     StrokeLinejoin stroke_linejoin() const { return m_inherited.svg->stroke_linejoin; }
-    VectorEffect vector_effect() const { return m_noninherited.svg_reset->vector_effect; }
+    VectorEffect vector_effect() const { return static_cast<VectorEffect>(m_noninherited.svg_reset->vector_effect); }
     double stroke_miterlimit() const { return m_inherited.svg->stroke_miterlimit; }
     float stroke_opacity() const { return m_inherited.svg->stroke_opacity; }
     LengthPercentage const& stroke_width() const { return m_inherited.svg->stroke_width; }
-    Color stop_color() const { return m_noninherited.svg_reset->stop_color; }
+    Color stop_color() const { return Gfx::Color::from_bgra(m_noninherited.svg_reset->stop_color); }
     float stop_opacity() const { return m_noninherited.svg_reset->stop_opacity; }
     TextAnchor text_anchor() const { return m_inherited.svg->text_anchor; }
     RefPtr<AbstractImageStyleValue const> mask_image() const { return m_noninherited.mask_data->mask_image; }
@@ -1297,19 +1309,19 @@ public:
     MaskType mask_type() const { return m_noninherited.mask_data->mask_type; }
     Optional<ClipPathReference> const& clip_path() const { return m_noninherited.mask_data->clip_path; }
     ClipRule clip_rule() const { return m_inherited.svg->clip_rule; }
-    Color flood_color() const { return m_noninherited.svg_reset->flood_color; }
+    Color flood_color() const { return Gfx::Color::from_bgra(m_noninherited.svg_reset->flood_color); }
     float flood_opacity() const { return m_noninherited.svg_reset->flood_opacity; }
     PaintOrderList paint_order() const { return m_inherited.svg->paint_order; }
     u8 paint_order_serialization_length() const { return m_inherited.svg->paint_order_serialization_length; }
     bool paint_order_is_normal() const { return m_inherited.svg->paint_order_is_normal; }
 
-    LengthPercentage const& cx() const { return m_noninherited.svg_reset->cx; }
-    LengthPercentage const& cy() const { return m_noninherited.svg_reset->cy; }
-    LengthPercentage const& r() const { return m_noninherited.svg_reset->r; }
-    LengthPercentageOrAuto const& rx() const { return m_noninherited.svg_reset->rx; }
-    LengthPercentageOrAuto const& ry() const { return m_noninherited.svg_reset->ry; }
-    LengthPercentage const& x() const { return m_noninherited.svg_reset->x; }
-    LengthPercentage const& y() const { return m_noninherited.svg_reset->y; }
+    LengthPercentage const& cx() const { return LengthPercentage::view(m_noninherited.svg_reset->cx); }
+    LengthPercentage const& cy() const { return LengthPercentage::view(m_noninherited.svg_reset->cy); }
+    LengthPercentage const& r() const { return LengthPercentage::view(m_noninherited.svg_reset->r); }
+    LengthPercentageOrAuto rx() const { return m_noninherited.svg_reset->rx.is_auto ? LengthPercentageOrAuto::make_auto() : LengthPercentage::view(m_noninherited.svg_reset->rx.value); }
+    LengthPercentageOrAuto ry() const { return m_noninherited.svg_reset->ry.is_auto ? LengthPercentageOrAuto::make_auto() : LengthPercentage::view(m_noninherited.svg_reset->ry.value); }
+    LengthPercentage const& x() const { return LengthPercentage::view(m_noninherited.svg_reset->x); }
+    LengthPercentage const& y() const { return LengthPercentage::view(m_noninherited.svg_reset->y); }
 
     Vector<NonnullRefPtr<TransformationStyleValue const>> const& transformations() const { return m_noninherited.transform->transformations; }
     TransformBox const& transform_box() const { return m_noninherited.transform->transform_box; }
@@ -1362,6 +1374,23 @@ private:
     ComputedValues();
 
     RefPtr<StyleValue const> style_value_from_handle(PropertyID, RustStyleValueHandle const&) const;
+
+    static LengthPercentageOrAuto length_percentage_or_auto(ComputedValuesFFI::ComputedLengthPercentageOrAuto const& value)
+    {
+        if (value.is_auto)
+            return LengthPercentageOrAuto::make_auto();
+        return LengthPercentage::view(value.value);
+    }
+
+    static LengthBox length_box(ComputedValuesFFI::ComputedLengthBox const& box)
+    {
+        return {
+            length_percentage_or_auto(box.top),
+            length_percentage_or_auto(box.right),
+            length_percentage_or_auto(box.bottom),
+            length_percentage_or_auto(box.left),
+        };
+    }
 
     static RustStyleValueHandle retain_style_value_data(StyleValue const* value)
     {
@@ -1562,23 +1591,32 @@ public:
         bool operator==(AnimationValues const&) const = default;
     };
 
-    struct SVGResetValues {
+    // The layout and lifecycle of this group are defined in Rust (computed_values.rs).
+    struct SVGResetValues : ComputedValuesFFI::SVGResetValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::SVGResetValues);
-        LengthPercentage cx { InitialValues::cx() };
-        LengthPercentage cy { InitialValues::cy() };
-        LengthPercentage r { InitialValues::r() };
-        LengthPercentageOrAuto rx { InitialValues::rx() };
-        LengthPercentageOrAuto ry { InitialValues::ry() };
-        LengthPercentage x { InitialValues::x() };
-        LengthPercentage y { InitialValues::y() };
-        Gfx::Color stop_color { InitialValues::stop_color() };
-        float stop_opacity { InitialValues::stop_opacity() };
-        Color flood_color { InitialValues::flood_color() };
-        float flood_opacity { InitialValues::flood_opacity() };
-        VectorEffect vector_effect { InitialValues::vector_effect() };
-        ShapeRendering shape_rendering { InitialValues::shape_rendering() };
+        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::SVGReset;
 
-        bool operator==(SVGResetValues const&) const = default;
+        bool operator==(SVGResetValues const& other) const
+        {
+            auto length_percentage_or_auto_equal = [](auto const& first, auto const& second) {
+                if (first.is_auto || second.is_auto)
+                    return first.is_auto == second.is_auto;
+                return LengthPercentage::view(first.value) == LengthPercentage::view(second.value);
+            };
+            return LengthPercentage::view(cx) == LengthPercentage::view(other.cx)
+                && LengthPercentage::view(cy) == LengthPercentage::view(other.cy)
+                && LengthPercentage::view(r) == LengthPercentage::view(other.r)
+                && length_percentage_or_auto_equal(rx, other.rx)
+                && length_percentage_or_auto_equal(ry, other.ry)
+                && LengthPercentage::view(x) == LengthPercentage::view(other.x)
+                && LengthPercentage::view(y) == LengthPercentage::view(other.y)
+                && stop_color == other.stop_color
+                && stop_opacity == other.stop_opacity
+                && flood_color == other.flood_color
+                && flood_opacity == other.flood_opacity
+                && vector_effect == other.vector_effect
+                && shape_rendering == other.shape_rendering;
+        }
     };
 
     struct GridValues {
@@ -1724,24 +1762,33 @@ public:
         bool operator==(BorderValues const&) const = default;
     };
 
-    struct AlignmentValues {
+    struct AlignmentValues : ComputedValuesFFI::AlignmentValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::AlignmentValues);
-        FlexDirection flex_direction { InitialValues::flex_direction() };
-        FlexWrap flex_wrap { InitialValues::flex_wrap() };
-        FlexBasis flex_basis { InitialValues::flex_basis() };
-        double flex_grow { InitialValues::flex_grow() };
-        double flex_shrink { InitialValues::flex_shrink() };
-        i32 order { InitialValues::order() };
-        AlignContent align_content { InitialValues::align_content() };
-        AlignItems align_items { InitialValues::align_items() };
-        AlignSelf align_self { InitialValues::align_self() };
-        JustifyContent justify_content { InitialValues::justify_content() };
-        JustifyItems justify_items { InitialValues::justify_items() };
-        JustifySelf justify_self { InitialValues::justify_self() };
-        Variant<LengthPercentage, NormalGap> column_gap { InitialValues::column_gap() };
-        Variant<LengthPercentage, NormalGap> row_gap { InitialValues::row_gap() };
+        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Alignment;
 
-        bool operator==(AlignmentValues const&) const = default;
+        bool operator==(AlignmentValues const& other) const
+        {
+            auto gaps_equal = [](auto const& first, auto const& second) {
+                if (first.is_normal || second.is_normal)
+                    return first.is_normal == second.is_normal;
+                return LengthPercentage::view(first.value) == LengthPercentage::view(second.value);
+            };
+            return flex_direction == other.flex_direction
+                && flex_wrap == other.flex_wrap
+                && flex_basis.is_content == other.flex_basis.is_content
+                && Size::view(flex_basis.size) == Size::view(other.flex_basis.size)
+                && flex_grow == other.flex_grow
+                && flex_shrink == other.flex_shrink
+                && order == other.order
+                && align_content == other.align_content
+                && align_items == other.align_items
+                && align_self == other.align_self
+                && justify_content == other.justify_content
+                && justify_items == other.justify_items
+                && justify_self == other.justify_self
+                && gaps_equal(column_gap, other.column_gap)
+                && gaps_equal(row_gap, other.row_gap);
+        }
     };
 
     struct MiscResetValues {
@@ -1791,17 +1838,31 @@ public:
         }
     };
 
-    struct SurroundValues {
+    struct SurroundValues : ComputedValuesFFI::SurroundValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::SurroundValues);
-        LengthBox inset { InitialValues::inset() };
-        RefPtr<StyleValue const> top_anchor_inset;
-        RefPtr<StyleValue const> right_anchor_inset;
-        RefPtr<StyleValue const> bottom_anchor_inset;
-        RefPtr<StyleValue const> left_anchor_inset;
-        LengthBox margin { InitialValues::margin() };
-        LengthBox padding { InitialValues::padding() };
+        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Surround;
 
-        bool operator==(SurroundValues const&) const = default;
+        bool operator==(SurroundValues const& other) const
+        {
+            auto side_equal = [](auto const& first, auto const& second) {
+                if (first.is_auto || second.is_auto)
+                    return first.is_auto == second.is_auto;
+                return LengthPercentage::view(first.value) == LengthPercentage::view(second.value);
+            };
+            auto box_equal = [&](auto const& first, auto const& second) {
+                return side_equal(first.top, second.top)
+                    && side_equal(first.right, second.right)
+                    && side_equal(first.bottom, second.bottom)
+                    && side_equal(first.left, second.left);
+            };
+            return box_equal(inset, other.inset)
+                && top_anchor_inset.pointer == other.top_anchor_inset.pointer
+                && right_anchor_inset.pointer == other.right_anchor_inset.pointer
+                && bottom_anchor_inset.pointer == other.bottom_anchor_inset.pointer
+                && left_anchor_inset.pointer == other.left_anchor_inset.pointer
+                && box_equal(margin, other.margin)
+                && box_equal(padding, other.padding);
+        }
     };
 
     struct BoxValues {
@@ -1829,6 +1890,13 @@ public:
     };
 
 private:
+    static Variant<LengthPercentage, NormalGap> gap(ComputedValuesFFI::ComputedGap const& gap)
+    {
+        if (gap.is_normal)
+            return NormalGap {};
+        return LengthPercentage::view(gap.value);
+    }
+
     struct NonInheritedValues {
         StyleStructRef<AnimationValues> animation;
         StyleStructRef<BoxValues> box;
@@ -2526,45 +2594,15 @@ public:
     void set_max_height(Size value) { set_size(&ComputedValuesFFI::SizingValues::max_height, move(value)); }
     void set_inset(LengthBox const& inset)
     {
-        if (m_values.m_noninherited.surround->inset == inset)
+        if (m_values.inset() == inset)
             return;
-        m_values.m_noninherited.surround.access().inset = inset;
-    }
-    void set_anchor_inset(PropertyID property_id, RefPtr<StyleValue const> value)
-    {
-        auto set = [&](RefPtr<StyleValue const> SurroundValues::* member) {
-            if ((*m_values.m_noninherited.surround).*member == value)
-                return;
-            m_values.m_noninherited.surround.access().*member = move(value);
-        };
-        switch (property_id) {
-        case PropertyID::Top:
-            set(&SurroundValues::top_anchor_inset);
-            return;
-        case PropertyID::Right:
-            set(&SurroundValues::right_anchor_inset);
-            return;
-        case PropertyID::Bottom:
-            set(&SurroundValues::bottom_anchor_inset);
-            return;
-        case PropertyID::Left:
-            set(&SurroundValues::left_anchor_inset);
-            return;
-        default:
-            VERIFY_NOT_REACHED();
-        }
+        set_length_box(m_values.m_noninherited.surround.access().inset, inset);
     }
     void set_margin(LengthBox const& margin)
     {
-        if (m_values.m_noninherited.surround->margin == margin)
+        if (m_values.margin() == margin)
             return;
-        m_values.m_noninherited.surround.access().margin = margin;
-    }
-    void set_padding(LengthBox const& padding)
-    {
-        if (m_values.m_noninherited.surround->padding == padding)
-            return;
-        m_values.m_noninherited.surround.access().padding = padding;
+        set_length_box(m_values.m_noninherited.surround.access().margin, margin);
     }
     void set_scroll_margin(LengthBox value)
     {
@@ -2776,21 +2814,15 @@ public:
     }
     void set_flex_direction(FlexDirection value)
     {
-        if (m_values.m_noninherited.alignment->flex_direction == value)
+        if (m_values.flex_direction() == value)
             return;
-        m_values.m_noninherited.alignment.access().flex_direction = value;
+        m_values.m_noninherited.alignment.access().flex_direction = to_underlying(value);
     }
     void set_flex_wrap(FlexWrap value)
     {
-        if (m_values.m_noninherited.alignment->flex_wrap == value)
+        if (m_values.flex_wrap() == value)
             return;
-        m_values.m_noninherited.alignment.access().flex_wrap = value;
-    }
-    void set_flex_basis(FlexBasis value)
-    {
-        if (m_values.m_noninherited.alignment->flex_basis == value)
-            return;
-        m_values.m_noninherited.alignment.access().flex_basis = move(value);
+        m_values.m_noninherited.alignment.access().flex_wrap = to_underlying(value);
     }
     void set_flex_grow(double value)
     {
@@ -2818,21 +2850,21 @@ public:
     }
     void set_align_content(AlignContent value)
     {
-        if (m_values.m_noninherited.alignment->align_content == value)
+        if (m_values.align_content() == value)
             return;
-        m_values.m_noninherited.alignment.access().align_content = value;
+        m_values.m_noninherited.alignment.access().align_content = to_underlying(value);
     }
     void set_align_items(AlignItems value)
     {
-        if (m_values.m_noninherited.alignment->align_items == value)
+        if (m_values.align_items() == value)
             return;
-        m_values.m_noninherited.alignment.access().align_items = value;
+        m_values.m_noninherited.alignment.access().align_items = to_underlying(value);
     }
     void set_align_self(AlignSelf value)
     {
-        if (m_values.m_noninherited.alignment->align_self == value)
+        if (m_values.align_self() == value)
             return;
-        m_values.m_noninherited.alignment.access().align_self = value;
+        m_values.m_noninherited.alignment.access().align_self = to_underlying(value);
     }
     void set_appearance(Appearance value)
     {
@@ -2854,21 +2886,21 @@ public:
     }
     void set_justify_content(JustifyContent value)
     {
-        if (m_values.m_noninherited.alignment->justify_content == value)
+        if (m_values.justify_content() == value)
             return;
-        m_values.m_noninherited.alignment.access().justify_content = value;
+        m_values.m_noninherited.alignment.access().justify_content = to_underlying(value);
     }
     void set_justify_items(JustifyItems value)
     {
-        if (m_values.m_noninherited.alignment->justify_items == value)
+        if (m_values.justify_items() == value)
             return;
-        m_values.m_noninherited.alignment.access().justify_items = value;
+        m_values.m_noninherited.alignment.access().justify_items = to_underlying(value);
     }
     void set_justify_self(JustifySelf value)
     {
-        if (m_values.m_noninherited.alignment->justify_self == value)
+        if (m_values.justify_self() == value)
             return;
-        m_values.m_noninherited.alignment.access().justify_self = value;
+        m_values.m_noninherited.alignment.access().justify_self = to_underlying(value);
     }
     void set_box_shadow(Vector<ShadowData>&& value)
     {
@@ -3002,12 +3034,6 @@ public:
             return;
         m_values.m_noninherited.misc.access().column_count = value;
     }
-    void set_column_gap(Variant<LengthPercentage, NormalGap> column_gap)
-    {
-        if (m_values.m_noninherited.alignment->column_gap == column_gap)
-            return;
-        m_values.m_noninherited.alignment.access().column_gap = column_gap;
-    }
     void set_column_span(ColumnSpan column_span)
     {
         if (m_values.m_noninherited.misc->column_span == column_span)
@@ -3025,12 +3051,6 @@ public:
         if (m_values.m_noninherited.misc->column_height == column_height)
             return;
         m_values.m_noninherited.misc.access().column_height = column_height;
-    }
-    void set_row_gap(Variant<LengthPercentage, NormalGap> row_gap)
-    {
-        if (m_values.m_noninherited.alignment->row_gap == row_gap)
-            return;
-        m_values.m_noninherited.alignment.access().row_gap = row_gap;
     }
     void set_border_collapse(BorderCollapse const border_collapse)
     {
@@ -3201,12 +3221,6 @@ public:
             return;
         m_values.m_inherited.svg.access().stroke_linejoin = value;
     }
-    void set_vector_effect(VectorEffect value)
-    {
-        if (m_values.m_noninherited.svg_reset->vector_effect == value)
-            return;
-        m_values.m_noninherited.svg_reset.access().vector_effect = value;
-    }
     void set_stroke_miterlimit(double value)
     {
         if (m_values.m_inherited.svg->stroke_miterlimit == value)
@@ -3224,18 +3238,6 @@ public:
         if (m_values.m_inherited.svg->stroke_width == value)
             return;
         m_values.m_inherited.svg.access().stroke_width = move(value);
-    }
-    void set_stop_color(Color value)
-    {
-        if (m_values.m_noninherited.svg_reset->stop_color == value)
-            return;
-        m_values.m_noninherited.svg_reset.access().stop_color = value;
-    }
-    void set_stop_opacity(float value)
-    {
-        if (m_values.m_noninherited.svg_reset->stop_opacity == value)
-            return;
-        m_values.m_noninherited.svg_reset.access().stop_opacity = value;
     }
     void set_text_anchor(TextAnchor value)
     {
@@ -3303,24 +3305,6 @@ public:
             return;
         m_values.m_inherited.svg.access().clip_rule = value;
     }
-    void set_flood_color(Color value)
-    {
-        if (m_values.m_noninherited.svg_reset->flood_color == value)
-            return;
-        m_values.m_noninherited.svg_reset.access().flood_color = value;
-    }
-    void set_flood_opacity(float value)
-    {
-        if (m_values.m_noninherited.svg_reset->flood_opacity == value)
-            return;
-        m_values.m_noninherited.svg_reset.access().flood_opacity = value;
-    }
-    void set_shape_rendering(ShapeRendering value)
-    {
-        if (m_values.m_noninherited.svg_reset->shape_rendering == value)
-            return;
-        m_values.m_noninherited.svg_reset.access().shape_rendering = value;
-    }
     void set_paint_order(PaintOrderList value)
     {
         if (m_values.m_inherited.svg->paint_order == value)
@@ -3334,49 +3318,6 @@ public:
         auto& svg = m_values.m_inherited.svg.access();
         svg.paint_order_serialization_length = length;
         svg.paint_order_is_normal = is_normal;
-    }
-
-    void set_cx(LengthPercentage cx)
-    {
-        if (m_values.m_noninherited.svg_reset->cx == cx)
-            return;
-        m_values.m_noninherited.svg_reset.access().cx = move(cx);
-    }
-    void set_cy(LengthPercentage cy)
-    {
-        if (m_values.m_noninherited.svg_reset->cy == cy)
-            return;
-        m_values.m_noninherited.svg_reset.access().cy = move(cy);
-    }
-    void set_r(LengthPercentage r)
-    {
-        if (m_values.m_noninherited.svg_reset->r == r)
-            return;
-        m_values.m_noninherited.svg_reset.access().r = move(r);
-    }
-    void set_rx(LengthPercentageOrAuto rx)
-    {
-        if (m_values.m_noninherited.svg_reset->rx == rx)
-            return;
-        m_values.m_noninherited.svg_reset.access().rx = move(rx);
-    }
-    void set_ry(LengthPercentageOrAuto ry)
-    {
-        if (m_values.m_noninherited.svg_reset->ry == ry)
-            return;
-        m_values.m_noninherited.svg_reset.access().ry = move(ry);
-    }
-    void set_x(LengthPercentage x)
-    {
-        if (m_values.m_noninherited.svg_reset->x == x)
-            return;
-        m_values.m_noninherited.svg_reset.access().x = move(x);
-    }
-    void set_y(LengthPercentage y)
-    {
-        if (m_values.m_noninherited.svg_reset->y == y)
-            return;
-        m_values.m_noninherited.svg_reset.access().y = move(y);
     }
 
     void set_math_shift(MathShift value)
@@ -3474,6 +3415,26 @@ public:
     }
 
 private:
+    static void replace_length_percentage_or_auto(ComputedValuesFFI::ComputedLengthPercentageOrAuto& target, LengthPercentageOrAuto const& replacement)
+    {
+        StyleValueFFI::rust_style_value_release(static_cast<StyleValueFFI::StyleValueData const*>(target.value.pointer));
+        target.is_auto = replacement.is_auto();
+        if (replacement.is_auto()) {
+            target.value.pointer = nullptr;
+            return;
+        }
+        auto retained = replacement.length_percentage();
+        target.value.pointer = retained.leak_data();
+    }
+
+    static void set_length_box(ComputedValuesFFI::ComputedLengthBox& target, LengthBox const& replacement)
+    {
+        replace_length_percentage_or_auto(target.top, replacement.top());
+        replace_length_percentage_or_auto(target.right, replacement.right());
+        replace_length_percentage_or_auto(target.bottom, replacement.bottom());
+        replace_length_percentage_or_auto(target.left, replacement.left());
+    }
+
     void set_size(ComputedValuesFFI::ComputedSize ComputedValuesFFI::SizingValues::* member, Size value)
     {
         if (Size::view(m_values.m_noninherited.sizing.operator->()->*member) == value)

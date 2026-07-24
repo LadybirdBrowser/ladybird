@@ -25,7 +25,7 @@ use crate::display::FfiDisplay;
 use crate::property_metadata::longhands_for_shorthand;
 use crate::property_metadata::property_is_inherited;
 use crate::property_metadata::property_is_shorthand;
-use crate::style_value::{GridTrackEntryKind, RetainedStyleValueData, StyleValueData};
+use crate::style_value::{GridTrackEntryKind, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData};
 
 pub use crate::css_enums::*;
 
@@ -1608,13 +1608,7 @@ fn compute_letter_or_word_spacing_value(absolutized_value: &StyleValueData) -> F
     }
 }
 
-// https://drafts.csswg.org/css-anchor-position/#position-area-computed
-// The computed value of a <position-area> value is the two keywords indicating the selected
-// tracks in each axis, with the long (block-start) and short (start) logical keywords treated
-// as equivalent. It serializes with the logical keywords in their short forms.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_position_area_short_keyword(keyword: u16) -> u16 {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
+fn position_area_short_keyword(keyword: u16) -> u16 {
     match keyword {
         keyword::BLOCK_START | keyword::INLINE_START => keyword::START,
         keyword::BLOCK_END | keyword::INLINE_END => keyword::END,
@@ -1628,57 +1622,84 @@ pub extern "C" fn rust_position_area_short_keyword(keyword: u16) -> u16 {
     }
 }
 
-/// The outcome of the position-area span-all remapping: whether a single
-/// keyword replaces the two-keyword value, and that keyword.
-#[repr(C)]
-pub struct FfiPositionAreaRemap {
-    pub remapped: bool,
-    pub keyword: u16,
-}
-
-/// When one axis of a position-area value is span-all, the value computes to a
-/// single logical keyword drawn from the other axis. Returns that keyword, or
-/// reports that no span-all remapping applies (both axes are then serialized
-/// in short form by the caller).
-/// https://drafts.csswg.org/css-anchor-position/#position-area-computed
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_position_area_span_all_remap(block_keyword: u16, inline_keyword: u16) -> FfiPositionAreaRemap {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    let remapped = |keyword| FfiPositionAreaRemap {
-        remapped: true,
-        keyword,
-    };
-    let not_remapped = FfiPositionAreaRemap {
-        remapped: false,
-        keyword: 0,
-    };
+fn position_area_span_all_remap(block_keyword: u16, inline_keyword: u16) -> Option<u16> {
     if block_keyword == keyword::SPAN_ALL {
         return match inline_keyword {
-            keyword::START => remapped(keyword::INLINE_START),
-            keyword::END => remapped(keyword::INLINE_END),
-            keyword::SELF_START => remapped(keyword::SELF_INLINE_START),
-            keyword::SELF_END => remapped(keyword::SELF_INLINE_END),
-            keyword::SPAN_START => remapped(keyword::SPAN_INLINE_START),
-            keyword::SPAN_END => remapped(keyword::SPAN_INLINE_END),
-            keyword::SPAN_SELF_START => remapped(keyword::SPAN_SELF_INLINE_START),
-            keyword::SPAN_SELF_END => remapped(keyword::SPAN_SELF_INLINE_END),
-            _ => not_remapped,
+            keyword::START => Some(keyword::INLINE_START),
+            keyword::END => Some(keyword::INLINE_END),
+            keyword::SELF_START => Some(keyword::SELF_INLINE_START),
+            keyword::SELF_END => Some(keyword::SELF_INLINE_END),
+            keyword::SPAN_START => Some(keyword::SPAN_INLINE_START),
+            keyword::SPAN_END => Some(keyword::SPAN_INLINE_END),
+            keyword::SPAN_SELF_START => Some(keyword::SPAN_SELF_INLINE_START),
+            keyword::SPAN_SELF_END => Some(keyword::SPAN_SELF_INLINE_END),
+            _ => None,
         };
     }
     if inline_keyword == keyword::SPAN_ALL {
         return match block_keyword {
-            keyword::START => remapped(keyword::BLOCK_START),
-            keyword::END => remapped(keyword::BLOCK_END),
-            keyword::SELF_START => remapped(keyword::SELF_BLOCK_START),
-            keyword::SELF_END => remapped(keyword::SELF_BLOCK_END),
-            keyword::SPAN_START => remapped(keyword::SPAN_BLOCK_START),
-            keyword::SPAN_END => remapped(keyword::SPAN_BLOCK_END),
-            keyword::SPAN_SELF_START => remapped(keyword::SPAN_SELF_BLOCK_START),
-            keyword::SPAN_SELF_END => remapped(keyword::SPAN_SELF_BLOCK_END),
-            _ => not_remapped,
+            keyword::START => Some(keyword::BLOCK_START),
+            keyword::END => Some(keyword::BLOCK_END),
+            keyword::SELF_START => Some(keyword::SELF_BLOCK_START),
+            keyword::SELF_END => Some(keyword::SELF_BLOCK_END),
+            keyword::SPAN_START => Some(keyword::SPAN_BLOCK_START),
+            keyword::SPAN_END => Some(keyword::SPAN_BLOCK_END),
+            keyword::SPAN_SELF_START => Some(keyword::SPAN_SELF_BLOCK_START),
+            keyword::SPAN_SELF_END => Some(keyword::SPAN_SELF_BLOCK_END),
+            _ => None,
         };
     }
-    not_remapped
+    None
+}
+
+// https://drafts.csswg.org/css-anchor-position/#position-area-computed
+#[allow(clippy::arc_with_non_send_sync)]
+fn compute_position_area(value: &StyleValueData) -> Option<Arc<StyleValueData>> {
+    // The computed value of a <position-area> value is the two keywords indicating the selected tracks in each axis,
+    // with the long (block-start) and short (start) logical keywords treated as equivalent. It serializes in the order
+    // given in the grammar (above), with the logical keywords serialized in their short forms (e.g. start start
+    // instead of block-start inline-start).
+    let StyleValueData::ValueList {
+        values,
+        separator,
+        collapsible,
+    } = value
+    else {
+        return None;
+    };
+    let [block_value, inline_value] = values.as_slice() else {
+        unreachable!("position-area must contain two keywords")
+    };
+    let StyleValueData::Keyword { keyword: block_keyword } = block_value.data() else {
+        unreachable!("position-area must contain keywords")
+    };
+    let StyleValueData::Keyword {
+        keyword: inline_keyword,
+    } = inline_value.data()
+    else {
+        unreachable!("position-area must contain keywords")
+    };
+
+    if let Some(keyword) = position_area_span_all_remap(*block_keyword, *inline_keyword) {
+        return Some(Arc::new(StyleValueData::Keyword { keyword }));
+    }
+    let short_block_keyword = position_area_short_keyword(*block_keyword);
+    let short_inline_keyword = position_area_short_keyword(*inline_keyword);
+    if short_block_keyword == *block_keyword && short_inline_keyword == *inline_keyword {
+        return None;
+    }
+
+    let retained_keyword = |keyword| unsafe {
+        RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(StyleValueData::Keyword { keyword })))
+    };
+    Some(Arc::new(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(vec![
+            retained_keyword(short_block_keyword),
+            retained_keyword(short_inline_keyword),
+        ]),
+        separator: *separator,
+        collapsible: *collapsible,
+    }))
 }
 
 /// The per-longhand initial values as shared Rust value identities.
@@ -1908,6 +1929,9 @@ pub struct FfiComputedStoreEntry {
     pub has_style_sheet_context: bool,
     pub inheritance_dependent: bool,
     pub inherited: bool,
+    /// An owned replacement style value when `computed_kind` is
+    /// `COMPUTED_KIND_STYLE_VALUE`. The C++ callback adopts this reference.
+    pub computed_data: *const c_void,
     /// How the natively computed value crosses: with COMPUTED_KIND_UNCHANGED
     /// the stored value is `data` itself; the other kinds carry a replacement
     /// in `value` while `data` remains the specified value for the
@@ -1938,6 +1962,8 @@ pub const COMPUTED_KIND_COMPUTE_IN_CPP: u8 = 7;
 pub const COMPUTED_KIND_KEYWORD: u8 = 8;
 /// A display value encoded as tag | first << 8 | second << 16 | third << 24.
 pub const COMPUTED_KIND_DISPLAY: u8 = 9;
+/// A complete Rust-owned style value transferred through `computed_data`.
+pub const COMPUTED_KIND_STYLE_VALUE: u8 = 10;
 
 pub const LONGHAND_BATCH_REQUEST_NONE: u8 = 0;
 pub const LONGHAND_BATCH_REQUEST_LENGTH_CONTEXT: u8 = 1;
@@ -2529,6 +2555,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     Number(f64),
                     Percentage(f64),
                     FontStyle(u8),
+                    StyleValue(Arc<StyleValueData>),
                 }
                 use crate::property_metadata::property_id as prop;
                 let synthesized_px_length = |absolutized: Option<f64>| {
@@ -2784,6 +2811,10 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             NativeValue::Unsupported
                         }
                     }
+                    (_, prop::POSITION_AREA) => match compute_position_area(value_data) {
+                        Some(value) => NativeValue::StyleValue(value),
+                        None => NativeValue::Unchanged,
+                    },
                     (Some(absolutized), _) if !property_has_dedicated_compute_rule(inherited_property_id) => {
                         match absolutized {
                             Some(px) => NativeValue::Px(px),
@@ -2793,17 +2824,20 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     _ => NativeValue::Unsupported,
                 };
 
-                let (computed_kind, computed_value) = match native {
-                    NativeValue::Px(px) => (COMPUTED_KIND_PX_LENGTH, px),
-                    NativeValue::Integer(integer) => (COMPUTED_KIND_INTEGER, integer as f64),
-                    NativeValue::Superellipse(parameter) => (COMPUTED_KIND_SUPERELLIPSE, parameter),
-                    NativeValue::Number(number) => (COMPUTED_KIND_NUMBER, number),
-                    NativeValue::Percentage(percentage) => (COMPUTED_KIND_PERCENTAGE, percentage),
-                    NativeValue::FontStyle(font_style_keyword) => (COMPUTED_KIND_FONT_STYLE, font_style_keyword as f64),
-                    NativeValue::Unchanged => (COMPUTED_KIND_UNCHANGED, 0.0),
+                let (computed_kind, computed_value, computed_data) = match native {
+                    NativeValue::Px(px) => (COMPUTED_KIND_PX_LENGTH, px, std::ptr::null()),
+                    NativeValue::Integer(integer) => (COMPUTED_KIND_INTEGER, integer as f64, std::ptr::null()),
+                    NativeValue::Superellipse(parameter) => (COMPUTED_KIND_SUPERELLIPSE, parameter, std::ptr::null()),
+                    NativeValue::Number(number) => (COMPUTED_KIND_NUMBER, number, std::ptr::null()),
+                    NativeValue::Percentage(percentage) => (COMPUTED_KIND_PERCENTAGE, percentage, std::ptr::null()),
+                    NativeValue::FontStyle(font_style_keyword) => {
+                        (COMPUTED_KIND_FONT_STYLE, font_style_keyword as f64, std::ptr::null())
+                    }
+                    NativeValue::StyleValue(value) => (COMPUTED_KIND_STYLE_VALUE, 0.0, Arc::into_raw(value).cast()),
+                    NativeValue::Unchanged => (COMPUTED_KIND_UNCHANGED, 0.0, std::ptr::null()),
                     NativeValue::Unsupported => {
                         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::LonghandCppComputeFallback);
-                        (COMPUTED_KIND_COMPUTE_IN_CPP, 0.0)
+                        (COMPUTED_KIND_COMPUTE_IN_CPP, 0.0, std::ptr::null())
                     }
                 };
                 pending_stores.push(FfiComputedStoreEntry {
@@ -2814,6 +2848,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     has_style_sheet_context,
                     inheritance_dependent,
                     inherited: inherit_fetch_attempted,
+                    computed_data,
                     computed_kind,
                     value: computed_value,
                 });
@@ -2826,6 +2861,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     has_style_sheet_context,
                     inheritance_dependent,
                     inherited: inherit_fetch_attempted,
+                    computed_data: std::ptr::null(),
                     computed_kind: COMPUTED_KIND_UNCHANGED,
                     value: 0.0,
                 });
@@ -3007,6 +3043,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             has_style_sheet_context: false,
             inheritance_dependent: false,
             inherited: false,
+            computed_data: std::ptr::null(),
             computed_kind,
             value,
         };

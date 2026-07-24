@@ -94,25 +94,6 @@ static Array<u8, number_of_keywords> const& keyword_code_table()
     return table;
 }
 
-// The properties feeding the alignment group's descriptors, in registration
-// order; create() gathers their computed values in the same order.
-static constexpr Array alignment_group_properties {
-    PropertyID::FlexDirection,
-    PropertyID::FlexWrap,
-    PropertyID::FlexBasis,
-    PropertyID::FlexGrow,
-    PropertyID::FlexShrink,
-    PropertyID::Order,
-    PropertyID::AlignContent,
-    PropertyID::AlignItems,
-    PropertyID::AlignSelf,
-    PropertyID::JustifyContent,
-    PropertyID::JustifyItems,
-    PropertyID::JustifySelf,
-    PropertyID::ColumnGap,
-    PropertyID::RowGap,
-};
-
 // The properties feeding the text reset group's descriptors, in registration
 // order.
 static constexpr Array text_reset_group_properties {
@@ -334,24 +315,6 @@ static constexpr Array animation_group_properties {
     PropertyID::TransitionBehavior,
 };
 
-// The properties feeding the SVG reset group's descriptors, in registration
-// order.
-static constexpr Array svg_reset_group_properties {
-    PropertyID::Cx,
-    PropertyID::Cy,
-    PropertyID::R,
-    PropertyID::Rx,
-    PropertyID::Ry,
-    PropertyID::X,
-    PropertyID::Y,
-    PropertyID::StopColor,
-    PropertyID::StopOpacity,
-    PropertyID::FloodColor,
-    PropertyID::FloodOpacity,
-    PropertyID::VectorEffect,
-    PropertyID::ShapeRendering,
-};
-
 // The properties feeding the inherited SVG group's descriptors, in
 // registration order.
 static constexpr Array inherited_svg_group_properties {
@@ -421,24 +384,6 @@ static constexpr Array box_group_properties {
     PropertyID::ContainerType,
     PropertyID::WillChange,
     PropertyID::Resize,
-};
-
-// The properties feeding the surround group's descriptors, in registration
-// order. Everything registers as constraints until the core learns the
-// length box representation.
-static constexpr Array surround_group_properties {
-    PropertyID::Top,
-    PropertyID::Right,
-    PropertyID::Bottom,
-    PropertyID::Left,
-    PropertyID::MarginTop,
-    PropertyID::MarginRight,
-    PropertyID::MarginBottom,
-    PropertyID::MarginLeft,
-    PropertyID::PaddingTop,
-    PropertyID::PaddingRight,
-    PropertyID::PaddingBottom,
-    PropertyID::PaddingLeft,
 };
 
 // The properties feeding the border group's descriptors, in registration
@@ -512,23 +457,6 @@ static void register_style_group_field_descriptors()
             .keyword_table_length = keyword_table ? keyword_table->size() : 0,
         });
     };
-
-    using Alignment = ComputedValues::AlignmentValues;
-    constexpr auto alignment = to_underlying(StyleGroupIndex::AlignmentValues);
-    add(alignment, PropertyID::FlexDirection, offsetof(Alignment, flex_direction), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_flex_direction>());
-    add(alignment, PropertyID::FlexWrap, offsetof(Alignment, flex_wrap), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_flex_wrap>());
-    add(alignment, PropertyID::FlexBasis, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
-    add(alignment, PropertyID::FlexGrow, offsetof(Alignment, flex_grow), GROUP_FIELD_F64, 0, nullptr);
-    add(alignment, PropertyID::FlexShrink, offsetof(Alignment, flex_shrink), GROUP_FIELD_F64, 0, nullptr);
-    add(alignment, PropertyID::Order, offsetof(Alignment, order), GROUP_FIELD_I32, 0, nullptr);
-    add(alignment, PropertyID::AlignContent, offsetof(Alignment, align_content), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_align_content>());
-    add(alignment, PropertyID::AlignItems, offsetof(Alignment, align_items), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_align_items>());
-    add(alignment, PropertyID::AlignSelf, offsetof(Alignment, align_self), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_align_self>());
-    add(alignment, PropertyID::JustifyContent, offsetof(Alignment, justify_content), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_justify_content>());
-    add(alignment, PropertyID::JustifyItems, offsetof(Alignment, justify_items), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_justify_items>());
-    add(alignment, PropertyID::JustifySelf, offsetof(Alignment, justify_self), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_justify_self>());
-    add(alignment, PropertyID::ColumnGap, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
-    add(alignment, PropertyID::RowGap, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
 
     static_assert(sizeof(Color) == sizeof(u32));
     using TextReset = ComputedValues::TextResetValues;
@@ -654,19 +582,6 @@ static void register_style_group_field_descriptors()
     for (auto property : animation_group_properties)
         add(animation, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
 
-    using SVGReset = ComputedValues::SVGResetValues;
-    constexpr auto svg_reset = to_underlying(StyleGroupIndex::SVGResetValues);
-    for (auto property : { PropertyID::Cx, PropertyID::Cy, PropertyID::R, PropertyID::X, PropertyID::Y })
-        add(svg_reset, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
-    add(svg_reset, PropertyID::Rx, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
-    add(svg_reset, PropertyID::Ry, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
-    add(svg_reset, PropertyID::StopColor, offsetof(SVGReset, stop_color), GROUP_FIELD_COLOR, 0, nullptr);
-    add(svg_reset, PropertyID::StopOpacity, offsetof(SVGReset, stop_opacity), GROUP_FIELD_RESOLVED_F32, 0, nullptr);
-    add(svg_reset, PropertyID::FloodColor, offsetof(SVGReset, flood_color), GROUP_FIELD_COLOR, 0, nullptr);
-    add(svg_reset, PropertyID::FloodOpacity, offsetof(SVGReset, flood_opacity), GROUP_FIELD_RESOLVED_F32, 0, nullptr);
-    add(svg_reset, PropertyID::VectorEffect, offsetof(SVGReset, vector_effect), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_vector_effect>());
-    add(svg_reset, PropertyID::ShapeRendering, offsetof(SVGReset, shape_rendering), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_shape_rendering>());
-
     using InheritedSVG = ComputedValues::InheritedSVGValues;
     constexpr auto inherited_svg = to_underlying(StyleGroupIndex::InheritedSVGValues);
     add(inherited_svg, PropertyID::Fill, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
@@ -729,13 +644,6 @@ static void register_style_group_field_descriptors()
     add(box, PropertyID::WillChange, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
     add(box, PropertyID::Resize, offsetof(Box, resize), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_resize>());
 
-    constexpr auto surround = to_underlying(StyleGroupIndex::SurroundValues);
-    for (auto property : { PropertyID::Top, PropertyID::Right, PropertyID::Bottom, PropertyID::Left })
-        add(surround, property, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
-    for (auto property : { PropertyID::MarginTop, PropertyID::MarginRight, PropertyID::MarginBottom, PropertyID::MarginLeft,
-             PropertyID::PaddingTop, PropertyID::PaddingRight, PropertyID::PaddingBottom, PropertyID::PaddingLeft })
-        add(surround, property, 0, GROUP_FIELD_REQUIRE_PX, 0, nullptr, 0);
-
     using Border = ComputedValues::BorderValues;
     constexpr auto border = to_underlying(StyleGroupIndex::BorderValues);
     struct BorderSide {
@@ -791,6 +699,12 @@ static_assert(sizeof(ComputedValues::InheritedTableValues) == sizeof(ComputedVal
 static_assert(alignof(ComputedValues::InheritedTableValues) == alignof(ComputedValuesFFI::InheritedTableValues));
 static_assert(sizeof(ComputedValues::SizingValues) == sizeof(ComputedValuesFFI::SizingValues));
 static_assert(alignof(ComputedValues::SizingValues) == alignof(ComputedValuesFFI::SizingValues));
+static_assert(sizeof(ComputedValues::AlignmentValues) == sizeof(ComputedValuesFFI::AlignmentValues));
+static_assert(alignof(ComputedValues::AlignmentValues) == alignof(ComputedValuesFFI::AlignmentValues));
+static_assert(sizeof(ComputedValues::SVGResetValues) == sizeof(ComputedValuesFFI::SVGResetValues));
+static_assert(alignof(ComputedValues::SVGResetValues) == alignof(ComputedValuesFFI::SVGResetValues));
+static_assert(sizeof(ComputedValues::SurroundValues) == sizeof(ComputedValuesFFI::SurroundValues));
+static_assert(alignof(ComputedValues::SurroundValues) == alignof(ComputedValuesFFI::SurroundValues));
 static_assert(sizeof(Size) == sizeof(ComputedValuesFFI::ComputedSize));
 static_assert(alignof(Size) == alignof(ComputedValuesFFI::ComputedSize));
 static_assert(sizeof(RustStyleValueHandle) == sizeof(StyleValueFFI::StyleValueData const*));
@@ -1004,16 +918,23 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (anchor_adopted)
         computed_values.adopt_anchor_group(const_cast<void*>(anchor_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, surround_group_properties.size()> surround_group_values;
-    gather_group_values(surround_group_properties, surround_group_values);
-    auto* surround_payload = ComputedValuesFFI::rust_build_style_group(
+    auto* surround_payload = ComputedValuesFFI::rust_build_surround_group(
         SurroundValues::style_group_index,
-        surround_group_values.data(),
-        surround_group_values.size(),
+        computed_style.property(PropertyID::Top).rust_style_value_data(),
+        computed_style.property(PropertyID::Right).rust_style_value_data(),
+        computed_style.property(PropertyID::Bottom).rust_style_value_data(),
+        computed_style.property(PropertyID::Left).rust_style_value_data(),
+        computed_style.property(PropertyID::MarginTop).rust_style_value_data(),
+        computed_style.property(PropertyID::MarginRight).rust_style_value_data(),
+        computed_style.property(PropertyID::MarginBottom).rust_style_value_data(),
+        computed_style.property(PropertyID::MarginLeft).rust_style_value_data(),
+        computed_style.property(PropertyID::PaddingTop).rust_style_value_data(),
+        computed_style.property(PropertyID::PaddingRight).rust_style_value_data(),
+        computed_style.property(PropertyID::PaddingBottom).rust_style_value_data(),
+        computed_style.property(PropertyID::PaddingLeft).rust_style_value_data(),
         inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.surround.operator->()) : nullptr);
-    bool const surround_adopted = surround_payload != nullptr;
-    if (surround_adopted)
-        computed_values.adopt_surround_group(const_cast<void*>(surround_payload));
+    VERIFY(surround_payload);
+    computed_values.adopt_surround_group(const_cast<void*>(surround_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, box_group_properties.size()> box_group_values;
     gather_group_values(box_group_properties, box_group_values);
@@ -1026,16 +947,25 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (box_adopted)
         computed_values.adopt_box_group(const_cast<void*>(box_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, alignment_group_properties.size()> alignment_group_values;
-    gather_group_values(alignment_group_properties, alignment_group_values);
-    auto* alignment_payload = ComputedValuesFFI::rust_build_style_group(
+    auto* alignment_payload = ComputedValuesFFI::rust_build_alignment_group(
         AlignmentValues::style_group_index,
-        alignment_group_values.data(),
-        alignment_group_values.size(),
+        computed_style.property(PropertyID::FlexDirection).rust_style_value_data(),
+        computed_style.property(PropertyID::FlexWrap).rust_style_value_data(),
+        computed_style.property(PropertyID::FlexBasis).rust_style_value_data(),
+        computed_style.flex_grow(),
+        computed_style.flex_shrink(),
+        computed_style.order(),
+        computed_style.property(PropertyID::AlignContent).rust_style_value_data(),
+        computed_style.property(PropertyID::AlignItems).rust_style_value_data(),
+        computed_style.property(PropertyID::AlignSelf).rust_style_value_data(),
+        computed_style.property(PropertyID::JustifyContent).rust_style_value_data(),
+        computed_style.property(PropertyID::JustifyItems).rust_style_value_data(),
+        computed_style.property(PropertyID::JustifySelf).rust_style_value_data(),
+        computed_style.property(PropertyID::ColumnGap).rust_style_value_data(),
+        computed_style.property(PropertyID::RowGap).rust_style_value_data(),
         inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.alignment.operator->()) : nullptr);
-    bool const alignment_adopted = alignment_payload != nullptr;
-    if (alignment_adopted)
-        computed_values.adopt_alignment_group(const_cast<void*>(alignment_payload));
+    VERIFY(alignment_payload);
+    computed_values.adopt_alignment_group(const_cast<void*>(alignment_payload));
 
     auto* sizing_payload = ComputedValuesFFI::rust_build_sizing_group(
         SizingValues::style_group_index,
@@ -1347,29 +1277,24 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (inherited_svg_adopted)
         computed_values.adopt_inherited_svg_group(const_cast<void*>(inherited_svg_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, svg_reset_group_properties.size()> svg_reset_group_values;
-    gather_group_values(svg_reset_group_properties, svg_reset_group_values);
-    for (size_t i = 0; i < svg_reset_group_properties.size(); ++i) {
-        auto svg_property_id = svg_reset_group_properties[i];
-        if (svg_property_id == PropertyID::StopColor || svg_property_id == PropertyID::FloodColor) {
-            svg_reset_group_values[i].resolved_color = computed_style.color(svg_property_id, own_color_resolution_context).value();
-            svg_reset_group_values[i].has_resolved_color = true;
-        } else if (svg_property_id == PropertyID::StopOpacity) {
-            svg_reset_group_values[i].resolved_number = computed_style.stop_opacity();
-            svg_reset_group_values[i].has_resolved_number = true;
-        } else if (svg_property_id == PropertyID::FloodOpacity) {
-            svg_reset_group_values[i].resolved_number = computed_style.flood_opacity();
-            svg_reset_group_values[i].has_resolved_number = true;
-        }
-    }
-    auto* svg_reset_payload = ComputedValuesFFI::rust_build_style_group(
+    auto* svg_reset_payload = ComputedValuesFFI::rust_build_svg_reset_group(
         SVGResetValues::style_group_index,
-        svg_reset_group_values.data(),
-        svg_reset_group_values.size(),
+        computed_style.property(PropertyID::Cx).rust_style_value_data(),
+        computed_style.property(PropertyID::Cy).rust_style_value_data(),
+        computed_style.property(PropertyID::R).rust_style_value_data(),
+        computed_style.property(PropertyID::Rx).rust_style_value_data(),
+        computed_style.property(PropertyID::Ry).rust_style_value_data(),
+        computed_style.property(PropertyID::X).rust_style_value_data(),
+        computed_style.property(PropertyID::Y).rust_style_value_data(),
+        computed_style.color(PropertyID::StopColor, own_color_resolution_context).value(),
+        computed_style.stop_opacity(),
+        computed_style.color(PropertyID::FloodColor, own_color_resolution_context).value(),
+        computed_style.flood_opacity(),
+        computed_style.property(PropertyID::VectorEffect).rust_style_value_data(),
+        computed_style.property(PropertyID::ShapeRendering).rust_style_value_data(),
         inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.svg_reset.operator->()) : nullptr);
-    bool const svg_reset_adopted = svg_reset_payload != nullptr;
-    if (svg_reset_adopted)
-        computed_values.adopt_svg_reset_group(const_cast<void*>(svg_reset_payload));
+    VERIFY(svg_reset_payload);
+    computed_values.adopt_svg_reset_group(const_cast<void*>(svg_reset_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, border_group_properties.size()> border_group_values;
     gather_group_values(border_group_properties, border_group_values);
@@ -1615,18 +1540,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!box_adopted)
         computed_values.set_display_before_box_type_transformation(computed_style.display_before_box_type_transformation());
 
-    if (!alignment_adopted)
-        computed_values.set_flex_direction(computed_style.flex_direction());
-    if (!alignment_adopted)
-        computed_values.set_flex_wrap(computed_style.flex_wrap());
-    if (!alignment_adopted)
-        computed_values.set_flex_basis(computed_style.flex_basis());
-    if (!alignment_adopted)
-        computed_values.set_flex_grow(computed_style.flex_grow());
-    if (!alignment_adopted)
-        computed_values.set_flex_shrink(computed_style.flex_shrink());
-    if (!alignment_adopted)
-        computed_values.set_order(computed_style.order());
     if (!effects_adopted)
         computed_values.set_clip(computed_style.clip());
 
@@ -1634,25 +1547,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_backdrop_filter(computed_style.backdrop_filter());
     if (!effects_adopted)
         computed_values.set_filter(computed_style.filter());
-
-    if (!svg_reset_adopted)
-        computed_values.set_flood_color(computed_style.color(CSS::PropertyID::FloodColor, color_resolution_context));
-    if (!svg_reset_adopted)
-        computed_values.set_flood_opacity(computed_style.flood_opacity());
-
-    if (!alignment_adopted)
-        computed_values.set_justify_content(computed_style.justify_content());
-    if (!alignment_adopted)
-        computed_values.set_justify_items(computed_style.justify_items());
-    if (!alignment_adopted)
-        computed_values.set_justify_self(computed_style.justify_self());
-
-    if (!alignment_adopted)
-        computed_values.set_align_content(computed_style.align_content());
-    if (!alignment_adopted)
-        computed_values.set_align_items(computed_style.align_items());
-    if (!alignment_adopted)
-        computed_values.set_align_self(computed_style.align_self());
 
     if (!misc_reset_adopted)
         computed_values.set_appearance(computed_style.appearance());
@@ -2022,19 +1916,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!inherited_box_adopted)
         computed_values.set_visibility(computed_style.visibility());
 
-    if (!surround_adopted)
-        computed_values.set_inset(computed_style.length_box(CSS::PropertyID::Left, CSS::PropertyID::Top, CSS::PropertyID::Right, CSS::PropertyID::Bottom, CSS::LengthPercentageOrAuto::make_auto()));
-    for (auto property_id : { PropertyID::Top, PropertyID::Right, PropertyID::Bottom, PropertyID::Left }) {
-        if (surround_adopted)
-            break;
-        auto const& inset = computed_style.property(property_id);
-        if (inset.is_anchor())
-            computed_values.set_anchor_inset(property_id, inset);
-    }
-    if (!surround_adopted)
-        computed_values.set_margin(computed_style.length_box(CSS::PropertyID::MarginLeft, CSS::PropertyID::MarginTop, CSS::PropertyID::MarginRight, CSS::PropertyID::MarginBottom, CSS::Length::make_px(0)));
-    if (!surround_adopted)
-        computed_values.set_padding(computed_style.length_box(CSS::PropertyID::PaddingLeft, CSS::PropertyID::PaddingTop, CSS::PropertyID::PaddingRight, CSS::PropertyID::PaddingBottom, CSS::Length::make_px(0)));
     if (!misc_reset_adopted)
         computed_values.set_scroll_margin(computed_style.length_box(CSS::PropertyID::ScrollMarginLeft, CSS::PropertyID::ScrollMarginTop, CSS::PropertyID::ScrollMarginRight, CSS::PropertyID::ScrollMarginBottom, CSS::Length::make_px(0)));
     if (!misc_reset_adopted)
@@ -2171,28 +2052,10 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!grid_adopted)
         computed_values.set_grid_auto_flow(computed_style.grid_auto_flow());
 
-    if (!svg_reset_adopted)
-        computed_values.set_cx(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Cx)));
-    if (!svg_reset_adopted)
-        computed_values.set_cy(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Cy)));
-    if (!svg_reset_adopted)
-        computed_values.set_r(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::R)));
-    if (!svg_reset_adopted)
-        computed_values.set_rx(CSS::LengthPercentageOrAuto::from_style_value(computed_style.property(CSS::PropertyID::Rx)));
-    if (!svg_reset_adopted)
-        computed_values.set_ry(CSS::LengthPercentageOrAuto::from_style_value(computed_style.property(CSS::PropertyID::Ry)));
-    if (!svg_reset_adopted)
-        computed_values.set_x(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::X)));
-    if (!svg_reset_adopted)
-        computed_values.set_y(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Y)));
-
     if (!inherited_svg_adopted)
         computed_values.set_fill(computed_style.fill(color_resolution_context));
     if (!inherited_svg_adopted)
         computed_values.set_stroke(computed_style.stroke(color_resolution_context));
-
-    if (!svg_reset_adopted)
-        computed_values.set_stop_color(computed_style.color(CSS::PropertyID::StopColor, color_resolution_context));
 
     auto const& stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
@@ -2203,8 +2066,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         else
             computed_values.set_stroke_width(CSS::LengthPercentage::from_style_value(stroke_width));
     }
-    if (!svg_reset_adopted)
-        computed_values.set_shape_rendering(computed_style.shape_rendering());
     if (!inherited_svg_adopted) {
         computed_values.set_paint_order(computed_style.paint_order());
         auto const& paint_order = computed_style.property(PropertyID::PaintOrder);
@@ -2267,15 +2128,11 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_stroke_linecap(computed_style.stroke_linecap());
     if (!inherited_svg_adopted)
         computed_values.set_stroke_linejoin(computed_style.stroke_linejoin());
-    if (!svg_reset_adopted)
-        computed_values.set_vector_effect(computed_style.vector_effect());
     if (!inherited_svg_adopted)
         computed_values.set_stroke_miterlimit(computed_style.stroke_miterlimit());
 
     if (!inherited_svg_adopted)
         computed_values.set_stroke_opacity(computed_style.stroke_opacity());
-    if (!svg_reset_adopted)
-        computed_values.set_stop_opacity(computed_style.stop_opacity());
 
     if (!inherited_svg_adopted)
         computed_values.set_text_anchor(computed_style.text_anchor());
@@ -2292,11 +2149,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_column_width(computed_style.size_value(CSS::PropertyID::ColumnWidth));
     if (!misc_reset_adopted)
         computed_values.set_column_height(computed_style.size_value(CSS::PropertyID::ColumnHeight));
-
-    if (!alignment_adopted)
-        computed_values.set_column_gap(computed_style.gap_value(CSS::PropertyID::ColumnGap));
-    if (!alignment_adopted)
-        computed_values.set_row_gap(computed_style.gap_value(CSS::PropertyID::RowGap));
 
     if (!inherited_table_adopted)
         computed_values.set_border_collapse(computed_style.border_collapse());
