@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Atomic.h>
 #include <AK/Queue.h>
 #include <AK/SinglyLinkedList.h>
 #include <AK/SinglyLinkedListSizePolicy.h>
@@ -129,6 +130,7 @@ private:
     void notify_read_available();
 
     NonnullOwnPtr<Core::LocalSocket> m_socket;
+    Atomic<bool> m_socket_is_open { true };
 
     // After file descriptor is sent, it is moved to the wait queue until an acknowledgement is received from the peer.
     // This is necessary to handle a specific behavior of the macOS kernel, which may prematurely garbage-collect the file
