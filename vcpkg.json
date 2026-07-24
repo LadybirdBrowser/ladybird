@@ -357,7 +357,7 @@
     },
     {
       "name": "nghttp2",
-      "version": "1.68.0#1"
+      "version": "1.69.0#0"
     },
     {
       "name": "openssl",
