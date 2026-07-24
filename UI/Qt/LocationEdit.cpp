@@ -17,10 +17,12 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QClipboard>
 #include <QEasingCurve>
 #include <QGraphicsDropShadowEffect>
 #include <QGuiApplication>
 #include <QKeyEvent>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPalette>
@@ -283,6 +285,50 @@ void LocationEdit::changeEvent(QEvent* event)
     if (event->type() == QEvent::PaletteChange || event->type() == QEvent::ApplicationPaletteChange || event->type() == QEvent::ThemeChange) {
         schedule_chrome_style_update();
     }
+}
+
+void LocationEdit::contextMenuEvent(QContextMenuEvent* event)
+{
+    QMenu* menu = createStandardContextMenu();
+
+    auto* paste_action = menu->findChild<QAction*>(QStringLiteral("edit-paste"), Qt::FindDirectChildrenOnly);
+
+    auto qt_clipboard_text = QGuiApplication::clipboard()->text();
+    auto clipboard_text = ak_string_from_qstring(qt_clipboard_text);
+
+    bool has_search_engine = WebView::Application::settings().search_engine().has_value();
+    auto paste_and_go_text = WebView::Omnibox::text_for_paste_and_go_action(clipboard_text, has_search_engine);
+    // Escape any &s so Qt doesn't treat them as mnemonics.
+    paste_and_go_text = MUST(paste_and_go_text.replace("&"sv, "&&"sv, ReplaceMode::All));
+
+    bool clipboard_holds_url = !has_search_engine || (!clipboard_text.is_empty() && WebView::location_looks_like_url(clipboard_text));
+    auto paste_and_go_icon = clipboard_holds_url
+        ? create_chrome_icon(ChromeIcon::Forward, palette())
+        : QIcon::fromTheme(QIcon::ThemeIcon::SystemSearch);
+
+    auto* paste_and_go_action = new QAction(paste_and_go_icon, qstring_from_ak_string(paste_and_go_text), menu);
+    paste_and_go_action->setEnabled(!isReadOnly() && !qt_clipboard_text.isEmpty());
+    connect(paste_and_go_action, &QAction::triggered, this, [this, clipboard_text, qt_clipboard_text] {
+        setText(qt_clipboard_text);
+        m_omnibox.navigate_directly_to_query(clipboard_text);
+    });
+
+    // Try to insert "Paste and Go" after the "Paste" action if we can find it.
+    bool added_paste_and_go_action = false;
+    if (paste_action) {
+        auto const& actions = menu->actions();
+        auto paste_index = actions.indexOf(paste_action);
+        if (paste_index >= 0 && paste_index + 1 < actions.size()) {
+            menu->insertAction(actions.at(paste_index + 1), paste_and_go_action);
+            added_paste_and_go_action = true;
+        }
+    }
+    // ...otherwise append it to the end.
+    if (!added_paste_and_go_action)
+        menu->addAction(paste_and_go_action);
+
+    menu->exec(event->globalPos());
+    delete menu;
 }
 
 void LocationEdit::focusInEvent(QFocusEvent* event)

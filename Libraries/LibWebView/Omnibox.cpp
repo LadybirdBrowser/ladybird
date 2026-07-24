@@ -786,4 +786,17 @@ void Omnibox::navigate_directly_to_query(String text)
     commit_verbatim(move(text));
 }
 
+String Omnibox::text_for_paste_and_go_action(String const& clipboard_text, bool has_search_engine_enabled)
+{
+    auto display_text = clipboard_text.code_points().length() > 45
+        ? MUST(String::formatted("{}…", clipboard_text.code_points().unicode_substring_view(0, 45)))
+        : clipboard_text;
+
+    bool clipboard_holds_url = !clipboard_text.is_empty() && WebView::location_looks_like_url(clipboard_text);
+    if (clipboard_holds_url || !has_search_engine_enabled)
+        return MUST(String::formatted("Paste and Go to {}", display_text));
+
+    return MUST(String::formatted("Paste and Search for '{}'", display_text));
+}
+
 }

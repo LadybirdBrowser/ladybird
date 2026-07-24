@@ -88,6 +88,8 @@ public:
     void suggestion_clicked(size_t suggestion_index);
     void navigate_directly_to_query(String text);
 
+    static String text_for_paste_and_go_action(String const& clipboard_text, bool has_search_engine_enabled);
+
     // State for the chrome:
     String const& query() const { return m_query; }
     bool is_editing() const { return m_is_editing; }
