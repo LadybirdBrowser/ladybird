@@ -273,7 +273,7 @@
     },
     {
       "name": "fast-float",
-      "version": "8.1.0#0"
+      "version": "8.2.10#1"
     },
     {
       "name": "ffmpeg",
@@ -281,7 +281,7 @@
     },
     {
       "name": "fmt",
-      "version": "12.1.0#0"
+      "version": "12.2.0#1"
     },
     {
       "name": "fontconfig",
@@ -309,7 +309,7 @@
     },
     {
       "name": "libdwarf",
-      "version": "2.3.0#0"
+      "version": "2.3.1#0"
     },
     {
       "name": "libedit",
@@ -377,11 +377,11 @@
     },
     {
       "name": "sdl3",
-      "version": "3.2.28#0"
+      "version": "3.4.12#0"
     },
     {
       "name": "simdjson",
-      "version": "4.2.4#0"
+      "version": "4.6.4#0"
     },
     {
       "name": "simdutf",
@@ -393,7 +393,7 @@
     },
     {
       "name": "sqlite3",
-      "version": "3.52.0#0"
+      "version": "3.53.3#1"
     },
     {
       "name": "tiff",
@@ -405,11 +405,11 @@
     },
     {
       "name": "vulkan-headers",
-      "version": "1.4.335.0#0"
+      "version": "1.4.350.1#0"
     },
     {
       "name": "vulkan-memory-allocator",
-      "version": "3.3.0#0"
+      "version": "3.4.0#0"
     },
     {
       "name": "woff2",

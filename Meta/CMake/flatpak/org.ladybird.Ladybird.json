@@ -37,7 +37,7 @@
         {
           "type": "git",
           "url": "https://github.com/simdjson/simdjson.git",
-          "tag": "v4.2.4"
+          "tag": "v4.6.4"
         }
       ],
       "config-opts": [
@@ -195,7 +195,7 @@
         {
           "type": "git",
           "url": "https://github.com/fmtlib/fmt.git",
-          "tag": "12.1.0"
+          "tag": "12.2.0"
         }
       ],
       "config-opts": [
@@ -318,7 +318,7 @@
         {
           "type": "git",
           "url": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git",
-          "tag": "v3.3.0"
+          "tag": "v3.4.0"
         }
       ],
       "config-opts": [
@@ -580,7 +580,7 @@
           {
             "type": "git",
             "url": "https://github.com/fastfloat/fast_float.git",
-            "tag": "v8.1.0"
+            "tag": "v8.2.10"
           }
         ],
         "config-opts": [
@@ -596,7 +596,7 @@
         {
           "type": "git",
           "url": "https://github.com/libsdl-org/SDL.git",
-          "tag": "release-3.2.28"
+          "tag": "release-3.4.12"
         }
       ],
       "config-opts": [
@@ -612,7 +612,7 @@
         {
           "type": "git",
           "url": "https://github.com/davea42/libdwarf-code.git",
-          "tag": "v2.3.0"
+          "tag": "v2.3.1"
         }
       ],
       "config-opts": [
