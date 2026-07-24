@@ -1086,6 +1086,13 @@ void ApplyHistoryStepState::start()
                 case Bindings::NavigationType::Replace:
                     // FIXME: Add ever populated check
                     // - "replace": Assert: targetEntry's step is displayedEntry's step and targetEntry's document state's ever populated is false.
+                    if (displayed_step.has_value() && *target_step != *displayed_step) {
+                        // AD-HOC: A queued replace can become stale if a later navigation commits before this task
+                        //         runs — advancing the displayed step past the replace target. Let the later navigation
+                        //         win — rather than asserting the steps still match.
+                        finish_without_applying();
+                        return;
+                    }
                     if (displayed_step.has_value())
                         VERIFY(target_entry->step() == displayed_entry->step());
                     break;

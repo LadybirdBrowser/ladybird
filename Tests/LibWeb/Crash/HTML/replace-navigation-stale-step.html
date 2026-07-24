@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<!-- A queued cross-document replace must not crash when a navigable it processes has a displayed entry whose step
+     differs from its target entry's step. See #10842. -->
+<html class="test-wait">
+<!-- blank.html is loaded under distinct query-string URLs so that every navigation below is cross-document. -->
+<iframe id="frameA" src="../../Assets/blank.html?a1"></iframe>
+<iframe id="frameB" src="../../Assets/blank.html?b1"></iframe>
+<script>
+    // Wait for the main document's load event: the final replace below is (correctly) abandoned — which would
+    // otherwise delay that load event forever, and the harness completes a crash test only after the main document
+    // has finished loading and the test-wait class has been removed.
+    window.onload = () => {
+        const frameA = document.getElementById("frameA");
+        const frameB = document.getElementById("frameB");
+        const initialHistoryLength = history.length;
+        let storming = true;
+
+        // While frameB's cross-document push applies its history step, a same-document replaceState of this
+        // document must land between the start of that apply-history-step run and its queued per-navigable task.
+        // Keeping exactly one message task in flight guarantees that one lands in that window; that replaceState is
+        // deferred and then jumps the traversal queue as a nested synchronous replace run — whose completion pins
+        // the traversable's current session history step behind frameB's pushed entry's step.
+        window.onmessage = () => {
+            if (!storming)
+                return;
+            // A nested run has updated our history object: stop storming so the paused outer push run can finish
+            // (without ever committing its own step, thanks to the nested run's newer generation).
+            if (history.length > initialHistoryLength) {
+                storming = false;
+                return;
+            }
+            history.replaceState(null, "", "#storm");
+            window.postMessage(0, "*");
+        };
+
+        frameB.onload = () => {
+            storming = false;
+            // The traversable's current session-history step now lags behind frameB's current session-history entry's
+            // step. A cross-document replace elsewhere starts a Replace-type apply-history-step run that also processes
+            // frameB, whose displayed and target entries have different steps.
+            frameA.contentWindow.location.replace("../../Assets/blank.html?a2");
+            // The stale replace run is (correctly) abandoned — so nothing observable signals that its queued step task
+            // has run. Give it ample time before removing test-wait.
+            setTimeout(() => {
+                document.documentElement.classList.remove("test-wait");
+            }, 500);
+        };
+
+        window.postMessage(0, "*");
+        frameB.contentWindow.location.href = "../../Assets/blank.html?b2";
+    };
+</script>
+</html>
