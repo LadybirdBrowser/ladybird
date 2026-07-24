@@ -331,27 +331,7 @@ void StyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 
 bool StyleValue::is_computationally_independent() const
 {
-    // The rules for the value types whose decision has moved into the Rust style computation
-    // core; the rest still dispatch to their C++ shells.
-    auto decision = ComputedValuesFFI::rust_style_value_is_computationally_independent(m_value.operator->());
-    if (decision.handled)
-        return decision.independent;
-
-    // The only value types deciding here are the grid track size list, which delegates to a
-    // deliberately C++-backed value type, and calc values, whose calculation trees are opaque
-    // to the core. The unresolved, guaranteed-invalid, pending-substitution, unicode-range and
-    // counter-style-system values must never be asked, which the default preserves.
-    return decide_computational_independence_fallback();
-}
-
-bool StyleValue::decide_computational_independence_fallback() const
-{
-    switch (type()) {
-    case Type::GridTrackSizeList:
-        return static_cast<GridTrackSizeListStyleValue const&>(*this).is_computationally_independent();
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    return ComputedValuesFFI::rust_style_value_is_computationally_independent(m_value.operator->());
 }
 
 void StyleValue::serialize(StringBuilder& builder, SerializationMode mode) const

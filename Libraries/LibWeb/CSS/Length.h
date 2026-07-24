@@ -53,7 +53,6 @@ public:
     bool is_font_relative() const { return CSS::is_font_relative(m_unit); }
     bool is_container_relative() const { return CSS::is_container_relative(m_unit); }
     bool is_viewport_relative() const { return CSS::is_viewport_relative(m_unit); }
-    bool is_computationally_independent() const { return !is_font_relative() && !is_container_relative(); }
 
     double raw_value() const { return m_value; }
     LengthUnit unit() const { return m_unit; }
