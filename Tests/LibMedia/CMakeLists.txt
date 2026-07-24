@@ -5,6 +5,7 @@ set(TEST_SOURCES
     TestCICP.cpp
     TestBufferedRanges.cpp
     TestDecodedAudioProducer.cpp
+    TestDisplayingVideoSink.cpp
     TestFFmpegAudioNormalization.cpp
     TestFFmpegDemuxer.cpp
     TestH264Decode.cpp
@@ -27,6 +28,7 @@ endforeach()
 
 target_link_libraries(TestAudioBlockTimingRing PRIVATE LibThreading)
 target_link_libraries(TestDecodedAudioProducer PRIVATE LibGfx)
+target_link_libraries(TestDisplayingVideoSink PRIVATE LibGfx)
 target_link_libraries(TestH264Decode PRIVATE LibGfx)
 target_link_libraries(TestVP9Decode PRIVATE LibGfx)
 target_link_libraries(TestFFmpegDemuxer PRIVATE LibThreading)

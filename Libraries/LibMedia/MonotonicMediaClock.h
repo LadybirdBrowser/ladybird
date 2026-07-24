@@ -6,13 +6,14 @@
 
 #pragma once
 
+#include <LibMedia/Export.h>
 #include <LibMedia/MediaTime.h>
 
 #include "MediaClock.h"
 
 namespace Media {
 
-class MonotonicMediaClock final : public MediaClock {
+class MEDIA_API MonotonicMediaClock final : public MediaClock {
 public:
     static ErrorOr<NonnullRefPtr<MonotonicMediaClock>> try_create();
     virtual ~MonotonicMediaClock() override;
