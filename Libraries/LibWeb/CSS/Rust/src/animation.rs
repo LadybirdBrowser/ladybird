@@ -454,6 +454,8 @@ pub struct FfiComputedAnimationBatch {
     pub context: FfiAnimationContext,
     pub values: *const FfiAnimationValueInput,
     pub value_count: usize,
+    pub results: *mut FfiAnimatedProperty,
+    pub result_capacity: usize,
 }
 
 #[repr(C)]
@@ -475,8 +477,6 @@ pub struct FfiAnimationCallbacks {
         properties: *const FfiResolvedAnimationProperty,
         property_count: usize,
     ) -> FfiComputedAnimationBatch,
-    pub apply_overlay:
-        unsafe extern "C" fn(context: *mut std::ffi::c_void, values: *const FfiAnimatedProperty, count: usize),
 }
 
 #[repr(C)]
@@ -493,13 +493,18 @@ struct AnimationPropertyConflictCandidate {
     physical_property_id: u16,
     source_property_id: u16,
     source_longhand_id: u16,
-    value: *const StyleValueData,
+    value: RetainedStyleValueData,
     use_initial: bool,
     suppressed_by_important: bool,
 }
 
 fn property_is_important(property_id: u16, bitmap: &[u8]) -> bool {
-    let index = usize::from(property_id - crate::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
+    let Some(index) = property_id
+        .checked_sub(crate::property_metadata::FIRST_LONGHAND_PROPERTY_ID)
+        .map(usize::from)
+    else {
+        return false;
+    };
     bitmap.get(index / 8).is_some_and(|byte| byte & (1 << (index % 8)) != 0)
 }
 
@@ -563,8 +568,7 @@ fn resolve_animation_property_conflicts(
     assert_eq!(candidates.len(), value_sources.len());
     selected.fill(false);
     for (candidate, source) in candidates.iter().zip(value_sources.iter_mut()) {
-        let value = unsafe { candidate.value.as_ref() }.expect("animation candidate value must not be null");
-        *source = animation_specified_value_source(value, candidate.physical_property_id);
+        *source = animation_specified_value_source(candidate.value.data(), candidate.physical_property_id);
     }
     let mut winners = std::collections::HashMap::<(usize, u16), usize>::new();
     for (candidate_index, candidate) in candidates.iter().enumerate() {
@@ -606,7 +610,7 @@ fn resolve_animation_declarations(
     writing_mode: u8,
     direction: u8,
     important_property_bitmap: &[u8],
-) -> Vec<FfiResolvedAnimationProperty> {
+) -> ResolvedAnimationDeclarations {
     let mut candidates = Vec::new();
     for declaration in declarations {
         assert!(
@@ -625,7 +629,11 @@ fn resolve_animation_declarations(
                     physical_property_id,
                     source_property_id: declaration.property_id,
                     source_longhand_id: longhand_id,
-                    value: data.cast(),
+                    value: unsafe {
+                        RetainedStyleValueData::from_retained_pointer(crate::style_value::rust_style_value_retain(
+                            data.cast(),
+                        ))
+                    },
                     use_initial: declaration.use_initial,
                     // OPTIMIZATION: Values resulting from animations other than CSS transitions
                     // are overridden by important properties, so there is no need to compute or
@@ -643,20 +651,29 @@ fn resolve_animation_declarations(
     let mut selected = vec![false; candidates.len()];
     let mut value_sources = vec![FfiAnimationSpecifiedValueSource::Value; candidates.len()];
     resolve_animation_property_conflicts(&candidates, &mut selected, &mut value_sources);
-    candidates
-        .iter()
-        .zip(selected)
-        .zip(value_sources)
-        .filter_map(|((candidate, selected), value_source)| {
-            (selected && !candidate.suppressed_by_important).then_some(FfiResolvedAnimationProperty {
+    let mut properties = Vec::new();
+    let mut retained_values = Vec::new();
+    for ((candidate, selected), value_source) in candidates.into_iter().zip(selected).zip(value_sources) {
+        if selected && !candidate.suppressed_by_important {
+            properties.push(FfiResolvedAnimationProperty {
                 keyframe_index: candidate.keyframe_index,
                 physical_property_id: candidate.physical_property_id,
                 source_longhand_id: candidate.source_longhand_id,
-                value: candidate.value,
+                value: candidate.value.pointer(),
                 value_source,
-            })
-        })
-        .collect()
+            });
+            retained_values.push(candidate.value);
+        }
+    }
+    ResolvedAnimationDeclarations {
+        properties,
+        _retained_values: retained_values,
+    }
+}
+
+struct ResolvedAnimationDeclarations {
+    properties: Vec<FfiResolvedAnimationProperty>,
+    _retained_values: Vec<RetainedStyleValueData>,
 }
 
 #[repr(u8)]
@@ -6475,18 +6492,18 @@ fn evaluate_animation_value(
 /// Resolve an element's keyframe declarations, request their computed values in one C++ batch,
 /// then evaluate and compose every animation interval without consulting C++ or the DOM again.
 ///
-/// Computed values are requested in at most one callback, and a non-empty result is returned in
-/// exactly one overlay callback that takes ownership of every non-null result value.
+/// Computed values are requested in at most one callback. Results are written into caller-owned
+/// storage returned with the computed values, transferring every non-null result value.
 ///
 /// # Safety
 /// `batch` and `callbacks` must point to live values. Their declaration and bitmap ranges and every
-/// input style value returned by `compute_values` must remain live for the call. `apply_overlay`
-/// must adopt every non-null result before returning.
+/// input style value returned by `compute_values` must remain live for the call. Its result storage
+/// must have room for every input value, and C++ must adopt every non-null result after return.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_evaluate_animations(
     batch: *const FfiAnimationBatch,
     callbacks: *const FfiAnimationCallbacks,
-) {
+) -> usize {
     crate::abort_on_panic(|| {
         crate::ffi_stats::rust_style_ffi_note_animation_evaluation();
         let batch = unsafe { &*batch };
@@ -6501,22 +6518,29 @@ pub unsafe extern "C" fn rust_evaluate_animations(
             batch.direction,
             important_property_bitmap,
         );
-        if resolved.is_empty() {
-            return;
+        if resolved.properties.is_empty() {
+            return 0;
         }
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::AnimationComputeBatchCallback);
-        let computed = unsafe { (callbacks.compute_values)(callbacks.context, resolved.as_ptr(), resolved.len()) };
+        let computed = unsafe {
+            (callbacks.compute_values)(
+                callbacks.context,
+                resolved.properties.as_ptr(),
+                resolved.properties.len(),
+            )
+        };
         if computed.value_count == 0 {
-            return;
+            return 0;
         }
         let inputs = unsafe { std::slice::from_raw_parts(computed.values, computed.value_count) };
-        let mut results = Vec::with_capacity(inputs.len());
+        assert!(computed.result_capacity >= inputs.len());
+        assert!(!computed.results.is_null());
 
         // https://www.w3.org/TR/web-animations-1/#effect-stacks
         // NB: Inputs arrive in composite order. Keep each result as the underlying value for the
         //     next effect affecting the same property.
         let mut previous_values = Vec::<(u16, *const StyleValueData)>::new();
-        for input in inputs {
+        for (index, input) in inputs.iter().enumerate() {
             let previous_value = previous_values
                 .iter()
                 .rev()
@@ -6526,11 +6550,10 @@ pub unsafe extern "C" fn rust_evaluate_animations(
             if result.apply && !result.value.is_null() {
                 previous_values.push((input.property_id, result.value));
             }
-            results.push(result);
+            unsafe { computed.results.add(index).write(result) };
         }
-        crate::ffi_stats::rust_style_ffi_note_animation_result_batch();
-        unsafe { (callbacks.apply_overlay)(callbacks.context, results.as_ptr(), results.len()) };
-    });
+        inputs.len()
+    })
 }
 
 /// Attempt Rust-owned style value interpolation without consulting C++ or the DOM.
@@ -6578,14 +6601,17 @@ mod tests {
     #[test]
     fn resolves_keyframe_property_conflicts_as_one_batch() {
         use crate::property_metadata::property_id;
-        let value = StyleValueData::Number { value: 1.0 };
+        let value = || {
+            let pointer = Arc::into_raw(Arc::new(StyleValueData::Number { value: 1.0 }));
+            unsafe { RetainedStyleValueData::from_retained_pointer(pointer) }
+        };
         let candidates = [
             AnimationPropertyConflictCandidate {
                 keyframe_index: 0,
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER,
                 source_longhand_id: property_id::BORDER_TOP_COLOR,
-                value: &raw const value,
+                value: value(),
                 use_initial: false,
                 suppressed_by_important: false,
             },
@@ -6594,7 +6620,7 @@ mod tests {
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER_TOP,
                 source_longhand_id: property_id::BORDER_TOP_COLOR,
-                value: &raw const value,
+                value: value(),
                 use_initial: false,
                 suppressed_by_important: false,
             },
@@ -6603,7 +6629,7 @@ mod tests {
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER_TOP_COLOR,
                 source_longhand_id: property_id::BORDER_TOP_COLOR,
-                value: &raw const value,
+                value: value(),
                 use_initial: false,
                 suppressed_by_important: false,
             },
@@ -6612,7 +6638,7 @@ mod tests {
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER_TOP_COLOR,
                 source_longhand_id: property_id::BORDER_TOP_COLOR,
-                value: &raw const value,
+                value: value(),
                 use_initial: true,
                 suppressed_by_important: false,
             },
@@ -6621,7 +6647,7 @@ mod tests {
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER,
                 source_longhand_id: property_id::BORDER_TOP_COLOR,
-                value: &raw const value,
+                value: value(),
                 use_initial: true,
                 suppressed_by_important: false,
             },
@@ -6665,6 +6691,38 @@ mod tests {
     }
 
     #[test]
+    fn retains_synthesized_pending_substitution_values() {
+        let original = Arc::into_raw(Arc::new(StyleValueData::Number { value: 1.0 }));
+        let pending = Arc::new(StyleValueData::PendingSubstitution {
+            original_shorthand_value: unsafe { RetainedStyleValueData::from_retained_pointer(original) },
+        });
+        let declaration = FfiAnimationDeclaration {
+            keyframe_index: 0,
+            property_id: crate::property_metadata::property_id::BORDER,
+            value: &raw const *pending,
+            use_initial: false,
+            is_transition: false,
+        };
+        let resolved = resolve_animation_declarations(&[declaration], 0, 0, &[]);
+        assert!(!resolved.properties.is_empty());
+        let mut found_synthesized = false;
+        for property in &resolved.properties {
+            let value = unsafe { &*property.value };
+            if let StyleValueData::PendingSubstitution {
+                original_shorthand_value,
+            } = value
+                && matches!(
+                    original_shorthand_value.data(),
+                    StyleValueData::PendingSubstitution { .. }
+                )
+            {
+                found_synthesized = true;
+            }
+        }
+        assert!(found_synthesized);
+    }
+
+    #[test]
     fn reads_important_property_snapshot() {
         use crate::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, property_id};
         let important_index = usize::from(property_id::COLOR - FIRST_LONGHAND_PROPERTY_ID);
@@ -6674,6 +6732,7 @@ mod tests {
         assert!(!property_is_important(property_id::MARGIN_LEFT, &bitmap));
         assert!(animation_property_is_suppressed(false, property_id::COLOR, &bitmap));
         assert!(!animation_property_is_suppressed(true, property_id::COLOR, &bitmap));
+        assert!(!property_is_important(FIRST_LONGHAND_PROPERTY_ID - 1, &bitmap));
     }
 
     fn animation_context(allow_discrete: bool) -> FfiAnimationContext {

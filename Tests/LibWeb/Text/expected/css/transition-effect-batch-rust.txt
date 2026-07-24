@@ -1,6 +1,4 @@
 opacity: 0
 width: 10px
 transition decisions: 1
-transition action batches: 1
 animation evaluations: 1
-animation result batches: 1

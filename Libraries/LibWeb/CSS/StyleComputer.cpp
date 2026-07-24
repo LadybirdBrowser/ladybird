@@ -1012,6 +1012,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
     }
 
     Vector<StyleValueFFI::FfiAnimationValueInput> ffi_values;
+    Vector<StyleValueFFI::FfiAnimatedProperty> ffi_results;
     Vector<Vector<StyleValueFFI::FfiAnimationKeyframeValue>> ffi_keyframes;
     Vector<Vector<Vector<StyleValueFFI::FfiLinearEasingPoint>>> linear_easing_points;
     auto compute_animation_values = [&](ReadonlySpan<StyleValueFFI::FfiResolvedAnimationProperty> resolved_properties) -> StyleValueFFI::FfiComputedAnimationBatch {
@@ -1338,18 +1339,19 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
             animation_context.transform_reference_box_width = reference_box.width().to_double();
             animation_context.transform_reference_box_height = reference_box.height().to_double();
         }
+        ffi_results.resize(ffi_values.size());
         return StyleValueFFI::FfiComputedAnimationBatch {
             .context = animation_context,
             .values = ffi_values.data(),
             .value_count = ffi_values.size(),
+            .results = ffi_results.data(),
+            .result_capacity = ffi_results.size(),
         };
     };
 
     struct AnimationEvaluationContext {
         decltype(compute_animation_values)& compute_values;
-        Vector<PreparedAnimationValue>& prepared_values;
-        ComputedProperties& computed_properties;
-    } evaluation_context { compute_animation_values, prepared_values, computed_properties };
+    } evaluation_context { compute_animation_values };
     StyleValueFFI::FfiAnimationBatch batch {
         .declarations = ffi_declarations.data(),
         .declaration_count = ffi_declarations.size(),
@@ -1363,26 +1365,25 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         .compute_values = [](void* context, StyleValueFFI::FfiResolvedAnimationProperty const* properties, size_t property_count) {
             auto& evaluation_context = *static_cast<AnimationEvaluationContext*>(context);
             return evaluation_context.compute_values(ReadonlySpan<StyleValueFFI::FfiResolvedAnimationProperty> { properties, property_count }); },
-        .apply_overlay = [](void* context, StyleValueFFI::FfiAnimatedProperty const* values, size_t count) {
-            auto& evaluation_context = *static_cast<AnimationEvaluationContext*>(context);
-            VERIFY(count == evaluation_context.prepared_values.size());
-            for (size_t index = 0; index < count; ++index) {
-                auto const& value = values[index];
-                auto& prepared_value = evaluation_context.prepared_values[index];
-                VERIFY(value.property_id == to_underlying(prepared_value.property_id));
-                VERIFY(value.handled);
-                if (!value.apply)
-                    continue;
-                if (value.value) {
-                    auto style_value = StyleValue::adopt_rust_style_value_data(value.value);
-                    evaluation_context.computed_properties.set_animated_property(Badge<StyleComputer> {}, prepared_value.property_id, style_value, prepared_value.is_result_of_transition);
-                } else {
-                    // NB: If interpolation fails, the element should not be rendered.
-                    evaluation_context.computed_properties.set_animated_property(Badge<StyleComputer> {}, PropertyID::Visibility, KeywordStyleValue::create(Keyword::Hidden), prepared_value.is_result_of_transition);
-                }
-            } },
     };
-    StyleValueFFI::rust_evaluate_animations(&batch, &callbacks);
+    auto result_count = StyleValueFFI::rust_evaluate_animations(&batch, &callbacks);
+    VERIFY(result_count == prepared_values.size());
+    VERIFY(result_count == ffi_results.size());
+    for (size_t index = 0; index < result_count; ++index) {
+        auto const& value = ffi_results[index];
+        auto& prepared_value = prepared_values[index];
+        VERIFY(value.property_id == to_underlying(prepared_value.property_id));
+        VERIFY(value.handled);
+        if (!value.apply)
+            continue;
+        if (value.value) {
+            auto style_value = StyleValue::adopt_rust_style_value_data(value.value);
+            computed_properties.set_animated_property(Badge<StyleComputer> {}, prepared_value.property_id, style_value, prepared_value.is_result_of_transition);
+        } else {
+            // NB: If interpolation fails, the element should not be rendered.
+            computed_properties.set_animated_property(Badge<StyleComputer> {}, PropertyID::Visibility, KeywordStyleValue::create(Keyword::Hidden), prepared_value.is_result_of_transition);
+        }
+    }
 
     clear_computation_context_caches();
 }
@@ -1639,7 +1640,6 @@ void StyleComputer::start_needed_transitions(ComputedValues const& previous_styl
         RefPtr<StyleValue const> after_change_value;
         RefPtr<StyleValue const> current_value;
         GC::Ptr<CSSTransition> existing_transition;
-        StyleValueFFI::FfiTransitionAction action;
     };
     Vector<PreparedTransition> prepared_transitions;
     Vector<StyleValueFFI::FfiTransitionPropertyInput> ffi_properties;
@@ -1714,7 +1714,6 @@ void StyleComputer::start_needed_transitions(ComputedValues const& previous_styl
             .after_change_value = move(after_change_value),
             .current_value = move(current_value),
             .existing_transition = existing_transition,
-            .action = {},
         });
     };
 
@@ -1732,23 +1731,16 @@ void StyleComputer::start_needed_transitions(ComputedValues const& previous_styl
         .properties = ffi_properties.data(),
         .property_count = ffi_properties.size(),
     };
-    StyleValueFFI::FfiTransitionCallbacks callbacks {
-        .context = &prepared_transitions,
-        .apply_actions = [](void* context, StyleValueFFI::FfiTransitionAction const* actions, size_t count) {
-            auto& prepared_transitions = *static_cast<Vector<PreparedTransition>*>(context);
-            VERIFY(count == prepared_transitions.size());
-            for (size_t index = 0; index < count; ++index) {
-                VERIFY(actions[index].property_id == to_underlying(prepared_transitions[index].property_id));
-                prepared_transitions[index].action = actions[index];
-            }
-        },
-    };
-    StyleValueFFI::rust_decide_transitions(&input, &callbacks);
+    Vector<StyleValueFFI::FfiTransitionAction> actions;
+    actions.resize(prepared_transitions.size());
+    StyleValueFFI::rust_decide_transitions(&input, actions.data());
 
     Vector<GC::Ref<Animations::KeyframeEffect>> newly_started_transition_effects;
-    for (auto const& prepared_transition : prepared_transitions) {
+    for (size_t index = 0; index < prepared_transitions.size(); ++index) {
+        auto const& prepared_transition = prepared_transitions[index];
         auto property_id = prepared_transition.property_id;
-        auto const& action = prepared_transition.action;
+        auto const& action = actions[index];
+        VERIFY(action.property_id == to_underlying(property_id));
         auto existing_transition = prepared_transition.existing_transition;
         auto remove_existing_transition = [&] {
             element.remove_transition(pseudo_element, property_id);

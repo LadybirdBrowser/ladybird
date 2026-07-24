@@ -74,8 +74,6 @@ define_ffi_ops! {
     CalcSerializationCallback => "calcSerializationCallbacks",
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
     AnimationComputeBatchCallback => "animationComputeBatchCallbacks",
-    AnimationResultBatchCallback => "animationResultBatchCallbacks",
-    TransitionActionBatchCallback => "transitionActionBatchCallbacks",
 }
 
 static COUNTERS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_OP_COUNT];
@@ -124,16 +122,6 @@ pub extern "C" fn rust_style_ffi_note_animation_evaluation() {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_style_ffi_note_animation_result_batch() {
-    bump(FfiOp::AnimationResultBatchCallback);
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn rust_style_ffi_note_transition_decision() {
     bump(FfiOp::TransitionDecisionEntry);
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_ffi_note_transition_action_batch() {
-    bump(FfiOp::TransitionActionBatchCallback);
 }
