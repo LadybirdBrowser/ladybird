@@ -9,6 +9,7 @@
 #include <AK/Time.h>
 #include <LibCore/Directory.h>
 #include <LibDatabase/Database.h>
+#include <LibDatabase/ResultRow.h>
 
 #include <sqlite3.h>
 
@@ -92,8 +93,8 @@ Database::Database(sqlite3* database, Optional<LexicalPath> database_path)
 
 Database::~Database()
 {
-    for (auto* prepared_statement : m_prepared_statements)
-        sqlite3_finalize(prepared_statement);
+    for (auto& prepared : m_prepared_statements)
+        sqlite3_finalize(prepared.statement);
 
     sqlite3_close(m_database);
 }
@@ -103,8 +104,22 @@ ErrorOr<StatementID> Database::prepare_statement(StringView statement)
     sqlite3_stmt* prepared_statement { nullptr };
     SQL_TRY(sqlite3_prepare_v2(m_database, statement.characters_without_null_termination(), static_cast<int>(statement.length()), &prepared_statement, nullptr));
 
+    auto parameter_count = static_cast<size_t>(sqlite3_bind_parameter_count(prepared_statement));
+    Bitmap bound_parameters;
+    if (parameter_count > 0) {
+        auto result = Bitmap::create(parameter_count, false);
+        if (result.is_error()) {
+            sqlite3_finalize(prepared_statement);
+            return result.release_error();
+        }
+        bound_parameters = result.release_value();
+    }
+
     auto statement_id = m_prepared_statements.size();
-    m_prepared_statements.append(prepared_statement);
+    m_prepared_statements.append({
+        .statement = prepared_statement,
+        .bound_parameters = move(bound_parameters),
+    });
 
     return statement_id;
 }
@@ -119,7 +134,7 @@ void Database::execute_statement_internal(StatementID statement_id, OnResult on_
 
 Database::StatementExecutionOutcome Database::execute_interruptible_statement_internal(StatementID statement_id, OnResult on_result)
 {
-    auto* statement = prepared_statement(statement_id);
+    auto* statement = prepared_statement(statement_id).statement;
 
     while (true) {
         auto result = sqlite3_step(statement);
@@ -155,7 +170,7 @@ void Database::interrupt()
 
 ErrorOr<void> Database::try_execute_statement_internal(StatementID statement_id, OnResult on_result)
 {
-    auto* statement = prepared_statement(statement_id);
+    auto* statement = prepared_statement(statement_id).statement;
 
     Optional<Error> row_error;
     while (sqlite3_step(statement) == SQLITE_ROW) {
@@ -176,7 +191,7 @@ ErrorOr<void> Database::try_execute_statement_internal(StatementID statement_id,
 
 int Database::bound_parameter_count(StatementID statement_id)
 {
-    auto* statement = prepared_statement(statement_id);
+    auto* statement = prepared_statement(statement_id).statement;
     return sqlite3_bind_parameter_count(statement);
 }
 
@@ -197,7 +212,7 @@ ENUMERATE_SQL_TYPES
 template<typename ValueType>
 ErrorOr<void> Database::try_apply_placeholder(StatementID statement_id, int index, ValueType const& value)
 {
-    auto* statement = prepared_statement(statement_id);
+    auto* statement = prepared_statement(statement_id).statement;
 
     if constexpr (IsSame<ValueType, String>) {
         StringView string { value };
@@ -228,7 +243,7 @@ ENUMERATE_SQL_TYPES
 template<typename ValueType>
 ValueType Database::result_column(StatementID statement_id, int column)
 {
-    auto* statement = prepared_statement(statement_id);
+    auto* statement = prepared_statement(statement_id).statement;
 
     if constexpr (IsSame<ValueType, String>) {
         auto const* text = reinterpret_cast<char const*>(sqlite3_column_text(statement, column));
@@ -260,34 +275,118 @@ ENUMERATE_SQL_TYPES
 
 ErrorOr<i64, Database::ColumnReadError> Database::result_i64_checked(StatementID statement_id, int column)
 {
-    auto* statement = prepared_statement(statement_id);
+    auto* statement = prepared_statement(statement_id).statement;
     if (sqlite3_column_type(statement, column) != SQLITE_INTEGER)
         return ColumnReadError::WrongType;
     return static_cast<i64>(sqlite3_column_int64(statement, column));
 }
 
-ErrorOr<ByteString, Database::ColumnReadError> Database::result_text_column_bounded(StatementID statement_id, int column, size_t max_bytes)
+ErrorOr<StringView, Database::ColumnReadError> Database::result_text_column_bounded(Badge<ResultRow>, StatementID statement_id, int column, size_t max_bytes)
 {
-    auto* statement = prepared_statement(statement_id);
+    auto* statement = prepared_statement(statement_id).statement;
     if (sqlite3_column_type(statement, column) != SQLITE_TEXT)
         return ColumnReadError::WrongType;
+    // sqlite3_column_bytes() must follow the accessor; taken first it can report a converted length.
+    auto const* text = reinterpret_cast<char const*>(sqlite3_column_text(statement, column));
     auto length = static_cast<size_t>(sqlite3_column_bytes(statement, column));
     if (length > max_bytes)
         return ColumnReadError::TooLarge;
-    auto const* text = reinterpret_cast<char const*>(sqlite3_column_text(statement, column));
-    return ByteString { text, length };
+    return StringView { text, length };
 }
 
-ErrorOr<ByteString, Database::ColumnReadError> Database::result_blob_column_bounded(StatementID statement_id, int column, size_t max_bytes)
+ErrorOr<ReadonlyBytes, Database::ColumnReadError> Database::result_blob_column_bounded(Badge<ResultRow>, StatementID statement_id, int column, size_t max_bytes)
 {
-    auto* statement = prepared_statement(statement_id);
+    auto* statement = prepared_statement(statement_id).statement;
     if (sqlite3_column_type(statement, column) != SQLITE_BLOB)
         return ColumnReadError::WrongType;
+    auto const* blob = sqlite3_column_blob(statement, column);
     auto length = static_cast<size_t>(sqlite3_column_bytes(statement, column));
     if (length > max_bytes)
         return ColumnReadError::TooLarge;
-    auto const* blob = sqlite3_column_blob(statement, column);
-    return ByteString { reinterpret_cast<char const*>(blob), length };
+    return ReadonlyBytes { blob, length };
+}
+
+template<typename ValueType>
+ErrorOr<void> Database::bind_parameter(StatementID statement_id, StringView name, ValueType const& value)
+{
+    auto& prepared = prepared_statement(statement_id);
+
+    // The placeholder is resolved as a C string, so an embedded NUL would target a shorter, different one.
+    if (name.contains('\0'))
+        return Error::from_string_literal("Bound parameter name contains an embedded NUL");
+
+    auto placeholder = ByteString::formatted(":{}", name);
+    auto index = sqlite3_bind_parameter_index(prepared.statement, placeholder.characters());
+    if (index == 0)
+        return Error::from_string_literal("Unknown bound parameter name");
+
+    TRY(try_apply_placeholder(statement_id, index, value));
+
+    prepared.bound_parameters.set(index - 1, true);
+    return {};
+}
+
+#define __ENUMERATE_TYPE(type) \
+    template DATABASE_API ErrorOr<void> Database::bind_parameter(StatementID, StringView, type const&);
+ENUMERATE_SQL_TYPES
+#undef __ENUMERATE_TYPE
+
+ErrorOr<void> Database::try_step_bound_statement(StatementID statement_id, OnResultRow on_result)
+{
+    auto& prepared = prepared_statement(statement_id);
+
+    // Reject unbound parameters, which SQLite otherwise treats as NULL.
+    if (auto unbound = prepared.bound_parameters.find_first_unset(); unbound.has_value()) {
+        auto parameter_index = static_cast<int>(*unbound) + 1;
+        auto const* name = sqlite3_bind_parameter_name(prepared.statement, parameter_index);
+        dbgln("Database: refusing to step statement with unbound parameter {} ({})", parameter_index, name ? name : "?");
+        return Error::from_string_literal("Statement executed with an unbound parameter");
+    }
+
+    if (!on_result)
+        return try_execute_statement_internal(statement_id, {});
+
+    ResultRow row { {}, *this, statement_id };
+    return try_execute_statement_internal(statement_id, [&](StatementID) { return on_result(row); });
+}
+
+ErrorOr<int> Database::result_column_index(StatementID statement_id, StringView name)
+{
+    auto& prepared = prepared_statement(statement_id);
+
+    auto generation = sqlite3_stmt_status(prepared.statement, SQLITE_STMTSTATUS_REPREPARE, 0);
+    if (generation != prepared.result_column_generation) {
+        prepared.result_column_indices.clear();
+        auto column_count = sqlite3_column_count(prepared.statement);
+        for (int column = 0; column < column_count; ++column) {
+            auto const* column_name = sqlite3_column_name(prepared.statement, column);
+            if (column_name == nullptr)
+                continue;
+            if (prepared.result_column_indices.set(ByteString { column_name }, column) == HashSetResult::ReplacedExistingEntry)
+                prepared.result_column_indices.set(ByteString { column_name }, -1);
+        }
+        prepared.result_column_generation = generation;
+    }
+
+    auto match = prepared.result_column_indices.get(name);
+    if (!match.has_value())
+        return Error::from_string_literal("Unknown result column name");
+    if (*match == -1)
+        return Error::from_string_literal("Ambiguous result column name");
+    return *match;
+}
+
+bool Database::result_column_is_null(Badge<ResultRow>, StatementID statement_id, int column)
+{
+    return sqlite3_column_type(prepared_statement(statement_id).statement, column) == SQLITE_NULL;
+}
+
+void Database::clear_bound_parameters(StatementID statement_id)
+{
+    auto& prepared = prepared_statement(statement_id);
+    SQL_MUST(sqlite3_clear_bindings(prepared.statement));
+    if (prepared.bound_parameters.size() > 0)
+        prepared.bound_parameters.fill(false);
 }
 
 ErrorOr<void> Database::execute_raw(ByteString const& sql)
