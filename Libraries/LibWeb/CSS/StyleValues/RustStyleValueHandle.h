@@ -62,6 +62,8 @@ public:
     explicit operator bool() const { return m_value; }
     StyleValueFFI::StyleValueData const* data() const { return m_value; }
 
+    StyleValueFFI::StyleValueData const* leak_data() { return exchange(m_value, nullptr); }
+
     bool operator==(RustStyleValueHandle const&) const = default;
 
 private:

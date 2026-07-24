@@ -18,7 +18,7 @@
 <script>
     // Verifies that CSS transition properties cascade correctly onto ::placeholder.
     //
-    // Root cause: pseudo_element_supports_property() filtered out transition-* and
+    // Root cause: pseudo-element property filtering rejected transition-* and
     // animation-* properties for whitelisted pseudo-elements (e.g. ::placeholder).
     // As a result, transition-duration and transition-delay resolved to 0s, which
     // triggered the zero-duration fast-path in compute_transitioned_properties()

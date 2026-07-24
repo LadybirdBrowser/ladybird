@@ -24,169 +24,6 @@ PARAMETER_TYPES = {
 }
 
 
-PROPERTY_GROUPS = {
-    "#background-properties": [
-        # https://drafts.csswg.org/css-backgrounds/#property-index
-        "background",
-        "background-attachment",
-        "background-blend-mode",
-        "background-clip",
-        "background-color",
-        "background-image",
-        "background-origin",
-        "background-position",
-        "background-position-x",
-        "background-position-y",
-        "background-repeat",
-        "background-size",
-    ],
-    "#border-properties": [
-        # https://drafts.csswg.org/css-backgrounds/#property-index
-        "border",
-        "border-block-end",
-        "border-block-end-color",
-        "border-block-end-style",
-        "border-block-end-width",
-        "border-block-start",
-        "border-block-start-color",
-        "border-block-start-style",
-        "border-block-start-width",
-        "border-bottom",
-        "border-bottom-color",
-        "border-bottom-left-radius",
-        "border-bottom-right-radius",
-        "border-bottom-style",
-        "border-bottom-width",
-        "border-color",
-        "border-image-outset",
-        "border-image-repeat",
-        "border-image-slice",
-        "border-image-source",
-        "border-image-width",
-        "border-inline-end",
-        "border-inline-end-color",
-        "border-inline-end-style",
-        "border-inline-end-width",
-        "border-inline-start",
-        "border-inline-start-color",
-        "border-inline-start-style",
-        "border-inline-start-width",
-        "border-left",
-        "border-left-color",
-        "border-left-style",
-        "border-left-width",
-        "border-radius",
-        "border-right",
-        "border-right-color",
-        "border-right-style",
-        "border-right-width",
-        "border-style",
-        "border-top",
-        "border-top-color",
-        "border-top-left-radius",
-        "border-top-right-radius",
-        "border-top-style",
-        "border-top-width",
-        "border-width",
-    ],
-    "#custom-properties": [
-        "custom",
-    ],
-    "#font-properties": [
-        # https://drafts.csswg.org/css-fonts/#property-index
-        "font",
-        "font-family",
-        "font-feature-settings",
-        "font-kerning",
-        "font-language-override",
-        "font-optical-sizing",
-        # FIXME: font-palette
-        "font-size",
-        # FIXME: font-size-adjust
-        "font-style",
-        # FIXME: font-synthesis and longhands
-        "font-variant",
-        "font-variant-alternates",
-        "font-variant-caps",
-        "font-variant-east-asian",
-        "font-variant-emoji",
-        "font-variant-ligatures",
-        "font-variant-numeric",
-        "font-variant-position",
-        "font-variation-settings",
-        "font-weight",
-        "font-width",
-    ],
-    "#inline-layout-properties": [
-        # https://drafts.csswg.org/css-inline/#property-index
-        # FIXME: alignment-baseline
-        # FIXME: baseline-shift
-        # FIXME: baseline-source
-        # FIXME: dominant-baseline
-        # FIXME: initial-letter
-        # FIXME: initial-letter-align
-        # FIXME: initial-letter-wrap
-        # FIXME: inline-sizing
-        # FIXME: line-edge-fit
-        "line-height",
-        # FIXME: text-box
-        # FIXME: text-box-edge
-        # FIXME: text-box-trim
-        "vertical-align",
-    ],
-    "#inline-typesetting-properties": [
-        # https://drafts.csswg.org/css-text-4/#property-index
-        # FIXME: hanging-punctuation
-        "letter-spacing",
-        # FIXME: line-padding
-        # FIXME: text-autospace
-        "text-justify",
-        # FIXME: text-spacing
-        # FIXME: text-spacing-trim
-        "text-transform",
-        # FIXME: word-space-transform
-        "word-spacing",
-    ],
-    "#margin-properties": [
-        "margin",
-        "margin-block",
-        "margin-block-end",
-        "margin-block-start",
-        "margin-bottom",
-        "margin-inline",
-        "margin-inline-end",
-        "margin-inline-start",
-        "margin-left",
-        "margin-right",
-        "margin-top",
-    ],
-    "#padding-properties": [
-        "padding",
-        "padding-block",
-        "padding-block-end",
-        "padding-block-start",
-        "padding-bottom",
-        "padding-inline",
-        "padding-inline-end",
-        "padding-inline-start",
-        "padding-left",
-        "padding-right",
-        "padding-top",
-    ],
-    "#text-decoration-properties": [
-        "text-decoration",
-        "text-decoration-color",
-        "text-decoration-line",
-        "text-decoration-skip-ink",
-        "text-decoration-style",
-        "text-decoration-thickness",
-        "text-shadow",
-        "text-underline-offset",
-        "text-underline-position",
-    ],
-}
-
-
 def is_alias(pseudo_element: dict) -> bool:
     return "alias-for" in pseudo_element
 
@@ -222,7 +59,6 @@ def write_header_file(out: TextIO, pseudo_elements_data: dict) -> None:
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <AK/Utf16View.h>
-#include <LibWeb/Forward.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS {{
@@ -253,8 +89,6 @@ bool is_has_allowed_pseudo_element(PseudoElement);
 bool is_tree_abiding_pseudo_element(PseudoElement);
 bool is_element_backed_pseudo_element(PseudoElement);
 bool is_pseudo_element_root(PseudoElement);
-bool pseudo_element_supports_property(PseudoElement, PropertyID);
-
 inline bool is_synthetic_pseudo_element(PseudoElement pseudo_element) {{ return pseudo_element >= first_synthetic_pseudo_element && pseudo_element <= last_synthetic_pseudo_element; }}
 inline bool is_element_reference_pseudo_element(PseudoElement pseudo_element) {{ return pseudo_element >= first_element_reference_pseudo_element && pseudo_element <= last_element_reference_pseudo_element; }}
 
@@ -277,7 +111,6 @@ PseudoElementMetadata pseudo_element_metadata(PseudoElement);
 def write_implementation_file(out: TextIO, pseudo_elements_data: dict) -> None:
     out.write("""
 #include <LibWeb/CSS/PseudoElement.h>
-#include <LibWeb/CSS/PropertyID.h>
 
 namespace Web::CSS {
 
@@ -423,71 +256,6 @@ bool is_pseudo_element_root(PseudoElement pseudo_element)
     out.write("""
     default:
         return false;
-    }
-}
-
-bool pseudo_element_supports_property(PseudoElement pseudo_element, PropertyID property_id)
-{
-    if (property_id == PropertyID::Transition
-        || property_id == PropertyID::TransitionBehavior
-        || property_id == PropertyID::TransitionDelay
-        || property_id == PropertyID::TransitionDuration
-        || property_id == PropertyID::TransitionProperty
-        || property_id == PropertyID::TransitionTimingFunction
-        || property_id == PropertyID::Animation
-        || property_id == PropertyID::AnimationComposition
-        || property_id == PropertyID::AnimationDelay
-        || property_id == PropertyID::AnimationDirection
-        || property_id == PropertyID::AnimationDuration
-        || property_id == PropertyID::AnimationFillMode
-        || property_id == PropertyID::AnimationIterationCount
-        || property_id == PropertyID::AnimationName
-        || property_id == PropertyID::AnimationPlayState
-        || property_id == PropertyID::AnimationTimeline
-        || property_id == PropertyID::AnimationTimingFunction) {
-        return true;
-    }
-
-    switch (pseudo_element) {
-""")
-
-    for name, pseudo_element in pseudo_elements_data.items():
-        if is_alias(pseudo_element):
-            continue
-        property_whitelist = pseudo_element.get("property-whitelist")
-        # No whitelist = accept everything, by falling back to the default case.
-        if property_whitelist is None:
-            continue
-
-        out.write(f"""
-    case PseudoElement::{title_casify(name)}:
-        switch (property_id) {{
-""")
-
-        for entry in property_whitelist:
-            if entry.startswith("FIXME:"):
-                continue
-            if not entry.startswith("#"):
-                out.write(f"        case PropertyID::{title_casify(entry)}:\n")
-                continue
-            # Categories
-            # TODO: Maybe define these in data somewhere too?
-            if entry not in PROPERTY_GROUPS:
-                print(f"Error: Unrecognized property group name '{entry}' in {name}", file=sys.stderr)
-                sys.exit(1)
-            for property_name in PROPERTY_GROUPS[entry]:
-                out.write(f"        case PropertyID::{title_casify(property_name)}:\n")
-
-        out.write("""
-            return true;
-        default:
-            return false;
-        }
-""")
-
-    out.write("""
-    default:
-        return true;
     }
 }
 

@@ -22,6 +22,53 @@ fn title_casify(dashy_name: &str) -> String {
         .collect()
 }
 
+fn ordered_pseudo_element_names(
+    pseudo_elements: &serde_json::Map<String, serde_json::Value>,
+) -> Result<Vec<String>, Box<dyn Error>> {
+    let mut synthetic = Vec::new();
+    let mut element_reference = Vec::new();
+    let mut functional = Vec::new();
+    for (name, value) in pseudo_elements {
+        let object = value.as_object().unwrap();
+        if object.contains_key("alias-for") {
+            continue;
+        }
+        if object.get("type").and_then(|value| value.as_str()) == Some("function") {
+            functional.push(name.clone());
+            continue;
+        }
+        match object.get("implementation").and_then(|value| value.as_str()) {
+            Some("synthetic") => synthetic.push(name.clone()),
+            Some("element-reference") => element_reference.push(name.clone()),
+            other => return Err(format!("invalid or missing implementation type for ::{name}: {other:?}").into()),
+        }
+    }
+    synthetic.extend(element_reference);
+    synthetic.extend(functional);
+    Ok(synthetic)
+}
+
+fn load_property_groups(path: &Path) -> Result<std::collections::HashMap<String, Vec<String>>, Box<dyn Error>> {
+    let mut groups = std::collections::HashMap::new();
+    let mut current_group = None;
+    for raw_line in std::fs::read_to_string(path)?.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if let Some(group) = line.strip_prefix('[').and_then(|line| line.strip_suffix(']')) {
+            groups.insert(format!("#{group}"), Vec::new());
+            current_group = Some(format!("#{group}"));
+            continue;
+        }
+        let Some(group) = current_group.as_ref() else {
+            return Err(format!("property outside a pseudo-element property group: {line}").into());
+        };
+        groups.get_mut(group).unwrap().push(line.to_string());
+    }
+    Ok(groups)
+}
+
 fn write_enum_and_from_ffi(output: &mut String, enum_name: &str, variants: &[String]) {
     writeln!(output, "#[derive(Clone, Copy, Debug, PartialEq, Eq)]").unwrap();
     writeln!(output, "#[repr(u8)]").unwrap();
@@ -71,27 +118,11 @@ fn generate_selector_pseudo_types(manifest_dir: &Path, out_dir: &Path) -> Result
         .map(|(name, _)| title_casify(name))
         .collect::<Vec<_>>();
 
-    let mut synthetic_pseudo_elements = Vec::new();
-    let mut element_reference_pseudo_elements = Vec::new();
-    let mut functional_pseudo_elements = Vec::new();
-    for (name, value) in &parse_object(&pseudo_elements_path)? {
-        let object = value.as_object().unwrap();
-        if object.contains_key("alias-for") {
-            continue;
-        }
-        if object.get("type").and_then(|value| value.as_str()) == Some("function") {
-            functional_pseudo_elements.push(title_casify(name));
-            continue;
-        }
-        match object.get("implementation").and_then(|value| value.as_str()) {
-            Some("synthetic") => synthetic_pseudo_elements.push(title_casify(name)),
-            Some("element-reference") => element_reference_pseudo_elements.push(title_casify(name)),
-            other => return Err(format!("invalid or missing implementation type for ::{name}: {other:?}").into()),
-        }
-    }
-    let mut pseudo_element_names = synthetic_pseudo_elements;
-    pseudo_element_names.extend(element_reference_pseudo_elements);
-    pseudo_element_names.extend(functional_pseudo_elements);
+    let pseudo_elements = parse_object(&pseudo_elements_path)?;
+    let mut pseudo_element_names = ordered_pseudo_element_names(&pseudo_elements)?
+        .iter()
+        .map(|name| title_casify(name))
+        .collect::<Vec<_>>();
     // NB: The C++ generator emits UnknownWebKit after KnownPseudoElementCount, so its FFI value is
     //     the number of known pseudo-elements.
     pseudo_element_names.push("UnknownWebKit".to_string());
@@ -177,6 +208,66 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     let last_longhand = ids[noninherited_longhands.last().unwrap()];
     let first_inherited = ids[&inherited_longhands[0]];
     let last_inherited = ids[inherited_longhands.last().unwrap()];
+
+    let pseudo_elements_path = manifest_dir.parent().unwrap().join("PseudoElements.json");
+    let property_groups_path = manifest_dir.parent().unwrap().join("PseudoElementPropertyGroups.txt");
+    println!("cargo:rerun-if-changed={}", pseudo_elements_path.display());
+    println!("cargo:rerun-if-changed={}", property_groups_path.display());
+    let pseudo_elements_value: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&pseudo_elements_path)?)?;
+    let serde_json::Value::Object(pseudo_elements) = pseudo_elements_value else {
+        return Err("PseudoElements.json does not contain a JSON object".into());
+    };
+    let property_groups = load_property_groups(&property_groups_path)?;
+    let property_id = |name: &str| -> Result<u16, Box<dyn Error>> {
+        if name == "custom" {
+            return Ok(0);
+        }
+        ids.get(name)
+            .copied()
+            .ok_or_else(|| format!("unknown pseudo-element property '{name}'").into())
+    };
+    let property_ids = |entries: &[String]| -> Result<Vec<u16>, Box<dyn Error>> {
+        let mut result = std::collections::BTreeSet::new();
+        for entry in entries {
+            if entry.starts_with("FIXME:") {
+                continue;
+            }
+            if let Some(properties) = property_groups.get(entry) {
+                for property in properties {
+                    result.insert(property_id(property)?);
+                }
+            } else if entry.starts_with('#') {
+                return Err(format!("unknown pseudo-element property group '{entry}'").into());
+            } else {
+                result.insert(property_id(entry)?);
+            }
+        }
+        Ok(result.into_iter().collect())
+    };
+    let always_allowed_pseudo_properties = property_ids(
+        property_groups
+            .get("#always-allowed-properties")
+            .ok_or("missing always-allowed pseudo-element property group")?,
+    )?;
+    let mut pseudo_property_whitelist_rows = Vec::new();
+    for name in ordered_pseudo_element_names(&pseudo_elements)? {
+        let object = pseudo_elements[&name].as_object().unwrap();
+        let Some(whitelist) = object.get("property-whitelist") else {
+            pseudo_property_whitelist_rows.push("    None,".to_string());
+            continue;
+        };
+        let entries = whitelist
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|entry| entry.as_str().unwrap().to_string())
+            .collect::<Vec<_>>();
+        let whitelist = property_ids(&entries)?;
+        pseudo_property_whitelist_rows.push(format!("    Some(&{whitelist:?}),"));
+    }
+    // UnknownWebKit follows the known pseudo-elements and accepts all properties.
+    pseudo_property_whitelist_rows.push("    None,".to_string());
 
     // NB: Must match manually_specified_computation_order in
     //     Meta/Generators/generate_libweb_css_property_id.py; the parity test enforces it.
@@ -331,7 +422,7 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     }
 
     let mut output = String::new();
-    output.push_str("// Generated by build.rs from Properties.json. Do not edit.\n\n");
+    output.push_str("// Generated by build.rs from CSS metadata. Do not edit.\n\n");
     // Shorthand expansion tables for the cascade. The "all" shorthand expands to every
     // longhand except direction and unicode-bidi, mirroring the C++ generator.
     let mut shorthand_rows = Vec::new();
@@ -501,6 +592,14 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
             .map(|ranges| format!("    &[{ranges}],"))
             .collect::<Vec<_>>()
             .join("\n")
+    ));
+    output.push_str(&format!(
+        "\npub(crate) static PSEUDO_ELEMENT_ALWAYS_ALLOWED_PROPERTIES: &[u16] = &{always_allowed_pseudo_properties:?};\n"
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PSEUDO_ELEMENT_PROPERTY_WHITELISTS: [Option<&[u16]>; {}] = [\n{}\n];\n",
+        pseudo_property_whitelist_rows.len(),
+        pseudo_property_whitelist_rows.join("\n")
     ));
     std::fs::write(out_dir.join("property_metadata_generated.rs"), output)?;
     Ok(())

@@ -44,6 +44,19 @@ pub fn property_animation_type(property_id: u16) -> u8 {
     PROPERTY_ANIMATION_TYPES[longhand_index(property_id)]
 }
 
+pub(crate) fn pseudo_element_supports_property(pseudo_element: u8, property_id: u16) -> bool {
+    if PSEUDO_ELEMENT_ALWAYS_ALLOWED_PROPERTIES
+        .binary_search(&property_id)
+        .is_ok()
+    {
+        return true;
+    }
+    match PSEUDO_ELEMENT_PROPERTY_WHITELISTS[pseudo_element as usize] {
+        Some(whitelist) => whitelist.binary_search(&property_id).is_ok(),
+        None => true,
+    }
+}
+
 /// An accepted numeric range for one CSS value type.
 #[repr(C)]
 pub struct FfiPropertyNumericRange {

@@ -1147,12 +1147,12 @@ public:
     Filter const& filter() const { return m_noninherited.effects->filter; }
     Vector<ShadowData> const& box_shadow() const { return m_noninherited.effects->box_shadow; }
     BoxSizing box_sizing() const { return m_noninherited.box->box_sizing; }
-    Size const& width() const { return m_noninherited.sizing->width; }
-    Size const& min_width() const { return m_noninherited.sizing->min_width; }
-    Size const& max_width() const { return m_noninherited.sizing->max_width; }
-    Size const& height() const { return m_noninherited.sizing->height; }
-    Size const& min_height() const { return m_noninherited.sizing->min_height; }
-    Size const& max_height() const { return m_noninherited.sizing->max_height; }
+    Size const& width() const { return Size::view(m_noninherited.sizing->width); }
+    Size const& min_width() const { return Size::view(m_noninherited.sizing->min_width); }
+    Size const& max_width() const { return Size::view(m_noninherited.sizing->max_width); }
+    Size const& height() const { return Size::view(m_noninherited.sizing->height); }
+    Size const& min_height() const { return Size::view(m_noninherited.sizing->min_height); }
+    Size const& max_height() const { return Size::view(m_noninherited.sizing->max_height); }
     Variant<VerticalAlign, LengthPercentage> const& vertical_align() const { return m_noninherited.box->vertical_align; }
     GridTrackSizeList const& grid_auto_columns() const { return m_noninherited.grid->grid_auto_columns; }
     GridTrackSizeList const& grid_auto_rows() const { return m_noninherited.grid->grid_auto_rows; }
@@ -1381,18 +1381,10 @@ private:
     void inherit_from(ComputedValues const& other) { m_inherited = other.m_inherited; }
 
 public:
-    // The layout of this group is defined in Rust (computed_values.rs); see InheritedBoxValues.
+    // The layout and lifecycle of this group are defined in Rust (computed_values.rs).
     struct InheritedTableValues : ComputedValuesFFI::InheritedTableValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedTableValues);
-
-        InheritedTableValues()
-        {
-            border_collapse = to_underlying(InitialValues::border_collapse());
-            caption_side = to_underlying(InitialValues::caption_side());
-            empty_cells = to_underlying(InitialValues::empty_cells());
-            border_spacing_horizontal = InitialValues::border_spacing().raw_value();
-            border_spacing_vertical = InitialValues::border_spacing().raw_value();
-        }
+        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::InheritedTable;
 
         bool operator==(InheritedTableValues const& other) const
         {
@@ -1485,20 +1477,12 @@ public:
         bool operator==(InheritedTextValues const&) const = default;
     };
 
-    // The layout of this group is defined in Rust (computed_values.rs); this type only adds
-    // the initial values on top of the mirrored layout. The fields hold the underlying values
-    // of the corresponding C++ enums, and the lens getters and setters convert.
+    // The layout and lifecycle of this group are defined in Rust (computed_values.rs). The
+    // fields hold the underlying values of the corresponding C++ enums, and the lens getters
+    // and setters convert.
     struct InheritedBoxValues : ComputedValuesFFI::InheritedBoxValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedBoxValues);
-
-        InheritedBoxValues()
-        {
-            visibility = to_underlying(InitialValues::visibility());
-            direction = to_underlying(InitialValues::direction());
-            writing_mode = to_underlying(InitialValues::writing_mode());
-            content_visibility = to_underlying(InitialValues::content_visibility());
-            image_rendering = to_underlying(InitialValues::image_rendering());
-        }
+        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::InheritedBox;
 
         bool operator==(InheritedBoxValues const& other) const
         {
@@ -1792,16 +1776,19 @@ public:
         bool operator==(MiscResetValues const&) const = default;
     };
 
-    struct SizingValues {
+    struct SizingValues : ComputedValuesFFI::SizingValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::SizingValues);
-        Size width { InitialValues::width() };
-        Size min_width { InitialValues::min_width() };
-        Size max_width { InitialValues::max_width() };
-        Size height { InitialValues::height() };
-        Size min_height { InitialValues::min_height() };
-        Size max_height { InitialValues::max_height() };
+        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Sizing;
 
-        bool operator==(SizingValues const&) const = default;
+        bool operator==(SizingValues const& other) const
+        {
+            return Size::view(width) == Size::view(other.width)
+                && Size::view(min_width) == Size::view(other.min_width)
+                && Size::view(max_width) == Size::view(other.max_width)
+                && Size::view(height) == Size::view(other.height)
+                && Size::view(min_height) == Size::view(other.min_height)
+                && Size::view(max_height) == Size::view(other.max_height);
+        }
     };
 
     struct SurroundValues {
@@ -2531,42 +2518,12 @@ public:
             return;
         m_values.m_inherited.text.access().letter_spacing = value;
     }
-    void set_width(Size width)
-    {
-        if (m_values.m_noninherited.sizing->width == width)
-            return;
-        m_values.m_noninherited.sizing.access().width = width;
-    }
-    void set_min_width(Size width)
-    {
-        if (m_values.m_noninherited.sizing->min_width == width)
-            return;
-        m_values.m_noninherited.sizing.access().min_width = width;
-    }
-    void set_max_width(Size width)
-    {
-        if (m_values.m_noninherited.sizing->max_width == width)
-            return;
-        m_values.m_noninherited.sizing.access().max_width = width;
-    }
-    void set_height(Size height)
-    {
-        if (m_values.m_noninherited.sizing->height == height)
-            return;
-        m_values.m_noninherited.sizing.access().height = height;
-    }
-    void set_min_height(Size height)
-    {
-        if (m_values.m_noninherited.sizing->min_height == height)
-            return;
-        m_values.m_noninherited.sizing.access().min_height = height;
-    }
-    void set_max_height(Size height)
-    {
-        if (m_values.m_noninherited.sizing->max_height == height)
-            return;
-        m_values.m_noninherited.sizing.access().max_height = height;
-    }
+    void set_width(Size value) { set_size(&ComputedValuesFFI::SizingValues::width, move(value)); }
+    void set_min_width(Size value) { set_size(&ComputedValuesFFI::SizingValues::min_width, move(value)); }
+    void set_max_width(Size value) { set_size(&ComputedValuesFFI::SizingValues::max_width, move(value)); }
+    void set_height(Size value) { set_size(&ComputedValuesFFI::SizingValues::height, move(value)); }
+    void set_min_height(Size value) { set_size(&ComputedValuesFFI::SizingValues::min_height, move(value)); }
+    void set_max_height(Size value) { set_size(&ComputedValuesFFI::SizingValues::max_height, move(value)); }
     void set_inset(LengthBox const& inset)
     {
         if (m_values.m_noninherited.surround->inset == inset)
@@ -3517,6 +3474,13 @@ public:
     }
 
 private:
+    void set_size(ComputedValuesFFI::ComputedSize ComputedValuesFFI::SizingValues::* member, Size value)
+    {
+        if (Size::view(m_values.m_noninherited.sizing.operator->()->*member) == value)
+            return;
+        Size::replace(m_values.m_noninherited.sizing.access().*member, move(value));
+    }
+
     ComputedValues& m_values;
 };
 

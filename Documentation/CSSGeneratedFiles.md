@@ -281,13 +281,14 @@ The generated code provides:
 - `bool is_element_backed_pseudo_element(PseudoElement)` returns whether the pseudo-element is element-backed
 - `bool is_tree_abiding_pseudo_element(PseudoElement)` returns whether the pseudo-element is tree-abiding
 - `bool is_pseudo_element_root(PseudoElement)` returns whether the pseudo-element is a [pseudo-element root](https://drafts.csswg.org/css-view-transitions/#pseudo-element-root)
-- `bool pseudo_element_supports_property(PseudoElement, PropertyID)` returns whether the property can be applied to this pseudo-element
 
 ### `property-whitelist`
 
 This is an array of strings. Properties can be named directly ("color"), or categories of properties with a leading `#`
 ("#font-properties"), as the specs often says a group is allowed instead of listing the properties exactly.
 Any properties we don't support yet can be prefixed with "FIXME:" and will be ignored.
+The property groups and the properties that always apply are defined in
+`PseudoElementPropertyGroups.txt` and generated into the Rust cascade tables.
 
 The following categories are supported:
 

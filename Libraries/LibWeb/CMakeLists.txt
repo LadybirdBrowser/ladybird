@@ -240,7 +240,6 @@ set(SOURCES
     CSS/SelectorRustBridge.cpp
     CSS/SelectorMatching.cpp
     CSS/Serialize.cpp
-    CSS/Size.cpp
     CSS/Sizing.cpp
     CSS/StyleComputer.cpp
     CSS/StyleInvalidation.cpp

@@ -749,10 +749,10 @@ void FlexFormattingContext::determine_flex_base_size(FlexItem& item)
 
             if (size.is_calculated()) {
                 auto const& calc_value = size.calculated();
-                if (calc_value.resolves_to_percentage())
+                if (calc_value->resolves_to_percentage())
                     return can_resolve_percentages;
-                if (calc_value.resolves_to_length()) {
-                    if (calc_value.contains_percentage())
+                if (calc_value->resolves_to_length()) {
+                    if (calc_value->contains_percentage())
                         return can_resolve_percentages;
                     return true;
                 }

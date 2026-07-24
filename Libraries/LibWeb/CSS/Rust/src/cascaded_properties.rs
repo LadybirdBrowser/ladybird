@@ -572,9 +572,6 @@ pub struct FfiBulkCascadeCallbacks {
         source: *const u8,
         source_length: usize,
     ) -> FfiResolvedStyleValue,
-    /// Whether the element's pseudo-element rejects the property; only called
-    /// when the element has a pseudo-element.
-    pub pseudo_element_rejects_property: unsafe extern "C" fn(context: *mut c_void, property_id: u16) -> bool,
     /// Receives every winning slot's source assignment in one batch.
     pub assign_source_slots:
         unsafe extern "C" fn(context: *mut c_void, assignments: *const FfiSourceSlotAssignment, count: usize),
@@ -591,6 +588,9 @@ pub struct FfiResolvedStyleValue {
     pub data: *const c_void,
     pub has_style_sheet_context: bool,
 }
+
+/// Sentinel passed when cascading for an element rather than a pseudo-element.
+pub(crate) const NO_PSEUDO_ELEMENT: u8 = u8::MAX;
 
 /// Runs the whole cascade for one element in css-cascade-5 origin order over
 /// the matched declaration blocks:
@@ -615,8 +615,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
     blocks: *const FfiCascadeBlock,
     block_count: usize,
     author_context_count: u32,
-    has_pseudo_element: bool,
-    cascade_custom_properties: bool,
+    pseudo_element: u8,
     custom_property_registry: *const c_void,
     unset_data: *const c_void,
     callbacks: *const FfiBulkCascadeCallbacks,
@@ -710,6 +709,12 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
             application_order.push((index, true, false));
         }
 
+        let has_pseudo_element = pseudo_element != NO_PSEUDO_ELEMENT;
+        let cascade_custom_properties = !has_pseudo_element
+            || crate::property_metadata::pseudo_element_supports_property(
+                pseudo_element,
+                crate::property_metadata::property_id::CUSTOM,
+            );
         let mut custom_property_store = std::ptr::null();
         if cascade_custom_properties {
             let mut custom_property_indices = HashMap::new();
@@ -763,8 +768,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                 if block.bypass_pseudo_element_property_whitelist || !has_pseudo_element {
                     return false;
                 }
-                crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadePropertyDisallowedCallback);
-                unsafe { (callbacks.pseudo_element_rejects_property)(context, property_id) }
+                !crate::property_metadata::pseudo_element_supports_property(pseudo_element, property_id)
             };
             apply_declaration_block(
                 store,

@@ -1,0 +1,181 @@
+# Copyright (c) 2026-present, the Ladybird developers.
+# SPDX-License-Identifier: BSD-2-Clause
+
+[always-allowed-properties]
+transition
+transition-behavior
+transition-delay
+transition-duration
+transition-property
+transition-timing-function
+animation
+animation-composition
+animation-delay
+animation-direction
+animation-duration
+animation-fill-mode
+animation-iteration-count
+animation-name
+animation-play-state
+animation-timeline
+animation-timing-function
+
+[background-properties]
+# https://drafts.csswg.org/css-backgrounds/#property-index
+background
+background-attachment
+background-blend-mode
+background-clip
+background-color
+background-image
+background-origin
+background-position
+background-position-x
+background-position-y
+background-repeat
+background-size
+
+[border-properties]
+# https://drafts.csswg.org/css-backgrounds/#property-index
+border
+border-block-end
+border-block-end-color
+border-block-end-style
+border-block-end-width
+border-block-start
+border-block-start-color
+border-block-start-style
+border-block-start-width
+border-bottom
+border-bottom-color
+border-bottom-left-radius
+border-bottom-right-radius
+border-bottom-style
+border-bottom-width
+border-color
+border-image
+border-image-outset
+border-image-repeat
+border-image-slice
+border-image-source
+border-image-width
+border-inline-end
+border-inline-end-color
+border-inline-end-style
+border-inline-end-width
+border-inline-start
+border-inline-start-color
+border-inline-start-style
+border-inline-start-width
+border-left
+border-left-color
+border-left-style
+border-left-width
+border-radius
+border-right
+border-right-color
+border-right-style
+border-right-width
+border-style
+border-top
+border-top-color
+border-top-left-radius
+border-top-right-radius
+border-top-style
+border-top-width
+border-width
+
+[custom-properties]
+custom
+
+[font-properties]
+# https://drafts.csswg.org/css-fonts/#property-index
+# FIXME: font-palette
+# FIXME: font-size-adjust
+# FIXME: font-synthesis and longhands
+font
+font-family
+font-feature-settings
+font-kerning
+font-language-override
+font-optical-sizing
+font-size
+font-style
+font-variant
+font-variant-alternates
+font-variant-caps
+font-variant-east-asian
+font-variant-emoji
+font-variant-ligatures
+font-variant-numeric
+font-variant-position
+font-variation-settings
+font-weight
+font-width
+
+[inline-layout-properties]
+# https://drafts.csswg.org/css-inline/#property-index
+# FIXME: alignment-baseline
+# FIXME: baseline-shift
+# FIXME: baseline-source
+# FIXME: dominant-baseline
+# FIXME: initial-letter
+# FIXME: initial-letter-align
+# FIXME: initial-letter-wrap
+# FIXME: inline-sizing
+# FIXME: line-edge-fit
+# FIXME: text-box
+# FIXME: text-box-edge
+# FIXME: text-box-trim
+line-height
+vertical-align
+
+[inline-typesetting-properties]
+# https://drafts.csswg.org/css-text-4/#property-index
+# FIXME: hanging-punctuation
+# FIXME: line-padding
+# FIXME: text-autospace
+# FIXME: text-spacing
+# FIXME: text-spacing-trim
+# FIXME: word-space-transform
+letter-spacing
+text-justify
+text-transform
+word-spacing
+
+[margin-properties]
+margin
+margin-block
+margin-block-end
+margin-block-start
+margin-bottom
+margin-inline
+margin-inline-end
+margin-inline-start
+margin-left
+margin-right
+margin-top
+
+[padding-properties]
+padding
+padding-block
+padding-block-end
+padding-block-start
+padding-bottom
+padding-inline
+padding-inline-end
+padding-inline-start
+padding-left
+padding-right
+padding-top
+
+[text-decoration-properties]
+text-decoration
+text-decoration-color
+text-decoration-line
+text-decoration-skip-ink
+text-decoration-style
+text-decoration-thickness
+text-shadow
+text-underline-offset
+text-underline-position
