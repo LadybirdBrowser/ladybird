@@ -54,13 +54,6 @@ pub struct FfiTransitionAction {
     pub reversing_shortening_factor: f64,
 }
 
-#[repr(C)]
-pub struct FfiTransitionCallbacks {
-    pub context: *mut std::ffi::c_void,
-    pub apply_actions:
-        unsafe extern "C" fn(context: *mut std::ffi::c_void, actions: *const FfiTransitionAction, count: usize),
-}
-
 fn property_values_are_transitionable(
     context: &crate::animation::FfiAnimationContext,
     property_id: u16,
@@ -266,27 +259,24 @@ fn decide_transition(
 
 /// Run the CSS Transitions decision algorithm for every supplied property.
 ///
-/// The callback is invoked exactly once. C++ retains ownership of animation objects and executes
-/// the returned actions in order.
+/// C++ retains ownership of animation objects and executes the returned actions in order.
 ///
 /// # Safety
-/// `input` and `callbacks` must point to live values for the duration of the call.
+/// `input` must point to a live value for the duration of the call. When the input contains
+/// properties, `actions` must point at writable storage for `property_count` actions.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_decide_transitions(
-    input: *const FfiTransitionInput,
-    callbacks: *const FfiTransitionCallbacks,
-) {
+pub unsafe extern "C" fn rust_decide_transitions(input: *const FfiTransitionInput, actions: *mut FfiTransitionAction) {
     crate::abort_on_panic(|| {
         crate::ffi_stats::rust_style_ffi_note_transition_decision();
         let input = unsafe { &*input };
-        let callbacks = unsafe { &*callbacks };
-        let properties = unsafe { std::slice::from_raw_parts(input.properties, input.property_count) };
-        let actions = properties
-            .iter()
-            .map(|property| decide_transition(&input.context, property))
-            .collect::<Vec<_>>();
-        crate::ffi_stats::rust_style_ffi_note_transition_action_batch();
-        unsafe { (callbacks.apply_actions)(callbacks.context, actions.as_ptr(), actions.len()) };
+        let properties = if input.property_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(input.properties, input.property_count) }
+        };
+        for (index, property) in properties.iter().enumerate() {
+            unsafe { actions.add(index).write(decide_transition(&input.context, property)) };
+        }
     });
 }
 
@@ -362,6 +352,16 @@ mod tests {
             decide_transition(&animation_context(), &input(&before, &after, &before)).kind,
             FfiTransitionActionKind::Start
         );
+    }
+
+    #[test]
+    fn accepts_an_empty_transition_batch() {
+        let input = FfiTransitionInput {
+            context: animation_context(),
+            properties: std::ptr::null(),
+            property_count: 0,
+        };
+        unsafe { rust_decide_transitions(&raw const input, std::ptr::null_mut()) };
     }
 
     #[test]
