@@ -1,0 +1,5 @@
+inherit: rgb(10, 20, 30), 30px, 0.4
+initial: rgb(0, 0, 0), 0px, 1
+unset: rgb(10, 20, 30), 0px, 1
+revert: rgb(100, 110, 120), 40px, 0.25
+revert-layer: rgb(100, 110, 120), 40px, 0.25

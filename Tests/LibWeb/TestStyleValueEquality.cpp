@@ -63,11 +63,18 @@
 
 namespace Web::CSS {
 
+static StyleValueFFI::StyleValueData const* create_test_image(StringView url)
+{
+    auto url_string = MUST(String::from_utf8(url));
+    auto url_bytes = url_string.bytes();
+    return StyleValueFFI::rust_style_value_create_image(url_string.to_raw_leaked(), url_bytes.data(), url_bytes.size(), 0, nullptr, 0);
+}
+
 TEST_CASE(rust_composites_scalar_style_values)
 {
     auto underlying_number = NumberStyleValue::create(2);
     auto animated_number = NumberStyleValue::create(3);
-    auto result = StyleValueFFI::rust_composite_scalar_style_value(
+    auto result = StyleValueFFI::rust_test_composite_style_value(
         underlying_number->rust_style_value_data(),
         animated_number->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -77,7 +84,7 @@ TEST_CASE(rust_composites_scalar_style_values)
 
     auto underlying_length = LengthStyleValue::create(Length::make_px(10));
     auto animated_length = LengthStyleValue::create(Length::make_px(15));
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         underlying_length->rust_style_value_data(),
         animated_length->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Accumulate);
@@ -85,7 +92,7 @@ TEST_CASE(rust_composites_scalar_style_values)
     auto length = StyleValue::adopt_rust_style_value_data(result.value);
     EXPECT_EQ(length->as_length().length().raw_value(), 25);
 
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         underlying_number->rust_style_value_data(),
         animated_number->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Replace);
@@ -94,7 +101,7 @@ TEST_CASE(rust_composites_scalar_style_values)
 
     auto underlying_ratio = RatioStyleValue::create(NumberStyleValue::create(4), NumberStyleValue::create(3));
     auto animated_ratio = RatioStyleValue::create(NumberStyleValue::create(16), NumberStyleValue::create(9));
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         underlying_ratio->rust_style_value_data(),
         animated_ratio->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -103,7 +110,7 @@ TEST_CASE(rust_composites_scalar_style_values)
 
     auto underlying_opacity = OpacityValueStyleValue::create(NumberStyleValue::create(0.75));
     auto animated_opacity = OpacityValueStyleValue::create(NumberStyleValue::create(0.75));
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         underlying_opacity->rust_style_value_data(),
         animated_opacity->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -141,7 +148,7 @@ TEST_CASE(rust_interpolates_and_composites_scalar_dimensions)
 
     auto underlying_time = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_time(2, 0));
     auto animated_time = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_time(3, 0));
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         underlying_time->rust_style_value_data(),
         animated_time->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -165,7 +172,7 @@ TEST_CASE(rust_interpolates_and_composites_value_lists)
     EXPECT_EQ(interpolated->as_value_list().values()[0]->as_number().number(), 2);
     EXPECT_EQ(interpolated->as_value_list().values()[1]->as_number().number(), 5);
 
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         from->rust_style_value_data(),
         to->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -229,7 +236,9 @@ TEST_CASE(rust_handles_create_every_remaining_typed_wrapper)
     expect_type(StyleValueFFI::rust_style_value_create_shorthand(0, nullptr, 0, nullptr, 0), StyleValue::Type::Shorthand);
     expect_type(StyleValueFFI::rust_style_value_create_text_underline_position(0, 0), StyleValue::Type::TextUnderlinePosition);
     expect_type(StyleValueFFI::rust_style_value_create_unicode_range(0, 0), StyleValue::Type::UnicodeRange);
-    expect_type(StyleValueFFI::rust_style_value_create_url(MUST(String::from_utf8("https://example.com/"sv)).to_raw_leaked(), 0, nullptr, 0), StyleValue::Type::URL);
+    auto url = MUST(String::from_utf8("https://example.com/"sv));
+    auto url_bytes = url.bytes();
+    expect_type(StyleValueFFI::rust_style_value_create_url(url.to_raw_leaked(), url_bytes.data(), url_bytes.size(), 0, nullptr, 0), StyleValue::Type::URL);
 }
 
 TEST_CASE(rust_transformation_handles_retain_child_data)
@@ -377,7 +386,7 @@ TEST_CASE(rust_interpolates_and_composites_text_indent_values)
     auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
     EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "4px hanging"sv);
 
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         from->rust_style_value_data(),
         to->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -435,7 +444,7 @@ TEST_CASE(rust_interpolates_and_composites_edge_offsets)
     auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
     EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "6px"sv);
 
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         from->rust_style_value_data(),
         to->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -478,7 +487,7 @@ TEST_CASE(rust_interpolates_and_composites_positions)
     auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
     EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "6px 12px"sv);
 
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         from->rust_style_value_data(),
         to->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -531,7 +540,7 @@ TEST_CASE(rust_interpolates_and_composites_rects)
     auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
     EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "rect(2px, 4px, 6px, 8px)"sv);
 
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         from->rust_style_value_data(),
         to->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -795,6 +804,8 @@ TEST_CASE(rust_font_source_handles_retain_local_name_data)
     auto data = StyleValueFFI::rust_style_value_create_font_source(
         true,
         StyleValueFFI::rust_style_value_retain(local_name->rust_style_value_data()),
+        0,
+        nullptr,
         0,
         0,
         nullptr,
@@ -1229,7 +1240,7 @@ TEST_CASE(rust_grid_track_list_handles_retain_size_data)
 TEST_CASE(rust_image_handles_create_typed_wrappers)
 {
     auto image = StyleValue::adopt_rust_style_value_data(
-        StyleValueFFI::rust_style_value_create_image("image.png"_string.to_raw_leaked(), 0, nullptr, 0));
+        create_test_image("image.png"sv));
     EXPECT(image->is_image());
     EXPECT_EQ(image->to_string(SerializationMode::Normal), "url(\"image.png\")"sv);
 }
@@ -1237,7 +1248,7 @@ TEST_CASE(rust_image_handles_create_typed_wrappers)
 TEST_CASE(rust_cursor_handles_retain_image_data)
 {
     auto data = StyleValueFFI::rust_style_value_create_cursor(
-        StyleValueFFI::rust_style_value_create_image("cursor.png"_string.to_raw_leaked(), 0, nullptr, 0),
+        create_test_image("cursor.png"sv),
         nullptr, nullptr);
     auto cursor = StyleValue::adopt_rust_style_value_data(data);
     EXPECT(cursor->is_cursor());
@@ -1252,7 +1263,7 @@ TEST_CASE(rust_cursor_handles_retain_image_data)
 TEST_CASE(rust_image_set_handles_retain_option_data)
 {
     StyleValueFFI::RetainedImageSetOption option {
-        { StyleValueFFI::rust_style_value_create_image("candidate.png"_string.to_raw_leaked(), 0, nullptr, 0) },
+        { create_test_image("candidate.png"sv) },
         { StyleValueFFI::rust_style_value_create_resolution(1, 0) },
         false,
         { 0 },
@@ -1296,6 +1307,9 @@ TEST_CASE(rust_interpolates_font_style_values)
 
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = true,
+        .current_color = nullptr,
+        .has_length_resolution_context = false,
+        .length_resolution_context = {},
         .has_transform_reference_box = false,
         .transform_reference_box_width = 0,
         .transform_reference_box_height = 0,
@@ -1318,6 +1332,9 @@ TEST_CASE(rust_interpolates_visibility_values)
     auto collapse = KeywordStyleValue::create(Keyword::Collapse);
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = false,
+        .current_color = nullptr,
+        .has_length_resolution_context = false,
+        .length_resolution_context = {},
         .has_transform_reference_box = false,
         .transform_reference_box_width = 0,
         .transform_reference_box_height = 0,
@@ -1361,6 +1378,9 @@ TEST_CASE(rust_interpolates_content_visibility_values)
     auto auto_value = KeywordStyleValue::create(Keyword::Auto);
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = false,
+        .current_color = nullptr,
+        .has_length_resolution_context = false,
+        .length_resolution_context = {},
         .has_transform_reference_box = false,
         .transform_reference_box_width = 0,
         .transform_reference_box_height = 0,
@@ -1407,6 +1427,9 @@ TEST_CASE(rust_interpolates_display_values)
     auto inline_value = DisplayStyleValue::create(inline_display);
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = false,
+        .current_color = nullptr,
+        .has_length_resolution_context = false,
+        .length_resolution_context = {},
         .has_transform_reference_box = false,
         .transform_reference_box_width = 0,
         .transform_reference_box_height = 0,
@@ -1474,7 +1497,7 @@ TEST_CASE(rust_interpolates_and_composites_function_values)
     auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
     EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "foo(200)"sv);
 
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         from->rust_style_value_data(),
         to->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -1513,7 +1536,7 @@ TEST_CASE(rust_interpolates_and_composites_open_type_settings)
     auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
     EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "\"wght\" 200"sv);
 
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         from->rust_style_value_data(),
         to->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -1607,7 +1630,7 @@ TEST_CASE(rust_interpolates_and_composites_border_image_slices)
     auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
     EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "2 4 6 8 fill"sv);
 
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         from->rust_style_value_data(),
         to->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -1683,7 +1706,7 @@ TEST_CASE(rust_interpolates_and_composites_border_radius_rects)
     auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
     EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "2px 3px 4px 5px / 3px 4px 5px 6px"sv);
 
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         from->rust_style_value_data(),
         to->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -1726,7 +1749,7 @@ TEST_CASE(rust_interpolates_and_composites_border_radii)
     auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
     EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "4px 6px"sv);
 
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         from->rust_style_value_data(),
         to->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -1756,7 +1779,7 @@ TEST_CASE(rust_interpolates_and_composites_background_sizes)
     auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
     EXPECT_EQ(interpolated->to_string(SerializationMode::Normal), "6px 12px"sv);
 
-    result = StyleValueFFI::rust_composite_scalar_style_value(
+    result = StyleValueFFI::rust_test_composite_style_value(
         from->rust_style_value_data(),
         to->rust_style_value_data(),
         StyleValueFFI::FfiCompositeOperation::Add);
@@ -2066,6 +2089,9 @@ TEST_CASE(rust_interpolates_stroke_dasharray_values)
     auto none = KeywordStyleValue::create(Keyword::None);
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = true,
+        .current_color = nullptr,
+        .has_length_resolution_context = false,
+        .length_resolution_context = {},
         .has_transform_reference_box = false,
         .transform_reference_box_width = 0,
         .transform_reference_box_height = 0,
@@ -2362,6 +2388,9 @@ TEST_CASE(rust_resolves_percentage_transforms_against_a_reference_box_snapshot)
         StyleValueList::Separator::Space);
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = false,
+        .current_color = nullptr,
+        .has_length_resolution_context = false,
+        .length_resolution_context = {},
         .has_transform_reference_box = true,
         .transform_reference_box_width = 200,
         .transform_reference_box_height = 100,
@@ -2411,6 +2440,9 @@ TEST_CASE(rust_handles_non_invertible_transform_matrices_without_a_value)
 
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = true,
+        .current_color = nullptr,
+        .has_length_resolution_context = false,
+        .length_resolution_context = {},
         .has_transform_reference_box = false,
         .transform_reference_box_width = 0,
         .transform_reference_box_height = 0,

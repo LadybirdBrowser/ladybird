@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        margin: 5px;
+        margin-left: 50px !important;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const animation = target.animate([{ margin: "10px" }, { margin: "20px" }], { duration: 1000, fill: "both" });
+        animation.pause();
+        animation.currentTime = 500;
+        const style = getComputedStyle(target);
+        println(`margin: ${style.marginTop} ${style.marginRight} ${style.marginBottom} ${style.marginLeft}`);
+    });
+</script>

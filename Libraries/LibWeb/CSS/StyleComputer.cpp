@@ -935,15 +935,15 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
     };
     Vector<PreparedAnimationValue> prepared_values;
 
-    struct KeyframeConflictCandidate {
-        Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const* keyframe { nullptr };
-        PropertyID physical_property_id;
-        PropertyID source_property_id;
-        PropertyID source_longhand_id;
+    struct KeyframeDeclaration {
+        size_t keyframe_index { 0 };
+        PropertyID property_id;
         NonnullRefPtr<StyleValue const> value;
         bool use_initial { false };
+        bool is_transition { false };
     };
-    Vector<KeyframeConflictCandidate> conflict_candidates;
+    Vector<KeyframeDeclaration> keyframe_declarations;
+    Vector<Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const*> keyframes_by_index;
     for (auto effect : effects) {
         auto animation = effect->associated_animation();
         if (!animation || !effect->transformed_progress().has_value() || !effect->key_frame_set())
@@ -952,6 +952,8 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         if (keyframes.size() < 2)
             continue;
         for (auto it = keyframes.begin(); it != keyframes.end(); ++it) {
+            auto keyframe_index = keyframes_by_index.size();
+            keyframes_by_index.append(&*it);
             for (auto const& [property_id, value] : it->properties) {
                 bool is_use_initial = false;
                 auto style_value = value.visit(
@@ -971,16 +973,12 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
                 // (i.e. inherit for inherited properties, initial for non-inherited properties).
                 if (!style_value || style_value->is_guaranteed_invalid())
                     continue;
-                for_each_property_expanding_shorthands(property_id, *style_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
-                    auto physical_longhand_id = map_logical_alias_to_physical_property(longhand_id, LogicalAliasMappingContext { computed_properties.writing_mode(), computed_properties.direction() });
-                    conflict_candidates.append({
-                        .keyframe = &*it,
-                        .physical_property_id = physical_longhand_id,
-                        .source_property_id = property_id,
-                        .source_longhand_id = longhand_id,
-                        .value = longhand_value,
-                        .use_initial = is_use_initial,
-                    });
+                keyframe_declarations.append({
+                    .keyframe_index = keyframe_index,
+                    .property_id = property_id,
+                    .value = style_value.release_nonnull(),
+                    .use_initial = is_use_initial,
+                    .is_transition = animation->is_css_transition(),
                 });
             }
         }
@@ -989,399 +987,400 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
     struct SelectedKeyframeValue {
         PropertyID source_longhand_id;
         NonnullRefPtr<StyleValue const> value;
+        StyleValueFFI::FfiAnimationSpecifiedValueSource value_source;
     };
-    HashMap<Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const*, HashMap<PropertyID, SelectedKeyframeValue>> selected_keyframe_values;
-    if (!conflict_candidates.is_empty()) {
-        Vector<StyleValueFFI::FfiAnimationPropertyConflictCandidate> ffi_conflict_candidates;
-        Vector<bool> selected_candidates;
-        ffi_conflict_candidates.ensure_capacity(conflict_candidates.size());
-        selected_candidates.resize(conflict_candidates.size());
-        size_t keyframe_index = 0;
-        Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const* previous_keyframe = nullptr;
-        for (auto const& candidate : conflict_candidates) {
-            if (candidate.keyframe != previous_keyframe) {
-                ++keyframe_index;
-                previous_keyframe = candidate.keyframe;
-            }
-            ffi_conflict_candidates.unchecked_append({
-                .keyframe_index = keyframe_index,
-                .physical_property_id = to_underlying(candidate.physical_property_id),
-                .source_property_id = to_underlying(candidate.source_property_id),
-                .use_initial = candidate.use_initial,
-            });
-        }
-        StyleValueFFI::rust_resolve_animation_property_conflicts(ffi_conflict_candidates.data(), ffi_conflict_candidates.size(), selected_candidates.data());
-        for (size_t index = 0; index < conflict_candidates.size(); ++index) {
-            if (!selected_candidates[index])
-                continue;
-            auto const& candidate = conflict_candidates[index];
-            auto& keyframe_values = selected_keyframe_values.ensure(candidate.keyframe);
-            keyframe_values.set(candidate.physical_property_id, {
-                                                                    .source_longhand_id = candidate.source_longhand_id,
-                                                                    .value = candidate.value,
-                                                                });
-        }
-    }
-
-    VERIFY(computation_context_cache_is_empty());
-    for (auto effect : effects) {
-        auto animation = effect->associated_animation();
-        if (!animation)
-            continue;
-
-        auto output_progress = effect->transformed_progress();
-        if (!output_progress.has_value())
-            continue;
-
-        if (!effect->key_frame_set())
-            continue;
-
-        auto& keyframes = effect->key_frame_set()->keyframes_by_key;
-        if (keyframes.size() < 2) {
-            if constexpr (LIBWEB_CSS_ANIMATION_DEBUG) {
-                dbgln("    Did not find enough keyframes ({} keyframes)", keyframes.size());
-                for (auto it = keyframes.begin(); it != keyframes.end(); ++it)
-                    dbgln("        - {}", it.key());
-            }
-            continue;
-        }
-
-        double current_key = output_progress.value() * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor;
-        current_key = clamp(current_key, static_cast<double>(NumericLimits<i64>::min()), static_cast<double>(NumericLimits<i64>::max()));
-
-        // Each property is animated using its property-specific keyframes, so two properties in the same animation may be
-        // interpolated across different intervals.
-        // Collect the keyframes in ascending offset order, and index for each physical longhand the keyframes that specify
-        // it, so that the interval endpoints can be found separately for every property.
-        LogicalAliasMappingContext const logical_alias_mapping_context { computed_properties.writing_mode(), computed_properties.direction() };
-        struct KeyframeInfo {
-            i64 key { 0 };
-            Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const* frame { nullptr };
-        };
-        Vector<KeyframeInfo> ordered_keyframes;
-        ordered_keyframes.ensure_capacity(keyframes.size());
-        HashMap<PropertyID, Vector<size_t>> keyframes_specifying_property;
-        for (auto it = keyframes.begin(); it != keyframes.end(); ++it) {
-            auto keyframe_index = ordered_keyframes.size();
-            auto add_physical_longhand = [&](PropertyID longhand_id) {
-                auto physical_longhand_id = map_logical_alias_to_physical_property(longhand_id, logical_alias_mapping_context);
-                auto& specifying_keyframes = keyframes_specifying_property.ensure(physical_longhand_id);
-                if (specifying_keyframes.is_empty() || specifying_keyframes.last() != keyframe_index)
-                    specifying_keyframes.append(keyframe_index);
-            };
-            for (auto const& [property_id, value] : it->properties) {
-                value.visit(
-                    [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) { add_physical_longhand(property_id); },
-                    [&](NonnullRefPtr<StyleValue const> const& keyframe_value) {
-                        for_each_property_expanding_shorthands(property_id, *keyframe_value, [&](PropertyID longhand_id, StyleValue const&) {
-                            add_physical_longhand(longhand_id);
-                        });
-                    });
-            }
-            ordered_keyframes.append({ static_cast<i64>(it.key()), &*it });
-        }
-
-        // https://drafts.csswg.org/css-animations-1/#animation-timing-function
-        // Apply the per-keyframe easing to the interval progress. The easing on a keyframe applies to the
-        // interval from that keyframe to the next. If the keyframe doesn't specify an easing, use the
-        // animation's default easing (from the animation-timing-function property).
-        auto resolve_interval_easing = [&](auto const& keyframe_easing) {
-            auto resolved_easing = keyframe_easing.visit(
-                [](Empty) -> Optional<CSS::EasingFunction> { return {}; },
-                [](CSS::EasingFunction const& easing) -> Optional<CSS::EasingFunction> { return easing; },
-                [&](NonnullRefPtr<CSS::StyleValue const> const& value) -> Optional<CSS::EasingFunction> {
-                    return resolve_keyframe_easing(*value, abstract_element);
-                });
-            if (resolved_easing.has_value())
-                return resolved_easing.release_value();
-            if (animation->is_css_animation())
-                return static_cast<CSSAnimation const&>(*animation).default_easing();
-            return CSS::EasingFunction::linear();
-        };
-
-        auto compute_keyframe_values = [&computed_properties, &abstract_element, &selected_keyframe_values, builder, this](auto const& keyframe_values) {
-            HashMap<PropertyID, RefPtr<StyleValue const>> result;
-            HashMap<PropertyID, RefPtr<StyleValue const>> specified_values;
-            if (auto selected_values = selected_keyframe_values.get(&keyframe_values); selected_values.has_value()) {
-                for (auto const& [physical_property_id, selected_value] : *selected_values) {
-                    auto const& longhand_value = *selected_value.value;
-                    auto longhand_id = selected_value.source_longhand_id;
-                    auto specified_value_with_css_wide_keywords_applied = [&]() -> NonnullRefPtr<StyleValue const> {
-                        if (longhand_value.is_inherit() || (longhand_value.is_unset() && is_inherited_property(longhand_id))) {
-                            if (auto inherited_animated_value = get_animated_inherit_value(longhand_id, abstract_element); inherited_animated_value.has_value())
-                                return inherited_animated_value->value;
-                            return get_non_animated_inherit_value(longhand_id, abstract_element);
-                        }
-                        if (longhand_value.is_initial() || longhand_value.is_unset())
-                            return property_initial_value(longhand_id);
-                        if (longhand_value.is_revert() || longhand_value.is_revert_layer())
-                            return computed_properties.property(longhand_id);
-                        return selected_value.value;
-                    }();
-                    specified_values.set(physical_property_id, specified_value_with_css_wide_keywords_applied);
-                }
-            }
-
-            // NOTE: This doesn't necessarily return the specified value if we reach into computed_properties but that
-            //       doesn't matter as a computed value is always valid as a specified value.
-            Function<NonnullRefPtr<StyleValue const>(PropertyID)> get_property_specified_value = [&](PropertyID property_id) -> NonnullRefPtr<StyleValue const> {
-                if (auto keyframe_value = specified_values.get(property_id); keyframe_value.has_value() && keyframe_value.value())
-                    return *keyframe_value.value();
-
-                return computed_properties.property(property_id);
-            };
-
-            for (auto const& [property_id, style_value] : specified_values) {
-                if (!style_value)
-                    continue;
-
-                auto const& computation_context = get_computation_context_for_property(property_id, computed_properties, abstract_element);
-
-                computation_context.reset_viewport_metric_dependency_tracking();
-                result.set(property_id, compute_value_of_property(property_id, *style_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel()));
-                if (computation_context.depends_on_viewport_metrics()) {
-                    if (builder) {
-                        builder->set_depends_on_viewport_metrics();
-                        if (property_affects_font_metrics(property_id))
-                            builder->set_font_metrics_depend_on_viewport_metrics();
-                    } else {
-                        computed_properties.set_depends_on_viewport_metrics(Badge<StyleComputer> {});
-                        if (property_affects_font_metrics(property_id))
-                            computed_properties.set_font_metrics_depend_on_viewport_metrics(Badge<StyleComputer> {});
-                    }
-                }
-            }
-
-            return result;
-        };
-
-        auto to_composite_operation = [&](Bindings::CompositeOperationOrAuto composite_operation_or_auto) {
-            switch (composite_operation_or_auto) {
-            case Bindings::CompositeOperationOrAuto::Accumulate:
-                return Bindings::CompositeOperation::Accumulate;
-            case Bindings::CompositeOperationOrAuto::Add:
-                return Bindings::CompositeOperation::Add;
-            case Bindings::CompositeOperationOrAuto::Replace:
-                return Bindings::CompositeOperation::Replace;
-            case Bindings::CompositeOperationOrAuto::Auto:
-                return effect->composite();
-            }
-            VERIFY_NOT_REACHED();
-        };
-
-        auto is_result_of_transition = animation->is_css_transition() ? AnimatedPropertyResultOfTransition::Yes : AnimatedPropertyResultOfTransition::No;
-
-        Vector<HashMap<PropertyID, RefPtr<StyleValue const>>> keyframe_computed_values;
-        keyframe_computed_values.resize(ordered_keyframes.size());
-        auto computed_values_for_keyframe = [&](size_t index) -> HashMap<PropertyID, RefPtr<StyleValue const>> const& {
-            if (keyframe_computed_values[index].is_empty())
-                keyframe_computed_values[index] = compute_keyframe_values(*ordered_keyframes[index].frame);
-            return keyframe_computed_values[index];
-        };
-
-        for (auto const& [property_id, specifying_keyframes] : keyframes_specifying_property) {
-            // A property is usually specified by at least the initial and final keyframes, but a value that stays
-            // unresolved may leave a property with only one specifying keyframe. Such a property cannot be interpolated, so skip it.
-            if (specifying_keyframes.size() < 2)
-                continue;
-
-            // An unresolved shorthand cannot be expanded while building the property index. Computing its keyframe
-            // values either resolves it into physical longhands or leaves no value, so it is never itself animatable.
-            if (property_id < first_longhand_property_id || property_id > last_longhand_property_id)
-                continue;
-
-            // OPTIMIZATION: Values resulting from animations other than CSS transitions are overridden by important
-            //               properties so there's no need to calculate them
-            if (!animation->is_css_transition() && computed_properties.is_property_important(property_id)) {
-                continue;
-            }
-
-            PreparedAnimationValue prepared_value {
-                .effect = effect,
-                .property_id = property_id,
-                .is_result_of_transition = is_result_of_transition,
-                .underlying = computed_properties.property(property_id),
-                .initial = property_initial_value(property_id),
-                .current_key = current_key,
-                .keyframes = {},
-            };
-            prepared_value.keyframes.ensure_capacity(specifying_keyframes.size());
-            for (auto keyframe_index : specifying_keyframes) {
-                prepared_value.keyframes.unchecked_append({
-                    .key = ordered_keyframes[keyframe_index].key,
-                    .value = computed_values_for_keyframe(keyframe_index).get(property_id).value_or(nullptr),
-                    .easing = resolve_interval_easing(ordered_keyframes[keyframe_index].frame->easing),
-                    .composite_operation = to_composite_operation(ordered_keyframes[keyframe_index].frame->composite),
-                });
-            }
-            prepared_values.append(move(prepared_value));
-        }
-    }
-
-    if (prepared_values.is_empty()) {
-        clear_computation_context_caches();
+    if (keyframe_declarations.is_empty())
         return;
+
+    Vector<StyleValueFFI::FfiAnimationDeclaration> ffi_declarations;
+    ffi_declarations.ensure_capacity(keyframe_declarations.size());
+    for (auto const& declaration : keyframe_declarations) {
+        ffi_declarations.unchecked_append({
+            .keyframe_index = declaration.keyframe_index,
+            .property_id = to_underlying(declaration.property_id),
+            .value = declaration.value->rust_style_value_data(),
+            .use_initial = declaration.use_initial,
+            .is_transition = declaration.is_transition,
+        });
+    }
+    Vector<u8> important_property_bitmap;
+    important_property_bitmap.resize((number_of_longhand_properties + 7) / 8);
+    for (size_t index = 0; index < number_of_longhand_properties; ++index) {
+        auto property_id = static_cast<PropertyID>(to_underlying(first_longhand_property_id) + index);
+        if (computed_properties.is_property_important(property_id))
+            important_property_bitmap[index / 8] |= 1 << (index % 8);
     }
 
-    auto const& color_computation_context = get_computation_context_for_property(PropertyID::Color, computed_properties, abstract_element);
-    ColorResolutionContext color_resolution_context {
-        .color_scheme = color_computation_context.color_scheme,
-        .current_color = InitialValues::color(),
-        .current_color_style_value = &computed_properties.property(PropertyID::Color),
-        .calculation_resolution_context = { .length_resolution_context = color_computation_context.length_resolution_context },
-    };
-    color_resolution_context.current_color = computed_properties.color(PropertyID::Color, color_resolution_context);
-
-    auto ffi_composite_operation = [](Bindings::CompositeOperation operation) {
-        switch (operation) {
-        case Bindings::CompositeOperation::Replace:
-            return StyleValueFFI::FfiCompositeOperation::Replace;
-        case Bindings::CompositeOperation::Add:
-            return StyleValueFFI::FfiCompositeOperation::Add;
-        case Bindings::CompositeOperation::Accumulate:
-            return StyleValueFFI::FfiCompositeOperation::Accumulate;
-        }
-        VERIFY_NOT_REACHED();
-    };
     Vector<StyleValueFFI::FfiAnimationValueInput> ffi_values;
     Vector<Vector<StyleValueFFI::FfiAnimationKeyframeValue>> ffi_keyframes;
     Vector<Vector<Vector<StyleValueFFI::FfiLinearEasingPoint>>> linear_easing_points;
-    ffi_keyframes.resize(prepared_values.size());
-    linear_easing_points.resize(prepared_values.size());
-    ffi_values.ensure_capacity(prepared_values.size());
-    for (size_t index = 0; index < prepared_values.size(); ++index) {
-        auto const& value = prepared_values[index];
-        auto& keyframes = ffi_keyframes[index];
-        auto& property_linear_easing_points = linear_easing_points[index];
-        keyframes.ensure_capacity(value.keyframes.size());
-        property_linear_easing_points.resize(value.keyframes.size());
-        for (size_t keyframe_index = 0; keyframe_index < value.keyframes.size(); ++keyframe_index) {
-            auto const& keyframe = value.keyframes[keyframe_index];
-            auto easing = keyframe.easing.visit(
-                [&](LinearEasingFunction const& linear) {
-                    auto& points = property_linear_easing_points[keyframe_index];
-                    points.ensure_capacity(linear.control_points.size());
-                    for (auto const& point : linear.control_points) {
-                        VERIFY(point.input.has_value());
-                        points.unchecked_append({ .input = *point.input, .output = point.output });
+    auto compute_animation_values = [&](ReadonlySpan<StyleValueFFI::FfiResolvedAnimationProperty> resolved_properties) -> StyleValueFFI::FfiComputedAnimationBatch {
+        HashMap<Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const*, HashMap<PropertyID, SelectedKeyframeValue>> selected_keyframe_values;
+        for (auto const& property : resolved_properties) {
+            VERIFY(property.keyframe_index < keyframes_by_index.size());
+            auto* keyframe = keyframes_by_index[property.keyframe_index];
+            auto& keyframe_values = selected_keyframe_values.ensure(keyframe);
+            keyframe_values.set(static_cast<PropertyID>(property.physical_property_id), {
+                                                                                            .source_longhand_id = static_cast<PropertyID>(property.source_longhand_id),
+                                                                                            .value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(property.value)),
+                                                                                            .value_source = property.value_source,
+                                                                                        });
+        }
+
+        VERIFY(computation_context_cache_is_empty());
+        for (auto effect : effects) {
+            auto animation = effect->associated_animation();
+            if (!animation)
+                continue;
+
+            auto output_progress = effect->transformed_progress();
+            if (!output_progress.has_value())
+                continue;
+
+            if (!effect->key_frame_set())
+                continue;
+
+            auto& keyframes = effect->key_frame_set()->keyframes_by_key;
+            if (keyframes.size() < 2) {
+                if constexpr (LIBWEB_CSS_ANIMATION_DEBUG) {
+                    dbgln("    Did not find enough keyframes ({} keyframes)", keyframes.size());
+                    for (auto it = keyframes.begin(); it != keyframes.end(); ++it)
+                        dbgln("        - {}", it.key());
+                }
+                continue;
+            }
+
+            double current_key = output_progress.value() * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor;
+            current_key = clamp(current_key, static_cast<double>(NumericLimits<i64>::min()), static_cast<double>(NumericLimits<i64>::max()));
+
+            // Each property is animated using its property-specific keyframes, so two properties in the same animation may be
+            // interpolated across different intervals.
+            // Collect the keyframes in ascending offset order, and index for each physical longhand the keyframes that specify
+            // it, so that the interval endpoints can be found separately for every property.
+            struct KeyframeInfo {
+                i64 key { 0 };
+                Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const* frame { nullptr };
+            };
+            Vector<KeyframeInfo> ordered_keyframes;
+            ordered_keyframes.ensure_capacity(keyframes.size());
+            HashMap<PropertyID, Vector<size_t>> keyframes_specifying_property;
+            for (auto it = keyframes.begin(); it != keyframes.end(); ++it) {
+                auto keyframe_index = ordered_keyframes.size();
+                if (auto selected_values = selected_keyframe_values.get(&*it); selected_values.has_value()) {
+                    for (auto const& [physical_property_id, _] : *selected_values) {
+                        auto& specifying_keyframes = keyframes_specifying_property.ensure(physical_property_id);
+                        specifying_keyframes.append(keyframe_index);
                     }
-                    return StyleValueFFI::FfiEasingDescriptor {
-                        .kind = StyleValueFFI::FfiEasingKind::Linear,
-                        .linear_points = points.data(),
-                        .linear_point_count = points.size(),
-                        .x1 = 0,
-                        .y1 = 0,
-                        .x2 = 0,
-                        .y2 = 0,
-                        .interval_count = 0,
-                        .step_position = 0,
-                    };
-                },
-                [](CubicBezierEasingFunction const& cubic_bezier) {
-                    return StyleValueFFI::FfiEasingDescriptor {
-                        .kind = StyleValueFFI::FfiEasingKind::CubicBezier,
-                        .linear_points = nullptr,
-                        .linear_point_count = 0,
-                        .x1 = cubic_bezier.x1,
-                        .y1 = cubic_bezier.y1,
-                        .x2 = cubic_bezier.x2,
-                        .y2 = cubic_bezier.y2,
-                        .interval_count = 0,
-                        .step_position = 0,
-                    };
-                },
-                [](StepsEasingFunction const& steps) {
-                    return StyleValueFFI::FfiEasingDescriptor {
-                        .kind = StyleValueFFI::FfiEasingKind::Steps,
-                        .linear_points = nullptr,
-                        .linear_point_count = 0,
-                        .x1 = 0,
-                        .y1 = 0,
-                        .x2 = 0,
-                        .y2 = 0,
-                        .interval_count = steps.interval_count,
-                        .step_position = to_underlying(steps.position),
-                    };
+                }
+                ordered_keyframes.append({ static_cast<i64>(it.key()), &*it });
+            }
+
+            // https://drafts.csswg.org/css-animations-1/#animation-timing-function
+            // Apply the per-keyframe easing to the interval progress. The easing on a keyframe applies to the
+            // interval from that keyframe to the next. If the keyframe doesn't specify an easing, use the
+            // animation's default easing (from the animation-timing-function property).
+            auto resolve_interval_easing = [&](auto const& keyframe_easing) {
+                auto resolved_easing = keyframe_easing.visit(
+                    [](Empty) -> Optional<CSS::EasingFunction> { return {}; },
+                    [](CSS::EasingFunction const& easing) -> Optional<CSS::EasingFunction> { return easing; },
+                    [&](NonnullRefPtr<CSS::StyleValue const> const& value) -> Optional<CSS::EasingFunction> {
+                        return resolve_keyframe_easing(*value, abstract_element);
+                    });
+                if (resolved_easing.has_value())
+                    return resolved_easing.release_value();
+                if (animation->is_css_animation())
+                    return static_cast<CSSAnimation const&>(*animation).default_easing();
+                return CSS::EasingFunction::linear();
+            };
+
+            auto compute_keyframe_values = [&computed_properties, &abstract_element, &selected_keyframe_values, builder, this](auto const& keyframe_values) {
+                HashMap<PropertyID, RefPtr<StyleValue const>> result;
+                HashMap<PropertyID, RefPtr<StyleValue const>> specified_values;
+                if (auto selected_values = selected_keyframe_values.get(&keyframe_values); selected_values.has_value()) {
+                    for (auto const& [physical_property_id, selected_value] : *selected_values) {
+                        auto longhand_id = selected_value.source_longhand_id;
+                        auto specified_value = [&]() -> NonnullRefPtr<StyleValue const> {
+                            switch (selected_value.value_source) {
+                            case StyleValueFFI::FfiAnimationSpecifiedValueSource::Inherited:
+                                if (auto inherited_animated_value = get_animated_inherit_value(longhand_id, abstract_element); inherited_animated_value.has_value())
+                                    return inherited_animated_value->value;
+                                return get_non_animated_inherit_value(longhand_id, abstract_element);
+                            case StyleValueFFI::FfiAnimationSpecifiedValueSource::Initial:
+                                return property_initial_value(longhand_id);
+                            case StyleValueFFI::FfiAnimationSpecifiedValueSource::Underlying:
+                                return computed_properties.property(longhand_id);
+                            case StyleValueFFI::FfiAnimationSpecifiedValueSource::Value:
+                                return selected_value.value;
+                            }
+                            VERIFY_NOT_REACHED();
+                        }();
+                        specified_values.set(physical_property_id, specified_value);
+                    }
+                }
+
+                // NOTE: This doesn't necessarily return the specified value if we reach into computed_properties but that
+                //       doesn't matter as a computed value is always valid as a specified value.
+                Function<NonnullRefPtr<StyleValue const>(PropertyID)> get_property_specified_value = [&](PropertyID property_id) -> NonnullRefPtr<StyleValue const> {
+                    if (auto keyframe_value = specified_values.get(property_id); keyframe_value.has_value() && keyframe_value.value())
+                        return *keyframe_value.value();
+
+                    return computed_properties.property(property_id);
+                };
+
+                for (auto const& [property_id, style_value] : specified_values) {
+                    if (!style_value)
+                        continue;
+
+                    auto const& computation_context = get_computation_context_for_property(property_id, computed_properties, abstract_element);
+
+                    computation_context.reset_viewport_metric_dependency_tracking();
+                    result.set(property_id, compute_value_of_property(property_id, *style_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel()));
+                    if (computation_context.depends_on_viewport_metrics()) {
+                        if (builder) {
+                            builder->set_depends_on_viewport_metrics();
+                            if (property_affects_font_metrics(property_id))
+                                builder->set_font_metrics_depend_on_viewport_metrics();
+                        } else {
+                            computed_properties.set_depends_on_viewport_metrics(Badge<StyleComputer> {});
+                            if (property_affects_font_metrics(property_id))
+                                computed_properties.set_font_metrics_depend_on_viewport_metrics(Badge<StyleComputer> {});
+                        }
+                    }
+                }
+
+                return result;
+            };
+
+            auto to_composite_operation = [&](Bindings::CompositeOperationOrAuto composite_operation_or_auto) {
+                switch (composite_operation_or_auto) {
+                case Bindings::CompositeOperationOrAuto::Accumulate:
+                    return Bindings::CompositeOperation::Accumulate;
+                case Bindings::CompositeOperationOrAuto::Add:
+                    return Bindings::CompositeOperation::Add;
+                case Bindings::CompositeOperationOrAuto::Replace:
+                    return Bindings::CompositeOperation::Replace;
+                case Bindings::CompositeOperationOrAuto::Auto:
+                    return effect->composite();
+                }
+                VERIFY_NOT_REACHED();
+            };
+
+            auto is_result_of_transition = animation->is_css_transition() ? AnimatedPropertyResultOfTransition::Yes : AnimatedPropertyResultOfTransition::No;
+
+            Vector<HashMap<PropertyID, RefPtr<StyleValue const>>> keyframe_computed_values;
+            keyframe_computed_values.resize(ordered_keyframes.size());
+            auto computed_values_for_keyframe = [&](size_t index) -> HashMap<PropertyID, RefPtr<StyleValue const>> const& {
+                if (keyframe_computed_values[index].is_empty())
+                    keyframe_computed_values[index] = compute_keyframe_values(*ordered_keyframes[index].frame);
+                return keyframe_computed_values[index];
+            };
+
+            for (auto const& [property_id, specifying_keyframes] : keyframes_specifying_property) {
+                // A property is usually specified by at least the initial and final keyframes, but a value that stays
+                // unresolved may leave a property with only one specifying keyframe. Such a property cannot be interpolated, so skip it.
+                if (specifying_keyframes.size() < 2)
+                    continue;
+
+                // An unresolved shorthand cannot be expanded while building the property index. Computing its keyframe
+                // values either resolves it into physical longhands or leaves no value, so it is never itself animatable.
+                if (property_id < first_longhand_property_id || property_id > last_longhand_property_id)
+                    continue;
+
+                PreparedAnimationValue prepared_value {
+                    .effect = effect,
+                    .property_id = property_id,
+                    .is_result_of_transition = is_result_of_transition,
+                    .underlying = computed_properties.property(property_id),
+                    .initial = property_initial_value(property_id),
+                    .current_key = current_key,
+                    .keyframes = {},
+                };
+                prepared_value.keyframes.ensure_capacity(specifying_keyframes.size());
+                for (auto keyframe_index : specifying_keyframes) {
+                    prepared_value.keyframes.unchecked_append({
+                        .key = ordered_keyframes[keyframe_index].key,
+                        .value = computed_values_for_keyframe(keyframe_index).get(property_id).value_or(nullptr),
+                        .easing = resolve_interval_easing(ordered_keyframes[keyframe_index].frame->easing),
+                        .composite_operation = to_composite_operation(ordered_keyframes[keyframe_index].frame->composite),
+                    });
+                }
+                prepared_values.append(move(prepared_value));
+            }
+        }
+
+        if (prepared_values.is_empty()) {
+            return {};
+        }
+
+        auto const& color_computation_context = get_computation_context_for_property(PropertyID::Color, computed_properties, abstract_element);
+        ColorResolutionContext color_resolution_context {
+            .color_scheme = color_computation_context.color_scheme,
+            .current_color = InitialValues::color(),
+            .current_color_style_value = &computed_properties.property(PropertyID::Color),
+            .calculation_resolution_context = { .length_resolution_context = color_computation_context.length_resolution_context },
+        };
+        color_resolution_context.current_color = computed_properties.color(PropertyID::Color, color_resolution_context);
+
+        auto ffi_composite_operation = [](Bindings::CompositeOperation operation) {
+            switch (operation) {
+            case Bindings::CompositeOperation::Replace:
+                return StyleValueFFI::FfiCompositeOperation::Replace;
+            case Bindings::CompositeOperation::Add:
+                return StyleValueFFI::FfiCompositeOperation::Add;
+            case Bindings::CompositeOperation::Accumulate:
+                return StyleValueFFI::FfiCompositeOperation::Accumulate;
+            }
+            VERIFY_NOT_REACHED();
+        };
+        ffi_keyframes.resize(prepared_values.size());
+        linear_easing_points.resize(prepared_values.size());
+        ffi_values.ensure_capacity(prepared_values.size());
+        for (size_t index = 0; index < prepared_values.size(); ++index) {
+            auto const& value = prepared_values[index];
+            auto& keyframes = ffi_keyframes[index];
+            auto& property_linear_easing_points = linear_easing_points[index];
+            keyframes.ensure_capacity(value.keyframes.size());
+            property_linear_easing_points.resize(value.keyframes.size());
+            for (size_t keyframe_index = 0; keyframe_index < value.keyframes.size(); ++keyframe_index) {
+                auto const& keyframe = value.keyframes[keyframe_index];
+                auto easing = keyframe.easing.visit(
+                    [&](LinearEasingFunction const& linear) {
+                        auto& points = property_linear_easing_points[keyframe_index];
+                        points.ensure_capacity(linear.control_points.size());
+                        for (auto const& point : linear.control_points) {
+                            VERIFY(point.input.has_value());
+                            points.unchecked_append({ .input = *point.input, .output = point.output });
+                        }
+                        return StyleValueFFI::FfiEasingDescriptor {
+                            .kind = StyleValueFFI::FfiEasingKind::Linear,
+                            .linear_points = points.data(),
+                            .linear_point_count = points.size(),
+                            .x1 = 0,
+                            .y1 = 0,
+                            .x2 = 0,
+                            .y2 = 0,
+                            .interval_count = 0,
+                            .step_position = 0,
+                        };
+                    },
+                    [](CubicBezierEasingFunction const& cubic_bezier) {
+                        return StyleValueFFI::FfiEasingDescriptor {
+                            .kind = StyleValueFFI::FfiEasingKind::CubicBezier,
+                            .linear_points = nullptr,
+                            .linear_point_count = 0,
+                            .x1 = cubic_bezier.x1,
+                            .y1 = cubic_bezier.y1,
+                            .x2 = cubic_bezier.x2,
+                            .y2 = cubic_bezier.y2,
+                            .interval_count = 0,
+                            .step_position = 0,
+                        };
+                    },
+                    [](StepsEasingFunction const& steps) {
+                        return StyleValueFFI::FfiEasingDescriptor {
+                            .kind = StyleValueFFI::FfiEasingKind::Steps,
+                            .linear_points = nullptr,
+                            .linear_point_count = 0,
+                            .x1 = 0,
+                            .y1 = 0,
+                            .x2 = 0,
+                            .y2 = 0,
+                            .interval_count = steps.interval_count,
+                            .step_position = to_underlying(steps.position),
+                        };
+                    });
+                keyframes.unchecked_append({
+                    .key = keyframe.key,
+                    .value = keyframe.value ? keyframe.value->rust_style_value_data() : nullptr,
+                    .easing = easing,
+                    .composite = ffi_composite_operation(keyframe.composite_operation),
                 });
-            keyframes.unchecked_append({
-                .key = keyframe.key,
-                .value = keyframe.value ? keyframe.value->rust_style_value_data() : nullptr,
-                .easing = easing,
-                .composite = ffi_composite_operation(keyframe.composite_operation),
+            }
+            ffi_values.unchecked_append({
+                .property_id = to_underlying(value.property_id),
+                .underlying = value.underlying->rust_style_value_data(),
+                .initial = value.initial->rust_style_value_data(),
+                .current_key = value.current_key,
+                .keyframes = keyframes.data(),
+                .keyframe_count = keyframes.size(),
             });
         }
-        ffi_values.unchecked_append({
-            .property_id = to_underlying(value.property_id),
-            .underlying = value.underlying->rust_style_value_data(),
-            .initial = value.initial->rust_style_value_data(),
-            .current_key = value.current_key,
-            .keyframes = keyframes.data(),
-            .keyframe_count = keyframes.size(),
-        });
-    }
 
-    auto animation_font_metrics = [](Length::FontMetrics const& metrics) {
-        return StyleValueFFI::FfiAnimationFontMetrics {
-            .font_size = metrics.font_size.to_double(),
-            .x_height = metrics.x_height.to_double(),
-            .cap_height = metrics.cap_height.to_double(),
-            .zero_advance = metrics.zero_advance.to_double(),
-            .line_height = metrics.line_height.to_double(),
+        auto animation_font_metrics = [](Length::FontMetrics const& metrics) {
+            return StyleValueFFI::FfiAnimationFontMetrics {
+                .font_size = metrics.font_size.to_double(),
+                .x_height = metrics.x_height.to_double(),
+                .cap_height = metrics.cap_height.to_double(),
+                .zero_advance = metrics.zero_advance.to_double(),
+                .line_height = metrics.line_height.to_double(),
+            };
+        };
+        auto const& resolution_context = color_computation_context.length_resolution_context;
+        StyleValueFFI::FfiAnimationContext animation_context {
+            .allow_discrete = true,
+            .current_color = computed_properties.property(PropertyID::Color).rust_style_value_data(),
+            .has_length_resolution_context = true,
+            .length_resolution_context = {
+                .viewport_width = resolution_context.viewport_rect.width().to_double(),
+                .viewport_height = resolution_context.viewport_rect.height().to_double(),
+                .font_metrics = animation_font_metrics(resolution_context.font_metrics),
+                .root_font_metrics = animation_font_metrics(resolution_context.root_font_metrics),
+                .font_metrics_depend_on_viewport_metrics = resolution_context.font_metrics_depend_on_viewport_metrics,
+                .root_font_metrics_depend_on_viewport_metrics = resolution_context.root_font_metrics_depend_on_viewport_metrics,
+            },
+            .has_transform_reference_box = false,
+            .transform_reference_box_width = 0,
+            .transform_reference_box_height = 0,
+        };
+        if (auto paintable = prepared_values.first().effect->target()->unsafe_paintable(); paintable) {
+            auto reference_box = paintable->transform_reference_box();
+            animation_context.has_transform_reference_box = true;
+            animation_context.transform_reference_box_width = reference_box.width().to_double();
+            animation_context.transform_reference_box_height = reference_box.height().to_double();
+        }
+        return StyleValueFFI::FfiComputedAnimationBatch {
+            .context = animation_context,
+            .values = ffi_values.data(),
+            .value_count = ffi_values.size(),
         };
     };
-    auto const& resolution_context = color_computation_context.length_resolution_context;
-    StyleValueFFI::FfiAnimationContext animation_context {
-        .allow_discrete = true,
-        .current_color = computed_properties.property(PropertyID::Color).rust_style_value_data(),
-        .has_length_resolution_context = true,
-        .length_resolution_context = {
-            .viewport_width = resolution_context.viewport_rect.width().to_double(),
-            .viewport_height = resolution_context.viewport_rect.height().to_double(),
-            .font_metrics = animation_font_metrics(resolution_context.font_metrics),
-            .root_font_metrics = animation_font_metrics(resolution_context.root_font_metrics),
-            .font_metrics_depend_on_viewport_metrics = resolution_context.font_metrics_depend_on_viewport_metrics,
-            .root_font_metrics_depend_on_viewport_metrics = resolution_context.root_font_metrics_depend_on_viewport_metrics,
-        },
-        .has_transform_reference_box = false,
-        .transform_reference_box_width = 0,
-        .transform_reference_box_height = 0,
-    };
-    if (auto paintable = prepared_values.first().effect->target()->unsafe_paintable(); paintable) {
-        auto reference_box = paintable->transform_reference_box();
-        animation_context.has_transform_reference_box = true;
-        animation_context.transform_reference_box_width = reference_box.width().to_double();
-        animation_context.transform_reference_box_height = reference_box.height().to_double();
-    }
-    StyleValueFFI::FfiAnimationBatch batch {
-        .context = animation_context,
-        .values = ffi_values.data(),
-        .value_count = ffi_values.size(),
-    };
-    struct AnimationOverlayContext {
+
+    struct AnimationEvaluationContext {
+        decltype(compute_animation_values)& compute_values;
         Vector<PreparedAnimationValue>& prepared_values;
         ComputedProperties& computed_properties;
-    } overlay_context { prepared_values, computed_properties };
+    } evaluation_context { compute_animation_values, prepared_values, computed_properties };
+    StyleValueFFI::FfiAnimationBatch batch {
+        .declarations = ffi_declarations.data(),
+        .declaration_count = ffi_declarations.size(),
+        .writing_mode = to_underlying(computed_properties.writing_mode()),
+        .direction = to_underlying(computed_properties.direction()),
+        .important_property_bitmap = important_property_bitmap.data(),
+        .important_property_bitmap_length = important_property_bitmap.size(),
+    };
     StyleValueFFI::FfiAnimationCallbacks callbacks {
-        .context = &overlay_context,
+        .context = &evaluation_context,
+        .compute_values = [](void* context, StyleValueFFI::FfiResolvedAnimationProperty const* properties, size_t property_count) {
+            auto& evaluation_context = *static_cast<AnimationEvaluationContext*>(context);
+            return evaluation_context.compute_values(ReadonlySpan<StyleValueFFI::FfiResolvedAnimationProperty> { properties, property_count }); },
         .apply_overlay = [](void* context, StyleValueFFI::FfiAnimatedProperty const* values, size_t count) {
-            auto& overlay_context = *static_cast<AnimationOverlayContext*>(context);
-            VERIFY(count == overlay_context.prepared_values.size());
+            auto& evaluation_context = *static_cast<AnimationEvaluationContext*>(context);
+            VERIFY(count == evaluation_context.prepared_values.size());
             for (size_t index = 0; index < count; ++index) {
                 auto const& value = values[index];
-                auto& prepared_value = overlay_context.prepared_values[index];
+                auto& prepared_value = evaluation_context.prepared_values[index];
                 VERIFY(value.property_id == to_underlying(prepared_value.property_id));
                 VERIFY(value.handled);
                 if (!value.apply)
                     continue;
                 if (value.value) {
                     auto style_value = StyleValue::adopt_rust_style_value_data(value.value);
-                    overlay_context.computed_properties.set_animated_property(Badge<StyleComputer> {}, prepared_value.property_id, style_value, prepared_value.is_result_of_transition);
+                    evaluation_context.computed_properties.set_animated_property(Badge<StyleComputer> {}, prepared_value.property_id, style_value, prepared_value.is_result_of_transition);
                 } else {
                     // NB: If interpolation fails, the element should not be rendered.
-                    overlay_context.computed_properties.set_animated_property(Badge<StyleComputer> {}, PropertyID::Visibility, KeywordStyleValue::create(Keyword::Hidden), prepared_value.is_result_of_transition);
+                    evaluation_context.computed_properties.set_animated_property(Badge<StyleComputer> {}, PropertyID::Visibility, KeywordStyleValue::create(Keyword::Hidden), prepared_value.is_result_of_transition);
                 }
-            }
-        },
+            } },
     };
     StyleValueFFI::rust_evaluate_animations(&batch, &callbacks);
 
