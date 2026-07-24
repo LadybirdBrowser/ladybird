@@ -151,7 +151,6 @@ public:
     CSSRule* parse_as_css_rule(bool nested = false);
     GC::Ptr<CSSKeyframeRule> parse_as_keyframe_rule();
     Vector<Percentage> parse_as_keyframe_selectors();
-    Optional<StyleProperty> parse_as_supports_condition();
     GC::RootVector<GC::Ref<CSSRule>> parse_as_stylesheet_contents();
 
     enum class SelectorParsingMode {
@@ -365,7 +364,6 @@ private:
     RefPtr<StyleValue const> parse_source_size_value(TokenStream<ComponentValue>&);
     Optional<Gfx::UnicodeRange> parse_unicode_range(TokenStream<ComponentValue>&);
     Optional<Gfx::UnicodeRange> parse_unicode_range(StringView);
-    Vector<Gfx::UnicodeRange> parse_unicode_ranges(TokenStream<ComponentValue>&);
     RefPtr<UnicodeRangeStyleValue const> parse_unicode_range_value(TokenStream<ComponentValue>&);
 
     RefPtr<StyleValue const> parse_value(ValueType, TokenStream<ComponentValue>&);

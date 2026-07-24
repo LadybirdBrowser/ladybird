@@ -578,20 +578,6 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
     return make_valid_unicode_range(start_value, end_value);
 }
 
-Vector<Gfx::UnicodeRange> Parser::parse_unicode_ranges(TokenStream<ComponentValue>& tokens)
-{
-    Vector<Gfx::UnicodeRange> unicode_ranges;
-    auto range_token_lists = parse_a_comma_separated_list_of_component_values(tokens);
-    for (auto& range_tokens : range_token_lists) {
-        TokenStream range_token_stream { range_tokens };
-        auto maybe_unicode_range = parse_unicode_range(range_token_stream);
-        if (!maybe_unicode_range.has_value())
-            return {};
-        unicode_ranges.append(maybe_unicode_range.release_value());
-    }
-    return unicode_ranges;
-}
-
 RefPtr<UnicodeRangeStyleValue const> Parser::parse_unicode_range_value(TokenStream<ComponentValue>& tokens)
 {
     if (auto range = parse_unicode_range(tokens); range.has_value())

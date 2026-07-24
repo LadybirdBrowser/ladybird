@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <AK/Utf16View.h>
-
 namespace Web::CSS {
 
 enum class PreferredMotion {
@@ -15,7 +13,5 @@ enum class PreferredMotion {
     NoPreference,
     Reduce,
 };
-
-PreferredMotion preferred_motion_from_string(Utf16View);
 
 }

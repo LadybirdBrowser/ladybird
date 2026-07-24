@@ -37,9 +37,7 @@ struct AtRule {
     void for_each(AtRuleVisitor&& visit_at_rule, QualifiedRuleVisitor&& visit_qualified_rule, DeclarationVisitor&& visit_declaration) const;
     void for_each_as_declaration_list(DeclarationVisitor&& visit) const;
     void for_each_as_qualified_rule_list(QualifiedRuleVisitor&& visit) const;
-    void for_each_as_at_rule_list(AtRuleVisitor&& visit) const;
     void for_each_as_declaration_rule_list(AtRuleVisitor&& visit_at_rule, DeclarationVisitor&& visit_declaration) const;
-    void for_each_as_rule_list(RuleVisitor&& visit) const;
 };
 
 // https://drafts.csswg.org/css-syntax/#qualified-rule

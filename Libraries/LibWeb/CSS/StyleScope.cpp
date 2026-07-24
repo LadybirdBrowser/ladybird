@@ -1278,11 +1278,6 @@ bool StyleScope::may_have_has_selectors_with_relative_selector_that_has_sibling_
     return rule_cache().selector_insights.has_has_selectors_with_relative_selector_that_has_sibling_combinator;
 }
 
-bool StyleScope::have_size_container_queries() const
-{
-    return rule_cache().has_size_container_queries;
-}
-
 DOM::Document& StyleScope::document() const
 {
     return m_node->document();

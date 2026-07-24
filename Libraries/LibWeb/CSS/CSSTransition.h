@@ -36,7 +36,6 @@ public:
 
     double transition_start_time() const { return m_start_time; }
     double transition_end_time() const { return m_end_time; }
-    NonnullRefPtr<StyleValue const> transition_start_value() const { return m_start_value; }
     NonnullRefPtr<StyleValue const> transition_end_value() const { return m_end_value; }
     NonnullRefPtr<StyleValue const> reversing_adjusted_start_value() const { return m_reversing_adjusted_start_value; }
     double reversing_shortening_factor() const { return m_reversing_shortening_factor; }

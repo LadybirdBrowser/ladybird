@@ -103,8 +103,6 @@ public:
 
         void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
         void set_property_without_modifying_flags(PropertyID, NonnullRefPtr<StyleValue const> value);
-        void revert_property(PropertyID, ComputedProperties const& style_for_revert);
-
         void set_display_before_box_type_transformation(Display);
 
         bool has_effective_color_scheme() const { return m_data->effective_color_scheme.has_value(); }

@@ -218,14 +218,6 @@ void serialize_a_url(Utf16StringBuilder& builder, Utf16View url)
     builder.append_ascii(')');
 }
 
-// NOTE: No spec currently exists for serializing a <'unicode-range'>.
-void serialize_unicode_ranges(StringBuilder& builder, Vector<Gfx::UnicodeRange> const& unicode_ranges)
-{
-    serialize_a_comma_separated_list(builder, unicode_ranges, [](auto& builder, Gfx::UnicodeRange unicode_range) -> void {
-        return serialize_a_string(builder, unicode_range.to_string());
-    });
-}
-
 // https://drafts.csswg.org/cssom/#serialize-a-css-value
 void serialize_a_number(StringBuilder& builder, double value)
 {

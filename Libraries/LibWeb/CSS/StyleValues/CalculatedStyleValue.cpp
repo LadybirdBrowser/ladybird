@@ -332,13 +332,9 @@ bool CalculatedStyleValue::equals(StyleValue const& other) const
     if (type() != other.type())
         return false;
 
-    // NB: Structural equality runs over the Rust trees; the style value data carried by
-    //     random() and non-math-function nodes compare through their typed facades.
-    return StyleValueFFI::rust_calc_equals(
-        m_value.operator->(), other.as_calculated().m_value.operator->(), nullptr,
-        [](void*, void const* a, void const* b) -> bool {
-            return wrap_borrowed_style_value_data(a)->equals(*wrap_borrowed_style_value_data(b));
-        });
+    // NB: Structural equality runs entirely over the Rust value graph, including the style
+    //     values retained by random() and non-math-function nodes.
+    return StyleValueFFI::rust_calc_equals(m_value.operator->(), other.as_calculated().m_value.operator->());
 }
 
 // https://drafts.csswg.org/css-values-4/#calc-computed-value

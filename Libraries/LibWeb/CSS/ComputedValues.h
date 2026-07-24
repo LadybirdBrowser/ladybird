@@ -277,10 +277,7 @@ struct WillChange {
     static WillChange make_auto() { return WillChange(); }
 
     bool is_auto() const { return m_value.is_empty(); }
-    bool has_contents() const { return m_value.contains_slow(Type::Contents); }
-
     bool operator==(WillChange const&) const = default;
-    bool has_scroll_position() const { return m_value.contains_slow(Type::ScrollPosition); }
     bool has_property(PropertyID property_id) const { return m_value.contains_slow(property_id); }
     Vector<WillChangeEntry> const& entries() const { return m_value; }
 

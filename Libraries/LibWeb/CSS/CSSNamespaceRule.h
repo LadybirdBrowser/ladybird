@@ -20,7 +20,6 @@ public:
 
     virtual ~CSSNamespaceRule() = default;
 
-    void set_namespace_uri(Utf16FlyString value) { m_namespace_uri = move(value); }
     Utf16FlyString const& namespace_uri() const { return m_namespace_uri; }
     void set_prefix(Utf16FlyString value) { m_prefix = move(value); }
     Utf16FlyString const& prefix() const { return m_prefix; }

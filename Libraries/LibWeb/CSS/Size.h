@@ -30,7 +30,6 @@ public:
     static Size make_length(Length);
     static Size make_percentage(Percentage);
     static Size make_calculated(NonnullRefPtr<CalculatedStyleValue const>);
-    static Size make_length_percentage(LengthPercentage const&);
     static Size make_min_content();
     static Size make_max_content();
     static Size make_fit_content(LengthPercentage available_space);

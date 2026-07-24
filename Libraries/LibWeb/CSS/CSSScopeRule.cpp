@@ -40,7 +40,6 @@ void CSSScopeRule::initialize(JS::Realm& realm)
 void CSSScopeRule::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_cached_nearest_ancestor_scope_rule);
 }
 
 Optional<Utf16String> CSSScopeRule::start() const
@@ -150,28 +149,11 @@ GC::Ptr<CSSRule const> nearest_ancestor_scope_rule_for_matching(CSSRule const& s
     return nearest_scoped_owner_import(scope_rule.parent_style_sheet());
 }
 
-GC::Ptr<CSSScopeRule const> CSSScopeRule::nearest_ancestor_scope_rule() const
-{
-    if (m_cached_nearest_ancestor_scope_rule.has_value())
-        return m_cached_nearest_ancestor_scope_rule.value();
-
-    for (auto const* parent = parent_rule(); parent; parent = parent->parent_rule()) {
-        if (auto const* scope_rule = as_if<CSSScopeRule const>(parent)) {
-            m_cached_nearest_ancestor_scope_rule = scope_rule;
-            return m_cached_nearest_ancestor_scope_rule.value();
-        }
-    }
-
-    m_cached_nearest_ancestor_scope_rule = nullptr;
-    return m_cached_nearest_ancestor_scope_rule.value();
-}
-
 void CSSScopeRule::clear_caches()
 {
     Base::clear_caches();
     m_cached_start_selectors_for_matching.clear();
     m_cached_end_selectors_for_matching.clear();
-    m_cached_nearest_ancestor_scope_rule.clear();
 }
 
 // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule

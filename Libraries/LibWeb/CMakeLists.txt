@@ -232,8 +232,6 @@ set(SOURCES
     CSS/Parser/ValueParsing.cpp
     CSS/Percentage.cpp
     CSS/PreferredColorScheme.cpp
-    CSS/PreferredContrast.cpp
-    CSS/PreferredMotion.cpp
     CSS/Ratio.cpp
     CSS/Resolution.cpp
     CSS/Screen.cpp

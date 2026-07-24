@@ -42,7 +42,6 @@ public:
 
     void include_all_from(InvalidationSet const& other);
 
-    bool needs_invalidate_self() const { return m_needs_invalidate_self; }
     void set_needs_invalidate_self()
     {
         m_needs_invalidate_self = true;

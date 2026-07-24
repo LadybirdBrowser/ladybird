@@ -298,18 +298,6 @@ Optional<Utf16String> CSSImportRule::supports_text() const
     return m_supports->to_string();
 }
 
-Optional<SelectorList> const& CSSImportRule::scope_start_selectors() const
-{
-    VERIFY(m_scope.has_value());
-    return m_scope->start_selectors;
-}
-
-Optional<SelectorList> const& CSSImportRule::scope_end_selectors() const
-{
-    VERIFY(m_scope.has_value());
-    return m_scope->end_selectors;
-}
-
 Optional<SelectorList> const& CSSImportRule::scope_start_selectors_for_matching() const
 {
     VERIFY(m_scope.has_value());
