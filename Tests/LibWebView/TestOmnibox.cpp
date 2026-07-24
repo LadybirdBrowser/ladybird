@@ -1080,6 +1080,24 @@ TEST_CASE(accepting_a_completion_requeries_without_losing_the_learning_prefix)
     EXPECT_EQ(harness.provider->engagements[0].destination, "https://github.com/LadybirdBrowser/ladybird"sv);
 }
 
+TEST_CASE(direct_navigation_does_not_retain_previous_engagement_input)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('g');
+    harness.press_key('i');
+    harness.provider->deliver({ history_row("https://github.com/LadybirdBrowser/ladybird"sv), search_row("gi"sv) });
+
+    EXPECT(harness.omnibox.accept_completion());
+
+    harness.omnibox.navigate_directly_to_query("https://example.com/"_string);
+
+    EXPECT_EQ(harness.provider->engagements.size(), 1u);
+    EXPECT_EQ(harness.provider->engagements[0].input, "https://example.com/"sv);
+    EXPECT_EQ(harness.provider->engagements[0].destination, "https://example.com/"sv);
+}
+
 TEST_CASE(committing_may_reentrantly_end_editing)
 {
     Harness harness;
