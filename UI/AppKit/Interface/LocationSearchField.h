@@ -17,8 +17,10 @@
 - (void)setShowsPageIcon:(BOOL)showsPageIcon;
 - (void)setBookmarkAction:(WebView::Action&)action;
 - (void)setZoomAction:(WebView::Action&)action;
+- (BOOL)handleContextMenuEvent:(NSEvent*)event;
 
 @property (nonatomic, copy) void (^willBeginEditing)(void);
+@property (nonatomic, copy) NSString* (^copyLinkTextProvider)(void);
 @property (nonatomic, copy) void (^pasteAndGoHandler)(NSString*);
 
 @end

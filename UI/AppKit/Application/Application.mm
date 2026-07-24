@@ -17,6 +17,7 @@
 #import <Application/ApplicationDelegate.h>
 #import <Interface/BookmarksBar.h>
 #import <Interface/LadybirdWebView.h>
+#import <Interface/LocationSearchField.h>
 #import <Interface/Tab.h>
 #import <Interface/TabController.h>
 
@@ -538,9 +539,29 @@ void Application::on_devtools_disabled() const
 {
     if ([event type] == NSEventTypeApplicationDefined) {
         Core::ThreadEventQueue::current().process();
-    } else {
-        [super sendEvent:event];
+        return;
     }
+
+    // NSToolbarView consumes context-menu events before custom toolbar views receive them, so to have a context menu on
+    // a non-selected LocationSearchField, we have to jump through some hoops by testing if the mouse is over it and
+    // then manually showing the context menu.
+    // FIXME: Find a better way to do this.
+    if ([event type] == NSEventTypeRightMouseDown
+        || ([event type] == NSEventTypeLeftMouseDown && ([event modifierFlags] & NSEventModifierFlagControl))) {
+        auto* window = [event window];
+        auto* frame_view = [[window contentView] superview];
+        auto location = [frame_view convertPoint:[event locationInWindow] fromView:nil];
+
+        for (auto* view = [frame_view hitTest:location]; view != nil; view = [view superview]) {
+            if ([view isKindOfClass:[LocationSearchField class]]) {
+                if ([(LocationSearchField*)view handleContextMenuEvent:event])
+                    return;
+                break;
+            }
+        }
+    }
+
+    [super sendEvent:event];
 }
 
 @end
