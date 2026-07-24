@@ -43,7 +43,7 @@
 // All slow path functions follow the same convention:
 //   i64 func(VM* vm, u32 pc, Op::Foo const* instruction)
 //   Returns >= 0: new program counter to dispatch to
-//   Returns < 0: should exit the asm interpreter
+//   Returns < 0: should exit the interpreter
 
 using namespace JS;
 using namespace JS::Bytecode;

@@ -28,8 +28,8 @@ namespace JS {
 
 using namespace Bytecode;
 
-// Defined in generated assembly (asmint_x86_64.S or asmint_aarch64.S)
-extern "C" void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, VM* vm);
+// Defined in assembly generated from interpreter.flap.
+extern "C" void js_interpreter(u8 const* bytecode, u32 entry_point, Value* values, VM* vm);
 
 bool Bytecode::g_dump_bytecode = false;
 
@@ -298,7 +298,7 @@ ThrowCompletionOr<Value> VM::run_executable(ExecutionContext& context, Executabl
         auto* bytecode = executable.bytecode.data();
         auto* values = context.registers_and_constants_and_locals_and_arguments_span().data();
 
-        asm_interpreter_entry(bytecode, entry_point, values, this);
+        js_interpreter(bytecode, entry_point, values, this);
     }
 
     if (is_outermost_bytecode_execution && !vm().is_executing_module())

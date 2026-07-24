@@ -37,6 +37,38 @@
 #define EMIT_SIZEOF(name, type) \
     outln("const " #name " = {}", sizeof(type))
 
+#define EMIT_FIELD(name, owner, field_name, flap_type, type, member, size, nullability) \
+    static_assert(sizeof(decltype(type::member)) == size);                              \
+    EMIT_OFFSET(name, type, member);                                                    \
+    outln("field " #owner "." #field_name " " #flap_type " " #name " " #nullability)
+
+#define EMIT_PAIRED_FIELD(name, owner, field_name, flap_type, type, member, size, pair) \
+    static_assert(sizeof(decltype(type::member)) == size);                              \
+    EMIT_OFFSET(name, type, member);                                                    \
+    outln("field " #owner "." #field_name " " #flap_type " " #name " nullable " #pair)
+
+#define EMIT_PAIRED_NONNULL_FIELD(name, owner, field_name, flap_type, type, member, size, pair) \
+    static_assert(sizeof(decltype(type::member)) == size);                                      \
+    EMIT_OFFSET(name, type, member);                                                            \
+    outln("field " #owner "." #field_name " " #flap_type " " #name " nonnull " #pair)
+
+// Offset of a Vector's outline element pointer, measured rather than assumed, since Flap addresses
+// vector elements through it.
+template<typename VectorType>
+static size_t vector_data_offset()
+{
+    VectorType vector;
+    return reinterpret_cast<uintptr_t>(&vector.m_metadata.outline_buffer) - reinterpret_cast<uintptr_t>(&vector);
+}
+
+// Offset of a Vector's element count, likewise measured rather than assumed.
+template<typename VectorType>
+static size_t vector_size_offset()
+{
+    VectorType vector;
+    return reinterpret_cast<uintptr_t>(&vector.m_size) - reinterpret_cast<uintptr_t>(&vector);
+}
+
 int main()
 {
     using namespace JS;
@@ -51,16 +83,16 @@ int main()
 
     // Object layout
     outln("# Object layout");
-    EMIT_OFFSET(OBJECT_SHAPE, Object, m_shape);
-    EMIT_OFFSET(OBJECT_NAMED_PROPERTIES, Object, m_named_properties);
-    EMIT_OFFSET(OBJECT_INDEXED_ELEMENTS, Object, m_indexed_elements);
-    EMIT_OFFSET(OBJECT_INDEXED_STORAGE_KIND, Object, m_indexed_storage_kind);
-    EMIT_OFFSET(OBJECT_INDEXED_ARRAY_LIKE_SIZE, Object, m_indexed_array_like_size);
+    EMIT_FIELD(OBJECT_SHAPE, Object, shape, Shape, Object, m_shape, 8, nonnull);
+    EMIT_FIELD(OBJECT_NAMED_PROPERTIES, Object, named_properties, PropertyStorage, Object, m_named_properties, 8, nonnull);
+    EMIT_FIELD(OBJECT_INDEXED_ELEMENTS, Object, indexed_elements, IndexedElements, Object, m_indexed_elements, 8, nullable);
+    EMIT_FIELD(OBJECT_INDEXED_STORAGE_KIND, Object, indexed_storage_kind, u8, Object, m_indexed_storage_kind, 1, nullable);
+    EMIT_FIELD(OBJECT_INDEXED_ARRAY_LIKE_SIZE, Object, indexed_array_like_size, u32, Object, m_indexed_array_like_size, 4, nullable);
     EMIT_SIZEOF(OBJECT_SIZE, Object);
 
     // Object flags byte
     outln("\n# Object flags");
-    EMIT_OFFSET(OBJECT_FLAGS, Object, m_flags);
+    EMIT_FIELD(OBJECT_FLAGS, Object, flags, u8, Object, m_flags, 1, nullable);
     outln("const OBJECT_FLAG_HAS_MAGICAL_LENGTH = {}", Object::Flag::HasMagicalLengthProperty);
     outln("const OBJECT_FLAG_MAY_INTERFERE = {}", Object::Flag::MayInterfereWithIndexedPropertyAccess);
     outln("const OBJECT_FLAG_IS_TYPED_ARRAY = {}", Object::Flag::IsTypedArray);
@@ -70,9 +102,9 @@ int main()
 
     // Shape layout
     outln("\n# Shape layout");
-    EMIT_OFFSET(SHAPE_REALM, Shape, m_realm);
+    EMIT_FIELD(SHAPE_REALM, Shape, realm, Realm, Shape, m_realm, 8, nonnull);
     EMIT_OFFSET(SHAPE_PROTOTYPE, Shape, m_prototype);
-    EMIT_OFFSET(SHAPE_DICTIONARY_GENERATION, Shape, m_dictionary_generation);
+    EMIT_FIELD(SHAPE_DICTIONARY_GENERATION, Shape, dictionary_generation, u32, Shape, m_dictionary_generation, 4, nullable);
     EMIT_SIZEOF(SHAPE_SIZE, Shape);
 
     // PropertyLookupCache layout
@@ -83,42 +115,42 @@ int main()
 
     // PropertyLookupCache::Entry layout
     outln("\n# PropertyLookupCache::Entry layout");
-    EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_ENTRY_PROPERTY_OFFSET, PropertyLookupCache::Entry, property_offset);
-    EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_ENTRY_DICTIONARY_GENERATION, PropertyLookupCache::Entry, shape_dictionary_generation);
+    EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_PROPERTY_OFFSET, PropertyLookupCache, property_offset, u32, PropertyLookupCache::Entry, property_offset, 4, cache_details);
+    EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_DICTIONARY_GENERATION, PropertyLookupCache, shape_dictionary_generation, u32, PropertyLookupCache::Entry, shape_dictionary_generation, 4, cache_details);
     EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_ENTRY_FROM_SHAPE, PropertyLookupCache::Entry, from_shape);
-    EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_ENTRY_SHAPE, PropertyLookupCache::Entry, shape);
-    EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE, PropertyLookupCache::Entry, prototype);
-    EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE_CHAIN_VALIDITY, PropertyLookupCache::Entry, prototype_chain_validity);
+    EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_SHAPE, PropertyLookupCache, shape, Shape, PropertyLookupCache::Entry, shape, 8, cache_target);
+    EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE, PropertyLookupCache, prototype, Object, PropertyLookupCache::Entry, prototype, 8, cache_target);
+    EMIT_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE_CHAIN_VALIDITY, PropertyLookupCache, prototype_chain_validity, PrototypeChainValidity, PropertyLookupCache::Entry, prototype_chain_validity, 8, nullable);
     EMIT_SIZEOF(PROPERTY_LOOKUP_CACHE_ENTRY_SIZE, PropertyLookupCache::Entry);
 
     // ObjectPropertyIteratorCacheData layout
     outln("\n# ObjectPropertyIteratorCacheData layout");
     EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTIES, ObjectPropertyIteratorCacheData, m_properties);
     EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES, ObjectPropertyIteratorCacheData, m_property_values);
-    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE, ObjectPropertyIteratorCacheData, m_shape);
-    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROTOTYPE_CHAIN_VALIDITY, ObjectPropertyIteratorCacheData, m_prototype_chain_validity);
-    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_INDEXED_PROPERTY_COUNT, ObjectPropertyIteratorCacheData, m_indexed_property_count);
-    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE_DICTIONARY_GENERATION, ObjectPropertyIteratorCacheData, m_shape_dictionary_generation);
-    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_FAST_PATH, ObjectPropertyIteratorCacheData, m_fast_path);
+    EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE, ObjectPropertyIteratorCacheData, shape, Shape, ObjectPropertyIteratorCacheData, m_shape, 8, nonnull);
+    EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROTOTYPE_CHAIN_VALIDITY, ObjectPropertyIteratorCacheData, prototype_chain_validity, PrototypeChainValidity, ObjectPropertyIteratorCacheData, m_prototype_chain_validity, 8, nullable);
+    EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_INDEXED_PROPERTY_COUNT, ObjectPropertyIteratorCacheData, indexed_property_count, u32, ObjectPropertyIteratorCacheData, m_indexed_property_count, 4, nullable);
+    EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE_DICTIONARY_GENERATION, ObjectPropertyIteratorCacheData, shape_dictionary_generation, u32, ObjectPropertyIteratorCacheData, m_shape_dictionary_generation, 4, nullable);
+    EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_FAST_PATH, ObjectPropertyIteratorCacheData, fast_path, u8, ObjectPropertyIteratorCacheData, m_fast_path, 1, nullable);
 
     // ObjectPropertyIteratorCache layout
     outln("\n# ObjectPropertyIteratorCache layout");
-    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PTR, ObjectPropertyIteratorCache, data);
-    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_REUSABLE_PROPERTY_NAME_ITERATOR, ObjectPropertyIteratorCache, reusable_property_name_iterator);
+    EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PTR, ObjectPropertyIteratorCache, data, ObjectPropertyIteratorCacheData, ObjectPropertyIteratorCache, data, 8, nullable);
+    EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_REUSABLE_PROPERTY_NAME_ITERATOR, ObjectPropertyIteratorCache, reusable_property_name_iterator, Object, ObjectPropertyIteratorCache, reusable_property_name_iterator, 8, nullable);
 
     // PropertyNameIterator layout
     outln("\n# PropertyNameIterator layout");
-    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_OBJECT, PropertyNameIterator, m_object);
-    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_PROPERTY_CACHE, PropertyNameIterator, m_property_cache);
-    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_SHAPE, PropertyNameIterator, m_shape);
-    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_PROTOTYPE_CHAIN_VALIDITY, PropertyNameIterator, m_prototype_chain_validity);
-    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_ITERATOR_CACHE_SLOT, PropertyNameIterator, m_iterator_cache_slot);
-    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT, PropertyNameIterator, m_indexed_property_count);
-    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY, PropertyNameIterator, m_next_indexed_property);
-    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_NEXT_PROPERTY, PropertyNameIterator, m_next_property);
-    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_SHAPE_IS_DICTIONARY, PropertyNameIterator, m_shape_is_dictionary);
-    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_SHAPE_DICTIONARY_GENERATION, PropertyNameIterator, m_shape_dictionary_generation);
-    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_FAST_PATH, PropertyNameIterator, m_fast_path);
+    EMIT_FIELD(PROPERTY_NAME_ITERATOR_OBJECT, PropertyNameIterator, object, Object, PropertyNameIterator, m_object, 8, nullable);
+    EMIT_PAIRED_FIELD(PROPERTY_NAME_ITERATOR_PROPERTY_CACHE, PropertyNameIterator, property_cache, ObjectPropertyIteratorCacheData, PropertyNameIterator, m_property_cache, 8, cache_and_shape);
+    EMIT_PAIRED_FIELD(PROPERTY_NAME_ITERATOR_SHAPE, PropertyNameIterator, shape, Shape, PropertyNameIterator, m_shape, 8, cache_and_shape);
+    EMIT_FIELD(PROPERTY_NAME_ITERATOR_PROTOTYPE_CHAIN_VALIDITY, PropertyNameIterator, prototype_chain_validity, PrototypeChainValidity, PropertyNameIterator, m_prototype_chain_validity, 8, nullable);
+    EMIT_FIELD(PROPERTY_NAME_ITERATOR_ITERATOR_CACHE_SLOT, PropertyNameIterator, iterator_cache_slot, ObjectPropertyIteratorCache, PropertyNameIterator, m_iterator_cache_slot, 8, nullable);
+    EMIT_PAIRED_FIELD(PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT, PropertyNameIterator, indexed_property_count, u32, PropertyNameIterator, m_indexed_property_count, 4, indexed_progress);
+    EMIT_PAIRED_FIELD(PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY, PropertyNameIterator, next_indexed_property, u32, PropertyNameIterator, m_next_indexed_property, 4, indexed_progress);
+    EMIT_FIELD(PROPERTY_NAME_ITERATOR_NEXT_PROPERTY, PropertyNameIterator, next_property, u64, PropertyNameIterator, m_next_property, 8, nullable);
+    EMIT_FIELD(PROPERTY_NAME_ITERATOR_SHAPE_IS_DICTIONARY, PropertyNameIterator, shape_is_dictionary, bool, PropertyNameIterator, m_shape_is_dictionary, 1, nullable);
+    EMIT_FIELD(PROPERTY_NAME_ITERATOR_SHAPE_DICTIONARY_GENERATION, PropertyNameIterator, shape_dictionary_generation, u32, PropertyNameIterator, m_shape_dictionary_generation, 4, nullable);
+    EMIT_FIELD(PROPERTY_NAME_ITERATOR_FAST_PATH, PropertyNameIterator, fast_path, u8, PropertyNameIterator, m_fast_path, 1, nullable);
 
     // Executable layout
     outln("\n# Executable layout");
@@ -126,38 +158,50 @@ int main()
     EMIT_OFFSET(EXECUTABLE_PROPERTY_LOOKUP_CACHES, Executable, property_lookup_caches);
     EMIT_OFFSET(EXECUTABLE_GLOBAL_VARIABLE_CACHES, Executable, global_variable_caches);
     EMIT_OFFSET(EXECUTABLE_ENVIRONMENT_COORDINATE_CACHES, Executable, environment_coordinate_caches);
-    EMIT_OFFSET(EXECUTABLE_REGISTERS_AND_LOCALS_COUNT, Executable, registers_and_locals_count);
-    EMIT_OFFSET(EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT, Executable, registers_and_locals_and_constants_count);
-    EMIT_OFFSET(EXECUTABLE_ASM_CONSTANTS_SIZE, Executable, asm_constants_size);
-    EMIT_OFFSET(EXECUTABLE_ASM_CONSTANTS_DATA, Executable, asm_constants_data);
+    EMIT_PAIRED_FIELD(EXECUTABLE_REGISTERS_AND_LOCALS_COUNT, Executable, registers_and_locals_count, u32, Executable, registers_and_locals_count, 4, slot_counts);
+    EMIT_PAIRED_FIELD(EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT, Executable, registers_and_locals_and_constants_count, u32, Executable, registers_and_locals_and_constants_count, 4, slot_counts);
+    EMIT_PAIRED_FIELD(EXECUTABLE_ASM_CONSTANTS_SIZE, Executable, asm_constants_size, u64, Executable, asm_constants_size, 8, constants);
+    EMIT_PAIRED_FIELD(EXECUTABLE_ASM_CONSTANTS_DATA, Executable, asm_constants_data, Sequence<Value>, Executable, asm_constants_data, 8, constants);
 
     // ExecutionContext layout
     outln("\n# ExecutionContext layout");
     VERIFY(alignof(ExecutionContext) == sizeof(Value));
-    EMIT_OFFSET(EXECUTION_CONTEXT_EXECUTABLE, ExecutionContext, executable);
-    EMIT_OFFSET(EXECUTION_CONTEXT_FUNCTION, ExecutionContext, function);
-    EMIT_OFFSET(EXECUTION_CONTEXT_REALM, ExecutionContext, realm);
-    EMIT_OFFSET(EXECUTION_CONTEXT_SCRIPT_OR_MODULE, ExecutionContext, script_or_module);
-    EMIT_OFFSET(EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, ExecutionContext, lexical_environment);
-    EMIT_OFFSET(EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT, ExecutionContext, variable_environment);
-    EMIT_OFFSET(EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT, ExecutionContext, private_environment);
-    EMIT_OFFSET(EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER, ExecutionContext, skip_when_determining_incumbent_counter);
-    EMIT_OFFSET(EXECUTION_CONTEXT_YIELD_CONTINUATION, ExecutionContext, yield_continuation);
-    EMIT_OFFSET(EXECUTION_CONTEXT_YIELD_IS_AWAIT, ExecutionContext, yield_is_await);
-    EMIT_OFFSET(EXECUTION_CONTEXT_YIELD_VALUE_IS_ITERATOR_RESULT, ExecutionContext, yield_value_is_iterator_result);
-    EMIT_OFFSET(EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT, ExecutionContext, caller_is_construct);
-    EMIT_OFFSET(EXECUTION_CONTEXT_THIS_VALUE, ExecutionContext, this_value);
-    EMIT_OFFSET(EXECUTION_CONTEXT_CALLER_FRAME, ExecutionContext, caller_frame);
-    EMIT_OFFSET(EXECUTION_CONTEXT_PASSED_ARGUMENT_COUNT, ExecutionContext, passed_argument_count);
-    EMIT_OFFSET(EXECUTION_CONTEXT_CALLER_RETURN_PC, ExecutionContext, caller_return_pc);
-    EMIT_OFFSET(EXECUTION_CONTEXT_CALLER_DST_RAW, ExecutionContext, caller_dst_raw);
-    EMIT_OFFSET(EXECUTION_CONTEXT_PROGRAM_COUNTER, ExecutionContext, program_counter);
-    EMIT_OFFSET(EXECUTION_CONTEXT_REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT, ExecutionContext, registers_and_constants_and_locals_and_arguments_count);
-    EMIT_OFFSET(EXECUTION_CONTEXT_ARGUMENT_COUNT, ExecutionContext, argument_count);
+    EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_FUNCTION, ExecutionContext, function, Object, ExecutionContext, function, 8, function_and_realm);
+    EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_REALM, ExecutionContext, realm, Realm, ExecutionContext, realm, 8, function_and_realm);
+    EMIT_FIELD(EXECUTION_CONTEXT_SCRIPT_OR_MODULE, ExecutionContext, script_or_module, ScriptOrModule, ExecutionContext, script_or_module, 16, nullable);
+    EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, ExecutionContext, lexical_environment, Environment, ExecutionContext, lexical_environment, 8, environments);
+    EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT, ExecutionContext, variable_environment, Environment, ExecutionContext, variable_environment, 8, environments);
+    EMIT_FIELD(EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT, ExecutionContext, private_environment, PrivateEnvironment, ExecutionContext, private_environment, 8, nullable);
+    EMIT_FIELD(EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER, ExecutionContext, skip_when_determining_incumbent_counter, u32, ExecutionContext, skip_when_determining_incumbent_counter, 4, nullable);
+    EMIT_FIELD(EXECUTION_CONTEXT_YIELD_CONTINUATION, ExecutionContext, yield_continuation, u32, ExecutionContext, yield_continuation, 4, nullable);
+    EMIT_FIELD(EXECUTION_CONTEXT_YIELD_IS_AWAIT, ExecutionContext, yield_is_await, bool, ExecutionContext, yield_is_await, 1, nullable);
+    EMIT_FIELD(EXECUTION_CONTEXT_YIELD_VALUE_IS_ITERATOR_RESULT, ExecutionContext, yield_value_is_iterator_result, bool, ExecutionContext, yield_value_is_iterator_result, 1, nullable);
+    EMIT_FIELD(EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT, ExecutionContext, caller_is_construct, bool, ExecutionContext, caller_is_construct, 1, nullable);
+    EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_THIS_VALUE, ExecutionContext, this_value, Value, ExecutionContext, this_value, 8, this_and_executable);
+    EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_EXECUTABLE, ExecutionContext, executable, Executable, ExecutionContext, executable, 8, this_and_executable);
+    EMIT_FIELD(EXECUTION_CONTEXT_CALLER_FRAME, ExecutionContext, caller_frame, ExecutionContext, ExecutionContext, caller_frame, 8, nullable);
+    EMIT_FIELD(EXECUTION_CONTEXT_PASSED_ARGUMENT_COUNT, ExecutionContext, passed_argument_count, u32, ExecutionContext, passed_argument_count, 4, nullable);
+    EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_CALLER_RETURN_PC, ExecutionContext, caller_return_pc, u32, ExecutionContext, caller_return_pc, 4, caller_return);
+    EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_CALLER_DST_RAW, ExecutionContext, caller_dst_raw, u32, ExecutionContext, caller_dst_raw, 4, caller_return);
+    EMIT_FIELD(EXECUTION_CONTEXT_PROGRAM_COUNTER, ExecutionContext, program_counter, u32, ExecutionContext, program_counter, 4, nullable);
+    EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT, ExecutionContext, slot_count, u32, ExecutionContext, registers_and_constants_and_locals_and_arguments_count, 4, counts);
+    EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_ARGUMENT_COUNT, ExecutionContext, argument_count, u32, ExecutionContext, argument_count, 4, counts);
     EMIT_SIZEOF(SIZEOF_EXECUTION_CONTEXT, ExecutionContext);
+    outln("field ExecutionContext.slots Sequence<Value> SIZEOF_EXECUTION_CONTEXT embedded");
+    outln("const EXECUTION_CONTEXT_ACCUMULATOR = {}", sizeof(ExecutionContext) + static_cast<size_t>(Register::accumulator().index()) * sizeof(Value));
+    outln("const EXECUTION_CONTEXT_EXCEPTION = {}", sizeof(ExecutionContext) + static_cast<size_t>(Register::exception().index()) * sizeof(Value));
+    outln("const EXECUTION_CONTEXT_THIS_VALUE_REGISTER = {}", sizeof(ExecutionContext) + static_cast<size_t>(Register::this_value().index()) * sizeof(Value));
+    outln("const EXECUTION_CONTEXT_RETURN_VALUE = {}", sizeof(ExecutionContext) + static_cast<size_t>(Register::return_value().index()) * sizeof(Value));
+    outln("const EXECUTION_CONTEXT_SAVED_LEXICAL_ENVIRONMENT = {}", sizeof(ExecutionContext) + static_cast<size_t>(Register::saved_lexical_environment().index()) * sizeof(Value));
+    outln("field ExecutionContext.accumulator Value EXECUTION_CONTEXT_ACCUMULATOR nullable accumulator_and_exception");
+    outln("field ExecutionContext.exception Value EXECUTION_CONTEXT_EXCEPTION nullable accumulator_and_exception pinned values EXCEPTION_REG_OFFSET");
+    outln("field ExecutionContext.this_value_register Value EXECUTION_CONTEXT_THIS_VALUE_REGISTER nullable pinned values THIS_VALUE_REG_OFFSET");
+    outln("field ExecutionContext.return_value Value EXECUTION_CONTEXT_RETURN_VALUE nullable return_and_saved_environment");
+    outln("field ExecutionContext.saved_lexical_environment Value EXECUTION_CONTEXT_SAVED_LEXICAL_ENVIRONMENT nullable return_and_saved_environment");
     outln("const ALIGNOF_EXECUTION_CONTEXT = {}", alignof(ExecutionContext));
     outln("const EXECUTION_CONTEXT_NO_YIELD_CONTINUATION = {}", static_cast<u32>(ExecutionContext::no_yield_continuation));
     outln("const SIZEOF_SCRIPT_OR_MODULE = {}", sizeof(ScriptOrModule));
+    outln("const SIZEOF_VALUE = {}", sizeof(Value));
 
     // InterpreterStack layout
     outln("\n# InterpreterStack layout");
@@ -166,9 +210,9 @@ int main()
 
     // Realm layout
     outln("\n# Realm layout");
-    EMIT_OFFSET(REALM_GLOBAL_ENVIRONMENT, Realm, m_global_environment);
-    EMIT_OFFSET(REALM_GLOBAL_OBJECT, Realm, m_global_object);
-    EMIT_OFFSET(REALM_GLOBAL_DECLARATIVE_ENVIRONMENT, Realm, m_global_declarative_environment);
+    EMIT_FIELD(REALM_GLOBAL_ENVIRONMENT, Realm, global_environment, GlobalEnvironment, Realm, m_global_environment, 8, nonnull);
+    EMIT_PAIRED_FIELD(REALM_GLOBAL_OBJECT, Realm, global_object, Object, Realm, m_global_object, 8, global_state);
+    EMIT_PAIRED_FIELD(REALM_GLOBAL_DECLARATIVE_ENVIRONMENT, Realm, global_declarative_environment, DeclarativeEnvironment, Realm, m_global_declarative_environment, 8, global_state);
 
     // VM layout
     outln("\n# VM layout");
@@ -177,7 +221,14 @@ int main()
     EMIT_OFFSET(VM_STACK_INFO, VM, m_stack_info);
     EMIT_OFFSET(VM_EXECUTION_GENERATION, VM, m_execution_generation);
     EMIT_OFFSET(VM_PRIMITIVE_STORAGE_CAGE_BASE, VM, m_primitive_storage_cage_base);
+    outln("field VM.primitive_storage_cage_base u64 VM_PRIMITIVE_STORAGE_CAGE_BASE nonnull");
     outln("const VM_INTERPRETER_STACK_TOP = {}", offsetof(VM, m_interpreter_stack) + offsetof(InterpreterStack, m_top));
+    outln("const VM_INTERPRETER_STACK_LIMIT = {}", offsetof(VM, m_interpreter_stack) + offsetof(InterpreterStack, m_limit));
+    outln("const VM_STACK_INFO_BASE = {}", offsetof(VM, m_stack_info) + offsetof(StackInfo, m_base));
+    outln("field VM.running_execution_context ExecutionContext VM_RUNNING_EXECUTION_CONTEXT nullable");
+    outln("field VM.interpreter_stack_top u64 VM_INTERPRETER_STACK_TOP nonnull interpreter_stack_bounds");
+    outln("field VM.interpreter_stack_limit u64 VM_INTERPRETER_STACK_LIMIT nonnull interpreter_stack_bounds");
+    outln("field VM.stack_base u64 VM_STACK_INFO_BASE nullable");
 #if defined(HAS_ADDRESS_SANITIZER)
     outln("const VM_STACK_SPACE_LIMIT = {}", 96 * KiB);
 #else
@@ -206,20 +257,30 @@ int main()
     {
         Vector<Value> v;
         auto base = reinterpret_cast<uintptr_t>(&v);
-        auto vec_data = reinterpret_cast<uintptr_t>(&v.m_metadata.outline_buffer) - base;
+        auto vec_data = vector_data_offset<Vector<Value>>();
         auto vec_size = reinterpret_cast<uintptr_t>(&v.m_size) - base;
+        auto vec_capacity = reinterpret_cast<uintptr_t>(&v.m_capacity) - base;
         outln("const VECTOR_DATA = {}", vec_data);
         outln("const VECTOR_SIZE = {}", vec_size);
+        outln("const INDEXED_ELEMENTS_CAPACITY = {}", static_cast<ptrdiff_t>(vec_capacity) - static_cast<ptrdiff_t>(vec_data));
+        outln("field IndexedElements.capacity u32 INDEXED_ELEMENTS_CAPACITY nullable");
 
         // Composite offset for Executable.bytecode data pointer
         outln("const EXECUTABLE_BYTECODE_DATA = {}", offsetof(Executable, bytecode) + InstructionStream::data_member_offset());
+        outln("field Executable.bytecode_data u64 EXECUTABLE_BYTECODE_DATA nonnull");
         outln("const EXECUTABLE_PROPERTY_LOOKUP_CACHES_DATA = {}", offsetof(Executable, property_lookup_caches) + vec_data);
+        static_assert(sizeof(PropertyLookupCache) == 8);
+        outln("field Executable.property_lookup_caches PropertyLookupCaches EXECUTABLE_PROPERTY_LOOKUP_CACHES_DATA nonnull");
         outln("const EXECUTABLE_GLOBAL_VARIABLE_CACHES_DATA = {}", offsetof(Executable, global_variable_caches) + vec_data);
+        outln("field Executable.global_variable_caches GlobalVariableCaches EXECUTABLE_GLOBAL_VARIABLE_CACHES_DATA nonnull");
         outln("const EXECUTABLE_ENVIRONMENT_COORDINATE_CACHES_DATA = {}", offsetof(Executable, environment_coordinate_caches) + vec_data);
+        outln("field Executable.environment_coordinate_caches Sequence<EnvironmentCoordinateEntry> EXECUTABLE_ENVIRONMENT_COORDINATE_CACHES_DATA nullable");
         outln("const EXECUTABLE_CONSTANTS_DATA = {}", offsetof(Executable, constants) + vec_data);
         outln("const EXECUTABLE_CONSTANTS_SIZE = {}", offsetof(Executable, constants) + vec_size);
         outln("const OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA = {}", offsetof(ObjectPropertyIteratorCacheData, m_property_values) + vec_data);
         outln("const OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_SIZE = {}", offsetof(ObjectPropertyIteratorCacheData, m_property_values) + vec_size);
+        outln("field ObjectPropertyIteratorCacheData.property_values Sequence<Value> OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA nullable");
+        outln("field ObjectPropertyIteratorCacheData.property_value_count u64 OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_SIZE nullable");
     }
 
     // PutKind enum
@@ -228,12 +289,12 @@ int main()
 
     // PrototypeChainValidity layout
     outln("\n# PrototypeChainValidity layout");
-    EMIT_OFFSET(PROTOTYPE_CHAIN_VALIDITY_VALID, PrototypeChainValidity, m_valid);
+    EMIT_FIELD(PROTOTYPE_CHAIN_VALIDITY_VALID, PrototypeChainValidity, valid, bool, PrototypeChainValidity, m_valid, 1, nonnull);
 
     // DeclarativeEnvironment layout
     outln("\n# DeclarativeEnvironment layout");
-    EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_RARE_DATA, DeclarativeEnvironment, m_rare_data);
-    EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_SERIAL, DeclarativeEnvironment, m_environment_serial_number);
+    EMIT_FIELD(DECLARATIVE_ENVIRONMENT_RARE_DATA, DeclarativeEnvironment, rare_data, DeclarativeEnvironmentRareData, DeclarativeEnvironment, m_rare_data, 8, nullable);
+    EMIT_FIELD(DECLARATIVE_ENVIRONMENT_SERIAL, DeclarativeEnvironment, serial_number, u64, DeclarativeEnvironment, m_environment_serial_number, 8, nullable);
 
     // GlobalVariableCache layout
     outln("\n# GlobalVariableCache layout");
@@ -246,6 +307,13 @@ int main()
     outln("const GLOBAL_VARIABLE_CACHE_ENTRY_PROPERTY_OFFSET = {}", offsetof(GlobalVariableCache, entry) + offsetof(PropertyLookupCache::Entry, property_offset));
     outln("const GLOBAL_VARIABLE_CACHE_ENTRY_DICTIONARY_GENERATION = {}", offsetof(GlobalVariableCache, entry) + offsetof(PropertyLookupCache::Entry, shape_dictionary_generation));
     outln("const GLOBAL_VARIABLE_CACHE_ENTRY_SHAPE = {}", offsetof(GlobalVariableCache, entry) + offsetof(PropertyLookupCache::Entry, shape));
+    outln("field GlobalVariableCache.property_offset u32 GLOBAL_VARIABLE_CACHE_ENTRY_PROPERTY_OFFSET nullable global_cache_details stride GLOBAL_VARIABLE_CACHE_SIZE");
+    outln("field GlobalVariableCache.shape_dictionary_generation u32 GLOBAL_VARIABLE_CACHE_ENTRY_DICTIONARY_GENERATION nullable global_cache_details");
+    outln("field GlobalVariableCache.shape Shape GLOBAL_VARIABLE_CACHE_ENTRY_SHAPE nullable");
+    outln("field GlobalVariableCache.environment_serial_number u64 GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL nullable");
+    outln("field GlobalVariableCache.environment_binding_index u32 GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX nullable");
+    outln("field GlobalVariableCache.has_environment_binding_index u8 GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING nullable");
+    outln("field GlobalVariableCache.in_module_environment u8 GLOBAL_VARIABLE_CACHE_IN_MODULE_ENVIRONMENT nullable");
 
     // Builtin enum values
     outln("\n# Builtin enum values");
@@ -273,23 +341,25 @@ int main()
         VERIFY(raw[1] == 1); // has_value
         outln("const FUNCTION_OBJECT_BUILTIN_VALUE = {}", base);
         outln("const FUNCTION_OBJECT_BUILTIN_HAS_VALUE = {}", base + 1);
+        outln("field FunctionObject.builtin u8 FUNCTION_OBJECT_BUILTIN_VALUE nullable");
+        outln("field FunctionObject.has_builtin bool FUNCTION_OBJECT_BUILTIN_HAS_VALUE nullable");
     }
 
     // RawNativeFunction layout
     outln("\n# RawNativeFunction layout");
-    EMIT_OFFSET(RAW_NATIVE_FUNCTION_NATIVE_FUNCTION, RawNativeFunction, m_native_function);
+    EMIT_FIELD(RAW_NATIVE_FUNCTION_NATIVE_FUNCTION, RawNativeFunction, native_function, u64, RawNativeFunction, m_native_function, 8, nonnull);
 
     // ECMAScriptFunctionObject layout
     outln("\n# ECMAScriptFunctionObject layout");
-    EMIT_OFFSET(ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA, ECMAScriptFunctionObject, m_shared_data);
-    EMIT_OFFSET(ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT, ECMAScriptFunctionObject, m_environment);
-    EMIT_OFFSET(ECMASCRIPT_FUNCTION_OBJECT_PRIVATE_ENVIRONMENT, ECMAScriptFunctionObject, m_private_environment);
-    EMIT_OFFSET(ECMASCRIPT_FUNCTION_OBJECT_SCRIPT_OR_MODULE, ECMAScriptFunctionObject, m_script_or_module);
+    EMIT_FIELD(ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA, ECMAScriptFunctionObject, shared_data, SharedFunctionInstanceData, ECMAScriptFunctionObject, m_shared_data, 8, nonnull);
+    EMIT_PAIRED_FIELD(ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT, ECMAScriptFunctionObject, environment, Environment, ECMAScriptFunctionObject, m_environment, 8, environment_state);
+    EMIT_PAIRED_FIELD(ECMASCRIPT_FUNCTION_OBJECT_PRIVATE_ENVIRONMENT, ECMAScriptFunctionObject, private_environment, PrivateEnvironment, ECMAScriptFunctionObject, m_private_environment, 8, environment_state);
+    EMIT_FIELD(ECMASCRIPT_FUNCTION_OBJECT_SCRIPT_OR_MODULE, ECMAScriptFunctionObject, script_or_module, ScriptOrModule, ECMAScriptFunctionObject, m_script_or_module, 16, nullable);
 
     // SharedFunctionInstanceData layout
     outln("\n# SharedFunctionInstanceData layout");
-    EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE, SharedFunctionInstanceData, m_executable);
-    EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA, SharedFunctionInstanceData, m_asm_call_metadata);
+    EMIT_PAIRED_FIELD(SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE, SharedFunctionInstanceData, executable, Executable, SharedFunctionInstanceData, m_executable, 8, call_data);
+    EMIT_PAIRED_FIELD(SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA, SharedFunctionInstanceData, asm_call_metadata, u64, SharedFunctionInstanceData, m_asm_call_metadata, 8, call_data);
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_FORMAL_PARAMETER_COUNT, SharedFunctionInstanceData, m_formal_parameter_count);
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_STRICT, SharedFunctionInstanceData, m_strict);
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_FUNCTION_ENVIRONMENT_NEEDED, SharedFunctionInstanceData, m_function_environment_needed);
@@ -302,12 +372,13 @@ int main()
 
     // GlobalEnvironment layout
     outln("\n# GlobalEnvironment layout");
-    EMIT_OFFSET(GLOBAL_ENVIRONMENT_GLOBAL_THIS_VALUE, GlobalEnvironment, m_global_this_value);
+    EMIT_FIELD(GLOBAL_ENVIRONMENT_GLOBAL_THIS_VALUE, GlobalEnvironment, global_this_value, Object, GlobalEnvironment, m_global_this_value, 8, nullable);
 
     // PrimitiveString layout
     outln("\n# PrimitiveString layout");
-    EMIT_OFFSET(PRIMITIVE_STRING_DEFERRED_KIND, PrimitiveStringLayoutAccessor, m_deferred_kind);
+    EMIT_FIELD(PRIMITIVE_STRING_DEFERRED_KIND, PrimitiveString, deferred_kind, u8, PrimitiveStringLayoutAccessor, m_deferred_kind, 1, nullable);
     EMIT_OFFSET(PRIMITIVE_STRING_UTF16_STRING, PrimitiveStringLayoutAccessor, m_utf16_string);
+    outln("field PrimitiveString.utf16_data Utf16StringData PRIMITIVE_STRING_UTF16_STRING nullable");
     outln("const PRIMITIVE_STRING_DEFERRED_KIND_NONE = {}", static_cast<u8>(PrimitiveStringLayoutAccessor::DeferredKind::None));
 
     // Utf16String / ShortString layout
@@ -318,34 +389,46 @@ int main()
     EMIT_OFFSET(UTF16_SHORT_STRING_STORAGE, AK::Detail::ShortString, storage);
     outln("const PRIMITIVE_STRING_UTF16_SHORT_STRING_BYTE_COUNT_AND_FLAG = {}", offsetof(PrimitiveStringLayoutAccessor, m_utf16_string) + offsetof(AK::Detail::ShortString, byte_count_and_short_string_flag));
     outln("const PRIMITIVE_STRING_UTF16_SHORT_STRING_STORAGE = {}", offsetof(PrimitiveStringLayoutAccessor, m_utf16_string) + offsetof(AK::Detail::ShortString, storage));
+    outln("field PrimitiveString.utf16_short_string_byte_count_and_flag u8 PRIMITIVE_STRING_UTF16_SHORT_STRING_BYTE_COUNT_AND_FLAG nullable");
+    outln("field PrimitiveString.utf16_short_string_storage Sequence<u8> PRIMITIVE_STRING_UTF16_SHORT_STRING_STORAGE embedded");
 
     // Utf16StringData layout
     outln("\n# Utf16StringData layout");
     EMIT_OFFSET(UTF16_STRING_DATA_LENGTH_IN_CODE_UNITS, AK::Detail::Utf16StringData, m_length_in_code_units);
     outln("const UTF16_STRING_DATA_STRING_STORAGE = {}", AK::Detail::Utf16StringData::offset_of_string_storage());
+    outln("field Utf16StringData.length_in_code_units u64 UTF16_STRING_DATA_LENGTH_IN_CODE_UNITS nullable");
+    outln("field Utf16StringData.string_storage Sequence<u8> UTF16_STRING_DATA_STRING_STORAGE embedded");
 
     // Environment layout
     outln("\n# Environment layout");
-    EMIT_OFFSET(ENVIRONMENT_SCREWED_BY_EVAL, Environment, m_permanently_screwed_by_eval);
-    EMIT_OFFSET(ENVIRONMENT_DECLARATIVE, Environment, m_declarative);
-    EMIT_OFFSET(ENVIRONMENT_OUTER, Environment, m_outer_environment);
+    EMIT_FIELD(ENVIRONMENT_SCREWED_BY_EVAL, Environment, permanently_screwed_by_eval, bool, Environment, m_permanently_screwed_by_eval, 1, nullable);
+    EMIT_FIELD(ENVIRONMENT_DECLARATIVE, Environment, declarative, bool, Environment, m_declarative, 1, nullable);
+    EMIT_FIELD(ENVIRONMENT_OUTER, Environment, outer, Environment, Environment, m_outer_environment, 8, nullable);
 
     // PrivateEnvironment layout
     outln("\n# PrivateEnvironment layout");
-    EMIT_OFFSET(PRIVATE_ENVIRONMENT_OUTER, PrivateEnvironment, m_outer_environment);
+    EMIT_FIELD(PRIVATE_ENVIRONMENT_OUTER, PrivateEnvironment, outer, PrivateEnvironment, PrivateEnvironment, m_outer_environment, 8, nullable);
 
     // DeclarativeEnvironment binding storage layout
     outln("\n# DeclarativeEnvironment binding storage layout");
-    EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_SHAPE, DeclarativeEnvironment, m_shape);
+    EMIT_FIELD(DECLARATIVE_ENVIRONMENT_SHAPE, DeclarativeEnvironment, shape, EnvironmentShape, DeclarativeEnvironment, m_shape, 8, nullable);
     EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_BINDING_VALUES, DeclarativeEnvironment, m_binding_values);
     EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_RARE_DATA_BINDING_FLAGS, DeclarativeEnvironment::RareData, m_binding_flags);
     EMIT_OFFSET(ENVIRONMENT_SHAPE_BINDING_FLAGS, EnvironmentShape, m_binding_flags);
     outln("const BINDING_FLAG_MUTABLE = {}", 1 << 1);
 
-    // Vector<T> layout: m_size(0), m_capacity(8), m_metadata.outline_buffer(16)
-    outln("const BINDING_VALUES_DATA_PTR = {}", offsetof(DeclarativeEnvironment, m_binding_values) + sizeof(size_t) * 2);
-    outln("const BINDING_FLAGS_DATA_PTR = {}", offsetof(DeclarativeEnvironment::RareData, m_binding_flags) + sizeof(size_t) * 2);
-    outln("const ENVIRONMENT_SHAPE_BINDING_FLAGS_DATA_PTR = {}", offsetof(EnvironmentShape, m_binding_flags) + sizeof(size_t) * 2);
+    outln("const BINDING_VALUES_DATA_PTR = {}",
+        offsetof(DeclarativeEnvironment, m_binding_values) + vector_data_offset<decltype(DeclarativeEnvironment::m_binding_values)>());
+    outln("field DeclarativeEnvironment.binding_values BindingValues BINDING_VALUES_DATA_PTR nonnull");
+    outln("const BINDING_FLAGS_DATA_PTR = {}",
+        offsetof(DeclarativeEnvironment::RareData, m_binding_flags) + vector_data_offset<decltype(DeclarativeEnvironment::RareData::m_binding_flags)>());
+    outln("field DeclarativeEnvironmentRareData.binding_flags BindingFlags BINDING_FLAGS_DATA_PTR nonnull");
+    outln("const ENVIRONMENT_SHAPE_BINDING_FLAGS_DATA_PTR = {}",
+        offsetof(EnvironmentShape, m_binding_flags) + vector_data_offset<decltype(EnvironmentShape::m_binding_flags)>());
+    outln("const ENVIRONMENT_SHAPE_BINDING_FLAGS_SIZE = {}",
+        offsetof(EnvironmentShape, m_binding_flags) + vector_size_offset<decltype(EnvironmentShape::m_binding_flags)>());
+    outln("field EnvironmentShape.binding_flags_size u64 ENVIRONMENT_SHAPE_BINDING_FLAGS_SIZE nullable");
+    outln("field EnvironmentShape.binding_flags BindingFlags ENVIRONMENT_SHAPE_BINDING_FLAGS_DATA_PTR nonnull");
 
     // EnvironmentCoordinate layout
     outln("\n# EnvironmentCoordinate layout");
@@ -353,14 +436,16 @@ int main()
     outln("const ENVIRONMENT_COORDINATE_INDEX = {}", offsetof(EnvironmentCoordinate, index));
     outln("const ENVIRONMENT_COORDINATE_INVALID = 0x{:X}", EnvironmentCoordinate::invalid_marker);
     EMIT_SIZEOF(ENVIRONMENT_COORDINATE_SIZE, EnvironmentCoordinate);
+    outln("field EnvironmentCoordinateEntry.hops u32 ENVIRONMENT_COORDINATE_HOPS nullable environment_coordinate stride {}", sizeof(EnvironmentCoordinate));
+    outln("field EnvironmentCoordinateEntry.binding_index u32 ENVIRONMENT_COORDINATE_INDEX nullable environment_coordinate");
 
     // TypedArrayBase layout
     outln("\n# TypedArrayBase layout");
     EMIT_OFFSET(TYPED_ARRAY_ELEMENT_SIZE, TypedArrayBase, m_element_size);
     EMIT_OFFSET(TYPED_ARRAY_ARRAY_LENGTH, TypedArrayBase, m_array_length);
     EMIT_OFFSET(TYPED_ARRAY_BYTE_OFFSET, TypedArrayBase, m_byte_offset);
-    EMIT_OFFSET(TYPED_ARRAY_KIND, TypedArrayBase, m_kind);
-    EMIT_OFFSET(TYPED_ARRAY_CACHED_DATA_OFFSET, TypedArrayBase, m_cached_data_offset);
+    EMIT_FIELD(TYPED_ARRAY_KIND, Object, typed_array_kind, u8, TypedArrayBase, m_kind, 1, nullable);
+    EMIT_FIELD(TYPED_ARRAY_CACHED_DATA_OFFSET, Object, typed_array_cached_data_offset, u64, TypedArrayBase, m_cached_data_offset, 8, nullable);
     outln("const TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID = 0x{:X}", static_cast<size_t>(TypedArrayBase::invalid_cached_data_offset));
     outln("const PRIMITIVE_STORAGE_CAGE_OFFSET_MASK = 0x{:X}", static_cast<size_t>(GC::PrimitiveStorage::cage_offset_mask));
 
@@ -370,10 +455,18 @@ int main()
         // For Variant<Auto, Detached, u32>: u32 index 2 means it holds a u32
         outln("const BYTE_LENGTH_U32_INDEX = 2");
         EMIT_SIZEOF(BYTE_LENGTH_SIZE, ByteLength);
+        // Variant<Auto, Detached, u32> stores its payload first and the alternative index after it.
+        // Verify that, since the generated interpreter loads both directly.
+        ByteLength probe { 0x1234'5678u };
+        auto const* raw = reinterpret_cast<u8 const*>(&probe);
+        u32 payload = 0;
+        __builtin_memcpy(&payload, raw, sizeof(payload));
+        VERIFY(payload == 0x1234'5678u);
+        VERIFY(raw[4] == 2);
         // Composite: array_length value (u32) and index byte within TypedArrayBase
         auto ta_al = offsetof(TypedArrayBase, m_array_length);
-        // Variant<Auto, Detached, u32> stores m_data[4] then m_index (u8)
-        outln("const TYPED_ARRAY_ARRAY_LENGTH_VALUE = {}", ta_al);     // u32 data at start
+        outln("const TYPED_ARRAY_ARRAY_LENGTH_VALUE = {}", ta_al); // u32 data at start
+        outln("field Object.typed_array_array_length u32 TYPED_ARRAY_ARRAY_LENGTH_VALUE nullable");
         outln("const TYPED_ARRAY_ARRAY_LENGTH_INDEX = {}", ta_al + 4); // index byte after 4 bytes of data
     }
 
@@ -425,7 +518,7 @@ int main()
     outln("const THIS_VALUE_REG_OFFSET = {}", static_cast<size_t>(Register::this_value().index()) * sizeof(Value));
     outln("const RETURN_VALUE_REG_OFFSET = {}", static_cast<size_t>(Register::return_value().index()) * sizeof(Value));
     outln("const SAVED_LEXICAL_ENVIRONMENT_REG_OFFSET = {}", static_cast<size_t>(Register::saved_lexical_environment().index()) * sizeof(Value));
-    outln("const RESERVED_REGISTERS_SIZE = {}", static_cast<size_t>(Register::reserved_register_count) * sizeof(Value));
+    outln("const RESERVED_REGISTER_COUNT = {}", static_cast<size_t>(Register::reserved_register_count));
 
     return 0;
 }

@@ -7,7 +7,7 @@
 //! Shared Bytecode.def parser and layout computation.
 //!
 //! Used by both `Libraries/LibJS/Rust/build.rs` (bytecode codegen) and
-//! `Libraries/LibJS/AsmIntGen` (assembly interpreter codegen) to ensure a single source
+//! `Libraries/LibJS/Flap` (interpreter codegen) to ensure a single source
 //! of truth for instruction field offsets and sizes.
 
 use std::collections::HashMap;
@@ -183,6 +183,7 @@ pub fn find_m_length_offset(fields: &[Field]) -> usize {
 }
 
 /// Computed layout info for a single opcode.
+#[derive(Clone)]
 pub struct OpLayout {
     /// Byte offset of each field within the C++ struct (keyed by field name, e.g. "m_dst").
     pub field_offsets: HashMap<String, usize>,

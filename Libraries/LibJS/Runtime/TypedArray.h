@@ -32,7 +32,7 @@ public:
         Number,
     };
 
-    enum class Kind {
+    enum class Kind : u8 {
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
     ClassName,
         JS_ENUMERATE_TYPED_ARRAYS
