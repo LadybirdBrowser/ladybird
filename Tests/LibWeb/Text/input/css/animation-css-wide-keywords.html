@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #parent {
+        color: rgb(10, 20, 30);
+        margin-left: 30px;
+        opacity: 0.4;
+    }
+
+    .target {
+        color: rgb(100, 110, 120);
+        margin-left: 40px;
+        opacity: 0.25;
+    }
+</style>
+<div id="parent"></div>
+<script>
+    test(() => {
+        const properties = ["color", "margin-left", "opacity"];
+        const parentElement = document.getElementById("parent");
+        for (const keyword of ["inherit", "initial", "unset", "revert", "revert-layer"]) {
+            const target = document.createElement("div");
+            target.className = "target";
+            parentElement.appendChild(target);
+            const values = { color: keyword, marginLeft: keyword, opacity: keyword };
+            const animation = target.animate([values, values], { duration: 1000, fill: "both" });
+            animation.pause();
+            animation.currentTime = 0;
+            const style = getComputedStyle(target);
+            println(`${keyword}: ${properties.map(property => style.getPropertyValue(property)).join(", ")}`);
+        }
+    });
+</script>

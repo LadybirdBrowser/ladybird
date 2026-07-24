@@ -73,6 +73,7 @@ define_ffi_ops! {
     LonghandWritingModeCallback => "longhandWritingModeCallbacks",
     CalcSerializationCallback => "calcSerializationCallbacks",
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
+    AnimationComputeBatchCallback => "animationComputeBatchCallbacks",
     AnimationResultBatchCallback => "animationResultBatchCallbacks",
     TransitionActionBatchCallback => "transitionActionBatchCallbacks",
 }

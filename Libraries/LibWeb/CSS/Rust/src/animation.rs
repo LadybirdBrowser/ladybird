@@ -441,6 +441,16 @@ pub struct FfiAnimationValueInput {
 
 #[repr(C)]
 pub struct FfiAnimationBatch {
+    pub declarations: *const FfiAnimationDeclaration,
+    pub declaration_count: usize,
+    pub writing_mode: u8,
+    pub direction: u8,
+    pub important_property_bitmap: *const u8,
+    pub important_property_bitmap_length: usize,
+}
+
+#[repr(C)]
+pub struct FfiComputedAnimationBatch {
     pub context: FfiAnimationContext,
     pub values: *const FfiAnimationValueInput,
     pub value_count: usize,
@@ -460,21 +470,102 @@ pub struct FfiAnimatedProperty {
 #[repr(C)]
 pub struct FfiAnimationCallbacks {
     pub context: *mut std::ffi::c_void,
+    pub compute_values: unsafe extern "C" fn(
+        context: *mut std::ffi::c_void,
+        properties: *const FfiResolvedAnimationProperty,
+        property_count: usize,
+    ) -> FfiComputedAnimationBatch,
     pub apply_overlay:
         unsafe extern "C" fn(context: *mut std::ffi::c_void, values: *const FfiAnimatedProperty, count: usize),
 }
 
 #[repr(C)]
-pub struct FfiAnimationPropertyConflictCandidate {
+pub struct FfiAnimationDeclaration {
     pub keyframe_index: usize,
-    pub physical_property_id: u16,
-    pub source_property_id: u16,
+    pub property_id: u16,
+    pub value: *const StyleValueData,
     pub use_initial: bool,
+    pub is_transition: bool,
 }
 
-fn resolve_animation_property_conflicts(candidates: &[FfiAnimationPropertyConflictCandidate], selected: &mut [bool]) {
+struct AnimationPropertyConflictCandidate {
+    keyframe_index: usize,
+    physical_property_id: u16,
+    source_property_id: u16,
+    source_longhand_id: u16,
+    value: *const StyleValueData,
+    use_initial: bool,
+    suppressed_by_important: bool,
+}
+
+fn property_is_important(property_id: u16, bitmap: &[u8]) -> bool {
+    let index = usize::from(property_id - crate::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
+    bitmap.get(index / 8).is_some_and(|byte| byte & (1 << (index % 8)) != 0)
+}
+
+fn animation_property_is_suppressed(is_transition: bool, property_id: u16, important_bitmap: &[u8]) -> bool {
+    !is_transition && property_is_important(property_id, important_bitmap)
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FfiAnimationSpecifiedValueSource {
+    Value,
+    Inherited,
+    Initial,
+    Underlying,
+}
+
+fn animation_specified_value_source(value: &StyleValueData, property_id: u16) -> FfiAnimationSpecifiedValueSource {
+    let StyleValueData::Keyword { keyword } = value else {
+        return FfiAnimationSpecifiedValueSource::Value;
+    };
+
+    // https://www.w3.org/TR/css-cascade-4/#inherit
+    // If the cascaded value of a property is the inherit keyword, the property's specified and
+    // computed values are the inherited value.
+    if *keyword == crate::style_compute::keyword::INHERIT {
+        return FfiAnimationSpecifiedValueSource::Inherited;
+    }
+
+    // https://www.w3.org/TR/css-cascade-4/#inherit-initial
+    // If the cascaded value of a property is the unset keyword, then if it is an inherited
+    // property, this is treated as inherit, and if it is not, this is treated as initial.
+    if *keyword == crate::style_compute::keyword::UNSET {
+        return if crate::property_metadata::property_is_inherited(property_id) {
+            FfiAnimationSpecifiedValueSource::Inherited
+        } else {
+            FfiAnimationSpecifiedValueSource::Initial
+        };
+    }
+
+    // https://www.w3.org/TR/css-cascade-4/#initial
+    // If the cascaded value of a property is the initial keyword, the property's specified value
+    // is its initial value.
+    if *keyword == crate::style_compute::keyword::INITIAL {
+        return FfiAnimationSpecifiedValueSource::Initial;
+    }
+    if matches!(
+        *keyword,
+        crate::style_compute::keyword::REVERT | crate::style_compute::keyword::REVERT_LAYER
+    ) {
+        return FfiAnimationSpecifiedValueSource::Underlying;
+    }
+    FfiAnimationSpecifiedValueSource::Value
+}
+
+fn resolve_animation_property_conflicts(
+    candidates: &[AnimationPropertyConflictCandidate],
+    selected: &mut [bool],
+    value_sources: &mut [FfiAnimationSpecifiedValueSource],
+) {
     assert_eq!(candidates.len(), selected.len());
+    assert_eq!(candidates.len(), value_sources.len());
     selected.fill(false);
+    for (candidate, source) in candidates.iter().zip(value_sources.iter_mut()) {
+        let value = unsafe { candidate.value.as_ref() }.expect("animation candidate value must not be null");
+        *source = animation_specified_value_source(value, candidate.physical_property_id);
+    }
     let mut winners = std::collections::HashMap::<(usize, u16), usize>::new();
     for (candidate_index, candidate) in candidates.iter().enumerate() {
         let key = (candidate.keyframe_index, candidate.physical_property_id);
@@ -501,21 +592,71 @@ fn resolve_animation_property_conflicts(candidates: &[FfiAnimationPropertyConfli
     }
 }
 
-/// Resolve every shorthand and logical-property conflict in an element's keyframes as one batch.
-///
-/// # Safety
-/// `candidates` and `selected` must describe live ranges of `candidate_count` entries.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_resolve_animation_property_conflicts(
-    candidates: *const FfiAnimationPropertyConflictCandidate,
-    candidate_count: usize,
-    selected: *mut bool,
-) {
-    crate::abort_on_panic(|| {
-        let candidates = unsafe { std::slice::from_raw_parts(candidates, candidate_count) };
-        let selected = unsafe { std::slice::from_raw_parts_mut(selected, candidate_count) };
-        resolve_animation_property_conflicts(candidates, selected);
-    });
+#[repr(C)]
+pub struct FfiResolvedAnimationProperty {
+    pub keyframe_index: usize,
+    pub physical_property_id: u16,
+    pub source_longhand_id: u16,
+    pub value: *const StyleValueData,
+    pub value_source: FfiAnimationSpecifiedValueSource,
+}
+
+fn resolve_animation_declarations(
+    declarations: &[FfiAnimationDeclaration],
+    writing_mode: u8,
+    direction: u8,
+    important_property_bitmap: &[u8],
+) -> Vec<FfiResolvedAnimationProperty> {
+    let mut candidates = Vec::new();
+    for declaration in declarations {
+        assert!(
+            !declaration.value.is_null(),
+            "animation declaration value must not be null"
+        );
+        crate::style_compute::expand_shorthands_with(
+            declaration.property_id,
+            declaration.value.cast(),
+            false,
+            &mut |longhand_id, data, _| {
+                let physical_property_id =
+                    crate::style_compute::map_logical_alias_to_physical(longhand_id, writing_mode, direction);
+                candidates.push(AnimationPropertyConflictCandidate {
+                    keyframe_index: declaration.keyframe_index,
+                    physical_property_id,
+                    source_property_id: declaration.property_id,
+                    source_longhand_id: longhand_id,
+                    value: data.cast(),
+                    use_initial: declaration.use_initial,
+                    // OPTIMIZATION: Values resulting from animations other than CSS transitions
+                    // are overridden by important properties, so there is no need to compute or
+                    // evaluate them.
+                    suppressed_by_important: animation_property_is_suppressed(
+                        declaration.is_transition,
+                        physical_property_id,
+                        important_property_bitmap,
+                    ),
+                });
+            },
+        );
+    }
+
+    let mut selected = vec![false; candidates.len()];
+    let mut value_sources = vec![FfiAnimationSpecifiedValueSource::Value; candidates.len()];
+    resolve_animation_property_conflicts(&candidates, &mut selected, &mut value_sources);
+    candidates
+        .iter()
+        .zip(selected)
+        .zip(value_sources)
+        .filter_map(|((candidate, selected), value_source)| {
+            (selected && !candidate.suppressed_by_important).then_some(FfiResolvedAnimationProperty {
+                keyframe_index: candidate.keyframe_index,
+                physical_property_id: candidate.physical_property_id,
+                source_longhand_id: candidate.source_longhand_id,
+                value: candidate.value,
+                value_source,
+            })
+        })
+        .collect()
 }
 
 #[repr(u8)]
@@ -6331,13 +6472,16 @@ fn evaluate_animation_value(
     }
 }
 
-/// Evaluate a batch of already-computed animation intervals without consulting C++ or the DOM.
+/// Resolve an element's keyframe declarations, request their computed values in one C++ batch,
+/// then evaluate and compose every animation interval without consulting C++ or the DOM again.
 ///
-/// The callback is invoked exactly once and takes ownership of every non-null result value.
+/// Computed values are requested in at most one callback, and a non-empty result is returned in
+/// exactly one overlay callback that takes ownership of every non-null result value.
 ///
 /// # Safety
-/// `batch` and `callbacks` must point to live values. Every input style value must remain live for
-/// the call, and `apply_overlay` must adopt every non-null result before returning.
+/// `batch` and `callbacks` must point to live values. Their declaration and bitmap ranges and every
+/// input style value returned by `compute_values` must remain live for the call. `apply_overlay`
+/// must adopt every non-null result before returning.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_evaluate_animations(
     batch: *const FfiAnimationBatch,
@@ -6347,7 +6491,25 @@ pub unsafe extern "C" fn rust_evaluate_animations(
         crate::ffi_stats::rust_style_ffi_note_animation_evaluation();
         let batch = unsafe { &*batch };
         let callbacks = unsafe { &*callbacks };
-        let inputs = unsafe { std::slice::from_raw_parts(batch.values, batch.value_count) };
+        let declarations = unsafe { std::slice::from_raw_parts(batch.declarations, batch.declaration_count) };
+        let important_property_bitmap = unsafe {
+            std::slice::from_raw_parts(batch.important_property_bitmap, batch.important_property_bitmap_length)
+        };
+        let resolved = resolve_animation_declarations(
+            declarations,
+            batch.writing_mode,
+            batch.direction,
+            important_property_bitmap,
+        );
+        if resolved.is_empty() {
+            return;
+        }
+        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::AnimationComputeBatchCallback);
+        let computed = unsafe { (callbacks.compute_values)(callbacks.context, resolved.as_ptr(), resolved.len()) };
+        if computed.value_count == 0 {
+            return;
+        }
+        let inputs = unsafe { std::slice::from_raw_parts(computed.values, computed.value_count) };
         let mut results = Vec::with_capacity(inputs.len());
 
         // https://www.w3.org/TR/web-animations-1/#effect-stacks
@@ -6360,7 +6522,7 @@ pub unsafe extern "C" fn rust_evaluate_animations(
                 .rev()
                 .find(|(property_id, _)| *property_id == input.property_id)
                 .map(|(_, value)| unsafe { &**value });
-            let result = evaluate_animation_value(&batch.context, input, previous_value);
+            let result = evaluate_animation_value(&computed.context, input, previous_value);
             if result.apply && !result.value.is_null() {
                 previous_values.push((input.property_id, result.value));
             }
@@ -6395,6 +6557,20 @@ pub unsafe extern "C" fn rust_interpolate_scalar_style_value(
     })
 }
 
+/// Test-only bridge for exercising Rust-owned style value composition without constructing an
+/// animation batch. Production animation evaluation uses `rust_evaluate_animations`.
+///
+/// # Safety
+/// `underlying` and `animated` must point at live `StyleValueData` allocations.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_test_composite_style_value(
+    underlying: *const StyleValueData,
+    animated: *const StyleValueData,
+    operation: FfiCompositeOperation,
+) -> FfiAnimationValueResult {
+    crate::abort_on_panic(|| composite_scalar_value(unsafe { &*underlying }, unsafe { &*animated }, operation))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -6402,41 +6578,102 @@ mod tests {
     #[test]
     fn resolves_keyframe_property_conflicts_as_one_batch() {
         use crate::property_metadata::property_id;
+        let value = StyleValueData::Number { value: 1.0 };
         let candidates = [
-            FfiAnimationPropertyConflictCandidate {
+            AnimationPropertyConflictCandidate {
                 keyframe_index: 0,
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER,
+                source_longhand_id: property_id::BORDER_TOP_COLOR,
+                value: &raw const value,
                 use_initial: false,
+                suppressed_by_important: false,
             },
-            FfiAnimationPropertyConflictCandidate {
+            AnimationPropertyConflictCandidate {
                 keyframe_index: 0,
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER_TOP,
+                source_longhand_id: property_id::BORDER_TOP_COLOR,
+                value: &raw const value,
                 use_initial: false,
+                suppressed_by_important: false,
             },
-            FfiAnimationPropertyConflictCandidate {
+            AnimationPropertyConflictCandidate {
                 keyframe_index: 0,
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER_TOP_COLOR,
+                source_longhand_id: property_id::BORDER_TOP_COLOR,
+                value: &raw const value,
                 use_initial: false,
+                suppressed_by_important: false,
             },
-            FfiAnimationPropertyConflictCandidate {
+            AnimationPropertyConflictCandidate {
                 keyframe_index: 0,
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER_TOP_COLOR,
+                source_longhand_id: property_id::BORDER_TOP_COLOR,
+                value: &raw const value,
                 use_initial: true,
+                suppressed_by_important: false,
             },
-            FfiAnimationPropertyConflictCandidate {
+            AnimationPropertyConflictCandidate {
                 keyframe_index: 1,
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER,
+                source_longhand_id: property_id::BORDER_TOP_COLOR,
+                value: &raw const value,
                 use_initial: true,
+                suppressed_by_important: false,
             },
         ];
         let mut selected = [false; 5];
-        resolve_animation_property_conflicts(&candidates, &mut selected);
+        let mut value_sources = [FfiAnimationSpecifiedValueSource::Value; 5];
+        resolve_animation_property_conflicts(&candidates, &mut selected, &mut value_sources);
         assert_eq!(selected, [false, false, true, false, true]);
+    }
+
+    #[test]
+    fn resolves_animation_css_wide_keywords() {
+        use crate::property_metadata::property_id;
+        use crate::style_compute::keyword;
+        let keyword_value = |keyword| StyleValueData::Keyword { keyword };
+
+        assert_eq!(
+            animation_specified_value_source(&keyword_value(keyword::INHERIT), property_id::MARGIN_LEFT),
+            FfiAnimationSpecifiedValueSource::Inherited
+        );
+        assert_eq!(
+            animation_specified_value_source(&keyword_value(keyword::UNSET), property_id::COLOR),
+            FfiAnimationSpecifiedValueSource::Inherited
+        );
+        assert_eq!(
+            animation_specified_value_source(&keyword_value(keyword::UNSET), property_id::MARGIN_LEFT),
+            FfiAnimationSpecifiedValueSource::Initial
+        );
+        assert_eq!(
+            animation_specified_value_source(&keyword_value(keyword::INITIAL), property_id::COLOR),
+            FfiAnimationSpecifiedValueSource::Initial
+        );
+        assert_eq!(
+            animation_specified_value_source(&keyword_value(keyword::REVERT), property_id::COLOR),
+            FfiAnimationSpecifiedValueSource::Underlying
+        );
+        assert_eq!(
+            animation_specified_value_source(&keyword_value(keyword::REVERT_LAYER), property_id::COLOR),
+            FfiAnimationSpecifiedValueSource::Underlying
+        );
+    }
+
+    #[test]
+    fn reads_important_property_snapshot() {
+        use crate::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, property_id};
+        let important_index = usize::from(property_id::COLOR - FIRST_LONGHAND_PROPERTY_ID);
+        let mut bitmap = vec![0; important_index / 8 + 1];
+        bitmap[important_index / 8] |= 1 << (important_index % 8);
+        assert!(property_is_important(property_id::COLOR, &bitmap));
+        assert!(!property_is_important(property_id::MARGIN_LEFT, &bitmap));
+        assert!(animation_property_is_suppressed(false, property_id::COLOR, &bitmap));
+        assert!(!animation_property_is_suppressed(true, property_id::COLOR, &bitmap));
     }
 
     fn animation_context(allow_discrete: bool) -> FfiAnimationContext {
