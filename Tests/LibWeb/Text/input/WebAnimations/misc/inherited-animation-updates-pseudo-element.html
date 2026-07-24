@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+    #target::after {
+        content: "";
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        // Ensure the pseudo-element has computed style before the animation is applied.
+        getComputedStyle(target, "::after").color;
+
+        const animation = target.animate({ color: ["red", "green"] }, { duration: 1000, fill: "forwards" });
+        animation.pause();
+        animation.currentTime = 1000;
+
+        println(getComputedStyle(target, "::after").color);
+    });
+</script>
