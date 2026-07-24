@@ -86,6 +86,7 @@ public:
     bool select_next_suggestion();
     bool select_previous_suggestion();
     void suggestion_clicked(size_t suggestion_index);
+    void navigate_directly_to_query(String text);
 
     // State for the chrome:
     String const& query() const { return m_query; }

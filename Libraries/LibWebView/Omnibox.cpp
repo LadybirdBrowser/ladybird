@@ -778,4 +778,12 @@ void Omnibox::commit(String text)
         on_commit(move(text));
 }
 
+void Omnibox::navigate_directly_to_query(String text)
+{
+    m_query = text;
+    m_retained_engagement_input = {};
+    abandon_popup_session();
+    commit_verbatim(move(text));
+}
+
 }
