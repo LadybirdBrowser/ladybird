@@ -1,0 +1,2 @@
+a element without an href does not become the activation target: true
+a element with an href becomes the activation target: true
