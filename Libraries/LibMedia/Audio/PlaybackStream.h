@@ -32,17 +32,15 @@ public:
     using CreatePromise = Core::Promise<NonnullRefPtr<PlaybackStream>>;
     using AudioDataRequestCallback = Function<ReadonlySpan<float>(Span<float> buffer)>;
 
-    // Begins creating a new audio output and returns a promise that is resolved when it is ready.
-    //
-    // The initial_output_state parameter determines whether it will begin playback immediately.
-    //
-    // The returned promise will be resolved with the PlaybackStream if the audio output was successfully initialized,
-    // or rejected with an error if not.
-    //
-    // The AudioDataRequestCallback will be called when the output needs more audio data to fill its buffers and
-    // continue playback. This callback will only be allowed to run on one thread at a time, to prevent any data
-    // race on the resource used by the callback.
-    static NonnullRefPtr<CreatePromise> create(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&&);
+    // Begins creating a new audio output and returns a promise that is resolved when it is ready. This first attempts
+    // the platform backend and falls back to a null stream if no usable output device is available. The initial output
+    // state determines whether playback begins immediately. The data callback is only invoked on one thread at a time.
+    template<typename DataRequestCallback>
+    static NonnullRefPtr<CreatePromise> create_platform_or_null(OutputState initial_output_state, u32 target_latency_ms, DataRequestCallback data_request_callback)
+    {
+        auto fallback_data_request_callback = data_request_callback;
+        return create_platform_or_null(initial_output_state, target_latency_ms, AudioDataRequestCallback { move(data_request_callback) }, AudioDataRequestCallback { move(fallback_data_request_callback) });
+    }
 
     virtual SampleSpecification sample_specification() const = 0;
 
@@ -71,6 +69,10 @@ public:
     virtual AK::Duration total_time_played() const = 0;
 
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double volume) = 0;
+
+private:
+    static NonnullRefPtr<CreatePromise> create_platform_or_null(OutputState, u32 target_latency_ms, AudioDataRequestCallback platform_data_request_callback, AudioDataRequestCallback fallback_data_request_callback);
+    static NonnullRefPtr<CreatePromise> create_platform_playback_stream(OutputState, u32 target_latency_ms, AudioDataRequestCallback&&);
 };
 
 }

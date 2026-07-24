@@ -26,7 +26,7 @@ namespace Audio {
         __temporary_result.release_value();                                                                                        \
     })
 
-NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback)
+NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create_platform_playback_stream(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback)
 {
     return PlaybackStreamPulseAudio::create(initial_output_state, target_latency_ms, move(data_request_callback));
 }

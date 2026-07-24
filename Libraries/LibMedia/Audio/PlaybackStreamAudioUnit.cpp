@@ -343,7 +343,7 @@ private:
     Atomic<i64> m_output_time { 0 };
 };
 
-NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback)
+NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create_platform_playback_stream(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback)
 {
     return PlaybackStreamAudioUnit::create(initial_output_state, target_latency_ms, move(data_request_callback));
 }

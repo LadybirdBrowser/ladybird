@@ -287,7 +287,7 @@ void AudioPlaybackSink::create_playback_stream()
     };
     constexpr u32 target_latency_ms = 100;
 
-    auto promise = Audio::PlaybackStream::create(Audio::OutputState::Suspended, target_latency_ms, move(data_callback));
+    auto promise = Audio::PlaybackStream::create_platform_or_null(Audio::OutputState::Suspended, target_latency_ms, move(data_callback));
 
     promise->when_resolved([self = NonnullRefPtr(*this)](auto& stream) {
         auto sample_specification = stream->sample_specification();
