@@ -365,6 +365,88 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         shorthand_rows.len(),
         shorthand_rows.join("\n")
     ));
+    let property_names: Vec<&str> = shorthands
+        .iter()
+        .chain(&inherited_longhands)
+        .chain(&noninherited_longhands)
+        .map(String::as_str)
+        .collect();
+    fn expanded_longhands(
+        name: &str,
+        properties: &serde_json::Map<String, serde_json::Value>,
+        all_longhands: &[String],
+        result: &mut Vec<String>,
+    ) {
+        if name == "all" {
+            result.extend_from_slice(all_longhands);
+            return;
+        }
+        let Some(longhands) = properties[name].get("longhands").and_then(|value| value.as_array()) else {
+            result.push(name.to_string());
+            return;
+        };
+        for longhand in longhands {
+            expanded_longhands(longhand.as_str().unwrap(), properties, all_longhands, result);
+        }
+    }
+    let all_longhands: Vec<String> = inherited_longhands
+        .iter()
+        .chain(&noninherited_longhands)
+        .filter(|name| name.as_str() != "direction" && name.as_str() != "unicode-bidi")
+        .cloned()
+        .collect();
+    let expanded_shorthand_longhands: Vec<Vec<String>> = shorthands
+        .iter()
+        .map(|name| {
+            let mut result = Vec::new();
+            expanded_longhands(name, &properties, &all_longhands, &mut result);
+            result
+        })
+        .collect();
+    let camel_case_property_name = |name: &str| {
+        let mut parts = name.split('-').filter(|part| !part.is_empty());
+        let mut result = parts.next().unwrap_or_default().to_string();
+        for part in parts {
+            let mut characters = part.chars();
+            if let Some(first) = characters.next() {
+                result.extend(first.to_uppercase());
+                result.extend(characters);
+            }
+        }
+        result
+    };
+    let idl_names: Vec<String> = property_names
+        .iter()
+        .map(|name| camel_case_property_name(name))
+        .collect();
+    let logical_aliases: Vec<bool> = property_names
+        .iter()
+        .enumerate()
+        .map(|(index, name)| {
+            let name: &str = if index < shorthands.len() {
+                expanded_shorthand_longhands[index][0].as_str()
+            } else {
+                name
+            };
+            properties[name].as_object().unwrap().contains_key("logical-alias-for")
+        })
+        .collect();
+    let expanded_longhand_counts: Vec<usize> = expanded_shorthand_longhands.iter().map(Vec::len).collect();
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_IDL_NAMES: [&str; {}] = {:?};\n",
+        idl_names.len(),
+        idl_names
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_IS_LOGICAL_ALIAS: [bool; {}] = {:?};\n\n",
+        logical_aliases.len(),
+        logical_aliases
+    ));
+    output.push_str(&format!(
+        "pub(crate) static SHORTHAND_EXPANDED_LONGHAND_COUNTS: [usize; {}] = {:?};\n\n",
+        expanded_longhand_counts.len(),
+        expanded_longhand_counts
+    ));
     output.push_str(&format!(
         "pub const FIRST_SHORTHAND_PROPERTY_ID: u16 = {};\n",
         ids[&shorthands[0]]
@@ -709,6 +791,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         style_value_config,
         &[
             manifest_dir.join("src/style_value.rs"),
+            manifest_dir.join("src/color_interpolation.rs"),
             manifest_dir.join("src/animation.rs"),
             manifest_dir.join("src/transition.rs"),
             manifest_dir.join("src/calc.rs"),

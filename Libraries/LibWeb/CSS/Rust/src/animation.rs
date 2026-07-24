@@ -464,6 +464,60 @@ pub struct FfiAnimationCallbacks {
         unsafe extern "C" fn(context: *mut std::ffi::c_void, values: *const FfiAnimatedProperty, count: usize),
 }
 
+#[repr(C)]
+pub struct FfiAnimationPropertyConflictCandidate {
+    pub keyframe_index: usize,
+    pub physical_property_id: u16,
+    pub source_property_id: u16,
+    pub use_initial: bool,
+}
+
+fn resolve_animation_property_conflicts(candidates: &[FfiAnimationPropertyConflictCandidate], selected: &mut [bool]) {
+    assert_eq!(candidates.len(), selected.len());
+    selected.fill(false);
+    let mut winners = std::collections::HashMap::<(usize, u16), usize>::new();
+    for (candidate_index, candidate) in candidates.iter().enumerate() {
+        let key = (candidate.keyframe_index, candidate.physical_property_id);
+        let Some(&winner_index) = winners.get(&key) else {
+            winners.insert(key, candidate_index);
+            selected[candidate_index] = true;
+            continue;
+        };
+        let winner = &candidates[winner_index];
+        if candidate.use_initial {
+            continue;
+        }
+        if !winner.use_initial
+            && !crate::property_metadata::animation_property_is_preferred(
+                candidate.source_property_id,
+                winner.source_property_id,
+            )
+        {
+            continue;
+        }
+        selected[winner_index] = false;
+        selected[candidate_index] = true;
+        winners.insert(key, candidate_index);
+    }
+}
+
+/// Resolve every shorthand and logical-property conflict in an element's keyframes as one batch.
+///
+/// # Safety
+/// `candidates` and `selected` must describe live ranges of `candidate_count` entries.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_resolve_animation_property_conflicts(
+    candidates: *const FfiAnimationPropertyConflictCandidate,
+    candidate_count: usize,
+    selected: *mut bool,
+) {
+    crate::abort_on_panic(|| {
+        let candidates = unsafe { std::slice::from_raw_parts(candidates, candidate_count) };
+        let selected = unsafe { std::slice::from_raw_parts_mut(selected, candidate_count) };
+        resolve_animation_property_conflicts(candidates, selected);
+    });
+}
+
 #[repr(u8)]
 #[derive(Clone, Copy)]
 pub enum FfiCompositeOperation {
@@ -6344,6 +6398,46 @@ pub unsafe extern "C" fn rust_interpolate_scalar_style_value(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn resolves_keyframe_property_conflicts_as_one_batch() {
+        use crate::property_metadata::property_id;
+        let candidates = [
+            FfiAnimationPropertyConflictCandidate {
+                keyframe_index: 0,
+                physical_property_id: property_id::BORDER_TOP_COLOR,
+                source_property_id: property_id::BORDER,
+                use_initial: false,
+            },
+            FfiAnimationPropertyConflictCandidate {
+                keyframe_index: 0,
+                physical_property_id: property_id::BORDER_TOP_COLOR,
+                source_property_id: property_id::BORDER_TOP,
+                use_initial: false,
+            },
+            FfiAnimationPropertyConflictCandidate {
+                keyframe_index: 0,
+                physical_property_id: property_id::BORDER_TOP_COLOR,
+                source_property_id: property_id::BORDER_TOP_COLOR,
+                use_initial: false,
+            },
+            FfiAnimationPropertyConflictCandidate {
+                keyframe_index: 0,
+                physical_property_id: property_id::BORDER_TOP_COLOR,
+                source_property_id: property_id::BORDER_TOP_COLOR,
+                use_initial: true,
+            },
+            FfiAnimationPropertyConflictCandidate {
+                keyframe_index: 1,
+                physical_property_id: property_id::BORDER_TOP_COLOR,
+                source_property_id: property_id::BORDER,
+                use_initial: true,
+            },
+        ];
+        let mut selected = [false; 5];
+        resolve_animation_property_conflicts(&candidates, &mut selected);
+        assert_eq!(selected, [false, false, true, false, true]);
+    }
 
     fn animation_context(allow_discrete: bool) -> FfiAnimationContext {
         let font_metrics = || FfiAnimationFontMetrics {

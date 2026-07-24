@@ -142,4 +142,15 @@ TEST_CASE(accepted_numeric_ranges_match)
     }
 }
 
+TEST_CASE(animation_keyframe_conflict_preference_matches)
+{
+    for (auto a = to_underlying(first_property_id); a <= to_underlying(last_property_id); ++a) {
+        for (auto b = to_underlying(first_property_id); b <= to_underlying(last_property_id); ++b) {
+            EXPECT_EQ(
+                invoke_rust_animation_property_is_preferred(a, b),
+                invoke_cpp_animation_property_is_preferred(a, b));
+        }
+    }
+}
+
 }

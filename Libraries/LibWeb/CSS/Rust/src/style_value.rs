@@ -32,6 +32,16 @@ pub struct RetainedStyleValueData {
     pointer: *const c_void,
 }
 
+impl PartialEq for RetainedStyleValueData {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.optional_data(), other.optional_data()) {
+            (Some(first), Some(second)) => std::ptr::eq(first, second) || first == second,
+            (None, None) => true,
+            _ => false,
+        }
+    }
+}
+
 impl RetainedStyleValueData {
     pub(crate) fn pointer(&self) -> *const StyleValueData {
         self.pointer.cast()
@@ -134,6 +144,7 @@ impl RetainedStyleValueDataList {
 /// to the underlying string data unless it is a short string, which needs none; the C++ bridge
 /// handles both cases.
 #[repr(C)]
+#[derive(PartialEq)]
 pub struct RetainedUtf16FlyString {
     raw: usize,
 }
@@ -231,12 +242,47 @@ impl RetainedPropertyIdList {
 #[repr(C)]
 pub struct RetainedString {
     raw: usize,
+    bytes: *mut u8,
+    length: usize,
+}
+
+impl RetainedString {
+    /// Takes ownership of a leaked AK::String reference and copies its bytes.
+    ///
+    /// # Safety
+    /// `bytes` must point at `length` readable bytes.
+    unsafe fn from_raw(raw: usize, bytes: *const u8, length: usize) -> Self {
+        let readable = unsafe { RetainedReadableString::from_raw(raw, bytes, length) };
+        let result = Self {
+            raw: readable.raw,
+            bytes: readable.bytes,
+            length: readable.length,
+        };
+        std::mem::forget(readable);
+        result
+    }
+
+    fn as_bytes(&self) -> &[u8] {
+        if self.bytes.is_null() {
+            return &[];
+        }
+        unsafe { std::slice::from_raw_parts(self.bytes, self.length) }
+    }
+}
+
+impl PartialEq for RetainedString {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_bytes() == other.as_bytes()
+    }
 }
 
 impl Drop for RetainedString {
     fn drop(&mut self) {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StringRetainReleaseCallback);
         unsafe { ladybird_string_unref(self.raw) };
+        if !self.bytes.is_null() {
+            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.bytes, self.length)) });
+        }
     }
 }
 
@@ -277,6 +323,12 @@ impl RetainedReadableString {
     }
 }
 
+impl PartialEq for RetainedReadableString {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_bytes() == other.as_bytes()
+    }
+}
+
 impl Drop for RetainedReadableString {
     fn drop(&mut self) {
         crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StringRetainReleaseCallback);
@@ -291,6 +343,7 @@ impl Drop for RetainedReadableString {
 /// string value (raw 0 when the value is an enum). All enums are C++ `enum class ... : u8`
 /// values, opaque to Rust.
 #[repr(C)]
+#[derive(PartialEq)]
 pub struct RetainedRequestUrlModifier {
     modifier_type: u8,
     enum_value: u8,
@@ -376,6 +429,7 @@ impl RetainedByteList {
 /// A retained counter definition: the counter name, the reversed flag and an optional retained
 /// value (null when absent).
 #[repr(C)]
+#[derive(PartialEq)]
 pub struct RetainedCounterDefinition {
     name: RetainedUtf16FlyString,
     is_reversed: bool,
@@ -395,6 +449,7 @@ retained_list!(RetainedCounterDefinitionList, RetainedCounterDefinition);
 /// retained AK::Utf16String raw, 0 when absent, released through the same bridge as fly
 /// strings).
 #[repr(C)]
+#[derive(PartialEq)]
 pub struct RetainedImageSetOption {
     image: RetainedStyleValueData,
     resolution: RetainedStyleValueData,
@@ -414,6 +469,7 @@ retained_list!(RetainedImageSetOptionList, RetainedImageSetOption);
 /// A retained gradient color stop: an optional transition hint, then an optional color,
 /// position and second position (each null when absent).
 #[repr(C)]
+#[derive(PartialEq)]
 pub struct RetainedColorStop {
     transition_hint: RetainedStyleValueData,
     color: RetainedStyleValueData,
@@ -507,6 +563,7 @@ impl RetainedColorStopList {
 
 /// A retained named grid area: the retained area name and its grid line indices.
 #[repr(C)]
+#[derive(PartialEq)]
 pub struct RetainedGridArea {
     name: RetainedUtf16FlyString,
     row_start: usize,
@@ -526,6 +583,7 @@ retained_list!(RetainedGridAreaList, RetainedGridArea);
 
 /// A retained linear() easing stop: the output value and an optional input (null when absent).
 #[repr(C)]
+#[derive(PartialEq)]
 pub struct RetainedLinearEasingStop {
     output: RetainedStyleValueData,
     input: RetainedStyleValueData,
@@ -595,6 +653,28 @@ impl Drop for RetainedGridTrackEntry {
     }
 }
 
+impl PartialEq for RetainedGridTrackEntry {
+    fn eq(&self, other: &Self) -> bool {
+        let repeat_entries = |entry: &Self| {
+            if entry.repeat_entries_pointer.is_null() {
+                &[]
+            } else {
+                unsafe { std::slice::from_raw_parts(entry.repeat_entries_pointer, entry.repeat_entries_length) }
+            }
+        };
+        self.kind == other.kind
+            && self.names == other.names
+            && self.size_value == other.size_value
+            && self.min_value == other.min_value
+            && self.max_value == other.max_value
+            && self.repeat_type == other.repeat_type
+            && self.repeat_count == other.repeat_count
+            && self.repeat_is_subgrid == other.repeat_is_subgrid
+            && self.repeat_preserve_line_name_sets == other.repeat_preserve_line_name_sets
+            && repeat_entries(self) == repeat_entries(other)
+    }
+}
+
 impl RetainedGridTrackEntryList {
     pub(crate) fn as_slice(&self) -> &[RetainedGridTrackEntry] {
         if self.pointer.is_null() {
@@ -651,6 +731,7 @@ retained_list_drop!(RetainedGridTrackEntryList);
 
 /// A retained polygon point: the x and y style values.
 #[repr(C)]
+#[derive(PartialEq)]
 pub struct RetainedShapePoint {
     x: RetainedStyleValueData,
     y: RetainedStyleValueData,
@@ -668,6 +749,7 @@ retained_list!(RetainedShapePointList, RetainedShapePoint);
 /// An accepted numeric range for one value type (the C++ `enum class ValueType : u8`, opaque
 /// to Rust).
 #[repr(C)]
+#[derive(PartialEq)]
 pub struct RetainedNumericRangeByType {
     value_type: u8,
     min: f64,
@@ -725,10 +807,42 @@ impl RetainedNumericRangeList {
     }
 }
 
+macro_rules! retained_list_partial_eq {
+    ($list:ty, $element:ty) => {
+        impl PartialEq for $list {
+            fn eq(&self, other: &Self) -> bool {
+                let as_slice = |list: &Self| -> &[$element] {
+                    if list.pointer.is_null() {
+                        &[]
+                    } else {
+                        unsafe { std::slice::from_raw_parts(list.pointer, list.length) }
+                    }
+                };
+                as_slice(self) == as_slice(other)
+            }
+        }
+    };
+}
+
+retained_list_partial_eq!(RetainedStyleValueDataList, RetainedStyleValueData);
+retained_list_partial_eq!(RetainedPropertyIdList, u16);
+retained_list_partial_eq!(RetainedRequestUrlModifierList, RetainedRequestUrlModifier);
+retained_list_partial_eq!(RetainedByteList, u8);
+retained_list_partial_eq!(RetainedUtf16FlyStringList, RetainedUtf16FlyString);
+retained_list_partial_eq!(RetainedCounterDefinitionList, RetainedCounterDefinition);
+retained_list_partial_eq!(RetainedImageSetOptionList, RetainedImageSetOption);
+retained_list_partial_eq!(RetainedColorStopList, RetainedColorStop);
+retained_list_partial_eq!(RetainedGridAreaList, RetainedGridArea);
+retained_list_partial_eq!(RetainedLinearEasingStopList, RetainedLinearEasingStop);
+retained_list_partial_eq!(RetainedGridTrackEntryList, RetainedGridTrackEntry);
+retained_list_partial_eq!(RetainedShapePointList, RetainedShapePoint);
+retained_list_partial_eq!(RetainedNumericRangeList, RetainedNumericRangeByType);
+
 /// The shared leading fields of every color variant payload: the optional color type and the
 /// color syntax. Placing this first in each color payload lets C++ read it without knowing
 /// which color variant it has.
 #[repr(C)]
+#[derive(PartialEq)]
 pub struct ColorBase {
     pub(crate) has_color_type: bool,
     pub(crate) color_type: u8,
@@ -742,6 +856,7 @@ pub struct ColorBase {
 #[repr(C, u8)]
 // NB: Variant payload fields are only read by C++ through the exposed layout.
 #[allow(dead_code)]
+#[derive(PartialEq)]
 pub enum StyleValueData {
     /// A CSS keyword. The value is the generated C++ `enum class Keyword : u16`, opaque to Rust.
     Keyword { keyword: u16 },
@@ -1919,13 +2034,15 @@ pub unsafe extern "C" fn rust_style_value_create_radial_size(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_url(
     url: usize,
+    url_bytes: *const u8,
+    url_length: usize,
     url_type: u8,
     modifiers: *const RetainedRequestUrlModifier,
     modifier_count: usize,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Url {
-            url: RetainedString { raw: url },
+            url: unsafe { RetainedString::from_raw(url, url_bytes, url_length) },
             url_type,
             modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(modifiers, modifier_count) },
         }))
@@ -1939,6 +2056,8 @@ pub unsafe extern "C" fn rust_style_value_create_font_source(
     is_local: bool,
     local_name: *const StyleValueData,
     url: usize,
+    url_bytes: *const u8,
+    url_length: usize,
     url_type: u8,
     url_modifiers: *const RetainedRequestUrlModifier,
     url_modifier_count: usize,
@@ -1951,7 +2070,7 @@ pub unsafe extern "C" fn rust_style_value_create_font_source(
         Arc::into_raw(Arc::new(StyleValueData::FontSource {
             is_local,
             local_name: unsafe { RetainedStyleValueData::from_retained_optional_pointer(local_name) },
-            url: RetainedString { raw: url },
+            url: unsafe { RetainedString::from_raw(url, url_bytes, url_length) },
             url_type,
             url_modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(url_modifiers, url_modifier_count) },
             has_format,
@@ -2391,13 +2510,15 @@ pub unsafe extern "C" fn rust_style_value_create_calculated(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_image(
     url: usize,
+    url_bytes: *const u8,
+    url_length: usize,
     url_type: u8,
     url_modifiers: *const RetainedRequestUrlModifier,
     url_modifier_count: usize,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Image {
-            url: RetainedString { raw: url },
+            url: unsafe { RetainedString::from_raw(url, url_bytes, url_length) },
             url_type,
             url_modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(url_modifiers, url_modifier_count) },
         }))

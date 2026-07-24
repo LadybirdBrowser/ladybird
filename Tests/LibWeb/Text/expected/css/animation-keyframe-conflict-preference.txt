@@ -1,0 +1,2 @@
+border-top: 2px solid rgb(0, 0, 255)
+margin-left: 20px
