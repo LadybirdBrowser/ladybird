@@ -110,7 +110,13 @@ static ThrowCompletionOr<void> revalidate_atomic_access(VM& vm, TypedArrayBase c
     VERIFY(byte_index_in_buffer >= typed_array.byte_offset());
 
     // 5. If byteIndexInBuffer ≥ taRecord.[[CachedBufferByteLength]], throw a RangeError exception.
-    if (byte_index_in_buffer >= typed_array_record.cached_buffer_byte_length.length())
+    // AD-HOC: The spec step strictly only bounds-checks the element's first byte. A length-tracking element whose start
+    //         is in bounds but end is past a buffer shrunk during argument coercion would otherwise reach the buffer
+    //         accessors and read/write out of bounds, violating their sufficient-bytes assertion. Bound-check the whole
+    //         element instead. That aligns with what V8, JSC, and SpiderMonkey already are all also functionally doing.
+    //         (The OOB access from #10759 isn’t reproducible in any of those engines.)
+    //         https://github.com/tc39/ecma262/issues/3924
+    if (byte_index_in_buffer + typed_array.element_size() > typed_array_record.cached_buffer_byte_length.length())
         return vm.throw_completion<RangeError>(ErrorType::IndexOutOfRange, byte_index_in_buffer, typed_array_record.cached_buffer_byte_length.length());
 
     // 6. Return unused.
