@@ -15,6 +15,7 @@
 #include <LibIPC/Limits.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibIPC/TransportSocketWindows.h>
+#include <LibSync/Mutex.h>
 
 #include <AK/Windows.h>
 
@@ -55,6 +56,8 @@ TransportSocketWindows::TransportSocketWindows(NonnullOwnPtr<Core::LocalSocket> 
 {
 }
 
+TransportSocketWindows::~TransportSocketWindows() = default;
+
 void TransportSocketWindows::set_peer_pid(int pid)
 {
     m_peer_pid = pid;
@@ -68,11 +71,13 @@ void TransportSocketWindows::set_up_read_hook(Function<void()> hook)
 
 bool TransportSocketWindows::is_open() const
 {
-    return m_socket->is_open();
+    return m_socket_is_open.load(AK::MemoryOrder::memory_order_relaxed);
 }
 
 void TransportSocketWindows::close()
 {
+    m_socket_is_open.store(false, AK::MemoryOrder::memory_order_relaxed);
+    Sync::MutexLocker locker(m_send_mutex);
     m_socket->close();
 }
 
@@ -180,6 +185,8 @@ ErrorOr<void> TransportSocketWindows::post_message(MessageDataType bytes, Vector
     VERIFY(bytes.size() <= MAX_MESSAGE_PAYLOAD_SIZE);
     VERIFY(attachments.size() <= MAX_MESSAGE_FD_COUNT);
 
+    Sync::MutexLocker locker(m_send_mutex);
+
     auto attachment_count = attachments.size();
     auto serialized_attachments = TRY(serialize_attachments(attachments));
     VERIFY(serialized_attachments.size() <= MAX_ATTACHMENT_DATA_SIZE);
@@ -208,7 +215,13 @@ ErrorOr<void> TransportSocketWindows::post_message(MessageDataType bytes, Vector
 
 ErrorOr<void> TransportSocketWindows::transfer(ReadonlyBytes bytes_to_write)
 {
+    // FIXME: The timeout to re-check the open flag will not be needed once sends are moved to an IO thread that
+    //        teardown stops, as TransportSocket does.
+    static constexpr int SEND_POLL_TIMEOUT_MS = 100;
+
     while (!bytes_to_write.is_empty()) {
+        if (!is_open())
+            return Error::from_string_literal("Transport closed during send");
 
         ErrorOr<size_t> maybe_nwritten = m_socket->write_some(bytes_to_write);
 
@@ -223,8 +236,8 @@ ErrorOr<void> TransportSocketWindows::transfer(ReadonlyBytes bytes_to_write)
                 .revents = 0
             };
 
-            auto result = WSAPoll(&pollfd, 1, -1);
-            if (result == 1)
+            auto result = WSAPoll(&pollfd, 1, SEND_POLL_TIMEOUT_MS);
+            if (result == 1 || result == 0)
                 continue;
             if (result == SOCKET_ERROR)
                 return Error::from_windows_error();
@@ -334,6 +347,8 @@ TransportSocketWindows::ShouldShutdown TransportSocketWindows::read_as_many_mess
 
 ErrorOr<TransportHandle> TransportSocketWindows::release_for_transfer()
 {
+    m_socket_is_open.store(false, AK::MemoryOrder::memory_order_relaxed);
+    Sync::MutexLocker locker(m_send_mutex);
     auto fd = TRY(m_socket->release_fd());
     return TransportHandle { File::adopt_fd(fd) };
 }

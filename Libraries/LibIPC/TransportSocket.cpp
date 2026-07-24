@@ -309,17 +309,19 @@ void TransportSocket::set_up_read_hook(Function<void()> hook)
 
 bool TransportSocket::is_open() const
 {
-    return m_socket->is_open();
+    return m_socket_is_open.load(AK::MemoryOrder::memory_order_relaxed);
 }
 
 void TransportSocket::close()
 {
+    m_socket_is_open.store(false, AK::MemoryOrder::memory_order_relaxed);
     stop_io_thread(IOThreadState::Stopped);
     m_socket->close();
 }
 
 void TransportSocket::close_after_sending_all_pending_messages()
 {
+    m_socket_is_open.store(false, AK::MemoryOrder::memory_order_relaxed);
     stop_io_thread(IOThreadState::SendPendingMessagesAndStop);
     m_socket->close();
 }
@@ -601,6 +603,7 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
 ErrorOr<TransportHandle> TransportSocket::release_for_transfer()
 {
     m_is_being_transferred.store(true, AK::MemoryOrder::memory_order_release);
+    m_socket_is_open.store(false, AK::MemoryOrder::memory_order_relaxed);
     stop_io_thread(IOThreadState::SendPendingMessagesAndStop);
     auto fd = TRY(m_socket->release_fd());
     return TransportHandle { File::adopt_fd(fd) };
