@@ -429,6 +429,7 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
             m_current_halting_status = PipelineStatus::Pending;
             m_moved_position_pending = true;
         }
+        m_decoder_needs_keyframe_next_seek = true;
         enter_halting_state(PipelineStatus::Error, move(error));
         m_last_processed_seek_id = seek_id;
     };
@@ -521,6 +522,7 @@ void DecodedAudioProducer::ThreadData::push_data_and_decode_a_block()
 
     auto set_halting_status_and_wait_for_seek = [this](PipelineStatus status, Optional<DecoderError> error) {
         auto locker = take_lock();
+        m_decoder_needs_keyframe_next_seek = true;
         enter_halting_state(status, move(error));
 
         dbgln_if(PLAYBACK_MANAGER_DEBUG, "Decoded Audio Producer: Reached a halting pull status, waiting for a seek to start decoding again...");
