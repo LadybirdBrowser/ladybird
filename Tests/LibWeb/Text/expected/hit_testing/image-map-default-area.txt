@@ -1,0 +1,4 @@
+default area layered above a rect area covers the rect: leading-default
+default area layered above a rect area covers the image: leading-default
+default area layered below a rect area yields to the rect: trailing-rect
+default area layered below a rect area covers the image: trailing-default

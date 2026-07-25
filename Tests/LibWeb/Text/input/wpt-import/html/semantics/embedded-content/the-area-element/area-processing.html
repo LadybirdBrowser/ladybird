@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>HTMLAreaElement processing</title>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<style>
+ body { margin: 0 }
+</style>
+<img src=../../../../images/threecolors.png usemap=#x id=img width=300 height=300>
+<map name=x><area id=area></map>
+<script src=support/hit-test.js></script>
+<script>
+var tests = [
+  {desc: 'too few numbers', shape: 'rect', coords: "2,2,10", hit: hitNone},
+  {desc: 'negative', shape: 'rect', coords: "-10,-10,10,10", hit: [[area, 1, 1], [img, 299, 299]]},
+  {desc: 'empty string', shape: 'rect', coords: "", hit: hitNone},
+  {desc: 'omitted coords', shape: 'rect', coords: null, hit: hitNone},
+  {desc: 'first > third', shape: 'rect', coords: "10,2,2,10", hit: hitRect},
+  {desc: 'second > fourth', shape: 'rect', coords: "2,10,10,2", hit: hitRect},
+  {desc: 'first > third, second > fourth', shape: 'rect', coords: "10,10,2,2", hit: hitRect},
+
+  {desc: 'negative', shape: 'default', coords: "-10,-10,-10,-10", hit: hitAll},
+
+  {desc: 'too few numbers', shape: 'circle', coords: "20,40", hit: hitNone},
+  {desc: 'negative radius', shape: 'circle', coords: "20,40,-10", hit: hitNone},
+  {desc: 'zero radius', shape: 'circle', coords: "20,40,0", hit: hitNone},
+
+  {desc: 'too few numbers', shape: 'poly', coords: "100,100,120,100,100", hit: hitNone},
+  {desc: 'one too many numbers', shape: 'poly', coords: "100,100,120,100,100,120,300", hit: hitPoly},
+  {desc: 'even-odd rule', shape: 'poly', coords: "100,100,200,100,100,200,150,50,200,200", hit: hitStar},
+];
+</script>

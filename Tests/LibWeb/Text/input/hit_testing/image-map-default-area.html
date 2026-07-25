@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<map name="leading">
+    <area id="leading-default" shape="default" href="#default" alt="default">
+    <area id="leading-rect" shape="rect" coords="0,0,50,50" href="#rect" alt="rect">
+</map>
+<map name="trailing">
+    <area id="trailing-rect" shape="rect" coords="0,0,50,50" href="#rect" alt="rect">
+    <area id="trailing-default" shape="default" href="#default" alt="default">
+</map>
+<img id="leading-image" usemap="#leading" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" width="100" height="100" alt="leading default">
+<img id="trailing-image" usemap="#trailing" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" width="100" height="100" alt="trailing default">
+<script>
+    test(() => {
+        document.addEventListener("click", event => {
+            event.preventDefault();
+        });
+
+        function clickTargetAt(imageId, x, y) {
+            const imageRect = document.getElementById(imageId).getBoundingClientRect();
+            let target;
+            document.addEventListener("click", event => { target = event.target; }, { once: true });
+            internals.click(imageRect.x + x, imageRect.y + y);
+            return target.id;
+        }
+
+        println(`default area layered above a rect area covers the rect: ${clickTargetAt("leading-image", 25, 25)}`);
+        println(`default area layered above a rect area covers the image: ${clickTargetAt("leading-image", 75, 75)}`);
+        println(`default area layered below a rect area yields to the rect: ${clickTargetAt("trailing-image", 25, 25)}`);
+        println(`default area layered below a rect area covers the image: ${clickTargetAt("trailing-image", 75, 75)}`);
+    });
+</script>

@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 11 tests
+
+9 Pass
+2 Fail
+Pass	Negative co-ordinates
+Pass	co-ordinates larger than the viewport
+Fail	co-ordinates larger than the viewport from in iframe
+Pass	Return first element that is the target for hit testing
+Pass	First element to get mouse events with pointer-events css
+Pass	SVG element at x,y
+Pass	transformed element at x,y
+Pass	no hit target at x,y
+Fail	No viewport available
+Pass	Image Maps
+Pass	Fieldsets
