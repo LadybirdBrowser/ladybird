@@ -28,6 +28,8 @@ test("special case folding", () => {
     expect("\u1FC7".toLocaleUpperCase()).toBe("\u0397\u0342\u0399");
     expect("\u1FF7".toLocaleUpperCase()).toBe("\u03A9\u0342\u0399");
 
+    expect("i\u0307".toLocaleUpperCase("und")).toBe("I\u0307");
+
     expect("i".toLocaleUpperCase()).toBe("I");
     expect("i".toLocaleUpperCase("lt")).toBe("I");
 
