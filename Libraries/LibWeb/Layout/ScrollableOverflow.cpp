@@ -82,7 +82,8 @@ static PhysicalOverflowDirections physical_overflow_directions(Box const& box)
         }
 
         auto cross_axis = is_row_layout ? block_axis : inline_axis;
-        if (computed_values.flex_wrap() == CSS::FlexWrap::WrapReverse)
+        // AD-HOC: A legacy webkit box ignores `flex-wrap`, matching other engines.
+        if (!box.display().is_webkit_box_inside() && computed_values.flex_wrap() == CSS::FlexWrap::WrapReverse)
             cross_axis.is_reverse = !cross_axis.is_reverse;
 
         return AK::Tuple { main_axis.is_horizontal ? main_axis : cross_axis, main_axis.is_horizontal ? cross_axis : main_axis };

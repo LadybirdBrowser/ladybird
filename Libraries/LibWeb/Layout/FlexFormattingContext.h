@@ -209,7 +209,10 @@ private:
     void align_all_flex_lines();
 
     bool is_row_layout() const { return m_flex_direction == CSS::FlexDirection::Row || m_flex_direction == CSS::FlexDirection::RowReverse; }
-    bool is_single_line() const { return flex_container().computed_values().flex_wrap() == CSS::FlexWrap::Nowrap; }
+    bool is_legacy_webkit_box() const { return flex_container().display().is_webkit_box_inside(); }
+    CSS::FlexWrap used_flex_wrap() const;
+    bool is_single_line() const { return used_flex_wrap() == CSS::FlexWrap::Nowrap; }
+    double flex_shrink_factor(FlexItem const&) const;
     bool inline_axis_is_horizontal(Box const&) const;
     bool main_axis_is_horizontal() const;
     bool cross_axis_is_horizontal() const { return !main_axis_is_horizontal(); }

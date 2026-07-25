@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS -webkit-box Test: Testing no automatic minimum size for flex items in a legacy row-oriented flex container</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://compat.spec.whatwg.org/#valdef-flex--webkit-box">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#min-size-auto">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1929178">
+<link rel="stylesheet" href="../fonts/ahem.css">
+<meta name="assert" content="This test verifies that a flex item in a legacy -webkit-box can be shrunk as if it has no automatic minimum size.">
+
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/check-layout-th.js"></script>
+
+<style>
+.webkit-box {
+  display: -webkit-box;
+  width: 50px;
+  height: 50px;
+  border: 1px solid black;
+  margin-bottom: 5px;
+}
+.webkit-box > * {
+  /* Make the child block-level, to ensure that it's a flex item (otherwise it
+   * may get wrapped in an anonymous box which becomes the flex item). */
+  display: block;
+  /* Allow the child to shrink. */
+  -webkit-box-flex: 1;
+
+  font: 20px/1 Ahem;
+  background: lightblue;
+
+  /* Get rid of UA default styles. */
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+</style>
+
+<body onload="checkLayout('.webkit-box')">
+  <div class="webkit-box">
+    <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 10'></svg>"
+         data-expected-width="50">
+  </div>
+
+  <div class="webkit-box">
+    <img src="data:image/svg+xml,<svg width='300' height='100' xmlns='http://www.w3.org/2000/svg'></svg>"
+         data-expected-width="50">
+  </div>
+
+  <div class="webkit-box">
+    <svg width="300" height="100" data-expected-client-width="50"></svg>
+  </div>
+
+  <div class="webkit-box">
+    <input type="text" data-expected-width="50">
+  </div>
+
+  <div class="webkit-box">
+    <input type="range" data-expected-width="50">
+  </div>
+
+  <div class="webkit-box">
+    <input type="button" value="XXXXXXX" data-expected-width="50">
+  </div>
+
+  <div class="webkit-box">
+    <input type="submit" value="XXXXXXX" data-expected-width="50">
+  </div>
+
+  <div class="webkit-box">
+    <input type="reset" value="XXXXXXX" data-expected-width="50">
+  </div>
+
+  <div class="webkit-box">
+    <textarea data-expected-width="50">XXXXXXX</textarea>
+  </div>
+
+  <div class="webkit-box">
+    <select data-expected-width="50">
+      <option>XXXXXXX</option>
+    </select>
+  </div>
+
+  <div class="webkit-box">
+    <!-- This is a special case: <fieldset> is not compressible
+         in blink, webkit, or gecko. -->
+    <fieldset data-expected-width="140">XXXXXXX</fieldset>
+  </div>
+
+  <div class="webkit-box">
+    <iframe data-expected-width="50"></iframe>
+  </div>
+
+  <div class="webkit-box">
+    <button data-expected-width="50">XXXXXXX</button>
+  </div>
+
+  <div class="webkit-box">
+    <canvas width="300" height="100" data-expected-width="50"></canvas>
+  </div>
+
+  <div class="webkit-box">
+    <video controls data-expected-width="50"></video>
+  </div>
+
+  <div class="webkit-box">
+    <audio controls data-expected-width="50"></audio>
+  </div>
+
+  <div class="webkit-box">
+    <progress data-expected-width="50"></progress>
+  </div>
+
+  <div class="webkit-box">
+    <meter data-expected-width="50"></meter>
+  </div>
+
+  <div class="webkit-box">
+    <details data-expected-width="50">XXXXXXX</details>
+  </div>
+
+  <div class="webkit-box">
+    <div style="width: 200px" data-expected-width="50">XXXXXXX</div>
+  </div>
+</body>
