@@ -391,21 +391,35 @@ void DecodedAudioProducer::ThreadData::dispatch_error(DecoderError&& error)
 void DecodedAudioProducer::ThreadData::flush_decoder()
 {
     m_decoder->flush();
+    m_converter->flush();
     m_last_output_frame = NumericLimits<i64>::min();
 }
 
 DecoderErrorOr<void> DecodedAudioProducer::ThreadData::retrieve_next_block(AudioBlock& block)
 {
-    TRY(m_decoder->write_next_block(block));
+    while (true) {
+        auto retrieve_result = m_converter->retrieve_block(block);
+        if (!retrieve_result.is_error()) {
+            if (block.first_frame_index() < m_last_output_frame)
+                block.set_first_frame_index(m_last_output_frame);
+            m_last_output_frame = block.end_frame_index();
+            return {};
+        }
+        if (retrieve_result.error().category() != DecoderErrorCategory::NeedsMoreInput)
+            return retrieve_result.release_error();
 
-    auto convert_result = m_converter->convert(block);
-    if (convert_result.is_error())
-        return DecoderError::format(DecoderErrorCategory::NotImplemented, "Sample specification conversion failed: {}", convert_result.error().string_literal());
+        auto write_result = m_decoder->write_next_block(block);
+        if (write_result.is_error()) {
+            if (write_result.error().category() != DecoderErrorCategory::EndOfStream)
+                return write_result.release_error();
+            m_converter->signal_end_of_stream();
+            continue;
+        }
 
-    if (block.first_frame_index() < m_last_output_frame)
-        block.set_first_frame_index(m_last_output_frame);
-    m_last_output_frame = block.end_frame_index();
-    return {};
+        auto push_result = m_converter->push_block(block);
+        if (push_result.is_error())
+            return DecoderError::format(DecoderErrorCategory::NotImplemented, "Sample specification conversion failed: {}", push_result.error().string_literal());
+    }
 }
 
 void DecodedAudioProducer::ThreadData::resolve_seek(u32 seek_id, bool moved_position)

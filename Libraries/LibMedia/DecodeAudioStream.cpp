@@ -66,6 +66,42 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
 
     DecodedAudioData data;
     Optional<Audio::SampleSpecification> target_specification;
+    auto push_decoded_block = [&](AudioBlock const& block) -> DecoderErrorOr<void> {
+        if (block.frame_count() == 0)
+            return {};
+
+        if (!target_specification.has_value())
+            target_specification = Audio::SampleSpecification { output_sample_rate.value_or(block.sample_specification().sample_rate()), block.sample_specification().channel_map() };
+        if (auto result = converter->set_output_sample_specification(*target_specification); result.is_error())
+            return DecoderError::format(DecoderErrorCategory::NotImplemented, "Unable to configure sample conversion: {}", result.error().string_literal());
+        if (auto result = converter->push_block(block); result.is_error())
+            return DecoderError::format(DecoderErrorCategory::NotImplemented, "Sample specification conversion failed: {}", result.error().string_literal());
+
+        return {};
+    };
+
+    auto retrieve_next_converted_block = [&](AudioBlock& block) -> DecoderErrorOr<void> {
+        while (true) {
+            auto retrieve_result = converter->retrieve_block(block);
+            if (!retrieve_result.is_error())
+                return {};
+            if (retrieve_result.error().category() != DecoderErrorCategory::NeedsMoreInput)
+                return retrieve_result.release_error();
+
+            auto block_result = decoder->write_next_block(block);
+            if (block_result.is_error()) {
+                if (block_result.error().category() != DecoderErrorCategory::EndOfStream)
+                    return block_result.release_error();
+                converter->signal_end_of_stream();
+                continue;
+            }
+
+            TRY(push_decoded_block(block));
+            block.clear();
+        }
+    };
+
+    AudioBlock block;
     auto end_of_stream_reached = false;
     while (!end_of_stream_reached) {
         auto sample_result = demuxer->get_next_sample_for_track(*track);
@@ -79,8 +115,7 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
         }
 
         while (true) {
-            AudioBlock block;
-            auto block_result = decoder->write_next_block(block);
+            auto block_result = retrieve_next_converted_block(block);
             if (block_result.is_error()) {
                 if (block_result.error().category() == DecoderErrorCategory::NeedsMoreInput)
                     break;
@@ -90,24 +125,10 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
                 }
                 return block_result.release_error();
             }
-            if (block.frame_count() == 0)
-                continue;
-
-            if (!target_specification.has_value())
-                target_specification = Audio::SampleSpecification { output_sample_rate.value_or(block.sample_specification().sample_rate()), block.sample_specification().channel_map() };
-            if (auto result = converter->set_output_sample_specification(*target_specification); result.is_error())
-                return DecoderError::format(DecoderErrorCategory::NotImplemented, "Unable to configure sample conversion: {}", result.error());
-            if (auto result = converter->convert(block); result.is_error())
-                return DecoderError::format(DecoderErrorCategory::NotImplemented, "Sample specification conversion failed: {}", result.error());
 
             TRY(append_block_samples(block, data));
         }
     }
-
-    AudioBlock converter_tail;
-    if (auto result = converter->flush(converter_tail); result.is_error())
-        return DecoderError::format(DecoderErrorCategory::NotImplemented, "Draining sample conversion failed: {}", result.error());
-    TRY(append_block_samples(converter_tail, data));
 
     if (!data.sample_specification.is_valid())
         return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Audio stream contains no samples"sv);

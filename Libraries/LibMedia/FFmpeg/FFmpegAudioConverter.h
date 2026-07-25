@@ -20,8 +20,10 @@ class MEDIA_API FFmpegAudioConverter final : public Audio::AudioConverter {
 public:
     static ErrorOr<NonnullOwnPtr<FFmpegAudioConverter>> try_create();
     virtual ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification) override;
-    virtual ErrorOr<void> convert(AudioBlock& input) override;
-    ErrorOr<void> flush(AudioBlock& output);
+    virtual ErrorOr<void> push_block(AudioBlock const&) override;
+    virtual DecoderErrorOr<void> retrieve_block(AudioBlock& into) override;
+    virtual void signal_end_of_stream() override;
+    virtual void flush() override;
 
     virtual ~FFmpegAudioConverter() override;
 
@@ -30,14 +32,14 @@ private:
 
     ErrorOr<void> set_input_sample_specification(Audio::SampleSpecification);
     ErrorOr<void> set_sample_specifications(Audio::SampleSpecification input, Audio::SampleSpecification output);
-    void free_output_buffer();
     ErrorOr<int> get_maximum_output_frames(size_t input_size) const;
 
     Audio::SampleSpecification m_input_sample_specification;
     Audio::SampleSpecification m_output_sample_specification;
     SwrContext* m_context { nullptr };
-    u8** m_output_buffers { nullptr };
-    int m_output_buffer_frame_count { 0 };
+    AudioBlock m_buffered_block;
+    AK::Duration m_converted_media_time_end;
+    bool m_end_of_stream { false };
 };
 
 }
