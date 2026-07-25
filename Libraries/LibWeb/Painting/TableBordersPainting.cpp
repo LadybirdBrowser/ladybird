@@ -7,7 +7,7 @@
 #include <AK/HashMap.h>
 #include <AK/QuickSort.h>
 #include <AK/Traits.h>
-#include <LibWeb/Layout/TableFormattingContext.h>
+#include <LibWeb/Layout/TableGrid.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/TableBordersPainting.h>
@@ -269,7 +269,7 @@ static void paint_collected_edges(DisplayListRecordingContext& context, Vector<B
             }
             return a.row.has_value() ? b.row.value() < a.row.value() : false;
         }
-        return Layout::TableFormattingContext::border_is_less_specific(
+        return Layout::TableGrid::border_is_less_specific(
             css_border_data_from_device_border_data(a_border_data),
             css_border_data_from_device_border_data(b_border_data));
     });

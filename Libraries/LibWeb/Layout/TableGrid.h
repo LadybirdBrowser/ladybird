@@ -52,6 +52,8 @@ public:
     // Overload for callers that don't care about rows and cells (currently the layout tree builder).
     static TableGrid calculate_row_column_grid(Box const& box);
 
+    static bool border_is_less_specific(CSS::BorderData const& a, CSS::BorderData const& b);
+
     size_t column_count() const { return m_column_count; }
     HashMap<GridPosition, bool> const& occupancy_grid() const { return m_occupancy_grid; }
 
