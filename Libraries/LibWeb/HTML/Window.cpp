@@ -465,6 +465,10 @@ Optional<CSS::FeatureValue> Window::query_media_feature(CSS::MediaFeatureID medi
         return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Srgb));
     case CSS::MediaFeatureID::VideoDynamicRange:
         return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Standard));
+    case CSS::MediaFeatureID::WebkitTransform3d:
+        // https://compat.spec.whatwg.org/#css-media-queries-webkit-transform-3d
+        // If the user agent supports 3D transforms, the value will be 1. Otherwise the value is 0.
+        return CSS::FeatureValue(CSS::FeatureValue::Type::Integer, CSS::IntegerStyleValue::create(1));
     case CSS::MediaFeatureID::Width:
         return CSS::FeatureValue(CSS::FeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(inner_width())));
 
