@@ -76,7 +76,7 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
     VERIFY_NOT_REACHED();
 }
 
-static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_count, size_t expected_frame_count, Optional<Audio::ChannelMap> expected_channel_map = {})
+static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_count, size_t expected_frame_count, Optional<Audio::ChannelMap> expected_channel_map = {}, Optional<Audio::SampleSpecification> converted_sample_specification = {})
 {
     auto& loop = never_destroyed_event_loop();
 
@@ -91,6 +91,8 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
     auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
     VERIFY(!tracks.is_empty());
     auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(loop, demuxer, tracks[0]));
+    if (converted_sample_specification.has_value())
+        TRY_OR_FAIL(producer->set_output_sample_specification(*converted_sample_specification));
 
     producer->set_error_handler([&](Media::DecoderError&&) {
         FAIL("An error occurred while decoding.");
