@@ -5,8 +5,7 @@
  */
 
 use crate::abort_on_panic;
-use crate::layout::node_data::NodeData;
-use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{MAX_NODE_SLOT_COUNT, NodeData, NodeSlotId};
 use std::ffi::c_void;
 use std::thread;
 
@@ -34,7 +33,7 @@ fn new_chunk() -> Box<Chunk> {
 
 #[derive(Clone, Copy, Default)]
 struct SlotMetadata {
-    generation: u32,
+    generation: u8,
     occupied: bool,
 }
 
@@ -72,6 +71,10 @@ impl LayoutNodeArena {
             index
         } else {
             let index = self.next_index;
+            assert!(
+                index < MAX_NODE_SLOT_COUNT,
+                "layout node arena exhausted its 24-bit slot index space"
+            );
             if (index as usize).is_multiple_of(SLOTS_PER_CHUNK) {
                 self.chunks.push(new_chunk());
             }
@@ -90,51 +93,68 @@ impl LayoutNodeArena {
 
         let metadata = self.metadata_mut(index);
         assert!(!metadata.occupied, "layout node arena allocated a live slot");
-        metadata.generation = metadata.generation.wrapping_add(1);
-        if metadata.generation == 0 {
-            metadata.generation = 1;
-        }
+        metadata.generation = metadata
+            .generation
+            .checked_add(1)
+            .expect("retired layout node arena slot was reused");
         metadata.occupied = true;
         let generation = metadata.generation;
+        self.data_mut(index).slot_generation = generation;
 
         NodeAllocation {
-            slot: NodeSlotId { index },
+            slot: NodeSlotId::new(index, generation),
             data: self.data_mut(index),
-            generation,
+            generation: u32::from(generation),
         }
     }
 
     fn free(&mut self, id: NodeSlotId, generation: u32) {
         self.assert_owner_thread();
 
-        let metadata = self.metadata_mut(id.index);
+        assert!(!id.is_invalid(), "invalid layout node arena slot ID");
+        let index = id.slot_index();
+        let id_generation = id.generation();
+        assert_eq!(
+            u32::from(id_generation),
+            generation,
+            "layout node arena slot ID and allocation generation disagree"
+        );
+        let metadata = self.metadata_mut(index);
         assert!(metadata.occupied, "layout node arena freed an unused slot");
         assert_eq!(
-            metadata.generation, generation,
+            metadata.generation, id_generation,
             "layout node arena freed a stale slot generation"
         );
         metadata.occupied = false;
-        *self.data_mut(id.index) = NodeData::default();
+        let should_reuse = metadata.generation != u8::MAX;
+        *self.data_mut(index) = NodeData::default();
 
         self.live_count = self
             .live_count
             .checked_sub(1)
             .expect("layout node arena live count underflowed");
-        self.free_list.push(id.index);
+        if should_reuse {
+            self.free_list.push(index);
+        }
     }
 
     pub(crate) fn data(&self, id: NodeSlotId) -> *mut NodeData {
         assert!(!id.is_invalid(), "invalid layout node arena slot ID");
-        debug_assert!(
-            self.metadata(id.index).occupied,
-            "layout node arena read an unused slot"
-        );
-        let index = id.index as usize;
+        let index = id.slot_index() as usize;
         let chunk = self
             .chunks
             .get(index / SLOTS_PER_CHUNK)
             .expect("invalid layout node arena slot ID");
-        (&raw const chunk.slots[index % SLOTS_PER_CHUNK]).cast_mut()
+        let data = (&raw const chunk.slots[index % SLOTS_PER_CHUNK]).cast_mut();
+        // SAFETY: The chunk bounds check above established that data addresses
+        // an initialized NodeData slot.
+        let generation = unsafe { (&raw const (*data).slot_generation).read() };
+        assert_eq!(
+            generation,
+            id.generation(),
+            "layout node arena read a stale or unused slot"
+        );
+        data
     }
 
     fn data_mut(&mut self, index: u32) -> &mut NodeData {
@@ -146,6 +166,7 @@ impl LayoutNodeArena {
         &mut chunk.slots[index % SLOTS_PER_CHUNK]
     }
 
+    #[allow(dead_code)]
     fn metadata(&self, index: u32) -> &SlotMetadata {
         self.slot_metadata
             .get(index as usize)
@@ -248,8 +269,21 @@ mod tests {
         arena.free(first.slot, first.generation);
 
         let second = arena.allocate();
-        assert_eq!(second.slot, first.slot);
+        assert_eq!(second.slot.slot_index(), first.slot.slot_index());
+        assert_ne!(second.slot, first.slot);
         assert_ne!(second.generation, first.generation);
+        arena.free(second.slot, second.generation);
+    }
+
+    #[test]
+    fn stale_slot_ids_do_not_resolve_to_a_new_occupant() {
+        let mut arena = LayoutNodeArena::new();
+        let first = arena.allocate();
+        arena.free(first.slot, first.generation);
+        let second = arena.allocate();
+
+        let stale_read = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| arena.data(first.slot)));
+        assert!(stale_read.is_err());
         arena.free(second.slot, second.generation);
     }
 }
