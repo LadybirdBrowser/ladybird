@@ -951,7 +951,7 @@ void WebContentView::create_vulkan_window()
     m_vulkan_window_container->setGeometry(rect());
     m_vulkan_window_container->hide();
 
-    install_native_window_container_focus_forwarding(*this, *m_vulkan_window, *m_vulkan_window_container);
+    install_native_window_container_event_forwarding(*this, *m_vulkan_window, *m_vulkan_window_container);
 }
 
 bool WebContentView::vulkan_window_has_native_focus() const
