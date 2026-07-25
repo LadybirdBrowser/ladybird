@@ -2917,8 +2917,11 @@ RefPtr<PositionStyleValue const> Parser::parse_position_value(TokenStream<Compon
         auto keyword = keyword_from_string(token.token().ident());
         if (!keyword.has_value())
             return {};
+        auto edge = keyword_to_position_edge(*keyword);
+        if (!edge.has_value())
+            return {};
         transaction.commit();
-        return keyword_to_position_edge(*keyword);
+        return edge;
     };
 
     auto is_horizontal = [](PositionEdge edge, bool accept_center) -> bool {
