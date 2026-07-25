@@ -45,8 +45,11 @@ ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> AnonymousBufferImpl::create(int fd, 
     void* ptr = nullptr;
     if (size > 0) {
         ptr = MapViewOfFile(to_handle(fd), FILE_MAP_ALL_ACCESS, 0, 0, size);
-        if (!ptr)
-            return Error::from_windows_error();
+        if (!ptr) {
+            auto error = Error::from_windows_error();
+            CloseHandle(to_handle(fd));
+            return error;
+        }
     }
 
     return adopt_ref(*new AnonymousBufferImpl(fd, size, ptr));

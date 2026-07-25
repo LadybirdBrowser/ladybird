@@ -24,10 +24,19 @@ ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> AnonymousBufferImpl::create(int fd, 
     // POSIX mmap rejects a zero length with EINVAL, so leave m_data null for zero-size buffers.
     if (size > 0) {
         data = mmap(nullptr, round_up_to_power_of_two(size, PAGE_SIZE), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        if (data == MAP_FAILED)
-            return Error::from_errno(errno);
+        if (data == MAP_FAILED) {
+            auto error = Error::from_errno(errno);
+            close(fd);
+            return error;
+        }
     }
-    return AK::adopt_nonnull_ref_or_enomem(new (nothrow) AnonymousBufferImpl(fd, size, data));
+    auto impl_or_error = AK::adopt_nonnull_ref_or_enomem(new (nothrow) AnonymousBufferImpl(fd, size, data));
+    if (impl_or_error.is_error()) {
+        close(fd);
+        if (data != nullptr)
+            munmap(data, round_up_to_power_of_two(size, PAGE_SIZE));
+    }
+    return impl_or_error;
 }
 
 AnonymousBufferImpl::~AnonymousBufferImpl()
