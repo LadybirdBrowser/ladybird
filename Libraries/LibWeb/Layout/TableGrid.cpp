@@ -10,6 +10,61 @@
 
 namespace Web::Layout {
 
+static unsigned line_style_score(CSS::LineStyle line_style)
+{
+    switch (line_style) {
+    case CSS::LineStyle::Inset:
+        return 0;
+    case CSS::LineStyle::Groove:
+        return 1;
+    case CSS::LineStyle::Outset:
+        return 2;
+    case CSS::LineStyle::Ridge:
+        return 3;
+    case CSS::LineStyle::Dotted:
+        return 4;
+    case CSS::LineStyle::Dashed:
+        return 5;
+    case CSS::LineStyle::Solid:
+        return 6;
+    case CSS::LineStyle::Double:
+        return 7;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+bool TableGrid::border_is_less_specific(CSS::BorderData const& a, CSS::BorderData const& b)
+{
+    // Implements criteria for steps 1, 2 and 3 of border conflict resolution algorithm, as described in
+    // https://www.w3.org/TR/CSS22/tables.html#border-conflict-resolution.
+
+    // 1. Borders with the 'border-style' of 'hidden' take precedence over all other conflicting borders. Any border with this
+    //    value suppresses all borders at this location.
+    if (a.line_style == CSS::LineStyle::Hidden) {
+        return false;
+    }
+
+    if (b.line_style == CSS::LineStyle::Hidden) {
+        return true;
+    }
+
+    // 2. Borders with a style of 'none' have the lowest priority. Only if the border properties of all the elements meeting
+    //    at this edge are 'none' will the border be omitted (but note that 'none' is the default value for the border style.)
+    if (a.line_style == CSS::LineStyle::None) {
+        return true;
+    }
+    if (b.line_style == CSS::LineStyle::None) {
+        return false;
+    }
+    // 3. If none of the styles are 'hidden' and at least one of them is not 'none', then narrow borders are discarded in favor
+    //    of wider ones. If several have the same 'border-width' then styles are preferred in this order: 'double', 'solid',
+    //    'dashed', 'dotted', 'ridge', 'outset', 'groove', and the lowest: 'inset'.
+    if (a.width != b.width)
+        return a.width < b.width;
+    return line_style_score(a.line_style) < line_style_score(b.line_style);
+}
+
 TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cells, Vector<Row>& rows)
 {
     // Implements https://html.spec.whatwg.org/multipage/tables.html#forming-a-table
