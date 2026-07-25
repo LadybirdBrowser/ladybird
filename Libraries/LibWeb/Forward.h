@@ -986,6 +986,7 @@ class LineBoxFragment;
 class ListItemBox;
 class ListItemMarkerBox;
 class Node;
+class NodeArena;
 class NodeWithStyle;
 class NodeWithStyleAndBoxModelMetrics;
 class RadioButton;

@@ -8,6 +8,8 @@
 #[path = "../../../../RustAllocator.rs"]
 mod rust_allocator;
 
+mod layout_node_arena;
+pub mod node_data;
 mod tree_builder;
 
 use std::panic::AssertUnwindSafe;

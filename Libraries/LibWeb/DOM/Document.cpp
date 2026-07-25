@@ -188,6 +188,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/ScrollableOverflow.h>
@@ -618,6 +619,15 @@ Document::Document(JS::Realm& realm, URL::URL const& url)
 }
 
 Document::~Document() = default;
+
+Layout::NodeArena& Document::layout_node_arena()
+{
+    // Created on first layout node so documents that never build a layout tree (e.g. temporary
+    // fragment-parsing documents) skip the Rust arena round-trip entirely.
+    if (!m_layout_node_arena)
+        m_layout_node_arena = make_ref_counted<Layout::NodeArena>();
+    return *m_layout_node_arena;
+}
 
 void Document::set_temporary_document_for_fragment_parsing(Badge<HTML::HTMLParser>)
 {

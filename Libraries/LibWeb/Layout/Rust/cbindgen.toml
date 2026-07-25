@@ -19,5 +19,8 @@ parse_deps = false
 [parse.expand]
 all_features = false
 
+[export]
+include = ["NodeAllocation", "NodeData", "NodeFlag", "NodeKind", "NodeSlotId"]
+
 [export.mangle]
 rename_types = "PascalCase"
