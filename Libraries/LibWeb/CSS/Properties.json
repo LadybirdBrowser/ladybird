@@ -4527,7 +4527,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
-    "max-values": 2,
+    "max-values": 3,
     "requires-computation": "never",
     "valid-types": [
       "touch-action"

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.createElement("div");
+        document.body.appendChild(target);
+        for (const value of [
+            "pan-x pan-y pinch-zoom",
+            "pinch-zoom pan-x pan-y",
+            "pan-y pinch-zoom",
+            "pinch-zoom",
+            "manipulation",
+            "pan-up pan-x",
+        ]) {
+            target.style.touchAction = "";
+            target.style.touchAction = value;
+            println(`${value} -> specified [${target.style.touchAction}] computed [${getComputedStyle(target).touchAction}]`);
+        }
+    });
+</script>

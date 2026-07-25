@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	explicit-pinch-zoom
+Pass	explicit-pinch-zoom-pan-x-pan-up
+Pass	explicit-pinch-zoom-pan-x-pan-y
+Pass	explicit-invalid-14

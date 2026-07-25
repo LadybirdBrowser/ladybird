@@ -1577,6 +1577,8 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             values.append(KeywordStyleValue::create(Keyword::PanUp));
         else if (action.allow_down)
             values.append(KeywordStyleValue::create(Keyword::PanDown));
+        if (action.allow_pinch_zoom)
+            values.append(KeywordStyleValue::create(Keyword::PinchZoom));
         return StyleValueList::create(move(values), StyleValueList::Separator::Space);
     }
     case PropertyID::Translate:
@@ -3809,6 +3811,9 @@ TouchActionData ComputedProperties::touch_action() const
                 break;
             case Keyword::PanDown:
                 touch_action_data.allow_down = true;
+                break;
+            case Keyword::PinchZoom:
+                touch_action_data.allow_pinch_zoom = true;
                 break;
             default:
                 VERIFY_NOT_REACHED();
