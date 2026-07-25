@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<map name="m">
+    <area id="linked" shape="rect" coords="0,0,50,50" href="#target" alt="target">
+</map>
+<map name="n">
+    <area id="imageless" shape="rect" coords="0,0,50,50" href="#other" alt="other">
+</map>
+<map name="o">
+    <area id="inert-image" shape="rect" coords="0,0,50,50" href="#inert-image-target" alt="inert image target">
+</map>
+<map name="p">
+    <area id="inert-ancestor" shape="rect" coords="0,0,50,50" href="#inert-ancestor-target" alt="inert ancestor target">
+</map>
+<img usemap="#m" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" width="100" height="100" alt="image map">
+<img inert usemap="#o" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" width="100" height="100" alt="inert image map">
+<div inert><img usemap="#p" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" width="100" height="100" alt="image map with inert ancestor"></div>
+<script>
+    test(() => {
+        const linked = document.getElementById("linked");
+        linked.focus();
+        println(`area with a rendered image can be focused: ${document.activeElement === linked}`);
+
+        const imageless = document.getElementById("imageless");
+        imageless.focus();
+        println(`area without an associated image cannot be focused: ${document.activeElement !== imageless}`);
+
+        const inertImage = document.getElementById("inert-image");
+        inertImage.focus();
+        println(`area whose associated image is inert cannot be focused: ${document.activeElement !== inertImage}`);
+
+        const inertAncestor = document.getElementById("inert-ancestor");
+        inertAncestor.focus();
+        println(`area whose associated image has an inert ancestor cannot be focused: ${document.activeElement !== inertAncestor}`);
+    });
+</script>

@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/Focus.h>
+#include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
@@ -248,6 +249,12 @@ static bool document_has_focusable_viewport(DOM::Document& document)
 
 static bool is_inert_for_focus(DOM::Node const& node)
 {
+    // The shapes of area elements in an image map have their associated img element as their DOM anchor, so inertness
+    // applies to the image rather than the area element. HTMLAreaElement::is_focusable() accounts for the inertness of
+    // the associated image.
+    if (is<HTMLAreaElement>(node))
+        return false;
+
     return node.find_in_shadow_including_ancestry([](auto const& ancestor) {
         return ancestor.is_inert();
     });

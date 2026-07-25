@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
+#include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Window.h>
 
@@ -199,6 +200,22 @@ i32 HTMLAreaElement::default_tab_index_value() const
 {
     // See the base function for the spec comments.
     return 0;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
+bool HTMLAreaElement::is_focusable() const
+{
+    // NB: Platform conventions decide whether an area element without a tabindex attribute is a focusable area. Like
+    //     other engines, only area elements that create a hyperlink are considered focusable areas.
+    if (!creates_a_hyperlink() && !HTML::parse_integer(get_attribute_value_view(HTML::AttributeNames::tabindex).value_or({})).has_value())
+        return false;
+
+    // The shapes of area elements in an image map associated with an img element that is being rendered and is not
+    // inert.
+    // NB: Area elements are never rendered themselves, so the rendering and inertness requirements apply to an
+    //     associated image element instead.
+    auto const* map_element = first_ancestor_of_type<HTMLMapElement>();
+    return map_element && map_element->first_image_with_focusable_shapes();
 }
 
 Optional<ARIA::Role> HTMLAreaElement::default_role() const
