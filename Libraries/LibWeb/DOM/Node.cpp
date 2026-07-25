@@ -50,7 +50,6 @@
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
-#include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -199,14 +198,14 @@ Utf16String Node::base_uri() const
     return utf16_string_from_url_ascii(document().base_url().to_string());
 }
 
-HTML::HTMLAnchorElement const* Node::enclosing_link_element() const
+HTML::HTMLHyperlinkElementUtils const* Node::enclosing_link_element() const
 {
     for (auto* node = this; node; node = node->parent()) {
-        auto const* anchor_element = as_if<HTML::HTMLAnchorElement>(*node);
-        if (!anchor_element)
+        auto const* element = as_if<Element>(*node);
+        if (!element)
             continue;
-        if (anchor_element->has_attribute(HTML::AttributeNames::href))
-            return anchor_element;
+        if (auto const* hyperlink = element->created_hyperlink())
+            return hyperlink;
     }
     return nullptr;
 }
