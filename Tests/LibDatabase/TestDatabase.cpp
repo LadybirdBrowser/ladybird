@@ -589,6 +589,45 @@ TEST_CASE(typed_integer_reads_check_range_and_storage_class)
     }));
 }
 
+TEST_CASE(borrowed_bytes_bind_as_blobs)
+{
+    auto database = TRY_OR_FAIL(DB::create_memory_backed());
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE t (b BLOB);"sv));
+
+    auto insert = TRY_OR_FAIL(database->prepare_statement("INSERT INTO t (b) VALUES (:b);"sv));
+    auto select = TRY_OR_FAIL(database->prepare_statement("SELECT b, typeof(b) AS kind, b IS NULL AS absent FROM t;"sv));
+    auto no_binds = [](auto&) -> ErrorOr<void> { return {}; };
+
+    auto payload = MUST(ByteBuffer::copy("\x01\x02\x03"sv.bytes()));
+    TRY_OR_FAIL(database->try_execute_bound_statement(insert, [&](auto& bind) -> ErrorOr<void> {
+        return bind("b"sv, payload.bytes());
+    }));
+    TRY_OR_FAIL(database->try_execute_bound_statement(select, no_binds, [&](Database::ResultRow& row) -> ErrorOr<void> {
+        EXPECT_EQ(TRY(row.read_text("kind"sv, 16)), "blob"_string);
+        EXPECT_EQ(TRY(row.read_bool("absent"sv)), false);
+        EXPECT_EQ(TRY(row.read_blob("b"sv, 1024)), payload);
+        return {};
+    }));
+
+    auto store = [&](ReadonlyBytes bytes) {
+        TRY_OR_FAIL(database->execute_raw("DELETE FROM t;"sv));
+        TRY_OR_FAIL(database->try_execute_bound_statement(insert, [&](auto& bind) -> ErrorOr<void> {
+            return bind("b"sv, bytes);
+        }));
+    };
+
+    ByteBuffer const empty_buffer {};
+    for (auto bytes : { ReadonlyBytes {}, empty_buffer.bytes() }) {
+        store(bytes);
+        TRY_OR_FAIL(database->try_execute_bound_statement(select, no_binds, [&](Database::ResultRow& row) -> ErrorOr<void> {
+            EXPECT_EQ(TRY(row.read_text("kind"sv, 16)), "blob"_string);
+            EXPECT_EQ(TRY(row.read_bool("absent"sv)), false);
+            EXPECT(TRY(row.read_blob("b"sv, 1024)).is_empty());
+            return {};
+        }));
+    }
+}
+
 TEST_CASE(optional_placeholders_bind_null_when_empty)
 {
     auto database = TRY_OR_FAIL(DB::create_memory_backed());

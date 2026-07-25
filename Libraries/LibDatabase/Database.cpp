@@ -56,6 +56,10 @@ static constexpr StringView sql_error(int error_code)
     __ENUMERATE_TYPE(double)       \
     __ENUMERATE_TYPE(bool)
 
+#define ENUMERATE_SQL_BIND_ONLY_TYPES \
+    __ENUMERATE_TYPE(Bytes)           \
+    __ENUMERATE_TYPE(ReadonlyBytes)
+
 ErrorOr<NonnullRefPtr<Database>> Database::create_memory_backed(Options options)
 {
     sqlite3* sql_database { nullptr };
@@ -208,7 +212,16 @@ void Database::apply_placeholder(StatementID statement_id, int index, ValueType 
     template DATABASE_API void Database::apply_placeholder(StatementID, int, type const&); \
     template DATABASE_API void Database::apply_placeholder(StatementID, int, Optional<type> const&);
 ENUMERATE_SQL_TYPES
+ENUMERATE_SQL_BIND_ONLY_TYPES
 #undef __ENUMERATE_TYPE
+
+static ErrorOr<void> bind_blob_bytes(sqlite3_stmt* statement, int index, ReadonlyBytes bytes)
+{
+    // SQLite binds a null pointer as NULL, so empty blobs need a non-null sentinel.
+    static constexpr u8 empty_blob {};
+    SQL_TRY(sqlite3_bind_blob64(statement, index, bytes.is_empty() ? &empty_blob : bytes.data(), bytes.size(), SQLITE_TRANSIENT));
+    return {};
+}
 
 template<typename ValueType>
 ErrorOr<void> Database::try_apply_placeholder(StatementID statement_id, int index, ValueType const& value)
@@ -222,13 +235,15 @@ ErrorOr<void> Database::try_apply_placeholder(StatementID statement_id, int inde
         }
         TRY(try_apply_placeholder(statement_id, index, *value));
     } else if constexpr (IsSame<ValueType, String>) {
-        StringView string { value };
-        SQL_TRY(sqlite3_bind_text(statement, index, string.characters_without_null_termination(), static_cast<int>(string.length()), SQLITE_TRANSIENT));
+        auto bytes = value.bytes();
+        SQL_TRY(sqlite3_bind_text64(statement, index, reinterpret_cast<char const*>(bytes.data()), bytes.size(), SQLITE_TRANSIENT, SQLITE_UTF8));
     } else if constexpr (IsSame<ValueType, Utf16String>) {
         // Stored as WTF-8 TEXT; SQLite's own UTF-16 interface would replace lonely surrogates with U+FFFD.
         TRY(try_apply_placeholder(statement_id, index, value.to_utf8()));
     } else if constexpr (IsSame<ValueType, ByteString>) {
-        SQL_TRY(sqlite3_bind_blob(statement, index, value.characters(), static_cast<int>(value.length()), SQLITE_TRANSIENT));
+        TRY(bind_blob_bytes(statement, index, value.bytes()));
+    } else if constexpr (IsOneOf<ValueType, Bytes, ReadonlyBytes>) {
+        TRY(bind_blob_bytes(statement, index, value));
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
         TRY(try_apply_placeholder(statement_id, index, value.offset_to_epoch().to_milliseconds()));
     } else if constexpr (IsSame<ValueType, double>) {
@@ -248,6 +263,7 @@ ErrorOr<void> Database::try_apply_placeholder(StatementID statement_id, int inde
     template DATABASE_API ErrorOr<void> Database::try_apply_placeholder(StatementID, int, type const&); \
     template DATABASE_API ErrorOr<void> Database::try_apply_placeholder(StatementID, int, Optional<type> const&);
 ENUMERATE_SQL_TYPES
+ENUMERATE_SQL_BIND_ONLY_TYPES
 #undef __ENUMERATE_TYPE
 
 template<typename ValueType>
@@ -345,6 +361,7 @@ ErrorOr<void> Database::bind_parameter(StatementID statement_id, StringView name
     template DATABASE_API ErrorOr<void> Database::bind_parameter(StatementID, StringView, type const&); \
     template DATABASE_API ErrorOr<void> Database::bind_parameter(StatementID, StringView, Optional<type> const&);
 ENUMERATE_SQL_TYPES
+ENUMERATE_SQL_BIND_ONLY_TYPES
 #undef __ENUMERATE_TYPE
 
 ErrorOr<void> Database::try_step_bound_statement(StatementID statement_id, OnResultRow on_result)
