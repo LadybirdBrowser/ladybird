@@ -325,13 +325,30 @@ bool FlexFormattingContext::main_axis_is_parallel_to_inline_axis(Box const& box)
     return main_axis_is_horizontal() == inline_axis_is_horizontal(box);
 }
 
+CSS::FlexWrap FlexFormattingContext::used_flex_wrap() const
+{
+    // AD-HOC: A legacy webkit box is always single-line; `flex-wrap` does not apply, matching other engines.
+    if (is_legacy_webkit_box())
+        return CSS::FlexWrap::Nowrap;
+    return flex_container().computed_values().flex_wrap();
+}
+
+double FlexFormattingContext::flex_shrink_factor(FlexItem const& item) const
+{
+    // AD-HOC: Items in a legacy webkit box resolve their flex shrink factor from `-webkit-box-flex`, which we
+    //         implement as an alias for `flex-grow`; `flex-shrink` does not apply, matching other engines.
+    if (is_legacy_webkit_box())
+        return item.box.computed_values().flex_grow();
+    return item.box.computed_values().flex_shrink();
+}
+
 bool FlexFormattingContext::cross_axis_is_reverse() const
 {
     auto const& computed_values = flex_container().computed_values();
     auto reverse = main_axis_is_parallel_to_inline_axis(flex_container())
         ? computed_values.block_axis_is_reverse()
         : computed_values.inline_axis_is_reverse();
-    if (computed_values.flex_wrap() == CSS::FlexWrap::WrapReverse)
+    if (used_flex_wrap() == CSS::FlexWrap::WrapReverse)
         reverse = !reverse;
     return reverse;
 }
@@ -878,6 +895,10 @@ void FlexFormattingContext::determine_flex_base_size(FlexItem& item)
 // https://drafts.csswg.org/css-flexbox-1/#min-size-auto
 CSSPixels FlexFormattingContext::automatic_minimum_size(FlexItem const& item) const
 {
+    // AD-HOC: Items in a legacy webkit box have an automatic minimum size of zero, matching other engines.
+    if (is_legacy_webkit_box())
+        return 0;
+
     // To provide a more reasonable default minimum size for flex items,
     // the used value of a main axis automatic minimum size on a flex item that is not a scroll container is its content-based minimum size;
     // for scroll containers the automatic minimum size is zero, as usual.
@@ -1071,7 +1092,7 @@ void FlexFormattingContext::resolve_flexible_lengths_for_line(FlexLine& line)
         if (used_flex_factor == FlexFactor::FlexGrowFactor) {
             item.flex_factor = item.box.computed_values().flex_grow();
         } else if (used_flex_factor == FlexFactor::FlexShrinkFactor) {
-            item.flex_factor = item.box.computed_values().flex_shrink();
+            item.flex_factor = flex_shrink_factor(item);
         }
         // Freeze, setting its target main size to its hypothetical main size…
         // - any item that has a flex factor of zero
@@ -1323,7 +1344,7 @@ void FlexFormattingContext::save_flex_layout_data() const
             layout_item.main_min_size_property = MUST(String::formatted("{}", computed_main_min_size(item.box)));
             layout_item.main_max_size_property = MUST(String::formatted("{}", computed_main_max_size(item.box)));
             layout_item.flex_grow = item.box.computed_values().flex_grow();
-            layout_item.flex_shrink = item.box.computed_values().flex_shrink();
+            layout_item.flex_shrink = flex_shrink_factor(item);
             layout_line.items.append(move(layout_item));
         }
 
@@ -1740,7 +1761,7 @@ void FlexFormattingContext::align_all_flex_items_along_the_cross_axis()
             case CSS::AlignItems::Normal:
                 // https://drafts.csswg.org/css-flexbox/#flex-wrap-property
                 // When flex-wrap is wrap-reverse, the cross-start and cross-end directions are swapped.
-                if (flex_container().computed_values().flex_wrap() == CSS::FlexWrap::WrapReverse) {
+                if (used_flex_wrap() == CSS::FlexWrap::WrapReverse) {
                     item.cross_offset = half_line_size - item.cross_size.value() - item.margins.cross_after - item.borders.cross_after - item.padding.cross_after;
                 } else {
                     item.cross_offset = -half_line_size + item.margins.cross_before + item.borders.cross_before + item.padding.cross_before;
@@ -2068,7 +2089,7 @@ CSSPixels FlexFormattingContext::calculate_intrinsic_main_size_of_flex_container
         for (auto& item : flex_line.items) {
             greatest_desired_flex_fraction = max(greatest_desired_flex_fraction, item.desired_flex_fraction);
             sum_of_flex_grow_factors += item.box.computed_values().flex_grow();
-            sum_of_flex_shrink_factors += item.box.computed_values().flex_shrink();
+            sum_of_flex_shrink_factors += flex_shrink_factor(item);
         }
         float chosen_flex_fraction = greatest_desired_flex_fraction;
 
