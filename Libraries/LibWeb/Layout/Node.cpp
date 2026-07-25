@@ -23,6 +23,7 @@
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -38,10 +39,27 @@
 
 namespace Web::Layout {
 
-Node::Node(DOM::Document& document, DOM::Node* node, AttachToDOMNode attach_to_dom_node)
-    : m_dom_node(node ? *node : document)
-    , m_anonymous(node == nullptr)
+NodeArenaAllocation::NodeArenaAllocation(DOM::Document& document)
+    : m_arena(document.layout_node_arena())
 {
+    auto allocation = m_arena->allocate();
+    m_slot = allocation.slot;
+    m_data = allocation.data;
+    m_slot_generation = allocation.generation;
+}
+
+NodeArenaAllocation::~NodeArenaAllocation()
+{
+    m_arena->free(m_slot, m_slot_generation);
+}
+
+Node::Node(DOM::Document& document, DOM::Node* node, AttachToDOMNode attach_to_dom_node)
+    : NodeArenaAllocation(document)
+    , m_dom_node(node ? *node : document)
+{
+    set_node_kind(RustFFI::NodeKind::Node);
+    set_flag(RustFFI::NodeFlag::Anonymous, node == nullptr);
+
     if (node && attach_to_dom_node == AttachToDOMNode::Yes)
         node->set_layout_node({}, *this);
 }
@@ -50,6 +68,32 @@ Node::~Node()
 {
     if (m_paintable)
         m_paintable->detach_from_layout_node({});
+}
+
+RustFFI::NodeSlotId Node::slot_id(Node const* node)
+{
+    return node ? node->m_slot : RustFFI::NodeSlotId_INVALID;
+}
+
+void Node::synchronize_topology()
+{
+    m_data->parent = slot_id(Base::parent_ptr());
+    m_data->first_child = slot_id(Base::first_child_ptr());
+    m_data->last_child = slot_id(Base::last_child_ptr());
+    m_data->previous_sibling = slot_id(Base::previous_sibling_ptr());
+    m_data->next_sibling = slot_id(Base::next_sibling_ptr());
+}
+
+void Node::set_containing_block(Box* containing_block)
+{
+    m_containing_block = containing_block;
+    m_data->containing_block = slot_id(containing_block);
+}
+
+void Node::set_inline_containing_block(InlineNode const* containing_block)
+{
+    m_inline_containing_block_if_applicable = containing_block;
+    m_data->inline_containing_block = slot_id(containing_block);
 }
 
 static void invalidate_paint_caches(Node& node)
@@ -283,10 +327,10 @@ static Box* nearest_ancestor_capable_of_forming_a_containing_block(Node& node)
 void Node::recompute_containing_block(Badge<DOM::Document>)
 {
     // Reset the inline containing block - we'll set it below if applicable.
-    m_inline_containing_block_if_applicable = nullptr;
+    set_inline_containing_block(nullptr);
 
     if (is<TextNode>(*this)) {
-        m_containing_block = nearest_ancestor_capable_of_forming_a_containing_block(*this);
+        set_containing_block(nearest_ancestor_capable_of_forming_a_containing_block(*this));
         return;
     }
 
@@ -297,7 +341,7 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
         auto* ancestor = parent();
         while (ancestor && !ancestor->establishes_an_absolute_positioning_containing_block())
             ancestor = ancestor->parent();
-        m_containing_block = static_cast<Box*>(ancestor);
+        set_containing_block(static_cast<Box*>(ancestor));
 
         // FIXME: Containing block handling for absolutely positioned elements needs architectural improvements.
         //
@@ -355,7 +399,7 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
                     || computed_values.filter().has_filters() || will_change.has_property(CSS::PropertyID::Filter)
                     || computed_values.backdrop_filter().has_filters() || will_change.has_property(CSS::PropertyID::BackdropFilter);
                 if (inline_establishes_cb) {
-                    m_inline_containing_block_if_applicable = &as<InlineNode>(*layout_node);
+                    set_inline_containing_block(&as<InlineNode>(*layout_node));
                     break;
                 }
             }
@@ -382,11 +426,11 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
             //   page. (They are fixed with respect to the page box only, and are not affected by being seen through a
             //   viewport; as in the case of print preview, for example.)
         }
-        m_containing_block = static_cast<Box*>(ancestor);
+        set_containing_block(static_cast<Box*>(ancestor));
         return;
     }
 
-    m_containing_block = nearest_ancestor_capable_of_forming_a_containing_block(*this);
+    set_containing_block(nearest_ancestor_capable_of_forming_a_containing_block(*this));
 }
 
 // returns containing block this node would have had if its position was static
@@ -591,10 +635,11 @@ bool NodeWithStyle::is_sticky_position() const
 NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues const> computed_values)
     : Node(document, node)
     , m_computed_values(move(computed_values))
-    , m_layout_index(document.allocate_layout_node_index())
 {
-    m_has_style = true;
-    m_is_body = node && node == document.body();
+    node_data().layout_index = document.allocate_layout_node_index();
+    node_data().style = m_computed_values.ptr();
+    set_flag(RustFFI::NodeFlag::HasStyle, true);
+    set_flag(RustFFI::NodeFlag::IsBody, node && node == document.body());
 }
 
 NodeWithStyle::ImageObserver::ImageObserver(NodeWithStyle& owner, NonnullRefPtr<CSS::ImageStyleValue const> image)
@@ -667,7 +712,7 @@ namespace Web::Layout {
 
 void NodeWithStyle::apply_style(NonnullRefPtr<CSS::ComputedValues const> computed_values)
 {
-    m_computed_values = move(computed_values);
+    set_computed_values(move(computed_values));
 
     propagate_style_to_anonymous_wrappers();
 
@@ -900,6 +945,7 @@ NonnullRefPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
 void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const> computed_values)
 {
     m_computed_values = move(computed_values);
+    node_data().style = m_computed_values.ptr();
 }
 
 void NodeWithStyle::set_display(CSS::Display display)
@@ -1036,14 +1082,9 @@ RefPtr<Painting::Paintable> Node::create_paintable() const
     return nullptr;
 }
 
-bool Node::is_anonymous() const
-{
-    return m_anonymous;
-}
-
 DOM::Node const* Node::dom_node() const
 {
-    if (m_anonymous)
+    if (is_anonymous())
         return nullptr;
     VERIFY(m_dom_node);
     return m_dom_node.ptr();
@@ -1051,7 +1092,7 @@ DOM::Node const* Node::dom_node() const
 
 DOM::Node* Node::dom_node()
 {
-    if (m_anonymous)
+    if (is_anonymous())
         return nullptr;
     VERIFY(m_dom_node);
     return m_dom_node.ptr();
@@ -1059,21 +1100,21 @@ DOM::Node* Node::dom_node()
 
 DOM::Element const* Node::pseudo_element_generator() const
 {
-    VERIFY(m_generated_for.has_value());
+    VERIFY(is_generated_for_pseudo_element());
     VERIFY(m_pseudo_element_generator);
     return m_pseudo_element_generator.ptr();
 }
 
 DOM::Element* Node::pseudo_element_generator()
 {
-    VERIFY(m_generated_for.has_value());
+    VERIFY(is_generated_for_pseudo_element());
     VERIFY(m_pseudo_element_generator);
     return m_pseudo_element_generator.ptr();
 }
 
 void Node::set_generated_for(CSS::PseudoElement type, DOM::Element& element)
 {
-    m_generated_for = type;
+    m_data->generated_for = encode_generated_for(type);
     m_pseudo_element_generator = element;
 }
 
@@ -1294,7 +1335,7 @@ bool NodeWithStyleAndBoxModelMetrics::is_inline_flow_interrupting_block() const
 
 void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdatePropagation propagation)
 {
-    if (m_needs_layout_update && propagation == LayoutUpdatePropagation::ThroughAncestors) {
+    if (needs_layout_update() && propagation == LayoutUpdatePropagation::ThroughAncestors) {
         // A dirty node normally implies dirty ancestors, but the walk that marked a partial
         // relayout boundary stopped there and left its ancestors clean, so a through-ancestors
         // invalidation arriving on the boundary itself must still walk and mark them.
@@ -1303,7 +1344,7 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdat
             return;
     }
 
-    if (!m_needs_layout_update) {
+    if (!needs_layout_update()) {
         if constexpr (UPDATE_LAYOUT_DEBUG) {
             // NOTE: We check some conditions here to avoid debug spam in documents that don't do layout.
             auto navigable = this->navigable();
@@ -1311,7 +1352,7 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdat
                 dbgln_if(UPDATE_LAYOUT_DEBUG, "NEED LAYOUT {}", DOM::to_string(reason));
         }
 
-        m_needs_layout_update = true;
+        set_flag(RustFFI::NodeFlag::NeedsLayoutUpdate, true);
     }
 
     if (auto* box = as_if<Box>(this))
@@ -1321,7 +1362,7 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdat
     // NOTE: if this node generated an anonymous parent, all ancestors are indiscriminately marked below.
     for_each_child_of_type<Box>([&](Box& child) {
         if (child.is_anonymous() && !is<TableWrapper>(child)) {
-            child.m_needs_layout_update = true;
+            child.set_flag(RustFFI::NodeFlag::NeedsLayoutUpdate, true);
             child.reset_cached_intrinsic_sizes();
         }
         return IterationDecision::Continue;
@@ -1333,9 +1374,9 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdat
     }
 
     for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
-        if (ancestor->m_needs_layout_update)
+        if (ancestor->needs_layout_update())
             break;
-        ancestor->m_needs_layout_update = true;
+        ancestor->set_flag(RustFFI::NodeFlag::NeedsLayoutUpdate, true);
         if (auto* box = as_if<Box>(ancestor); box && box->is_partial_relayout_boundary()) {
             document().partial_relayout_invalidation().record_boundary(*box);
             break;

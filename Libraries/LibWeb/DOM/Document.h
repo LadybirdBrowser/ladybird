@@ -746,6 +746,7 @@ public:
     // one at construction; a full layout pass renumbers the whole tree densely and resets the
     // counter past the dense range.
     [[nodiscard]] u32 allocate_layout_node_index() { return m_next_layout_node_index++; }
+    [[nodiscard]] Layout::NodeArena& layout_node_arena();
     void reset_layout_node_index_counter(u32 next_index)
     {
         m_next_layout_node_index = next_index;
@@ -1422,6 +1423,7 @@ private:
 
     GC::Ptr<HTML::Window> m_window;
 
+    RefPtr<Layout::NodeArena> m_layout_node_arena;
     RefPtr<Layout::Viewport> m_layout_root;
 
     GC::Ptr<Node> m_hovered_node;

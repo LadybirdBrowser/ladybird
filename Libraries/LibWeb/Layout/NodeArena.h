@@ -1,0 +1,37 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/Noncopyable.h>
+#include <AK/RefCounted.h>
+#include <AK/Types.h>
+#include <LibWeb/Export.h>
+#include <LibWeb/Layout/TreeBuilderRustFFI.h>
+
+namespace Web::Layout {
+
+static_assert(sizeof(RustFFI::NodeAllocation) == 24);
+static_assert(offsetof(RustFFI::NodeAllocation, slot) == 0);
+static_assert(offsetof(RustFFI::NodeAllocation, data) == 8);
+static_assert(offsetof(RustFFI::NodeAllocation, generation) == 16);
+
+class WEB_API NodeArena : public RefCounted<NodeArena> {
+    AK_MAKE_NONCOPYABLE(NodeArena);
+    AK_MAKE_NONMOVABLE(NodeArena);
+
+public:
+    NodeArena();
+    ~NodeArena();
+
+    RustFFI::NodeAllocation allocate();
+    void free(RustFFI::NodeSlotId, u32 generation);
+
+private:
+    void* m_handle { nullptr };
+};
+
+}

@@ -825,6 +825,7 @@ set(SOURCES
     Layout/ListItemMarkerBox.cpp
     Layout/NavigableContainerViewport.cpp
     Layout/Node.cpp
+    Layout/NodeArena.cpp
     Layout/RadioButton.cpp
     Layout/RangeInputBox.cpp
     Layout/ReplacedBox.cpp

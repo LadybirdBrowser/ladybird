@@ -191,10 +191,12 @@ public:
         node->m_parent = static_cast<T&>(*this);
         m_last_child = node;
 
+        T* appended_child = node.ptr();
         if (previous_last_child)
             previous_last_child->m_next_sibling = move(node);
         else
             m_first_child = move(node);
+        synchronize_topology_around(*appended_child);
     }
 
     void prepend_child(NonnullRefPtr<T> node)
@@ -207,9 +209,11 @@ public:
             m_first_child->m_previous_sibling = node;
         node->m_next_sibling = m_first_child;
         node->m_parent = static_cast<T&>(*this);
+        T* prepended_child = node.ptr();
         m_first_child = move(node);
         if (!m_last_child)
             m_last_child = m_first_child;
+        synchronize_topology_around(*prepended_child);
     }
 
     void insert_before(NonnullRefPtr<T> node, T* child)
@@ -232,7 +236,9 @@ public:
         else
             m_first_child = node;
 
+        T* inserted_child = node.ptr();
         child->m_previous_sibling = move(node);
+        synchronize_topology_around(*inserted_child);
     }
 
     void insert_before(NonnullRefPtr<T> node, T& child)
@@ -267,6 +273,15 @@ public:
         node.m_next_sibling.clear();
         node.m_previous_sibling.clear();
         node.m_parent.clear();
+
+        if constexpr (requires { node.synchronize_topology(); }) {
+            static_cast<T&>(*this).synchronize_topology();
+            node.synchronize_topology();
+            if (previous_sibling)
+                previous_sibling->synchronize_topology();
+            if (next_sibling)
+                next_sibling->synchronize_topology();
+        }
     }
 
     void replace_child(NonnullRefPtr<T> new_child, T& old_child)
@@ -298,6 +313,10 @@ public:
         old_child_ref->m_next_sibling.clear();
         old_child_ref->m_previous_sibling.clear();
         old_child_ref->m_parent.clear();
+
+        synchronize_topology_around(*new_child);
+        if constexpr (requires { old_child.synchronize_topology(); })
+            old_child.synchronize_topology();
     }
 
     void remove()
@@ -582,6 +601,8 @@ public:
             child->m_next_sibling.clear();
             child->m_previous_sibling.clear();
             child->m_parent.clear();
+            if constexpr (requires { child->synchronize_topology(); })
+                child->synchronize_topology();
         }
         m_last_child.clear();
     }
@@ -590,6 +611,18 @@ protected:
     RefCountedTreeNode() = default;
 
 private:
+    void synchronize_topology_around(T& node)
+    {
+        if constexpr (requires { node.synchronize_topology(); }) {
+            static_cast<T&>(*this).synchronize_topology();
+            node.synchronize_topology();
+            if (auto* previous_sibling = node.previous_sibling_ptr())
+                previous_sibling->synchronize_topology();
+            if (auto* next_sibling = node.next_sibling_ptr())
+                next_sibling->synchronize_topology();
+        }
+    }
+
     WeakPtr<T> m_parent;
     RefPtr<T> m_first_child;
     WeakPtr<T> m_last_child;

@@ -12,8 +12,7 @@
 namespace Web::Layout {
 
 class VideoBox final : public ReplacedBox {
-    GC_CELL(VideoBox, ReplacedBox);
-    GC_DECLARE_ALLOCATOR(VideoBox);
+    LAYOUT_NODE(VideoBox, ReplacedBox);
 
 public:
     VideoBox(DOM::Document&, DOM::Element&, NonnullRefPtr<CSS::ComputedValues const>);

@@ -13,8 +13,7 @@
 namespace Web::Layout {
 
 class AudioBox final : public ReplacedBox {
-    GC_CELL(AudioBox, ReplacedBox);
-    GC_DECLARE_ALLOCATOR(AudioBox);
+    LAYOUT_NODE(AudioBox, ReplacedBox);
 
 public:
     AudioBox(DOM::Document&, DOM::Element&, NonnullRefPtr<CSS::ComputedValues const>);
