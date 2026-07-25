@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/GenericShorthands.h>
 #include <AK/String.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Forward.h>
@@ -112,7 +113,8 @@ public:
     bool is_flow_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Flow; }
     bool is_flow_root_inside() const { return is_outside_and_inside() && inside() == DisplayInside::FlowRoot; }
     bool is_table_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Table; }
-    bool is_flex_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Flex; }
+    bool is_flex_inside() const { return is_outside_and_inside() && first_is_one_of(inside(), DisplayInside::Flex, DisplayInside::WebkitBox); }
+    bool is_webkit_box_inside() const { return is_outside_and_inside() && inside() == DisplayInside::WebkitBox; }
     bool is_grid_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Grid; }
     bool is_ruby_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Ruby; }
     bool is_math_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Math; }

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<link rel="help" href="https://crbug.com/1015987">
+<link rel="match" href="../../../expected/wpt-import/compat/webkit-box-clamp-visibility-change-ref.html">
+<style>
+  #wb {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      overflow: hidden;
+  }
+</style>
+<p>Line-clamp should be respected after removing and changing visibility.
+<div id="root" style="border: solid; width: 200px;">
+  <div id="container">
+    <p id="wb">
+      text text text text
+      text text text text
+      text text text text
+      text text text text
+      text text text text
+      text text text text
+      text text text text
+    </p>
+  </div>
+</div>
+<script>
+  const container = document.getElementById('container');
+  const root = document.getElementById('root');
+  container.remove();
+  container.style.visibility = 'hidden';
+  root.appendChild(container);
+  document.body.offsetTop;
+  container.style.visibility = '';
+</script>
