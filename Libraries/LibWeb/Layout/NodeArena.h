@@ -29,6 +29,7 @@ public:
 
     RustFFI::NodeAllocation allocate();
     void free(RustFFI::NodeSlotId, u32 generation);
+    void* handle() const { return m_handle; }
 
 private:
     void* m_handle { nullptr };
