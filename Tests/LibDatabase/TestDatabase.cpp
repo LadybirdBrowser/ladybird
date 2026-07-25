@@ -589,6 +589,49 @@ TEST_CASE(typed_integer_reads_check_range_and_storage_class)
     }));
 }
 
+TEST_CASE(optional_placeholders_bind_null_when_empty)
+{
+    auto database = TRY_OR_FAIL(DB::create_memory_backed());
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE t (v INTEGER, s TEXT);"sv));
+
+    auto insert = TRY_OR_FAIL(database->prepare_statement("INSERT INTO t (v, s) VALUES (:v, :s);"sv));
+    auto select = TRY_OR_FAIL(database->prepare_statement("SELECT v, s FROM t;"sv));
+    auto no_binds = [](auto&) -> ErrorOr<void> { return {}; };
+
+    auto store = [&](Optional<u32> value, Optional<String> text) {
+        TRY_OR_FAIL(database->execute_raw("DELETE FROM t;"sv));
+        TRY_OR_FAIL(database->try_execute_bound_statement(insert, [&](auto& bind) -> ErrorOr<void> {
+            TRY(bind("v"sv, value));
+            TRY(bind("s"sv, text));
+            return {};
+        }));
+    };
+
+    store(7u, "text"_string);
+    TRY_OR_FAIL(database->try_execute_bound_statement(select, no_binds, [&](Database::ResultRow& row) -> ErrorOr<void> {
+        EXPECT_EQ(TRY(row.is_null("v"sv)), false);
+        EXPECT_EQ(TRY(row.read_optional_integer<u32>("v"sv)), Optional<u32> { 7 });
+        EXPECT_EQ(TRY(row.read_optional_text("s"sv, 64)), Optional<String> { "text"_string });
+        return {};
+    }));
+
+    store({}, {});
+    TRY_OR_FAIL(database->try_execute_bound_statement(select, no_binds, [&](Database::ResultRow& row) -> ErrorOr<void> {
+        EXPECT_EQ(TRY(row.is_null("v"sv)), true);
+        EXPECT_EQ(TRY(row.read_optional_integer<u32>("v"sv)), Optional<u32> {});
+        EXPECT_EQ(TRY(row.read_optional_text("s"sv, 64)), Optional<String> {});
+        return {};
+    }));
+
+    store(0u, String {});
+    TRY_OR_FAIL(database->try_execute_bound_statement(select, no_binds, [&](Database::ResultRow& row) -> ErrorOr<void> {
+        EXPECT_EQ(TRY(row.is_null("v"sv)), false);
+        EXPECT_EQ(TRY(row.read_optional_integer<u32>("v"sv)), Optional<u32> { 0 });
+        EXPECT_EQ(TRY(row.read_optional_text("s"sv, 64)), Optional<String> { String {} });
+        return {};
+    }));
+}
+
 TEST_CASE(column_name_cache_survives_a_reprepare)
 {
     auto database = TRY_OR_FAIL(DB::create_memory_backed());

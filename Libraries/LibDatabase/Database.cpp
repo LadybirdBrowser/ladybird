@@ -204,8 +204,9 @@ void Database::apply_placeholder(StatementID statement_id, int index, ValueType 
     }
 }
 
-#define __ENUMERATE_TYPE(type) \
-    template DATABASE_API void Database::apply_placeholder(StatementID, int, type const&);
+#define __ENUMERATE_TYPE(type)                                                             \
+    template DATABASE_API void Database::apply_placeholder(StatementID, int, type const&); \
+    template DATABASE_API void Database::apply_placeholder(StatementID, int, Optional<type> const&);
 ENUMERATE_SQL_TYPES
 #undef __ENUMERATE_TYPE
 
@@ -214,7 +215,13 @@ ErrorOr<void> Database::try_apply_placeholder(StatementID statement_id, int inde
 {
     auto* statement = prepared_statement(statement_id).statement;
 
-    if constexpr (IsSame<ValueType, String>) {
+    if constexpr (IsSpecializationOf<ValueType, Optional>) {
+        if (!value.has_value()) {
+            SQL_TRY(sqlite3_bind_null(statement, index));
+            return {};
+        }
+        TRY(try_apply_placeholder(statement_id, index, *value));
+    } else if constexpr (IsSame<ValueType, String>) {
         StringView string { value };
         SQL_TRY(sqlite3_bind_text(statement, index, string.characters_without_null_termination(), static_cast<int>(string.length()), SQLITE_TRANSIENT));
     } else if constexpr (IsSame<ValueType, Utf16String>) {
@@ -237,8 +244,9 @@ ErrorOr<void> Database::try_apply_placeholder(StatementID statement_id, int inde
     return {};
 }
 
-#define __ENUMERATE_TYPE(type) \
-    template DATABASE_API ErrorOr<void> Database::try_apply_placeholder(StatementID, int, type const&);
+#define __ENUMERATE_TYPE(type)                                                                          \
+    template DATABASE_API ErrorOr<void> Database::try_apply_placeholder(StatementID, int, type const&); \
+    template DATABASE_API ErrorOr<void> Database::try_apply_placeholder(StatementID, int, Optional<type> const&);
 ENUMERATE_SQL_TYPES
 #undef __ENUMERATE_TYPE
 
@@ -333,8 +341,9 @@ ErrorOr<void> Database::bind_parameter(StatementID statement_id, StringView name
     return {};
 }
 
-#define __ENUMERATE_TYPE(type) \
-    template DATABASE_API ErrorOr<void> Database::bind_parameter(StatementID, StringView, type const&);
+#define __ENUMERATE_TYPE(type)                                                                          \
+    template DATABASE_API ErrorOr<void> Database::bind_parameter(StatementID, StringView, type const&); \
+    template DATABASE_API ErrorOr<void> Database::bind_parameter(StatementID, StringView, Optional<type> const&);
 ENUMERATE_SQL_TYPES
 #undef __ENUMERATE_TYPE
 
