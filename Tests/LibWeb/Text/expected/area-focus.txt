@@ -1,0 +1,4 @@
+area with a rendered image can be focused: true
+area without an associated image cannot be focused: true
+area whose associated image is inert cannot be focused: true
+area whose associated image has an inert ancestor cannot be focused: true
