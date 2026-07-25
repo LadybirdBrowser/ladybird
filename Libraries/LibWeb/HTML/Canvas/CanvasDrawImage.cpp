@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/ImageBitmap.h>
+#include <LibWeb/SVG/SVGAnimatedLength.h>
 
 namespace Web::HTML {
 

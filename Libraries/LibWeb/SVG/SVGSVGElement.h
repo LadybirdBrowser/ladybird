@@ -8,10 +8,10 @@
 
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Sizing.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/SVG/AttributeParser.h>
-#include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGFitToViewBox.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGLength.h>
@@ -37,10 +37,21 @@ public:
 
     void set_fallback_view_box_for_svg_as_image(Optional<ViewBox>);
 
-    GC::Ref<SVGAnimatedLength> x() const;
-    GC::Ref<SVGAnimatedLength> y() const;
-    GC::Ref<SVGAnimatedLength> width() const;
-    GC::Ref<SVGAnimatedLength> height() const;
+    // AD-HOC: The spec states that the x, y, width and height IDL attributes reflect the respective computed values and their
+    //         corresponding presentation attributes but other browsers reflect the attribute values instead - see
+    //         https://github.com/w3c/svgwg/issues/1153
+
+    // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGSVGElement__x
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, CSS::NumberStyleValue::create(0));
+
+    // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGSVGElement__y
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, CSS::NumberStyleValue::create(0));
+
+    // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGSVGElement__width
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, CSS::PercentageStyleValue::create(CSS::Percentage { 100 }));
+
+    // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGSVGElement__height
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, CSS::PercentageStyleValue::create(CSS::Percentage { 100 }));
 
     float current_scale() const;
     void set_current_scale(float);

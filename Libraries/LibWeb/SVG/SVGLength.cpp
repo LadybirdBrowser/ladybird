@@ -7,7 +7,9 @@
 
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGLength.h>
-#include <LibWeb/CSS/PercentageOr.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/SVG/SVGLength.h>
 
 namespace Web::SVG {
@@ -19,39 +21,49 @@ GC::Ref<SVGLength> SVGLength::create(JS::Realm& realm, u8 unit_type, float value
     return realm.create<SVGLength>(realm, unit_type, value, read_only);
 }
 
-GC::Ref<SVGLength> SVGLength::from_length_percentage(JS::Realm& realm, CSS::LengthPercentage const& length_percentage,
-    ReadOnly read_only)
+SVGLength::ParsedValue SVGLength::parsed_value_from_style_value(CSS::StyleValue const& style_value)
 {
-    // FIXME: We can't tell if a CSS::LengthPercentage was a unitless length.
-    (void)SVG_LENGTHTYPE_NUMBER;
-    if (length_percentage.is_percentage())
-        return create(realm, SVG_LENGTHTYPE_PERCENTAGE, length_percentage.percentage().value(), read_only);
-    if (length_percentage.is_length())
-        return create(
-            realm, [&] {
-                switch (length_percentage.length().unit()) {
-                case CSS::LengthUnit::Em:
-                    return SVG_LENGTHTYPE_EMS;
-                case CSS::LengthUnit::Ex:
-                    return SVG_LENGTHTYPE_EXS;
-                case CSS::LengthUnit::Px:
-                    return SVG_LENGTHTYPE_PX;
-                case CSS::LengthUnit::Cm:
-                    return SVG_LENGTHTYPE_CM;
-                case CSS::LengthUnit::Mm:
-                    return SVG_LENGTHTYPE_MM;
-                case CSS::LengthUnit::In:
-                    return SVG_LENGTHTYPE_IN;
-                case CSS::LengthUnit::Pt:
-                    return SVG_LENGTHTYPE_PT;
-                case CSS::LengthUnit::Pc:
-                    return SVG_LENGTHTYPE_PC;
-                default:
-                    return SVG_LENGTHTYPE_UNKNOWN;
-                }
-            }(),
-            length_percentage.length().raw_value(), read_only);
-    return create(realm, SVG_LENGTHTYPE_UNKNOWN, 0, read_only);
+    if (style_value.is_number())
+        return { SVGLength::SVG_LENGTHTYPE_NUMBER, static_cast<float>(style_value.as_number().number()) };
+
+    if (style_value.is_percentage())
+        return { SVGLength::SVG_LENGTHTYPE_PERCENTAGE, static_cast<float>(style_value.as_percentage().percentage().value()) };
+
+    if (style_value.is_length()) {
+        auto length = style_value.as_length().length();
+        auto unit_type = [&] {
+            switch (length.unit()) {
+            case CSS::LengthUnit::Em:
+                return SVG_LENGTHTYPE_EMS;
+            case CSS::LengthUnit::Ex:
+                return SVG_LENGTHTYPE_EXS;
+            case CSS::LengthUnit::Px:
+                return SVG_LENGTHTYPE_PX;
+            case CSS::LengthUnit::Cm:
+                return SVG_LENGTHTYPE_CM;
+            case CSS::LengthUnit::Mm:
+                return SVG_LENGTHTYPE_MM;
+            case CSS::LengthUnit::In:
+                return SVG_LENGTHTYPE_IN;
+            case CSS::LengthUnit::Pt:
+                return SVG_LENGTHTYPE_PT;
+            case CSS::LengthUnit::Pc:
+                return SVG_LENGTHTYPE_PC;
+            default:
+                return SVG_LENGTHTYPE_UNKNOWN;
+            }
+        }();
+        return { static_cast<u8>(unit_type), static_cast<float>(length.raw_value()) };
+    }
+
+    // FIXME: Implement the proper spec algorithms for SVGLength getters so that we support non-scalar values
+    if (style_value.is_tree_counting_function())
+        return { SVG_LENGTHTYPE_UNKNOWN, 0 };
+
+    if (style_value.is_calculated())
+        return { SVG_LENGTHTYPE_UNKNOWN, 0 };
+
+    VERIFY_NOT_REACHED();
 }
 
 SVGLength::SVGLength(JS::Realm& realm, u8 unit_type, float value, ReadOnly read_only)

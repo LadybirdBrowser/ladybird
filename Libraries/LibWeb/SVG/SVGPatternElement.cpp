@@ -332,44 +332,4 @@ Optional<Painting::PaintStyle> SVGPatternElement::to_gfx_paint_style(SVGPaintCon
     return Painting::PaintStyle { Painting::PatternPaintStyle { { *display_list, move(visual_context_tree) }, tile_rect, device_pattern_transform } };
 }
 
-// https://svgwg.org/svg2-draft/pservers.html#PatternElementXAttribute
-GC::Ref<SVGAnimatedLength> SVGPatternElement::x() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-// https://svgwg.org/svg2-draft/pservers.html#PatternElementYAttribute
-GC::Ref<SVGAnimatedLength> SVGPatternElement::y() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-// https://svgwg.org/svg2-draft/pservers.html#PatternElementWidthAttribute
-GC::Ref<SVGAnimatedLength> SVGPatternElement::width() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_width.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_width.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-// https://svgwg.org/svg2-draft/pservers.html#PatternElementHeightAttribute
-GC::Ref<SVGAnimatedLength> SVGPatternElement::height() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_height.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_height.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
 }

@@ -484,28 +484,4 @@ GC::Ref<SVGAnimatedEnumeration> SVGFilterElement::primitive_units() const
     return SVGAnimatedEnumeration::create(realm(), to_underlying(m_primitive_units.value_or(SVGUnits::UserSpaceOnUse)));
 }
 
-// https://drafts.fxtf.org/filter-effects/#element-attrdef-filter-x
-GC::Ref<SVGAnimatedLength> SVGFilterElement::x() const
-{
-    return svg_animated_length_for_property(CSS::PropertyID::X);
-}
-
-// https://drafts.fxtf.org/filter-effects/#element-attrdef-filter-y
-GC::Ref<SVGAnimatedLength> SVGFilterElement::y() const
-{
-    return svg_animated_length_for_property(CSS::PropertyID::Y);
-}
-
-// https://drafts.fxtf.org/filter-effects/#element-attrdef-filter-width
-GC::Ref<SVGAnimatedLength> SVGFilterElement::width() const
-{
-    return svg_animated_length_for_property(CSS::PropertyID::Width);
-}
-
-// https://drafts.fxtf.org/filter-effects/#element-attrdef-filter-height
-GC::Ref<SVGAnimatedLength> SVGFilterElement::height() const
-{
-    return svg_animated_length_for_property(CSS::PropertyID::Height);
-}
-
 }

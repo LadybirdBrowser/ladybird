@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGDescElement.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
@@ -381,30 +382,37 @@ GC::Ptr<SVGElement> SVGElement::viewport_element()
     return nullptr;
 }
 
-GC::Ref<SVGAnimatedLength> SVGElement::fake_animated_length_fixme() const
+GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_attribute(Utf16FlyString const& attribute_name, NonnullRefPtr<CSS::StyleValue const>&& default_value)
 {
-    // FIXME: All callers of this method must implement their animated length correctly.
-    auto base_length = SVGLength::create(realm(), 0, 0, SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, 0, SVGLength::ReadOnly::Yes);
+    auto style_value = default_value;
+
+    CSS::Parser::ParsingParams parsing_params { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
+    auto const& attribute_value = get_attribute_value(attribute_name);
+
+    // https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
+    // When a presentation attribute defined using the CSS Value Definition Syntax is parsed, this is done as follows:
+    // Replace all instances of <length-percentage> in grammar with [<length-percentage> | <number>].
+    // FIXME: This is implemented in parse_literal_length_value() when using ParsingMode::SVGPresentationAttribute but
+    //        is incomplete as it only supports literal numbers and immediately converts them to the equivalent length
+    //        value in pixels (we should support all <number> values, including math and tree-counting functions) so we
+    //        implement this again here until that is fixed.
+
+    // FIXME: Respect attribute specific range restrictions (e.g. <circle>/r must be non-negative)
+
+    if (auto parsed_style_value = parse_css_type(parsing_params, attribute_value, CSS::ValueType::Number)) {
+        style_value = parsed_style_value.release_nonnull();
+    } else if (auto parsed_style_value = parse_css_type(parsing_params, attribute_value, CSS::ValueType::LengthPercentage)) {
+        style_value = parsed_style_value.release_nonnull();
+    }
+
+    auto [unit_type, value] = SVGLength::parsed_value_from_style_value(style_value);
+
+    auto base_length = SVGLength::create(realm(), unit_type, value, SVGLength::ReadOnly::No);
+    // FIXME: The spec says this should reflect the base value of the attribute but other browsers reflect the SMIL
+    //        animated value instead - implement that once we support SMIL animation.
+    auto anim_length = SVGLength::create(realm(), unit_type, value, SVGLength::ReadOnly::Yes);
+
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::PropertyID property) const
-{
-    // FIXME: Create a proper animated value when animations are supported.
-    auto make_length = [&](SVGLength::ReadOnly read_only) {
-        if (auto const computed_values = this->computed_values()) {
-            auto style_value = computed_values->computed_style_value(property);
-
-            if (style_value && !style_value->has_auto() && (style_value->is_length() || style_value->is_percentage() || style_value->is_calculated()))
-                return SVGLength::from_length_percentage(realm(), CSS::LengthPercentage::from_style_value(*style_value), read_only);
-        }
-        return SVGLength::create(realm(), 0, 0, read_only);
-    };
-    return SVGAnimatedLength::create(
-        realm(),
-        make_length(SVGLength::ReadOnly::No),
-        make_length(SVGLength::ReadOnly::Yes));
 }
 
 }

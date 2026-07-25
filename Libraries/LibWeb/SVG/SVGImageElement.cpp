@@ -85,50 +85,6 @@ void SVGImageElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
     }
 }
 
-// https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__x
-GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::x()
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto value = m_x.value_or(NumberPercentage::create_number(0)).value();
-    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-// https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__y
-GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::y()
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto value = m_y.value_or(NumberPercentage::create_number(0)).value();
-    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-// https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__width
-GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::width()
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto value = m_width.has_value() ? m_width->value() : intrinsic_width().value_or(0).to_double();
-    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-// https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__height
-GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::height()
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto value = m_height.has_value() ? m_height->value() : intrinsic_height().value_or(0).to_double();
-    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
 Gfx::FloatRect SVGImageElement::bounding_box(CSSPixelSize viewport_size) const
 {
     Optional<float> width;

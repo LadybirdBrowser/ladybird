@@ -177,26 +177,6 @@ Optional<ViewBox> SVGSVGElement::active_view_box() const
     return {};
 }
 
-GC::Ref<SVGAnimatedLength> SVGSVGElement::x() const
-{
-    return svg_animated_length_for_property(CSS::PropertyID::X);
-}
-
-GC::Ref<SVGAnimatedLength> SVGSVGElement::y() const
-{
-    return svg_animated_length_for_property(CSS::PropertyID::Y);
-}
-
-GC::Ref<SVGAnimatedLength> SVGSVGElement::width() const
-{
-    return svg_animated_length_for_property(CSS::PropertyID::Width);
-}
-
-GC::Ref<SVGAnimatedLength> SVGSVGElement::height() const
-{
-    return svg_animated_length_for_property(CSS::PropertyID::Height);
-}
-
 float SVGSVGElement::current_scale() const
 {
     dbgln("(STUBBED) SVGSVGElement::current_scale(). Called on: {}", debug_description());

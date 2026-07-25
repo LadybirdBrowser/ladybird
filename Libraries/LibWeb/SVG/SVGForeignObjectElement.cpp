@@ -30,46 +30,11 @@ void SVGForeignObjectElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGForeignObjectElement);
     Base::initialize(realm);
-
-    // FIXME: These never actually get updated!
-    m_x = fake_animated_length_fixme();
-    m_y = fake_animated_length_fixme();
-    m_width = fake_animated_length_fixme();
-    m_height = fake_animated_length_fixme();
-}
-
-void SVGForeignObjectElement::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_x);
-    visitor.visit(m_y);
-    visitor.visit(m_width);
-    visitor.visit(m_height);
 }
 
 RefPtr<Layout::Node> SVGForeignObjectElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
 {
     return make_ref_counted<Layout::SVGForeignObjectBox>(document(), *this, style);
-}
-
-GC::Ref<SVG::SVGAnimatedLength> SVGForeignObjectElement::x()
-{
-    return *m_x;
-}
-
-GC::Ref<SVG::SVGAnimatedLength> SVGForeignObjectElement::y()
-{
-    return *m_y;
-}
-
-GC::Ref<SVG::SVGAnimatedLength> SVGForeignObjectElement::width()
-{
-    return *m_width;
-}
-
-GC::Ref<SVG::SVGAnimatedLength> SVGForeignObjectElement::height()
-{
-    return *m_height;
 }
 
 }

@@ -65,44 +65,4 @@ Gfx::Path SVGLineElement::get_path(CSSPixelSize viewport_size)
     return path;
 }
 
-// https://www.w3.org/TR/SVG11/shapes.html#LineElementX1Attribute
-GC::Ref<SVGAnimatedLength> SVGLineElement::x1() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_x1.value_or({ 0, false }).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_x1.value_or({ 0, false }).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-// https://www.w3.org/TR/SVG11/shapes.html#LineElementY1Attribute
-GC::Ref<SVGAnimatedLength> SVGLineElement::y1() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_y1.value_or({ 0, false }).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_y1.value_or({ 0, false }).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-// https://www.w3.org/TR/SVG11/shapes.html#LineElementX2Attribute
-GC::Ref<SVGAnimatedLength> SVGLineElement::x2() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_x2.value_or({ 0, false }).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_x2.value_or({ 0, false }).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-// https://www.w3.org/TR/SVG11/shapes.html#LineElementY2Attribute
-GC::Ref<SVGAnimatedLength> SVGLineElement::y2() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_y2.value_or({ 0, false }).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_y2.value_or({ 0, false }).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
 }

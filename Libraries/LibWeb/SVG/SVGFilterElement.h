@@ -7,9 +7,7 @@
 #pragma once
 
 #include <LibGfx/Filter.h>
-#include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedEnumeration.h>
-#include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGURIReference.h>
 
@@ -31,10 +29,18 @@ public:
 
     GC::Ref<SVGAnimatedEnumeration> filter_units() const;
     GC::Ref<SVGAnimatedEnumeration> primitive_units() const;
-    GC::Ref<SVGAnimatedLength> x() const;
-    GC::Ref<SVGAnimatedLength> y() const;
-    GC::Ref<SVGAnimatedLength> width() const;
-    GC::Ref<SVGAnimatedLength> height() const;
+
+    // https://drafts.csswg.org/filter-effects-1#dom-svgfilterelement-x
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, CSS::PercentageStyleValue::create(CSS::Percentage { -10 }));
+
+    // https://drafts.csswg.org/filter-effects-1#dom-svgfilterelement-y
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, CSS::PercentageStyleValue::create(CSS::Percentage { -10 }));
+
+    // https://drafts.csswg.org/filter-effects-1#dom-svgfilterelement-width
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, CSS::PercentageStyleValue::create(CSS::Percentage { 120 }));
+
+    // https://drafts.csswg.org/filter-effects-1#dom-svgfilterelement-height
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, CSS::PercentageStyleValue::create(CSS::Percentage { 120 }));
 
 private:
     SVGFilterElement(DOM::Document&, DOM::QualifiedName);

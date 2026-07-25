@@ -395,38 +395,6 @@ bool SVGUseElement::would_create_circular_reference_impl(
     return found_circular_reference;
 }
 
-// https://www.w3.org/TR/SVG11/shapes.html#RectElementXAttribute
-GC::Ref<SVGAnimatedLength> SVGUseElement::x() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto value = m_x.value_or(NumberPercentage::create_number(0)).value();
-    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-// https://www.w3.org/TR/SVG11/shapes.html#RectElementYAttribute
-GC::Ref<SVGAnimatedLength> SVGUseElement::y() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto value = m_y.value_or(NumberPercentage::create_number(0)).value();
-    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-GC::Ref<SVGAnimatedLength> SVGUseElement::width() const
-{
-    return fake_animated_length_fixme();
-}
-
-GC::Ref<SVGAnimatedLength> SVGUseElement::height() const
-{
-    return fake_animated_length_fixme();
-}
-
 // https://svgwg.org/svg2-draft/struct.html#TermInstanceRoot
 GC::Ptr<SVGElement> SVGUseElement::instance_root() const
 {

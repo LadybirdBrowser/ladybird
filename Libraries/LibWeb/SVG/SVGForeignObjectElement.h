@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 
 namespace Web::SVG {
@@ -20,10 +21,21 @@ public:
 
     virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
 
-    GC::Ref<SVG::SVGAnimatedLength> x();
-    GC::Ref<SVG::SVGAnimatedLength> y();
-    GC::Ref<SVG::SVGAnimatedLength> width();
-    GC::Ref<SVG::SVGAnimatedLength> height();
+    // AD-HOC: The spec states that the x, y, width and height IDL attributes reflect the respective computed values and their
+    //         corresponding presentation attributes but other browsers reflect the attribute values instead - see
+    //         https://github.com/w3c/svgwg/issues/1153
+
+    // https://w3c.github.io/svgwg/svg2-draft/embedded.html#__svg__SVGForeignObjectElement__x
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, CSS::NumberStyleValue::create(0));
+
+    // https://w3c.github.io/svgwg/svg2-draft/embedded.html#__svg__SVGForeignObjectElement__y
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, CSS::NumberStyleValue::create(0));
+
+    // https://w3c.github.io/svgwg/svg2-draft/embedded.html#__svg__SVGForeignObjectElement__width
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, CSS::NumberStyleValue::create(0));
+
+    // https://w3c.github.io/svgwg/svg2-draft/embedded.html#__svg__SVGForeignObjectElement__height
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, CSS::NumberStyleValue::create(0));
 
 private:
     SVGForeignObjectElement(DOM::Document& document, DOM::QualifiedName qualified_name);
@@ -31,12 +43,6 @@ private:
     virtual bool is_svg_foreign_object_element() const override { return true; }
 
     virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    GC::Ptr<SVG::SVGAnimatedLength> m_x;
-    GC::Ptr<SVG::SVGAnimatedLength> m_y;
-    GC::Ptr<SVG::SVGAnimatedLength> m_width;
-    GC::Ptr<SVG::SVGAnimatedLength> m_height;
 };
 
 }
