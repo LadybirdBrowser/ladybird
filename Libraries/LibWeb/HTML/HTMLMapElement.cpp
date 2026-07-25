@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/HTMLMapElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLMapElement.h>
 
 namespace Web::HTML {
@@ -51,6 +52,19 @@ GC::Ptr<HTMLAreaElement> HTMLMapElement::area_for_point(CSSPixelPoint point, CSS
         return TraversalDecision::Break;
     });
     return hit_area;
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#get-the-focusable-area
+GC::Ptr<HTMLImageElement> HTMLMapElement::first_image_with_focusable_shapes() const
+{
+    // Return the shape corresponding to the first img element in tree order that uses the image map to which the area
+    // element belongs.
+    return first_associated_image_matching([](HTMLImageElement& image_element) {
+        // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
+        // The shapes of area elements in an image map associated with an img element that is being rendered and is
+        // not inert.
+        return image_element.meets_focusable_area_rendering_requirements() && !image_element.is_inert();
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#dom-map-areas
