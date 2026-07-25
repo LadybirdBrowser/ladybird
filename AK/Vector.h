@@ -853,8 +853,9 @@ public:
         new_size_in_bytes *= sizeof(StorageType);
         if (new_size_in_bytes.has_overflow())
             return Error::from_errno(ENOMEM);
-        size_t new_capacity = kmalloc_good_size(new_size_in_bytes.value()) / sizeof(StorageType);
-        auto* new_buffer = static_cast<StorageType*>(kmalloc_array(new_capacity, sizeof(StorageType)));
+        size_t allocation_size = kmalloc_good_size(new_size_in_bytes.value());
+        size_t new_capacity = allocation_size / sizeof(StorageType);
+        auto* new_buffer = static_cast<StorageType*>(kmalloc(allocation_size));
         if (new_buffer == nullptr)
             return Error::from_errno(ENOMEM);
 
