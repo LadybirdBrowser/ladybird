@@ -26,6 +26,8 @@ test("special case folding", () => {
     expect("\u1FC7".toLocaleLowerCase()).toBe("\u1FC7");
     expect("\u1FF7".toLocaleLowerCase()).toBe("\u1FF7");
 
+    expect("\u0130".toLocaleLowerCase("und")).toBe("\u0069\u0307");
+
     expect("I".toLocaleLowerCase()).toBe("i");
     expect("I".toLocaleLowerCase("az")).toBe("\u0131");
     expect("I".toLocaleLowerCase("tr")).toBe("\u0131");
