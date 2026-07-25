@@ -7,6 +7,7 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/ByteString.h>
+#include <AK/NumericLimits.h>
 #include <AK/OwnPtr.h>
 #include <AK/ReverseIterator.h>
 #include <AK/String.h>
@@ -721,4 +722,40 @@ TEST_CASE(VectorWithFastLastAccess_unsafe)
     EXPECT_EQ(v.unsafe_last(), 2);
     EXPECT_EQ(v.unsafe_take_last(), 2);
     EXPECT_EQ(v.unsafe_last(), 1);
+}
+
+TEST_CASE(try_ensure_capacity_overflow)
+{
+    Vector<u64> v;
+    auto result = v.try_ensure_capacity(NumericLimits<size_t>::max() / sizeof(u64) + 1);
+    EXPECT(result.is_error());
+    EXPECT_EQ(v.capacity(), 0u);
+    EXPECT_EQ(v.size(), 0u);
+
+    EXPECT(!v.try_append(42).is_error());
+    EXPECT_EQ(v.size(), 1u);
+    EXPECT_EQ(v[0], 42u);
+}
+
+TEST_CASE(try_resize_overflow)
+{
+    Vector<u64> v;
+    auto result = v.try_resize(NumericLimits<size_t>::max() / sizeof(u64) + 1);
+    EXPECT(result.is_error());
+    EXPECT_EQ(v.size(), 0u);
+    EXPECT_EQ(v.capacity(), 0u);
+}
+
+TEST_CASE(try_ensure_capacity_normal_growth)
+{
+    Vector<u64> v;
+    EXPECT(!v.try_ensure_capacity(1024).is_error());
+    EXPECT(v.capacity() >= 1024u);
+    EXPECT_EQ(v.size(), 0u);
+
+    v.append(1);
+    v.append(2);
+    EXPECT_EQ(v.size(), 2u);
+    EXPECT_EQ(v[0], 1u);
+    EXPECT_EQ(v[1], 2u);
 }
