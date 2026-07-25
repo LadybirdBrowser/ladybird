@@ -61,7 +61,7 @@ WebIDL::ExceptionOr<void> AudioBufferSourceNode::set_buffer(GC::Ptr<AudioBuffer>
 
     // 5. If start() has previously been called on this node, perform the operation acquire the content on buffer.
     if (source_started())
-        queue_parameters_update(m_buffer ? RefPtr<Rendering::AudioBufferContents> { m_buffer->acquire_contents() } : nullptr, true);
+        queue_parameters_update(m_buffer ? m_buffer->acquire_contents() : nullptr, true);
 
     return {};
 }

@@ -1,9 +1,13 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
+#include <LibGC/RootVector.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Realm.h>
@@ -50,15 +54,58 @@ WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> AudioBuffer::construct_impl(JS::Realm&
 AudioBuffer::~AudioBuffer() = default;
 
 // https://webaudio.github.io/web-audio-api/#acquire-the-content
-NonnullRefPtr<Rendering::AudioBufferContents> AudioBuffer::acquire_contents() const
+RefPtr<Rendering::AudioBufferContents> AudioBuffer::acquire_contents()
 {
-    // AD-HOC: This operation is specified as copy-on-write; we conservatively copy the sample data every time the
-    //         content is acquired.
+    // NB: m_contents is non-null exactly while the channel arrays are detached because step 4 below has not run yet.
+    //     The snapshot then still holds the buffer's content and script has had no way to modify it, so it can be
+    //     handed out again as-is. This is what makes a sequence of acquisitions with no intervening getChannelData(),
+    //     e.g. one AudioBuffer played by many AudioBufferSourceNodes, free of allocations and copying.
+    //     https://webaudio.github.io/web-audio-api/#audio-buffer-copying
+    if (m_contents)
+        return m_contents;
+
+    // 1. If any of the AudioBuffer's ArrayBuffers are detached, return true, abort these steps, and return a
+    //    zero-length channel data buffer to the invoker.
+    if (any_of(m_channels, [](auto const& channel) { return channel->viewed_array_buffer()->is_detached(); }))
+        return nullptr;
+
+    // 2. Detach all ArrayBuffers for arrays previously returned by getChannelData() on this AudioBuffer.
+    // 3. Retain the underlying [[internal data]] from those ArrayBuffers and return references to them to the invoker.
     Vector<Vector<float>> channels;
     channels.ensure_capacity(m_channels.size());
-    for (auto const& channel : m_channels)
+    for (auto const& channel : m_channels) {
         channels.unchecked_append(copy_float32_array(*channel));
-    return make_ref_counted<Rendering::AudioBufferContents>(move(channels), m_sample_rate);
+        MUST(JS::detach_array_buffer(vm(), *channel->viewed_array_buffer()));
+    }
+    m_contents = make_ref_counted<Rendering::AudioBufferContents>(move(channels), m_sample_rate);
+
+    // 4. Attach ArrayBuffers containing copies of the data to the AudioBuffer, to be returned by the next call to
+    //    getChannelData().
+    // NB: Performed lazily by attach_acquired_channels().
+
+    return m_contents;
+}
+
+// https://webaudio.github.io/web-audio-api/#audio-buffer-copying
+WebIDL::ExceptionOr<void> AudioBuffer::attach_acquired_channels()
+{
+    // The pending final step of acquiring this buffer's content: fresh arrays holding a copy of the acquired sample
+    // data are attached the first time script reaches for the channel data again. Whoever acquired the content keeps
+    // using the snapshot, so writes through the new arrays cannot change what is already playing.
+    if (!m_contents)
+        return {};
+
+    GC::RootVector<GC::Ref<JS::Float32Array>> channels;
+    channels.ensure_capacity(m_channels.size());
+    for (auto const& samples : m_contents->channels) {
+        auto channel = TRY(JS::Float32Array::create(realm(), m_length));
+        overwrite_float32_array(channel, samples);
+        channels.unchecked_append(channel);
+    }
+
+    m_channels = move(channels);
+    m_contents = nullptr;
+    return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-samplerate
@@ -91,16 +138,17 @@ WebIDL::UnsignedLong AudioBuffer::number_of_channels() const
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-getchanneldata
-WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> AudioBuffer::get_channel_data(WebIDL::UnsignedLong channel) const
+WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> AudioBuffer::get_channel_data(WebIDL::UnsignedLong channel)
 {
     if (channel >= m_channels.size())
         return WebIDL::IndexSizeError::create(realm(), "Channel index is out of range"_utf16);
 
+    TRY(attach_acquired_channels());
     return m_channels[channel];
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-copyfromchannel
-WebIDL::ExceptionOr<void> AudioBuffer::copy_from_channel(GC::Ref<JS::Float32Array> destination, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset) const
+WebIDL::ExceptionOr<void> AudioBuffer::copy_from_channel(GC::Ref<JS::Float32Array> destination, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset)
 {
     // The copyFromChannel() method copies the samples from the specified channel of the AudioBuffer to the destination array.
     //
@@ -200,7 +248,10 @@ void AudioBuffer::visit_edges(Cell::Visitor& visitor)
 
 size_t AudioBuffer::external_memory_size() const
 {
-    return JS::saturating_add_external_memory_size(Base::external_memory_size(), JS::vector_external_memory_size(m_channels));
+    auto size = JS::saturating_add_external_memory_size(Base::external_memory_size(), JS::vector_external_memory_size(m_channels));
+    if (m_contents)
+        size = JS::saturating_add_external_memory_size(size, m_contents->channels.size() * m_length * sizeof(float));
+    return size;
 }
 
 }
