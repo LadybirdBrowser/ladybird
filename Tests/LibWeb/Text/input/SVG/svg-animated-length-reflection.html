@@ -1,0 +1,90 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const svgNamespace = "http://www.w3.org/2000/svg";
+        const reflectedAttributes = {
+            svg: ["x", "y", "width", "height"],
+            use: ["x", "y", "width", "height"],
+            image: ["x", "y", "width", "height"],
+            foreignObject: ["x", "y", "width", "height"],
+            rect: ["x", "y", "width", "height", "rx", "ry"],
+            circle: ["cx", "cy", "r"],
+            ellipse: ["cx", "cy", "rx", "ry"],
+            line: ["x1", "y1", "x2", "y2"],
+            linearGradient: ["x1", "y1", "x2", "y2"],
+            radialGradient: ["cx", "cy", "r", "fx", "fy", "fr"],
+            pattern: ["x", "y", "width", "height"],
+            filter: ["x", "y", "width", "height"],
+            textPath: ["startOffset"],
+            feBlend: ["x", "y", "width", "height"],
+        };
+        const percentageInitialValueProperties = new Set(
+            [
+                ["svg", ["width", "height"]],
+                ["linearGradient", ["x1", "y1", "x2", "y2"]],
+                ["radialGradient", ["cx", "cy", "r", "fx", "fy", "fr"]],
+                ["filter", ["x", "y", "width", "height"]],
+                ["feBlend", ["x", "y", "width", "height"]],
+            ].flatMap(([tagName, attributes]) => attributes.map(attribute => `${tagName}.${attribute}`))
+        );
+
+        function checkAnimatedLength(description, animatedLength, unitType, value) {
+            if (
+                [animatedLength.baseVal, animatedLength.animVal].some(
+                    length => length.unitType !== unitType || (value !== undefined && length.value !== value)
+                )
+            )
+                throw new Error(`${description} did not reflect the expected length`);
+        }
+
+        for (const [tagName, attributes] of Object.entries(reflectedAttributes)) {
+            for (const attributeName of attributes) {
+                const element = document.createElementNS(svgNamespace, tagName);
+                const description = `${tagName}.${attributeName}`;
+
+                const initialValue = element[attributeName];
+                if (percentageInitialValueProperties.has(description)) {
+                    checkAnimatedLength(description, initialValue, SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+                } else {
+                    checkAnimatedLength(description, initialValue, SVGLength.SVG_LENGTHTYPE_NUMBER, 0);
+                }
+
+                element.setAttribute(attributeName, "12.5");
+                const animatedLength = element[attributeName];
+                const baseValue = animatedLength.baseVal;
+                const animatedValue = animatedLength.animVal;
+
+                if (
+                    animatedLength.baseVal !== baseValue ||
+                    animatedLength.animVal !== animatedValue ||
+                    baseValue === animatedValue
+                )
+                    throw new Error(`${description} did not return the expected objects`);
+                checkAnimatedLength(description, animatedLength, SVGLength.SVG_LENGTHTYPE_NUMBER, 12.5);
+
+                element.setAttribute(attributeName, "25%");
+                checkAnimatedLength(description, element[attributeName], SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+
+                element.setAttribute(attributeName, "10px");
+                checkAnimatedLength(description, element[attributeName], SVGLength.SVG_LENGTHTYPE_PX, 10);
+            }
+        }
+
+        const rect = document.createElementNS(svgNamespace, "rect");
+        let exception;
+        try {
+            rect.x.animVal.value = 1;
+        } catch (error) {
+            exception = error;
+        }
+        if (exception?.name !== "NoModificationAllowedError")
+            throw new Error("Setting animVal.value did not throw NoModificationAllowedError");
+
+        rect.setAttribute("x", "5");
+        rect.style.x = "99px";
+        if (rect.x.baseVal.value !== 5) throw new Error("A CSS property overrode the reflected presentation attribute");
+
+        println("PASS");
+    });
+</script>

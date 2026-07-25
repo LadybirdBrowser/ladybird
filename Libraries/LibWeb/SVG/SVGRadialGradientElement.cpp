@@ -209,34 +209,4 @@ Optional<Painting::PaintStyle> SVGRadialGradientElement::to_gfx_paint_style(SVGP
     return Painting::PaintStyle { move(paint_style) };
 }
 
-GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::cx() const
-{
-    return fake_animated_length_fixme();
-}
-
-GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::cy() const
-{
-    return fake_animated_length_fixme();
-}
-
-GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::fx() const
-{
-    return fake_animated_length_fixme();
-}
-
-GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::fy() const
-{
-    return fake_animated_length_fixme();
-}
-
-GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::fr() const
-{
-    return fake_animated_length_fixme();
-}
-
-GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::r() const
-{
-    return fake_animated_length_fixme();
-}
-
 }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibGC/RootHashTable.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeParser.h>
@@ -38,10 +39,17 @@ public:
     NumberPercentage pattern_width() const;
     NumberPercentage pattern_height() const;
 
-    GC::Ref<SVGAnimatedLength> x() const;
-    GC::Ref<SVGAnimatedLength> y() const;
-    GC::Ref<SVGAnimatedLength> width() const;
-    GC::Ref<SVGAnimatedLength> height() const;
+    // https://w3c.github.io/svgwg/svg2-draft/pservers.html#__svg__SVGPatternElement__x
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, CSS::NumberStyleValue::create(0));
+
+    // https://w3c.github.io/svgwg/svg2-draft/pservers.html#__svg__SVGPatternElement__y
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, CSS::NumberStyleValue::create(0));
+
+    // https://w3c.github.io/svgwg/svg2-draft/pservers.html#__svg__SVGPatternElement__width
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, CSS::NumberStyleValue::create(0));
+
+    // https://w3c.github.io/svgwg/svg2-draft/pservers.html#__svg__SVGPatternElement__height
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, CSS::NumberStyleValue::create(0));
 
     GC::Ptr<SVGPatternElement const> pattern_content_element() const;
 

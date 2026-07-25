@@ -8,9 +8,9 @@
 
 #include <AK/IntrusiveList.h>
 #include <AK/Utf16String.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/DocumentObserver.h>
-#include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGURIReference.h>
 
@@ -33,10 +33,21 @@ public:
     void svg_element_changed_before_document_complete(SVGElement&);
     void svg_element_removed(SVGElement&);
 
-    GC::Ref<SVGAnimatedLength> x() const;
-    GC::Ref<SVGAnimatedLength> y() const;
-    GC::Ref<SVGAnimatedLength> width() const;
-    GC::Ref<SVGAnimatedLength> height() const;
+    // AD-HOC: The spec states that the x, y, width and height IDL attributes reflect the respective computed values and their
+    //         corresponding presentation attributes but other browsers reflect the attribute values instead - see
+    //         https://github.com/w3c/svgwg/issues/1153
+
+    // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGUseElement__x
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, CSS::NumberStyleValue::create(0));
+
+    // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGUseElement__y
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, CSS::NumberStyleValue::create(0));
+
+    // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGUseElement__width
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, CSS::NumberStyleValue::create(0));
+
+    // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGUseElement__height
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, CSS::NumberStyleValue::create(0));
 
     GC::Ptr<SVGElement> instance_root() const;
     GC::Ptr<SVGElement> animated_instance_root() const;

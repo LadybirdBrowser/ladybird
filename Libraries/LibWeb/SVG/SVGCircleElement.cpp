@@ -77,22 +77,4 @@ Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
     return path;
 }
 
-// https://www.w3.org/TR/SVG11/shapes.html#CircleElementCXAttribute
-GC::Ref<SVGAnimatedLength> SVGCircleElement::cx() const
-{
-    return svg_animated_length_for_property(CSS::PropertyID::Cx);
-}
-
-// https://www.w3.org/TR/SVG11/shapes.html#CircleElementCYAttribute
-GC::Ref<SVGAnimatedLength> SVGCircleElement::cy() const
-{
-    return svg_animated_length_for_property(CSS::PropertyID::Cy);
-}
-
-// https://www.w3.org/TR/SVG11/shapes.html#CircleElementRAttribute
-GC::Ref<SVGAnimatedLength> SVGCircleElement::r() const
-{
-    return svg_animated_length_for_property(CSS::PropertyID::R);
-}
-
 }

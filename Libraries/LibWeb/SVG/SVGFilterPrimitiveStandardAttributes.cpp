@@ -24,30 +24,6 @@
 namespace Web::SVG {
 
 template<typename IncludingClass>
-GC::Ref<SVGAnimatedLength> SVGFilterPrimitiveStandardAttributes<IncludingClass>::x()
-{
-    return this_svg_element()->svg_animated_length_for_property(CSS::PropertyID::X);
-}
-
-template<typename IncludingClass>
-GC::Ref<SVGAnimatedLength> SVGFilterPrimitiveStandardAttributes<IncludingClass>::y()
-{
-    return this_svg_element()->svg_animated_length_for_property(CSS::PropertyID::Y);
-}
-
-template<typename IncludingClass>
-GC::Ref<SVGAnimatedLength> SVGFilterPrimitiveStandardAttributes<IncludingClass>::width()
-{
-    return this_svg_element()->svg_animated_length_for_property(CSS::PropertyID::Width);
-}
-
-template<typename IncludingClass>
-GC::Ref<SVGAnimatedLength> SVGFilterPrimitiveStandardAttributes<IncludingClass>::height()
-{
-    return this_svg_element()->svg_animated_length_for_property(CSS::PropertyID::Height);
-}
-
-template<typename IncludingClass>
 GC::Ref<SVGAnimatedString> SVGFilterPrimitiveStandardAttributes<IncludingClass>::result()
 {
     if (!m_result_animated_string)

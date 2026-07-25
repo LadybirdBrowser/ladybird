@@ -1097,6 +1097,8 @@ static RefPtr<LengthStyleValue const> parse_literal_length_value(TokenStream<Com
         // When parsing an SVG attribute, a length is allowed without a unit.
         // FIXME: How should these numbers be interpreted? https://github.com/w3c/svgwg/issues/792
         //        For now: Convert to a length in pixels.
+        // FIXME: We should actually support all <number> values (i.e. literals, math functions, and tree counting
+        //        functions)
         if (is_parsing_svg_presentation_attribute) {
             auto nearest_value = CSSPixels::nearest_value_for(numeric_value);
 

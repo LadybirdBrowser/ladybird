@@ -44,7 +44,11 @@ public:
     u8 unit_type() const { return m_unit_type; }
     ReadOnly read_only() const { return m_read_only; }
 
-    [[nodiscard]] static GC::Ref<SVGLength> from_length_percentage(JS::Realm&, CSS::LengthPercentage const&, ReadOnly);
+    struct ParsedValue {
+        u8 unit;
+        float value;
+    };
+    static ParsedValue parsed_value_from_style_value(CSS::StyleValue const& style_value);
 
 private:
     SVGLength(JS::Realm&, u8 unit_type, float value, ReadOnly);

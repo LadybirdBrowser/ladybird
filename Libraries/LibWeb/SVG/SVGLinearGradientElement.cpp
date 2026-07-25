@@ -158,24 +158,4 @@ Optional<Painting::PaintStyle> SVGLinearGradientElement::to_gfx_paint_style(SVGP
     return Painting::PaintStyle { move(paint_style) };
 }
 
-GC::Ref<SVGAnimatedLength> SVGLinearGradientElement::x1() const
-{
-    return fake_animated_length_fixme();
-}
-
-GC::Ref<SVGAnimatedLength> SVGLinearGradientElement::y1() const
-{
-    return fake_animated_length_fixme();
-}
-
-GC::Ref<SVGAnimatedLength> SVGLinearGradientElement::x2() const
-{
-    return fake_animated_length_fixme();
-}
-
-GC::Ref<SVGAnimatedLength> SVGLinearGradientElement::y2() const
-{
-    return fake_animated_length_fixme();
-}
-
 }

@@ -76,48 +76,4 @@ Gfx::Path SVGEllipseElement::get_path(CSSPixelSize viewport_size)
     return path;
 }
 
-// https://www.w3.org/TR/SVG11/shapes.html#EllipseElementCXAttribute
-GC::Ref<SVGAnimatedLength> SVGEllipseElement::cx() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto value = m_center_x.value_or(NumberPercentage::create_number(0)).value();
-    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-// https://www.w3.org/TR/SVG11/shapes.html#EllipseElementCYAttribute
-GC::Ref<SVGAnimatedLength> SVGEllipseElement::cy() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto value = m_center_y.value_or(NumberPercentage::create_number(0)).value();
-    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-// https://www.w3.org/TR/SVG11/shapes.html#EllipseElementRXAttribute
-GC::Ref<SVGAnimatedLength> SVGEllipseElement::rx() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto value = m_radius_x.value_or(NumberPercentage::create_number(0)).value();
-    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-// https://www.w3.org/TR/SVG11/shapes.html#EllipseElementRYAttribute
-GC::Ref<SVGAnimatedLength> SVGEllipseElement::ry() const
-{
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto value = m_radius_y.value_or(NumberPercentage::create_number(0)).value();
-    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
 }
