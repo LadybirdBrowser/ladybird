@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const query of [
+            "(-webkit-transform-3d)",
+            "(-webkit-transform-3d: 1)",
+            "(-webkit-transform-3d: 0)",
+            "(-webkit-transform-3d: 2)",
+        ]) {
+            const result = matchMedia(query);
+            println(`${result.media} matches=${result.matches}`);
+        }
+    });
+</script>

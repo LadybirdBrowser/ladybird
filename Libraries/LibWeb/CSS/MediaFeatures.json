@@ -1,4 +1,10 @@
 {
+  "-webkit-transform-3d": {
+    "type": "discrete",
+    "values": [
+      "<mq-boolean>"
+    ]
+  },
   "any-hover": {
     "type": "discrete",
     "values": [
