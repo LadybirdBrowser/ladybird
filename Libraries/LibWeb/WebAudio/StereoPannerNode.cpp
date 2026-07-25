@@ -70,7 +70,7 @@ WebIDL::ExceptionOr<void> StereoPannerNode::set_channel_count(WebIDL::UnsignedLo
 
 StereoPannerNode::StereoPannerNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::StereoPannerOptions const& options)
     : AudioNode(realm, context)
-    , m_pan(AudioParam::create(realm, context, options.pan, -1, 1, Bindings::AutomationRate::ARate))
+    , m_pan(AudioParam::create(realm, context, this, options.pan, -1, 1, Bindings::AutomationRate::ARate))
 {
 }
 

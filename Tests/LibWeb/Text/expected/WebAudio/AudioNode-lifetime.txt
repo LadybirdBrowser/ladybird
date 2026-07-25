@@ -1,0 +1,4 @@
+gain nothing feeds into is collected: true
+playing source is kept alive: true
+gain fed by a playing source is kept alive: true
+gain held through its AudioParam is kept alive: true

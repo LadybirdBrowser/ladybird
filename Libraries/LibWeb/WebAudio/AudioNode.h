@@ -102,8 +102,6 @@ private:
     WebIDL::UnsignedLong m_channel_count { 2 };
     Bindings::ChannelCountMode m_channel_count_mode { Bindings::ChannelCountMode::Max };
     Bindings::ChannelInterpretation m_channel_interpretation { Bindings::ChannelInterpretation::Speakers };
-    // Connections from other AudioNode outputs into this node's inputs.
-    Vector<AudioNodeConnection> m_input_connections;
     // Connections from this node's outputs into other AudioNode inputs.
     Vector<AudioNodeConnection> m_output_connections;
     // Connections from this node's outputs into AudioParams.
