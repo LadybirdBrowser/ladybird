@@ -307,7 +307,7 @@ public:
 
     GC::Ptr<Document> owner_document() const;
 
-    HTML::HTMLAnchorElement const* enclosing_link_element() const;
+    HTML::HTMLHyperlinkElementUtils const* enclosing_link_element() const;
     HTML::HTMLElement const* enclosing_html_element() const;
     HTML::HTMLElement const* enclosing_html_element_with_attribute(Utf16FlyString const&) const;
 

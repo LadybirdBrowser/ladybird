@@ -794,6 +794,7 @@ class HTMLHeadElement;
 class HTMLHeadingElement;
 class HTMLHRElement;
 class HTMLHtmlElement;
+class HTMLHyperlinkElementUtils;
 class HTMLIFrameElement;
 class HTMLImageElement;
 class HTMLInputElement;

@@ -31,6 +31,7 @@
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
+#include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
@@ -371,7 +372,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     //     matching other engines. The page can still suppress the native context menu by cancelling the
     //     contextmenu event itself.
     if (is_context_menu_trigger && dispatch_result != PointerEventDispatchResult::SwallowedByChromeWidget)
-        maybe_show_context_menu(*node, coordinates, screen_position, viewport_position, buttons, modifiers);
+        maybe_show_context_menu(*node, *paintable, coordinates, screen_position, viewport_position, buttons, modifiers);
 
     if (dispatch_result != PointerEventDispatchResult::RunDefaultActions)
         return EventResult::Cancelled;
@@ -2160,7 +2161,7 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
         for (GC::Ptr<DOM::Node const> node = hit->dom_node(); node; node = node->parent_or_shadow_host_node()) {
             if (node->is_editable_or_editing_host() || is<HTML::FormAssociatedTextControlElement>(*node))
                 return;
-            if (auto const* anchor = as_if<HTML::HTMLAnchorElement>(*node); anchor && anchor->has_attribute(HTML::AttributeNames::href))
+            if (auto const* element = as_if<DOM::Element>(*node); element && element->creates_a_hyperlink())
                 return;
         }
 
@@ -2404,7 +2405,7 @@ void EventHandler::finish_selection_from_preserved_mousedown(DOM::Document& docu
 
 void EventHandler::run_activation_behavior(GC::Ref<DOM::Node> node, unsigned button, unsigned modifiers)
 {
-    if (GC::Ptr<HTML::HTMLAnchorElement const> link = node->enclosing_link_element()) {
+    if (auto const* link = node->enclosing_link_element()) {
         GC::Ref<DOM::Document> document = *m_navigable->active_document();
         auto href = link->href();
 
@@ -2419,7 +2420,7 @@ void EventHandler::run_activation_behavior(GC::Ref<DOM::Node> node, unsigned but
 }
 
 // https://w3c.github.io/uievents/#maybe-show-context-menu
-void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers)
+void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, Painting::Paintable& paintable, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers)
 {
     // AD-HOC: Allow the user to bypass custom context menus by holding shift, like Firefox.
     if ((modifiers & UIEvents::Mod_Shift) == 0) {
@@ -2446,7 +2447,7 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerShowContextMenu);
 
     auto top_level_viewport_position = m_navigable->to_top_level_position(viewport_position);
-    if (GC::Ptr<HTML::HTMLAnchorElement const> link = node->enclosing_link_element()) {
+    if (auto const* link = node->enclosing_link_element()) {
         auto href = link->href();
         auto url = document->encoding_parse_url(href);
         if (url.has_value())
@@ -2461,6 +2462,13 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
                 break;
             VERIFY(shadow_root->host() != nullptr);
             context_menu_node = *shadow_root->host();
+        }
+
+        // AD-HOC: Area elements are never rendered, so use the image over which the context menu was requested
+        //         instead. This keeps the image context menu available over image maps.
+        if (is<HTML::HTMLAreaElement>(*context_menu_node)) {
+            if (auto* image_element = as_if<HTML::HTMLImageElement>(paintable.dom_node().ptr()))
+                context_menu_node = *image_element;
         }
 
         if (is<HTML::HTMLImageElement>(*context_menu_node)) {
@@ -3259,7 +3267,7 @@ void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::
         page.set_is_in_tooltip_area(false);
     }
 
-    HTML::HTMLAnchorElement const* hovered_link_element = nullptr;
+    HTML::HTMLHyperlinkElementUtils const* hovered_link_element = nullptr;
     if (target)
         hovered_link_element = target->enclosing_link_element();
     if (hovered_link_element) {
@@ -3429,6 +3437,14 @@ void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<
             }
             if (host_element && host_element->is_element() && host_node_with_style)
                 return resolve_cursor(*host_node_with_style, *cursor_data, Gfx::StandardCursor::Arrow);
+
+            // AD-HOC: Area elements are never rendered, so they have no layout node of their own to resolve a cursor
+            //         from. Resolve the cursor from the area's computed values instead, falling back to the layout
+            //         node of the image that renders the area's image map for image cursors.
+            if (auto const* area_element = as_if<HTML::HTMLAreaElement>(host_element.ptr())) {
+                if (auto area_computed_values = area_element->computed_values(); area_computed_values)
+                    return resolve_cursor(paintable->layout_node(), area_computed_values->cursor(), Gfx::StandardCursor::Arrow);
+            }
         }
 
         return Gfx::StandardCursor::Arrow;
