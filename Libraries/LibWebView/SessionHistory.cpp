@@ -484,7 +484,11 @@ void TraversableSessionHistory::clear_current_entry_reload_pending()
     if (!current_top_level_entry_index.has_value())
         return;
 
-    m_entries[*current_top_level_entry_index].document_state.reload_pending = false;
+    auto document_state_id = m_entries[*current_top_level_entry_index].document_state.id;
+    for (auto& entry : m_entries) {
+        if (entry.document_state.id == document_state_id)
+            entry.document_state.reload_pending = false;
+    }
 }
 
 template<typename UpdateEntry>

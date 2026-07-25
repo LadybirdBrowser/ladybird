@@ -1769,8 +1769,9 @@ TEST_CASE(clear_current_entry_reload_pending)
     auto update_result = history.update_from_web_content({
                                                              entry(0, "https://a.example/"sv),
                                                              entry_with_reload_pending(1, "https://b.example/"sv, 7, "main"sv, {}),
+                                                             entry_with_reload_pending(2, "https://c.example/"sv, 7, "main"sv, {}),
                                                          },
-        { 0, 1 }, 1);
+        { 0, 1, 2 }, 1);
     EXPECT_EQ(update_result, WebView::TraversableSessionHistory::UpdateResult::CompleteSnapshot);
 
     auto current_entry = history.current_entry();
@@ -1782,6 +1783,10 @@ TEST_CASE(clear_current_entry_reload_pending)
     current_entry = history.current_entry();
     VERIFY(current_entry);
     EXPECT(!current_entry->document_state.reload_pending);
+
+    auto shared_document_state_entry = history.entry_at(2);
+    VERIFY(shared_document_state_entry);
+    EXPECT(!shared_document_state_entry->document_state.reload_pending);
 }
 
 TEST_CASE(mark_current_entry_reload_pending)
