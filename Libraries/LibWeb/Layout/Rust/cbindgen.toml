@@ -20,7 +20,7 @@ parse_deps = false
 all_features = false
 
 [export]
-include = ["NodeAllocation", "NodeData", "NodeFlag", "NodeKind", "NodeSlotId"]
+include = ["FfiNodeKindFacts", "FfiTableDisplay", "NodeAllocation", "NodeData", "NodeDisplayFlag", "NodeFlag", "NodeKind", "NodeSlotId"]
 
 [export.mangle]
 rename_types = "PascalCase"

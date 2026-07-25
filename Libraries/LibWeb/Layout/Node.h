@@ -30,7 +30,7 @@ namespace Web::Layout {
 static_assert(sizeof(RustFFI::NodeSlotId) == sizeof(u32));
 static_assert(offsetof(RustFFI::NodeSlotId, index) == 0);
 
-static_assert(sizeof(RustFFI::NodeData) == 56);
+static_assert(sizeof(RustFFI::NodeData) == 64);
 static_assert(offsetof(RustFFI::NodeData, parent) == 0);
 static_assert(offsetof(RustFFI::NodeData, first_child) == 4);
 static_assert(offsetof(RustFFI::NodeData, last_child) == 8);
@@ -43,10 +43,16 @@ static_assert(offsetof(RustFFI::NodeData, generated_for) == 29);
 static_assert(offsetof(RustFFI::NodeData, flags) == 32);
 static_assert(offsetof(RustFFI::NodeData, initial_quote_nesting_level) == 36);
 static_assert(offsetof(RustFFI::NodeData, layout_index) == 40);
+static_assert(offsetof(RustFFI::NodeData, table_display) == 44);
+static_assert(offsetof(RustFFI::NodeData, table_display_before) == 45);
+static_assert(offsetof(RustFFI::NodeData, display_bits) == 46);
 static_assert(offsetof(RustFFI::NodeData, style) == 48);
+static_assert(offsetof(RustFFI::NodeData, shell) == 56);
 
 static_assert(sizeof(RustFFI::NodeKind) == sizeof(u8));
 static_assert(sizeof(RustFFI::NodeFlag) == sizeof(u32));
+static_assert(sizeof(RustFFI::NodeDisplayFlag) == sizeof(u8));
+static_assert(sizeof(RustFFI::FfiTableDisplay) == sizeof(u8));
 
 class NodeKindSetter;
 
@@ -105,6 +111,9 @@ public:
 
     virtual ~Node();
     virtual StringView class_name() const { return "Node"sv; }
+
+    static RustFFI::NodeSlotId slot_id(Node const*);
+    void* arena_handle() const;
 
     bool is_anonymous() const { return has_flag(RustFFI::NodeFlag::Anonymous); }
     DOM::Node const* dom_node() const;
@@ -319,10 +328,9 @@ private:
         return static_cast<u8>(pseudo_element) + 1;
     }
 
-    static RustFFI::NodeSlotId slot_id(Node const*);
     void set_containing_block(Box*);
     void set_inline_containing_block(InlineNode const*);
-    void set_node_kind(RustFFI::NodeKind kind) { m_data->kind = kind; }
+    void set_node_kind(RustFFI::NodeKind);
     void synchronize_topology();
 
     // A DOM mutation can disconnect a node before the next layout-tree update. Keep the DOM node alive until this
@@ -464,6 +472,7 @@ private:
     void reset_table_box_computed_values_used_by_wrapper_to_init_values();
     void propagate_non_inherit_values(CSS::ComputedValues::Builder&) const;
     void propagate_style_to_anonymous_wrappers();
+    void mirror_computed_values_to_node_data();
 
     void rebuild_image_observers();
 

@@ -38,7 +38,7 @@ struct SlotMetadata {
     occupied: bool,
 }
 
-struct LayoutNodeArena {
+pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
     slot_metadata: Vec<SlotMetadata>,
     free_list: Vec<u32>,
@@ -123,6 +123,20 @@ impl LayoutNodeArena {
         self.free_list.push(id.index);
     }
 
+    pub(crate) fn data(&self, id: NodeSlotId) -> *mut NodeData {
+        assert!(!id.is_invalid(), "invalid layout node arena slot ID");
+        debug_assert!(
+            self.metadata(id.index).occupied,
+            "layout node arena read an unused slot"
+        );
+        let index = id.index as usize;
+        let chunk = self
+            .chunks
+            .get(index / SLOTS_PER_CHUNK)
+            .expect("invalid layout node arena slot ID");
+        (&raw const chunk.slots[index % SLOTS_PER_CHUNK]).cast_mut()
+    }
+
     fn data_mut(&mut self, index: u32) -> &mut NodeData {
         let index = index as usize;
         let chunk = self
@@ -130,6 +144,12 @@ impl LayoutNodeArena {
             .get_mut(index / SLOTS_PER_CHUNK)
             .expect("invalid layout node arena slot ID");
         &mut chunk.slots[index % SLOTS_PER_CHUNK]
+    }
+
+    fn metadata(&self, index: u32) -> &SlotMetadata {
+        self.slot_metadata
+            .get(index as usize)
+            .expect("invalid layout node arena slot ID")
     }
 
     fn metadata_mut(&mut self, index: u32) -> &mut SlotMetadata {
@@ -199,13 +219,13 @@ mod tests {
             allocations.push(arena.allocate());
         }
 
-        assert_eq!(first_data, std::ptr::from_mut(arena.data_mut(first.slot.index)));
+        assert_eq!(first_data, arena.data(first.slot));
         // SAFETY: The first allocation is still live, and the comparison above
         // confirms that its pointer still addresses the arena slot.
         unsafe {
             (*first_data).layout_index = 42;
+            assert_eq!((*arena.data(first.slot)).layout_index, 42);
         }
-        assert_eq!(arena.data_mut(first.slot.index).layout_index, 42);
         arena.free(first.slot, first.generation);
         for allocation in allocations {
             arena.free(allocation.slot, allocation.generation);

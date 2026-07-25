@@ -7,6 +7,7 @@
 use std::ffi::c_void;
 
 pub const INVALID_NODE_SLOT_INDEX: u32 = u32::MAX;
+pub const GENERATED_FOR_MARKER: u8 = 6;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(C)]
@@ -18,6 +19,16 @@ impl NodeSlotId {
     pub const INVALID: Self = Self {
         index: INVALID_NODE_SLOT_INDEX,
     };
+
+    pub fn is_invalid(self) -> bool {
+        self == Self::INVALID
+    }
+}
+
+impl Default for NodeSlotId {
+    fn default() -> Self {
+        Self::INVALID
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -79,6 +90,35 @@ pub enum NodeFlag {
     AbsposDescendantEscapes = 1 << 9,
     CompensatesForHorizontalScroll = 1 << 10,
     CompensatesForVerticalScroll = 1 << 11,
+    IsReplacedElement = 1 << 12,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+// NB: Some variants are only constructed by C++ through the FFI.
+#[allow(dead_code)]
+pub enum FfiTableDisplay {
+    Other,
+    TableRoot,
+    TableRowGroup,
+    TableHeaderGroup,
+    TableFooterGroup,
+    TableColumnGroup,
+    TableColumn,
+    TableRow,
+    TableCell,
+    TableCaption,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
+pub enum NodeDisplayFlag {
+    InlineOutside = 1 << 0,
+    FlowInside = 1 << 1,
+    FlexInside = 1 << 2,
+    GridInside = 1 << 3,
+    Floating = 1 << 4,
+    AbsolutelyPositioned = 1 << 5,
 }
 
 #[repr(C)]
@@ -95,7 +135,11 @@ pub struct NodeData {
     pub flags: u32,
     pub initial_quote_nesting_level: u32,
     pub layout_index: u32,
+    pub table_display: FfiTableDisplay,
+    pub table_display_before: FfiTableDisplay,
+    pub display_bits: u8,
     pub style: *const c_void,
+    pub shell: *mut c_void,
 }
 
 impl Default for NodeData {
@@ -113,7 +157,11 @@ impl Default for NodeData {
             flags: 0,
             initial_quote_nesting_level: 0,
             layout_index: 0,
+            table_display: FfiTableDisplay::Other,
+            table_display_before: FfiTableDisplay::Other,
+            display_bits: 0,
             style: std::ptr::null(),
+            shell: std::ptr::null_mut(),
         }
     }
 }

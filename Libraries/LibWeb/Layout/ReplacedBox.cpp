@@ -14,6 +14,7 @@ namespace Web::Layout {
 ReplacedBox::ReplacedBox(DOM::Document& document, GC::Ptr<DOM::Element> element, NonnullRefPtr<CSS::ComputedValues const> style)
     : Box(document, element, style)
 {
+    set_flag(RustFFI::NodeFlag::IsReplacedElement, true);
 }
 
 ReplacedBox::~ReplacedBox() = default;
