@@ -22,6 +22,8 @@ Optional<Utf16View> parse_non_negative_integer_digits(Utf16View string);
 
 WEB_API Optional<double> parse_floating_point_number(Utf16View string);
 
+WEB_API Vector<double> parse_list_of_floating_point_numbers(Utf16View string);
+
 WEB_API bool is_valid_floating_point_number(Utf16View string);
 
 WEB_API WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(WebIDL::Long);

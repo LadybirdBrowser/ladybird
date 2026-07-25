@@ -31,6 +31,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
+#include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/HTML/HTMLPictureElement.h>
 #include <LibWeb/HTML/HTMLSourceElement.h>
 #include <LibWeb/HTML/ImageRequest.h>
@@ -209,6 +210,9 @@ void HTMLImageElement::adopted_from(DOM::Document& old_document)
     if (m_load_event_delayer.has_value())
         m_load_event_delayer.emplace(document());
 
+    m_cached_associated_map_element = nullptr;
+    m_cached_associated_map_element_dom_tree_version.clear();
+
     // FIXME: The current and pending requests may still be pointing at the old document's SharedResourceRequests.
 }
 
@@ -220,6 +224,7 @@ void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_alt_text_node);
     visitor.visit(m_document_observer);
     visitor.visit(m_dimension_attribute_source);
+    visitor.visit(m_cached_associated_map_element);
     visit_lazy_loading_element(visitor);
 }
 
@@ -303,6 +308,11 @@ void HTMLImageElement::form_associated_element_attribute_changed(Utf16FlyString 
     if (name == HTML::AttributeNames::decoding) {
         if (value.has_value() && value->utf16_view().equals_ignoring_ascii_case(u"sync"sv))
             dbgln("FIXME: HTMLImageElement.decoding = 'sync' is not implemented yet");
+    }
+
+    if (name == HTML::AttributeNames::usemap) {
+        m_cached_associated_map_element = nullptr;
+        m_cached_associated_map_element_dom_tree_version.clear();
     }
 }
 
@@ -650,6 +660,54 @@ void HTMLImageElement::decode(GC::Ref<WebIDL::Promise> promise) const
     }));
 
     // 3. Return promise.
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-a-hash-name-reference
+static GC::Ptr<HTMLMapElement> parse_hash_name_reference_to_map_element(Utf16View string, DOM::Node& scope)
+{
+    // 1. If the string being parsed does not contain a U+0023 NUMBER SIGN character, or if the first such character
+    //    in the string is the last character in the string, then return null.
+    auto hash_offset = string.find_code_unit_offset('#');
+    if (!hash_offset.has_value() || *hash_offset == string.length_in_code_units() - 1)
+        return {};
+
+    // 2. Let s be the string from the character immediately after the first U+0023 NUMBER SIGN character in the
+    //    string being parsed up to the end of that string.
+    auto s = string.substring_view(*hash_offset + 1);
+
+    // 3. Return the first element of type type in scope's tree, in tree order, that has an id or name attribute
+    //    whose value is s, or null if there is no such element.
+    GC::Ptr<HTMLMapElement> result;
+    scope.root().for_each_in_inclusive_subtree_of_type<HTMLMapElement>([&](HTMLMapElement& map_element) {
+        auto name = map_element.attribute(HTML::AttributeNames::name);
+        if ((map_element.id().has_value() && *map_element.id() == s) || (name.has_value() && name->utf16_view() == s)) {
+            result = map_element;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
+    return result;
+}
+
+// https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
+GC::Ptr<HTMLMapElement> HTMLImageElement::associated_map_element()
+{
+    // If an img element has a usemap attribute specified, user agents must process it as follows:
+    auto usemap = attribute(HTML::AttributeNames::usemap);
+    if (!usemap.has_value())
+        return {};
+
+    // OPTIMIZATION: Resolving the map element walks the entire tree, so the result is cached until the DOM changes.
+    if (m_cached_associated_map_element_dom_tree_version == document().dom_tree_version())
+        return m_cached_associated_map_element;
+
+    // 1. Parse the attribute's value using the rules for parsing a hash-name reference to a map element, with the
+    //    element as the context node. This will return either an element (the map) or null.
+    // 2. If that returned null, then return. The image is not associated with an image map after all.
+    // NB: Step 3 is performed by HTMLMapElement::area_for_point() when a pointing device interacts with the image.
+    m_cached_associated_map_element = parse_hash_name_reference_to_map_element(usemap->utf16_view(), *this);
+    m_cached_associated_map_element_dom_tree_version = document().dom_tree_version();
+    return m_cached_associated_map_element;
 }
 
 Optional<ARIA::Role> HTMLImageElement::default_role() const

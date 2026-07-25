@@ -1,0 +1,37 @@
+Harness status: OK
+
+Found 32 tests
+
+32 Pass
+Pass	COMMA: "2,2,10,10" (rect)
+Pass	SEMICOLON: "2;2;10;10" (rect)
+Pass	SPACE: "2 2 10 10" (rect)
+Pass	TAB: "2\t2\t10\t10" (rect)
+Pass	FORM FEED: "2\f2\f10\f10" (rect)
+Pass	LINE FEED: "2\n2\n10\n10" (rect)
+Pass	CARRIGAGE RETURN: "2\r2\r10\r10" (rect)
+Pass	LINE TABULATION: "2\v2\v10\v10" (rect)
+Pass	LINE NEXT: "221010" (rect)
+Pass	EN QUAD: "2 2 10 10" (rect)
+Pass	abc between numbers: "2a2b20c20,2,10,10" (rect)
+Pass	COLON between numbers: "2:2:20:20,2,10,10" (rect)
+Pass	U+0000 between numbers: "2\02\020\020,2,10,10" (rect)
+Pass	leading COMMA: ",2,2,10,10" (rect)
+Pass	leading SPACE: " 2,2,10,10" (rect)
+Pass	leading SEMICOLON: ";2,2,10,10" (rect)
+Pass	trailing COMMA: "2,2,10," (rect)
+Pass	trailing SPACE: "2,2,10 " (rect)
+Pass	trailing SEMICOLON: "2,2,10;" (rect)
+Pass	PERCENT: "2%,2%,10%,10%" (rect)
+Pass	CSS units: "2in,2in,10cm,10cm" (rect)
+Pass	float: "1.4,1.4,10,10" (rect)
+Pass	number starting with PERIOD: ".4,.4,10,10" (rect)
+Pass	sci-not: "2,2,1e1,1e1" (rect)
+Pass	leading/trailing garbage: "='2,2,10,10' " (rect)
+Pass	non-ascii garbage: "“2,2,10,10\"" (rect)
+Pass	URL garbage with number: "2,2,10ls/spain/holidays/regions/10/Canary+Islands/Canary+Islands.html" (rect)
+Pass	consecutive COMMAs: "2,,10,10" (rect)
+Pass	consecutive SPACEs: "2  10,10" (rect)
+Pass	consecutive SEMICOLONs: "2;;10,10" (rect)
+Pass	several consecutive separators: ",,2;,;2,;,10 \t\r\n10;;" (rect)
+Pass	one too many numbers, trailing COMMA: "100,100,120,100,100,120,300," (poly)

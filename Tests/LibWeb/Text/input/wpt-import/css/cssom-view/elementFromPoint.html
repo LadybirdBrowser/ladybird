@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<title>cssom-view - elementFromPoint</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  .size {
+    width:60px;
+    height:60px;
+  }
+  .overlay {
+    position:absolute;
+    top:69px;
+    pointer-events:none;
+  }
+  .purple {
+    background-color: rebeccapurple;
+  }
+  .yellow {
+    background-color: yellow;
+  }
+  .teal {
+    background-color: teal;
+  }
+  .pink {
+    background-color: pink;
+  }
+</style>
+<body>
+  <div id='purple' class="size purple" >&nbsp;</div>
+  <div id='yellow' class="size yellow">&nbsp;</div>
+  <div id='teal' class="size overlay teal">&nbsp;</div>
+  <iframe id=iframe-1 src="iframe.html" style='display:none;position:absolute; left:300px;'></iframe>
+  <iframe id=iframe-2 src="iframe.html" width="" height=""></iframe>
+  <iframe id=iframe-3 width="" height=""></iframe>
+  <svg id=squiggle xmlns="http://www.w3.org/2000/svg" height="98" width="500" viewBox="0 0 581 98">
+    <path stroke-dashoffset="0.00" stroke-dasharray="" d="M62.9 14.9c-25-7.74-56.6 4.8-60.4 24.3-3.73 19.6 21.6 35 39.6 37.6 42.8 6.2 72.9-53.4 116-58.9 65-18.2 191 101 215 28.8 5-16.7-7-49.1-34-44-34 11.5-31 46.5-14 69.3 9.38 12.6 24.2 20.6 39.8 22.9 91.4 9.05 102-98.9 176-86.7 18.8 3.81 33 17.3 36.7 34.6 2.01 10.2.124 21.1-5.18 30.1" stroke="#000" stroke-width="4.3" fill="none">
+    </path>
+  </svg>
+  <svg id=svg-transform width="180" height="140"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink">
+
+  <!-- Now we add a text element and apply rotate and translate to both -->
+  <rect x="50" y="50" height="60" width="60" style="stroke:#000; fill: #0086B2" transform="translate(30) rotate(45 50 50)"></rect>
+  <text x="60" y="105" transform="translate(30) rotate(45 50 50)"> Hello! </text>
+
+</svg>
+  <div id='pink' class='size pink' style='transform: translate(10px)'>&nbsp;</div>
+  <div id='anotherteal' class='size teal' style='pointer-events:none'>Another teal</div>
+  <img id="dinos" src="../../images/blue-area.png" usemap="#dinos_map" border="0" width="364" height="40"/>
+  <map id="dinos_map" name="dinos_map">
+    <area id="rectG" shape="rect" coords="0,0,90,100" href="#" alt="area 1"/>
+    <area id="circleO" shape="circle" coords="120,60,30" href="#" alt="area 2"/>
+    <area id="polyLE" shape="poly" coords="280,0,310,0,360,30,360,90,280,90" href="#" alt="area 3"/>
+  </map>
+  <!-- Test for fieldsets not doing weird things.  Use a 200x200 div to hold
+       all the bits for this test. Also, place it top/right, so it is not below
+       the bottom edge of the viewport. -->
+  <div style="position: absolute; width: 200px; height: 200px; right: 0; top: 0">
+    <div id="fieldset-div"
+         class="size" style="position: absolute; top: 0; left: 0">
+    </div>
+    <fieldset id="fieldset"
+              class="size"
+              style="position: absolute; top: 100px; left: 100px; border-radius: 100px">
+      <!-- Place the child span so the overflow area of the fieldset overlaps
+           the div -->
+      <span style="position: absolute; top: -100px; left: -100px; height: 1px; width: 1px"></span>
+    </fieldset>
+  </div>
+  <script>
+    setup({explicit_done:true});
+    window.onload = function () {
+      test(function () {
+              assert_equals(document.elementFromPoint(-1, -1), null,
+                "both co-ordinates passed in are negative so should have returned a null");
+              assert_equals(document.elementFromPoint(-1, -1), null,
+                "x co-ordinates passed in are negative so should have returned a null");
+              assert_equals(document.elementFromPoint(-1, -1), null,
+                "y co-ordinates passed in are negative so should have returned a null");
+                  }, "Negative co-ordinates");
+
+      test(function () {
+              var viewportX = window.innerWidth;
+              var viewportY = window.innerHeight;
+              assert_equals(document.elementFromPoint(viewportX + 100, 10), null,
+                "X co-ordinates larger than viewport");
+              assert_equals(document.elementFromPoint(10, viewportY + 100), null,
+                "Y co-ordinates larger than viewport");
+              assert_equals(document.elementFromPoint(viewportX + 100, viewportY + 100), null,
+                "X, Y co-ordinates larger than viewport");
+      }, "co-ordinates larger than the viewport");
+
+      test(function () {
+              var viewportX = window.frames[1].innerWidth;
+              var viewportY = window.frames[1].innerHeight;
+              var iframeRect = document.getElementById('iframe-2').getBoundingClientRect();
+              assert_equals(null, window.frames[1].document.elementFromPoint(iframeRect.right + viewportX + 100, 10),
+                "X co-ordinates larger than viewport");
+              assert_equals(null, window.frames[1].document.elementFromPoint(10, iframeRect.bottom + viewportY + 100),
+                "Y co-ordinates larger than viewport");
+              assert_equals(null, window.frames[1].document.elementFromPoint(iframeRect.right + viewportX + 100,
+                                                                             iframeRect.bottom + viewportY + 100),
+                "X, Y co-ordinates larger than viewport");
+      }, "co-ordinates larger than the viewport from in iframe");
+
+      test(function () {
+              assert_equals(document.elementFromPoint(10, 10), document.getElementById('purple'),
+                "Should have returned the element with id `purple`");
+            }, "Return first element that is the target for hit testing");
+
+      test(function () {
+              assert_equals(document.elementFromPoint(10, 80), document.getElementById('yellow'),
+                "Should have returned the element with id `yellow` as element with `teal` has `pointer-events:none`");
+            }, "First element to get mouse events with pointer-events css");
+
+      test(function () {
+             var svg = document.getElementById('squiggle');
+             svg.scrollIntoView();
+             var svgRect = svg.getBoundingClientRect();
+             assert_equals(document.elementFromPoint(svgRect.left + Math.round(svgRect.width/2),
+                                                     svgRect.top + Math.round(svgRect.height/2)),
+                           svg,
+                           "Should have returned the line SVG");
+      }, "SVG element at x,y");
+
+      test(function () {
+              var svg = document.getElementById('svg-transform');
+              svg.scrollIntoView();
+              var svgRect = svg.getBoundingClientRect();
+              assert_equals(document.elementFromPoint(svgRect.left + Math.round(svgRect.width/2),
+                                                      svgRect.top + Math.round(svgRect.height/2)),
+                            svg.querySelector("rect"),
+                            "Should have returned SVG with Hello WPT! that has a transform");
+
+              var pink = document.getElementById('pink');
+              pink.scrollIntoView();
+              var pinkRect = pink.getBoundingClientRect();
+              assert_equals(document.elementFromPoint(pinkRect.left + Math.round(pinkRect.width/2),
+                                                      pinkRect.top + Math.round(pinkRect.height/2)),
+                            pink,
+                            "Should have returned pink element that has a transform");
+
+      }, "transformed element at x,y");
+
+      test(function () {
+            var anotherteal = document.getElementById('anotherteal');
+            anotherteal.scrollIntoView();
+            var anothertealRect = anotherteal.getBoundingClientRect();
+            assert_equals(document.elementFromPoint(anothertealRect.left + Math.round(anothertealRect.width/2),
+                                                    anothertealRect.top + Math.round(anothertealRect.height/2)),
+                          document.body,
+                          "Should have returned the root as it has pointer-events:none");
+
+            var doc = frames[2].document;
+            doc.removeChild(doc.documentElement);
+            assert_equals(doc.elementFromPoint(0, 0), null,
+                          "Should have returned null as no root element");
+      }, "no hit target at x,y");
+
+      test(function () {
+            var doc = document.implementation.createHTMLDocument('foo');
+            assert_equals(doc.elementFromPoint(0, 0), null,
+                          "Should have returned the documentElement for the document")
+      }, "No viewport available");
+
+      test(function () {
+          // HTML says:
+          // Pointing device interaction with an image associated with a set of layered shapes per
+          // the above algorithm must result in the relevant user interaction events being first
+          // fired to the top-most shape covering the point that the pointing device indicated, if
+          // any, or to the image element itself, if there is no shape covering that point.
+          // https://html.spec.whatwg.org/multipage/embedded-content.html#image-map-processing-model
+          var area = document.getElementById('rectG');
+          var image = document.getElementById('dinos');
+          area.scrollIntoView();
+          var areaRect = image.getBoundingClientRect();
+          areaRect.width = Math.min(areaRect.width, 90);
+          areaRect.height = Math.min(areaRect.height, 100);
+          assert_equals(document.elementFromPoint(areaRect.left + Math.round(areaRect.width/2),
+                                                  areaRect.top + Math.round(areaRect.height/2)),
+                        area,
+                        "Should have returned the area element");
+          assert_equals(document.elementFromPoint(areaRect.left + 92,
+                                                  areaRect.top + 2),
+                        image,
+                        "Should have returned the image element");
+      }, "Image Maps");
+
+      test(function(){
+          var fieldsetDiv = document.getElementById("fieldset-div");
+          var divRect = fieldsetDiv.getBoundingClientRect();
+          assert_equals(document.elementFromPoint(divRect.left + divRect.width/2,
+                                                  divRect.top + divRect.height/2),
+                        fieldsetDiv,
+                        "The fieldset should not cover up the div it doesn't even overlap");
+
+          var fieldset = document.getElementById("fieldset");
+          var rect = fieldset.getBoundingClientRect();
+          // A point 5px in from topleft will be outside the rounded border.
+          assert_not_equals(document.elementFromPoint(rect.left + 5,
+                                                      rect.top + 5),
+                            fieldset,
+                            "The fieldset should not be hit by hit-tests outside its rounded border");
+      }, "Fieldsets");
+      done();
+    }
+ </script>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<map name="shapes">
+    <area shape="rect" coords="0,0,100,100" href="#rect" alt="rect">
+    <area shape="circle" coords="200,100,50" href="#circle" alt="circle">
+</map>
+<img usemap="#shapes" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" width="300" height="200" alt="image map">
+<script>
+    test(() => {
+        const image = document.querySelector("img");
+        const [rectArea, circleArea] = document.querySelectorAll("area");
+        const imageRect = image.getBoundingClientRect();
+
+        document.addEventListener("click", event => {
+            event.preventDefault();
+        });
+
+        function clickTargetAt(x, y) {
+            let target;
+            document.addEventListener("click", event => { target = event.target; }, { once: true });
+            internals.click(imageRect.x + x, imageRect.y + y);
+            return target;
+        }
+
+        println(`click inside rect area targets rect area: ${clickTargetAt(50, 50) === rectArea}`);
+        println(`click inside circle area targets circle area: ${clickTargetAt(200, 100) === circleArea}`);
+        println(`click outside all areas targets image: ${clickTargetAt(150, 175) === image}`);
+    });
+</script>

@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 17 tests
+
+17 Pass
+Pass	missing value default: "2,2,10,10" (null)
+Pass	missing value default: "20,40,10" (null)
+Pass	missing value default: null (null)
+Pass	invalid value default: "2,2,10,10" (foobar invalid)
+Pass	invalid value default: "2,2,10,10" ()
+Pass	empty string: "" (default)
+Pass	omitted coords: null (DEFAULT)
+Pass	simple: "2,2,10,10" (rect)
+Pass	simple: "2,2,10,10" (rectangle)
+Pass	simple: "20,40,10" (circle)
+Pass	simple: "20,40,10" (circ)
+Pass	simple: "20,40,10" (CIRCLE)
+Pass	simple: "20,40,10" (CIRC)
+Pass	LATIN CAPITAL LETTER I WITH DOT ABOVE: "20,40,10" (CİRCLE)
+Pass	LATIN SMALL LETTER DOTLESS I: "20,40,10" (cırcle)
+Pass	simple: "100,100,120,100,100,120" (poly)
+Pass	simple: "100,100,120,100,100,120" (polygon)

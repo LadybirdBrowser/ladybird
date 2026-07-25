@@ -1,0 +1,4 @@
+initial association targets the first map: true
+changing usemap targets the second map: true
+unmatched usemap targets the image: true
+renaming a map re-associates the image: true
