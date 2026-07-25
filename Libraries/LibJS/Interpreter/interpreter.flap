@@ -1947,6 +1947,36 @@ handler PutByValue(
                 dispatch_next;
             },
 
+            TYPED_ARRAY_KIND_UINT8 | TYPED_ARRAY_KIND_INT8 => {
+                guard let converted = numeric_value_to_i32(source) else try_typed_array_slow;
+                let values: Sequence<u8> = alias(
+                    caged_primitive_storage_address(elements, cached_offset, index, 1)
+                );
+                values[0] = truncate_u8(converted);
+                dispatch_next;
+            },
+
+            TYPED_ARRAY_KIND_UINT16 | TYPED_ARRAY_KIND_INT16 => {
+                guard let converted = numeric_value_to_i32(source) else try_typed_array_slow;
+                let values: Sequence<u16> = alias(
+                    caged_primitive_storage_address(elements, cached_offset, index, 2)
+                );
+                values[0] = truncate_u16(converted);
+                dispatch_next;
+            },
+
+            # Uint8Clamped is deliberately not handled here: it rounds half to even and clamps rather than truncating,
+            # so it keeps using the general path.
+
+            TYPED_ARRAY_KIND_INT32 | TYPED_ARRAY_KIND_UINT32 => {
+                guard let converted = numeric_value_to_i32(source) else try_typed_array_slow;
+                let values: Sequence<i32> = alias(
+                    caged_primitive_storage_address(elements, cached_offset, index, 4)
+                );
+                values[0] = converted;
+                dispatch_next;
+            },
+
             _ => try_typed_array_slow,
         }
     };
@@ -1999,6 +2029,15 @@ handler PutByValue(
                 caged_primitive_storage_address(elements, cached_offset, index, 4)
             );
             values[0] = source_f32;
+            dispatch_next;
+        },
+
+        TYPED_ARRAY_KIND_FLOAT64 => {
+            let source_f64 = to_f64(source_i32);
+            let values: Sequence<Value> = alias(
+                caged_primitive_storage_address(elements, cached_offset, index, 8)
+            );
+            values[0] = box_f64(source_f64);
             dispatch_next;
         },
 
