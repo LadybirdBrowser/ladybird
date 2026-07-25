@@ -1,0 +1,6 @@
+pan-x pan-y pinch-zoom -> specified [pan-x pan-y pinch-zoom] computed [manipulation]
+pinch-zoom pan-x pan-y -> specified [pan-x pan-y pinch-zoom] computed [manipulation]
+pan-y pinch-zoom -> specified [pan-y pinch-zoom] computed [pan-y pinch-zoom]
+pinch-zoom -> specified [pinch-zoom] computed [pinch-zoom]
+manipulation -> specified [manipulation] computed [manipulation]
+pan-up pan-x -> specified [pan-x pan-up] computed [pan-x pan-up]

@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+    <head>
+<!-- This file tests the additional touch-action values that are not in the main spec
+     but are mostly implemented by browsers. It should be integrated into main test
+     suite when they are accepted into the specification. -->
+        <title>touch-action: basic verification</title>
+        <meta name="assert" content="The touch-action CSS property determines whether touch input MAY trigger default behavior supplied by the user agent.
+        pinch-zoom: The user agent MAY consider touches that begin on the element only for the purposes of zooming in and out.
+        <meta name="viewport" content="width=device-width">
+        <link rel="stylesheet" type="text/css" href="../pointerevent_styles.css">
+        <script src="../../resources/testharness.js"></script>
+        <script src="../../resources/testharnessreport.js"></script>
+    </head>
+    <body onload="run()">
+        <h2>Pointer Events touch-action attribute support</h2>
+        <h4 id="desc">Test Description: Test will automatically check parsing behaviour of various touch-action combinations.</h4>
+        <script type='text/javascript'>
+            var detected_pointertypes = {};
+
+            setup({ explicit_done: true });
+
+            function run() {
+                var tests = document.querySelectorAll('.test');
+                //TA 15.20
+                for (var i = 0; i < tests.length; i++) {
+                    test(function() {
+                      var style = window.getComputedStyle(tests[i]);
+                      assert_equals(tests[i].attributes.expected.value, style.touchAction);
+                    }, tests[i].id);
+                }
+                done();
+            }
+        </script>
+        <h1>touch-action: basic verification</h1>
+        <div id="complete-notice">
+            <p>The following pointer types were detected: <span id="pointertype-log"></span>.</p>
+        </div>
+        <div id="log"></div>
+        <div class="test" id="explicit-pinch-zoom" style="touch-action: pinch-zoom;" expected="pinch-zoom"></div>
+        <div class="test" id="explicit-pinch-zoom-pan-x-pan-up" style="touch-action: pinch-zoom pan-x pan-up;" expected="pan-x pan-up pinch-zoom"></div>
+        <div class="test" id="explicit-pinch-zoom-pan-x-pan-y" style="touch-action: pinch-zoom pan-x pan-y;" expected="manipulation"></div>
+        <div class="test" id="explicit-invalid-14" style="touch-action: pinch-zoom none;" expected="auto"></div>
+    </body>
+</html>

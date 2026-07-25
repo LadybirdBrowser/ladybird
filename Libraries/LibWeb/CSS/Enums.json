@@ -1103,7 +1103,8 @@
     "pan-right",
     "pan-up",
     "pan-x",
-    "pan-y"
+    "pan-y",
+    "pinch-zoom"
   ],
   "transform-box": [
     "content-box",

@@ -4304,7 +4304,8 @@ RefPtr<StyleValue const> Parser::parse_timeline_scope_value(TokenStream<Componen
 // https://www.w3.org/TR/pointerevents/#the-touch-action-css-property
 RefPtr<StyleValue const> Parser::parse_touch_action_value(TokenStream<ComponentValue>& tokens)
 {
-    // auto | none | [ [ pan-x | pan-left | pan-right ] || [ pan-y | pan-up | pan-down ] ] | manipulation
+    // https://compat.spec.whatwg.org/#touch-action
+    // auto | none | [ [ pan-x | pan-left | pan-right ] || [ pan-y | pan-up | pan-down ] || pinch-zoom ] | manipulation
 
     if (auto value = parse_all_as_single_keyword_value(tokens, Keyword::Auto))
         return value;
@@ -4313,33 +4314,34 @@ RefPtr<StyleValue const> Parser::parse_touch_action_value(TokenStream<ComponentV
     if (auto value = parse_all_as_single_keyword_value(tokens, Keyword::Manipulation))
         return value;
 
-    StyleValueVector parsed_values;
     auto transaction = tokens.begin_transaction();
 
-    // We will verify that we have up to one vertical and one horizontal value
-    bool has_horizontal = false;
-    bool has_vertical = false;
-
-    // Were the values specified in y/x order? (we need to store them in canonical x/y order)
-    bool swap_order = false;
+    // We will verify that we have up to one of each of a horizontal, vertical, and pinch-zoom value,
+    // and store them in that canonical order.
+    RefPtr<StyleValue const> horizontal_value;
+    RefPtr<StyleValue const> vertical_value;
+    RefPtr<StyleValue const> pinch_zoom_value;
 
     while (auto parsed_value = parse_css_value_for_property(PropertyID::TouchAction, tokens)) {
         switch (parsed_value->as_keyword().keyword()) {
         case Keyword::PanX:
         case Keyword::PanLeft:
         case Keyword::PanRight:
-            if (has_horizontal)
+            if (horizontal_value)
                 return {};
-            if (has_vertical)
-                swap_order = true;
-            has_horizontal = true;
+            horizontal_value = move(parsed_value);
             break;
         case Keyword::PanY:
         case Keyword::PanUp:
         case Keyword::PanDown:
-            if (has_vertical)
+            if (vertical_value)
                 return {};
-            has_vertical = true;
+            vertical_value = move(parsed_value);
+            break;
+        case Keyword::PinchZoom:
+            if (pinch_zoom_value)
+                return {};
+            pinch_zoom_value = move(parsed_value);
             break;
         case Keyword::Auto:
         case Keyword::None:
@@ -4350,15 +4352,22 @@ RefPtr<StyleValue const> Parser::parse_touch_action_value(TokenStream<ComponentV
             VERIFY_NOT_REACHED();
         }
 
-        parsed_values.append(parsed_value.release_nonnull());
         if (!tokens.has_next_token())
             break;
     }
 
-    if (swap_order)
-        swap(parsed_values[0], parsed_values[1]);
+    if (!horizontal_value && !vertical_value && !pinch_zoom_value)
+        return {};
 
     transaction.commit();
+
+    StyleValueVector parsed_values;
+    if (horizontal_value)
+        parsed_values.append(horizontal_value.release_nonnull());
+    if (vertical_value)
+        parsed_values.append(vertical_value.release_nonnull());
+    if (pinch_zoom_value)
+        parsed_values.append(pinch_zoom_value.release_nonnull());
     return StyleValueList::create(move(parsed_values), StyleValueList::Separator::Space);
 }
 
