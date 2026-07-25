@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<iframe id="frame" width="400" height="400" srcdoc="
+    <style>
+        html, body { margin: 0 }
+        div { background: gray }
+        #plain { height: 50vh }
+        #calc { height: calc(50vh - 10px) }
+        #min { height: min(50vh, 4000px) }
+        #clamp { height: clamp(10px, 50vh, 4000px) }
+        #var { --h: calc(50vh - 10px); height: var(--h) }
+    </style>
+    <div id=plain></div><div id=calc></div><div id=min></div><div id=clamp></div><div id=var></div>
+"></iframe>
+<script>
+    asyncTest(done => {
+        const frame = document.getElementById("frame");
+        frame.onload = () => {
+            const heights = () => {
+                const document = frame.contentDocument;
+                return ["plain", "calc", "min", "clamp", "var"]
+                    .map(id => `${id}=${document.getElementById(id).getBoundingClientRect().height}`)
+                    .join(" ");
+            };
+
+            println(`before resize: ${heights()}`);
+
+            // Shrinking the iframe resizes the child navigable's viewport. Every viewport-relative
+            // length must be recomputed, including the ones nested inside math functions.
+            frame.height = 200;
+            document.body.offsetWidth;
+
+            println(`after resize: ${heights()}`);
+            done();
+        };
+    });
+</script>

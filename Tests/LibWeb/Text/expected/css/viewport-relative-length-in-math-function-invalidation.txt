@@ -1,0 +1,2 @@
+before resize: plain=200 calc=190 min=200 clamp=200 var=190
+after resize: plain=100 calc=90 min=100 clamp=100 var=90
