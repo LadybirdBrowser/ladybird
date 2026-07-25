@@ -14,11 +14,10 @@
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/DOM/Text.h>
-#include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/Box.h>
 
 namespace Web::Layout {
 
-class LineBoxFragment;
 class GeneratedTextNode;
 class TextSliceNode;
 
