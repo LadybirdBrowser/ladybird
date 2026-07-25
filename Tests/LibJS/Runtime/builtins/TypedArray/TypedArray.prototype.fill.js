@@ -76,3 +76,13 @@ test("basic functionality", () => {
         expect(typedArray[2]).toBe(0n);
     });
 });
+
+test("negative start after negative end", () => {
+    TYPED_ARRAYS.forEach(T => {
+        const typedArray = new T(5);
+
+        expect(typedArray.fill(8, -1, -3)).toBe(typedArray);
+
+        for (let i = 0; i < 5; ++i) expect(typedArray[i]).toBe(0);
+    });
+});

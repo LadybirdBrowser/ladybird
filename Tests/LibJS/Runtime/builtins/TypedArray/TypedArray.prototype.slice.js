@@ -66,3 +66,23 @@ test("basic functionality", () => {
         expect(second_slice).toHaveLength(0);
     });
 });
+
+test("source buffer resized to zero while coercing bounds", () => {
+    TYPED_ARRAYS.forEach(T => {
+        const byteLength = 4 * T.BYTES_PER_ELEMENT;
+        const arrayBuffer = new ArrayBuffer(byteLength, { maxByteLength: byteLength });
+        const typedArray = new T(arrayBuffer);
+        typedArray.fill(1);
+
+        const start = {
+            valueOf() {
+                arrayBuffer.resize(0);
+                return 1;
+            },
+        };
+
+        const slice = typedArray.slice(start);
+        expect(slice).toHaveLength(3);
+        for (let i = 0; i < 3; ++i) expect(slice[i]).toBe(0);
+    });
+});

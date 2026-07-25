@@ -487,6 +487,11 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::every)
 template<typename T>
 inline void fast_typed_array_fill(TypedArrayBase& typed_array, u32 begin, u32 end, T value)
 {
+    // NB: The range is empty when it was clamped from both sides, e.g. fill(v, -1, -3).
+    //     The byte count below is unsigned, so an inverted range must not reach it.
+    if (begin >= end)
+        return;
+
     Checked<size_t> computed_begin = begin;
     computed_begin *= sizeof(T);
     computed_begin += typed_array.byte_offset();
@@ -1735,6 +1740,12 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::slice)
 
         // e. Set count to max(final - k, 0).
         count = max(final - k, 0);
+
+        // NB: The source shrank away while its bounds were being coerced, so there is
+        //     nothing left to copy. The remaining steps are all no-ops for an empty
+        //     range, but the source byte index is now past the end of its buffer.
+        if (count == 0)
+            return array;
 
         // f. Let srcType be TypedArrayElementType(O).
         // g. Let targetType be TypedArrayElementType(A).
