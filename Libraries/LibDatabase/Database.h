@@ -44,9 +44,16 @@ namespace Detail {
 
 // Reject unsigned long on all platforms to keep binding behavior portable.
 template<typename ValueType>
-constexpr bool is_unsupported_unsigned_sql_integer = IsUnsigned<RemoveCVReference<ValueType>> && !IsOneOf<RemoveCVReference<ValueType>, bool, u8, u16, u32>;
+constexpr bool is_unsupported_unsigned_sql_integer_for_payload = IsUnsigned<ValueType> && !IsOneOf<ValueType, bool, u8, u16, u32>;
+
+template<typename ValueType>
+constexpr bool is_unsupported_unsigned_sql_integer_for_payload<Optional<ValueType>> = is_unsupported_unsigned_sql_integer_for_payload<ValueType>;
+
+template<typename ValueType>
+constexpr bool is_unsupported_unsigned_sql_integer = is_unsupported_unsigned_sql_integer_for_payload<RemoveCVReference<ValueType>>;
 static_assert(is_unsupported_unsigned_sql_integer<u64> && is_unsupported_unsigned_sql_integer<unsigned long> && is_unsupported_unsigned_sql_integer<unsigned long long>);
 static_assert(!is_unsupported_unsigned_sql_integer<u32> && !is_unsupported_unsigned_sql_integer<i64> && !is_unsupported_unsigned_sql_integer<bool>);
+static_assert(is_unsupported_unsigned_sql_integer<Optional<u64>> && !is_unsupported_unsigned_sql_integer<Optional<u32>>);
 
 template<typename ValueType>
 consteval void assert_supported_placeholder()

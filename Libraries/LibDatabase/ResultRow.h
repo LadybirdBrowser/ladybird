@@ -75,6 +75,13 @@ public:
         return String::from_utf8(value.release_value());
     }
 
+    ErrorOr<Optional<String>> read_optional_text(StringView column, size_t max_bytes)
+    {
+        if (TRY(is_null(column)))
+            return Optional<String> {};
+        return Optional<String> { TRY(read_text(column, max_bytes)) };
+    }
+
     ErrorOr<Utf16String> read_utf16_text(StringView column, size_t max_bytes)
     {
         auto index = TRY(m_database.result_column_index(m_statement_id, column));
@@ -87,6 +94,13 @@ public:
         return Utf16String::try_from_utf8(value.release_value());
     }
 
+    ErrorOr<Optional<Utf16String>> read_optional_utf16_text(StringView column, size_t max_bytes)
+    {
+        if (TRY(is_null(column)))
+            return Optional<Utf16String> {};
+        return Optional<Utf16String> { TRY(read_utf16_text(column, max_bytes)) };
+    }
+
     ErrorOr<ByteBuffer> read_blob(StringView column, size_t max_bytes)
     {
         auto index = TRY(m_database.result_column_index(m_statement_id, column));
@@ -97,6 +111,13 @@ public:
             return Error::from_string_literal("Blob column exceeds the size limit");
         }
         return ByteBuffer::copy(value.release_value());
+    }
+
+    ErrorOr<Optional<ByteBuffer>> read_optional_blob(StringView column, size_t max_bytes)
+    {
+        if (TRY(is_null(column)))
+            return Optional<ByteBuffer> {};
+        return Optional<ByteBuffer> { TRY(read_blob(column, max_bytes)) };
     }
 
     ResultRow(Badge<Database>, Database& database, StatementID statement_id)
