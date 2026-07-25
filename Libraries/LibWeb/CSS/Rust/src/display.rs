@@ -168,7 +168,8 @@ impl FfiDisplay {
     }
 
     pub fn is_flex_inside(&self) -> bool {
-        self.is_outside_and_inside() && self.inside == display_inside::FLEX
+        self.is_outside_and_inside()
+            && (self.inside == display_inside::FLEX || self.inside == display_inside::_WEBKIT_BOX)
     }
 
     pub fn is_grid_inside(&self) -> bool {

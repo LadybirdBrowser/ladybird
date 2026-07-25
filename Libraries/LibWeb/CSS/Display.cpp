@@ -64,6 +64,14 @@ Display Display::from_keyword(Keyword keyword)
         return Display::from_short(Short::InlineTable);
     case Keyword::Math:
         return Display::from_short(Short::Math);
+    case Keyword::WebkitBox:
+        return Display { DisplayOutside::Block, DisplayInside::WebkitBox };
+    case Keyword::WebkitInlineBox:
+        return Display { DisplayOutside::Inline, DisplayInside::WebkitBox };
+    case Keyword::WebkitFlex:
+        return Display::from_short(Short::Flex);
+    case Keyword::WebkitInlineFlex:
+        return Display::from_short(Short::InlineFlex);
     default:
         break;
     }
@@ -150,6 +158,10 @@ Optional<Keyword> Display::to_keyword() const
             return Keyword::Flex;
         if (*this == Display::from_short(Display::Short::InlineFlex))
             return Keyword::InlineFlex;
+        if (*this == Display { DisplayOutside::Block, DisplayInside::WebkitBox })
+            return Keyword::WebkitBox;
+        if (*this == Display { DisplayOutside::Inline, DisplayInside::WebkitBox })
+            return Keyword::WebkitInlineBox;
         if (*this == Display::from_short(Display::Short::Grid))
             return Keyword::Grid;
         if (*this == Display::from_short(Display::Short::InlineGrid))

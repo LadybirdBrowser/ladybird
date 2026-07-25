@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://compat.spec.whatwg.org/#propdef--webkit-box-align">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1936370">
+<link rel="match" href="../../../expected/wpt-import/compat/green-ref.html">
+<meta name="assert" content="This test checks that a legacy flex container with -webkit-box-align:start doesn't stretch the cross-axis of its items.">
+
+<style>
+.container {
+  display: -webkit-inline-box;
+  -webkit-box-align: start; /* Map to align-items: flex-start */
+  height: 100px;
+  background: green;
+}
+.item {
+  padding: 15px;
+  border-inline: 25px solid green;
+  margin: 10px;
+  aspect-ratio: 1/1;
+}
+</style>
+
+<div class="container">
+  <div class="item"></div>
+</div>

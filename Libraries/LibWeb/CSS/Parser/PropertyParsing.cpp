@@ -2228,6 +2228,11 @@ RefPtr<StyleValue const> Parser::parse_display_value(TokenStream<ComponentValue>
                     return Display::from_short(Display::Short::Ruby);
                 case DisplayInside::Math:
                     return Display::from_short(Display::Short::Math);
+                // AD-HOC: The compat specification maps `-webkit-box` to `flex` but notes that this definition is
+                //         known to not be web compatible. Like other engines, we retain a distinct display value
+                //         so that flex layout can apply the legacy webkit box behaviors.
+                case DisplayInside::WebkitBox:
+                    return Display { DisplayOutside::Block, DisplayInside::WebkitBox };
                 }
             }
 
@@ -2257,6 +2262,16 @@ RefPtr<StyleValue const> Parser::parse_display_value(TokenStream<ComponentValue>
                     return Display::from_short(Display::Short::InlineFlex);
                 case DisplayLegacy::InlineGrid:
                     return Display::from_short(Display::Short::InlineGrid);
+                // AD-HOC: See the `-webkit-box` comment above.
+                case DisplayLegacy::WebkitInlineBox:
+                    return Display { DisplayOutside::Inline, DisplayInside::WebkitBox };
+                // https://compat.spec.whatwg.org/#css-keyword-mappings
+                // The following -webkit- vendor prefixed keywords must be supported as mappings to the corresponding
+                // unprefixed keyword.
+                case DisplayLegacy::WebkitFlex:
+                    return Display::from_short(Display::Short::Flex);
+                case DisplayLegacy::WebkitInlineFlex:
+                    return Display::from_short(Display::Short::InlineFlex);
                 }
             }
         }
@@ -2281,7 +2296,8 @@ RefPtr<StyleValue const> Parser::parse_display_value(TokenStream<ComponentValue>
                     list_item = Display::ListItem::Yes;
                     continue;
                 }
-                if (auto inside_value = keyword_to_display_inside(keyword); inside_value.has_value()) {
+                // NB: `-webkit-box` is only valid as a single keyword, so it is not accepted here.
+                if (auto inside_value = keyword_to_display_inside(keyword); inside_value.has_value() && inside_value != DisplayInside::WebkitBox) {
                     if (inside.has_value())
                         return {};
                     inside = inside_value.value();
