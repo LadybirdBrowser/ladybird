@@ -53,6 +53,19 @@ pub struct FfiLengthResolutionContext {
     pub root_font_metrics: FfiFontMetrics,
     pub font_metrics_depend_on_viewport_metrics: bool,
     pub root_font_metrics_depend_on_viewport_metrics: bool,
+    /// Optional flag owned by Length::ResolutionContext, set to true whenever a
+    /// resolution here consumed viewport metrics. Callers that report the
+    /// dependency through their return value may leave this null.
+    pub resolved_viewport_relative_length: *mut bool,
+}
+
+/// Records a viewport metric dependency on the context's tracking flag, if one is set.
+fn record_viewport_relative_length_resolution(context: &FfiLengthResolutionContext) {
+    if context.resolved_viewport_relative_length.is_null() {
+        return;
+    }
+    // SAFETY: The flag belongs to a Length::ResolutionContext that outlives this call.
+    unsafe { *context.resolved_viewport_relative_length = true };
 }
 
 /// Result of absolutizing a length.
@@ -251,6 +264,9 @@ fn absolutize_length(value: f64, unit: usize, context: &FfiLengthResolutionConte
             } else {
                 context.font_metrics_depend_on_viewport_metrics
             };
+            if depends_on_viewport {
+                record_viewport_relative_length_resolution(context);
+            }
             FfiAbsolutizedLength {
                 handled: true,
                 changed: true,
@@ -259,6 +275,7 @@ fn absolutize_length(value: f64, unit: usize, context: &FfiLengthResolutionConte
             }
         }
         LengthUnitKind::ViewportRelative { axis } => {
+            record_viewport_relative_length_resolution(context);
             let basis = match axis {
                 ViewportAxis::Width => context.viewport_width,
                 ViewportAxis::Height => context.viewport_height,
@@ -3840,6 +3857,7 @@ mod tests {
             },
             font_metrics_depend_on_viewport_metrics: false,
             root_font_metrics_depend_on_viewport_metrics: true,
+            resolved_viewport_relative_length: std::ptr::null_mut(),
         }
     }
 

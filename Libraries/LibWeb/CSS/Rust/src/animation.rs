@@ -5238,6 +5238,7 @@ fn animation_length_resolution_context(
         root_font_metrics: font_metrics(&animation_context.root_font_metrics),
         font_metrics_depend_on_viewport_metrics: animation_context.font_metrics_depend_on_viewport_metrics,
         root_font_metrics_depend_on_viewport_metrics: animation_context.root_font_metrics_depend_on_viewport_metrics,
+        resolved_viewport_relative_length: std::ptr::null_mut(),
     })
 }
 

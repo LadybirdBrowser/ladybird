@@ -78,6 +78,11 @@ public:
             m_did_resolve_viewport_relative_length = &did_resolve_viewport_relative_length;
         }
 
+        [[nodiscard]] bool* viewport_metric_dependency_flag() const
+        {
+            return m_did_resolve_viewport_relative_length;
+        }
+
         void record_viewport_relative_length_resolution() const
         {
             if (m_did_resolve_viewport_relative_length)

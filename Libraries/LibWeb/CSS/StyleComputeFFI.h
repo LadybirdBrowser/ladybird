@@ -34,6 +34,7 @@ inline ComputedValuesFFI::FfiLengthResolutionContext to_ffi_length_resolution_co
         .root_font_metrics = to_ffi_font_metrics(context.root_font_metrics),
         .font_metrics_depend_on_viewport_metrics = context.font_metrics_depend_on_viewport_metrics,
         .root_font_metrics_depend_on_viewport_metrics = context.root_font_metrics_depend_on_viewport_metrics,
+        .resolved_viewport_relative_length = context.viewport_metric_dependency_flag(),
     };
 }
 
