@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const value of [
+            "circle 5px",
+            "circle 5px 5px",
+            "5px circle",
+            "auto auto",
+            "left 5px",
+            "5px top",
+            "center",
+            "left top",
+        ]) {
+            println(`${value}: ${CSS.supports("object-position", value)}`);
+        }
+    });
+</script>

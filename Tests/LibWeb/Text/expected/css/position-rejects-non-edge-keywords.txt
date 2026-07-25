@@ -1,0 +1,8 @@
+circle 5px: false
+circle 5px 5px: false
+5px circle: false
+auto auto: false
+left 5px: true
+5px top: true
+center: true
+left top: true
