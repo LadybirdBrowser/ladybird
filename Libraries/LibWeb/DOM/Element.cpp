@@ -399,11 +399,20 @@ bool Element::cannot_navigate() const
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#links-created-by-a-and-area-elements
-bool Element::creates_a_hyperlink() const
+HTML::HTMLHyperlinkElementUtils const* Element::created_hyperlink() const
 {
     // NB: The href attribute on a and area elements is not required; when those elements do not have href attributes they
     // do not create hyperlinks.
-    return (is_html_anchor_element() || is_html_area_element()) && has_attribute(HTML::AttributeNames::href);
+    if (!has_attribute(HTML::AttributeNames::href))
+        return nullptr;
+    if (auto const* anchor_element = as_if<HTML::HTMLAnchorElement>(*this))
+        return anchor_element;
+    return as_if<HTML::HTMLAreaElement>(*this);
+}
+
+bool Element::creates_a_hyperlink() const
+{
+    return created_hyperlink() != nullptr;
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#following-hyperlinks-2
