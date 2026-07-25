@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/Checked.h>
 #include <AK/Error.h>
 #include <AK/Find.h>
 #include <AK/Forward.h>
@@ -848,7 +849,11 @@ public:
     {
         if (m_capacity >= needed_capacity)
             return {};
-        size_t new_capacity = kmalloc_good_size(needed_capacity * sizeof(StorageType)) / sizeof(StorageType);
+        Checked<size_t> new_size_in_bytes = needed_capacity;
+        new_size_in_bytes *= sizeof(StorageType);
+        if (new_size_in_bytes.has_overflow())
+            return Error::from_errno(ENOMEM);
+        size_t new_capacity = kmalloc_good_size(new_size_in_bytes.value()) / sizeof(StorageType);
         auto* new_buffer = static_cast<StorageType*>(kmalloc_array(new_capacity, sizeof(StorageType)));
         if (new_buffer == nullptr)
             return Error::from_errno(ENOMEM);
