@@ -63,8 +63,8 @@ void OscillatorNode::queue_waveform_update()
 OscillatorNode::OscillatorNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::OscillatorOptions const& options)
     : AudioScheduledSourceNode(realm, context)
     , m_type(options.type)
-    , m_frequency(AudioParam::create(realm, context, options.frequency, -context->nyquist_frequency(), context->nyquist_frequency(), Bindings::AutomationRate::ARate))
-    , m_detune(AudioParam::create(realm, context, options.detune, -1200 * AK::log2(NumericLimits<float>::max()), 1200 * AK::log2(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
+    , m_frequency(AudioParam::create(realm, context, this, options.frequency, -context->nyquist_frequency(), context->nyquist_frequency(), Bindings::AutomationRate::ARate))
+    , m_detune(AudioParam::create(realm, context, this, options.detune, -1200 * AK::log2(NumericLimits<float>::max()), 1200 * AK::log2(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
 {
 }
 

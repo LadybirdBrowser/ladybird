@@ -10,6 +10,7 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/AudioParam.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/WebAudio/AudioParamTimeline.h>
 #include <LibWeb/WebAudio/Rendering/RenderNode.h>
 
@@ -25,7 +26,8 @@ public:
         No,
         Yes,
     };
-    static GC::Ref<AudioParam> create(JS::Realm&, GC::Ref<BaseAudioContext>, float default_value, float min_value, float max_value, Bindings::AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
+    // The owner is the AudioNode this parameter belongs to, or null for the AudioListener's parameters.
+    static GC::Ref<AudioParam> create(JS::Realm&, GC::Ref<BaseAudioContext>, GC::Ptr<AudioNode> owner, float default_value, float min_value, float max_value, Bindings::AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
 
     virtual ~AudioParam() override;
 
@@ -61,11 +63,15 @@ public:
     WebIDL::ExceptionOr<GC::Ref<AudioParam>> cancel_and_hold_at_time(double cancel_time);
 
 private:
-    AudioParam(JS::Realm&, GC::Ref<BaseAudioContext>, float default_value, float min_value, float max_value, Bindings::AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
+    AudioParam(JS::Realm&, GC::Ref<BaseAudioContext>, GC::Ptr<AudioNode> owner, float default_value, float min_value, float max_value, Bindings::AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
 
     WebIDL::ExceptionOr<void> map_insert_result(AudioParamTimeline::InsertResult);
 
     GC::Ref<BaseAudioContext> m_context;
+
+    // An AudioParam is a facet of the AudioNode that exposes it, so holding on to the parameter keeps that node, and
+    // with it the node's render node and automation, alive.
+    GC::Ptr<AudioNode> m_owner;
 
     NonnullRefPtr<AudioParamTimeline> m_timeline;
     NonnullRefPtr<Rendering::RenderAudioParam> m_render_param;

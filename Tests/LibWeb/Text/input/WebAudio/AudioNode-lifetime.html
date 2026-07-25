@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // https://webaudio.github.io/web-audio-api/#DynamicLifetime
+    // A node keeps the nodes it feeds into alive, but a node is not kept alive by the nodes feeding into it.
+    asyncTest(done => {
+        const context = new OfflineAudioContext(1, 4096, 44100);
+
+        let source = context.createConstantSource();
+        source.start();
+
+        // Nothing feeds into this node, so being connected to the destination does not keep it alive.
+        const unreachableGain = new WeakRef((() => {
+            const gain = context.createGain();
+            gain.connect(context.destination);
+            return gain;
+        })());
+
+        // A node in the path of a playing source is kept alive by that source.
+        const gainFedBySource = new WeakRef((() => {
+            const gain = context.createGain();
+            source.connect(gain);
+            gain.connect(context.destination);
+            return gain;
+        })());
+
+        // An AudioParam is a facet of its node, so holding the parameter keeps that node alive.
+        let heldParam;
+        const gainHeldThroughParam = new WeakRef((() => {
+            const gain = context.createGain();
+            gain.connect(context.destination);
+            heldParam = gain.gain;
+            return gain;
+        })());
+
+        const playingSource = new WeakRef(source);
+        source = null;
+
+        setTimeout(() => {
+            internals.gc();
+            // Churn the heap to dislodge any stale references, then collect again.
+            for (let i = 0; i < 10000; ++i)
+                document.body.appendChild(document.createElement("div"));
+            internals.gc();
+
+            println(`gain nothing feeds into is collected: ${unreachableGain.deref() === undefined}`);
+            println(`playing source is kept alive: ${playingSource.deref() !== undefined}`);
+            println(`gain fed by a playing source is kept alive: ${gainFedBySource.deref() !== undefined}`);
+            println(`gain held through its AudioParam is kept alive: ${gainHeldThroughParam.deref() !== undefined}`);
+            done();
+        }, 0);
+    });
+</script>

@@ -98,7 +98,6 @@ WebIDL::ExceptionOr<void> AudioNode::initialize_audio_node_options(Bindings::Aud
 WebIDL::ExceptionOr<GC::Ref<AudioNode>> AudioNode::connect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output, WebIDL::UnsignedLong input)
 {
     AudioNodeConnection output_connection { destination_node, output, input };
-    AudioNodeConnection input_connection { *this, output, input };
 
     // There can only be one connection between a given output of one specific node and a given input of another specific node.
     // Multiple connections with the same termini are ignored.
@@ -125,8 +124,6 @@ WebIDL::ExceptionOr<GC::Ref<AudioNode>> AudioNode::connect(GC::Ref<AudioNode> de
     }
     // Connect node's output to destination_node input.
     m_output_connections.append(output_connection);
-    // Connect destination_node input to node's output.
-    destination_node->m_input_connections.append(input_connection);
 
     queue_connection_update();
 
@@ -168,15 +165,7 @@ WebIDL::ExceptionOr<void> AudioNode::connect(GC::Ref<AudioParam> destination_par
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect
 void AudioNode::disconnect()
 {
-    while (!m_output_connections.is_empty()) {
-        auto connection = m_output_connections.take_last();
-        auto destination = connection.destination_node;
-
-        destination->m_input_connections.remove_all_matching([&](AudioNodeConnection& input_connection) {
-            return input_connection.destination_node.ptr() == this;
-        });
-    }
-
+    m_output_connections.clear();
     m_param_connections.clear();
 
     queue_connection_update();
@@ -193,14 +182,7 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(WebIDL::UnsignedLong output)
     }
 
     m_output_connections.remove_all_matching([&](AudioNodeConnection& connection) {
-        if (connection.output != output)
-            return false;
-
-        connection.destination_node->m_input_connections.remove_all_matching([&](AudioNodeConnection& reverse_connection) {
-            return reverse_connection.destination_node.ptr() == this && reverse_connection.output == output;
-        });
-
-        return true;
+        return connection.output == output;
     });
 
     m_param_connections.remove_all_matching([&](AudioParamConnection& connection) {
@@ -219,14 +201,7 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
     // It disconnects all outgoing connections to the given destinationNode.
     auto before = m_output_connections.size();
     m_output_connections.remove_all_matching([&](AudioNodeConnection& connection) {
-        if (connection.destination_node != destination_node)
-            return false;
-
-        connection.destination_node->m_input_connections.remove_all_matching([&](AudioNodeConnection& reverse_connection) {
-            return reverse_connection.destination_node.ptr() == this;
-        });
-
-        return true;
+        return connection.destination_node == destination_node;
     });
     // If there is no connection to the destinationNode, an InvalidAccessError exception MUST be thrown.
     if (m_output_connections.size() == before) {
@@ -250,14 +225,7 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
     // The destinationNode parameter is the AudioNode to disconnect.
     auto before = m_output_connections.size();
     m_output_connections.remove_all_matching([&](AudioNodeConnection& connection) {
-        if (connection.destination_node != destination_node || connection.output != output)
-            return false;
-
-        connection.destination_node->m_input_connections.remove_all_matching([&](AudioNodeConnection& reverse_connection) {
-            return reverse_connection.destination_node.ptr() == this && reverse_connection.output == output;
-        });
-
-        return true;
+        return connection.destination_node == destination_node && connection.output == output;
     });
 
     //  If there is no connection to the destinationNode from the given output, an InvalidAccessError exception MUST be thrown.
@@ -288,14 +256,7 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
     // The destinationNode parameter is the AudioNode to disconnect.
     auto before = m_output_connections.size();
     m_output_connections.remove_all_matching([&](AudioNodeConnection& connection) {
-        if (connection.destination_node != destination_node || connection.output != output || connection.input != input)
-            return false;
-
-        connection.destination_node->m_input_connections.remove_all_matching([&](AudioNodeConnection& reverse_connection) {
-            return reverse_connection.destination_node.ptr() == this && reverse_connection.output == output && reverse_connection.input == input;
-        });
-
-        return true;
+        return connection.destination_node == destination_node && connection.output == output && connection.input == input;
     });
 
     // If there is no connection to the destinationNode from the given output to the given input, an InvalidAccessError exception MUST be thrown.
@@ -398,15 +359,21 @@ void AudioNode::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+// https://webaudio.github.io/web-audio-api/#DynamicLifetime
 void AudioNode::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);
+
+    // A node keeps everything it feeds into alive, but not the other way around: "when the note has finished playing,
+    // the context will automatically release the reference to the AudioBufferSourceNode, which in turn will release
+    // references to any nodes it is connected to, and so on".
+    // NB: The context roots every source node that is playing, which is what keeps a subgraph feeding the destination
+    //     alive for as long as it can still produce sound.
+    // FIXME: A node that is still within its tail-time, and a ScriptProcessorNode or MediaElementAudioSourceNode that
+    //        is actively processing, should be kept alive by the context in the same way.
     for (auto& conn : m_param_connections)
         visitor.visit(conn.destination_param);
-
-    for (auto& conn : m_input_connections)
-        visitor.visit(conn.destination_node);
 
     for (auto& conn : m_output_connections)
         visitor.visit(conn.destination_node);

@@ -14,9 +14,10 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioParam);
 
-AudioParam::AudioParam(JS::Realm& realm, GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
+AudioParam::AudioParam(JS::Realm& realm, GC::Ref<BaseAudioContext> context, GC::Ptr<AudioNode> owner, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
     : Bindings::PlatformObject(realm)
     , m_context(context)
+    , m_owner(owner)
     , m_timeline(make_ref_counted<AudioParamTimeline>(default_value))
     , m_render_param(make_ref_counted<Rendering::RenderAudioParam>(m_timeline, min_value, max_value, automation_rate))
     , m_current_value(default_value)
@@ -28,9 +29,9 @@ AudioParam::AudioParam(JS::Realm& realm, GC::Ref<BaseAudioContext> context, floa
 {
 }
 
-GC::Ref<AudioParam> AudioParam::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
+GC::Ref<AudioParam> AudioParam::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, GC::Ptr<AudioNode> owner, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
 {
-    return realm.create<AudioParam>(realm, context, default_value, min_value, max_value, automation_rate, fixed_automation_rate);
+    return realm.create<AudioParam>(realm, context, owner, default_value, min_value, max_value, automation_rate, fixed_automation_rate);
 }
 
 AudioParam::~AudioParam() = default;
@@ -212,6 +213,7 @@ void AudioParam::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);
+    visitor.visit(m_owner);
 }
 
 }
