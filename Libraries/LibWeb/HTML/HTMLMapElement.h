@@ -8,6 +8,7 @@
 
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/PixelUnits.h>
 
 namespace Web::HTML {
 
@@ -19,6 +20,8 @@ public:
     virtual ~HTMLMapElement() override;
 
     GC::Ref<DOM::HTMLCollection> areas();
+
+    GC::Ptr<HTMLAreaElement> area_for_point(CSSPixelPoint, CSSPixelSize image_size);
 
 private:
     HTMLMapElement(DOM::Document&, DOM::QualifiedName);

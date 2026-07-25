@@ -75,6 +75,8 @@ public:
     // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> decode() const;
 
+    GC::Ptr<HTMLMapElement> associated_map_element();
+
     virtual Optional<ARIA::Role> default_role() const override;
 
     // https://html.spec.whatwg.org/multipage/images.html#img-environment-changes
@@ -176,6 +178,9 @@ private:
     GC::Ptr<DOM::Element const> m_dimension_attribute_source;
 
     u64 m_update_the_image_data_count { 0 };
+
+    GC::Ptr<HTMLMapElement> m_cached_associated_map_element;
+    Optional<u64> m_cached_associated_map_element_dom_tree_version;
 };
 
 }

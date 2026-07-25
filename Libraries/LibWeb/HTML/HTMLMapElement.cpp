@@ -32,6 +32,27 @@ void HTMLMapElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_areas);
 }
 
+// https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
+GC::Ptr<HTMLAreaElement> HTMLMapElement::area_for_point(CSSPixelPoint point, CSSPixelSize image_size)
+{
+    // 3. Otherwise, the user agent must collect all the area elements that are descendants of the map. Let areas
+    //    be that list.
+    // Pointing device interaction with an image associated with a set of layered shapes per the above algorithm
+    // must result in the relevant user interaction events being first fired to the top-most shape covering the
+    // point that the pointing device indicated, if any, or to the image element itself, if there is no shape
+    // covering that point.
+    // NB: The shapes are layered in reverse tree order, so the top-most shape covering the point belongs to the
+    //     first area element in tree order whose shape contains the point.
+    GC::Ptr<HTMLAreaElement> hit_area;
+    for_each_in_subtree_of_type<HTMLAreaElement>([&](HTMLAreaElement& area) {
+        if (!area.shape_contains_point(point, image_size))
+            return TraversalDecision::Continue;
+        hit_area = area;
+        return TraversalDecision::Break;
+    });
+    return hit_area;
+}
+
 // https://html.spec.whatwg.org/multipage/image-maps.html#dom-map-areas
 GC::Ref<DOM::HTMLCollection> HTMLMapElement::areas()
 {

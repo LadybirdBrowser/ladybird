@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<map name="first">
+    <area id="area-in-first" shape="rect" coords="0,0,100,100" href="#first" alt="first">
+</map>
+<map name="second">
+    <area id="area-in-second" shape="rect" coords="0,0,100,100" href="#second" alt="second">
+</map>
+<img id="image" usemap="#first" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" width="100" height="100" alt="image map">
+<script>
+    test(() => {
+        const image = document.getElementById("image");
+        const imageRect = image.getBoundingClientRect();
+        const hitTarget = () => document.elementFromPoint(imageRect.x + 50, imageRect.y + 50).id;
+
+        println(`initial association targets the first map: ${hitTarget() === "area-in-first"}`);
+
+        image.setAttribute("usemap", "#second");
+        println(`changing usemap targets the second map: ${hitTarget() === "area-in-second"}`);
+
+        image.setAttribute("usemap", "#renamed");
+        println(`unmatched usemap targets the image: ${hitTarget() === "image"}`);
+
+        document.querySelector("map[name=second]").setAttribute("name", "renamed");
+        println(`renaming a map re-associates the image: ${hitTarget() === "area-in-second"}`);
+    });
+</script>

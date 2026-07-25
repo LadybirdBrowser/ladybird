@@ -7,8 +7,10 @@
 
 #pragma once
 
+#include <LibGfx/Path.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLHyperlinkElementUtils.h>
+#include <LibWeb/PixelUnits.h>
 
 namespace Web::HTML {
 
@@ -21,6 +23,17 @@ class HTMLAreaElement final
 public:
     virtual ~HTMLAreaElement() override;
     GC::Ref<DOM::DOMTokenList> rel_list();
+
+    enum class ShapeState : u8 {
+        Circle,
+        Default,
+        Polygon,
+        Rectangle,
+    };
+    ShapeState shape_state() const;
+
+    Optional<Gfx::Path> shape_path(CSSPixelSize image_size) const;
+    bool shape_contains_point(CSSPixelPoint, CSSPixelSize image_size) const;
 
 private:
     HTMLAreaElement(DOM::Document&, DOM::QualifiedName);

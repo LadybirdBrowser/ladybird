@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>HTMLAreaElement shape</title>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<style>
+ body { margin: 0 }
+</style>
+<img src=../../../../images/threecolors.png usemap=#x id=img width=300 height=300>
+<map name=x><area id=area></map>
+<script src=support/hit-test.js></script>
+<script>
+var tests = [
+  {desc: 'missing value default', shape: null, coords: "2,2,10,10", hit: hitRect},
+  {desc: 'missing value default', shape: null, coords: "20,40,10", hit: hitNone},
+  {desc: 'missing value default', shape: null, coords: null, hit: hitNone},
+  {desc: 'invalid value default', shape: 'foobar invalid', coords: "2,2,10,10", hit: hitRect},
+  {desc: 'invalid value default', shape: '', coords: "2,2,10,10", hit: hitRect},
+
+  {desc: 'empty string', shape: 'default', coords: "", hit: hitAll},
+  {desc: 'omitted coords', shape: 'DEFAULT', coords: null, hit: hitAll},
+
+  {desc: 'simple', shape: 'rect', coords: "2,2,10,10", hit: hitRect},
+  {desc: 'simple', shape: 'rectangle', coords: "2,2,10,10", hit: hitRect},
+
+  {desc: 'simple', shape: 'circle', coords: "20,40,10", hit: hitCircle},
+  {desc: 'simple', shape: 'circ', coords: "20,40,10", hit: hitCircle},
+  {desc: 'simple', shape: 'CIRCLE', coords: "20,40,10", hit: hitCircle},
+  {desc: 'simple', shape: 'CIRC', coords: "20,40,10", hit: hitCircle},
+  {desc: 'LATIN CAPITAL LETTER I WITH DOT ABOVE', shape: 'C\u0130RCLE', coords: "20,40,10", hit: hitNone},
+  {desc: 'LATIN SMALL LETTER DOTLESS I', shape: 'c\u0131rcle', coords: "20,40,10", hit: hitNone},
+
+  {desc: 'simple', shape: 'poly', coords: "100,100,120,100,100,120", hit: hitPoly},
+  {desc: 'simple', shape: 'polygon', coords: "100,100,120,100,100,120", hit: hitPoly},
+];
+</script>
