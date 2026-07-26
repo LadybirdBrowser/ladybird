@@ -47,6 +47,10 @@ static JsonObject serialize_download(FileDownloader::Download const& download)
     serialized.set("canResume"sv, download.can_resume);
     serialized.set("connectionCount"sv, download.connection_count);
     serialized.set("isWaitingToRetry"sv, download.is_waiting_to_retry);
+    serialized.set("bytesPerSecond"sv, download.bytes_per_second.has_value() ? JsonValue { *download.bytes_per_second } : JsonValue {});
+
+    auto time_remaining = download.estimated_time_remaining();
+    serialized.set("secondsRemaining"sv, time_remaining.has_value() ? JsonValue { time_remaining->to_seconds() } : JsonValue {});
 
     JsonArray segments;
     for (auto const& segment : Application::the().file_downloader().segment_progress(download.id)) {
