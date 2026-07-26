@@ -14,10 +14,7 @@ pub(crate) struct BytecodeFieldId(u32);
 
 impl BytecodeFieldId {
     pub(crate) fn new(index: usize) -> Self {
-        Self(
-            u32::try_from(index)
-                .expect("Flap handler parameter count fits in u32"),
-        )
+        Self(u32::try_from(index).expect("Flap handler parameter count fits in u32"))
     }
 
     pub(crate) fn index(self) -> usize {
@@ -39,10 +36,7 @@ pub(crate) struct HandlerLayout {
 }
 
 impl HandlerLayout {
-    pub(crate) fn new(
-        parameter_names: &[String],
-        layout: Option<&OpLayout>,
-    ) -> Self {
+    pub(crate) fn new(parameter_names: &[String], layout: Option<&OpLayout>) -> Self {
         Self {
             size: layout.and_then(|layout| layout.size),
             fields: parameter_names
@@ -50,9 +44,7 @@ impl HandlerLayout {
                 .map(|name| {
                     let name = bytecode_field_name(name);
                     FieldLayout {
-                        offset: layout
-                            .and_then(|layout| layout.field_offsets.get(&name))
-                            .copied(),
+                        offset: layout.and_then(|layout| layout.field_offsets.get(&name)).copied(),
                         name,
                     }
                 })
@@ -64,10 +56,7 @@ impl HandlerLayout {
         &self.fields[field.index()].name
     }
 
-    pub(crate) fn field_offset(
-        &self,
-        field: BytecodeFieldId,
-    ) -> Option<usize> {
+    pub(crate) fn field_offset(&self, field: BytecodeFieldId) -> Option<usize> {
         self.fields[field.index()].offset
     }
 }
@@ -85,29 +74,14 @@ mod tests {
     #[test]
     fn aligns_layout_offsets_with_handler_parameters() {
         let layout = OpLayout {
-            field_offsets: HashMap::from([
-                ("m_lhs".to_string(), 4),
-                ("m_rhs".to_string(), 8),
-            ]),
+            field_offsets: HashMap::from([("m_lhs".to_string(), 4), ("m_rhs".to_string(), 8)]),
             size: Some(12),
         };
-        let prepared = HandlerLayout::new(
-            &["lhs".to_string(), "m_rhs".to_string()],
-            Some(&layout),
-        );
+        let prepared = HandlerLayout::new(&["lhs".to_string(), "m_rhs".to_string()], Some(&layout));
 
         assert_eq!(prepared.size, Some(12));
-        assert_eq!(
-            prepared.field_offset(BytecodeFieldId::new(0)),
-            Some(4)
-        );
-        assert_eq!(
-            prepared.field_offset(BytecodeFieldId::new(1)),
-            Some(8)
-        );
-        assert_eq!(
-            prepared.field_name(BytecodeFieldId::new(1)),
-            "m_rhs"
-        );
+        assert_eq!(prepared.field_offset(BytecodeFieldId::new(0)), Some(4));
+        assert_eq!(prepared.field_offset(BytecodeFieldId::new(1)), Some(8));
+        assert_eq!(prepared.field_name(BytecodeFieldId::new(1)), "m_rhs");
     }
 }

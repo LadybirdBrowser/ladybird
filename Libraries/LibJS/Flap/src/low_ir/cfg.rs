@@ -5,10 +5,10 @@
  */
 
 use super::{ControlFlowOpcode, ControlFlowOperand, Instruction, Label, Operand};
+use crate::hash::{HashMap, HashSet};
 #[cfg(test)]
 use crate::target::description::{CallKind, EqualityCondition, IntegerWidth, PairWidth, ZeroCondition};
 use crate::target::description::{ControlOperation, Operation};
-use crate::hash::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct BlockId(usize);
@@ -631,8 +631,7 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
                 block.instructions[..end]
                     .iter()
                     .filter(|instruction| {
-                        defined_label(instruction)
-                            .is_none_or(|label| plan.referenced_labels.contains(label))
+                        defined_label(instruction).is_none_or(|label| plan.referenced_labels.contains(label))
                     })
                     .cloned(),
             );

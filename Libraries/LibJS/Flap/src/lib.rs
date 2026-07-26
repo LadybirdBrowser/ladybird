@@ -13,8 +13,8 @@
 //! system and command-line adapter.
 
 pub(crate) mod bytecode;
-pub(crate) mod hash;
 pub(crate) mod frontend;
+pub(crate) mod hash;
 pub(crate) mod hir;
 pub(crate) mod identity;
 pub(crate) mod intrinsic;
@@ -23,11 +23,11 @@ pub(crate) mod ssa;
 pub(crate) mod target;
 pub(crate) mod types;
 
+use crate::hash::HashMap;
 use bytecode::HandlerLayout as BytecodeHandlerLayout;
 use frontend::diagnostic::{Diagnostic, SourceLocation};
 use frontend::layout::{LayoutConstants, LayoutDatabase, LayoutError};
 use identity::HandlerId;
-use crate::hash::HashMap;
 use std::error::Error;
 use std::fmt;
 use target::emitter::DISPATCH_TABLE_SIZE;
@@ -36,9 +36,7 @@ use types::BlockTemperature;
 pub use frontend::diagnostic::SourceSpan;
 pub use low_ir::Program as LowProgram;
 pub use ssa::report::OptimizationReport;
-pub use target::ir::{
-    AllocatedProgram, MachineProgram, Program as TargetProgram,
-};
+pub use target::ir::{AllocatedProgram, MachineProgram, Program as TargetProgram};
 
 /// A machine architecture supported by Flap's textual assembly backends.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -121,7 +119,6 @@ impl Assembly {
     pub fn as_str(&self) -> &str {
         &self.text
     }
-
 }
 
 /// A diagnostic produced by one of the compiler stages.
@@ -148,11 +145,7 @@ pub struct CompileError {
 }
 
 impl CompileError {
-    pub(crate) fn new(
-        stage: CompileStage,
-        handler: Option<&str>,
-        message: impl Into<String>,
-    ) -> Self {
+    pub(crate) fn new(stage: CompileStage, handler: Option<&str>, message: impl Into<String>) -> Self {
         Self {
             stage,
             handler: handler.map(str::to_string),
@@ -252,9 +245,7 @@ impl Compiler {
         }
         .map_err(|diagnostic| CompileError::from_diagnostic(CompileStage::Semantic, diagnostic))?;
 
-        let constants = layouts
-            .map(LayoutDatabase::into_constants)
-            .unwrap_or_default();
+        let constants = layouts.map(LayoutDatabase::into_constants).unwrap_or_default();
 
         let ssa_inline_functions = typed_program
             .inline_functions
@@ -304,10 +295,7 @@ impl Compiler {
         };
 
         for handler in &mut handlers {
-            ssa::optimize::resolve_layout_constants(
-                &mut handler.function,
-                &constants,
-            )?;
+            ssa::optimize::resolve_layout_constants(&mut handler.function, &constants)?;
         }
 
         let handler_ids = handlers
@@ -342,9 +330,7 @@ impl Compiler {
             .map(|handler| {
                 BytecodeHandlerLayout::new(
                     &handler.function.parameter_names,
-                    op_layouts
-                        .as_ref()
-                        .and_then(|layouts| layouts.get(handler.name())),
+                    op_layouts.as_ref().and_then(|layouts| layouts.get(handler.name())),
                 )
             })
             .collect();
@@ -365,8 +351,7 @@ impl Compiler {
     /// Lower every prepared handler template to target-independent LowIR.
     pub fn lower(&self, prepared: &PreparedProgram) -> Result<LowProgram, CompileError> {
         let mut program = LowProgram::new();
-        program.runtime =
-            low_ir::RuntimeConstants::from_layout(&prepared.constants);
+        program.runtime = low_ir::RuntimeConstants::from_layout(&prepared.constants);
         program.dispatch_handlers = prepared.bytecode.dispatch_handlers.clone();
 
         for template in &prepared.handlers {
@@ -378,8 +363,7 @@ impl Compiler {
             )?;
             low_ir::lowering::materialize_bytecode_layout(
                 &mut handler,
-                &prepared.bytecode.handler_layouts
-                    [template.id.index()],
+                &prepared.bytecode.handler_layouts[template.id.index()],
             )?;
             program.handlers.push(handler);
         }
@@ -393,10 +377,7 @@ impl Compiler {
     }
 
     /// Assign physical registers to a selected target program.
-    pub fn allocate(
-        &self,
-        program: TargetProgram,
-    ) -> Result<AllocatedProgram, CompileError> {
+    pub fn allocate(&self, program: TargetProgram) -> Result<AllocatedProgram, CompileError> {
         if program.architecture != self.architecture() {
             return Err(CompileError::new(
                 CompileStage::Allocation,
@@ -497,8 +478,8 @@ const CANON_NAN_BITS = 0x7FF8000000000000
     fn compiles_from_in_memory_sources_for_each_target() {
         for architecture in [Architecture::X86_64, Architecture::Aarch64] {
             let assembly = compiler(architecture)
-            .compile(unit("op Nop\nendop\n"))
-            .expect("in-memory compilation should succeed");
+                .compile(unit("op Nop\nendop\n"))
+                .expect("in-memory compilation should succeed");
 
             assert!(assembly.as_str().contains("js_interpreter"));
             assert!(assembly.as_str().contains("handler_Nop"));
@@ -509,7 +490,9 @@ const CANON_NAN_BITS = 0x7FF8000000000000
     fn exposes_reusable_compiler_stages() {
         let compiler = compiler(Architecture::X86_64);
 
-        let prepared = compiler.prepare(unit("op Nop\nendop\n")).expect("preparation should succeed");
+        let prepared = compiler
+            .prepare(unit("op Nop\nendop\n"))
+            .expect("preparation should succeed");
         let program = compiler.lower(&prepared).expect("machine lowering should succeed");
         let selected = compiler.select(program).expect("selection should succeed");
         assert_eq!(selected.architecture(), Architecture::X86_64);
@@ -517,23 +500,23 @@ const CANON_NAN_BITS = 0x7FF8000000000000
         let machine = compiler.finalize(allocated).expect("finalization should succeed");
         assert_eq!(machine.architecture(), Architecture::X86_64);
         let staged = compiler.emit_program(&machine).expect("emission should succeed");
-        assert_eq!(staged, compiler.emit_program(&machine).expect("re-emission should succeed"));
-        let one_shot = compiler.compile(unit("op Nop\nendop\n")).expect("one-shot compilation should succeed");
+        assert_eq!(
+            staged,
+            compiler.emit_program(&machine).expect("re-emission should succeed")
+        );
+        let one_shot = compiler
+            .compile(unit("op Nop\nendop\n"))
+            .expect("one-shot compilation should succeed");
         assert_eq!(staged, one_shot);
     }
 
     #[test]
     fn resolves_bytecode_dispatch_to_handler_identities() {
         let compiler = compiler(Architecture::X86_64);
-        let prepared = compiler
-            .prepare(unit("op Nop\nendop\nop Missing\nendop\n"))
-            .unwrap();
+        let prepared = compiler.prepare(unit("op Nop\nendop\nop Missing\nendop\n")).unwrap();
         let handler_id = prepared.handlers[0].id;
 
-        assert_eq!(
-            prepared.bytecode.dispatch_handlers,
-            [Some(handler_id), None]
-        );
+        assert_eq!(prepared.bytecode.dispatch_handlers, [Some(handler_id), None]);
         let lowered = compiler.lower(&prepared).unwrap();
         assert_eq!(lowered.handlers[0].id, handler_id);
         assert_eq!(lowered.dispatch_handlers, [Some(handler_id), None]);

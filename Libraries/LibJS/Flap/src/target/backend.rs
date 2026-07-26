@@ -16,13 +16,12 @@
 //! rejects a backend that forgets an operation, instead of failing only for
 //! the handlers that happen to use it.
 
+use super::description::ArchitectureOpcode;
 use super::description::{
-    AssertionOperation, BinaryOperation, FloatCondition, FloatingPointOperation, IntegerWidth,
-    MemoryWidth, Operation, OverflowOperation, PairWidth, ShiftOperation,
-    SignCondition, ZeroCondition,
+    AssertionOperation, BinaryOperation, FloatCondition, FloatingPointOperation, IntegerWidth, MemoryWidth, Operation,
+    OverflowOperation, PairWidth, ShiftOperation, SignCondition, ZeroCondition,
 };
 use super::finalize_support::Emit;
-use super::description::ArchitectureOpcode;
 use super::ir::AllocatedOperand;
 use super::registers::PhysicalRegister;
 use crate::CompileError;
@@ -65,27 +64,11 @@ pub(crate) trait Backend: Sync {
         clean: bool,
     ) -> Result<(), CompileError>;
 
-    fn update_bit(
-        &self,
-        emit: &mut Emit<'_>,
-        destination: PhysicalRegister,
-        bit: u32,
-        operation: Operation,
-    );
+    fn update_bit(&self, emit: &mut Emit<'_>, destination: PhysicalRegister, bit: u32, operation: Operation);
 
-    fn extract_tag(
-        &self,
-        emit: &mut Emit<'_>,
-        destination: PhysicalRegister,
-        source: PhysicalRegister,
-    );
+    fn extract_tag(&self, emit: &mut Emit<'_>, destination: PhysicalRegister, source: PhysicalRegister);
 
-    fn unbox_object(
-        &self,
-        emit: &mut Emit<'_>,
-        destination: PhysicalRegister,
-        source: PhysicalRegister,
-    );
+    fn unbox_object(&self, emit: &mut Emit<'_>, destination: PhysicalRegister, source: PhysicalRegister);
 
     fn float_operation(
         &self,
@@ -105,29 +88,15 @@ pub(crate) trait Backend: Sync {
         failure: &Label,
     );
 
-    fn helper_call(
-        &self,
-        emit: &mut Emit<'_>,
-        function: crate::low_ir::Relocation,
-    );
+    fn helper_call(&self, emit: &mut Emit<'_>, function: crate::low_ir::Relocation);
 
-    fn interpreter_call(
-        &self,
-        emit: &mut Emit<'_>,
-        function: crate::low_ir::Relocation,
-    );
+    fn interpreter_call(&self, emit: &mut Emit<'_>, function: crate::low_ir::Relocation);
 
     fn raw_native_call(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]);
 
-    fn slow_path_call(
-        &self,
-        emit: &mut Emit<'_>,
-        operands: &[AllocatedOperand],
-    ) -> Result<(), CompileError>;
+    fn slow_path_call(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError>;
 
-    fn dispatch_current(
-    &self,
-    emit: &mut Emit<'_>, scratches: &[AllocatedOperand]) -> Result<(), CompileError>;
+    fn dispatch_current(&self, emit: &mut Emit<'_>, scratches: &[AllocatedOperand]) -> Result<(), CompileError>;
 
     fn dispatch_variable(
         &self,
@@ -136,12 +105,8 @@ pub(crate) trait Backend: Sync {
         scratches: &[AllocatedOperand],
     ) -> Result<(), CompileError>;
 
-    fn dispatch_next(
-        &self,
-        emit: &mut Emit<'_>,
-        size: u32,
-        scratches: &[AllocatedOperand],
-    ) -> Result<(), CompileError>;
+    fn dispatch_next(&self, emit: &mut Emit<'_>, size: u32, scratches: &[AllocatedOperand])
+    -> Result<(), CompileError>;
 
     fn finalize_assertion(
         &self,
@@ -179,17 +144,11 @@ pub(crate) trait Backend: Sync {
         operands: &[AllocatedOperand],
     ) -> Result<(), CompileError>;
 
-    fn finalize_any_equal_branch(
-        &self,
-        emit: &mut Emit<'_>,
-        operands: &[AllocatedOperand],
-    ) -> Result<(), CompileError>;
+    fn finalize_any_equal_branch(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand])
+    -> Result<(), CompileError>;
 
-    fn finalize_canonicalize_nan(
-        &self,
-        emit: &mut Emit<'_>,
-        operands: &[AllocatedOperand],
-    ) -> Result<(), CompileError>;
+    fn finalize_canonicalize_nan(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand])
+    -> Result<(), CompileError>;
 
     fn move_instruction(
         &self,
@@ -206,43 +165,19 @@ pub(crate) trait Backend: Sync {
         operands: &[AllocatedOperand],
     ) -> Result<(), CompileError>;
 
-    fn finalize_vm_load(
-        &self,
-        emit: &mut Emit<'_>,
-        operands: &[AllocatedOperand],
-    );
+    fn finalize_vm_load(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]);
 
     /// Materialize the current program counter as a value. Targets that do not
     /// keep it in a register derive it from their dispatch state here.
-    fn finalize_program_counter_load(
-        &self,
-        emit: &mut Emit<'_>,
-        operands: &[AllocatedOperand],
-    );
+    fn finalize_program_counter_load(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]);
 
-    fn finalize_operand_store(
-        &self,
-        emit: &mut Emit<'_>,
-        operands: &[AllocatedOperand],
-    ) -> Result<(), CompileError>;
+    fn finalize_operand_store(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError>;
 
-    fn finalize_label_load(
-        &self,
-        emit: &mut Emit<'_>,
-        operands: &[AllocatedOperand],
-    ) -> Result<(), CompileError>;
+    fn finalize_label_load(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError>;
 
-    fn goto_handler(
-        &self,
-        emit: &mut Emit<'_>,
-        operands: &[AllocatedOperand],
-    ) -> Result<(), CompileError>;
+    fn goto_handler(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError>;
 
-    fn goto_bytecode_target(
-        &self,
-        emit: &mut Emit<'_>,
-        operands: &[AllocatedOperand],
-    ) -> Result<(), CompileError>;
+    fn goto_bytecode_target(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError>;
 
     fn finalize_execution_context_store(
         &self,
@@ -250,17 +185,10 @@ pub(crate) trait Backend: Sync {
         operands: &[AllocatedOperand],
     ) -> Result<(), CompileError>;
 
-    fn finalize_indexed_offset_store(
-        &self,
-        emit: &mut Emit<'_>,
-        operands: &[AllocatedOperand],
-    );
+    fn finalize_indexed_offset_store(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]);
 
-    fn finalize_memory_increment(
-        &self,
-        emit: &mut Emit<'_>,
-        operands: &[AllocatedOperand],
-    ) -> Result<(), CompileError>;
+    fn finalize_memory_increment(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand])
+    -> Result<(), CompileError>;
 
     fn finalize_scalar_load(
         &self,
@@ -331,11 +259,7 @@ pub(crate) trait Backend: Sync {
         operands: &[AllocatedOperand],
     );
 
-    fn finalize_divide(
-        &self,
-        emit: &mut Emit<'_>,
-        operands: &[AllocatedOperand],
-    );
+    fn finalize_divide(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]);
 }
 
 pub(crate) struct X86_64Backend;

@@ -262,14 +262,8 @@ impl Type {
 
     pub(crate) fn width(&self) -> Option<u8> {
         match self {
-            Type::Boxed(_)
-            | Type::Sequence(_)
-            | Type::Pointer(_)
-            | Type::Continuation(_) => Some(8),
-            Type::Field(_)
-            | Type::BinaryOperation(_)
-            | Type::CheckedBinaryOperation(_)
-            | Type::Tuple(_) => None,
+            Type::Boxed(_) | Type::Sequence(_) | Type::Pointer(_) | Type::Continuation(_) => Some(8),
+            Type::Field(_) | Type::BinaryOperation(_) | Type::CheckedBinaryOperation(_) | Type::Tuple(_) => None,
             _ => self.simple_width(),
         }
     }
@@ -294,20 +288,40 @@ impl Type {
     }
 
     pub(crate) fn is_pointer(&self) -> bool {
-        matches!(self, Type::Pointer(_) | Type::Sequence(_))
-            || self.simple_is_pointer()
+        matches!(self, Type::Pointer(_) | Type::Sequence(_)) || self.simple_is_pointer()
     }
 
     pub(crate) fn memory_load(&self) -> Option<MemoryOperation> {
         Some(match self {
-            Type::U8 | Type::Bool => MemoryOperation::Load { width: MemoryWidth::Byte, signed: false },
-            Type::I8 => MemoryOperation::Load { width: MemoryWidth::Byte, signed: true },
-            Type::U16 => MemoryOperation::Load { width: MemoryWidth::HalfWord, signed: false },
-            Type::I16 => MemoryOperation::Load { width: MemoryWidth::HalfWord, signed: true },
-            Type::U32 | Type::I32 | Type::ValueTag => MemoryOperation::Load { width: MemoryWidth::Word, signed: false },
-            Type::F32 => MemoryOperation::Load { width: MemoryWidth::Float, signed: false },
+            Type::U8 | Type::Bool => MemoryOperation::Load {
+                width: MemoryWidth::Byte,
+                signed: false,
+            },
+            Type::I8 => MemoryOperation::Load {
+                width: MemoryWidth::Byte,
+                signed: true,
+            },
+            Type::U16 => MemoryOperation::Load {
+                width: MemoryWidth::HalfWord,
+                signed: false,
+            },
+            Type::I16 => MemoryOperation::Load {
+                width: MemoryWidth::HalfWord,
+                signed: true,
+            },
+            Type::U32 | Type::I32 | Type::ValueTag => MemoryOperation::Load {
+                width: MemoryWidth::Word,
+                signed: false,
+            },
+            Type::F32 => MemoryOperation::Load {
+                width: MemoryWidth::Float,
+                signed: false,
+            },
             Type::F64 => return None,
-            _ if self.width() == Some(8) => MemoryOperation::Load { width: MemoryWidth::DoubleWord, signed: false },
+            _ if self.width() == Some(8) => MemoryOperation::Load {
+                width: MemoryWidth::DoubleWord,
+                signed: false,
+            },
             _ => return None,
         })
     }
@@ -317,8 +331,7 @@ impl Type {
             return Self::from_layout_type_name(inner).map(|inner| Self::Boxed(Box::new(inner)));
         }
         if let Some(element) = name.strip_prefix("Sequence<").and_then(|name| name.strip_suffix('>')) {
-            return Self::from_layout_type_name(element)
-                .map(|element| Self::Sequence(Box::new(element)));
+            return Self::from_layout_type_name(element).map(|element| Self::Sequence(Box::new(element)));
         }
         Some(match name {
             "BindingFlags" => Self::Sequence(Box::new(Self::U8)),
@@ -379,7 +392,10 @@ mod tests {
         assert_eq!(Type::F64.register_class(), Some(RegisterClass::FloatingPoint));
         assert_eq!(
             Type::I32.memory_load().unwrap(),
-            MemoryOperation::Load { width: MemoryWidth::Word, signed: false }
+            MemoryOperation::Load {
+                width: MemoryWidth::Word,
+                signed: false
+            }
         );
         assert_eq!(Type::F64.memory_load(), None);
         assert!(Type::Object.is_pointer());
@@ -391,10 +407,7 @@ mod tests {
             InterpreterRegister::from_name("values").unwrap().value_type(),
             Type::Sequence(Box::new(Type::Value))
         );
-        assert_eq!(
-            InterpreterRegister::from_name("pc").unwrap().value_type(),
-            Type::U32
-        );
+        assert_eq!(InterpreterRegister::from_name("pc").unwrap().value_type(), Type::U32);
         assert_eq!(InterpreterRegister::ProgramBase.as_str(), "pb");
         assert_eq!(InterpreterRegister::Int32TagShifted.source_value_type(), None);
         assert_eq!(InterpreterRegister::from_name("temporary"), None);

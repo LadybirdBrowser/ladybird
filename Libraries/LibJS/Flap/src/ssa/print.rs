@@ -156,27 +156,15 @@ impl fmt::Display for DisplayConstant<'_> {
             Constant::KnownLayout(value) => {
                 write!(formatter, "known-layout {}", value.name())
             }
-            Constant::LayoutValue(
-                crate::frontend::layout::LayoutValue::Immediate(value),
-            ) => write!(formatter, "layout-value {value}"),
-            Constant::LayoutValue(
-                crate::frontend::layout::LayoutValue::Constant(value),
-            ) => {
-                write!(
-                    formatter,
-                    "layout-value #{} = {}",
-                    value.id().index(),
-                    value.value()
-                )
+            Constant::LayoutValue(crate::frontend::layout::LayoutValue::Immediate(value)) => {
+                write!(formatter, "layout-value {value}")
+            }
+            Constant::LayoutValue(crate::frontend::layout::LayoutValue::Constant(value)) => {
+                write!(formatter, "layout-value #{} = {}", value.id().index(), value.value())
             }
             Constant::Symbol(value) => write!(formatter, "symbol {value:?}"),
             Constant::Layout(value) => {
-                write!(
-                    formatter,
-                    "layout #{} = {}",
-                    value.id().index(),
-                    value.value()
-                )
+                write!(formatter, "layout #{} = {}", value.id().index(), value.value())
             }
             Constant::SlowPath(value) => write!(formatter, "slow-path {value:?}"),
             Constant::FunctionSymbol(value) => write!(formatter, "function-symbol {value:?}"),
@@ -201,7 +189,12 @@ impl fmt::Display for DisplayOperation<'_> {
             Operation::FieldAccess(access) => write!(formatter, "field-access {access:?}"),
             Operation::InlineCall(id) => write!(formatter, "inline-call #{}", id.index()),
             Operation::MachineAssign { destination, intrinsic } => {
-                write!(formatter, "machine-assign {} {}", destination.as_str(), intrinsic.name())
+                write!(
+                    formatter,
+                    "machine-assign {} {}",
+                    destination.as_str(),
+                    intrinsic.name()
+                )
             }
             Operation::BlockReference(block) => write!(formatter, "block-reference bb{}", block.0),
             Operation::Address => formatter.write_str("address"),

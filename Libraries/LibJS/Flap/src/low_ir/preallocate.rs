@@ -10,7 +10,7 @@ use super::{Instruction, Operand, VirtualRegister, visit_virtual_registers};
 use crate::hash::HashMap;
 use crate::intrinsic::{BranchOperation, IntegerBinaryOperation, IntegerSignedness};
 use crate::target::description::{
-    BinaryOperation, EqualityCondition, IntegerWidth, MemoryWidth, Operation, OperandKind, PairWidth,
+    BinaryOperation, EqualityCondition, IntegerWidth, MemoryWidth, OperandKind, Operation, PairWidth,
 };
 use crate::types::InterpreterRegister;
 
@@ -23,9 +23,7 @@ use crate::types::InterpreterRegister;
 /// A handler that assigns `pc` itself is the exception. Its assignment lands in
 /// the pinned register, and the terminator that dispatches on it reads that
 /// register back, so uses in between must be left alone.
-pub(crate) fn materialize_program_counter_reads(
-    instructions: &mut Vec<Instruction>,
-) -> Result<(), String> {
+pub(crate) fn materialize_program_counter_reads(instructions: &mut Vec<Instruction>) -> Result<(), String> {
     let program_counter = Operand::InterpreterRegister(InterpreterRegister::ProgramCounter);
     let mut index = 0;
     let mut reads = 0;
@@ -74,10 +72,7 @@ pub(crate) fn materialize_program_counter_reads(
             }
             match description.operand_kind(position, operand_count) {
                 Some(
-                    OperandKind::GprIn
-                    | OperandKind::RegisterIn
-                    | OperandKind::GprInOrImm
-                    | OperandKind::GprInOrMemory,
+                    OperandKind::GprIn | OperandKind::RegisterIn | OperandKind::GprInOrImm | OperandKind::GprInOrMemory,
                 ) => read_positions.push(position),
                 Some(OperandKind::GprInOut) => {
                     return Err(format!(
@@ -93,9 +88,7 @@ pub(crate) fn materialize_program_counter_reads(
             continue;
         }
 
-        let temporary = Operand::VirtualRegister(VirtualRegister::from(format!(
-            "program_counter_read_{reads}"
-        )));
+        let temporary = Operand::VirtualRegister(VirtualRegister::from(format!("program_counter_read_{reads}")));
         reads += 1;
         for position in read_positions {
             instructions[index].operands[position] = temporary.clone();
@@ -123,10 +116,8 @@ pub(crate) fn schedule_x86_relational_operand_loads(instructions: &mut Vec<Instr
         let lhs_load = instructions[index + 1].clone();
         let rhs_load = instructions[index + 2].clone();
         if pair.opcode.operation() != Operation::load_pair(PairWidth::Word)
-            || lhs_load.opcode.operation()
-                != Operation::load(MemoryWidth::DoubleWord, false)
-            || rhs_load.opcode.operation()
-                != Operation::load(MemoryWidth::DoubleWord, false)
+            || lhs_load.opcode.operation() != Operation::load(MemoryWidth::DoubleWord, false)
+            || rhs_load.opcode.operation() != Operation::load(MemoryWidth::DoubleWord, false)
             || pair.operands.len() != 4
             || lhs_load.operands.len() != 2
             || rhs_load.operands.len() != 2
@@ -144,15 +135,13 @@ pub(crate) fn schedule_x86_relational_operand_loads(instructions: &mut Vec<Instr
             .unwrap_or(hot_tail.len());
         let hot_tail = &hot_tail[..hot_tail_end];
         let has_lhs_tag_check = hot_tail.iter().any(|instruction| {
-            instruction.opcode.operation()
-                == Operation::branch_tag(EqualityCondition::NotEqual)
+            instruction.opcode.operation() == Operation::branch_tag(EqualityCondition::NotEqual)
                 && instruction.operands.first() == Some(&lhs_value)
         });
         let rhs_tag_check = hot_tail
             .iter()
             .position(|instruction| {
-                instruction.opcode.operation()
-                    == Operation::branch_tag(EqualityCondition::NotEqual)
+                instruction.opcode.operation() == Operation::branch_tag(EqualityCondition::NotEqual)
                     && instruction.operands.first() == Some(&rhs_value)
             })
             .map(|position| index + 3 + position);
@@ -246,10 +235,7 @@ pub(crate) fn orient_commutative_updates(instructions: &mut [Instruction]) {
                 update.opcode.operation(),
                 Operation::IntegerBinary {
                     operation: IntegerBinaryOperation::Binary(
-                        BinaryOperation::Add
-                            | BinaryOperation::And
-                            | BinaryOperation::Or
-                            | BinaryOperation::Xor,
+                        BinaryOperation::Add | BinaryOperation::And | BinaryOperation::Or | BinaryOperation::Xor,
                     ),
                     width: IntegerWidth::U64,
                 }

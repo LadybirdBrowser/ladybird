@@ -6,34 +6,24 @@
 
 //! Definite-initialization analysis for typed HIR.
 
-use super::{
-    Body, Statement, StatementKindIr, Variable,
-    VariableId,
-    condition_uses_and_defs, statement_uses_and_defs,
-};
+use super::{Body, Statement, StatementKindIr, Variable, VariableId, condition_uses_and_defs, statement_uses_and_defs};
 use crate::frontend::ast::ParameterMode;
 use crate::frontend::diagnostic::Diagnostic;
+use crate::hash::HashSet;
 use crate::types::Type;
 use std::collections::VecDeque;
-use crate::hash::HashSet;
 
 fn successors(index: usize, statements: &[Statement]) -> Vec<usize> {
     let next = (index + 1 < statements.len()).then_some(index + 1);
     match &statements[index].kind {
         StatementKindIr::Call(_, call) if call.terminal => Vec::new(),
         StatementKindIr::ScalarMatch { .. } => Vec::new(),
-        StatementKindIr::ValueMatch {
-            destination: None, ..
-        } => Vec::new(),
+        StatementKindIr::ValueMatch { destination: None, .. } => Vec::new(),
         _ => next.into_iter().collect(),
     }
 }
 
-fn definitions_on_edge(
-    statement: &Statement,
-    successor: usize,
-    next: Option<usize>,
-) -> Vec<VariableId> {
+fn definitions_on_edge(statement: &Statement, successor: usize, next: Option<usize>) -> Vec<VariableId> {
     match &statement.kind {
         StatementKindIr::ValueRefinement { binding, tag, .. } => {
             let mut definitions = vec![*tag];
@@ -56,8 +46,7 @@ pub(super) fn check_definite_initialization(
         .iter()
         .copied()
         .filter(|id| {
-            body.variables[*id].parameter_mode != Some(ParameterMode::Out)
-                || body.variables[*id].ty == Type::Operand
+            body.variables[*id].parameter_mode != Some(ParameterMode::Out) || body.variables[*id].ty == Type::Operand
         })
         .collect();
     check_definite_initialization_with_entry(
@@ -83,16 +72,16 @@ fn check_definite_initialization_with_entry(
             && let Some(id) = outputs
                 .iter()
                 .find(|id| variables[**id].parameter_mode == Some(ParameterMode::Out))
-            {
-                return Err(Diagnostic::new(
-                    filename,
-                    variables[*id].span,
-                    format!(
-                        "Out<{}> parameter '{}' is not initialized on this returning path",
-                        variables[*id].ty, variables[*id].name
-                    ),
-                ));
-            }
+        {
+            return Err(Diagnostic::new(
+                filename,
+                variables[*id].span,
+                format!(
+                    "Out<{}> parameter '{}' is not initialized on this returning path",
+                    variables[*id].ty, variables[*id].name
+                ),
+            ));
+        }
         return Ok(());
     }
     let all: HashSet<VariableId> = (0..variables.len()).collect();
@@ -130,14 +119,7 @@ fn check_definite_initialization_with_entry(
             continue;
         }
         let check_nested = |statements: &[Statement], entry| {
-            check_definite_initialization_with_entry(
-                filename,
-                variables,
-                statements,
-                entry,
-                &[],
-                false,
-            )
+            check_definite_initialization_with_entry(filename, variables, statements, entry, &[], false)
         };
         let (uses, _) = statement_uses_and_defs(statement);
         if let Some(id) = uses.into_iter().find(|id| !inputs[index].contains(id)) {
@@ -148,20 +130,13 @@ fn check_definite_initialization_with_entry(
             ));
         }
         if let StatementKindIr::ValueMatch {
-            tag,
-            arms,
-            fallback,
-            ..
+            tag, arms, fallback, ..
         } = &statement.kind
         {
             let mut nested_arms = arms
                 .iter()
                 .map(|arm| {
-                    let bindings = tag
-                        .iter()
-                        .chain(arm.binding.iter())
-                        .copied()
-                        .collect::<Vec<_>>();
+                    let bindings = tag.iter().chain(arm.binding.iter()).copied().collect::<Vec<_>>();
                     (&arm.body, bindings)
                 })
                 .collect::<Vec<_>>();
@@ -189,11 +164,7 @@ fn check_definite_initialization_with_entry(
             } else {
                 condition_uses_and_defs(condition).1
             };
-            let entry = inputs[index]
-                .iter()
-                .copied()
-                .chain(definitions)
-                .collect::<HashSet<_>>();
+            let entry = inputs[index].iter().copied().chain(definitions).collect::<HashSet<_>>();
             check_nested(then_body, entry.clone())?;
             if let Some(else_body) = else_body {
                 check_nested(else_body, entry)?;

@@ -8,10 +8,10 @@
 
 use super::ir::{AllocatedFunction as Handler, AllocatedProgram as Program};
 use crate::Architecture;
+use crate::hash::HashSet;
 use crate::target::description::{OperandKind, Operation};
 use crate::target::ir::AllocatedOperand as Operand;
 use crate::{CompileError, CompileStage};
-use crate::hash::HashSet;
 
 pub(crate) fn verify_program(program: &Program) -> Result<(), CompileError> {
     for handler in &program.functions {
@@ -20,10 +20,7 @@ pub(crate) fn verify_program(program: &Program) -> Result<(), CompileError> {
     Ok(())
 }
 
-pub(crate) fn verify_handler(
-    handler: &Handler,
-    architecture: Architecture,
-) -> Result<(), CompileError> {
+pub(crate) fn verify_handler(handler: &Handler, architecture: Architecture) -> Result<(), CompileError> {
     let mut definitions = HashSet::default();
     let mut references = Vec::new();
     for instruction in handler.cfg.instructions() {
@@ -39,10 +36,7 @@ pub(crate) fn verify_handler(
             }
         }
         let info = instruction.opcode.description();
-        if !info.accepts_selected_operand_count(
-            instruction.operands.len(),
-            architecture,
-        ) {
+        if !info.accepts_selected_operand_count(instruction.operands.len(), architecture) {
             return error(
                 handler,
                 format!(
@@ -54,11 +48,7 @@ pub(crate) fn verify_handler(
         }
         for (index, operand) in instruction.operands.iter().enumerate() {
             let kind = info
-                .selected_operand_kind(
-                    index,
-                    instruction.operands.len(),
-                    architecture,
-                )
+                .selected_operand_kind(index, instruction.operands.len(), architecture)
                 .expect("verified operand index must have a description");
             verify_operand(
                 handler,
@@ -66,8 +56,13 @@ pub(crate) fn verify_handler(
                 kind,
                 architecture,
                 instruction.opcode.operation() == Operation::LoadEffectiveAddress,
-            ).map_err(|mut error| {
-                error.message = format!("operand {index} of '{:?}': {}", instruction.opcode.operation(), error.message);
+            )
+            .map_err(|mut error| {
+                error.message = format!(
+                    "operand {index} of '{:?}': {}",
+                    instruction.opcode.operation(),
+                    error.message
+                );
                 error
             })?;
             if kind == OperandKind::Label
@@ -77,25 +72,10 @@ pub(crate) fn verify_handler(
                 references.push(label.clone());
             }
         }
-        for (scratch_index, scratch) in instruction
-            .operands
-            .iter()
-            .enumerate()
-            .filter(|(index, _)| {
-                info.selected_operand_kind(
-                    *index,
-                    instruction.operands.len(),
-                    architecture,
-                )
-                    .is_some_and(|kind| {
-                        matches!(
-                            kind,
-                            OperandKind::GprScratch
-                                | OperandKind::FprScratch
-                        )
-                    })
-            })
-        {
+        for (scratch_index, scratch) in instruction.operands.iter().enumerate().filter(|(index, _)| {
+            info.selected_operand_kind(*index, instruction.operands.len(), architecture)
+                .is_some_and(|kind| matches!(kind, OperandKind::GprScratch | OperandKind::FprScratch))
+        }) {
             let Operand::PhysicalRegister(scratch) = scratch else {
                 unreachable!("scratch operand shape was verified");
             };
@@ -103,10 +83,7 @@ pub(crate) fn verify_handler(
                 .operands
                 .iter()
                 .enumerate()
-                .any(|(index, operand)| {
-                    index != scratch_index
-                        && operand_references_register(operand, *scratch)
-                })
+                .any(|(index, operand)| index != scratch_index && operand_references_register(operand, *scratch))
             {
                 return error(
                     handler,
@@ -118,10 +95,7 @@ pub(crate) fn verify_handler(
             }
         }
         for &(index, expected) in info.arch(architecture).fixed_operands {
-            if matches!(
-                instruction.operands[index],
-                Operand::Immediate(_)
-            ) {
+            if matches!(instruction.operands[index], Operand::Immediate(_)) {
                 continue;
             }
             let actual = instruction.operands[index].physical_register();
@@ -145,11 +119,7 @@ pub(crate) fn verify_handler(
     Ok(())
 }
 
-fn verify_operation(
-    handler: &Handler,
-    operation: Operation,
-    operands: &[Operand],
-) -> Result<(), CompileError> {
+fn verify_operation(handler: &Handler, operation: Operation, operands: &[Operand]) -> Result<(), CompileError> {
     let immediate = |index| {
         let Operand::Immediate(value) = operands[index] else {
             unreachable!("allocated immediate operand shape was verified")
@@ -160,9 +130,7 @@ fn verify_operation(
         Operation::Branch(crate::intrinsic::BranchOperation::Bit(_)) if !(0..64).contains(&immediate(1)) => {
             error(handler, "single-bit branch index must be between 0 and 63")
         }
-        Operation::Store64IndexedOffset
-            if !matches!(immediate(2), 1 | 2 | 4 | 8) =>
-        {
+        Operation::Store64IndexedOffset if !matches!(immediate(2), 1 | 2 | 4 | 8) => {
             error(handler, "indexed offset store scale must be 1, 2, 4, or 8")
         }
         _ => Ok(()),
@@ -215,15 +183,10 @@ fn verify_allocated_operand(
     }
 }
 
-fn operand_references_register(
-    operand: &Operand,
-    register: super::registers::PhysicalRegister,
-) -> bool {
+fn operand_references_register(operand: &Operand, register: super::registers::PhysicalRegister) -> bool {
     match operand {
         Operand::PhysicalRegister(candidate) => *candidate == register,
-        Operand::Address(address) => {
-            address.base == register || address.index == Some(register)
-        }
+        Operand::Address(address) => address.base == register || address.index == Some(register),
         _ => false,
     }
 }
@@ -240,22 +203,17 @@ fn error<T>(handler: &Handler, message: impl Into<String>) -> Result<T, CompileE
 mod tests {
     use super::*;
     use crate::low_ir::cfg::ControlFlowGraph;
-    use crate::target::registers::{aarch64, x86_64};
     use crate::target::description::{
-        BinaryOperation, FloatConversion, FloatingPointOperation,
-        IntegerBinaryOperation, IntegerWidth, MemoryWidth, Operation, PairWidth,
+        BinaryOperation, FloatConversion, FloatingPointOperation, IntegerBinaryOperation, IntegerWidth, MemoryWidth,
+        Operation, PairWidth,
     };
-    use crate::target::ir::{
-        AllocatedInstruction, AllocatedMemoryAddress as MemoryAddress,
-    };
+    use crate::target::ir::{AllocatedInstruction, AllocatedMemoryAddress as MemoryAddress};
+    use crate::target::registers::{aarch64, x86_64};
 
     type Instruction = crate::low_ir::Instruction<Operand>;
 
     fn verify_instruction(instruction: Instruction) -> Result<(), CompileError> {
-        verify_instruction_for_architecture(
-            instruction,
-            Architecture::X86_64,
-        )
+        verify_instruction_for_architecture(instruction, Architecture::X86_64)
     }
 
     fn verify_instruction_for_architecture(
@@ -269,8 +227,7 @@ mod tests {
             .map(Operand::selection_operand)
             .collect::<Vec<_>>();
         let instruction = AllocatedInstruction {
-            opcode: operation
-                .select_for_operands(architecture, &operands),
+            opcode: operation.select_for_operands(architecture, &operands),
             operands: instruction.operands,
         };
         let handler = Handler {
@@ -283,10 +240,7 @@ mod tests {
         verify_handler(&handler, architecture)
     }
 
-    fn memory(
-        base: crate::target::registers::PhysicalRegister,
-        displacement: Option<i64>,
-    ) -> Operand {
+    fn memory(base: crate::target::registers::PhysicalRegister, displacement: Option<i64>) -> Operand {
         Operand::Address(MemoryAddress {
             base,
             index: None,
@@ -295,11 +249,7 @@ mod tests {
         })
     }
 
-    fn assert_invalid_arity(
-        architecture: Architecture,
-        operation: Operation,
-        operands: Vec<Operand>,
-    ) {
+    fn assert_invalid_arity(architecture: Architecture, operation: Operation, operands: Vec<Operand>) {
         let error = verify_instruction_for_architecture(
             Instruction {
                 opcode: operation,
@@ -311,12 +261,12 @@ mod tests {
         assert!(error.message.contains("does not accept that arity"));
     }
 
-    fn assert_invalid_operation(
-        operation: Operation,
-        operands: Vec<Operand>,
-        expected: &str,
-    ) {
-        let error = verify_instruction(Instruction { opcode: operation, operands }).unwrap_err();
+    fn assert_invalid_operation(operation: Operation, operands: Vec<Operand>, expected: &str) {
+        let error = verify_instruction(Instruction {
+            opcode: operation,
+            operands,
+        })
+        .unwrap_err();
         assert!(error.message.contains(expected), "{}", error.message);
     }
 
@@ -393,9 +343,7 @@ mod tests {
 
         let error = verify_instruction_for_architecture(
             Instruction {
-                opcode: Operation::Float(FloatingPointOperation::Convert(
-                    FloatConversion::Float64ToInt32,
-                )),
+                opcode: Operation::Float(FloatingPointOperation::Convert(FloatConversion::Float64ToInt32)),
                 operands: vec![
                     Operand::PhysicalRegister(aarch64::X0),
                     Operand::PhysicalRegister(aarch64::D16),

@@ -17,14 +17,18 @@ pub(crate) mod print;
 pub(crate) mod report;
 mod sccp;
 
-use crate::types::{BlockTemperature, InterpreterRegister, RegisterReference, Type};
+use crate::hash::{HashMap, HashSet};
+use crate::hir as typecheck;
 use crate::identity::{ExternalSymbol, InlineFunctionId};
-pub(crate) use crate::intrinsic::{AggregateOperation, BinaryOperation, CheckedIntegerOperation, ComparisonDomain, ComparisonRelation, FieldAccess, IntegerBinaryOperation, IntegerComparisonOperation, Intrinsic, LowLevelOperation, OperandOperation, OperationValue, ShiftOperation, ValueOperation};
 pub(crate) use crate::intrinsic::IntrinsicEffects as Effects;
 pub(crate) use crate::intrinsic::ModRef as MemoryEffect;
-use crate::hir as typecheck;
+pub(crate) use crate::intrinsic::{
+    AggregateOperation, BinaryOperation, CheckedIntegerOperation, ComparisonDomain, ComparisonRelation, FieldAccess,
+    IntegerBinaryOperation, IntegerComparisonOperation, Intrinsic, LowLevelOperation, OperandOperation, OperationValue,
+    ShiftOperation, ValueOperation,
+};
 use crate::ssa as ir;
-use crate::hash::{HashMap, HashSet};
+use crate::types::{BlockTemperature, InterpreterRegister, RegisterReference, Type};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct BlockId(pub usize);
@@ -151,22 +155,15 @@ pub(crate) enum Constant {
 impl Constant {
     fn symbol(name: impl Into<String>) -> Self {
         let name = name.into();
-        crate::frontend::layout::KnownLayoutConstant::from_name(&name)
-            .map_or(Self::Symbol(name), Self::KnownLayout)
+        crate::frontend::layout::KnownLayoutConstant::from_name(&name).map_or(Self::Symbol(name), Self::KnownLayout)
     }
 
-    fn layout_value(
-        value: crate::frontend::layout::LayoutValue,
-    ) -> Self {
+    fn layout_value(value: crate::frontend::layout::LayoutValue) -> Self {
         match value {
             crate::frontend::layout::LayoutValue::Constant(constant) => {
-                constant
-                    .known()
-                    .map_or(Self::LayoutValue(value), Self::KnownLayout)
+                constant.known().map_or(Self::LayoutValue(value), Self::KnownLayout)
             }
-            crate::frontend::layout::LayoutValue::Immediate(_) => {
-                Self::LayoutValue(value)
-            }
+            crate::frontend::layout::LayoutValue::Immediate(_) => Self::LayoutValue(value),
         }
     }
 }
@@ -175,18 +172,9 @@ impl Constant {
 pub(crate) enum ValueDefinition {
     Dead,
     FunctionParameter(usize),
-    BlockParameter {
-        block: BlockId,
-        index: usize,
-    },
-    InstructionResult {
-        instruction: InstructionId,
-        index: usize,
-    },
-    TerminatorResult {
-        block: BlockId,
-        index: usize,
-    },
+    BlockParameter { block: BlockId, index: usize },
+    InstructionResult { instruction: InstructionId, index: usize },
+    TerminatorResult { block: BlockId, index: usize },
     Constant(Constant),
 }
 
@@ -274,16 +262,8 @@ impl Terminator {
         }
     }
 
-    pub(crate) fn switch(
-        value: ValueId,
-        cases: Vec<(ValueId, Edge)>,
-        default: Edge,
-    ) -> Self {
-        Self::Switch {
-            value,
-            cases,
-            default,
-        }
+    pub(crate) fn switch(value: ValueId, cases: Vec<(ValueId, Edge)>, default: Edge) -> Self {
+        Self::Switch { value, cases, default }
     }
 
     pub(crate) fn successor_count(&self) -> usize {
@@ -302,10 +282,13 @@ impl Terminator {
             Self::Branch { else_edge, .. } if index == 1 => else_edge,
             Self::CheckedOperation { success, .. } if index == 0 => success,
             Self::CheckedOperation { failure, .. } if index == 1 => failure,
-            Self::Switch { cases, default, .. } => cases
-                .get(index)
-                .map(|(_, edge)| edge)
-                .unwrap_or_else(|| if index == cases.len() { default } else { panic!("no successor {index}") }),
+            Self::Switch { cases, default, .. } => cases.get(index).map(|(_, edge)| edge).unwrap_or_else(|| {
+                if index == cases.len() {
+                    default
+                } else {
+                    panic!("no successor {index}")
+                }
+            }),
             _ => panic!("no successor {index}"),
         }
     }
@@ -570,10 +553,7 @@ impl Function {
     }
 
     fn effects_for_inputs(&self, mut effects: Effects, inputs: &[ValueId]) -> Effects {
-        if inputs
-            .iter()
-            .any(|input| self.value_depends_on_machine_state(*input))
-        {
+        if inputs.iter().any(|input| self.value_depends_on_machine_state(*input)) {
             effects.machine_state = if effects.machine_state.writes() {
                 MemoryEffect::ReadWrite
             } else {
@@ -593,7 +573,10 @@ impl Function {
         let mut worklist = Vec::new();
 
         for (index, value) in self.values.iter().enumerate() {
-            if matches!(value.definition, ValueDefinition::Constant(Constant::MachineRegister(_))) {
+            if matches!(
+                value.definition,
+                ValueDefinition::Constant(Constant::MachineRegister(_))
+            ) {
                 dependent_values[index] = true;
                 worklist.push(ValueId(index));
             }
@@ -726,11 +709,7 @@ impl Function {
                 effects,
                 success: Edge::with_arguments(
                     success_block,
-                    results
-                    .iter()
-                    .copied()
-                    .chain(success_arguments)
-                    .collect(),
+                    results.iter().copied().chain(success_arguments).collect(),
                 ),
                 failure,
             },
@@ -907,7 +886,9 @@ impl Function {
                         return Err(format!("checked operation in {block:?} does not own result {result:?}"));
                     }
                     if success.arguments.get(index) != Some(result) {
-                        return Err(format!("checked operation result {result:?} is not passed to its success block"));
+                        return Err(format!(
+                            "checked operation result {result:?} is not passed to its success block"
+                        ));
                     }
                     if success
                         .arguments
@@ -917,7 +898,9 @@ impl Function {
                         return Err(format!("checked operation result {result:?} is passed more than once"));
                     }
                     if failure.arguments.contains(result) {
-                        return Err(format!("checked operation result {result:?} is available on its failure edge"));
+                        return Err(format!(
+                            "checked operation result {result:?} is available on its failure edge"
+                        ));
                     }
                 }
             }
@@ -1019,12 +1002,7 @@ impl Function {
         }
         for (block_index, block) in self.blocks.iter().enumerate() {
             for input in block.terminator.as_ref().unwrap().inputs() {
-                self.validate_use(
-                    input,
-                    BlockId(block_index),
-                    None,
-                    &analyses,
-                )?;
+                self.validate_use(input, BlockId(block_index), None, &analyses)?;
             }
         }
         Ok(())
@@ -1059,9 +1037,10 @@ impl Function {
             ValueDefinition::Dead => unreachable!(),
             ValueDefinition::FunctionParameter(_) | ValueDefinition::Constant(_) => return Ok(()),
             ValueDefinition::BlockParameter { block, .. } => (block, None),
-            ValueDefinition::InstructionResult { instruction, .. } => {
-                (instruction_layout.block(instruction), Some(instruction_layout.position(instruction)))
-            }
+            ValueDefinition::InstructionResult { instruction, .. } => (
+                instruction_layout.block(instruction),
+                Some(instruction_layout.position(instruction)),
+            ),
             ValueDefinition::TerminatorResult { .. } => unreachable!(),
         };
         if definition_block == use_block {
@@ -1094,7 +1073,14 @@ mod tests {
 
     #[test]
     fn exposes_intrinsic_properties_to_ssa() {
-        assert_eq!(MemoryOperation::Load { width: MemoryWidth::HalfWord, signed: true }.access_width(), 2);
+        assert_eq!(
+            MemoryOperation::Load {
+                width: MemoryWidth::HalfWord,
+                signed: true
+            }
+            .access_width(),
+            2
+        );
         assert_eq!(MemoryOperation::StorePair(PairWidth::DoubleWord).address_count(), 2);
         assert!(MemoryOperation::StorePair(PairWidth::DoubleWord).writes());
         assert!(!MemoryOperation::LoadPair(PairWidth::DoubleWord).writes());
@@ -1150,14 +1136,8 @@ mod tests {
             vec![function.parameter(1)],
             vec![Type::I32],
         )[0];
-        function.set_terminator(
-            then_block,
-            Terminator::jump(join),
-        );
-        function.set_terminator(
-            else_block,
-            Terminator::jump(join),
-        );
+        function.set_terminator(then_block, Terminator::jump(join));
+        function.set_terminator(else_block, Terminator::jump(join));
         function.set_terminator(join, Terminator::Return(vec![value]));
 
         assert!(function.validate().unwrap_err().contains("does not dominate"));
@@ -1194,7 +1174,10 @@ mod tests {
         let symbol = function.add_constant(Type::U64, Constant::Symbol("CAGE_MASK".to_string()));
         let value = function.append_instruction_with_effects(
             function.entry,
-            Intrinsic::Memory(MemoryOperation::Load { width: MemoryWidth::Word, signed: false }),
+            Intrinsic::Memory(MemoryOperation::Load {
+                width: MemoryWidth::Word,
+                signed: false,
+            }),
             vec![function.parameter(0), offset, symbol],
             vec![Type::U32],
             Effects {
@@ -1214,9 +1197,7 @@ mod tests {
         let mut function = Function::new("machine-state-dag", Vec::new(), Vec::new());
         let machine_state = function.add_constant(
             Type::U64,
-            Constant::MachineRegister(RegisterReference::Interpreter(
-                InterpreterRegister::ProgramBase,
-            )),
+            Constant::MachineRegister(RegisterReference::Interpreter(InterpreterRegister::ProgramBase)),
         );
         let one = function.add_constant(Type::U64, Constant::Integer(1));
         let mut previous = machine_state;
@@ -1317,16 +1298,20 @@ mod tests {
             Vec::new(),
         );
         scalar_function.set_terminator(scalar_function.entry, Terminator::Return(Vec::new()));
-        assert!(scalar_function
-            .validate()
-            .unwrap_err()
-            .contains("references non-operation parameter 0"));
+        assert!(
+            scalar_function
+                .validate()
+                .unwrap_err()
+                .contains("references non-operation parameter 0")
+        );
 
         function.instructions[0].operation = Operation::Parameter(OperationParameterId(1));
-        assert!(function
-            .validate()
-            .unwrap_err()
-            .contains("references invalid operation parameter 1"));
+        assert!(
+            function
+                .validate()
+                .unwrap_err()
+                .contains("references invalid operation parameter 1")
+        );
     }
 
     #[test]
@@ -1342,8 +1327,7 @@ mod tests {
     }
 
     fn guarded_function() -> (Function, BlockId, ValueId) {
-        let mut function =
-            Function::new("guarded", vec![Type::Bool, Type::I32], vec![Type::I32]);
+        let mut function = Function::new("guarded", vec![Type::Bool, Type::I32], vec![Type::I32]);
         let failure = function.create_empty_block("failure", BlockLayout::Cold);
         function.append_instruction(
             function.entry,
@@ -1421,18 +1405,14 @@ mod tests {
 
     #[test]
     fn unifies_known_source_and_layout_constants() {
-        let constants = crate::frontend::layout::LayoutConstants::from_values([
-            ("EMPTY_VALUE".to_string(), 0x7ffb_0000_0000_0000),
-        ]);
+        let constants =
+            crate::frontend::layout::LayoutConstants::from_values([("EMPTY_VALUE".to_string(), 0x7ffb_0000_0000_0000)]);
 
         assert_eq!(
             Constant::symbol("EMPTY_VALUE"),
-            Constant::layout_value(
-                crate::frontend::layout::LayoutValue::Constant(
-                    constants.get("EMPTY_VALUE").unwrap(),
-                )
-            )
+            Constant::layout_value(crate::frontend::layout::LayoutValue::Constant(
+                constants.get("EMPTY_VALUE").unwrap(),
+            ))
         );
     }
-
 }

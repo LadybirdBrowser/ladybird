@@ -10,16 +10,19 @@ use super::analysis::{ControlFlowGraph, reachable_blocks};
 use super::effects::{EffectDomain, EffectSet};
 use super::pass::{AnalysisManager, FunctionPass, PassManagerOptions, PassRunner};
 use super::report::FunctionOptimizationReport;
-use super::{BlockId, BlockLayout, Edge, Effects, Function, Instruction, InstructionId, Intrinsic, OperandOperation, Operation, Terminator, ValueDefinition, ValueId, ValueOperation};
-use crate::intrinsic::{OperandLoad, OperandStore};
 #[cfg(test)]
 use super::{BinaryOperation, IntegerBinaryOperation};
+use super::{
+    BlockId, BlockLayout, Edge, Effects, Function, Instruction, InstructionId, Intrinsic, OperandOperation, Operation,
+    Terminator, ValueDefinition, ValueId, ValueOperation,
+};
 use crate::frontend::layout::{LayoutConstants, LayoutValue};
-use crate::types::Type;
-use crate::{CompileError, CompileStage};
+use crate::hash::{HashMap, HashSet};
 #[cfg(test)]
 use crate::identity::ExternalSymbol;
-use crate::hash::{HashMap, HashSet};
+use crate::intrinsic::{OperandLoad, OperandStore};
+use crate::types::Type;
+use crate::{CompileError, CompileStage};
 use std::rc::Rc;
 
 pub(crate) fn resolve_constants(function: &mut Function, constants: &LayoutConstants) {
@@ -42,24 +45,17 @@ pub(crate) fn resolve_constants(function: &mut Function, constants: &LayoutConst
     for value_id in values {
         let value = &mut function.values[value_id.0];
         let constant = match &value.definition {
-            ValueDefinition::Constant(
-                super::ir::Constant::KnownLayout(known),
-            ) => constants.known(*known),
-            ValueDefinition::Constant(
-                super::ir::Constant::LayoutValue(
-                    LayoutValue::Constant(constant),
-                ),
-            ) => Some(*constant),
-            ValueDefinition::Constant(
-                super::ir::Constant::Symbol(name),
-            ) => constants.get(name),
+            ValueDefinition::Constant(super::ir::Constant::KnownLayout(known)) => constants.known(*known),
+            ValueDefinition::Constant(super::ir::Constant::LayoutValue(LayoutValue::Constant(constant))) => {
+                Some(*constant)
+            }
+            ValueDefinition::Constant(super::ir::Constant::Symbol(name)) => constants.get(name),
             _ => None,
         };
         let Some(constant) = constant else {
             continue;
         };
-        value.definition =
-            ValueDefinition::Constant(super::ir::Constant::Integer(constant.value()));
+        value.definition = ValueDefinition::Constant(super::ir::Constant::Integer(constant.value()));
     }
 }
 
@@ -68,61 +64,39 @@ pub(crate) fn resolve_layout_constants(
     constants: &LayoutConstants,
 ) -> Result<(), CompileError> {
     for value in &mut function.values {
-        if let ValueDefinition::Constant(
-            super::ir::Constant::KnownLayout(known),
-        ) = value.definition
-        {
-            let constant = constants
-                .known(known)
-                .ok_or_else(|| {
-                    CompileError::new(
-                        CompileStage::Ssa,
-                        Some(&function.name),
-                        format!("unknown constant '{}'", known.name()),
-                    )
-                })?;
-            value.definition = ValueDefinition::Constant(
-                super::ir::Constant::Layout(constant),
-            );
-            continue;
-        }
-        if let ValueDefinition::Constant(
-            super::ir::Constant::LayoutValue(layout_value),
-        ) = value.definition
-        {
-            value.definition = ValueDefinition::Constant(
-                match layout_value {
-                    LayoutValue::Immediate(value) => {
-                        super::ir::Constant::Integer(value)
-                    }
-                    LayoutValue::Constant(constant) => {
-                        super::ir::Constant::Layout(constant)
-                    }
-                },
-            );
-            continue;
-        }
-        let ValueDefinition::Constant(super::ir::Constant::Symbol(name)) =
-            &value.definition
-        else {
-            continue;
-        };
-        if let Ok(integer) = name.parse() {
-            value.definition =
-                ValueDefinition::Constant(super::ir::Constant::Integer(integer));
-            continue;
-        }
-        let constant = constants
-            .get(name)
-            .ok_or_else(|| {
+        if let ValueDefinition::Constant(super::ir::Constant::KnownLayout(known)) = value.definition {
+            let constant = constants.known(known).ok_or_else(|| {
                 CompileError::new(
                     CompileStage::Ssa,
                     Some(&function.name),
-                    format!("unknown constant '{name}'"),
+                    format!("unknown constant '{}'", known.name()),
                 )
             })?;
-        value.definition =
-            ValueDefinition::Constant(super::ir::Constant::Layout(constant));
+            value.definition = ValueDefinition::Constant(super::ir::Constant::Layout(constant));
+            continue;
+        }
+        if let ValueDefinition::Constant(super::ir::Constant::LayoutValue(layout_value)) = value.definition {
+            value.definition = ValueDefinition::Constant(match layout_value {
+                LayoutValue::Immediate(value) => super::ir::Constant::Integer(value),
+                LayoutValue::Constant(constant) => super::ir::Constant::Layout(constant),
+            });
+            continue;
+        }
+        let ValueDefinition::Constant(super::ir::Constant::Symbol(name)) = &value.definition else {
+            continue;
+        };
+        if let Ok(integer) = name.parse() {
+            value.definition = ValueDefinition::Constant(super::ir::Constant::Integer(integer));
+            continue;
+        }
+        let constant = constants.get(name).ok_or_else(|| {
+            CompileError::new(
+                CompileStage::Ssa,
+                Some(&function.name),
+                format!("unknown constant '{name}'"),
+            )
+        })?;
+        value.definition = ValueDefinition::Constant(super::ir::Constant::Layout(constant));
     }
     Ok(())
 }
@@ -162,9 +136,7 @@ pub(crate) fn fuse_operand_accesses(function: &mut Function) {
             let second = &function.instructions[second_id.0];
             let (operation, inputs, results) = if matches!(
                 second.operation,
-                Operation::Intrinsic(Intrinsic::Operand(
-                    OperandOperation::Store(OperandStore::Field),
-                ))
+                Operation::Intrinsic(Intrinsic::Operand(OperandOperation::Store(OperandStore::Field),))
             ) && let [destination, stored] = second.inputs.as_slice()
                 && second.results.is_empty()
                 && *stored == result
@@ -181,8 +153,15 @@ pub(crate) fn fuse_operand_accesses(function: &mut Function) {
             first.operation = Operation::Intrinsic(Intrinsic::Operand(operation));
             first.inputs = inputs;
             first.results = results;
-            let memory = if operation == OperandOperation::Copy { super::MemoryEffect::ReadWrite } else { super::MemoryEffect::Read };
-            first.base_effects = Effects { memory, ..Effects::PURE };
+            let memory = if operation == OperandOperation::Copy {
+                super::MemoryEffect::ReadWrite
+            } else {
+                super::MemoryEffect::Read
+            };
+            first.base_effects = Effects {
+                memory,
+                ..Effects::PURE
+            };
             first.effects = first.base_effects;
             if operation == OperandOperation::Copy {
                 function.values[result.0].definition = ValueDefinition::Dead;
@@ -197,8 +176,14 @@ pub(crate) fn fuse_operand_accesses(function: &mut Function) {
 }
 
 fn operand_field_load(instruction: &Instruction) -> Option<(ValueId, ValueId)> {
-    match (&instruction.operation, instruction.inputs.as_slice(), instruction.results.as_slice()) {
-        (Operation::Intrinsic(Intrinsic::Operand(OperandOperation::Load(OperandLoad::Field))), [input], [result]) => Some((*input, *result)),
+    match (
+        &instruction.operation,
+        instruction.inputs.as_slice(),
+        instruction.results.as_slice(),
+    ) {
+        (Operation::Intrinsic(Intrinsic::Operand(OperandOperation::Load(OperandLoad::Field))), [input], [result]) => {
+            Some((*input, *result))
+        }
         _ => None,
     }
 }
@@ -293,10 +278,8 @@ fn resolve_block_references(function: &mut Function, _: &mut AnalysisManager) ->
         let Operation::BlockReference(target) = instruction.operation else {
             continue;
         };
-        function.blocks[block_index].terminator = Some(Terminator::jump_with_arguments(
-            target,
-            instruction.inputs.clone(),
-        ));
+        function.blocks[block_index].terminator =
+            Some(Terminator::jump_with_arguments(target, instruction.inputs.clone()));
         changed = true;
     }
     changed
@@ -650,16 +633,10 @@ fn terminator_edges_mut(terminator: &mut Terminator) -> Vec<&mut Edge> {
     match terminator {
         Terminator::Jump(edge) => vec![edge],
         Terminator::Branch {
-            then_edge,
-            else_edge,
-            ..
+            then_edge, else_edge, ..
         } => vec![then_edge, else_edge],
-        Terminator::Switch { cases, default, .. } => {
-            cases.iter_mut().map(|(_, edge)| edge).chain([default]).collect()
-        }
-        Terminator::CheckedOperation {
-            success, failure, ..
-        } => vec![success, failure],
+        Terminator::Switch { cases, default, .. } => cases.iter_mut().map(|(_, edge)| edge).chain([default]).collect(),
+        Terminator::CheckedOperation { success, failure, .. } => vec![success, failure],
         Terminator::IndirectJump { .. } | Terminator::Return(_) | Terminator::Unreachable => Vec::new(),
     }
 }
@@ -673,10 +650,7 @@ pub(crate) fn eliminate_common_subexpressions(function: &mut Function) {
     );
 }
 
-fn eliminate_common_subexpressions_pass(
-    function: &mut Function,
-    analyses: &mut AnalysisManager,
-) -> bool {
+fn eliminate_common_subexpressions_pass(function: &mut Function, analyses: &mut AnalysisManager) -> bool {
     let mut replacements = HashMap::default();
     let mut eliminated = HashSet::default();
     let analyses = analyses.get(function);
@@ -718,7 +692,11 @@ fn eliminate_common_subexpressions_pass(
             // paths that may exit. Keep cheap expressions rematerializable on
             // each side of those boundaries.
             if instruction.effects.may_call || instruction.effects.may_trap {
-                undo.extend(available.drain().map(|(expression, results)| (expression, Some(results))));
+                undo.extend(
+                    available
+                        .drain()
+                        .map(|(expression, results)| (expression, Some(results))),
+                );
                 continue;
             }
             if !instruction.effects.can_be_eliminated()
@@ -840,10 +818,7 @@ pub(crate) fn schedule_global_code_motion(function: &mut Function) {
     run_single_pass(function, "global-code-motion", schedule_global_code_motion_pass);
 }
 
-fn schedule_global_code_motion_pass(
-    function: &mut Function,
-    analyses: &mut AnalysisManager,
-) -> bool {
+fn schedule_global_code_motion_pass(function: &mut Function, analyses: &mut AnalysisManager) -> bool {
     let analyses = analyses.placement(function);
     let dominators = &analyses.dominators;
     let instruction_layout = &analyses.instruction_layout;
@@ -904,13 +879,7 @@ fn schedule_global_code_motion_pass(
             if !dominators.dominates(source, latest) {
                 continue;
             }
-            let placement = cheapest_motion_block(
-                function,
-                source,
-                latest,
-                dominators,
-                &loop_depths,
-            );
+            let placement = cheapest_motion_block(function, source, latest, dominators, &loop_depths);
             if placements[instruction.0] != placement {
                 placements[instruction.0] = placement;
                 changed = true;
@@ -1036,13 +1005,24 @@ fn instruction_is_globally_movable(instruction: &super::Instruction) -> bool {
             Operation::Intrinsic(Intrinsic::Address(_)) => true,
             Operation::FieldAccess(_) => true,
             Operation::Intrinsic(Intrinsic::LowLevel(operation)) => *operation != super::LowLevelOperation::Move,
-            Operation::Intrinsic(Intrinsic::Classification(_)) | Operation::Intrinsic(Intrinsic::FloatingPoint(_)) | Operation::Intrinsic(Intrinsic::IntegerBinary(_)) | Operation::Intrinsic(Intrinsic::IntegerComparison(_))
+            Operation::Intrinsic(Intrinsic::Classification(_))
+            | Operation::Intrinsic(Intrinsic::FloatingPoint(_))
+            | Operation::Intrinsic(Intrinsic::IntegerBinary(_))
+            | Operation::Intrinsic(Intrinsic::IntegerComparison(_))
             | Operation::Intrinsic(Intrinsic::Operand(_)) => true,
             Operation::Intrinsic(Intrinsic::Value(operation)) => {
-                *operation != ValueOperation::Reuse
-                    && !operation.is_rematerialized()
+                *operation != ValueOperation::Reuse && !operation.is_rematerialized()
             }
-            Operation::Intrinsic(Intrinsic::Aggregate(_)) | Operation::Intrinsic(Intrinsic::Assertion(_)) | Operation::Intrinsic(Intrinsic::Branch(_)) | Operation::Intrinsic(Intrinsic::Bytecode(_)) | Operation::Intrinsic(Intrinsic::Call(_)) | Operation::Intrinsic(Intrinsic::CheckedInteger(_)) | Operation::Intrinsic(Intrinsic::Control(_)) | Operation::Intrinsic(Intrinsic::Memory(_)) | Operation::InlineCall(_) | Operation::Parameter(_)
+            Operation::Intrinsic(Intrinsic::Aggregate(_))
+            | Operation::Intrinsic(Intrinsic::Assertion(_))
+            | Operation::Intrinsic(Intrinsic::Branch(_))
+            | Operation::Intrinsic(Intrinsic::Bytecode(_))
+            | Operation::Intrinsic(Intrinsic::Call(_))
+            | Operation::Intrinsic(Intrinsic::CheckedInteger(_))
+            | Operation::Intrinsic(Intrinsic::Control(_))
+            | Operation::Intrinsic(Intrinsic::Memory(_))
+            | Operation::InlineCall(_)
+            | Operation::Parameter(_)
             | Operation::MachineAssign { .. }
             | Operation::BlockReference(_)
             | Operation::Guard { .. } => false,
@@ -1126,14 +1106,7 @@ fn schedule_value_dependencies(
     dependencies.dedup();
     for dependency in dependencies {
         schedule_instruction(
-            function,
-            block,
-            dependency,
-            placements,
-            movable,
-            ranks,
-            emitted,
-            schedule,
+            function, block, dependency, placements, movable, ranks, emitted, schedule,
         );
     }
 }
@@ -1267,14 +1240,23 @@ pub(super) enum InstructionOrder {
     Original,
 }
 
-pub(super) fn rebuild_instruction_arena(function: &mut Function, eliminated: &HashSet<InstructionId>, order: InstructionOrder) {
+pub(super) fn rebuild_instruction_arena(
+    function: &mut Function,
+    eliminated: &HashSet<InstructionId>,
+    order: InstructionOrder,
+) {
     let old_instructions = std::mem::take(&mut function.instructions);
     function.instructions.reserve(old_instructions.len() - eliminated.len());
     let mut instruction_map = vec![None; old_instructions.len()];
     let order: Vec<_> = if matches!(order, InstructionOrder::Original) {
         (0..old_instructions.len()).map(InstructionId).collect()
     } else {
-        function.blocks.iter().flat_map(|block| &block.instructions).copied().collect()
+        function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .copied()
+            .collect()
     };
     for old_id in order {
         if eliminated.contains(&old_id) {
@@ -1303,7 +1285,12 @@ pub(super) fn rebuild_instruction_arena(function: &mut Function, eliminated: &Ha
             };
         }
     }
-    debug_assert!(instruction_map.iter().enumerate().all(|(index, mapped)| eliminated.contains(&InstructionId(index)) || mapped.is_some()));
+    debug_assert!(
+        instruction_map
+            .iter()
+            .enumerate()
+            .all(|(index, mapped)| eliminated.contains(&InstructionId(index)) || mapped.is_some())
+    );
 }
 
 #[cfg(test)]
@@ -1312,8 +1299,7 @@ mod tests {
     use crate::frontend::parser;
     use crate::hir as typecheck;
     use crate::intrinsic::{
-        AssertionOperation, CallOperation, ControlOperation, OperandLoad, OperandOperation,
-        OperandStore,
+        AssertionOperation, CallOperation, ControlOperation, OperandLoad, OperandOperation, OperandStore,
     };
     use crate::ssa::{Constant, LowLevelOperation, MemoryEffect, lowering as ir_lowering};
 
@@ -1326,13 +1312,7 @@ mod tests {
         effects: Effects,
     ) -> (InstructionId, Vec<ValueId>) {
         let instruction = InstructionId(function.instructions.len());
-        let results = function.append_instruction_with_effects(
-            block,
-            operation,
-            inputs,
-            result_types,
-            effects,
-        );
+        let results = function.append_instruction_with_effects(block, operation, inputs, result_types, effects);
         (instruction, results)
     }
 
@@ -1477,18 +1457,12 @@ mod tests {
             Vec::new(),
             Effects::UNKNOWN,
         );
-        function.set_terminator(
-            entry,
-            Terminator::jump(header),
-        );
+        function.set_terminator(entry, Terminator::jump(header));
         function.set_terminator(
             header,
             Terminator::branch_edges(condition, Edge::new(body), Edge::new(exit)),
         );
-        function.set_terminator(
-            body,
-            Terminator::jump(header),
-        );
+        function.set_terminator(body, Terminator::jump(header));
         function.set_terminator(exit, Terminator::Return(Vec::new()));
 
         schedule_global_code_motion(&mut function);
@@ -1501,10 +1475,7 @@ mod tests {
     #[test]
     fn eliminates_trivial_loop_parameters() {
         let mut function = Function::new("loop", Vec::new(), Vec::new());
-        let constant = function.add_constant(
-            Type::SlowPath,
-            Constant::SlowPath(ExternalSymbol::new("slow")),
-        );
+        let constant = function.add_constant(Type::SlowPath, Constant::SlowPath(ExternalSymbol::new("slow")));
         let header = function.create_named_block("header", BlockLayout::Hot, vec![Type::SlowPath]);
         let parameter = function.blocks[header.0].parameters[0];
         let use_instruction = function.append_instruction(
@@ -1514,14 +1485,8 @@ mod tests {
             Vec::new(),
         );
         assert!(use_instruction.is_empty());
-        function.set_terminator(
-            function.entry,
-            Terminator::jump_with_arguments(header, vec![constant]),
-        );
-        function.set_terminator(
-            header,
-            Terminator::jump_with_arguments(header, vec![parameter]),
-        );
+        function.set_terminator(function.entry, Terminator::jump_with_arguments(header, vec![constant]));
+        function.set_terminator(header, Terminator::jump_with_arguments(header, vec![parameter]));
 
         eliminate_trivial_block_parameters(&mut function);
 
@@ -1723,10 +1688,7 @@ handler Add(lhs: i32) {
         );
         let child = function.create_empty_block("child", BlockLayout::Hot);
         let exit = function.create_empty_block("exit", BlockLayout::Hot);
-        function.set_terminator(
-            function.entry,
-            Terminator::branch(function.parameter(0), child, exit),
-        );
+        function.set_terminator(function.entry, Terminator::branch(function.parameter(0), child, exit));
         function.append_instruction(
             child,
             Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::Add)),
@@ -1877,11 +1839,7 @@ handler Add(lhs: i32) {
         let case = function.add_constant(Type::U32, Constant::Integer(7));
         function.set_terminator(
             function.entry,
-            Terminator::switch(
-                value,
-                vec![(case, Edge::new(selected))],
-                Edge::new(default),
-            ),
+            Terminator::switch(value, vec![(case, Edge::new(selected))], Edge::new(default)),
         );
         function.set_terminator(selected, Terminator::Unreachable);
         function.set_terminator(default, Terminator::Unreachable);
@@ -1910,10 +1868,7 @@ handler Add(lhs: i32) {
 
         resolve_constants(
             &mut function,
-            &LayoutConstants::from_values([(
-                "FIELD_OFFSET".to_string(),
-                24,
-            )]),
+            &LayoutConstants::from_values([("FIELD_OFFSET".to_string(), 24)]),
         );
 
         assert_eq!(
@@ -1924,22 +1879,14 @@ handler Add(lhs: i32) {
 
     #[test]
     fn preserves_layout_value_resolution_points() {
-        let constants = LayoutConstants::from_values([(
-            "FIELD_OFFSET".to_string(),
-            24,
-        )]);
+        let constants = LayoutConstants::from_values([("FIELD_OFFSET".to_string(), 24)]);
         let mut function = Function::new("constants", Vec::new(), Vec::new());
         let base = function.add_constant(Type::U64, Constant::Integer(0));
         let named = function.add_constant(
             Type::U64,
-            Constant::LayoutValue(LayoutValue::Constant(
-                constants.get("FIELD_OFFSET").unwrap(),
-            )),
+            Constant::LayoutValue(LayoutValue::Constant(constants.get("FIELD_OFFSET").unwrap())),
         );
-        let immediate = function.add_constant(
-            Type::U64,
-            Constant::LayoutValue(LayoutValue::Immediate(8)),
-        );
+        let immediate = function.add_constant(Type::U64, Constant::LayoutValue(LayoutValue::Immediate(8)));
         function.append_instruction(
             function.entry,
             Operation::Address,
@@ -1956,9 +1903,7 @@ handler Add(lhs: i32) {
         );
         assert_eq!(
             function.values[immediate.0].definition,
-            ValueDefinition::Constant(Constant::LayoutValue(
-                LayoutValue::Immediate(8)
-            ))
+            ValueDefinition::Constant(Constant::LayoutValue(LayoutValue::Immediate(8)))
         );
 
         resolve_layout_constants(&mut function, &constants).unwrap();
@@ -1972,16 +1917,9 @@ handler Add(lhs: i32) {
     #[test]
     fn rejects_unknown_layout_constants_during_resolution() {
         let mut function = Function::new("Missing", Vec::new(), Vec::new());
-        function.add_constant(
-            Type::U64,
-            Constant::Symbol("MISSING".to_string()),
-        );
+        function.add_constant(Type::U64, Constant::Symbol("MISSING".to_string()));
 
-        let error = resolve_layout_constants(
-            &mut function,
-            &LayoutConstants::default(),
-        )
-        .unwrap_err();
+        let error = resolve_layout_constants(&mut function, &LayoutConstants::default()).unwrap_err();
 
         assert_eq!(error.stage, CompileStage::Ssa);
         assert_eq!(error.handler.as_deref(), Some("Missing"));

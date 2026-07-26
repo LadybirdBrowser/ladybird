@@ -154,7 +154,12 @@ fn find_call<'a>(
     Ok(None)
 }
 
-fn inline_call(function: &mut Function, block_index: usize, instruction_index: usize, callee: &Function) -> Result<(), CompileError> {
+fn inline_call(
+    function: &mut Function,
+    block_index: usize,
+    instruction_index: usize,
+    callee: &Function,
+) -> Result<(), CompileError> {
     let call_id = function.blocks[block_index].instructions[instruction_index];
     let call = function.instructions[call_id.0].clone();
     if call.inputs.len() != callee.parameter_types.len() || call.results.len() != callee.return_types.len() {
@@ -166,9 +171,19 @@ fn inline_call(function: &mut Function, block_index: usize, instruction_index: u
 
     let caller_block = BlockId(block_index);
     let caller_layout = function.blocks[caller_block.0].layout;
-    let continuation_types = call.results.iter().map(|result| function.values[result.0].ty.clone()).collect();
-    let continuation = function.create_named_block(format!("inline_{}_continuation", callee.name), function.blocks[block_index].layout, continuation_types);
-    let tail = function.blocks[block_index].instructions.split_off(instruction_index + 1);
+    let continuation_types = call
+        .results
+        .iter()
+        .map(|result| function.values[result.0].ty.clone())
+        .collect();
+    let continuation = function.create_named_block(
+        format!("inline_{}_continuation", callee.name),
+        function.blocks[block_index].layout,
+        continuation_types,
+    );
+    let tail = function.blocks[block_index]
+        .instructions
+        .split_off(instruction_index + 1);
     function.blocks[block_index].instructions.pop();
     function.blocks[continuation.0].instructions = tail;
     function.blocks[continuation.0].terminator = function.blocks[block_index].terminator.take();
@@ -210,7 +225,10 @@ fn inline_call(function: &mut Function, block_index: usize, instruction_index: u
             .map(|parameter| callee.values[parameter.0].ty.clone())
             .collect();
         let cloned = function.create_block(
-            callee_block.name.as_ref().map(|name| format!("inline_{}_{name}", callee.name)),
+            callee_block
+                .name
+                .as_ref()
+                .map(|name| format!("inline_{}_{name}", callee.name)),
             if caller_layout == super::ir::BlockLayout::Cold {
                 super::ir::BlockLayout::Cold
             } else {
@@ -228,7 +246,10 @@ fn inline_call(function: &mut Function, block_index: usize, instruction_index: u
     }
     for (index, value) in callee.values.iter().enumerate() {
         if let ValueDefinition::Constant(constant) = &value.definition {
-            values.insert(ValueId(index), function.add_constant(value.ty.clone(), constant.clone()));
+            values.insert(
+                ValueId(index),
+                function.add_constant(value.ty.clone(), constant.clone()),
+            );
         }
     }
     for (callee_block_index, callee_block) in callee.blocks.iter().enumerate() {
@@ -283,7 +304,15 @@ fn inline_call(function: &mut Function, block_index: usize, instruction_index: u
             .terminator
             .as_ref()
             .ok_or_else(|| inline_error(function, format!("callee '{}' has no terminator", callee.name)))?;
-        clone_terminator(function, callee, terminator, cloned_block, continuation, &blocks, &mut values)?;
+        clone_terminator(
+            function,
+            callee,
+            terminator,
+            cloned_block,
+            continuation,
+            &blocks,
+            &mut values,
+        )?;
     }
     Ok(())
 }
@@ -329,8 +358,7 @@ fn clone_terminator(
     let edge = |edge: &Edge| -> Result<Edge, CompileError> {
         Ok(Edge::with_arguments(
             blocks[&edge.block],
-            edge
-                .arguments
+            edge.arguments
                 .iter()
                 .map(|value| mapped(function, values, *value, &callee.name))
                 .collect::<Result<_, _>>()?,
@@ -338,7 +366,11 @@ fn clone_terminator(
     };
     let cloned = match terminator {
         Terminator::Jump(target) => Terminator::Jump(edge(target)?),
-        Terminator::Branch { condition, then_edge, else_edge } => Terminator::branch_edges(
+        Terminator::Branch {
+            condition,
+            then_edge,
+            else_edge,
+        } => Terminator::branch_edges(
             mapped(function, values, *condition, &callee.name)?,
             edge(then_edge)?,
             edge(else_edge)?,
@@ -351,7 +383,14 @@ fn clone_terminator(
                 .collect::<Result<_, CompileError>>()?,
             edge(default)?,
         ),
-        Terminator::CheckedOperation { operation, inputs, results, effects, success, failure } => {
+        Terminator::CheckedOperation {
+            operation,
+            inputs,
+            results,
+            effects,
+            success,
+            failure,
+        } => {
             let inputs = inputs
                 .iter()
                 .map(|value| mapped(function, values, *value, &callee.name))
@@ -369,7 +408,10 @@ fn clone_terminator(
             } else {
                 *effects
             };
-            let result_types = results.iter().map(|result| callee.values[result.0].ty.clone()).collect();
+            let result_types = results
+                .iter()
+                .map(|result| callee.values[result.0].ty.clone())
+                .collect();
             let success_block = blocks[&success.block];
             let extra_success_arguments = success.arguments[results.len()..]
                 .iter()
@@ -424,7 +466,12 @@ fn block_reference(function: &Function, value: ValueId) -> Option<Edge> {
     Some(Edge::with_arguments(*block, instruction.inputs.clone()))
 }
 
-fn coerce_value(function: &mut Function, block: BlockId, value: ValueId, target: &Type) -> Result<ValueId, CompileError> {
+fn coerce_value(
+    function: &mut Function,
+    block: BlockId,
+    value: ValueId,
+    target: &Type,
+) -> Result<ValueId, CompileError> {
     let source = &function.values[value.0].ty;
     if source == target {
         return Ok(value);
@@ -460,12 +507,10 @@ fn mapped(
     value: ValueId,
     callee: &str,
 ) -> Result<ValueId, CompileError> {
-    values.get(&value).copied().ok_or_else(|| {
-        inline_error(
-            function,
-            format!("callee '{callee}' uses unmapped value {value:?}"),
-        )
-    })
+    values
+        .get(&value)
+        .copied()
+        .ok_or_else(|| inline_error(function, format!("callee '{callee}' uses unmapped value {value:?}")))
 }
 
 #[cfg(test)]
@@ -543,16 +588,24 @@ handler Double(value: i32) {
 }
 "#,
         );
-        assert!(handler.instructions.iter().any(|instruction| {
-            matches!(instruction.operation, Operation::InlineCall(_))
-        }));
+        assert!(
+            handler
+                .instructions
+                .iter()
+                .any(|instruction| { matches!(instruction.operation, Operation::InlineCall(_)) })
+        );
         assert_eq!(inline_calls(&mut handler, &callees).unwrap(), 1);
-        assert!(!handler.instructions.iter().any(|instruction| {
-            matches!(instruction.operation, Operation::InlineCall(_))
-        }));
+        assert!(
+            !handler
+                .instructions
+                .iter()
+                .any(|instruction| { matches!(instruction.operation, Operation::InlineCall(_)) })
+        );
         assert!(handler.instructions.iter().any(|instruction| {
             instruction.operation
-                == Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::Add)))
+                == Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(
+                    BinaryOperation::Add,
+                )))
         }));
     }
 
@@ -570,7 +623,10 @@ handler Finish() {
 "#,
         );
         assert_eq!(inline_calls(&mut handler, &callees).unwrap(), 1);
-        assert_eq!(handler.blocks[handler.entry.0].terminator, Some(Terminator::Unreachable));
+        assert_eq!(
+            handler.blocks[handler.entry.0].terminator,
+            Some(Terminator::Unreachable)
+        );
         assert!(handler.instructions.iter().any(|instruction| {
             instruction.operation
                 == Operation::Intrinsic(Intrinsic::Control(crate::intrinsic::ControlOperation::DispatchNext))
@@ -596,9 +652,12 @@ handler Store(dst: out Operand, value: Value) = store_and_finish(dst, value);
                     crate::intrinsic::OperandStore::Field,
                 )))
         }));
-        assert!(!handler.instructions.iter().any(|instruction| {
-            matches!(instruction.operation, Operation::InlineCall(_))
-        }));
+        assert!(
+            !handler
+                .instructions
+                .iter()
+                .any(|instruction| { matches!(instruction.operation, Operation::InlineCall(_)) })
+        );
     }
 
     #[test]
@@ -623,9 +682,12 @@ handler Choose(condition: u32) {
         );
         assert_eq!(inline_calls(&mut handler, &callees).unwrap(), 1);
         optimize::optimize_function(&mut handler);
-        assert!(!handler.blocks.iter().any(|block| {
-            matches!(block.terminator, Some(Terminator::IndirectJump { .. }))
-        }));
+        assert!(
+            !handler
+                .blocks
+                .iter()
+                .any(|block| { matches!(block.terminator, Some(Terminator::IndirectJump { .. })) })
+        );
         let jump_targets = handler
             .blocks
             .iter()
@@ -634,12 +696,16 @@ handler Choose(condition: u32) {
                 _ => None,
             })
             .collect::<Vec<_>>();
-        assert!(jump_targets.iter().any(|block| {
-            handler.blocks[block.0].layout == super::super::ir::BlockLayout::Hot
-        }));
-        assert!(jump_targets.iter().any(|block| {
-            handler.blocks[block.0].layout == super::super::ir::BlockLayout::Cold
-        }));
+        assert!(
+            jump_targets
+                .iter()
+                .any(|block| { handler.blocks[block.0].layout == super::super::ir::BlockLayout::Hot })
+        );
+        assert!(
+            jump_targets
+                .iter()
+                .any(|block| { handler.blocks[block.0].layout == super::super::ir::BlockLayout::Cold })
+        );
     }
 
     #[test]
@@ -663,10 +729,18 @@ handler Select(condition: u32, lhs: i32, rhs: i32) {
         );
         assert_eq!(inline_calls(&mut handler, &callees).unwrap(), 1);
         assert!(handler.blocks.len() > 2);
-        assert!(handler.blocks.iter().any(|block| matches!(block.terminator, Some(Terminator::Branch { .. }))));
-        assert!(!handler.instructions.iter().any(|instruction| {
-            matches!(instruction.operation, Operation::InlineCall(_))
-        }));
+        assert!(
+            handler
+                .blocks
+                .iter()
+                .any(|block| matches!(block.terminator, Some(Terminator::Branch { .. })))
+        );
+        assert!(
+            !handler
+                .instructions
+                .iter()
+                .any(|instruction| { matches!(instruction.operation, Operation::InlineCall(_)) })
+        );
     }
 
     #[test]
@@ -688,10 +762,18 @@ handler Add(lhs: i32, rhs: i32) {
 "#,
         );
         assert_eq!(inline_calls(&mut handler, &callees).unwrap(), 1);
-        assert!(handler.blocks.iter().any(|block| {
-            matches!(block.terminator, Some(Terminator::CheckedOperation { .. }))
-        }));
-        assert!(handler.blocks.iter().any(|block| block.layout == super::super::ir::BlockLayout::Cold));
+        assert!(
+            handler
+                .blocks
+                .iter()
+                .any(|block| { matches!(block.terminator, Some(Terminator::CheckedOperation { .. })) })
+        );
+        assert!(
+            handler
+                .blocks
+                .iter()
+                .any(|block| block.layout == super::super::ir::BlockLayout::Cold)
+        );
     }
 
     #[test]
@@ -723,18 +805,20 @@ handler Apply(value: i32) = apply(value, checked_add);
             )
         }));
         assert_eq!(inline_calls(&mut handler, &callees).unwrap(), 1);
-        let effects = handler
-            .blocks
-            .iter()
-            .find_map(|block| match &block.terminator {
-                Some(Terminator::CheckedOperation {
-                    operation: Operation::Intrinsic(Intrinsic::CheckedInteger(crate::ssa::CheckedIntegerOperation::Add)),
-                    effects,
-                    ..
-                }) => Some(effects),
-                _ => None,
-            })
-            .expect("expected substituted checked operation");
+        let effects =
+            handler
+                .blocks
+                .iter()
+                .find_map(|block| match &block.terminator {
+                    Some(Terminator::CheckedOperation {
+                        operation:
+                            Operation::Intrinsic(Intrinsic::CheckedInteger(crate::ssa::CheckedIntegerOperation::Add)),
+                        effects,
+                        ..
+                    }) => Some(effects),
+                    _ => None,
+                })
+                .expect("expected substituted checked operation");
         assert_eq!(effects.memory, MemoryEffect::None);
         assert!(!effects.may_call);
         assert!(!effects.may_trap);
@@ -764,12 +848,19 @@ handler Use(value: u64) {
         let inlined_blocks = handler
             .blocks
             .iter()
-            .filter(|block| block.name.as_deref().is_some_and(|name| name.starts_with("inline_helper_")))
+            .filter(|block| {
+                block
+                    .name
+                    .as_deref()
+                    .is_some_and(|name| name.starts_with("inline_helper_"))
+            })
             .collect::<Vec<_>>();
         assert!(!inlined_blocks.is_empty());
-        assert!(inlined_blocks
-            .iter()
-            .all(|block| block.layout == super::super::ir::BlockLayout::Cold));
+        assert!(
+            inlined_blocks
+                .iter()
+                .all(|block| block.layout == super::super::ir::BlockLayout::Cold)
+        );
     }
 
     #[test]
@@ -789,8 +880,7 @@ handler Widen(value: u8) {
         );
         assert_eq!(inline_calls(&mut handler, &callees).unwrap(), 1);
         assert!(handler.instructions.iter().any(|instruction| {
-            instruction.operation
-                == Operation::Intrinsic(Intrinsic::Value(ValueOperation::Reuse))
+            instruction.operation == Operation::Intrinsic(Intrinsic::Value(ValueOperation::Reuse))
                 && handler.values[instruction.results[0].0].ty == Type::I32
         }));
     }

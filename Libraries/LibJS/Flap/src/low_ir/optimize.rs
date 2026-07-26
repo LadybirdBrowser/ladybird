@@ -6,19 +6,21 @@
 
 //! Machine-level optimizations before register allocation.
 
-use super::{AddressDisplacement, AddressRegister, AddressScale, ControlFlowOpcode, ControlFlowOperand, Instruction, Label, MemoryAddress, Operand, VirtualRegister};
+use super::{
+    AddressDisplacement, AddressRegister, AddressScale, ControlFlowOpcode, ControlFlowOperand, Instruction, Label,
+    MemoryAddress, Operand, VirtualRegister,
+};
+use crate::hash::{HashMap, HashSet};
 use crate::intrinsic::{BranchOperation, IntegerBinaryOperation};
-use crate::target::description::{BinaryOperation, IntegerWidth, MemoryWidth, Operation, PairWidth, SignCondition, OperandKind};
 #[cfg(test)]
 use crate::target::description::ZeroCondition;
-use crate::hash::{HashMap, HashSet};
+use crate::target::description::{
+    BinaryOperation, IntegerWidth, MemoryWidth, OperandKind, Operation, PairWidth, SignCondition,
+};
 
 /// Invert a conditional branch when its taken block follows an unconditional
 /// jump. This removes the jump while preserving block order.
-pub(crate) fn invert_branches_over_jumps<
-    O: ControlFlowOperand,
-    C: ControlFlowOpcode,
->(
+pub(crate) fn invert_branches_over_jumps<O: ControlFlowOperand, C: ControlFlowOpcode>(
     instructions: &mut Vec<Instruction<O, C>>,
 ) {
     let (mut read, mut write) = (0, 0);
@@ -34,8 +36,7 @@ pub(crate) fn invert_branches_over_jumps<
             write += 1;
             continue;
         };
-        instructions[write].opcode =
-            instructions[write].opcode.replacing_operation(operation);
+        instructions[write].opcode = instructions[write].opcode.replacing_operation(operation);
         *instructions[write]
             .operands
             .last_mut()
@@ -60,8 +61,7 @@ fn inverted_branch<O: ControlFlowOperand, C: ControlFlowOpcode>(
         return None;
     };
     let fallthrough_label = fallthrough_label.label()?;
-    if instructions[index + 1].opcode.operation()
-        != Operation::Control(crate::intrinsic::ControlOperation::JumpLabel)
+    if instructions[index + 1].opcode.operation() != Operation::Control(crate::intrinsic::ControlOperation::JumpLabel)
         || instructions[index + 2].opcode.operation() != Operation::Label
         || branch_target != fallthrough_label
     {
@@ -70,9 +70,7 @@ fn inverted_branch<O: ControlFlowOperand, C: ControlFlowOpcode>(
     Some((operation, jump_target.clone()))
 }
 
-pub(crate) fn inverted_branch_operation(
-    opcode: &impl ControlFlowOpcode,
-) -> Option<Operation> {
+pub(crate) fn inverted_branch_operation(opcode: &impl ControlFlowOpcode) -> Option<Operation> {
     let operation = opcode.operation();
     Some(match operation {
         Operation::Branch(operation) => Operation::Branch(operation.inverted()?),
@@ -81,10 +79,7 @@ pub(crate) fn inverted_branch_operation(
     })
 }
 
-pub(crate) fn remove_unreferenced_labels<
-    O: ControlFlowOperand,
-    C: ControlFlowOpcode,
->(
+pub(crate) fn remove_unreferenced_labels<O: ControlFlowOperand, C: ControlFlowOpcode>(
     instructions: &mut Vec<Instruction<O, C>>,
 ) {
     let keep = {
@@ -181,19 +176,23 @@ pub(crate) fn propagate_single_assignment_copies(instructions: &mut Vec<Instruct
     let mut pinned = HashSet::default();
     for instruction in instructions.iter() {
         let info = instruction.opcode.description();
-        for (index, _) in info
-            .x86_64
-            .fixed_operands
-            .iter()
-            .chain(info.aarch64.fixed_operands)
-        {
+        for (index, _) in info.x86_64.fixed_operands.iter().chain(info.aarch64.fixed_operands) {
             if let Some(Operand::VirtualRegister(register)) = instruction.operands.get(*index) {
                 pinned.insert(register.clone());
             }
         }
         for (index, operand) in instruction.operands.iter().enumerate() {
             let kind = info.operand_kind(index, instruction.operands.len());
-            if !matches!(kind, Some(OperandKind::GprOut | OperandKind::GprInOut | OperandKind::FprOut | OperandKind::FprInOut | OperandKind::RegisterOut)) {
+            if !matches!(
+                kind,
+                Some(
+                    OperandKind::GprOut
+                        | OperandKind::GprInOut
+                        | OperandKind::FprOut
+                        | OperandKind::FprInOut
+                        | OperandKind::RegisterOut
+                )
+            ) {
                 continue;
             }
             if let Operand::VirtualRegister(register) = operand {
@@ -204,21 +203,21 @@ pub(crate) fn propagate_single_assignment_copies(instructions: &mut Vec<Instruct
     let replacements = instructions
         .iter()
         .filter_map(|instruction| {
-            let [Operand::VirtualRegister(destination), Operand::VirtualRegister(source)] = instruction.operands.as_slice() else {
+            let [Operand::VirtualRegister(destination), Operand::VirtualRegister(source)] =
+                instruction.operands.as_slice()
+            else {
                 return None;
             };
-            let same_class_float_copy = instruction.opcode.operation()
-                == Operation::FloatMove
-                && destination.class() == source.class();
-            ((instruction.opcode.operation() == Operation::Move(IntegerWidth::U64)
-                || same_class_float_copy)
+            let same_class_float_copy =
+                instruction.opcode.operation() == Operation::FloatMove && destination.class() == source.class();
+            ((instruction.opcode.operation() == Operation::Move(IntegerWidth::U64) || same_class_float_copy)
                 && destination.is_ssa()
                 && !destination.is_edge_temporary()
                 && source.is_ssa()
                 && !pinned.contains(destination)
                 && !pinned.contains(source)
                 && definition_counts.get(destination) == Some(&1))
-                .then(|| (destination.clone(), source.clone()))
+            .then(|| (destination.clone(), source.clone()))
         })
         .collect::<HashMap<_, _>>();
     if replacements.is_empty() {
@@ -337,8 +336,7 @@ pub(crate) fn fuse_adjacent_sequence_stores(instructions: &mut Vec<Instruction>)
     let adjacent_indices = instructions
         .iter()
         .filter_map(|instruction| {
-            let [Operand::VirtualRegister(destination), Operand::Address(address)] =
-                instruction.operands.as_slice()
+            let [Operand::VirtualRegister(destination), Operand::Address(address)] = instruction.operands.as_slice()
             else {
                 return None;
             };
@@ -349,15 +347,13 @@ pub(crate) fn fuse_adjacent_sequence_stores(instructions: &mut Vec<Instruction>)
                 && address.index.is_none()
                 && address.scale.is_none()
                 && address.displacement == Some(AddressDisplacement::Immediate(1)))
-                .then(|| (destination.clone(), base.clone()))
+            .then(|| (destination.clone(), base.clone()))
         })
         .collect::<HashMap<_, _>>();
     rewrite_windows(instructions, 2, |window| {
         let [first, second] = window else { unreachable!() };
-        let (
-            [Operand::Address(first_address), first_value],
-            [Operand::Address(second_address), second_value],
-        ) = (first.operands.as_slice(), second.operands.as_slice())
+        let ([Operand::Address(first_address), first_value], [Operand::Address(second_address), second_value]) =
+            (first.operands.as_slice(), second.operands.as_slice())
         else {
             return None;
         };
@@ -388,16 +384,11 @@ pub(crate) fn fuse_adjacent_sequence_stores(instructions: &mut Vec<Instruction>)
 pub(crate) fn fuse_indexed_offset_stores(instructions: &mut Vec<Instruction>) {
     let references = OperandReferences::count(instructions);
     rewrite_windows(instructions, 2, |window| {
-        let [load_address, store] = window else {
-            unreachable!()
-        };
+        let [load_address, store] = window else { unreachable!() };
         let (
             [Operand::VirtualRegister(address), Operand::Address(offset_address)],
             [Operand::Address(store_address), value],
-        ) = (
-            load_address.operands.as_slice(),
-            store.operands.as_slice(),
-        )
+        ) = (load_address.operands.as_slice(), store.operands.as_slice())
         else {
             return None;
         };
@@ -406,9 +397,7 @@ pub(crate) fn fuse_indexed_offset_stores(instructions: &mut Vec<Instruction>) {
         };
         let offset = match &offset_address.displacement {
             Some(AddressDisplacement::Immediate(offset)) => Operand::Immediate(*offset),
-            Some(AddressDisplacement::LayoutConstant(offset)) => {
-                Operand::LayoutConstant(*offset)
-            }
+            Some(AddressDisplacement::LayoutConstant(offset)) => Operand::LayoutConstant(*offset),
             _ => return None,
         };
         let (store_index, scale) = virtual_scaled_index(store_address)?;
@@ -458,13 +447,18 @@ pub(crate) fn select_zero_moves(instructions: &mut [Instruction]) {
 pub(crate) fn fuse_scaled_addresses(instructions: &mut Vec<Instruction>) {
     let references = OperandReferences::count(instructions);
     rewrite_windows(instructions, 3, |window| {
-        let [multiply, copy, add] = window else {
-            unreachable!()
-        };
+        let [multiply, copy, add] = window else { unreachable!() };
         let (
-            [Operand::VirtualRegister(product), Operand::VirtualRegister(scaled_index), Operand::Immediate(scale)],
+            [
+                Operand::VirtualRegister(product),
+                Operand::VirtualRegister(scaled_index),
+                Operand::Immediate(scale),
+            ],
             [Operand::VirtualRegister(destination), Operand::VirtualRegister(base)],
-            [Operand::VirtualRegister(add_destination), Operand::VirtualRegister(addend)],
+            [
+                Operand::VirtualRegister(add_destination),
+                Operand::VirtualRegister(addend),
+            ],
         ) = (
             multiply.operands.as_slice(),
             copy.operands.as_slice(),
@@ -531,22 +525,13 @@ fn virtual_scaled_index(address: &MemoryAddress) -> Option<(&VirtualRegister, i6
 mod tests {
     use super::*;
 
-    fn test_layout_constant(
-        name: &str,
-        value: i64,
-    ) -> crate::frontend::layout::LayoutConstant {
-        crate::frontend::layout::LayoutConstants::from_values([(
-            name.to_string(),
-            value,
-        )])
-        .get(name)
-        .unwrap()
+    fn test_layout_constant(name: &str, value: i64) -> crate::frontend::layout::LayoutConstant {
+        crate::frontend::layout::LayoutConstants::from_values([(name.to_string(), value)])
+            .get(name)
+            .unwrap()
     }
 
-    fn instruction(
-        operation: Operation,
-        operands: impl IntoIterator<Item = Operand>,
-    ) -> Instruction {
+    fn instruction(operation: Operation, operands: impl IntoIterator<Item = Operand>) -> Instruction {
         Instruction {
             opcode: operation,
             operands: operands.into_iter().collect(),
@@ -596,17 +581,11 @@ mod tests {
     }
 
     fn store64(address: Operand, value: &str) -> Instruction {
-        instruction(
-            Operation::store(MemoryWidth::DoubleWord),
-            [address, register(value)],
-        )
+        instruction(Operation::store(MemoryWidth::DoubleWord), [address, register(value)])
     }
 
     fn load_effective_address(destination: &str, address: Operand) -> Instruction {
-        instruction(
-            Operation::LoadEffectiveAddress,
-            [register(destination), address],
-        )
+        instruction(Operation::LoadEffectiveAddress, [register(destination), address])
     }
 
     fn floating_point_register(name: &str) -> Operand {
@@ -637,7 +616,10 @@ mod tests {
                 Operation::branch_zero(IntegerWidth::U64, ZeroCondition::Zero),
                 [register("value"), label("failure")],
             ),
-            instruction(Operation::Control(crate::intrinsic::ControlOperation::JumpLabel), [label("success")]),
+            instruction(
+                Operation::Control(crate::intrinsic::ControlOperation::JumpLabel),
+                [label("success")],
+            ),
             instruction(Operation::Label, [label("failure")]),
         ];
 
@@ -657,7 +639,10 @@ mod tests {
     #[test]
     fn removes_only_unreferenced_labels() {
         let mut instructions = vec![
-            instruction(Operation::Control(crate::intrinsic::ControlOperation::JumpLabel), [label("used")]),
+            instruction(
+                Operation::Control(crate::intrinsic::ControlOperation::JumpLabel),
+                [label("used")],
+            ),
             instruction(Operation::Label, [label("unused")]),
             instruction(Operation::Label, [label("used")]),
         ];
@@ -685,13 +670,12 @@ mod tests {
 
         propagate_single_assignment_copies(&mut instructions);
 
-        assert!(!instructions
-            .iter()
-            .any(|instruction| instruction.opcode.operation() == Operation::Move(IntegerWidth::U64)));
-        assert_eq!(
-            instructions.last().unwrap().operands,
-            [register("ssa_source")]
+        assert!(
+            !instructions
+                .iter()
+                .any(|instruction| instruction.opcode.operation() == Operation::Move(IntegerWidth::U64))
         );
+        assert_eq!(instructions.last().unwrap().operands, [register("ssa_source")]);
     }
 
     #[test]
@@ -705,7 +689,9 @@ mod tests {
                 ],
             ),
             instruction(
-                Operation::Branch(BranchOperation::Float(crate::target::description::FloatCondition::Equal)),
+                Operation::Branch(BranchOperation::Float(
+                    crate::target::description::FloatCondition::Equal,
+                )),
                 vec![
                     floating_point_register("ssa_copy"),
                     floating_point_register("ssa_copy"),
@@ -716,32 +702,35 @@ mod tests {
 
         propagate_single_assignment_copies(&mut instructions);
 
-        assert!(!instructions.iter().any(|instruction| {
-            instruction.opcode.operation()
-                == Operation::FloatMove
-        }));
-        assert_eq!(instructions.last().unwrap().operands[0], floating_point_register("ssa_source"));
-        assert_eq!(instructions.last().unwrap().operands[1], floating_point_register("ssa_source"));
+        assert!(
+            !instructions
+                .iter()
+                .any(|instruction| { instruction.opcode.operation() == Operation::FloatMove })
+        );
+        assert_eq!(
+            instructions.last().unwrap().operands[0],
+            floating_point_register("ssa_source")
+        );
+        assert_eq!(
+            instructions.last().unwrap().operands[1],
+            floating_point_register("ssa_source")
+        );
     }
 
     #[test]
     fn preserves_float_copies_between_register_classes() {
-        let mut instructions = vec![
-            instruction(
-                Operation::FloatMove,
-                vec![
-                    floating_point_register("ssa_double"),
-                    register("ssa_bits"),
-                ],
-            ),
-        ];
+        let mut instructions = vec![instruction(
+            Operation::FloatMove,
+            vec![floating_point_register("ssa_double"), register("ssa_bits")],
+        )];
 
         propagate_single_assignment_copies(&mut instructions);
 
-        assert!(instructions.iter().any(|instruction| {
-            instruction.opcode.operation()
-                == Operation::FloatMove
-        }));
+        assert!(
+            instructions
+                .iter()
+                .any(|instruction| { instruction.opcode.operation() == Operation::FloatMove })
+        );
     }
 
     #[test]
@@ -749,10 +738,7 @@ mod tests {
         let mut instructions = vec![
             instruction(
                 Operation::load(MemoryWidth::DoubleWord, false),
-                vec![
-                    register("ssa_source"),
-                    address("values", None, None, None),
-                ],
+                vec![register("ssa_source"), address("values", None, None, None)],
             ),
             move64("ssa_argument", "ssa_source"),
             instruction(
@@ -765,11 +751,7 @@ mod tests {
 
         assert!(instructions.iter().any(|instruction| {
             instruction.opcode.operation() == Operation::Move(IntegerWidth::U64)
-                && instruction.operands
-                    == [
-                        register("ssa_argument"),
-                        register("ssa_source"),
-                    ]
+                && instruction.operands == [register("ssa_argument"), register("ssa_source")]
         }));
     }
 
@@ -778,7 +760,11 @@ mod tests {
         let mut instructions = vec![
             instruction(
                 Operation::Call(crate::target::description::CallKind::RawNative),
-                [register("ssa_function"), register("ssa_payload"), register("ssa_variant")],
+                [
+                    register("ssa_function"),
+                    register("ssa_payload"),
+                    register("ssa_variant"),
+                ],
             ),
             move64("ssa_saved", "ssa_payload"),
             assert_nonzero("ssa_saved"),
@@ -788,28 +774,18 @@ mod tests {
 
         assert!(instructions.iter().any(|instruction| {
             instruction.opcode.operation() == Operation::Move(IntegerWidth::U64)
-                && instruction.operands
-                    == [
-                        register("ssa_saved"),
-                        register("ssa_payload"),
-                    ]
+                && instruction.operands == [register("ssa_saved"), register("ssa_payload")]
         }));
     }
 
     #[test]
     fn selects_single_instruction_copy_adds() {
-        let mut instructions = vec![
-            move64("next", "index"),
-            add64("next", Operand::Immediate(1)),
-        ];
+        let mut instructions = vec![move64("next", "index"), add64("next", Operand::Immediate(1))];
 
         select_copy_add_immediates(&mut instructions);
 
         assert_eq!(instructions.len(), 1);
-        assert_eq!(
-            instructions[0].opcode.operation(),
-            Operation::LoadEffectiveAddress,
-        );
+        assert_eq!(instructions[0].opcode.operation(), Operation::LoadEffectiveAddress,);
         assert_eq!(
             instructions[0].operands,
             [
@@ -866,22 +842,18 @@ mod tests {
                 width: IntegerWidth::U64,
             },
         );
-        assert_eq!(
-            instructions[0].operands,
-            [register("value"), register("value")]
-        );
+        assert_eq!(instructions[0].operands, [register("value"), register("value")]);
     }
 
     #[test]
     fn fuses_or32_with_a_sign_branch() {
         let mut instructions = vec![
             instruction(
-                Operation::IntegerBinary { operation: IntegerBinaryOperation::Binary(BinaryOperation::Or), width: IntegerWidth::U32 },
-                vec![
-                    register("result"),
-                    register("lhs"),
-                    register("rhs"),
-                ],
+                Operation::IntegerBinary {
+                    operation: IntegerBinaryOperation::Binary(BinaryOperation::Or),
+                    width: IntegerWidth::U32,
+                },
+                vec![register("result"), register("lhs"), register("rhs")],
             ),
             instruction(
                 Operation::branch_sign(IntegerWidth::U32, SignCondition::Negative),
@@ -898,12 +870,7 @@ mod tests {
         );
         assert_eq!(
             instructions[0].operands,
-            [
-                register("result"),
-                register("lhs"),
-                register("rhs"),
-                label("negative"),
-            ]
+            [register("result"), register("lhs"), register("rhs"), label("negative"),]
         );
     }
 
@@ -919,15 +886,9 @@ mod tests {
 
         assert_eq!(
             instructions[0].operands,
-            vec![
-                register("address"),
-                address("base", Some("index"), Some(4), None),
-            ]
+            vec![register("address"), address("base", Some("index"), Some(4), None),]
         );
-        assert_eq!(
-            instructions[0].opcode.operation(),
-            Operation::LoadEffectiveAddress,
-        );
+        assert_eq!(instructions[0].opcode.operation(), Operation::LoadEffectiveAddress,);
         assert_eq!(instructions.len(), 1);
     }
 
@@ -961,9 +922,10 @@ mod tests {
                     "base",
                     None,
                     None,
-                    Some(AddressDisplacement::LayoutConstant(
-                        test_layout_constant("FIELD_OFFSET", 24),
-                    )),
+                    Some(AddressDisplacement::LayoutConstant(test_layout_constant(
+                        "FIELD_OFFSET",
+                        24,
+                    ))),
                 ),
             ),
             store64(address("address", Some("index"), Some(8), None), "value"),
@@ -972,20 +934,14 @@ mod tests {
         fuse_indexed_offset_stores(&mut instructions);
 
         assert_eq!(instructions.len(), 1);
-        assert_eq!(
-            instructions[0].opcode.operation(),
-            Operation::Store64IndexedOffset,
-        );
+        assert_eq!(instructions[0].opcode.operation(), Operation::Store64IndexedOffset,);
         assert_eq!(
             instructions[0].operands,
             [
                 register("base"),
                 register("index"),
                 Operand::Immediate(8),
-                Operand::LayoutConstant(test_layout_constant(
-                    "FIELD_OFFSET",
-                    24,
-                )),
+                Operand::LayoutConstant(test_layout_constant("FIELD_OFFSET", 24,)),
                 register("value"),
             ]
         );

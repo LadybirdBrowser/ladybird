@@ -22,6 +22,7 @@
 //! Handlers that don't use virtual registers require no register assignment.
 
 use crate::Architecture;
+use crate::hash::{HashMap, HashSet};
 use crate::low_ir::cfg::{ControlFlowGraph, instruction_successors};
 use crate::low_ir::optimize::{invert_branches_over_jumps, remove_unreferenced_labels};
 #[cfg(test)]
@@ -41,7 +42,6 @@ use crate::target::registers::{PhysicalRegister, register_info_for, resolve_inte
 use crate::types::InterpreterRegister;
 use crate::types::RegisterClass as VirtualRegisterClass;
 use crate::{CompileError, CompileStage};
-use crate::hash::{HashMap, HashSet};
 
 /// A set of physical registers.
 ///
@@ -945,7 +945,8 @@ fn allocate(
     for group in groups {
         let mut candidate_groups = retained_groups.clone();
         candidate_groups.add(group);
-        if color(&context, &use_order, &candidate_groups).is_ok() || color(&context, &live_order, &candidate_groups).is_ok()
+        if color(&context, &use_order, &candidate_groups).is_ok()
+            || color(&context, &live_order, &candidate_groups).is_ok()
         {
             retained_groups = candidate_groups;
         }

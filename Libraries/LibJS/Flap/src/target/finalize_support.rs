@@ -6,15 +6,11 @@
 
 //! Shared helpers for architecture-specific machine finalization.
 
-use super::ir::{
-    AllocatedOperand, MachineInstruction, MachineMemoryAddress, RuntimeConstants,
-};
-use super::description::{
-    EqualityCondition, IntegerWidth, PairWidth, TestCondition,
-};
+use super::description::{EqualityCondition, IntegerWidth, PairWidth, TestCondition};
+use super::ir::{AllocatedOperand, MachineInstruction, MachineMemoryAddress, RuntimeConstants};
 use super::registers::PhysicalRegister;
-use crate::low_ir::{Label, Relocation};
 use crate::frontend::layout::KnownLayoutConstant;
+use crate::low_ir::{Label, Relocation};
 use crate::{CompileError, CompileOptions, CompileStage, ObjectFormat};
 
 /// Everything a backend needs while finalizing one function: where machine
@@ -125,8 +121,7 @@ pub(crate) trait AllocatedOperands {
 
 impl AllocatedOperands for [AllocatedOperand] {
     fn operand(&self, index: usize) -> &AllocatedOperand {
-        self.get(index)
-            .expect("allocated instruction operands were verified")
+        self.get(index).expect("allocated instruction operands were verified")
     }
 
     fn physical_register(&self, index: usize) -> PhysicalRegister {
@@ -179,10 +174,7 @@ pub(crate) fn finalize_error<T>(handler: &str, message: impl Into<String>) -> Re
     Err(finalization_error(handler, message))
 }
 
-pub(crate) fn required_byte_immediate(
-    operand: &AllocatedOperand,
-    handler: &str,
-) -> Result<i64, CompileError> {
+pub(crate) fn required_byte_immediate(operand: &AllocatedOperand, handler: &str) -> Result<i64, CompileError> {
     let AllocatedOperand::Immediate(immediate) = operand else {
         return finalize_error(handler, "byte memory branch value must be an immediate");
     };
@@ -197,18 +189,12 @@ pub(crate) fn required_runtime_constant(
     constant: KnownLayoutConstant,
     handler: &str,
 ) -> Result<i64, CompileError> {
-    runtime.get(constant).ok_or_else(|| {
-        finalization_error(
-            handler,
-            format!("{} constant is required", constant.name()),
-        )
-    })
+    runtime
+        .get(constant)
+        .ok_or_else(|| finalization_error(handler, format!("{} constant is required", constant.name())))
 }
 
-pub(crate) fn interpreter_layout(
-    runtime: &RuntimeConstants,
-    handler: &str,
-) -> Result<[i64; 5], CompileError> {
+pub(crate) fn interpreter_layout(runtime: &RuntimeConstants, handler: &str) -> Result<[i64; 5], CompileError> {
     use KnownLayoutConstant::*;
 
     Ok([
@@ -220,11 +206,8 @@ pub(crate) fn interpreter_layout(
     ])
 }
 
-pub(crate) fn machine_address(
-    operand: &AllocatedOperand,
-) -> MachineMemoryAddress {
-    let AllocatedOperand::Address(address) = operand
-    else {
+pub(crate) fn machine_address(operand: &AllocatedOperand) -> MachineMemoryAddress {
+    let AllocatedOperand::Address(address) = operand else {
         unreachable!("allocated memory operand was verified");
     };
     address.clone()
@@ -242,10 +225,7 @@ pub(crate) fn machine_memory_pair_address(
         return finalize_error(handler, "paired memory addresses may not use scaled indices");
     }
     if first.base != second.base || first.index != second.index {
-        return finalize_error(
-            handler,
-            "paired memory addresses must use the same base and index",
-        );
+        return finalize_error(handler, "paired memory addresses must use the same base and index");
     }
     let first_offset = first.displacement.unwrap_or(0);
     let expected_second = first_offset
@@ -277,7 +257,14 @@ pub(crate) fn pair_access<const SCRATCH_COUNT: usize>(
     width: PairWidth,
     is_load: bool,
     handler: &str,
-) -> Result<([PhysicalRegister; 2], MachineMemoryAddress, [PhysicalRegister; SCRATCH_COUNT]), CompileError> {
+) -> Result<
+    (
+        [PhysicalRegister; 2],
+        MachineMemoryAddress,
+        [PhysicalRegister; SCRATCH_COUNT],
+    ),
+    CompileError,
+> {
     let (registers, addresses) = if is_load {
         (&operands[..2], &operands[2..4])
     } else {
@@ -285,18 +272,17 @@ pub(crate) fn pair_access<const SCRATCH_COUNT: usize>(
     };
     Ok((
         std::array::from_fn(|index| verified_register(&registers[index])),
-        machine_memory_pair_address(
-            &addresses[0],
-            &addresses[1],
-            pair_element_size(width),
-            handler,
-        )?,
+        machine_memory_pair_address(&addresses[0], &addresses[1], pair_element_size(width), handler)?,
         std::array::from_fn(|index| verified_register(&operands[4 + index])),
     ))
 }
 
-type IndexedPairStore<const SCRATCH_COUNT: usize> =
-    ([PhysicalRegister; 2], i64, [PhysicalRegister; 2], [PhysicalRegister; SCRATCH_COUNT]);
+type IndexedPairStore<const SCRATCH_COUNT: usize> = (
+    [PhysicalRegister; 2],
+    i64,
+    [PhysicalRegister; 2],
+    [PhysicalRegister; SCRATCH_COUNT],
+);
 
 pub(crate) fn indexed_pair_store<const SCRATCH_COUNT: usize>(
     operands: &[AllocatedOperand],
@@ -306,7 +292,15 @@ pub(crate) fn indexed_pair_store<const SCRATCH_COUNT: usize>(
     if width != PairWidth::DoubleWord {
         return finalize_error(handler, "indexed pair store must use double-word values");
     }
-    let [base, index, AllocatedOperand::Immediate(scale), first, second, scratches @ ..] = operands else {
+    let [
+        base,
+        index,
+        AllocatedOperand::Immediate(scale),
+        first,
+        second,
+        scratches @ ..,
+    ] = operands
+    else {
         return finalize_error(handler, "indexed pair store has invalid target operands");
     };
     if !matches!(scale, 1 | 2 | 4 | 8) {
@@ -323,15 +317,8 @@ pub(crate) fn indexed_pair_store<const SCRATCH_COUNT: usize>(
     ))
 }
 
-pub(crate) fn x86_values_offset(
-    runtime: &RuntimeConstants,
-    handler: &str,
-) -> Result<i64, CompileError> {
-    required_runtime_constant(
-        runtime,
-        KnownLayoutConstant::SizeOfExecutionContext,
-        handler,
-    )
+pub(crate) fn x86_values_offset(runtime: &RuntimeConstants, handler: &str) -> Result<i64, CompileError> {
+    required_runtime_constant(runtime, KnownLayoutConstant::SizeOfExecutionContext, handler)
 }
 
 /// Decode a memory-branch instruction's comparison from its operands.
@@ -346,9 +333,7 @@ pub(crate) fn memory_branch(
 ) -> Result<MemoryBranch, CompileError> {
     use super::description::MemoryBranchKind;
 
-    let kind = operation
-        .memory_branch()
-        .expect("allocated memory branch was verified");
+    let kind = operation.memory_branch().expect("allocated memory branch was verified");
     let rhs = operands.operand(1);
     Ok(match kind {
         MemoryBranchKind::CompareRegister { width, condition } => MemoryBranch::CompareRegister {
@@ -388,5 +373,8 @@ pub(crate) fn push_plain_move(
     {
         return;
     }
-    emit.output.push(MachineInstruction { opcode, operands: operands.to_vec() });
+    emit.output.push(MachineInstruction {
+        opcode,
+        operands: operands.to_vec(),
+    });
 }

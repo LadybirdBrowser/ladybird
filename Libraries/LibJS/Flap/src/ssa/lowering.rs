@@ -6,28 +6,28 @@
 
 //! Lower typed HIR into SSA.
 
-use super::{BlockId, BlockLayout, Constant, Edge, Effects, Function, Operation, OperationParameterId, Terminator, ValueDefinition, ValueId};
+use super::{
+    BlockId, BlockLayout, Constant, Edge, Effects, Function, Operation, OperationParameterId, Terminator,
+    ValueDefinition, ValueId,
+};
 use crate::frontend::ast::ParameterMode;
-use crate::intrinsic::{BinaryOperation, ClassificationOperation, ComparisonDomain, ControlOperation, IntegerBinaryOperation, IntegerComparisonOperation, Intrinsic, LowLevelOperation, OperandLoad, OperandOperation, OperandStore, ValueOperation};
-use crate::types::{BlockTemperature, Type};
+use crate::hash::HashMap;
 use crate::hir as typecheck;
 use crate::hir::{
     CallTarget, Condition, Handler, InlineFunction, ScalarMatchArmIr, StatementKindIr, TagMask, Value, ValueKind,
     ValueMatchArm, ValueMatchArmKind, ValueMatchFallbackIr, VariableId,
 };
+use crate::intrinsic::{
+    BinaryOperation, ClassificationOperation, ComparisonDomain, ControlOperation, IntegerBinaryOperation,
+    IntegerComparisonOperation, Intrinsic, LowLevelOperation, OperandLoad, OperandOperation, OperandStore,
+    ValueOperation,
+};
+use crate::types::{BlockTemperature, Type};
 use crate::{CompileError, CompileStage};
-use crate::hash::HashMap;
 
 pub(crate) fn lower_handler(handler: &Handler) -> Result<Function, CompileError> {
-    lower_body(
-        &handler.name,
-        &handler.body,
-        &handler.parameters,
-        &[],
-    )
-    .map_err(|message| {
-        CompileError::new(CompileStage::Ssa, Some(&handler.name), message)
-    })
+    lower_body(&handler.name, &handler.body, &handler.parameters, &[])
+        .map_err(|message| CompileError::new(CompileStage::Ssa, Some(&handler.name), message))
 }
 
 pub(crate) fn lower_inline_function(function: &InlineFunction) -> Result<Function, CompileError> {
@@ -56,15 +56,8 @@ pub(crate) fn lower_inline_function(function: &InlineFunction) -> Result<Functio
         .chain(&output_parameters)
         .copied()
         .collect::<Vec<_>>();
-    lower_body(
-        &function.name,
-        &function.body,
-        &input_parameters,
-        &result_variables,
-    )
-    .map_err(|message| {
-        CompileError::new(CompileStage::Ssa, Some(&function.name), message)
-    })
+    lower_body(&function.name, &function.body, &input_parameters, &result_variables)
+        .map_err(|message| CompileError::new(CompileStage::Ssa, Some(&function.name), message))
 }
 
 fn lower_body(
@@ -172,13 +165,7 @@ fn declare_continuations(
         let mut result = Ok(());
         statement.kind.for_each_nested_body(|nested| {
             if result.is_ok() {
-                result = declare_continuations(
-                    nested,
-                    body,
-                    function,
-                    continuations,
-                    continuation_indices,
-                );
+                result = declare_continuations(nested, body, function, continuations, continuation_indices);
             }
         });
         result?;
@@ -218,8 +205,7 @@ fn schedule_statement_indices(statements: &[typecheck::Statement]) -> Vec<usize>
     let mut index = 0;
     while index < statements.len() {
         let paired_guard_load = (|| {
-            let StatementKindIr::Call(destinations, call) = &statements.get(index)?.kind
-            else {
+            let StatementKindIr::Call(destinations, call) = &statements.get(index)?.kind else {
                 return None;
             };
             let [destination] = destinations.as_slice() else {
@@ -231,20 +217,17 @@ fn schedule_statement_indices(statements: &[typecheck::Statement]) -> Vec<usize>
             for (second_index, statement) in statements.iter().enumerate().skip(index + 1) {
                 if let StatementKindIr::Call(_, call) = &statement.kind
                     && guard_uses_first
-                    && paired_field_call(call).is_some_and(|(other_pair, other_order)| {
-                        other_pair == pair && other_order != order
-                    })
+                    && paired_field_call(call)
+                        .is_some_and(|(other_pair, other_order)| other_pair == pair && other_order != order)
                     && field_load_base(call) == Some(base)
                 {
                     return Some((second_index, order));
                 }
                 match &statement.kind {
                     StatementKindIr::Guard { condition, .. } => {
-                        guard_uses_first |=
-                            typecheck::condition_uses_and_defs(condition).0.contains(destination);
+                        guard_uses_first |= typecheck::condition_uses_and_defs(condition).0.contains(destination);
                     }
-                    StatementKindIr::Call(_, call)
-                        if call.is_load() && call.return_type.is_some() => {}
+                    StatementKindIr::Call(_, call) if call.is_load() && call.return_type.is_some() => {}
                     _ => break,
                 }
             }
@@ -267,18 +250,20 @@ fn schedule_statement_indices(statements: &[typecheck::Statement]) -> Vec<usize>
 }
 
 fn direct_jump_target(statements: &[typecheck::Statement]) -> Option<&str> {
-    let [typecheck::Statement {
-        kind: StatementKindIr::Call(destinations, call),
-        ..
-    }] = statements
+    let [
+        typecheck::Statement {
+            kind: StatementKindIr::Call(destinations, call),
+            ..
+        },
+    ] = statements
     else {
         return None;
     };
     (destinations.is_empty()
         && call.terminal
         && call.intrinsic() == Some(Intrinsic::Control(ControlOperation::JumpLabel)))
-        .then_some(call.branch_target.as_deref())
-        .flatten()
+    .then_some(call.branch_target.as_deref())
+    .flatten()
 }
 
 impl Lowerer<'_> {
@@ -300,12 +285,7 @@ impl Lowerer<'_> {
             match &statement.kind {
                 StatementKindIr::Call(destinations, call) => {
                     if let Some(failure) = &call.failure {
-                        self.lower_fallible_call(
-                            destinations,
-                            call,
-                            &failure.captures,
-                            &failure.body,
-                        )?;
+                        self.lower_fallible_call(destinations, call, &failure.captures, &failure.body)?;
                     } else if call.intrinsic() == Some(Intrinsic::Control(ControlOperation::JumpLabel))
                         && let Some(target) = call
                             .branch_target
@@ -318,9 +298,9 @@ impl Lowerer<'_> {
                             call.return_type.clone().into_iter().collect()
                         } else {
                             destinations
-                        .iter()
-                        .map(|destination| self.variable_type(*destination))
-                        .collect::<Result<Vec<_>, _>>()?
+                                .iter()
+                                .map(|destination| self.variable_type(*destination))
+                                .collect::<Result<Vec<_>, _>>()?
                         };
                         let results = self.lower_call(call, result_types)?;
                         for (destination, result) in destinations.iter().zip(results) {
@@ -333,7 +313,11 @@ impl Lowerer<'_> {
                         self.current_block = None;
                     }
                 }
-                StatementKindIr::MachineAssign { destination, intrinsic, arguments } => {
+                StatementKindIr::MachineAssign {
+                    destination,
+                    intrinsic,
+                    arguments,
+                } => {
                     self.lower_machine_assign(*destination, *intrinsic, arguments)?;
                 }
                 StatementKindIr::If {
@@ -370,13 +354,7 @@ impl Lowerer<'_> {
                     fallback,
                 } => {
                     if let Some(destination) = destination {
-                        self.lower_value_value_match(
-                            *destination,
-                            value,
-                            captures,
-                            arms,
-                            fallback,
-                        )?;
+                        self.lower_value_value_match(*destination, value, captures, arms, fallback)?;
                     } else {
                         self.lower_value_match(
                             value,
@@ -386,7 +364,9 @@ impl Lowerer<'_> {
                         )?;
                     }
                 }
-                StatementKindIr::ScalarMatch { value, arms, fallback, .. } => {
+                StatementKindIr::ScalarMatch {
+                    value, arms, fallback, ..
+                } => {
                     self.lower_scalar_match(value, arms, fallback)?;
                 }
                 StatementKindIr::ValueRefinement {
@@ -459,13 +439,13 @@ impl Lowerer<'_> {
         let (default, fallback_block) = if let Some(target) = direct_jump_target(fallback) {
             (self.continuation_edge(target)?, None)
         } else {
-            let block = self.function.create_empty_block("scalar_match_fallback", BlockLayout::Hot);
+            let block = self
+                .function
+                .create_empty_block("scalar_match_fallback", BlockLayout::Hot);
             (Edge::new(block), Some(block))
         };
-        self.function.set_terminator(
-            source,
-            Terminator::switch(value, cases, default),
-        );
+        self.function
+            .set_terminator(source, Terminator::switch(value, cases, default));
         self.current_block = None;
         for (arm, block) in arms.iter().zip(arm_blocks) {
             let Some(block) = block else {
@@ -516,9 +496,7 @@ impl Lowerer<'_> {
         if failure.arguments.is_empty() {
             self.function.append_instruction(
                 source,
-                Operation::Guard {
-                    failure: failure.block,
-                },
+                Operation::Guard { failure: failure.block },
                 vec![condition],
                 Vec::new(),
             );
@@ -526,10 +504,8 @@ impl Lowerer<'_> {
         }
         let layout = self.function.blocks[source.0].layout;
         let success = self.function.create_empty_block("guard_success", layout);
-        self.function.set_terminator(
-            source,
-            Terminator::branch_edges(condition, Edge::new(success), failure),
-        );
+        self.function
+            .set_terminator(source, Terminator::branch_edges(condition, Edge::new(success), failure));
         self.current_block = Some(success);
         Ok(())
     }
@@ -545,14 +521,16 @@ impl Lowerer<'_> {
         let source = self.current()?;
         let original_bindings = self.bindings.clone();
         let (capture_types, initial_values) = self.capture_types_and_values(captures)?;
-        let loop_body = self.function.create_named_block("while_body", BlockLayout::Hot, capture_types.clone());
-        let exit = self.function.create_named_block("while_exit", BlockLayout::Hot, capture_types.clone());
+        let loop_body = self
+            .function
+            .create_named_block("while_body", BlockLayout::Hot, capture_types.clone());
+        let exit = self
+            .function
+            .create_named_block("while_exit", BlockLayout::Hot, capture_types.clone());
 
         if post_tested {
-            self.function.set_terminator(
-                source,
-                Terminator::jump_with_arguments(loop_body, initial_values),
-            );
+            self.function
+                .set_terminator(source, Terminator::jump_with_arguments(loop_body, initial_values));
             self.current_block = Some(loop_body);
             self.bindings = self.bindings_for_block(&original_bindings, captures, loop_body);
             self.lower_statements(body)?;
@@ -569,11 +547,11 @@ impl Lowerer<'_> {
                 ),
             );
         } else {
-            let header = self.function.create_named_block("while_header", BlockLayout::Hot, capture_types);
-            self.function.set_terminator(
-                source,
-                Terminator::jump_with_arguments(header, initial_values),
-            );
+            let header = self
+                .function
+                .create_named_block("while_header", BlockLayout::Hot, capture_types);
+            self.function
+                .set_terminator(source, Terminator::jump_with_arguments(header, initial_values));
             self.current_block = Some(header);
             self.bindings = self.bindings_for_block(&original_bindings, captures, header);
             self.lower_statements(condition_setup)?;
@@ -594,10 +572,8 @@ impl Lowerer<'_> {
             self.lower_statements(body)?;
             let body_end = self.current()?;
             let backedge_values = self.capture_values(captures)?;
-            self.function.set_terminator(
-                body_end,
-                Terminator::jump_with_arguments(header, backedge_values),
-            );
+            self.function
+                .set_terminator(body_end, Terminator::jump_with_arguments(header, backedge_values));
         }
 
         self.current_block = Some(exit);
@@ -618,17 +594,15 @@ impl Lowerer<'_> {
         self.bindings.insert(tag, tag_value);
         let original_bindings = self.bindings.clone();
         let arm = |kind| arms.iter().find(|arm| arm.kind == kind);
-        let int32_arm = arm(ValueMatchArmKind::Int32)
-            .expect("control value match must have an Int32 arm");
+        let int32_arm = arm(ValueMatchArmKind::Int32).expect("control value match must have an Int32 arm");
         let int32_block = self.function.create_empty_block("value_match_int32", BlockLayout::Hot);
-        let double_block = arm(ValueMatchArmKind::Double).map(|_| {
-            self.function.create_empty_block("value_match_double", BlockLayout::Hot)
-        });
+        let double_block = arm(ValueMatchArmKind::Double)
+            .map(|_| self.function.create_empty_block("value_match_double", BlockLayout::Hot));
         let boolean_block = arm(ValueMatchArmKind::Boolean).map(|_| {
-            self.function.create_empty_block("value_match_boolean", BlockLayout::Hot)
+            self.function
+                .create_empty_block("value_match_boolean", BlockLayout::Hot)
         });
-        let (fallback_edge, fallback_block) =
-            self.value_match_fallback(fallback, "value_match_fallback", &[], &[])?;
+        let (fallback_edge, fallback_block) = self.value_match_fallback(fallback, "value_match_fallback", &[], &[])?;
 
         let arm_blocks = arms
             .iter()
@@ -646,7 +620,14 @@ impl Lowerer<'_> {
         if let Some((_, block)) = arm_blocks.first() {
             self.function.blocks[block.0].layout = BlockLayout::Preferred;
         }
-        self.lower_value_match_tests(source, tag_value, &arm_blocks, fallback_edge.clone(), &[], "value_match_test")?;
+        self.lower_value_match_tests(
+            source,
+            tag_value,
+            &arm_blocks,
+            fallback_edge.clone(),
+            &[],
+            "value_match_test",
+        )?;
 
         for (arm, block) in [
             (Some(int32_arm), Some(int32_block)),
@@ -701,10 +682,8 @@ impl Lowerer<'_> {
         let tag = self.extract_tag(value, false)?;
         let original_bindings = self.bindings.clone();
         let arm = |kind| arms.iter().find(|arm| arm.kind == kind);
-        let int32_arm = arm(ValueMatchArmKind::Int32)
-            .expect("value-producing match must have an Int32 arm");
-        let double_arm = arm(ValueMatchArmKind::Double)
-            .expect("value-producing match must have a double arm");
+        let int32_arm = arm(ValueMatchArmKind::Int32).expect("value-producing match must have an Int32 arm");
+        let double_arm = arm(ValueMatchArmKind::Double).expect("value-producing match must have a double arm");
         let boolean_arm = arm(ValueMatchArmKind::Boolean);
         let double_first = arms.first().is_some_and(|arm| arm.kind == ValueMatchArmKind::Double);
         let boolean_before_double = arms
@@ -712,18 +691,18 @@ impl Lowerer<'_> {
             .position(|arm| arm.kind == ValueMatchArmKind::Boolean)
             .zip(arms.iter().position(|arm| arm.kind == ValueMatchArmKind::Double))
             .is_some_and(|(boolean, double)| boolean < double);
-        let arm_returns_binding_with = |
-            arm_body: &[super::typecheck::Statement],
-            binding: Option<VariableId>,
-            intrinsic: Intrinsic,
-        | {
+        let arm_returns_binding_with = |arm_body: &[super::typecheck::Statement],
+                                        binding: Option<VariableId>,
+                                        intrinsic: Intrinsic| {
             let Some(binding) = binding else {
                 return false;
             };
-            let [super::typecheck::Statement {
-                kind: StatementKindIr::Call(destinations, call),
-                ..
-            }] = arm_body
+            let [
+                super::typecheck::Statement {
+                    kind: StatementKindIr::Call(destinations, call),
+                    ..
+                },
+            ] = arm_body
             else {
                 return false;
             };
@@ -739,14 +718,12 @@ impl Lowerer<'_> {
                 Intrinsic::LowLevel(LowLevelOperation::Move),
             )
             && boolean_arm.is_some_and(|arm| {
-                arm_returns_binding_with(
-                    &arm.body,
-                    arm.binding,
-                    Intrinsic::Value(super::ValueOperation::ToInt32),
-                )
+                arm_returns_binding_with(&arm.body, arm.binding, Intrinsic::Value(super::ValueOperation::ToInt32))
             });
         let (capture_types, capture_values) = self.capture_types_and_values(captures)?;
-        let int32_block = self.function.create_named_block("value_result_int32", BlockLayout::Hot, capture_types.clone());
+        let int32_block =
+            self.function
+                .create_named_block("value_result_int32", BlockLayout::Hot, capture_types.clone());
         let double_block =
             self.function
                 .create_named_block("value_result_double", double_arm.layout.into(), capture_types.clone());
@@ -754,17 +731,16 @@ impl Lowerer<'_> {
             if shared_integer_boolean_payload {
                 return int32_block;
             }
-            self.function.create_named_block("value_result_boolean", BlockLayout::Hot, capture_types.clone())
+            self.function
+                .create_named_block("value_result_boolean", BlockLayout::Hot, capture_types.clone())
         });
-        let (fallback_edge, fallback_block) = self.value_match_fallback(
-            fallback,
-            "value_result_fallback",
-            &capture_types,
-            &capture_values,
-        )?;
+        let (fallback_edge, fallback_block) =
+            self.value_match_fallback(fallback, "value_result_fallback", &capture_types, &capture_values)?;
         let mut continuation_types = vec![self.variable_type(destination)?];
         continuation_types.extend(capture_types);
-        let continuation = self.function.create_named_block("value_result_continuation", BlockLayout::Hot, continuation_types);
+        let continuation =
+            self.function
+                .create_named_block("value_result_continuation", BlockLayout::Hot, continuation_types);
         let int32_tag = self
             .function
             .add_constant(Type::ValueTag, Constant::symbol("INT32_TAG"));
@@ -793,27 +769,29 @@ impl Lowerer<'_> {
             self.function.blocks[block.0].layout = BlockLayout::Preferred;
         }
         if shared_integer_boolean_payload {
-            let double_test = self.function.create_empty_block("value_result_double_test", BlockLayout::Preferred);
+            let double_test = self
+                .function
+                .create_empty_block("value_result_double_test", BlockLayout::Preferred);
             self.function.blocks[int32_block.0].layout = BlockLayout::Hot;
             let shared_edge = Edge::with_arguments(int32_block, capture_values.clone());
             self.function.set_terminator(
                 source,
                 Terminator::switch(
                     tag,
-                    vec![
-                        (int32_tag, shared_edge.clone()),
-                        (boolean_tag, shared_edge),
-                    ],
+                    vec![(int32_tag, shared_edge.clone()), (boolean_tag, shared_edge)],
                     Edge::new(double_test),
                 ),
             );
             self.current_block = Some(double_test);
             let masked_tag = self.append_pure_operation(
-                Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::And))),
+                Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(
+                    BinaryOperation::And,
+                ))),
                 vec![tag, nan_base_tag],
                 Type::ValueTag,
             )?;
-            let is_not_double = self.append_integer_comparison(IntegerComparisonOperation::Equal, vec![masked_tag, nan_base_tag])?;
+            let is_not_double =
+                self.append_integer_comparison(IntegerComparisonOperation::Equal, vec![masked_tag, nan_base_tag])?;
             self.function.set_terminator(
                 double_test,
                 Terminator::branch_edges(
@@ -823,7 +801,14 @@ impl Lowerer<'_> {
                 ),
             );
         } else {
-            self.lower_value_match_tests(source, tag, &arm_blocks, fallback_edge.clone(), &capture_values, "value_result_test")?;
+            self.lower_value_match_tests(
+                source,
+                tag,
+                &arm_blocks,
+                fallback_edge.clone(),
+                &capture_values,
+                "value_result_test",
+            )?;
         }
 
         self.current_block = Some(int32_block);
@@ -844,9 +829,7 @@ impl Lowerer<'_> {
         self.lower_statements(&double_arm.body)?;
         self.finish_value_result_arm(destination, captures, continuation, "double")?;
 
-        if !shared_integer_boolean_payload
-            && let (Some(block), Some(arm)) = (boolean_block, boolean_arm)
-        {
+        if !shared_integer_boolean_payload && let (Some(block), Some(arm)) = (boolean_block, boolean_arm) {
             self.current_block = Some(block);
             self.bindings = self.bindings_for_block(&original_bindings, captures, block);
             if let Some(binding) = arm.binding {
@@ -885,9 +868,15 @@ impl Lowerer<'_> {
         arguments: &[ValueId],
         block_name: &str,
     ) -> Result<(), String> {
-        let int32_tag = self.function.add_constant(Type::ValueTag, Constant::symbol("INT32_TAG"));
-        let boolean_tag = self.function.add_constant(Type::ValueTag, Constant::symbol("BOOLEAN_TAG"));
-        let nan_base_tag = self.function.add_constant(Type::ValueTag, Constant::symbol("NAN_BASE_TAG"));
+        let int32_tag = self
+            .function
+            .add_constant(Type::ValueTag, Constant::symbol("INT32_TAG"));
+        let boolean_tag = self
+            .function
+            .add_constant(Type::ValueTag, Constant::symbol("BOOLEAN_TAG"));
+        let nan_base_tag = self
+            .function
+            .add_constant(Type::ValueTag, Constant::symbol("NAN_BASE_TAG"));
         let mut test_block = source;
         for (index, (kind, arm)) in arms.iter().enumerate() {
             self.current_block = Some(test_block);
@@ -897,7 +886,9 @@ impl Lowerer<'_> {
                 }
                 ValueMatchArmKind::Double => {
                     let masked_tag = self.append_pure_operation(
-                        Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::And))),
+                        Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(
+                            BinaryOperation::And,
+                        ))),
                         vec![tag, nan_base_tag],
                         Type::ValueTag,
                     )?;
@@ -910,7 +901,10 @@ impl Lowerer<'_> {
             let next = if index + 1 == arms.len() {
                 fallback.clone()
             } else {
-                Edge::new(self.function.create_empty_block(format!("{block_name}_{}", index + 1), BlockLayout::Hot))
+                Edge::new(
+                    self.function
+                        .create_empty_block(format!("{block_name}_{}", index + 1), BlockLayout::Hot),
+                )
             };
             self.function.set_terminator(
                 test_block,
@@ -957,10 +951,8 @@ impl Lowerer<'_> {
             .ok_or_else(|| format!("value-producing {name} arm terminates"))?;
         let mut arguments = vec![self.binding(destination)?];
         arguments.extend(self.capture_values(captures)?);
-        self.function.set_terminator(
-            block,
-            Terminator::jump_with_arguments(continuation, arguments),
-        );
+        self.function
+            .set_terminator(block, Terminator::jump_with_arguments(continuation, arguments));
         Ok(())
     }
 
@@ -978,23 +970,17 @@ impl Lowerer<'_> {
         let tag_value = self.extract_tag(value, false)?;
         self.bindings.insert(tag, tag_value);
         let condition = if let Some(expected_tag) = expected_tag {
-            let expected_tag = self.function.add_constant(
-                Type::ValueTag,
-                Constant::symbol(expected_tag),
-            );
+            let expected_tag = self
+                .function
+                .add_constant(Type::ValueTag, Constant::symbol(expected_tag));
             self.append_integer_comparison(IntegerComparisonOperation::Equal, vec![tag_value, expected_tag])?
         } else {
-            self.append_classification(
-                ClassificationOperation::Float64Tag,
-                vec![tag_value],
-            )?
+            self.append_classification(ClassificationOperation::Float64Tag, vec![tag_value])?
         };
         let success = self.function.create_empty_block("refinement_success", BlockLayout::Hot);
         let failure = self.continuation_edge(failure)?;
-        self.function.set_terminator(
-            source,
-            Terminator::branch_edges(condition, Edge::new(success), failure),
-        );
+        self.function
+            .set_terminator(source, Terminator::branch_edges(condition, Edge::new(success), failure));
         self.current_block = Some(success);
         let payload_type = self.variable_type(binding)?;
         let payload = self.append_unary_value(payload_operation, value, payload_type)?;
@@ -1026,7 +1012,9 @@ impl Lowerer<'_> {
             .position(|variable| variable.name == target && variable.ty == Type::label())
             .ok_or_else(|| format!("unknown continuation or label '{target}'"))?;
         let target_value = self.binding(variable)?;
-        let block = self.function.create_named_block(format!("indirect_{target}"), BlockLayout::Cold, vec![Type::label()]);
+        let block =
+            self.function
+                .create_named_block(format!("indirect_{target}"), BlockLayout::Cold, vec![Type::label()]);
         self.function.set_terminator(
             block,
             Terminator::IndirectJump {
@@ -1059,9 +1047,17 @@ impl Lowerer<'_> {
         let inputs = vec![self.lower_value(lhs)?, self.lower_value(rhs)?];
         let rematerializable_inputs = inputs.clone();
         let result_type = self.variable_type(*result)?;
-        let success = self.function.create_named_block(format!("{}_success", operation.name()), BlockLayout::Hot, vec![result_type.clone()]);
+        let success = self.function.create_named_block(
+            format!("{}_success", operation.name()),
+            BlockLayout::Hot,
+            vec![result_type.clone()],
+        );
         let (capture_types, capture_values) = self.capture_types_and_values(captures)?;
-        let failure = self.function.create_named_block(format!("{}_failure", operation.name()), BlockLayout::Cold, capture_types);
+        let failure = self.function.create_named_block(
+            format!("{}_failure", operation.name()),
+            BlockLayout::Cold,
+            capture_types,
+        );
         self.function.set_checked_operation(
             source,
             Intrinsic::CheckedInteger(operation),
@@ -1121,7 +1117,9 @@ impl Lowerer<'_> {
             //        on cold arithmetic failure paths. Re-enable this for
             //        load and load_operand_pair once allocation weighs the
             //        hot-path lifetime against cold reload cost.
-            Operation::Intrinsic(Intrinsic::Operand(OperandOperation::Load(OperandLoad::Field) | OperandOperation::LoadPair)) => return None,
+            Operation::Intrinsic(Intrinsic::Operand(
+                OperandOperation::Load(OperandLoad::Field) | OperandOperation::LoadPair,
+            )) => return None,
             _ => return None,
         };
         let block = self.current().ok()?;
@@ -1148,16 +1146,18 @@ impl Lowerer<'_> {
         let source = self.current()?;
         let original_bindings = self.bindings.clone();
         let (capture_types, capture_values) = self.capture_types_and_values(captures)?;
-        let then_block = self.function.create_named_block("if_then", if temperature == BlockTemperature::Cold {
+        let then_block = self.function.create_named_block(
+            "if_then",
+            if temperature == BlockTemperature::Cold {
                 BlockLayout::Cold
             } else {
                 BlockLayout::Hot
-            }, capture_types.clone());
+            },
+            capture_types.clone(),
+        );
 
         if terminal {
-            let continuation =
-                self.function
-                    .create_empty_block("if_continuation", BlockLayout::Hot);
+            let continuation = self.function.create_empty_block("if_continuation", BlockLayout::Hot);
             self.function.set_terminator(
                 source,
                 Terminator::branch_edges(
@@ -1177,9 +1177,9 @@ impl Lowerer<'_> {
             return Ok(());
         }
 
-        let continuation =
-            self.function
-                .create_named_block("if_continuation", BlockLayout::Hot, capture_types);
+        let continuation = self
+            .function
+            .create_named_block("if_continuation", BlockLayout::Hot, capture_types);
         self.function.set_terminator(
             source,
             Terminator::branch_edges(
@@ -1195,10 +1195,8 @@ impl Lowerer<'_> {
             .current_block
             .ok_or_else(|| "continuing if body terminates".to_string())?;
         let then_arguments = self.capture_values(captures)?;
-        self.function.set_terminator(
-            then_end,
-            Terminator::jump_with_arguments(continuation, then_arguments),
-        );
+        self.function
+            .set_terminator(then_end, Terminator::jump_with_arguments(continuation, then_arguments));
         self.current_block = Some(continuation);
         self.bindings = self.bindings_for_block(&original_bindings, captures, continuation);
         Ok(())
@@ -1238,11 +1236,10 @@ impl Lowerer<'_> {
                 .into_iter()
                 .collect::<Vec<_>>();
             types.extend(capture_types);
-            Some(self.function.create_named_block(
-                format!("{prefix}_continuation"),
-                BlockLayout::Hot,
-                types,
-            ))
+            Some(
+                self.function
+                    .create_named_block(format!("{prefix}_continuation"), BlockLayout::Hot, types),
+            )
         };
         self.function.set_terminator(
             source,
@@ -1334,7 +1331,11 @@ impl Lowerer<'_> {
                 let lhs = self.lower_value(lhs)?;
                 let rhs = self.lower_value(rhs)?;
                 self.append_integer_comparison(
-                    if *equal { IntegerComparisonOperation::Equal } else { IntegerComparisonOperation::NotEqual },
+                    if *equal {
+                        IntegerComparisonOperation::Equal
+                    } else {
+                        IntegerComparisonOperation::NotEqual
+                    },
                     vec![lhs, rhs],
                 )
             }
@@ -1346,9 +1347,16 @@ impl Lowerer<'_> {
             } => {
                 let lhs = self.lower_value(lhs)?;
                 let rhs = self.lower_value(rhs)?;
-                let domain = if *signed { ComparisonDomain::SignedInteger } else { ComparisonDomain::UnsignedInteger };
+                let domain = if *signed {
+                    ComparisonDomain::SignedInteger
+                } else {
+                    ComparisonDomain::UnsignedInteger
+                };
                 self.append_integer_comparison(
-                    IntegerComparisonOperation::Relational { relation: *relation, domain },
+                    IntegerComparisonOperation::Relational {
+                        relation: *relation,
+                        domain,
+                    },
                     vec![lhs, rhs],
                 )
             }
@@ -1356,7 +1364,11 @@ impl Lowerer<'_> {
                 let value = self.lower_value(value)?;
                 let mask = self.lower_value(mask)?;
                 self.append_integer_comparison(
-                    if *set { IntegerComparisonOperation::BitsSet } else { IntegerComparisonOperation::BitsClear },
+                    if *set {
+                        IntegerComparisonOperation::BitsSet
+                    } else {
+                        IntegerComparisonOperation::BitsClear
+                    },
                     vec![value, mask],
                 )
             }
@@ -1385,7 +1397,9 @@ impl Lowerer<'_> {
                             .add_constant(Type::ValueTag, Constant::symbol(mask.clone())),
                     };
                     self.append_pure_operation(
-                        Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::And))),
+                        Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(
+                            BinaryOperation::And,
+                        ))),
                         vec![raw_tag, mask],
                         Type::ValueTag,
                     )?
@@ -1398,7 +1412,11 @@ impl Lowerer<'_> {
                     .add_constant(Type::ValueTag, Constant::symbol(expected_tag.clone()));
                 let equal = *matches == *matches_when_equal;
                 self.append_integer_comparison(
-                    if equal { IntegerComparisonOperation::Equal } else { IntegerComparisonOperation::NotEqual },
+                    if equal {
+                        IntegerComparisonOperation::Equal
+                    } else {
+                        IntegerComparisonOperation::NotEqual
+                    },
                     vec![compared_tag, expected],
                 )
             }
@@ -1415,7 +1433,11 @@ impl Lowerer<'_> {
                 );
                 self.bindings.insert(*expected, expected_value);
                 self.append_integer_comparison(
-                    if *matches { IntegerComparisonOperation::Equal } else { IntegerComparisonOperation::NotEqual },
+                    if *matches {
+                        IntegerComparisonOperation::Equal
+                    } else {
+                        IntegerComparisonOperation::NotEqual
+                    },
                     vec![value, expected_value],
                 )
             }
@@ -1432,19 +1454,11 @@ impl Lowerer<'_> {
     }
 
     fn extract_tag(&mut self, value: ValueId, rematerialized: bool) -> Result<ValueId, String> {
-        self.append_unary_value(
-            ValueOperation::ExtractTag { rematerialized },
-            value,
-            Type::ValueTag,
-        )
+        self.append_unary_value(ValueOperation::ExtractTag { rematerialized }, value, Type::ValueTag)
     }
 
     fn unbox_int32(&mut self, value: ValueId, rematerialized: bool) -> Result<ValueId, String> {
-        self.append_unary_value(
-            ValueOperation::UnboxInt32 { rematerialized },
-            value,
-            Type::I32,
-        )
+        self.append_unary_value(ValueOperation::UnboxInt32 { rematerialized }, value, Type::I32)
     }
 
     fn unbox_float64(&mut self, value: ValueId) -> Result<ValueId, String> {
@@ -1478,17 +1492,17 @@ impl Lowerer<'_> {
         result_type: Type,
     ) -> Result<ValueId, String> {
         let block = self.current()?;
-        Ok(self.function.append_instruction(
-            block,
-            operation,
-            inputs,
-            vec![result_type],
-        )[0])
+        Ok(self
+            .function
+            .append_instruction(block, operation, inputs, vec![result_type])[0])
     }
 
     fn lower_call(&mut self, call: &super::typecheck::Call, result_types: Vec<Type>) -> Result<Vec<ValueId>, String> {
         if call.arguments.len() != call.effects.len() {
-            return Err(format!("primitive '{}' has incomplete parameter effects", call.display_name()));
+            return Err(format!(
+                "primitive '{}' has incomplete parameter effects",
+                call.display_name()
+            ));
         }
         let accesses_inout_operand = call.arguments.first().is_some_and(|argument| {
             matches!(argument.kind, ValueKind::Variable(variable)
@@ -1578,7 +1592,11 @@ impl Lowerer<'_> {
             } else {
                 BlockLayout::Hot
             };
-            let success = self.function.create_named_block(format!("{}_success", call.display_name()), success_layout, all_result_types.clone());
+            let success = self.function.create_named_block(
+                format!("{}_success", call.display_name()),
+                success_layout,
+                all_result_types.clone(),
+            );
             let failure = self.continuation_edge(failure)?;
             self.function.set_checked_operation(
                 block,
@@ -1593,12 +1611,8 @@ impl Lowerer<'_> {
             self.current_block = Some(success);
             self.function.blocks[success.0].parameters.clone()
         } else {
-            self.function.append_instruction(
-                block,
-                operation,
-                inputs,
-                all_result_types,
-            )
+            self.function
+                .append_instruction(block, operation, inputs, all_result_types)
         };
         for ((variable, _), result) in outputs.iter().zip(&results[explicit_result_count..]) {
             self.bindings.insert(*variable, *result);
@@ -1636,10 +1650,7 @@ impl Lowerer<'_> {
         let block = self.current()?;
         self.function.append_instruction(
             block,
-            Operation::MachineAssign {
-                destination,
-                intrinsic,
-            },
+            Operation::MachineAssign { destination, intrinsic },
             inputs,
             Vec::new(),
         );
@@ -1654,16 +1665,10 @@ impl Lowerer<'_> {
                 .add_constant(value.ty.clone(), Constant::Integer(*integer))),
             ValueKind::LayoutValue(layout_value) => Ok(self
                 .function
-                .add_constant(
-                    value.ty.clone(),
-                    Constant::layout_value(*layout_value),
-                )),
+                .add_constant(value.ty.clone(), Constant::layout_value(*layout_value))),
             ValueKind::Constant(name) => Ok(self
                 .function
-                .add_constant(
-                    value.ty.clone(),
-                    Constant::symbol(name.clone()),
-                )),
+                .add_constant(value.ty.clone(), Constant::symbol(name.clone()))),
             ValueKind::Label(name) => {
                 let target = self.continuation_edge(name)?;
                 let block = self.current()?;
@@ -1692,12 +1697,9 @@ impl Lowerer<'_> {
                     .iter()
                     .map(|component| self.lower_value(component))
                     .collect::<Result<Vec<_>, _>>()?;
-                Ok(self.function.append_instruction(
-                    block,
-                    Operation::Address,
-                    address,
-                    vec![value.ty.clone()],
-                )[0])
+                Ok(self
+                    .function
+                    .append_instruction(block, Operation::Address, address, vec![value.ty.clone()])[0])
             }
         }
     }

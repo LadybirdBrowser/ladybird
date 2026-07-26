@@ -4,27 +4,26 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::{Architecture, CompileOptions, ObjectFormat};
-use crate::frontend::layout::KnownLayoutConstant;
-use super::description::{BinaryOperation, FloatBinaryOperation, FloatConversion as IntrinsicFloatConversion, FloatUnaryOperation, FloatingPointOperation, IntegerBinaryOperation, IntegerWidth, MemoryOperation, MemoryWidth, Operation, PairWidth, ShiftOperation, SignCondition, TestCondition, ZeroCondition};
-use super::ir::{
-    MachineFunction as Handler, MachineInstruction, MachineProgram as Program,
-    MachineCondition as Condition, MachineMemoryAddress,
-    MachineOperand as Operand, RuntimeConstants,
-};
-use super::machine_verify::{
-    define_machine_opcodes, operands_match,
-};
-use super::registers::{PhysicalRegister, aarch64 as registers};
 use super::description::OperandKind::{
-    FprIn as FR, FuncSymbol as F, GprIn as R, Imm as I, Label as L,
-    Memory as A, RegisterIn as AR,
+    FprIn as FR, FuncSymbol as F, GprIn as R, Imm as I, Label as L, Memory as A, RegisterIn as AR,
+};
+use super::description::{
+    BinaryOperation, FloatBinaryOperation, FloatConversion as IntrinsicFloatConversion, FloatUnaryOperation,
+    FloatingPointOperation, IntegerBinaryOperation, IntegerWidth, MemoryOperation, MemoryWidth, Operation, PairWidth,
+    ShiftOperation, SignCondition, TestCondition, ZeroCondition,
 };
 use super::emitter::{
-    SimpleInstruction, SimpleOperand, emit_file_header, emit_handlers,
-    emit_label, emit_program, emit_simple_instruction, integer, native,
-    pair, simple, single, w, word,
+    SimpleInstruction, SimpleOperand, emit_file_header, emit_handlers, emit_label, emit_program,
+    emit_simple_instruction, integer, native, pair, simple, single, w, word,
 };
+use super::ir::{
+    MachineCondition as Condition, MachineFunction as Handler, MachineInstruction, MachineMemoryAddress,
+    MachineOperand as Operand, MachineProgram as Program, RuntimeConstants,
+};
+use super::machine_verify::{define_machine_opcodes, operands_match};
+use super::registers::{PhysicalRegister, aarch64 as registers};
+use crate::frontend::layout::KnownLayoutConstant;
+use crate::{Architecture, CompileOptions, ObjectFormat};
 use std::fmt::Write;
 
 pub(crate) mod finalize;
@@ -54,9 +53,7 @@ impl LogicalOperation {
             BinaryOperation::And => Some(Self::And),
             BinaryOperation::Or => Some(Self::Or),
             BinaryOperation::Xor => Some(Self::Xor),
-            BinaryOperation::Add
-            | BinaryOperation::Subtract
-            | BinaryOperation::Multiply => None,
+            BinaryOperation::Add | BinaryOperation::Subtract | BinaryOperation::Multiply => None,
         }
     }
 
@@ -142,13 +139,13 @@ pub(crate) enum FloatConversion {
     JavaScriptToSigned32,
 }
 
-fn load_instruction(
-    width: MemoryWidth,
-    signed: bool,
-    addressing: MemoryAddressing,
-) -> SimpleInstruction {
+fn load_instruction(width: MemoryWidth, signed: bool, addressing: MemoryAddressing) -> SimpleInstruction {
     let mnemonic = match (width, signed, addressing) {
-        (MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Word, false, MemoryAddressing::UnscaledImmediate) => "ldur",
+        (
+            MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Word,
+            false,
+            MemoryAddressing::UnscaledImmediate,
+        ) => "ldur",
         (MemoryWidth::Word, true, MemoryAddressing::UnscaledImmediate) => "ldursw",
         (MemoryWidth::HalfWord, false, MemoryAddressing::UnscaledImmediate) => "ldurh",
         (MemoryWidth::HalfWord, true, MemoryAddressing::UnscaledImmediate) => "ldursh",
@@ -175,7 +172,9 @@ fn load_instruction(
 
 fn store_instruction(width: MemoryWidth, addressing: MemoryAddressing) -> SimpleInstruction {
     let mnemonic = match (width, addressing) {
-        (MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Word, MemoryAddressing::UnscaledImmediate) => "stur",
+        (MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Word, MemoryAddressing::UnscaledImmediate) => {
+            "stur"
+        }
         (MemoryWidth::HalfWord, MemoryAddressing::UnscaledImmediate) => "sturh",
         (MemoryWidth::Byte, MemoryAddressing::UnscaledImmediate) => "sturb",
         (MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Word, _) => "str",
@@ -478,15 +477,13 @@ fn memory_address_is_encodable(
     address: &MachineMemoryAddress,
 ) -> bool {
     match addressing {
-        MemoryAddressing::Base => {
-            address.index.is_none()
-                && address.displacement.is_none()
-                && address.scale.is_none()
-        }
+        MemoryAddressing::Base => address.index.is_none() && address.displacement.is_none() && address.scale.is_none(),
         MemoryAddressing::UnsignedImmediate => {
             address.index.is_none()
                 && address.scale.is_none()
-                && address.displacement.is_some_and(|offset| unsigned_memory_offset_fits(width, offset))
+                && address
+                    .displacement
+                    .is_some_and(|offset| unsigned_memory_offset_fits(width, offset))
         }
         MemoryAddressing::UnscaledImmediate => {
             address.index.is_none()
@@ -496,9 +493,7 @@ fn memory_address_is_encodable(
                     .is_some_and(|offset| (-256..=255).contains(&offset))
         }
         MemoryAddressing::Register => {
-            address.index.is_some()
-                && address.scale.is_none()
-                && address.displacement.is_none()
+            address.index.is_some() && address.scale.is_none() && address.displacement.is_none()
         }
         MemoryAddressing::ShiftedRegister(shift) => {
             AddressIndexShift::for_memory(width, 1 << shift.amount()) == Some(shift)
@@ -525,13 +520,12 @@ pub(crate) fn pair_offset_fits(width: PairWidth, offset: i64) -> bool {
     }
 }
 
-fn pair_address_is_encodable(
-    width: PairWidth,
-    address: &MachineMemoryAddress,
-) -> bool {
+fn pair_address_is_encodable(width: PairWidth, address: &MachineMemoryAddress) -> bool {
     address.index.is_none()
         && address.scale.is_none()
-        && address.displacement.is_none_or(|offset| pair_offset_fits(width, offset))
+        && address
+            .displacement
+            .is_none_or(|offset| pair_offset_fits(width, offset))
 }
 
 impl Opcode {
@@ -543,28 +537,18 @@ impl Opcode {
             Operation::IntegerBinary {
                 operation: IntegerBinaryOperation::Binary(operation),
                 width: IntegerWidth::U64,
-            }
-                if matches!(
-                    operation,
-                    BinaryOperation::Add | BinaryOperation::Subtract
-                ) =>
-            {
+            } if matches!(operation, BinaryOperation::Add | BinaryOperation::Subtract) => {
                 let operation = match operation {
                     BinaryOperation::Add => AddSubtractOperation::Add,
-                    BinaryOperation::Subtract => {
-                        AddSubtractOperation::Subtract
-                    }
+                    BinaryOperation::Subtract => AddSubtractOperation::Subtract,
                     _ => unreachable!(),
                 };
                 match operands.get(1) {
-                    Some(super::ir::Operand::Immediate(0))
-                        if operation == AddSubtractOperation::Add =>
-                    {
+                    Some(super::ir::Operand::Immediate(0)) if operation == AddSubtractOperation::Add => {
                         Self::AddSubtractZero(operation)
                     }
                     Some(super::ir::Operand::Immediate(value))
-                        if operation == AddSubtractOperation::Add
-                            && (1..=4095).contains(value) =>
+                        if operation == AddSubtractOperation::Add && (1..=4095).contains(value) =>
                     {
                         Self::AddSubtractImmediate {
                             operation,
@@ -585,8 +569,7 @@ impl Opcode {
                         }
                     }
                     Some(super::ir::Operand::Immediate(value))
-                        if operation == AddSubtractOperation::Add
-                            && (-4095..0).contains(value) =>
+                        if operation == AddSubtractOperation::Add && (-4095..0).contains(value) =>
                     {
                         Self::AddSubtractImmediate {
                             operation: AddSubtractOperation::Subtract,
@@ -595,8 +578,7 @@ impl Opcode {
                         }
                     }
                     Some(super::ir::Operand::Immediate(value))
-                        if operation == AddSubtractOperation::Subtract
-                            && (1..=4095).contains(value) =>
+                        if operation == AddSubtractOperation::Subtract && (1..=4095).contains(value) =>
                     {
                         Self::AddSubtractImmediate {
                             operation,
@@ -604,16 +586,14 @@ impl Opcode {
                             flags: FlagUpdate::Set,
                         }
                     }
-                    Some(super::ir::Operand::Immediate(_)) => {
-                        Self::AddSubtractLargeImmediate {
-                            operation,
-                            flags: if operation == AddSubtractOperation::Add {
-                                FlagUpdate::Preserve
-                            } else {
-                                FlagUpdate::Set
-                            },
-                        }
-                    }
+                    Some(super::ir::Operand::Immediate(_)) => Self::AddSubtractLargeImmediate {
+                        operation,
+                        flags: if operation == AddSubtractOperation::Add {
+                            FlagUpdate::Preserve
+                        } else {
+                            FlagUpdate::Set
+                        },
+                    },
                     _ => Self::AddSubtractRegister {
                         operation,
                         flags: FlagUpdate::Set,
@@ -631,8 +611,12 @@ impl Opcode {
             }
             Operation::FloatMove => {
                 let is_floating_point = |operand: &super::ir::Operand| match operand {
-                    super::ir::Operand::VirtualRegister(register) => register.class() == crate::types::RegisterClass::FloatingPoint,
-                    super::ir::Operand::PhysicalRegister(register) => register.class() == crate::target::registers::RegisterClass::FloatingPoint,
+                    super::ir::Operand::VirtualRegister(register) => {
+                        register.class() == crate::types::RegisterClass::FloatingPoint
+                    }
+                    super::ir::Operand::PhysicalRegister(register) => {
+                        register.class() == crate::target::registers::RegisterClass::FloatingPoint
+                    }
                     _ => false,
                 };
                 if operands.iter().any(is_floating_point) {
@@ -673,9 +657,7 @@ impl Opcode {
             Operation::Memory(MemoryOperation::Load { .. } | MemoryOperation::Store(_))
             | Operation::Move(_)
             | Operation::IntegerBinary { .. } => {
-                unreachable!(
-                    "operand-sensitive operation must use select_for_operands"
-                )
+                unreachable!("operand-sensitive operation must use select_for_operands")
             }
             _ => Self::Pseudo,
         }
@@ -684,9 +666,7 @@ impl Opcode {
     pub(crate) fn is_pseudo(self) -> bool {
         matches!(
             self,
-            Self::Pseudo
-                | Self::AddSubtractZero(_)
-                | Self::AddSubtractLargeImmediate { .. }
+            Self::Pseudo | Self::AddSubtractZero(_) | Self::AddSubtractLargeImmediate { .. }
         )
     }
 }
@@ -783,13 +763,15 @@ pub(crate) fn generate(program: &Program, options: &CompileOptions) -> String {
         "    ",
         |out| generate_entry_point(out, program, object_format),
         |out| generate_fallback_handler(out, program, object_format),
-        |out| emit_handlers(
-            out,
-            program,
-            "//",
-            |out, _| emit_handler_alignment(out, object_format),
-            emit_instruction,
-        ),
+        |out| {
+            emit_handlers(
+                out,
+                program,
+                "//",
+                |out, _| emit_handler_alignment(out, object_format),
+                emit_instruction,
+            )
+        },
         |out| generate_exit_point(out, object_format),
     )
 }
@@ -887,21 +869,14 @@ fn generate_entry_point(out: &mut String, program: &Program, fmt: ObjectFormat) 
     w!(out, "    // x24 = NAN_BASE_TAG");
 
     // Dispatch to first instruction (x21 = pb + entry_point)
-    w!(
-        out,
-        "    add x21, x26, w1, uxtw   // x21 = pb + entry_point"
-    );
+    w!(out, "    add x21, x26, w1, uxtw   // x21 = pb + entry_point");
     w!(out, "    ldrb w9, [x21]           // w9 = opcode byte");
     w!(out, "    ldr x10, [x19, x9, lsl #3]");
     w!(out, "    br x10");
     w!(out);
 }
 
-fn generate_fallback_handler(
-    out: &mut String,
-    program: &Program,
-    object_format: ObjectFormat,
-) {
+fn generate_fallback_handler(out: &mut String, program: &Program, object_format: ObjectFormat) {
     emit_handler_alignment(out, object_format);
     w!(out, "asm_handler_fallback:");
     // Set up args: x0=vm (x20), w1=pc (ip - pb), x2=instruction (ip)
@@ -941,8 +916,7 @@ fn emit_state_reload(out: &mut String, program: &Program) {
 }
 
 fn emit_sync_pc_to_execution_context(out: &mut String, program: &Program) {
-    let program_counter =
-        runtime(program)[KnownLayoutConstant::ExecutionContextProgramCounter];
+    let program_counter = runtime(program)[KnownLayoutConstant::ExecutionContextProgramCounter];
     emit_str32(out, "w1", "x28", program_counter);
 }
 
@@ -958,55 +932,31 @@ fn emit_dispatch_tail(out: &mut String) {
     w!(out, "    br x10");
 }
 
-fn format_machine_memory_address(
-    address: &MachineMemoryAddress,
-    addressing: MemoryAddressing,
-) -> String {
+fn format_machine_memory_address(address: &MachineMemoryAddress, addressing: MemoryAddressing) -> String {
     match addressing {
         MemoryAddressing::Base => {
-            let (None, None, None) =
-                (address.index, address.scale, address.displacement)
-            else {
-                unreachable!(
-                    "finalized AArch64 base address has extra components"
-                )
+            let (None, None, None) = (address.index, address.scale, address.displacement) else {
+                unreachable!("finalized AArch64 base address has extra components")
             };
             format!("[{}]", address.base)
         }
-        MemoryAddressing::UnsignedImmediate
-        | MemoryAddressing::UnscaledImmediate => {
-            let (None, None, Some(offset)) =
-                (address.index, address.scale, address.displacement)
-            else {
-                unreachable!(
-                    "finalized AArch64 immediate address has invalid components"
-                )
+        MemoryAddressing::UnsignedImmediate | MemoryAddressing::UnscaledImmediate => {
+            let (None, None, Some(offset)) = (address.index, address.scale, address.displacement) else {
+                unreachable!("finalized AArch64 immediate address has invalid components")
             };
             format!("[{}, #{offset}]", address.base)
         }
         MemoryAddressing::Register => {
-            let (Some(index), None, None) =
-                (address.index, address.scale, address.displacement)
-            else {
-                unreachable!(
-                    "finalized AArch64 register address has invalid components"
-                )
+            let (Some(index), None, None) = (address.index, address.scale, address.displacement) else {
+                unreachable!("finalized AArch64 register address has invalid components")
             };
             format!("[{}, {index}]", address.base)
         }
         MemoryAddressing::ShiftedRegister(shift) => {
-            let (Some(index), None, None) =
-                (address.index, address.scale, address.displacement)
-            else {
-                unreachable!(
-                    "finalized AArch64 shifted address has invalid components"
-                )
+            let (Some(index), None, None) = (address.index, address.scale, address.displacement) else {
+                unreachable!("finalized AArch64 shifted address has invalid components")
             };
-            format!(
-                "[{}, {index}, lsl #{}]",
-                address.base,
-                shift.amount()
-            )
+            format!("[{}, {index}, lsl #{}]", address.base, shift.amount())
         }
     }
 }
@@ -1098,7 +1048,10 @@ fn is_replicated_rotated_run(value: u64) -> bool {
     for size in [2u32, 4, 8, 16, 32, 64] {
         let mask = if size == 64 { u64::MAX } else { (1u64 << size) - 1 };
         let element = value & mask;
-        if (size..64).step_by(size as usize).any(|shift| ((value >> shift) & mask) != element) {
+        if (size..64)
+            .step_by(size as usize)
+            .any(|shift| ((value >> shift) & mask) != element)
+        {
             continue;
         }
         let ones = element.count_ones();
@@ -1155,34 +1108,20 @@ fn shift_mnemonic(operation: ShiftOperation) -> &'static str {
     }
 }
 
-fn emit_instruction(
-    out: &mut String,
-    insn: &MachineInstruction,
-    handler: &Handler,
-) {
+fn emit_instruction(out: &mut String, insn: &MachineInstruction, handler: &Handler) {
     let opcode = insn.opcode.aarch64();
     debug_assert!(!opcode.is_pseudo());
-    if emit_simple_instruction(
-        out,
-        insn,
-        opcode.simple_instruction(),
-        |operand| {
-            match operand {
-                Operand::Label(_) => super::emitter::resolve_label(operand, handler),
-                Operand::Address(address) => match opcode {
-                    Opcode::Load { addressing, .. }
-                    | Opcode::Store { addressing, .. } => {
-                        format_machine_memory_address(address, addressing)
-                    }
-                    Opcode::LoadPair(_) | Opcode::StorePair(_) => {
-                        format_pair_memory_address(address)
-                    }
-                    _ => unreachable!("AArch64 opcode has no resolved operand"),
-                }
-                _ => unreachable!("resolved AArch64 operand must be an address or label"),
+    if emit_simple_instruction(out, insn, opcode.simple_instruction(), |operand| match operand {
+        Operand::Label(_) => super::emitter::resolve_label(operand, handler),
+        Operand::Address(address) => match opcode {
+            Opcode::Load { addressing, .. } | Opcode::Store { addressing, .. } => {
+                format_machine_memory_address(address, addressing)
             }
+            Opcode::LoadPair(_) | Opcode::StorePair(_) => format_pair_memory_address(address),
+            _ => unreachable!("AArch64 opcode has no resolved operand"),
         },
-    ) {
+        _ => unreachable!("resolved AArch64 operand must be an address or label"),
+    }) {
         return;
     }
     match opcode {
@@ -1193,14 +1132,14 @@ fn emit_instruction(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::description::{CallKind, EqualityCondition, IntegerSignedness, OrderedCondition};
+    use super::*;
     use crate::low_ir::{
-        AddressDisplacement, AddressRegister, Instruction as SourceInstruction,
-        MemoryAddress as SourceMemoryAddress, Operand as SourceOperand,
+        AddressDisplacement, AddressRegister, Instruction as SourceInstruction, MemoryAddress as SourceMemoryAddress,
+        Operand as SourceOperand,
     };
-    use crate::target::allocator::allocate_program;
     use crate::low_ir::{Handler as SourceHandler, Program as SourceProgram};
+    use crate::target::allocator::allocate_program;
     use crate::target::selection::select_program;
 
     fn test_options() -> CompileOptions {
@@ -1222,12 +1161,7 @@ mod tests {
         let selected = select_program(program.clone(), Architecture::Aarch64).unwrap();
         let allocated = allocate_program(selected).unwrap();
         let options = test_options();
-        let machine =
-            crate::target::finalize::finalize_program(
-                allocated,
-                &options,
-            )
-                .unwrap();
+        let machine = crate::target::finalize::finalize_program(allocated, &options).unwrap();
         super::generate(&machine, &options)
     }
 
@@ -1258,14 +1192,9 @@ mod tests {
     }
 
     fn machine_coff_program(instructions: Vec<SourceInstruction>) -> Program {
-        let selected =
-            select_program(coff_program(instructions), Architecture::Aarch64).unwrap();
+        let selected = select_program(coff_program(instructions), Architecture::Aarch64).unwrap();
         let allocated = allocate_program(selected).unwrap();
-        crate::target::finalize::finalize_program(
-            allocated,
-            &test_options(),
-        )
-        .unwrap()
+        crate::target::finalize::finalize_program(allocated, &test_options()).unwrap()
     }
 
     #[test]
@@ -1297,18 +1226,15 @@ mod tests {
         let program = machine_coff_program(Vec::new());
         let handler = &program.functions[0];
         let instruction = MachineInstruction {
-            opcode: super::super::ir::MachineOpcode::Aarch64(
-                Opcode::MoveRegister(IntegerWidth::U32),
-            ),
-            operands: vec![Operand::PhysicalRegister(crate::target::registers::aarch64::X0), Operand::PhysicalRegister(crate::target::registers::aarch64::X0)],
+            opcode: super::super::ir::MachineOpcode::Aarch64(Opcode::MoveRegister(IntegerWidth::U32)),
+            operands: vec![
+                Operand::PhysicalRegister(crate::target::registers::aarch64::X0),
+                Operand::PhysicalRegister(crate::target::registers::aarch64::X0),
+            ],
         };
         let mut out = String::new();
 
-        emit_instruction(
-            &mut out,
-            &instruction,
-            handler,
-        );
+        emit_instruction(&mut out, &instruction, handler);
 
         assert!(out.contains("mov w0, w0"));
     }
@@ -1343,8 +1269,7 @@ mod tests {
 
     #[test]
     fn dispatching_on_an_assigned_program_counter_reads_it_back() {
-        let program_counter =
-            SourceOperand::InterpreterRegister(crate::types::InterpreterRegister::ProgramCounter);
+        let program_counter = SourceOperand::InterpreterRegister(crate::types::InterpreterRegister::ProgramCounter);
         let output = generate(&coff_program(vec![
             SourceInstruction {
                 opcode: opcode(Operation::Move(IntegerWidth::U32)),
@@ -1453,7 +1378,11 @@ mod tests {
     fn lowers_narrow_signed_branches_at_32_bit_width() {
         let output = generate(&coff_program(vec![
             SourceInstruction {
-                opcode: opcode(Operation::branch_ordered(IntegerWidth::U32, OrderedCondition::Less, IntegerSignedness::Signed)),
+                opcode: opcode(Operation::branch_ordered(
+                    IntegerWidth::U32,
+                    OrderedCondition::Less,
+                    IntegerSignedness::Signed,
+                )),
                 operands: vec![
                     SourceOperand::PhysicalRegister(crate::target::registers::aarch64::X0),
                     SourceOperand::PhysicalRegister(crate::target::registers::aarch64::X1),
@@ -1482,17 +1411,11 @@ mod tests {
 
         for (condition, expected) in cases {
             let instruction = MachineInstruction {
-                opcode: super::super::ir::MachineOpcode::Aarch64(
-                    Opcode::BranchCondition(condition),
-                ),
+                opcode: super::super::ir::MachineOpcode::Aarch64(Opcode::BranchCondition(condition)),
                 operands: vec![Operand::Label(".assert_ok".into())],
             };
             let mut out = String::new();
-            emit_instruction(
-                &mut out,
-                &instruction,
-                handler,
-            );
+            emit_instruction(&mut out, &instruction, handler);
             assert!(out.contains(expected), "{condition:?} emitted:\n{out}");
         }
     }

@@ -6,13 +6,12 @@
 
 //! Verification for finalized physical machine IR.
 
-use super::ir::{
-    MachineFunction, MachineInstruction, MachineMemoryAddress, MachineOpcode,
-    MachineOperand, MachineProgram,
-};
 use super::description::OperandKind;
-use crate::{Architecture, CompileError, CompileStage};
+use super::ir::{
+    MachineFunction, MachineInstruction, MachineMemoryAddress, MachineOpcode, MachineOperand, MachineProgram,
+};
 use crate::hash::HashSet;
+use crate::{Architecture, CompileError, CompileStage};
 
 pub(crate) fn verify_program(program: &MachineProgram) -> Result<(), CompileError> {
     let architecture = program.target.architecture;
@@ -20,65 +19,41 @@ pub(crate) fn verify_program(program: &MachineProgram) -> Result<(), CompileErro
     let mut handler_names = HashSet::default();
     for function in &program.functions {
         if !handler_ids.insert(function.id) {
-            return program_error(format!(
-                "handler id {:?} is defined more than once",
-                function.id
-            ));
+            return program_error(format!("handler id {:?} is defined more than once", function.id));
         }
         if !handler_names.insert(function.name.as_str()) {
-            return program_error(format!(
-                "handler '{}' is defined more than once",
-                function.name
-            ));
+            return program_error(format!("handler '{}' is defined more than once", function.name));
         }
         verify_function(function, architecture)?;
     }
     for handler in program.dispatch_handlers.iter().flatten() {
         if !handler_ids.contains(handler) {
-            return program_error(format!(
-                "dispatch table references missing handler id {handler:?}"
-            ));
+            return program_error(format!("dispatch table references missing handler id {handler:?}"));
         }
     }
     Ok(())
 }
 
-pub(crate) fn verify_function(
-    function: &MachineFunction,
-    architecture: Architecture,
-) -> Result<(), CompileError> {
-    let instructions = function
-        .hot_instructions
-        .iter()
-        .chain(&function.cold_instructions);
+pub(crate) fn verify_function(function: &MachineFunction, architecture: Architecture) -> Result<(), CompileError> {
+    let instructions = function.hot_instructions.iter().chain(&function.cold_instructions);
     let mut definitions = HashSet::default();
     let mut references = Vec::new();
     for instruction in instructions {
         verify_instruction(function, instruction, architecture)?;
         if instruction.opcode.is_label() {
-            let [MachineOperand::Label(label)] =
-                instruction.operands.as_slice()
-            else {
-                return function_error(
-                    function,
-                    "machine label must define exactly one label",
-                );
+            let [MachineOperand::Label(label)] = instruction.operands.as_slice() else {
+                return function_error(function, "machine label must define exactly one label");
             };
             if !definitions.insert(label.clone()) {
-                return function_error(
-                    function,
-                    format!("machine label '{label}' is defined more than once"),
-                );
+                return function_error(function, format!("machine label '{label}' is defined more than once"));
             }
         } else {
-            references.extend(
-                instruction.operands.iter().filter_map(|operand| {
-                    let MachineOperand::Label(label) = operand else {
-                        return None;
-                    };
-                    label.starts_with('.').then(|| label.clone())
-                }),
-            );
+            references.extend(instruction.operands.iter().filter_map(|operand| {
+                let MachineOperand::Label(label) = operand else {
+                    return None;
+                };
+                label.starts_with('.').then(|| label.clone())
+            }));
         }
     }
     for reference in references {
@@ -98,18 +73,12 @@ fn verify_instruction(
     architecture: Architecture,
 ) -> Result<(), CompileError> {
     if instruction.opcode.architecture() != architecture {
-        return function_error(
-            function,
-            "machine instruction opcode belongs to the wrong architecture",
-        );
+        return function_error(function, "machine instruction opcode belongs to the wrong architecture");
     }
     if instruction.opcode.is_pseudo() {
         return function_error(
             function,
-            format!(
-                "target pseudo {:?} remains after finalization",
-                instruction.opcode
-            ),
+            format!("target pseudo {:?} remains after finalization", instruction.opcode),
         );
     }
     if !instruction.opcode.operands_are_valid(&instruction.operands) {
@@ -132,14 +101,10 @@ fn verify_instruction(
     }
     for operand in &instruction.operands {
         match operand {
-            MachineOperand::PhysicalRegister(register)
-                if register.architecture() != architecture =>
-            {
+            MachineOperand::PhysicalRegister(register) if register.architecture() != architecture => {
                 return function_error(
                     function,
-                    format!(
-                        "machine register '{register}' belongs to the wrong architecture"
-                    ),
+                    format!("machine register '{register}' belongs to the wrong architecture"),
                 );
             }
             MachineOperand::Address(address) => {
@@ -157,8 +122,7 @@ fn verify_address(
     architecture: Architecture,
 ) -> Result<(), CompileError> {
     if address.base.architecture() != architecture
-        || address.base.class()
-            != super::registers::RegisterClass::GeneralPurpose
+        || address.base.class() != super::registers::RegisterClass::GeneralPurpose
     {
         return function_error(
             function,
@@ -169,29 +133,19 @@ fn verify_address(
         );
     }
     if let Some(index) = address.index
-        && (index.architecture() != architecture
-            || index.class()
-                != super::registers::RegisterClass::GeneralPurpose)
+        && (index.architecture() != architecture || index.class() != super::registers::RegisterClass::GeneralPurpose)
     {
         return function_error(
             function,
-            format!(
-                "machine address index '{index}' is not a target general-purpose register"
-            ),
+            format!("machine address index '{index}' is not a target general-purpose register"),
         );
     }
     if let Some(scale) = address.scale {
         if !matches!(scale, 1 | 2 | 4 | 8) {
-            return function_error(
-                function,
-                format!("machine address has invalid scale {scale}"),
-            );
+            return function_error(function, format!("machine address has invalid scale {scale}"));
         }
         if address.index.is_none() {
-            return function_error(
-                function,
-                "machine address scale requires an index register",
-            );
+            return function_error(function, "machine address scale requires an index register");
         }
     }
     match architecture {
@@ -200,28 +154,19 @@ fn verify_address(
                 .displacement
                 .is_some_and(|displacement| i32::try_from(displacement).is_err())
             {
-                return function_error(
-                    function,
-                    "x86-64 machine address displacement does not fit in 32 bits",
-                );
+                return function_error(function, "x86-64 machine address displacement does not fit in 32 bits");
             }
         }
         Architecture::Aarch64 => {
             if address.scale.is_some() {
-                return function_error(
-                    function,
-                    "AArch64 machine address must encode its scale in the opcode",
-                );
+                return function_error(function, "AArch64 machine address must encode its scale in the opcode");
             }
         }
     }
     Ok(())
 }
 
-pub(crate) fn operands_match(
-    operands: &[MachineOperand],
-    expected: &[OperandKind],
-) -> bool {
+pub(crate) fn operands_match(operands: &[MachineOperand], expected: &[OperandKind]) -> bool {
     operands.len() == expected.len()
         && operands
             .iter()
@@ -369,8 +314,8 @@ pub(crate) use machine_operand;
 impl MachineOpcode {
     fn operands_are_valid(self, operands: &[MachineOperand]) -> bool {
         match self {
-        MachineOpcode::X86_64(opcode) => opcode.operands_are_valid(operands),
-        MachineOpcode::Aarch64(opcode) => opcode.operands_are_valid(operands),
+            MachineOpcode::X86_64(opcode) => opcode.operands_are_valid(operands),
+            MachineOpcode::Aarch64(opcode) => opcode.operands_are_valid(operands),
         }
     }
 
@@ -391,16 +336,12 @@ impl MachineOpcode {
     fn is_label(self) -> bool {
         matches!(
             self,
-            MachineOpcode::X86_64(super::x86_64::Opcode::Label)
-                | MachineOpcode::Aarch64(super::aarch64::Opcode::Label)
+            MachineOpcode::X86_64(super::x86_64::Opcode::Label) | MachineOpcode::Aarch64(super::aarch64::Opcode::Label)
         )
     }
 }
 
-fn function_error<T>(
-    function: &MachineFunction,
-    message: impl Into<String>,
-) -> Result<T, CompileError> {
+fn function_error<T>(function: &MachineFunction, message: impl Into<String>) -> Result<T, CompileError> {
     Err(CompileError::new(
         CompileStage::Verification,
         Some(&function.name),
@@ -409,11 +350,7 @@ fn function_error<T>(
 }
 
 fn program_error<T>(message: impl Into<String>) -> Result<T, CompileError> {
-    Err(CompileError::new(
-        CompileStage::Verification,
-        None,
-        message,
-    ))
+    Err(CompileError::new(CompileStage::Verification, None, message))
 }
 
 #[cfg(test)]
@@ -423,9 +360,7 @@ mod tests {
     use crate::target::description::MemoryWidth;
     use crate::target::registers::{aarch64, x86_64};
 
-    fn function(
-        instructions: Vec<MachineInstruction>,
-    ) -> MachineFunction {
+    fn function(instructions: Vec<MachineInstruction>) -> MachineFunction {
         MachineFunction {
             id: HandlerId::new(0),
             name: "Test".into(),
@@ -435,10 +370,7 @@ mod tests {
         }
     }
 
-    fn verify_x86_64(
-        opcode: super::super::x86_64::Opcode,
-        operands: Vec<MachineOperand>,
-    ) -> Result<(), CompileError> {
+    fn verify_x86_64(opcode: super::super::x86_64::Opcode, operands: Vec<MachineOperand>) -> Result<(), CompileError> {
         verify_function(
             &function(vec![MachineInstruction {
                 opcode: MachineOpcode::X86_64(opcode),
@@ -450,8 +382,7 @@ mod tests {
 
     #[test]
     fn rejects_target_pseudos() {
-        let error =
-            verify_x86_64(super::super::x86_64::Opcode::Pseudo, Vec::new()).unwrap_err();
+        let error = verify_x86_64(super::super::x86_64::Opcode::Pseudo, Vec::new()).unwrap_err();
         assert_eq!(error.stage, CompileStage::Verification);
         assert_eq!(error.handler.as_deref(), Some("Test"));
         assert!(error.message.contains("remains after finalization"));
@@ -537,23 +468,18 @@ mod tests {
         .unwrap_err();
         assert!(error.message.contains("unencodable operands"));
 
-        let function = function(
-            vec![MachineInstruction {
-                opcode: MachineOpcode::Aarch64(
-                    super::super::aarch64::Opcode::Load {
-                        width: MemoryWidth::DoubleWord,
-                        signed: false,
-                        addressing: super::super::aarch64::MemoryAddressing::UnsignedImmediate,
-                    },
-                ),
-                operands: vec![
-                    MachineOperand::PhysicalRegister(aarch64::X0),
-                    MachineOperand::Address(MachineMemoryAddress::offset(aarch64::X1, 3)),
-                ],
-            }],
-        );
-        let error =
-            verify_function(&function, Architecture::Aarch64).unwrap_err();
+        let function = function(vec![MachineInstruction {
+            opcode: MachineOpcode::Aarch64(super::super::aarch64::Opcode::Load {
+                width: MemoryWidth::DoubleWord,
+                signed: false,
+                addressing: super::super::aarch64::MemoryAddressing::UnsignedImmediate,
+            }),
+            operands: vec![
+                MachineOperand::PhysicalRegister(aarch64::X0),
+                MachineOperand::Address(MachineMemoryAddress::offset(aarch64::X1, 3)),
+            ],
+        }]);
+        let error = verify_function(&function, Architecture::Aarch64).unwrap_err();
         assert!(error.message.contains("unencodable operands"));
     }
 
@@ -564,24 +490,17 @@ mod tests {
             vec![MachineOperand::Label(".missing".into())],
         )
         .unwrap_err();
-        assert_eq!(
-            error.message,
-            "machine branch references undefined label '.missing'"
-        );
+        assert_eq!(error.message, "machine branch references undefined label '.missing'");
     }
 
     #[test]
     fn accepts_labels_across_hot_and_cold_ranges() {
         let mut function = function(vec![MachineInstruction {
-            opcode: MachineOpcode::X86_64(
-                super::super::x86_64::Opcode::Jump,
-            ),
+            opcode: MachineOpcode::X86_64(super::super::x86_64::Opcode::Jump),
             operands: vec![MachineOperand::Label(".cold".into())],
         }]);
         function.cold_instructions.push(MachineInstruction {
-            opcode: MachineOpcode::X86_64(
-                super::super::x86_64::Opcode::Label,
-            ),
+            opcode: MachineOpcode::X86_64(super::super::x86_64::Opcode::Label),
             operands: vec![MachineOperand::Label(".cold".into())],
         });
         verify_function(&function, Architecture::X86_64).unwrap();

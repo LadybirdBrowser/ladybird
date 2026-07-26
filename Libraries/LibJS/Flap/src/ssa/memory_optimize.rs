@@ -11,7 +11,7 @@ use super::effects::{
     instruction_memory_locations, location_key,
 };
 use super::optimize::{InstructionOrder, rebuild_instruction_arena, rewrite_function_uses};
-use super::pass::{AnalysisManager};
+use super::pass::AnalysisManager;
 use super::{Function, InstructionId, Intrinsic, OperandOperation, Operation, ValueId};
 use crate::hash::{HashMap, HashSet};
 
@@ -61,25 +61,21 @@ pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bo
             //     a load that made the same assertion. Reusing a plain load would drop the check.
             let traps = function.instructions[instruction_id.0].effects.may_trap;
             let key = location_key(function, &location);
-            let forwarded_load = available_loads.get(&key).into_iter().flatten().rev().find_map(
-                |(load, loaded_location, value)| {
-                ((!traps || function.instructions[load.0].effects.may_trap)
-                    && dominates_instruction(&analysis, *load, *instruction_id)
-                    && alias(function, loaded_location, location) == AliasResult::Must
-                    && function.values[value.0].ty == *result_type
-                    && (memory
-                        .instruction_access(*load)
-                        .map(|access| &access.dependencies)
-                        == dependencies
-                        || memory_unchanged_between(
-                            function,
-                            &analysis,
-                            *load,
-                            *instruction_id,
-                            location,
-                        )))
-                    .then_some(*value)
-            });
+            let forwarded_load =
+                available_loads
+                    .get(&key)
+                    .into_iter()
+                    .flatten()
+                    .rev()
+                    .find_map(|(load, loaded_location, value)| {
+                        ((!traps || function.instructions[load.0].effects.may_trap)
+                            && dominates_instruction(&analysis, *load, *instruction_id)
+                            && alias(function, loaded_location, location) == AliasResult::Must
+                            && function.values[value.0].ty == *result_type
+                            && (memory.instruction_access(*load).map(|access| &access.dependencies) == dependencies
+                                || memory_unchanged_between(function, &analysis, *load, *instruction_id, location)))
+                        .then_some(*value)
+                    });
 
             if let Some(value) = forwarded_store.or(forwarded_load) {
                 replacements.insert(result, value);
@@ -195,15 +191,13 @@ pub(super) fn simple_load<'a>(
         Operation::Intrinsic(Intrinsic::Memory(operation)) => !operation.writes() && operation.address_count() == 1,
         Operation::FieldAccess(access) => !access.kind.writes(),
         Operation::Intrinsic(Intrinsic::Operand(OperandOperation::Load(_))) => true,
-        Operation::Intrinsic(Intrinsic::Operand(OperandOperation::LoadPair | OperandOperation::Decode
-            | OperandOperation::Store(_) | OperandOperation::Copy)) => false,
+        Operation::Intrinsic(Intrinsic::Operand(
+            OperandOperation::LoadPair | OperandOperation::Decode | OperandOperation::Store(_) | OperandOperation::Copy,
+        )) => false,
         _ => false,
     };
-    (instruction.results.len() == 1
-        && access.reads.len() == 1
-        && access.writes.is_empty()
-        && is_single_load)
-    .then(|| &access.reads[0])
+    (instruction.results.len() == 1 && access.reads.len() == 1 && access.writes.is_empty() && is_single_load)
+        .then(|| &access.reads[0])
 }
 
 fn simple_store<'a>(
@@ -216,8 +210,9 @@ fn simple_store<'a>(
         Operation::Intrinsic(Intrinsic::Memory(operation)) => operation.writes() && operation.address_count() == 1,
         Operation::FieldAccess(access) => access.kind.writes(),
         Operation::Intrinsic(Intrinsic::Operand(OperandOperation::Store(_))) => true,
-        Operation::Intrinsic(Intrinsic::Operand(OperandOperation::Decode | OperandOperation::Load(_)
-            | OperandOperation::LoadPair | OperandOperation::Copy)) => false,
+        Operation::Intrinsic(Intrinsic::Operand(
+            OperandOperation::Decode | OperandOperation::Load(_) | OperandOperation::LoadPair | OperandOperation::Copy,
+        )) => false,
         _ => false,
     };
     (instruction.results.is_empty()
@@ -232,18 +227,13 @@ fn simple_store<'a>(
 mod tests {
     use super::*;
     use crate::intrinsic::{MemoryOperation, MemoryWidth};
-    use crate::types::Type;
     use crate::ssa::{BlockId, BlockLayout, Constant, Effects, MemoryEffect, Terminator};
+    use crate::types::Type;
 
     fn address(function: &mut Function, base: ValueId, offset: i64) -> ValueId {
         let block = function.entry;
         let offset = function.add_constant(Type::U64, Constant::Integer(offset));
-        function.append_instruction(
-            block,
-            Operation::Address,
-            vec![base, offset],
-            vec![Type::Memory],
-        )[0]
+        function.append_instruction(block, Operation::Address, vec![base, offset], vec![Type::Memory])[0]
     }
 
     fn load(function: &mut Function, address: ValueId) -> ValueId {
@@ -254,7 +244,10 @@ mod tests {
     fn load_in(function: &mut Function, block: BlockId, address: ValueId) -> ValueId {
         function.append_instruction_with_effects(
             block,
-            Intrinsic::Memory(MemoryOperation::Load { width: MemoryWidth::DoubleWord, signed: false }),
+            Intrinsic::Memory(MemoryOperation::Load {
+                width: MemoryWidth::DoubleWord,
+                signed: false,
+            }),
             vec![address],
             vec![Type::U64],
             Effects {
@@ -316,10 +309,7 @@ mod tests {
         let stored_value = function.parameter(1);
         let location = address(&mut function, base, 0);
         store(&mut function, location, stored_value);
-        function.set_terminator(
-            function.entry,
-            Terminator::jump(successor),
-        );
+        function.set_terminator(function.entry, Terminator::jump(successor));
         let loaded = load_in(&mut function, successor, location);
         function.set_terminator(successor, Terminator::Return(vec![loaded]));
 
@@ -339,10 +329,7 @@ mod tests {
         let base = function.parameter(0);
         let location = address(&mut function, base, 0);
         let first = load(&mut function, location);
-        function.set_terminator(
-            function.entry,
-            Terminator::jump(successor),
-        );
+        function.set_terminator(function.entry, Terminator::jump(successor));
         let second = load_in(&mut function, successor, location);
         function.set_terminator(successor, Terminator::Return(vec![second]));
 

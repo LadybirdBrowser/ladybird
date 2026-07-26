@@ -8,8 +8,8 @@
 
 use crate::frontend::ast::ParameterMode;
 use crate::intrinsic::{
-    BranchOperation, CheckedIntegerOperation, FloatingPointOperation, IntegerSignedness,
-    Intrinsic, IntrinsicCallSignature, IntrinsicResultType, IntrinsicValueType,
+    BranchOperation, CheckedIntegerOperation, FloatingPointOperation, IntegerSignedness, Intrinsic,
+    IntrinsicCallSignature, IntrinsicResultType, IntrinsicValueType,
 };
 use crate::types::Type;
 
@@ -78,20 +78,18 @@ pub(super) fn operation_signature(ty: &Type) -> Option<Signature> {
 pub(super) fn resolve_operation(name: &str, ty: &Type) -> Option<Intrinsic> {
     let intrinsic = Intrinsic::from_name(name)?;
     match (ty, intrinsic) {
-        (Type::BinaryOperation(inner), Intrinsic::IntegerBinary(_))
-            if **inner == Type::I32 => Some(intrinsic),
+        (Type::BinaryOperation(inner), Intrinsic::IntegerBinary(_)) if **inner == Type::I32 => Some(intrinsic),
         (
             Type::CheckedBinaryOperation(inner),
             Intrinsic::CheckedInteger(
-                CheckedIntegerOperation::Add
-                | CheckedIntegerOperation::Subtract
-                | CheckedIntegerOperation::Multiply,
+                CheckedIntegerOperation::Add | CheckedIntegerOperation::Subtract | CheckedIntegerOperation::Multiply,
             ),
         ) if **inner == Type::I32 => Some(intrinsic),
-        (
-            Type::BinaryOperation(inner),
-            Intrinsic::FloatingPoint(FloatingPointOperation::Binary(_)),
-        ) if **inner == Type::F64 => Some(intrinsic),
+        (Type::BinaryOperation(inner), Intrinsic::FloatingPoint(FloatingPointOperation::Binary(_)))
+            if **inner == Type::F64 =>
+        {
+            Some(intrinsic)
+        }
         (
             Type::IntegerCondition,
             Intrinsic::Branch(BranchOperation::Ordered {
@@ -99,9 +97,7 @@ pub(super) fn resolve_operation(name: &str, ty: &Type) -> Option<Intrinsic> {
                 ..
             }),
         )
-        | (Type::FloatCondition, Intrinsic::Branch(BranchOperation::Float(_))) => {
-            Some(intrinsic)
-        }
+        | (Type::FloatCondition, Intrinsic::Branch(BranchOperation::Float(_))) => Some(intrinsic),
         _ => None,
     }
 }
@@ -159,9 +155,7 @@ pub(super) fn resolve_intrinsic(name: &str, argument_count: usize) -> Option<Res
     let intrinsic = Intrinsic::from_name(name)?;
     Some(ResolvedIntrinsic {
         intrinsic,
-        signature: semantic_signature(
-            intrinsic.call_signature(argument_count)?,
-        ),
+        signature: semantic_signature(intrinsic.call_signature(argument_count)?),
     })
 }
 

@@ -53,8 +53,7 @@ pub(crate) struct AnalysisManager {
 
 impl AnalysisManager {
     pub(crate) fn cfg<'a>(&'a mut self, function: &Function) -> &'a ControlFlowGraph {
-        self.cfg
-            .get_or_insert_with(|| ControlFlowGraph::compute(function))
+        self.cfg.get_or_insert_with(|| ControlFlowGraph::compute(function))
     }
 
     pub(crate) fn dominators<'a>(&'a mut self, function: &Function) -> &'a DominatorTree {
@@ -68,8 +67,7 @@ impl AnalysisManager {
 
     pub(crate) fn instruction_layout<'a>(&'a mut self, function: &Function) -> &'a InstructionLayout {
         self.instruction_layout.get_or_insert_with(|| {
-            InstructionLayout::compute(function)
-                .expect("valid SSA has a valid instruction layout")
+            InstructionLayout::compute(function).expect("valid SSA has a valid instruction layout")
         })
     }
 
@@ -77,11 +75,7 @@ impl AnalysisManager {
         if self.loops.is_none() {
             self.cfg(function);
             self.dominators(function);
-            let loops = find_natural_loops(
-                function,
-                self.cfg.as_ref().unwrap(),
-                self.dominators.as_ref().unwrap(),
-            );
+            let loops = find_natural_loops(function, self.cfg.as_ref().unwrap(), self.dominators.as_ref().unwrap());
             self.loops = Some(loops);
         }
         self.loops.as_deref().unwrap()
@@ -187,10 +181,7 @@ impl AnalysisManager {
     }
 
     fn finish_pass(&mut self, changed: bool) -> PassInstrumentation {
-        let mut instrumentation = self
-            .instrumentation
-            .take()
-            .expect("pass instrumentation was enabled");
+        let mut instrumentation = self.instrumentation.take().expect("pass instrumentation was enabled");
         if instrumentation.attempted_transformations == 0 {
             instrumentation.attempted_transformations = 1;
             instrumentation.successful_transformations = u64::from(changed);
@@ -269,12 +260,22 @@ mod tests {
     use crate::ssa::Terminator;
 
     fn report_change(_: &mut Function, analyses: &mut AnalysisManager) -> bool {
-        analyses.report(OptimizationRemarkKind::Applied, "test-change", 1, "changed the test function");
+        analyses.report(
+            OptimizationRemarkKind::Applied,
+            "test-change",
+            1,
+            "changed the test function",
+        );
         true
     }
 
     fn report_no_change(_: &mut Function, analyses: &mut AnalysisManager) -> bool {
-        analyses.report(OptimizationRemarkKind::Missed, "test-change", 1, "the test condition was false");
+        analyses.report(
+            OptimizationRemarkKind::Missed,
+            "test-change",
+            1,
+            "the test condition was false",
+        );
         false
     }
 
@@ -331,11 +332,7 @@ mod tests {
         let mut runner = PassRunner::new(None);
         assert!(
             runner
-                .run(
-                    &mut function,
-                    "compute-and-invalidate",
-                    compute_and_invalidate_analyses,
-                )
+                .run(&mut function, "compute-and-invalidate", compute_and_invalidate_analyses,)
                 .0
         );
         runner.run(&mut function, "assert-invalidated", assert_analyses_were_invalidated);

@@ -91,8 +91,7 @@ impl FunctionOptimizationReport {
 
     pub(crate) fn push_pass(&mut self, pass: &PassRunReport) {
         self.changed |= pass.changed;
-        write_pass_report(&mut self.body, pass, "  ")
-            .expect("writing an optimization report to a string cannot fail");
+        write_pass_report(&mut self.body, pass, "  ").expect("writing an optimization report to a string cannot fail");
     }
 
     pub(crate) fn push_fixed_point(

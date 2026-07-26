@@ -9,12 +9,10 @@
 use crate::frontend::ast::ParameterMode;
 use crate::frontend::diagnostic::SourceSpan;
 use crate::frontend::layout::LayoutValue;
-use crate::identity::{ExternalSymbol, InlineFunctionId};
-use crate::intrinsic::{
-    ComparisonRelation, FieldAccess, Intrinsic, OperationValue, ValueOperation,
-};
-use crate::types::{BlockTemperature, InterpreterRegister, RegisterReference, Type};
 use crate::hash::HashSet;
+use crate::identity::{ExternalSymbol, InlineFunctionId};
+use crate::intrinsic::{ComparisonRelation, FieldAccess, Intrinsic, OperationValue, ValueOperation};
+use crate::types::{BlockTemperature, InterpreterRegister, RegisterReference, Type};
 use std::fmt;
 
 pub(crate) type VariableId = usize;
@@ -149,13 +147,11 @@ impl Call {
         match self.target {
             CallTarget::Intrinsic(Intrinsic::Bytecode(_)) => true,
             CallTarget::Intrinsic(Intrinsic::LowLevel(
-                crate::intrinsic::LowLevelOperation::LoadLabel
-                    | crate::intrinsic::LowLevelOperation::LoadVm,
+                crate::intrinsic::LowLevelOperation::LoadLabel | crate::intrinsic::LowLevelOperation::LoadVm,
             )) => true,
             CallTarget::Intrinsic(Intrinsic::Memory(operation)) => !operation.writes(),
             CallTarget::Intrinsic(Intrinsic::Operand(
-                crate::intrinsic::OperandOperation::Load(_)
-                    | crate::intrinsic::OperandOperation::LoadPair,
+                crate::intrinsic::OperandOperation::Load(_) | crate::intrinsic::OperandOperation::LoadPair,
             )) => true,
             CallTarget::FieldAccess(access) => !access.kind.writes(),
             _ => false,
@@ -299,10 +295,7 @@ pub(crate) enum StatementKindIr {
 }
 
 impl StatementKindIr {
-    pub(crate) fn call(
-        destinations: impl IntoIterator<Item = VariableId>,
-        call: Call,
-    ) -> Self {
+    pub(crate) fn call(destinations: impl IntoIterator<Item = VariableId>, call: Call) -> Self {
         Self::Call(destinations.into_iter().collect(), call)
     }
 }
@@ -315,7 +308,9 @@ macro_rules! visit_nested_bodies {
                     ($visit)(&failure.body);
                 }
             }
-            Self::If { then_body, else_body, .. } => {
+            Self::If {
+                then_body, else_body, ..
+            } => {
                 ($visit)(then_body);
                 if let Some(else_body) = else_body {
                     ($visit)(else_body);
@@ -337,9 +332,7 @@ macro_rules! visit_nested_bodies {
                 ($visit)(body);
             }
             Self::While {
-                condition_setup,
-                body,
-                ..
+                condition_setup, body, ..
             } => {
                 ($visit)(condition_setup);
                 ($visit)(body);
@@ -350,10 +343,7 @@ macro_rules! visit_nested_bodies {
 }
 
 impl StatementKindIr {
-    pub(crate) fn for_each_nested_body(
-        &self,
-        mut visit: impl FnMut(&[Statement]),
-    ) {
+    pub(crate) fn for_each_nested_body(&self, mut visit: impl FnMut(&[Statement])) {
         visit_nested_bodies!(self, visit);
     }
 }
