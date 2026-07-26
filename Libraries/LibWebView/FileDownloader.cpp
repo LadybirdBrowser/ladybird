@@ -12,6 +12,7 @@
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWeb/Loader/DownloadFilename.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
@@ -39,6 +40,12 @@ struct FileDownloader::ActiveDownload {
     LexicalPath temporary_destination;
     Core::ElapsedTimer progress_update_timer;
     bool stopped { false };
+    URL::URL effective_url;
+    u32 redirect_count { 0 };
+
+    // We may only follow redirects for downloads whose request we started ourselves. Adopted and renderer-driven
+    // downloads are already past the point where a redirect could be handled here.
+    bool can_follow_redirects { false };
 };
 
 Optional<double> FileDownloader::Download::progress() const
@@ -78,21 +85,66 @@ u64 FileDownloader::download_file(IsPrivate is_private, URL::URL const& url, Lex
     if (!active)
         return download_id;
 
+    active->can_follow_redirects = true;
+    start_download_request(download_id, url);
+
+    return download_id;
+}
+
+void FileDownloader::start_download_request(u64 download_id, URL::URL const& url)
+{
+    auto* download = mutable_download_or_null(download_id);
+    auto* active = active_download(download_id);
+    if (!download || !active)
+        return;
+
+    active->effective_url = url;
+
     // FIXME: What other request headers should be set? Perhaps we want to use exactly the same request headers used to
     //        originally fetch the image in WebContent.
     auto request_headers = HTTP::HeaderList::create();
     request_headers->set({ "User-Agent"sv, Web::default_user_agent });
 
-    auto request = Application::request_server_client(is_private).start_request("GET"sv, url, *request_headers);
+    auto request = Application::request_server_client(download->is_private).start_request("GET"sv, url, *request_headers);
     if (!request) {
         fail_download(download_id, "Unable to start request to download file"_string);
-        return download_id;
+        return;
     }
 
-    auto request_ref = request.release_nonnull();
-    attach_request_to_download(download_id, request_ref);
+    attach_request_to_download(download_id, request.release_nonnull());
+}
 
-    return download_id;
+void FileDownloader::follow_download_redirect(u64 download_id, HTTP::HeaderList const& response_headers)
+{
+    static constexpr u32 maximum_redirects = 20;
+
+    auto* active = active_download(download_id);
+    if (!active)
+        return;
+
+    auto location = response_headers.get("Location"sv);
+    if (!location.has_value()) {
+        fail_download(download_id, "Received a redirect response without a location while downloading file"_string);
+        return;
+    }
+
+    if (++active->redirect_count > maximum_redirects) {
+        fail_download(download_id, "Received too many redirects while downloading file"_string);
+        return;
+    }
+
+    auto redirect_url = active->effective_url.complete_url(*location);
+    if (!redirect_url.has_value() || (redirect_url->scheme() != "http"sv && redirect_url->scheme() != "https"sv)) {
+        fail_download(download_id, "Received an invalid redirect location while downloading file"_string);
+        return;
+    }
+
+    if (active->request) {
+        active->request->stop();
+        active->request = nullptr;
+    }
+
+    start_download_request(download_id, redirect_url.release_value());
 }
 
 u64 FileDownloader::adopt_download(IsPrivate is_private, URL::URL const& url, LexicalPath destination, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ReadonlyBytes initial_data)
@@ -132,6 +184,15 @@ void FileDownloader::attach_request_to_download(u64 download_id, NonnullRefPtr<R
             auto* download = mutable_download_or_null(download_id);
             if (!download)
                 return;
+
+            auto* active = active_download(download_id);
+            if (!active || active->stopped)
+                return;
+
+            if (active->can_follow_redirects && response_code.has_value() && Web::Fetch::Infrastructure::is_redirect_status(*response_code)) {
+                follow_download_redirect(download_id, *response_headers);
+                return;
+            }
 
             auto extracted_length = response_headers->extract_length();
             if (extracted_length.has<u64>())

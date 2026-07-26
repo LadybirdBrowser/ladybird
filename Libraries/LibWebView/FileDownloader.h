@@ -15,6 +15,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/Span.h>
 #include <AK/String.h>
+#include <LibHTTP/Forward.h>
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Forward.h>
@@ -79,6 +80,8 @@ private:
 
     Download* mutable_download_or_null(u64 id);
     ActiveDownload* active_download(u64 id);
+    void start_download_request(u64 id, URL::URL const&);
+    void follow_download_redirect(u64 id, HTTP::HeaderList const&);
     void attach_request_to_download(u64 id, NonnullRefPtr<Requests::Request>);
     void discard_active_download(u64 id);
 
