@@ -49,6 +49,12 @@ public:
         return status == DownloadStatus::InProgress || status == DownloadStatus::Paused;
     }
 
+    struct SegmentProgress {
+        u64 start_offset { 0 };
+        u64 end_offset { 0 };
+        u64 next_offset { 0 };
+    };
+
     struct WEBVIEW_API Download {
         Optional<double> progress() const;
 
@@ -88,9 +94,8 @@ public:
     ReadonlySpan<Download> downloads() const { return m_downloads.span(); }
     Optional<Download const&> download(u64 id) const;
 
-    // Hands this downloader the store it should record unfinished downloads in, and brings back whatever downloads
-    // were unfinished when the browser last ran. Downloads restored this way arrive paused, never running: the user
-    // may be on a different network than the one they left, and their quitting was deliberate.
+    Vector<SegmentProgress> segment_progress(u64 id) const;
+
     void adopt_download_store(Badge<Application>, DownloadStore&);
 
     static void add_observer(Badge<FileDownloaderObserver>, FileDownloaderObserver&);

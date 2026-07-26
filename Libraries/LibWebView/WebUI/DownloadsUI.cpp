@@ -46,6 +46,18 @@ static JsonObject serialize_download(FileDownloader::Download const& download)
     serialized.set("error"sv, download.error.value_or(String {}));
     serialized.set("canResume"sv, download.can_resume);
     serialized.set("connectionCount"sv, download.connection_count);
+
+    JsonArray segments;
+    for (auto const& segment : Application::the().file_downloader().segment_progress(download.id)) {
+        JsonObject serialized_segment;
+        serialized_segment.set("start"sv, segment.start_offset);
+        serialized_segment.set("end"sv, segment.end_offset);
+        serialized_segment.set("next"sv, segment.next_offset);
+
+        segments.must_append(move(serialized_segment));
+    }
+    serialized.set("segments"sv, move(segments));
+
     return serialized;
 }
 
