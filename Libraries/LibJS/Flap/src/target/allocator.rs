@@ -425,40 +425,53 @@ fn compute_liveness(
         .iter()
         .map(|insn| analyze_instruction(insn, names, arch))
         .collect::<Vec<_>>();
+    let mut predecessors = vec![Vec::new(); n];
+    for (instruction, successors) in successors.iter().enumerate() {
+        for successor in successors {
+            predecessors[*successor].push(instruction);
+        }
+    }
+
     let mut live_in = vec![LiveSet::new(); n];
     let mut live_out = vec![LiveSet::new(); n];
     let mut next_out = LiveSet::new();
     let mut next_in = LiveSet::new();
-    loop {
-        let mut changed = false;
-        for instruction in (0..n).rev() {
-            next_out.clear();
-            for successor in &successors[instruction] {
-                merge_into(&mut next_out, &live_in[*successor]);
-            }
-            next_in.clear();
-            next_in.extend(
-                next_out
-                    .iter()
-                    .copied()
-                    .filter(|live| !use_def[instruction].defs.contains(live)),
-            );
-            if !use_def[instruction].uses.is_empty() {
-                merge_into(&mut next_in, &use_def[instruction].uses);
-            }
-            if live_in[instruction] != next_in {
-                live_in[instruction].clear();
-                live_in[instruction].extend_from_slice(&next_in);
-                changed = true;
-            }
-            if live_out[instruction] != next_out {
-                live_out[instruction].clear();
-                live_out[instruction].extend_from_slice(&next_out);
-                changed = true;
-            }
+    // What is live before an instruction depends only on what is live before
+    // its successors, so revisiting an instruction is only worthwhile when one
+    // of those moved. Sweeping the whole function instead costs a sweep to
+    // discover that nothing changed, plus one for every step a value has to
+    // travel backwards.
+    let mut queued = vec![true; n];
+    let mut queue = (0..n).collect::<Vec<_>>();
+    while let Some(instruction) = queue.pop() {
+        queued[instruction] = false;
+        next_out.clear();
+        for successor in &successors[instruction] {
+            merge_into(&mut next_out, &live_in[*successor]);
         }
-        if !changed {
-            break;
+        next_in.clear();
+        next_in.extend(
+            next_out
+                .iter()
+                .copied()
+                .filter(|live| !use_def[instruction].defs.contains(live)),
+        );
+        if !use_def[instruction].uses.is_empty() {
+            merge_into(&mut next_in, &use_def[instruction].uses);
+        }
+        if live_out[instruction] != next_out {
+            live_out[instruction].clear();
+            live_out[instruction].extend_from_slice(&next_out);
+        }
+        if live_in[instruction] == next_in {
+            continue;
+        }
+        live_in[instruction].clear();
+        live_in[instruction].extend_from_slice(&next_in);
+        for predecessor in &predecessors[instruction] {
+            if !std::mem::replace(&mut queued[*predecessor], true) {
+                queue.push(*predecessor);
+            }
         }
     }
     let liveness = Liveness {
