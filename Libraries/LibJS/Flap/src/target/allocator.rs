@@ -22,6 +22,7 @@
 //! Handlers that don't use virtual registers require no register assignment.
 
 use crate::Architecture;
+use crate::low_ir::analysis::virtual_register_access;
 use crate::low_ir::cfg::{ControlFlowGraph, instruction_successors};
 use crate::low_ir::optimize::{invert_branches_over_jumps, remove_unreferenced_labels};
 #[cfg(test)]
@@ -32,7 +33,7 @@ use crate::target::description::{
 use crate::target::description::{InstructionDescription, OperandKind, SelectedOpcode};
 use crate::target::ir::{
     AddressRegister, AllocatedFunction, AllocatedInstruction, AllocatedOperand, AllocatedProgram,
-    Function as TargetFunction, Instruction as MachineInstruction, MemoryAddress, Operand, PhysicalMemoryAddress,
+    Function as TargetFunction, Instruction as MachineInstruction, Operand, PhysicalMemoryAddress,
     Program as TargetProgram, RuntimeConstants, VirtualRegister, visit_virtual_registers,
 };
 #[cfg(test)]
@@ -99,12 +100,6 @@ impl UseDef {
         }
     }
 
-    fn use_operand(&mut self, operand: &Operand, names: &Names) {
-        if let Operand::VirtualRegister(register) = operand {
-            self.use_register(names.index(register));
-        }
-    }
-
     fn define_operand(&mut self, operand: &Operand, names: &Names, architecture: Architecture) {
         match operand {
             Operand::VirtualRegister(register) => {
@@ -122,12 +117,6 @@ impl UseDef {
                 self.clobbers |= register_bit(*register);
             }
             _ => {}
-        }
-    }
-
-    fn use_address_register(&mut self, register: &AddressRegister, names: &Names) {
-        if let AddressRegister::Virtual(register) = register {
-            self.use_register(names.index(register));
         }
     }
 }
@@ -289,23 +278,28 @@ fn build_allocated_graph(
 fn analyze_instruction(insn: &MachineInstruction, names: &Names, arch: Architecture) -> UseDef {
     let mut ud = UseDef::default();
     let info = insn.opcode.description();
-    let zeroes_register = info.zeroes_if_inputs_alias
-        && insn.operands.len() >= 2
-        && registers_alias(&insn.operands[0], &insn.operands[1], arch);
-
+    let access = virtual_register_access(insn, Some(arch));
+    for register in access.reads {
+        ud.use_register(names.index(&register));
+    }
+    for register in access.definitions {
+        ud.defs.push(names.index(&register));
+    }
     for (i, op) in insn.operands.iter().enumerate() {
-        // `xor dst, dst` is the canonical zero-the-register idiom. It
-        // defines the destination without reading either semantic operand.
-        // Target-selected scratch operands still retain their ordinary
-        // definitions.
-        if i < 2 && zeroes_register {
-            if i == 0 {
-                ud.define_operand(op, names, arch);
-            }
-            continue;
-        }
         let kind = operand_kind_at(info, i, insn.operands.len(), arch);
-        apply_operand_kind(&mut ud, op, kind, names, arch);
+        if matches!(
+            kind,
+            OperandKind::GprOut
+                | OperandKind::GprInOut
+                | OperandKind::GprScratch
+                | OperandKind::FprOut
+                | OperandKind::FprInOut
+                | OperandKind::FprScratch
+                | OperandKind::RegisterOut
+        ) && !matches!(op, Operand::VirtualRegister(_))
+        {
+            ud.define_operand(op, names, arch);
+        }
     }
     // Implicit i/o and all-caller-saved kills.
     let arch_spec = info.arch(arch);
@@ -338,64 +332,6 @@ fn operand_kind_at(
     description
         .selected_operand_kind(index, operand_count, architecture)
         .expect("operand index out of range")
-}
-
-fn apply_operand_kind(ud: &mut UseDef, op: &Operand, kind: OperandKind, names: &Names, arch: Architecture) {
-    match kind {
-        OperandKind::GprIn | OperandKind::FprIn | OperandKind::RegisterIn => {
-            ud.use_operand(op, names);
-        }
-        OperandKind::GprOut
-        | OperandKind::GprScratch
-        | OperandKind::FprScratch
-        | OperandKind::FprOut
-        | OperandKind::RegisterOut => {
-            ud.define_operand(op, names, arch);
-        }
-        OperandKind::GprInOut | OperandKind::FprInOut => {
-            ud.use_operand(op, names);
-            ud.define_operand(op, names, arch);
-        }
-        OperandKind::GprInOrImm | OperandKind::GprInOrMemory => {
-            ud.use_operand(op, names);
-            if kind == OperandKind::GprInOrMemory
-                && let Operand::Address(address) = op
-            {
-                for register in address_registers(address) {
-                    ud.use_address_register(register, names);
-                }
-            }
-        }
-        OperandKind::Memory => {
-            if let Operand::Address(address) = op {
-                for register in address_registers(address) {
-                    ud.use_address_register(register, names);
-                }
-            }
-        }
-        OperandKind::Imm | OperandKind::Label | OperandKind::FuncSymbol => {}
-    }
-}
-
-fn address_registers(address: &MemoryAddress) -> impl Iterator<Item = &AddressRegister> {
-    std::iter::once(&address.base).chain(address.index.iter())
-}
-
-fn registers_alias(lhs: &Operand, rhs: &Operand, architecture: Architecture) -> bool {
-    match (lhs, rhs) {
-        (Operand::VirtualRegister(lhs), Operand::VirtualRegister(rhs)) => lhs == rhs,
-        (Operand::InterpreterRegister(lhs), Operand::InterpreterRegister(rhs)) => {
-            resolve_interpreter_register(*lhs, architecture)
-                .zip(resolve_interpreter_register(*rhs, architecture))
-                .is_some_and(|(lhs, rhs)| lhs == rhs)
-        }
-        (Operand::InterpreterRegister(interpreter), Operand::PhysicalRegister(physical))
-        | (Operand::PhysicalRegister(physical), Operand::InterpreterRegister(interpreter)) => {
-            resolve_interpreter_register(*interpreter, architecture) == Some(*physical)
-        }
-        (Operand::PhysicalRegister(lhs), Operand::PhysicalRegister(rhs)) => lhs == rhs,
-        _ => false,
-    }
 }
 
 fn compute_liveness(
@@ -2013,6 +1949,84 @@ mod tests {
         assert_eq!(out[2].operands[1], AllocatedOperand::Immediate(7));
         assert_eq!(out[2].operands[0], out[3].operands[0]);
         assert_eq!(out[3].operands[0], out[4].operands[0]);
+    }
+
+    #[test]
+    fn rematerializes_multiple_widths_after_the_last_of_multiple_calls() {
+        for architecture in [Architecture::X86_64, Architecture::Aarch64] {
+            let out = allocated(
+                vec![
+                    instruction!(Operation::Move(IntegerWidth::U32), register("small"), immediate(7)),
+                    instruction!(Operation::Move(IntegerWidth::U64), register("large"), immediate(9)),
+                    instruction!(Operation::Move(IntegerWidth::U64), register("argument"), immediate(1)),
+                    instruction!(
+                        Operation::Call(CallKind::Helper),
+                        symbol("asm_helper_to_boolean"),
+                        register("argument"),
+                        register("first_result")
+                    ),
+                    instruction!(
+                        Operation::Call(CallKind::Helper),
+                        symbol("asm_helper_to_boolean"),
+                        register("argument"),
+                        register("second_result")
+                    ),
+                    instruction!(Operation::Assertion(AssertionOperation::NonZero), register("small")),
+                    instruction!(Operation::Assertion(AssertionOperation::NonZero), register("large")),
+                ],
+                architecture,
+            );
+
+            assert_eq!(operation_count(&out, Operation::Move(IntegerWidth::U32)), 2);
+            assert_eq!(operation_count(&out, Operation::Move(IntegerWidth::U64)), 4);
+            let second_call = out
+                .iter()
+                .rposition(|instruction| is_operation(instruction, Operation::Call(CallKind::Helper)))
+                .unwrap();
+            let rematerialized = &out[second_call + 1..second_call + 3];
+            assert!(
+                rematerialized
+                    .iter()
+                    .any(|instruction| is_operation(instruction, Operation::Move(IntegerWidth::U32)))
+            );
+            assert!(
+                rematerialized
+                    .iter()
+                    .any(|instruction| is_operation(instruction, Operation::Move(IntegerWidth::U64)))
+            );
+        }
+    }
+
+    #[test]
+    fn rematerializes_a_constant_used_by_an_address() {
+        for architecture in [Architecture::X86_64, Architecture::Aarch64] {
+            let out = allocated(
+                vec![
+                    instruction!(Operation::Move(IntegerWidth::U64), register("index"), immediate(1)),
+                    instruction!(Operation::Move(IntegerWidth::U64), register("argument"), immediate(1)),
+                    instruction!(
+                        Operation::Call(CallKind::Helper),
+                        symbol("asm_helper_to_boolean"),
+                        register("argument"),
+                        register("result")
+                    ),
+                    instruction!(
+                        Operation::load(MemoryWidth::DoubleWord, false),
+                        register("value"),
+                        SourceOperand::Address(SourceMemoryAddress {
+                            base: SourceAddressRegister::Interpreter(InterpreterRegister::Values),
+                            index: Some(SourceAddressRegister::named("index")),
+                            scale: Some(crate::low_ir::AddressScale::Immediate(8)),
+                            displacement: None,
+                        })
+                    ),
+                    instruction!(Operation::Assertion(AssertionOperation::NonZero), register("value")),
+                ],
+                architecture,
+            );
+
+            assert_eq!(operation_count(&out, Operation::Move(IntegerWidth::U64)), 3);
+        }
     }
 
     #[test]

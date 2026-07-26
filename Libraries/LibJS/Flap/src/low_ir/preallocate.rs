@@ -9,6 +9,8 @@
 use super::{Instruction, Operand, VirtualRegister, visit_virtual_registers, visit_virtual_registers_mut};
 use crate::hash::{HashMap, HashSet};
 use crate::intrinsic::{BranchOperation, IntegerBinaryOperation, IntegerSignedness};
+use crate::low_ir::analysis::virtual_register_access;
+use crate::low_ir::cfg::instruction_blocks;
 use crate::target::description::{
     BinaryOperation, EqualityCondition, IntegerWidth, MemoryWidth, OperandKind, Operation, PairWidth,
 };
@@ -291,62 +293,83 @@ pub(crate) fn split_rematerializable_live_ranges_across_calls(instructions: &mut
         return;
     }
 
-    let instruction_blocks = instruction_blocks(instructions);
-    let mut register_blocks = HashMap::<VirtualRegister, Option<usize>>::default();
-    let mut registers = HashSet::default();
+    #[derive(Default)]
+    struct RegisterFacts {
+        block: Option<usize>,
+        crosses_blocks: bool,
+        definitions: Vec<usize>,
+        recipe: Option<(usize, Instruction)>,
+        reads: Vec<usize>,
+    }
+
+    let instruction_references = instructions.iter().collect::<Vec<_>>();
+    let blocks = instruction_blocks(&instruction_references);
+    let mut facts = HashMap::<VirtualRegister, RegisterFacts>::default();
     for (index, instruction) in instructions.iter().enumerate() {
-        for operand in &instruction.operands {
-            visit_virtual_registers(operand, &mut |register| {
-                registers.insert(register.clone());
-                register_blocks
-                    .entry(register.clone())
-                    .and_modify(|block| {
-                        if *block != Some(instruction_blocks[index]) {
-                            *block = None;
-                        }
-                    })
-                    .or_insert(Some(instruction_blocks[index]));
-            });
+        let access = virtual_register_access(instruction, None);
+        for register in access.reads {
+            let facts = facts.entry(register).or_default();
+            facts.reads.push(index);
+            if let Some(block) = facts.block {
+                facts.crosses_blocks |= block != blocks[index];
+            } else {
+                facts.block = Some(blocks[index]);
+            }
+        }
+        for register in access.definitions {
+            let facts = facts.entry(register.clone()).or_default();
+            facts.definitions.push(index);
+            if let Some(block) = facts.block {
+                facts.crosses_blocks |= block != blocks[index];
+            } else {
+                facts.block = Some(blocks[index]);
+            }
+            if let Some((recipe_register, recipe)) = rematerialization_recipe(instruction)
+                && recipe_register == register
+            {
+                facts.recipe = Some((index, recipe));
+            }
         }
     }
 
+    let mut registers = facts.keys().cloned().collect::<HashSet<_>>();
     let mut split_index = 0u64;
-    for call in calls.into_iter().rev() {
-        let block = instruction_blocks[call];
-        let start = machine_block_start(instructions, call);
-        let end = machine_block_end(instructions, call);
-        let mut recipes = rematerialization_recipes(&instructions[start..call])
-            .into_iter()
+    let mut splits = Vec::new();
+    for (register, facts) in facts {
+        let Some((definition, recipe)) = facts.recipe else {
+            continue;
+        };
+        if facts.crosses_blocks {
+            continue;
+        }
+        let block = facts.block.expect("a defined register belongs to a block");
+        let mut split_calls = facts
+            .reads
+            .iter()
+            .filter_map(|read| {
+                let insertion = calls.partition_point(|call| *call < *read);
+                (insertion > 0).then(|| calls[insertion - 1])
+            })
+            .filter(|call| *call > definition && blocks[*call] == block)
+            .filter(|call| {
+                facts.definitions.partition_point(|candidate| *candidate <= *call) == 1
+                    && facts.definitions[0] == definition
+            })
             .collect::<Vec<_>>();
-        recipes.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
-        let mut splits = Vec::new();
-        for (register, recipe) in recipes {
-            if register_blocks.get(&register) != Some(&Some(block))
-                || instruction_defines_register(&instructions[call], &register)
-            {
-                continue;
-            }
-            let Some(last_reference) = instructions[call + 1..end]
-                .iter()
-                .rposition(|instruction| instruction_references_register(instruction, &register))
-                .map(|position| call + 1 + position)
-            else {
-                continue;
-            };
-            if instructions[call + 1..=last_reference]
-                .iter()
-                .any(|instruction| instruction.opcode.description().is_call)
-            {
-                continue;
-            }
-            let first_reference = instructions[call + 1..=last_reference]
-                .iter()
-                .find(|instruction| instruction_references_register(instruction, &register))
-                .expect("last reference guarantees a first reference");
-            if !instruction_reads_register(first_reference, &register) {
-                continue;
-            }
-
+        split_calls.sort_unstable();
+        split_calls.dedup();
+        for call in split_calls {
+            let end = calls
+                .get(calls.partition_point(|candidate| *candidate <= call))
+                .copied()
+                .filter(|next| blocks[*next] == block)
+                .map(|next| next + 1)
+                .unwrap_or_else(|| {
+                    blocks[call + 1..]
+                        .iter()
+                        .position(|candidate| *candidate != block)
+                        .map_or(instructions.len(), |offset| call + 1 + offset)
+                });
             let replacement = loop {
                 let candidate =
                     VirtualRegister::with_class(format!("{register}_after_call_{split_index}"), register.class());
@@ -355,23 +378,29 @@ pub(crate) fn split_rematerializable_live_ranges_across_calls(instructions: &mut
                     break candidate;
                 }
             };
-            splits.push((register, replacement, recipe));
+            splits.push((call, end, register.clone(), replacement, recipe.clone()));
         }
+    }
 
-        for (register, replacement, _) in &splits {
-            for instruction in &mut instructions[call + 1..end] {
-                for operand in &mut instruction.operands {
-                    visit_virtual_registers_mut(operand, &mut |candidate| {
-                        if candidate == register {
-                            *candidate = replacement.clone();
-                        }
-                    });
-                }
+    for (call, end, register, replacement, _) in &splits {
+        for instruction in &mut instructions[call + 1..*end] {
+            for operand in &mut instruction.operands {
+                visit_virtual_registers_mut(operand, &mut |candidate| {
+                    if candidate == register {
+                        *candidate = replacement.clone();
+                    }
+                });
             }
         }
-        let rematerializations = splits
-            .into_iter()
-            .map(|(_, replacement, mut recipe)| {
+    }
+    splits.sort_by(|lhs, rhs| lhs.0.cmp(&rhs.0).then_with(|| lhs.2.cmp(&rhs.2)));
+    while let Some(call) = splits.last().map(|split| split.0) {
+        let start = splits.partition_point(|split| split.0 < call);
+        let rematerializations = splits[start..]
+            .iter()
+            .filter(|split| split.0 == call)
+            .cloned()
+            .map(|(_, _, _, replacement, mut recipe)| {
                 let Operand::VirtualRegister(destination) = &mut recipe.operands[0] else {
                     unreachable!("rematerialization recipe must define a virtual register")
                 };
@@ -379,87 +408,10 @@ pub(crate) fn split_rematerializable_live_ranges_across_calls(instructions: &mut
                 recipe
             })
             .collect::<Vec<_>>();
+        let count = rematerializations.len();
         instructions.splice(call + 1..call + 1, rematerializations);
+        splits.truncate(splits.len() - count);
     }
-}
-
-fn instruction_blocks(instructions: &[Instruction]) -> Vec<usize> {
-    let mut blocks = Vec::with_capacity(instructions.len());
-    let mut block = 0usize;
-    for (index, instruction) in instructions.iter().enumerate() {
-        if index > 0
-            && (instruction.opcode.operation() == Operation::Label
-                || machine_instruction_ends_block(&instructions[index - 1]))
-        {
-            block += 1;
-        }
-        blocks.push(block);
-    }
-    blocks
-}
-
-fn machine_block_start(instructions: &[Instruction], instruction: usize) -> usize {
-    (0..=instruction)
-        .rev()
-        .find(|index| {
-            *index == 0
-                || instructions[*index].opcode.operation() == Operation::Label
-                || machine_instruction_ends_block(&instructions[*index - 1])
-        })
-        .unwrap()
-}
-
-fn machine_block_end(instructions: &[Instruction], instruction: usize) -> usize {
-    (instruction..instructions.len())
-        .find_map(|index| {
-            (machine_instruction_ends_block(&instructions[index])
-                || instructions
-                    .get(index + 1)
-                    .is_some_and(|instruction| instruction.opcode.operation() == Operation::Label))
-            .then_some(index + 1)
-        })
-        .unwrap_or(instructions.len())
-}
-
-fn machine_instruction_ends_block(instruction: &Instruction) -> bool {
-    instruction.opcode.description().terminal
-        || (instruction.opcode.operation() != Operation::Label
-            && instruction
-                .operands
-                .iter()
-                .any(|operand| matches!(operand, Operand::Label(_))))
-}
-
-fn rematerialization_recipes(instructions: &[Instruction]) -> HashMap<VirtualRegister, Instruction> {
-    let mut seen = HashSet::default();
-    let mut recipes = HashMap::default();
-    for instruction in instructions {
-        let recipe = rematerialization_recipe(instruction);
-        let mut referenced = Vec::new();
-        for operand in &instruction.operands {
-            visit_virtual_registers(operand, &mut |register| {
-                if !referenced.contains(register) {
-                    referenced.push(register.clone());
-                }
-            });
-        }
-        for register in referenced {
-            let first_reference = seen.insert(register.clone());
-            if recipe
-                .as_ref()
-                .is_some_and(|(recipe_register, _)| *recipe_register == register)
-            {
-                if first_reference {
-                    recipes.insert(register, recipe.as_ref().unwrap().1.clone());
-                } else {
-                    recipes.remove(&register);
-                }
-            } else if instruction_defines_register(instruction, &register) {
-                recipes.remove(&register);
-            }
-        }
-    }
-    recipes
 }
 
 fn rematerialization_recipe(instruction: &Instruction) -> Option<(VirtualRegister, Instruction)> {
@@ -483,56 +435,4 @@ fn rematerialization_recipe(instruction: &Instruction) -> Option<(VirtualRegiste
             operands: vec![Operand::VirtualRegister(register.clone()), source.clone()],
         },
     ))
-}
-
-fn instruction_references_register(instruction: &Instruction, register: &VirtualRegister) -> bool {
-    instruction.operands.iter().any(|operand| {
-        let mut references = false;
-        visit_virtual_registers(operand, &mut |candidate| references |= candidate == register);
-        references
-    })
-}
-
-fn instruction_reads_register(instruction: &Instruction, register: &VirtualRegister) -> bool {
-    let description = instruction.opcode.description();
-    instruction.operands.iter().enumerate().any(|(index, operand)| {
-        if matches!(operand, Operand::Address(_)) {
-            let mut reads = false;
-            visit_virtual_registers(operand, &mut |candidate| reads |= candidate == register);
-            return reads;
-        }
-        let Operand::VirtualRegister(candidate) = operand else {
-            return false;
-        };
-        candidate == register
-            && matches!(
-                description.operand_kind(index, instruction.operands.len()),
-                Some(
-                    OperandKind::GprIn
-                        | OperandKind::GprInOut
-                        | OperandKind::FprIn
-                        | OperandKind::FprInOut
-                        | OperandKind::RegisterIn
-                        | OperandKind::GprInOrImm
-                        | OperandKind::GprInOrMemory
-                )
-            )
-    })
-}
-
-fn instruction_defines_register(instruction: &Instruction, register: &VirtualRegister) -> bool {
-    let description = instruction.opcode.description();
-    instruction.operands.iter().enumerate().any(|(index, operand)| {
-        matches!(operand, Operand::VirtualRegister(candidate) if candidate == register)
-            && matches!(
-                description.operand_kind(index, instruction.operands.len()),
-                Some(
-                    OperandKind::GprOut
-                        | OperandKind::GprInOut
-                        | OperandKind::FprOut
-                        | OperandKind::FprInOut
-                        | OperandKind::RegisterOut
-                )
-            )
-    })
 }

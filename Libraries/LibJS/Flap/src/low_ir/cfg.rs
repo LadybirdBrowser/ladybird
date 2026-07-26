@@ -133,6 +133,23 @@ pub(crate) fn instruction_successors<O: ControlFlowOperand, C: ControlFlowOpcode
     successors
 }
 
+/// The basic-block index containing each instruction in a flat listing.
+pub(crate) fn instruction_blocks<O: ControlFlowOperand, C: ControlFlowOpcode>(
+    instructions: &[&Instruction<O, C>],
+) -> Vec<usize> {
+    let mut blocks = Vec::with_capacity(instructions.len());
+    let mut block = 0;
+    for (index, instruction) in instructions.iter().enumerate() {
+        if index > 0
+            && (instruction.opcode.operation() == Operation::Label || instruction_ends_block(instructions[index - 1]))
+        {
+            block += 1;
+        }
+        blocks.push(block);
+    }
+    blocks
+}
+
 impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
     pub(crate) fn from_instructions(instructions: Vec<Instruction<O, C>>) -> Result<Self, String> {
         let cold_labels = collect_cold_labels(&instructions)?;
