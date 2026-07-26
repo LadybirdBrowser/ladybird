@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
+#include <AK/QuickSort.h>
 #include <AK/Random.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
@@ -20,23 +22,45 @@
 
 namespace WebView {
 
+struct FileDownloader::Segment {
+    u64 start_offset { 0 };
+    u64 end_offset { NumericLimits<u64>::max() };
+    u64 next_offset { 0 };
+
+    RefPtr<Requests::Request> request;
+
+    bool is_complete() const { return next_offset > end_offset; }
+    u64 downloaded_size() const { return next_offset - start_offset; }
+    u64 remaining_size() const
+    {
+        if (is_complete())
+            return 0;
+
+        // An unbounded segment has all the bytes in the world left, and must not be allowed to wrap around to none.
+        if (end_offset == NumericLimits<u64>::max())
+            return NumericLimits<u64>::max();
+
+        return end_offset - next_offset + 1;
+    }
+};
+
 struct FileDownloader::ActiveDownload {
     ActiveDownload(NonnullOwnPtr<Core::File> file, LexicalPath temporary_destination)
         : file(move(file))
         , temporary_destination(move(temporary_destination))
     {
+        segments.empend();
     }
 
-    ActiveDownload(NonnullRefPtr<Requests::Request> request, NonnullOwnPtr<Core::File> file, LexicalPath temporary_destination)
-        : request(move(request))
-        , file(move(file))
-        , temporary_destination(move(temporary_destination))
-    {
-    }
-
-    RefPtr<Requests::Request> request;
+    Vector<Segment> segments;
     Function<void()> on_cancel;
     OwnPtr<Core::File> file;
+    RefPtr<Core::Timer> stall_timer;
+
+    // Segments share one file descriptor, so we track where it is currently positioned to avoid seeking when the
+    // same segment writes twice in a row (which is every write for an unsegmented download).
+    u64 file_offset { 0 };
+
     LexicalPath temporary_destination;
     Core::ElapsedTimer progress_update_timer;
     bool stopped { false };
@@ -111,7 +135,7 @@ void FileDownloader::start_download_request(u64 download_id, URL::URL const& url
         return;
     }
 
-    attach_request_to_download(download_id, request.release_nonnull());
+    attach_request_to_download(download_id, 0, request.release_nonnull());
 }
 
 void FileDownloader::follow_download_redirect(u64 download_id, HTTP::HeaderList const& response_headers)
@@ -139,10 +163,7 @@ void FileDownloader::follow_download_redirect(u64 download_id, HTTP::HeaderList 
         return;
     }
 
-    if (active->request) {
-        active->request->stop();
-        active->request = nullptr;
-    }
+    stop_segment_request(*active, 0);
 
     start_download_request(download_id, redirect_url.release_value());
 }
@@ -167,17 +188,22 @@ u64 FileDownloader::adopt_download(IsPrivate is_private, URL::URL const& url, Le
         return download_id;
     }
 
-    attach_request_to_download(download_id, request.release_nonnull());
+    attach_request_to_download(download_id, 0, request.release_nonnull());
     return download_id;
 }
 
-void FileDownloader::attach_request_to_download(u64 download_id, NonnullRefPtr<Requests::Request> request)
+void FileDownloader::attach_request_to_download(u64 download_id, size_t segment_index, NonnullRefPtr<Requests::Request> request)
 {
     auto* active = active_download(download_id);
-    if (!active)
+    if (!active || segment_index >= active->segments.size())
         return;
 
-    active->request = request;
+    auto& segment = active->segments[segment_index];
+    auto request_generation = ++active->last_request_generation;
+    segment.request_generation = request_generation;
+    segment.request = request;
+    segment.response_validated = false;
+    segment.last_activity = MonotonicTime::now();
 
     request->set_unbuffered_request_callbacks(
         [this, download_id](NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CameFromCache) {
@@ -206,8 +232,8 @@ void FileDownloader::attach_request_to_download(u64 download_id, NonnullRefPtr<R
 
             notify_download_updated(*download);
         },
-        [this, download_id](Requests::ResponseData data) {
-            append_download_data(download_id, data.bytes());
+        [this, download_id, segment_index, request_generation](Requests::ResponseData data) {
+            append_segment_data(download_id, segment_index, data.bytes(), request_generation);
         },
         [](Core::ImmutableBytes) {
         },
@@ -241,7 +267,7 @@ u64 FileDownloader::start_download(IsPrivate is_private, URL::URL const& url, Le
     notify_download_added(download);
 
     auto temporary_destination = temporary_destination_for(download.destination, download_id);
-    auto file_or_error = Core::File::open(temporary_destination.string(), Core::File::OpenMode::Write | Core::File::OpenMode::MustBeNew);
+    auto file_or_error = Core::File::open(temporary_destination.string(), Core::File::OpenMode::ReadWrite | Core::File::OpenMode::MustBeNew);
     if (file_or_error.is_error()) {
         fail_download(download_id, MUST(String::formatted("Unable to save downloaded file: {}", file_or_error.error())));
         return download_id;
@@ -265,6 +291,11 @@ bool FileDownloader::has_active_downloads() const
 
 void FileDownloader::append_download_data(u64 id, ReadonlyBytes bytes)
 {
+    append_segment_data(id, 0, bytes);
+}
+
+void FileDownloader::append_segment_data(u64 id, size_t segment_index, ReadonlyBytes bytes, Optional<u64> request_generation)
+{
     constexpr i64 progress_update_interval_ms = 100;
 
     auto* download = mutable_download_or_null(id);
@@ -272,20 +303,73 @@ void FileDownloader::append_download_data(u64 id, ReadonlyBytes bytes)
         return;
 
     auto* active = active_download(id);
-    if (!active || active->stopped)
+    if (!active || active->stopped || segment_index >= active->segments.size())
         return;
 
-    if (auto result = active->file->write_until_depleted(bytes); result.is_error()) {
+    auto& segment = active->segments[segment_index];
+    if (request_generation.has_value() && segment.request_generation != *request_generation)
+        return;
+
+    segment.last_activity = MonotonicTime::now();
+    segment.stall_restart_count = 0;
+
+    if (bytes.size() > segment.remaining_size())
+        bytes = bytes.trim(segment.remaining_size());
+    if (bytes.is_empty())
+        return;
+
+    if (auto result = write_segment_data(*active, segment, bytes); result.is_error()) {
         fail_download(id, MUST(String::formatted("Unable to save downloaded file: {}", result.error())));
         return;
     }
 
-    download->downloaded_size += bytes.size();
+    recompute_downloaded_size(*download, *active);
+
     if (active->progress_update_timer.is_valid() && active->progress_update_timer.elapsed_milliseconds() < progress_update_interval_ms)
         return;
 
     active->progress_update_timer.start();
     notify_download_updated(*download);
+}
+
+ErrorOr<void> FileDownloader::write_segment_data(ActiveDownload& active, Segment& segment, ReadonlyBytes bytes)
+{
+    VERIFY(active.file);
+
+    if (active.file_offset != segment.next_offset) {
+        TRY(active.file->seek(static_cast<i64>(segment.next_offset), SeekMode::SetPosition));
+        active.file_offset = segment.next_offset;
+    }
+
+    TRY(active.file->write_until_depleted(bytes));
+
+    segment.next_offset += bytes.size();
+    active.file_offset += bytes.size();
+
+    return {};
+}
+
+void FileDownloader::recompute_downloaded_size(Download& download, ActiveDownload const& active)
+{
+    u64 downloaded_size = 0;
+    for (auto const& segment : active.segments)
+        downloaded_size += segment.downloaded_size();
+
+    download.downloaded_size = downloaded_size;
+}
+
+void FileDownloader::stop_segment_request(ActiveDownload& active, size_t segment_index)
+{
+    if (segment_index >= active.segments.size())
+        return;
+
+    auto& segment = active.segments[segment_index];
+    if (!segment.request)
+        return;
+
+    segment.request->stop();
+    segment.request = nullptr;
+    ++segment.request_generation;
 }
 
 void FileDownloader::finish_download(u64 id)
@@ -355,8 +439,8 @@ void FileDownloader::discard_active_download(u64 id)
         return;
 
     active->stopped = true;
-    if (active->request)
-        active->request->stop();
+    for (size_t segment_index = 0; segment_index < active->segments.size(); ++segment_index)
+        stop_segment_request(*active, segment_index);
     if (active->on_cancel)
         active->on_cancel();
 
