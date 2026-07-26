@@ -9,16 +9,16 @@
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct SourceLocation {
-    pub(crate) offset: usize,
-    pub(crate) line: usize,
-    pub(crate) column: usize,
+pub struct SourceLocation {
+    pub offset: usize,
+    pub line: usize,
+    pub column: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SourceSpan {
-    pub(crate) start: SourceLocation,
-    pub(crate) end: SourceLocation,
+    pub start: SourceLocation,
+    pub end: SourceLocation,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

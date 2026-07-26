@@ -25,7 +25,7 @@ pub(crate) mod types;
 
 use crate::hash::HashMap;
 use bytecode::HandlerLayout as BytecodeHandlerLayout;
-use frontend::diagnostic::{Diagnostic, SourceLocation};
+use frontend::diagnostic::Diagnostic;
 use frontend::layout::{LayoutConstants, LayoutDatabase, LayoutError};
 use identity::HandlerId;
 use std::error::Error;
@@ -33,9 +33,12 @@ use std::fmt;
 use target::emitter::DISPATCH_TABLE_SIZE;
 use types::BlockTemperature;
 
-pub use frontend::diagnostic::SourceSpan;
+pub use frontend::diagnostic::{SourceLocation, SourceSpan};
 pub use low_ir::Program as LowProgram;
-pub use ssa::report::OptimizationReport;
+pub use ssa::report::{
+    FixedPointOptimizationReport, FunctionOptimizationReport, OptimizationRecord, OptimizationRemark,
+    OptimizationRemarkKind, OptimizationReport, PassRunReport,
+};
 pub use target::ir::{AllocatedProgram, MachineProgram, Program as TargetProgram};
 
 /// A machine architecture supported by Flap's textual assembly backends.
@@ -558,6 +561,19 @@ const CANON_NAN_BITS = 0x7FF8000000000000
         assert_eq!(report.pipeline, "aot-prepare");
         assert_eq!(report.functions.len(), 1);
         assert_eq!(report.functions[0].function, "Nop");
+        assert!(report.functions[0].records.iter().any(|record| {
+            matches!(
+                record,
+                OptimizationRecord::Pass(pass) if pass.name == "sparse-conditional-constant-propagation"
+            )
+        }));
+        assert!(report.functions[0].records.iter().any(|record| {
+            matches!(
+                record,
+                OptimizationRecord::FixedPoint(fixed_point)
+                    if fixed_point.name == "block-parameter-cleanup" && fixed_point.converged
+            )
+        }));
         let report = report.to_string();
         assert!(report.contains("pass sparse-conditional-constant-propagation"));
         assert!(report.contains("fixed-point block-parameter-cleanup: iterations=1/2 converged"));
