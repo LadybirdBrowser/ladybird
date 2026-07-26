@@ -8,7 +8,6 @@
 
 use super::analysis::{ControlFlowGraph, DominatorTree, InstructionLayout};
 use super::{AggregateOperation, BlockId, Effects, Function, InstructionId, Intrinsic, MemoryEffect, OperandOperation, Operation, Terminator, ValueDefinition, ValueId};
-use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum EffectDomain {
@@ -24,10 +23,62 @@ pub(crate) enum EffectDefinition {
     Terminator(BlockId),
 }
 
+/// A set of effect definitions.
+///
+/// These are built and copied once per effectful instruction per domain, and
+/// the analysis is recomputed after every pass that changes anything, so the
+/// set is held as a sorted vector: copying one is a single allocation rather
+/// than a tree walk, and nearly all of them hold a single definition.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct EffectSet(Vec<EffectDefinition>);
+
+impl EffectSet {
+    pub(crate) fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub(crate) fn from_one(definition: EffectDefinition) -> Self {
+        Self(vec![definition])
+    }
+
+    pub(crate) fn insert(&mut self, definition: EffectDefinition) {
+        if let Err(position) = self.0.binary_search(&definition) {
+            self.0.insert(position, definition);
+        }
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &EffectDefinition> {
+        self.0.iter()
+    }
+}
+
+impl FromIterator<EffectDefinition> for EffectSet {
+    fn from_iter<I: IntoIterator<Item = EffectDefinition>>(definitions: I) -> Self {
+        let mut set = Self(definitions.into_iter().collect());
+        set.0.sort_unstable();
+        set.0.dedup();
+        set
+    }
+}
+
+impl<const N: usize> From<[EffectDefinition; N]> for EffectSet {
+    fn from(definitions: [EffectDefinition; N]) -> Self {
+        Self::from_iter(definitions)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EffectAccess {
     pub(crate) effect: MemoryEffect,
-    pub(crate) dependencies: BTreeSet<EffectDefinition>,
+    pub(crate) dependencies: EffectSet,
     pub(crate) definition: Option<EffectDefinition>,
 }
 
@@ -336,8 +387,8 @@ fn constant_integer(function: &Function, value: ValueId) -> Option<i64> {
 pub(crate) struct DomainDependencies {
     instruction_accesses: Vec<Option<EffectAccess>>,
     #[cfg(test)]
-    phi_inputs: Vec<Option<BTreeSet<EffectDefinition>>>,
-    block_inputs: Vec<BTreeSet<EffectDefinition>>,
+    phi_inputs: Vec<Option<EffectSet>>,
+    block_inputs: Vec<EffectSet>,
 }
 
 impl DomainDependencies {
@@ -372,7 +423,7 @@ impl DomainDependencies {
                     definition,
                 });
                 if let Some(definition) = definition {
-                    dependencies = BTreeSet::from([definition]);
+                    dependencies = EffectSet::from_one(definition);
                 }
             }
 
@@ -388,7 +439,7 @@ impl DomainDependencies {
             block_outputs[block_index] = if let Some(access) = &terminator_accesses[block_index]
                 && let Some(definition) = access.definition
             {
-                BTreeSet::from([definition])
+                EffectSet::from_one(definition)
             } else {
                 dependencies
             };
@@ -407,11 +458,11 @@ impl DomainDependencies {
     }
 
     #[cfg(test)]
-    pub(crate) fn phi_inputs(&self, block: BlockId) -> Option<&BTreeSet<EffectDefinition>> {
+    pub(crate) fn phi_inputs(&self, block: BlockId) -> Option<&EffectSet> {
         self.phi_inputs[block.0].as_ref()
     }
 
-    pub(crate) fn block_input(&self, block: BlockId) -> &BTreeSet<EffectDefinition> {
+    pub(crate) fn block_input(&self, block: BlockId) -> &EffectSet {
         &self.block_inputs[block.0]
     }
 
@@ -422,7 +473,7 @@ fn compute_domain_block_states(
     cfg: &ControlFlowGraph,
     domain: EffectDomain,
     phi_blocks: &[bool],
-) -> (Vec<BTreeSet<EffectDefinition>>, Vec<BTreeSet<EffectDefinition>>) {
+) -> (Vec<EffectSet>, Vec<EffectSet>) {
     // What a block leaves behind, when the block writes at all, is its own
     // last write and nothing that reached it. That does not depend on the
     // analysis, so it is found once rather than rediscovered by walking every
@@ -444,10 +495,10 @@ fn compute_domain_block_states(
         })
         .collect::<Vec<_>>();
 
-    let mut inputs = vec![BTreeSet::new(); function.blocks.len()];
+    let mut inputs = vec![EffectSet::new(); function.blocks.len()];
     let mut outputs = block_writes
         .iter()
-        .map(|write| write.map(|definition| BTreeSet::from([definition])).unwrap_or_default())
+        .map(|write| write.map(EffectSet::from_one).unwrap_or_default())
         .collect::<Vec<_>>();
 
     // A block's input comes from its predecessors, so visiting predecessors
@@ -462,9 +513,9 @@ fn compute_domain_block_states(
         for id in order.iter().copied() {
             let block_index = id.0;
             let mut input = if id == function.entry || cfg.predecessors(id).is_empty() {
-                BTreeSet::from([EffectDefinition::Entry])
+                EffectSet::from_one(EffectDefinition::Entry)
             } else if phi_blocks.get(block_index) == Some(&true) {
-                BTreeSet::from([EffectDefinition::Phi(id)])
+                EffectSet::from_one(EffectDefinition::Phi(id))
             } else {
                 cfg.predecessors(id)
                     .iter()
@@ -569,15 +620,15 @@ mod tests {
 
         assert_eq!(
             memory.instruction_access(load).unwrap().dependencies,
-            BTreeSet::from([EffectDefinition::Phi(header)])
+            EffectSet::from([EffectDefinition::Phi(header)])
         );
         assert_eq!(
             memory.instruction_access(store).unwrap().dependencies,
-            BTreeSet::from([EffectDefinition::Phi(header)])
+            EffectSet::from([EffectDefinition::Phi(header)])
         );
         assert_eq!(
             memory.phi_inputs(header).unwrap(),
-            &BTreeSet::from([EffectDefinition::Entry, EffectDefinition::Instruction(store)])
+            &EffectSet::from([EffectDefinition::Entry, EffectDefinition::Instruction(store)])
         );
     }
 

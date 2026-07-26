@@ -7,7 +7,7 @@
 //! Target-independent SSA optimizations.
 
 use super::analysis::{ControlFlowGraph, reachable_blocks};
-use super::effects::{EffectDefinition, EffectDomain};
+use super::effects::{EffectDomain, EffectSet};
 use super::pass::{AnalysisManager, FunctionPass, PassManagerOptions, PassRunner};
 use super::report::FunctionOptimizationReport;
 use super::{BlockId, BlockLayout, Edge, Effects, Function, Instruction, InstructionId, Intrinsic, OperandOperation, Operation, Terminator, ValueDefinition, ValueId, ValueOperation};
@@ -19,7 +19,7 @@ use crate::types::Type;
 use crate::{CompileError, CompileStage};
 #[cfg(test)]
 use crate::identity::ExternalSymbol;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 pub(crate) fn resolve_constants(function: &mut Function, constants: &LayoutConstants) {
     let values = function
@@ -132,8 +132,8 @@ struct Expression {
     inputs: Vec<ValueId>,
     result_types: Vec<Type>,
     effects: Effects,
-    memory_dependencies: BTreeSet<EffectDefinition>,
-    machine_state_dependencies: BTreeSet<EffectDefinition>,
+    memory_dependencies: EffectSet,
+    machine_state_dependencies: EffectSet,
 }
 
 pub(crate) fn optimize_function(function: &mut Function) {
