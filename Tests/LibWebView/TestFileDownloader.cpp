@@ -51,13 +51,26 @@ enum class RangeSupport {
     No,
 };
 
-// A minimal HTTP server, run on its own thread so that a blocking write can never wedge the event loop the download
-// itself is running on.
+enum class RateLimit {
+    None,
+
+    // Answer every range request with a 429, the way a server that does not want four connections from one client
+    // would.
+    RejectRangeRequests,
+};
+
+enum class StallBehavior {
+    None,
+    StallFirstRangeRequest,
+    TrickleFirstRangeRequest,
+};
+
 class TestHttpServer {
 public:
-    TestHttpServer(ByteBuffer body, RangeSupport range_support)
+    TestHttpServer(ByteBuffer body, RangeSupport range_support, RateLimit rate_limit = RateLimit::None)
         : m_body(move(body))
         , m_range_support(range_support)
+        , m_rate_limit(rate_limit)
     {
         m_socket = MUST(Core::System::socket(AF_INET, SOCK_STREAM, 0));
 
@@ -105,6 +118,12 @@ public:
     {
         Sync::MutexLocker locker { m_mutex };
         return m_request_count;
+    }
+
+    size_t rate_limited_count()
+    {
+        Sync::MutexLocker locker { m_mutex };
+        return m_rate_limited_count;
     }
 
 private:
@@ -159,6 +178,22 @@ private:
             ++m_request_count;
             if (range_header.has_value())
                 m_range_requests.append(*range_header);
+        }
+
+        if (range_header.has_value() && m_rate_limit == RateLimit::RejectRangeRequests) {
+            {
+                Sync::MutexLocker locker { m_mutex };
+                ++m_rate_limited_count;
+            }
+
+            StringBuilder rejection;
+            rejection.append("HTTP/1.1 429 Too Many Requests\r\n"sv);
+            rejection.append("Retry-After: 1\r\n"sv);
+            rejection.append("Content-Length: 0\r\n"sv);
+            rejection.append("Connection: close\r\n\r\n"sv);
+
+            (void)write_all(client, rejection.string_view().bytes());
+            return true;
         }
 
         size_t start = 0;
@@ -245,6 +280,7 @@ private:
 
     ByteBuffer m_body;
     RangeSupport m_range_support;
+    RateLimit m_rate_limit { RateLimit::None };
     int m_socket { -1 };
     u16 m_port { 0 };
     RefPtr<Threading::Thread> m_thread;
@@ -256,6 +292,7 @@ private:
     Sync::Mutex m_mutex;
     Vector<ByteString> m_range_requests;
     size_t m_request_count { 0 };
+    size_t m_rate_limited_count { 0 };
 };
 
 class DownloadWatcher final : public WebView::FileDownloaderObserver {
@@ -454,6 +491,18 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         // Six minimum, but redistribution may add more depending on how the serial server interleaves with response validation.
         VERIFY(server.request_count() >= 6);
         VERIFY(server.range_requests().size() == server.request_count() - 1);
+    }
+
+    {
+        TestHttpServer server { body, RangeSupport::Yes, RateLimit::RejectRangeRequests };
+
+        auto path = run_download(server, test_directory, "rate-limited.bin"sv);
+        expect_file_matches(path, body.bytes());
+
+        outln("rate limited: {} requests, {} of them refused", server.request_count(), server.rate_limited_count());
+        VERIFY(server.rate_limited_count() >= 1);
+
+        VERIFY(server.request_count() <= 8);
     }
 
     outln("PASS");
