@@ -1623,25 +1623,73 @@ fn defining_instruction(
 pub(crate) struct FunctionUses<'a> {
     function: &'a Function,
     counts: Vec<u32>,
+    user_offsets: Vec<u32>,
+    users: Vec<ValueUser>,
+}
+
+/// One place a value is read.
+#[derive(Clone, Copy)]
+enum ValueUser {
+    Instruction(InstructionId),
+    Terminator(BlockId),
 }
 
 impl<'a> FunctionUses<'a> {
     fn new(function: &'a Function) -> Self {
         let mut counts = vec![0u32; function.values.len()];
-        let inputs = function
-            .instructions
-            .iter()
-            .flat_map(|instruction| instruction.inputs.iter().copied())
-            .chain(
-                function
-                    .blocks
-                    .iter()
-                    .flat_map(|block| block.terminator.as_ref().into_iter().flat_map(Terminator::inputs)),
-            );
-        for input in inputs {
-            counts[input.0] += 1;
+        let mut terminator_inputs = Vec::new();
+        for instruction in &function.instructions {
+            for input in &instruction.inputs {
+                counts[input.0] += 1;
+            }
         }
-        Self { function, counts }
+        for block in &function.blocks {
+            let Some(terminator) = block.terminator.as_ref() else {
+                continue;
+            };
+            for input in terminator.inputs() {
+                counts[input.0] += 1;
+            }
+        }
+        // The users of each value live in one flat array, indexed by a per-value
+        // offset. Asking who reads a value is the question the narrowing
+        // analysis asks about nearly every result it lowers.
+        let mut user_offsets = Vec::with_capacity(counts.len() + 1);
+        let mut total = 0;
+        for count in &counts {
+            user_offsets.push(total);
+            total += count;
+        }
+        user_offsets.push(total);
+        let mut filled = user_offsets.clone();
+        let mut users = vec![ValueUser::Instruction(InstructionId(0)); total as usize];
+        for (index, instruction) in function.instructions.iter().enumerate() {
+            for input in &instruction.inputs {
+                users[filled[input.0] as usize] = ValueUser::Instruction(InstructionId(index));
+                filled[input.0] += 1;
+            }
+        }
+        for (index, block) in function.blocks.iter().enumerate() {
+            let Some(terminator) = block.terminator.as_ref() else {
+                continue;
+            };
+            terminator_inputs.clear();
+            terminator_inputs.extend(terminator.inputs());
+            for input in &terminator_inputs {
+                users[filled[input.0] as usize] = ValueUser::Terminator(BlockId(index));
+                filled[input.0] += 1;
+            }
+        }
+        Self {
+            function,
+            counts,
+            user_offsets,
+            users,
+        }
+    }
+
+    fn users_of(&self, value: ValueId) -> &[ValueUser] {
+        &self.users[self.user_offsets[value.0] as usize..self.user_offsets[value.0 + 1] as usize]
     }
 }
 
@@ -2702,7 +2750,7 @@ fn narrow_wide_result_to_i32(
     emit!(output; MachineOperation::Move(IntegerWidth::U32) => [destination.clone(), destination.clone()];);
 }
 
-fn integer_result_can_stay_narrow(function: &Function, result: ValueId) -> bool {
+fn integer_result_can_stay_narrow(function: &FunctionUses<'_>, result: ValueId) -> bool {
     match function.values[result.0].ty {
         Type::U32 => true,
         Type::I32 => i32_consumers_stay_narrow(function, result, &mut HashSet::new()),
@@ -2711,47 +2759,48 @@ fn integer_result_can_stay_narrow(function: &Function, result: ValueId) -> bool 
 }
 
 fn i32_consumers_stay_narrow(
-    function: &Function,
+    function: &FunctionUses<'_>,
     value: ValueId,
     visiting: &mut HashSet<ValueId>,
 ) -> bool {
     if !visiting.insert(value) {
         return false;
     }
-    for block in &function.blocks {
-        let terminator = block.terminator.as_ref().unwrap();
-        if !terminator.inputs().contains(&value) {
-            continue;
-        }
-        let Terminator::CheckedOperation {
-            operation,
-            inputs,
-            success,
-            failure,
-            ..
-        } = terminator
-        else {
-            return false;
-        };
-        let uses_narrow_inputs = match operation {
-            Operation::Intrinsic(Intrinsic::Branch(operation)) => branch_uses_narrow_inputs(function, *operation, inputs),
-            Operation::Intrinsic(Intrinsic::CheckedInteger(operation)) => checked_i32_operation_uses_narrow_inputs(function, *operation, inputs),
-            _ => false,
-        };
-        if !inputs.contains(&value)
-            || success.arguments.contains(&value)
-            || failure.arguments.contains(&value)
-            || !uses_narrow_inputs
-        {
-            return false;
-        }
-    }
-
     let mut found_use = false;
-    for instruction in &function.instructions {
-        if !instruction.inputs.contains(&value) {
-            continue;
-        }
+    for user in function.users_of(value) {
+        let instruction = match user {
+            ValueUser::Terminator(block) => {
+                let terminator = function.blocks[block.0].terminator.as_ref().unwrap();
+                let Terminator::CheckedOperation {
+                    operation,
+                    inputs,
+                    success,
+                    failure,
+                    ..
+                } = terminator
+                else {
+                    return false;
+                };
+                let uses_narrow_inputs = match operation {
+                    Operation::Intrinsic(Intrinsic::Branch(operation)) => {
+                        branch_uses_narrow_inputs(function, *operation, inputs)
+                    }
+                    Operation::Intrinsic(Intrinsic::CheckedInteger(operation)) => {
+                        checked_i32_operation_uses_narrow_inputs(function, *operation, inputs)
+                    }
+                    _ => false,
+                };
+                if !inputs.contains(&value)
+                    || success.arguments.contains(&value)
+                    || failure.arguments.contains(&value)
+                    || !uses_narrow_inputs
+                {
+                    return false;
+                }
+                continue;
+            }
+            ValueUser::Instruction(instruction) => &function.instructions[instruction.0],
+        };
         found_use = true;
         match &instruction.operation {
             Operation::InlineCall(_) => return false,
