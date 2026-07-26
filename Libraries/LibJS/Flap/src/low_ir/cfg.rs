@@ -123,10 +123,8 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
         instructions: Vec<Instruction<O, C>>,
     ) -> Result<Self, String> {
         let cold_labels = collect_cold_labels(&instructions)?;
-        let instructions: Vec<_> = instructions
-            .into_iter()
-            .filter(|instruction| instruction.opcode.operation() != Operation::Cold)
-            .collect();
+        let mut instructions = instructions;
+        instructions.retain(|instruction| instruction.opcode.operation() != Operation::Cold);
         if instructions.is_empty() {
             return Ok(Self { blocks: Vec::new() });
         }
@@ -166,7 +164,6 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
         // Split the listing back to front so each block takes ownership of its
         // own instructions. Copying them into the blocks instead would clone an
         // operand vector per instruction, and a large function has thousands.
-        let mut instructions = instructions;
         let mut blocks = Vec::with_capacity(block_starts.len());
         for &start in block_starts.iter().rev() {
             blocks.push(BasicBlock {
