@@ -25,9 +25,34 @@ pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bo
     // list means rescanning every load seen so far for every load reached,
     // which on a large function is the whole cost of the pass.
     let mut available_loads = HashMap::<LocationKey, Vec<(InstructionId, MemoryLocation, ValueId)>>::default();
+    let mut availability_undo = Vec::<LocationKey>::new();
     let mut load_candidates = 0u64;
 
-    for block in analysis.cfg.reverse_postorder() {
+    enum AvailabilityStep {
+        Enter(super::BlockId),
+        Leave(usize),
+    }
+    let mut worklist = vec![AvailabilityStep::Enter(function.entry)];
+    while let Some(step) = worklist.pop() {
+        let block = match step {
+            AvailabilityStep::Leave(mark) => {
+                while availability_undo.len() > mark {
+                    let key = availability_undo
+                        .pop()
+                        .expect("availability undo log is not empty above its mark");
+                    let loads = available_loads
+                        .get_mut(&key)
+                        .expect("an available load exists until its dominator subtree is left");
+                    loads.pop();
+                    if loads.is_empty() {
+                        available_loads.remove(&key);
+                    }
+                }
+                continue;
+            }
+            AvailabilityStep::Enter(block) => block,
+        };
+        worklist.push(AvailabilityStep::Leave(availability_undo.len()));
         for instruction_id in &function.blocks[block.0].instructions {
             let access = instruction_memory_locations(function, *instruction_id);
             let Some(location) = simple_load(function, *instruction_id, &access) else {
@@ -82,10 +107,14 @@ pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bo
                 eliminated.insert(*instruction_id);
             } else {
                 available_loads
-                    .entry(key)
+                    .entry(key.clone())
                     .or_default()
                     .push((*instruction_id, location.clone(), result));
+                availability_undo.push(key);
             }
+        }
+        for child in analysis.dominators.children(block).iter().rev() {
+            worklist.push(AvailabilityStep::Enter(*child));
         }
     }
 
