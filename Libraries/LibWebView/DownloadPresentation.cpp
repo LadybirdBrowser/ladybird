@@ -78,6 +78,8 @@ String download_status_text(FileDownloader::Download const& download)
 
     switch (download.status) {
     case DownloadStatus::InProgress:
+        if (download.is_waiting_to_retry)
+            return MUST(String::formatted("Waiting to retry - {}", downloaded_size_text()));
         return downloaded_size_text();
     case DownloadStatus::Paused:
         if (download.error.has_value() && !download.error->is_empty())

@@ -100,6 +100,27 @@ DownloadRangeSupport evaluate_range_support(HTTP::HeaderList const& response_hea
     return support;
 }
 
+bool response_is_rate_limited(Optional<u32> response_code)
+{
+    if (!response_code.has_value())
+        return false;
+
+    return *response_code == 429 || *response_code == 503;
+}
+
+Optional<AK::Duration> parse_retry_after(HTTP::HeaderList const& response_headers)
+{
+    auto retry_after = response_headers.get("Retry-After"sv);
+    if (!retry_after.has_value())
+        return {};
+
+    auto seconds = retry_after->view().trim_whitespace().to_number<u32>();
+    if (!seconds.has_value())
+        return {};
+
+    return AK::Duration::from_seconds(*seconds);
+}
+
 Vector<DownloadSegmentRange> plan_download_segments(u64 total_size, u64 first_segment_next_offset, DownloadSegmentationParameters const& parameters)
 {
     if (parameters.maximum_connections < 2 || parameters.minimum_segment_size == 0)

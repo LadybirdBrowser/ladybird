@@ -46,6 +46,7 @@ static JsonObject serialize_download(FileDownloader::Download const& download)
     serialized.set("error"sv, download.error.value_or(String {}));
     serialized.set("canResume"sv, download.can_resume);
     serialized.set("connectionCount"sv, download.connection_count);
+    serialized.set("isWaitingToRetry"sv, download.is_waiting_to_retry);
 
     JsonArray segments;
     for (auto const& segment : Application::the().file_downloader().segment_progress(download.id)) {

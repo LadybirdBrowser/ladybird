@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Time.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibHTTP/Forward.h>
@@ -35,6 +36,11 @@ struct WEBVIEW_API DownloadRangeSupport {
 };
 
 WEBVIEW_API DownloadRangeSupport evaluate_range_support(HTTP::HeaderList const&, Optional<u32> response_code, Requests::CameFromCache);
+
+WEBVIEW_API bool response_is_rate_limited(Optional<u32> response_code);
+
+// FIXME: Accept the HTTP-date form of Retry-After once we have a parser for it.
+WEBVIEW_API Optional<AK::Duration> parse_retry_after(HTTP::HeaderList const&);
 
 struct DownloadSegmentRange {
     u64 start_offset { 0 };

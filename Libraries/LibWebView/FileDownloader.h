@@ -16,6 +16,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/Span.h>
 #include <AK/String.h>
+#include <AK/Time.h>
 #include <LibHTTP/Forward.h>
 #include <LibRequests/CameFromCache.h>
 #include <LibRequests/Forward.h>
@@ -69,6 +70,9 @@ public:
 
         bool can_resume { false };
         u32 connection_count { 0 };
+
+        // Set while we are waiting out a server that told us we are asking for too much, too fast.
+        bool is_waiting_to_retry { false };
     };
 
     FileDownloader();
@@ -137,9 +141,10 @@ private:
 
     void maybe_split_download(u64 id);
     void start_segment_request(u64 id, size_t segment_index);
-    bool retry_segment_request(u64 id, size_t segment_index);
+    bool retry_segment_request(u64 id, size_t segment_index, AK::Duration delay = {});
+    void handle_rate_limited_segment(u64 id, size_t segment_index, HTTP::HeaderList const&);
     void abandon_segmentation(u64 id);
-    void restart_download_from_zero(u64 id);
+    void restart_download_from_zero(u64 id, String reason_if_exhausted);
     void maybe_finish_download(u64 id);
     void discard_active_download(u64 id);
 

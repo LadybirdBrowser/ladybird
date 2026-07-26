@@ -148,3 +148,29 @@ TEST_CASE(segments_are_not_planned_without_room_for_two_connections)
     parameters = { .maximum_connections = 4, .minimum_size_to_split = 8 * MiB, .minimum_segment_size = 0 };
     EXPECT(WebView::plan_download_segments(100 * MiB, 0, parameters).is_empty());
 }
+
+TEST_CASE(rate_limited_responses)
+{
+    EXPECT(WebView::response_is_rate_limited(429u));
+    EXPECT(WebView::response_is_rate_limited(503u));
+    EXPECT(!WebView::response_is_rate_limited(200u));
+    EXPECT(!WebView::response_is_rate_limited(500u));
+    EXPECT(!WebView::response_is_rate_limited({}));
+}
+
+TEST_CASE(retry_after)
+{
+    auto retry_after = [](Vector<HTTP::Header> header_list) {
+        return WebView::parse_retry_after(headers(move(header_list)));
+    };
+
+    EXPECT_EQ(retry_after({ { "Retry-After", "30" } }), AK::Duration::from_seconds(30));
+    EXPECT_EQ(retry_after({ { "Retry-After", "  30  " } }), AK::Duration::from_seconds(30));
+    EXPECT_EQ(retry_after({ { "Retry-After", "0" } }), AK::Duration::from_seconds(0));
+
+    EXPECT(!retry_after({}).has_value());
+    EXPECT(!retry_after({ { "Retry-After", "" } }).has_value());
+    EXPECT(!retry_after({ { "Retry-After", "-5" } }).has_value());
+
+    EXPECT(!retry_after({ { "Retry-After", "Wed, 21 Oct 2015 07:28:00 GMT" } }).has_value());
+}

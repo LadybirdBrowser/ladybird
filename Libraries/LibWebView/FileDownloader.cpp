@@ -14,7 +14,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
-#include <LibCore/System.h>
+#include <LibCore/Timer.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/Request.h>
@@ -36,9 +36,10 @@ struct FileDownloader::Segment {
     u64 next_offset { 0 };
 
     RefPtr<Requests::Request> request;
+    RefPtr<Core::Timer> retry_timer;
 
-    // Whether the request currently fetching this segment asked for a byte range. The very first request of a
-    // download does not, as we have no idea how large the file is until it answers us.
+    // Request generations are download-wide so restarts cannot reuse an old generation.
+    u64 request_generation { 0 };
     bool request_is_ranged { false };
     bool response_validated { false };
     u8 retry_count { 0 };
@@ -292,7 +293,12 @@ void FileDownloader::handle_segment_headers(u64 download_id, size_t segment_inde
 
     if (response_code.has_value() && *response_code >= 400) {
         if (is_ranged && *response_code == 416) {
-            restart_download_from_zero(download_id);
+            restart_download_from_zero(download_id, "The file on the server changed while it was being downloaded"_string);
+            return;
+        }
+
+        if (response_is_rate_limited(response_code)) {
+            handle_rate_limited_segment(download_id, segment_index, response_headers);
             return;
         }
 
@@ -302,6 +308,8 @@ void FileDownloader::handle_segment_headers(u64 download_id, size_t segment_inde
         fail_download(download_id, status_to_error_string({}, response_code, reason_phrase));
         return;
     }
+
+    download->is_waiting_to_retry = false;
 
     if (is_ranged) {
         if (validate_range_response(download_id, segment_index, response_headers, response_code)) {
@@ -512,9 +520,156 @@ void FileDownloader::start_segment_request(u64 download_id, size_t segment_index
     refresh_download_progress(*download, *active);
 }
 
-bool FileDownloader::retry_segment_request(u64 download_id, size_t segment_index)
+void FileDownloader::maybe_redistribute_segments(u64 download_id)
 {
-    static constexpr u8 maximum_segment_retries = 3;
+    static constexpr u64 minimum_size_to_steal = 2 * DownloadSegmentationParameters {}.minimum_segment_size;
+
+    auto* download = mutable_download_or_null(download_id);
+    auto* active = active_download(download_id);
+    if (!download || download->status != DownloadStatus::InProgress || !active || active->stopped)
+        return;
+    if (active->segmentation_abandoned || active->segments.size() < 2 || !active->can_issue_own_requests)
+        return;
+    if (!active->range_support.supports_ranges)
+        return;
+
+    size_t live_requests = 0;
+    for (auto const& segment : active->segments) {
+        if (segment.request && !segment.is_complete())
+            ++live_requests;
+    }
+    if (live_requests >= maximum_allowed_download_connections())
+        return;
+
+    Optional<size_t> donor_index;
+    u64 donor_remaining = 0;
+
+    for (size_t i = 0; i < active->segments.size(); ++i) {
+        auto const& segment = active->segments[i];
+        if (segment.is_complete() || segment.end_offset == NumericLimits<u64>::max())
+            continue;
+
+        // Do not shrink a segment while its current Content-Range is still unvalidated.
+        if (segment.request && !segment.response_validated)
+            continue;
+
+        if (segment.remaining_size() > donor_remaining) {
+            donor_remaining = segment.remaining_size();
+            donor_index = i;
+        }
+    }
+
+    if (!donor_index.has_value() || donor_remaining < minimum_size_to_steal)
+        return;
+
+    auto stolen_start = active->segments[*donor_index].next_offset + (donor_remaining - donor_remaining / 2);
+    auto stolen_end = active->segments[*donor_index].end_offset;
+    active->segments[*donor_index].end_offset = stolen_start - 1;
+
+    active->segments.empend();
+
+    auto& stolen = active->segments.last();
+    stolen.start_offset = stolen_start;
+    stolen.end_offset = stolen_end;
+    stolen.next_offset = stolen_start;
+
+    start_segment_request(download_id, active->segments.size() - 1);
+    persist_download_snapshot(download_id, PersistUrgency::Immediate);
+}
+
+void FileDownloader::start_stall_watchdog(u64 download_id)
+{
+    static constexpr int stall_check_interval_ms = 1000;
+
+    auto* active = active_download(download_id);
+    if (!active)
+        return;
+
+    if (!active->stall_timer) {
+        active->stall_timer = Core::Timer::create_repeating(stall_check_interval_ms, [this, download_id] {
+            check_for_stalled_segments(download_id);
+        });
+    }
+
+    active->stall_timer->start();
+}
+
+void FileDownloader::check_for_stalled_segments(u64 download_id)
+{
+    static constexpr auto stalled_connection_timeout = AK::Duration::from_seconds(5);
+    static constexpr u8 maximum_stall_restarts = 4;
+
+    auto* download = mutable_download_or_null(download_id);
+    auto* active = active_download(download_id);
+    if (!download || !active)
+        return;
+
+    if (download->status != DownloadStatus::InProgress || active->stopped || active->segments.size() <= 1) {
+        // Keep the timer alive when stopping from inside its callback.
+        active->stall_timer->stop();
+        return;
+    }
+
+    if (!Application::settings().config_variable_as_bool(ConfigVariableID::RestartStalledConnections))
+        return;
+
+    auto now = MonotonicTime::now();
+
+    for (size_t segment_index = 0; segment_index < active->segments.size(); ++segment_index) {
+        auto& segment = active->segments[segment_index];
+
+        if (segment.is_complete() || !segment.request)
+            continue;
+        if (now - segment.last_activity < stalled_connection_timeout)
+            continue;
+
+        if (segment.stall_restart_count >= maximum_stall_restarts) {
+            fail_or_pause_download(download_id, "The download stalled and could not be revived"_string);
+            return;
+        }
+
+        restart_stalled_segment(download_id, segment_index);
+
+        download = mutable_download_or_null(download_id);
+        active = active_download(download_id);
+        if (!download || download->status != DownloadStatus::InProgress || !active)
+            return;
+    }
+}
+
+void FileDownloader::restart_stalled_segment(u64 download_id, size_t segment_index)
+{
+    auto* active = active_download(download_id);
+    if (!active || segment_index >= active->segments.size())
+        return;
+
+    auto& segment = active->segments[segment_index];
+
+    auto delay_seconds = segment.stall_restart_count == 0 ? 0 : 1 << (segment.stall_restart_count - 1);
+    ++segment.stall_restart_count;
+
+    stop_segment_request(*active, segment_index);
+    segment.last_activity = MonotonicTime::now();
+
+    if (delay_seconds == 0) {
+        start_segment_request(download_id, segment_index);
+        return;
+    }
+
+    segment.retry_timer = Core::Timer::create_single_shot(delay_seconds * 1000, [this, download_id, segment_index] {
+        auto* active = active_download(download_id);
+        if (!active || active->stopped || segment_index >= active->segments.size())
+            return;
+
+        active->segments[segment_index].retry_timer = nullptr;
+        start_segment_request(download_id, segment_index);
+    });
+    segment.retry_timer->start();
+}
+
+bool FileDownloader::retry_segment_request(u64 download_id, size_t segment_index, AK::Duration delay)
+{
+    static constexpr u8 maximum_segment_retries = 5;
 
     auto* active = active_download(download_id);
     if (!active || segment_index >= active->segments.size())
@@ -527,9 +682,66 @@ bool FileDownloader::retry_segment_request(u64 download_id, size_t segment_index
         return false;
 
     stop_segment_request(*active, segment_index);
-    start_segment_request(download_id, segment_index);
+
+    auto is_initial_request = segment_index == 0 && !segment.request_is_ranged;
+
+    if (delay.is_zero()) {
+        if (is_initial_request)
+            start_download_request(download_id, active->effective_url);
+        else
+            start_segment_request(download_id, segment_index);
+
+        return true;
+    }
+
+    segment.retry_timer = Core::Timer::create_single_shot(static_cast<int>(delay.to_milliseconds()), [this, download_id, segment_index, is_initial_request] {
+        auto* active = active_download(download_id);
+        if (!active || active->stopped || segment_index >= active->segments.size())
+            return;
+
+        active->segments[segment_index].retry_timer = nullptr;
+
+        if (is_initial_request)
+            start_download_request(download_id, active->effective_url);
+        else
+            start_segment_request(download_id, segment_index);
+    });
+    segment.retry_timer->start();
 
     return true;
+}
+
+void FileDownloader::handle_rate_limited_segment(u64 download_id, size_t segment_index, HTTP::HeaderList const& response_headers)
+{
+    static constexpr auto minimum_retry_delay = AK::Duration::from_seconds(1);
+    static constexpr auto maximum_retry_delay = AK::Duration::from_seconds(60);
+
+    auto* download = mutable_download_or_null(download_id);
+    auto* active = active_download(download_id);
+    if (!download || !active || segment_index >= active->segments.size())
+        return;
+
+    active->segmentation_abandoned = true;
+
+    if (active->segments.size() > 1) {
+        abandon_segmentation(download_id);
+        return;
+    }
+
+    auto delay = parse_retry_after(response_headers).value_or_lazy_evaluated([&] {
+        auto backoff = 1u << min(active->segments[segment_index].retry_count, static_cast<u8>(5));
+        return AK::Duration::from_seconds(minimum_retry_delay.to_seconds() * backoff);
+    });
+    delay = min(delay, maximum_retry_delay);
+
+    if (!retry_segment_request(download_id, segment_index, delay)) {
+        fail_download(download_id, "The server is refusing further requests for this file"_string);
+        return;
+    }
+
+    download->is_waiting_to_retry = true;
+    refresh_download_progress(*download, *active);
+    notify_download_updated(*download);
 }
 
 void FileDownloader::abandon_segmentation(u64 download_id)
@@ -559,12 +771,10 @@ void FileDownloader::abandon_segmentation(u64 download_id)
         return;
     }
 
-    // Otherwise the only data we can be sure of is the contiguous run at the start of the file, and we have no way to
-    // ask for the rest of it, so there is nothing to do but start over.
-    restart_download_from_zero(download_id);
+    restart_download_from_zero(download_id, "The server would not serve the rest of this file"_string);
 }
 
-void FileDownloader::restart_download_from_zero(u64 download_id)
+void FileDownloader::restart_download_from_zero(u64 download_id, String reason_if_exhausted)
 {
     static constexpr u8 maximum_download_restarts = 1;
 
@@ -574,7 +784,7 @@ void FileDownloader::restart_download_from_zero(u64 download_id)
         return;
 
     if (++active->restart_count > maximum_download_restarts) {
-        fail_download(download_id, "The file on the server changed while it was being downloaded"_string);
+        fail_download(download_id, move(reason_if_exhausted));
         return;
     }
 
@@ -584,15 +794,14 @@ void FileDownloader::restart_download_from_zero(u64 download_id)
     active->segments.clear();
     active->segments.empend();
     active->range_support = {};
-    active->segmentation_abandoned = false;
 
     download->can_resume = false;
     download->total_size = {};
     forget_persisted_download(download_id);
 
     if (active->file) {
-        // Truncating leaves the descriptor wherever it happened to be, so the next write has to seek rather than
-        // trust where it thinks it is.
+        // Truncating leaves the descriptor wherever it was, so the next write has to seek rather than trust where it
+        // thinks it is.
         active->file_offset = {};
 
         if (auto result = active->file->truncate(0); result.is_error()) {
@@ -723,7 +932,7 @@ ErrorOr<void> FileDownloader::write_segment_data(ActiveDownload& active, Segment
         active.file_offset = segment.next_offset;
     }
 
-    // If a write fails part way through we have no idea how much of it landed, so the position is only known again
+    // If the write fails part way through we have no idea how much of it landed, so the position is only known again
     // once it has succeeded outright.
     active.file_offset = {};
     TRY(active.file->write_until_depleted(bytes));
@@ -755,6 +964,8 @@ void FileDownloader::stop_segment_request(ActiveDownload& active, size_t segment
         return;
 
     auto& segment = active.segments[segment_index];
+    segment.retry_timer = nullptr;
+
     if (!segment.request)
         return;
 
@@ -850,7 +1061,7 @@ void FileDownloader::resume_download(u64 id)
     auto size_or_error = active->file->size();
     if (size_or_error.is_error() || size_or_error.value() < required_size) {
         download->status = DownloadStatus::InProgress;
-        restart_download_from_zero(id);
+        restart_download_from_zero(id, "The partially downloaded file is no longer usable"_string);
         return;
     }
 

@@ -275,6 +275,8 @@
                 if (download.status === "canceled") return "Partial file removed.";
                 if (download.status === "failed") return download.error || "The download failed.";
                 if (download.status === "paused" && download.error) return download.error;
+                if (download.status === "in-progress" && download.isWaitingToRetry)
+                    return "The server asked us to slow down - waiting to retry.";
                 if (download.status !== "completed" && download.totalSize > 0) {
                     const unit = unitForDownloadSize(download.totalSize);
                     const size = `${sizeFormatter.format(download.downloadedSize / unit.divisor)}/${sizeFormatter.format(download.totalSize / unit.divisor)} ${unit.suffix}`;
