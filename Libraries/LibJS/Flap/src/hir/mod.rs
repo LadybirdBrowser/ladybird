@@ -73,6 +73,7 @@ struct Checker<'a> {
     layouts: &'a HashMap<(Type, String), LayoutField>,
     aggregate_strides: &'a HashMap<Type, layout::LayoutValue>,
     bytecode_fields: HashSet<VariableId>,
+    known_null_pointers: HashSet<VariableId>,
     active_value_tags: Vec<(VariableId, VariableId)>,
 }
 
@@ -107,6 +108,7 @@ impl<'a> Checker<'a> {
             layouts,
             aggregate_strides,
             bytecode_fields: HashSet::default(),
+            known_null_pointers: HashSet::default(),
             active_value_tags: Vec::new(),
         }
     }
@@ -826,6 +828,7 @@ impl<'a> Checker<'a> {
                 format!("cannot assign {return_type} to '{name}' of type {}", symbol.ty),
             );
         }
+        self.update_known_null_pointer(symbol.id, initializer, &symbol.ty);
         self.statements
             .push(Statement::new(StatementKindIr::call([symbol.id], call), statement.span));
         Ok(())
@@ -1050,7 +1053,9 @@ impl<'a> Checker<'a> {
                     ),
                 );
             }
-            let id = self.declare(name, ty.clone().unwrap_or(return_type), None, statement.span)?;
+            let declared_type = ty.clone().unwrap_or(return_type);
+            let id = self.declare(name, declared_type.clone(), None, statement.span)?;
+            self.update_known_null_pointer(id, initializer, &declared_type);
             self.statements
                 .push(Statement::new(StatementKindIr::call([id], call), statement.span));
         } else {
@@ -1573,7 +1578,7 @@ impl<'a> Checker<'a> {
         if field.embedded {
             return self.error(span, format!("cannot assign embedded field '{}.{field_name}'", base.ty));
         }
-        if field.nonnull && matches!(&initializer.kind, ExpressionKind::Name(name) if name == "null") {
+        if field.nonnull && self.initializer_is_known_null_pointer(initializer, &field.ty) {
             return self.error(
                 initializer.span,
                 format!("cannot assign null to non-null field '{}.{field_name}'", base.ty),
@@ -1667,6 +1672,25 @@ impl<'a> Checker<'a> {
         ))
     }
 
+    fn update_known_null_pointer(&mut self, variable: VariableId, initializer: &ast::Expression, ty: &Type) {
+        if self.initializer_is_known_null_pointer(initializer, ty) {
+            self.known_null_pointers.insert(variable);
+        } else {
+            self.known_null_pointers.remove(&variable);
+        }
+    }
+
+    fn initializer_is_known_null_pointer(&self, initializer: &ast::Expression, ty: &Type) -> bool {
+        let ExpressionKind::Name(name) = &initializer.kind else {
+            return false;
+        };
+        if name == "null" {
+            return is_pointer_like(ty);
+        }
+        self.lookup(name)
+            .is_some_and(|symbol| symbol.ty == *ty && self.known_null_pointers.contains(&symbol.id))
+    }
+
     fn check_initializer(&mut self, expression: &ast::Expression) -> Result<Call, Diagnostic> {
         self.check_initializer_with_expected(expression, None)
     }
@@ -1706,6 +1730,17 @@ impl<'a> Checker<'a> {
                             vec![Value::new(constant_value_kind(constant), Type::Value, expression.span)],
                             vec![ParameterMode::In],
                             Some(Type::Value),
+                        ));
+                    }
+                    if name == "null"
+                        && let Some(expected) = expected
+                        && is_pointer_like(expected)
+                    {
+                        return Ok(Call::new(
+                            CallTarget::Intrinsic(Intrinsic::LowLevel(LowLevelOperation::Move)),
+                            vec![Value::new(ValueKind::Integer(0), expected.clone(), expression.span)],
+                            vec![ParameterMode::In],
+                            Some(expected.clone()),
                         ));
                     }
                     if let Some(expected) = expected
@@ -4071,6 +4106,34 @@ handler Initialize(address: u64) {
         .unwrap();
 
         check_with_layouts("test.flap", &ast, layouts.fields()).unwrap();
+    }
+
+    #[test]
+    fn rejects_definitely_null_binding_store_to_nonnull_field() {
+        let layouts =
+            crate::frontend::layout::LayoutDatabase::parse("const SHAPE = 0\nfield Object.shape Shape SHAPE nonnull\n")
+                .unwrap();
+        let ast = parser::parse(
+            "test.flap",
+            r#"
+handler StoreNull(address: u64) {
+    let object: Object = alias(address);
+    let shape: Shape = null;
+    object.shape = shape;
+    dispatch_next;
+}
+"#,
+        )
+        .unwrap();
+        let error = check_with_layouts("test.flap", &ast, layouts.fields()).unwrap_err();
+
+        assert!(
+            error
+                .message
+                .contains("cannot assign null to non-null field 'Object.shape'"),
+            "{}",
+            error.message
+        );
     }
 
     #[test]
