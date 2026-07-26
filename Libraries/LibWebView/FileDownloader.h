@@ -78,10 +78,11 @@ public:
     u64 adopt_download(IsPrivate, URL::URL const&, LexicalPath, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ReadonlyBytes initial_data = {});
     u64 start_download(IsPrivate, URL::URL const&, LexicalPath, Optional<u64> total_size = {});
     bool has_active_downloads() const;
+    bool has_unresumable_downloads() const;
     void set_cancel_callback(u64 id, Function<void()>);
     void append_download_data(u64 id, ReadonlyBytes);
     void finish_download(u64 id);
-    void cancel_active_downloads();
+    void cancel_unresumable_downloads();
     void cancel_private_downloads();
     void cancel_download(u64 id);
     void pause_download(u64 id);

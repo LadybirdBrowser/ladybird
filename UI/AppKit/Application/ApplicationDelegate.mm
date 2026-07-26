@@ -490,7 +490,7 @@
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)sender
 {
-    return [(Application*)sender confirmCancelActiveDownloads];
+    return [(Application*)sender confirmStopActiveDownloads];
 }
 
 - (void)applicationDidChangeScreenParameters:(NSNotification*)notification

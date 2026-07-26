@@ -639,6 +639,16 @@ bool FileDownloader::has_active_downloads() const
     return false;
 }
 
+bool FileDownloader::has_unresumable_downloads() const
+{
+    for (auto const& download : m_downloads) {
+        if (download.status == DownloadStatus::InProgress && !download.can_resume)
+            return true;
+    }
+
+    return false;
+}
+
 void FileDownloader::append_download_data(u64 id, ReadonlyBytes bytes)
 {
     append_segment_data(id, 0, bytes);
@@ -1168,15 +1178,15 @@ void FileDownloader::discard_active_download(u64 id)
     });
 }
 
-void FileDownloader::cancel_active_downloads()
+void FileDownloader::cancel_unresumable_downloads()
 {
-    Vector<u64> active_download_ids;
+    Vector<u64> unresumable_download_ids;
     for (auto const& download : m_downloads) {
         if (download.status == DownloadStatus::InProgress && !download.can_resume)
             unresumable_download_ids.append(download.id);
     }
 
-    for (auto id : active_download_ids)
+    for (auto id : unresumable_download_ids)
         cancel_download(id);
 }
 

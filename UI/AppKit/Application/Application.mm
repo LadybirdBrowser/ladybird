@@ -507,29 +507,31 @@ void Application::on_devtools_disabled() const
 
 #pragma mark - NSApplication
 
-- (BOOL)confirmCancelActiveDownloads
+- (BOOL)confirmStopActiveDownloads
 {
     auto& downloader = WebView::Application::the().file_downloader();
-    if (!downloader.has_active_downloads())
-        return YES;
 
-    auto* dialog = [[NSAlert alloc] init];
-    [dialog setMessageText:@"Downloads are still in progress."];
-    [dialog setInformativeText:@"Quitting will cancel active downloads."];
-    [dialog setAlertStyle:NSAlertStyleWarning];
-    [[dialog addButtonWithTitle:@"Quit and Cancel Downloads"] setTag:NSModalResponseOK];
-    [[dialog addButtonWithTitle:@"Cancel"] setTag:NSModalResponseCancel];
+    if (downloader.has_unresumable_downloads()) {
+        auto* dialog = [[NSAlert alloc] init];
+        [dialog setMessageText:@"Downloads are still in progress."];
+        [dialog setInformativeText:@"Quitting will cancel downloads that cannot be resumed."];
+        [dialog setAlertStyle:NSAlertStyleWarning];
+        [[dialog addButtonWithTitle:@"Quit and Cancel Downloads"] setTag:NSModalResponseOK];
+        [[dialog addButtonWithTitle:@"Cancel"] setTag:NSModalResponseCancel];
 
-    if ([dialog runModal] != NSModalResponseOK)
-        return NO;
+        if ([dialog runModal] != NSModalResponseOK)
+            return NO;
 
-    downloader.cancel_active_downloads();
+        downloader.cancel_unresumable_downloads();
+    }
+
+    downloader.pause_active_downloads();
     return YES;
 }
 
 - (void)terminate:(id)sender
 {
-    if (![self confirmCancelActiveDownloads])
+    if (![self confirmStopActiveDownloads])
         return;
 
     Core::EventLoop::current().quit(0);
