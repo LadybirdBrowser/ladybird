@@ -74,6 +74,7 @@ struct Checker<'a> {
     aggregate_strides: &'a HashMap<Type, layout::LayoutValue>,
     bytecode_fields: HashSet<VariableId>,
     known_null_pointers: HashSet<VariableId>,
+    known_integer_literals: HashSet<VariableId>,
     active_value_tags: Vec<(VariableId, VariableId)>,
 }
 
@@ -109,6 +110,7 @@ impl<'a> Checker<'a> {
             aggregate_strides,
             bytecode_fields: HashSet::default(),
             known_null_pointers: HashSet::default(),
+            known_integer_literals: HashSet::default(),
             active_value_tags: Vec::new(),
         }
     }
@@ -829,6 +831,7 @@ impl<'a> Checker<'a> {
             );
         }
         self.update_known_null_pointer(symbol.id, initializer, &symbol.ty);
+        self.update_known_integer_literal(symbol.id, initializer, &symbol.ty);
         self.statements
             .push(Statement::new(StatementKindIr::call([symbol.id], call), statement.span));
         Ok(())
@@ -1056,6 +1059,7 @@ impl<'a> Checker<'a> {
             let declared_type = ty.clone().unwrap_or(return_type);
             let id = self.declare(name, declared_type.clone(), None, statement.span)?;
             self.update_known_null_pointer(id, initializer, &declared_type);
+            self.update_known_integer_literal(id, initializer, &declared_type);
             self.statements
                 .push(Statement::new(StatementKindIr::call([id], call), statement.span));
         } else {
@@ -1689,6 +1693,35 @@ impl<'a> Checker<'a> {
         }
         self.lookup(name)
             .is_some_and(|symbol| symbol.ty == *ty && self.known_null_pointers.contains(&symbol.id))
+    }
+
+    fn update_known_integer_literal(&mut self, variable: VariableId, initializer: &ast::Expression, ty: &Type) {
+        if self.initializer_is_known_integer_literal(initializer, ty) {
+            self.known_integer_literals.insert(variable);
+        } else {
+            self.known_integer_literals.remove(&variable);
+        }
+    }
+
+    fn initializer_is_known_integer_literal(&self, initializer: &ast::Expression, ty: &Type) -> bool {
+        if !is_integer_arithmetic_type(ty) {
+            return false;
+        }
+        match &initializer.kind {
+            ExpressionKind::Integer(_) => true,
+            ExpressionKind::Name(name) => self
+                .lookup(name)
+                .is_some_and(|symbol| symbol.ty == *ty && self.known_integer_literals.contains(&symbol.id)),
+            _ => false,
+        }
+    }
+
+    fn value_is_known_integer_literal(&self, value: &Value) -> bool {
+        match value.kind {
+            ValueKind::Integer(_) | ValueKind::Constant(_) => true,
+            ValueKind::Variable(variable) => self.known_integer_literals.contains(&variable),
+            _ => false,
+        }
     }
 
     fn check_initializer(&mut self, expression: &ast::Expression) -> Result<Call, Diagnostic> {
@@ -2536,6 +2569,9 @@ impl<'a> Checker<'a> {
         );
         let raw_alias = (source.ty == Type::U64 || is_pointer_like(&source.ty))
             && (*expected == Type::U64 || is_pointer_like(expected));
+        if raw_alias && is_pointer_like(expected) && self.value_is_known_integer_literal(&source) {
+            return self.error(span, format!("cannot alias integer literal as {expected}"));
+        }
         if !explicit_type_change && !raw_alias {
             return self.error(span, format!("cannot alias {} as {expected}", source.ty));
         }
@@ -4208,6 +4244,12 @@ handler Box(dst: out Operand, value: bool) {
         rejects_implicit_numeric_promotion,
         "handler Bad(value: u8) { let widened: u64 = value; dispatch_next; }",
         "cannot initialize 'widened' of type u64 with u8"
+    );
+
+    rejects!(
+        rejects_aliasing_integer_literals_to_pointer_types,
+        "handler Bad() { let raw: u64 = 1; let object: Object = alias(raw); dispatch_next; }",
+        "cannot alias integer literal as Object"
     );
 
     accepts!(
