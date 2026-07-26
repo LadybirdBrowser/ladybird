@@ -58,16 +58,16 @@ impl PhysicalRegister {
 
     pub(crate) fn byte_name(self) -> String {
         const NAMES: [&str; 16] = [
-            "al", "cl", "dl", "bl", "sil", "dil", "r8b", "r9b",
-            "r10b", "r11b", "r12b", "r13b", "r14b", "r15b", "spl", "bpl",
+            "al", "cl", "dl", "bl", "sil", "dil", "r8b", "r9b", "r10b", "r11b", "r12b", "r13b", "r14b", "r15b", "spl",
+            "bpl",
         ];
         NAMES[self.number as usize].to_string()
     }
 
     pub(crate) fn half_word_name(self) -> String {
         const NAMES: [&str; 16] = [
-            "ax", "cx", "dx", "bx", "si", "di", "r8w", "r9w",
-            "r10w", "r11w", "r12w", "r13w", "r14w", "r15w", "sp", "bp",
+            "ax", "cx", "dx", "bx", "si", "di", "r8w", "r9w", "r10w", "r11w", "r12w", "r13w", "r14w", "r15w", "sp",
+            "bp",
         ];
         NAMES[self.number as usize].to_string()
     }
@@ -81,8 +81,8 @@ impl PhysicalRegister {
             };
         }
         const NAMES: [&str; 16] = [
-            "eax", "ecx", "edx", "ebx", "esi", "edi", "r8d", "r9d",
-            "r10d", "r11d", "r12d", "r13d", "r14d", "r15d", "esp", "ebp",
+            "eax", "ecx", "edx", "ebx", "esi", "edi", "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d",
+            "esp", "ebp",
         ];
         NAMES[self.number as usize].to_string()
     }
@@ -94,12 +94,17 @@ impl PhysicalRegister {
     pub(crate) fn integer_name(self, width: IntegerWidth) -> String {
         match (self.architecture, width) {
             (_, IntegerWidth::U64) => self.as_str().to_string(),
-            (Architecture::Aarch64, _) | (_, IntegerWidth::U32) => {
-                self.word_name()
-            }
+            (Architecture::Aarch64, _) | (_, IntegerWidth::U32) => self.word_name(),
             (_, IntegerWidth::U16) => self.half_word_name(),
             (_, IntegerWidth::U8) => self.byte_name(),
         }
+    }
+
+    /// A dense number, unique within the register's architecture and class.
+    /// Together with the class it gives every register a small index, which is
+    /// what lets a set of registers be held in a single machine word.
+    pub(crate) fn number(self) -> u8 {
+        self.number
     }
 
     /// Relative encoding cost used to break allocation ties.
@@ -128,11 +133,7 @@ pub(crate) mod x86_64 {
 
     // The accumulator has shorter immediate encodings, classic GPRs avoid
     // a REX prefix in 32-bit forms, and extended GPRs always require one.
-    const fn gpr(
-        name: &'static str,
-        number: u8,
-        allocation_cost: u8,
-    ) -> PhysicalRegister {
+    const fn gpr(name: &'static str, number: u8, allocation_cost: u8) -> PhysicalRegister {
         PhysicalRegister::new(
             Architecture::X86_64,
             RegisterClass::GeneralPurpose,
@@ -142,14 +143,8 @@ pub(crate) mod x86_64 {
         )
     }
 
-    const fn fpr(name: &'static str) -> PhysicalRegister {
-        PhysicalRegister::new(
-            Architecture::X86_64,
-            RegisterClass::FloatingPoint,
-            name,
-            0,
-            2,
-        )
+    const fn fpr(name: &'static str, number: u8) -> PhysicalRegister {
+        PhysicalRegister::new(Architecture::X86_64, RegisterClass::FloatingPoint, name, number, 2)
     }
 
     define_registers! {
@@ -169,12 +164,12 @@ pub(crate) mod x86_64 {
         R15 = gpr("r15", 13, 2);
         RSP = gpr("rsp", 14, 2);
         RBP = gpr("rbp", 15, 2);
-        XMM0 = fpr("xmm0");
-        XMM1 = fpr("xmm1");
-        XMM2 = fpr("xmm2");
-        XMM3 = fpr("xmm3");
-        XMM4 = fpr("xmm4");
-        XMM5 = fpr("xmm5");
+        XMM0 = fpr("xmm0", 0);
+        XMM1 = fpr("xmm1", 1);
+        XMM2 = fpr("xmm2", 2);
+        XMM3 = fpr("xmm3", 3);
+        XMM4 = fpr("xmm4", 4);
+        XMM5 = fpr("xmm5", 5);
     }
 }
 
@@ -183,23 +178,11 @@ pub(crate) mod aarch64 {
     use crate::Architecture;
 
     const fn gpr(name: &'static str, number: u8) -> PhysicalRegister {
-        PhysicalRegister::new(
-            Architecture::Aarch64,
-            RegisterClass::GeneralPurpose,
-            name,
-            number,
-            0,
-        )
+        PhysicalRegister::new(Architecture::Aarch64, RegisterClass::GeneralPurpose, name, number, 0)
     }
 
     const fn fpr(name: &'static str, number: u8) -> PhysicalRegister {
-        PhysicalRegister::new(
-            Architecture::Aarch64,
-            RegisterClass::FloatingPoint,
-            name,
-            number,
-            0,
-        )
+        PhysicalRegister::new(Architecture::Aarch64, RegisterClass::FloatingPoint, name, number, 0)
     }
 
     define_registers! {
@@ -298,13 +281,23 @@ pub(crate) const X86_64_REGS: TargetRegisterInfo = TargetRegisterInfo {
     ],
     fp_temporaries: &[x86_64::XMM0, x86_64::XMM1, x86_64::XMM2, x86_64::XMM3],
     caller_saved_gpr: &[
-        x86_64::RAX, x86_64::RCX, x86_64::RDX, x86_64::RSI,
-        x86_64::RDI, x86_64::R8, x86_64::R9, x86_64::R10,
+        x86_64::RAX,
+        x86_64::RCX,
+        x86_64::RDX,
+        x86_64::RSI,
+        x86_64::RDI,
+        x86_64::R8,
+        x86_64::R9,
+        x86_64::R10,
         x86_64::R11,
     ],
     caller_saved_fpr: &[
-        x86_64::XMM0, x86_64::XMM1, x86_64::XMM2,
-        x86_64::XMM3, x86_64::XMM4, x86_64::XMM5,
+        x86_64::XMM0,
+        x86_64::XMM1,
+        x86_64::XMM2,
+        x86_64::XMM3,
+        x86_64::XMM4,
+        x86_64::XMM5,
     ],
 };
 
@@ -320,8 +313,10 @@ pub(crate) const AARCH64_REGS: TargetRegisterInfo = TargetRegisterInfo {
         Some(aarch64::X29),
     ],
     // x9 and x10 are reserved as instruction-expansion scratch, and x16 and
-    // x17 are the procedure call standard's veneer registers. Every other
-    // caller-saved register is available for allocation.
+    // x17 are the procedure call standard's veneer registers, which the
+    // assembler materializes call targets and awkward immediates into. Every
+    // other caller-saved register is free, and larger functions can have far
+    // more live at once than the single handler this pool was sized for.
     temporaries: &[
         aarch64::X0,
         aarch64::X1,
@@ -340,15 +335,34 @@ pub(crate) const AARCH64_REGS: TargetRegisterInfo = TargetRegisterInfo {
     ],
     fp_temporaries: &[aarch64::D0, aarch64::D1, aarch64::D2, aarch64::D3],
     caller_saved_gpr: &[
-        aarch64::X0, aarch64::X1, aarch64::X2, aarch64::X3,
-        aarch64::X4, aarch64::X5, aarch64::X6, aarch64::X7,
-        aarch64::X8, aarch64::X9, aarch64::X10, aarch64::X11,
-        aarch64::X12, aarch64::X13, aarch64::X14, aarch64::X15,
-        aarch64::X16, aarch64::X17,
+        aarch64::X0,
+        aarch64::X1,
+        aarch64::X2,
+        aarch64::X3,
+        aarch64::X4,
+        aarch64::X5,
+        aarch64::X6,
+        aarch64::X7,
+        aarch64::X8,
+        aarch64::X9,
+        aarch64::X10,
+        aarch64::X11,
+        aarch64::X12,
+        aarch64::X13,
+        aarch64::X14,
+        aarch64::X15,
+        aarch64::X16,
+        aarch64::X17,
     ],
     caller_saved_fpr: &[
-        aarch64::D0, aarch64::D1, aarch64::D2, aarch64::D3,
-        aarch64::D4, aarch64::D5, aarch64::D6, aarch64::D7,
+        aarch64::D0,
+        aarch64::D1,
+        aarch64::D2,
+        aarch64::D3,
+        aarch64::D4,
+        aarch64::D5,
+        aarch64::D6,
+        aarch64::D7,
     ],
 };
 
