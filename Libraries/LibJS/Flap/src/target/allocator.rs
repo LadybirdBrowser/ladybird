@@ -22,7 +22,7 @@
 //! Handlers that don't use virtual registers require no register assignment.
 
 use crate::Architecture;
-use crate::low_ir::cfg::ControlFlowGraph;
+use crate::low_ir::cfg::{ControlFlowGraph, instruction_successors};
 use crate::low_ir::optimize::{invert_branches_over_jumps, remove_unreferenced_labels};
 #[cfg(test)]
 use crate::target::description::{
@@ -33,7 +33,7 @@ use crate::target::description::{InstructionDescription, OperandKind, SelectedOp
 use crate::target::ir::{
     AddressRegister, AllocatedFunction, AllocatedInstruction, AllocatedOperand, AllocatedProgram,
     Function as TargetFunction, Instruction as MachineInstruction, MemoryAddress, Operand, PhysicalMemoryAddress,
-    Program as TargetProgram, RuntimeConstants, VirtualRegister, count_virtual_register_uses, visit_virtual_registers,
+    Program as TargetProgram, RuntimeConstants, VirtualRegister, visit_virtual_registers,
 };
 #[cfg(test)]
 use crate::target::registers::physical_register_named;
@@ -171,7 +171,7 @@ struct Names {
 }
 
 impl Names {
-    fn collect(instructions: &[MachineInstruction]) -> Self {
+    fn collect(instructions: &[&MachineInstruction]) -> Self {
         let mut seen = HashSet::new();
         for instruction in instructions {
             for operand in &instruction.operands {
@@ -281,21 +281,30 @@ pub(crate) fn allocate_handler(
     handler: &TargetFunction,
     runtime: &RuntimeConstants,
 ) -> Result<ControlFlowGraph<AllocatedOperand, SelectedOpcode>, CompileError> {
-    let flat = handler.instructions.clone();
     let arch = handler.architecture;
     let mut needs = false;
-    for instruction in &flat {
+    for instruction in &handler.instructions {
         for operand in &instruction.operands {
             visit_virtual_registers(operand, &mut |_| needs = true);
         }
     }
     if !needs {
-        return build_allocated_graph(handler, rewrite(handler, flat, &AllocationPlan::default(), runtime)?);
+        return build_allocated_graph(
+            handler,
+            rewrite(handler, &handler.instructions, &AllocationPlan::default(), runtime)?,
+        );
     }
-    let graph = build_graph(handler, flat.clone())?;
-    let control_flow = graph.linearize_for_analysis();
-    let assignments = allocate(handler, &control_flow.instructions, &control_flow.successors, arch)?;
-    let mut rewritten = rewrite(handler, flat, &assignments, runtime)?;
+    // A cold annotation says where a block belongs in the final layout and
+    // executes nothing, so control never reaches it and liveness must not see
+    // it as an instruction that can branch to the label it names.
+    let analyzed = handler
+        .instructions
+        .iter()
+        .filter(|instruction| instruction.opcode.operation() != crate::target::description::Operation::Cold)
+        .collect::<Vec<_>>();
+    let successors = instruction_successors(&analyzed);
+    let assignments = allocate(handler, &analyzed, &successors, arch)?;
+    let mut rewritten = rewrite(handler, &handler.instructions, &assignments, runtime)?;
     invert_branches_over_jumps(&mut rewritten);
     remove_unreferenced_labels(&mut rewritten);
     invert_branches_over_jumps(&mut rewritten);
@@ -309,17 +318,14 @@ fn build_allocated_graph(
 ) -> Result<ControlFlowGraph<AllocatedOperand, SelectedOpcode>, CompileError> {
     let mut graph = ControlFlowGraph::from_instructions(instructions)
         .map_err(|message| allocation_error(&handler.name, message))?;
-    graph.thread_unconditional_jumps();
-    graph.remove_unreferenced_jump_blocks();
-    graph.remove_unreachable_blocks();
-    Ok(graph)
-}
 
-fn build_graph(
-    handler: &TargetFunction,
-    instructions: Vec<MachineInstruction>,
-) -> Result<ControlFlowGraph<Operand, SelectedOpcode>, CompileError> {
-    ControlFlowGraph::from_instructions(instructions).map_err(|message| allocation_error(&handler.name, message))
+    graph.thread_unconditional_jumps();
+
+    graph.remove_unreferenced_jump_blocks();
+
+    graph.remove_unreachable_blocks();
+
+    Ok(graph)
 }
 
 // ============================================================================
@@ -442,7 +448,7 @@ fn registers_alias(lhs: &Operand, rhs: &Operand, architecture: Architecture) -> 
 
 fn compute_liveness(
     handler_name: &str,
-    instructions: &[MachineInstruction],
+    instructions: &[&MachineInstruction],
     successors: &[Vec<usize>],
     names: &Names,
     arch: Architecture,
@@ -706,7 +712,7 @@ impl Coalescer {
 
 fn allocate(
     handler: &TargetFunction,
-    instructions: &[MachineInstruction],
+    instructions: &[&MachineInstruction],
     successors: &[Vec<usize>],
     arch: Architecture,
 ) -> Result<AllocationPlan, CompileError> {
@@ -800,8 +806,12 @@ fn allocate(
     // On x86_64 each saved use of a low-cost register saves an encoding
     // byte, so hot virtual registers want to land in cheap registers.
     let mut use_counts = vec![0u32; count];
-    for (register, uses) in count_virtual_register_uses(instructions) {
-        use_counts[names.index(&register) as usize] = uses;
+    for insn in instructions {
+        for operand in &insn.operands {
+            visit_virtual_registers(operand, &mut |register| {
+                use_counts[names.index(register) as usize] += 1;
+            });
+        }
     }
 
     // Merge move-related values whenever the combined group remains fully
@@ -1128,23 +1138,23 @@ fn color(
 
 fn rewrite(
     handler: &TargetFunction,
-    instructions: Vec<MachineInstruction>,
+    instructions: &[MachineInstruction],
     plan: &AllocationPlan,
     runtime: &RuntimeConstants,
 ) -> Result<Vec<AllocatedInstruction>, CompileError> {
     instructions
-        .into_iter()
+        .iter()
         .map(|insn| {
             let operands: Vec<_> = insn
                 .operands
-                .into_iter()
-                .map(|op| rewrite_operand(handler, op, plan, runtime))
+                .iter()
+                .map(|op| rewrite_operand(handler, op.clone(), plan, runtime))
                 .collect::<Result<_, _>>()?;
             if insn.opcode.description().identity_if_inputs_alias && operands.len() == 2 && operands[0] == operands[1] {
                 return Ok(None);
             }
             Ok(Some(AllocatedInstruction {
-                opcode: insn.opcode,
+                opcode: insn.opcode.clone(),
                 operands,
             }))
         })

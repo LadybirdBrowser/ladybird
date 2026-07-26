@@ -15,7 +15,7 @@ use crate::low_ir::{
 };
 pub(crate) use crate::low_ir::{
     AddressRegister, MemoryAddress, Operand, VirtualRegister,
-    count_virtual_register_uses, visit_virtual_registers,
+    visit_virtual_registers,
 };
 use crate::target::description::{ArchitectureOpcode, SelectedOpcode};
 use crate::target::registers::{PhysicalRegister, RegisterClass};

@@ -45,6 +45,7 @@ pub(crate) struct ControlFlowGraph<O = Operand, C = Operation> {
     blocks: Vec<BasicBlock<O, C>>,
 }
 
+#[cfg(test)]
 pub(crate) struct LinearControlFlow<O, C> {
     pub(crate) instructions: Vec<Instruction<O, C>>,
     pub(crate) successors: Vec<Vec<usize>>,
@@ -63,6 +64,58 @@ fn block_label_references<O: ControlFlowOperand, C: ControlFlowOpcode>(
         .filter(|instruction| instruction.opcode.operation() != Operation::Label)
         .flat_map(|instruction| &instruction.operands)
         .filter_map(ControlFlowOperand::label)
+}
+
+/// What can follow each instruction of a flat listing.
+///
+/// Register allocation runs before any graph edit and only needs to know where
+/// control can go next. Building a whole control-flow graph to answer that
+/// copies every instruction into a block and then copies them all back out.
+pub(crate) fn instruction_successors<O: ControlFlowOperand, C: ControlFlowOpcode>(
+    instructions: &[&Instruction<O, C>],
+) -> Vec<Vec<usize>> {
+    let count = instructions.len();
+    let mut starts_block = vec![false; count];
+    if count == 0 {
+        return Vec::new();
+    }
+    starts_block[0] = true;
+    for (index, instruction) in instructions.iter().enumerate() {
+        if instruction.opcode.operation() == Operation::Label {
+            starts_block[index] = true;
+        }
+        if instruction_ends_block(instruction) && index + 1 < count {
+            starts_block[index + 1] = true;
+        }
+    }
+
+    let labels = instructions
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| starts_block[*index])
+        .filter_map(|(index, instruction)| defined_label(instruction).map(|label| (label, index)))
+        .collect::<HashMap<_, _>>();
+
+    let mut successors = vec![Vec::new(); count];
+    for (index, instruction) in instructions.iter().enumerate() {
+        if index + 1 < count && !starts_block[index + 1] {
+            successors[index].push(index + 1);
+            continue;
+        }
+        if instruction.opcode.operation() != Operation::Label {
+            successors[index].extend(
+                instruction
+                    .operands
+                    .iter()
+                    .filter_map(ControlFlowOperand::label)
+                    .filter_map(|label| labels.get(label).copied()),
+            );
+        }
+        if !instruction.opcode.description().terminal && index + 1 < count {
+            successors[index].push(index + 1);
+        }
+    }
+    successors
 }
 
 impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
@@ -487,6 +540,12 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
         instructions
     }
 
+    /// Every instruction of the graph, in block order.
+    pub(crate) fn instructions(&self) -> impl Iterator<Item = &Instruction<O, C>> {
+        self.blocks.iter().flat_map(|block| &block.instructions)
+    }
+
+    #[cfg(test)]
     pub(crate) fn linearize_for_analysis(&self) -> LinearControlFlow<O, C> {
         let mut block_starts = Vec::with_capacity(self.blocks.len());
         let mut instruction_count = 0;

@@ -394,21 +394,6 @@ macro_rules! emit_instructions {
 
 pub(crate) use emit_instructions;
 
-/// Count appearances of virtual registers in the instruction operand stream.
-pub(crate) fn count_virtual_register_uses<C>(
-    instructions: &[Instruction<Operand, C>],
-) -> HashMap<VirtualRegister, u32> {
-    let mut counts = HashMap::new();
-    for instruction in instructions {
-        for operand in &instruction.operands {
-            visit_virtual_registers(operand, &mut |register| {
-                *counts.entry(register.clone()).or_insert(0) += 1;
-            });
-        }
-    }
-    counts
-}
-
 pub(crate) fn visit_virtual_registers(
     operand: &Operand,
     visit: &mut impl FnMut(&VirtualRegister),
