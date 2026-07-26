@@ -60,3 +60,29 @@ jobs:
             --all-targets -- -D clippy::all
           cargo test --manifest-path Libraries/LibJS/BytecodeDef/Cargo.toml \
             --all-targets
+
+      - name: Generate and assemble the Flap interpreter
+        run: |
+          cargo build --release --manifest-path Libraries/LibJS/Flap/Cargo.toml
+          mkdir -p "${RUNNER_TEMP}/flap-smoke"
+          for arch in x86_64 aarch64; do
+            Libraries/LibJS/Flap/target/release/flapc \
+              --arch "${arch}" \
+              --object-format elf \
+              --constants Libraries/LibJS/Flap/tests/interpreter-layout.conf \
+              --bytecode-def Libraries/LibJS/Bytecode/Bytecode.def \
+              --input Libraries/LibJS/Interpreter/interpreter.flap \
+              --output "${RUNNER_TEMP}/flap-smoke/${arch}.S"
+            clang --target="${arch}-unknown-linux-gnu" \
+              -c "${RUNNER_TEMP}/flap-smoke/${arch}.S" \
+              -o "${RUNNER_TEMP}/flap-smoke/${arch}.o"
+            Libraries/LibJS/Flap/target/release/flapc \
+              --arch "${arch}" \
+              --object-format elf \
+              --constants Libraries/LibJS/Flap/tests/interpreter-layout.conf \
+              --bytecode-def Libraries/LibJS/Bytecode/Bytecode.def \
+              --input Libraries/LibJS/Interpreter/interpreter.flap \
+              --output "${RUNNER_TEMP}/flap-smoke/${arch}-repeat.S"
+            cmp "${RUNNER_TEMP}/flap-smoke/${arch}.S" \
+              "${RUNNER_TEMP}/flap-smoke/${arch}-repeat.S"
+          done
