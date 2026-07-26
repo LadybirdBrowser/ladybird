@@ -6,7 +6,7 @@
 
 //! Machine-level optimizations before register allocation.
 
-use super::{AddressDisplacement, AddressRegister, AddressScale, ControlFlowOpcode, ControlFlowOperand, Instruction, MemoryAddress, Operand, VirtualRegister};
+use super::{AddressDisplacement, AddressRegister, AddressScale, ControlFlowOpcode, ControlFlowOperand, Instruction, Label, MemoryAddress, Operand, VirtualRegister};
 use crate::intrinsic::{BranchOperation, IntegerBinaryOperation};
 use crate::target::description::{BinaryOperation, IntegerWidth, MemoryWidth, Operation, PairWidth, SignCondition, OperandKind};
 #[cfg(test)]
@@ -21,44 +21,53 @@ pub(crate) fn invert_branches_over_jumps<
 >(
     instructions: &mut Vec<Instruction<O, C>>,
 ) {
-    let mut index = 0;
-    while index + 2 < instructions.len() {
-        let Some(inverted_operation) = inverted_branch_operation(&instructions[index].opcode) else {
-            index += 1;
-            continue;
-        };
-        let Some(branch_target) = instructions[index].operands.last().and_then(O::label) else {
-            index += 1;
-            continue;
-        };
-        let [jump_target] = &instructions[index + 1].operands[..] else {
-            index += 1;
-            continue;
-        };
-        let Some(jump_target) = jump_target.label() else {
-            index += 1;
-            continue;
-        };
-        let [fallthrough_label] = &instructions[index + 2].operands[..] else {
-            index += 1;
-            continue;
-        };
-        let Some(fallthrough_label) = fallthrough_label.label() else {
-            index += 1;
-            continue;
-        };
-        if instructions[index + 1].opcode.operation() != Operation::Control(crate::intrinsic::ControlOperation::JumpLabel)
-            || instructions[index + 2].opcode.operation() != Operation::Label
-            || branch_target != fallthrough_label
-        {
-            index += 1;
-            continue;
+    let (mut read, mut write) = (0, 0);
+    while read < instructions.len() {
+        let inverted = (read + 2 < instructions.len())
+            .then(|| inverted_branch(instructions, read))
+            .flatten();
+        if write != read {
+            instructions.swap(write, read);
         }
-        let jump_target = jump_target.clone();
-        instructions[index].opcode = instructions[index].opcode.replacing_operation(inverted_operation);
-        *instructions[index].operands.last_mut().unwrap() = O::from_label(jump_target);
-        instructions.remove(index + 1);
+        let Some((operation, jump_target)) = inverted else {
+            read += 1;
+            write += 1;
+            continue;
+        };
+        instructions[write].opcode =
+            instructions[write].opcode.replacing_operation(operation);
+        *instructions[write]
+            .operands
+            .last_mut()
+            .expect("a branch names its target") = O::from_label(jump_target);
+        read += 2;
+        write += 1;
     }
+    instructions.truncate(write);
+}
+
+fn inverted_branch<O: ControlFlowOperand, C: ControlFlowOpcode>(
+    instructions: &[Instruction<O, C>],
+    index: usize,
+) -> Option<(Operation, Label)> {
+    let operation = inverted_branch_operation(&instructions[index].opcode)?;
+    let branch_target = instructions[index].operands.last().and_then(O::label)?;
+    let [jump_target] = &instructions[index + 1].operands[..] else {
+        return None;
+    };
+    let jump_target = jump_target.label()?;
+    let [fallthrough_label] = &instructions[index + 2].operands[..] else {
+        return None;
+    };
+    let fallthrough_label = fallthrough_label.label()?;
+    if instructions[index + 1].opcode.operation()
+        != Operation::Control(crate::intrinsic::ControlOperation::JumpLabel)
+        || instructions[index + 2].opcode.operation() != Operation::Label
+        || branch_target != fallthrough_label
+    {
+        return None;
+    }
+    Some((operation, jump_target.clone()))
 }
 
 pub(crate) fn inverted_branch_operation(
