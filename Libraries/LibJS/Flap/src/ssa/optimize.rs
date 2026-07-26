@@ -548,6 +548,20 @@ fn eliminate_common_subexpressions_pass(
             {
                 continue;
             }
+            // A computation with nothing but constants for inputs is cheaper to
+            // repeat than to keep, and keeping it is actively harmful: sharing
+            // one between distant uses stretches a live range across everything
+            // in between, including calls, which no allocatable register
+            // survives. Availability is cleared at a call, but only along the
+            // dominator path the walk takes, so a call on any other path
+            // between the two uses goes unnoticed.
+            if instruction
+                .inputs
+                .iter()
+                .all(|input| matches!(function.values[input.0].definition, ValueDefinition::Constant(_)))
+            {
+                continue;
+            }
             let effect_dependencies = |domain| {
                 analyses
                     .effects
