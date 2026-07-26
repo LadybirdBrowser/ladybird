@@ -1987,6 +1987,19 @@ handler Sub(lhs: i32, rhs: i32) {
     }
 
     #[test]
+    fn parses_single_byte_mutations_without_panicking() {
+        let seed = b"handler Add(lhs: i32, rhs: i32) { let value = lhs + rhs; assert_nonzero(value); dispatch_next; }";
+        for index in 0..seed.len() {
+            for replacement in [b' ', b'\n', b'{', b'}', b'(', b')', b';', b'0', b'a'] {
+                let mut mutated = seed.to_vec();
+                mutated[index] = replacement;
+                let source = std::str::from_utf8(&mutated).unwrap();
+                let _ = parse("mutated.flap", source);
+            }
+        }
+    }
+
+    #[test]
     fn binds_bitwise_arithmetic_before_comparisons() {
         let handler = parse_handler(
             "handler Check(flags: i32) { guard flags & 2 != 0 else slow; let slow = || { dispatch_next; }; }",
