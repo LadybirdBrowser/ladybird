@@ -9,7 +9,9 @@
 use crate::Architecture;
 use crate::frontend::layout::KnownLayoutConstant;
 use crate::identity::HandlerId;
-pub(crate) use crate::low_ir::{AddressRegister, MemoryAddress, Operand, VirtualRegister, visit_virtual_registers};
+#[cfg(test)]
+pub(crate) use crate::low_ir::MemoryAddress;
+pub(crate) use crate::low_ir::{AddressRegister, Operand, VirtualRegister, visit_virtual_registers};
 use crate::low_ir::{Label, Relocation, cfg::ControlFlowGraph};
 use crate::target::description::{ArchitectureOpcode, SelectedOpcode};
 use crate::target::registers::{PhysicalRegister, RegisterClass};

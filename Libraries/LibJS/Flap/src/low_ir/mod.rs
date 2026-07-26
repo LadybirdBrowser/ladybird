@@ -6,6 +6,7 @@
 
 //! Target-independent low-level IR before instruction selection.
 
+pub(crate) mod analysis;
 pub(crate) mod cfg;
 pub(crate) mod lowering;
 pub(crate) mod optimize;
