@@ -153,24 +153,16 @@ fn lower_handler_internal(
     constants: &LayoutConstants,
     id: crate::identity::HandlerId,
 ) -> Result<Handler, String> {
-    let mut folded_instructions = function
-        .blocks
-        .iter()
-        .filter_map(|block| {
-            let Some(Terminator::Branch { condition, .. }) = &block.terminator else {
-                return None;
-            };
-            selected_branch(function, *condition)
-                .map(|branch| branch.instruction)
-                .or_else(|| selected_int32_pair(function, *condition).map(|(instruction, _, _)| instruction))
-        })
-        .collect::<HashSet<_>>();
+    let mut folded_instructions = FoldedInstructions::new(function.instructions.len());
     for block in &function.blocks {
         let Some(Terminator::Branch { condition, .. }) = &block.terminator else {
             continue;
         };
         if let Some(branch) = selected_branch(function, *condition) {
+            folded_instructions.insert(branch.instruction);
             folded_instructions.extend(branch.folded_inputs);
+        } else if let Some((instruction, _, _)) = selected_int32_pair(function, *condition) {
+            folded_instructions.insert(instruction);
         }
     }
     for instruction in &function.instructions {
@@ -307,9 +299,32 @@ fn profile_layout_score(function: &Function, blocks: &[BlockId]) -> usize {
         .count()
 }
 
+/// The instructions a later one has absorbed, so lowering must not emit them.
+struct FoldedInstructions(Vec<bool>);
+
+impl FoldedInstructions {
+    fn new(instructions: usize) -> Self {
+        Self(vec![false; instructions])
+    }
+
+    fn insert(&mut self, instruction: InstructionId) {
+        self.0[instruction.0] = true;
+    }
+
+    fn extend(&mut self, instructions: impl IntoIterator<Item = InstructionId>) {
+        for instruction in instructions {
+            self.insert(instruction);
+        }
+    }
+
+    fn contains(&self, instruction: InstructionId) -> bool {
+        self.0[instruction.0]
+    }
+}
+
 fn lower_blocks(
     function: &FunctionUses<'_>,
-    folded_instructions: &HashSet<InstructionId>,
+    folded_instructions: &FoldedInstructions,
     constants: &LayoutConstants,
     block_order: Vec<BlockId>,
 ) -> Result<Vec<Instruction>, String> {
@@ -330,7 +345,7 @@ fn lower_blocks(
             .instructions
             .iter()
             .copied()
-            .filter(|instruction| !folded_instructions.contains(instruction))
+            .filter(|instruction| !folded_instructions.contains(*instruction))
             .collect::<Vec<_>>();
         let mut instruction_index = 0;
         while instruction_index < instructions.len() {
@@ -618,42 +633,43 @@ fn schedule_blocks(function: &Function) -> Vec<BlockId> {
 }
 
 fn schedule_blocks_with_successor_order(function: &Function, reverse_successors: bool) -> Vec<BlockId> {
-    fn visit(
-        function: &Function,
-        block: BlockId,
-        reverse_successors: bool,
-        visited: &mut HashSet<BlockId>,
-        postorder: &mut Vec<BlockId>,
-    ) {
-        if !visited.insert(block) {
-            return;
+    // Walk the graph with an explicit stack to handle deeply nested control
+    // flow without consuming the call stack.
+    let mut visited = vec![false; function.blocks.len()];
+    let mut reverse_postorder = Vec::with_capacity(function.blocks.len());
+    let mut stack = vec![(function.entry, 0usize)];
+    visited[function.entry.0] = true;
+    while let Some((block, next)) = stack.last_mut() {
+        let block = *block;
+        let successors = function.blocks[block.0]
+            .terminator
+            .as_ref()
+            .map_or(0, Terminator::successor_count);
+        if *next == successors {
+            reverse_postorder.push(block);
+            stack.pop();
+            continue;
         }
-        if let Some(terminator) = &function.blocks[block.0].terminator {
-            let mut successors = terminator.successors().collect::<Vec<_>>();
-            if reverse_successors {
-                successors.reverse();
-            }
-            for successor in successors {
-                visit(function, successor.block, reverse_successors, visited, postorder);
-            }
+        let index = if reverse_successors {
+            successors - 1 - *next
+        } else {
+            *next
+        };
+        *next += 1;
+        let successor = function.blocks[block.0]
+            .terminator
+            .as_ref()
+            .expect("a block with successors has a terminator")
+            .successor(index)
+            .block;
+        if !std::mem::replace(&mut visited[successor.0], true) {
+            stack.push((successor, 0));
         }
-        postorder.push(block);
     }
-
-    let mut visited = HashSet::default();
-    let mut reverse_postorder = Vec::new();
-    visit(
-        function,
-        function.entry,
-        reverse_successors,
-        &mut visited,
-        &mut reverse_postorder,
-    );
     reverse_postorder.reverse();
     for index in 0..function.blocks.len() {
-        let block = BlockId(index);
-        if visited.insert(block) {
-            reverse_postorder.push(block);
+        if !std::mem::replace(&mut visited[index], true) {
+            reverse_postorder.push(BlockId(index));
         }
     }
     let mut scheduled = reverse_postorder
