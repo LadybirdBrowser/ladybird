@@ -417,11 +417,35 @@ fn compute_domain_block_states(
     domain: EffectDomain,
     phi_blocks: &[bool],
 ) -> (Vec<BTreeSet<EffectDefinition>>, Vec<BTreeSet<EffectDefinition>>) {
+    // What a block leaves behind, when the block writes at all, is its own
+    // last write and nothing that reached it. That does not depend on the
+    // analysis, so it is found once rather than rediscovered by walking every
+    // instruction on every sweep.
+    let block_writes = function
+        .blocks
+        .iter()
+        .enumerate()
+        .map(|(block_index, block)| {
+            if terminator_effect(block.terminator.as_ref(), domain).writes() {
+                return Some(EffectDefinition::Terminator(BlockId(block_index)));
+            }
+            block
+                .instructions
+                .iter()
+                .rev()
+                .find(|instruction| effect_for(function.instructions[instruction.0].effects, domain).writes())
+                .map(|instruction| EffectDefinition::Instruction(*instruction))
+        })
+        .collect::<Vec<_>>();
+
     let mut inputs = vec![BTreeSet::new(); function.blocks.len()];
-    let mut outputs = inputs.clone();
+    let mut outputs = block_writes
+        .iter()
+        .map(|write| write.map(|definition| BTreeSet::from([definition])).unwrap_or_default())
+        .collect::<Vec<_>>();
     loop {
         let mut changed = false;
-        for (block_index, block) in function.blocks.iter().enumerate() {
+        for block_index in 0..function.blocks.len() {
             let id = BlockId(block_index);
             let mut input = if id == function.entry || cfg.predecessors(id).is_empty() {
                 BTreeSet::from([EffectDefinition::Entry])
@@ -436,19 +460,14 @@ fn compute_domain_block_states(
             if input.is_empty() {
                 input.insert(EffectDefinition::Entry);
             }
-            let mut output = input.clone();
-            for instruction in &block.instructions {
-                if effect_for(function.instructions[instruction.0].effects, domain).writes() {
-                    output = BTreeSet::from([EffectDefinition::Instruction(*instruction)]);
-                }
-            }
-            if terminator_effect(block.terminator.as_ref(), domain).writes() {
-                output = BTreeSet::from([EffectDefinition::Terminator(id)]);
-            }
-            if input != inputs[block_index] || output != outputs[block_index] {
+            if input != inputs[block_index] {
                 inputs[block_index] = input;
-                outputs[block_index] = output;
                 changed = true;
+                // A block that writes ends the chain, so only one that does
+                // not passes what reached it along.
+                if block_writes[block_index].is_none() {
+                    outputs[block_index] = inputs[block_index].clone();
+                }
             }
         }
         if !changed {
