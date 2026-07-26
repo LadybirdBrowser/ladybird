@@ -1339,7 +1339,10 @@ static ErrorOr<void, WebDriver::Error> dispatch_scroll_action(ActionObject::Scro
     //     but the total scroll applied at the end of duration milliseconds must be delta x and delta y, and after each
     //     increment the sum of the applied deltas must not be greater than delta x and delta y.
     auto position = browsing_context.page().css_to_device_point(coordinates);
-    browsing_context.page().handle_mousewheel(position, position, 0, 0, global_key_state.modifiers(), static_cast<double>(action_object.delta_x), static_cast<double>(action_object.delta_y));
+
+    // AD-HOC: A scroll action emulates a mouse wheel, so its deltas are stepwise wheel input. A snap container the
+    //         action scrolls therefore ends at the snap position the input selects, rather than at the requested delta.
+    browsing_context.page().handle_mousewheel(position, position, 0, 0, global_key_state.modifiers(), static_cast<double>(action_object.delta_x), static_cast<double>(action_object.delta_y), WheelDeltaPrecision::Discrete);
 
     // 12. Return success with data null.
     return {};

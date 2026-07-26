@@ -3820,7 +3820,7 @@ void LocalNavigable::queue_scrollend_event_and_promise_resolution_for_finished_s
     if (stable_node_id.has_value() && scroll_offset_before_scroll.has_value()) {
         auto final_scroll_offset = scroll_offset_for(*stable_node_id);
         if (final_scroll_offset.has_value() && *final_scroll_offset != *scroll_offset_before_scroll)
-            queue_scrollend_event_for_finished_scroll(*stable_node_id, trigger);
+            queue_scrollend_event_for_finished_scroll(*stable_node_id, trigger, scroll_offset_before_scroll);
     }
     queue_async_scroll_operation_promise_resolution(promise);
 }
@@ -3947,7 +3947,7 @@ LocalNavigable::PendingUserScrollendTarget* LocalNavigable::latched_user_scroll_
     return &m_pending_user_scrollend_targets[*index];
 }
 
-void LocalNavigable::queue_scrollend_event(Compositor::AsyncScrollNodeStableID stable_node_id, ScrollTrigger trigger)
+void LocalNavigable::queue_scrollend_event(Compositor::AsyncScrollNodeStableID stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll)
 {
     auto document = active_document();
     if (!document)
@@ -3957,18 +3957,18 @@ void LocalNavigable::queue_scrollend_event(Compositor::AsyncScrollNodeStableID s
     if (!target)
         return;
 
-    queue_scrollend_event(*document, *target, stable_node_id, trigger);
+    queue_scrollend_event(*document, *target, stable_node_id, trigger, scroll_offset_before_scroll);
 }
 
-void LocalNavigable::queue_scrollend_event(DOM::Document& document, GC::Ref<DOM::EventTarget> target, Optional<Compositor::AsyncScrollNodeStableID> stable_node_id, ScrollTrigger trigger)
+void LocalNavigable::queue_scrollend_event(DOM::Document& document, GC::Ref<DOM::EventTarget> target, Optional<Compositor::AsyncScrollNodeStableID> stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll)
 {
     if (trigger == ScrollTrigger::UserInput)
-        queue_scrollend_event_after_user_scroll(target, stable_node_id);
+        queue_scrollend_event_after_user_scroll(target, stable_node_id, scroll_offset_before_scroll);
     else
         document.append_pending_scroll_event({ target, EventNames::scrollend });
 }
 
-void LocalNavigable::queue_scrollend_event_for_finished_scroll(Compositor::AsyncScrollNodeStableID stable_node_id, ScrollTrigger trigger)
+void LocalNavigable::queue_scrollend_event_for_finished_scroll(Compositor::AsyncScrollNodeStableID stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll)
 {
     auto document = active_document();
     if (!document)
@@ -3986,21 +3986,26 @@ void LocalNavigable::queue_scrollend_event_for_finished_scroll(Compositor::Async
         return;
 
     if (m_user_scroll_gesture_hold_count > 0) {
-        queue_scrollend_event_after_user_scroll(*target, stable_node_id);
+        queue_scrollend_event_after_user_scroll(*target, stable_node_id, scroll_offset_before_scroll);
         return;
     }
 
     document->append_pending_scroll_event({ *target, EventNames::scrollend });
 }
 
-void LocalNavigable::queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget> target, Optional<Compositor::AsyncScrollNodeStableID> stable_node_id)
+void LocalNavigable::queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget> target, Optional<Compositor::AsyncScrollNodeStableID> stable_node_id, Optional<CSSPixelPoint> scroll_offset_before_scroll)
 {
     // AD-HOC: Wheel events carry no gesture phase information, so a scroll gesture is considered finished once no
     //         user scrolling has moved this navigable's scrolling boxes for 500 milliseconds.
     static constexpr int user_scroll_settle_delay_ms = 500;
 
-    if (!latched_user_scroll_gesture_for(target, stable_node_id))
-        m_pending_user_scrollend_targets.append({ target, stable_node_id });
+    if (auto* existing_entry = latched_user_scroll_gesture_for(target, stable_node_id)) {
+        if (!existing_entry->scroll_offset_at_gesture_start.has_value())
+            existing_entry->scroll_offset_at_gesture_start = scroll_offset_before_scroll;
+        existing_entry->intent = m_user_scroll_input_intent;
+    } else {
+        m_pending_user_scrollend_targets.append({ target, stable_node_id, scroll_offset_before_scroll, m_user_scroll_input_intent });
+    }
 
     if (!m_user_scroll_settle_timer) {
         m_user_scroll_settle_timer = Core::Timer::create_single_shot(user_scroll_settle_delay_ms, [this] {
@@ -4008,6 +4013,11 @@ void LocalNavigable::queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventT
         });
     }
     m_user_scroll_settle_timer->restart();
+}
+
+void LocalNavigable::note_user_scroll_input_intent(Painting::SnapSelectionStrategy::Type intent)
+{
+    m_user_scroll_input_intent = intent;
 }
 
 void LocalNavigable::defer_user_scroll_settlement()
@@ -4109,7 +4119,15 @@ void LocalNavigable::user_scroll_did_settle()
             auto const* snap_container = layout_node_for_async_scroll_node(*document, *stable_node_id);
             auto current_scroll_offset = scroll_offset_for(*stable_node_id);
             if (snap_container && current_scroll_offset.has_value()) {
-                auto snapped_offset = Painting::adjust_scroll_destination_for_snapping(*snap_container, *current_scroll_offset).position;
+                Painting::SnapSelectionStrategy strategy;
+                if (entry.scroll_offset_at_gesture_start.has_value()) {
+                    strategy.displacement = *current_scroll_offset - *entry.scroll_offset_at_gesture_start;
+                    if (entry.intent != Painting::SnapSelectionStrategy::Type::EndPosition && !strategy.displacement.is_zero()) {
+                        strategy.type = entry.intent;
+                        strategy.start_offset = *entry.scroll_offset_at_gesture_start;
+                    }
+                }
+                auto snapped_offset = Painting::adjust_scroll_destination_for_snapping(*snap_container, *current_scroll_offset, strategy).position;
                 if (snapped_offset != *current_scroll_offset) {
                     // The snap animation queues this target's scrollend event once it completes.
                     TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*document) };
@@ -4226,6 +4244,14 @@ void LocalNavigable::adopt_pending_async_scroll_offsets()
         return;
     }
 
+    // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
+    // AD-HOC: The scrolling the compositor process performs on its own is panning and scrollbar thumb dragging, both
+    //         of which report where the user's input came to rest, so their offsets settle as absolute scrolls even
+    //         though the specification lists a panning gesture among the relative scrolls with both an intended
+    //         direction and end position.
+    if (!async_scroll_updates.scroll_offsets.is_empty())
+        note_user_scroll_input_intent(Painting::SnapSelectionStrategy::Type::EndPosition);
+
     auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
     bool adopted_any_scroll_offset = false;
     for (auto const& async_scroll_offset : async_scroll_updates.scroll_offsets) {
@@ -4262,9 +4288,10 @@ void LocalNavigable::adopt_pending_async_scroll_offsets()
             continue;
         }
 
+        auto scroll_offset_before_scroll = scroll_offset_for(async_scroll_offset.stable_node_id);
         if (auto element = adopt_async_element_scroll_delta(*document, async_scroll_offset.stable_node_id, css_scroll_delta)) {
             adopted_any_scroll_offset = true;
-            queue_scrollend_event_after_user_scroll(*element, async_scroll_offset.stable_node_id);
+            queue_scrollend_event_after_user_scroll(*element, async_scroll_offset.stable_node_id, scroll_offset_before_scroll);
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async element delta {},{}",
                 async_scroll_offset.unadopted_scroll_delta.x(), async_scroll_offset.unadopted_scroll_delta.y());
         }
@@ -4918,7 +4945,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
     if (!should_scroll_smoothly) {
         auto did_scroll = set_scroll_offset_for(stable_node_id, position);
         if (did_scroll)
-            queue_scrollend_event(stable_node_id, trigger);
+            queue_scrollend_event(stable_node_id, trigger, initial_scroll_offset);
         WebIDL::resolve_promise(scroll_promise);
         return scroll_promise;
     }

@@ -710,7 +710,7 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Layout::
     return offset;
 }
 
-EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation)
+EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, WheelDeltaPrecision wheel_delta_precision, ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation)
 {
     record_last_known_mouse_position(visual_viewport_position, screen_position, buttons, modifiers);
 
@@ -725,6 +725,9 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
     // Wheel activity marks the scroll gesture as still in progress even when it no longer moves any scrolling box.
     m_navigable->defer_user_scroll_settlement();
+    m_navigable->note_user_scroll_input_intent(wheel_delta_precision == WheelDeltaPrecision::Discrete
+            ? Painting::SnapSelectionStrategy::Type::Direction
+            : Painting::SnapSelectionStrategy::Type::EndPosition);
 
     auto visual_viewport = document->visual_viewport();
 
@@ -818,8 +821,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         };
 
         if (auto node = target->dom_node) {
-            if (auto result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, [screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, async_scroll_performed_default_action, async_scroll_operation](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
-                    return event_handler.handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, async_scroll_performed_default_action, async_scroll_operation);
+            if (auto result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, [screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+                    return event_handler.handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation);
                 });
                 result.has_value()) {
                 if (result.value() == EventResult::Handled || result.value() == EventResult::Cancelled)
@@ -1318,10 +1321,11 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     auto page_scroll_distance = document->window()->inner_height() - (document->window()->outer_height() - document->window()->inner_height());
 
     // The held key keeps the scroll gesture in progress until it is released.
-    auto hold_scroll_gesture_until_key_release = [&] {
+    auto hold_scroll_gesture_until_key_release = [&](Painting::SnapSelectionStrategy::Type intent) {
         m_held_scroll_key = key;
         if (!m_scroll_key_gesture_hold)
             m_scroll_key_gesture_hold = make<HTML::UserScrollGestureHold>(*m_navigable);
+        m_navigable->note_user_scroll_input_intent(intent);
     };
     auto scroll_target_for_key_input = [&]() -> GC::Ptr<DOM::Node> {
         if (auto focused_area = document->focused_area())
@@ -1343,20 +1347,20 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         return scroll_target_layout_node
             && Painting::wheel_scroll_along_containing_block_chain(*scroll_target_layout_node, delta_x, delta_y) == Painting::ScrollHandled::Yes;
     };
-    auto scroll_by_for_key_input = [&](CSSPixels delta_x, CSSPixels delta_y) {
-        hold_scroll_gesture_until_key_release();
+    auto scroll_by_for_key_input = [&](CSSPixels delta_x, CSSPixels delta_y, Painting::SnapSelectionStrategy::Type intent) {
+        hold_scroll_gesture_until_key_release(intent);
         if (scroll_container_of_scroll_target_by(delta_x.to_double(), delta_y.to_double()))
             return;
         m_navigable->scroll_viewport_by_delta({ delta_x, delta_y }, Bindings::ScrollBehavior::Auto);
     };
     auto scroll_to_the_beginning_for_key_input = [&] {
-        hold_scroll_gesture_until_key_release();
+        hold_scroll_gesture_until_key_release(Painting::SnapSelectionStrategy::Type::EndPosition);
         if (scroll_container_of_scroll_target_by(0, -CSSPixels::max().to_double()))
             return;
         m_navigable->perform_a_scroll_of_the_viewport({ 0, 0 }, Bindings::ScrollBehavior::Auto, HTML::LocalNavigable::ScrollTrigger::UserInput);
     };
     auto scroll_to_the_end_for_key_input = [&] {
-        hold_scroll_gesture_until_key_release();
+        hold_scroll_gesture_until_key_release(Painting::SnapSelectionStrategy::Type::EndPosition);
         if (scroll_container_of_scroll_target_by(0, CSSPixels::max().to_double()))
             return;
         m_navigable->scroll_viewport_by_delta({ 0, CSSPixels::max() }, Bindings::ScrollBehavior::Auto);
@@ -1374,20 +1378,20 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
                 scroll_to_the_end_for_key_input();
             }
         } else {
-            scroll_by_for_key_input(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance);
+            scroll_by_for_key_input(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance, Painting::SnapSelectionStrategy::Type::Direction);
         }
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Left:
     case UIEvents::KeyCode::Key_Right:
         if (modifiers_without_keypad)
             break;
-        scroll_by_for_key_input(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0);
+        scroll_by_for_key_input(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0, Painting::SnapSelectionStrategy::Type::Direction);
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_PageUp:
     case UIEvents::KeyCode::Key_PageDown:
         if (modifiers_without_keypad != UIEvents::KeyModifier::Mod_None)
             break;
-        scroll_by_for_key_input(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance);
+        scroll_by_for_key_input(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance, Painting::SnapSelectionStrategy::Type::EndPositionAndDirection);
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Space: {
         if ((modifiers_without_keypad & ~UIEvents::KeyModifier::Mod_Shift) != UIEvents::KeyModifier::Mod_None)
@@ -1401,7 +1405,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (focused_area_activates_on_space)
             break;
         bool scroll_backward = (modifiers_without_keypad & UIEvents::KeyModifier::Mod_Shift) != UIEvents::KeyModifier::Mod_None;
-        scroll_by_for_key_input(0, scroll_backward ? -page_scroll_distance : page_scroll_distance);
+        scroll_by_for_key_input(0, scroll_backward ? -page_scroll_distance : page_scroll_distance, Painting::SnapSelectionStrategy::Type::EndPositionAndDirection);
         return EventResult::Handled;
     }
     case UIEvents::KeyCode::Key_Home:
