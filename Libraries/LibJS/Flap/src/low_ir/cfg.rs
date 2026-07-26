@@ -89,16 +89,10 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
         }
 
         let block_starts: Vec<_> = block_starts.into_iter().collect();
-        let mut blocks = Vec::with_capacity(block_starts.len());
         let mut instruction_to_block = vec![BlockId(0); instructions.len()];
         for (block_index, &start) in block_starts.iter().enumerate() {
             let end = block_starts.get(block_index + 1).copied().unwrap_or(instructions.len());
             instruction_to_block[start..end].fill(BlockId(block_index));
-            blocks.push(BasicBlock {
-                instructions: instructions[start..end].to_vec(),
-                successors: Vec::new(),
-                is_cold: false,
-            });
         }
 
         let labels = instructions
@@ -108,6 +102,20 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
                 defined_label(instruction).map(|label| (label.clone(), instruction_to_block[index]))
             })
             .collect::<HashMap<_, _>>();
+
+        // Split the listing back to front so each block takes ownership of its
+        // own instructions. Copying them into the blocks instead would clone an
+        // operand vector per instruction, and a large function has thousands.
+        let mut instructions = instructions;
+        let mut blocks = Vec::with_capacity(block_starts.len());
+        for &start in block_starts.iter().rev() {
+            blocks.push(BasicBlock {
+                instructions: instructions.split_off(start),
+                successors: Vec::new(),
+                is_cold: false,
+            });
+        }
+        blocks.reverse();
 
         for label in cold_labels {
             let block_id = labels
