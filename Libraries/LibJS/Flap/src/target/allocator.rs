@@ -68,7 +68,7 @@ fn register_bit(register: PhysicalRegister) -> RegisterSet {
 /// A set of virtual registers, held sorted.
 ///
 /// The obvious representation is a bitmap over the dense numbering, and for a
-/// handler-sized function it is the fastest one. A stitched function is not
+/// handler-sized function it is the fastest one. A large function is not
 /// handler-sized: the largest in Octane's zlib has 64298 virtual registers over
 /// 286178 instructions, where a bitmap per instruction is half a gigabyte and
 /// sweeping it is gigabytes of traffic. The number of registers live at any one

@@ -475,7 +475,7 @@ pub(crate) fn intern_virtual_registers(
 
     // Number the registers in the order they first appear. The numbering only
     // has to be deterministic, and ordering by name means comparing strings
-    // while sorting every register of a stitched function, which is among the
+    // while sorting every register of a large function, which is among the
     // most expensive things the whole pipeline does.
     let mut seen = HashMap::default();
     let mut registers = Vec::new();

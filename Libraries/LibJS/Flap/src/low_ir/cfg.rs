@@ -4,12 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::{
-    ControlFlowOpcode, ControlFlowOperand, Instruction, Label, Operand,
-};
-use crate::target::description::{ControlOperation, Operation};
+use super::{ControlFlowOpcode, ControlFlowOperand, Instruction, Label, Operand};
 #[cfg(test)]
 use crate::target::description::{CallKind, EqualityCondition, IntegerWidth, PairWidth, ZeroCondition};
+use crate::target::description::{ControlOperation, Operation};
 use crate::hash::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -40,9 +38,23 @@ pub(crate) struct BlockLayout {
     pub(crate) cold: Vec<BlockId>,
 }
 
+/// What laying a set of blocks out in a given order does to them.
+struct LinearizationPlan<O, C> {
+    inverted_branches: HashMap<BlockId, (usize, Instruction<O, C>)>,
+    skipped_blocks: HashSet<BlockId>,
+    omitted_jumps: HashSet<BlockId>,
+    referenced_labels: HashSet<Label>,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct ControlFlowGraph<O = Operand, C = Operation> {
     blocks: Vec<BasicBlock<O, C>>,
+}
+
+impl<O, C> Default for ControlFlowGraph<O, C> {
+    fn default() -> Self {
+        Self { blocks: Vec::new() }
+    }
 }
 
 #[cfg(test)]
@@ -70,7 +82,8 @@ fn block_label_references<O: ControlFlowOperand, C: ControlFlowOpcode>(
 ///
 /// Register allocation runs before any graph edit and only needs to know where
 /// control can go next. Building a whole control-flow graph to answer that
-/// copies every instruction into a block and then copies them all back out.
+/// copies every instruction into a block and then copies them all back out,
+/// which on a large function is the largest single cost of allocating it.
 pub(crate) fn instruction_successors<O: ControlFlowOperand, C: ControlFlowOpcode>(
     instructions: &[&Instruction<O, C>],
 ) -> Vec<Vec<usize>> {
@@ -119,10 +132,11 @@ pub(crate) fn instruction_successors<O: ControlFlowOperand, C: ControlFlowOpcode
 }
 
 impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
-    pub(crate) fn from_instructions(
-        instructions: Vec<Instruction<O, C>>,
-    ) -> Result<Self, String> {
+    pub(crate) fn from_instructions(instructions: Vec<Instruction<O, C>>) -> Result<Self, String> {
         let cold_labels = collect_cold_labels(&instructions)?;
+        // Dropping the cold annotations in place, rather than collecting the
+        // rest into a second vector, saves moving every instruction of the
+        // function an extra time.
         let mut instructions = instructions;
         instructions.retain(|instruction| instruction.opcode.operation() != Operation::Cold);
         if instructions.is_empty() {
@@ -329,12 +343,18 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
         // How many times each label is branched to, rather than the set of
         // labels that are. Removing a block drops exactly the references its
         // own instructions made, so the tally is adjusted instead of being
-        // rebuilt after each block removal.
+        // rebuilt, which on a large program means not cloning every label
+        // in the function once per block removed.
         let mut references: HashMap<Label, usize> = HashMap::default();
         for label in block_label_references(&self.blocks) {
             *references.entry(label.clone()).or_default() += 1;
         }
 
+        // Sweeping forward removes the same blocks in the same order as
+        // restarting the search after each removal would, and a removal can
+        // only ever make another block removable, so repeating until a sweep
+        // finds nothing reaches the same fixpoint without rescanning the
+        // function once per block removed.
         let mut removed = vec![false; self.blocks.len()];
         loop {
             let mut removed_any = false;
@@ -408,10 +428,35 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
         self.rebuild_successors();
     }
 
-    pub(crate) fn linearize_omitting_jumps_to_next_block(
+    /// Lay the graph out hot part first, taking ownership of its instructions.
+    ///
+    /// Finalization is the last thing to read the graph, so the instructions
+    /// are moved out rather than copied. Both parts are planned before either
+    /// is emitted, since planning reads blocks the other part will take.
+    pub(crate) fn linearize_hot_and_cold(
+        mut self,
+        layout: &BlockLayout,
+    ) -> (Vec<Instruction<O, C>>, Vec<Instruction<O, C>>) {
+        let referenced_anywhere = self.explicitly_referenced_labels();
+        let hot = self.plan_linearization(&layout.hot, &referenced_anywhere);
+        let cold = self.plan_linearization(&layout.cold, &referenced_anywhere);
+        let hot = self.take_linearized(&layout.hot, &hot);
+        let cold = self.take_linearized(&layout.cold, &cold);
+        (hot, cold)
+    }
+
+    /// Every label some instruction branches to, wherever it sits.
+    fn explicitly_referenced_labels(&self) -> HashSet<Label> {
+        block_label_references(&self.blocks).cloned().collect()
+    }
+
+    /// Work out which blocks are skipped, which jumps are omitted and which
+    /// branches are inverted when these blocks are laid out in this order.
+    fn plan_linearization(
         &self,
         blocks: &[BlockId],
-    ) -> Vec<Instruction<O, C>> {
+        explicitly_referenced_labels: &HashSet<Label>,
+    ) -> LinearizationPlan<O, C> {
         let inverted_branches = blocks
             .iter()
             .enumerate()
@@ -438,15 +483,6 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
                 Some((block_id, (2, branch)))
             })
             .collect::<HashMap<_, _>>();
-        let explicitly_referenced_labels = self
-            .blocks
-            .iter()
-            .flat_map(|block| &block.instructions)
-            .filter(|instruction| instruction.opcode.operation() != Operation::Label)
-            .flat_map(|instruction| &instruction.operands)
-            .filter_map(ControlFlowOperand::label)
-            .cloned()
-            .collect::<HashSet<_>>();
         let mut inverted_branches = inverted_branches;
         let mut skipped_blocks = HashSet::default();
         for blocks in blocks.windows(3) {
@@ -477,8 +513,10 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
             let jump = match fallthrough.instructions.as_slice() {
                 [jump] => jump,
                 [label, jump]
-                    if defined_label(label)
-                        .is_some_and(|label| !explicitly_referenced_labels.contains(label)) => jump,
+                    if defined_label(label).is_some_and(|label| !explicitly_referenced_labels.contains(label)) =>
+                {
+                    jump
+                }
                 _ => continue,
             };
             let Some(jump_target) = (jump.opcode.operation() == Operation::Control(ControlOperation::JumpLabel))
@@ -498,19 +536,25 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
             .enumerate()
             .filter_map(|(index, &block_id)| {
                 let block = &self.blocks[block_id.0];
-                blocks.get(index + 1).is_some_and(|&next_block_id| {
-                    let Some(last) = block.instructions.last() else {
-                        return false;
-                    };
-                    let Some(target) = (last.opcode.operation() == Operation::Control(ControlOperation::JumpLabel)).then(|| sole_label_operand(last)).flatten() else {
-                        return false;
-                    };
-                    self.blocks[next_block_id.0]
-                        .instructions
-                        .first()
-                        .and_then(defined_label)
-                        .is_some_and(|label| label == target)
-                }).then_some(block_id)
+                blocks
+                    .get(index + 1)
+                    .is_some_and(|&next_block_id| {
+                        let Some(last) = block.instructions.last() else {
+                            return false;
+                        };
+                        let Some(target) = (last.opcode.operation() == Operation::Control(ControlOperation::JumpLabel))
+                            .then(|| sole_label_operand(last))
+                            .flatten()
+                        else {
+                            return false;
+                        };
+                        self.blocks[next_block_id.0]
+                            .instructions
+                            .first()
+                            .and_then(defined_label)
+                            .is_some_and(|label| label == target)
+                    })
+                    .then_some(block_id)
             })
             .filter(|block| !inverted_branches.contains_key(block))
             .filter(|block| !skipped_blocks.contains(block))
@@ -536,34 +580,63 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
                 }
             }
             if let Some((_, branch)) = inverted_branches.get(&block_id) {
-                referenced_labels.extend(
-                    branch
-                        .operands
-                        .iter()
-                        .filter_map(ControlFlowOperand::label)
-                        .cloned(),
-                );
+                referenced_labels.extend(branch.operands.iter().filter_map(ControlFlowOperand::label).cloned());
             }
         }
+        LinearizationPlan {
+            inverted_branches,
+            skipped_blocks,
+            omitted_jumps,
+            referenced_labels,
+        }
+    }
+
+    /// How many instructions of a block survive its plan.
+    fn planned_length(&self, block: BlockId, plan: &LinearizationPlan<O, C>) -> usize {
+        self.blocks[block.0].instructions.len()
+            - usize::from(plan.omitted_jumps.contains(&block))
+            - plan.inverted_branches.get(&block).map_or(0, |(removed, _)| *removed)
+    }
+
+    /// Emit the planned instructions, moving them out of the graph.
+    fn take_linearized(&mut self, blocks: &[BlockId], plan: &LinearizationPlan<O, C>) -> Vec<Instruction<O, C>> {
         let mut instructions = Vec::new();
         for &block_id in blocks {
-            if skipped_blocks.contains(&block_id) {
+            if plan.skipped_blocks.contains(&block_id) {
+                continue;
+            }
+            let end = self.planned_length(block_id, plan);
+            let mut block = std::mem::take(&mut self.blocks[block_id.0].instructions);
+            block.truncate(end);
+            instructions.extend(block.into_iter().filter(|instruction| {
+                defined_label(instruction).is_none_or(|label| plan.referenced_labels.contains(label))
+            }));
+            if let Some((_, branch)) = plan.inverted_branches.get(&block_id) {
+                instructions.push(branch.clone());
+            }
+        }
+        instructions
+    }
+
+    pub(crate) fn linearize_omitting_jumps_to_next_block(&self, blocks: &[BlockId]) -> Vec<Instruction<O, C>> {
+        let plan = self.plan_linearization(blocks, &self.explicitly_referenced_labels());
+        let mut instructions = Vec::new();
+        for &block_id in blocks {
+            if plan.skipped_blocks.contains(&block_id) {
                 continue;
             }
             let block = &self.blocks[block_id.0];
-            let end = block.instructions.len()
-                - usize::from(omitted_jumps.contains(&block_id))
-                - inverted_branches.get(&block_id).map_or(0, |(removed, _)| *removed);
+            let end = self.planned_length(block_id, &plan);
             instructions.extend(
                 block.instructions[..end]
                     .iter()
                     .filter(|instruction| {
                         defined_label(instruction)
-                            .is_none_or(|label| referenced_labels.contains(label))
+                            .is_none_or(|label| plan.referenced_labels.contains(label))
                     })
                     .cloned(),
             );
-            if let Some((_, branch)) = inverted_branches.get(&block_id) {
+            if let Some((_, branch)) = plan.inverted_branches.get(&block_id) {
                 instructions.push(branch.clone());
             }
         }
@@ -661,18 +734,14 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
     }
 }
 
-fn defined_label<O: ControlFlowOperand, C: ControlFlowOpcode>(
-    instruction: &Instruction<O, C>,
-) -> Option<&Label> {
+fn defined_label<O: ControlFlowOperand, C: ControlFlowOpcode>(instruction: &Instruction<O, C>) -> Option<&Label> {
     if instruction.opcode.operation() != Operation::Label {
         return None;
     }
     sole_label_operand(instruction)
 }
 
-fn sole_label_operand<O: ControlFlowOperand, C>(
-    instruction: &Instruction<O, C>,
-) -> Option<&Label> {
+fn sole_label_operand<O: ControlFlowOperand, C>(instruction: &Instruction<O, C>) -> Option<&Label> {
     let [operand] = instruction.operands.as_slice() else {
         return None;
     };
@@ -693,15 +762,10 @@ fn collect_cold_labels<O: ControlFlowOperand, C: ControlFlowOpcode>(
         .collect()
 }
 
-fn instruction_ends_block<O: ControlFlowOperand, C: ControlFlowOpcode>(
-    instruction: &Instruction<O, C>,
-) -> bool {
+fn instruction_ends_block<O: ControlFlowOperand, C: ControlFlowOpcode>(instruction: &Instruction<O, C>) -> bool {
     instruction.opcode.description().terminal
         || (instruction.opcode.operation() != Operation::Label
-            && instruction
-                .operands
-                .iter()
-                .any(|operand| operand.label().is_some()))
+            && instruction.operands.iter().any(|operand| operand.label().is_some()))
 }
 
 #[cfg(test)]
@@ -744,8 +808,7 @@ mod tests {
 
     #[test]
     fn supports_operand_specific_control_flow_graphs() {
-        let graph: ControlFlowGraph<TestOperand> =
-            ControlFlowGraph::from_instructions(vec![Instruction {
+        let graph: ControlFlowGraph<TestOperand> = ControlFlowGraph::from_instructions(vec![Instruction {
             opcode: Operation::Label,
             operands: vec![TestOperand::Label(".entry".into())],
         }])
@@ -757,7 +820,10 @@ mod tests {
     #[test]
     fn builds_basic_blocks_and_successor_edges() {
         let graph = ControlFlowGraph::from_instructions(vec![
-            instruction(Operation::branch_zero(IntegerWidth::U64, ZeroCondition::Zero), vec![Operand::VirtualRegister("value".into()), label(".zero")]),
+            instruction(
+                Operation::branch_zero(IntegerWidth::U64, ZeroCondition::Zero),
+                vec![Operand::VirtualRegister("value".into()), label(".zero")],
+            ),
             instruction(Operation::Control(ControlOperation::DispatchNext), vec![]),
             instruction(Operation::Label, vec![label(".zero")]),
             instruction(Operation::Control(ControlOperation::JumpLabel), vec![label(".done")]),
@@ -800,15 +866,19 @@ mod tests {
     #[test]
     fn outlines_cold_blocks_without_changing_block_contents() {
         let graph = ControlFlowGraph::from_instructions(vec![
-            instruction(Operation::branch_zero(IntegerWidth::U64, ZeroCondition::Zero), vec![Operand::VirtualRegister("value".into()), label(".slow")]),
+            instruction(
+                Operation::branch_zero(IntegerWidth::U64, ZeroCondition::Zero),
+                vec![Operand::VirtualRegister("value".into()), label(".slow")],
+            ),
             instruction(Operation::Control(ControlOperation::DispatchNext), vec![]),
             instruction(Operation::Cold, vec![label(".slow")]),
             instruction(Operation::Label, vec![label(".slow")]),
-            instruction(Operation::Call(CallKind::SlowPath), vec![
-                Operand::Relocation(crate::low_ir::Relocation::function_call(
+            instruction(
+                Operation::Call(CallKind::SlowPath),
+                vec![Operand::Relocation(crate::low_ir::Relocation::function_call(
                     crate::identity::ExternalSymbol::new("slow_path"),
-                )),
-            ]),
+                ))],
+            ),
         ])
         .unwrap();
         let layout = graph.layout_hot_and_cold().unwrap();
@@ -839,17 +909,25 @@ mod tests {
     #[test]
     fn inverts_branches_whose_taken_target_follows_a_jump_block() {
         let graph = ControlFlowGraph::from_instructions(vec![
-            instruction(Operation::branch_memory(PairWidth::Word, EqualityCondition::Equal), vec![Operand::VirtualRegister("value".into()), Operand::Immediate(1), label(".success")]),
+            instruction(
+                Operation::branch_memory(PairWidth::Word, EqualityCondition::Equal),
+                vec![
+                    Operand::VirtualRegister("value".into()),
+                    Operand::Immediate(1),
+                    label(".success"),
+                ],
+            ),
             instruction(Operation::Control(ControlOperation::JumpLabel), vec![label(".slow")]),
             instruction(Operation::Label, vec![label(".success")]),
             instruction(Operation::Control(ControlOperation::DispatchNext), vec![]),
             instruction(Operation::Cold, vec![label(".slow")]),
             instruction(Operation::Label, vec![label(".slow")]),
-            instruction(Operation::Call(CallKind::SlowPath), vec![
-                Operand::Relocation(crate::low_ir::Relocation::function_call(
+            instruction(
+                Operation::Call(CallKind::SlowPath),
+                vec![Operand::Relocation(crate::low_ir::Relocation::function_call(
                     crate::identity::ExternalSymbol::new("slow_path"),
-                )),
-            ]),
+                ))],
+            ),
         ])
         .unwrap();
         let layout = graph.layout_hot_and_cold().unwrap();
@@ -874,12 +952,16 @@ mod tests {
             instruction(Operation::Control(ControlOperation::DispatchNext), vec![]),
             instruction(Operation::Cold, vec![label(".slow")]),
             instruction(Operation::Label, vec![label(".slow")]),
-            instruction(Operation::branch_zero(IntegerWidth::U64, ZeroCondition::Zero), vec![Operand::VirtualRegister("value".into()), label(".done")]),
-            instruction(Operation::Call(CallKind::SlowPath), vec![
-                Operand::Relocation(crate::low_ir::Relocation::function_call(
+            instruction(
+                Operation::branch_zero(IntegerWidth::U64, ZeroCondition::Zero),
+                vec![Operand::VirtualRegister("value".into()), label(".done")],
+            ),
+            instruction(
+                Operation::Call(CallKind::SlowPath),
+                vec![Operand::Relocation(crate::low_ir::Relocation::function_call(
                     crate::identity::ExternalSymbol::new("slow_path"),
-                )),
-            ]),
+                ))],
+            ),
             instruction(Operation::Label, vec![label(".done")]),
             instruction(Operation::Control(ControlOperation::Exit), vec![]),
         ])
@@ -893,7 +975,10 @@ mod tests {
     #[test]
     fn rejects_cold_fallthrough() {
         let graph = ControlFlowGraph::from_instructions(vec![
-            instruction(Operation::Move(IntegerWidth::U64), vec![Operand::VirtualRegister("value".into()), Operand::Immediate(1)]),
+            instruction(
+                Operation::Move(IntegerWidth::U64),
+                vec![Operand::VirtualRegister("value".into()), Operand::Immediate(1)],
+            ),
             instruction(Operation::Cold, vec![label(".slow")]),
             instruction(Operation::Label, vec![label(".slow")]),
             instruction(Operation::Control(ControlOperation::Exit), vec![]),
@@ -914,10 +999,7 @@ mod tests {
             instruction(Operation::Label, vec![label(".slow")]),
             instruction(
                 Operation::Move(IntegerWidth::U64),
-                vec![
-                    Operand::VirtualRegister("value".into()),
-                    Operand::Immediate(1),
-                ],
+                vec![Operand::VirtualRegister("value".into()), Operand::Immediate(1)],
             ),
         ])
         .unwrap();
@@ -949,7 +1031,10 @@ mod tests {
     #[test]
     fn removes_unreferenced_jump_blocks_after_threading() {
         let mut graph = ControlFlowGraph::from_instructions(vec![
-            instruction(Operation::branch_zero(IntegerWidth::U64, ZeroCondition::Zero), vec![Operand::VirtualRegister("value".into()), label(".edge")]),
+            instruction(
+                Operation::branch_zero(IntegerWidth::U64, ZeroCondition::Zero),
+                vec![Operand::VirtualRegister("value".into()), label(".edge")],
+            ),
             instruction(Operation::Control(ControlOperation::JumpLabel), vec![label(".done")]),
             instruction(Operation::Cold, vec![label(".edge")]),
             instruction(Operation::Label, vec![label(".edge")]),

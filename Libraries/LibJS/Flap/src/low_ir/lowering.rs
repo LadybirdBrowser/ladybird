@@ -1649,7 +1649,7 @@ impl<'a> FunctionUses<'a> {
         let mut terminator_inputs = Vec::new();
         // Where each instruction sits. Selection asks whether two instructions
         // are adjacent in a block, and searching the whole function for them is
-        // quadratic on a stitched program.
+        // quadratic on a large program.
         let mut positions = vec![None; function.instructions.len()];
         for (block_index, block) in function.blocks.iter().enumerate() {
             for (position, instruction) in block.instructions.iter().enumerate() {
