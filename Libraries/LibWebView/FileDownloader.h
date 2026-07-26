@@ -83,12 +83,17 @@ public:
 
 private:
     struct ActiveDownload;
+    struct Segment;
 
     Download* mutable_download_or_null(u64 id);
     ActiveDownload* active_download(u64 id);
     void start_download_request(u64 id, URL::URL const&);
     void follow_download_redirect(u64 id, HTTP::HeaderList const&);
-    void attach_request_to_download(u64 id, NonnullRefPtr<Requests::Request>);
+    void attach_request_to_download(u64 id, size_t segment_index, NonnullRefPtr<Requests::Request>);
+    void append_segment_data(u64 id, size_t segment_index, ReadonlyBytes);
+    static ErrorOr<void> write_segment_data(ActiveDownload&, Segment&, ReadonlyBytes);
+    static void recompute_downloaded_size(Download&, ActiveDownload const&);
+    static void stop_segment_request(ActiveDownload&, size_t segment_index);
     void discard_active_download(u64 id);
 
     void notify_download_added(Download const&);
