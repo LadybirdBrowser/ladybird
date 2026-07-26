@@ -236,24 +236,24 @@ fn lower_handler_internal(
     let preferred_order = schedule_blocks(function);
     let alternate_order = schedule_blocks_with_successor_order(function, false);
     let profile_order = schedule_blocks_by_profile(function);
-    let preferred_profile_score = profile_layout_score(function, &preferred_order);
-    let alternate_profile_score = profile_layout_score(function, &alternate_order);
-    let preferred = lower_blocks(function, &folded_instructions, constants, preferred_order)?;
-    let alternate = lower_blocks(function, &folded_instructions, constants, alternate_order)?;
-    let preferred_cost = control_flow_cost(&preferred)?;
-    let alternate_cost = control_flow_cost(&alternate)?;
-    let (selected_profile_score, mut selected) = if alternate_profile_score > preferred_profile_score
-        || alternate_profile_score == preferred_profile_score && alternate_cost < preferred_cost
-    {
-        (alternate_profile_score, alternate)
-    } else {
-        (preferred_profile_score, preferred)
-    };
-    let profile_score = profile_layout_score(function, &profile_order);
-    if profile_score > selected_profile_score {
-        selected = lower_blocks(function, &folded_instructions, constants, profile_order)?;
+    let mut candidate_orders = vec![preferred_order.clone(), alternate_order, profile_order];
+    candidate_orders.dedup();
+    let lowered = lower_blocks(function, &folded_instructions, constants, preferred_order.clone())?;
+    let mut selected = None;
+    for order in candidate_orders {
+        let instructions = reorder_lowered_blocks(&lowered, &preferred_order, &order)?;
+        let mut graph = super::cfg::ControlFlowGraph::from_instructions(instructions)?;
+        graph.simplify();
+        let cost = graph.linearized_instruction_count()?;
+        let profile_score = profile_layout_score(function, &order);
+        if selected.as_ref().is_none_or(|(selected_profile, selected_cost, _)| {
+            profile_score > *selected_profile || profile_score == *selected_profile && cost < *selected_cost
+        }) {
+            selected = Some((profile_score, cost, order));
+        }
     }
-    let mut instructions = selected;
+    let selected_order = selected.expect("there is always a preferred block order").2;
+    let mut instructions = reorder_lowered_blocks(&lowered, &preferred_order, &selected_order)?;
     // Preserve the semantic exec_ctx value for targets that derive it from a
     // different pinned base. The dedicated instruction also exposes any
     // scratch register needed for that derivation to register allocation.
@@ -502,17 +502,56 @@ fn lower_blocks(
     Ok(body)
 }
 
-fn control_flow_cost(instructions: &[Instruction]) -> Result<usize, String> {
-    let mut instructions = instructions.to_vec();
-    super::optimize::invert_branches_over_jumps(&mut instructions);
-    super::optimize::remove_unreferenced_labels(&mut instructions);
-    super::optimize::invert_branches_over_jumps(&mut instructions);
-    super::optimize::remove_unreferenced_labels(&mut instructions);
-    let mut graph = super::cfg::ControlFlowGraph::from_instructions(instructions)?;
-    graph.simplify();
-    let layout = graph.layout_hot_and_cold()?;
-    Ok(graph.linearize_omitting_jumps_to_next_block(&layout.hot).len()
-        + graph.linearize_omitting_jumps_to_next_block(&layout.cold).len())
+fn reorder_lowered_blocks(
+    instructions: &[Instruction],
+    original_order: &[BlockId],
+    new_order: &[BlockId],
+) -> Result<Vec<Instruction>, String> {
+    let labels = original_order
+        .iter()
+        .map(|block| (block_label(*block), *block))
+        .collect::<HashMap<_, _>>();
+    let mut starts = Vec::with_capacity(original_order.len());
+    for (index, instruction) in instructions.iter().enumerate() {
+        if instruction.opcode.operation() != MachineOperation::Label {
+            continue;
+        }
+        let [Operand::Label(label)] = instruction.operands.as_slice() else {
+            continue;
+        };
+        let Some(block) = labels.get(label).copied() else {
+            continue;
+        };
+        let start = if index > 0
+            && instructions[index - 1].opcode.operation() == MachineOperation::Cold
+            && instructions[index - 1].operands == instruction.operands
+        {
+            index - 1
+        } else {
+            index
+        };
+        starts.push((block, start));
+    }
+    if starts.first().is_none_or(|(_, start)| *start != 0) {
+        starts.insert(0, (original_order[0], 0));
+    }
+    let ranges = starts
+        .iter()
+        .enumerate()
+        .map(|(position, (block, start))| {
+            let end = starts.get(position + 1).map_or(instructions.len(), |(_, start)| *start);
+            (*block, (*start, end))
+        })
+        .collect::<HashMap<_, _>>();
+    if ranges.len() != original_order.len() {
+        return Err("lowered block fragments do not cover the scheduled SSA blocks".to_string());
+    }
+    let mut reordered = Vec::with_capacity(instructions.len());
+    for block in new_order {
+        let (start, end) = ranges[block];
+        reordered.extend_from_slice(&instructions[start..end]);
+    }
+    Ok(reordered)
 }
 
 fn schedule_blocks(function: &Function) -> Vec<BlockId> {
@@ -3091,4 +3130,28 @@ fn layout_operand(constants: &LayoutConstants, known: KnownLayoutConstant) -> Re
         .known(known)
         .map(Operand::LayoutConstant)
         .ok_or_else(|| format!("unknown constant '{}'", known.name()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reorders_lowered_block_fragments_without_splitting_internal_labels() {
+        let first = BlockId(0);
+        let second = BlockId(1);
+        let instructions = vec![
+            machine_instruction(MachineOperation::Move(IntegerWidth::U64), vec![]),
+            machine_instruction(MachineOperation::Label, vec![Operand::Label(block_label(second))]),
+            machine_instruction(MachineOperation::Label, vec![Operand::Label(Label::new(".internal"))]),
+        ];
+        let reordered = reorder_lowered_blocks(&instructions, &[first, second], &[second, first]).unwrap();
+
+        assert_eq!(reordered[0].operands, [Operand::Label(block_label(second))]);
+        assert_eq!(reordered[1].operands, [Operand::Label(Label::new(".internal"))]);
+        assert_eq!(
+            reordered[2].opcode.operation(),
+            MachineOperation::Move(IntegerWidth::U64)
+        );
+    }
 }
