@@ -111,6 +111,10 @@ pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bo
     let mut executable_blocks = vec![false; function.blocks.len()];
     let mut executable_edges = HashSet::new();
     executable_blocks[function.entry.0] = true;
+    // Which edges are *selected* changes as the analysis learns, but which
+    // edges *exist* does not, so the graph is walked once. Rediscovering a
+    // block's predecessors by scanning every other block is quadratic.
+    let incoming_edges = incoming_edges(function);
 
     loop {
         let mut changed = false;
@@ -122,11 +126,9 @@ pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bo
             let block = BlockId(block_index);
             for (parameter_index, parameter) in function.blocks[block_index].parameters.iter().enumerate() {
                 let mut incoming = LatticeValue::Unknown;
-                for predecessor_index in 0..function.blocks.len() {
-                    for (edge_index, edge) in selected_edges(function, BlockId(predecessor_index), &values) {
-                        if edge.block == block && executable_edges.contains(&(predecessor_index, edge_index)) {
-                            incoming = join_lattice(incoming, values[edge.arguments[parameter_index].0]);
-                        }
+                for edge in &incoming_edges[block_index] {
+                    if executable_edges.contains(&(edge.predecessor, edge.edge_index)) {
+                        incoming = join_lattice(incoming, values[edge.arguments[parameter_index].0]);
                     }
                 }
                 changed |= merge_value(&mut values[parameter.0], incoming, loop_blocks.contains(&block));
@@ -504,6 +506,46 @@ fn relation(lhs: IntegerFacts, rhs: IntegerFacts, relation: Relation) -> Integer
     value
         .map(IntegerFacts::bool)
         .unwrap_or_else(|| IntegerFacts::full(&Type::Bool).unwrap())
+}
+
+/// An edge arriving at a block, named the way `selected_edges` names it.
+struct IncomingEdge {
+    predecessor: usize,
+    edge_index: usize,
+    arguments: Vec<ValueId>,
+}
+
+/// Every edge in the function, grouped by the block it arrives at.
+fn incoming_edges(function: &Function) -> Vec<Vec<IncomingEdge>> {
+    let mut edges: Vec<Vec<IncomingEdge>> = (0..function.blocks.len()).map(|_| Vec::new()).collect();
+    for (predecessor, block) in function.blocks.iter().enumerate() {
+        for (edge_index, edge) in outgoing_edges(block.terminator.as_ref().unwrap()) {
+            edges[edge.block.0].push(IncomingEdge {
+                predecessor,
+                edge_index,
+                arguments: edge.arguments.clone(),
+            });
+        }
+    }
+    edges
+}
+
+/// A terminator's edges, indexed the way `selected_edges` indexes them.
+fn outgoing_edges(terminator: &Terminator) -> Vec<(usize, &Edge)> {
+    match terminator {
+        Terminator::Jump(edge) => vec![(0, edge)],
+        Terminator::Branch {
+            then_edge, else_edge, ..
+        } => vec![(0, then_edge), (1, else_edge)],
+        Terminator::Switch { cases, default, .. } => cases
+            .iter()
+            .enumerate()
+            .map(|(index, (_, edge))| (index, edge))
+            .chain([(cases.len(), default)])
+            .collect(),
+        Terminator::CheckedOperation { success, failure, .. } => vec![(0, success), (1, failure)],
+        Terminator::IndirectJump { .. } | Terminator::Return(_) | Terminator::Unreachable => Vec::new(),
+    }
 }
 
 fn selected_edges<'a>(function: &'a Function, block: BlockId, values: &[LatticeValue]) -> Vec<(usize, &'a Edge)> {
