@@ -11,6 +11,8 @@
 //! of truth for instruction field offsets and sizes.
 
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct Field {
@@ -48,110 +50,247 @@ impl From<(&'static str, usize, usize, &'static str)> for FieldType {
 /// On 64-bit: alignof(void*) = 8.
 pub const STRUCT_ALIGN: usize = 8;
 
-pub fn parse_bytecode_def(content: &str) -> Vec<OpDef> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseError {
+    pub source_name: String,
+    pub line: usize,
+    pub column: usize,
+    pub message: String,
+}
+
+impl ParseError {
+    fn new(source_name: &str, line: usize, column: usize, message: impl Into<String>) -> Self {
+        Self {
+            source_name: source_name.to_string(),
+            line,
+            column,
+            message: message.into(),
+        }
+    }
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "{}:{}:{}: error: {}",
+            self.source_name, self.line, self.column, self.message
+        )
+    }
+}
+
+impl Error for ParseError {}
+
+fn is_identifier(name: &str) -> bool {
+    let mut characters = name.chars();
+    characters
+        .next()
+        .is_some_and(|character| character.is_ascii_alphabetic() || character == '_')
+        && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
+}
+
+pub fn parse_bytecode_def(source_name: &str, content: &str) -> Result<Vec<OpDef>, ParseError> {
     let mut ops = Vec::new();
     let mut current: Option<OpDef> = None;
-    let mut in_op = false;
+    let mut op_names = HashMap::new();
+    let mut field_names = HashMap::new();
+    let mut op_start = None;
 
-    for raw_line in content.lines() {
+    for (line_index, raw_line) in content.lines().enumerate() {
+        let line = line_index + 1;
         let stripped = raw_line.trim();
+        let column = raw_line.len() - raw_line.trim_start().len() + 1;
         if stripped.is_empty() || stripped.starts_with("//") || stripped.starts_with('#') {
             continue;
         }
 
         if stripped.starts_with("op ") {
-            assert!(!in_op, "Nested op blocks");
-            in_op = true;
-            let rest = stripped.strip_prefix("op ").unwrap().trim();
-            let name = if let Some(idx) = rest.find('<') {
-                rest[..idx].trim().to_string()
+            if current.is_some() {
+                return Err(ParseError::new(source_name, line, column, "nested op block"));
+            }
+            let declaration = stripped.strip_prefix("op ").unwrap().trim();
+            let (name, parent) = if let Some((name, parent)) = declaration.split_once('<') {
+                (name.trim(), Some(parent.trim()))
             } else {
-                rest.to_string()
+                (declaration, None)
             };
+            if name.is_empty() {
+                return Err(ParseError::new(source_name, line, column, "missing op name"));
+            }
+            if !is_identifier(name) {
+                return Err(ParseError::new(
+                    source_name,
+                    line,
+                    column,
+                    format!("invalid op name '{name}'"),
+                ));
+            }
+            if parent.is_some_and(str::is_empty) {
+                return Err(ParseError::new(source_name, line, column, "missing parent op name"));
+            }
+            if parent.is_some_and(|parent| !is_identifier(parent)) {
+                return Err(ParseError::new(
+                    source_name,
+                    line,
+                    column,
+                    format!("invalid parent op name '{}'", parent.unwrap()),
+                ));
+            }
+            if let Some(previous_line) = op_names.insert(name.to_string(), line) {
+                return Err(ParseError::new(
+                    source_name,
+                    line,
+                    column,
+                    format!("duplicate op '{name}' previously defined on line {previous_line}"),
+                ));
+            }
             current = Some(OpDef {
-                name,
+                name: name.to_string(),
                 fields: Vec::new(),
                 is_terminator: false,
             });
+            field_names.clear();
+            op_start = Some((line, column));
             continue;
         }
 
         if stripped == "endop" {
-            assert!(in_op && current.is_some(), "endop without op");
-            ops.push(current.take().unwrap());
-            in_op = false;
+            let Some(op) = current.take() else {
+                return Err(ParseError::new(source_name, line, column, "endop without op"));
+            };
+            validate_op_layout(&op).map_err(|message| ParseError::new(source_name, line, column, message))?;
+            ops.push(op);
+            op_start = None;
             continue;
         }
 
-        if !in_op {
-            continue;
-        }
+        let Some(op) = current.as_mut() else {
+            return Err(ParseError::new(
+                source_name,
+                line,
+                column,
+                format!("unexpected top-level line '{stripped}'"),
+            ));
+        };
 
         if stripped.starts_with('@') {
-            if stripped == "@terminator" {
-                current.as_mut().unwrap().is_terminator = true;
+            match stripped {
+                "@terminator" => op.is_terminator = true,
+                "@nothrow" => {}
+                _ => {
+                    return Err(ParseError::new(
+                        source_name,
+                        line,
+                        column,
+                        format!("unknown annotation '{stripped}'"),
+                    ));
+                }
             }
             continue;
         }
 
-        let (lhs, rhs) = stripped.split_once(':').expect("Malformed field line");
-        let field_name = lhs.trim().to_string();
-        let mut field_type = rhs.trim().to_string();
+        let Some((lhs, rhs)) = stripped.split_once(':') else {
+            return Err(ParseError::new(source_name, line, column, "malformed field line"));
+        };
+        let field_name = lhs.trim();
+        if field_name.is_empty() {
+            return Err(ParseError::new(source_name, line, column, "missing field name"));
+        }
+        if !is_identifier(field_name) {
+            return Err(ParseError::new(
+                source_name,
+                line,
+                column,
+                format!("invalid field name '{field_name}'"),
+            ));
+        }
+        if let Some(previous_line) = field_names.insert(field_name.to_string(), line) {
+            return Err(ParseError::new(
+                source_name,
+                line,
+                column,
+                format!("duplicate field '{field_name}' previously defined on line {previous_line}"),
+            ));
+        }
+        let mut field_type = rhs.trim();
         let is_array = field_type.ends_with("[]");
         if is_array {
-            field_type = field_type[..field_type.len() - 2].trim().to_string();
+            field_type = field_type[..field_type.len() - 2].trim();
         }
-        current.as_mut().unwrap().fields.push(Field {
-            name: field_name,
-            ty: field_type,
+        if try_field_type_info(field_type).is_none() {
+            let type_column = raw_line.find(':').unwrap() + 2 + rhs.len() - rhs.trim_start().len();
+            return Err(ParseError::new(
+                source_name,
+                line,
+                type_column,
+                format!("unknown field type '{field_type}'"),
+            ));
+        }
+        op.fields.push(Field {
+            name: field_name.to_string(),
+            ty: field_type.to_string(),
             is_array,
         });
     }
-    assert!(!in_op, "Unclosed op block");
+    if let Some(op) = current {
+        let (line, column) = op_start.unwrap();
+        return Err(ParseError::new(
+            source_name,
+            line,
+            column,
+            format!("unclosed op block '{}'", op.name),
+        ));
+    }
 
     // Remove the base "Instruction" definition (not an actual opcode).
     ops.retain(|op| op.name != "Instruction");
-    ops
+    Ok(ops)
+}
+
+fn try_field_type_info(ty: &str) -> Option<FieldType> {
+    Some(
+        match ty {
+            "bool" => ("bool", 1, 1, "bool"),
+            "u32" => ("u32", 4, 4, "u32"),
+            "u64" => ("u64", 8, 8, "u64"),
+            "Operand" => ("Operand", 4, 4, "operand"),
+            "Optional<Operand>" => ("Option<Operand>", 4, 4, "optional_operand"),
+            "Label" => ("Label", 4, 4, "label"),
+            "Optional<Label>" => ("Option<Label>", 4, 8, "optional_label"),
+            "IdentifierTableIndex" => ("IdentifierTableIndex", 4, 4, "u32_newtype"),
+            "Optional<IdentifierTableIndex>" => ("Option<IdentifierTableIndex>", 4, 4, "optional_u32_newtype"),
+            "PropertyKeyTableIndex" => ("PropertyKeyTableIndex", 4, 4, "u32_newtype"),
+            "StringTableIndex" => ("StringTableIndex", 4, 4, "u32_newtype"),
+            "Optional<StringTableIndex>" => ("Option<StringTableIndex>", 4, 4, "optional_u32_newtype"),
+            "RegexTableIndex" => ("RegexTableIndex", 4, 4, "u32_newtype"),
+            "EnvironmentCoordinate" => ("EnvironmentCoordinate", 4, 8, "env_coord"),
+            "Builtin" => ("u8", 1, 1, "u8"),
+            "Completion::Type" => ("u32", 4, 4, "u32"),
+            "IteratorHint" => ("u32", 4, 4, "u32"),
+            "EnvironmentMode" => ("u32", 4, 4, "u32"),
+            "PutKind" => ("u32", 4, 4, "u32"),
+            "ArgumentsKind" => ("u32", 4, 4, "u32"),
+            "FunctionNamePrefix" => ("u32", 4, 4, "u32"),
+            "Value" => ("u64", 8, 8, "u64"),
+            "PropertyLookupCacheIndex"
+            | "GlobalVariableCacheIndex"
+            | "EnvironmentCoordinateCacheIndex"
+            | "TemplateObjectCacheIndex"
+            | "ObjectShapeCacheIndex"
+            | "ObjectPropertyIteratorCacheIndex" => ("u32", 4, 4, "u32"),
+            _ => return None,
+        }
+        .into(),
+    )
 }
 
 pub fn field_type_info(ty: &str) -> FieldType {
-    match ty {
-        "bool" => ("bool", 1, 1, "bool"),
-        "u32" => ("u32", 4, 4, "u32"),
-        "u64" => ("u64", 8, 8, "u64"),
-        "Operand" => ("Operand", 4, 4, "operand"),
-        "Optional<Operand>" => ("Option<Operand>", 4, 4, "optional_operand"),
-        "Label" => ("Label", 4, 4, "label"),
-        "Optional<Label>" => ("Option<Label>", 4, 8, "optional_label"),
-        "IdentifierTableIndex" => ("IdentifierTableIndex", 4, 4, "u32_newtype"),
-        "Optional<IdentifierTableIndex>" => ("Option<IdentifierTableIndex>", 4, 4, "optional_u32_newtype"),
-        "PropertyKeyTableIndex" => ("PropertyKeyTableIndex", 4, 4, "u32_newtype"),
-        "StringTableIndex" => ("StringTableIndex", 4, 4, "u32_newtype"),
-        "Optional<StringTableIndex>" => ("Option<StringTableIndex>", 4, 4, "optional_u32_newtype"),
-        "RegexTableIndex" => ("RegexTableIndex", 4, 4, "u32_newtype"),
-        "EnvironmentCoordinate" => ("EnvironmentCoordinate", 4, 8, "env_coord"),
-        "Builtin" => ("u8", 1, 1, "u8"),
-        "Completion::Type" => ("u32", 4, 4, "u32"),
-        "IteratorHint" => ("u32", 4, 4, "u32"),
-        "EnvironmentMode" => ("u32", 4, 4, "u32"),
-        "PutKind" => ("u32", 4, 4, "u32"),
-        "ArgumentsKind" => ("u32", 4, 4, "u32"),
-        "FunctionNamePrefix" => ("u32", 4, 4, "u32"),
-        "Value" => ("u64", 8, 8, "u64"),
-        "PropertyLookupCacheIndex"
-        | "GlobalVariableCacheIndex"
-        | "EnvironmentCoordinateCacheIndex"
-        | "TemplateObjectCacheIndex"
-        | "ObjectShapeCacheIndex"
-        | "ObjectPropertyIteratorCacheIndex" => ("u32", 4, 4, "u32"),
-        _ => unreachable!("Unknown field type: {ty}"),
-    }
-    .into()
+    try_field_type_info(ty).unwrap_or_else(|| panic!("Unknown field type: {ty}"))
 }
 
 pub fn round_up(value: usize, align: usize) -> usize {
     assert!(align.is_power_of_two());
-    (value + align - 1) & !(align - 1)
+    value.checked_add(align - 1).expect("layout size overflow") & !(align - 1)
 }
 
 /// Returns the user-visible fields (excludes m_type, m_strict, m_length).
@@ -180,6 +319,35 @@ pub fn find_m_length_offset(fields: &[Field]) -> usize {
         offset += info.size;
     }
     panic!("m_length field not found");
+}
+
+fn validate_op_layout(op: &OpDef) -> Result<(), String> {
+    let mut offset = 2usize;
+    for field in &op.fields {
+        if field.is_array || field.name == "m_type" || field.name == "m_strict" {
+            continue;
+        }
+        let info = try_field_type_info(&field.ty).expect("field types are checked while parsing");
+        offset = offset
+            .checked_add(info.align - 1)
+            .map(|offset| offset & !(info.align - 1))
+            .and_then(|offset| offset.checked_add(info.size))
+            .ok_or_else(|| format!("layout of op '{}' overflows usize", op.name))?;
+    }
+    if op.fields.iter().any(|field| field.is_array) {
+        if !op
+            .fields
+            .iter()
+            .any(|field| field.name == "m_length" && field.ty == "u32" && !field.is_array)
+        {
+            return Err(format!("array op '{}' requires a u32 m_length field", op.name));
+        }
+    } else {
+        offset
+            .checked_add(STRUCT_ALIGN - 1)
+            .ok_or_else(|| format!("layout of op '{}' overflows usize", op.name))?;
+    }
+    Ok(())
 }
 
 /// Computed layout info for a single opcode.
@@ -234,4 +402,93 @@ pub fn compute_layouts(ops: &[OpDef]) -> HashMap<String, OpLayout> {
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_operations_fields_and_annotations() {
+        let ops = parse_bytecode_def(
+            "Bytecode.def",
+            r#"
+op Instruction
+    m_type: bool
+    m_strict: bool
+endop
+
+op Call < Instruction
+    @terminator
+    @nothrow
+    m_length: u32
+    m_argument_count: u32
+    m_arguments: Operand[]
+endop
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(ops.len(), 1);
+        assert_eq!(ops[0].name, "Call");
+        assert!(ops[0].is_terminator);
+        assert_eq!(ops[0].fields.len(), 3);
+        assert!(ops[0].fields[2].is_array);
+    }
+
+    #[test]
+    fn parses_current_bytecode_definition() {
+        let ops = parse_bytecode_def(
+            "Libraries/LibJS/Bytecode/Bytecode.def",
+            include_str!("../../Bytecode/Bytecode.def"),
+        )
+        .unwrap();
+
+        assert!(ops.len() > 100);
+    }
+
+    #[test]
+    fn reports_structured_parse_errors() {
+        let error = parse_bytecode_def("broken.def", "op Add\n    m_value: Mystery\nendop\n").unwrap_err();
+
+        assert_eq!(error.source_name, "broken.def");
+        assert_eq!(error.line, 2);
+        assert_eq!(error.column, 14);
+        assert_eq!(error.message, "unknown field type 'Mystery'");
+        assert_eq!(
+            error.to_string(),
+            "broken.def:2:14: error: unknown field type 'Mystery'"
+        );
+    }
+
+    #[test]
+    fn rejects_malformed_definitions() {
+        for (source, message) in [
+            ("unexpected\n", "unexpected top-level line"),
+            ("endop\n", "endop without op"),
+            ("op Outer\nop Inner\n", "nested op block"),
+            ("op Open\n", "unclosed op block"),
+            ("op Bad\n    @mystery\nendop\n", "unknown annotation"),
+            ("op Bad\n    malformed\nendop\n", "malformed field line"),
+            ("op 42\nendop\n", "invalid op name"),
+            ("op Bad < Parent < Other\nendop\n", "invalid parent op name"),
+            ("op Bad\n    42: u32\nendop\n", "invalid field name"),
+            ("op First\nendop\nop First\nendop\n", "duplicate op 'First'"),
+            (
+                "op Fields\n    value: u32\n    value: u64\nendop\n",
+                "duplicate field 'value'",
+            ),
+            (
+                "op Array\n    m_values: Value[]\nendop\n",
+                "requires a u32 m_length field",
+            ),
+        ] {
+            let error = parse_bytecode_def("broken.def", source).unwrap_err();
+            assert!(
+                error.message.contains(message),
+                "expected '{message}', got '{}'",
+                error.message
+            );
+        }
+    }
 }

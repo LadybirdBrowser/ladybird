@@ -179,6 +179,23 @@ impl CompileError {
             message: error.to_string(),
         }
     }
+
+    fn from_bytecode_def_error(error: bytecode_def::ParseError) -> Self {
+        let location = SourceLocation {
+            offset: 0,
+            line: error.line,
+            column: error.column,
+        };
+        Self {
+            stage: CompileStage::Parse,
+            handler: None,
+            span: Some(SourceSpan {
+                start: location,
+                end: location,
+            }),
+            message: error.to_string(),
+        }
+    }
 }
 
 impl fmt::Display for CompileError {
@@ -303,7 +320,8 @@ impl Compiler {
             .map(|handler| (handler.name(), handler.id))
             .collect::<HashMap<_, _>>();
         let (op_layouts, dispatch_handlers) = if let Some(bytecode_def) = unit.bytecode_def {
-            let ops = bytecode_def::parse_bytecode_def(bytecode_def);
+            let ops = bytecode_def::parse_bytecode_def("Bytecode.def", bytecode_def)
+                .map_err(CompileError::from_bytecode_def_error)?;
             // The interpreter dispatches on a single opcode byte, so a table beyond 256 entries
             // would have unreachable handlers.
             if ops.len() > DISPATCH_TABLE_SIZE {
@@ -571,6 +589,25 @@ const CANON_NAN_BITS = 0x7FF8000000000000
         assert_eq!(layout_error.stage, CompileStage::Layout);
         assert_eq!(layout_error.span.unwrap().start.line, 1);
         assert!(layout_error.message.contains("undefined layout value"));
+
+        let bytecode_error = compiler
+            .prepare(CompilationUnit {
+                source_name: "test.flap",
+                source: "handler Nop() { dispatch_next; }",
+                constants: None,
+                bytecode_def: Some("op Nop\n    malformed\nendop\n"),
+            })
+            .err()
+            .expect("invalid bytecode definition should fail");
+        assert_eq!(bytecode_error.stage, CompileStage::Parse);
+        let span = bytecode_error.span.unwrap();
+        assert_eq!(span.start.line, 2);
+        assert_eq!(span.start.column, 5);
+        assert!(
+            bytecode_error
+                .message
+                .contains("Bytecode.def:2:5: error: malformed field line")
+        );
 
         let emission_error = compiler
             .compile(CompilationUnit {
