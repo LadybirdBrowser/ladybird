@@ -6,17 +6,15 @@
 
 //! Sparse conditional constant propagation and integer value analysis.
 
-use super::optimize::{
-    eliminate_unreachable_blocks, rewrite_terminator, rewrite_values,
-};
-use super::pass::{AnalysisManager};
+use super::optimize::{eliminate_unreachable_blocks, rewrite_terminator, rewrite_values};
+use super::pass::AnalysisManager;
 use super::{
     BinaryOperation, BlockId, CheckedIntegerOperation, ComparisonDomain, ComparisonRelation, Constant, Edge, Effects,
-    Function, IntegerBinaryOperation, IntegerComparisonOperation, Intrinsic, Operation, ShiftOperation,
-    Terminator, ValueDefinition, ValueId, ValueOperation,
+    Function, IntegerBinaryOperation, IntegerComparisonOperation, Intrinsic, Operation, ShiftOperation, Terminator,
+    ValueDefinition, ValueId, ValueOperation,
 };
 use crate::types::Type;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// How far a boxed value's tag sits above its payload.
 ///
@@ -102,96 +100,245 @@ impl IntegerFacts {
     }
 }
 
-pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bool {
-    let loop_blocks = analyses
-        .loops(function)
-        .iter()
-        .flat_map(|natural_loop| natural_loop.blocks.iter().copied())
-        .collect::<HashSet<_>>();
-    let mut values = function
-        .values
-        .iter()
-        .map(|value| initial_value(&value.ty, &value.definition))
-        .collect::<Vec<_>>();
-    let mut executable_blocks = vec![false; function.blocks.len()];
-    let mut executable_edges = HashSet::new();
-    executable_blocks[function.entry.0] = true;
-    // Which edges are *selected* changes as the analysis learns, but which
-    // edges *exist* does not, so the graph is walked once. Rediscovering a
-    // block's predecessors by scanning every other block is quadratic.
-    let incoming_edges = incoming_edges(function);
+/// What has to be revisited when one value's lattice entry moves.
+#[derive(Clone, Copy)]
+enum User {
+    Instruction(usize),
+    Terminator(usize),
+    BlockParameter { block: usize, parameter: usize },
+}
 
-    loop {
-        let mut changed = false;
+/// The solver state for one run.
+///
+/// Constant propagation is a monotone dataflow problem, so the answer does not
+/// depend on the order values are visited in, only on reaching a fixpoint.
+/// Visiting every instruction of every reachable block on every round reaches
+/// it, but costs a full sweep whenever the graph learns about another edge.
+/// Driving the solver from a worklist of values whose entries actually moved
+/// reaches the same fixpoint while looking at each instruction about as many
+/// times as its inputs changed.
+struct Solver<'a> {
+    function: &'a Function,
+    values: Vec<LatticeValue>,
+    widens: Vec<bool>,
+    executable_blocks: Vec<bool>,
+    executable_edges: Vec<Vec<bool>>,
+    edge_targets: Vec<Vec<usize>>,
+    incoming_edges: Vec<Vec<IncomingEdge>>,
+    users: Vec<Vec<User>>,
+    owning_block: Vec<usize>,
+    block_worklist: Vec<usize>,
+    value_worklist: Vec<ValueId>,
+    facts: Vec<IntegerFacts>,
+    selected: Vec<usize>,
+}
 
-        for (block_index, executable) in executable_blocks.iter().copied().enumerate() {
-            if !executable {
-                continue;
+impl<'a> Solver<'a> {
+    fn new(function: &'a Function, analyses: &mut AnalysisManager) -> Self {
+        let mut widens = vec![false; function.blocks.len()];
+        for natural_loop in analyses.loops(function) {
+            for block in &natural_loop.blocks {
+                widens[block.0] = true;
             }
-            let block = BlockId(block_index);
-            for (parameter_index, parameter) in function.blocks[block_index].parameters.iter().enumerate() {
-                let mut incoming = LatticeValue::Unknown;
-                for edge in &incoming_edges[block_index] {
-                    if executable_edges.contains(&(edge.predecessor, edge.edge_index)) {
-                        incoming = join_lattice(incoming, values[edge.arguments[parameter_index].0]);
-                    }
+        }
+        let values = function
+            .values
+            .iter()
+            .map(|value| initial_value(&value.ty, &value.definition))
+            .collect();
+        let edge_targets = function
+            .blocks
+            .iter()
+            .map(|block| {
+                outgoing_edges(block.terminator.as_ref().unwrap())
+                    .into_iter()
+                    .map(|(_, edge)| edge.block.0)
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        let executable_edges = edge_targets.iter().map(|edges| vec![false; edges.len()]).collect();
+        let mut owning_block = vec![usize::MAX; function.instructions.len()];
+        let mut users = vec![Vec::new(); function.values.len()];
+        for (block_index, block) in function.blocks.iter().enumerate() {
+            for instruction_id in &block.instructions {
+                owning_block[instruction_id.0] = block_index;
+                for input in &function.instructions[instruction_id.0].inputs {
+                    users[input.0].push(User::Instruction(instruction_id.0));
                 }
-                changed |= merge_value(&mut values[parameter.0], incoming, loop_blocks.contains(&block));
             }
-
-            for instruction_id in &function.blocks[block_index].instructions {
-                let instruction = &function.instructions[instruction_id.0];
-                let results = evaluate_operation(
-                    function,
-                    &instruction.operation,
-                    &instruction.inputs,
-                    &instruction.results,
-                    instruction.effects,
-                    &values,
-                );
-                for (result, lattice) in instruction.results.iter().zip(results) {
-                    changed |= merge_value(&mut values[result.0], lattice, loop_blocks.contains(&block));
-                }
+            let terminator = block.terminator.as_ref().unwrap();
+            for input in terminator_conditions(terminator) {
+                users[input.0].push(User::Terminator(block_index));
             }
-
-            if let Terminator::CheckedOperation {
-                operation,
-                inputs,
-                results,
-                effects,
-                ..
-            } = function.blocks[block_index].terminator.as_ref().unwrap()
-            {
-                let result_values = evaluate_operation(function, operation, inputs, results, *effects, &values);
-                for (result, lattice) in results.iter().zip(result_values) {
-                    changed |= merge_value(&mut values[result.0], lattice, loop_blocks.contains(&block));
+            for (_, edge) in outgoing_edges(terminator) {
+                for (parameter, argument) in edge.arguments.iter().enumerate() {
+                    users[argument.0].push(User::BlockParameter {
+                        block: edge.block.0,
+                        parameter,
+                    });
                 }
             }
         }
-
-        let mut predecessor_index = 0;
-        while predecessor_index < function.blocks.len() {
-            if !executable_blocks[predecessor_index] {
-                predecessor_index += 1;
-                continue;
-            }
-            for (edge_index, edge) in selected_edges(function, BlockId(predecessor_index), &values) {
-                if executable_edges.insert((predecessor_index, edge_index)) {
-                    changed = true;
-                }
-                if !executable_blocks[edge.block.0] {
-                    executable_blocks[edge.block.0] = true;
-                    changed = true;
-                }
-            }
-            predecessor_index += 1;
-        }
-
-        if !changed {
-            break;
+        Self {
+            function,
+            values,
+            widens,
+            executable_blocks: vec![false; function.blocks.len()],
+            executable_edges,
+            edge_targets,
+            incoming_edges: incoming_edges(function),
+            users,
+            owning_block,
+            block_worklist: Vec::new(),
+            value_worklist: Vec::new(),
+            facts: Vec::new(),
+            selected: Vec::new(),
         }
     }
 
+    fn solve(&mut self) {
+        self.mark_block(self.function.entry.0);
+        loop {
+            if let Some(block) = self.block_worklist.pop() {
+                self.visit_block(block);
+                continue;
+            }
+            let Some(value) = self.value_worklist.pop() else {
+                break;
+            };
+            // The user lists never change during a run; lifting one out only
+            // releases the borrow on `self` across the visits it drives.
+            let users = std::mem::take(&mut self.users[value.0]);
+            for user in &users {
+                match *user {
+                    User::Instruction(instruction) => self.visit_instruction(instruction),
+                    User::Terminator(block) => self.visit_terminator(block),
+                    User::BlockParameter { block, parameter } => self.visit_block_parameter(block, parameter),
+                }
+            }
+            self.users[value.0] = users;
+        }
+    }
+
+    fn set_value(&mut self, value: ValueId, incoming: LatticeValue, block: usize) {
+        if merge_value(&mut self.values[value.0], incoming, self.widens[block]) {
+            self.value_worklist.push(value);
+        }
+    }
+
+    fn mark_block(&mut self, block: usize) {
+        if !self.executable_blocks[block] {
+            self.executable_blocks[block] = true;
+            self.block_worklist.push(block);
+        }
+    }
+
+    fn mark_edge(&mut self, predecessor: usize, edge_index: usize) {
+        if self.executable_edges[predecessor][edge_index] {
+            return;
+        }
+        self.executable_edges[predecessor][edge_index] = true;
+        let target = self.edge_targets[predecessor][edge_index];
+        if self.executable_blocks[target] {
+            // A newly selected edge brings new arguments to a block already
+            // being analyzed, so its parameters have to take them in.
+            for parameter in 0..self.function.blocks[target].parameters.len() {
+                self.visit_block_parameter(target, parameter);
+            }
+        } else {
+            self.mark_block(target);
+        }
+    }
+
+    fn visit_block(&mut self, block: usize) {
+        for parameter in 0..self.function.blocks[block].parameters.len() {
+            self.visit_block_parameter(block, parameter);
+        }
+        for index in 0..self.function.blocks[block].instructions.len() {
+            let instruction = self.function.blocks[block].instructions[index];
+            self.visit_instruction(instruction.0);
+        }
+        self.visit_terminator(block);
+    }
+
+    fn visit_block_parameter(&mut self, block: usize, parameter: usize) {
+        if !self.executable_blocks[block] {
+            return;
+        }
+        let mut incoming = LatticeValue::Unknown;
+        for edge in &self.incoming_edges[block] {
+            if self.executable_edges[edge.predecessor][edge.edge_index] {
+                incoming = join_lattice(incoming, self.values[edge.arguments[parameter].0]);
+            }
+        }
+        let parameter = self.function.blocks[block].parameters[parameter];
+        self.set_value(parameter, incoming, block);
+    }
+
+    fn visit_instruction(&mut self, index: usize) {
+        let block = self.owning_block[index];
+        if block == usize::MAX || !self.executable_blocks[block] {
+            return;
+        }
+        let function = self.function;
+        let instruction = &function.instructions[index];
+        let mut facts = std::mem::take(&mut self.facts);
+        let evaluation = evaluate_operation(
+            function,
+            &instruction.operation,
+            &instruction.inputs,
+            &instruction.results,
+            instruction.effects,
+            &self.values,
+            &mut facts,
+        );
+        self.facts = facts;
+        for result in &instruction.results {
+            let lattice = evaluation.of(function, *result);
+            self.set_value(*result, lattice, block);
+        }
+    }
+
+    fn visit_terminator(&mut self, block: usize) {
+        if !self.executable_blocks[block] {
+            return;
+        }
+        let function = self.function;
+        let terminator = function.blocks[block].terminator.as_ref().unwrap();
+        if let Terminator::CheckedOperation {
+            operation,
+            inputs,
+            results,
+            effects,
+            ..
+        } = terminator
+        {
+            let mut facts = std::mem::take(&mut self.facts);
+            let evaluation = evaluate_operation(function, operation, inputs, results, *effects, &self.values, &mut facts);
+            self.facts = facts;
+            for result in results {
+                let lattice = evaluation.of(function, *result);
+                self.set_value(*result, lattice, block);
+            }
+        }
+        let mut selected = std::mem::take(&mut self.selected);
+        selected.clear();
+        selected_edges(function, BlockId(block), &self.values, &mut selected);
+        for edge_index in &selected {
+            self.mark_edge(block, *edge_index);
+        }
+        self.selected = selected;
+    }
+}
+
+pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bool {
+    let mut solver = Solver::new(function, analyses);
+    solver.solve();
+    let Solver {
+        values,
+        executable_blocks,
+        ..
+    } = solver;
     rewrite(function, &values, &executable_blocks)
 }
 
@@ -258,6 +405,28 @@ fn join_lattice(lhs: LatticeValue, rhs: LatticeValue) -> LatticeValue {
     }
 }
 
+/// What one operation says about its results.
+///
+/// Almost every operation produces exactly one result, so saying that in the
+/// return type keeps evaluation off the heap. Evaluation runs once per changed
+/// input, which is the innermost loop of the whole pass.
+#[derive(Clone, Copy)]
+enum Evaluation {
+    Single(LatticeValue),
+    Unknown,
+    Widest,
+}
+
+impl Evaluation {
+    fn of(self, function: &Function, result: ValueId) -> LatticeValue {
+        match self {
+            Self::Single(lattice) => lattice,
+            Self::Unknown => LatticeValue::Unknown,
+            Self::Widest => integer_or_overdefined(function, result),
+        }
+    }
+}
+
 fn evaluate_operation(
     function: &Function,
     operation: &Operation,
@@ -265,45 +434,42 @@ fn evaluate_operation(
     results: &[ValueId],
     effects: Effects,
     values: &[LatticeValue],
-) -> Vec<LatticeValue> {
+    input_facts: &mut Vec<IntegerFacts>,
+) -> Evaluation {
     if effects != Effects::PURE {
-        return results
-            .iter()
-            .map(|result| integer_or_overdefined(function, *result))
-            .collect();
+        return Evaluation::Widest;
     }
     if inputs.iter().any(|input| values[input.0] == LatticeValue::Unknown) {
-        return vec![LatticeValue::Unknown; results.len()];
+        return Evaluation::Unknown;
     }
-    let Some(result) = results.first() else {
-        return Vec::new();
-    };
     if results.len() != 1 {
-        return results
-            .iter()
-            .map(|result| integer_or_overdefined(function, *result))
-            .collect();
+        return Evaluation::Widest;
     }
+    let result = results[0];
     let Some(result_type) = IntegerFacts::full(&function.values[result.0].ty) else {
-        return vec![LatticeValue::Overdefined];
+        return Evaluation::Single(LatticeValue::Overdefined);
     };
-    let input_facts = inputs
-        .iter()
-        .map(|input| match values[input.0] {
-            LatticeValue::Integer(facts) => Some(facts),
-            LatticeValue::Unknown | LatticeValue::Overdefined => None,
-        })
-        .collect::<Option<Vec<_>>>();
-    let Some(input_facts) = input_facts else {
-        return vec![LatticeValue::Integer(result_type)];
-    };
+    input_facts.clear();
+    for input in inputs {
+        let LatticeValue::Integer(facts) = values[input.0] else {
+            return Evaluation::Single(LatticeValue::Integer(result_type));
+        };
+        input_facts.push(facts);
+    }
+    let input_facts = input_facts.as_slice();
     let facts = match operation {
-        Operation::Intrinsic(Intrinsic::Value(operation)) => evaluate_value_operation(*operation, &input_facts, result_type),
-        Operation::Intrinsic(Intrinsic::IntegerBinary(operation)) => evaluate_integer_binary(*operation, &input_facts, result_type),
-        Operation::Intrinsic(Intrinsic::IntegerComparison(operation)) => evaluate_integer_comparison(*operation, &input_facts, result_type),
+        Operation::Intrinsic(Intrinsic::Value(operation)) => {
+            evaluate_value_operation(*operation, input_facts, result_type)
+        }
+        Operation::Intrinsic(Intrinsic::IntegerBinary(operation)) => {
+            evaluate_integer_binary(*operation, input_facts, result_type)
+        }
+        Operation::Intrinsic(Intrinsic::IntegerComparison(operation)) => {
+            evaluate_integer_comparison(*operation, input_facts, result_type)
+        }
         _ => result_type,
     };
-    vec![LatticeValue::Integer(facts)]
+    Evaluation::Single(LatticeValue::Integer(facts))
 }
 
 fn integer_or_overdefined(function: &Function, value: ValueId) -> LatticeValue {
@@ -312,11 +478,7 @@ fn integer_or_overdefined(function: &Function, value: ValueId) -> LatticeValue {
         .unwrap_or(LatticeValue::Overdefined)
 }
 
-fn evaluate_value_operation(
-    operation: ValueOperation,
-    inputs: &[IntegerFacts],
-    result: IntegerFacts,
-) -> IntegerFacts {
+fn evaluate_value_operation(operation: ValueOperation, inputs: &[IntegerFacts], result: IntegerFacts) -> IntegerFacts {
     match (operation, inputs) {
         (
             ValueOperation::ToInt32
@@ -334,14 +496,11 @@ fn evaluate_value_operation(
         (ValueOperation::UnboxObject, [input]) => {
             exact_unary(*input, result, |value| value & ((1 << VALUE_TAG_SHIFT) - 1))
         }
-        (ValueOperation::LogicalNot, [input]) => {
-            exact_unary(*input, result, |value| u64::from(value == 0))
-        }
+        (ValueOperation::LogicalNot, [input]) => exact_unary(*input, result, |value| u64::from(value == 0)),
         // A value's tag is the top of its bits, so knowing a value is knowing
-        // its type. This lets checks on known values fold.
-        (ValueOperation::ExtractTag { .. }, [input]) => {
-            exact_unary(*input, result, |value| value >> VALUE_TAG_SHIFT)
-        }
+        // its type. This is what lets the type check on a known value fold, and
+        // with it the paths that check guards.
+        (ValueOperation::ExtractTag { .. }, [input]) => exact_unary(*input, result, |value| value >> VALUE_TAG_SHIFT),
         _ => result,
     }
 }
@@ -357,9 +516,10 @@ fn evaluate_integer_comparison(
     match operation {
         IntegerComparisonOperation::Equal => equality(true, *lhs, *rhs),
         IntegerComparisonOperation::NotEqual => equality(false, *lhs, *rhs),
-        IntegerComparisonOperation::Relational { relation: comparison, domain }
-            if domain != ComparisonDomain::UnsignedInteger =>
-        {
+        IntegerComparisonOperation::Relational {
+            relation: comparison,
+            domain,
+        } if domain != ComparisonDomain::UnsignedInteger => {
             let range_relation = match comparison {
                 ComparisonRelation::Less => Relation::Less,
                 ComparisonRelation::LessOrEqual => Relation::LessEqual,
@@ -382,14 +542,20 @@ fn evaluate_integer_binary(
     };
     match operation {
         IntegerBinaryOperation::Binary(BinaryOperation::Add) => arithmetic_range(*lhs, *rhs, result, Arithmetic::Add),
-        IntegerBinaryOperation::Binary(BinaryOperation::Subtract) => arithmetic_range(*lhs, *rhs, result, Arithmetic::Sub),
-        IntegerBinaryOperation::Binary(BinaryOperation::Multiply) => arithmetic_range(*lhs, *rhs, result, Arithmetic::Mul),
+        IntegerBinaryOperation::Binary(BinaryOperation::Subtract) => {
+            arithmetic_range(*lhs, *rhs, result, Arithmetic::Sub)
+        }
+        IntegerBinaryOperation::Binary(BinaryOperation::Multiply) => {
+            arithmetic_range(*lhs, *rhs, result, Arithmetic::Mul)
+        }
         IntegerBinaryOperation::Binary(BinaryOperation::And) => bitwise(*lhs, *rhs, result, Bitwise::And),
         IntegerBinaryOperation::Binary(BinaryOperation::Or) => bitwise(*lhs, *rhs, result, Bitwise::Or),
         IntegerBinaryOperation::Binary(BinaryOperation::Xor) => bitwise(*lhs, *rhs, result, Bitwise::Xor),
         IntegerBinaryOperation::Shift(ShiftOperation::Left) => shift(*lhs, *rhs, result, Shift::Left),
         IntegerBinaryOperation::Shift(ShiftOperation::RightLogical) => shift(*lhs, *rhs, result, Shift::LogicalRight),
-        IntegerBinaryOperation::Shift(ShiftOperation::RightArithmetic) => shift(*lhs, *rhs, result, Shift::ArithmeticRight),
+        IntegerBinaryOperation::Shift(ShiftOperation::RightArithmetic) => {
+            shift(*lhs, *rhs, result, Shift::ArithmeticRight)
+        }
     }
 }
 
@@ -571,59 +737,61 @@ fn outgoing_edges(terminator: &Terminator) -> Vec<(usize, &Edge)> {
     }
 }
 
-fn selected_edges<'a>(function: &'a Function, block: BlockId, values: &[LatticeValue]) -> Vec<(usize, &'a Edge)> {
+/// The edges a terminator can take given what is currently known, by index.
+fn selected_edges(function: &Function, block: BlockId, values: &[LatticeValue], selected: &mut Vec<usize>) {
     match function.blocks[block.0].terminator.as_ref().unwrap() {
-        Terminator::Jump(edge) => vec![(0, edge)],
-        Terminator::Branch {
-            condition,
-            then_edge,
-            else_edge,
-        } => {
+        Terminator::Jump(_) => selected.push(0),
+        Terminator::Branch { condition, .. } => {
             if values[condition.0] == LatticeValue::Unknown {
-                Vec::new()
-            } else {
-                match exact_integer(values[condition.0]) {
-                    Some(0) => vec![(1, else_edge)],
-                    Some(_) => vec![(0, then_edge)],
-                    None => vec![(0, then_edge), (1, else_edge)],
-                }
+                return;
+            }
+            match exact_integer(values[condition.0]) {
+                Some(0) => selected.push(1),
+                Some(_) => selected.push(0),
+                None => selected.extend([0, 1]),
             }
         }
-        Terminator::Switch { value, cases, default } => {
+        Terminator::Switch { value, cases, default: _ } => {
             if values[value.0] == LatticeValue::Unknown {
-                return Vec::new();
+                return;
             }
             let Some(value) = exact_integer(values[value.0]) else {
-                return cases
-                    .iter()
-                    .enumerate()
-                    .map(|(index, (_, edge))| (index, edge))
-                    .chain([(cases.len(), default)])
-                    .collect();
+                selected.extend(0..=cases.len());
+                return;
             };
-            let (index, edge) = cases
+            let index = cases
                 .iter()
-                .enumerate()
-                .find_map(|(index, (pattern, edge))| pattern_matches(function, pattern, value).then_some((index, edge)))
-                .unwrap_or((cases.len(), default));
-            vec![(index, edge)]
+                .position(|(pattern, _)| pattern_matches(function, pattern, value))
+                .unwrap_or(cases.len());
+            selected.push(index);
         }
         Terminator::CheckedOperation {
-            operation,
-            inputs,
-            success,
-            failure,
-            ..
+            operation, inputs, ..
         } => {
             if inputs.iter().any(|input| values[input.0] == LatticeValue::Unknown) {
-                Vec::new()
-            } else if checked_operation_cannot_fail(operation, inputs, values) {
-                vec![(0, success)]
+                return;
+            }
+            if checked_operation_cannot_fail(operation, inputs, values) {
+                selected.push(0);
             } else {
-                vec![(0, success), (1, failure)]
+                selected.extend([0, 1]);
             }
         }
-        Terminator::IndirectJump { .. } | Terminator::Return(_) | Terminator::Unreachable => Vec::new(),
+        Terminator::IndirectJump { .. } | Terminator::Return(_) | Terminator::Unreachable => {}
+    }
+}
+
+/// The values a terminator inspects to decide where control goes, as opposed
+/// to the arguments it merely passes along its edges.
+fn terminator_conditions(terminator: &Terminator) -> Vec<ValueId> {
+    match terminator {
+        Terminator::Branch { condition, .. } => vec![*condition],
+        Terminator::Switch { value, .. } => vec![*value],
+        Terminator::CheckedOperation { inputs, .. } => inputs.clone(),
+        Terminator::Jump(_)
+        | Terminator::IndirectJump { .. }
+        | Terminator::Return(_)
+        | Terminator::Unreachable => Vec::new(),
     }
 }
 
@@ -858,12 +1026,7 @@ mod tests {
         inputs: Vec<ValueId>,
         ty: Type,
     ) -> ValueId {
-        function.append_instruction(
-            block,
-            operation,
-            inputs,
-            vec![ty],
-        )[0]
+        function.append_instruction(block, operation, inputs, vec![ty])[0]
     }
 
     #[test]
@@ -878,7 +1041,9 @@ mod tests {
         let sum = append_pure(
             &mut function,
             entry,
-            Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::Add))),
+            Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(
+                BinaryOperation::Add,
+            ))),
             vec![three, four],
             Type::I32,
         );
@@ -920,7 +1085,9 @@ mod tests {
         let masked = append_pure(
             &mut function,
             entry,
-            Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::And))),
+            Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(
+                BinaryOperation::And,
+            ))),
             vec![input, zero],
             Type::I32,
         );
@@ -956,18 +1123,9 @@ mod tests {
         let ten = function.add_constant(Type::I32, Constant::Integer(10));
         let twenty = function.add_constant(Type::I32, Constant::Integer(20));
         let one = function.add_constant(Type::I32, Constant::Integer(1));
-        function.set_terminator(
-            entry,
-            Terminator::branch(function.parameter(0), left, right),
-        );
-        function.set_terminator(
-            left,
-            Terminator::jump_with_arguments(join, vec![ten]),
-        );
-        function.set_terminator(
-            right,
-            Terminator::jump_with_arguments(join, vec![twenty]),
-        );
+        function.set_terminator(entry, Terminator::branch(function.parameter(0), left, right));
+        function.set_terminator(left, Terminator::jump_with_arguments(join, vec![ten]));
+        function.set_terminator(right, Terminator::jump_with_arguments(join, vec![twenty]));
         function.set_checked_operation(
             join,
             Intrinsic::CheckedInteger(CheckedIntegerOperation::Add),
@@ -987,15 +1145,12 @@ mod tests {
         run_sccp(&mut function);
 
         assert_eq!(function.blocks.len(), 5);
-        assert!(
-            function
-                .instructions
-                .iter()
-                .any(|instruction| {
-                    instruction.operation
-                        == Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::Add)))
-                })
-        );
+        assert!(function.instructions.iter().any(|instruction| {
+            instruction.operation
+                == Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(
+                    BinaryOperation::Add,
+                )))
+        }));
         assert!(matches!(function.blocks[join.0].terminator, Some(Terminator::Jump(_))));
     }
 
@@ -1008,7 +1163,9 @@ mod tests {
         let shifted = append_pure(
             &mut function,
             entry,
-            Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Shift(ShiftOperation::Left))),
+            Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Shift(
+                ShiftOperation::Left,
+            ))),
             vec![one, forty],
             Type::U64,
         );
@@ -1052,7 +1209,9 @@ mod tests {
         let doubled = append_pure(
             &mut function,
             success,
-            Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::Add))),
+            Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(
+                BinaryOperation::Add,
+            ))),
             vec![results[0], results[0]],
             Type::I32,
         );
@@ -1078,22 +1237,12 @@ mod tests {
         let right = function.create_empty_block("right", super::super::BlockLayout::Hot);
         let join = function.create_named_block("join", super::super::BlockLayout::Hot, vec![Type::I32]);
         let zero_block = function.create_empty_block("zero", super::super::BlockLayout::Hot);
-        let nonzero_block =
-            function.create_empty_block("nonzero", super::super::BlockLayout::Hot);
+        let nonzero_block = function.create_empty_block("nonzero", super::super::BlockLayout::Hot);
         let zero = function.add_constant(Type::I32, Constant::Integer(0));
         let one = function.add_constant(Type::I32, Constant::Integer(1));
-        function.set_terminator(
-            entry,
-            Terminator::branch(function.parameter(0), left, right),
-        );
-        function.set_terminator(
-            left,
-            Terminator::jump_with_arguments(join, vec![zero]),
-        );
-        function.set_terminator(
-            right,
-            Terminator::jump_with_arguments(join, vec![one]),
-        );
+        function.set_terminator(entry, Terminator::branch(function.parameter(0), left, right));
+        function.set_terminator(left, Terminator::jump_with_arguments(join, vec![zero]));
+        function.set_terminator(right, Terminator::jump_with_arguments(join, vec![one]));
         let join_value = function.blocks[join.0].parameters[0];
         let condition = append_pure(
             &mut function,
@@ -1126,15 +1275,14 @@ mod tests {
         let exit = function.create_empty_block("exit", super::super::BlockLayout::Hot);
         let zero = function.add_constant(Type::I32, Constant::Integer(0));
         let one = function.add_constant(Type::I32, Constant::Integer(1));
-        function.set_terminator(
-            entry,
-            Terminator::jump_with_arguments(header, vec![zero]),
-        );
+        function.set_terminator(entry, Terminator::jump_with_arguments(header, vec![zero]));
         let induction = function.blocks[header.0].parameters[0];
         let next = append_pure(
             &mut function,
             header,
-            Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::Add))),
+            Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(
+                BinaryOperation::Add,
+            ))),
             vec![induction, one],
             Type::I32,
         );
@@ -1166,7 +1314,9 @@ mod tests {
         let product = append_pure(
             &mut function,
             entry,
-            Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::Multiply))),
+            Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(
+                BinaryOperation::Multiply,
+            ))),
             vec![lhs, rhs],
             Type::U64,
         );
