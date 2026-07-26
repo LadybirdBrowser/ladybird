@@ -1127,7 +1127,7 @@ impl Lowerer<'_> {
             self.function.append_instruction_with_effects(
                 block,
                 Intrinsic::Operand(operation),
-                inputs,
+                inputs.to_vec(),
                 vec![self.function.values[value.0].ty.clone()],
                 instruction.effects,
             )[0],
