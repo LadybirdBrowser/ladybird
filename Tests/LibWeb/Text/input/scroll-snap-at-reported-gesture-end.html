@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        width: 100%;
+        height: 200px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheel(50, 50, 0, 120, true, "ongoing");
+        await animationFrame();
+        println(`scroll offset while the gesture is in progress: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        const scrollend = scrollendEvent(scroller);
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+
+        // The reported end settles the gesture far sooner than the 500 millisecond deadline the settle timer waits for.
+        for (let frame = 0; frame < 5; ++frame)
+            await animationFrame();
+        println(`snap scroll started before the settle deadline: ${scroller.scrollTop > 120}`);
+
+        await scrollend;
+        println(`scroll offset after the gesture ends: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>

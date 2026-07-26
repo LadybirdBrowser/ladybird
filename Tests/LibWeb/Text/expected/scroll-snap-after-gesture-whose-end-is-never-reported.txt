@@ -1,0 +1,4 @@
+scroll offset after pausing within the gesture: 0,120
+scrollend events while the gesture is in progress: 0
+scrollend fired after a wheel that reports no phase: true
+the scrolling came to rest at a snap area: true
