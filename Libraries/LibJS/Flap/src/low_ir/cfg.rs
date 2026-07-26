@@ -11,7 +11,6 @@ use crate::target::description::{ControlOperation, Operation};
 #[cfg(test)]
 use crate::target::description::{CallKind, EqualityCondition, IntegerWidth, PairWidth, ZeroCondition};
 use crate::hash::{HashMap, HashSet};
-use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct BlockId(usize);
@@ -132,17 +131,24 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
             return Ok(Self { blocks: Vec::new() });
         }
 
-        let mut block_starts = BTreeSet::from([0]);
+        // Marking the starts in a bitmap and then collecting them keeps this
+        // out of an ordered set, which allocates a node per block.
+        let mut starts_block = vec![false; instructions.len()];
+        starts_block[0] = true;
         for (index, instruction) in instructions.iter().enumerate() {
             if instruction.opcode.operation() == Operation::Label {
-                block_starts.insert(index);
+                starts_block[index] = true;
             }
             if instruction_ends_block(instruction) && index + 1 < instructions.len() {
-                block_starts.insert(index + 1);
+                starts_block[index + 1] = true;
             }
         }
 
-        let block_starts: Vec<_> = block_starts.into_iter().collect();
+        let block_starts = starts_block
+            .iter()
+            .enumerate()
+            .filter_map(|(index, starts)| starts.then_some(index))
+            .collect::<Vec<_>>();
         let mut instruction_to_block = vec![BlockId(0); instructions.len()];
         for (block_index, &start) in block_starts.iter().enumerate() {
             let end = block_starts.get(block_index + 1).copied().unwrap_or(instructions.len());
