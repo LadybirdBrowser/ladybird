@@ -63,15 +63,15 @@ struct TypedElseContinuation {
 
 struct Checker<'a> {
     filename: &'a str,
-    signatures: HashMap<String, Signature>,
-    inline_function_ids: HashMap<String, InlineFunctionId>,
+    signatures: &'a HashMap<String, Signature>,
+    inline_function_ids: &'a HashMap<String, InlineFunctionId>,
     variables: Vec<Variable>,
     scopes: Vec<HashMap<String, Symbol>>,
     continuation_scopes: Vec<HashMap<String, ContinuationSymbol>>,
     next_continuation_scope: u64,
     statements: Vec<Statement>,
-    layouts: HashMap<(Type, String), LayoutField>,
-    aggregate_strides: HashMap<Type, layout::LayoutValue>,
+    layouts: &'a HashMap<(Type, String), LayoutField>,
+    aggregate_strides: &'a HashMap<Type, layout::LayoutValue>,
     bytecode_fields: HashSet<VariableId>,
     active_value_tags: Vec<(VariableId, VariableId)>,
 }
@@ -90,10 +90,10 @@ struct LayoutField {
 impl<'a> Checker<'a> {
     fn new(
         filename: &'a str,
-        signatures: HashMap<String, Signature>,
-        inline_function_ids: HashMap<String, InlineFunctionId>,
-        layouts: HashMap<(Type, String), LayoutField>,
-        aggregate_strides: HashMap<Type, layout::LayoutValue>,
+        signatures: &'a HashMap<String, Signature>,
+        inline_function_ids: &'a HashMap<String, InlineFunctionId>,
+        layouts: &'a HashMap<(Type, String), LayoutField>,
+        aggregate_strides: &'a HashMap<Type, layout::LayoutValue>,
     ) -> Self {
         Self {
             filename,
@@ -3260,13 +3260,7 @@ fn check_body(
     layouts: &HashMap<(Type, String), LayoutField>,
     aggregate_strides: &HashMap<Type, layout::LayoutValue>,
 ) -> Result<(Vec<VariableId>, Body), Diagnostic> {
-    let mut checker = Checker::new(
-        filename,
-        signatures.clone(),
-        inline_function_ids.clone(),
-        layouts.clone(),
-        aggregate_strides.clone(),
-    );
+    let mut checker = Checker::new(filename, signatures, inline_function_ids, layouts, aggregate_strides);
     let mut parameter_ids = Vec::new();
     for parameter in parameters {
         parameter_ids.push(checker.declare(
