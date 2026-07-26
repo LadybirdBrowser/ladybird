@@ -318,19 +318,38 @@ pub(crate) fn eliminate_trivial_block_parameters(function: &mut Function) {
 fn eliminate_trivial_block_parameters_pass(function: &mut Function, _: &mut AnalysisManager) -> bool {
     let mut changed = false;
     loop {
+        // Which edges arrive at a block does not change while the round runs,
+        // so it is found once. Rediscovering it by scanning every other block
+        // per parameter is quadratic.
+        let mut incoming_edges = vec![Vec::new(); function.blocks.len()];
+        for (block_index, block) in function.blocks.iter().enumerate() {
+            let terminator = block.terminator.as_ref().unwrap();
+            for index in 0..terminator.successor_count() {
+                incoming_edges[terminator.successor(index).block.0].push((block_index, index));
+            }
+        }
+
         let mut replacements = HashMap::new();
         for (block_index, block) in function.blocks.iter().enumerate() {
-            let block_id = BlockId(block_index);
             for (parameter_index, parameter) in block.parameters.iter().enumerate() {
-                let incoming = function
-                    .blocks
-                    .iter()
-                    .flat_map(|predecessor| predecessor.terminator.as_ref().unwrap().successors())
-                    .filter(|edge| edge.block == block_id)
-                    .map(|edge| edge.arguments[parameter_index])
-                    .filter(|argument| argument != parameter)
-                    .collect::<Vec<_>>();
-                let Some(replacement) = incoming.first().copied() else {
+                let mut replacement = None;
+                let mut uniform = true;
+                for (predecessor, edge_index) in &incoming_edges[block_index] {
+                    let edge = function.blocks[*predecessor]
+                        .terminator
+                        .as_ref()
+                        .unwrap()
+                        .successor(*edge_index);
+                    let argument = edge.arguments[parameter_index];
+                    if argument == *parameter {
+                        continue;
+                    }
+                    match replacement {
+                        None => replacement = Some(argument),
+                        Some(first) => uniform &= argument == first,
+                    }
+                }
+                let Some(replacement) = replacement else {
                     continue;
                 };
                 if matches!(
@@ -339,7 +358,7 @@ fn eliminate_trivial_block_parameters_pass(function: &mut Function, _: &mut Anal
                 ) {
                     continue;
                 }
-                if incoming.iter().all(|incoming| *incoming == replacement) {
+                if uniform {
                     replacements.insert(*parameter, replacement);
                 }
             }

@@ -301,10 +301,7 @@ fn profile_layout_score(function: &Function, blocks: &[BlockId]) -> usize {
                 .terminator
                 .as_ref()
                 .is_some_and(|terminator| {
-                    terminator
-                        .successors()
-                        .iter()
-                        .any(|successor| successor.block == pair[1])
+                    terminator.successors().any(|successor| successor.block == pair[1])
                 })
         })
         .count()
@@ -632,7 +629,7 @@ fn schedule_blocks_with_successor_order(function: &Function, reverse_successors:
             return;
         }
         if let Some(terminator) = &function.blocks[block.0].terminator {
-            let mut successors = terminator.successors();
+            let mut successors = terminator.successors().collect::<Vec<_>>();
             if reverse_successors {
                 successors.reverse();
             }

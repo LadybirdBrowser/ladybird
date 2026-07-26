@@ -252,21 +252,35 @@ impl Terminator {
         }
     }
 
-    pub(crate) fn successors(&self) -> Vec<&Edge> {
+    pub(crate) fn successor_count(&self) -> usize {
         match self {
-            Self::Jump(edge) => vec![edge],
-            Self::Branch {
-                then_edge,
-                else_edge,
-                ..
-            } => vec![then_edge, else_edge],
-            Self::Switch { cases, default, .. } => {
-                cases.iter().map(|(_, edge)| edge).chain([default]).collect()
-            }
-            Self::CheckedOperation {
-                success, failure, ..
-            } => vec![success, failure],
-            Self::IndirectJump { .. } | Self::Return(_) | Self::Unreachable => Vec::new(),
+            Self::Jump(_) => 1,
+            Self::Branch { .. } | Self::CheckedOperation { .. } => 2,
+            Self::Switch { cases, .. } => cases.len() + 1,
+            Self::IndirectJump { .. } | Self::Return(_) | Self::Unreachable => 0,
+        }
+    }
+
+    pub(crate) fn successor(&self, index: usize) -> &Edge {
+        match self {
+            Self::Jump(edge) if index == 0 => edge,
+            Self::Branch { then_edge, .. } if index == 0 => then_edge,
+            Self::Branch { else_edge, .. } if index == 1 => else_edge,
+            Self::CheckedOperation { success, .. } if index == 0 => success,
+            Self::CheckedOperation { failure, .. } if index == 1 => failure,
+            Self::Switch { cases, default, .. } => cases
+                .get(index)
+                .map(|(_, edge)| edge)
+                .unwrap_or_else(|| if index == cases.len() { default } else { panic!("no successor {index}") }),
+            _ => panic!("no successor {index}"),
+        }
+    }
+
+    pub(crate) fn successors(&self) -> Successors<'_> {
+        Successors {
+            terminator: self,
+            front: 0,
+            back: self.successor_count(),
         }
     }
 
@@ -309,6 +323,43 @@ impl Terminator {
         }
     }
 }
+
+#[derive(Clone)]
+pub(crate) struct Successors<'a> {
+    terminator: &'a Terminator,
+    front: usize,
+    back: usize,
+}
+
+impl<'a> Iterator for Successors<'a> {
+    type Item = &'a Edge;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.front == self.back {
+            return None;
+        }
+        let edge = self.terminator.successor(self.front);
+        self.front += 1;
+        Some(edge)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.back - self.front;
+        (remaining, Some(remaining))
+    }
+}
+
+impl DoubleEndedIterator for Successors<'_> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.front == self.back {
+            return None;
+        }
+        self.back -= 1;
+        Some(self.terminator.successor(self.back))
+    }
+}
+
+impl ExactSizeIterator for Successors<'_> {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Block {
