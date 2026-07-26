@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 300vh;
+    }
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+</style>
+<div id="scroller">
+    <div style="height: 1000px"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        const keyPressSettled = async (key) => {
+            const scrollend = new Promise(resolve => scroller.addEventListener("scrollend", resolve, { once: true }));
+            internals.sendKey(document.body, key);
+            await scrollend;
+        };
+
+        internals.click(100, 100);
+        println(`clicking the scroll container does not focus it: ${document.activeElement === document.body ? "PASS" : `FAIL (${document.activeElement.tagName})`}`);
+
+        await keyPressSettled("Down");
+        println(`a down arrow key press scrolls the clicked scroll container: ${scroller.scrollTop > 0 ? "PASS" : "FAIL"}`);
+        println(`the viewport does not scroll: ${window.scrollY === 0 ? "PASS" : `FAIL (${window.scrollY})`}`);
+
+        await keyPressSettled("End");
+        const maximumScrollTop = scroller.scrollHeight - scroller.clientHeight;
+        println(`an end key press scrolls the clicked scroll container to its end: ${scroller.scrollTop === maximumScrollTop ? "PASS" : `FAIL (${scroller.scrollTop})`}`);
+        println(`the viewport still does not scroll: ${window.scrollY === 0 ? "PASS" : `FAIL (${window.scrollY})`}`);
+    });
+</script>

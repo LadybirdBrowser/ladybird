@@ -1,0 +1,5 @@
+clicking the scroll container does not focus it: PASS
+a down arrow key press scrolls the clicked scroll container: PASS
+the viewport does not scroll: PASS
+an end key press scrolls the clicked scroll container to its end: PASS
+the viewport still does not scroll: PASS
