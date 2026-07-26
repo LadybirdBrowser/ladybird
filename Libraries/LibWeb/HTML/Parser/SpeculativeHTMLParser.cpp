@@ -12,9 +12,11 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/Parser/SpeculativeHTMLParser.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
+#include <LibWeb/HTML/PreloadEntry.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTMLTokenizerRustFFI.h>
 
@@ -114,12 +116,31 @@ void issue_speculative_fetch(JS::Realm& realm, DOM::Document& document, URL::URL
     auto request = create_potential_CORS_request(vm, url, destination, cors_setting);
     request->set_client(&document.relevant_settings_object());
 
+    auto entry = realm.create<PreloadEntry>();
+    auto key = create_a_preload_key(*request);
+
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    fetch_algorithms_input.process_response_consume_body = [&realm, entry](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+        response = response->unsafe_response();
+
+        if (auto* byte_sequence = body_bytes.get_pointer<Core::ImmutableBytes>())
+            response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, byte_sequence->bytes()));
+        else
+            response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Expected speculative preload response to contain a body"_string);
+
+        if (!entry->on_response_available)
+            entry->response = response;
+        else
+            entry->on_response_available->function()(response);
+    };
     auto algorithms = Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input));
 
     // The fetch stays alive via ResourceLoader's GC::Root callbacks for the duration of the
     // network request, so we don't need to retain the FetchController.
     (void)Fetch::Fetching::fetch(realm, request, algorithms);
+
+    // Register after starting the fetch so it cannot consume its own preload entry.
+    document.map_of_preloaded_resources().set(move(key), entry);
 }
 
 }
