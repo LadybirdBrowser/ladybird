@@ -443,10 +443,18 @@ fn compute_domain_block_states(
         .iter()
         .map(|write| write.map(|definition| BTreeSet::from([definition])).unwrap_or_default())
         .collect::<Vec<_>>();
+
+    // A block's input comes from its predecessors, so visiting predecessors
+    // first propagates a change the whole way in one sweep instead of one
+    // block per sweep. Blocks the entry cannot reach are visited last, since
+    // reverse postorder does not name them.
+    let mut order = cfg.reverse_postorder().to_vec();
+    order.extend((0..function.blocks.len()).map(BlockId).filter(|block| !cfg.is_reachable(*block)));
+
     loop {
         let mut changed = false;
-        for block_index in 0..function.blocks.len() {
-            let id = BlockId(block_index);
+        for id in order.iter().copied() {
+            let block_index = id.0;
             let mut input = if id == function.entry || cfg.predecessors(id).is_empty() {
                 BTreeSet::from([EffectDefinition::Entry])
             } else if phi_blocks.get(block_index) == Some(&true) {
