@@ -78,15 +78,25 @@ pub(crate) fn remove_unreferenced_labels<
 >(
     instructions: &mut Vec<Instruction<O, C>>,
 ) {
-    let referenced = instructions
-        .iter()
-        .filter(|instruction| instruction.opcode.operation() != Operation::Label)
-        .flat_map(|instruction| &instruction.operands)
-        .filter_map(|operand| operand.label().cloned())
-        .collect::<HashSet<_>>();
-    instructions.retain(|instruction| {
-        instruction.opcode.operation() != Operation::Label
-            || matches!(instruction.operands.as_slice(), [operand] if operand.label().is_some_and(|label| referenced.contains(label)))
+    let keep = {
+        let referenced = instructions
+            .iter()
+            .filter(|instruction| instruction.opcode.operation() != Operation::Label)
+            .flat_map(|instruction| &instruction.operands)
+            .filter_map(ControlFlowOperand::label)
+            .collect::<HashSet<_>>();
+        instructions
+            .iter()
+            .map(|instruction| {
+                instruction.opcode.operation() != Operation::Label
+                    || matches!(instruction.operands.as_slice(), [operand] if operand.label().is_some_and(|label| referenced.contains(label)))
+            })
+            .collect::<Vec<_>>()
+    };
+    let mut index = 0;
+    instructions.retain(|_| {
+        index += 1;
+        keep[index - 1]
     });
 }
 
