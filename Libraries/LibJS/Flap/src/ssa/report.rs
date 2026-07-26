@@ -7,6 +7,7 @@
 //! Structured SSA optimization reports and their text formatting.
 
 use std::fmt;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OptimizationRemarkKind {
@@ -24,6 +25,7 @@ pub struct OptimizationRemark {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PassRunReport {
     pub name: String,
+    pub elapsed: Duration,
     pub changed: bool,
     pub attempted_transformations: u64,
     pub successful_transformations: u64,
@@ -162,9 +164,10 @@ impl fmt::Display for FunctionOptimizationReport {
 fn write_pass_report(formatter: &mut impl fmt::Write, pass: &PassRunReport, indent: &str) -> fmt::Result {
     writeln!(
         formatter,
-        "{indent}pass {}: {} attempted={} applied={}",
+        "{indent}pass {}: {} time-us={} attempted={} applied={}",
         pass.name,
         if pass.changed { "changed" } else { "unchanged" },
+        pass.elapsed.as_micros(),
         pass.attempted_transformations,
         pass.successful_transformations
     )?;

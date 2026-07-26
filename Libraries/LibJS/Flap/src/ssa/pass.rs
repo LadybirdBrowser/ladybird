@@ -13,6 +13,7 @@ use super::analysis::{
 use super::effects::EffectDependencies;
 use super::print::function_to_string;
 use super::report::{OptimizationRemark, OptimizationRemarkKind, PassRunReport};
+use std::time::Instant;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct FunctionAnalyses<'a> {
@@ -229,7 +230,9 @@ impl PassRunner {
         if let Some(options) = self.options {
             self.analyses.begin_pass(options.collect_remarks);
         }
+        let started_at = self.options.map(|_| Instant::now());
         let changed = pass(function, &mut self.analyses);
+        let elapsed = started_at.map(|started_at| started_at.elapsed());
         let instrumentation = self.options.map(|_| self.analyses.finish_pass(changed));
         if changed {
             function.recompute_machine_state_dependencies();
@@ -242,6 +245,7 @@ impl PassRunner {
         }
         let report = instrumentation.map(|instrumentation| PassRunReport {
             name: name.to_string(),
+            elapsed: elapsed.expect("pass timing was enabled with instrumentation"),
             changed,
             attempted_transformations: instrumentation.attempted_transformations,
             successful_transformations: instrumentation.successful_transformations,
