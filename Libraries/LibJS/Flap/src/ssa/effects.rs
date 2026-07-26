@@ -289,6 +289,11 @@ pub(crate) fn alias(function: &Function, lhs: &MemoryLocation, rhs: &MemoryLocat
             if lhs_base != rhs_base {
                 return AliasResult::May;
             }
+            // Two accesses of the same width off the same base at the same
+            // offset are the same location, however they were spelled.
+            if lhs_offset == rhs_offset && lhs.bytes == rhs.bytes {
+                return AliasResult::Must;
+            }
             let lhs_end = lhs_offset.saturating_add(lhs.bytes as i128);
             let rhs_end = rhs_offset.saturating_add(rhs.bytes as i128);
             if lhs_end <= rhs_offset || rhs_end <= lhs_offset {
@@ -299,7 +304,8 @@ pub(crate) fn alias(function: &Function, lhs: &MemoryLocation, rhs: &MemoryLocat
         }
         (MemoryLocationIdentity::IndexedOperand(lhs), MemoryLocationIdentity::IndexedOperand(rhs)) => {
             match (constant_integer(function, *lhs), constant_integer(function, *rhs)) {
-                (Some(lhs), Some(rhs)) if lhs != rhs => AliasResult::No,
+                (Some(lhs), Some(rhs)) if lhs == rhs => AliasResult::Must,
+                (Some(_), Some(_)) => AliasResult::No,
                 _ => AliasResult::May,
             }
         }
