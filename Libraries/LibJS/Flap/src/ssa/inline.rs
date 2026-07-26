@@ -43,6 +43,7 @@ fn inline_calls_with_budget(
         inline_call(function, block_index, instruction_index, callee)?;
         count += 1;
     }
+    function.recompute_machine_state_dependencies();
     function.validate().map_err(|message| inline_error(function, message))?;
     Ok(count)
 }
@@ -269,7 +270,7 @@ fn inline_call(function: &mut Function, block_index: usize, instruction_index: u
             operation,
             inputs,
             result_types,
-            instruction.effects,
+            instruction.base_effects,
         );
         for (old, new) in instruction.results.iter().zip(results) {
             values.insert(*old, new);

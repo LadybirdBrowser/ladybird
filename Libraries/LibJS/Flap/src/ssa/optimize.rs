@@ -182,7 +182,8 @@ pub(crate) fn fuse_operand_accesses(function: &mut Function) {
             first.inputs = inputs;
             first.results = results;
             let memory = if operation == OperandOperation::Copy { super::MemoryEffect::ReadWrite } else { super::MemoryEffect::Read };
-            first.effects = Effects { memory, ..Effects::PURE };
+            first.base_effects = Effects { memory, ..Effects::PURE };
+            first.effects = first.base_effects;
             if operation == OperandOperation::Copy {
                 function.values[result.0].definition = ValueDefinition::Dead;
             }
@@ -203,14 +204,7 @@ fn operand_field_load(instruction: &Instruction) -> Option<(ValueId, ValueId)> {
 }
 
 fn recompute_effects(function: &mut Function) {
-    for index in 0..function.instructions.len() {
-        let instruction = &function.instructions[index];
-        if matches!(instruction.operation, Operation::Intrinsic(Intrinsic::Operand(OperandOperation::LoadPair | OperandOperation::Copy))) {
-            continue;
-        }
-        let effects = function.effects_for_operation(&instruction.operation, &instruction.inputs);
-        function.instructions[index].effects = effects;
-    }
+    function.recompute_machine_state_dependencies();
 }
 
 fn binary_operand_pair(function: &Function, lhs: ValueId, rhs: ValueId) -> bool {

@@ -125,6 +125,7 @@ pub(crate) struct Instruction {
     pub(crate) operation: Operation,
     pub(crate) inputs: Vec<ValueId>,
     pub(crate) results: Vec<ValueId>,
+    base_effects: Effects,
     pub(crate) effects: Effects,
 }
 
@@ -200,6 +201,7 @@ struct UseAnalyses<'a> {
 pub(crate) struct Value {
     pub(crate) ty: Type,
     pub(crate) definition: ValueDefinition,
+    depends_on_machine_state: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -427,6 +429,7 @@ impl Function {
             .map(|(index, ty)| Value {
                 ty,
                 definition: ValueDefinition::FunctionParameter(index),
+                depends_on_machine_state: false,
             })
             .collect();
         Self {
@@ -464,6 +467,7 @@ impl Function {
         self.values.push(Value {
             ty: ty.clone(),
             definition: ValueDefinition::Constant(constant.clone()),
+            depends_on_machine_state: matches!(constant, Constant::MachineRegister(_)),
         });
         self.constant_values.insert((ty, constant), id);
         id
@@ -484,6 +488,7 @@ impl Function {
                 self.values.push(Value {
                     ty,
                     definition: ValueDefinition::BlockParameter { block, index },
+                    depends_on_machine_state: false,
                 });
                 value
             })
@@ -519,7 +524,7 @@ impl Function {
         result_types: Vec<Type>,
     ) -> Vec<ValueId> {
         let operation = operation.into();
-        let effects = self.effects_for_operation(&operation, &inputs);
+        let effects = operation.effects();
         self.append_instruction_with_effects(block, operation, inputs, result_types, effects)
     }
 
@@ -532,6 +537,9 @@ impl Function {
         effects: Effects,
     ) -> Vec<ValueId> {
         let operation = operation.into();
+        let base_effects = effects;
+        let effects = self.effects_for_inputs(base_effects, &inputs);
+        let depends_on_machine_state = effects.machine_state != MemoryEffect::None;
         let instruction = InstructionId(self.instructions.len());
         let results = result_types
             .into_iter()
@@ -541,6 +549,7 @@ impl Function {
                 self.values.push(Value {
                     ty,
                     definition: ValueDefinition::InstructionResult { instruction, index },
+                    depends_on_machine_state,
                 });
                 value
             })
@@ -549,6 +558,7 @@ impl Function {
             operation,
             inputs,
             results: results.clone(),
+            base_effects,
             effects,
         });
         self.blocks[block.0].instructions.push(instruction);
@@ -574,17 +584,83 @@ impl Function {
     }
 
     fn value_depends_on_machine_state(&self, value: ValueId) -> bool {
-        match &self.values[value.0].definition {
-            ValueDefinition::Constant(Constant::MachineRegister(_)) => true,
-            ValueDefinition::InstructionResult { instruction, .. } => {
-                let instruction = &self.instructions[instruction.0];
-                instruction.effects.machine_state != MemoryEffect::None
-                    || instruction
-                        .inputs
-                        .iter()
-                        .any(|input| self.value_depends_on_machine_state(*input))
+        self.values[value.0].depends_on_machine_state
+    }
+
+    fn recompute_machine_state_dependencies(&mut self) {
+        let mut dependent_values = vec![false; self.values.len()];
+        let mut dependents = vec![Vec::new(); self.values.len()];
+        let mut worklist = Vec::new();
+
+        for (index, value) in self.values.iter().enumerate() {
+            if matches!(value.definition, ValueDefinition::Constant(Constant::MachineRegister(_))) {
+                dependent_values[index] = true;
+                worklist.push(ValueId(index));
             }
-            _ => false,
+        }
+        for instruction in &self.instructions {
+            for input in &instruction.inputs {
+                dependents[input.0].extend(instruction.results.iter().copied());
+            }
+            if instruction.base_effects.machine_state != MemoryEffect::None {
+                for result in &instruction.results {
+                    if !dependent_values[result.0] {
+                        dependent_values[result.0] = true;
+                        worklist.push(*result);
+                    }
+                }
+            }
+        }
+        for block in &self.blocks {
+            let terminator = block
+                .terminator
+                .as_ref()
+                .expect("machine-state dependencies require complete SSA");
+            if let Terminator::CheckedOperation {
+                inputs,
+                results,
+                effects,
+                ..
+            } = terminator
+            {
+                for input in inputs {
+                    dependents[input.0].extend(results.iter().copied());
+                }
+                if effects.machine_state != MemoryEffect::None {
+                    for result in results {
+                        if !dependent_values[result.0] {
+                            dependent_values[result.0] = true;
+                            worklist.push(*result);
+                        }
+                    }
+                }
+            }
+            for edge in terminator.successors() {
+                for (argument, parameter) in edge.arguments.iter().zip(&self.blocks[edge.block.0].parameters) {
+                    dependents[argument.0].push(*parameter);
+                }
+            }
+        }
+
+        while let Some(value) = worklist.pop() {
+            for dependent in &dependents[value.0] {
+                if !dependent_values[dependent.0] {
+                    dependent_values[dependent.0] = true;
+                    worklist.push(*dependent);
+                }
+            }
+        }
+
+        for (value, dependent) in self.values.iter_mut().zip(&dependent_values) {
+            value.depends_on_machine_state = *dependent;
+        }
+        let effects = self
+            .instructions
+            .iter()
+            .map(|instruction| self.effects_for_inputs(instruction.base_effects, &instruction.inputs))
+            .collect::<Vec<_>>();
+        for (instruction, effects) in self.instructions.iter_mut().zip(effects) {
+            instruction.effects = effects;
         }
     }
 
@@ -636,6 +712,7 @@ impl Function {
                 self.values.push(Value {
                     ty,
                     definition: ValueDefinition::TerminatorResult { block, index },
+                    depends_on_machine_state: false,
                 });
                 value
             })
@@ -1130,6 +1207,90 @@ mod tests {
         function.set_terminator(function.entry, Terminator::Return(vec![value]));
 
         function.validate().unwrap();
+    }
+
+    #[test]
+    fn tracks_machine_state_dependencies_in_linear_time() {
+        let mut function = Function::new("machine-state-dag", Vec::new(), Vec::new());
+        let machine_state = function.add_constant(
+            Type::U64,
+            Constant::MachineRegister(RegisterReference::Interpreter(
+                InterpreterRegister::ProgramBase,
+            )),
+        );
+        let one = function.add_constant(Type::U64, Constant::Integer(1));
+        let mut previous = machine_state;
+        let mut current = one;
+        for _ in 0..100 {
+            let next = function.append_instruction(
+                function.entry,
+                Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::Add)),
+                vec![previous, current],
+                vec![Type::U64],
+            )[0];
+            previous = current;
+            current = next;
+        }
+        function.set_terminator(function.entry, Terminator::Return(vec![current]));
+
+        assert_eq!(
+            function.instructions.last().unwrap().effects.machine_state,
+            MemoryEffect::Read
+        );
+
+        function.instructions[0].inputs[0] = one;
+        function.recompute_machine_state_dependencies();
+        assert_eq!(
+            function.instructions.last().unwrap().effects.machine_state,
+            MemoryEffect::None
+        );
+    }
+
+    #[test]
+    fn tracks_machine_state_through_checked_results_and_block_parameters() {
+        let mut function = Function::new("checked-machine-state", Vec::new(), Vec::new());
+        let machine_state = function.add_constant(
+            Type::U64,
+            Constant::MachineRegister(RegisterReference::Interpreter(InterpreterRegister::ProgramBase)),
+        );
+        let one = function.add_constant(Type::U64, Constant::Integer(1));
+        let success = function.create_named_block("success", BlockLayout::Hot, vec![Type::U64]);
+        let failure = function.create_empty_block("failure", BlockLayout::Cold);
+        let results = function.set_checked_operation(
+            function.entry,
+            Intrinsic::CheckedInteger(CheckedIntegerOperation::Add),
+            vec![machine_state, one],
+            vec![Type::U64],
+            Effects::PURE,
+            success,
+            Vec::new(),
+            Edge::new(failure),
+        );
+        let parameter = function.blocks[success.0].parameters[0];
+        function.append_instruction(
+            success,
+            Intrinsic::LowLevel(LowLevelOperation::Negate),
+            vec![parameter],
+            vec![Type::U64],
+        );
+        function.set_terminator(success, Terminator::Return(Vec::new()));
+        function.set_terminator(failure, Terminator::Unreachable);
+
+        function.recompute_machine_state_dependencies();
+        assert!(function.values[results[0].0].depends_on_machine_state);
+        assert!(function.values[parameter.0].depends_on_machine_state);
+        assert_eq!(function.instructions[0].effects.machine_state, MemoryEffect::Read);
+
+        let Terminator::CheckedOperation { inputs, .. } =
+            function.blocks[function.entry.0].terminator.as_mut().unwrap()
+        else {
+            unreachable!()
+        };
+        inputs[0] = one;
+        function.recompute_machine_state_dependencies();
+        assert!(!function.values[results[0].0].depends_on_machine_state);
+        assert!(!function.values[parameter.0].depends_on_machine_state);
+        assert_eq!(function.instructions[0].effects.machine_state, MemoryEffect::None);
     }
 
     #[test]
