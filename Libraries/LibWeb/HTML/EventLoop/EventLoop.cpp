@@ -431,8 +431,13 @@ void EventLoop::update_the_rendering()
 
             // Clamp viewport scroll offset to valid range after layout, in case the
             // scrollable overflow area has shrunk (e.g. after a viewport size change).
-            if (auto navigable = document->navigable())
+            if (auto navigable = document->navigable()) {
                 navigable->clamp_viewport_scroll_offset();
+
+                // AD-HOC: A user scroll gesture that ended while layout was out of date could not select the snap
+                //         position it ends at, so it does now.
+                navigable->snap_user_scroll_gestures_that_awaited_layout();
+            }
 
             // 2. Let hadInitialVisibleContentVisibilityDetermination be false.
             bool had_initial_visible_content_visibility_determination = false;

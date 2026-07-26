@@ -318,7 +318,9 @@ public:
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_an_element(DOM::Element&, CSSPixelPoint position, Bindings::ScrollBehavior, Optional<CSSPixelPoint> relative_displacement = {});
     void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID>, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
     void note_user_scroll_input_intent(Painting::SnapSelectionStrategy::Type);
+    void note_user_scroll_gesture_phase(ScrollGesturePhase);
     void defer_user_scroll_settlement();
+    void snap_user_scroll_gestures_that_awaited_layout();
     void begin_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
     void end_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
     void reset_zoom();
@@ -376,9 +378,17 @@ private:
         Optional<Compositor::AsyncScrollNodeStableID> stable_node_id;
         Optional<CSSPixelPoint> scroll_offset_at_gesture_start;
         Painting::SnapSelectionStrategy::Type intent { Painting::SnapSelectionStrategy::Type::EndPosition };
+        bool awaits_layout_for_snapping { false };
     };
     PendingUserScrollendTarget* latched_user_scroll_gesture_for(GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID> const&);
-    void user_scroll_did_settle();
+    void settle_user_scroll_gesture();
+    // Which of the latched gestures a settlement is for: every gesture that ran out of input, or only those left
+    // waiting for layout by an earlier settlement.
+    enum class UserScrollSettlement {
+        GestureRanOutOfInput,
+        SnappingDeferredUntilLayout,
+    };
+    void user_scroll_did_settle(UserScrollSettlement = UserScrollSettlement::GestureRanOutOfInput);
     void cancel_user_scroll_settlement();
     void schedule_hover_update_after_async_scroll();
     void update_hover_after_async_scroll_stops();
@@ -456,8 +466,10 @@ private:
     Vector<PendingUserScrollendTarget> m_pending_user_scrollend_targets;
     RefPtr<Core::Timer> m_user_scroll_settle_timer;
     OwnPtr<UserScrollGestureHold> m_compositor_user_scroll_gesture_hold;
+    OwnPtr<UserScrollGestureHold> m_wheel_user_scroll_gesture_hold;
     size_t m_user_scroll_gesture_hold_count { 0 };
     Painting::SnapSelectionStrategy::Type m_user_scroll_input_intent { Painting::SnapSelectionStrategy::Type::EndPosition };
+    bool m_user_scroll_gesture_travels_under_momentum { false };
 
     struct PendingAsyncScrollOperation {
         Compositor::AsyncScrollOperationID operation_id { 0 };
