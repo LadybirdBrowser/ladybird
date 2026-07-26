@@ -343,7 +343,7 @@ fn caller_saved_registers(architecture: Architecture) -> RegisterSet {
 }
 
 fn operand_kind_at(
-    description: InstructionDescription,
+    description: &InstructionDescription,
     index: usize,
     operand_count: usize,
     architecture: Architecture,

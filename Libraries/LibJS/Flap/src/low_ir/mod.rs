@@ -342,7 +342,7 @@ pub(crate) trait ControlFlowOperand: Clone {
 
 pub(crate) trait ControlFlowOpcode: Clone + fmt::Debug {
     fn operation(&self) -> Operation;
-    fn description(&self) -> InstructionDescription;
+    fn description(&self) -> &'static InstructionDescription;
     fn replacing_operation(&self, operation: Operation) -> Self;
 }
 
@@ -351,7 +351,7 @@ impl ControlFlowOpcode for Operation {
         *self
     }
 
-    fn description(&self) -> InstructionDescription {
+    fn description(&self) -> &'static InstructionDescription {
         self.description()
     }
 
@@ -365,7 +365,7 @@ impl ControlFlowOpcode for SelectedOpcode {
         self.operation()
     }
 
-    fn description(&self) -> InstructionDescription {
+    fn description(&self) -> &'static InstructionDescription {
         self.description()
     }
 
