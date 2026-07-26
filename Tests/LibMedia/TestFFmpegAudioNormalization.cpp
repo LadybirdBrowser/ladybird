@@ -15,6 +15,8 @@
 #include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibTest/TestCase.h>
 
+#include "TestMediaCommon.h"
+
 template<typename Integer>
 requires(IsIntegral<Integer>)
 static void append_little_endian(ByteBuffer& buffer, Integer value)
@@ -70,7 +72,7 @@ template<typename Sample>
 requires(IsSigned<Sample>)
 static void decode_and_expect()
 {
-    Core::EventLoop loop;
+    auto& loop = never_destroyed_event_loop();
 
     constexpr size_t sample_count = 2048;
     auto wav_data = make_square_wav<Sample>(sample_count);

@@ -17,6 +17,8 @@
 #include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibTest/TestCase.h>
 
+#include "TestMediaCommon.h"
+
 static NonnullRefPtr<Media::IncrementallyPopulatedStream> load_test_file(StringView path)
 {
     auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
@@ -33,7 +35,7 @@ static NonnullRefPtr<Media::Demuxer> create_demuxer(NonnullRefPtr<Media::Increme
 
 TEST_CASE(audio_producer_underspecified_5_1_channel_map)
 {
-    Core::EventLoop loop;
+    auto& loop = never_destroyed_event_loop();
 
     auto stream = load_test_file("WAV/tone_44100_5_1_underspecified.wav"sv);
     auto demuxer = create_demuxer(stream);
