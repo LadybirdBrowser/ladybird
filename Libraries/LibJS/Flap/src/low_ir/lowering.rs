@@ -620,9 +620,7 @@ fn control_flow_cost(instructions: &[Instruction]) -> Result<usize, String> {
     super::optimize::invert_branches_over_jumps(&mut instructions);
     super::optimize::remove_unreferenced_labels(&mut instructions);
     let mut graph = super::cfg::ControlFlowGraph::from_instructions(instructions)?;
-    graph.thread_unconditional_jumps();
-    graph.remove_unreferenced_jump_blocks();
-    graph.remove_unreachable_blocks();
+    graph.simplify();
     let layout = graph.layout_hot_and_cold()?;
     Ok(graph.linearize_omitting_jumps_to_next_block(&layout.hot).len()
         + graph.linearize_omitting_jumps_to_next_block(&layout.cold).len())

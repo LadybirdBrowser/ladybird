@@ -248,7 +248,33 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
         Some(instruction)
     }
 
+    /// Tidy the graph after an edit: thread branches through jump-only blocks,
+    /// drop jump blocks nothing reaches, and drop blocks control cannot reach.
+    ///
+    /// Only the last of those reads the successor lists, so they are rebuilt
+    /// once before it rather than after each step.
+    pub(crate) fn simplify(&mut self) {
+        self.thread_jumps();
+        self.drop_unreferenced_jump_blocks();
+        self.rebuild_successors();
+        self.remove_unreachable_blocks();
+    }
+
+    #[cfg(test)]
     pub(crate) fn thread_unconditional_jumps(&mut self) {
+        self.thread_jumps();
+        self.rebuild_successors();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn remove_unreferenced_jump_blocks(&mut self) {
+        self.drop_unreferenced_jump_blocks();
+        self.rebuild_successors();
+    }
+
+    /// Thread branches through jump-only blocks. Leaves the successor lists
+    /// stale; `simplify` rebuilds them once for all of its steps.
+    fn thread_jumps(&mut self) {
         let redirects = self
             .blocks
             .iter()
@@ -292,10 +318,11 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
                 }
             }
         }
-        self.rebuild_successors();
     }
 
-    pub(crate) fn remove_unreferenced_jump_blocks(&mut self) {
+    /// Drop jump-only blocks nothing branches to. Leaves the successor lists
+    /// stale; `simplify` rebuilds them once for all of its steps.
+    fn drop_unreferenced_jump_blocks(&mut self) {
         // How many times each label is branched to, rather than the set of
         // labels that are. Removing a block drops exactly the references its
         // own instructions made, so the tally is adjusted instead of being
@@ -353,7 +380,6 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
             index += 1;
             !removed[index - 1]
         });
-        self.rebuild_successors();
     }
 
     pub(crate) fn remove_unreachable_blocks(&mut self) {

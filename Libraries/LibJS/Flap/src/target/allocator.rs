@@ -319,11 +319,7 @@ fn build_allocated_graph(
     let mut graph = ControlFlowGraph::from_instructions(instructions)
         .map_err(|message| allocation_error(&handler.name, message))?;
 
-    graph.thread_unconditional_jumps();
-
-    graph.remove_unreferenced_jump_blocks();
-
-    graph.remove_unreachable_blocks();
+    graph.simplify();
 
     Ok(graph)
 }
