@@ -9,6 +9,7 @@
 #include <AK/Badge.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/LexicalPath.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
@@ -82,9 +83,15 @@ public:
     void pause_active_downloads();
     void fail_download(u64 id, String);
     Vector<u64> prune_inactive_downloads();
+    Vector<u64> remove_inactive_downloads_created_since(UnixDateTime);
 
     ReadonlySpan<Download> downloads() const { return m_downloads.span(); }
     Optional<Download const&> download(u64 id) const;
+
+    // Hands this downloader the store it should record unfinished downloads in, and brings back whatever downloads
+    // were unfinished when the browser last ran. Downloads restored this way arrive paused, never running: the user
+    // may be on a different network than the one they left, and their quitting was deliberate.
+    void adopt_download_store(Badge<Application>, DownloadStore&);
 
     static void add_observer(Badge<FileDownloaderObserver>, FileDownloaderObserver&);
     static void remove_observer(Badge<FileDownloaderObserver>, FileDownloaderObserver&);
@@ -111,6 +118,17 @@ private:
     static void stop_segment_request(ActiveDownload&, size_t segment_index);
 
     void fail_or_pause_download(u64 id, String);
+
+    enum class PersistUrgency : u8 {
+        Throttled,
+        Immediate,
+    };
+    void persist_download_snapshot(u64 id, PersistUrgency);
+    void forget_persisted_download(u64 id);
+    void restore_persisted_downloads();
+    bool restore_persisted_download(DownloadRecord&);
+    static void remove_orphaned_temporary_files(HashTable<ByteString> const& directories, HashTable<ByteString> const& temporary_paths_in_use);
+
     void maybe_split_download(u64 id);
     void start_segment_request(u64 id, size_t segment_index);
     bool retry_segment_request(u64 id, size_t segment_index);
@@ -126,6 +144,7 @@ private:
     Vector<Download> m_downloads;
     HashMap<u64, NonnullOwnPtr<ActiveDownload>> m_active_downloads;
     Vector<FileDownloaderObserver&> m_observers;
+    DownloadStore* m_download_store { nullptr };
     u64 m_next_download_id { 0 };
 };
 

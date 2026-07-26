@@ -1053,8 +1053,9 @@ ErrorOr<void> Application::launch_services()
         auto cookies_outcome = TRY(CookieJar::migrate_schema(*m_database, Database::MigrationMode::CheckOnly));
         auto hsts_outcome = TRY(HSTSStore::migrate_schema(*m_database, Database::MigrationMode::CheckOnly));
         auto storage_outcome = TRY(StorageJar::migrate_schema(*m_database, Database::MigrationMode::CheckOnly));
+        auto downloads_outcome = TRY(DownloadStore::migrate_schema(*m_database, Database::MigrationMode::CheckOnly));
 
-        if (cookies_outcome == Database::MigrationOutcome::Success && hsts_outcome == Database::MigrationOutcome::Success && storage_outcome == Database::MigrationOutcome::Success) {
+        if (cookies_outcome == Database::MigrationOutcome::Success && hsts_outcome == Database::MigrationOutcome::Success && storage_outcome == Database::MigrationOutcome::Success && downloads_outcome == Database::MigrationOutcome::Success) {
             // Apply in order, stopping at the first store that finds the database too new
             // (a concurrent process may have migrated it since the preflight).
             cookies_outcome = TRY(CookieJar::migrate_schema(*m_database));
@@ -1064,16 +1065,20 @@ ErrorOr<void> Application::launch_services()
             storage_outcome = hsts_outcome == Database::MigrationOutcome::Success
                 ? TRY(StorageJar::migrate_schema(*m_database))
                 : Database::MigrationOutcome::DatabaseTooNew;
+            downloads_outcome = storage_outcome == Database::MigrationOutcome::Success
+                ? TRY(DownloadStore::migrate_schema(*m_database))
+                : Database::MigrationOutcome::DatabaseTooNew;
         }
 
         // If any store finds the shared file too new, including a concurrent process migrating it
         // between the preflight and an apply above, none of them may persist this session, even if
         // an earlier store already migrated. Otherwise, we would keep writing to a vetoed database.
-        if (cookies_outcome != Database::MigrationOutcome::Success || hsts_outcome != Database::MigrationOutcome::Success || storage_outcome != Database::MigrationOutcome::Success) {
-            warnln("Browsing database was created by a newer Ladybird version; cookies, web storage and HSTS policies will not be persisted this session");
+        if (cookies_outcome != Database::MigrationOutcome::Success || hsts_outcome != Database::MigrationOutcome::Success || storage_outcome != Database::MigrationOutcome::Success || downloads_outcome != Database::MigrationOutcome::Success) {
+            warnln("Browsing database was created by a newer Ladybird version; cookies, web storage, HSTS policies and unfinished downloads will not be persisted this session");
             cookies_outcome = Database::MigrationOutcome::DatabaseTooNew;
             hsts_outcome = Database::MigrationOutcome::DatabaseTooNew;
             storage_outcome = Database::MigrationOutcome::DatabaseTooNew;
+            downloads_outcome = Database::MigrationOutcome::DatabaseTooNew;
         }
 
         if (cookies_outcome == Database::MigrationOutcome::Success)
@@ -1091,6 +1096,11 @@ ErrorOr<void> Application::launch_services()
         else
             m_storage_jar = StorageJar::create();
 
+        if (downloads_outcome == Database::MigrationOutcome::Success)
+            m_download_store = TRY(DownloadStore::create(*m_database));
+        else
+            m_download_store = DownloadStore::create_disabled();
+
         auto history_outcome = TRY(HistoryStore::migrate_schema(*m_history_database));
         if (history_outcome == Database::MigrationOutcome::Success) {
             m_history_store = TRY(HistoryStore::create(*m_history_database));
@@ -1106,7 +1116,10 @@ ErrorOr<void> Application::launch_services()
         m_history_store = HistoryStore::create_disabled();
         m_hsts_store = HSTSStore::create();
         m_storage_jar = StorageJar::create();
+        m_download_store = DownloadStore::create_disabled();
     }
+
+    m_file_downloader.adopt_download_store({}, *m_download_store);
 
     VERIFY(m_event_loop);
     m_autocomplete_service = make<AutocompleteService>(*m_event_loop, move(history_database_directory));
@@ -1718,6 +1731,9 @@ void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
         m_history_store->remove_entries_accessed_since(options.since);
         did_change_history = true;
     }
+
+    if (options.delete_download_history == ClearBrowsingDataOptions::Delete::Yes)
+        m_file_downloader.remove_inactive_downloads_created_since(options.since);
 
     if (options.delete_site_data == ClearBrowsingDataOptions::Delete::Yes) {
         m_cookie_jar->expire_cookies_accessed_since(options.since);

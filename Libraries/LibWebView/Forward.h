@@ -23,6 +23,7 @@ class CompositorClient;
 class CompositorConnection;
 class CompositorHostBase;
 class CookieJar;
+class DownloadStore;
 class HistoryStore;
 class HSTSStore;
 class Menu;
@@ -38,6 +39,7 @@ class WebWorkerClient;
 class WebUI;
 
 struct Attribute;
+struct DownloadRecord;
 struct AutocompleteEngine;
 struct BookmarkItem;
 struct BrowserOptions;
