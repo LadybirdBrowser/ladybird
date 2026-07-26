@@ -464,6 +464,31 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
         (hot, cold)
     }
 
+    /// Count instructions after applying the same plan used by final
+    /// linearization, without cloning or consuming the graph.
+    pub(crate) fn linearized_instruction_count(&self) -> Result<usize, String> {
+        let layout = self.layout_hot_and_cold()?;
+        let referenced_anywhere = self.explicitly_referenced_labels();
+        let mut count = 0;
+        for blocks in [&layout.hot, &layout.cold] {
+            let plan = self.plan_linearization(blocks, &referenced_anywhere);
+            for block in blocks {
+                if plan.skipped_blocks.contains(block) {
+                    continue;
+                }
+                let end = self.planned_length(*block, &plan);
+                count += self.blocks[block.0].instructions[..end]
+                    .iter()
+                    .filter(|instruction| {
+                        defined_label(instruction).is_none_or(|label| plan.referenced_labels.contains(label))
+                    })
+                    .count();
+                count += usize::from(plan.inverted_branches.contains_key(block));
+            }
+        }
+        Ok(count)
+    }
+
     /// Every label some instruction branches to, wherever it sits.
     fn explicitly_referenced_labels(&self) -> HashSet<Label> {
         block_label_references(&self.blocks).cloned().collect()
@@ -637,6 +662,7 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
         instructions
     }
 
+    #[cfg(test)]
     pub(crate) fn linearize_omitting_jumps_to_next_block(&self, blocks: &[BlockId]) -> Vec<Instruction<O, C>> {
         let plan = self.plan_linearization(blocks, &self.explicitly_referenced_labels());
         let mut instructions = Vec::new();
