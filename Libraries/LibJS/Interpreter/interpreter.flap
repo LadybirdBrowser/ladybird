@@ -2402,6 +2402,9 @@ handler Call(
     let callee_slot_count = executable_pointer.registers_and_locals_and_constants_count;
     assert_nonzero(executable_pointer);
     assert_ge_unsigned(callee_slot_count, registers_and_locals_count);
+    let maximum_slot_count: u32 = 4294967295;
+    let available_argument_slot_count: u32 = maximum_slot_count - callee_slot_count;
+    guard available_argument_slot_count >= formal_count else slow;
     let frame_slot_count: u32 = callee_slot_count + formal_count;
     # FIXME: Keep frame size materialization before the VM loads until nested
     #        arithmetic preserves that independent scheduling opportunity.
@@ -2528,6 +2531,7 @@ handler Call(
         guard native_frame_end <= native_stack_limit else slow;
         let native_limit_vm = current_vm();
         let machine_stack_limit: u64 = native_limit_vm.stack_base + VM_STACK_SPACE_LIMIT;
+        assert_ge_unsigned(machine_stack_limit, native_limit_vm.stack_base);
         guard machine_stack_limit <= fp else slow;
         let native_stack_update_vm = current_vm();
         native_stack_update_vm.interpreter_stack_top = native_frame_end;
