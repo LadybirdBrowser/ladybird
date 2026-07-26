@@ -247,6 +247,7 @@ pub(crate) struct Function {
     pub(crate) size: Option<u32>,
     pub(crate) is_cold: bool,
     pub(crate) architecture: Architecture,
+    pub(crate) virtual_registers: Vec<VirtualRegister>,
     pub(crate) instructions: Vec<Instruction>,
 }
 

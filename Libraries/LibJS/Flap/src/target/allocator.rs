@@ -22,7 +22,6 @@
 //! Handlers that don't use virtual registers require no register assignment.
 
 use crate::Architecture;
-use crate::hash::{HashMap, HashSet};
 use crate::low_ir::cfg::{ControlFlowGraph, instruction_successors};
 use crate::low_ir::optimize::{invert_branches_over_jumps, remove_unreferenced_labels};
 #[cfg(test)]
@@ -133,34 +132,15 @@ impl UseDef {
     }
 }
 
-/// The dense numbering every later phase of allocation works in.
-struct Names {
-    registers: Vec<VirtualRegister>,
-    indices: HashMap<VirtualRegister, u32>,
+/// The debug names for the dense virtual-register numbering.
+struct Names<'a> {
+    function: crate::identity::HandlerId,
+    registers: &'a [VirtualRegister],
 }
 
-impl Names {
-    fn collect(instructions: &[&MachineInstruction]) -> Self {
-        let mut seen = HashSet::default();
-        for instruction in instructions {
-            for operand in &instruction.operands {
-                visit_virtual_registers(operand, &mut |register| {
-                    if !seen.contains(register) {
-                        seen.insert(register.clone());
-                    }
-                });
-            }
-        }
-        // Sorting keeps the numbering, and with it every tie-break that
-        // depends on it, independent of hash iteration order.
-        let mut registers = seen.into_iter().collect::<Vec<_>>();
-        registers.sort();
-        let indices = registers
-            .iter()
-            .enumerate()
-            .map(|(index, register)| (register.clone(), index as u32))
-            .collect();
-        Self { registers, indices }
+impl<'a> Names<'a> {
+    fn new(function: crate::identity::HandlerId, registers: &'a [VirtualRegister]) -> Self {
+        Self { function, registers }
     }
 
     fn len(&self) -> usize {
@@ -168,7 +148,14 @@ impl Names {
     }
 
     fn index(&self, register: &VirtualRegister) -> u32 {
-        self.indices[register]
+        let id = register.id().expect("target virtual registers must be interned");
+        assert_eq!(
+            id.function(),
+            self.function,
+            "virtual register belongs to another handler"
+        );
+        debug_assert_eq!(self.registers[id.index() as usize], *register);
+        id.index()
     }
 
     fn name(&self, index: u32) -> &VirtualRegister {
@@ -598,7 +585,15 @@ fn records_every_simultaneous_pair(_: &InterferenceGraph, _: &Liveness) -> bool 
 // Interference and allocation
 // ============================================================================
 
-type AllocationPlan = HashMap<VirtualRegister, PhysicalRegister>;
+#[derive(Default)]
+struct AllocationPlan(Vec<Option<PhysicalRegister>>);
+
+impl AllocationPlan {
+    fn physical(&self, register: &VirtualRegister) -> PhysicalRegister {
+        let id = register.id().expect("target virtual registers must be interned");
+        self.0[id.index() as usize].expect("every virtual register must have an allocation")
+    }
+}
 
 /// Coalescing groups, as a dense map from virtual register to the group it
 /// belongs to. A group is a set of move-related values that all take the same
@@ -633,7 +628,7 @@ impl CoalescingGroups {
 struct ColoringContext<'a> {
     handler: &'a TargetFunction,
     interference: &'a InterferenceGraph,
-    names: &'a Names,
+    names: &'a Names<'a>,
     gpr_pool: &'a [PhysicalRegister],
     fpr_pool: &'a [PhysicalRegister],
     gpr_mask: RegisterSet,
@@ -723,7 +718,7 @@ fn allocate(
     successors: &[Vec<usize>],
     arch: Architecture,
 ) -> Result<AllocationPlan, CompileError> {
-    let names = Names::collect(instructions);
+    let names = Names::new(handler.id, &handler.virtual_registers);
     let count = names.len();
     let liveness = compute_liveness(&handler.name, instructions, successors, &names, arch)?;
 
@@ -924,13 +919,13 @@ fn allocate(
     let mut use_order = (0..count as u32).collect::<Vec<_>>();
     use_order.sort_by(|a, b| compare(a, b, AllocationPriority::UseCount));
     if let Ok(plan) = try_color(&use_order, &coalescing_groups) {
-        return Ok(plan.into_named(&names));
+        return Ok(plan);
     }
 
     let mut live_order = use_order.clone();
     live_order.sort_by(|a, b| compare(a, b, AllocationPriority::LiveRange));
     if let Ok(plan) = try_color(&live_order, &coalescing_groups) {
-        return Ok(plan.into_named(&names));
+        return Ok(plan);
     }
 
     let mut groups = coalescing_groups.groups.clone();
@@ -953,31 +948,18 @@ fn allocate(
     }
     if !retained_groups.groups.is_empty() {
         if let Ok(plan) = try_color(&use_order, &retained_groups) {
-            return Ok(plan.into_named(&names));
+            return Ok(plan);
         }
         if let Ok(plan) = try_color(&live_order, &retained_groups) {
-            return Ok(plan.into_named(&names));
+            return Ok(plan);
         }
     }
 
     let no_groups = CoalescingGroups::empty(count);
     if let Ok(plan) = try_color(&use_order, &no_groups) {
-        return Ok(plan.into_named(&names));
+        return Ok(plan);
     }
-    try_color(&live_order, &no_groups).map(|plan| plan.into_named(&names))
-}
-
-/// A coloring, indexed by dense virtual-register number.
-struct Assignments(Vec<Option<PhysicalRegister>>);
-
-impl Assignments {
-    fn into_named(self, names: &Names) -> AllocationPlan {
-        self.0
-            .into_iter()
-            .enumerate()
-            .filter_map(|(index, physical)| physical.map(|physical| (names.name(index as u32).clone(), physical)))
-            .collect()
-    }
+    try_color(&live_order, &no_groups)
 }
 
 /// Greedy linear-scan coloring driven by the order in `sorted_virtuals`.
@@ -987,7 +969,7 @@ fn color(
     context: &ColoringContext<'_>,
     sorted_virtuals: &[u32],
     coalescing_groups: &CoalescingGroups,
-) -> Result<Assignments, CompileError> {
+) -> Result<AllocationPlan, CompileError> {
     let ColoringContext {
         handler,
         interference,
@@ -1137,7 +1119,7 @@ fn color(
         assignments[name as usize] = Some(pick);
     }
 
-    Ok(Assignments(assignments))
+    Ok(AllocationPlan(assignments))
 }
 
 // ============================================================================
@@ -1173,15 +1155,11 @@ fn rewrite(
 fn rewrite_operand(
     handler: &TargetFunction,
     op: Operand,
-    table: &HashMap<VirtualRegister, PhysicalRegister>,
+    table: &AllocationPlan,
     runtime: &RuntimeConstants,
 ) -> Result<AllocatedOperand, CompileError> {
     Ok(match op {
-        Operand::VirtualRegister(register) => AllocatedOperand::PhysicalRegister(
-            *table
-                .get(&register)
-                .expect("every virtual register must have an allocation"),
-        ),
+        Operand::VirtualRegister(register) => AllocatedOperand::PhysicalRegister(table.physical(&register)),
         Operand::InterpreterRegister(register) => AllocatedOperand::PhysicalRegister(
             resolve_interpreter_register(register, handler.architecture).ok_or_else(|| {
                 allocation_error(
@@ -1255,12 +1233,10 @@ fn rewrite_operand(
 fn rewrite_address_register(
     handler: &TargetFunction,
     register: AddressRegister,
-    table: &HashMap<VirtualRegister, PhysicalRegister>,
+    table: &AllocationPlan,
 ) -> Result<PhysicalRegister, CompileError> {
     match register {
-        AddressRegister::Virtual(register) => Ok(*table
-            .get(&register)
-            .expect("every virtual register must have an allocation")),
+        AddressRegister::Virtual(register) => Ok(table.physical(&register)),
         AddressRegister::Interpreter(register) => resolve_interpreter_register(register, handler.architecture)
             .ok_or_else(|| {
                 allocation_error(

@@ -24,11 +24,11 @@ pub(crate) fn select_program(
         .map(|mut handler| -> Result<_, CompileError> {
             materialize_program_counter_reads(&mut handler.instructions)
                 .map_err(|message| selection_error(&handler.name, message))?;
-            low_ir::intern_virtual_registers(handler.id, &mut handler.instructions);
             if architecture == Architecture::X86_64 {
                 schedule_x86_relational_operand_loads(&mut handler.instructions);
             }
             orient_commutative_updates(&mut handler.instructions);
+            let virtual_registers = low_ir::intern_virtual_registers(handler.id, &mut handler.instructions);
             let mut instructions = Vec::with_capacity(handler.instructions.len());
             for mut instruction in handler.instructions {
                 let operation = instruction.opcode;
@@ -86,6 +86,7 @@ pub(crate) fn select_program(
                 size: handler.size,
                 is_cold: handler.is_cold,
                 architecture,
+                virtual_registers,
                 instructions,
             })
         })

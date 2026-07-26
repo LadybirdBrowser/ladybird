@@ -8,7 +8,7 @@
 
 use super::{
     AddressDisplacement, AddressRegister, AddressScale, Handler, Instruction, Label, MemoryAddress, Operand,
-    Relocation, VirtualRegister, emit_instructions as emit, intern_virtual_registers,
+    Relocation, VirtualRegister, emit_instructions as emit,
 };
 use crate::bytecode::{BytecodeFieldId, HandlerLayout as BytecodeHandlerLayout};
 use crate::frontend::layout::{KnownLayoutConstant, LayoutConstantCategory, LayoutConstants};
@@ -269,7 +269,6 @@ fn lower_handler_internal(
             instruction.operands.pop();
         }
     }
-    intern_virtual_registers(id, &mut instructions);
     Ok(Handler {
         id,
         name: function.name.clone(),
