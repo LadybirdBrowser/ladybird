@@ -292,15 +292,6 @@ pub(crate) enum Operand {
 }
 
 impl Operand {
-    pub(crate) fn references(&self, register: &VirtualRegister) -> bool {
-        match self {
-            Self::VirtualRegister(candidate) => candidate == register,
-            Self::Address(address) => std::iter::once(&address.base)
-                .chain(&address.index)
-                .any(|candidate| matches!(candidate, AddressRegister::Virtual(candidate) if candidate == register)),
-            _ => false,
-        }
-    }
 }
 
 pub(crate) trait ControlFlowOperand: Clone {
