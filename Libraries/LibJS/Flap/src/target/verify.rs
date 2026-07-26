@@ -24,10 +24,9 @@ pub(crate) fn verify_handler(
     handler: &Handler,
     architecture: Architecture,
 ) -> Result<(), CompileError> {
-    let control_flow = handler.cfg.linearize_for_analysis();
     let mut definitions = HashSet::new();
     let mut references = Vec::new();
-    for instruction in &control_flow.instructions {
+    for instruction in handler.cfg.instructions() {
         if instruction.opcode.architecture() != architecture {
             return error(handler, "instruction opcode belongs to the wrong target architecture");
         }
