@@ -52,69 +52,38 @@ use crate::hash::{HashMap, HashSet};
 type RegisterSet = u64;
 
 fn register_bit(register: PhysicalRegister) -> RegisterSet {
+    assert!(
+        register != crate::target::registers::aarch64::XZR,
+        "the AArch64 zero register is introduced only after allocation"
+    );
     let class = match register.class() {
         crate::target::registers::RegisterClass::GeneralPurpose => 0,
         crate::target::registers::RegisterClass::FloatingPoint => 32,
     };
-    1 << (class + u32::from(register.number()))
+    let number = u32::from(register.number());
+    assert!(number < 32, "register number {number} does not fit in a RegisterSet");
+    1 << (class + number)
 }
 
-/// A set of virtual registers, held as a bitmap over dense virtual-register
-/// indices. Liveness and interference are the hot inner loops of allocation and
-/// both are set algebra, so they run word at a time rather than element at a
-/// time.
-#[derive(Clone)]
-struct VirtualRegisterSets {
-    words_per_set: usize,
-    words: Vec<u64>,
-}
+/// A set of virtual registers, held sorted.
+///
+/// The obvious representation is a bitmap over the dense numbering, and for a
+/// handler-sized function it is the fastest one. A stitched function is not
+/// handler-sized: the largest in Octane's zlib has 64298 virtual registers over
+/// 286178 instructions, where a bitmap per instruction is half a gigabyte and
+/// sweeping it is gigabytes of traffic. The number of registers live at any one
+/// point stays small whatever the function's size, so the sets are sparse.
+type LiveSet = Vec<u32>;
 
-impl VirtualRegisterSets {
-    fn new(sets: usize, registers: usize) -> Self {
-        let words_per_set = registers.div_ceil(64);
-        Self {
-            words_per_set,
-            words: vec![0; sets * words_per_set],
-        }
+/// Merge `source` into the sorted set `into`, which stays sorted and unique.
+fn merge_into(into: &mut LiveSet, source: &[u32]) {
+    if into.is_empty() {
+        into.extend_from_slice(source);
+        return;
     }
-
-    fn set(&self, index: usize) -> &[u64] {
-        &self.words[index * self.words_per_set..(index + 1) * self.words_per_set]
-    }
-
-    fn set_mut(&mut self, index: usize) -> &mut [u64] {
-        let start = index * self.words_per_set;
-        &mut self.words[start..start + self.words_per_set]
-    }
-
-    fn insert(&mut self, index: usize, register: u32) {
-        let start = index * self.words_per_set;
-        self.words[start + (register as usize) / 64] |= 1 << (register % 64);
-    }
-
-    fn union_into(&mut self, index: usize, source: &[u64]) {
-        let start = index * self.words_per_set;
-        for (word, added) in self.words[start..start + self.words_per_set].iter_mut().zip(source) {
-            *word |= *added;
-        }
-    }
-}
-
-fn members(set: &[u64]) -> impl Iterator<Item = u32> + '_ {
-    set.iter().enumerate().flat_map(|(word_index, word)| {
-        let mut remaining = *word;
-        std::iter::from_fn(move || {
-            (remaining != 0).then(|| {
-                let bit = remaining.trailing_zeros();
-                remaining &= remaining - 1;
-                (word_index as u32) * 64 + bit
-            })
-        })
-    })
-}
-
-fn contains(set: &[u64], register: u32) -> bool {
-    set[(register as usize) / 64] & (1 << (register % 64)) != 0
+    into.extend_from_slice(source);
+    into.sort_unstable();
+    into.dedup();
 }
 
 #[derive(Debug, Default)]
@@ -208,8 +177,8 @@ impl Names {
 }
 
 struct Liveness {
-    live_in: VirtualRegisterSets,
-    live_out: VirtualRegisterSets,
+    live_in: Vec<LiveSet>,
+    live_out: Vec<LiveSet>,
     use_def: Vec<UseDef>,
 }
 
@@ -222,17 +191,17 @@ struct Interference {
 }
 
 struct InterferenceGraph {
-    neighbors: VirtualRegisterSets,
+    neighbors: Vec<LiveSet>,
     nodes: Vec<Interference>,
 }
 
 impl InterferenceGraph {
-    fn neighbors(&self, register: u32) -> &[u64] {
-        self.neighbors.set(register as usize)
+    fn neighbors(&self, register: u32) -> &[u32] {
+        &self.neighbors[register as usize]
     }
 
     fn interferes(&self, register: u32, other: u32) -> bool {
-        contains(self.neighbors(register), other)
+        self.neighbors(register).binary_search(&other).is_ok()
     }
 }
 
@@ -456,29 +425,35 @@ fn compute_liveness(
         .iter()
         .map(|insn| analyze_instruction(insn, names, arch))
         .collect::<Vec<_>>();
-    let mut live_in = VirtualRegisterSets::new(n, names.len());
-    let mut live_out = VirtualRegisterSets::new(n, names.len());
-    let mut next_out = vec![0; live_in.words_per_set];
-    let mut next_in = vec![0; live_in.words_per_set];
+    let mut live_in = vec![LiveSet::new(); n];
+    let mut live_out = vec![LiveSet::new(); n];
+    let mut next_out = LiveSet::new();
+    let mut next_in = LiveSet::new();
     loop {
         let mut changed = false;
         for instruction in (0..n).rev() {
-            next_out.fill(0);
+            next_out.clear();
             for successor in &successors[instruction] {
-                for (word, added) in next_out.iter_mut().zip(live_in.set(*successor)) {
-                    *word |= *added;
-                }
+                merge_into(&mut next_out, &live_in[*successor]);
             }
-            next_in.copy_from_slice(&next_out);
-            for defined in &use_def[instruction].defs {
-                next_in[(*defined as usize) / 64] &= !(1 << (defined % 64));
+            next_in.clear();
+            next_in.extend(
+                next_out
+                    .iter()
+                    .copied()
+                    .filter(|live| !use_def[instruction].defs.contains(live)),
+            );
+            if !use_def[instruction].uses.is_empty() {
+                merge_into(&mut next_in, &use_def[instruction].uses);
             }
-            for used in &use_def[instruction].uses {
-                next_in[(*used as usize) / 64] |= 1 << (used % 64);
+            if live_in[instruction] != next_in {
+                live_in[instruction].clear();
+                live_in[instruction].extend_from_slice(&next_in);
+                changed = true;
             }
-            if live_in.set(instruction) != next_in || live_out.set(instruction) != next_out {
-                live_in.set_mut(instruction).copy_from_slice(&next_in);
-                live_out.set_mut(instruction).copy_from_slice(&next_out);
+            if live_out[instruction] != next_out {
+                live_out[instruction].clear();
+                live_out[instruction].extend_from_slice(&next_out);
                 changed = true;
             }
         }
@@ -495,7 +470,7 @@ fn compute_liveness(
     // Sanity-check: a virtual register must be defined before its first use
     // along every path. We catch the simplest case: no virtual register may
     // be live at handler entry.
-    if let Some(register) = members(liveness.live_in.set(0)).next() {
+    if let Some(register) = liveness.live_in[0].first().copied() {
         // Walk forward and find the first instruction that pulls this
         // virtual register into its live-in without having defined it
         // yet, so the error points at the actual problem.
@@ -520,67 +495,90 @@ fn compute_liveness(
 
 fn build_interference(liveness: &Liveness, count: usize) -> InterferenceGraph {
     let mut graph = InterferenceGraph {
-        neighbors: VirtualRegisterSets::new(count, count),
+        neighbors: vec![LiveSet::new(); count],
         nodes: vec![Interference::default(); count],
     };
-    let words = liveness.live_in.words_per_set;
-    let mut scratch = vec![0; words];
     for instruction in 0..liveness.use_def.len() {
         let use_def = &liveness.use_def[instruction];
-        for live in [
-            liveness.live_in.set(instruction),
-            liveness.live_out.set(instruction),
-        ] {
-            // Everything simultaneously live interferes with everything else
-            // simultaneously live, which is a union of the whole set into each
-            // member's neighbors rather than a walk over pairs.
-            for register in members(live) {
-                graph.nodes[register as usize].live_range_size += 1;
-                graph.neighbors.union_into(register as usize, live);
-                let row = graph.neighbors.set_mut(register as usize);
-                row[(register as usize) / 64] &= !(1 << (register % 64));
+        let live_out = &liveness.live_out[instruction];
+        for live in [&liveness.live_in[instruction], live_out] {
+            for register in live {
+                graph.nodes[*register as usize].live_range_size += 1;
             }
         }
+        // Two values interfere when both are live at once, and one of them was
+        // written while the other was already live: a value live at a point is
+        // written on every path reaching it, so whichever of the two was
+        // written second saw the other live. Recording the conflict where a
+        // value is written therefore records every conflict, without walking
+        // the pairs of every live set at every instruction.
+        //
         // What an instruction writes conflicts with whatever is still live
-        // after it, even when nothing reads the result. A value the branch
-        // conditions on but never names again is defined and immediately dead,
-        // so it appears in no live set at all; without this it would collect no
-        // neighbors and could be handed the register of a value that has to
-        // survive the instruction.
-        if !use_def.defs.is_empty() {
-            scratch.copy_from_slice(liveness.live_out.set(instruction));
-            for defined in &use_def.defs {
-                scratch[(*defined as usize) / 64] |= 1 << (defined % 64);
-            }
-            for defined in &use_def.defs {
-                graph.neighbors.union_into(*defined as usize, &scratch);
-                let row = graph.neighbors.set_mut(*defined as usize);
-                row[(*defined as usize) / 64] &= !(1 << (defined % 64));
-                for other in members(&scratch) {
-                    if other != *defined {
-                        graph.neighbors.insert(other as usize, *defined);
-                    }
+        // after it even when nothing reads the result: a value the branch
+        // conditions on but never names again is written and immediately dead,
+        // so it appears in no live set at all, and without this it would
+        // collect no neighbors and could be handed the register of a value that
+        // has to survive the instruction.
+        for defined in &use_def.defs {
+            for other in live_out.iter().chain(&use_def.defs) {
+                if other == defined {
+                    continue;
                 }
+                graph.neighbors[*defined as usize].push(*other);
+                graph.neighbors[*other as usize].push(*defined);
             }
         }
 
+        // A value that passes through an instruction, live on both sides
+        // without being rewritten, cannot live in a register the instruction
+        // destroys. A value live after the instruction and not written by it is
+        // live before it too, so the live-out set names exactly those.
         if use_def.clobbers != 0 {
-            let live_in = liveness.live_in.set(instruction);
-            let live_out = liveness.live_out.set(instruction);
-            for (word_index, (entering, leaving)) in live_in.iter().zip(live_out).enumerate() {
-                let mut both = entering & leaving;
-                while both != 0 {
-                    let register = (word_index as u32) * 64 + both.trailing_zeros();
-                    both &= both - 1;
-                    if use_def.defs.contains(&register) {
-                        continue;
+            for register in live_out {
+                if use_def.defs.contains(register) {
+                    continue;
+                }
+                graph.nodes[*register as usize].forbidden |= use_def.clobbers;
+            }
+        }
+    }
+    for neighbors in &mut graph.neighbors {
+        neighbors.sort_unstable();
+        neighbors.dedup();
+    }
+    debug_assert!(records_every_simultaneous_pair(&graph, liveness));
+    graph
+}
+
+/// Check the claim `build_interference` rests on: that recording a conflict
+/// where a value is written records every pair of values that are ever live at
+/// the same time.
+///
+/// This walks the pairs of every live set, which is what the real construction
+/// exists to avoid, so it is limited to functions small enough to afford it.
+#[cfg(debug_assertions)]
+fn records_every_simultaneous_pair(graph: &InterferenceGraph, liveness: &Liveness) -> bool {
+    const AFFORDABLE_INSTRUCTIONS: usize = 2000;
+    if liveness.use_def.len() > AFFORDABLE_INSTRUCTIONS {
+        return true;
+    }
+    for instruction in 0..liveness.use_def.len() {
+        for live in [&liveness.live_in[instruction], &liveness.live_out[instruction]] {
+            for (position, register) in live.iter().enumerate() {
+                for other in &live[position + 1..] {
+                    if !graph.interferes(*register, *other) {
+                        return false;
                     }
-                    graph.nodes[register as usize].forbidden |= use_def.clobbers;
                 }
             }
         }
     }
-    graph
+    true
+}
+
+#[cfg(not(debug_assertions))]
+fn records_every_simultaneous_pair(_: &InterferenceGraph, _: &Liveness) -> bool {
+    true
 }
 
 // ============================================================================
@@ -652,8 +650,8 @@ impl ColoringContext<'_> {
     /// interferes with.
     fn assigned_neighbors(&self, register: u32, assignments: &[Option<PhysicalRegister>]) -> RegisterSet {
         let mut taken = 0;
-        for other in members(self.interference.neighbors(register)) {
-            if let Some(physical) = assignments[other as usize] {
+        for other in self.interference.neighbors(register) {
+            if let Some(physical) = assignments[*other as usize] {
                 taken |= register_bit(physical);
             }
         }
