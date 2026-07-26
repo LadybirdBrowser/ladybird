@@ -1587,7 +1587,20 @@ public:
         RefPtr<AbstractImageStyleValue const> list_style_image;
         QuotesData quotes { InitialValues::quotes() };
 
-        bool operator==(InheritedListValues const&) const = default;
+        bool operator==(InheritedListValues const& other) const
+        {
+            // The image is compared by value: recomputation builds a fresh one for the same
+            // declaration, and comparing the addresses would call the group different for it.
+            auto images_equal = [](auto const& first, auto const& second) {
+                if (!first || !second)
+                    return !first && !second;
+                return *first == *second;
+            };
+            return list_style_type == other.list_style_type
+                && list_style_position == other.list_style_position
+                && images_equal(list_style_image, other.list_style_image)
+                && quotes == other.quotes;
+        }
     };
 
     struct InheritedUIValues {
