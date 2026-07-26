@@ -397,12 +397,12 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
     [m_status_label setToolTip:status_text];
 
     auto progress = download.progress();
-    auto show_progress = download.status == WebView::FileDownloader::DownloadStatus::InProgress && progress.has_value();
+    auto show_progress = WebView::FileDownloader::status_is_active(download.status) && progress.has_value();
     [m_progress_indicator setHidden:!show_progress];
     if (progress.has_value())
         [m_progress_indicator setDoubleValue:*progress];
 
-    [m_cancel_button setHidden:download.status != WebView::FileDownloader::DownloadStatus::InProgress];
+    [m_cancel_button setHidden:!WebView::FileDownloader::status_is_active(download.status)];
 }
 
 - (void)cancelDownload:(id)sender
@@ -1151,7 +1151,7 @@ private:
                 return;
 
             auto& file_downloader = WebView::Application::the().file_downloader();
-            if (auto download = file_downloader.download(id); download.has_value() && download->status == WebView::FileDownloader::DownloadStatus::InProgress)
+            if (auto download = file_downloader.download(id); download.has_value() && WebView::FileDownloader::status_is_active(download->status))
                 file_downloader.cancel_download(id);
             [self updateDownloadsPopover];
         }];

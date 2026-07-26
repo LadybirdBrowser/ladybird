@@ -295,7 +295,7 @@ public:
 
         bool geometry_changed = false;
         auto progress = download.progress();
-        auto show_progress = download.status == WebView::FileDownloader::DownloadStatus::InProgress && progress.has_value();
+        auto show_progress = WebView::FileDownloader::status_is_active(download.status) && progress.has_value();
         auto progress_bar_is_visible = !m_progress_bar->isHidden();
         if (progress_bar_is_visible != show_progress) {
             m_progress_bar->setVisible(show_progress);
@@ -304,7 +304,7 @@ public:
         if (progress.has_value())
             m_progress_bar->setValue(static_cast<int>(*progress * 1000.0));
 
-        auto should_show_cancel = download.status == WebView::FileDownloader::DownloadStatus::InProgress;
+        auto should_show_cancel = WebView::FileDownloader::status_is_active(download.status);
         auto cancel_button_is_visible = !m_cancel_button->isHidden();
         if (cancel_button_is_visible != should_show_cancel) {
             m_cancel_button->setVisible(should_show_cancel);
@@ -1380,7 +1380,7 @@ void Tab::show_downloads_popover()
         m_downloads_popover = new DownloadsPopover(this);
         m_downloads_popover->on_cancel_download = [this](u64 id) {
             auto& file_downloader = WebView::Application::the().file_downloader();
-            if (auto download = file_downloader.download(id); download.has_value() && download->status == WebView::FileDownloader::DownloadStatus::InProgress)
+            if (auto download = file_downloader.download(id); download.has_value() && WebView::FileDownloader::status_is_active(download->status))
                 file_downloader.cancel_download(id);
             update_downloads_popover();
         };

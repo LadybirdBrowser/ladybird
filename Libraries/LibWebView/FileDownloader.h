@@ -35,10 +35,16 @@ class WEBVIEW_API FileDownloader {
 public:
     enum class DownloadStatus : u8 {
         InProgress,
+        Paused,
         Completed,
         Canceled,
         Failed,
     };
+
+    static bool status_is_active(DownloadStatus status)
+    {
+        return status == DownloadStatus::InProgress || status == DownloadStatus::Paused;
+    }
 
     struct WEBVIEW_API Download {
         Optional<double> progress() const;

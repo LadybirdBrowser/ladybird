@@ -18,6 +18,7 @@ namespace WebView {
 struct WEBVIEW_API DownloadsButtonState {
     bool has_downloads { false };
     size_t active_download_count { 0 };
+    size_t paused_download_count { 0 };
     size_t failed_download_count { 0 };
     Optional<double> active_download_progress;
     String tooltip;
