@@ -15,6 +15,8 @@ use super::{
 use crate::hash::{HashMap, HashSet};
 use crate::types::Type;
 use crate::{CompileError, CompileStage};
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
 
 const MAX_INLINED_INSTRUCTION_COUNT: usize = 1_000_000;
 
@@ -192,16 +194,33 @@ fn inline_calls_with_budget(
     maximum_instruction_count: usize,
 ) -> Result<usize, CompileError> {
     let mut count = 0;
-    loop {
-        if lower_checked_inline_call(function, callees, maximum_instruction_count)? {
+    let mut eliminated = HashSet::default();
+    let mut worklist = (0..function.blocks.len())
+        .map(|index| Reverse(BlockId(index)))
+        .collect::<BinaryHeap<_>>();
+    while let Some(Reverse(block)) = worklist.pop() {
+        if lower_checked_inline_call(function, block, callees, maximum_instruction_count, eliminated.len())? {
+            worklist.push(Reverse(block));
             continue;
         }
-        let Some((block_index, instruction_index, callee)) = find_call(function, callees)? else {
-            break;
+        let Some((instruction_index, callee)) = find_call(function, block, callees)? else {
+            continue;
         };
-        ensure_expansion_budget(function, callee.instructions.len(), maximum_instruction_count)?;
-        inline_call(function, block_index, instruction_index, callee)?;
+        ensure_expansion_budget(
+            function,
+            callee.instructions.len(),
+            maximum_instruction_count,
+            eliminated.len(),
+        )?;
+        let first_new_block = function.blocks.len();
+        let call = inline_call(function, block.0, instruction_index, callee)?;
+        eliminated.insert(call);
+        worklist.extend((first_new_block..function.blocks.len()).map(|index| Reverse(BlockId(index))));
+        worklist.push(Reverse(block));
         count += 1;
+    }
+    if !eliminated.is_empty() {
+        rebuild_instruction_arena(function, &eliminated, InstructionOrder::ByBlock);
     }
     function.recompute_machine_state_dependencies();
     function.validate().map_err(|message| inline_error(function, message))?;
@@ -212,8 +231,10 @@ fn ensure_expansion_budget(
     function: &Function,
     additional_instruction_count: usize,
     maximum_instruction_count: usize,
+    eliminated_instruction_count: usize,
 ) -> Result<(), CompileError> {
-    if function.instructions.len().saturating_add(additional_instruction_count) > maximum_instruction_count {
+    let live_instruction_count = function.instructions.len() - eliminated_instruction_count;
+    if live_instruction_count.saturating_add(additional_instruction_count) > maximum_instruction_count {
         return Err(inline_error(
             function,
             format!("inline expansion exceeds the {maximum_instruction_count}-instruction limit"),
@@ -224,92 +245,89 @@ fn ensure_expansion_budget(
 
 fn lower_checked_inline_call(
     function: &mut Function,
+    block: BlockId,
     callees: &[Function],
     maximum_instruction_count: usize,
+    eliminated_instruction_count: usize,
 ) -> Result<bool, CompileError> {
-    for block_index in 0..function.blocks.len() {
-        let Some(Terminator::CheckedOperation {
-            operation: Operation::InlineCall(id),
-            inputs,
-            results,
-            effects,
-            success,
-            failure,
-        }) = function.blocks[block_index].terminator.clone()
-        else {
+    let Some(Terminator::CheckedOperation {
+        operation: Operation::InlineCall(id),
+        inputs,
+        results,
+        effects,
+        success,
+        failure,
+    }) = function.blocks[block.0].terminator.clone()
+    else {
+        return Ok(false);
+    };
+    let callee = callees
+        .get(id.index())
+        .ok_or_else(|| inline_error(function, format!("inline function #{} has no SSA body", id.index())))?;
+    if callee.parameter_types.len() != inputs.len() + 1
+        || callee.parameter_types.last() != Some(&Type::label())
+        || callee.return_types.len() != results.len()
+    {
+        return Err(inline_error(
+            function,
+            format!(
+                "checked call to inline function '{}' does not match its {} parameters and {} results",
+                callee.name,
+                callee.parameter_types.len(),
+                callee.return_types.len()
+            ),
+        ));
+    }
+    ensure_expansion_budget(function, 2, maximum_instruction_count, eliminated_instruction_count)?;
+
+    let failure_reference = function.append_instruction(
+        block,
+        Operation::BlockReference(failure.block),
+        failure.arguments,
+        vec![Type::label()],
+    )[0];
+    let call_results = function.append_instruction_with_effects(
+        block,
+        Operation::InlineCall(id),
+        inputs.into_iter().chain([failure_reference]).collect(),
+        results
+            .iter()
+            .map(|result| function.values[result.0].ty.clone())
+            .collect(),
+        effects,
+    );
+    let replacements = results.iter().copied().zip(call_results.iter().copied()).collect();
+    rewrite_function_uses(function, &replacements);
+    for old in &results {
+        function.values[old.0].definition = ValueDefinition::Dead;
+    }
+    function.blocks[block.0].terminator = Some(Terminator::jump_with_arguments(
+        success.block,
+        call_results
+            .into_iter()
+            .chain(success.arguments.into_iter().skip(results.len()))
+            .collect(),
+    ));
+    Ok(true)
+}
+
+fn find_call<'a>(
+    function: &Function,
+    block: BlockId,
+    callees: &'a [Function],
+) -> Result<Option<(usize, &'a Function)>, CompileError> {
+    for (instruction_index, instruction_id) in function.blocks[block.0].instructions.iter().enumerate() {
+        let Operation::InlineCall(id) = &function.instructions[instruction_id.0].operation else {
             continue;
         };
         let callee = callees
             .get(id.index())
             .ok_or_else(|| inline_error(function, format!("inline function #{} has no SSA body", id.index())))?;
-        if callee.parameter_types.len() != inputs.len() + 1
-            || callee.parameter_types.last() != Some(&Type::label())
-            || callee.return_types.len() != results.len()
-        {
-            return Err(inline_error(
-                function,
-                format!(
-                    "checked call to inline function '{}' does not match its {} parameters and {} results",
-                    callee.name,
-                    callee.parameter_types.len(),
-                    callee.return_types.len()
-                ),
-            ));
+        let call = &function.instructions[instruction_id.0];
+        if call.inputs.len() != callee.parameter_types.len() || call.results.len() != callee.return_types.len() {
+            continue;
         }
-        ensure_expansion_budget(function, 2, maximum_instruction_count)?;
-
-        let block = BlockId(block_index);
-        let failure_reference = function.append_instruction(
-            block,
-            Operation::BlockReference(failure.block),
-            failure.arguments,
-            vec![Type::label()],
-        )[0];
-        let call_results = function.append_instruction_with_effects(
-            block,
-            Operation::InlineCall(id),
-            inputs.into_iter().chain([failure_reference]).collect(),
-            results
-                .iter()
-                .map(|result| function.values[result.0].ty.clone())
-                .collect(),
-            effects,
-        );
-        let replacements = results.iter().copied().zip(call_results.iter().copied()).collect();
-        rewrite_function_uses(function, &replacements);
-        for old in &results {
-            function.values[old.0].definition = ValueDefinition::Dead;
-        }
-        function.blocks[block_index].terminator = Some(Terminator::jump_with_arguments(
-            success.block,
-            call_results
-                .into_iter()
-                .chain(success.arguments.into_iter().skip(results.len()))
-                .collect(),
-        ));
-        return Ok(true);
-    }
-    Ok(false)
-}
-
-fn find_call<'a>(
-    function: &Function,
-    callees: &'a [Function],
-) -> Result<Option<(usize, usize, &'a Function)>, CompileError> {
-    for (block_index, block) in function.blocks.iter().enumerate() {
-        for (instruction_index, instruction_id) in block.instructions.iter().enumerate() {
-            let Operation::InlineCall(id) = &function.instructions[instruction_id.0].operation else {
-                continue;
-            };
-            let callee = callees
-                .get(id.index())
-                .ok_or_else(|| inline_error(function, format!("inline function #{} has no SSA body", id.index())))?;
-            let call = &function.instructions[instruction_id.0];
-            if call.inputs.len() != callee.parameter_types.len() || call.results.len() != callee.return_types.len() {
-                continue;
-            }
-            return Ok(Some((block_index, instruction_index, callee)));
-        }
+        return Ok(Some((instruction_index, callee)));
     }
     Ok(None)
 }
@@ -319,7 +337,7 @@ fn inline_call(
     block_index: usize,
     instruction_index: usize,
     callee: &Function,
-) -> Result<(), CompileError> {
+) -> Result<super::InstructionId, CompileError> {
     let call_id = function.blocks[block_index].instructions[instruction_index];
     let call = function.instructions[call_id.0].clone();
     if call.inputs.len() != callee.parameter_types.len() || call.results.len() != callee.return_types.len() {
@@ -365,8 +383,6 @@ fn inline_call(
     for old in &call.results {
         function.values[old.0].definition = ValueDefinition::Dead;
     }
-    rebuild_instruction_arena(function, &HashSet::from_iter([call_id]), InstructionOrder::ByBlock);
-
     let mut blocks = HashMap::from_iter([(callee.entry, caller_block)]);
     for (callee_block_index, callee_block) in callee.blocks.iter().enumerate() {
         let callee_block_id = BlockId(callee_block_index);
@@ -474,7 +490,7 @@ fn inline_call(
             &mut values,
         )?;
     }
-    Ok(())
+    Ok(call_id)
 }
 
 fn cloned_operation(
@@ -767,6 +783,32 @@ handler Double(value: i32) {
                     BinaryOperation::Add,
                 )))
         }));
+    }
+
+    #[test]
+    fn inlines_multiple_calls_without_intermediate_compaction() {
+        let (mut handler, callees) = lower(
+            r#"
+inline fn increment(value: i32) -> i32 {
+    value + 1
+}
+
+handler IncrementTwice(value: i32) {
+    let first = increment(value);
+    let second = increment(first);
+    assert_nonzero(second);
+    dispatch_next;
+}
+"#,
+        );
+
+        assert_eq!(inline_calls(&mut handler, &callees).unwrap(), 2);
+        assert!(
+            !handler
+                .instructions
+                .iter()
+                .any(|instruction| matches!(instruction.operation, Operation::InlineCall(_)))
+        );
     }
 
     #[test]
