@@ -11,6 +11,7 @@
 #include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
+#include <AK/ThreadID.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
@@ -213,7 +214,6 @@ class WeakPlaybackManagerLink : public AtomicRefCounted<WeakPlaybackManagerLink>
 public:
     WeakPlaybackManagerLink(PlaybackManager& manager)
         : m_manager(&manager)
-        , m_originating_event_loop(Core::EventLoop::current())
     {
     }
 
@@ -237,13 +237,12 @@ public:
 private:
     void verify_thread_is_originating_thread() const
     {
-        VERIFY(Core::EventLoop::is_running());
-        VERIFY(&Core::EventLoop::current() == &m_originating_event_loop);
+        VERIFY(m_originating_thread_id.is_current_thread());
     }
 
     mutable Sync::Mutex m_mutex;
     PlaybackManager* m_manager { nullptr };
-    Core::EventLoop& m_originating_event_loop;
+    AK::ThreadID m_originating_thread_id { AK::ThreadID::current() };
 };
 
 class WeakPlaybackManager {
