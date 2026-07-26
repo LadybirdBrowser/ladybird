@@ -23,7 +23,167 @@ fn inline_error(function: &Function, message: impl Into<String>) -> CompileError
 }
 
 pub(crate) fn inline_calls(function: &mut Function, callees: &[Function]) -> Result<usize, CompileError> {
+    preflight_expansion(function, callees, MAX_INLINED_INSTRUCTION_COUNT)?;
     inline_calls_with_budget(function, callees, MAX_INLINED_INSTRUCTION_COUNT)
+}
+
+fn resolved_inline_callee(
+    operation: &Operation,
+    bindings: &[Option<super::OperationValue>],
+) -> Option<crate::identity::InlineFunctionId> {
+    match operation {
+        Operation::InlineCall(id) => Some(*id),
+        Operation::Parameter(parameter) => {
+            let Some(Some(super::OperationValue::InlineFunction(id))) = bindings.get(parameter.index()) else {
+                return None;
+            };
+            Some(*id)
+        }
+        _ => None,
+    }
+}
+
+fn operation_binding(
+    function: &Function,
+    value: ValueId,
+    bindings: &[Option<super::OperationValue>],
+) -> Option<super::OperationValue> {
+    match &function.values[value.0].definition {
+        ValueDefinition::Constant(super::ir::Constant::Operation(operation)) => Some(operation.clone()),
+        ValueDefinition::FunctionParameter(parameter) => bindings.get(*parameter).cloned().flatten(),
+        _ => None,
+    }
+}
+
+fn callee_bindings(
+    function: &Function,
+    inputs: &[ValueId],
+    callee: &Function,
+    bindings: &[Option<super::OperationValue>],
+) -> Vec<Option<super::OperationValue>> {
+    (0..callee.parameter_types.len())
+        .map(|parameter| {
+            inputs
+                .get(parameter)
+                .and_then(|value| operation_binding(function, *value, bindings))
+        })
+        .collect()
+}
+
+fn expanded_instruction_count(
+    function: &Function,
+    callees: &[Function],
+    bindings: &[Option<super::OperationValue>],
+    active: &mut Vec<crate::identity::InlineFunctionId>,
+    memoized_counts: &mut HashMap<(usize, Vec<Option<super::OperationValue>>), usize>,
+    maximum_instruction_count: usize,
+) -> Result<usize, CompileError> {
+    let mut count = function.instructions.len();
+    for instruction in &function.instructions {
+        let Some(id) = resolved_inline_callee(&instruction.operation, bindings) else {
+            continue;
+        };
+        if active.contains(&id) {
+            return Err(inline_error(
+                function,
+                format!("recursive inline expansion reached inline function #{}", id.index()),
+            ));
+        }
+        let callee = callees
+            .get(id.index())
+            .ok_or_else(|| inline_error(function, format!("inline function #{} has no SSA body", id.index())))?;
+        let callee_bindings = callee_bindings(function, &instruction.inputs, callee, bindings);
+        let key = (id.index(), callee_bindings.clone());
+        let callee_count = if let Some(count) = memoized_counts.get(&key) {
+            *count
+        } else {
+            active.push(id);
+            let count = expanded_instruction_count(
+                callee,
+                callees,
+                &callee_bindings,
+                active,
+                memoized_counts,
+                maximum_instruction_count,
+            )?;
+            active.pop();
+            memoized_counts.insert(key, count);
+            count
+        };
+        count = count
+            .checked_sub(1)
+            .and_then(|count| count.checked_add(callee_count))
+            .ok_or_else(|| inline_error(function, "inline expansion instruction count overflow"))?;
+        if count > maximum_instruction_count {
+            return Err(inline_error(
+                function,
+                format!("inline expansion exceeds the {maximum_instruction_count}-instruction limit"),
+            ));
+        }
+    }
+    for block in &function.blocks {
+        let Some(Terminator::CheckedOperation { operation, inputs, .. }) = &block.terminator else {
+            continue;
+        };
+        let Some(id) = resolved_inline_callee(operation, bindings) else {
+            continue;
+        };
+        if active.contains(&id) {
+            return Err(inline_error(
+                function,
+                format!("recursive inline expansion reached inline function #{}", id.index()),
+            ));
+        }
+        let callee = callees
+            .get(id.index())
+            .ok_or_else(|| inline_error(function, format!("inline function #{} has no SSA body", id.index())))?;
+        let callee_bindings = callee_bindings(function, inputs, callee, bindings);
+        let key = (id.index(), callee_bindings.clone());
+        let callee_count = if let Some(count) = memoized_counts.get(&key) {
+            *count
+        } else {
+            active.push(id);
+            let count = expanded_instruction_count(
+                callee,
+                callees,
+                &callee_bindings,
+                active,
+                memoized_counts,
+                maximum_instruction_count,
+            )?;
+            active.pop();
+            memoized_counts.insert(key, count);
+            count
+        };
+        count = count
+            .checked_add(1)
+            .and_then(|count| count.checked_add(callee_count))
+            .ok_or_else(|| inline_error(function, "inline expansion instruction count overflow"))?;
+        if count > maximum_instruction_count {
+            return Err(inline_error(
+                function,
+                format!("inline expansion exceeds the {maximum_instruction_count}-instruction limit"),
+            ));
+        }
+    }
+    Ok(count)
+}
+
+fn preflight_expansion(
+    function: &Function,
+    callees: &[Function],
+    maximum_instruction_count: usize,
+) -> Result<(), CompileError> {
+    let bindings = vec![None; function.parameter_types.len()];
+    expanded_instruction_count(
+        function,
+        callees,
+        &bindings,
+        &mut Vec::new(),
+        &mut HashMap::default(),
+        maximum_instruction_count,
+    )?;
+    Ok(())
 }
 
 fn inline_calls_with_budget(

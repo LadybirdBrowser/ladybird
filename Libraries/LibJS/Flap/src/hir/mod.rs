@@ -3035,191 +3035,12 @@ fn ast_statement_is_terminal(statement: &ast::Statement, signatures: &HashMap<St
     }
 }
 
-fn collect_inline_calls_from_expression(
-    expression: &ast::Expression,
-    inline_function_indices: &HashMap<String, usize>,
-    callees: &mut Vec<usize>,
-) {
-    match &expression.kind {
-        ExpressionKind::Call { callee, arguments } => {
-            if let Some(callee) = inline_function_indices.get(callee)
-                && !callees.contains(callee)
-            {
-                callees.push(*callee);
-            }
-            for argument in arguments {
-                collect_inline_calls_from_expression(argument, inline_function_indices, callees);
-            }
-        }
-        ExpressionKind::Unary { operand, .. } => {
-            collect_inline_calls_from_expression(operand, inline_function_indices, callees);
-        }
-        ExpressionKind::Binary { lhs, rhs, .. } => {
-            collect_inline_calls_from_expression(lhs, inline_function_indices, callees);
-            collect_inline_calls_from_expression(rhs, inline_function_indices, callees);
-        }
-        ExpressionKind::Index { base, index } => {
-            collect_inline_calls_from_expression(base, inline_function_indices, callees);
-            collect_inline_calls_from_expression(index, inline_function_indices, callees);
-        }
-        ExpressionKind::Memory(components) | ExpressionKind::Tuple(components) => {
-            for component in components {
-                collect_inline_calls_from_expression(component, inline_function_indices, callees);
-            }
-        }
-        ExpressionKind::Name(_) | ExpressionKind::Integer(_) => {}
-    }
-}
-
-fn collect_inline_calls_from_pattern(
-    pattern: &ast::Pattern,
-    inline_function_indices: &HashMap<String, usize>,
-    callees: &mut Vec<usize>,
-) {
-    match pattern {
-        ast::Pattern::Tuple(patterns) | ast::Pattern::Alternatives(patterns) => {
-            for pattern in patterns {
-                collect_inline_calls_from_pattern(pattern, inline_function_indices, callees);
-            }
-        }
-        ast::Pattern::Expression(expression) => {
-            collect_inline_calls_from_expression(expression, inline_function_indices, callees);
-        }
-        ast::Pattern::ValueRepresentation {
-            binding: Some(binding), ..
-        } => collect_inline_calls_from_pattern(binding, inline_function_indices, callees),
-        ast::Pattern::Binding { .. }
-        | ast::Pattern::Wildcard
-        | ast::Pattern::ValueRepresentation { binding: None, .. } => {}
-    }
-}
-
-fn collect_inline_calls_from_else_continuation(
-    continuation: &ast::ElseContinuation,
-    inline_function_indices: &HashMap<String, usize>,
-    callees: &mut Vec<usize>,
-) {
-    match continuation {
-        ast::ElseContinuation::Invocation { arguments, .. } => {
-            for argument in arguments {
-                collect_inline_calls_from_expression(argument, inline_function_indices, callees);
-            }
-        }
-        ast::ElseContinuation::Block { body, .. } => {
-            collect_inline_calls_from_block(body, inline_function_indices, callees);
-        }
-        ast::ElseContinuation::Label(_) => {}
-    }
-}
-
-fn collect_inline_calls_from_block(
-    block: &ast::Block,
-    inline_function_indices: &HashMap<String, usize>,
-    callees: &mut Vec<usize>,
-) {
-    for statement in &block.statements {
-        match &statement.kind {
-            ast::StatementKind::Let { pattern, initializer } => {
-                collect_inline_calls_from_pattern(pattern, inline_function_indices, callees);
-                if let Some(initializer) = initializer {
-                    collect_inline_calls_from_expression(initializer, inline_function_indices, callees);
-                }
-            }
-            ast::StatementKind::GuardLet {
-                pattern,
-                initializer,
-                failure,
-            } => {
-                collect_inline_calls_from_pattern(pattern, inline_function_indices, callees);
-                collect_inline_calls_from_expression(initializer, inline_function_indices, callees);
-                collect_inline_calls_from_else_continuation(failure, inline_function_indices, callees);
-            }
-            ast::StatementKind::FallibleCall {
-                callee,
-                arguments,
-                failure,
-            } => {
-                if let Some(callee) = inline_function_indices.get(callee)
-                    && !callees.contains(callee)
-                {
-                    callees.push(*callee);
-                }
-                for argument in arguments {
-                    collect_inline_calls_from_expression(argument, inline_function_indices, callees);
-                }
-                collect_inline_calls_from_else_continuation(failure, inline_function_indices, callees);
-            }
-            ast::StatementKind::Assign { initializer, .. } => {
-                collect_inline_calls_from_expression(initializer, inline_function_indices, callees);
-            }
-            ast::StatementKind::IndexAssign { base, index, value } => {
-                collect_inline_calls_from_expression(base, inline_function_indices, callees);
-                collect_inline_calls_from_expression(index, inline_function_indices, callees);
-                collect_inline_calls_from_expression(value, inline_function_indices, callees);
-            }
-            ast::StatementKind::Expression(expression) => {
-                collect_inline_calls_from_expression(expression, inline_function_indices, callees);
-            }
-            ast::StatementKind::ValueMatch {
-                value, arms, fallback, ..
-            } => {
-                collect_inline_calls_from_expression(value, inline_function_indices, callees);
-                for arm in arms {
-                    collect_inline_calls_from_block(&arm.body, inline_function_indices, callees);
-                }
-                collect_inline_calls_from_block(&fallback.body, inline_function_indices, callees);
-            }
-            ast::StatementKind::ScalarMatch { value, arms, fallback } => {
-                collect_inline_calls_from_expression(value, inline_function_indices, callees);
-                for arm in arms {
-                    collect_inline_calls_from_pattern(&arm.pattern, inline_function_indices, callees);
-                    collect_inline_calls_from_block(&arm.body, inline_function_indices, callees);
-                }
-                collect_inline_calls_from_block(fallback, inline_function_indices, callees);
-            }
-            ast::StatementKind::Guard { condition, failure } => {
-                collect_inline_calls_from_expression(condition, inline_function_indices, callees);
-                collect_inline_calls_from_else_continuation(failure, inline_function_indices, callees);
-            }
-            ast::StatementKind::Continuation { body, .. } => {
-                collect_inline_calls_from_block(body, inline_function_indices, callees);
-            }
-            ast::StatementKind::ContinuationJump { arguments, .. } => {
-                for argument in arguments {
-                    collect_inline_calls_from_expression(argument, inline_function_indices, callees);
-                }
-            }
-            ast::StatementKind::If {
-                condition,
-                then_body,
-                else_body,
-                ..
-            } => {
-                collect_inline_calls_from_expression(condition, inline_function_indices, callees);
-                collect_inline_calls_from_block(then_body, inline_function_indices, callees);
-                if let Some(else_body) = else_body {
-                    collect_inline_calls_from_block(else_body, inline_function_indices, callees);
-                }
-            }
-            ast::StatementKind::While { condition, body, .. } => {
-                collect_inline_calls_from_expression(condition, inline_function_indices, callees);
-                collect_inline_calls_from_block(body, inline_function_indices, callees);
-            }
-        }
-    }
-    if let Some(value) = &block.value {
-        collect_inline_calls_from_expression(value, inline_function_indices, callees);
-    }
-}
-
 fn collect_signatures(filename: &str, program: &ast::Program) -> Result<HashMap<String, Signature>, Diagnostic> {
     let mut signatures = HashMap::default();
-    let mut inline_functions = Vec::new();
     for declaration in &program.declarations {
         let ast::Declaration::InlineFunction(declaration) = declaration else {
             continue;
         };
-        inline_functions.push(declaration);
         let signature = Signature {
             parameters: declaration
                 .parameters
@@ -3239,59 +3060,192 @@ fn collect_signatures(filename: &str, program: &ast::Program) -> Result<HashMap<
         }
     }
 
-    let inline_function_indices = inline_functions
-        .iter()
-        .enumerate()
-        .map(|(index, function)| (function.name.clone(), index))
-        .collect::<HashMap<_, _>>();
-    let callees = inline_functions
-        .iter()
-        .map(|function| {
-            let mut callees = Vec::new();
-            collect_inline_calls_from_block(&function.body, &inline_function_indices, &mut callees);
-            callees
-        })
-        .collect::<Vec<_>>();
-    let mut incoming_edge_counts = vec![0usize; inline_functions.len()];
-    for function_callees in &callees {
-        for callee in function_callees {
-            incoming_edge_counts[*callee] += 1;
-        }
-    }
-    let mut ready = incoming_edge_counts
-        .iter()
-        .enumerate()
-        .filter_map(|(index, count)| (*count == 0).then_some(index))
-        .collect::<Vec<_>>();
-    let mut topological_order = Vec::with_capacity(inline_functions.len());
-    while let Some(function) = ready.pop() {
-        topological_order.push(function);
-        for callee in &callees[function] {
-            incoming_edge_counts[*callee] -= 1;
-            if incoming_edge_counts[*callee] == 0 {
-                ready.push(*callee);
+    loop {
+        let mut newly_terminal = Vec::new();
+        for declaration in &program.declarations {
+            let ast::Declaration::InlineFunction(function) = declaration else {
+                continue;
+            };
+            if !signatures[&function.name].terminal && ast_block_is_terminal(&function.body, &signatures) {
+                newly_terminal.push(function.name.clone());
             }
         }
-    }
-    if topological_order.len() != inline_functions.len() {
-        let function = incoming_edge_counts.iter().position(|count| *count != 0).unwrap();
-        return Err(Diagnostic::new(
-            filename,
-            inline_functions[function].span,
-            format!(
-                "recursive inline function cycle involving '{}'",
-                inline_functions[function].name
-            ),
-        ));
-    }
-
-    for function in topological_order.into_iter().rev() {
-        let function = inline_functions[function];
-        if ast_block_is_terminal(&function.body, &signatures) {
-            signatures.get_mut(&function.name).unwrap().terminal = true;
+        if newly_terminal.is_empty() {
+            break;
+        }
+        for name in newly_terminal {
+            signatures.get_mut(&name).unwrap().terminal = true;
         }
     }
     Ok(signatures)
+}
+
+#[derive(Default)]
+struct InlineCallSummary {
+    callees: HashSet<usize>,
+    invoked_parameters: HashSet<usize>,
+}
+
+#[derive(Clone, Copy)]
+enum InlineOperationArgument {
+    Function(InlineFunctionId),
+    Parameter(VariableId),
+}
+
+struct InlineCallSite {
+    callee: usize,
+    operation_arguments: Vec<Option<InlineOperationArgument>>,
+}
+
+fn collect_inline_call_facts(
+    statements: &[Statement],
+    parameter_indices: &HashMap<VariableId, usize>,
+    summary: &mut InlineCallSummary,
+    call_sites: &mut Vec<InlineCallSite>,
+) {
+    for statement in statements {
+        if let StatementKindIr::Call(_, call) = &statement.kind {
+            match call.target {
+                CallTarget::InlineFunction(callee) => {
+                    summary.callees.insert(callee.index());
+                    call_sites.push(InlineCallSite {
+                        callee: callee.index(),
+                        operation_arguments: call
+                            .arguments
+                            .iter()
+                            .map(|argument| match argument.kind {
+                                ValueKind::Operation(OperationValue::InlineFunction(function)) => {
+                                    Some(InlineOperationArgument::Function(function))
+                                }
+                                ValueKind::Variable(variable) if parameter_indices.contains_key(&variable) => {
+                                    Some(InlineOperationArgument::Parameter(variable))
+                                }
+                                _ => None,
+                            })
+                            .collect(),
+                    });
+                }
+                CallTarget::OperationParameter(parameter) => {
+                    if let Some(index) = parameter_indices.get(&parameter) {
+                        summary.invoked_parameters.insert(*index);
+                    }
+                }
+                _ => {}
+            }
+        }
+        statement
+            .kind
+            .for_each_nested_body(|body| collect_inline_call_facts(body, parameter_indices, summary, call_sites));
+    }
+}
+
+fn find_inline_cycle(
+    function: usize,
+    graph: &[Vec<usize>],
+    states: &mut [u8],
+    stack: &mut Vec<usize>,
+) -> Option<Vec<usize>> {
+    states[function] = 1;
+    stack.push(function);
+    for &callee in &graph[function] {
+        if states[callee] == 0 {
+            if let Some(cycle) = find_inline_cycle(callee, graph, states, stack) {
+                return Some(cycle);
+            }
+        } else if states[callee] == 1 {
+            let start = stack.iter().position(|candidate| *candidate == callee).unwrap();
+            let mut cycle = stack[start..].to_vec();
+            cycle.push(callee);
+            return Some(cycle);
+        }
+    }
+    stack.pop();
+    states[function] = 2;
+    None
+}
+
+fn validate_inline_call_graph(filename: &str, inline_functions: &[InlineFunction]) -> Result<(), Diagnostic> {
+    let parameter_indices = inline_functions
+        .iter()
+        .map(|function| {
+            function
+                .parameters
+                .iter()
+                .enumerate()
+                .map(|(index, parameter)| (*parameter, index))
+                .collect::<HashMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    let mut summaries = (0..inline_functions.len())
+        .map(|_| InlineCallSummary::default())
+        .collect::<Vec<_>>();
+    let mut call_sites = (0..inline_functions.len()).map(|_| Vec::new()).collect::<Vec<_>>();
+    for (function, inline_function) in inline_functions.iter().enumerate() {
+        collect_inline_call_facts(
+            &inline_function.body.statements,
+            &parameter_indices[function],
+            &mut summaries[function],
+            &mut call_sites[function],
+        );
+    }
+
+    let mut invoked_parameters = Vec::new();
+    loop {
+        let mut changed = false;
+        for (function, function_calls) in call_sites.iter().enumerate() {
+            for call in function_calls {
+                invoked_parameters.clear();
+                invoked_parameters.extend(summaries[call.callee].invoked_parameters.iter().copied());
+                for &parameter in &invoked_parameters {
+                    let Some(Some(argument)) = call.operation_arguments.get(parameter) else {
+                        continue;
+                    };
+                    match argument {
+                        InlineOperationArgument::Function(callee) => {
+                            changed |= summaries[function].callees.insert(callee.index());
+                        }
+                        InlineOperationArgument::Parameter(variable) => {
+                            if let Some(parameter) = parameter_indices[function].get(variable) {
+                                changed |= summaries[function].invoked_parameters.insert(*parameter);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+
+    let graph = summaries
+        .into_iter()
+        .map(|summary| summary.callees.into_iter().collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    let mut states = vec![0; inline_functions.len()];
+    for function in 0..inline_functions.len() {
+        if states[function] != 0 {
+            continue;
+        }
+        let Some(cycle) = find_inline_cycle(function, &graph, &mut states, &mut Vec::new()) else {
+            continue;
+        };
+        let names = cycle
+            .iter()
+            .map(|function| inline_functions[*function].name.as_str())
+            .collect::<Vec<_>>()
+            .join(" -> ");
+        let member = cycle[0];
+        return Err(Diagnostic::new(
+            filename,
+            inline_functions[member].span,
+            format!(
+                "recursive inline function cycle involving '{}': {names}",
+                inline_functions[member].name
+            ),
+        ));
+    }
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3502,6 +3456,7 @@ pub(crate) fn check_with_layouts(
                 inline_functions.push(InlineFunction {
                     id: inline_function_ids[&declaration.name],
                     name: declaration.name.clone(),
+                    span: declaration.span,
                     parameters,
                     return_type: declaration.return_type.clone(),
                     body,
@@ -3535,6 +3490,7 @@ pub(crate) fn check_with_layouts(
             }
         }
     }
+    validate_inline_call_graph(filename, &inline_functions)?;
     Ok(Program {
         inline_functions,
         handlers,
@@ -4364,6 +4320,27 @@ inline fn second(value: i32) -> i32 {
 }
 "#,
         "recursive inline function cycle involving"
+    );
+
+    rejects!(
+        rejects_recursion_through_an_operation_parameter,
+        r#"
+inline fn apply(lhs: inout i32, rhs: i32, operation: BinaryOperation<i32>) {
+    operation(lhs, rhs);
+}
+
+inline fn recurse(lhs: inout i32, rhs: i32) {
+    apply(lhs, rhs, recurse);
+}
+
+handler Loop(lhs: i32, rhs: i32) {
+    let value = lhs;
+    recurse(value, rhs);
+    assert_nonzero(value);
+    dispatch_next;
+}
+"#,
+        "recursive inline function cycle involving 'recurse': recurse -> recurse"
     );
 
     #[test]
