@@ -186,6 +186,7 @@ private:
 
     GC::Weak<DOM::Node> m_effective_legacy_mouse_pointer_position;
 
+    GC::Weak<DOM::Node> m_last_mousedown_target;
     GC::Weak<DOM::Node> m_mousedown_target;
     Optional<CSSPixelPoint> m_mousedown_visual_viewport_position;
     int m_mousedown_click_count { 0 };

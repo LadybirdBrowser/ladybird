@@ -353,6 +353,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         return EventResult::Dropped;
 
     m_mousedown_target = node;
+    m_last_mousedown_target = node;
     m_mousedown_visual_viewport_position = visual_viewport_position;
 
     auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *paintable, *layout_node);
@@ -1310,12 +1311,23 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (!m_scroll_key_gesture_hold)
             m_scroll_key_gesture_hold = make<HTML::UserScrollGestureHold>(*m_navigable);
     };
-    auto scroll_container_of_focused_area_by = [&](double delta_x, double delta_y) -> bool {
-        auto focused_area = document->focused_area();
-        if (!focused_area)
+    auto scroll_target_for_key_input = [&]() -> GC::Ptr<DOM::Node> {
+        if (auto focused_area = document->focused_area())
+            return focused_area;
+        // A scroll container is typically not a focusable area, so clicking one focuses nothing. Scroll keys are
+        // still expected to scroll it afterwards, so the last mousedown target substitutes for the missing focused
+        // area. This behavior matches other engines.
+        auto last_mousedown_target = m_last_mousedown_target.ptr();
+        if (last_mousedown_target && last_mousedown_target->is_connected() && &last_mousedown_target->document() == document.ptr())
+            return last_mousedown_target;
+        return nullptr;
+    };
+    auto scroll_container_of_scroll_target_by = [&](double delta_x, double delta_y) -> bool {
+        auto scroll_target = scroll_target_for_key_input();
+        if (!scroll_target)
             return false;
         document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleKeyDown);
-        RefPtr<Painting::Paintable> containing_block = focused_area->paintable();
+        RefPtr<Painting::Paintable> containing_block = scroll_target->paintable();
         while (containing_block) {
             if (containing_block->handle_mousewheel({}, {}, 0, 0, delta_x, delta_y))
                 return true;
@@ -1325,19 +1337,19 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     };
     auto scroll_by_for_key_input = [&](CSSPixels delta_x, CSSPixels delta_y) {
         hold_scroll_gesture_until_key_release();
-        if (scroll_container_of_focused_area_by(delta_x.to_double(), delta_y.to_double()))
+        if (scroll_container_of_scroll_target_by(delta_x.to_double(), delta_y.to_double()))
             return;
         m_navigable->scroll_viewport_by_delta({ delta_x, delta_y }, Bindings::ScrollBehavior::Auto);
     };
     auto scroll_to_the_beginning_for_key_input = [&] {
         hold_scroll_gesture_until_key_release();
-        if (scroll_container_of_focused_area_by(0, -CSSPixels::max().to_double()))
+        if (scroll_container_of_scroll_target_by(0, -CSSPixels::max().to_double()))
             return;
         m_navigable->perform_a_scroll_of_the_viewport({ 0, 0 }, Bindings::ScrollBehavior::Auto, HTML::LocalNavigable::ScrollTrigger::UserInput);
     };
     auto scroll_to_the_end_for_key_input = [&] {
         hold_scroll_gesture_until_key_release();
-        if (scroll_container_of_focused_area_by(0, CSSPixels::max().to_double()))
+        if (scroll_container_of_scroll_target_by(0, CSSPixels::max().to_double()))
             return;
         m_navigable->scroll_viewport_by_delta({ 0, CSSPixels::max() }, Bindings::ScrollBehavior::Auto);
     };
