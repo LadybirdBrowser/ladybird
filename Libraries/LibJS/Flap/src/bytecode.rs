@@ -119,10 +119,8 @@ fn bytecode_field_type_matches(field: &bytecode_def::Field, parameter_type: &Typ
         "EnvironmentCoordinate" => *parameter_type == Type::EnvironmentCoordinate,
         "EnvironmentCoordinateCacheIndex" => *parameter_type == Type::EnvironmentCoordinateCacheIndex,
         "GlobalVariableCacheIndex" => *parameter_type == Type::GlobalVariableCacheIndex,
-        "PropertyLookupCacheIndex" | "Optional<IdentifierTableIndex>" | "PropertyKeyTableIndex" => {
-            *parameter_type == Type::PropertyLookupCacheIndex
-        }
-        "PutKind" => *parameter_type == Type::U8 || *parameter_type == Type::U32,
+        "PropertyLookupCacheIndex" => *parameter_type == Type::PropertyLookupCacheIndex,
+        "PutKind" => *parameter_type == Type::U8,
         _ => false,
     }
 }
@@ -155,6 +153,45 @@ mod tests {
         assert_eq!(prepared.field_offset(BytecodeFieldId::new(1)), Some(8));
         assert_eq!(prepared.field_name(BytecodeFieldId::new(1)), "m_rhs");
     }
+
+    #[test]
+    fn rejects_unrelated_index_types_as_property_lookup_cache_indices() {
+        let op = bytecode_def::parse_bytecode_def(
+            "TestBytecode.def",
+            "op Get < Instruction\n    m_cache: PropertyKeyTableIndex\nendop\n",
+        )
+        .unwrap()
+        .remove(0);
+        let error = HandlerLayout::new(
+            "Get",
+            &["cache".to_string()],
+            &[Type::PropertyLookupCacheIndex],
+            Some(&op),
+        )
+        .unwrap_err();
+
+        assert!(
+            error.contains(
+                "handler parameter 'm_cache' has type PropertyLookupCacheIndex, but bytecode field 'Get.m_cache' has type PropertyKeyTableIndex"
+            ),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn rejects_wide_put_kind_handler_parameters() {
+        let op =
+            bytecode_def::parse_bytecode_def("TestBytecode.def", "op Put < Instruction\n    m_kind: PutKind\nendop\n")
+                .unwrap()
+                .remove(0);
+        let error = HandlerLayout::new("Put", &["kind".to_string()], &[Type::U32], Some(&op)).unwrap_err();
+
+        assert!(
+            error.contains("handler parameter 'm_kind' has type u32, but bytecode field 'Put.m_kind' has type PutKind"),
+            "{error}"
+        );
+    }
+
     #[test]
     fn rejects_mismatched_handler_parameter_metadata_before_field_types() {
         let op =
