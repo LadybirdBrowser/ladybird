@@ -50,6 +50,21 @@ pub(crate) struct LinearControlFlow<O, C> {
     pub(crate) successors: Vec<Vec<usize>>,
 }
 
+/// Every label these blocks branch to, once per branch that names it.
+///
+/// A label instruction names the label it defines rather than one it refers
+/// to, so those are left out.
+fn block_label_references<O: ControlFlowOperand, C: ControlFlowOpcode>(
+    blocks: &[BasicBlock<O, C>],
+) -> impl Iterator<Item = &Label> {
+    blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .filter(|instruction| instruction.opcode.operation() != Operation::Label)
+        .flat_map(|instruction| &instruction.operands)
+        .filter_map(ControlFlowOperand::label)
+}
+
 impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
     pub(crate) fn from_instructions(
         instructions: Vec<Instruction<O, C>>,
@@ -206,16 +221,16 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
     }
 
     pub(crate) fn remove_unreferenced_jump_blocks(&mut self) {
+        // How many times each label is branched to, rather than the set of
+        // labels that are. Removing a block drops exactly the references its
+        // own instructions made, so the tally is adjusted instead of being
+        // rebuilt after each block removal.
+        let mut references: HashMap<Label, usize> = HashMap::new();
+        for label in block_label_references(&self.blocks) {
+            *references.entry(label.clone()).or_default() += 1;
+        }
+
         loop {
-            let referenced_labels = self
-                .blocks
-                .iter()
-                .flat_map(|block| &block.instructions)
-                .filter(|instruction| instruction.opcode.operation() != Operation::Label)
-                .flat_map(|instruction| &instruction.operands)
-                .filter_map(ControlFlowOperand::label)
-                .cloned()
-                .collect::<HashSet<_>>();
             let removable_block = self.blocks.iter().enumerate().find_map(|(index, block)| {
                 let [label, jump] = block.instructions.as_slice() else {
                     return None;
@@ -226,12 +241,20 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
                     .instructions
                     .last()
                     .is_some_and(|instruction| instruction.opcode.description().terminal);
-                (jump.opcode.operation() == Operation::Control(ControlOperation::JumpLabel) && previous_is_terminal && !referenced_labels.contains(label)).then_some(index)
+                (jump.opcode.operation() == Operation::Control(ControlOperation::JumpLabel)
+                    && previous_is_terminal
+                    && references.get(label).copied().unwrap_or_default() == 0)
+                    .then_some(index)
             });
             let Some(index) = removable_block else {
                 break;
             };
-            self.blocks.remove(index);
+            let removed = self.blocks.remove(index);
+            for label in block_label_references(std::slice::from_ref(&removed)) {
+                if let Some(count) = references.get_mut(label) {
+                    *count -= 1;
+                }
+            }
         }
         self.rebuild_successors();
     }
