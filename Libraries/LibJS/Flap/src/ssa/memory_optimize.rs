@@ -122,15 +122,11 @@ fn memory_unchanged_between(
     instruction: InstructionId,
     location: &MemoryLocation,
 ) -> bool {
-    let block = analysis.instruction_layout.block(load);
-    if analysis.instruction_layout.block(instruction) != block {
-        return false;
-    }
-    let start = analysis.instruction_layout.position(load) + 1;
-    let end = analysis.instruction_layout.position(instruction);
-    function.blocks[block.0].instructions[start..end]
-        .iter()
-        .all(|instruction| {
+    let load_block = analysis.instruction_layout.block(load);
+    let use_block = analysis.instruction_layout.block(instruction);
+
+    let untouched = |instructions: &[InstructionId]| {
+        instructions.iter().all(|instruction| {
             let access = instruction_memory_locations(function, *instruction);
             !access.unknown_write
                 && access
@@ -138,6 +134,37 @@ fn memory_unchanged_between(
                     .iter()
                     .all(|write| alias(function, write, location) == AliasResult::No)
         })
+    };
+
+    if load_block == use_block {
+        let start = analysis.instruction_layout.position(load) + 1;
+        let end = analysis.instruction_layout.position(instruction);
+        return untouched(&function.blocks[load_block.0].instructions[start..end]);
+    }
+
+    // Walk back from the use towards the load while each block has exactly one
+    // way in. A second predecessor could carry a write that invalidates it.
+    let mut block = use_block;
+    let end = analysis.instruction_layout.position(instruction);
+    if !untouched(&function.blocks[block.0].instructions[..end]) {
+        return false;
+    }
+    // A chain longer than the function cannot exist, so this also bounds a loop
+    // back to a block already visited.
+    for _ in 0..function.blocks.len() {
+        let [predecessor] = analysis.cfg.predecessors(block) else {
+            return false;
+        };
+        block = *predecessor;
+        if block == load_block {
+            let start = analysis.instruction_layout.position(load) + 1;
+            return untouched(&function.blocks[block.0].instructions[start..]);
+        }
+        if !untouched(&function.blocks[block.0].instructions) {
+            return false;
+        }
+    }
+    false
 }
 
 fn dominates_instruction(
