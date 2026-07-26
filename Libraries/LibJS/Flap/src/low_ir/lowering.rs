@@ -1506,17 +1506,13 @@ fn lowered_single_use_load(
         .chain(&branch.folded_inputs)
         .copied()
         .collect::<HashSet<_>>();
-    let adjacent = function.blocks.iter().any(|block| {
-        let first = block.instructions.iter().position(|id| *id == load_instruction);
-        let last = block.instructions.iter().position(|id| *id == branch.instruction);
-        first.zip(last).is_some_and(|(first, last)| {
-            first < last
-                && block.instructions[first + 1..last]
-                    .iter()
-                    .all(|id| omitted.contains(id))
-        })
-    });
-    if !adjacent {
+    let (load_block, first) = function.position(load_instruction)?;
+    let (branch_block, last) = function.position(branch.instruction)?;
+    if load_block != branch_block || first >= last {
+        return None;
+    }
+    let between = &function.blocks[load_block as usize].instructions[first as usize + 1..last as usize];
+    if !between.iter().all(|id| omitted.contains(id)) {
         return None;
     }
     let mut lowered = Vec::new();
@@ -1637,6 +1633,7 @@ pub(crate) struct FunctionUses<'a> {
     user_offsets: Vec<u32>,
     users: Vec<ValueUser>,
     registers: Vec<Option<VirtualRegister>>,
+    positions: Vec<Option<(u32, u32)>>,
 }
 
 /// One place a value is read.
@@ -1650,6 +1647,15 @@ impl<'a> FunctionUses<'a> {
     fn new(function: &'a Function) -> Self {
         let mut counts = vec![0u32; function.values.len()];
         let mut terminator_inputs = Vec::new();
+        // Where each instruction sits. Selection asks whether two instructions
+        // are adjacent in a block, and searching the whole function for them is
+        // quadratic on a stitched program.
+        let mut positions = vec![None; function.instructions.len()];
+        for (block_index, block) in function.blocks.iter().enumerate() {
+            for (position, instruction) in block.instructions.iter().enumerate() {
+                positions[instruction.0] = Some((block_index as u32, position as u32));
+            }
+        }
         for instruction in &function.instructions {
             for input in &instruction.inputs {
                 counts[input.0] += 1;
@@ -1720,7 +1726,13 @@ impl<'a> FunctionUses<'a> {
             user_offsets,
             users,
             registers,
+            positions,
         }
+    }
+
+    /// The block an instruction belongs to and where it sits in it.
+    fn position(&self, instruction: InstructionId) -> Option<(u32, u32)> {
+        self.positions[instruction.0]
     }
 
     /// The virtual register an SSA value is named by, if it lives in one.
