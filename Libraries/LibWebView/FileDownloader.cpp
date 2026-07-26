@@ -84,6 +84,7 @@ struct FileDownloader::ActiveDownload {
     // What the server told us about fetching byte ranges of this file, once we have seen its first response.
     DownloadRangeSupport range_support;
     bool segmentation_abandoned { false };
+    bool restored_from_disk { false };
 
     u8 restart_count { 0 };
 };
@@ -472,7 +473,10 @@ void FileDownloader::start_segment_request(u64 download_id, size_t segment_index
 
     auto request_headers = HTTP::HeaderList::create();
     request_headers->set({ "User-Agent"sv, Web::default_user_agent });
-    request_headers->set({ "Range"sv, ByteString::formatted("bytes={}-{}", segment.next_offset, segment.end_offset) });
+    auto range = segment.end_offset == NumericLimits<u64>::max()
+        ? ByteString::formatted("bytes={}-", segment.next_offset)
+        : ByteString::formatted("bytes={}-{}", segment.next_offset, segment.end_offset);
+    request_headers->set({ "Range"sv, move(range) });
 
     if (auto if_range = active->range_support.validator.if_range_value(); if_range.has_value())
         request_headers->set({ "If-Range"sv, if_range->to_byte_string() });
@@ -647,7 +651,7 @@ void FileDownloader::append_segment_data(u64 id, size_t segment_index, ReadonlyB
         return;
 
     if (auto result = write_segment_data(*active, segment, bytes); result.is_error()) {
-        fail_download(id, MUST(String::formatted("Unable to save downloaded file: {}", result.error())));
+        fail_or_pause_download(id, MUST(String::formatted("Unable to save downloaded file: {}", result.error())));
         return;
     }
 
@@ -749,6 +753,127 @@ void FileDownloader::finish_download(u64 id)
     Core::deferred_invoke([this, id] {
         m_active_downloads.remove(id);
     });
+}
+
+void FileDownloader::pause_download(u64 id)
+{
+    auto* download = mutable_download_or_null(id);
+    if (!download || download->status != DownloadStatus::InProgress || !download->can_resume)
+        return;
+
+    auto* active = active_download(id);
+    if (!active)
+        return;
+
+    for (size_t i = active->segments.size(); i > 0; --i)
+        stop_segment_request(*active, i - 1);
+
+    active->file = nullptr;
+    active->file_offset = 0;
+
+    download->status = DownloadStatus::Paused;
+    refresh_download_progress(*download, *active);
+    notify_download_updated(*download);
+}
+
+void FileDownloader::resume_download(u64 id)
+{
+    // A partial file may be ahead of the offsets we recorded for it - the bytes we wrote last are only in the page
+    // cache until the operating system gets around to them, so a machine that lost power has fewer of them than we
+    // think. Re-downloading the tail end of each segment costs nothing, as writing a byte range twice produces the
+    // same file either way.
+    static constexpr u64 resume_rewind_margin = 1 * MiB;
+
+    auto* download = mutable_download_or_null(id);
+    if (!download || download->status != DownloadStatus::Paused)
+        return;
+
+    auto* active = active_download(id);
+    if (!active)
+        return;
+
+    if (!active->file) {
+        auto file_or_error = Core::File::open(active->temporary_destination.string(), Core::File::OpenMode::ReadWrite);
+        if (file_or_error.is_error()) {
+            fail_download(id, MUST(String::formatted("Unable to resume downloading file: {}", file_or_error.error())));
+            return;
+        }
+
+        active->file = file_or_error.release_value();
+        active->file_offset = 0;
+    }
+
+    u64 required_size = 0;
+    for (auto const& segment : active->segments)
+        required_size = max(required_size, segment.next_offset);
+
+    auto size_or_error = active->file->size();
+    if (size_or_error.is_error() || size_or_error.value() < required_size) {
+        download->status = DownloadStatus::InProgress;
+        restart_download_from_zero(id);
+        return;
+    }
+
+    if (active->restored_from_disk) {
+        active->restored_from_disk = false;
+
+        for (auto& segment : active->segments)
+            segment.next_offset -= min(segment.downloaded_size(), resume_rewind_margin);
+    }
+
+    if (download->total_size.has_value()) {
+        for (auto& segment : active->segments) {
+            if (segment.end_offset == NumericLimits<u64>::max())
+                segment.end_offset = *download->total_size - 1;
+        }
+    }
+
+    download->status = DownloadStatus::InProgress;
+    download->error = {};
+
+    for (size_t i = 0; i < active->segments.size(); ++i) {
+        auto& segment = active->segments[i];
+        segment.retry_count = 0;
+        segment.stall_restart_count = 0;
+        start_segment_request(id, i);
+    }
+
+    if (active->segments.size() > 1)
+        start_stall_watchdog(id);
+
+    refresh_download_progress(*download, *active);
+    notify_download_updated(*download);
+
+    maybe_finish_download(id);
+}
+
+void FileDownloader::pause_active_downloads()
+{
+    Vector<u64> resumable_download_ids;
+    for (auto const& download : m_downloads) {
+        if (download.status == DownloadStatus::InProgress && download.can_resume)
+            resumable_download_ids.append(download.id);
+    }
+
+    for (auto id : resumable_download_ids)
+        pause_download(id);
+}
+
+void FileDownloader::fail_or_pause_download(u64 id, String error)
+{
+    auto* download = mutable_download_or_null(id);
+
+    if (download && download->status == DownloadStatus::InProgress && download->can_resume) {
+        pause_download(id);
+
+        if (download->status == DownloadStatus::Paused) {
+            download->error = move(error);
+            notify_download_updated(*download);
+            return;
+        }
+    }
+
+    fail_download(id, move(error));
 }
 
 Optional<FileDownloader::Download const&> FileDownloader::download(u64 id) const

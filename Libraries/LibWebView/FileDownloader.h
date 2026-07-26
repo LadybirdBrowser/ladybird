@@ -77,6 +77,9 @@ public:
     void cancel_active_downloads();
     void cancel_private_downloads();
     void cancel_download(u64 id);
+    void pause_download(u64 id);
+    void resume_download(u64 id);
+    void pause_active_downloads();
     void fail_download(u64 id, String);
     Vector<u64> prune_inactive_downloads();
 
@@ -107,6 +110,7 @@ private:
     static void refresh_download_progress(Download&, ActiveDownload const&);
     static void stop_segment_request(ActiveDownload&, size_t segment_index);
 
+    void fail_or_pause_download(u64 id, String);
     void maybe_split_download(u64 id);
     void start_segment_request(u64 id, size_t segment_index);
     bool retry_segment_request(u64 id, size_t segment_index);
