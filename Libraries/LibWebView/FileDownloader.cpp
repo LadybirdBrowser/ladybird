@@ -1109,6 +1109,23 @@ Optional<FileDownloader::Download const&> FileDownloader::download(u64 id) const
     return {};
 }
 
+Vector<FileDownloader::SegmentProgress> FileDownloader::segment_progress(u64 id) const
+{
+    auto active = m_active_downloads.get(id);
+    if (!active.has_value() || (*active)->segments.size() < 2)
+        return {};
+
+    Vector<SegmentProgress> progress;
+    progress.ensure_capacity((*active)->segments.size());
+
+    for (auto const& segment : (*active)->segments)
+        progress.unchecked_append({ segment.start_offset, segment.end_offset, segment.next_offset });
+
+    quick_sort(progress, [](auto const& a, auto const& b) { return a.start_offset < b.start_offset; });
+
+    return progress;
+}
+
 FileDownloader::Download* FileDownloader::mutable_download_or_null(u64 id)
 {
     for (auto& download : m_downloads) {

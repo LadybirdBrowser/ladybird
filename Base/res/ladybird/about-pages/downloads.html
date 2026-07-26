@@ -13,6 +13,7 @@
                     --download-status-completed-color: #1f7a3f;
                     --download-status-failed-color: #b33232;
                     --download-status-paused-color: #a06a12;
+                    --download-segment-done-color: #2f5d94;
                 }
             }
 
@@ -23,6 +24,7 @@
                     --download-status-completed-color: #7bd493;
                     --download-status-failed-color: #ff8585;
                     --download-status-paused-color: #e0b169;
+                    --download-segment-done-color: #b9d3f0;
                 }
             }
 
@@ -104,10 +106,17 @@
                 margin-top: 10px;
             }
 
+            .download-progress {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+
             .download-state progress {
                 appearance: none;
                 width: 150px;
                 height: 8px;
+                display: block;
             }
 
             .download-state progress::-webkit-progress-bar {
@@ -118,6 +127,32 @@
             .download-state progress::-webkit-progress-value {
                 background-color: var(--download-progress-color);
                 border-radius: 999px;
+            }
+
+            .download-segments {
+                display: flex;
+                gap: 1px;
+
+                width: 150px;
+                height: 4px;
+
+                background-color: var(--download-progress-track-color);
+                border: 1px solid rgba(0, 0, 0, 0.5);
+                border-radius: 999px;
+                overflow: hidden;
+            }
+
+            .download-segment {
+                background-color: var(--download-progress-track-color);
+            }
+
+            .download-segment-fill {
+                height: 100%;
+                background-color: var(--download-progress-color);
+            }
+
+            .download-segment.complete .download-segment-fill {
+                background-color: var(--download-segment-done-color);
             }
 
             .download-status {
@@ -315,7 +350,10 @@
                             className: "download-destination",
                         }),
                         createElement("div", { className: "download-state" }, [
-                            createElement("progress"),
+                            createElement("div", { className: "download-progress" }, [
+                                createElement("progress"),
+                                createElement("div", { className: "download-segments" }),
+                            ]),
                             createElement("span", {
                                 className: "download-status",
                             }),
@@ -329,6 +367,37 @@
 
                 updateDownloadRow(row, download);
                 return row;
+            }
+
+            function updateSegments(segments, download) {
+                const downloadSegments = download.segments || [];
+                if (downloadSegments.length < 2) {
+                    segments.hidden = true;
+                    segments.replaceChildren();
+                    return;
+                }
+
+                segments.hidden = false;
+
+                if (segments.children.length !== downloadSegments.length) {
+                    segments.replaceChildren(
+                        ...downloadSegments.map(() =>
+                            createElement("div", { className: "download-segment" }, [
+                                createElement("div", { className: "download-segment-fill" }),
+                            ])
+                        )
+                    );
+                }
+
+                downloadSegments.forEach((segment, index) => {
+                    const size = segment.end - segment.start + 1;
+                    const downloaded = Math.min(Math.max(segment.next - segment.start, 0), size);
+
+                    const block = segments.children[index];
+                    block.style.flexGrow = `${size}`;
+                    block.classList.toggle("complete", downloaded >= size);
+                    block.firstChild.style.width = `${(downloaded / size) * 100}%`;
+                });
             }
 
             function updateDownloadRow(row, download) {
@@ -355,6 +424,8 @@
                     progress.max = download.totalSize;
                     progress.value = Math.min(download.downloadedSize, download.totalSize);
                 }
+
+                updateSegments(row.querySelector(".download-segments"), download);
 
                 const status = row.querySelector(".download-status");
                 status.className = `download-status ${download.status}`;
