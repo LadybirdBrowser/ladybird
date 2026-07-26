@@ -100,9 +100,10 @@ impl PhysicalRegister {
         }
     }
 
-    /// A dense number, unique within the register's architecture and class.
-    /// Together with the class it gives every register a small index, which is
-    /// what lets a set of registers be held in a single machine word.
+    /// The architecture's register encoding number.
+    ///
+    /// AArch64 deliberately gives SP and XZR the same number. XZR is introduced
+    /// only during finalization, after allocator register sets are gone.
     pub(crate) fn number(self) -> u8 {
         self.number
     }
