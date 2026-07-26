@@ -1,0 +1,3 @@
+scroll offset while the gesture is in progress: 0,120
+snap scroll started before the settle deadline: true
+scroll offset after the gesture ends: 0,200

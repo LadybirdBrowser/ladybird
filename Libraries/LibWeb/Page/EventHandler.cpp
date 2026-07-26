@@ -723,6 +723,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
+    m_navigable->note_user_scroll_gesture_phase(scroll_gesture_phase);
+
     // Wheel activity marks the scroll gesture as still in progress even when it no longer moves any scrolling box.
     m_navigable->defer_user_scroll_settlement();
     m_navigable->note_user_scroll_input_intent(wheel_delta_precision == WheelDeltaPrecision::Discrete

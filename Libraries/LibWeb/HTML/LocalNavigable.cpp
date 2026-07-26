@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
@@ -4029,12 +4030,60 @@ void LocalNavigable::defer_user_scroll_settlement()
     m_user_scroll_settle_timer->restart();
 }
 
+void LocalNavigable::note_user_scroll_gesture_phase(ScrollGesturePhase phase)
+{
+    switch (phase) {
+    case ScrollGesturePhase::None:
+        m_user_scroll_gesture_travels_under_momentum = false;
+        m_wheel_user_scroll_gesture_hold = nullptr;
+        break;
+    case ScrollGesturePhase::Ongoing:
+    case ScrollGesturePhase::Momentum: {
+        bool travels_under_momentum = phase == ScrollGesturePhase::Momentum;
+        if (m_wheel_user_scroll_gesture_hold && m_user_scroll_gesture_travels_under_momentum != travels_under_momentum)
+            m_wheel_user_scroll_gesture_hold = nullptr;
+        m_user_scroll_gesture_travels_under_momentum = travels_under_momentum;
+
+        if (!m_wheel_user_scroll_gesture_hold)
+            m_wheel_user_scroll_gesture_hold = make<UserScrollGestureHold>(*this);
+        break;
+    }
+    case ScrollGesturePhase::Ended:
+        if (m_wheel_user_scroll_gesture_hold) {
+            m_wheel_user_scroll_gesture_hold = nullptr;
+            break;
+        }
+        settle_user_scroll_gesture();
+        break;
+    }
+}
+
+void LocalNavigable::settle_user_scroll_gesture()
+{
+    if (m_pending_user_scrollend_targets.is_empty())
+        return;
+
+    if (m_user_scroll_gesture_hold_count > 0)
+        return;
+
+    m_user_scroll_settle_timer->stop();
+    user_scroll_did_settle();
+}
+
+void LocalNavigable::snap_user_scroll_gestures_that_awaited_layout()
+{
+    if (!any_of(m_pending_user_scrollend_targets, [](auto const& entry) { return entry.awaits_layout_for_snapping; }))
+        return;
+    user_scroll_did_settle(UserScrollSettlement::SnappingDeferredUntilLayout);
+}
+
 void LocalNavigable::cancel_user_scroll_settlement()
 {
     if (m_user_scroll_settle_timer)
         m_user_scroll_settle_timer->stop();
     m_pending_user_scrollend_targets.clear();
     m_compositor_user_scroll_gesture_hold = nullptr;
+    m_wheel_user_scroll_gesture_hold = nullptr;
 }
 
 void LocalNavigable::begin_user_scroll_gesture_hold(Badge<UserScrollGestureHold>)
@@ -4047,12 +4096,9 @@ void LocalNavigable::end_user_scroll_gesture_hold(Badge<UserScrollGestureHold>)
     VERIFY(m_user_scroll_gesture_hold_count > 0);
     if (--m_user_scroll_gesture_hold_count > 0)
         return;
-    if (m_pending_user_scrollend_targets.is_empty())
-        return;
 
     // The release of the last held input completes the scroll gesture.
-    m_user_scroll_settle_timer->stop();
-    user_scroll_did_settle();
+    settle_user_scroll_gesture();
 }
 
 Optional<LocalNavigable::InFlightScroll> LocalNavigable::in_flight_scroll_for(Optional<Compositor::AsyncScrollNodeStableID> const& stable_node_id) const
@@ -4077,7 +4123,7 @@ Optional<LocalNavigable::InFlightScroll> LocalNavigable::in_flight_scroll_for(Op
     return in_flight_scroll;
 }
 
-void LocalNavigable::user_scroll_did_settle()
+void LocalNavigable::user_scroll_did_settle(UserScrollSettlement settlement)
 {
     if (has_been_destroyed())
         return;
@@ -4097,6 +4143,13 @@ void LocalNavigable::user_scroll_did_settle()
 
     bool queued_any_scrollend_event = false;
     for (auto& entry : targets) {
+        // A settlement performed once layout is up to date is only for the gestures an earlier one left waiting for
+        // it; the rest are still waiting for their own input to run out.
+        if (settlement == UserScrollSettlement::SnappingDeferredUntilLayout && !entry.awaits_layout_for_snapping) {
+            m_pending_user_scrollend_targets.append(move(entry));
+            continue;
+        }
+
         auto const& target = entry.target;
         if (auto* element = as_if<DOM::Element>(*target)) {
             if (&element->document() != document.ptr() || !element->is_connected())
@@ -4109,6 +4162,16 @@ void LocalNavigable::user_scroll_did_settle()
         // scroll settles the gesture instead.
         if (in_flight_scroll_for(stable_node_id).map([](auto const& in_flight_scroll) { return in_flight_scroll.trigger; }) == ScrollTrigger::UserInput) {
             m_pending_user_scrollend_targets.append(move(entry));
+            continue;
+        }
+
+        // A gesture whose snap position cannot be selected yet keeps the scrolling box latched and snaps once layout
+        // is up to date. A settlement that already waited for layout once takes what it can get, so that a scrolling
+        // box cannot stay latched.
+        if (stable_node_id.has_value() && !can_snap && !entry.awaits_layout_for_snapping) {
+            entry.awaits_layout_for_snapping = true;
+            m_pending_user_scrollend_targets.append(move(entry));
+            main_thread_event_loop().queue_task_to_update_the_rendering();
             continue;
         }
 
