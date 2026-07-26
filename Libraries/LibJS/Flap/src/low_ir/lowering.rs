@@ -1857,7 +1857,19 @@ fn copy_instruction(destination: Operand, source: Operand, ty: &Type) -> Instruc
 }
 
 fn block_label(block: BlockId) -> Label {
-    Label::new(format!(".ssa_block_{}", block.0))
+    // Block labels are function-local and depend only on the block index, even
+    // though this cache outlives each function lowered on the thread.
+    thread_local! {
+        static LABELS: std::cell::RefCell<Vec<Label>> = const { std::cell::RefCell::new(Vec::new()) };
+    }
+    LABELS.with(|labels| {
+        let mut labels = labels.borrow_mut();
+        while labels.len() <= block.0 {
+            let next = labels.len();
+            labels.push(Label::new(format!(".ssa_block_{next}")));
+        }
+        labels[block.0].clone()
+    })
 }
 
 fn lower_memory_operation(
