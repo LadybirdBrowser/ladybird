@@ -225,7 +225,7 @@ fn run_optimization_pipeline(
     let mut converged = false;
     for _ in 1..=2 {
         let mut passes = Vec::new();
-        let mut changed = false;
+        let mut feedback_changed = false;
         for (name, pass) in [
             (
                 "eliminate-trivial-block-parameters",
@@ -234,7 +234,9 @@ fn run_optimization_pipeline(
             ("resolve-block-references", resolve_block_references),
         ] {
             let (pass_changed, report) = runner.run(function, name, pass);
-            changed |= pass_changed;
+            if name == "resolve-block-references" {
+                feedback_changed = pass_changed;
+            }
             if let Some(report) = report {
                 passes.push(report);
             }
@@ -242,7 +244,10 @@ fn run_optimization_pipeline(
         if options.is_some() {
             iterations.push(passes);
         }
-        if !changed {
+        // Parameter elimination reaches its own fixed point. Only resolving
+        // an indirect block reference can expose new work for another outer
+        // iteration.
+        if !feedback_changed {
             converged = true;
             break;
         }
