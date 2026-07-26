@@ -436,7 +436,7 @@ pub(crate) fn visit_virtual_registers(operand: &Operand, visit: &mut impl FnMut(
     }
 }
 
-fn visit_virtual_registers_mut(operand: &mut Operand, visit: &mut impl FnMut(&mut VirtualRegister)) {
+pub(crate) fn visit_virtual_registers_mut(operand: &mut Operand, visit: &mut impl FnMut(&mut VirtualRegister)) {
     match operand {
         Operand::VirtualRegister(register) => visit(register),
         Operand::Address(address) => {

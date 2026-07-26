@@ -10,6 +10,7 @@ use super::ir::{Function, Instruction, Operand, Program};
 use crate::Architecture;
 use crate::low_ir::preallocate::{
     materialize_program_counter_reads, orient_commutative_updates, schedule_x86_relational_operand_loads,
+    split_rematerializable_live_ranges_across_calls,
 };
 use crate::low_ir::{self, AddressDisplacement, Operand as LowOperand};
 use crate::target::description::{IntegerWidth, Operation};
@@ -28,6 +29,8 @@ pub(crate) fn select_program(
                 schedule_x86_relational_operand_loads(&mut handler.instructions);
             }
             orient_commutative_updates(&mut handler.instructions);
+            split_rematerializable_live_ranges_across_calls(&mut handler.instructions);
+            // Splitting creates new virtual registers, so interning must follow it.
             let virtual_registers = low_ir::intern_virtual_registers(handler.id, &mut handler.instructions);
             let mut instructions = Vec::with_capacity(handler.instructions.len());
             for mut instruction in handler.instructions {

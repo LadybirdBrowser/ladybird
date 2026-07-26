@@ -687,10 +687,10 @@ fn eliminate_common_subexpressions_pass(function: &mut Function, analyses: &mut 
                 guard_mark = Some(undo.len());
             }
             rewrite_values(&mut instruction.inputs, &replacements);
-            // The current allocator cannot preserve virtual registers across
+            // Allocation only preserves simple rematerializable values across
             // calls, and sharing across a trapping check increases pressure on
-            // paths that may exit. Keep cheap expressions rematerializable on
-            // each side of those boundaries.
+            // paths that may exit. Keep other cheap expressions rematerializable
+            // on each side of those boundaries.
             if instruction.effects.may_call || instruction.effects.may_trap {
                 undo.extend(
                     available

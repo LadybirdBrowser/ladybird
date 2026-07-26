@@ -1970,10 +1970,57 @@ mod tests {
     }
 
     #[test]
-    fn rejects_virtual_register_live_across_call() {
-        let err = build(
+    fn rematerializes_virtual_register_live_across_call() {
+        let out = build(
             vec![
                 instruction!(Operation::Move(IntegerWidth::U64), register("value"), immediate(7)),
+                instruction!(
+                    Operation::Call(CallKind::Helper),
+                    symbol("asm_helper_to_boolean"),
+                    x86_register("rcx"),
+                    x86_register("rax")
+                ),
+                instruction!(
+                    Operation::IntegerBinary {
+                        operation: IntegerBinaryOperation::Binary(BinaryOperation::Add),
+                        width: IntegerWidth::U64
+                    },
+                    register("value"),
+                    immediate(1)
+                ),
+                instruction!(Operation::Assertion(AssertionOperation::NonZero), register("value")),
+            ],
+            Architecture::X86_64,
+        )
+        .expect("the constant should be rematerialized after the call");
+
+        assert_eq!(
+            out.iter()
+                .map(|instruction| instruction.opcode.operation())
+                .collect::<Vec<_>>(),
+            [
+                Operation::Move(IntegerWidth::U64),
+                Operation::Call(CallKind::Helper),
+                Operation::Move(IntegerWidth::U64),
+                Operation::IntegerBinary {
+                    operation: IntegerBinaryOperation::Binary(BinaryOperation::Add),
+                    width: IntegerWidth::U64,
+                },
+                Operation::Assertion(AssertionOperation::NonZero),
+            ]
+        );
+        assert_eq!(out[0].operands[1], AllocatedOperand::Immediate(7));
+        assert_eq!(out[2].operands[1], AllocatedOperand::Immediate(7));
+        assert_eq!(out[2].operands[0], out[3].operands[0]);
+        assert_eq!(out[3].operands[0], out[4].operands[0]);
+    }
+
+    #[test]
+    fn rejects_nonrematerializable_virtual_register_live_across_call() {
+        let err = build(
+            vec![
+                instruction!(Operation::Move(IntegerWidth::U64), register("seed"), immediate(7)),
+                instruction!(Operation::Move(IntegerWidth::U64), register("value"), register("seed")),
                 instruction!(
                     Operation::Call(CallKind::Helper),
                     symbol("asm_helper_to_boolean"),
@@ -1991,7 +2038,67 @@ mod tests {
             ],
             Architecture::X86_64,
         )
-        .expect_err("should reject value live across call_helper");
+        .expect_err("a nonrematerializable value cannot survive the call");
+        assert!(
+            err.message.contains("could not allocate") || err.message.contains("pool exhausted"),
+            "unexpected error: {err:?}"
+        );
+    }
+
+    #[test]
+    fn does_not_rematerialize_over_a_call_result() {
+        let out = allocated(
+            vec![
+                instruction!(Operation::Move(IntegerWidth::U64), register("value"), immediate(7)),
+                instruction!(
+                    Operation::Call(CallKind::Helper),
+                    symbol("asm_helper_to_boolean"),
+                    x86_register("rcx"),
+                    register("value")
+                ),
+                instruction!(Operation::Assertion(AssertionOperation::NonZero), register("value")),
+            ],
+            Architecture::X86_64,
+        );
+
+        assert_eq!(
+            out.iter()
+                .map(|instruction| instruction.opcode.operation())
+                .collect::<Vec<_>>(),
+            [
+                Operation::Move(IntegerWidth::U64),
+                Operation::Call(CallKind::Helper),
+                Operation::Assertion(AssertionOperation::NonZero),
+            ]
+        );
+    }
+
+    #[test]
+    fn does_not_split_a_live_range_across_machine_blocks() {
+        let err = build(
+            vec![
+                instruction!(Operation::Move(IntegerWidth::U64), register("value"), immediate(7)),
+                instruction!(
+                    Operation::Call(CallKind::Helper),
+                    symbol("asm_helper_to_boolean"),
+                    x86_register("rcx"),
+                    x86_register("rax")
+                ),
+                instruction!(Operation::Control(ControlOperation::JumpLabel), label(".use")),
+                instruction!(Operation::Label, label(".use")),
+                instruction!(
+                    Operation::IntegerBinary {
+                        operation: IntegerBinaryOperation::Binary(BinaryOperation::Add),
+                        width: IntegerWidth::U64
+                    },
+                    register("value"),
+                    immediate(1)
+                ),
+            ],
+            Architecture::X86_64,
+        )
+        .expect_err("cross-block rematerialization requires edge splitting");
+
         assert!(
             err.message.contains("could not allocate") || err.message.contains("pool exhausted"),
             "unexpected error: {err:?}"
