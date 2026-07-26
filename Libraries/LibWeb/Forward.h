@@ -36,6 +36,7 @@ class XMLDocumentBuilder;
 
 enum class InvalidateDisplayList;
 enum class TraversalDecision;
+enum class ScrollGesturePhase : u8;
 
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(i64, UniqueNodeID, Comparison, Increment, CastToUnderlying);
 

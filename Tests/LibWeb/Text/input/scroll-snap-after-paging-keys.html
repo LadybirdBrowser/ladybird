@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+        position: relative;
+    }
+    .area {
+        position: absolute;
+        width: 100%;
+        height: 100px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="dense" class="scroller" tabindex="0"></div>
+<div id="sparse" class="scroller" tabindex="0">
+    <div class="area" style="top: 0"></div>
+    <div id="far" class="area"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const pageDistance = window.innerHeight - (window.outerHeight - window.innerHeight);
+
+        const dense = document.getElementById("dense");
+        for (let top = 0; top <= 4 * pageDistance; top += 100) {
+            const area = document.createElement("div");
+            area.className = "area";
+            area.style.top = `${top}px`;
+            dense.appendChild(area);
+        }
+
+        const sparse = document.getElementById("sparse");
+        const farAreaTop = 2 * pageDistance + 100;
+        document.getElementById("far").style.top = `${farAreaTop}px`;
+        const spacer = document.createElement("div");
+        spacer.style.height = `${3 * pageDistance}px`;
+        sparse.appendChild(spacer);
+
+        await animationFrame();
+        await animationFrame();
+
+        await scrollSettled(dense, () => internals.sendKey(dense, "PageDown"));
+        const expectedAfterPageDown = Math.round(pageDistance / 100) * 100;
+        println(`page down snaps to the position nearest one page ahead: ${dense.scrollTop === expectedAfterPageDown ? "PASS" : `FAIL (${dense.scrollTop}, expected ${expectedAfterPageDown})`}`);
+
+        await scrollSettled(dense, () => internals.sendKey(dense, "PageUp"));
+        const expectedAfterPageUp = Math.max(0, Math.round((expectedAfterPageDown - pageDistance) / 100) * 100);
+        println(`page up snaps to the position nearest one page back: ${dense.scrollTop === expectedAfterPageUp ? "PASS" : `FAIL (${dense.scrollTop}, expected ${expectedAfterPageUp})`}`);
+
+        await scrollSettled(sparse, () => internals.sendKey(sparse, "PageDown"));
+        println(`page down does not snap back to the starting snap position: ${sparse.scrollTop === farAreaTop ? "PASS" : `FAIL (${sparse.scrollTop}, expected ${farAreaTop})`}`);
+
+        await scrollSettled(sparse, () => internals.sendKey(sparse, "Space", internals.MOD_SHIFT));
+        println(`shift+space snaps to the position nearest one page back: ${sparse.scrollTop === 0 ? "PASS" : `FAIL (${sparse.scrollTop}, expected 0)`}`);
+
+        await scrollSettled(sparse, () => internals.sendKey(sparse, "Space"));
+        println(`space snaps to the position nearest one page ahead: ${sparse.scrollTop === farAreaTop ? "PASS" : `FAIL (${sparse.scrollTop}, expected ${farAreaTop})`}`);
+    });
+</script>

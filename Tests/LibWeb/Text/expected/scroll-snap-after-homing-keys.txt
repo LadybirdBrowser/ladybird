@@ -1,0 +1,2 @@
+scroll offset after an end key press: 0,1000
+scroll offset after a home key press: 0,0

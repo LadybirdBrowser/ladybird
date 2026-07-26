@@ -1,0 +1,5 @@
+page down snaps to the position nearest one page ahead: PASS
+page up snaps to the position nearest one page back: PASS
+page down does not snap back to the starting snap position: PASS
+shift+space snaps to the position nearest one page back: PASS
+space snaps to the position nearest one page ahead: PASS

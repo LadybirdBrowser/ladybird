@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 100px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+        position: relative;
+    }
+    .area {
+        position: absolute;
+        width: 50%;
+        height: 100px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div class="area" style="top: 0"></div>
+    <div class="area" style="top: 1000px"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        // A pan reports where the user's fingers came to rest, so the intended direction of a key pressed while its
+        // offsets are still on their way from the compositor process must not decide the snap position it ends at.
+        const scrollend = scrollendEvent(scroller);
+        const pan = internals.wheel(50, 50, 0, 60, true);
+        internals.sendKey(document.body, "Down");
+        await pan;
+        await scrollend;
+
+        println(`scroll offset after the pan settles: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>

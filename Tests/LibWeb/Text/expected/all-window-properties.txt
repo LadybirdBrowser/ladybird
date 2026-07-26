@@ -598,6 +598,7 @@ printElement
 println
 promiseTest
 removeTestErrorHandler
+scrollendEvent
 spoofCurrentURL
 test
 timeout

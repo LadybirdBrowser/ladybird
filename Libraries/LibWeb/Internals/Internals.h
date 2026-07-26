@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
@@ -63,7 +64,7 @@ public:
     // High-level mouse conveniences
     void click(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
     void click_and_hold(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
-    GC::Ref<WebIDL::Promise> wheel(double x, double y, double delta_x, double delta_y);
+    GC::Ref<WebIDL::Promise> wheel(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase);
     void pinch(double x, double y, double scale_delta, WebIDL::UnsignedShort modifiers);
     void reset_zoom();
 

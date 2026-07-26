@@ -147,6 +147,13 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
 
     auto new_scroll_offset = paintable_box->scroll_offset();
     new_scroll_offset.set_primary_offset_for_orientation(orientation, scroll_position_in_pixels);
+
+    // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
+    // Common examples of absolute scrolls include:
+    //     manipulating the scrollbar "thumb" explicitly
+    if (auto navigable = paintable_box->document().navigable())
+        navigable->note_user_scroll_input_intent(Painting::SnapSelectionStrategy::Type::EndPosition);
+
     paintable_box->set_scroll_offset_from_user_input(new_scroll_offset);
     return true;
 }
