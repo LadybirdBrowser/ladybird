@@ -37,6 +37,19 @@ static void append_flat_tree_children(DOM::Node& node, Vector<DOM::Node*>& out)
         out.append(child);
 }
 
+template<typename Callback>
+static void for_each_flat_tree_descendant_element(DOM::Element& query_container, Callback&& callback)
+{
+    Vector<DOM::Node*> stack;
+    append_flat_tree_children(query_container, stack);
+    while (!stack.is_empty()) {
+        auto* node = stack.take_last();
+        if (auto* element = as_if<DOM::Element>(*node))
+            callback(*element);
+        append_flat_tree_children(*node, stack);
+    }
+}
+
 void invalidate_descendant_styles_depending_on_size_container_query(DOM::Element& query_container)
 {
     // Only an element some size query or container-relative unit resolved against can have a
@@ -46,17 +59,26 @@ void invalidate_descendant_styles_depending_on_size_container_query(DOM::Element
 
     auto& counters = query_container.document().style_invalidation_counters();
 
-    Vector<DOM::Node*> stack;
-    append_flat_tree_children(query_container, stack);
-    while (!stack.is_empty()) {
-        auto* node = stack.take_last();
-        if (auto* element = as_if<DOM::Element>(*node)) {
-            ++counters.size_query_container_scan_visits;
-            if (element->style_depends_on_size_container_query())
-                element->set_needs_style_update(true);
-        }
-        append_flat_tree_children(*node, stack);
-    }
+    for_each_flat_tree_descendant_element(query_container, [&](DOM::Element& element) {
+        ++counters.size_query_container_scan_visits;
+        if (element.style_depends_on_size_container_query())
+            element.set_needs_style_update(true);
+    });
+}
+
+void invalidate_descendant_styles_depending_on_style_container_query(DOM::Element& query_container)
+{
+    // Only an element some style container query resolved against can be what a dependent under it
+    // was asking about, and most documents have no style container queries at all.
+    if (!query_container.is_style_query_container())
+        return;
+
+    ++query_container.document().style_invalidation_counters().style_query_container_scans;
+
+    for_each_flat_tree_descendant_element(query_container, [](DOM::Element& element) {
+        if (element.style_depends_on_style_container_query())
+            element.set_needs_style_update(true);
+    });
 }
 
 }

@@ -19,5 +19,6 @@ namespace Web::CSS::Invalidation {
 // the container is chosen by walking the flat tree upwards, so the dependents are its flat-tree
 // descendants, and a container no query ever selected has none at all.
 void invalidate_descendant_styles_depending_on_size_container_query(DOM::Element& query_container);
+void invalidate_descendant_styles_depending_on_style_container_query(DOM::Element& query_container);
 
 }
