@@ -19,6 +19,7 @@ set(TEST_SOURCES
     TestNumbers.cpp
     TestPage.cpp
     TestRefCountedTreeNode.cpp
+    TestScrollState.cpp
     TestSecureContexts.cpp
     TestSessionHistoryEntry.cpp
     TestSmoothScrollAnimation.cpp
@@ -56,6 +57,7 @@ target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestAccumulatedVisualContext PRIVATE LibGfx)
 target_link_libraries(TestImageData PRIVATE LibGC LibJS)
 target_link_libraries(TestPage PRIVATE LibGC LibJS)
+target_link_libraries(TestScrollState PRIVATE LibGfx LibIPC)
 target_link_libraries(TestSecureContexts PRIVATE LibURL)
 target_link_libraries(TestSessionHistoryEntry PRIVATE LibJS LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)

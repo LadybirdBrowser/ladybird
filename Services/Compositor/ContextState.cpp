@@ -151,6 +151,7 @@ void ContextState::install_display_list_update(
     m_visual_context_tree = move(visual_context_tree);
     m_visual_context_tree_for_compositing.clear();
     m_scroll_state_snapshot = move(scroll_state_snapshot);
+    m_scroll_state_snapshot.set_node_count(m_visual_context_tree->node_count());
     if (m_async_visual_viewport_transform.has_value() && visual_viewport_transforms_match(visual_viewport_transform(*m_visual_context_tree), *m_async_visual_viewport_transform))
         m_async_visual_viewport_transform.clear();
 
@@ -205,6 +206,7 @@ void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualCo
 void ContextState::update_scroll_state(Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     m_scroll_state_snapshot = move(scroll_state_snapshot);
+    m_scroll_state_snapshot.set_node_count(m_visual_context_tree.has_value() ? m_visual_context_tree->node_count() : 0);
     if (!m_has_async_scrolling_state)
         return;
 
