@@ -267,6 +267,8 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 
 @property (nonatomic, readonly) u64 downloadID;
 @property (nonatomic, copy) void (^onCancelDownload)(u64);
+@property (nonatomic, copy) void (^onPauseDownload)(u64);
+@property (nonatomic, copy) void (^onResumeDownload)(u64);
 
 @end
 
@@ -276,7 +278,9 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
     NSTextField* m_file_name_label;
     NSTextField* m_status_label;
     NSProgressIndicator* m_progress_indicator;
+    NSButton* m_pause_button;
     NSButton* m_cancel_button;
+    bool m_is_paused;
 }
 
 - (instancetype)initWithFrame:(NSRect)frame
@@ -341,6 +345,13 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
         [details_stack addArrangedSubview:m_status_label];
         [details_stack addArrangedSubview:m_progress_indicator];
 
+        m_pause_button = [NSButton buttonWithTitle:@"Pause"
+                                            target:self
+                                            action:@selector(pauseOrResumeDownload:)];
+        [m_pause_button setBezelStyle:NSBezelStyleRounded];
+        [m_pause_button setContentCompressionResistancePriority:NSLayoutPriorityRequired
+                                                 forOrientation:NSLayoutConstraintOrientationHorizontal];
+
         m_cancel_button = [NSButton buttonWithTitle:@"Cancel"
                                              target:self
                                              action:@selector(cancelDownload:)];
@@ -349,6 +360,7 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
                                                   forOrientation:NSLayoutConstraintOrientationHorizontal];
 
         [row_stack addArrangedSubview:details_stack];
+        [row_stack addArrangedSubview:m_pause_button];
         [row_stack addArrangedSubview:m_cancel_button];
 
         [self addSubview:row_stack];
@@ -402,6 +414,10 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
     if (progress.has_value())
         [m_progress_indicator setDoubleValue:*progress];
 
+    m_is_paused = download.status == WebView::FileDownloader::DownloadStatus::Paused;
+    [m_pause_button setTitle:m_is_paused ? @"Resume" : @"Pause"];
+    [m_pause_button setHidden:!download.can_resume || !WebView::FileDownloader::status_is_active(download.status)];
+
     [m_cancel_button setHidden:!WebView::FileDownloader::status_is_active(download.status)];
 }
 
@@ -409,6 +425,16 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 {
     if (self.onCancelDownload)
         self.onCancelDownload(m_download_id);
+}
+
+- (void)pauseOrResumeDownload:(id)sender
+{
+    if (m_is_paused) {
+        if (self.onResumeDownload)
+            self.onResumeDownload(m_download_id);
+    } else if (self.onPauseDownload) {
+        self.onPauseDownload(m_download_id);
+    }
 }
 
 @end
@@ -430,6 +456,8 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 - (BOOL)setDownloads:(ReadonlySpan<WebView::FileDownloader::Download>)downloads;
 
 @property (nonatomic, copy) void (^onCancelDownload)(u64);
+@property (nonatomic, copy) void (^onPauseDownload)(u64);
+@property (nonatomic, copy) void (^onResumeDownload)(u64);
 @property (nonatomic, copy) void (^onOpenAllDownloads)(void);
 
 @end
@@ -537,6 +565,16 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
                 DownloadsPopoverViewController* self = weak_self;
                 if (self != nil && self.onCancelDownload)
                     self.onCancelDownload(id);
+            }];
+            [row setOnPauseDownload:^(u64 id) {
+                DownloadsPopoverViewController* self = weak_self;
+                if (self != nil && self.onPauseDownload)
+                    self.onPauseDownload(id);
+            }];
+            [row setOnResumeDownload:^(u64 id) {
+                DownloadsPopoverViewController* self = weak_self;
+                if (self != nil && self.onResumeDownload)
+                    self.onResumeDownload(id);
             }];
             [m_rows_view addSubview:row];
             m_download_rows.append(row);
@@ -1153,6 +1191,22 @@ private:
             auto& file_downloader = WebView::Application::the().file_downloader();
             if (auto download = file_downloader.download(id); download.has_value() && WebView::FileDownloader::status_is_active(download->status))
                 file_downloader.cancel_download(id);
+            [self updateDownloadsPopover];
+        }];
+        [content_view_controller setOnPauseDownload:^(u64 id) {
+            TabController* self = weak_self;
+            if (self == nil)
+                return;
+
+            WebView::Application::the().file_downloader().pause_download(id);
+            [self updateDownloadsPopover];
+        }];
+        [content_view_controller setOnResumeDownload:^(u64 id) {
+            TabController* self = weak_self;
+            if (self == nil)
+                return;
+
+            WebView::Application::the().file_downloader().resume_download(id);
             [self updateDownloadsPopover];
         }];
         [content_view_controller setOnOpenAllDownloads:^{
