@@ -232,11 +232,9 @@ impl PassRunner {
             function.recompute_machine_state_dependencies();
             self.analyses.invalidate();
         }
-        if cfg!(debug_assertions) {
-            function
-                .validate()
-                .unwrap_or_else(|error| panic!("SSA pass '{name}' produced invalid IR: {error}"));
-        }
+        function
+            .validate()
+            .unwrap_or_else(|error| panic!("SSA pass '{name}' produced invalid IR: {error}"));
         let report = instrumentation.map(|instrumentation| PassRunReport {
             name: name.to_string(),
             elapsed: elapsed.expect("pass timing was enabled with instrumentation"),
