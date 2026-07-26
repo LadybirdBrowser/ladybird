@@ -155,13 +155,12 @@ impl OperandReferences {
 fn rewrite_windows(
     instructions: &mut Vec<Instruction>,
     width: usize,
-    mut rewrite: impl FnMut(&[Instruction], &OperandReferences) -> Option<Instruction>,
+    mut rewrite: impl FnMut(&[Instruction]) -> Option<Instruction>,
 ) {
-    let references = OperandReferences::count(instructions);
     let (mut read, mut write) = (0, 0);
     while read < instructions.len() {
         if read + width <= instructions.len()
-            && let Some(replacement) = rewrite(&instructions[read..read + width], &references)
+            && let Some(replacement) = rewrite(&instructions[read..read + width])
         {
             instructions[write] = replacement;
             read += width;
@@ -260,7 +259,7 @@ pub(crate) fn propagate_single_assignment_copies(instructions: &mut Vec<Instruct
 }
 
 pub(crate) fn select_copy_add_immediates(instructions: &mut Vec<Instruction>) {
-    rewrite_windows(instructions, 2, |window, _| {
+    rewrite_windows(instructions, 2, |window| {
         let [copy, add] = window else { unreachable!() };
         let (
             [Operand::VirtualRegister(destination), Operand::VirtualRegister(source)],
@@ -296,7 +295,7 @@ pub(crate) fn select_copy_add_immediates(instructions: &mut Vec<Instruction>) {
 }
 
 pub(crate) fn fuse_or32_sign_branches(instructions: &mut Vec<Instruction>) {
-    rewrite_windows(instructions, 2, |window, _| {
+    rewrite_windows(instructions, 2, |window| {
         let [operation, branch] = window else { unreachable!() };
         let [destination, lhs, rhs] = operation.operands.as_slice() else {
             return None;
@@ -353,7 +352,7 @@ pub(crate) fn fuse_adjacent_sequence_stores(instructions: &mut Vec<Instruction>)
                 .then(|| (destination.clone(), base.clone()))
         })
         .collect::<HashMap<_, _>>();
-    rewrite_windows(instructions, 2, |window, _| {
+    rewrite_windows(instructions, 2, |window| {
         let [first, second] = window else { unreachable!() };
         let (
             [Operand::Address(first_address), first_value],
@@ -387,7 +386,8 @@ pub(crate) fn fuse_adjacent_sequence_stores(instructions: &mut Vec<Instruction>)
 }
 
 pub(crate) fn fuse_indexed_offset_stores(instructions: &mut Vec<Instruction>) {
-    rewrite_windows(instructions, 2, |window, references| {
+    let references = OperandReferences::count(instructions);
+    rewrite_windows(instructions, 2, |window| {
         let [load_address, store] = window else {
             unreachable!()
         };
@@ -456,7 +456,8 @@ pub(crate) fn select_zero_moves(instructions: &mut [Instruction]) {
 }
 
 pub(crate) fn fuse_scaled_addresses(instructions: &mut Vec<Instruction>) {
-    rewrite_windows(instructions, 3, |window, references| {
+    let references = OperandReferences::count(instructions);
+    rewrite_windows(instructions, 3, |window| {
         let [multiply, copy, add] = window else {
             unreachable!()
         };
