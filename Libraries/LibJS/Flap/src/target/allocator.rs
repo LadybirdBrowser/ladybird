@@ -41,7 +41,7 @@ use crate::target::registers::{PhysicalRegister, register_info_for, resolve_inte
 use crate::types::InterpreterRegister;
 use crate::types::RegisterClass as VirtualRegisterClass;
 use crate::{CompileError, CompileStage};
-use std::collections::{HashMap, HashSet};
+use crate::hash::{HashMap, HashSet};
 
 /// A set of physical registers.
 ///
@@ -172,7 +172,7 @@ struct Names {
 
 impl Names {
     fn collect(instructions: &[&MachineInstruction]) -> Self {
-        let mut seen = HashSet::new();
+        let mut seen = HashSet::default();
         for instruction in instructions {
             for operand in &instruction.operands {
                 visit_virtual_registers(operand, &mut |register| {

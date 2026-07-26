@@ -11,7 +11,7 @@ use crate::intrinsic::{BranchOperation, IntegerBinaryOperation};
 use crate::target::description::{BinaryOperation, IntegerWidth, MemoryWidth, Operation, PairWidth, SignCondition, OperandKind};
 #[cfg(test)]
 use crate::target::description::ZeroCondition;
-use std::collections::{HashMap, HashSet};
+use crate::hash::{HashMap, HashSet};
 
 /// Invert a conditional branch when its taken block follows an unconditional
 /// jump. This removes the jump while preserving block order.
@@ -111,7 +111,7 @@ struct OperandReferences(HashMap<VirtualRegister, usize>);
 
 impl OperandReferences {
     fn count(instructions: &[Instruction]) -> Self {
-        let mut counts: HashMap<VirtualRegister, usize> = HashMap::new();
+        let mut counts: HashMap<VirtualRegister, usize> = HashMap::default();
         for instruction in instructions {
             for operand in &instruction.operands {
                 match operand {
@@ -169,8 +169,8 @@ fn rewrite_windows(
 }
 
 pub(crate) fn propagate_single_assignment_copies(instructions: &mut Vec<Instruction>) {
-    let mut definition_counts = HashMap::new();
-    let mut pinned = HashSet::new();
+    let mut definition_counts = HashMap::default();
+    let mut pinned = HashSet::default();
     for instruction in instructions.iter() {
         let info = instruction.opcode.description();
         for (index, _) in info

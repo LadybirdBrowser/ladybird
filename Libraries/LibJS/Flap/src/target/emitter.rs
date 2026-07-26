@@ -11,7 +11,7 @@ use crate::target::ir::{
 use crate::target::registers::PhysicalRegister;
 use crate::ObjectFormat;
 use crate::intrinsic::{IntegerWidth, PairWidth};
-use std::collections::HashMap;
+use crate::hash::HashMap;
 use std::fmt::Write;
 
 /// Like `writeln!`, but without the `.unwrap()` -- writing to a `String` is infallible.

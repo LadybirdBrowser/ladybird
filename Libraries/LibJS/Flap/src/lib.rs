@@ -13,6 +13,7 @@
 //! system and command-line adapter.
 
 pub(crate) mod bytecode;
+pub(crate) mod hash;
 pub(crate) mod frontend;
 pub(crate) mod hir;
 pub(crate) mod identity;
@@ -26,7 +27,7 @@ use bytecode::HandlerLayout as BytecodeHandlerLayout;
 use frontend::diagnostic::{Diagnostic, SourceLocation};
 use frontend::layout::{LayoutConstants, LayoutDatabase, LayoutError};
 use identity::HandlerId;
-use std::collections::HashMap;
+use crate::hash::HashMap;
 use std::error::Error;
 use std::fmt;
 use target::emitter::DISPATCH_TABLE_SIZE;

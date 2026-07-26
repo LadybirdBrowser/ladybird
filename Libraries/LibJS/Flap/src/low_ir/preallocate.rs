@@ -7,7 +7,7 @@
 //! Target-aware instruction combining before register allocation.
 
 use super::{Instruction, Operand, VirtualRegister, visit_virtual_registers};
-use std::collections::HashMap;
+use crate::hash::HashMap;
 use crate::intrinsic::{BranchOperation, IntegerBinaryOperation, IntegerSignedness};
 use crate::target::description::{
     BinaryOperation, EqualityCondition, IntegerWidth, MemoryWidth, Operation, OperandKind, PairWidth,
@@ -221,11 +221,11 @@ pub(crate) fn schedule_x86_relational_operand_loads(instructions: &mut Vec<Instr
 pub(crate) fn orient_commutative_updates(instructions: &mut [Instruction]) {
     // Where each register is named for the last time. Asking whether a value
     // outlives an instruction by scanning the rest of the listing turns this
-    // into a quadratic pass over a stitched function. Reversing a pair of
+    // into a quadratic pass over a large function. Reversing a pair of
     // operands only moves a register between the two instructions of the pair,
     // both of which lie before every listing suffix later steps look at, so
     // these positions stay correct as the pass runs.
-    let mut last_reference = HashMap::new();
+    let mut last_reference = HashMap::default();
     for (index, instruction) in instructions.iter().enumerate() {
         for operand in &instruction.operands {
             visit_virtual_registers(operand, &mut |register| {

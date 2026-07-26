@@ -7,7 +7,7 @@
 //! Validated database for generated LibJS data-layout descriptions.
 
 use crate::types::Type;
-use std::collections::{HashMap, HashSet};
+use crate::hash::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct LayoutConstantId(u32);
@@ -110,7 +110,7 @@ pub(crate) struct LayoutConstants {
 impl LayoutConstants {
     fn new() -> Self {
         Self {
-            by_name: HashMap::new(),
+            by_name: HashMap::default(),
             known: [None; KnownLayoutConstant::COUNT],
         }
     }
@@ -223,7 +223,7 @@ impl LayoutDatabase {
             fields: Vec::new(),
             constants: LayoutConstants::new(),
         };
-        let mut field_names = HashSet::new();
+        let mut field_names = HashSet::default();
         let mut unresolved_fields = Vec::new();
 
         for (index, source_line) in source.lines().enumerate() {

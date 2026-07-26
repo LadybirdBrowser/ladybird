@@ -7,7 +7,7 @@
 //! Reusable analyses over Flap's SSA intermediate representation.
 
 use super::{BlockId, Function, InstructionId, Operation, ValueId};
-use std::collections::HashSet;
+use crate::hash::HashSet;
 
 #[derive(Debug)]
 pub(crate) struct ControlFlowGraph {
@@ -230,7 +230,7 @@ pub(crate) struct NaturalLoop {
 }
 
 pub(crate) fn find_natural_loops(function: &Function, cfg: &ControlFlowGraph, dominators: &DominatorTree) -> Vec<NaturalLoop> {
-    let mut blocks_by_header = vec![HashSet::new(); function.blocks.len()];
+    let mut blocks_by_header = vec![HashSet::default(); function.blocks.len()];
     for source in cfg.reverse_postorder().iter().copied() {
         for header in cfg.successors(source) {
             if !dominators.dominates(*header, source) {
@@ -382,6 +382,6 @@ mod tests {
         assert_eq!(dominators.children(header), [body, exit]);
         assert_eq!(loops.len(), 1);
         assert_eq!(loops[0].header, header);
-        assert_eq!(loops[0].blocks, HashSet::from([header, body]));
+        assert_eq!(loops[0].blocks, HashSet::from_iter([header, body]));
     }
 }

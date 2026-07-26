@@ -23,7 +23,8 @@ use crate::target::description::{
     InstructionDescription, Operation, SelectedOpcode,
 };
 use std::cmp::Ordering;
-use std::collections::{BTreeSet, HashMap, hash_map::DefaultHasher};
+use std::collections::{BTreeSet, hash_map::DefaultHasher};
+use crate::hash::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;

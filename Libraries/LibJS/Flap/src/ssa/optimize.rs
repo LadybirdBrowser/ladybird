@@ -19,7 +19,7 @@ use crate::types::Type;
 use crate::{CompileError, CompileStage};
 #[cfg(test)]
 use crate::identity::ExternalSymbol;
-use std::collections::{HashMap, HashSet};
+use crate::hash::{HashMap, HashSet};
 use std::rc::Rc;
 
 pub(crate) fn resolve_constants(function: &mut Function, constants: &LayoutConstants) {
@@ -149,7 +149,7 @@ pub(crate) fn optimize_function_with_report(
 }
 
 pub(crate) fn fuse_operand_accesses(function: &mut Function) {
-    let mut eliminated = HashSet::new();
+    let mut eliminated = HashSet::default();
     for block in &function.blocks {
         for pair in block.instructions.windows(2) {
             let [first_id, second_id] = pair else { unreachable!() };
@@ -330,7 +330,7 @@ fn eliminate_trivial_block_parameters_pass(function: &mut Function, _: &mut Anal
             }
         }
 
-        let mut replacements = HashMap::new();
+        let mut replacements = HashMap::default();
         for (block_index, block) in function.blocks.iter().enumerate() {
             for (parameter_index, parameter) in block.parameters.iter().enumerate() {
                 let mut replacement = None;
@@ -368,7 +368,7 @@ fn eliminate_trivial_block_parameters_pass(function: &mut Function, _: &mut Anal
         let candidates = replacements.clone();
         replacements.retain(|parameter, _| {
             let mut value = *parameter;
-            let mut visited = HashSet::new();
+            let mut visited = HashSet::default();
             while let Some(replacement) = candidates.get(&value) {
                 if !visited.insert(value) {
                     return false;
@@ -536,15 +536,15 @@ fn eliminate_common_subexpressions_pass(
     function: &mut Function,
     analyses: &mut AnalysisManager,
 ) -> bool {
-    let mut replacements = HashMap::new();
-    let mut eliminated = HashSet::new();
+    let mut replacements = HashMap::default();
+    let mut eliminated = HashSet::default();
     let analyses = analyses.get(function);
     let dominators = analyses.dominators;
     // Availability is scoped to the dominator subtree being walked. Copying the
     // whole table for each child costs a clone of every expression in it per
     // block, so the table is shared and each block records what it has to put
     // back on the way out.
-    let mut available = HashMap::<Rc<Expression>, Vec<ValueId>>::new();
+    let mut available = HashMap::<Rc<Expression>, Vec<ValueId>>::default();
     let mut undo = Vec::<(Rc<Expression>, Option<Vec<ValueId>>)>::new();
     let mut worklist = vec![DominatorStep::Enter(function.entry)];
     while let Some(step) = worklist.pop() {
@@ -760,7 +760,7 @@ fn schedule_global_code_motion_pass(
     let mut schedules = vec![Vec::new(); function.blocks.len()];
     for block_index in 0..function.blocks.len() {
         let block = BlockId(block_index);
-        let mut emitted = HashSet::new();
+        let mut emitted = HashSet::default();
         for instruction in &assigned[block_index] {
             if movable[instruction.0] {
                 continue;

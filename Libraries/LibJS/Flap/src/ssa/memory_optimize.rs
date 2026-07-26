@@ -12,13 +12,13 @@ use super::effects::{
 use super::optimize::{InstructionOrder, rebuild_instruction_arena, rewrite_function_uses};
 use super::pass::{AnalysisManager};
 use super::{Function, InstructionId, Intrinsic, OperandOperation, Operation, ValueId};
-use std::collections::{HashMap, HashSet};
+use crate::hash::{HashMap, HashSet};
 
 pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bool {
     let analysis = analyses.get(function);
     let memory = analysis.effects.domain(super::effects::EffectDomain::Memory);
-    let mut replacements = HashMap::new();
-    let mut eliminated = HashSet::new();
+    let mut replacements = HashMap::default();
+    let mut eliminated = HashSet::default();
     let mut available_loads = Vec::<(InstructionId, MemoryLocation, ValueId)>::new();
     let mut load_candidates = 0u64;
 

@@ -12,7 +12,7 @@ use super::{BlockId, Edge, Function, Intrinsic, MemoryEffect, Operation, Termina
 use super::{BinaryOperation, IntegerBinaryOperation};
 use crate::types::Type;
 use crate::{CompileError, CompileStage};
-use std::collections::{HashMap, HashSet};
+use crate::hash::{HashMap, HashSet};
 
 fn inline_error(function: &Function, message: impl Into<String>) -> CompileError {
     CompileError::new(CompileStage::Ssa, Some(&function.name), message)
@@ -159,9 +159,9 @@ fn inline_call(function: &mut Function, block_index: usize, instruction_index: u
     for old in &call.results {
         function.values[old.0].definition = ValueDefinition::Dead;
     }
-    rebuild_instruction_arena(function, &HashSet::from([call_id]), InstructionOrder::ByBlock);
+    rebuild_instruction_arena(function, &HashSet::from_iter([call_id]), InstructionOrder::ByBlock);
 
-    let mut blocks = HashMap::from([(callee.entry, caller_block)]);
+    let mut blocks = HashMap::from_iter([(callee.entry, caller_block)]);
     for (callee_block_index, callee_block) in callee.blocks.iter().enumerate() {
         let callee_block_id = BlockId(callee_block_index);
         if callee_block_id == callee.entry {
@@ -190,7 +190,7 @@ fn inline_call(function: &mut Function, block_index: usize, instruction_index: u
         blocks.insert(callee_block_id, cloned);
     }
 
-    let mut values = HashMap::new();
+    let mut values = HashMap::default();
     for (index, input) in call.inputs.iter().enumerate() {
         let input = coerce_value(function, caller_block, *input, &callee.parameter_types[index])?;
         values.insert(callee.parameter(index), input);
