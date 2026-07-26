@@ -770,6 +770,11 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
         // The value the query compares against is resolved too, and that resolution can read the
         // root - `style(--length: calc(1rem * 10))` moves when the root font size does - so the root
         // is named as well.
+        // A size feature asks about the container's own box, and the scan a resize does for the
+        // dependents under it starts from the same fact: whether anything ever asked.
+        if (m_feature_requirements.contains_size_feature())
+            const_cast<DOM::Element&>(*container).set_is_size_query_container();
+
         if (m_feature_requirements.contains_style_feature()) {
             const_cast<DOM::Element&>(*container).set_is_style_query_container();
             if (auto* root = element.document().document_element())
