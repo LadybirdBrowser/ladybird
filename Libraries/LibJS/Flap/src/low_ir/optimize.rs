@@ -609,6 +609,109 @@ mod tests {
         })
     }
 
+    fn evaluate_integer_listing(instructions: &[Instruction]) -> Vec<u64> {
+        let mut registers = HashMap::default();
+        let mut stored = Vec::new();
+        let value = |operand: &Operand, registers: &HashMap<VirtualRegister, u64>| match operand {
+            Operand::VirtualRegister(register) => registers[register],
+            Operand::Immediate(immediate) => *immediate as u64,
+            _ => panic!("unsupported oracle operand: {operand:?}"),
+        };
+        for instruction in instructions {
+            match (instruction.opcode.operation(), instruction.operands.as_slice()) {
+                (Operation::Move(IntegerWidth::U64), [Operand::VirtualRegister(destination), source]) => {
+                    registers.insert(destination.clone(), value(source, &registers));
+                }
+                (
+                    Operation::IntegerBinary {
+                        operation: IntegerBinaryOperation::Binary(BinaryOperation::Add),
+                        width: IntegerWidth::U64,
+                    },
+                    [Operand::VirtualRegister(destination), rhs],
+                ) => {
+                    let result = value(&Operand::VirtualRegister(destination.clone()), &registers)
+                        .wrapping_add(value(rhs, &registers));
+                    registers.insert(destination.clone(), result);
+                }
+                (
+                    Operation::IntegerBinary {
+                        operation: IntegerBinaryOperation::Binary(BinaryOperation::Xor),
+                        width: IntegerWidth::U64,
+                    },
+                    [Operand::VirtualRegister(destination), rhs],
+                ) => {
+                    let result = if rhs == &Operand::VirtualRegister(destination.clone()) {
+                        0
+                    } else {
+                        value(&Operand::VirtualRegister(destination.clone()), &registers) ^ value(rhs, &registers)
+                    };
+                    registers.insert(destination.clone(), result);
+                }
+                (
+                    Operation::LoadEffectiveAddress,
+                    [
+                        Operand::VirtualRegister(destination),
+                        Operand::Address(MemoryAddress {
+                            base: AddressRegister::Virtual(base),
+                            index: None,
+                            scale: None,
+                            displacement: Some(AddressDisplacement::Immediate(displacement)),
+                        }),
+                    ],
+                ) => {
+                    registers.insert(destination.clone(), registers[base].wrapping_add(*displacement as u64));
+                }
+                (Operation::StoreOperand, [Operand::Immediate(_), source]) => {
+                    stored.push(value(source, &registers));
+                }
+                _ => panic!("unsupported oracle instruction: {instruction:?}"),
+            }
+        }
+        stored
+    }
+
+    #[test]
+    fn integer_peepholes_preserve_randomized_listings() {
+        let mut random_state = 0xbb67ae8584caa73bu64;
+        let mut random = || {
+            random_state = random_state.wrapping_mul(2862933555777941757).wrapping_add(3037000493);
+            random_state
+        };
+
+        for _ in 0..250 {
+            let mut instructions = vec![instruction(
+                Operation::Move(IntegerWidth::U64),
+                [register("ssa_0"), Operand::Immediate(random() as i64)],
+            )];
+            let mut current = "ssa_0".to_string();
+            for index in 1..=(random() % 30 + 1) {
+                let next = format!("ssa_{index}");
+                match random() % 3 {
+                    0 => instructions.push(move64(&next, &current)),
+                    1 => {
+                        instructions.push(move64(&next, &current));
+                        instructions.push(add64(&next, Operand::Immediate(random() as i64)));
+                    }
+                    _ => instructions.push(instruction(
+                        Operation::Move(IntegerWidth::U64),
+                        [register(&next), Operand::Immediate(0)],
+                    )),
+                }
+                current = next;
+            }
+            instructions.push(instruction(
+                Operation::StoreOperand,
+                [Operand::Immediate(0), register(&current)],
+            ));
+
+            let expected = evaluate_integer_listing(&instructions);
+            propagate_single_assignment_copies(&mut instructions);
+            select_copy_add_immediates(&mut instructions);
+            select_zero_moves(&mut instructions);
+            assert_eq!(evaluate_integer_listing(&instructions), expected);
+        }
+    }
+
     #[test]
     fn inverts_branches_over_jumps() {
         let mut instructions = vec![
