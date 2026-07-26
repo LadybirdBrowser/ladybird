@@ -270,7 +270,7 @@ void ConnectionFromClient::set_use_system_dns()
     m_resolver->dns.reset_connection();
 }
 
-void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData proxy_data, bool keep_alive_for_transfer)
+void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData proxy_data, bool keep_alive_for_transfer, Optional<u32> address_selection_hint)
 {
     note_event_tick("ipc-start-request"sv);
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
@@ -289,7 +289,7 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
         }
     }
 
-    auto request = Request::fetch(request_id, m_disk_cache, cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, proxy_data, keep_alive_for_transfer);
+    auto request = Request::fetch(request_id, m_disk_cache, cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, proxy_data, keep_alive_for_transfer, address_selection_hint);
     m_active_requests.set(request_id, move(request));
 }
 

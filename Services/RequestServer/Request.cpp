@@ -377,9 +377,11 @@ NonnullOwnPtr<Request> Request::fetch(
     HTTP::Cookie::IncludeCredentials include_credentials,
     Optional<ByteString> alt_svc_cache_path,
     Core::ProxyData proxy_data,
-    bool keep_alive_for_transfer)
+    bool keep_alive_for_transfer,
+    Optional<u32> address_selection_hint)
 {
     auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data, keep_alive_for_transfer });
+    request->m_address_selection_hint = address_selection_hint;
     request->process();
 
     return request;
@@ -1024,6 +1026,20 @@ void Request::handle_fetch_state()
         m_curl_string_lists.append(resolve_list);
     } else {
         VERIFY_NOT_REACHED();
+    }
+
+    // CURLOPT_CONNECT_TO pins this handle without poisoning the shared CURLOPT_RESOLVE host cache.
+    if (m_address_selection_hint.has_value() && DNSInfo::the().uses_configured_dns_server()) {
+        auto connect_to = build_curl_connect_to_entry(*m_dns_result, m_url.serialized_host(), m_url.port_or_default(), *m_address_selection_hint);
+
+        if (connect_to.has_value()) {
+            if (curl_slist* connect_to_list = curl_slist_append(nullptr, connect_to->characters())) {
+                set_option(CURLOPT_CONNECT_TO, connect_to_list);
+                m_curl_string_lists.append(connect_to_list);
+            } else {
+                VERIFY_NOT_REACHED();
+            }
+        }
     }
 
     mark_lifecycle_event(this, &WireStats::curl_added_at);

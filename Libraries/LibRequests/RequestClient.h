@@ -42,7 +42,8 @@ public:
     explicit RequestClient(NonnullOwnPtr<IPC::Transport>);
     virtual ~RequestClient() override;
 
-    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials = HTTP::Cookie::IncludeCredentials::Yes, Core::ProxyData const& = {}, KeepAliveForTransfer = KeepAliveForTransfer::No);
+    // Best-effort index into the resolved address pool.
+    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials = HTTP::Cookie::IncludeCredentials::Yes, Core::ProxyData const& = {}, KeepAliveForTransfer = KeepAliveForTransfer::No, Optional<u32> address_selection_hint = {});
     RefPtr<Request> adopt_request(int source_client_id, u64 source_request_id);
     bool stop_request(Badge<Request>, Request&);
     void release_request_for_transfer(Badge<Request>, Request&);
