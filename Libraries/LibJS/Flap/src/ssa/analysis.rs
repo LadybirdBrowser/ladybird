@@ -443,6 +443,12 @@ impl ValueUses {
     pub(crate) fn count(&self, value: ValueId) -> u32 {
         self.counts[value.0]
     }
+
+    pub(crate) fn remove_use(&mut self, value: ValueId) {
+        self.counts[value.0] = self.counts[value.0]
+            .checked_sub(1)
+            .expect("only recorded SSA uses can be removed");
+    }
 }
 
 pub(crate) fn reachable_blocks(function: &Function, cfg: &ControlFlowGraph) -> Vec<bool> {

@@ -8,7 +8,7 @@
 
 use super::Function;
 use super::analysis::{
-    ControlFlowGraph, DominatorTree, GuardExits, InstructionLayout, NaturalLoop, ValueUses, find_natural_loops,
+    ControlFlowGraph, DominatorTree, GuardExits, InstructionLayout, NaturalLoop, find_natural_loops,
 };
 use super::effects::EffectDependencies;
 use super::print::function_to_string;
@@ -48,7 +48,6 @@ pub(crate) struct AnalysisManager {
     loops: Option<Vec<NaturalLoop>>,
     effects: Option<EffectDependencies>,
     guards: Option<GuardExits>,
-    uses: Option<ValueUses>,
     instrumentation: Option<PassInstrumentation>,
 }
 
@@ -100,10 +99,6 @@ impl AnalysisManager {
         self.guards.as_ref().unwrap()
     }
 
-    pub(crate) fn uses<'a>(&'a mut self, function: &Function) -> &'a ValueUses {
-        self.uses.get_or_insert_with(|| ValueUses::compute(function))
-    }
-
     /// The analyses a pass needs to decide where an instruction belongs.
     ///
     /// Placement says nothing about effects, and computing the effect
@@ -145,7 +140,6 @@ impl AnalysisManager {
         self.loops = None;
         self.effects = None;
         self.guards = None;
-        self.uses = None;
     }
 
     pub(crate) fn report(
@@ -295,7 +289,6 @@ mod tests {
         assert!(analyses.loops.is_none());
         assert!(analyses.effects.is_none());
         assert!(analyses.guards.is_none());
-        assert!(analyses.uses.is_none());
         false
     }
 

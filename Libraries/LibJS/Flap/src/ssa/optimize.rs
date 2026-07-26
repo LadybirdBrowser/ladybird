@@ -6,7 +6,7 @@
 
 //! Target-independent SSA optimizations.
 
-use super::analysis::{ControlFlowGraph, reachable_blocks};
+use super::analysis::{ControlFlowGraph, ValueUses, reachable_blocks};
 use super::effects::{EffectDomain, EffectSet};
 use super::pass::{AnalysisManager, FunctionPass, PassManagerOptions, PassRunner};
 use super::report::FunctionOptimizationReport;
@@ -1150,29 +1150,43 @@ pub(crate) fn eliminate_dead_code(function: &mut Function) {
     run_single_pass(function, "dead-code-elimination", eliminate_dead_code_pass);
 }
 
-fn eliminate_dead_code_pass(function: &mut Function, analyses: &mut AnalysisManager) -> bool {
-    let mut changed = false;
-    loop {
-        let uses = analyses.uses(function);
-
-        let eliminated = function
-            .instructions
-            .iter()
-            .enumerate()
-            .filter(|(_, instruction)| {
-                instruction.can_be_eliminated() && instruction.results.iter().all(|result| uses.count(*result) == 0)
-            })
-            .map(|(index, _)| InstructionId(index))
-            .collect::<HashSet<_>>();
-        if eliminated.is_empty() {
-            break;
+fn eliminate_dead_code_pass(function: &mut Function, _analyses: &mut AnalysisManager) -> bool {
+    let mut uses = ValueUses::compute(function);
+    let mut worklist = function
+        .instructions
+        .iter()
+        .enumerate()
+        .filter(|(_, instruction)| {
+            instruction.can_be_eliminated() && instruction.results.iter().all(|result| uses.count(*result) == 0)
+        })
+        .map(|(index, _)| InstructionId(index))
+        .collect::<Vec<_>>();
+    let mut eliminated = HashSet::default();
+    while let Some(instruction_id) = worklist.pop() {
+        if eliminated.contains(&instruction_id) {
+            continue;
         }
-        changed = true;
-        rebuild_instruction_arena(function, &eliminated, InstructionOrder::ByBlock);
-        analyses.invalidate();
+        let instruction = &function.instructions[instruction_id.0];
+        if !instruction.can_be_eliminated() || instruction.results.iter().any(|result| uses.count(*result) != 0) {
+            continue;
+        }
+        eliminated.insert(instruction_id);
+        for input in &instruction.inputs {
+            uses.remove_use(*input);
+            if uses.count(*input) != 0 {
+                continue;
+            }
+            if let ValueDefinition::InstructionResult { instruction, .. } = function.values[input.0].definition {
+                worklist.push(instruction);
+            }
+        }
     }
 
-    changed
+    if eliminated.is_empty() {
+        return false;
+    }
+    rebuild_instruction_arena(function, &eliminated, InstructionOrder::ByBlock);
+    true
 }
 
 pub(super) fn rewrite_values(values: &mut [ValueId], replacements: &HashMap<ValueId, ValueId>) {
@@ -1251,7 +1265,9 @@ pub(super) fn rebuild_instruction_arena(
     order: InstructionOrder,
 ) {
     let old_instructions = std::mem::take(&mut function.instructions);
-    function.instructions.reserve(old_instructions.len() - eliminated.len());
+    function
+        .instructions
+        .reserve(old_instructions.len().saturating_sub(eliminated.len()));
     let mut instruction_map = vec![None; old_instructions.len()];
     let order: Vec<_> = if matches!(order, InstructionOrder::Original) {
         (0..old_instructions.len()).map(InstructionId).collect()
