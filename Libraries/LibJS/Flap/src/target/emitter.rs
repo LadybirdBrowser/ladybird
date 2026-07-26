@@ -4,14 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::target::ir::{
-    MachineFunction as Handler, MachineInstruction, MachineOperand as Operand,
-    MachineProgram,
-};
-use crate::target::registers::PhysicalRegister;
 use crate::ObjectFormat;
-use crate::intrinsic::{IntegerWidth, PairWidth};
 use crate::hash::HashMap;
+use crate::intrinsic::{IntegerWidth, PairWidth};
+use crate::target::ir::{MachineFunction as Handler, MachineInstruction, MachineOperand as Operand, MachineProgram};
+use crate::target::registers::PhysicalRegister;
 use std::fmt::Write;
 
 /// Like `writeln!`, but without the `.unwrap()` -- writing to a `String` is infallible.
@@ -95,12 +92,8 @@ fn simple_register_name(register: PhysicalRegister, format: SimpleRegister) -> S
     match format {
         SimpleRegister::Native => register.as_str().to_string(),
         SimpleRegister::Integer(width) => register.integer_name(width),
-        SimpleRegister::Pair(PairWidth::Word) => {
-            register.word_name()
-        }
-        SimpleRegister::Pair(PairWidth::DoubleWord) => {
-            register.as_str().to_string()
-        }
+        SimpleRegister::Pair(PairWidth::Word) => register.word_name(),
+        SimpleRegister::Pair(PairWidth::DoubleWord) => register.as_str().to_string(),
         SimpleRegister::Word => register.word_name(),
         SimpleRegister::Single => register.single_name(),
     }
@@ -177,11 +170,7 @@ pub(crate) fn emit_simple_instruction(
     true
 }
 
-pub(crate) fn emit_label(
-    out: &mut String,
-    instruction: &MachineInstruction,
-    handler: &Handler,
-) {
+pub(crate) fn emit_label(out: &mut String, instruction: &MachineInstruction, handler: &Handler) {
     let Some(Operand::Label(name)) = instruction.operands.first() else {
         unreachable!("machine label operand was verified")
     };
@@ -218,10 +207,7 @@ pub(crate) fn resolve_label(op: &Operand, handler: &Handler) -> String {
                 name.to_string()
             }
         }
-        other => panic!(
-            "expected label operand in handler '{}', got {other:?}",
-            handler.name
-        ),
+        other => panic!("expected label operand in handler '{}', got {other:?}", handler.name),
     }
 }
 

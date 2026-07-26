@@ -164,10 +164,7 @@ impl IntrinsicEffects {
     };
 
     pub(crate) fn can_be_eliminated(self) -> bool {
-        !self.memory.writes()
-            && !self.machine_state.writes()
-            && !self.may_call
-            && !self.may_trap
+        !self.memory.writes() && !self.machine_state.writes() && !self.may_call && !self.may_trap
     }
 }
 
@@ -224,7 +221,10 @@ impl FieldAccessKind {
 
     pub(crate) fn memory_operation(self) -> MemoryOperation {
         match self {
-            Self::Load { width: FieldWidth::U64, nonzero: true } => MemoryOperation::Load64NonZero,
+            Self::Load {
+                width: FieldWidth::U64,
+                nonzero: true,
+            } => MemoryOperation::Load64NonZero,
             Self::Load { width, .. } => MemoryOperation::Load {
                 width: width.into(),
                 signed: false,
@@ -235,8 +235,13 @@ impl FieldAccessKind {
 
     pub(crate) fn paired_operation(self) -> Option<MemoryOperation> {
         match self {
-            Self::Load { width: FieldWidth::U64, .. } => Some(MemoryOperation::LoadPair(PairWidth::DoubleWord)),
-            Self::Load { width: FieldWidth::U32, nonzero: false } => Some(MemoryOperation::LoadPair(PairWidth::Word)),
+            Self::Load {
+                width: FieldWidth::U64, ..
+            } => Some(MemoryOperation::LoadPair(PairWidth::DoubleWord)),
+            Self::Load {
+                width: FieldWidth::U32,
+                nonzero: false,
+            } => Some(MemoryOperation::LoadPair(PairWidth::Word)),
             Self::Store(FieldWidth::U64) => Some(MemoryOperation::StorePair(PairWidth::DoubleWord)),
             Self::Store(FieldWidth::U32) => Some(MemoryOperation::StorePair(PairWidth::Word)),
             _ => None,
@@ -480,16 +485,42 @@ impl BranchOperation {
             ComparisonRelation::GreaterOrEqual => ComparisonRelation::Less,
         };
         Some(match self {
-            Self::Equality { width, condition } => Self::Equality { width, condition: condition.inverted() },
-            Self::Ordered { width, relation, signedness } => Self::Ordered { width, relation: ordered(relation), signedness },
-            Self::Zero { width, condition } => Self::Zero { width, condition: condition.inverted() },
-            Self::Sign { width, condition } => Self::Sign { width, condition: condition.inverted() },
-            Self::Bits { width, condition } => Self::Bits { width, condition: condition.inverted() },
+            Self::Equality { width, condition } => Self::Equality {
+                width,
+                condition: condition.inverted(),
+            },
+            Self::Ordered {
+                width,
+                relation,
+                signedness,
+            } => Self::Ordered {
+                width,
+                relation: ordered(relation),
+                signedness,
+            },
+            Self::Zero { width, condition } => Self::Zero {
+                width,
+                condition: condition.inverted(),
+            },
+            Self::Sign { width, condition } => Self::Sign {
+                width,
+                condition: condition.inverted(),
+            },
+            Self::Bits { width, condition } => Self::Bits {
+                width,
+                condition: condition.inverted(),
+            },
             Self::Bit(condition) => Self::Bit(condition.inverted()),
             Self::Tag(condition) => Self::Tag(condition.inverted()),
             Self::Singleton(condition) => Self::Singleton(condition.inverted()),
-            Self::Memory { width, condition } => Self::Memory { width, condition: condition.inverted() },
-            Self::ValueBitsNegative => Self::Sign { width: IntegerWidth::U64, condition: SignCondition::NotNegative },
+            Self::Memory { width, condition } => Self::Memory {
+                width,
+                condition: condition.inverted(),
+            },
+            Self::ValueBitsNegative => Self::Sign {
+                width: IntegerWidth::U64,
+                condition: SignCondition::NotNegative,
+            },
             Self::Float(_) | Self::AnyEqual => return None,
         })
     }
@@ -531,8 +562,7 @@ impl ValueOperation {
     pub(crate) fn is_rematerialized(self) -> bool {
         matches!(
             self,
-            Self::UnboxInt32 { rematerialized: true }
-                | Self::ExtractTag { rematerialized: true }
+            Self::UnboxInt32 { rematerialized: true } | Self::ExtractTag { rematerialized: true }
         )
     }
 }
@@ -750,9 +780,7 @@ impl OperandOperation {
     pub(crate) fn reads_machine_state(self) -> bool {
         matches!(
             self,
-            Self::Load(OperandLoad::Field) | Self::LoadPair
-                | Self::Store(OperandStore::Field)
-                | Self::Copy
+            Self::Load(OperandLoad::Field) | Self::LoadPair | Self::Store(OperandStore::Field) | Self::Copy
         )
     }
 }
@@ -805,8 +833,7 @@ impl ControlOperation {
     pub(crate) fn writes_machine_state(self) -> bool {
         matches!(
             self,
-            Self::DispatchNext | Self::DispatchVariable | Self::GotoHandler
-                | Self::Exit | Self::JumpBytecode
+            Self::DispatchNext | Self::DispatchVariable | Self::GotoHandler | Self::Exit | Self::JumpBytecode
         )
     }
 
@@ -817,10 +844,7 @@ impl ControlOperation {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum MemoryOperation {
-    Load {
-        width: MemoryWidth,
-        signed: bool,
-    },
+    Load { width: MemoryWidth, signed: bool },
     Load64NonZero,
     Store(MemoryWidth),
     LoadPair(PairWidth),
@@ -869,15 +893,17 @@ impl MemoryOperation {
         match self {
             Self::Load { width, .. } | Self::Store(width) => width,
             Self::Load64NonZero => MemoryWidth::DoubleWord,
-            Self::LoadPair(PairWidth::Word)
-            | Self::StorePair(PairWidth::Word) => MemoryWidth::Word,
-            Self::LoadPair(PairWidth::DoubleWord)
-            | Self::StorePair(PairWidth::DoubleWord) => MemoryWidth::DoubleWord,
+            Self::LoadPair(PairWidth::Word) | Self::StorePair(PairWidth::Word) => MemoryWidth::Word,
+            Self::LoadPair(PairWidth::DoubleWord) | Self::StorePair(PairWidth::DoubleWord) => MemoryWidth::DoubleWord,
         }
     }
 
     pub(crate) fn address_count(self) -> usize {
-        if matches!(self, Self::LoadPair(_) | Self::StorePair(_)) { 2 } else { 1 }
+        if matches!(self, Self::LoadPair(_) | Self::StorePair(_)) {
+            2
+        } else {
+            1
+        }
     }
 
     pub(crate) fn writes(self) -> bool {
@@ -1015,10 +1041,7 @@ impl Intrinsic {
             },
             Self::Bytecode(operation) => IntrinsicEffects {
                 memory: ModRef::Read,
-                machine_state: if matches!(
-                    operation,
-                    BytecodeOperation::Load(FieldWidth::U8 | FieldWidth::U32)
-                ) {
+                machine_state: if matches!(operation, BytecodeOperation::Load(FieldWidth::U8 | FieldWidth::U32)) {
                     ModRef::Read
                 } else {
                     ModRef::None
@@ -1056,9 +1079,9 @@ impl Intrinsic {
             },
             Self::LowLevel(
                 LowLevelOperation::LoadLabel
-                    | LowLevelOperation::LoadEffectiveAddress
-                    | LowLevelOperation::Add
-                    | LowLevelOperation::Subtract,
+                | LowLevelOperation::LoadEffectiveAddress
+                | LowLevelOperation::Add
+                | LowLevelOperation::Subtract,
             )
             | Self::Branch(_) => IntrinsicEffects::UNKNOWN,
             Self::Address(_)
@@ -1103,9 +1126,7 @@ mod tests {
             ModRef::Write
         );
         assert_eq!(
-            Intrinsic::LowLevel(LowLevelOperation::LoadVm)
-                .effects()
-                .machine_state,
+            Intrinsic::LowLevel(LowLevelOperation::LoadVm).effects().machine_state,
             ModRef::Read
         );
         assert!(Intrinsic::Assertion(AssertionOperation::NonZero).effects().may_trap);
@@ -1153,12 +1174,7 @@ mod tests {
 
         assert!(Intrinsic::from_name("to_f64").unwrap().call_signature(1).is_some());
         assert!(Intrinsic::from_name("to_f64").unwrap().call_signature(2).is_none());
-        assert!(
-            Intrinsic::from_name("call_interp")
-                .unwrap()
-                .call_signature(1)
-                .is_some()
-        );
+        assert!(Intrinsic::from_name("call_interp").unwrap().call_signature(1).is_some());
         assert!(Intrinsic::from_name("call_interp_result").is_none());
         assert!(Intrinsic::from_name("xor_integer").is_none());
     }

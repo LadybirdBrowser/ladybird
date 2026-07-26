@@ -15,8 +15,8 @@ use super::{
     Function, IntegerBinaryOperation, IntegerComparisonOperation, Intrinsic, Operation, ShiftOperation, Terminator,
     ValueDefinition, ValueId, ValueOperation,
 };
-use crate::types::Type;
 use crate::hash::HashMap;
+use crate::types::Type;
 
 /// How far a boxed value's tag sits above its payload.
 ///
@@ -336,7 +336,8 @@ impl<'a> Solver<'a> {
         } = terminator
         {
             let mut facts = std::mem::take(&mut self.facts);
-            let evaluation = evaluate_operation(function, operation, inputs, results, *effects, &self.values, &mut facts);
+            let evaluation =
+                evaluate_operation(function, operation, inputs, results, *effects, &self.values, &mut facts);
             self.facts = facts;
             for result in results {
                 let lattice = evaluation.of(function, *result);
@@ -810,7 +811,11 @@ fn selected_terminator_edges(function: &Function, block: BlockId, values: &[Latt
                 None => selected.extend([0, 1]),
             }
         }
-        Terminator::Switch { value, cases, default: _ } => {
+        Terminator::Switch {
+            value,
+            cases,
+            default: _,
+        } => {
             if values[value.0] == LatticeValue::Unknown {
                 return;
             }
@@ -824,9 +829,7 @@ fn selected_terminator_edges(function: &Function, block: BlockId, values: &[Latt
                 .unwrap_or(cases.len());
             selected.push(index);
         }
-        Terminator::CheckedOperation {
-            operation, inputs, ..
-        } => {
+        Terminator::CheckedOperation { operation, inputs, .. } => {
             if inputs.iter().any(|input| values[input.0] == LatticeValue::Unknown) {
                 return;
             }
@@ -847,10 +850,9 @@ fn terminator_conditions(terminator: &Terminator) -> Vec<ValueId> {
         Terminator::Branch { condition, .. } => vec![*condition],
         Terminator::Switch { value, .. } => vec![*value],
         Terminator::CheckedOperation { inputs, .. } => inputs.clone(),
-        Terminator::Jump(_)
-        | Terminator::IndirectJump { .. }
-        | Terminator::Return(_)
-        | Terminator::Unreachable => Vec::new(),
+        Terminator::Jump(_) | Terminator::IndirectJump { .. } | Terminator::Return(_) | Terminator::Unreachable => {
+            Vec::new()
+        }
     }
 }
 

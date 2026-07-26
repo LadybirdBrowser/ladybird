@@ -7,7 +7,10 @@
 //! Explicit dependencies between effectful SSA operations.
 
 use super::analysis::{ControlFlowGraph, DominatorTree, InstructionLayout};
-use super::{AggregateOperation, BlockId, Effects, Function, InstructionId, Intrinsic, MemoryEffect, OperandOperation, Operation, Terminator, ValueDefinition, ValueId};
+use super::{
+    AggregateOperation, BlockId, Effects, Function, InstructionId, Intrinsic, MemoryEffect, OperandOperation,
+    Operation, Terminator, ValueDefinition, ValueId,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum EffectDomain {
@@ -202,11 +205,7 @@ fn operation_memory_locations(
 
     if let Operation::FieldAccess(field_access) = operation {
         let bytes = field_access.kind.width().bytes();
-        if !add_location(
-            0,
-            bytes,
-            field_access.kind.writes(),
-        ) {
+        if !add_location(0, bytes, field_access.kind.writes()) {
             return unknown_access(effect);
         }
         return access;
@@ -446,8 +445,7 @@ impl DomainDependencies {
                 phi_blocks[failure.0] = true;
             }
         }
-        let (block_inputs, mut block_outputs) =
-            compute_domain_block_states(function, cfg, domain, &phi_blocks);
+        let (block_inputs, mut block_outputs) = compute_domain_block_states(function, cfg, domain, &phi_blocks);
 
         for block_index in 0..function.blocks.len() {
             let block = BlockId(block_index);
@@ -506,7 +504,6 @@ impl DomainDependencies {
     pub(crate) fn block_input(&self, block: BlockId) -> &EffectSet {
         &self.block_inputs[block.0]
     }
-
 }
 
 fn compute_domain_block_states(
@@ -547,7 +544,11 @@ fn compute_domain_block_states(
     // block per sweep. Blocks the entry cannot reach are visited last, since
     // reverse postorder does not name them.
     let mut order = cfg.reverse_postorder().to_vec();
-    order.extend((0..function.blocks.len()).map(BlockId).filter(|block| !cfg.is_reachable(*block)));
+    order.extend(
+        (0..function.blocks.len())
+            .map(BlockId)
+            .filter(|block| !cfg.is_reachable(*block)),
+    );
 
     // Building each block's input into a scratch buffer and only storing it
     // when it actually moved keeps the later sweeps, where almost nothing
@@ -608,8 +609,8 @@ fn terminator_effect(terminator: Option<&Terminator>, domain: EffectDomain) -> M
 mod tests {
     use super::*;
     use crate::intrinsic::{OperandLoad, OperandOperation, OperandStore};
-    use crate::types::Type;
     use crate::ssa::{BlockLayout, Operation};
+    use crate::types::Type;
 
     fn address(function: &mut Function, base: ValueId, offset: i64) -> ValueId {
         let offset = function.add_constant(Type::U64, super::super::Constant::Integer(offset));
@@ -627,10 +628,7 @@ mod tests {
         let header = function.create_empty_block("header", BlockLayout::Hot);
         let body = function.create_empty_block("body", BlockLayout::Hot);
         let exit = function.create_empty_block("exit", BlockLayout::Hot);
-        function.set_terminator(
-            function.entry,
-            Terminator::jump(header),
-        );
+        function.set_terminator(function.entry, Terminator::jump(header));
         let load = function.append_instruction_with_effects(
             header,
             Intrinsic::Operand(OperandOperation::Load(OperandLoad::Field)),
@@ -641,10 +639,7 @@ mod tests {
                 ..Effects::PURE
             },
         );
-        function.set_terminator(
-            header,
-            Terminator::branch(function.parameter(0), body, exit),
-        );
+        function.set_terminator(header, Terminator::branch(function.parameter(0), body, exit));
         function.append_instruction_with_effects(
             body,
             Intrinsic::Operand(OperandOperation::Store(OperandStore::Field)),
@@ -655,10 +650,7 @@ mod tests {
                 ..Effects::PURE
             },
         );
-        function.set_terminator(
-            body,
-            Terminator::jump(header),
-        );
+        function.set_terminator(body, Terminator::jump(header));
         function.set_terminator(exit, Terminator::Return(Vec::new()));
 
         let cfg = ControlFlowGraph::compute(&function);
@@ -735,10 +727,7 @@ mod tests {
                 ..Effects::PURE
             },
         )[0];
-        function.set_terminator(
-            function.entry,
-            Terminator::branch(function.parameter(0), write, clean),
-        );
+        function.set_terminator(function.entry, Terminator::branch(function.parameter(0), write, clean));
         function.append_instruction_with_effects(
             write,
             Intrinsic::Operand(OperandOperation::Store(OperandStore::Field)),
@@ -749,14 +738,8 @@ mod tests {
                 ..Effects::PURE
             },
         );
-        function.set_terminator(
-            write,
-            Terminator::jump(join),
-        );
-        function.set_terminator(
-            clean,
-            Terminator::jump(join),
-        );
+        function.set_terminator(write, Terminator::jump(join));
+        function.set_terminator(clean, Terminator::jump(join));
         function.set_terminator(join, Terminator::Return(Vec::new()));
 
         let cfg = ControlFlowGraph::compute(&function);
@@ -814,5 +797,4 @@ mod tests {
         assert_eq!(locations.reads[0].bytes, 1);
         assert!(!locations.unknown_read);
     }
-
 }

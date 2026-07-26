@@ -11,20 +11,16 @@ pub(crate) mod lowering;
 pub(crate) mod optimize;
 pub(crate) mod preallocate;
 
-use crate::ssa as ir;
 use crate::bytecode::BytecodeFieldId;
-use crate::frontend::layout::{
-    KnownLayoutConstant, LayoutConstant, LayoutConstants,
-};
+use crate::frontend::layout::{KnownLayoutConstant, LayoutConstant, LayoutConstants};
+use crate::hash::HashMap;
 use crate::identity::{ExternalSymbol, HandlerId};
-use crate::types::{InterpreterRegister, RegisterClass};
+use crate::ssa as ir;
+use crate::target::description::{InstructionDescription, Operation, SelectedOpcode};
 use crate::target::registers::PhysicalRegister;
-use crate::target::description::{
-    InstructionDescription, Operation, SelectedOpcode,
-};
+use crate::types::{InterpreterRegister, RegisterClass};
 use std::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
-use crate::hash::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
@@ -104,9 +100,7 @@ impl PartialEq for VirtualRegister {
     fn eq(&self, other: &Self) -> bool {
         match (self.id, other.id) {
             (Some(lhs), Some(rhs)) => lhs == rhs,
-            (None, None) => {
-                self.name == other.name && self.class == other.class
-            }
+            (None, None) => self.name == other.name && self.class == other.class,
             _ => false,
         }
     }
@@ -124,10 +118,7 @@ impl Ord for VirtualRegister {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self.id, other.id) {
             (Some(lhs), Some(rhs)) => lhs.cmp(&rhs),
-            (None, None) => self
-                .name
-                .cmp(&other.name)
-                .then_with(|| self.class.cmp(&other.class)),
+            (None, None) => self.name.cmp(&other.name).then_with(|| self.class.cmp(&other.class)),
             (None, Some(_)) => Ordering::Less,
             (Some(_), None) => Ordering::Greater,
         }
@@ -277,10 +268,7 @@ impl Deref for Label {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum AddressRegister<
-    V = VirtualRegister,
-    I = InterpreterRegister,
-> {
+pub(crate) enum AddressRegister<V = VirtualRegister, I = InterpreterRegister> {
     Virtual(V),
     Interpreter(I),
     Physical(PhysicalRegister),
@@ -331,8 +319,7 @@ pub(crate) enum Operand {
     BytecodeField(BytecodeFieldId),
 }
 
-impl Operand {
-}
+impl Operand {}
 
 pub(crate) trait ControlFlowOperand: Clone {
     fn label(&self) -> Option<&Label>;
@@ -425,10 +412,7 @@ macro_rules! emit_instructions {
 
 pub(crate) use emit_instructions;
 
-pub(crate) fn visit_virtual_registers(
-    operand: &Operand,
-    visit: &mut impl FnMut(&VirtualRegister),
-) {
+pub(crate) fn visit_virtual_registers(operand: &Operand, visit: &mut impl FnMut(&VirtualRegister)) {
     match operand {
         Operand::VirtualRegister(register) => visit(register),
         Operand::Address(address) => {
@@ -442,16 +426,11 @@ pub(crate) fn visit_virtual_registers(
     }
 }
 
-fn visit_virtual_registers_mut(
-    operand: &mut Operand,
-    visit: &mut impl FnMut(&mut VirtualRegister),
-) {
+fn visit_virtual_registers_mut(operand: &mut Operand, visit: &mut impl FnMut(&mut VirtualRegister)) {
     match operand {
         Operand::VirtualRegister(register) => visit(register),
         Operand::Address(address) => {
-            for register in std::iter::once(&mut address.base)
-                .chain(address.index.iter_mut())
-            {
+            for register in std::iter::once(&mut address.base).chain(address.index.iter_mut()) {
                 if let AddressRegister::Virtual(register) = register {
                     visit(register);
                 }
@@ -461,10 +440,7 @@ fn visit_virtual_registers_mut(
     }
 }
 
-pub(crate) fn intern_virtual_registers(
-    function: HandlerId,
-    instructions: &mut [Instruction],
-) {
+pub(crate) fn intern_virtual_registers(function: HandlerId, instructions: &mut [Instruction]) {
     for instruction in instructions.iter_mut() {
         for operand in &mut instruction.operands {
             visit_virtual_registers_mut(operand, &mut |register| {
@@ -495,8 +471,7 @@ pub(crate) fn intern_virtual_registers(
         .map(|(index, register)| {
             let id = VirtualRegisterId {
                 function,
-                index: u32::try_from(index)
-                    .expect("one handler cannot contain more than u32::MAX virtual registers"),
+                index: u32::try_from(index).expect("one handler cannot contain more than u32::MAX virtual registers"),
             };
             (register, id)
         })
@@ -528,8 +503,7 @@ pub(crate) struct RuntimeConstants {
 impl RuntimeConstants {
     pub(crate) fn from_layout(constants: &LayoutConstants) -> Self {
         Self {
-            values: KnownLayoutConstant::ALL
-                .map(|constant| constants.known(constant).map(|value| value.value())),
+            values: KnownLayoutConstant::ALL.map(|constant| constants.known(constant).map(|value| value.value())),
         }
     }
 
@@ -538,9 +512,7 @@ impl RuntimeConstants {
     }
 
     #[cfg(test)]
-    pub(crate) fn from_values(
-        values: impl IntoIterator<Item = (KnownLayoutConstant, i64)>,
-    ) -> Self {
+    pub(crate) fn from_values(values: impl IntoIterator<Item = (KnownLayoutConstant, i64)>) -> Self {
         let mut constants = Self::default();
         for (constant, value) in values {
             constants.values[constant as usize] = Some(value);
@@ -574,15 +546,12 @@ impl Program {
             dispatch_handlers: Vec::new(),
         }
     }
-
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::target::description::{
-        IntegerWidth, Operation as MachineOperation,
-    };
+    use crate::target::description::{IntegerWidth, Operation as MachineOperation};
 
     #[test]
     fn interns_virtual_registers_per_handler() {
@@ -603,8 +572,7 @@ mod tests {
 
         intern_virtual_registers(HandlerId::new(3), &mut instructions);
 
-        let Operand::VirtualRegister(value) = &instructions[0].operands[0]
-        else {
+        let Operand::VirtualRegister(value) = &instructions[0].operands[0] else {
             unreachable!()
         };
         let Operand::Address(address) = &instructions[0].operands[1] else {
@@ -622,8 +590,7 @@ mod tests {
 
         let original = value.id();
         intern_virtual_registers(HandlerId::new(3), &mut instructions);
-        let Operand::VirtualRegister(value) = &instructions[0].operands[0]
-        else {
+        let Operand::VirtualRegister(value) = &instructions[0].operands[0] else {
             unreachable!()
         };
         assert_eq!(value.id(), original);

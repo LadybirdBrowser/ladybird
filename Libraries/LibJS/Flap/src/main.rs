@@ -4,13 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use flapc::{
-    Architecture, CompilationUnit, CompileOptions, Compiler, ObjectFormat, OptimizationReportOptions, Target,
-};
+use flapc::{Architecture, CompilationUnit, CompileOptions, Compiler, ObjectFormat, OptimizationReportOptions, Target};
 use std::fs;
 
-const USAGE: &str =
-    "Usage: flapc --arch x86_64 --input <file.flap> --output <file.S> [--constants <file>] [--bytecode-def <file>] [--optimization-report <file>] [--dump-changed-ir]";
+const USAGE: &str = "Usage: flapc --arch x86_64 --input <file.flap> --output <file.S> [--constants <file>] [--bytecode-def <file>] [--optimization-report <file>] [--dump-changed-ir]";
 
 struct CommandLine {
     options: CompileOptions,

@@ -6,8 +6,8 @@
 
 //! Validated database for generated LibJS data-layout descriptions.
 
-use crate::types::Type;
 use crate::hash::{HashMap, HashSet};
+use crate::types::Type;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct LayoutConstantId(u32);
@@ -91,9 +91,7 @@ impl LayoutConstant {
     }
 
     pub(crate) fn known(self) -> Option<KnownLayoutConstant> {
-        KnownLayoutConstant::ALL
-            .get(self.id.0 as usize)
-            .copied()
+        KnownLayoutConstant::ALL.get(self.id.0 as usize).copied()
     }
 
     pub(crate) fn is(self, known: KnownLayoutConstant) -> bool {
@@ -136,11 +134,7 @@ impl LayoutConstants {
         } else {
             LayoutConstantCategory::Other
         };
-        let constant = LayoutConstant {
-            id,
-            value,
-            category,
-        };
+        let constant = LayoutConstant { id, value, category };
         self.by_name.insert(name.to_string(), constant);
         if let Some(known) = known {
             self.known[known as usize] = Some(constant);
@@ -152,17 +146,12 @@ impl LayoutConstants {
         self.by_name.get(name).copied()
     }
 
-    pub(crate) fn known(
-        &self,
-        constant: KnownLayoutConstant,
-    ) -> Option<LayoutConstant> {
+    pub(crate) fn known(&self, constant: KnownLayoutConstant) -> Option<LayoutConstant> {
         self.known[constant as usize]
     }
 
     #[cfg(test)]
-    pub(crate) fn from_values(
-        values: impl IntoIterator<Item = (String, i64)>,
-    ) -> Self {
+    pub(crate) fn from_values(values: impl IntoIterator<Item = (String, i64)>) -> Self {
         let mut constants = Self::new();
         for (name, value) in values {
             constants.insert(&name, value).unwrap();
@@ -346,11 +335,7 @@ impl LayoutDatabase {
                     owner: field.owner,
                     name: field.name,
                     ty: field.ty,
-                    offset: resolve_layout_value(
-                        field.line,
-                        &field.offset,
-                        &database.constants,
-                    )?,
+                    offset: resolve_layout_value(field.line, &field.offset, &database.constants)?,
                     nonnull: field.nonnull,
                     embedded: field.embedded,
                     pair: field.pair,
@@ -358,24 +343,12 @@ impl LayoutDatabase {
                     pinned_offset: field
                         .pinned_offset
                         .as_deref()
-                        .map(|value| {
-                            resolve_layout_value(
-                                field.line,
-                                value,
-                                &database.constants,
-                            )
-                        })
+                        .map(|value| resolve_layout_value(field.line, value, &database.constants))
                         .transpose()?,
                     stride: field
                         .stride
                         .as_deref()
-                        .map(|value| {
-                            resolve_layout_value(
-                                field.line,
-                                value,
-                                &database.constants,
-                            )
-                        })
+                        .map(|value| resolve_layout_value(field.line, value, &database.constants))
                         .transpose()?,
                 })
             })
@@ -397,23 +370,14 @@ impl LayoutDatabase {
     }
 }
 
-fn resolve_layout_value(
-    line: usize,
-    value: &str,
-    constants: &LayoutConstants,
-) -> Result<LayoutValue, LayoutError> {
+fn resolve_layout_value(line: usize, value: &str, constants: &LayoutConstants) -> Result<LayoutValue, LayoutError> {
     if let Ok(value) = parse_integer(value) {
         return Ok(LayoutValue::Immediate(value));
     }
     constants
         .get(value)
         .map(LayoutValue::Constant)
-        .ok_or_else(|| {
-            LayoutError::new(
-                line,
-                format!("field references undefined layout value '{value}'"),
-            )
-        })
+        .ok_or_else(|| LayoutError::new(line, format!("field references undefined layout value '{value}'")))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -473,10 +437,7 @@ mod tests {
         let database =
             LayoutDatabase::parse("const OBJECT_SHAPE = 16\nfield Object.shape Shape OBJECT_SHAPE nonnull\n").unwrap();
 
-        assert_eq!(
-            database.constants().get("OBJECT_SHAPE").unwrap().value(),
-            16
-        );
+        assert_eq!(database.constants().get("OBJECT_SHAPE").unwrap().value(), 16);
         assert_eq!(database.fields()[0].owner, Type::Object);
         assert_eq!(database.fields()[0].ty, Type::Shape);
         assert!(database.fields()[0].nonnull);
@@ -495,18 +456,13 @@ mod tests {
             database.fields()[0].pinned_offset,
             Some(LayoutValue::Constant(constant)) if constant.value() == 8
         ));
-        assert_eq!(
-            database.fields()[1].stride,
-            Some(LayoutValue::Immediate(8))
-        );
+        assert_eq!(database.fields()[1].stride, Some(LayoutValue::Immediate(8)));
     }
 
     #[test]
     fn resolves_forward_layout_value_references() {
-        let database = LayoutDatabase::parse(
-            "field Object.shape Shape OBJECT_SHAPE nonnull\nconst OBJECT_SHAPE = 16\n",
-        )
-        .unwrap();
+        let database =
+            LayoutDatabase::parse("field Object.shape Shape OBJECT_SHAPE nonnull\nconst OBJECT_SHAPE = 16\n").unwrap();
 
         assert!(matches!(
             database.fields()[0].offset,

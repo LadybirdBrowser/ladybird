@@ -342,7 +342,11 @@ pub(crate) struct NaturalLoop {
     pub(crate) blocks: HashSet<BlockId>,
 }
 
-pub(crate) fn find_natural_loops(function: &Function, cfg: &ControlFlowGraph, dominators: &DominatorTree) -> Vec<NaturalLoop> {
+pub(crate) fn find_natural_loops(
+    function: &Function,
+    cfg: &ControlFlowGraph,
+    dominators: &DominatorTree,
+) -> Vec<NaturalLoop> {
     let mut blocks_by_header = vec![HashSet::default(); function.blocks.len()];
     for source in cfg.reverse_postorder().iter().copied() {
         for header in cfg.successors(source) {
@@ -462,8 +466,8 @@ pub(crate) fn reachable_blocks(function: &Function, cfg: &ControlFlowGraph) -> V
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::Type;
     use crate::ssa::{BlockLayout, Terminator};
+    use crate::types::Type;
 
     #[test]
     fn computes_cfg_dominators_and_natural_loops() {
@@ -471,18 +475,9 @@ mod tests {
         let header = function.create_empty_block("header", BlockLayout::Hot);
         let body = function.create_empty_block("body", BlockLayout::Hot);
         let exit = function.create_empty_block("exit", BlockLayout::Hot);
-        function.set_terminator(
-            function.entry,
-            Terminator::jump(header),
-        );
-        function.set_terminator(
-            header,
-            Terminator::branch(function.parameter(0), body, exit),
-        );
-        function.set_terminator(
-            body,
-            Terminator::jump(header),
-        );
+        function.set_terminator(function.entry, Terminator::jump(header));
+        function.set_terminator(header, Terminator::branch(function.parameter(0), body, exit));
+        function.set_terminator(body, Terminator::jump(header));
         function.set_terminator(exit, Terminator::Return(Vec::new()));
 
         let cfg = ControlFlowGraph::compute(&function);

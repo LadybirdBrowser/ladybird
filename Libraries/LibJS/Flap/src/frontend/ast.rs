@@ -7,8 +7,8 @@
 //! Flap abstract syntax tree.
 
 use super::diagnostic::SourceSpan;
-use crate::types::{BlockTemperature, Type};
 pub(crate) use crate::types::ParameterMode;
+use crate::types::{BlockTemperature, Type};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Parameter {
@@ -98,7 +98,10 @@ pub(crate) enum BinaryOperator {
 pub(crate) enum ExpressionKind {
     Name(String),
     Integer(i64),
-    Call { callee: String, arguments: Vec<Expression> },
+    Call {
+        callee: String,
+        arguments: Vec<Expression>,
+    },
     Unary {
         operator: UnaryOperator,
         operand: Box<Expression>,
@@ -147,14 +150,8 @@ pub(crate) enum Pattern {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ElseContinuation {
     Label(String),
-    Invocation {
-        target: String,
-        arguments: Vec<Expression>,
-    },
-    Block {
-        temperature: BlockTemperature,
-        body: Block,
-    },
+    Invocation { target: String, arguments: Vec<Expression> },
+    Block { temperature: BlockTemperature, body: Block },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

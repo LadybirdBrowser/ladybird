@@ -6,9 +6,7 @@
 
 //! Lexical capture analysis for nested HIR regions.
 
-use super::{
-    Statement, VariableId, statement_uses_and_defs,
-};
+use super::{Statement, VariableId, statement_uses_and_defs};
 use crate::hash::HashSet;
 
 pub(super) fn collect_captures(statements: &[Statement], outer_variable_count: usize) -> Vec<VariableId> {

@@ -36,7 +36,9 @@ impl Hasher for Hash {
     fn write(&mut self, bytes: &[u8]) {
         let mut chunks = bytes.chunks_exact(8);
         for chunk in &mut chunks {
-            self.add(u64::from_le_bytes(chunk.try_into().expect("a chunk of eight bytes is eight bytes")));
+            self.add(u64::from_le_bytes(
+                chunk.try_into().expect("a chunk of eight bytes is eight bytes"),
+            ));
         }
         let mut remainder = [0; 8];
         remainder[..chunks.remainder().len()].copy_from_slice(chunks.remainder());

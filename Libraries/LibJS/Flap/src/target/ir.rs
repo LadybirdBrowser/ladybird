@@ -9,14 +9,8 @@
 use crate::Architecture;
 use crate::frontend::layout::KnownLayoutConstant;
 use crate::identity::HandlerId;
-use crate::low_ir::{
-    Label, Relocation,
-    cfg::ControlFlowGraph,
-};
-pub(crate) use crate::low_ir::{
-    AddressRegister, MemoryAddress, Operand, VirtualRegister,
-    visit_virtual_registers,
-};
+pub(crate) use crate::low_ir::{AddressRegister, MemoryAddress, Operand, VirtualRegister, visit_virtual_registers};
+use crate::low_ir::{Label, Relocation, cfg::ControlFlowGraph};
 use crate::target::description::{ArchitectureOpcode, SelectedOpcode};
 use crate::target::registers::{PhysicalRegister, RegisterClass};
 
@@ -75,9 +69,7 @@ machine_conditions! {
 }
 
 impl MachineCondition {
-    pub(crate) fn from_scalar(
-        condition: crate::target::description::ScalarBranchCondition,
-    ) -> Self {
+    pub(crate) fn from_scalar(condition: crate::target::description::ScalarBranchCondition) -> Self {
         use crate::intrinsic::ComparisonRelation;
         use crate::target::description::ScalarBranchCondition;
 
@@ -108,9 +100,7 @@ impl MachineCondition {
         }
     }
 
-    pub(crate) fn from_assertion(
-        operation: crate::intrinsic::AssertionOperation,
-    ) -> Self {
+    pub(crate) fn from_assertion(operation: crate::intrinsic::AssertionOperation) -> Self {
         use crate::intrinsic::AssertionOperation;
 
         match operation {
@@ -134,36 +124,44 @@ pub(crate) struct PhysicalMemoryAddress {
 impl PhysicalMemoryAddress {
     /// `[base]`
     pub(crate) fn base(base: PhysicalRegister) -> Self {
-        Self { base, index: None, scale: None, displacement: None }
+        Self {
+            base,
+            index: None,
+            scale: None,
+            displacement: None,
+        }
     }
 
     /// `[base + displacement]`, folding a zero displacement away.
     pub(crate) fn offset(base: PhysicalRegister, displacement: i64) -> Self {
-        Self { displacement: (displacement != 0).then_some(displacement), ..Self::base(base) }
+        Self {
+            displacement: (displacement != 0).then_some(displacement),
+            ..Self::base(base)
+        }
     }
 
     /// `[base + index]`
     pub(crate) fn indexed(base: PhysicalRegister, index: PhysicalRegister) -> Self {
-        Self { index: Some(index), ..Self::base(base) }
+        Self {
+            index: Some(index),
+            ..Self::base(base)
+        }
     }
 
     /// `[base + index * scale + displacement]`, folding a zero displacement away.
-    pub(crate) fn scaled(
-        base: PhysicalRegister,
-        index: PhysicalRegister,
-        scale: i64,
-        displacement: i64,
-    ) -> Self {
-        Self { scale: Some(scale), ..Self::indexed_offset(base, index, displacement) }
+    pub(crate) fn scaled(base: PhysicalRegister, index: PhysicalRegister, scale: i64, displacement: i64) -> Self {
+        Self {
+            scale: Some(scale),
+            ..Self::indexed_offset(base, index, displacement)
+        }
     }
 
     /// `[base + index + displacement]`, folding a zero displacement away.
-    pub(crate) fn indexed_offset(
-        base: PhysicalRegister,
-        index: PhysicalRegister,
-        displacement: i64,
-    ) -> Self {
-        Self { index: Some(index), ..Self::offset(base, displacement) }
+    pub(crate) fn indexed_offset(base: PhysicalRegister, index: PhysicalRegister, displacement: i64) -> Self {
+        Self {
+            index: Some(index),
+            ..Self::offset(base, displacement)
+        }
     }
 }
 
@@ -187,8 +185,7 @@ pub(crate) enum OperandShape {
 
 crate::low_ir::impl_control_flow_operand!(PhysicalOperand);
 
-pub(crate) type Instruction =
-    crate::low_ir::Instruction<Operand, SelectedOpcode>;
+pub(crate) type Instruction = crate::low_ir::Instruction<Operand, SelectedOpcode>;
 
 #[cfg(test)]
 pub(crate) type AllocatedMemoryAddress = PhysicalMemoryAddress;
@@ -239,8 +236,7 @@ impl PhysicalOperand {
     }
 }
 
-pub(crate) type AllocatedInstruction =
-    crate::low_ir::Instruction<AllocatedOperand, SelectedOpcode>;
+pub(crate) type AllocatedInstruction = crate::low_ir::Instruction<AllocatedOperand, SelectedOpcode>;
 
 pub(crate) use crate::low_ir::RuntimeConstants;
 
@@ -283,8 +279,7 @@ pub struct AllocatedProgram {
 pub(crate) type MachineOpcode = ArchitectureOpcode;
 
 /// A finalized physical machine instruction.
-pub(crate) type MachineInstruction =
-    crate::low_ir::Instruction<MachineOperand, MachineOpcode>;
+pub(crate) type MachineInstruction = crate::low_ir::Instruction<MachineOperand, MachineOpcode>;
 
 impl crate::low_ir::Instruction<MachineOperand, MachineOpcode> {
     pub(crate) fn operand(&self, index: usize) -> &MachineOperand {
@@ -313,7 +308,6 @@ impl crate::low_ir::Instruction<MachineOperand, MachineOpcode> {
         };
         *immediate
     }
-
 }
 
 /// A finalized physical machine function with resolved hot and cold layout.
@@ -338,28 +332,24 @@ impl MachineProgram {
     pub(crate) fn missing_required_runtime_constant(&self) -> Option<&'static str> {
         use KnownLayoutConstant::*;
 
-        let architecture_constants: &[KnownLayoutConstant] =
-            match self.target.architecture {
-                Architecture::X86_64 => &[Int32TagShifted],
-                Architecture::Aarch64 => &[Int32Tag, BooleanTag, NanBaseTag],
-            };
+        let architecture_constants: &[KnownLayoutConstant] = match self.target.architecture {
+            Architecture::X86_64 => &[Int32TagShifted],
+            Architecture::Aarch64 => &[Int32Tag, BooleanTag, NanBaseTag],
+        };
         architecture_constants
             .iter()
-            .chain([
-                VmRunningExecutionContext,
-                ExecutionContextExecutable,
-                ExecutionContextProgramCounter,
-                ExecutableBytecodeData,
-                SizeOfExecutionContext,
-                CanonicalNanBits,
-            ]
-            .iter())
-            .find_map(|constant| {
-                self.runtime
-                    .get(*constant)
-                    .is_none()
-                    .then_some(constant.name())
-            })
+            .chain(
+                [
+                    VmRunningExecutionContext,
+                    ExecutionContextExecutable,
+                    ExecutionContextProgramCounter,
+                    ExecutableBytecodeData,
+                    SizeOfExecutionContext,
+                    CanonicalNanBits,
+                ]
+                .iter(),
+            )
+            .find_map(|constant| self.runtime.get(*constant).is_none().then_some(constant.name()))
     }
 }
 
