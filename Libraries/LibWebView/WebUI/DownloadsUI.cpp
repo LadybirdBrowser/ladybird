@@ -44,6 +44,8 @@ static JsonObject serialize_download(FileDownloader::Download const& download)
     serialized.set("downloadedSize"sv, download.downloaded_size);
     serialized.set("totalSize"sv, download.total_size.has_value() ? JsonValue { *download.total_size } : JsonValue {});
     serialized.set("error"sv, download.error.value_or(String {}));
+    serialized.set("canResume"sv, download.can_resume);
+    serialized.set("connectionCount"sv, download.connection_count);
     return serialized;
 }
 
@@ -57,6 +59,12 @@ void DownloadsUI::register_interfaces()
     });
     register_interface("cancelDownload"sv, [this](auto const& data) {
         cancel_download(data);
+    });
+    register_interface("pauseDownload"sv, [this](auto const& data) {
+        pause_download(data);
+    });
+    register_interface("resumeDownload"sv, [this](auto const& data) {
+        resume_download(data);
     });
     register_interface("openDownload"sv, [this](auto const& data) {
         open_download(data);
@@ -120,6 +128,30 @@ void DownloadsUI::cancel_download(JsonValue const& data)
         return;
 
     Application::the().file_downloader().cancel_download(download->id);
+}
+
+void DownloadsUI::pause_download(JsonValue const& data)
+{
+    auto download = download_from_message(data);
+    if (!download.has_value())
+        return;
+
+    if (download->status != FileDownloader::DownloadStatus::InProgress || !download->can_resume)
+        return;
+
+    Application::the().file_downloader().pause_download(download->id);
+}
+
+void DownloadsUI::resume_download(JsonValue const& data)
+{
+    auto download = download_from_message(data);
+    if (!download.has_value())
+        return;
+
+    if (download->status != FileDownloader::DownloadStatus::Paused)
+        return;
+
+    Application::the().file_downloader().resume_download(download->id);
 }
 
 void DownloadsUI::open_download(JsonValue const& data)

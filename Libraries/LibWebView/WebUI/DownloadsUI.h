@@ -26,6 +26,8 @@ private:
     void load_downloads();
     void prune_inactive_downloads();
     void cancel_download(JsonValue const&);
+    void pause_download(JsonValue const&);
+    void resume_download(JsonValue const&);
     void open_download(JsonValue const&);
     void show_download_in_folder(JsonValue const&);
 };

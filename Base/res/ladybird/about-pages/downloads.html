@@ -239,9 +239,13 @@
             function detailLabel(download) {
                 if (download.status === "canceled") return "Partial file removed.";
                 if (download.status === "failed") return download.error || "The download failed.";
+                if (download.status === "paused" && download.error) return download.error;
                 if (download.status !== "completed" && download.totalSize > 0) {
                     const unit = unitForDownloadSize(download.totalSize);
-                    return `${sizeFormatter.format(download.downloadedSize / unit.divisor)}/${sizeFormatter.format(download.totalSize / unit.divisor)} ${unit.suffix}`;
+                    const size = `${sizeFormatter.format(download.downloadedSize / unit.divisor)}/${sizeFormatter.format(download.totalSize / unit.divisor)} ${unit.suffix}`;
+                    if (download.status === "in-progress" && download.connectionCount > 1)
+                        return `${size} - ${download.connectionCount} connections`;
+                    return size;
                 }
 
                 const unit = unitForDownloadSize(download.downloadedSize);
@@ -257,14 +261,31 @@
             }
 
             function updateActions(actions, download) {
-                if (actions.dataset.downloadId === `${download.id}` && actions.dataset.status === download.status)
+                const canResume = `${download.canResume === true}`;
+                if (
+                    actions.dataset.downloadId === `${download.id}` &&
+                    actions.dataset.status === download.status &&
+                    actions.dataset.canResume === canResume
+                )
                     return;
 
                 actions.dataset.downloadId = download.id;
                 actions.dataset.status = download.status;
+                actions.dataset.canResume = canResume;
 
                 if (download.status === "in-progress") {
+                    const buttons = [];
+                    if (download.canResume)
+                        buttons.push(createActionButton("secondary-button", "Pause", "pauseDownload", download.id));
+                    buttons.push(createActionButton("secondary-button", "Cancel", "cancelDownload", download.id));
+
+                    actions.replaceChildren(...buttons);
+                    return;
+                }
+
+                if (download.status === "paused") {
                     actions.replaceChildren(
+                        createActionButton("primary-button", "Resume", "resumeDownload", download.id),
                         createActionButton("secondary-button", "Cancel", "cancelDownload", download.id)
                     );
                     return;
