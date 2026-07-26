@@ -372,8 +372,8 @@ void FileDownloader::cancel_active_downloads()
 {
     Vector<u64> active_download_ids;
     for (auto const& download : m_downloads) {
-        if (download.status == DownloadStatus::InProgress)
-            active_download_ids.append(download.id);
+        if (download.status == DownloadStatus::InProgress && !download.can_resume)
+            unresumable_download_ids.append(download.id);
     }
 
     for (auto id : active_download_ids)
@@ -385,7 +385,7 @@ void FileDownloader::cancel_private_downloads()
     for (size_t i = m_downloads.size(); i > 0; --i) {
         auto const& download = m_downloads[i - 1];
 
-        if (download.status != DownloadStatus::InProgress)
+        if (!status_is_active(download.status))
             continue;
         if (download.is_private == IsPrivate::No)
             continue;
@@ -401,7 +401,7 @@ void FileDownloader::cancel_private_downloads()
 void FileDownloader::cancel_download(u64 id)
 {
     auto* download = mutable_download_or_null(id);
-    if (!download || download->status != DownloadStatus::InProgress)
+    if (!download || !status_is_active(download->status))
         return;
 
     download->status = DownloadStatus::Canceled;
@@ -415,7 +415,7 @@ void FileDownloader::cancel_download(u64 id)
 void FileDownloader::fail_download(u64 id, String error)
 {
     auto* download = mutable_download_or_null(id);
-    if (!download || download->status != DownloadStatus::InProgress)
+    if (!download || !status_is_active(download->status))
         return;
 
     download->status = DownloadStatus::Failed;
@@ -433,7 +433,7 @@ Vector<u64> FileDownloader::prune_inactive_downloads()
     for (size_t i = m_downloads.size(); i > 0; --i) {
         auto const index = i - 1;
         auto const id = m_downloads[index].id;
-        if (m_downloads[index].status == DownloadStatus::InProgress)
+        if (status_is_active(m_downloads[index].status))
             continue;
 
         m_active_downloads.remove(id);

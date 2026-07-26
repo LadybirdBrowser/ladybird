@@ -16,6 +16,8 @@ static StringView status_to_string(FileDownloader::DownloadStatus status)
     switch (status) {
     case FileDownloader::DownloadStatus::InProgress:
         return "in-progress"sv;
+    case FileDownloader::DownloadStatus::Paused:
+        return "paused"sv;
     case FileDownloader::DownloadStatus::Completed:
         return "completed"sv;
     case FileDownloader::DownloadStatus::Canceled:
@@ -114,7 +116,7 @@ void DownloadsUI::cancel_download(JsonValue const& data)
     if (!download.has_value())
         return;
 
-    if (download->status != FileDownloader::DownloadStatus::InProgress)
+    if (!FileDownloader::status_is_active(download->status))
         return;
 
     Application::the().file_downloader().cancel_download(download->id);

@@ -1540,7 +1540,7 @@ static bool download_path_is_available(LexicalPath const& path)
         return false;
 
     for (auto const& download : Application::the().file_downloader().downloads()) {
-        if (download.status == FileDownloader::DownloadStatus::InProgress && download.destination.string() == path.string())
+        if (FileDownloader::status_is_active(download.status) && download.destination.string() == path.string())
             return false;
     }
 

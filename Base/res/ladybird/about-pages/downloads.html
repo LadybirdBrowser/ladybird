@@ -12,6 +12,7 @@
                     --download-progress-track-color: #dde4ec;
                     --download-status-completed-color: #1f7a3f;
                     --download-status-failed-color: #b33232;
+                    --download-status-paused-color: #a06a12;
                 }
             }
 
@@ -21,6 +22,7 @@
                     --download-progress-track-color: #323841;
                     --download-status-completed-color: #7bd493;
                     --download-status-failed-color: #ff8585;
+                    --download-status-paused-color: #e0b169;
                 }
             }
 
@@ -136,6 +138,10 @@
                 color: var(--secondary-text-color);
             }
 
+            .download-status.paused {
+                color: var(--download-status-paused-color);
+            }
+
             .download-actions {
                 display: flex;
                 align-items: flex-start;
@@ -226,6 +232,7 @@
                 if (download.status === "completed") return "Completed";
                 if (download.status === "canceled") return "Canceled";
                 if (download.status === "failed") return "Failed";
+                if (download.status === "paused") return "Paused";
                 return "Downloading";
             }
 
@@ -318,7 +325,7 @@
 
                 const progress = row.querySelector("progress");
                 const showProgress =
-                    download.status === "in-progress" &&
+                    (download.status === "in-progress" || download.status === "paused") &&
                     download.totalSize !== null &&
                     download.totalSize !== undefined &&
                     download.totalSize !== 0;
@@ -364,7 +371,8 @@
             function render() {
                 const sortedDownloads = [...downloads].sort((a, b) => b.id - a.id);
                 const activeCount = downloads.filter(download => download.status === "in-progress").length;
-                const inactiveCount = downloads.length - activeCount;
+                const pausedCount = downloads.filter(download => download.status === "paused").length;
+                const inactiveCount = downloads.length - activeCount - pausedCount;
 
                 updateDownloadList(sortedDownloads);
                 pruneInactiveDownloadsButton.disabled = inactiveCount === 0;
@@ -376,7 +384,10 @@
                 if (isEmpty) {
                     downloadsStatus.textContent = "No downloads yet.";
                 } else if (activeCount > 0) {
-                    downloadsStatus.textContent = `${pluralize(activeCount, "active download")} - ${pluralize(downloads.length, "item")} total.`;
+                    const paused = pausedCount > 0 ? `, ${pausedCount} paused` : "";
+                    downloadsStatus.textContent = `${pluralize(activeCount, "active download")}${paused} - ${pluralize(downloads.length, "item")} total.`;
+                } else if (pausedCount > 0) {
+                    downloadsStatus.textContent = `${pluralize(pausedCount, "paused download")} - ${pluralize(downloads.length, "item")} total.`;
                 } else {
                     downloadsStatus.textContent = `${pluralize(downloads.length, "download")} in this session.`;
                 }
