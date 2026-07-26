@@ -559,6 +559,13 @@ impl CoalescingGroups {
         }
         self.groups.push(members);
     }
+
+    fn remove_last(&mut self) {
+        let members = self.groups.pop().expect("a candidate coalescing group was just added");
+        for member in members {
+            self.group_of[member as usize] = None;
+        }
+    }
 }
 
 struct ColoringContext<'a> {
@@ -873,13 +880,13 @@ fn allocate(
     };
     groups.sort_by(|lhs, rhs| group_score(rhs).cmp(&group_score(lhs)).then_with(|| lhs.cmp(rhs)));
     let mut retained_groups = CoalescingGroups::empty(count);
-    for group in groups {
-        let mut candidate_groups = retained_groups.clone();
-        candidate_groups.add(group);
-        if color(&context, &use_order, &candidate_groups).is_ok()
-            || color(&context, &live_order, &candidate_groups).is_ok()
+    const COALESCING_GROUP_RETENTION_LIMIT: usize = 32;
+    for group in groups.into_iter().take(COALESCING_GROUP_RETENTION_LIMIT) {
+        retained_groups.add(group);
+        if color(&context, &use_order, &retained_groups).is_err()
+            && color(&context, &live_order, &retained_groups).is_err()
         {
-            retained_groups = candidate_groups;
+            retained_groups.remove_last();
         }
     }
     if !retained_groups.groups.is_empty() {
@@ -895,7 +902,29 @@ fn allocate(
     if let Ok(plan) = try_color(&use_order, &no_groups) {
         return Ok(plan);
     }
-    try_color(&live_order, &no_groups)
+    if let Ok(plan) = try_color(&live_order, &no_groups) {
+        return Ok(plan);
+    }
+
+    match exact_color(&context) {
+        ExactColorResult::Colored(plan) => Ok(plan),
+        ExactColorResult::Impossible => Err(spill_free_allocation_error(
+            &handler.name,
+            &liveness,
+            &names,
+            gpr_pool.len(),
+            fpr_pool.len(),
+            "no legal register coloring exists",
+        )),
+        ExactColorResult::SearchLimit => Err(spill_free_allocation_error(
+            &handler.name,
+            &liveness,
+            &names,
+            gpr_pool.len(),
+            fpr_pool.len(),
+            "the bounded exact-coloring fallback reached its search limit",
+        )),
+    }
 }
 
 /// Greedy linear-scan coloring driven by the order in `sorted_virtuals`.
@@ -1056,6 +1085,189 @@ fn color(
     }
 
     Ok(AllocationPlan(assignments))
+}
+
+enum ExactColorResult {
+    Colored(AllocationPlan),
+    Impossible,
+    SearchLimit,
+}
+
+enum ExactSearchResult {
+    Colored,
+    Impossible,
+    SearchLimit,
+}
+
+const EXACT_COLOR_REGISTER_LIMIT: usize = 256;
+const EXACT_COLOR_WORK_LIMIT: u64 = 2_000_000;
+
+struct ExactColorBudget {
+    remaining: u64,
+}
+
+impl ExactColorBudget {
+    fn spend(&mut self, work: usize) -> bool {
+        let Ok(work) = u64::try_from(work) else {
+            return false;
+        };
+        if work > self.remaining {
+            self.remaining = 0;
+            return false;
+        }
+        self.remaining -= work;
+        true
+    }
+}
+
+fn exact_color(context: &ColoringContext<'_>) -> ExactColorResult {
+    if context.interference.nodes.len() > EXACT_COLOR_REGISTER_LIMIT {
+        return ExactColorResult::SearchLimit;
+    }
+    let mut assignments = vec![None; context.interference.nodes.len()];
+    let mut budget = ExactColorBudget {
+        remaining: EXACT_COLOR_WORK_LIMIT,
+    };
+    match exact_color_search(context, &mut assignments, &mut budget) {
+        ExactSearchResult::Colored => ExactColorResult::Colored(AllocationPlan(assignments)),
+        ExactSearchResult::Impossible => ExactColorResult::Impossible,
+        ExactSearchResult::SearchLimit => ExactColorResult::SearchLimit,
+    }
+}
+
+fn exact_color_search(
+    context: &ColoringContext<'_>,
+    assignments: &mut [Option<PhysicalRegister>],
+    budget: &mut ExactColorBudget,
+) -> ExactSearchResult {
+    if !budget.spend(1) {
+        return ExactSearchResult::SearchLimit;
+    }
+
+    let mut selected = None;
+    let mut selected_candidates = Vec::new();
+    let mut selected_degree = 0;
+    for register in 0..assignments.len() as u32 {
+        if !budget.spend(1) {
+            return ExactSearchResult::SearchLimit;
+        }
+        if assignments[register as usize].is_some() {
+            continue;
+        }
+        let class = context.names.name(register).class();
+        let pool = if class == VirtualRegisterClass::GeneralPurpose {
+            context.gpr_pool
+        } else {
+            context.fpr_pool
+        };
+        let mut forbidden = 0;
+        if !budget.spend(context.interference.neighbors(register).len()) {
+            return ExactSearchResult::SearchLimit;
+        }
+        context.forbid_conflicts(register, context.pool_mask(class), assignments, &mut forbidden);
+        let pinned = context.interference.nodes[register as usize].pinned;
+        if !budget.spend(pool.len()) {
+            return ExactSearchResult::SearchLimit;
+        }
+        let mut candidates = pool
+            .iter()
+            .copied()
+            .filter(|candidate| {
+                pinned.is_none_or(|pinned| pinned == *candidate) && forbidden & register_bit(*candidate) == 0
+            })
+            .collect::<Vec<_>>();
+        if candidates.is_empty() {
+            return ExactSearchResult::Impossible;
+        }
+        let affinities = &context.interference.nodes[register as usize].affinities;
+        if !budget.spend(affinities.len()) {
+            return ExactSearchResult::SearchLimit;
+        }
+        let affinity_assignments = affinities
+            .iter()
+            .filter_map(|neighbor| assignments[*neighbor as usize])
+            .fold(0, |set, physical| set | register_bit(physical));
+        if !budget.spend(candidates.len().saturating_mul(candidates.len())) {
+            return ExactSearchResult::SearchLimit;
+        }
+        candidates.sort_by_key(|candidate| {
+            let follows_affinity = affinity_assignments & register_bit(*candidate) != 0;
+            (!follows_affinity, candidate.allocation_cost())
+        });
+        let degree = context.interference.neighbors(register).len();
+        if selected.is_none()
+            || candidates.len() < selected_candidates.len()
+            || (candidates.len() == selected_candidates.len() && degree > selected_degree)
+        {
+            selected = Some(register);
+            selected_candidates = candidates;
+            selected_degree = degree;
+        }
+    }
+
+    let Some(register) = selected else {
+        return ExactSearchResult::Colored;
+    };
+    let mut reached_limit = false;
+    for candidate in selected_candidates {
+        if !budget.spend(1) {
+            return ExactSearchResult::SearchLimit;
+        }
+        assignments[register as usize] = Some(candidate);
+        match exact_color_search(context, assignments, budget) {
+            ExactSearchResult::Colored => return ExactSearchResult::Colored,
+            ExactSearchResult::Impossible => {}
+            ExactSearchResult::SearchLimit => reached_limit = true,
+        }
+        assignments[register as usize] = None;
+        if reached_limit {
+            return ExactSearchResult::SearchLimit;
+        }
+    }
+    ExactSearchResult::Impossible
+}
+
+fn spill_free_allocation_error(
+    handler: &str,
+    liveness: &Liveness,
+    names: &Names,
+    gpr_capacity: usize,
+    fpr_capacity: usize,
+    reason: &str,
+) -> CompileError {
+    let mut peak_gpr = (0, 0);
+    let mut peak_fpr = (0, 0);
+    for (instruction, live) in liveness.live_in.iter().enumerate() {
+        let gpr = live
+            .iter()
+            .filter(|register| names.name(**register).class() == VirtualRegisterClass::GeneralPurpose)
+            .count();
+        let fpr = live.len() - gpr;
+        if gpr > peak_gpr.0 {
+            peak_gpr = (gpr, instruction);
+        }
+        if fpr > peak_fpr.0 {
+            peak_fpr = (fpr, instruction);
+        }
+    }
+    let witness_instruction = if peak_gpr.0.saturating_sub(gpr_capacity) >= peak_fpr.0.saturating_sub(fpr_capacity) {
+        peak_gpr.1
+    } else {
+        peak_fpr.1
+    };
+    let witness = liveness.live_in[witness_instruction]
+        .iter()
+        .take(8)
+        .map(|register| names.name(*register).to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    allocation_error(
+        handler,
+        format!(
+            "could not allocate spill-free handler: {reason}; peak GPR pressure {}/{} and FPR pressure {}/{}; values live near instruction #{}: {}",
+            peak_gpr.0, gpr_capacity, peak_fpr.0, fpr_capacity, witness_instruction, witness
+        ),
+    )
 }
 
 // ============================================================================
@@ -1503,6 +1715,138 @@ mod tests {
                 .any(|p| *p == name),
             "expected physical reg, got {name}"
         );
+    }
+
+    #[test]
+    fn exact_fallback_colors_a_graph_that_defeats_greedy_ordering() {
+        let function = crate::identity::HandlerId::new(0);
+        let mut seed = (0..6)
+            .map(|index| {
+                instruction!(
+                    Operation::Move(IntegerWidth::U64),
+                    register(&format!("crown_{index}")),
+                    immediate(index)
+                )
+            })
+            .collect::<Vec<_>>();
+        let virtual_registers = crate::low_ir::intern_virtual_registers(function, &mut seed);
+        let handler = TargetFunction {
+            id: function,
+            name: "Crown".to_string(),
+            size: None,
+            is_cold: false,
+            architecture: Architecture::X86_64,
+            virtual_registers,
+            instructions: Vec::new(),
+        };
+        let names = Names::new(function, &handler.virtual_registers);
+        let mut interference = InterferenceGraph {
+            neighbors: vec![Vec::new(); 6],
+            nodes: vec![Interference::default(); 6],
+        };
+        for lhs in 0..3u32 {
+            for rhs in 0..3u32 {
+                if lhs == rhs {
+                    continue;
+                }
+                let rhs = rhs + 3;
+                interference.neighbors[lhs as usize].push(rhs);
+                interference.neighbors[rhs as usize].push(lhs);
+            }
+        }
+        for neighbors in &mut interference.neighbors {
+            neighbors.sort_unstable();
+        }
+        let registers = register_info_for(Architecture::X86_64);
+        let gpr_pool = registers.temporaries.to_vec();
+        let fpr_pool = registers.fp_temporaries.to_vec();
+        let gpr_mask = gpr_pool.iter().fold(0, |set, register| set | register_bit(*register));
+        let allowed = register_bit(gpr_pool[0]) | register_bit(gpr_pool[1]);
+        for node in &mut interference.nodes {
+            node.forbidden = gpr_mask & !allowed;
+        }
+        let context = ColoringContext {
+            handler: &handler,
+            interference: &interference,
+            names: &names,
+            gpr_pool: &gpr_pool,
+            fpr_pool: &fpr_pool,
+            gpr_mask,
+            fpr_mask: fpr_pool.iter().fold(0, |set, register| set | register_bit(*register)),
+        };
+        let greedy_order = [0, 3, 1, 4, 2, 5];
+        assert!(color(&context, &greedy_order, &CoalescingGroups::empty(6)).is_err());
+        let ExactColorResult::Colored(plan) = exact_color(&context) else {
+            panic!("the exact fallback should find the two-coloring");
+        };
+        for register in 0..6u32 {
+            let physical = plan.0[register as usize].unwrap();
+            assert_ne!(register_bit(physical) & allowed, 0);
+            for neighbor in interference.neighbors(register) {
+                assert_ne!(plan.0[*neighbor as usize], Some(physical));
+            }
+        }
+    }
+
+    #[test]
+    fn exact_fallback_enforces_resource_limits() {
+        let function = crate::identity::HandlerId::new(0);
+        let mut seed = vec![instruction!(
+            Operation::Move(IntegerWidth::U64),
+            register("value"),
+            immediate(0)
+        )];
+        let virtual_registers = crate::low_ir::intern_virtual_registers(function, &mut seed);
+        let handler = TargetFunction {
+            id: function,
+            name: "Bounded".to_string(),
+            size: None,
+            is_cold: false,
+            architecture: Architecture::X86_64,
+            virtual_registers,
+            instructions: Vec::new(),
+        };
+        let names = Names::new(function, &handler.virtual_registers);
+        let registers = register_info_for(Architecture::X86_64);
+        let gpr_pool = registers.temporaries.to_vec();
+        let fpr_pool = registers.fp_temporaries.to_vec();
+        let gpr_mask = gpr_pool.iter().fold(0, |set, register| set | register_bit(*register));
+        let fpr_mask = fpr_pool.iter().fold(0, |set, register| set | register_bit(*register));
+
+        let oversized_interference = InterferenceGraph {
+            neighbors: vec![Vec::new(); EXACT_COLOR_REGISTER_LIMIT + 1],
+            nodes: vec![Interference::default(); EXACT_COLOR_REGISTER_LIMIT + 1],
+        };
+        let oversized_context = ColoringContext {
+            handler: &handler,
+            interference: &oversized_interference,
+            names: &names,
+            gpr_pool: &gpr_pool,
+            fpr_pool: &fpr_pool,
+            gpr_mask,
+            fpr_mask,
+        };
+        assert!(matches!(exact_color(&oversized_context), ExactColorResult::SearchLimit));
+
+        let interference = InterferenceGraph {
+            neighbors: vec![Vec::new()],
+            nodes: vec![Interference::default()],
+        };
+        let context = ColoringContext {
+            handler: &handler,
+            interference: &interference,
+            names: &names,
+            gpr_pool: &gpr_pool,
+            fpr_pool: &fpr_pool,
+            gpr_mask,
+            fpr_mask,
+        };
+        let mut assignments = vec![None];
+        let mut budget = ExactColorBudget { remaining: 0 };
+        assert!(matches!(
+            exact_color_search(&context, &mut assignments, &mut budget),
+            ExactSearchResult::SearchLimit
+        ));
     }
 
     #[test]
@@ -2054,7 +2398,7 @@ mod tests {
         )
         .expect_err("a nonrematerializable value cannot survive the call");
         assert!(
-            err.message.contains("could not allocate") || err.message.contains("pool exhausted"),
+            err.message.contains("could not allocate spill-free handler") && err.message.contains("peak GPR pressure"),
             "unexpected error: {err:?}"
         );
     }
