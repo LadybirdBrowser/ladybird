@@ -764,6 +764,18 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
         if (!container_satisfies_requirements(*container, m_feature_requirements))
             continue;
 
+        // A style feature asks about the container's own computed style, so the container has to know
+        // that a style change on it is a change for something under it. Nothing else says so: the
+        // dependency is recorded on the element that asked, which is not the element that moves.
+        // The value the query compares against is resolved too, and that resolution can read the
+        // root - `style(--length: calc(1rem * 10))` moves when the root font size does - so the root
+        // is named as well.
+        if (m_feature_requirements.contains_style_feature()) {
+            const_cast<DOM::Element&>(*container).set_is_style_query_container();
+            if (auto* root = element.document().document_element())
+                root->set_is_style_query_container();
+        }
+
         // Once an eligible query container has been selected for an element, each container feature in the
         // <container-query> is evaluated against that query container.
         return m_condition->evaluate({
