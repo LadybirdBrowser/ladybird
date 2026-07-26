@@ -20,6 +20,7 @@ use crate::{CompileError, CompileStage};
 #[cfg(test)]
 use crate::identity::ExternalSymbol;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 pub(crate) fn resolve_constants(function: &mut Function, constants: &LayoutConstants) {
     let values = function
@@ -539,8 +540,28 @@ fn eliminate_common_subexpressions_pass(
     let mut eliminated = HashSet::new();
     let analyses = analyses.get(function);
     let dominators = analyses.dominators;
-    let mut worklist = vec![(function.entry, HashMap::<Expression, Vec<ValueId>>::new())];
-    while let Some((block, mut available)) = worklist.pop() {
+    // Availability is scoped to the dominator subtree being walked. Copying the
+    // whole table for each child costs a clone of every expression in it per
+    // block, so the table is shared and each block records what it has to put
+    // back on the way out.
+    let mut available = HashMap::<Rc<Expression>, Vec<ValueId>>::new();
+    let mut undo = Vec::<(Rc<Expression>, Option<Vec<ValueId>>)>::new();
+    let mut worklist = vec![DominatorStep::Enter(function.entry)];
+    while let Some(step) = worklist.pop() {
+        let block = match step {
+            DominatorStep::Leave(mark) => {
+                while undo.len() > mark {
+                    let (expression, previous) = undo.pop().expect("undo log is not empty above its mark");
+                    match previous {
+                        Some(results) => available.insert(expression, results),
+                        None => available.remove(&expression),
+                    };
+                }
+                continue;
+            }
+            DominatorStep::Enter(block) => block,
+        };
+        worklist.push(DominatorStep::Leave(undo.len()));
         for instruction_id in function.blocks[block.0].instructions.clone() {
             let instruction = &mut function.instructions[instruction_id.0];
             rewrite_values(&mut instruction.inputs, &replacements);
@@ -549,7 +570,7 @@ fn eliminate_common_subexpressions_pass(
             // paths that may exit. Keep cheap expressions rematerializable on
             // each side of those boundaries.
             if instruction.effects.may_call || instruction.effects.may_trap {
-                available.clear();
+                undo.extend(available.drain().map(|(expression, results)| (expression, Some(results))));
                 continue;
             }
             if !instruction.effects.can_be_eliminated()
@@ -612,11 +633,13 @@ fn eliminate_common_subexpressions_pass(
                 }
                 eliminated.insert(instruction_id);
             } else {
+                let expression = Rc::new(expression);
+                undo.push((Rc::clone(&expression), None));
                 available.insert(expression, instruction.results.clone());
             }
         }
         for child in dominators.children(block).iter().rev() {
-            worklist.push((*child, available.clone()));
+            worklist.push(DominatorStep::Enter(*child));
         }
     }
 
@@ -627,6 +650,14 @@ fn eliminate_common_subexpressions_pass(
     rewrite_function_uses(function, &replacements);
     rebuild_instruction_arena(function, &eliminated, InstructionOrder::ByBlock);
     true
+}
+
+/// A step of the dominator-tree walk: either a block to process or the point
+/// at which everything that block made available goes out of scope.
+#[derive(Debug, Clone, Copy)]
+enum DominatorStep {
+    Enter(BlockId),
+    Leave(usize),
 }
 
 #[derive(Debug, Clone, Copy)]
