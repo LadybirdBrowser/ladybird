@@ -412,6 +412,22 @@ fn build_interference(
                 }
             }
         }
+        // What an instruction writes conflicts with whatever is still live
+        // after it, even when nothing reads the result. A value the branch
+        // conditions on but never names again is defined and immediately dead,
+        // so it appears in no live set at all; without this it would collect no
+        // neighbors and could be handed the register of a value that has to
+        // survive the instruction.
+        for defined in &liveness.use_def[instruction].defs {
+            for other in live_out.iter().chain(&liveness.use_def[instruction].defs) {
+                if other == defined {
+                    continue;
+                }
+                graph.get_mut(defined).unwrap().neighbors.insert(other.clone());
+                graph.get_mut(other).unwrap().neighbors.insert(defined.clone());
+            }
+        }
+
         for register in live_in.intersection(live_out) {
             if liveness.use_def[instruction].defs.contains(register) {
                 continue;
@@ -1665,6 +1681,44 @@ mod tests {
         assert!(
             err.message.contains("could not allocate") || err.message.contains("pool exhausted"),
             "unexpected error: {err:?}"
+        );
+    }
+
+    #[test]
+    fn a_result_nothing_reads_still_conflicts_with_what_outlives_it() {
+        // Nothing ever reads `discarded`, so it belongs to no live set, but the
+        // instruction writing it still runs while `survivor` has to survive.
+        // Handing both the same register would destroy `survivor`.
+        let out = build(
+            vec![
+                instruction!(Operation::Move(IntegerWidth::U64), register("survivor"), immediate(7)),
+                instruction!(Operation::Move(IntegerWidth::U64), register("discarded"), immediate(9)),
+                instruction!(
+                    Operation::IntegerBinary {
+                        operation: IntegerBinaryOperation::Binary(BinaryOperation::Add),
+                        width: IntegerWidth::U64
+                    },
+                    register("survivor"),
+                    immediate(1)
+                ),
+            ],
+            Architecture::X86_64,
+        )
+        .expect("allocation should succeed");
+
+        let survivor = out[0]
+            .operands
+            .first()
+            .and_then(AllocatedOperand::register_name)
+            .expect("the surviving value should be in a register");
+        let discarded = out[1]
+            .operands
+            .first()
+            .and_then(AllocatedOperand::register_name)
+            .expect("the discarded value should be in a register");
+        assert_ne!(
+            survivor, discarded,
+            "a discarded result took the register of a value that outlives it"
         );
     }
 
