@@ -26,6 +26,7 @@ pub(crate) fn lower_handler_with_constants(
     constants: &LayoutConstants,
     id: crate::identity::HandlerId,
 ) -> Result<Handler, CompileError> {
+    let function = &FunctionUses::new(function);
     let mut handler =
         lower_handler_internal(function, is_cold, constants, id).map_err(|message| {
         CompileError::new(CompileStage::LowIr, Some(&function.name), message)
@@ -147,7 +148,7 @@ fn resolve_layout_constant(operand: &mut Operand) {
 }
 
 fn lower_handler_internal(
-    function: &Function,
+    function: &FunctionUses<'_>,
     is_cold: bool,
     constants: &LayoutConstants,
     id: crate::identity::HandlerId,
@@ -310,7 +311,7 @@ fn profile_layout_score(function: &Function, blocks: &[BlockId]) -> usize {
 }
 
 fn lower_blocks(
-    function: &Function,
+    function: &FunctionUses<'_>,
     folded_instructions: &HashSet<InstructionId>,
     constants: &LayoutConstants,
     block_order: Vec<BlockId>,
@@ -953,7 +954,7 @@ fn lower_switch_cases(
 
 #[allow(clippy::too_many_arguments)]
 fn lower_checked_operation(
-    function: &Function,
+    function: &FunctionUses<'_>,
     block: BlockId,
     operation: &Operation,
     inputs: &[ValueId],
@@ -1140,13 +1141,13 @@ enum SelectedBranchInput {
     Layout(KnownLayoutConstant),
 }
 
-fn selected_branch(function: &Function, condition: ValueId) -> Option<SelectedBranch> {
+fn selected_branch(function: &FunctionUses<'_>, condition: ValueId) -> Option<SelectedBranch> {
     let mut branch = select_branch(function, condition)?;
     fold_load_into_branch(function, &mut branch);
     Some(branch)
 }
 
-fn select_branch(function: &Function, condition: ValueId) -> Option<SelectedBranch> {
+fn select_branch(function: &FunctionUses<'_>, condition: ValueId) -> Option<SelectedBranch> {
     let (instruction, operation) = single_use_instruction(function, condition)?;
     let (comparison, classification) = match &operation.operation {
         Operation::Intrinsic(Intrinsic::IntegerComparison(comparison)) => (Some(*comparison), None),
@@ -1359,7 +1360,7 @@ fn branch_input_operand(
     }
 }
 
-fn fold_load_into_branch(function: &Function, branch: &mut SelectedBranch) {
+fn fold_load_into_branch(function: &FunctionUses<'_>, branch: &mut SelectedBranch) {
     for load_index in 0..branch.inputs.len().min(2) {
         let SelectedBranchInput::Value(value) = branch.inputs[load_index] else {
             continue;
@@ -1468,7 +1469,7 @@ struct LoweredLoad {
 }
 
 fn lowered_single_use_load(
-    function: &Function,
+    function: &FunctionUses<'_>,
     value: ValueId,
     branch: &SelectedBranch,
 ) -> Option<LoweredLoad> {
@@ -1553,7 +1554,7 @@ fn branch_input_integer(function: &Function, input: &SelectedBranchInput) -> Opt
     }
 }
 
-fn direct_tag_source(function: &Function, tag: ValueId) -> Option<DirectTagSource> {
+fn direct_tag_source(function: &FunctionUses<'_>, tag: ValueId) -> Option<DirectTagSource> {
     let (extract_instruction, extract) = single_use_instruction(function, tag)?;
     if extract.operation != Operation::Intrinsic(Intrinsic::Value(ValueOperation::ExtractTag { rematerialized: false })) {
         return None;
@@ -1569,7 +1570,7 @@ fn direct_tag_source(function: &Function, tag: ValueId) -> Option<DirectTagSourc
 }
 
 fn selected_int32_pair(
-    function: &Function,
+    function: &FunctionUses<'_>,
     condition: ValueId,
 ) -> Option<(InstructionId, ValueId, ValueId)> {
     let (instruction, operation) = single_use_instruction(function, condition)?;
@@ -1582,7 +1583,7 @@ fn selected_int32_pair(
     Some((instruction, *lhs, *rhs))
 }
 
-fn single_use_reused_source(function: &Function, value: ValueId) -> Option<(InstructionId, ValueId)> {
+fn single_use_reused_source(function: &FunctionUses<'_>, value: ValueId) -> Option<(InstructionId, ValueId)> {
     let (instruction, reuse) = single_use_instruction(function, value)?;
     if reuse.operation != Operation::Intrinsic(Intrinsic::Value(ValueOperation::Reuse)) {
         return None;
@@ -1593,10 +1594,10 @@ fn single_use_reused_source(function: &Function, value: ValueId) -> Option<(Inst
     Some((instruction, *source))
 }
 
-fn single_use_instruction(
-    function: &Function,
+fn single_use_instruction<'a>(
+    function: &'a FunctionUses<'a>,
     value: ValueId,
-) -> Option<(InstructionId, &super::ir::Instruction)> {
+) -> Option<(InstructionId, &'a super::ir::Instruction)> {
     if value_use_count(function, value) != 1 {
         return None;
     }
@@ -1615,19 +1616,45 @@ fn defining_instruction(
     Some((instruction, &function.instructions[instruction.0]))
 }
 
-fn value_use_count(function: &Function, value: ValueId) -> usize {
-    function
-        .instructions
-        .iter()
-        .flat_map(|instruction| &instruction.inputs)
-        .filter(|input| **input == value)
-        .count()
-        + function
-            .blocks
+/// A function together with how many times each of its values is used.
+///
+/// Lowering asks that question constantly, and answering it by scanning the
+/// whole function each time makes compilation quadratic in the function size.
+pub(crate) struct FunctionUses<'a> {
+    function: &'a Function,
+    counts: Vec<u32>,
+}
+
+impl<'a> FunctionUses<'a> {
+    fn new(function: &'a Function) -> Self {
+        let mut counts = vec![0u32; function.values.len()];
+        let inputs = function
+            .instructions
             .iter()
-            .flat_map(|block| block.terminator.as_ref().into_iter().flat_map(Terminator::inputs))
-            .filter(|input| *input == value)
-            .count()
+            .flat_map(|instruction| instruction.inputs.iter().copied())
+            .chain(
+                function
+                    .blocks
+                    .iter()
+                    .flat_map(|block| block.terminator.as_ref().into_iter().flat_map(Terminator::inputs)),
+            );
+        for input in inputs {
+            counts[input.0] += 1;
+        }
+        Self { function, counts }
+    }
+}
+
+impl std::ops::Deref for FunctionUses<'_> {
+    type Target = Function;
+
+    fn deref(&self) -> &Function {
+        self.function
+    }
+}
+
+fn value_use_count(function: &FunctionUses<'_>, value: ValueId) -> usize {
+    function.counts[value.0] as usize
 }
 
 fn is_integer_zero(function: &Function, value: ValueId) -> bool {
@@ -1655,7 +1682,7 @@ fn direct_tag_constant(function: &Function, value: ValueId) -> Option<Operand> {
     }
 }
 
-fn singleton_value_branch(function: &Function, branch: &SelectedBranch) -> Option<(ValueId, Operand)> {
+fn singleton_value_branch(function: &FunctionUses<'_>, branch: &SelectedBranch) -> Option<(ValueId, Operand)> {
     if !branch.early_branches.is_empty()
         || branch.and_mask.is_some()
         || !matches!(
@@ -1879,7 +1906,7 @@ fn require_inputs<'a, T, const COUNT: usize>(
 }
 
 fn lower_instruction(
-    function: &Function,
+    function: &FunctionUses<'_>,
     instruction_id: InstructionId,
     instruction: &super::ir::Instruction,
     output: &mut Vec<Instruction>,
@@ -2298,7 +2325,7 @@ fn lower_instruction(
 }
 
 fn folded_bitwise_not_source(
-    function: &Function,
+    function: &FunctionUses<'_>,
     instruction: &super::ir::Instruction,
 ) -> Option<(InstructionId, ValueId)> {
     folded_unary_source(
@@ -2309,7 +2336,7 @@ fn folded_bitwise_not_source(
     )
 }
 
-fn folded_checked_i32_source(function: &Function, value: ValueId) -> Option<(InstructionId, ValueId)> {
+fn folded_checked_i32_source(function: &FunctionUses<'_>, value: ValueId) -> Option<(InstructionId, ValueId)> {
     if value_use_count(function, value) != 1 && !integer_result_can_stay_narrow(function, value) {
         return None;
     }
@@ -2324,7 +2351,7 @@ fn folded_checked_i32_source(function: &Function, value: ValueId) -> Option<(Ins
 }
 
 fn folded_32bit_operation_source(
-    function: &Function,
+    function: &FunctionUses<'_>,
     value: ValueId,
 ) -> Option<(Vec<InstructionId>, ValueId)> {
     let mut instructions = Vec::new();
@@ -2353,7 +2380,7 @@ fn folded_32bit_operation_source(
     (!instructions.is_empty()).then_some((instructions, source))
 }
 
-fn folded_shift_count(function: &Function, value: ValueId) -> Option<(Vec<InstructionId>, ValueId)> {
+fn folded_shift_count(function: &FunctionUses<'_>, value: ValueId) -> Option<(Vec<InstructionId>, ValueId)> {
     let (mut instructions, value) = folded_32bit_operation_source(function, value).unwrap_or_else(|| (Vec::new(), value));
     let (instruction, mask) = single_use_instruction(function, value)?;
     if mask.operation != Operation::Intrinsic(Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::And))) {
@@ -2377,7 +2404,7 @@ fn folded_shift_count(function: &Function, value: ValueId) -> Option<(Vec<Instru
 }
 
 fn folded_u32_unbox_source(
-    function: &Function,
+    function: &FunctionUses<'_>,
     instruction: &super::ir::Instruction,
 ) -> Option<(InstructionId, ValueId)> {
     folded_unary_source(
@@ -2389,7 +2416,7 @@ fn folded_u32_unbox_source(
 }
 
 fn folded_i32_bool_source(
-    function: &Function,
+    function: &FunctionUses<'_>,
     instruction: &super::ir::Instruction,
 ) -> Option<(InstructionId, ValueId)> {
     folded_unary_source(
@@ -2401,7 +2428,7 @@ fn folded_i32_bool_source(
 }
 
 fn folded_unary_source(
-    function: &Function,
+    function: &FunctionUses<'_>,
     instruction: &super::ir::Instruction,
     operation: Operation,
     source_matches: impl FnOnce(&Operation) -> bool,
