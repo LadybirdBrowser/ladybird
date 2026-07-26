@@ -36,6 +36,7 @@ class XMLDocumentBuilder;
 
 enum class InvalidateDisplayList;
 enum class TraversalDecision;
+enum class ScrollGesturePhase : u8;
 
 struct AsyncScrollOperation;
 struct InitiatorSourceSnapshot;

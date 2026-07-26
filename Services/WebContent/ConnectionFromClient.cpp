@@ -473,7 +473,9 @@ void ConnectionFromClient::mouse_event(u64 page_id, Web::MouseEvent event)
             if (mouse_event->type != event.type)
                 return nullptr;
             if (event.type == Web::MouseEvent::Type::MouseWheel
-                && mouse_event->async_scroll_performed_default_action != event.async_scroll_performed_default_action)
+                && (mouse_event->async_scroll_performed_default_action != event.async_scroll_performed_default_action
+                    || mouse_event->wheel_delta_precision != event.wheel_delta_precision
+                    || mouse_event->scroll_gesture_phase != event.scroll_gesture_phase))
                 return nullptr;
             return mouse_event;
         }

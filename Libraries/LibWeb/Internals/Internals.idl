@@ -50,7 +50,7 @@ interface Internals {
     // High-level mouse conveniences
     undefined click(double x, double y, optional unsigned short clickCount = 1, optional unsigned short button = 0, optional unsigned short modifiers = 0);
     undefined clickAndHold(double x, double y, optional unsigned short clickCount = 1, optional unsigned short button = 0, optional unsigned short modifiers = 0);
-    [CreatesPromise] Promise<undefined> wheel(double x, double y, double deltaX, double deltaY);
+    [CreatesPromise] Promise<undefined> wheel(double x, double y, double deltaX, double deltaY, optional boolean precise = false, optional ScrollGesturePhase scrollGesturePhase = "none");
     undefined pinch(double x, double y, double scaleDelta, optional unsigned short modifiers = 0);
     undefined resetZoom();
 
@@ -224,3 +224,5 @@ interface Internals {
     DOMString viewportOverflowX();
 
 };
+
+enum ScrollGesturePhase { "none", "ongoing", "momentum", "ended" };

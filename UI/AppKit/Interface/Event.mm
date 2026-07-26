@@ -37,6 +37,21 @@ Web::UIEvents::KeyModifier ns_modifiers_to_key_modifiers(NSEventModifierFlags mo
     return static_cast<Web::UIEvents::KeyModifier>(modifiers);
 }
 
+static Web::ScrollGesturePhase ns_scroll_event_to_scroll_gesture_phase(NSEvent* event)
+{
+    // Fingers resting on the touchpad without moving continue the gesture they began.
+    static constexpr NSEventPhase ongoing_phases = NSEventPhaseMayBegin | NSEventPhaseBegan | NSEventPhaseChanged | NSEventPhaseStationary;
+    static constexpr NSEventPhase ending_phases = NSEventPhaseEnded | NSEventPhaseCancelled;
+
+    if ((event.phase & ending_phases) != 0 || (event.momentumPhase & ending_phases) != 0)
+        return Web::ScrollGesturePhase::Ended;
+    if ((event.momentumPhase & ongoing_phases) != 0)
+        return Web::ScrollGesturePhase::Momentum;
+    if ((event.phase & ongoing_phases) != 0)
+        return Web::ScrollGesturePhase::Ongoing;
+    return Web::ScrollGesturePhase::None;
+}
+
 Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* event, NSView* view, Web::UIEvents::MouseButton button)
 {
     auto position = [view convertPoint:event.locationInWindow fromView:nil];
@@ -49,24 +64,30 @@ Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* eve
 
     double wheel_delta_x = 0;
     double wheel_delta_y = 0;
+    auto wheel_delta_precision = Web::WheelDeltaPrecision::Discrete;
+    auto scroll_gesture_phase = Web::ScrollGesturePhase::None;
 
     if (type == Web::MouseEvent::Type::MouseWheel) {
         wheel_delta_x = -[event scrollingDeltaX];
         wheel_delta_y = -[event scrollingDeltaY];
 
-        if (![event hasPreciseScrollingDeltas]) {
+        if ([event hasPreciseScrollingDeltas]) {
+            wheel_delta_precision = Web::WheelDeltaPrecision::Precise;
+        } else {
             static constexpr double imprecise_scroll_multiplier = 40;
 
             wheel_delta_x *= imprecise_scroll_multiplier;
             wheel_delta_y *= imprecise_scroll_multiplier;
         }
+
+        scroll_gesture_phase = ns_scroll_event_to_scroll_gesture_phase(event);
     }
 
     int click_count = 0;
     if (type == Web::MouseEvent::Type::MouseDown || type == Web::MouseEvent::Type::MouseUp)
         click_count = static_cast<int>(event.clickCount);
 
-    return { type, device_position, device_screen_position, button, button, modifiers, wheel_delta_x, wheel_delta_y, click_count, nullptr };
+    return { type, device_position, device_screen_position, button, button, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, click_count, nullptr };
 }
 
 struct DragData : public Web::BrowserInputData {

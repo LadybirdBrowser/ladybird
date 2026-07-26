@@ -1,0 +1,2 @@
+scroll offset after a down arrow key press: 0,500
+scroll offset after dragging the scrollbar to the end: 0,1500

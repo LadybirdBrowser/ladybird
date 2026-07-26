@@ -99,6 +99,21 @@ namespace Web::Internals {
 
 static u16 s_echo_server_port { 0 };
 
+static ScrollGesturePhase scroll_gesture_phase_from(Bindings::ScrollGesturePhase scroll_gesture_phase)
+{
+    switch (scroll_gesture_phase) {
+    case Bindings::ScrollGesturePhase::None:
+        return ScrollGesturePhase::None;
+    case Bindings::ScrollGesturePhase::Ongoing:
+        return ScrollGesturePhase::Ongoing;
+    case Bindings::ScrollGesturePhase::Momentum:
+        return ScrollGesturePhase::Momentum;
+    case Bindings::ScrollGesturePhase::Ended:
+        return ScrollGesturePhase::Ended;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 GC_DEFINE_ALLOCATOR(Internals);
 
 Internals::Internals(HTML::Window& window)
@@ -471,13 +486,15 @@ void Internals::click_and_hold(double x, double y, WebIDL::UnsignedShort click_c
     page.handle_mousedown(position, position, mouse_button, 0, modifiers, click_count);
 }
 
-void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, double delta_x, double delta_y)
+void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase)
 {
     auto& page = this->page();
 
+    auto wheel_delta_precision = precise ? WheelDeltaPrecision::Precise : WheelDeltaPrecision::Discrete;
+    auto scroll_gesture_phase = scroll_gesture_phase_from(phase);
     auto position = page.css_to_device_point({ x, y });
     Optional<AsyncScrollOperation> async_scroll_operation;
-    page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y, false, &async_scroll_operation);
+    page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y, wheel_delta_precision, scroll_gesture_phase, false, &async_scroll_operation);
 
     if (async_scroll_operation.has_value() && async_scroll_operation->navigable) {
         async_scroll_operation->navigable->wait_for_async_scroll_operation(async_scroll_operation->operation_id, promise);
@@ -487,9 +504,9 @@ void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, doub
     WebIDL::resolve_promise(promise);
 }
 
-void Internals::wheel(double x, double y, double delta_x, double delta_y, GC::Ref<WebIDL::Promise> promise)
+void Internals::wheel(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase, GC::Ref<WebIDL::Promise> promise)
 {
-    wheel(promise, x, y, delta_x, delta_y);
+    wheel(promise, x, y, delta_x, delta_y, precise, phase);
 }
 
 void Internals::pinch(double x, double y, double scale_delta, WebIDL::UnsignedShort modifiers)

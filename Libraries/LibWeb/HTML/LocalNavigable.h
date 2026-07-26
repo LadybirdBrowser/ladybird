@@ -44,6 +44,7 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
+#include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/XHR/FormDataEntry.h>
@@ -315,7 +316,8 @@ public:
     GC::Ref<WebIDL::Promise> scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Instant);
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto, ScrollTrigger = ScrollTrigger::Programmatic, Optional<CSSPixelPoint> relative_displacement = {});
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_an_element(DOM::Element&, CSSPixelPoint position, Bindings::ScrollBehavior, Optional<CSSPixelPoint> relative_displacement = {});
-    void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID>);
+    void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID>, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
+    void note_user_scroll_input_intent(Painting::SnapSelectionStrategy::Type);
     void defer_user_scroll_settlement();
     void begin_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
     void end_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
@@ -359,9 +361,9 @@ private:
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID, CSSPixelPoint position, Bindings::ScrollBehavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement = {});
     Optional<CSSPixelPoint> scroll_offset_for(Compositor::AsyncScrollNodeStableID) const;
     bool set_scroll_offset_for(Compositor::AsyncScrollNodeStableID, CSSPixelPoint);
-    void queue_scrollend_event(Compositor::AsyncScrollNodeStableID, ScrollTrigger);
-    void queue_scrollend_event(DOM::Document&, GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID>, ScrollTrigger);
-    void queue_scrollend_event_for_finished_scroll(Compositor::AsyncScrollNodeStableID, ScrollTrigger);
+    void queue_scrollend_event(Compositor::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
+    void queue_scrollend_event(DOM::Document&, GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
+    void queue_scrollend_event_for_finished_scroll(Compositor::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll);
     void queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Compositor::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, GC::Ref<WebIDL::Promise>);
     // The scroll a new input to a scrolling box would interact with; a scroll driven by user input is reported over
     // any programmatic scroll also in flight.
@@ -372,6 +374,8 @@ private:
     struct PendingUserScrollendTarget {
         GC::Ref<DOM::EventTarget> target;
         Optional<Compositor::AsyncScrollNodeStableID> stable_node_id;
+        Optional<CSSPixelPoint> scroll_offset_at_gesture_start;
+        Painting::SnapSelectionStrategy::Type intent { Painting::SnapSelectionStrategy::Type::EndPosition };
     };
     PendingUserScrollendTarget* latched_user_scroll_gesture_for(GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID> const&);
     void user_scroll_did_settle();
@@ -453,6 +457,7 @@ private:
     RefPtr<Core::Timer> m_user_scroll_settle_timer;
     OwnPtr<UserScrollGestureHold> m_compositor_user_scroll_gesture_hold;
     size_t m_user_scroll_gesture_hold_count { 0 };
+    Painting::SnapSelectionStrategy::Type m_user_scroll_input_intent { Painting::SnapSelectionStrategy::Type::EndPosition };
 
     struct PendingAsyncScrollOperation {
         Compositor::AsyncScrollOperationID operation_id { 0 };

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Export.h>
@@ -81,8 +82,8 @@ public:
     // High-level mouse conveniences
     void click(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
     void click_and_hold(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
-    void wheel(GC::Ref<WebIDL::Promise>, double x, double y, double delta_x, double delta_y);
-    void wheel(double x, double y, double delta_x, double delta_y, GC::Ref<WebIDL::Promise>);
+    void wheel(GC::Ref<WebIDL::Promise>, double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase);
+    void wheel(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase, GC::Ref<WebIDL::Promise>);
     void pinch(double x, double y, double scale_delta, WebIDL::UnsignedShort modifiers);
     void reset_zoom();
 

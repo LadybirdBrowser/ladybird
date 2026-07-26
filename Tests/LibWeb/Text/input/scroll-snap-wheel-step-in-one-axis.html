@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: both mandatory;
+        position: relative;
+    }
+    #content {
+        width: 400px;
+        height: 600px;
+    }
+    .area {
+        position: absolute;
+        left: 100px;
+        width: 100px;
+        height: 200px;
+        scroll-snap-align: start;
+    }
+    /* A snap area at the initial horizontal scroll position, so that the container rests there legitimately. */
+    #origin-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100px;
+        height: 600px;
+        scroll-snap-align: none start;
+    }
+</style>
+<div id="scroller">
+    <div id="content"></div>
+    <div id="origin-area"></div>
+    <div class="area" style="top: 0"></div>
+    <div class="area" style="top: 200px"></div>
+    <div class="area" style="top: 400px"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        // A step aimed down the vertical axis leaves the horizontal axis alone rather than re-evaluating it.
+        await scrollSettled(scroller, () => internals.wheel(50, 50, 0, 150));
+        println(`scroll offset after a vertical step: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>

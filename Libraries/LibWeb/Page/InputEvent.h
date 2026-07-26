@@ -41,6 +41,22 @@ struct WEB_API KeyEvent {
     OwnPtr<BrowserInputData> browser_data;
 };
 
+// Discrete wheel deltas come from stepwise input such as mouse wheel notches; precise wheel deltas come from input
+// that reports exact pixel distances, such as touchpad panning gestures.
+enum class WheelDeltaPrecision : u8 {
+    Discrete,
+    Precise,
+};
+
+// Input that scrolls with a gesture, such as a touchpad, reports whether the user is still making that gesture,
+// whether a flick has handed the scrolling over to momentum, and when it ends.
+enum class ScrollGesturePhase : u8 {
+    None,
+    Ongoing,
+    Momentum,
+    Ended,
+};
+
 struct WEB_API MouseEvent {
     enum class Type : u8 {
         MouseDown,
@@ -60,6 +76,8 @@ struct WEB_API MouseEvent {
     UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
     double wheel_delta_x { 0 };
     double wheel_delta_y { 0 };
+    WheelDeltaPrecision wheel_delta_precision { WheelDeltaPrecision::Discrete };
+    ScrollGesturePhase scroll_gesture_phase { ScrollGesturePhase::None };
     int click_count { 0 };
 
     OwnPtr<BrowserInputData> browser_data;

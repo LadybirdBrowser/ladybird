@@ -319,6 +319,7 @@ ScrollHandled set_scroll_offset_from_user_input(Layout::Node& node, CSSPixelPoin
     if (!has_committed_box(node))
         return ScrollHandled::No;
 
+    auto scroll_offset_before_scroll = scroll_offset(node);
     auto scroll_handled = set_scroll_offset(node, offset);
     auto navigable = node.document().navigable();
     if (!navigable)
@@ -326,7 +327,7 @@ ScrollHandled set_scroll_offset_from_user_input(Layout::Node& node, CSSPixelPoin
 
     if (scroll_handled == ScrollHandled::Yes) {
         if (auto event_target = scroll_event_target(node))
-            navigable->queue_scrollend_event_after_user_scroll(*event_target, async_scroll_node_stable_id(node));
+            navigable->queue_scrollend_event_after_user_scroll(*event_target, async_scroll_node_stable_id(node), scroll_offset_before_scroll);
     } else {
         // User input keeps the scroll gesture in progress even when it does not move the scrolling box.
         navigable->defer_user_scroll_settlement();
