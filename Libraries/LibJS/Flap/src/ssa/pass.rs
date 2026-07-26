@@ -241,6 +241,7 @@ impl PassRunner {
         let changed = pass(function, &mut self.analyses);
         let instrumentation = self.options.map(|_| self.analyses.finish_pass(changed));
         if changed {
+            function.recompute_machine_state_dependencies();
             self.analyses.invalidate();
         }
         if cfg!(debug_assertions) {
