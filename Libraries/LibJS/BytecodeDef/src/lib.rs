@@ -500,6 +500,19 @@ endop
     }
 
     #[test]
+    fn parses_single_byte_mutations_without_panicking() {
+        let seed = b"op Add < Instruction\n    m_value: Value\n    m_length: u32\nendop\n";
+        for index in 0..seed.len() {
+            for replacement in [b' ', b'\n', b'<', b':', b'[', b']', b'0', b'a'] {
+                let mut mutated = seed.to_vec();
+                mutated[index] = replacement;
+                let source = std::str::from_utf8(&mutated).unwrap();
+                let _ = parse_bytecode_def("mutated.def", source);
+            }
+        }
+    }
+
+    #[test]
     fn rejects_malformed_definitions() {
         for (source, message) in [
             ("unexpected\n", "unexpected top-level line"),
