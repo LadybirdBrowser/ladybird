@@ -10,9 +10,11 @@
 #include <LibMedia/Audio/NullPlaybackStream.h>
 #include <LibTest/TestSuite.h>
 
+#include "TestMediaCommon.h"
+
 TEST_CASE(default_playback_stream_can_be_created_and_suspended)
 {
-    Core::EventLoop event_loop;
+    auto& event_loop = never_destroyed_event_loop();
 
     Atomic<u32> request_count { 0 };
     RefPtr<Audio::PlaybackStream> stream;
@@ -49,7 +51,7 @@ TEST_CASE(default_playback_stream_can_be_created_and_suspended)
 
 TEST_CASE(null_playback_stream_pulls_and_tracks_time)
 {
-    Core::EventLoop event_loop;
+    auto& event_loop = never_destroyed_event_loop();
 
     Atomic<u32> request_count { 0 };
     auto stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 10, [&](Span<float> buffer) -> ReadonlySpan<float> {
@@ -86,7 +88,7 @@ TEST_CASE(null_playback_stream_pulls_and_tracks_time)
 
 TEST_CASE(null_playback_stream_recovers_from_underrun)
 {
-    Core::EventLoop event_loop;
+    auto& event_loop = never_destroyed_event_loop();
 
     Atomic<u32> request_count { 0 };
     auto stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 10, [&](Span<float> buffer) -> ReadonlySpan<float> {
@@ -106,7 +108,7 @@ TEST_CASE(null_playback_stream_recovers_from_underrun)
 
 TEST_CASE(null_playback_stream_resume_completes_pending_drain)
 {
-    Core::EventLoop event_loop;
+    auto& event_loop = never_destroyed_event_loop();
 
     auto stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 1000, [](Span<float> buffer) -> ReadonlySpan<float> {
         return buffer;

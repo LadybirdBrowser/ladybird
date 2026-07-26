@@ -10,6 +10,8 @@
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 
+#include "TestMediaCommon.h"
+
 static ByteBuffer make_test_data(size_t size)
 {
     auto buffer = MUST(ByteBuffer::create_uninitialized(size));
@@ -177,7 +179,7 @@ TEST_CASE(add_overlapping_chunks)
 
 TEST_CASE(add_chunk_at_offset)
 {
-    Core::EventLoop loop;
+    never_destroyed_event_loop();
 
     auto stream = Media::IncrementallyPopulatedStream::create_empty();
     stream->set_expected_size(100);
@@ -487,7 +489,7 @@ TEST_CASE(add_three_disjoint_then_connect)
 
 TEST_CASE(data_request_callback_invoked)
 {
-    Core::EventLoop loop;
+    auto& loop = never_destroyed_event_loop();
 
     // Stream size must be larger than FORWARD_REQUEST_THRESHOLD (1 MiB) to test callback
     static constexpr u64 stream_size = 2 * MiB;

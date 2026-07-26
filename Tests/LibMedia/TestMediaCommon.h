@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/Optional.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
@@ -20,6 +21,12 @@
 #include <LibMedia/VideoDecoder.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibTest/TestCase.h>
+
+static inline Core::EventLoop& never_destroyed_event_loop()
+{
+    static NeverDestroyed<Core::EventLoop> s_event_loop;
+    return *s_event_loop;
+}
 
 template<typename T>
 static inline void decode_video(StringView path, size_t expected_frame_count, T create_decoder)
@@ -71,7 +78,7 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
 
 static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_count, size_t expected_frame_count, Optional<Audio::ChannelMap> expected_channel_map = {})
 {
-    Core::EventLoop loop;
+    auto& loop = never_destroyed_event_loop();
 
     auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
