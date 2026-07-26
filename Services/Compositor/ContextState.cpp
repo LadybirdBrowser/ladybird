@@ -174,6 +174,7 @@ void ContextState::install_display_list_update(
     m_visual_animation_sample_time_ns.clear();
     m_has_active_visual_animations = !m_visual_context_tree->visual_animations().is_empty();
     m_scroll_state_snapshot = move(scroll_state_snapshot);
+    m_scroll_state_snapshot.set_node_count(m_visual_context_tree->spatial_node_count());
     update_caret_blink_timer();
     if (m_async_visual_viewport_transform.has_value() && visual_viewport_transforms_match(m_visual_context_tree->visual_viewport_transform(), *m_async_visual_viewport_transform))
         m_async_visual_viewport_transform.clear();
@@ -302,6 +303,7 @@ void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualCo
 void ContextState::update_scroll_state(Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     m_scroll_state_snapshot = move(scroll_state_snapshot);
+    m_scroll_state_snapshot.set_node_count(m_visual_context_tree.has_value() ? m_visual_context_tree->spatial_node_count() : 0);
     if (!m_has_async_scrolling_state)
         return;
 
