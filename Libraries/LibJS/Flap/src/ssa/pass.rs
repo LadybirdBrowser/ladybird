@@ -7,7 +7,9 @@
 //! SSA optimization pass orchestration and analysis caching.
 
 use super::Function;
-use super::analysis::{ControlFlowGraph, DominatorTree, InstructionLayout, NaturalLoop, ValueUses, find_natural_loops};
+use super::analysis::{
+    ControlFlowGraph, DominatorTree, GuardExits, InstructionLayout, NaturalLoop, ValueUses, find_natural_loops,
+};
 use super::effects::EffectDependencies;
 use super::print::function_to_string;
 use super::report::{OptimizationRemark, OptimizationRemarkKind, PassRunReport};
@@ -18,6 +20,7 @@ pub(crate) struct FunctionAnalyses<'a> {
     pub(crate) dominators: &'a DominatorTree,
     pub(crate) instruction_layout: &'a InstructionLayout,
     pub(crate) effects: &'a EffectDependencies,
+    pub(crate) guards: &'a GuardExits,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -25,6 +28,7 @@ pub(crate) struct PlacementAnalyses<'a> {
     pub(crate) dominators: &'a DominatorTree,
     pub(crate) instruction_layout: &'a InstructionLayout,
     pub(crate) loops: &'a [NaturalLoop],
+    pub(crate) guards: &'a GuardExits,
 }
 
 #[derive(Debug, Default)]
@@ -42,6 +46,7 @@ pub(crate) struct AnalysisManager {
     instruction_layout: Option<InstructionLayout>,
     loops: Option<Vec<NaturalLoop>>,
     effects: Option<EffectDependencies>,
+    guards: Option<GuardExits>,
     uses: Option<ValueUses>,
     instrumentation: Option<PassInstrumentation>,
 }
@@ -91,6 +96,15 @@ impl AnalysisManager {
         self.effects.as_ref().unwrap()
     }
 
+    pub(crate) fn guards<'a>(&'a mut self, function: &Function) -> &'a GuardExits {
+        if self.guards.is_none() {
+            self.cfg(function);
+            let guards = GuardExits::compute(function, self.cfg.as_ref().unwrap());
+            self.guards = Some(guards);
+        }
+        self.guards.as_ref().unwrap()
+    }
+
     pub(crate) fn uses<'a>(&'a mut self, function: &Function) -> &'a ValueUses {
         self.uses.get_or_insert_with(|| ValueUses::compute(function))
     }
@@ -105,10 +119,12 @@ impl AnalysisManager {
         self.dominators(function);
         self.instruction_layout(function);
         self.loops(function);
+        self.guards(function);
         PlacementAnalyses {
             dominators: self.dominators.as_ref().unwrap(),
             instruction_layout: self.instruction_layout.as_ref().unwrap(),
             loops: self.loops.as_deref().unwrap(),
+            guards: self.guards.as_ref().unwrap(),
         }
     }
 
@@ -117,11 +133,13 @@ impl AnalysisManager {
         self.dominators(function);
         self.instruction_layout(function);
         self.effects(function);
+        self.guards(function);
         FunctionAnalyses {
             cfg: self.cfg.as_ref().unwrap(),
             dominators: self.dominators.as_ref().unwrap(),
             instruction_layout: self.instruction_layout.as_ref().unwrap(),
             effects: self.effects.as_ref().unwrap(),
+            guards: self.guards.as_ref().unwrap(),
         }
     }
 
@@ -131,6 +149,7 @@ impl AnalysisManager {
         self.instruction_layout = None;
         self.loops = None;
         self.effects = None;
+        self.guards = None;
         self.uses = None;
     }
 
@@ -269,6 +288,7 @@ mod tests {
         assert!(analyses.instruction_layout.is_none());
         assert!(analyses.loops.is_none());
         assert!(analyses.effects.is_none());
+        assert!(analyses.guards.is_none());
         assert!(analyses.uses.is_none());
         false
     }

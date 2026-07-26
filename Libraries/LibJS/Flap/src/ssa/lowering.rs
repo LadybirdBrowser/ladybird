@@ -512,9 +512,20 @@ impl Lowerer<'_> {
     fn lower_guard(&mut self, condition: &Condition, failure: &str) -> Result<(), String> {
         let condition = self.lower_condition(condition)?;
         let source = self.current()?;
+        let failure = self.continuation_edge(failure)?;
+        if failure.arguments.is_empty() {
+            self.function.append_instruction(
+                source,
+                Operation::Guard {
+                    failure: failure.block,
+                },
+                vec![condition],
+                Vec::new(),
+            );
+            return Ok(());
+        }
         let layout = self.function.blocks[source.0].layout;
         let success = self.function.create_empty_block("guard_success", layout);
-        let failure = self.continuation_edge(failure)?;
         self.function.set_terminator(
             source,
             Terminator::branch_edges(condition, Edge::new(success), failure),
@@ -1777,5 +1788,55 @@ handler Invalid() {
         assert!(error.message.contains("duplicate continuation"));
     }
 
+    fn lower_source(source: &str) -> Function {
+        let ast = parser::parse("test.flap", source).unwrap();
+        let typed = typecheck::check("test.flap", &ast).unwrap();
+        lower_handler(&typed.handlers[0]).unwrap()
+    }
 
+    #[test]
+    fn lowers_a_guard_into_the_block_it_continues() {
+        let function = lower_source(
+            r#"
+handler Check(value: i32) {
+    guard value != 0 else slow;
+    assert_nonzero(value);
+    let slow = || { dispatch_next; };
+    dispatch_next;
+}
+"#,
+        );
+
+        let entry = &function.blocks[function.entry.0];
+        let guards = function.guard_exits(function.entry).collect::<Vec<_>>();
+        assert_eq!(guards.len(), 1);
+        assert!(guards[0].0 < entry.instructions.len() - 1);
+        assert!(
+            !function
+                .blocks
+                .iter()
+                .any(|block| block.name.as_deref() == Some("guard_success"))
+        );
+        function.validate().unwrap();
+    }
+
+    #[test]
+    fn keeps_a_branch_for_a_guard_that_hands_over_values() {
+        let function = lower_source(
+            r#"
+handler Check(value: i32) {
+    let slow = |kept: i32| { assert_nonzero(kept); dispatch_next; };
+    guard value != 0 else slow(value);
+    dispatch_next;
+}
+"#,
+        );
+
+        assert_eq!(function.guard_exits(function.entry).count(), 0);
+        assert!(matches!(
+            function.blocks[function.entry.0].terminator,
+            Some(Terminator::Branch { .. })
+        ));
+        function.validate().unwrap();
+    }
 }

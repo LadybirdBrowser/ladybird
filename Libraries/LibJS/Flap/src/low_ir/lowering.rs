@@ -166,6 +166,15 @@ fn lower_handler_internal(
         }
     }
     for instruction in &function.instructions {
+        if instruction.operation.guard_failure().is_some() {
+            let condition = instruction.inputs[0];
+            if let Some(branch) = selected_branch(function, condition) {
+                folded_instructions.insert(branch.instruction);
+                folded_instructions.extend(branch.folded_inputs);
+            } else if let Some((instruction, _, _)) = selected_int32_pair(function, condition) {
+                folded_instructions.insert(instruction);
+            }
+        }
         if let Some((instruction, _)) = folded_bitwise_not_source(function, instruction) {
             folded_instructions.insert(instruction);
         }
@@ -331,9 +340,22 @@ fn lower_blocks(
     let mut body = Vec::new();
     let mut edge_temporary = 0usize;
     let mut deferred_switch_tails = HashMap::<BlockId, Vec<Instruction>>::default();
+    let entry_is_branch_target = (0..function.blocks.len()).any(|index| {
+        function.blocks[index]
+            .terminator
+            .as_ref()
+            .is_some_and(|terminator| {
+                terminator
+                    .successors()
+                    .any(|edge| edge.block == function.entry)
+            })
+            || function
+                .guard_exits(BlockId(index))
+                .any(|(_, failure)| failure == function.entry)
+    });
     for (position, &block_id) in block_order.iter().enumerate() {
         let block = &function.blocks[block_id.0];
-        if block_id != function.entry {
+        if block_id != function.entry || entry_is_branch_target {
             let label = block_label(block_id);
             if block.layout == BlockLayout::Cold {
                 emit!(body; MachineOperation::Cold => [Operand::Label(label.clone())];);
@@ -359,6 +381,26 @@ fn lower_blocks(
                     )
                 })
                 .map(|offset| instruction_index + 1 + offset);
+            if let Some(failure) = function.instructions[instruction_id.0]
+                .operation
+                .guard_failure()
+            {
+                let name = format!("guard_{}", instruction_id.0);
+                let continue_label = Label::new(format!(".ssa_{name}_pass"));
+                emit_conditional_branch(
+                    function,
+                    constants,
+                    &name,
+                    block_body_start,
+                    function.instructions[instruction_id.0].inputs[0],
+                    &continue_label,
+                    &mut body,
+                )?;
+                emit!(body; MachineOperation::Control(ControlOperation::JumpLabel) => [Operand::Label(block_label(failure))];);
+                emit!(body; MachineOperation::Label => [Operand::Label(continue_label)];);
+                instruction_index += 1;
+                continue;
+            }
             if let Some(next_index) = next_instruction
                 && lower_field_access_pair(
                     function,
@@ -398,121 +440,15 @@ fn lower_blocks(
                 else_edge,
             } => {
                 let then_label = Label::new(format!(".ssa_edge_{}_then", block_id.0));
-                let branch = selected_branch(function, *condition);
-                if let Some((_, lhs, rhs)) = selected_int32_pair(function, *condition) {
-                    let failure_label = Label::new(format!(".ssa_edge_{}_else", block_id.0));
-                    emit!(body;
-                        MachineOperation::branch_tag(EqualityCondition::NotEqual) => [value_operand(function, lhs)?, layout_operand(
-                                constants,
-                                KnownLayoutConstant::Int32Tag,
-                            )?, Operand::Label(failure_label.clone())];
-                    );
-                    emit!(body;
-                        MachineOperation::branch_tag(EqualityCondition::Equal) => [value_operand(function, rhs)?, layout_operand(
-                                constants,
-                                KnownLayoutConstant::Int32Tag,
-                            )?, Operand::Label(then_label.clone())];
-                    );
-                    emit!(body; MachineOperation::Label => [Operand::Label(failure_label)];);
-                } else if let Some(branch) = branch {
-                    let direct_tag_branch = branch.direct_tag_source.as_ref().and_then(|source| {
-                        if !branch.early_branches.is_empty() || branch.and_mask.is_some() {
-                            return None;
-                        }
-                        let [SelectedBranchInput::Value(lhs), SelectedBranchInput::Value(rhs)] =
-                            branch.inputs.as_slice()
-                        else {
-                            return None;
-                        };
-                        if !matches!(
-                            branch.operation,
-                            MachineOperation::Branch(BranchOperation::Equality {
-                                width: IntegerWidth::U64 | IntegerWidth::U16,
-                                ..
-                            })
-                        ) {
-                            return None;
-                        }
-                        if *lhs == source.tag {
-                            direct_tag_constant(function, *rhs).map(|tag| (source.value, tag))
-                        } else if *rhs == source.tag {
-                            direct_tag_constant(function, *lhs).map(|tag| (source.value, tag))
-                        } else {
-                            None
-                        }
-                    }).or_else(|| singleton_value_branch(function, &branch));
-                    if let Some(source) = branch.direct_tag_source.as_ref()
-                        && direct_tag_branch.is_none()
-                    {
-                        let tag = value_operand(function, source.tag)?;
-                        emit!(body; MachineOperation::ExtractTag => [tag, value_operand(function, source.value)?];);
-                    }
-                    for early_branch in &branch.early_branches {
-                        let mut operands = early_branch
-                            .inputs
-                            .iter()
-                            .map(|input| branch_input_operand(function, constants, input))
-                            .collect::<Result<Vec<_>, _>>()?;
-                        materialize_symbolic_branch_rhs(
-                            early_branch.operation,
-                            block_id,
-                            block_body_start,
-                            &mut operands,
-                            &mut body,
-                        );
-                        operands.push(Operand::Label(then_label.clone()));
-                        body.push(machine_instruction(early_branch.operation, operands));
-                    }
-                    if let Some((value, expected_tag)) = direct_tag_branch {
-                        let singleton = matches!(
-                            &expected_tag,
-                            Operand::LayoutConstant(constant)
-                                if constant.category()
-                                    == LayoutConstantCategory::Value
-                        );
-                        emit!(body;
-                            match (
-                                singleton,
-                                matches!(
-                                    branch.operation,
-                                    MachineOperation::Branch(BranchOperation::Equality {
-                                        condition: EqualityCondition::Equal,
-                                        ..
-                                    })
-                                ),
-                            ) {
-                                (true, true) => MachineOperation::branch_singleton(EqualityCondition::Equal),
-                                (true, false) => MachineOperation::branch_singleton(EqualityCondition::NotEqual),
-                                (false, true) => MachineOperation::branch_tag(EqualityCondition::Equal),
-                                (false, false) => MachineOperation::branch_tag(EqualityCondition::NotEqual),
-                            } => [value_operand(function, value)?, expected_tag, Operand::Label(then_label.clone())];
-                        );
-                    } else {
-                        let mut operands = branch
-                            .inputs
-                            .iter()
-                            .map(|input| branch_input_operand(function, constants, input))
-                            .collect::<Result<Vec<_>, _>>()?;
-                        if let Some((source, destination, mask)) = branch.and_mask {
-                            if source != destination {
-                                let destination = value_operand(function, destination)?;
-                                emit!(body; MachineOperation::Move(IntegerWidth::U64) => [destination, value_operand(function, source)?];);
-                            }
-                            emit!(body; MachineOperation::IntegerBinary { operation: IntegerBinaryOperation::Binary(BinaryOperation::And), width: IntegerWidth::U16 } => [value_operand(function, destination)?, layout_operand(constants, mask)?];);
-                        }
-                        materialize_symbolic_branch_rhs(
-                            branch.operation,
-                            block_id,
-                            block_body_start,
-                            &mut operands,
-                            &mut body,
-                        );
-                        operands.push(Operand::Label(then_label.clone()));
-                        body.push(machine_instruction(branch.operation, operands));
-                    }
-                } else {
-                    emit!(body; MachineOperation::branch_zero(IntegerWidth::U64, ZeroCondition::NonZero) => [value_operand(function, *condition)?, Operand::Label(then_label.clone())];);
-                }
+                emit_conditional_branch(
+                    function,
+                    constants,
+                    &format!("{}", block_id.0),
+                    block_body_start,
+                    *condition,
+                    &then_label,
+                    &mut body,
+                )?;
                 lower_edge_copies(
                     function,
                     else_edge,
@@ -2434,6 +2370,9 @@ fn lower_instruction(
         }
         Operation::BlockReference(_) => {}
         Operation::Address => {}
+        // A guard needs the block's label naming and its emitted position, so
+        // block lowering handles it rather than this per-instruction pass.
+        Operation::Guard { .. } => return Err("a guard is lowered with its block".to_string()),
     }
     Ok(())
 }
@@ -2911,9 +2850,133 @@ fn materialize_symbolic_logical_rhs(
     Ok(temporary)
 }
 
+/// Emit the machine branch that goes to `then_label` when `condition` holds.
+///
+/// A branch terminator and a guard differ only in where control goes when the
+/// condition fails, so both select their machine instruction here. `name` makes
+/// the labels and temporaries this emits unique within the handler.
+fn emit_conditional_branch(
+    function: &FunctionUses<'_>,
+    constants: &LayoutConstants,
+    name: &str,
+    block_body_start: usize,
+    condition: ValueId,
+    then_label: &Label,
+    body: &mut Vec<Instruction>,
+) -> Result<(), String> {
+    let branch = selected_branch(function, condition);
+    if let Some((_, lhs, rhs)) = selected_int32_pair(function, condition) {
+        let failure_label = Label::new(format!(".ssa_edge_{name}_else"));
+        emit!(body;
+            MachineOperation::branch_tag(EqualityCondition::NotEqual) => [value_operand(function, lhs)?, layout_operand(
+                    constants,
+                    KnownLayoutConstant::Int32Tag,
+                )?, Operand::Label(failure_label.clone())];
+        );
+        emit!(body;
+            MachineOperation::branch_tag(EqualityCondition::Equal) => [value_operand(function, rhs)?, layout_operand(
+                    constants,
+                    KnownLayoutConstant::Int32Tag,
+                )?, Operand::Label(then_label.clone())];
+        );
+        emit!(body; MachineOperation::Label => [Operand::Label(failure_label)];);
+    } else if let Some(branch) = branch {
+        let direct_tag_branch = branch
+            .direct_tag_source
+            .as_ref()
+            .and_then(|source| {
+                if !branch.early_branches.is_empty() || branch.and_mask.is_some() {
+                    return None;
+                }
+                let [SelectedBranchInput::Value(lhs), SelectedBranchInput::Value(rhs)] = branch.inputs.as_slice()
+                else {
+                    return None;
+                };
+                if !matches!(
+                    branch.operation,
+                    MachineOperation::Branch(BranchOperation::Equality {
+                        width: IntegerWidth::U64 | IntegerWidth::U16,
+                        ..
+                    })
+                ) {
+                    return None;
+                }
+                if *lhs == source.tag {
+                    direct_tag_constant(function, *rhs).map(|tag| (source.value, tag))
+                } else if *rhs == source.tag {
+                    direct_tag_constant(function, *lhs).map(|tag| (source.value, tag))
+                } else {
+                    None
+                }
+            })
+            .or_else(|| singleton_value_branch(function, &branch));
+        if let Some(source) = branch.direct_tag_source.as_ref()
+            && direct_tag_branch.is_none()
+        {
+            let tag = value_operand(function, source.tag)?;
+            emit!(body; MachineOperation::ExtractTag => [tag, value_operand(function, source.value)?];);
+        }
+        for early_branch in &branch.early_branches {
+            let mut operands = early_branch
+                .inputs
+                .iter()
+                .map(|input| branch_input_operand(function, constants, input))
+                .collect::<Result<Vec<_>, _>>()?;
+            materialize_symbolic_branch_rhs(early_branch.operation, name, block_body_start, &mut operands, body);
+            operands.push(Operand::Label(then_label.clone()));
+            body.push(machine_instruction(early_branch.operation, operands));
+        }
+        if let Some((value, expected_tag)) = direct_tag_branch {
+            let singleton = matches!(
+                &expected_tag,
+                Operand::LayoutConstant(constant)
+                    if constant.category()
+                        == LayoutConstantCategory::Value
+            );
+            emit!(body;
+                match (
+                    singleton,
+                    matches!(
+                        branch.operation,
+                        MachineOperation::Branch(BranchOperation::Equality {
+                            condition: EqualityCondition::Equal,
+                            ..
+                        })
+                    ),
+                ) {
+                    (true, true) => MachineOperation::branch_singleton(EqualityCondition::Equal),
+                    (true, false) => MachineOperation::branch_singleton(EqualityCondition::NotEqual),
+                    (false, true) => MachineOperation::branch_tag(EqualityCondition::Equal),
+                    (false, false) => MachineOperation::branch_tag(EqualityCondition::NotEqual),
+                } => [value_operand(function, value)?, expected_tag, Operand::Label(then_label.clone())];
+            );
+        } else {
+            let mut operands = branch
+                .inputs
+                .iter()
+                .map(|input| branch_input_operand(function, constants, input))
+                .collect::<Result<Vec<_>, _>>()?;
+            if let Some((source, destination, mask)) = branch.and_mask {
+                if source != destination {
+                    let destination = value_operand(function, destination)?;
+                    emit!(body; MachineOperation::Move(IntegerWidth::U64) => [destination, value_operand(function, source)?];);
+                }
+                emit!(body; MachineOperation::IntegerBinary { operation: IntegerBinaryOperation::Binary(BinaryOperation::And), width: IntegerWidth::U16 } => [value_operand(function, destination)?, layout_operand(constants, mask)?];);
+            }
+            materialize_symbolic_branch_rhs(branch.operation, name, block_body_start, &mut operands, body);
+            operands.push(Operand::Label(then_label.clone()));
+            body.push(machine_instruction(branch.operation, operands));
+        }
+    } else {
+        emit!(body; MachineOperation::branch_zero(IntegerWidth::U64, ZeroCondition::NonZero) => [value_operand(function, condition)?, Operand::Label(then_label.clone())];);
+    }
+
+    Ok(())
+}
+
 fn materialize_symbolic_branch_rhs(
     operation: MachineOperation,
-    block: BlockId,
+    name: &str,
     block_body_start: usize,
     operands: &mut [Operand],
     output: &mut Vec<Instruction>,
@@ -2950,7 +3013,7 @@ fn materialize_symbolic_branch_rhs(
         *rhs = register;
         return;
     }
-    let temporary = Operand::VirtualRegister(format!("ssa_branch_{}_rhs", block.0).into());
+    let temporary = Operand::VirtualRegister(format!("ssa_branch_{name}_rhs").into());
     emit!(output; MachineOperation::Move(IntegerWidth::U64) => [temporary.clone(), rhs.clone()];);
     *rhs = temporary;
 }

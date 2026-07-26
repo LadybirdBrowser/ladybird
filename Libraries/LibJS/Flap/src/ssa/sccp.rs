@@ -6,7 +6,9 @@
 
 //! Sparse conditional constant propagation and integer value analysis.
 
-use super::optimize::{eliminate_unreachable_blocks, rewrite_terminator, rewrite_values};
+use super::optimize::{
+    InstructionOrder, eliminate_unreachable_blocks, rebuild_instruction_arena, rewrite_terminator, rewrite_values,
+};
 use super::pass::AnalysisManager;
 use super::{
     BinaryOperation, BlockId, CheckedIntegerOperation, ComparisonDomain, ComparisonRelation, Constant, Edge, Effects,
@@ -124,6 +126,7 @@ struct Solver<'a> {
     executable_blocks: Vec<bool>,
     executable_edges: Vec<Vec<bool>>,
     edge_targets: Vec<Vec<usize>>,
+    guard_edges: Vec<Vec<(ValueId, usize)>>,
     incoming_edges: Vec<Vec<IncomingEdge>>,
     users: Vec<Vec<User>>,
     owning_block: Vec<usize>,
@@ -146,13 +149,23 @@ impl<'a> Solver<'a> {
             .iter()
             .map(|value| initial_value(&value.ty, &value.definition))
             .collect();
-        let edge_targets = function
-            .blocks
-            .iter()
+        let guard_edges = (0..function.blocks.len())
             .map(|block| {
-                outgoing_edges(block.terminator.as_ref().unwrap())
+                function
+                    .guard_exits(BlockId(block))
+                    .map(|(position, failure)| {
+                        let instruction = &function.instructions[function.blocks[block].instructions[position].0];
+                        (instruction.inputs[0], failure.0)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        let edge_targets = (0..function.blocks.len())
+            .map(|block| {
+                outgoing_edges(function.blocks[block].terminator.as_ref().unwrap())
                     .into_iter()
                     .map(|(_, edge)| edge.block.0)
+                    .chain(guard_edges[block].iter().map(|(_, failure)| *failure))
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
@@ -162,8 +175,16 @@ impl<'a> Solver<'a> {
         for (block_index, block) in function.blocks.iter().enumerate() {
             for instruction_id in &block.instructions {
                 owning_block[instruction_id.0] = block_index;
-                for input in &function.instructions[instruction_id.0].inputs {
+                let instruction = &function.instructions[instruction_id.0];
+                for input in &instruction.inputs {
                     users[input.0].push(User::Instruction(instruction_id.0));
+                }
+                // A guard decides an edge, so learning what its condition is
+                // has to send the solver back to the block's edges.
+                if instruction.operation.guard_failure().is_some() {
+                    for input in &instruction.inputs {
+                        users[input.0].push(User::Terminator(block_index));
+                    }
                 }
             }
             let terminator = block.terminator.as_ref().unwrap();
@@ -186,6 +207,7 @@ impl<'a> Solver<'a> {
             executable_blocks: vec![false; function.blocks.len()],
             executable_edges,
             edge_targets,
+            guard_edges,
             incoming_edges: incoming_edges(function),
             users,
             owning_block,
@@ -323,7 +345,13 @@ impl<'a> Solver<'a> {
         }
         let mut selected = std::mem::take(&mut self.selected);
         selected.clear();
-        selected_edges(function, BlockId(block), &self.values, &mut selected);
+        selected_edges(
+            function,
+            BlockId(block),
+            &self.guard_edges[block],
+            &self.values,
+            &mut selected,
+        );
         for edge_index in &selected {
             self.mark_edge(block, *edge_index);
         }
@@ -708,11 +736,22 @@ struct IncomingEdge {
 fn incoming_edges(function: &Function) -> Vec<Vec<IncomingEdge>> {
     let mut edges: Vec<Vec<IncomingEdge>> = (0..function.blocks.len()).map(|_| Vec::new()).collect();
     for (predecessor, block) in function.blocks.iter().enumerate() {
-        for (edge_index, edge) in outgoing_edges(block.terminator.as_ref().unwrap()) {
+        let terminator = block.terminator.as_ref().unwrap();
+        for (edge_index, edge) in outgoing_edges(terminator) {
             edges[edge.block.0].push(IncomingEdge {
                 predecessor,
                 edge_index,
                 arguments: edge.arguments.clone(),
+            });
+        }
+        // A guard exit carries no arguments, so it names no block parameter,
+        // but the block it leaves for is only reached when it is taken.
+        let terminator_edges = terminator.successor_count();
+        for (index, (_, failure)) in function.guard_exits(BlockId(predecessor)).enumerate() {
+            edges[failure.0].push(IncomingEdge {
+                predecessor,
+                edge_index: terminator_edges + index,
+                arguments: Vec::new(),
             });
         }
     }
@@ -738,7 +777,27 @@ fn outgoing_edges(terminator: &Terminator) -> Vec<(usize, &Edge)> {
 }
 
 /// The edges a terminator can take given what is currently known, by index.
-fn selected_edges(function: &Function, block: BlockId, values: &[LatticeValue], selected: &mut Vec<usize>) {
+fn selected_edges(
+    function: &Function,
+    block: BlockId,
+    guard_edges: &[(ValueId, usize)],
+    values: &[LatticeValue],
+    selected: &mut Vec<usize>,
+) {
+    selected_terminator_edges(function, block, values, selected);
+    let terminator_edges = function.blocks[block.0].terminator.as_ref().unwrap().successor_count();
+    for (index, (condition, _)) in guard_edges.iter().enumerate() {
+        // A guard whose condition is known to hold never leaves the block.
+        match exact_integer(values[condition.0]) {
+            Some(0) | None if values[condition.0] != LatticeValue::Unknown => {
+                selected.push(terminator_edges + index);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn selected_terminator_edges(function: &Function, block: BlockId, values: &[LatticeValue], selected: &mut Vec<usize>) {
     match function.blocks[block.0].terminator.as_ref().unwrap() {
         Terminator::Jump(_) => selected.push(0),
         Terminator::Branch { condition, .. } => {
@@ -916,6 +975,22 @@ fn rewrite(function: &mut Function, values: &[LatticeValue], executable_blocks: 
             changed = true;
         }
     }
+    // A guard whose condition is known to hold cannot exit, and dropping it
+    // often leaves the block it guarded against unreachable. This reads the
+    // conditions before they are rewritten, since a value the rewrite
+    // introduces has no entry in the lattice.
+    let eliminated_guards = function
+        .blocks
+        .iter()
+        .flat_map(|block| block.instructions.iter())
+        .filter(|instruction| {
+            let instruction = &function.instructions[instruction.0];
+            instruction.operation.guard_failure().is_some()
+                && exact_integer(values[instruction.inputs[0].0]).is_some_and(|condition| condition != 0)
+        })
+        .copied()
+        .collect::<crate::hash::HashSet<_>>();
+
     // NB: Rewriting after the block loop, so that a checked operation replaced by an unchecked one
     //     also redirects the uses of its results, including in the replacement instruction itself.
     for instruction in &mut function.instructions {
@@ -926,6 +1001,10 @@ fn rewrite(function: &mut Function, values: &[LatticeValue], executable_blocks: 
     }
     for result in eliminated_checked_results {
         function.values[result.0].definition = ValueDefinition::Dead;
+    }
+    if !eliminated_guards.is_empty() {
+        rebuild_instruction_arena(function, &eliminated_guards, InstructionOrder::ByBlock);
+        changed = true;
     }
     changed |= !replacements.is_empty();
     changed |= executable_blocks.iter().any(|executable| !executable) && eliminate_unreachable_blocks(function);

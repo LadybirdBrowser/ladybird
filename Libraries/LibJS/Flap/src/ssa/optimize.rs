@@ -495,10 +495,12 @@ pub(super) fn eliminate_unreachable_blocks(function: &mut Function) -> bool {
     }
 
     for instruction in &mut function.instructions {
-        let Operation::BlockReference(target) = &mut instruction.operation else {
-            continue;
-        };
-        *target = block_map[target.0].expect("reachable block reference cannot target an unreachable block");
+        match &mut instruction.operation {
+            Operation::BlockReference(target) | Operation::Guard { failure: target } => {
+                *target = block_map[target.0].expect("a reachable block cannot name an unreachable one");
+            }
+            _ => continue,
+        }
     }
 
     function.entry = block_map[function.entry.0].expect("the entry block is always reachable");
@@ -506,27 +508,21 @@ pub(super) fn eliminate_unreachable_blocks(function: &mut Function) -> bool {
     true
 }
 
-#[cfg(test)]
-pub(crate) fn merge_straight_line_blocks(function: &mut Function) {
-    run_single_pass(function, "merge-straight-line-blocks", merge_straight_line_blocks_pass);
-}
-
 /// Merge a block into the only block that jumps to it.
 ///
-/// Stitching a bytecode program writes a block per guard and a block per merge,
-/// so a stitched function is thousands of blocks holding two or three
-/// instructions each. A quarter of them are entered from exactly one place that
+/// Large generated functions can contain thousands of blocks holding two or
+/// three instructions each. Many are entered from exactly one place that
 /// goes nowhere else: the two are one straight line spelled as two blocks, and
 /// every later phase pays for the split with a terminator, a label in the
 /// machine listing and a row in every block-indexed analysis.
 fn merge_straight_line_blocks_pass(function: &mut Function, analyses: &mut AnalysisManager) -> bool {
-    // A block named as a value is jumped to indirectly, which is not an edge
-    // the control-flow graph knows about, so it stays a block whatever else
-    // reaches it.
-    let mut named_as_value = vec![false; function.blocks.len()];
+    // A block named as a value is jumped to indirectly, and a guard can leave
+    // from the middle of a block. Neither target can be folded into a
+    // terminator predecessor without invalidating that reference.
+    let mut unmergeable = vec![false; function.blocks.len()];
     for instruction in &function.instructions {
-        if let Operation::BlockReference(target) = instruction.operation {
-            named_as_value[target.0] = true;
+        if let Operation::BlockReference(target) | Operation::Guard { failure: target } = instruction.operation {
+            unmergeable[target.0] = true;
         }
     }
     let cfg = analyses.cfg(function);
@@ -546,7 +542,7 @@ fn merge_straight_line_blocks_pass(function: &mut Function, analyses: &mut Analy
             continue;
         }
         let head = BlockId(index);
-        while let Some(next) = mergeable_successor(function, head, &single_predecessor, &named_as_value) {
+        while let Some(next) = mergeable_successor(function, head, &single_predecessor, &unmergeable) {
             let edge = match function.blocks[head.0].terminator.take() {
                 Some(Terminator::Jump(edge)) => edge,
                 _ => unreachable!("only a jump names a mergeable successor"),
@@ -625,8 +621,8 @@ fn merge_straight_line_blocks_pass(function: &mut Function, analyses: &mut Analy
         }
     }
     for instruction in &mut function.instructions {
-        if let Operation::BlockReference(target) = &mut instruction.operation {
-            *target = block_map[target.0].expect("a merged block is never referenced as a value");
+        if let Operation::BlockReference(target) | Operation::Guard { failure: target } = &mut instruction.operation {
+            *target = block_map[target.0].expect("a merged block is never named by another block");
         }
     }
     function.entry = block_map[function.entry.0].expect("the entry block is never merged away");
@@ -640,13 +636,13 @@ fn mergeable_successor(
     function: &Function,
     head: BlockId,
     single_predecessor: &[Option<BlockId>],
-    named_as_value: &[bool],
+    unmergeable: &[bool],
 ) -> Option<BlockId> {
     let Some(Terminator::Jump(edge)) = &function.blocks[head.0].terminator else {
         return None;
     };
     let next = edge.block;
-    if next == head || next == function.entry || named_as_value[next.0] || single_predecessor[next.0] != Some(head) {
+    if next == head || next == function.entry || unmergeable[next.0] || single_predecessor[next.0] != Some(head) {
         return None;
     }
     let (head_block, next_block) = (&function.blocks[head.0], &function.blocks[next.0]);
@@ -691,6 +687,7 @@ fn eliminate_common_subexpressions_pass(
     let mut eliminated = HashSet::default();
     let analyses = analyses.get(function);
     let dominators = analyses.dominators;
+    let guards = analyses.guards;
     // Availability is scoped to the dominator subtree being walked. Copying the
     // whole table for each child costs a clone of every expression in it per
     // block, so the table is shared and each block records what it has to put
@@ -713,8 +710,14 @@ fn eliminate_common_subexpressions_pass(
             DominatorStep::Enter(block) => block,
         };
         worklist.push(DominatorStep::Leave(undo.len()));
+        // Everything published past a guard is unavailable wherever the guard's
+        // exit leads, since taking the exit skipped it.
+        let mut guard_mark = None;
         for instruction_id in function.blocks[block.0].instructions.clone() {
             let instruction = &mut function.instructions[instruction_id.0];
+            if instruction.operation.guard_failure().is_some() && guard_mark.is_none() {
+                guard_mark = Some(undo.len());
+            }
             rewrite_values(&mut instruction.inputs, &replacements);
             // The current allocator cannot preserve virtual registers across
             // calls, and sharing across a trapping check increases pressure on
@@ -789,7 +792,28 @@ fn eliminate_common_subexpressions_pass(
                 available.insert(expression, instruction.results.clone());
             }
         }
-        for child in dominators.children(block).iter().rev() {
+        let children = dominators.children(block);
+        let Some(guard_mark) = guard_mark else {
+            for child in children.iter().rev() {
+                worklist.push(DominatorStep::Enter(*child));
+            }
+            continue;
+        };
+        // Rolling back is one-way, so the children that keep the block's whole
+        // table run first and the ones an exit can reach run after the undo.
+        for child in children
+            .iter()
+            .rev()
+            .filter(|child| guards.is_reachable_from_exit(**child))
+        {
+            worklist.push(DominatorStep::Enter(*child));
+        }
+        worklist.push(DominatorStep::Leave(guard_mark));
+        for child in children
+            .iter()
+            .rev()
+            .filter(|child| !guards.is_reachable_from_exit(**child))
+        {
             worklist.push(DominatorStep::Enter(*child));
         }
     }
@@ -829,6 +853,7 @@ fn schedule_global_code_motion_pass(
     let analyses = analyses.placement(function);
     let dominators = &analyses.dominators;
     let instruction_layout = &analyses.instruction_layout;
+    let guards = analyses.guards;
     let mut loop_depths = vec![0usize; function.blocks.len()];
     for natural_loop in analyses.loops {
         for block in &natural_loop.blocks {
@@ -836,14 +861,26 @@ fn schedule_global_code_motion_pass(
         }
     }
 
-    let movable = function
-        .instructions
-        .iter()
-        .map(instruction_is_globally_movable)
-        .collect::<Vec<_>>();
     let uses = collect_instruction_uses(function);
     let original_placements = (0..function.instructions.len())
         .map(|index| instruction_layout.block(InstructionId(index)))
+        .collect::<Vec<_>>();
+    // A value another block reads along a guard's exit stays where the guard
+    // already passes it. Sinking it towards a use would put it after an exit
+    // that reads it, and forcing it above the guard instead is no better: what
+    // it is computed from can be something that cannot move at all.
+    let movable = (0..function.instructions.len())
+        .map(|index| {
+            instruction_is_globally_movable(&function.instructions[index])
+                && !escapes_through_a_guard(
+                    function,
+                    InstructionId(index),
+                    original_placements[index],
+                    &uses,
+                    &original_placements,
+                    guards,
+                )
+        })
         .collect::<Vec<_>>();
     let mut placements = original_placements.clone();
 
@@ -972,6 +1009,31 @@ fn schedule_global_code_motion_pass(
     true
 }
 
+/// Whether another block reads this instruction's result along a guard's exit.
+fn escapes_through_a_guard(
+    function: &Function,
+    instruction: InstructionId,
+    block: BlockId,
+    uses: &[Vec<InstructionUse>],
+    placements: &[BlockId],
+    guards: &super::analysis::GuardExits,
+) -> bool {
+    // Nothing leaves a block that has no guard before its terminator, so
+    // everything it defines reaches wherever it dominates.
+    if !guards.has_guard(block) {
+        return false;
+    }
+    function.instructions[instruction.0]
+        .results
+        .iter()
+        .flat_map(|result| uses[result.0].iter())
+        .map(|use_site| match use_site {
+            InstructionUse::Instruction(user) => placements[user.0],
+            InstructionUse::Terminator(user) => *user,
+        })
+        .any(|user| user != block && guards.is_reachable_from_exit(user))
+}
+
 fn instruction_is_globally_movable(instruction: &super::Instruction) -> bool {
     instruction.effects == Effects::PURE
         && !instruction.results.is_empty()
@@ -988,7 +1050,8 @@ fn instruction_is_globally_movable(instruction: &super::Instruction) -> bool {
             }
             Operation::Intrinsic(Intrinsic::Aggregate(_)) | Operation::Intrinsic(Intrinsic::Assertion(_)) | Operation::Intrinsic(Intrinsic::Branch(_)) | Operation::Intrinsic(Intrinsic::Bytecode(_)) | Operation::Intrinsic(Intrinsic::Call(_)) | Operation::Intrinsic(Intrinsic::CheckedInteger(_)) | Operation::Intrinsic(Intrinsic::Control(_)) | Operation::Intrinsic(Intrinsic::Memory(_)) | Operation::InlineCall(_) | Operation::Parameter(_)
             | Operation::MachineAssign { .. }
-            | Operation::BlockReference(_) => false,
+            | Operation::BlockReference(_)
+            | Operation::Guard { .. } => false,
         }
 }
 
@@ -1125,8 +1188,7 @@ fn eliminate_dead_code_pass(function: &mut Function, analyses: &mut AnalysisMana
             .iter()
             .enumerate()
             .filter(|(_, instruction)| {
-                instruction.effects.can_be_eliminated()
-                    && instruction.results.iter().all(|result| uses.count(*result) == 0)
+                instruction.can_be_eliminated() && instruction.results.iter().all(|result| uses.count(*result) == 0)
             })
             .map(|(index, _)| InstructionId(index))
             .collect::<HashSet<_>>();
@@ -1278,6 +1340,27 @@ mod tests {
             effects,
         );
         (instruction, results)
+    }
+
+    #[test]
+    fn does_not_merge_a_guard_failure_target_into_its_predecessor() {
+        let mut function = Function::new("guard-target", vec![Type::Bool], Vec::new());
+        let failure = function.create_empty_block("failure", BlockLayout::Cold);
+        function.append_instruction(
+            function.entry,
+            Operation::Guard { failure },
+            vec![function.parameter(0)],
+            Vec::new(),
+        );
+        function.set_terminator(function.entry, Terminator::jump(failure));
+        function.set_terminator(failure, Terminator::Return(Vec::new()));
+
+        assert!(!merge_straight_line_blocks_pass(
+            &mut function,
+            &mut AnalysisManager::default()
+        ));
+        assert_eq!(function.blocks.len(), 2);
+        function.validate().unwrap();
     }
 
     #[test]

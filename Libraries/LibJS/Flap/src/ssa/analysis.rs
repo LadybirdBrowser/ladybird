@@ -29,6 +29,15 @@ impl ControlFlowGraph {
                 successors[block_index].push(edge.block);
                 predecessors[edge.block.0].push(BlockId(block_index));
             }
+            // A guard leaves the block from the middle of it, so its exit is an
+            // edge as real as the terminator's.
+            for (_, failure) in function.guard_exits(BlockId(block_index)) {
+                if failure.0 >= function.blocks.len() {
+                    continue;
+                }
+                successors[block_index].push(failure);
+                predecessors[failure.0].push(BlockId(block_index));
+            }
         }
 
         let mut reachable = vec![false; function.blocks.len()];
@@ -220,6 +229,110 @@ impl DominatorTree {
             rhs = self.immediate_dominators[rhs.0]?;
         }
         Some(lhs)
+    }
+}
+
+/// Where guards sit, and which blocks a guard can reach around them.
+///
+/// A block containing a guard is entered before the guard and left again from
+/// the middle of it, so the values it defines after a guard are not available
+/// everywhere it dominates: a path that took the exit skipped them. Dominance
+/// alone cannot say that, so every pass that moves or shares a value across
+/// blocks asks this instead.
+#[derive(Debug, Default)]
+pub(crate) struct GuardExits {
+    any: bool,
+    first_guard: Vec<Option<usize>>,
+    reachable_from_exit: Vec<bool>,
+}
+
+impl GuardExits {
+    pub(crate) fn compute(function: &Function, cfg: &ControlFlowGraph) -> Self {
+        let first_guard = (0..function.blocks.len())
+            .map(|index| function.first_guard_position(BlockId(index)))
+            .collect::<Vec<_>>();
+        if first_guard.iter().all(Option::is_none) {
+            return Self {
+                any: false,
+                first_guard,
+                reachable_from_exit: vec![false; function.blocks.len()],
+            };
+        }
+        let mut reachable_from_exit = vec![false; function.blocks.len()];
+        let mut worklist = (0..function.blocks.len())
+            .flat_map(|index| function.guard_exits(BlockId(index)))
+            .map(|(_, failure)| failure)
+            .collect::<Vec<_>>();
+        while let Some(block) = worklist.pop() {
+            if std::mem::replace(&mut reachable_from_exit[block.0], true) {
+                continue;
+            }
+            worklist.extend(cfg.successors(block).iter().copied());
+        }
+        Self {
+            any: true,
+            first_guard,
+            reachable_from_exit,
+        }
+    }
+
+    /// Whether a value defined at `position` in `block` is available in `user`.
+    ///
+    /// The caller has already established that `block` dominates `user`. The
+    /// answer is conservative: it asks whether *any* guard exit reaches `user`
+    /// rather than whether one of this block's does, because the exact question
+    /// costs a walk per block. [`Self::definition_escapes`] asks it exactly.
+    pub(crate) fn definition_reaches(&self, block: BlockId, position: usize, user: BlockId) -> bool {
+        if !self.any || block == user {
+            return true;
+        }
+        match self.first_guard[block.0] {
+            Some(guard) if position > guard => !self.reachable_from_exit[user.0],
+            _ => true,
+        }
+    }
+
+    /// Whether a guard really carries control from before `position` in `block`
+    /// to `user`, skipping the definition that sits between them.
+    ///
+    /// This walks out of each exit, so it costs a pass over the function. Only
+    /// validation asks it, and only where the cheap answer was already "maybe".
+    pub(crate) fn definition_escapes(
+        &self,
+        function: &Function,
+        cfg: &ControlFlowGraph,
+        block: BlockId,
+        position: usize,
+        user: BlockId,
+    ) -> bool {
+        // Coming back around to the block runs the definition after all, so
+        // only paths that stay out of it skip it.
+        let mut reached = vec![false; function.blocks.len()];
+        reached[block.0] = true;
+        let mut worklist = function
+            .guard_exits(block)
+            .filter(|(guard, _)| *guard < position)
+            .map(|(_, failure)| failure)
+            .collect::<Vec<_>>();
+        while let Some(reached_block) = worklist.pop() {
+            if reached_block == user {
+                return true;
+            }
+            if std::mem::replace(&mut reached[reached_block.0], true) {
+                continue;
+            }
+            worklist.extend(cfg.successors(reached_block).iter().copied());
+        }
+        false
+    }
+
+    /// Whether control can leave `block` before its terminator.
+    pub(crate) fn has_guard(&self, block: BlockId) -> bool {
+        self.any && self.first_guard[block.0].is_some()
+    }
+
+    pub(crate) fn is_reachable_from_exit(&self, block: BlockId) -> bool {
+        self.reachable_from_exit[block.0]
     }
 }
 

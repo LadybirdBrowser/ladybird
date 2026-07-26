@@ -147,10 +147,14 @@ fn dominates_instruction(
 ) -> bool {
     let dominator_block = analysis.instruction_layout.block(dominator);
     let instruction_block = analysis.instruction_layout.block(instruction);
+    let position = analysis.instruction_layout.position(dominator);
     if dominator_block == instruction_block {
-        analysis.instruction_layout.position(dominator) < analysis.instruction_layout.position(instruction)
+        position < analysis.instruction_layout.position(instruction)
     } else {
         analysis.dominators.dominates(dominator_block, instruction_block)
+            && analysis
+                .guards
+                .definition_reaches(dominator_block, position, instruction_block)
     }
 }
 

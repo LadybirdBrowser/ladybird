@@ -440,7 +440,12 @@ impl DomainDependencies {
                 (inputs.len() > 1 && cfg.predecessors(BlockId(block)).len() > 1).then(|| inputs.clone())
             })
             .collect::<Vec<_>>();
-        let phi_blocks = phi_inputs.iter().map(Option::is_some).collect::<Vec<_>>();
+        let mut phi_blocks = phi_inputs.iter().map(Option::is_some).collect::<Vec<_>>();
+        for block in 0..function.blocks.len() {
+            for (_, failure) in function.guard_exits(BlockId(block)) {
+                phi_blocks[failure.0] = true;
+            }
+        }
         let (block_inputs, mut block_outputs) =
             compute_domain_block_states(function, cfg, domain, &phi_blocks);
 
