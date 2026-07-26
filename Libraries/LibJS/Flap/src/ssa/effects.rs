@@ -63,8 +63,12 @@ impl EffectSet {
 impl FromIterator<EffectDefinition> for EffectSet {
     fn from_iter<I: IntoIterator<Item = EffectDefinition>>(definitions: I) -> Self {
         let mut set = Self(definitions.into_iter().collect());
-        set.0.sort_unstable();
-        set.0.dedup();
+        // A block almost always inherits a single definition, and sorting is
+        // the most expensive thing this pass does per block.
+        if set.0.len() > 1 {
+            set.0.sort_unstable();
+            set.0.dedup();
+        }
         set
     }
 }

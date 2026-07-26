@@ -21,6 +21,13 @@ pub(crate) struct FunctionAnalyses<'a> {
     pub(crate) effects: &'a EffectDependencies,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct PlacementAnalyses<'a> {
+    pub(crate) dominators: &'a DominatorTree,
+    pub(crate) instruction_layout: &'a InstructionLayout,
+    pub(crate) loops: &'a [NaturalLoop],
+}
+
 #[derive(Debug, Default)]
 struct PassInstrumentation {
     attempted_transformations: u64,
@@ -87,6 +94,23 @@ impl AnalysisManager {
 
     pub(crate) fn uses<'a>(&'a mut self, function: &Function) -> &'a ValueUses {
         self.uses.get_or_insert_with(|| ValueUses::compute(function))
+    }
+
+    /// The analyses a pass needs to decide where an instruction belongs.
+    ///
+    /// Placement says nothing about effects, and computing the effect
+    /// dependencies of a whole stitched function is the most expensive analysis
+    /// there is, so asking for the bundle that includes them costs a pass that
+    /// never reads them dearly.
+    pub(crate) fn placement<'a>(&'a mut self, function: &Function) -> PlacementAnalyses<'a> {
+        self.dominators(function);
+        self.instruction_layout(function);
+        self.loops(function);
+        PlacementAnalyses {
+            dominators: self.dominators.as_ref().unwrap(),
+            instruction_layout: self.instruction_layout.as_ref().unwrap(),
+            loops: self.loops.as_deref().unwrap(),
+        }
     }
 
     pub(crate) fn get<'a>(&'a mut self, function: &Function) -> FunctionAnalyses<'a> {

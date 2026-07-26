@@ -675,7 +675,7 @@ fn schedule_global_code_motion_pass(
     function: &mut Function,
     analyses: &mut AnalysisManager,
 ) -> bool {
-    let analyses = analyses.get(function);
+    let analyses = analyses.placement(function);
     let dominators = &analyses.dominators;
     let instruction_layout = &analyses.instruction_layout;
     let mut loop_depths = vec![0usize; function.blocks.len()];
