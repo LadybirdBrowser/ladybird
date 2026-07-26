@@ -56,15 +56,14 @@
 
 use crate::Architecture;
 pub(crate) use crate::intrinsic::{
-    AssertionOperation, BranchOperation, CallOperation as CallKind, ControlOperation, EqualityCondition, FloatBinaryOperation, FloatConversion,
-    FloatUnaryOperation, FloatingPointOperation, IntegerBinaryOperation, SignCondition, MemoryWidth, PairWidth, TestCondition, ZeroCondition,
-    IntegerSignedness, IntegerWidth, MemoryOperation,
+    AssertionOperation, BranchOperation, CallOperation as CallKind, ControlOperation, EqualityCondition,
+    FloatBinaryOperation, FloatConversion, FloatUnaryOperation, FloatingPointOperation, IntegerBinaryOperation,
+    IntegerSignedness, IntegerWidth, MemoryOperation, MemoryWidth, PairWidth, SignCondition, TestCondition,
+    ZeroCondition,
 };
 use crate::target::ir::Operand;
+use crate::target::registers::{PhysicalRegister, RegisterClass, aarch64, x86_64};
 use crate::target::{aarch64 as aarch64_target, x86_64 as x86_64_target};
-use crate::target::registers::{
-    PhysicalRegister, RegisterClass, aarch64, x86_64,
-};
 
 /// An architecture-selected target instruction.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -154,7 +153,10 @@ pub(crate) enum Operation {
     Increment32Memory,
     LoadEffectiveAddress,
     Move(IntegerWidth),
-    IntegerBinary { operation: IntegerBinaryOperation, width: IntegerWidth },
+    IntegerBinary {
+        operation: IntegerBinaryOperation,
+        width: IntegerWidth,
+    },
     Or32Branch(SignCondition),
     Negate,
     Not(IntegerWidth),
@@ -163,7 +165,9 @@ pub(crate) enum Operation {
     ExtractTag,
     UnboxInt32,
     UnboxObject,
-    BoxInt32 { clean: bool },
+    BoxInt32 {
+        clean: bool,
+    },
     ToggleBit,
     ClearBit,
     Float(FloatingPointOperation),
@@ -186,35 +190,28 @@ impl Operation {
         SelectedOpcode {
             operation,
             opcode: match architecture {
-                Architecture::X86_64 => ArchitectureOpcode::X86_64(
-                    x86_64_target::Opcode::select_for_operands(operation, operands),
-                ),
-                Architecture::Aarch64 => ArchitectureOpcode::Aarch64(
-                    aarch64_target::Opcode::select_for_operands(operation, operands),
-                ),
+                Architecture::X86_64 => {
+                    ArchitectureOpcode::X86_64(x86_64_target::Opcode::select_for_operands(operation, operands))
+                }
+                Architecture::Aarch64 => {
+                    ArchitectureOpcode::Aarch64(aarch64_target::Opcode::select_for_operands(operation, operands))
+                }
             },
         }
     }
 
-    pub(crate) fn description(&self) -> InstructionDescription {
+    pub(crate) fn description(&self) -> &'static InstructionDescription {
         lookup_operation(*self)
     }
 }
 
 impl SelectedOpcode {
-    pub(crate) fn for_operation(
-        operation: Operation,
-        architecture: Architecture,
-    ) -> Self {
+    pub(crate) fn for_operation(operation: Operation, architecture: Architecture) -> Self {
         Self {
             operation,
             opcode: match architecture {
-                Architecture::X86_64 => {
-                    ArchitectureOpcode::X86_64(x86_64_target::Opcode::select(operation))
-                }
-                Architecture::Aarch64 => {
-                    ArchitectureOpcode::Aarch64(aarch64_target::Opcode::select(operation))
-                }
+                Architecture::X86_64 => ArchitectureOpcode::X86_64(x86_64_target::Opcode::select(operation)),
+                Architecture::Aarch64 => ArchitectureOpcode::Aarch64(aarch64_target::Opcode::select(operation)),
             },
         }
     }
@@ -239,11 +236,11 @@ impl SelectedOpcode {
         self.opcode
     }
 
-    pub(crate) fn description(&self) -> InstructionDescription {
+    pub(crate) fn description(&self) -> &'static InstructionDescription {
         match self.opcode {
-            ArchitectureOpcode::X86_64(
-                x86_64_target::Opcode::StoreLargeImmediate(_),
-            ) => X86_64_LARGE_IMMEDIATE_STORE_DESCRIPTION,
+            ArchitectureOpcode::X86_64(x86_64_target::Opcode::StoreLargeImmediate(_)) => {
+                &X86_64_LARGE_IMMEDIATE_STORE_DESCRIPTION
+            }
             _ => lookup_operation(self.operation),
         }
     }
@@ -264,9 +261,7 @@ impl SelectedOpcode {
 
         if architecture == Architecture::X86_64 && operation == Operation::StoreOperand {
             match operands.get(1).expect("store_operand must have a source") {
-                Operand::Immediate(value)
-                    if !(i32::MIN as i64..=i32::MAX as i64).contains(value) =>
-                {
+                Operand::Immediate(value) if !(i32::MIN as i64..=i32::MAX as i64).contains(value) => {
                     append_registers(operands, &[x86_64::RAX, x86_64::R11]);
                 }
                 Operand::PhysicalRegister(register) if *register == x86_64::R11 => {
@@ -297,10 +292,7 @@ impl From<PairWidth> for MemoryWidth {
 
 impl Operation {
     pub(crate) const fn load(width: MemoryWidth, signed: bool) -> Self {
-        Self::Memory(MemoryOperation::Load {
-            width,
-            signed,
-        })
+        Self::Memory(MemoryOperation::Load { width, signed })
     }
 
     pub(crate) const fn store(width: MemoryWidth) -> Self {
@@ -400,7 +392,6 @@ impl Operation {
             _ => return None,
         })
     }
-
 }
 
 /// Kind of a single LowIR operand position.
@@ -452,22 +443,16 @@ impl OperandKind {
             _ => None,
         };
         match self {
-            Self::GprIn | Self::GprOut | Self::GprInOut => {
-                register_class == Some(RegisterClass::GeneralPurpose)
-            }
+            Self::GprIn | Self::GprOut | Self::GprInOut => register_class == Some(RegisterClass::GeneralPurpose),
             Self::GprScratch => shape == OperandShape::PhysicalRegister(RegisterClass::GeneralPurpose),
-            Self::FprIn | Self::FprOut | Self::FprInOut => {
-                register_class == Some(RegisterClass::FloatingPoint)
-            }
+            Self::FprIn | Self::FprOut | Self::FprInOut => register_class == Some(RegisterClass::FloatingPoint),
             Self::FprScratch => shape == OperandShape::PhysicalRegister(RegisterClass::FloatingPoint),
             Self::RegisterIn | Self::RegisterOut => register_class.is_some(),
             Self::GprInOrImm => {
-                register_class == Some(RegisterClass::GeneralPurpose)
-                    || shape == OperandShape::Immediate
+                register_class == Some(RegisterClass::GeneralPurpose) || shape == OperandShape::Immediate
             }
             Self::GprInOrMemory => {
-                register_class == Some(RegisterClass::GeneralPurpose)
-                    || shape == OperandShape::Address
+                register_class == Some(RegisterClass::GeneralPurpose) || shape == OperandShape::Address
             }
             Self::Imm => shape == OperandShape::Immediate,
             Self::Memory => shape == OperandShape::Address,
@@ -629,11 +614,7 @@ impl InstructionDescription {
     }
 
     /// Scratch registers appended after every operand, per architecture.
-    const fn scratches(
-        mut self,
-        x86_64: &'static [PhysicalRegister],
-        aarch64: &'static [PhysicalRegister],
-    ) -> Self {
+    const fn scratches(mut self, x86_64: &'static [PhysicalRegister], aarch64: &'static [PhysicalRegister]) -> Self {
         self.x86_64.trailing_scratch_registers = x86_64;
         self.aarch64.trailing_scratch_registers = aarch64;
         self
@@ -671,25 +652,16 @@ impl InstructionDescription {
         })
     }
 
-    pub(crate) fn accepts_selected_operand_count(
-        &self,
-        count: usize,
-        architecture: Architecture,
-    ) -> bool {
+    pub(crate) fn accepts_selected_operand_count(&self, count: usize, architecture: Architecture) -> bool {
         let arch = self.arch(architecture);
-        let scratch_count = arch.trailing_scratch_registers.len()
-            + arch.scratch_registers_before_trailing_operands.len();
+        let scratch_count =
+            arch.trailing_scratch_registers.len() + arch.scratch_registers_before_trailing_operands.len();
         let Some(count) = count.checked_sub(scratch_count) else {
             return false;
         };
-        if let Some(variadic_count) =
-            self.arch(architecture).selected_variadic_operands
-        {
+        if let Some(variadic_count) = self.arch(architecture).selected_variadic_operands {
             return self.variadic_kind.is_some()
-                && count
-                    == self.operands.len()
-                        + variadic_count
-                        + self.trailing_operands.len();
+                && count == self.operands.len() + variadic_count + self.trailing_operands.len();
         }
         self.accepts_operand_count(count)
     }
@@ -711,20 +683,14 @@ impl InstructionDescription {
         operand_count: usize,
         architecture: Architecture,
     ) -> Option<OperandKind> {
-        let scratch_registers =
-            self.arch(architecture).trailing_scratch_registers;
-        let before_trailing = self
-            .arch(architecture)
-            .scratch_registers_before_trailing_operands;
-        let total_scratch_count =
-            scratch_registers.len() + before_trailing.len();
-        let semantic_count =
-            operand_count.checked_sub(total_scratch_count)?;
+        let scratch_registers = self.arch(architecture).trailing_scratch_registers;
+        let before_trailing = self.arch(architecture).scratch_registers_before_trailing_operands;
+        let total_scratch_count = scratch_registers.len() + before_trailing.len();
+        let semantic_count = operand_count.checked_sub(total_scratch_count)?;
         let before_trailing_end = operand_count
             .checked_sub(scratch_registers.len())?
             .checked_sub(self.trailing_operands.len())?;
-        let before_trailing_start =
-            before_trailing_end.checked_sub(before_trailing.len())?;
+        let before_trailing_start = before_trailing_end.checked_sub(before_trailing.len())?;
         if index >= operand_count - scratch_registers.len() {
             return scratch_registers
                 .get(index - (operand_count - scratch_registers.len()))
@@ -771,38 +737,73 @@ use x86_64::{R11, RAX, RCX, RDX, XMM3};
 const X86_64_LARGE_IMMEDIATE_STORE_DESCRIPTION: InstructionDescription =
     plain(&[Memory, GprInOrImm]).scratches(&[R11], &[]);
 
-fn lookup_operation(operation: Operation) -> InstructionDescription {
+fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
     use BinaryOperation::*;
     use IntegerWidth::*;
     use OverflowOperation::*;
 
     match operation {
-        Operation::Cold => plain(&[Label]),
-        Operation::Label => plain(&[Label]),
-        Operation::Control(ControlOperation::JumpLabel) => plain(&[Label]).terminal(),
-        Operation::Control(ControlOperation::Exit) => plain(&[]).terminal(),
-        Operation::Control(ControlOperation::DispatchNext | ControlOperation::Dispatch) => plain(&[])
-            .terminal().scratches(&[RAX], &[X9, X10]),
-        Operation::Control(ControlOperation::DispatchVariable | ControlOperation::GotoHandler) => plain(&[GprIn])
-            .terminal().scratches(&[RAX], &[X9, X10]),
-        Operation::Control(ControlOperation::JumpBytecode) => plain(&[Imm]).terminal()
-            .scratches(&[RAX], &[X0, X9, X10]),
-        Operation::Call(CallKind::SlowPath) => plain(&[FuncSymbol]).terminal().call()
-            .x86_64(spec().scratches(&[RAX, RCX])).aarch64(spec().scratches(&[X9, X10])),
-        Operation::Call(CallKind::Helper) => plain(&[FuncSymbol, GprIn, GprOut]).call()
-            .x86_64(spec().inputs(&[RCX]).outputs(&[RAX]).fixed(&[(1, RCX), (2, RAX)]))
-            .aarch64(spec().inputs(&[X0]).outputs(&[X0]).fixed(&[(1, X0), (2, X0)])),
-        Operation::Call(CallKind::Interpreter) => plain(&[FuncSymbol, GprOut]).call()
-            .x86_64(spec().outputs(&[RAX]).fixed(&[(1, RAX)]))
-            .aarch64(spec().outputs(&[X0]).fixed(&[(1, X0)])),
-        Operation::Call(CallKind::RawNative) => plain(&[GprIn, GprOut, GprOut]).call()
-            .x86_64(spec().outputs(&[RAX, RCX]).fixed(&[(1, RAX), (2, RCX)]).scratches(&[R11]))
-            .aarch64(spec().outputs(&[X0, X1]).fixed(&[(1, X0), (2, X1)]).scratches(&[X9])),
-        Operation::LoadVm => plain(&[GprOut]),
-        Operation::LoadProgramCounter => plain(&[GprOut]),
-        Operation::StoreOperand => plain(&[Imm, GprInOrImm]).variadic(GprScratch, 1, Some(2), &[])
-            .aarch64(spec().selected_variadic(0).scratches(&[X9, X10])),
-        Operation::LoadLabel => plain(&[GprOut, Imm]).scratches(&[], &[X9]),
+        Operation::Cold => &const { plain(&[Label]) },
+        Operation::Label => &const { plain(&[Label]) },
+        Operation::Control(ControlOperation::JumpLabel) => &const { plain(&[Label]).terminal() },
+        Operation::Control(ControlOperation::Exit) => &const { plain(&[]).terminal() },
+        Operation::Control(ControlOperation::DispatchNext | ControlOperation::Dispatch) => {
+            &const { plain(&[]).terminal().scratches(&[RAX], &[X9, X10]) }
+        }
+        Operation::Control(ControlOperation::DispatchVariable | ControlOperation::GotoHandler) => {
+            &const { plain(&[GprIn]).terminal().scratches(&[RAX], &[X9, X10]) }
+        }
+        Operation::Control(ControlOperation::JumpBytecode) => {
+            &const { plain(&[Imm]).terminal().scratches(&[RAX], &[X0, X9, X10]) }
+        }
+        Operation::Call(CallKind::SlowPath) => {
+            &const {
+                plain(&[FuncSymbol])
+                    .terminal()
+                    .call()
+                    .x86_64(spec().scratches(&[RAX, RCX]))
+                    .aarch64(spec().scratches(&[X9, X10]))
+            }
+        }
+        Operation::Call(CallKind::Helper) => {
+            &const {
+                plain(&[FuncSymbol, GprIn, GprOut])
+                    .call()
+                    .x86_64(spec().inputs(&[RCX]).outputs(&[RAX]).fixed(&[(1, RCX), (2, RAX)]))
+                    .aarch64(spec().inputs(&[X0]).outputs(&[X0]).fixed(&[(1, X0), (2, X0)]))
+            }
+        }
+        Operation::Call(CallKind::Interpreter) => {
+            &const {
+                plain(&[FuncSymbol, GprOut])
+                    .call()
+                    .x86_64(spec().outputs(&[RAX]).fixed(&[(1, RAX)]))
+                    .aarch64(spec().outputs(&[X0]).fixed(&[(1, X0)]))
+            }
+        }
+        Operation::Call(CallKind::RawNative) => {
+            &const {
+                plain(&[GprIn, GprOut, GprOut])
+                    .call()
+                    .x86_64(
+                        spec()
+                            .outputs(&[RAX, RCX])
+                            .fixed(&[(1, RAX), (2, RCX)])
+                            .scratches(&[R11]),
+                    )
+                    .aarch64(spec().outputs(&[X0, X1]).fixed(&[(1, X0), (2, X1)]).scratches(&[X9]))
+            }
+        }
+        Operation::LoadVm => &const { plain(&[GprOut]) },
+        Operation::LoadProgramCounter => &const { plain(&[GprOut]) },
+        Operation::StoreOperand => {
+            &const {
+                plain(&[Imm, GprInOrImm])
+                    .variadic(GprScratch, 1, Some(2), &[])
+                    .aarch64(spec().selected_variadic(0).scratches(&[X9, X10]))
+            }
+        }
+        Operation::LoadLabel => &const { plain(&[GprOut, Imm]).scratches(&[], &[X9]) },
         Operation::Memory(MemoryOperation::Load {
             width: MemoryWidth::Word | MemoryWidth::DoubleWord | MemoryWidth::Float,
             signed: true,
@@ -811,36 +812,41 @@ fn lookup_operation(operation: Operation) -> InstructionDescription {
         Operation::Memory(MemoryOperation::Load {
             width: MemoryWidth::Float,
             signed: false,
-        }) => plain(&[FprOut, Memory])
-            .pre_scratches(&[], &[X9]),
-        Operation::Memory(MemoryOperation::Load { .. }) => plain(&[GprOut, Memory])
-            .pre_scratches(&[], &[X9]),
+        }) => &const { plain(&[FprOut, Memory]).pre_scratches(&[], &[X9]) },
+        Operation::Memory(MemoryOperation::Load { .. }) => {
+            &const { plain(&[GprOut, Memory]).pre_scratches(&[], &[X9]) }
+        }
         Operation::Memory(MemoryOperation::Store(
-            MemoryWidth::DoubleWord
-            | MemoryWidth::Word
-            | MemoryWidth::HalfWord
-            | MemoryWidth::Byte,
-        )) => plain(&[Memory, GprInOrImm])
-            .pre_scratches(&[], &[X9, X10]),
-        Operation::StoreExecutionContext => plain(&[Memory]).pre_scratches(&[R11], &[X9, X10]),
-        Operation::Store64IndexedOffset => plain(&[GprIn, GprIn, Imm, Imm, GprIn])
-            .pre_scratches(&[], &[X9]),
-        Operation::Memory(MemoryOperation::Store(MemoryWidth::Float)) => plain(&[Memory, FprIn])
-            .pre_scratches(&[], &[X9, X10]),
-        Operation::Memory(MemoryOperation::LoadPair(_)) => plain(&[GprOut, GprOut, Memory, Memory])
-            .pre_scratches(&[], &[X10, X9]),
-        Operation::Memory(MemoryOperation::StorePair(_)) => plain(&[Memory, Memory, GprIn, GprIn])
-            .pre_scratches(&[], &[X9, X10]),
-        Operation::StorePairIndexed(PairWidth::DoubleWord) => plain(&[GprIn, GprIn, Imm, GprIn, GprIn])
-            .pre_scratches(&[], &[X10]),
-        Operation::Increment32Memory => plain(&[Memory]).pre_scratches(&[], &[X9, X10]),
-        Operation::LoadEffectiveAddress => plain(&[GprOut, GprInOrMemory]).pre_scratches(&[], &[X9]),
-        Operation::Move(U64) => plain(&[GprOut, GprInOrImm]).coalesces(&[(0, 1)])
-            .identity_if_inputs_alias(),
-        Operation::Move(U32) => plain(&[GprOut, GprInOrImm]),
-        Operation::ExtractTag | Operation::UnboxObject | Operation::BoxInt32 { clean: true } => plain(&[GprOut, GprIn])
-            .coalesces(&[(0, 1)]),
-        Operation::UnboxInt32 | Operation::BoxInt32 { clean: false } => plain(&[GprOut, GprIn]),
+            MemoryWidth::DoubleWord | MemoryWidth::Word | MemoryWidth::HalfWord | MemoryWidth::Byte,
+        )) => &const { plain(&[Memory, GprInOrImm]).pre_scratches(&[], &[X9, X10]) },
+        Operation::StoreExecutionContext => &const { plain(&[Memory]).pre_scratches(&[R11], &[X9, X10]) },
+        Operation::Store64IndexedOffset => &const { plain(&[GprIn, GprIn, Imm, Imm, GprIn]).pre_scratches(&[], &[X9]) },
+        Operation::Memory(MemoryOperation::Store(MemoryWidth::Float)) => {
+            &const { plain(&[Memory, FprIn]).pre_scratches(&[], &[X9, X10]) }
+        }
+        Operation::Memory(MemoryOperation::LoadPair(_)) => {
+            &const { plain(&[GprOut, GprOut, Memory, Memory]).pre_scratches(&[], &[X10, X9]) }
+        }
+        Operation::Memory(MemoryOperation::StorePair(_)) => {
+            &const { plain(&[Memory, Memory, GprIn, GprIn]).pre_scratches(&[], &[X9, X10]) }
+        }
+        Operation::StorePairIndexed(PairWidth::DoubleWord) => {
+            &const { plain(&[GprIn, GprIn, Imm, GprIn, GprIn]).pre_scratches(&[], &[X10]) }
+        }
+        Operation::Increment32Memory => &const { plain(&[Memory]).pre_scratches(&[], &[X9, X10]) },
+        Operation::LoadEffectiveAddress => &const { plain(&[GprOut, GprInOrMemory]).pre_scratches(&[], &[X9]) },
+        Operation::Move(U64) => {
+            &const {
+                plain(&[GprOut, GprInOrImm])
+                    .coalesces(&[(0, 1)])
+                    .identity_if_inputs_alias()
+            }
+        }
+        Operation::Move(U32) => &const { plain(&[GprOut, GprInOrImm]) },
+        Operation::ExtractTag | Operation::UnboxObject | Operation::BoxInt32 { clean: true } => {
+            &const { plain(&[GprOut, GprIn]).coalesces(&[(0, 1)]) }
+        }
+        Operation::UnboxInt32 | Operation::BoxInt32 { clean: false } => &const { plain(&[GprOut, GprIn]) },
         Operation::IntegerBinary {
             operation: IntegerBinaryOperation::Binary(Add | Subtract | Or),
             width: U64,
@@ -848,134 +854,177 @@ fn lookup_operation(operation: Operation) -> InstructionDescription {
         | Operation::IntegerBinary {
             operation: IntegerBinaryOperation::Binary(And),
             width: U16,
-        } => plain(&[GprInOut, GprInOrImm])
-            .scratches(&[], &[X9]),
+        } => &const { plain(&[GprInOut, GprInOrImm]).scratches(&[], &[X9]) },
         Operation::IntegerBinary {
             operation: IntegerBinaryOperation::Binary(Xor),
             width: U64,
-        } => plain(&[GprInOut, GprInOrImm])
-            .scratches(&[], &[X9]).zeroes_if_inputs_alias(),
+        } => {
+            &const {
+                plain(&[GprInOut, GprInOrImm])
+                    .scratches(&[], &[X9])
+                    .zeroes_if_inputs_alias()
+            }
+        }
         Operation::IntegerBinary {
             operation: IntegerBinaryOperation::Binary(Multiply),
             width: U64,
-        } => plain(&[GprOut, GprIn])
-            .variadic(GprInOrImm, 0, Some(1), &[]).aarch64(spec().scratches(&[X9]))
-            .coalesces(&[(0, 1), (0, 2)]),
-        Operation::Negate | Operation::Not(U64) | Operation::Not(U32) => plain(&[GprInOut]),
+        } => {
+            &const {
+                plain(&[GprOut, GprIn])
+                    .variadic(GprInOrImm, 0, Some(1), &[])
+                    .aarch64(spec().scratches(&[X9]))
+                    .coalesces(&[(0, 1), (0, 2)])
+            }
+        }
+        Operation::Negate | Operation::Not(U64) | Operation::Not(U32) => &const { plain(&[GprInOut]) },
         Operation::IntegerBinary {
             operation: IntegerBinaryOperation::Binary(And),
             width: U64,
-        } => plain(&[GprInOut, GprInOrImm])
-            .scratches(&[RAX, R11], &[X9]),
+        } => &const { plain(&[GprInOut, GprInOrImm]).scratches(&[RAX, R11], &[X9]) },
         Operation::IntegerBinary {
             operation: IntegerBinaryOperation::Binary(And | Or | Xor),
             width: U32,
-        } => plain(&[GprOut, GprIn, GprInOrImm])
-            .scratches(&[], &[X9]).coalesces(&[(0, 1), (0, 2)]),
-        Operation::Or32Branch(_) => plain(&[GprOut, GprIn, GprInOrImm]).trailing(&[Label])
-            .pre_scratches(&[], &[X9]),
+        } => {
+            &const {
+                plain(&[GprOut, GprIn, GprInOrImm])
+                    .scratches(&[], &[X9])
+                    .coalesces(&[(0, 1), (0, 2)])
+            }
+        }
+        Operation::Or32Branch(_) => {
+            &const {
+                plain(&[GprOut, GprIn, GprInOrImm])
+                    .trailing(&[Label])
+                    .pre_scratches(&[], &[X9])
+            }
+        }
         Operation::IntegerBinary {
             operation: IntegerBinaryOperation::Shift(_),
             width: U64,
-        } => plain(&[GprInOut, GprInOrImm])
-            .x86_64(spec().fixed(&[(1, RCX)])),
+        } => &const { plain(&[GprInOut, GprInOrImm]).x86_64(spec().fixed(&[(1, RCX)])) },
         Operation::IntegerBinary {
             operation: IntegerBinaryOperation::Shift(_),
             width: U32,
-        } => plain(&[GprOut, GprIn, GprInOrImm])
-            .x86_64(spec().fixed(&[(2, RCX)]).scratches(&[R11])).coalesces(&[(0, 1)]),
-        Operation::DivMod => plain(&[GprOut, GprOut, GprIn, GprIn])
-            .x86_64(spec().outputs(&[RAX, RDX]).fixed(&[(0, RAX), (1, RDX)]))
-            .aarch64(spec().scratches(&[X9])),
-        Operation::Overflow(AddWithOverflow) | Operation::Overflow(SubtractWithOverflow) => plain(&[GprInOut, GprInOrImm])
-            .trailing(&[Label]).pre_scratches(&[], &[X9]),
-        Operation::Overflow(Increment)
-        | Operation::Overflow(Decrement)
-        | Operation::Overflow(Negate) => plain(&[GprInOut, Label]),
-        Operation::Overflow(MultiplyWithOverflow) => plain(&[GprInOut, GprIn]).trailing(&[Label])
-            .pre_scratches(&[], &[X9]),
-        Operation::Overflow(MultiplyCopy) => plain(&[GprOut, GprIn, GprIn]).trailing(&[Label])
-            .pre_scratches(&[], &[X9]),
-        Operation::ToggleBit | Operation::ClearBit => plain(&[GprInOut, Imm]),
-        Operation::Float(FloatingPointOperation::Binary(_)) => plain(&[FprInOut, FprIn]),
+        } => {
+            &const {
+                plain(&[GprOut, GprIn, GprInOrImm])
+                    .x86_64(spec().fixed(&[(2, RCX)]).scratches(&[R11]))
+                    .coalesces(&[(0, 1)])
+            }
+        }
+        Operation::DivMod => {
+            &const {
+                plain(&[GprOut, GprOut, GprIn, GprIn])
+                    .x86_64(spec().outputs(&[RAX, RDX]).fixed(&[(0, RAX), (1, RDX)]))
+                    .aarch64(spec().scratches(&[X9]))
+            }
+        }
+        Operation::Overflow(AddWithOverflow) | Operation::Overflow(SubtractWithOverflow) => {
+            &const {
+                plain(&[GprInOut, GprInOrImm])
+                    .trailing(&[Label])
+                    .pre_scratches(&[], &[X9])
+            }
+        }
+        Operation::Overflow(Increment) | Operation::Overflow(Decrement) | Operation::Overflow(Negate) => {
+            &const { plain(&[GprInOut, Label]) }
+        }
+        Operation::Overflow(MultiplyWithOverflow) => {
+            &const { plain(&[GprInOut, GprIn]).trailing(&[Label]).pre_scratches(&[], &[X9]) }
+        }
+        Operation::Overflow(MultiplyCopy) => {
+            &const {
+                plain(&[GprOut, GprIn, GprIn])
+                    .trailing(&[Label])
+                    .pre_scratches(&[], &[X9])
+            }
+        }
+        Operation::ToggleBit | Operation::ClearBit => &const { plain(&[GprInOut, Imm]) },
+        Operation::Float(FloatingPointOperation::Binary(_)) => &const { plain(&[FprInOut, FprIn]) },
         Operation::Float(
             FloatingPointOperation::Unary(_)
-            | FloatingPointOperation::Convert(
-                FloatConversion::Float32ToFloat64 | FloatConversion::Float64ToFloat32,
-            ),
-        ) => plain(&[FprOut, FprIn]),
-        Operation::FloatMove => plain(&[RegisterOut, RegisterIn]).coalesces(&[(0, 1)])
-            .identity_if_inputs_alias(),
+            | FloatingPointOperation::Convert(FloatConversion::Float32ToFloat64 | FloatConversion::Float64ToFloat32),
+        ) => &const { plain(&[FprOut, FprIn]) },
+        Operation::FloatMove => {
+            &const {
+                plain(&[RegisterOut, RegisterIn])
+                    .coalesces(&[(0, 1)])
+                    .identity_if_inputs_alias()
+            }
+        }
         Operation::Float(FloatingPointOperation::Convert(
             FloatConversion::Int32ToFloat64 | FloatConversion::Uint32ToFloat64,
-        )) => plain(&[FprOut, GprIn]),
-        Operation::Float(FloatingPointOperation::Convert(FloatConversion::Float64ToInt32)) => plain(&[GprOut, FprIn, Label])
-            .scratches(&[RCX, XMM3], &[D16]),
-        Operation::Float(FloatingPointOperation::Convert(FloatConversion::JavaScriptToInt32)) => plain(&[GprOut, FprIn, Label])
-            .scratches(&[RCX], &[D16]),
-        Operation::Float(FloatingPointOperation::CanonicalizeNan) => plain(&[GprOut, FprIn]),
+        )) => &const { plain(&[FprOut, GprIn]) },
+        Operation::Float(FloatingPointOperation::Convert(FloatConversion::Float64ToInt32)) => {
+            &const { plain(&[GprOut, FprIn, Label]).scratches(&[RCX, XMM3], &[D16]) }
+        }
+        Operation::Float(FloatingPointOperation::Convert(FloatConversion::JavaScriptToInt32)) => {
+            &const { plain(&[GprOut, FprIn, Label]).scratches(&[RCX], &[D16]) }
+        }
+        Operation::Float(FloatingPointOperation::CanonicalizeNan) => &const { plain(&[GprOut, FprIn]) },
         Operation::Branch(BranchOperation::Equality {
-            width: U16 | U32 | U64,
-            ..
+            width: U16 | U32 | U64, ..
         })
-        | Operation::Branch(BranchOperation::Ordered {
-            width: U32 | U64,
-            ..
-        }) => scalar_compare_branch(),
-        Operation::Branch(BranchOperation::Tag(_)) => plain(&[GprIn, Imm]).trailing(&[Label])
-            .pre_scratches(&[R11], &[X9, X10]),
-        Operation::Branch(BranchOperation::Singleton(_)) => plain(&[GprIn, Imm]).trailing(&[Label])
-            .pre_scratches(&[R11], &[X9]),
-        Operation::Branch(BranchOperation::Memory { .. }) => plain(&[Memory, GprIn])
-            .trailing(&[Label]).pre_scratches(&[], &[X9]),
-        Operation::Branch(BranchOperation::Equality {
-            width: U8,
-            ..
-        }) => plain(&[Memory, Imm])
-            .trailing(&[Label]).pre_scratches(&[], &[X9]),
+        | Operation::Branch(BranchOperation::Ordered { width: U32 | U64, .. }) => &const { scalar_compare_branch() },
+        Operation::Branch(BranchOperation::Tag(_)) => {
+            &const {
+                plain(&[GprIn, Imm])
+                    .trailing(&[Label])
+                    .pre_scratches(&[R11], &[X9, X10])
+            }
+        }
+        Operation::Branch(BranchOperation::Singleton(_)) => {
+            &const { plain(&[GprIn, Imm]).trailing(&[Label]).pre_scratches(&[R11], &[X9]) }
+        }
+        Operation::Branch(BranchOperation::Memory { .. }) => {
+            &const { plain(&[Memory, GprIn]).trailing(&[Label]).pre_scratches(&[], &[X9]) }
+        }
+        Operation::Branch(BranchOperation::Equality { width: U8, .. }) => {
+            &const { plain(&[Memory, Imm]).trailing(&[Label]).pre_scratches(&[], &[X9]) }
+        }
         Operation::Branch(BranchOperation::Bits {
             width: MemoryWidth::Byte,
             ..
-        }) => plain(&[Memory, Imm])
-            .trailing(&[Label]).pre_scratches(&[], &[X9, X10]),
-        Operation::Branch(BranchOperation::Zero {
-            width: U32 | U64,
-            ..
-        })
-        | Operation::Branch(BranchOperation::Sign {
-            width: U32 | U64,
-            ..
-        })
-        | Operation::Branch(BranchOperation::ValueBitsNegative) => plain(&[GprIn, Label]),
+        }) => &const { plain(&[Memory, Imm]).trailing(&[Label]).pre_scratches(&[], &[X9, X10]) },
+        Operation::Branch(BranchOperation::Zero { width: U32 | U64, .. })
+        | Operation::Branch(BranchOperation::Sign { width: U32 | U64, .. })
+        | Operation::Branch(BranchOperation::ValueBitsNegative) => &const { plain(&[GprIn, Label]) },
         Operation::Branch(BranchOperation::Bits {
             width: MemoryWidth::DoubleWord,
             ..
-        }) => plain(&[GprIn, GprInOrImm])
-            .trailing(&[Label]).pre_scratches(&[], &[X9]),
-        Operation::Branch(BranchOperation::Bit(_)) => plain(&[GprIn, Imm, Label]),
-        Operation::Branch(BranchOperation::AnyEqual) => plain(&[GprIn])
-            .variadic(GprInOrImm, 1, None, &[Label])
-            .pre_scratches(&[], &[X9]),
-        Operation::Branch(BranchOperation::Float(_)) => plain(&[FprIn, FprIn, Label]),
-        Operation::Assertion(AssertionOperation::UnsignedLess | AssertionOperation::UnsignedGreaterOrEqual) => plain(&[GprIn, GprInOrImm])
-            .scratches(&[], &[X9]),
-        Operation::Assertion(AssertionOperation::NonZero) => plain(&[GprIn]),
-        Operation::Assertion(AssertionOperation::TagEqual | AssertionOperation::TagNotEqual) => plain(&[GprIn, GprInOrImm])
-            .scratches(&[R11], &[X9, X10]),
+        }) => &const { plain(&[GprIn, GprInOrImm]).trailing(&[Label]).pre_scratches(&[], &[X9]) },
+        Operation::Branch(BranchOperation::Bit(_)) => &const { plain(&[GprIn, Imm, Label]) },
+        Operation::Branch(BranchOperation::AnyEqual) => {
+            &const {
+                plain(&[GprIn])
+                    .variadic(GprInOrImm, 1, None, &[Label])
+                    .pre_scratches(&[], &[X9])
+            }
+        }
+        Operation::Branch(BranchOperation::Float(_)) => &const { plain(&[FprIn, FprIn, Label]) },
+        Operation::Assertion(AssertionOperation::UnsignedLess | AssertionOperation::UnsignedGreaterOrEqual) => {
+            &const { plain(&[GprIn, GprInOrImm]).scratches(&[], &[X9]) }
+        }
+        Operation::Assertion(AssertionOperation::NonZero) => &const { plain(&[GprIn]) },
+        Operation::Assertion(AssertionOperation::TagEqual | AssertionOperation::TagNotEqual) => {
+            &const { plain(&[GprIn, GprInOrImm]).scratches(&[R11], &[X9, X10]) }
+        }
         Operation::StorePairIndexed(PairWidth::Word) => unreachable!("indexed 32-bit pair stores are unsupported"),
-        Operation::Memory(MemoryOperation::Load64NonZero) => unreachable!("checked loads must be lowered before target selection"),
+        Operation::Memory(MemoryOperation::Load64NonZero) => {
+            unreachable!("checked loads must be lowered before target selection")
+        }
         Operation::Move(U8 | U16) => unreachable!("narrow moves are unsupported"),
         Operation::IntegerBinary { .. } => unreachable!("unsupported integer operation width"),
         Operation::Not(U8 | U16) => unreachable!("narrow not is unsupported"),
-        Operation::Branch(BranchOperation::Ordered {
-            width: U8 | U16, ..
-        }) => unreachable!("narrow ordered branches are unsupported"),
-        Operation::Branch(BranchOperation::Sign {
-            width: U8 | U16, ..
-        }) => unreachable!("narrow sign branches are unsupported"),
-        Operation::Branch(BranchOperation::Zero {
-            width: U8 | U16, ..
-        }) => unreachable!("narrow zero branches are unsupported"),
+        Operation::Branch(BranchOperation::Ordered { width: U8 | U16, .. }) => {
+            unreachable!("narrow ordered branches are unsupported")
+        }
+        Operation::Branch(BranchOperation::Sign { width: U8 | U16, .. }) => {
+            unreachable!("narrow sign branches are unsupported")
+        }
+        Operation::Branch(BranchOperation::Zero { width: U8 | U16, .. }) => {
+            unreachable!("narrow zero branches are unsupported")
+        }
         Operation::Branch(BranchOperation::Bits { .. }) => unreachable!("unsupported branch-bits width"),
     }
 }
@@ -990,10 +1039,7 @@ mod tests {
             operation: IntegerBinaryOperation::Binary(BinaryOperation::And),
             width: IntegerWidth::U64,
         });
-        assert_eq!(
-            info.x86_64.trailing_scratch_registers,
-            &[RAX, R11]
-        );
+        assert_eq!(info.x86_64.trailing_scratch_registers, &[RAX, R11]);
     }
 
     #[test]
@@ -1009,5 +1055,4 @@ mod tests {
             assert!(info.aarch64.trailing_scratch_registers.is_empty());
         }
     }
-
 }
