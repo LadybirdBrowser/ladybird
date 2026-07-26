@@ -23,7 +23,7 @@ use crate::target::description::{
     InstructionDescription, Operation, SelectedOpcode,
 };
 use std::cmp::Ordering;
-use std::collections::{BTreeSet, hash_map::DefaultHasher};
+use std::collections::hash_map::DefaultHasher;
 use crate::hash::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -473,11 +473,19 @@ pub(crate) fn intern_virtual_registers(
         }
     }
 
-    let mut registers = BTreeSet::new();
+    // Number the registers in the order they first appear. The numbering only
+    // has to be deterministic, and ordering by name means comparing strings
+    // while sorting every register of a stitched function, which is among the
+    // most expensive things the whole pipeline does.
+    let mut seen = HashMap::default();
+    let mut registers = Vec::new();
     for instruction in instructions.iter() {
         for operand in &instruction.operands {
             visit_virtual_registers(operand, &mut |register| {
-                registers.insert(register.clone());
+                if !seen.contains_key(register) {
+                    seen.insert(register.clone(), ());
+                    registers.push(register.clone());
+                }
             });
         }
     }
