@@ -1341,6 +1341,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .truncate(true) // empties contents of the file
         .open(out_dir.join("instruction_generated.rs"))?;
     let content = fs::read_to_string(&def_path).expect("Failed to read Bytecode.def");
-    let ops = bytecode_def::parse_bytecode_def(&content);
+    let source_name = def_path.to_string_lossy();
+    let ops = bytecode_def::parse_bytecode_def(&source_name, &content)?;
     generate_rust_code(file, &ops)
 }
