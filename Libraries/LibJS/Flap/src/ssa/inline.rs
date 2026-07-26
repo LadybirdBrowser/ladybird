@@ -7,36 +7,65 @@
 //! SSA inline expansion.
 
 use super::optimize::{InstructionOrder, rebuild_instruction_arena, rewrite_function_uses};
-use super::{BlockId, Edge, Function, Intrinsic, MemoryEffect, Operation, Terminator, ValueDefinition, ValueId, ValueOperation};
 #[cfg(test)]
 use super::{BinaryOperation, IntegerBinaryOperation};
+use super::{
+    BlockId, Edge, Function, Intrinsic, MemoryEffect, Operation, Terminator, ValueDefinition, ValueId, ValueOperation,
+};
+use crate::hash::{HashMap, HashSet};
 use crate::types::Type;
 use crate::{CompileError, CompileStage};
-use crate::hash::{HashMap, HashSet};
+
+const MAX_INLINED_INSTRUCTION_COUNT: usize = 1_000_000;
 
 fn inline_error(function: &Function, message: impl Into<String>) -> CompileError {
     CompileError::new(CompileStage::Ssa, Some(&function.name), message)
 }
 
 pub(crate) fn inline_calls(function: &mut Function, callees: &[Function]) -> Result<usize, CompileError> {
+    inline_calls_with_budget(function, callees, MAX_INLINED_INSTRUCTION_COUNT)
+}
+
+fn inline_calls_with_budget(
+    function: &mut Function,
+    callees: &[Function],
+    maximum_instruction_count: usize,
+) -> Result<usize, CompileError> {
     let mut count = 0;
     loop {
-        if lower_checked_inline_call(function, callees)? {
+        if lower_checked_inline_call(function, callees, maximum_instruction_count)? {
             continue;
         }
         let Some((block_index, instruction_index, callee)) = find_call(function, callees)? else {
             break;
         };
+        ensure_expansion_budget(function, callee.instructions.len(), maximum_instruction_count)?;
         inline_call(function, block_index, instruction_index, callee)?;
         count += 1;
     }
-    function
-        .validate()
-        .map_err(|message| inline_error(function, message))?;
+    function.validate().map_err(|message| inline_error(function, message))?;
     Ok(count)
 }
 
-fn lower_checked_inline_call(function: &mut Function, callees: &[Function]) -> Result<bool, CompileError> {
+fn ensure_expansion_budget(
+    function: &Function,
+    additional_instruction_count: usize,
+    maximum_instruction_count: usize,
+) -> Result<(), CompileError> {
+    if function.instructions.len().saturating_add(additional_instruction_count) > maximum_instruction_count {
+        return Err(inline_error(
+            function,
+            format!("inline expansion exceeds the {maximum_instruction_count}-instruction limit"),
+        ));
+    }
+    Ok(())
+}
+
+fn lower_checked_inline_call(
+    function: &mut Function,
+    callees: &[Function],
+    maximum_instruction_count: usize,
+) -> Result<bool, CompileError> {
     for block_index in 0..function.blocks.len() {
         let Some(Terminator::CheckedOperation {
             operation: Operation::InlineCall(id),
@@ -66,6 +95,7 @@ fn lower_checked_inline_call(function: &mut Function, callees: &[Function]) -> R
                 ),
             ));
         }
+        ensure_expansion_budget(function, 2, maximum_instruction_count)?;
 
         let block = BlockId(block_index);
         let failure_reference = function.append_instruction(
@@ -472,6 +502,29 @@ mod tests {
         assert_eq!(error.stage, CompileStage::Ssa);
         assert_eq!(error.handler.as_deref(), Some("invalid"));
         assert_eq!(error.message, "inline function #0 has no SSA body");
+    }
+
+    #[test]
+    fn rejects_inline_expansion_beyond_the_instruction_budget() {
+        let (mut handler, callees) = lower(
+            r#"
+inline fn identity(value: i32) -> i32 {
+    value
+}
+
+handler Identity(value: i32) {
+    let result = identity(value);
+    assert_nonzero(result);
+    dispatch_next;
+}
+"#,
+        );
+        let maximum_instruction_count = handler.instructions.len();
+        let error = inline_calls_with_budget(&mut handler, &callees, maximum_instruction_count).unwrap_err();
+        assert_eq!(
+            error.message,
+            format!("inline expansion exceeds the {maximum_instruction_count}-instruction limit")
+        );
     }
 
     #[test]
