@@ -239,6 +239,7 @@ fn run_optimization_pipeline(
             }
         };
     }
+    run_pass!("merge-straight-line-blocks", merge_straight_line_blocks_pass);
     run_pass!("sparse-conditional-constant-propagation", super::sccp::run);
 
     let mut iterations = Vec::new();
@@ -503,6 +504,156 @@ pub(super) fn eliminate_unreachable_blocks(function: &mut Function) -> bool {
     function.entry = block_map[function.entry.0].expect("the entry block is always reachable");
     function.blocks = blocks;
     true
+}
+
+#[cfg(test)]
+pub(crate) fn merge_straight_line_blocks(function: &mut Function) {
+    run_single_pass(function, "merge-straight-line-blocks", merge_straight_line_blocks_pass);
+}
+
+/// Merge a block into the only block that jumps to it.
+///
+/// Stitching a bytecode program writes a block per guard and a block per merge,
+/// so a stitched function is thousands of blocks holding two or three
+/// instructions each. A quarter of them are entered from exactly one place that
+/// goes nowhere else: the two are one straight line spelled as two blocks, and
+/// every later phase pays for the split with a terminator, a label in the
+/// machine listing and a row in every block-indexed analysis.
+fn merge_straight_line_blocks_pass(function: &mut Function, analyses: &mut AnalysisManager) -> bool {
+    // A block named as a value is jumped to indirectly, which is not an edge
+    // the control-flow graph knows about, so it stays a block whatever else
+    // reaches it.
+    let mut named_as_value = vec![false; function.blocks.len()];
+    for instruction in &function.instructions {
+        if let Operation::BlockReference(target) = instruction.operation {
+            named_as_value[target.0] = true;
+        }
+    }
+    let cfg = analyses.cfg(function);
+    let mut single_predecessor = (0..function.blocks.len())
+        .map(|index| {
+            let predecessors = cfg.predecessors(BlockId(index));
+            (predecessors.len() == 1).then(|| predecessors[0])
+        })
+        .collect::<Vec<_>>();
+
+    let mut merged_into = vec![None; function.blocks.len()];
+    let mut replacements = HashMap::default();
+    for index in 0..function.blocks.len() {
+        // Follow the chain from a block nothing has merged away, so a run of
+        // straight-line blocks collapses in one visit.
+        if merged_into[index].is_some() {
+            continue;
+        }
+        let head = BlockId(index);
+        while let Some(next) = mergeable_successor(function, head, &single_predecessor, &named_as_value) {
+            let edge = match function.blocks[head.0].terminator.take() {
+                Some(Terminator::Jump(edge)) => edge,
+                _ => unreachable!("only a jump names a mergeable successor"),
+            };
+            let absorbed_parameters = std::mem::take(&mut function.blocks[next.0].parameters);
+            let absorbed_instructions = std::mem::take(&mut function.blocks[next.0].instructions);
+            let absorbed_terminator = function.blocks[next.0].terminator.take();
+            if let Some(Terminator::Jump(edge)) = &absorbed_terminator
+                && single_predecessor[edge.block.0] == Some(next)
+            {
+                single_predecessor[edge.block.0] = Some(head);
+            }
+            for (parameter, argument) in absorbed_parameters.iter().zip(&edge.arguments) {
+                replacements.insert(*parameter, *argument);
+                function.values[parameter.0].definition = ValueDefinition::Dead;
+            }
+            let block = &mut function.blocks[head.0];
+            block.instructions.extend(absorbed_instructions);
+            block.terminator = absorbed_terminator;
+            merged_into[next.0] = Some(head);
+        }
+    }
+
+    if replacements.is_empty() && merged_into.iter().all(Option::is_none) {
+        return false;
+    }
+    analyses.report(
+        super::report::OptimizationRemarkKind::Applied,
+        "block-merging",
+        merged_into.iter().filter(|merged| merged.is_some()).count() as u64,
+        "folded a block into the only block that jumps to it",
+    );
+
+    // A parameter may stand for another parameter that is itself being folded
+    // away, so the substitution is followed to what it finally names.
+    let direct = replacements.clone();
+    for value in replacements.values_mut() {
+        let mut seen = HashSet::default();
+        while let Some(next) = direct.get(value) {
+            if !seen.insert(*value) {
+                break;
+            }
+            *value = *next;
+        }
+    }
+    rewrite_function_uses(function, &replacements);
+
+    let mut block_map = vec![None; function.blocks.len()];
+    let mut blocks = Vec::new();
+    for (old_index, block) in std::mem::take(&mut function.blocks).into_iter().enumerate() {
+        if merged_into[old_index].is_some() {
+            continue;
+        }
+        block_map[old_index] = Some(BlockId(blocks.len()));
+        blocks.push(block);
+    }
+    for (block_index, block) in blocks.iter_mut().enumerate() {
+        let block_id = BlockId(block_index);
+        for (parameter_index, parameter) in block.parameters.iter().enumerate() {
+            function.values[parameter.0].definition = ValueDefinition::BlockParameter {
+                block: block_id,
+                index: parameter_index,
+            };
+        }
+        let terminator = block.terminator.as_mut().expect("a surviving block keeps a terminator");
+        if let Terminator::CheckedOperation { results, .. } = terminator {
+            for (result_index, result) in results.iter().enumerate() {
+                function.values[result.0].definition = ValueDefinition::TerminatorResult {
+                    block: block_id,
+                    index: result_index,
+                };
+            }
+        }
+        for edge in terminator_edges_mut(terminator) {
+            edge.block = block_map[edge.block.0].expect("a merged block is never a branch target");
+        }
+    }
+    for instruction in &mut function.instructions {
+        if let Operation::BlockReference(target) = &mut instruction.operation {
+            *target = block_map[target.0].expect("a merged block is never referenced as a value");
+        }
+    }
+    function.entry = block_map[function.entry.0].expect("the entry block is never merged away");
+    function.blocks = blocks;
+    rebuild_instruction_arena(function, &HashSet::default(), InstructionOrder::ByBlock);
+    true
+}
+
+/// The block `head` can absorb, if there is one.
+fn mergeable_successor(
+    function: &Function,
+    head: BlockId,
+    single_predecessor: &[Option<BlockId>],
+    named_as_value: &[bool],
+) -> Option<BlockId> {
+    let Some(Terminator::Jump(edge)) = &function.blocks[head.0].terminator else {
+        return None;
+    };
+    let next = edge.block;
+    if next == head || next == function.entry || named_as_value[next.0] || single_predecessor[next.0] != Some(head) {
+        return None;
+    }
+    let (head_block, next_block) = (&function.blocks[head.0], &function.blocks[next.0]);
+    if next_block.layout != head_block.layout {
+        return None;
+    }
+    Some(next)
 }
 
 fn terminator_edges_mut(terminator: &mut Terminator) -> Vec<&mut Edge> {
@@ -1127,6 +1278,23 @@ mod tests {
             effects,
         );
         (instruction, results)
+    }
+
+    #[test]
+    fn merges_an_entire_straight_line_block_chain_in_one_pass() {
+        let mut function = Function::new("block-chain", Vec::new(), Vec::new());
+        let middle = function.create_empty_block("middle", BlockLayout::Hot);
+        let tail = function.create_empty_block("tail", BlockLayout::Hot);
+        function.set_terminator(function.entry, Terminator::jump(middle));
+        function.set_terminator(middle, Terminator::jump(tail));
+        function.set_terminator(tail, Terminator::Return(Vec::new()));
+
+        assert!(merge_straight_line_blocks_pass(
+            &mut function,
+            &mut AnalysisManager::default()
+        ));
+        assert_eq!(function.blocks.len(), 1);
+        function.validate().unwrap();
     }
 
     #[test]
