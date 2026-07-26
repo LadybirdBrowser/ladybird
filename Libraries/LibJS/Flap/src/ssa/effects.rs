@@ -329,6 +329,38 @@ fn address_location(function: &Function, value: ValueId, bytes: u8) -> Option<Me
     })
 }
 
+/// What two locations must have in common before `alias` can call them the
+/// same one.
+///
+/// Grouping the locations a pass is tracking by this key turns "is any of these
+/// the same location" from a walk over all of them into a lookup. It has to
+/// agree with `alias`: two locations it gives different keys must never be
+/// `Must`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum LocationKey {
+    /// An address reached through constants: the same base, offset and width
+    /// is the same location however it was spelled.
+    ConstantAddress(ValueId, i128, u8),
+    /// An operand slot named by a constant index.
+    ConstantOperand(i64),
+    /// Anything else, where only being spelled identically makes it the same.
+    AsSpelled(MemoryLocation),
+}
+
+pub(crate) fn location_key(function: &Function, location: &MemoryLocation) -> LocationKey {
+    match &location.identity {
+        MemoryLocationIdentity::Address(components) => match constant_address(function, components) {
+            Some((base, offset)) => LocationKey::ConstantAddress(base, offset, location.bytes),
+            None => LocationKey::AsSpelled(location.clone()),
+        },
+        MemoryLocationIdentity::IndexedOperand(index) => match constant_integer(function, *index) {
+            Some(index) => LocationKey::ConstantOperand(index),
+            None => LocationKey::AsSpelled(location.clone()),
+        },
+        MemoryLocationIdentity::BytecodeField(_) => LocationKey::AsSpelled(location.clone()),
+    }
+}
+
 pub(crate) fn alias(function: &Function, lhs: &MemoryLocation, rhs: &MemoryLocation) -> AliasResult {
     if lhs == rhs {
         return AliasResult::Must;

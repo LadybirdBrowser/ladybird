@@ -7,7 +7,8 @@
 //! Memory forwarding and dead-store elimination over proven locations.
 
 use super::effects::{
-    AliasResult, EffectDefinition, MemoryAccessLocations, MemoryLocation, alias, instruction_memory_locations,
+    AliasResult, EffectDefinition, LocationKey, MemoryAccessLocations, MemoryLocation, alias,
+    instruction_memory_locations, location_key,
 };
 use super::optimize::{InstructionOrder, rebuild_instruction_arena, rewrite_function_uses};
 use super::pass::{AnalysisManager};
@@ -19,7 +20,11 @@ pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bo
     let memory = analysis.effects.domain(super::effects::EffectDomain::Memory);
     let mut replacements = HashMap::default();
     let mut eliminated = HashSet::default();
-    let mut available_loads = Vec::<(InstructionId, MemoryLocation, ValueId)>::new();
+    // Loads still worth reusing, grouped by what they would have to have in
+    // common with a later load to be the same location. Keeping them in one
+    // list means rescanning every load seen so far for every load reached,
+    // which on a large function is the whole cost of the pass.
+    let mut available_loads = HashMap::<LocationKey, Vec<(InstructionId, MemoryLocation, ValueId)>>::default();
     let mut load_candidates = 0u64;
 
     for block in analysis.cfg.reverse_postorder() {
@@ -55,7 +60,9 @@ pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bo
             // NB: A load that traps carries an assertion about what it loaded, so it can only reuse
             //     a load that made the same assertion. Reusing a plain load would drop the check.
             let traps = function.instructions[instruction_id.0].effects.may_trap;
-            let forwarded_load = available_loads.iter().rev().find_map(|(load, loaded_location, value)| {
+            let key = location_key(function, &location);
+            let forwarded_load = available_loads.get(&key).into_iter().flatten().rev().find_map(
+                |(load, loaded_location, value)| {
                 ((!traps || function.instructions[load.0].effects.may_trap)
                     && dominates_instruction(&analysis, *load, *instruction_id)
                     && alias(function, loaded_location, location) == AliasResult::Must
@@ -78,7 +85,10 @@ pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bo
                 replacements.insert(result, value);
                 eliminated.insert(*instruction_id);
             } else {
-                available_loads.push((*instruction_id, location.clone(), result));
+                available_loads
+                    .entry(key)
+                    .or_default()
+                    .push((*instruction_id, location.clone(), result));
             }
         }
     }
