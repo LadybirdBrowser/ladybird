@@ -1573,7 +1573,7 @@ private:
     auto confirm_canceling_downloads = [&]() {
         if ([delegate tabCount] > 1)
             return true;
-        return [(Application*)NSApp confirmCancelActiveDownloads];
+        return [(Application*)NSApp confirmStopActiveDownloads];
     };
 
     if (![[[self tab] web_view] needsBeforeUnloadCheck]) {

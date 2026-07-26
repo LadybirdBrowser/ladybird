@@ -555,7 +555,7 @@ void Application::open_file()
 
 void Application::quit()
 {
-    if (!confirm_cancel_active_downloads(active_window_if_any()))
+    if (!confirm_stop_active_downloads(active_window_if_any()))
         return;
 
     QApplication::closeAllWindows();
@@ -568,26 +568,28 @@ void Application::quit()
     QApplication::quit();
 }
 
-bool Application::confirm_cancel_active_downloads(QWidget* parent)
+bool Application::confirm_stop_active_downloads(QWidget* parent)
 {
     auto& downloader = file_downloader();
-    if (!downloader.has_active_downloads())
-        return true;
 
-    QMessageBox dialog(parent ? parent : active_window_if_any());
-    dialog.setWindowTitle("Ladybird");
-    dialog.setIcon(QMessageBox::Warning);
-    dialog.setText("Downloads are still in progress.");
-    dialog.setInformativeText("Quitting will cancel active downloads.");
-    auto* quit_button = dialog.addButton("Quit and Cancel Downloads", QMessageBox::DestructiveRole);
-    dialog.addButton(QMessageBox::Cancel);
-    dialog.setDefaultButton(QMessageBox::Cancel);
-    dialog.exec();
+    if (downloader.has_unresumable_downloads()) {
+        QMessageBox dialog(parent ? parent : active_window_if_any());
+        dialog.setWindowTitle("Ladybird");
+        dialog.setIcon(QMessageBox::Warning);
+        dialog.setText("Downloads are still in progress.");
+        dialog.setInformativeText("Quitting will cancel downloads that cannot be resumed.");
+        auto* quit_button = dialog.addButton("Quit and Cancel Downloads", QMessageBox::DestructiveRole);
+        dialog.addButton(QMessageBox::Cancel);
+        dialog.setDefaultButton(QMessageBox::Cancel);
+        dialog.exec();
 
-    if (dialog.clickedButton() != quit_button)
-        return false;
+        if (dialog.clickedButton() != quit_button)
+            return false;
 
-    downloader.cancel_active_downloads();
+        downloader.cancel_unresumable_downloads();
+    }
+
+    downloader.pause_active_downloads();
     return true;
 }
 

@@ -794,7 +794,7 @@ bool BrowserWindow::activate_tab_with_url(URL::URL const& url)
 bool BrowserWindow::definitely_close_tab(int index)
 {
     if (m_tabs_container->count() == 1 && Application::the().file_downloader().has_active_downloads() && visible_browser_window_count() <= 1) {
-        if (!Application::the().confirm_cancel_active_downloads(this))
+        if (!Application::the().confirm_stop_active_downloads(this))
             return false;
     }
 
@@ -1580,7 +1580,7 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
 {
     if (Application::the().file_downloader().has_active_downloads()) {
         if (visible_browser_window_count() <= 1) {
-            if (!Application::the().confirm_cancel_active_downloads(this)) {
+            if (!Application::the().confirm_stop_active_downloads(this)) {
                 event->ignore();
                 return;
             }
