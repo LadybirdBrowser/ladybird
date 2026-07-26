@@ -236,8 +236,13 @@ fn lower_handler_internal(
     let preferred_order = schedule_blocks(function);
     let alternate_order = schedule_blocks_with_successor_order(function, false);
     let profile_order = schedule_blocks_by_profile(function);
-    let mut candidate_orders = vec![preferred_order.clone(), alternate_order, profile_order];
-    candidate_orders.dedup();
+    let mut candidate_orders = vec![preferred_order.clone()];
+    if alternate_order != preferred_order {
+        candidate_orders.push(alternate_order);
+    }
+    if !candidate_orders.contains(&profile_order) {
+        candidate_orders.push(profile_order);
+    }
     let lowered = lower_blocks(function, &folded_instructions, constants, preferred_order.clone())?;
     let mut selected = None;
     for order in candidate_orders {
@@ -253,7 +258,11 @@ fn lower_handler_internal(
         }
     }
     let selected_order = selected.expect("there is always a preferred block order").2;
-    let mut instructions = reorder_lowered_blocks(&lowered, &preferred_order, &selected_order)?;
+    let mut instructions = if selected_order == preferred_order {
+        lowered
+    } else {
+        reorder_lowered_blocks(&lowered, &preferred_order, &selected_order)?
+    };
     // Preserve the semantic exec_ctx value for targets that derive it from a
     // different pinned base. The dedicated instruction also exposes any
     // scratch register needed for that derivation to register allocation.
