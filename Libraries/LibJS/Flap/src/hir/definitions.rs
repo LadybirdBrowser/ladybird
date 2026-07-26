@@ -365,6 +365,7 @@ pub(crate) struct Body {
 pub(crate) struct InlineFunction {
     pub(crate) id: InlineFunctionId,
     pub(crate) name: String,
+    pub(crate) span: SourceSpan,
     pub(crate) parameters: Vec<VariableId>,
     pub(crate) return_type: Option<Type>,
     pub(crate) body: Body,
