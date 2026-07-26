@@ -40,6 +40,16 @@ pub(crate) struct VirtualRegisterId {
     index: u32,
 }
 
+impl VirtualRegisterId {
+    pub(crate) fn function(self) -> HandlerId {
+        self.function
+    }
+
+    pub(crate) fn index(self) -> u32 {
+        self.index
+    }
+}
+
 /// A virtual register and its non-semantic debug name.
 #[derive(Debug, Clone)]
 pub(crate) struct VirtualRegister {
@@ -440,42 +450,31 @@ fn visit_virtual_registers_mut(operand: &mut Operand, visit: &mut impl FnMut(&mu
     }
 }
 
-pub(crate) fn intern_virtual_registers(function: HandlerId, instructions: &mut [Instruction]) {
-    for instruction in instructions.iter_mut() {
-        for operand in &mut instruction.operands {
-            visit_virtual_registers_mut(operand, &mut |register| {
-                register.id = None;
-            });
-        }
-    }
-
+pub(crate) fn intern_virtual_registers(function: HandlerId, instructions: &mut [Instruction]) -> Vec<VirtualRegister> {
     // Number the registers in the order they first appear. The numbering only
     // has to be deterministic, and ordering by name means comparing strings
     // while sorting every register of a large function, which is among the
     // most expensive things the whole pipeline does.
-    let mut seen = HashMap::default();
-    let mut registers = Vec::new();
+    let mut ids = HashMap::default();
+    let mut interned_registers = Vec::new();
     for instruction in instructions.iter() {
         for operand in &instruction.operands {
             visit_virtual_registers(operand, &mut |register| {
-                if !seen.contains_key(register) {
-                    seen.insert(register.clone(), ());
-                    registers.push(register.clone());
+                assert!(register.id.is_none(), "virtual registers may only be interned once");
+                if !ids.contains_key(register) {
+                    let id = VirtualRegisterId {
+                        function,
+                        index: u32::try_from(interned_registers.len())
+                            .expect("one handler cannot contain more than u32::MAX virtual registers"),
+                    };
+                    let mut interned = register.clone();
+                    interned.id = Some(id);
+                    ids.insert(register.clone(), id);
+                    interned_registers.push(interned);
                 }
             });
         }
     }
-    let ids = registers
-        .into_iter()
-        .enumerate()
-        .map(|(index, register)| {
-            let id = VirtualRegisterId {
-                function,
-                index: u32::try_from(index).expect("one handler cannot contain more than u32::MAX virtual registers"),
-            };
-            (register, id)
-        })
-        .collect::<HashMap<_, _>>();
 
     for instruction in instructions {
         for operand in &mut instruction.operands {
@@ -484,6 +483,7 @@ pub(crate) fn intern_virtual_registers(function: HandlerId, instructions: &mut [
             });
         }
     }
+    interned_registers
 }
 
 #[derive(Debug, Clone)]
@@ -570,7 +570,7 @@ mod tests {
             ],
         }];
 
-        intern_virtual_registers(HandlerId::new(3), &mut instructions);
+        let registers = intern_virtual_registers(HandlerId::new(3), &mut instructions);
 
         let Operand::VirtualRegister(value) = &instructions[0].operands[0] else {
             unreachable!()
@@ -587,12 +587,6 @@ mod tests {
         assert_eq!(value.id(), base.id());
         assert_ne!(value.id(), index.id());
         assert!(value.id().is_some());
-
-        let original = value.id();
-        intern_virtual_registers(HandlerId::new(3), &mut instructions);
-        let Operand::VirtualRegister(value) = &instructions[0].operands[0] else {
-            unreachable!()
-        };
-        assert_eq!(value.id(), original);
+        assert_eq!(registers, [value.clone(), index.clone()]);
     }
 }
