@@ -61,6 +61,12 @@ struct TypedElseContinuation {
     body: Vec<Statement>,
 }
 
+#[derive(Clone)]
+struct TypeFacts {
+    known_null_pointers: HashSet<VariableId>,
+    known_integer_literals: HashSet<VariableId>,
+}
+
 struct Checker<'a> {
     filename: &'a str,
     signatures: &'a HashMap<String, Signature>,
@@ -128,6 +134,18 @@ impl<'a> Checker<'a> {
 
     fn lookup(&self, name: &str) -> Option<&Symbol> {
         self.scopes.iter().rev().find_map(|scope| scope.get(name))
+    }
+
+    fn type_facts(&self) -> TypeFacts {
+        TypeFacts {
+            known_null_pointers: self.known_null_pointers.clone(),
+            known_integer_literals: self.known_integer_literals.clone(),
+        }
+    }
+
+    fn restore_type_facts(&mut self, facts: TypeFacts) {
+        self.known_null_pointers = facts.known_null_pointers;
+        self.known_integer_literals = facts.known_integer_literals;
     }
 
     fn declare(
@@ -222,11 +240,13 @@ impl<'a> Checker<'a> {
     }
 
     fn check_scoped_block(&mut self, block: &ast::Block) -> Result<Vec<Statement>, Diagnostic> {
+        let facts = self.type_facts();
         self.scopes.push(HashMap::default());
         let start = self.statements.len();
         let result = self.check_block(block, false);
         let statements = self.statements.split_off(start);
         self.scopes.pop();
+        self.restore_type_facts(facts);
         result?;
         Ok(statements)
     }
@@ -359,6 +379,7 @@ impl<'a> Checker<'a> {
         block: &ast::Block,
         span: SourceSpan,
     ) -> Result<(Option<VariableId>, Vec<Statement>), Diagnostic> {
+        let facts = self.type_facts();
         self.scopes.push(HashMap::default());
         let binding = binding
             .map(|binding| self.declare(binding, ty, None, span))
@@ -367,6 +388,7 @@ impl<'a> Checker<'a> {
         let result = self.check_block(block, false);
         let statements = self.statements.split_off(start);
         self.scopes.pop();
+        self.restore_type_facts(facts);
         result?;
         Ok((binding, statements))
     }
@@ -379,12 +401,14 @@ impl<'a> Checker<'a> {
         expected: Option<&Type>,
         span: SourceSpan,
     ) -> Result<(Option<VariableId>, Vec<Statement>, Call), Diagnostic> {
+        let facts = self.type_facts();
         self.scopes.push(HashMap::default());
         let binding = binding
             .map(|binding| self.declare(binding, binding_type, None, span))
             .transpose()?;
         let result = self.check_value_block(block, expected);
         self.scopes.pop();
+        self.restore_type_facts(facts);
         result.map(|(statements, value)| (binding, statements, value))
     }
 
@@ -2214,19 +2238,23 @@ impl<'a> Checker<'a> {
             .value
             .as_ref()
             .expect("the parser requires a tail expression for value-producing blocks");
+        let facts = self.type_facts();
         self.scopes.push(HashMap::default());
         let start = self.statements.len();
-        self.check_block(block, false)?;
-        let mut value = self.check_initializer_with_expected(value, expected)?;
-        if value.intrinsic() == Some(Intrinsic::LowLevel(LowLevelOperation::Move))
-            && value.return_type == Some(Type::BytecodeOffset)
-            && matches!(value.arguments[0].kind, ValueKind::Variable(source) if self.bytecode_fields.contains(&source))
-        {
-            value.target = CallTarget::Intrinsic(Intrinsic::LowLevel(LowLevelOperation::LoadLabel));
-        }
+        let result = self.check_block(block, false).and_then(|()| {
+            let mut value = self.check_initializer_with_expected(value, expected)?;
+            if value.intrinsic() == Some(Intrinsic::LowLevel(LowLevelOperation::Move))
+                && value.return_type == Some(Type::BytecodeOffset)
+                && matches!(value.arguments[0].kind, ValueKind::Variable(source) if self.bytecode_fields.contains(&source))
+            {
+                value.target = CallTarget::Intrinsic(Intrinsic::LowLevel(LowLevelOperation::LoadLabel));
+            }
+            Ok(value)
+        });
         let statements = self.statements.split_off(start);
         self.scopes.pop();
-        Ok((statements, value))
+        self.restore_type_facts(facts);
+        Ok((statements, result?))
     }
 
     fn check_condition(&mut self, expression: &ast::Expression) -> Result<Condition, Diagnostic> {
@@ -4173,6 +4201,60 @@ handler StoreNull(address: u64) {
     }
 
     #[test]
+    fn rejects_null_binding_store_after_conditional_assignment() {
+        let layouts =
+            crate::frontend::layout::LayoutDatabase::parse("const SHAPE = 0\nfield Object.shape Shape SHAPE nonnull\n")
+                .unwrap();
+        let ast = parser::parse(
+            "test.flap",
+            r#"
+handler StoreNull(address: u64, flag: u32) {
+    let object: Object = alias(address);
+    let shape: Shape = null;
+    if load(flag) == 0 {
+        shape = object.shape;
+    } else {
+    }
+    object.shape = shape;
+    dispatch_next;
+}
+"#,
+        )
+        .unwrap();
+        let error = check_with_layouts("test.flap", &ast, layouts.fields()).unwrap_err();
+
+        assert!(
+            error
+                .message
+                .contains("cannot assign null to non-null field 'Object.shape'"),
+            "{}",
+            error.message
+        );
+    }
+
+    #[test]
+    fn accepts_reassigned_null_binding_store_to_nonnull_field() {
+        let layouts =
+            crate::frontend::layout::LayoutDatabase::parse("const SHAPE = 0\nfield Object.shape Shape SHAPE nonnull\n")
+                .unwrap();
+        let ast = parser::parse(
+            "test.flap",
+            r#"
+handler StoreShape(address: u64) {
+    let object: Object = alias(address);
+    let shape: Shape = null;
+    shape = object.shape;
+    object.shape = shape;
+    dispatch_next;
+}
+"#,
+        )
+        .unwrap();
+
+        check_with_layouts("test.flap", &ast, layouts.fields()).unwrap();
+    }
+
+    #[test]
     fn does_not_apply_pointer_nonzero_checks_to_byte_fields() {
         let layouts = crate::frontend::layout::LayoutDatabase::parse(
             "const FLAG = 0\nfield ExecutionContext.flag bool FLAG nonnull\n",
@@ -4250,6 +4332,35 @@ handler Box(dst: out Operand, value: bool) {
         rejects_aliasing_integer_literals_to_pointer_types,
         "handler Bad() { let raw: u64 = 1; let object: Object = alias(raw); dispatch_next; }",
         "cannot alias integer literal as Object"
+    );
+
+    rejects!(
+        rejects_aliasing_conditionally_assigned_integer_literals_to_pointer_types,
+        r#"
+handler Bad(address: u64, flag: u32) {
+    let raw: u64 = 1;
+    if load(flag) == 0 {
+        raw = address;
+    } else {
+    }
+    let object: Object = alias(raw);
+    dispatch_next;
+}
+"#,
+        "cannot alias integer literal as Object"
+    );
+
+    accepts!(
+        accepts_aliasing_reassigned_integer_variables_to_pointer_types,
+        r#"
+handler Good(address: u64) {
+    let raw: u64 = 1;
+    raw = address;
+    let object: Object = alias(raw);
+    assert_nonzero(object);
+    dispatch_next;
+}
+"#
     );
 
     accepts!(
