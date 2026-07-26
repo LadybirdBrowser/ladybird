@@ -206,6 +206,23 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
             })
             .collect::<HashMap<_, _>>();
 
+        // Follow each chain of jump-only blocks once, here, rather than once
+        // per branch that names its head.
+        let resolved = redirects
+            .keys()
+            .filter_map(|start| {
+                let mut visited = HashSet::new();
+                let mut target = start;
+                while visited.insert(target) {
+                    let Some(redirect) = redirects.get(target) else {
+                        break;
+                    };
+                    target = redirect;
+                }
+                (target != start).then(|| (start.clone(), target.clone()))
+            })
+            .collect::<HashMap<_, _>>();
+
         for block in &mut self.blocks {
             for instruction in &mut block.instructions {
                 if instruction.opcode.operation() == Operation::Label {
@@ -215,11 +232,7 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
                     let Some(target) = operand.label_mut() else {
                         continue;
                     };
-                    let mut visited = HashSet::new();
-                    while visited.insert(target.clone()) {
-                        let Some(redirect) = redirects.get(target) else {
-                            break;
-                        };
+                    if let Some(redirect) = resolved.get(target) {
                         *target = redirect.clone();
                     }
                 }
@@ -238,32 +251,54 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
             *references.entry(label.clone()).or_default() += 1;
         }
 
+        let mut removed = vec![false; self.blocks.len()];
         loop {
-            let removable_block = self.blocks.iter().enumerate().find_map(|(index, block)| {
-                let [label, jump] = block.instructions.as_slice() else {
-                    return None;
-                };
-                let label = defined_label(label)?;
-                let previous = index.checked_sub(1).and_then(|index| self.blocks.get(index))?;
-                let previous_is_terminal = previous
-                    .instructions
-                    .last()
-                    .is_some_and(|instruction| instruction.opcode.description().terminal);
-                (jump.opcode.operation() == Operation::Control(ControlOperation::JumpLabel)
-                    && previous_is_terminal
-                    && references.get(label).copied().unwrap_or_default() == 0)
-                    .then_some(index)
-            });
-            let Some(index) = removable_block else {
-                break;
-            };
-            let removed = self.blocks.remove(index);
-            for label in block_label_references(std::slice::from_ref(&removed)) {
-                if let Some(count) = references.get_mut(label) {
-                    *count -= 1;
+            let mut removed_any = false;
+            let mut previous: Option<usize> = None;
+            for index in 0..self.blocks.len() {
+                if removed[index] {
+                    continue;
+                }
+                let removable = (|| {
+                    let block = &self.blocks[index];
+                    let [label, jump] = block.instructions.as_slice() else {
+                        return false;
+                    };
+                    let Some(label) = defined_label(label) else {
+                        return false;
+                    };
+                    let Some(previous) = previous else {
+                        return false;
+                    };
+                    let previous_is_terminal = self.blocks[previous]
+                        .instructions
+                        .last()
+                        .is_some_and(|instruction| instruction.opcode.description().terminal);
+                    jump.opcode.operation() == Operation::Control(ControlOperation::JumpLabel)
+                        && previous_is_terminal
+                        && references.get(label).copied().unwrap_or_default() == 0
+                })();
+                if !removable {
+                    previous = Some(index);
+                    continue;
+                }
+                removed[index] = true;
+                removed_any = true;
+                for label in block_label_references(std::slice::from_ref(&self.blocks[index])) {
+                    if let Some(count) = references.get_mut(label) {
+                        *count -= 1;
+                    }
                 }
             }
+            if !removed_any {
+                break;
+            }
         }
+        let mut index = 0;
+        self.blocks.retain(|_| {
+            index += 1;
+            !removed[index - 1]
+        });
         self.rebuild_successors();
     }
 
@@ -272,10 +307,10 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
             return;
         }
 
-        let mut reachable = HashSet::new();
+        let mut reachable = vec![false; self.blocks.len()];
         let mut pending = vec![BlockId(0)];
         while let Some(block) = pending.pop() {
-            if !reachable.insert(block) {
+            if std::mem::replace(&mut reachable[block.0], true) {
                 continue;
             }
             pending.extend(self.blocks[block.0].successors.iter().map(|edge| edge.target));
@@ -283,7 +318,7 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
 
         let mut index = 0usize;
         self.blocks.retain(|_| {
-            let keep = reachable.contains(&BlockId(index));
+            let keep = reachable[index];
             index += 1;
             keep
         });
@@ -479,38 +514,46 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
     }
 
     fn rebuild_successors(&mut self) {
-        let labels = self
-            .blocks
-            .iter()
-            .enumerate()
-            .filter_map(|(index, block)| {
-                block
-                    .instructions
-                    .first()
-                    .and_then(defined_label)
-                    .map(|label| (label.clone(), BlockId(index)))
-            })
-            .collect::<HashMap<_, _>>();
-
-        for block_index in 0..self.blocks.len() {
-            let (branch_targets, terminal) = {
-                let last_instruction = self.blocks[block_index]
-                    .instructions
-                    .last()
-                    .expect("basic block must contain an instruction");
-                let branch_targets = if last_instruction.opcode.operation() == Operation::Label {
-                    Vec::new()
-                } else {
-                    last_instruction
+        // Successors are recomputed after every graph edit, so the label index
+        // borrows the labels rather than cloning each one. A large function
+        // has a label per block, and the strings are not small.
+        let edges = {
+            let labels = self
+                .blocks
+                .iter()
+                .enumerate()
+                .filter_map(|(index, block)| {
+                    block
+                        .instructions
+                        .first()
+                        .and_then(defined_label)
+                        .map(|label| (label, BlockId(index)))
+                })
+                .collect::<HashMap<_, _>>();
+            self.blocks
+                .iter()
+                .map(|block| {
+                    let last_instruction = block
+                        .instructions
+                        .last()
+                        .expect("basic block must contain an instruction");
+                    let terminal = last_instruction.opcode.description().terminal;
+                    if last_instruction.opcode.operation() == Operation::Label {
+                        return (Vec::new(), terminal);
+                    }
+                    let targets = last_instruction
                         .operands
                         .iter()
                         .filter_map(ControlFlowOperand::label)
                         .filter_map(|label| labels.get(label).copied())
-                        .collect()
-                };
-                let terminal = last_instruction.opcode.description().terminal;
-                (branch_targets, terminal)
-            };
+                        .collect();
+                    (targets, terminal)
+                })
+                .collect::<Vec<_>>()
+        };
+
+        for block_index in 0..self.blocks.len() {
+            let (branch_targets, terminal) = edges[block_index].clone();
 
             let has_fallthrough = !terminal && block_index + 1 < self.blocks.len();
             let block = &mut self.blocks[block_index];
