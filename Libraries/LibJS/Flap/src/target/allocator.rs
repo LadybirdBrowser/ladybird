@@ -86,7 +86,7 @@ fn merge_into(into: &mut LiveSet, source: &[u32]) {
     into.dedup();
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 struct UseDef {
     uses: Vec<u32>,
     defs: Vec<u32>,
@@ -95,18 +95,14 @@ struct UseDef {
 
 impl UseDef {
     fn use_register(&mut self, register: u32) {
-        if !self.uses.contains(&register) {
-            self.uses.push(register);
-        }
+        self.uses.push(register);
     }
 
     fn define_operand(&mut self, operand: &Operand, names: &Names, architecture: Architecture) {
         match operand {
             Operand::VirtualRegister(register) => {
                 let register = names.index(register);
-                if !self.defs.contains(&register) {
-                    self.defs.push(register);
-                }
+                self.defs.push(register);
             }
             Operand::InterpreterRegister(register) => {
                 if let Some(register) = resolve_interpreter_register(*register, architecture) {
@@ -118,6 +114,13 @@ impl UseDef {
             }
             _ => {}
         }
+    }
+
+    fn normalize(&mut self) {
+        self.uses.sort_unstable();
+        self.uses.dedup();
+        self.defs.sort_unstable();
+        self.defs.dedup();
     }
 }
 
@@ -152,6 +155,7 @@ impl<'a> Names<'a> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Liveness {
     live_in: Vec<LiveSet>,
     live_out: Vec<LiveSet>,
@@ -348,6 +352,40 @@ fn compute_liveness(
         .iter()
         .map(|insn| analyze_instruction(insn, names, arch))
         .collect::<Vec<_>>();
+    let liveness = solve_liveness(use_def, successors);
+
+    // Sanity-check: a virtual register must be defined before its first use
+    // along every path. We catch the simplest case: no virtual register may
+    // be live at handler entry.
+    if let Some(register) = liveness.live_in[0].first().copied() {
+        // Walk forward and find the first instruction that pulls this
+        // virtual register into its live-in without having defined it
+        // yet, so the error points at the actual problem.
+        let mut culprit = String::from("(unknown)");
+        for (i, ud) in liveness.use_def.iter().enumerate() {
+            if ud.uses.binary_search(&register).is_ok() && ud.defs.binary_search(&register).is_err() {
+                culprit = format!("instruction #{i}: {:?}", instructions[i]);
+                break;
+            }
+        }
+        let register = names.name(register);
+        return Err(allocation_error(
+            handler_name,
+            format!(
+                "virtual register '{register}' is used before being assigned (live at handler entry); first use: {culprit}"
+            ),
+        ));
+    }
+
+    Ok(liveness)
+}
+
+fn solve_liveness(mut use_def: Vec<UseDef>, successors: &[Vec<usize>]) -> Liveness {
+    let n = use_def.len();
+    assert_eq!(successors.len(), n);
+    for use_def in &mut use_def {
+        use_def.normalize();
+    }
     let mut predecessors = vec![Vec::new(); n];
     for (instruction, successors) in successors.iter().enumerate() {
         for successor in successors {
@@ -377,7 +415,7 @@ fn compute_liveness(
             next_out
                 .iter()
                 .copied()
-                .filter(|live| !use_def[instruction].defs.contains(live)),
+                .filter(|live| use_def[instruction].defs.binary_search(live).is_err()),
         );
         if !use_def[instruction].uses.is_empty() {
             merge_into(&mut next_in, &use_def[instruction].uses);
@@ -397,36 +435,11 @@ fn compute_liveness(
             }
         }
     }
-    let liveness = Liveness {
+    Liveness {
         live_in,
         live_out,
         use_def,
-    };
-
-    // Sanity-check: a virtual register must be defined before its first use
-    // along every path. We catch the simplest case: no virtual register may
-    // be live at handler entry.
-    if let Some(register) = liveness.live_in[0].first().copied() {
-        // Walk forward and find the first instruction that pulls this
-        // virtual register into its live-in without having defined it
-        // yet, so the error points at the actual problem.
-        let mut culprit = String::from("(unknown)");
-        for (i, ud) in liveness.use_def.iter().enumerate() {
-            if ud.uses.contains(&register) && !ud.defs.contains(&register) {
-                culprit = format!("instruction #{i}: {:?}", instructions[i]);
-                break;
-            }
-        }
-        let register = names.name(register);
-        return Err(allocation_error(
-            handler_name,
-            format!(
-                "virtual register '{register}' is used before being assigned (live at handler entry); first use: {culprit}"
-            ),
-        ));
     }
-
-    Ok(liveness)
 }
 
 fn build_interference(liveness: &Liveness, count: usize) -> InterferenceGraph {
@@ -471,7 +484,7 @@ fn build_interference(liveness: &Liveness, count: usize) -> InterferenceGraph {
         // live before it too, so the live-out set names exactly those.
         if use_def.clobbers != 0 {
             for register in live_out {
-                if use_def.defs.contains(register) {
+                if use_def.defs.binary_search(register).is_ok() {
                     continue;
                 }
                 graph.nodes[*register as usize].forbidden |= use_def.clobbers;
@@ -1785,6 +1798,101 @@ mod tests {
             for neighbor in interference.neighbors(register) {
                 assert_ne!(plan.0[*neighbor as usize], Some(physical));
             }
+        }
+    }
+
+    #[test]
+    fn liveness_normalizes_register_sets_before_solving() {
+        let liveness = solve_liveness(
+            vec![UseDef {
+                uses: vec![2, 0, 2, 1],
+                defs: vec![4, 3, 4],
+                clobbers: 0,
+            }],
+            &[Vec::new()],
+        );
+
+        assert_eq!(liveness.use_def[0].uses, [0, 1, 2]);
+        assert_eq!(liveness.use_def[0].defs, [3, 4]);
+        assert_eq!(liveness.live_in[0], [0, 1, 2]);
+    }
+
+    fn reference_liveness(use_def: Vec<UseDef>, successors: &[Vec<usize>]) -> Liveness {
+        let mut live_in = vec![LiveSet::new(); use_def.len()];
+        let mut live_out = vec![LiveSet::new(); use_def.len()];
+        loop {
+            let mut changed = false;
+            for instruction in (0..use_def.len()).rev() {
+                let mut next_out = successors[instruction]
+                    .iter()
+                    .flat_map(|successor| live_in[*successor].iter().copied())
+                    .collect::<LiveSet>();
+                next_out.sort_unstable();
+                next_out.dedup();
+
+                let mut next_in = use_def[instruction].uses.clone();
+                next_in.extend(
+                    next_out
+                        .iter()
+                        .copied()
+                        .filter(|register| !use_def[instruction].defs.contains(register)),
+                );
+                next_in.sort_unstable();
+                next_in.dedup();
+                changed |= live_in[instruction] != next_in || live_out[instruction] != next_out;
+                live_in[instruction] = next_in;
+                live_out[instruction] = next_out;
+            }
+            if !changed {
+                return Liveness {
+                    live_in,
+                    live_out,
+                    use_def,
+                };
+            }
+        }
+    }
+
+    #[test]
+    fn liveness_matches_reference_solver_on_random_cfgs() {
+        let mut random_state = 0x6a09e667f3bcc909u64;
+        let mut random = || {
+            random_state = random_state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            random_state
+        };
+
+        for _ in 0..250 {
+            let instruction_count = (random() % 20 + 1) as usize;
+            let register_count = (random() % 12 + 1) as u32;
+            let mut use_def = Vec::with_capacity(instruction_count);
+            for _ in 0..instruction_count {
+                let mut instruction = UseDef::default();
+                for register in 0..register_count {
+                    if random() % 5 == 0 {
+                        instruction.uses.push(register);
+                    }
+                    if random() % 7 == 0 {
+                        instruction.defs.push(register);
+                    }
+                }
+                use_def.push(instruction);
+            }
+
+            let mut successors = vec![Vec::new(); instruction_count];
+            for instruction_successors in &mut successors {
+                for successor in 0..instruction_count {
+                    if random() % 9 == 0 {
+                        instruction_successors.push(successor);
+                    }
+                }
+            }
+
+            assert_eq!(
+                solve_liveness(use_def.clone(), &successors),
+                reference_liveness(use_def, &successors)
+            );
         }
     }
 
